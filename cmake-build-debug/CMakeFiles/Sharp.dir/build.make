@@ -34,19 +34,19 @@ cmake_force:
 SHELL = /bin/sh
 
 # The CMake executable.
-CMAKE_COMMAND = /cygdrive/c/Users/bknun/.CLion2016.3/system/cygwin_cmake/bin/cmake.exe
+CMAKE_COMMAND = /cygdrive/c/Users/BraxtonN/.CLion2016.3/system/cygwin_cmake/bin/cmake.exe
 
 # The command to remove a file.
-RM = /cygdrive/c/Users/bknun/.CLion2016.3/system/cygwin_cmake/bin/cmake.exe -E remove -f
+RM = /cygdrive/c/Users/BraxtonN/.CLion2016.3/system/cygwin_cmake/bin/cmake.exe -E remove -f
 
 # Escaping for special characters.
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /cygdrive/c/Users/bknun/Documents/CLion/Sharp
+CMAKE_SOURCE_DIR = /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /cygdrive/c/Users/bknun/Documents/CLion/Sharp/cmake-build-debug
+CMAKE_BINARY_DIR = /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug
 
 # Include any dependencies generated for this target.
 include CMakeFiles/Sharp.dir/depend.make
@@ -59,16 +59,16 @@ include CMakeFiles/Sharp.dir/flags.make
 
 CMakeFiles/Sharp.dir/main.cpp.o: CMakeFiles/Sharp.dir/flags.make
 CMakeFiles/Sharp.dir/main.cpp.o: ../main.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/bknun/Documents/CLion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/Sharp.dir/main.cpp.o"
-	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/main.cpp.o -c /cygdrive/c/Users/bknun/Documents/CLion/Sharp/main.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/Sharp.dir/main.cpp.o"
+	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/main.cpp.o -c /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/main.cpp
 
 CMakeFiles/Sharp.dir/main.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/Sharp.dir/main.cpp.i"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/bknun/Documents/CLion/Sharp/main.cpp > CMakeFiles/Sharp.dir/main.cpp.i
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/main.cpp > CMakeFiles/Sharp.dir/main.cpp.i
 
 CMakeFiles/Sharp.dir/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/Sharp.dir/main.cpp.s"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/bknun/Documents/CLion/Sharp/main.cpp -o CMakeFiles/Sharp.dir/main.cpp.s
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/main.cpp -o CMakeFiles/Sharp.dir/main.cpp.s
 
 CMakeFiles/Sharp.dir/main.cpp.o.requires:
 
@@ -83,16 +83,16 @@ CMakeFiles/Sharp.dir/main.cpp.o.provides.build: CMakeFiles/Sharp.dir/main.cpp.o
 
 CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.o: CMakeFiles/Sharp.dir/flags.make
 CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.o: ../lib/parser/tokenizer/tokenentity.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/bknun/Documents/CLion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.o"
-	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.o -c /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/tokenizer/tokenentity.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.o"
+	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.o -c /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/tokenizer/tokenentity.cpp
 
 CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.i"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/tokenizer/tokenentity.cpp > CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.i
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/tokenizer/tokenentity.cpp > CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.i
 
 CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.s"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/tokenizer/tokenentity.cpp -o CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.s
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/tokenizer/tokenentity.cpp -o CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.s
 
 CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.o.requires:
 
@@ -107,16 +107,16 @@ CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenentity.cpp.o.provides.build: CMak
 
 CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.o: CMakeFiles/Sharp.dir/flags.make
 CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.o: ../lib/parser/tokenizer/tokenizer.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/bknun/Documents/CLion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.o"
-	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.o -c /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/tokenizer/tokenizer.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.o"
+	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.o -c /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/tokenizer/tokenizer.cpp
 
 CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.i"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/tokenizer/tokenizer.cpp > CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.i
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/tokenizer/tokenizer.cpp > CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.i
 
 CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.s"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/tokenizer/tokenizer.cpp -o CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.s
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/tokenizer/tokenizer.cpp -o CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.s
 
 CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.o.requires:
 
@@ -131,16 +131,16 @@ CMakeFiles/Sharp.dir/lib/parser/tokenizer/tokenizer.cpp.o.provides.build: CMakeF
 
 CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.o: CMakeFiles/Sharp.dir/flags.make
 CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.o: ../lib/parser/parseerrors.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/bknun/Documents/CLion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.o"
-	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.o -c /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/parseerrors.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.o"
+	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.o -c /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/parseerrors.cpp
 
 CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.i"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/parseerrors.cpp > CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.i
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/parseerrors.cpp > CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.i
 
 CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.s"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/parseerrors.cpp -o CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.s
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/parseerrors.cpp -o CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.s
 
 CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.o.requires:
 
@@ -155,16 +155,16 @@ CMakeFiles/Sharp.dir/lib/parser/parseerrors.cpp.o.provides.build: CMakeFiles/Sha
 
 CMakeFiles/Sharp.dir/lib/parser/ast.cpp.o: CMakeFiles/Sharp.dir/flags.make
 CMakeFiles/Sharp.dir/lib/parser/ast.cpp.o: ../lib/parser/ast.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/bknun/Documents/CLion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/Sharp.dir/lib/parser/ast.cpp.o"
-	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/lib/parser/ast.cpp.o -c /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/ast.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/Sharp.dir/lib/parser/ast.cpp.o"
+	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/lib/parser/ast.cpp.o -c /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/ast.cpp
 
 CMakeFiles/Sharp.dir/lib/parser/ast.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/Sharp.dir/lib/parser/ast.cpp.i"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/ast.cpp > CMakeFiles/Sharp.dir/lib/parser/ast.cpp.i
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/ast.cpp > CMakeFiles/Sharp.dir/lib/parser/ast.cpp.i
 
 CMakeFiles/Sharp.dir/lib/parser/ast.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/Sharp.dir/lib/parser/ast.cpp.s"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/ast.cpp -o CMakeFiles/Sharp.dir/lib/parser/ast.cpp.s
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/ast.cpp -o CMakeFiles/Sharp.dir/lib/parser/ast.cpp.s
 
 CMakeFiles/Sharp.dir/lib/parser/ast.cpp.o.requires:
 
@@ -179,16 +179,16 @@ CMakeFiles/Sharp.dir/lib/parser/ast.cpp.o.provides.build: CMakeFiles/Sharp.dir/l
 
 CMakeFiles/Sharp.dir/lib/parser/parser.cpp.o: CMakeFiles/Sharp.dir/flags.make
 CMakeFiles/Sharp.dir/lib/parser/parser.cpp.o: ../lib/parser/parser.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/bknun/Documents/CLion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/Sharp.dir/lib/parser/parser.cpp.o"
-	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/lib/parser/parser.cpp.o -c /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/parser.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/Sharp.dir/lib/parser/parser.cpp.o"
+	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/lib/parser/parser.cpp.o -c /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/parser.cpp
 
 CMakeFiles/Sharp.dir/lib/parser/parser.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/Sharp.dir/lib/parser/parser.cpp.i"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/parser.cpp > CMakeFiles/Sharp.dir/lib/parser/parser.cpp.i
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/parser.cpp > CMakeFiles/Sharp.dir/lib/parser/parser.cpp.i
 
 CMakeFiles/Sharp.dir/lib/parser/parser.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/Sharp.dir/lib/parser/parser.cpp.s"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/parser/parser.cpp -o CMakeFiles/Sharp.dir/lib/parser/parser.cpp.s
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/parser/parser.cpp -o CMakeFiles/Sharp.dir/lib/parser/parser.cpp.s
 
 CMakeFiles/Sharp.dir/lib/parser/parser.cpp.o.requires:
 
@@ -203,16 +203,16 @@ CMakeFiles/Sharp.dir/lib/parser/parser.cpp.o.provides.build: CMakeFiles/Sharp.di
 
 CMakeFiles/Sharp.dir/lib/util/file.cpp.o: CMakeFiles/Sharp.dir/flags.make
 CMakeFiles/Sharp.dir/lib/util/file.cpp.o: ../lib/util/file.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/bknun/Documents/CLion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/Sharp.dir/lib/util/file.cpp.o"
-	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/lib/util/file.cpp.o -c /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/util/file.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/Sharp.dir/lib/util/file.cpp.o"
+	/usr/bin/c++.exe   $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Sharp.dir/lib/util/file.cpp.o -c /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/util/file.cpp
 
 CMakeFiles/Sharp.dir/lib/util/file.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/Sharp.dir/lib/util/file.cpp.i"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/util/file.cpp > CMakeFiles/Sharp.dir/lib/util/file.cpp.i
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/util/file.cpp > CMakeFiles/Sharp.dir/lib/util/file.cpp.i
 
 CMakeFiles/Sharp.dir/lib/util/file.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/Sharp.dir/lib/util/file.cpp.s"
-	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/bknun/Documents/CLion/Sharp/lib/util/file.cpp -o CMakeFiles/Sharp.dir/lib/util/file.cpp.s
+	/usr/bin/c++.exe  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/lib/util/file.cpp -o CMakeFiles/Sharp.dir/lib/util/file.cpp.s
 
 CMakeFiles/Sharp.dir/lib/util/file.cpp.o.requires:
 
@@ -247,7 +247,7 @@ Sharp.exe: CMakeFiles/Sharp.dir/lib/parser/parser.cpp.o
 Sharp.exe: CMakeFiles/Sharp.dir/lib/util/file.cpp.o
 Sharp.exe: CMakeFiles/Sharp.dir/build.make
 Sharp.exe: CMakeFiles/Sharp.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/cygdrive/c/Users/bknun/Documents/CLion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Linking CXX executable Sharp.exe"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Linking CXX executable Sharp.exe"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/Sharp.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
@@ -270,6 +270,6 @@ CMakeFiles/Sharp.dir/clean:
 .PHONY : CMakeFiles/Sharp.dir/clean
 
 CMakeFiles/Sharp.dir/depend:
-	cd /cygdrive/c/Users/bknun/Documents/CLion/Sharp/cmake-build-debug && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /cygdrive/c/Users/bknun/Documents/CLion/Sharp /cygdrive/c/Users/bknun/Documents/CLion/Sharp /cygdrive/c/Users/bknun/Documents/CLion/Sharp/cmake-build-debug /cygdrive/c/Users/bknun/Documents/CLion/Sharp/cmake-build-debug /cygdrive/c/Users/bknun/Documents/CLion/Sharp/cmake-build-debug/CMakeFiles/Sharp.dir/DependInfo.cmake --color=$(COLOR)
+	cd /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug /cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug/CMakeFiles/Sharp.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/Sharp.dir/depend
 

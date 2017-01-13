@@ -56,23 +56,28 @@ string Errors::getall_errors() {
     return errorlist.str();
 }
 
-void Errors::newerror(p_errors err, token_entity token, string xcmts) {
+int Errors::newerror(p_errors err, token_entity token, string xcmts) {
     keypair<p_errors, string> kp = geterrorbyid(err);
     parseerror e(kp, token, xcmts);
 
-    if(lasterr.error != e.error && !(lasterr.line == e.line && lasterr.col == e.col))
+    if(lasterr.error != e.error && !(lasterr.line == e.line && lasterr.col == e.col)&&
+            (lasterr.error.find(xcmts) == std::string::npos))
     {
         _err = true;
         errors->push_back(e);
         lasterr = e;
+        return 1;
     }
+
+    return 0;
 }
 
 void Errors::newerror(p_errors err, int l, int c, string xcmts) {
     keypair<p_errors, string> kp = geterrorbyid(err);
     parseerror e(kp, l,c, xcmts);
 
-    if(lasterr.error != e.error && !(lasterr.line == l && lasterr.col == c))
+    if(lasterr.error != e.error && !(lasterr.line == l && lasterr.col == c) &&
+            (lasterr.error.find(xcmts) == std::string::npos))
     {
         _err = true;
         errors->push_back(e);
@@ -81,7 +86,10 @@ void Errors::newerror(p_errors err, int l, int c, string xcmts) {
 }
 
 string Errors::getline(int line) {
-    return *std::next(lines->begin(), line-1);
+    if((line-1) >= lines->size())
+        return "End of File";
+    else
+        return *std::next(lines->begin(), line-1);
 }
 
 keypair<p_errors, string> Errors::geterrorbyid(p_errors err) {

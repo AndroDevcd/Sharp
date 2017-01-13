@@ -32,7 +32,7 @@ Errors* parser::geterrors()
 }
 
 bool parser::isend() {
-    return cursor >= toks->getentitycount();
+    return current().gettokentype() == _EOF;
 }
 
 void parser::eval(ast* _ast) {
@@ -126,7 +126,11 @@ token_entity parser::current()
 
 void parser::advance()
 {
-    _current = &(*std::next(toks->getentities()->begin(), ++cursor));
+    if((cursor+1)>=toks->getentitycount())
+        *_current =*toks->EOF_token;
+    else
+        _current = &(*std::next(toks->getentities()->begin()
+                , ++cursor));
 }
 
 token_entity parser::peek(int forward)
@@ -276,11 +280,11 @@ void parser::parse_classblock(ast *pAst) {
     expect(LEFTCURLY, "`{` after class declaration");
     pAst = get_ast(pAst, ast_block);
 
-    advance();
     int brackets = 1;
 
     while(!isend() && brackets > 0)
     {
+        advance();
         if(isaccess_decl(current()))
         {
             parse_accesstypes();
@@ -314,6 +318,11 @@ void parser::parse_classblock(ast *pAst) {
         {
             parse_methoddecl(pAst);
         }
+        else if(current().gettokentype() == _EOF)
+        {
+            errors->newerror(UNEXPECTED_EOF, current());
+            break;
+        }
         else if (current().gettokentype() == RIGHTCURLY)
         {
             if((brackets-1) < 0)
@@ -326,24 +335,28 @@ void parser::parse_classblock(ast *pAst) {
 
                 // end of class block
                 if(brackets == 0)
+                {
+                    pushback();
                     break;
+                }
             }
         }
         else if(current().gettokentype() == LEFTCURLY)
             brackets++;
         else {
-            errors->newerror(GENERIC, current(), "expected method, class, or variable declaration");
+            if(!errors->newerror(GENERIC, current(), "expected method, class, or variable declaration"))
+            {
+                parse_all(pAst);
+            }
             // parse secondary entities
         }
 
-        advance();
         remove_accesstypes();
     }
 
     if(brackets != 0)
         errors->newerror(GENERIC, current(), "expected `}` at end of class declaration");
 
-    pushback();
     expect(RIGHTCURLY, "`}` at end of class declaration");
 }
 
@@ -418,7 +431,6 @@ void parser::parse_value(ast *pAst) {
 
 void parser::parse_methoddecl(ast *pAst) {
     pAst = get_ast(pAst, ast_method_inv);
-    bool complained = false;
 
     for(token_entity &entity : *access_types)
     {
@@ -439,13 +451,13 @@ void parser::parse_methodparams(ast* pAst) {
     pAst = get_ast(pAst, ast_method_params);
 
     expect(LEFTPAREN, pAst, "`(`");
-    advance();
 
     int brackets = 1, errs = 3;
     bool comma = false, first = true;
 
     while (!isend() && brackets > 0)
     {
+        advance();
         if(current().getid() == IDENTIFIER)
         {
             if(!comma && !first)
@@ -454,7 +466,6 @@ void parser::parse_methodparams(ast* pAst) {
                 first = false;
 
             pAst->add_entity(current());
-            // parameter
             if(!expectidentifier(pAst))
             {
                 pushback();
@@ -489,16 +500,19 @@ void parser::parse_methodparams(ast* pAst) {
 
                 // end of class block
                 if(brackets == 0)
+                {
+                    pushback();
                     break;
+                }
             }
         }
         else {
-            errs--;
+            errs -= errors->newerror(UNEXPECTED_SYMBOL, current(), "`" + current().gettoken() + "`" + " expected identifier");
 
-            errors->newerror(UNEXPECTED_SYMBOL, current(), "`" + current().gettoken() + "`" + " expected identifier");
+            if(errs < 0)
+                break;
         }
 
-        advance();
         remove_accesstypes();
     }
 
@@ -509,7 +523,6 @@ void parser::parse_methodparams(ast* pAst) {
     if(brackets != 0)
         errors->newerror(GENERIC, current(), "expected `)` at end of method args");
 
-    pushback();
     expect(RIGHTPAREN, pAst, "`)`");
     cout << "parsed method declaration" << endl;
 }
@@ -517,12 +530,13 @@ void parser::parse_methodparams(ast* pAst) {
 void parser::parse_methodblock(ast *pAst) {
     expect(LEFTCURLY, "`{` after method declaration");
     pAst = get_ast(pAst, ast_block);
+    ast *ref = pAst;
 
-    advance();
     int brackets = 1;
 
     while(!isend() && brackets > 0)
     {
+        advance();
         if(isreturn_stmnt(current()))
         {
             parse_returnstmnt(pAst);
@@ -533,8 +547,7 @@ void parser::parse_methodblock(ast *pAst) {
         }
         else if (current().gettokentype() == RIGHTCURLY)
         {
-            pAst->add_entity(current());
-
+            pAst = pAst->getparent() == NULL ? ref : pAst->getparent();
             if((brackets-1) < 0)
             {
                 errors->newerror(ILLEGAL_BRACKET_MISMATCH, current());
@@ -543,28 +556,35 @@ void parser::parse_methodblock(ast *pAst) {
             {
                 brackets--;
 
-                // end of class block
+                // end of method block
                 if(brackets == 0)
+                {
+                    pushback();
                     break;
+                }
             }
         }
         else if(current().gettokentype() == LEFTCURLY)
         {
-            pAst->add_entity(current());
+            pAst = get_ast(pAst, ast_block);
             brackets++;
+        }
+        else if(current().gettokentype() == _EOF)
+        {
+            errors->newerror(UNEXPECTED_EOF, current());
+            break;
         }
         else if(issemicolon(current())){}
         else {
             errors->newerror(UNEXPECTED_SYMBOL, current(), " expected statement");
         }
-        advance();
+
         remove_accesstypes();
     }
 
     if(brackets != 0)
         errors->newerror(GENERIC, current(), "expected `}` at end of method declaration");
 
-    pushback();
     expect(RIGHTCURLY, "`}` at end of method declaration");
 }
 

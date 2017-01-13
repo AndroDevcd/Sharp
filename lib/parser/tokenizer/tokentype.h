@@ -43,6 +43,7 @@ enum token_type
     OR,
     NOT, // !
     ASSIGN, // =
+    _EOF, // end of file
 
     NONE // not a type
 };

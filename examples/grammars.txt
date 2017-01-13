@@ -66,7 +66,7 @@ Class Declaration:
 `[<accesstype>] class <identifier = name> {}`
 
 Method Declaration:
-`[<accesstype>] function <identifier = name> ([<typeidentifier> <identifier = name>,...]) [: <typeidentifier>] {}`
+`[<accesstype>] function <identifier = name> ([<typeidentifier> <identifier = name>,...]) [: <typeidentifier>] { <statement>* }`
 
 Variable Declaration:
 `[<accesstype>] <typeidentifier> <identifier = name> [ = <value>] ;`
@@ -80,3 +80,6 @@ Method Invocation:
 <return-statement>:
 `return <value>` ;
 
+<statement>:
+    <return-statement> |
+    <variable-declaration>

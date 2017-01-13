@@ -27,6 +27,12 @@ void tokenizer::parse()
     {
         scan();
     }
+
+    if(!errors->_errs())
+    {
+        EOF_token = new token_entity("", SINGLE, 0, line, _EOF);
+        entites->push_back(*EOF_token);
+    }
 }
 
 

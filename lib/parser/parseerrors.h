@@ -22,6 +22,8 @@ enum p_errors
     GENERIC = 7,
     ILLEGAL_ACCESS_DECLARATION = 8,
     ILLEGAL_BRACKET_MISMATCH = 9,
+
+    NO_ERR = 999
 };
 
 static list<keypair<p_errors, string>> predefined_errs;
@@ -64,10 +66,13 @@ public:
             lines(lines)
     {
         errors = new list<parseerror>();
+        lasterr.col = 0;
+        lasterr.error = "";
+        lasterr.id = NO_ERR;
     }
 
     string getall_errors();
-    void newerror(p_errors err, token_entity token, string xcmts = "");
+    int newerror(p_errors err, token_entity token, string xcmts = "");
     void newerror(p_errors err, int l, int c, string xcmts = "");
     bool _errs();
 

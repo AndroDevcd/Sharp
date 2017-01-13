@@ -31,6 +31,7 @@ public:
     Errors* geterrors();
     list<string>* getlines();
 
+    token_entity* EOF_token;
 private:
     void parse();
     void parse_lines();

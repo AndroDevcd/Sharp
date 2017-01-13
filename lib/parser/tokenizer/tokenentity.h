@@ -50,6 +50,15 @@ public:
         return this->id == id;
     }
 
+    void operator=(const token_entity& entity)
+    {
+        tok = entity.tok;
+        line = entity.line;
+        col = entity.col;
+        id = entity.id;
+        type = entity.type;
+    }
+
     bool operator!=(const token_type& ty)
     {
         return this->type == ty;
@@ -57,18 +66,18 @@ public:
 
     token_entity_id getid();
     void setid(token_entity_id id);
-    string gettoken()const;
-    int getcolumn()const;
-    int getline()const;
+    string gettoken();
+    int getcolumn();
+    int getline();
     bool issingle();
-    token_type gettokentype()const;
+    token_type gettokentype();
 
 private:
-    const int line;
-    const int col;
+    int line;
+    int col;
     token_entity_id id;
-    const token_type type;
-    const string tok;
+    token_type type;
+    string tok;
 };
 
 class entity_group
