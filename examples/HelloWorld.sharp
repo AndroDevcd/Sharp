@@ -1,0 +1,13 @@
+mod examples;
+
+import *system_io /!////!!/import *system_io*;
+
+class Start
+{
+
+    private function main!((int 7b6 int x)
+    {
+        int i = 0;
+
+    }
+}
