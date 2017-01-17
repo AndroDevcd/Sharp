@@ -1,16 +1,21 @@
 mod examples;
 
-import system_io;
 
 class Start
 {
 
-    private function main(int b6, int x)
+    function foo()
+    {
+        int x = 0;
+    }
+
+    private function main(int b6, int x) : int
     {
         {
             int i = 0;
         }
 
-        int i = 0;
+        int i = x;
+        return i;
     }
 }

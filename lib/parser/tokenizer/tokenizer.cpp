@@ -469,6 +469,10 @@ void tokenizer::invalidate_comments() {
         invalidate_whitespace();
         invalidate_comments();
     }
+    else if(isend() && !comment_end(current(),peek(1),mode))
+    {
+        errors->newerror(GENERIC, line, col, "expected closed comment before end of file");
+    }
 }
 
 void tokenizer::invalidate_whitespace() {
@@ -509,7 +513,7 @@ Errors* tokenizer::geterrors()
 
 char tokenizer::peek(int forward)
 {
-    if(cursor+forward >= toks.length())
+    if((cursor+forward) >= toks.length())
         return toks.at(toks.length()-1);
     else
         return toks.at(cursor+forward);
@@ -562,8 +566,12 @@ bool tokenizer::iswhitespace(char c)
 
 char tokenizer::advance()
 {
-    col++;
-    return toks.at(cursor++);
+    if(cursor >= toks.length())
+        return toks.at(toks.length()-1);
+    else {
+        col++;
+        return toks.at(cursor++);
+    }
 }
 
 void tokenizer::newline()
@@ -573,7 +581,10 @@ void tokenizer::newline()
 
 char tokenizer::current()
 {
-    return toks.at(cursor);
+    if(cursor >= toks.length())
+        return toks.at(toks.length()-1);
+    else
+        return toks.at(cursor);
 }
 
 bool tokenizer::ismatch(char i, char b) {

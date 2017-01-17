@@ -1,3 +1,5 @@
 *.zip
 *.exe
 *.stackdump
+/cmake-build-release
+/cmake-build-debug

@@ -22,7 +22,7 @@ void parser::parse()
 
     for(auto &ast : *tree)
     {
-        int i = 0;
+        int i = 0; 
     }
 }
 
@@ -69,7 +69,7 @@ void parser::eval(ast* _ast) {
     else
     {
         // "expected class, or import declaration"
-        errors->newerror(UNEXPECTED_SYMBOL, current(), " `" + current().gettoken() + "`; expected class, or import declaration.");
+        errors->newerror(UNEXPECTED_SYMBOL, current(), " `" + current().gettoken() + "`; expected class, or import declaration");
         parse_all(_ast);
     }
 

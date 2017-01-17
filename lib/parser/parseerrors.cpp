@@ -46,11 +46,11 @@ string Errors::getall_errors() {
     {
         errorlist << "error S" << err.id << ":  " << err.error.c_str()
                   << ", at line " << err.line << ":" << err.col << endl;
-        errorlist << '\t' << getline(err.line) << endl;
+        errorlist << '\t' << getline(err.line) << endl << '\t';
 
-        for(int i = 0; i < (err.col-1); i++)
+        for(int i = 0; i < err.col-1; i++)
             errorlist << " ";
-        errorlist << '\t' << "^" << endl;
+        errorlist << "^" << endl;
     }
 
     return errorlist.str();
@@ -61,7 +61,7 @@ int Errors::newerror(p_errors err, token_entity token, string xcmts) {
     parseerror e(kp, token, xcmts);
 
     if(lasterr.error != e.error && !(lasterr.line == e.line && lasterr.col == e.col)&&
-            (lasterr.error.find(xcmts) == std::string::npos))
+            (lasterr.error.find(token.gettoken()) == std::string::npos) && (lasterr.error.find(xcmts) == std::string::npos))
     {
         _err = true;
         errors->push_back(e);
