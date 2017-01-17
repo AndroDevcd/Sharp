@@ -1,2 +1,0 @@
-ToolSet: 2.6.1@C:\cygwin64
-CMake: 3.6.3@C:\Program Files (x86)\JetBrains\CLion 2016.3.2\bin\cmake_cygwin\bin\cmake.exe

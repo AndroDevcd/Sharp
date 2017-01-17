@@ -1,3 +1,0 @@
-/cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug/CMakeFiles/edit_cache.dir
-/cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/cygdrive/c/Users/BraxtonN/Documents/Clion/Sharp/cmake-build-debug/CMakeFiles/Sharp.dir
