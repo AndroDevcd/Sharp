@@ -14,9 +14,6 @@ A native type consists of Sharps native defined keyword types:
 - float
 - double
 
-<typeidentifier>:
-An <nativetype> or (<identifier> that consists of a [class] or [struct])
-
 <number>
 A number is any character consisting of: 1234567890
 
@@ -25,9 +22,6 @@ A number-set which starts with a <number> and contains only numbers and undersco
 
 <number-literal>
 A number-literal consists of (<number>, <numberset>, or <numberset>.<numberset>)
-
-<modulename>:
-A module-name is a <identifier> that connects a class to a specific module or directory
 
 <string-literal>:
 A string-literal starts with `"` and contains all characters until a unescaped `"` is reached or a new line.
@@ -44,8 +38,21 @@ A character literal consists of: `'<letter>'` or `'\<letter>'`
 <literal>:
 A literal consists of (<number-literal>, <string-literal>, <character-literal>, or <boolean-literal>)
 
+<modulename>:
+A module-name is a <identifier> that connects a class to a specific module or directory
+
+<refrence-pointer>:
+A refrence ptr is a specific poibnter to any given variable, function, or class within an entity.
+[<modulename>#]<identifier>*(.<identifier>)
+
+<refrence-identifier>:
+A reference identifier is an identifier that may be an <identifier> or <refrence-pointer>
+
+<typeidentifier>:
+An <nativetype> or <refrence-identifier>
+
 <value>:
-A value consists of an <identifier> or a <literal>
+A value consists of an <refrence-identifier> or a <literal>
 
 <accesstype>:
 An access-type is a restriction in the level of access that a specific class, or variable.
@@ -68,13 +75,16 @@ Class Declaration:
 Method Declaration:
 `[<accesstype>] function <identifier = name> ([<typeidentifier> <identifier = name>,...]) [: <typeidentifier>] { <statement>* }`
 
-Variable Declaration:
+Variable Declaration statement:
 `[<accesstype>] <typeidentifier> <identifier = name> [ = <value>] ;`
 
-Single Ling Declaration:
+Variable Assignment statement;
+<refrence-identifier> = <value> ;
+
+Single Line comment Declaration:
 `//`
 
-Method Invocation:
+Method Invocation statement:
 [<identifier = modulename>#][(<identifier = classname>.<identifier>...).]<identifier = name>([<value>,...]) ;
 
 <return-statement>:

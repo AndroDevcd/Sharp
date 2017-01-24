@@ -6,16 +6,16 @@ class Start
 
     function foo()
     {
-        int x = 0;
+        int x = 0_000_000.11___0e10;
     }
 
-    private function main(int b6, int x) : int
+    private function main(examples#Class.var b6, Integer x) : int
     {
         {
-            int i = 0;
+            int i = ""'n''m''h''y';
         }
 
-        int i = x;
+        int i = C.b;
         return i;
     }
 }

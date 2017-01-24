@@ -3,5 +3,7 @@ project(Sharp)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(SOURCE_FILES main.cpp lib/parser/tokenizer/tokenentity.h lib/parser/tokenizer/tokenizer.h lib/parser/tokenizer/tokentype.h stdimports.h lib/parser/tokenizer/tokenentity.cpp lib/parser/tokenizer/tokenizer.cpp lib/parser/parseerrors.h lib/util/keypair.h lib/parser/parseerrors.cpp lib/parser/parser.h lib/parser/ast.h lib/parser/ast.cpp lib/parser/parser.cpp lib/util/file.h lib/util/file.cpp)
+include_directories(/local/lib)
+
+set(SOURCE_FILES main.cpp lib/grammer/parser/tokenizer/tokenentity.h lib/grammer/parser/tokenizer/tokenizer.h lib/grammer/parser/tokenizer/tokentype.h stdimports.h lib/grammer/parser/tokenizer/tokenentity.cpp lib/grammer/parser/tokenizer/tokenizer.cpp lib/grammer/parser/parseerrors.h lib/util/keypair.h lib/grammer/parser/parseerrors.cpp lib/grammer/parser/parser.h lib/grammer/parser/ast.h lib/grammer/parser/ast.cpp lib/grammer/parser/parser.cpp lib/util/file.h lib/util/file.cpp)
 add_executable(Sharp ${SOURCE_FILES})

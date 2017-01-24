@@ -1,9 +1,8 @@
 #include <iostream>
-#include "stdimports.h"
 #include "lib/parser/tokenizer/tokenizer.h"
 #include "lib/parser/parser.h"
-#include "lib/util/file.h"
 #include <chrono>
+#include "lib/util/file.h"
 
 template<typename TimeT = std::chrono::milliseconds>
 struct measure
@@ -19,15 +18,17 @@ struct measure
     }
 };
 
+class CharStream;
+
 void compile(string code)
 {
     int_errs();
     tokenizer tokenizer1(code);
 
-//    for(token_entity &entity : *tokenizer1.getentities())
-//    {
-//        cout << "entity " << entity.getid() << ", type " << entity.gettokentype() << " :  " << entity.gettoken().c_str() << endl;
-//    }
+    for(token_entity &entity : *tokenizer1.getentities())
+    {
+        cout << "entity " << entity.getid() << ", type " << entity.gettokentype() << " :  " << entity.gettoken().c_str() << endl;
+    }
 
     if(tokenizer1.geterrors()->_errs())
     {
@@ -40,6 +41,9 @@ void compile(string code)
     {
         cout << parser.geterrors()->getall_errors();
     }
+
+    parser.free();
+    tokenizer1.free();
 }
 
 int main() {
