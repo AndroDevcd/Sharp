@@ -1,6 +1,6 @@
 #include <iostream>
-#include "lib/parser/tokenizer/tokenizer.h"
-#include "lib/parser/parser.h"
+#include "lib/grammar/parser/tokenizer/tokenizer.h"
+#include "lib/grammar/parser/parser.h"
 #include <chrono>
 #include "lib/util/file.h"
 

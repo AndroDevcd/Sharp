@@ -20,8 +20,10 @@ enum ast_types
     ast_block,
     ast_method_return_type,
     ast_return_stmnt,
+    ast_statement,
     ast_type_identifier,
     ast_refrence_pointer,
+    ast_modulename,
 
     ast_entity, // the base level ast
     ast_none
@@ -43,6 +45,7 @@ public:
     ast* getparent();
     long getsubastcount();
     ast *getsubast(long at);
+    void freesubs();
     long getentitycount();
     token_entity getentity(long at);
 

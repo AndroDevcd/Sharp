@@ -96,7 +96,7 @@ void parser::parse_importdecl(ast* _ast) {
     _ast = get_ast(_ast, ast_import_decl);
     _ast->add_entity(current());
 
-    expectidentifier(_ast);
+    parse_modulename(_ast);
 
     if(!expect(SEMICOLON, "`;`"))
     {
@@ -111,7 +111,7 @@ void parser::parse_moduledecl(ast* _ast) {
     _ast = get_ast(_ast, ast_module_decl);
     _ast->add_entity(current());
 
-    expectidentifier(_ast);
+    parse_modulename(_ast);
 
      if(!expect(SEMICOLON, "`;`"))
          return;
@@ -158,9 +158,12 @@ bool parser::isstatement_decl(token_entity token) {
              * x = 9;
              *
              * method invocation
-             * examples#Main.func(9.1e+10,
+             * examples#Main.func(9.1e+10, Class.x)
              */
-            || (token.getid() == IDENTIFIER && !iskeyword(token.gettoken()));
+            || (token.getid() == IDENTIFIER && !iskeyword(token.gettoken()))
+            || (token.getid() == IDENTIFIER && isnative_type(token.gettoken()))
+
+            || (token.gettokentype() == SEMICOLON); // for empty statements
 }
 
 ast* parser::ast_at(long p)
@@ -198,7 +201,11 @@ bool parser::isnative_type(string type) {
 bool parser::isaccess_decl(token_entity token) {
     return
             token.getid() == IDENTIFIER && token.gettoken() == "protected" ||
-                    token.getid() == IDENTIFIER && token.gettoken() == "private";
+                    token.getid() == IDENTIFIER && token.gettoken() == "private" ||
+                    token.getid() == IDENTIFIER && token.gettoken() == "static" ||
+                    token.getid() == IDENTIFIER && token.gettoken() == "const" ||
+                    token.getid() == IDENTIFIER && token.gettoken() == "override" ||
+                    token.getid() == IDENTIFIER && token.gettoken() == "public";
 }
 
 void parser::parse_accesstypes() {
@@ -385,6 +392,8 @@ void parser::parse_variabledecl(ast *pAst) {
         pAst->add_entity(current());
         parse_value(pAst);
     }
+    else
+        pushback();
 
     if(!expect(SEMICOLON, "`;`"))
         return;
@@ -529,13 +538,9 @@ void parser::parse_methodblock(ast *pAst) {
     while(!isend() && brackets > 0)
     {
         advance();
-        if(isreturn_stmnt(current()))
+        if(isstatement_decl(current()))
         {
-            parse_returnstmnt(pAst);
-        }
-        else if(isvariable_decl(current()))
-        {
-            parse_variabledecl(pAst);
+            parse_statement(pAst);
         }
         else if (current().gettokentype() == RIGHTCURLY)
         {
@@ -566,7 +571,6 @@ void parser::parse_methodblock(ast *pAst) {
             errors->newerror(UNEXPECTED_EOF, current());
             break;
         }
-        else if(issemicolon(current())){}
         else {
             errors->newerror(UNEXPECTED_SYMBOL, current(), " expected statement");
         }
@@ -598,6 +602,42 @@ void parser::parse_returnstmnt(ast *pAst) {
     parse_value(pAst);
 }
 
+
+void parser::parse_statement(ast* pAst) {
+    pAst = get_ast(pAst, ast_statement);
+
+    if(isreturn_stmnt(current()))
+    {
+        parse_returnstmnt(pAst);
+    }
+    else if(isvariable_decl(current()))
+    {
+        parse_variabledecl(pAst);
+    }
+    else if(current().gettokentype() == SEMICOLON)
+    {
+        /* we don't care about empty statements but we allow them */
+        advance();
+    }
+}
+
+void parser::parse_modulename(ast* pAst)
+{
+    pAst = get_ast(pAst, ast_modulename);
+
+    expectidentifier(pAst);
+
+    advance();
+    while(current().gettokentype() == DOT) {
+        pAst->add_entity(current());
+
+        expectidentifier(pAst);
+        advance();
+    }
+
+    pushback();
+}
+
 /**
  * This function is used to parse through every possible outcome that the parser can run into when it does not find a class or import
  * statement to process. This alleviates your console getting flooded with a bunch of unnessicary "unexpected symbol" complaints.
@@ -612,14 +652,7 @@ void parser::parse_all(ast *pAst) {
 
     if(isstatement_decl(current()))
     {
-        if(isreturn_stmnt(current()))
-        {
-            parse_returnstmnt(pAst);
-        }
-    }
-    else if(isvariable_decl(current()))
-    {
-        parse_variabledecl(pAst);
+        parse_statement(pAst);
     }
     else if(ismethod_decl(current()))
     {
@@ -634,10 +667,12 @@ bool parser::iskeyword(string key) {
            || key == "int" || key == "short"
            || key == "long" || key == "char"
            || key == "bool" || key == "float"
-           || key == "double" || key == "true"
+           || key == "double" || key == "static"
            || key == "protected" || key == "private"
            || key == "function" || key == "import"
-           || key == "return" || key == "this";
+           || key == "return" || key == "this"
+           || key == "const" || key == "override"
+           || key == "public";
 }
 
 void parser::parse_type_identifier(ast *pAst) {
@@ -665,29 +700,44 @@ void parser::parse_type_identifier(ast *pAst) {
 }
 
 bool parser::parse_reference_pointer(ast *pAst) {
-    pAst = get_ast(pAst, ast_type_identifier);
+    pAst = get_ast(pAst, ast_refrence_pointer);
 
-    if(!expectidentifier(pAst))
+    advance();
+    if(!(current().getid() == IDENTIFIER && !iskeyword(current().gettoken())))
         return false;
+    else
+        pushback();
+    parse_modulename(pAst);
 
-    if(peek(1).gettokentype() == HASH) {
-        advance();
+    /*
+     * We want the full name to be on the ast
+     */
+    token_entity e;
+    for(int64_t i = 0; i <  pAst->getsubast(0)->getentitycount(); i++)
+    {
+        pAst->add_entity(pAst->getsubast(0)->getentity(i));
+    }
+
+    pAst->freesubs();
+
+    advance();
+    if(current().gettokentype() == HASH) {
         pAst->add_entity(current());
 
         if(expectidentifier(pAst))
             advance();
+
+        while(current().gettokentype() == DOT) {
+            pAst->add_entity(current());
+
+            expectidentifier(pAst);
+            advance();
+        }
+
+        pushback();
     }
     else
-        advance();
-
-    while(current().gettokentype() == DOT) {
-        pAst->add_entity(current());
-
-        expectidentifier(pAst);
-        advance();
-    }
-
-    pushback();
+        pushback();
 
     return true;
 }
@@ -696,22 +746,24 @@ void parser::free() {
     this->cursor = 0;
     this->toks = NULL;
 
-    /*
-     * free ast tree
-     */
-    ast* pAst;
-    for(int64_t i = 0; i < this->tree->size(); i++)
-    {
-        pAst = &(*std::next(this->tree->begin(),
-                             i));
-        pAst->free();
-    }
+    if(this->tree != NULL) {
+        /*
+         * free ast tree
+         */
+        ast* pAst;
+        for(int64_t i = 0; i < this->tree->size(); i++)
+        {
+            pAst = &(*std::next(this->tree->begin(),
+                                i));
+            pAst->free();
+        }
 
-    ast_cursor = 0;
-    remove_accesstypes();
-    this->tree->clear();
-    std::free(this->tree); this->tree = NULL;
-    std::free(this->_current); this->_current = NULL;
-    std::free(this->access_types); this->access_types = NULL;
-    errors->free();
+        ast_cursor = 0;
+        remove_accesstypes();
+        this->tree->clear();
+        std::free(this->tree); this->tree = NULL;
+        std::free(this->_current); this->_current = NULL;
+        std::free(this->access_types); this->access_types = NULL;
+        errors->free();
+    }
 }

@@ -1,21 +1,39 @@
-mod examples;
+mod examples_x.b.x;
 
+import d.a.b.x;
 
 class Start
 {
 
     function foo()
     {
-        int x = 0_000_000.11___0e10;
+        /* add hex processing to tokenizer */
+        int x = 0_000_000.11___0e+10;
     }
 
-    private function main(examples#Class.var b6, Integer x) : int
+    /*
+    * Main function
+    */
+    private static override function main(examples.b#Class.var b6, Integer#Int x, Int b, Int.c z) : int
     {
+        /*
+        * Close up gaps for processing statements
+        * and start processing them in full
+        */
         {
             int i = ""'n''m''h''y';
         }
 
         int i = C.b;
+        examples.B.a x;
+        examples.x#B.a z = 0;
+        examples y;
+        examples.B.a k = 0;
+
+        examples.B.a w = examples.B.a;
+        examples.B.a h = examples.x#B.a;
+        examples.B.a t = examples;
+        examples.B.a u = examples.B.a;
         return i;
     }
 }

@@ -25,6 +25,10 @@ public:
         if(tokenizer != NULL && tokenizer->geterrors() != NULL &&
                 !tokenizer->geterrors()->_errs())
             parse();
+        else {
+            std::free(access_types); access_types = NULL;
+            std::free(tree); tree = NULL;
+        }
     }
 
     Errors* geterrors();
@@ -112,6 +116,10 @@ private:
     void parse_type_identifier(ast *pAst);
 
     bool parse_reference_pointer(ast *pAst);
+
+    void parse_statement(ast *pAst);
+
+    void parse_modulename(ast *pAst);
 };
 
 #endif //SHARP_PARRSER_H

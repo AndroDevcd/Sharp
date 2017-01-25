@@ -104,6 +104,8 @@ private:
     parseerror lastcheckederr;
     int mode;
     bool _err;
+
+    bool shouldreport(token_entity *token, const string &xcmts, const parseerror &last_err, const parseerror &e) const;
 };
 
 #endif //SHARP_PARSEERRORS_H

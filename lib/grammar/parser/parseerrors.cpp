@@ -61,8 +61,7 @@ int Errors::newerror(p_errors err, token_entity token, string xcmts) {
     parseerror e(kp, token, xcmts);
     parseerror last_err = mode == _emcheck ? lastcheckederr : lasterr;
 
-    if(last_err.error != e.error && !(last_err.line == e.line && last_err.col == e.col)&&
-            (last_err.error.find(token.gettoken()) == std::string::npos) && (last_err.error.find(xcmts) == std::string::npos))
+    if(shouldreport(&token, xcmts, last_err, e))
     {
         if(mode == _emcheck) {
             _testerrors->push_back(e);
@@ -79,13 +78,26 @@ int Errors::newerror(p_errors err, token_entity token, string xcmts) {
     return 0;
 }
 
+bool Errors::shouldreport(token_entity *token, const string &xcmts,
+                          const parseerror &last_err, const parseerror &e) const {
+    if(last_err.error != e.error && !(last_err.line == e.line && last_err.col == e.col)
+            && (last_err.error.find(xcmts) == std::string::npos))
+    {
+        if(token != NULL)
+            return (last_err.error.find(token->gettoken()) == std::string::npos);
+
+        return true;
+    }
+
+    return false;
+}
+
 void Errors::newerror(p_errors err, int l, int c, string xcmts) {
     keypair<p_errors, string> kp = geterrorbyid(err);
     parseerror e(kp, l,c, xcmts);
     parseerror last_err = mode == _emcheck ? lastcheckederr : lasterr;
 
-    if(last_err.error != e.error && !(last_err.line == l && last_err.col == c) &&
-            (last_err.error.find(xcmts) == std::string::npos))
+    if(shouldreport(NULL, xcmts, last_err, e))
     {
         if(mode == _emcheck) {
             _testerrors->push_back(e);

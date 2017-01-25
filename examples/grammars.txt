@@ -26,8 +26,8 @@ A number-literal consists of (<number>, <numberset>, or <numberset>.<numberset>)
 <string-literal>:
 A string-literal starts with `"` and contains all characters until a unescaped `"` is reached or a new line.
 String escape character is `\` with multiple escape values: \n, \b, \v, \t.
-Variables are printed (scope based) via `{<identifier>} or {this.<identifier>} or {[<identifier = modulename>#](<identifier = classname>.<identifier>...).<identifier>}`
-by concatinating the string to the value via `+ <identifier>`
+Variables are printed (scope based) via `{<refrence-identifier>} or {this.<refrence-identifier>}`
+by concatinating the string to the value via `+ <refrence-identifier>`
 
 <boolean-literal>:
 A boolean literal consists of: `true` or `false`
@@ -39,10 +39,11 @@ A character literal consists of: `'<letter>'` or `'\<letter>'`
 A literal consists of (<number-literal>, <string-literal>, <character-literal>, or <boolean-literal>)
 
 <modulename>:
-A module-name is a <identifier> that connects a class to a specific module or directory
+A module-name is a <identifier> that connects a class to a specific module or directory.
+<identifier>[(.<identifier>...)]#
 
 <refrence-pointer>:
-A refrence ptr is a specific poibnter to any given variable, function, or class within an entity.
+A refrence ptr is a specific pointer to any given variable, function, or class within an entity.
 [<modulename>#]<identifier>*(.<identifier>)
 
 <refrence-identifier>:
@@ -57,14 +58,18 @@ A value consists of an <refrence-identifier> or a <literal>
 <accesstype>:
 An access-type is a restriction in the level of access that a specific class, or variable.
 For a class, the access types consist of: `protected (only accessable inside the module`
-FOr variables, the access types consist of: `private (only accessable inside the class)`, or `protected (only accessable inside the module)`
+FOr variables, the access types consist of: `private (only accessable inside the class)`,
+`public (accessible anywhere)`
+`static (accessable from a class without an instance)`,
+`override (overriding a functions previous implementation in superclass)`,
+or `const (a variable that cannot be changed)`
 
 <singleline-comment>:
 A single line comment consists of a line starting with `//` and ending in a new line. Anything preceding the `//` will be ignored.
 A single line comment can be put anywhere in a line.
 
 Module Declaration:
-mod <identifier> ;
+mod <modulename> ;
 
 Import Declaration:
 import <modulename> ;

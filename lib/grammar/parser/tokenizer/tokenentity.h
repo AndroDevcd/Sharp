@@ -45,6 +45,15 @@ public:
     {
     }
 
+    token_entity()
+            :
+            tok(""),
+            type(NONE),
+            id(NOENTITY),
+            col(0),
+            line(0)
+    {
+    }
     bool operator!=(const token_entity_id& id)
     {
         return this->id == id;

@@ -61,3 +61,15 @@ void ast::free() {
     this->sub_asts->clear();
     std::free(this->sub_asts); this->sub_asts = NULL;
 }
+
+void ast::freesubs() {
+    ast* pAst;
+    for(int64_t i = 0; i < this->sub_asts->size(); i++)
+    {
+        pAst = &(*std::next(this->sub_asts->begin(),
+                            i));
+        pAst->free();
+    }
+
+    this->sub_asts->clear();
+}

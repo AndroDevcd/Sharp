@@ -362,7 +362,7 @@ void tokenizer::scan_number() {
     bool dot_found         = false;
     bool e_found           = false;
     bool post_e_sign_found = false;
-    bool underscoreok      = false;
+    bool underscore_ok     = false;
     stringstream num;
 
     while (!isend())
@@ -370,7 +370,7 @@ void tokenizer::scan_number() {
 
         if ('_' == current())
         {
-            if(!underscoreok || peek(-1) == '.')
+            if(!underscore_ok || peek(-1) == '.')
             {
                 errors->newerror(ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
                 return;
@@ -391,7 +391,7 @@ void tokenizer::scan_number() {
         }
         else if (ismatch('e',current()))
         {
-            underscoreok = false;
+            underscore_ok = false;
             num << current();
             const char c = peek(1);
 
@@ -432,7 +432,7 @@ void tokenizer::scan_number() {
         else
         {
             if(isdigit(current()) && !e_found)
-                underscoreok = true;
+                underscore_ok = true;
 
             num << current();
             advance();
