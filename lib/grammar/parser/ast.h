@@ -17,6 +17,7 @@ enum ast_types
     ast_value,
     ast_method_inv,
     ast_method_params,
+    ast_method_inv_params,
     ast_block,
     ast_method_return_type,
     ast_return_stmnt,
@@ -54,11 +55,15 @@ public:
     void add_ast(ast _ast);
     void free();
 
+    void freeentities();
+    void freelastsub();
+
 private:
     ast_types type;
     ast *parent;
     list<ast> *sub_asts;
     list<token_entity> *entities;
+
 };
 
 #endif //SHARP_AST_H

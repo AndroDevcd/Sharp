@@ -341,7 +341,7 @@ void parser::parse_classblock(ast *pAst) {
     }
 
     if(brackets != 0)
-        errors->newerror(GENERIC, current(), "expected `}` at end of class declaration");
+        errors->newerror(MISSING_BRACKET, current(), " expected `}` at end of class declaration");
 
     expect(RIGHTCURLY, "`}` at end of class declaration");
 }
@@ -406,28 +406,32 @@ bool parser::isassiment_decl(token_entity token) {
     return token.gettokentype() == ASSIGN && token.gettoken() == "=";
 }
 
-void parser::parse_value(ast *pAst) {
+bool parser::parse_value(ast *pAst) {
     pAst = get_ast(pAst, ast_value);
 
     errors->enable(_emcheck);
     if(parse_reference_pointer(pAst)) {
         errors->disable((void*)false);
-        return;
+        return true;
     }
     else {
         errors->disable((void*)true);
         pushback();
     }
 
-    if(peek(1).getid() == BOOLEAN_LITERAL || peek(1).getid() == CHAR_LITERAL
-       || peek(1).getid() == INTEGER_LITERAL || peek(1).getid() == STRING_LITERAL
-       || peek(1).getid() == HEX_LITERAL)
+    token_entity e = peek(1);
+    if(e.getid() == BOOLEAN_LITERAL || e.getid() == CHAR_LITERAL
+       || e.getid() == INTEGER_LITERAL || e.getid() == STRING_LITERAL
+       || e.getid() == HEX_LITERAL || e.gettoken() == "true" ||
+            e.gettoken() == "false")
     {
         advance();
         pAst->add_entity(current());
+        return true;
     }
     else {
         errors->newerror(GENERIC, current(), "expected identifier or literal");
+        return false;
     }
 }
 
@@ -582,7 +586,7 @@ void parser::parse_methodblock(ast *pAst) {
     }
 
     if(brackets != 0)
-        errors->newerror(GENERIC, current(), "expected `}` at end of method declaration");
+        errors->newerror(MISSING_BRACKET, current(), " expected `}` at end of method declaration");
 
     expect(RIGHTCURLY, "`}` at end of method declaration");
 }
@@ -610,6 +614,115 @@ void parser::parse_variable_assignmentstmnt(ast *pAst) {
     parse_valueassignment(pAst);
 }
 
+void parser::parse_method_invocation(ast *pAst) {
+    pAst = get_ast(pAst, ast_method_inv_params);
+
+    expect(LEFTPAREN, pAst, "`(`");
+
+    int brackets = 1, errs = 1;
+    bool comma = false, first = true;
+
+    while (!isend() && brackets > 0)
+    {
+        advance();
+        if(current().getid() == IDENTIFIER)
+        {
+            if(!comma && !first)
+                errors->newerror(GENERIC, current(), "expected `,`");
+            else
+                first = false;
+
+            this->retainstate(pAst);
+            pushback();
+            errors->enable(_emcheck);
+            if(parse_reference_pointer(pAst))
+            {
+                errors->disable((void*)false);
+                if(peek(1).gettokentype() == LEFTPAREN)
+                {
+                    // method invocation
+                    parse_method_invocation(pAst->getsubast(0));
+                    comma = false;
+                    continue;
+                }
+                else {
+                    this->cursor = rState->rCursor-1;
+                    this->ast_cursor = rState->rAstcursor;
+                    pAst->freelastsub();
+                    advance();
+                }
+            }
+            else
+                pushback();
+            errors->disable((void*)true);
+        }
+
+        if(current().gettokentype() == COMMA)
+        {
+            pAst->add_entity(current());
+
+            if(comma)
+            {
+                errors->newerror(GENERIC, current(), "expected identifier before `,`");
+            }
+
+            comma = true;
+        }
+            /* remember to remove these when I start processing expressions */
+        else if(current().gettokentype() == LEFTPAREN)
+        {
+            errors->newerror(UNEXPECTED_SYMBOL, current(), "`" + current().gettoken() + "`" + " expected params");
+        }
+        else if(current().gettokentype() == RIGHTPAREN)
+        {
+            if((brackets-1) < 0)
+            {
+                errors->newerror(UNEXPECTED_SYMBOL, current(), " `)`");
+            }
+            else
+            {
+                brackets--;
+
+                // end of class block
+                if(brackets == 0)
+                {
+                    pushback();
+                    break;
+                }
+            }
+        }
+        else
+        {
+            if(!comma && !first)
+                errors->newerror(GENERIC, current(), "expected `,`");
+            else
+                first = false;
+
+            pushback();
+            if (!parse_value(pAst))
+            {
+                advance();
+                errs--;
+            }
+
+            if(errs < 0)
+                break;
+
+            comma = false;
+        }
+    }
+
+
+    if(comma)
+        errors->newerror(GENERIC, current(), "expected identifier after `,`");
+
+    if(brackets != 0)
+        errors->newerror(GENERIC, current(), "expected `)` at end of method args");
+
+    expect(RIGHTPAREN, pAst, "`)`");
+    cout << "parsed method invocation params" << endl;
+}
+
 void parser::parse_statement(ast* pAst) {
     pAst = get_ast(pAst, ast_statement);
 
@@ -628,6 +741,7 @@ void parser::parse_statement(ast* pAst) {
     else if(current().getid() == IDENTIFIER && !iskeyword(current().gettoken()))
     {
         // save compiler state
+        this->retainstate(pAst);
         pushback();
 
         /*
@@ -643,14 +757,22 @@ void parser::parse_statement(ast* pAst) {
             else if(peek(1).gettokentype() == LEFTPAREN)
             {
                 // method invocation
+                parse_method_invocation(pAst->getsubast(0));
+                expect(SEMICOLON, "`;`");
             }
-            else if(peek(1).gettokentype() == IDENTIFIER)
+            else if(peek(1).getid() == IDENTIFIER)
             {
                 // Variable decliration
-                // rollback to old state
+                pAst = this->rollback();
                 parse_variabledecl(pAst);
             }
+            else {
+                errors->newerror(GENERIC, current(), "not a statement");
+            }
         }
+    }
+    else {
+        errors->newerror(GENERIC, current(), "not a statement");
     }
 }
 
@@ -819,4 +941,20 @@ void parser::free() {
         std::free(this->access_types); this->access_types = NULL;
         errors->free();
     }
+}
+
+void parser::retainstate(ast* pAst) {
+    rState->rAst = pAst;
+    rState->rAstcursor = ast_cursor;
+    rState->rCursor = cursor;
+}
+
+ast* parser::rollback() {
+    ast_cursor = rState->rAstcursor;
+    cursor = rState->rCursor-1;
+    advance();
+
+    rState->rAst->freesubs();
+    rState->rAst->freeentities();
+    return rState->rAst;
 }

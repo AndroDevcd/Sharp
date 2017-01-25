@@ -28,9 +28,10 @@ class Start
         examples.B.a k = 0;
 
         examples.B.a w = examples.B.a;
-        examples.B.a h = examples.x#B.a;
-        examples.B.a t = examples;
+        h = examples.x#B.a;
+        examples.B.a = examples;
         examples.B.a u = examples.B.a;
+        sys.io.open("/usr/share/libutils.so", sys.io#BIN, sys.io.read("/usr/share/java-7_8.jar"));
 
         x = 9;
         return i;
@@ -49,13 +50,13 @@ class Start
         int i = C.b;
         examples.B.a x;
         examples.x#B.a z = 0;
-        examples y;
+        examples ;
         examples.B.a k = 0;
 
         examples.B.a w = examples.B.a;
         examples.B.a h = examples.x#B.a;
         examples.B.a t = examples;
         examples.B.a u = examples.B.a;
-        return i;
+        return i.gh#sys.io;
     }
 }

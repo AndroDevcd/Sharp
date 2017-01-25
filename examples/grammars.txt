@@ -53,7 +53,62 @@ A reference identifier is an identifier that may be an <identifier> or <refrence
 An <nativetype> or <refrence-identifier>
 
 <value>:
-A value consists of an <refrence-identifier> or a <literal>
+A value consists of an <expression>
+
+<uType>:
+<typeidentifier> [([])]
+
+<type-list>;
+<uType> (',' <uType>)*
+
+<TypeArgs>:
+'<' <type-list> '>'
+    |   <type-list>
+
+<value-list>:
+<value> (',' <value>)*
+
+<assign-expr>:
+'='
+   |   '+='
+   |   '-='
+   |   '*='
+   |   '/='
+   |   '&='
+   |   '|='
+   |   '^='
+   |   '>>='
+   |   '>>>='
+   |   '<<='
+   |   '%='
+
+<primary-expr>:
+<refrence-identifier>
+    |   <literal>
+    |   <uType> '.' class
+    |   'void' '.' class
+
+<expression>:
+<primary-expr>
+    | 'this' '->' <expression>
+    | <expression> '.' new TypeArgs ['(' <value-list> ')']
+    | expression '[' expression ']'
+    | '(' uType ')' expression
+    | expression ('++' | '--')
+    | ('+' | '-' | '++' | '--') expression
+    | '!' expression
+    | expression ('*'|'/'|'%') expression
+    | expression ('+'|'-') expression
+    | expression ('<' '<' | '>' '>' '>' | '>' '>') expression
+    | expression ('<=' | '>=' | '>' | '<') expression
+    | expression ('==' | '!=') expression
+    | expression '&' expression
+    | expression '^' expression
+    | expression '|' expression
+    | expression '&&' expression
+    | expression '||' expression
+    | expression '?' expression ':' expression
+    | expression <assign-expr> expression
 
 <accesstype>:
 An access-type is a restriction in the level of access that a specific class, or variable.
@@ -81,7 +136,7 @@ Method Declaration:
 `[<accesstype>] function <identifier = name> ([<typeidentifier> <identifier = name>,...]) [: <typeidentifier>] { <statement>* }`
 
 Variable Declaration statement:
-`[<accesstype>] <typeidentifier> <identifier = name> [ = <value>] ;`
+`[<accesstype>] <typeidentifier> <identifier = name> [ <assign-expr> <value>] ;`
 
 Variable Assignment statement;
 <refrence-identifier> = <value> ;
@@ -90,7 +145,10 @@ Single Line comment Declaration:
 `//`
 
 Method Invocation statement:
-[<identifier = modulename>#][(<identifier = classname>.<identifier>...).]<identifier = name>([<value>,...]) ;
+<refrence-identifier = name>([<value-list>]) ;
+
+If statement:
+if (<expression>) { <statements>* }
 
 <return-statement>:
 `return <value>` ;

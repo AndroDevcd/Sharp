@@ -73,3 +73,14 @@ void ast::freesubs() {
 
     this->sub_asts->clear();
 }
+
+void ast::freelastsub() {
+    ast* pAst = &(*std::next(this->sub_asts->begin(),
+                             this->sub_asts->size()-1));
+    pAst->free();
+    this->sub_asts->pop_back();
+}
+
+void ast::freeentities() {
+    this->entities->clear();
+}

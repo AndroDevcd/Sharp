@@ -8,6 +8,7 @@
 #include "../../../stdimports.h"
 #include "parseerrors.h"
 #include "tokenizer/tokenizer.h"
+#include "parserstate.h"
 #include "ast.h"
 
 class parser
@@ -21,6 +22,7 @@ public:
     {
         access_types = new list<token_entity>();
         tree = new list<ast>();
+        rState = new parser_state();
 
         if(tokenizer != NULL && tokenizer->geterrors() != NULL &&
                 !tokenizer->geterrors()->_errs())
@@ -46,6 +48,7 @@ private:
     int64_t cursor;
     tokenizer *toks;
     list<ast> *tree;
+    parser_state* rState;
     token_entity* _current;
     int64_t  ast_cursor;
     list<token_entity> *access_types;
@@ -91,7 +94,7 @@ private:
 
     bool isassiment_decl(token_entity token);
 
-    void parse_value(ast *pAst);
+    bool parse_value(ast *pAst);
 
     void parse_methoddecl(ast *pAst);
 
@@ -124,6 +127,11 @@ private:
     void parse_valueassignment(ast *pAst);
 
     void parse_variable_assignmentstmnt(ast *pAst);
+
+    void retainstate(ast*);
+    ast* rollback();
+
+    void parse_method_invocation(ast *pAst);
 };
 
 #endif //SHARP_PARRSER_H

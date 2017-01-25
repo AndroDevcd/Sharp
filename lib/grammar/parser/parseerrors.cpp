@@ -38,6 +38,9 @@ void int_errs()
 
     err.set(ILLEGAL_BRACKET_MISMATCH, "illegal symbol mismatch, unexpected bracket");
     predefined_errs.push_back(err);
+
+    err.set(MISSING_BRACKET, "missing bracket");
+    predefined_errs.push_back(err);
 }
 
 string Errors::geterrors(list<parseerror>* errors)

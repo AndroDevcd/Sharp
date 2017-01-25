@@ -40,8 +40,8 @@ void compile(string code)
     if(parser.geterrors()->_errs())
     {
         cout << parser.geterrors()->getall_errors();
-//        cout << endl << endl << "#################################################################\n";
-//        cout << parser.geterrors()->getuo_errors();
+        cout << endl << endl << "#################################################################\n";
+        cout << parser.geterrors()->getuo_errors();
     }
 
     cout << endl << endl << "==========================================================\n" ;

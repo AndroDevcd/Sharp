@@ -22,6 +22,7 @@ enum p_errors
     GENERIC = 7,
     ILLEGAL_ACCESS_DECLARATION = 8,
     ILLEGAL_BRACKET_MISMATCH = 9,
+    MISSING_BRACKET = 10,
 
     NO_ERR = 999
 };
