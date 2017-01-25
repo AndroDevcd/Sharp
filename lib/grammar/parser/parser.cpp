@@ -143,7 +143,7 @@ token_entity parser::peek(int forward)
 }
 
 bool parser::isvariable_decl(token_entity token) {
-    return (token.getid() == IDENTIFIER && !iskeyword(token.gettoken())) || isnative_type(token.gettoken());
+    return isnative_type(token.gettoken());
 }
 
 bool parser::ismethod_decl(token_entity token) {
@@ -333,11 +333,8 @@ void parser::parse_classblock(ast *pAst) {
         else if(current().gettokentype() == LEFTCURLY)
             brackets++;
         else {
-            if(!errors->newerror(GENERIC, current(), "expected method, class, or variable declaration"))
-            {
-                parse_all(pAst);
-            }
-            // parse secondary entities
+            errors->newerror(GENERIC, current(), "expected method, class, or variable declaration");
+            parse_all(pAst);
         }
 
         remove_accesstypes();
@@ -386,6 +383,15 @@ void parser::parse_variabledecl(ast *pAst) {
     parse_type_identifier(pAst);
     expectidentifier(pAst);
 
+    parse_valueassignment(pAst);
+
+    if(!expect(SEMICOLON, "`;`"))
+        return;
+
+    cout << "parsed variable declaration" << endl;
+}
+
+void parser::parse_valueassignment(ast *pAst) {
     advance();
     if(isassiment_decl(current()))
     {
@@ -394,11 +400,6 @@ void parser::parse_variabledecl(ast *pAst) {
     }
     else
         pushback();
-
-    if(!expect(SEMICOLON, "`;`"))
-        return;
-
-    cout << "parsed variable declaration" << endl;
 }
 
 bool parser::isassiment_decl(token_entity token) {
@@ -574,6 +575,7 @@ void parser::parse_methodblock(ast *pAst) {
         }
         else {
             errors->newerror(UNEXPECTED_SYMBOL, current(), " expected statement");
+            parse_all(pAst);
         }
 
         remove_accesstypes();
@@ -603,6 +605,10 @@ void parser::parse_returnstmnt(ast *pAst) {
     parse_value(pAst);
 }
 
+void parser::parse_variable_assignmentstmnt(ast *pAst) {
+    pAst = get_ast(pAst, ast_var_assign_stmnt);
+    parse_valueassignment(pAst);
+}
 
 void parser::parse_statement(ast* pAst) {
     pAst = get_ast(pAst, ast_statement);
@@ -618,6 +624,33 @@ void parser::parse_statement(ast* pAst) {
     else if(current().gettokentype() == SEMICOLON)
     {
         /* we don't care about empty statements but we allow them */
+    }
+    else if(current().getid() == IDENTIFIER && !iskeyword(current().gettoken()))
+    {
+        // save compiler state
+        pushback();
+
+        /*
+         * Method invocation? or variable assignment/decl?
+         */
+        if(parse_reference_pointer(pAst))
+        {
+            if(peek(1).gettokentype() == ASSIGN)
+            {
+                // Variable declaration
+                parse_variable_assignmentstmnt(pAst->getsubast(0));
+            }
+            else if(peek(1).gettokentype() == LEFTPAREN)
+            {
+                // method invocation
+            }
+            else if(peek(1).gettokentype() == IDENTIFIER)
+            {
+                // Variable decliration
+                // rollback to old state
+                parse_variabledecl(pAst);
+            }
+        }
     }
 }
 
@@ -657,6 +690,26 @@ void parser::parse_all(ast *pAst) {
     else if(ismethod_decl(current()))
     {
         parse_methoddecl(pAst);
+    }
+    else if(ismodule_decl(current()))
+    {
+        if(access_types->size() > 0)
+        {
+            errors->newerror(ILLEGAL_ACCESS_DECLARATION, current());
+        }
+        parse_moduledecl(pAst);
+    }
+    else if(isclass_decl(current()))
+    {
+        parse_classdecl(pAst);
+    }
+    else if(isimport_decl(current()))
+    {
+        if(access_types->size() > 0)
+        {
+            errors->newerror(ILLEGAL_ACCESS_DECLARATION, current());
+        }
+        parse_importdecl(pAst);
     }
 }
 

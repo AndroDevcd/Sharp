@@ -20,6 +20,7 @@ enum ast_types
     ast_block,
     ast_method_return_type,
     ast_return_stmnt,
+    ast_var_assign_stmnt,
     ast_statement,
     ast_type_identifier,
     ast_refrence_pointer,

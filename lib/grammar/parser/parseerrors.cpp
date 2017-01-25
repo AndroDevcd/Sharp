@@ -40,7 +40,8 @@ void int_errs()
     predefined_errs.push_back(err);
 }
 
-string Errors::getall_errors() {
+string Errors::geterrors(list<parseerror>* errors)
+{
     stringstream errorlist;
     for(const parseerror &err : *errors)
     {
@@ -54,6 +55,14 @@ string Errors::getall_errors() {
     }
 
     return errorlist.str();
+}
+
+string Errors::getuo_errors() {
+    return geterrors(uo_errors);
+}
+
+string Errors::getall_errors() {
+    return geterrors(errors);
 }
 
 int Errors::newerror(p_errors err, token_entity token, string xcmts) {
@@ -71,8 +80,12 @@ int Errors::newerror(p_errors err, token_entity token, string xcmts) {
 
         _err = true;
         errors->push_back(e);
+        uo_errors->push_back(e);
         lasterr = e;
         return 1;
+    }
+    else {
+        uo_errors->push_back(e);
     }
 
     return 0;
@@ -107,7 +120,11 @@ void Errors::newerror(p_errors err, int l, int c, string xcmts) {
 
         _err = true;
         errors->push_back(e);
+        uo_errors->push_back(e);
         lasterr = e;
+    }
+    else {
+        uo_errors->push_back(e);
     }
 }
 
@@ -148,6 +165,7 @@ void Errors::disable(void *arg) {
                 for(parseerror &err : *_testerrors)
                 {
                     errors->push_back(err);
+                    uo_errors->push_back(err);
                 }
                 _err = true;
                 lasterr = lastcheckederr;

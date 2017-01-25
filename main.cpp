@@ -40,7 +40,12 @@ void compile(string code)
     if(parser.geterrors()->_errs())
     {
         cout << parser.geterrors()->getall_errors();
+//        cout << endl << endl << "#################################################################\n";
+//        cout << parser.geterrors()->getuo_errors();
     }
+
+    cout << endl << endl << "==========================================================\n" ;
+    cout << "Errors: " << parser.geterrors()->error_count() << " Unoptimized errors: " << parser.geterrors()->uoerror_count() << endl;
 
     parser.free();
     tokenizer1.free();

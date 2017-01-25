@@ -9,12 +9,33 @@ class Start
     {
         int x = 0_000_000.11___0e+10;
         int y = 0x3344b8ef3_382848;
-        short u = 0x43.76;
+        short u = 0x4376;
     }
 
     /*
     * Main function
     */
+    private static override function main(examples.b#Class.var b6, Integer#Int x, Int b, Int.c z) : int
+    {
+        {
+            int i = ""'n''m''h''y';
+        }
+
+        int i = C.b;
+        examples.B.a x;
+        examples.x#B.a z = 0;
+        examples y;
+        examples.B.a k = 0;
+
+        examples.B.a w = examples.B.a;
+        examples.B.a h = examples.x#B.a;
+        examples.B.a t = examples;
+        examples.B.a u = examples.B.a;
+
+        x = 9;
+        return i;
+    }
+
     private static override function main(examples.b#Class.var b6, Integer#Int x, Int b, Int.c z) : int
     {
         /*

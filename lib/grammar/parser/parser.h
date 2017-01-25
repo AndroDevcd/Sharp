@@ -120,6 +120,10 @@ private:
     void parse_statement(ast *pAst);
 
     void parse_modulename(ast *pAst);
+
+    void parse_valueassignment(ast *pAst);
+
+    void parse_variable_assignmentstmnt(ast *pAst);
 };
 
 #endif //SHARP_PARRSER_H

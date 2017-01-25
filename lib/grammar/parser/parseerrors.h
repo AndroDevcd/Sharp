@@ -79,12 +79,16 @@ public:
             mode(_emnone)
     {
         errors = new list<parseerror>();
+        uo_errors = new list<parseerror>();
         _testerrors = new list<parseerror>();
         lasterr = parseerror();
         lastcheckederr = parseerror();
     }
 
     string getall_errors();
+    string getuo_errors();
+    uint64_t error_count() { return errors->size(); }
+    uint64_t uoerror_count() { return uo_errors->size(); }
     int newerror(p_errors err, token_entity token, string xcmts = "");
     void newerror(p_errors err, int l, int c, string xcmts = "");
     bool _errs();
@@ -98,7 +102,7 @@ private:
     keypair<p_errors, string> geterrorbyid(p_errors);
 
     list<string>* lines;
-    list<parseerror>* errors;
+    list<parseerror>* errors, *uo_errors;
     list<parseerror>* _testerrors;
     parseerror lasterr;
     parseerror lastcheckederr;
@@ -106,6 +110,8 @@ private:
     bool _err;
 
     bool shouldreport(token_entity *token, const string &xcmts, const parseerror &last_err, const parseerror &e) const;
+
+    string geterrors(list<parseerror> *errors);
 };
 
 #endif //SHARP_PARSEERRORS_H
