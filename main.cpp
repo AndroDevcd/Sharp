@@ -25,10 +25,10 @@ void compile(string code)
     int_errs();
     tokenizer tokenizer1(code);
 
-    for(token_entity &entity : *tokenizer1.getentities())
-    {
-        cout << "entity " << entity.getid() << ", type " << entity.gettokentype() << " :  " << entity.gettoken().c_str() << endl;
-    }
+//    for(token_entity &entity : *tokenizer1.getentities())
+//    {
+//        cout << "entity " << entity.getid() << ", type " << entity.gettokentype() << " :  " << entity.gettoken().c_str() << endl;
+//    }
 
     if(tokenizer1.geterrors()->_errs())
     {

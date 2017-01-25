@@ -419,7 +419,8 @@ void parser::parse_value(ast *pAst) {
     }
 
     if(peek(1).getid() == BOOLEAN_LITERAL || peek(1).getid() == CHAR_LITERAL
-       || peek(1).getid() == NUMBER_LITERAL || peek(1).getid() == STRING_LITERAL)
+       || peek(1).getid() == INTEGER_LITERAL || peek(1).getid() == STRING_LITERAL
+       || peek(1).getid() == HEX_LITERAL)
     {
         advance();
         pAst->add_entity(current());
@@ -617,7 +618,6 @@ void parser::parse_statement(ast* pAst) {
     else if(current().gettokentype() == SEMICOLON)
     {
         /* we don't care about empty statements but we allow them */
-        advance();
     }
 }
 

@@ -55,7 +55,10 @@ void tokenizer::scan()
     }
     else if(isdigit(current()))
     {
-        scan_number();
+        if(current() == '0' && peek(1) == 'x')
+            scan_hex();
+        else
+            scan_number();
     }
     else if('"' == current())
     {
@@ -346,6 +349,34 @@ string tokenizer::get_escaped_string(string msg) const {
     return escapedmessage.str();
 }
 
+void tokenizer::scan_hex() {
+    stringstream num;
+    bool underscore_ok = false;
+
+    num << "0x";
+    advance();
+    advance();
+    while(!isend() && (ishexnum(current()) || current() == '_'))
+    {
+        if(ishexnum(current()))
+            underscore_ok = true;
+        else {
+            if(!underscore_ok) {
+                errors->newerror(ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
+                break;
+            }
+
+            advance();
+            continue;
+        }
+
+        num << current();
+        advance();
+    }
+
+    entites->push_back(token_entity(num.str(), HEX_LITERAL, col, line));
+}
+
 void tokenizer::scan_number() {
     /*
             Attempt to match a valid numeric value in one of the following formats:
@@ -439,7 +470,7 @@ void tokenizer::scan_number() {
         }
     }
 
-    entites->push_back(token_entity(num.str(), NUMBER_LITERAL, col, line));
+    entites->push_back(token_entity(num.str(), INTEGER_LITERAL, col, line));
     return;
 }
 
@@ -657,5 +688,10 @@ void tokenizer::free() {
     std::free(this->lines); this->lines = NULL;
     std::free(this->entites); this->entites = NULL;
 
+}
+
+bool tokenizer::ishexnum(char c) {
+    return isdigit(c) || (c >= 65 && c <= 72) ||
+            (c >= 97 && c <= 104);
 }
 

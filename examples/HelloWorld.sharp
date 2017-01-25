@@ -7,8 +7,9 @@ class Start
 
     function foo()
     {
-        /* add hex processing to tokenizer */
         int x = 0_000_000.11___0e+10;
+        int y = 0x3344b8ef3_382848;
+        short u = 0x43.76;
     }
 
     /*

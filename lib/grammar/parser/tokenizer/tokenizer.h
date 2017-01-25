@@ -69,6 +69,9 @@ private:
     int line;
     int col;
 
+    void scan_hex();
+
+    bool ishexnum(char current);
 };
 
 #endif //SHARP_TOKENIZER_H
