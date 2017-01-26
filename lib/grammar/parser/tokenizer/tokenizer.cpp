@@ -172,6 +172,8 @@ void tokenizer::scan_symbol() {
         else if ((chs[0] == '&') && (chs[1] == '&')) type = AND;
         else if ((chs[0] == '|') && (chs[1] == '|')) type = OR;
         else if ((chs[0] == '-') && (chs[1] == '>')) type = PTR;
+        else if ((chs[0] == '+') && (chs[1] == '+')) type = INC;
+        else if ((chs[0] == '-') && (chs[1] == '-')) type = DEC;
 
         if (NONE != type)
         {

@@ -73,7 +73,7 @@ int Errors::newerror(p_errors err, token_entity token, string xcmts) {
     parseerror e(kp, token, xcmts);
     parseerror last_err = cm ? lastcheckederr : lasterr;
 
-    if(shouldreport(&token, xcmts, last_err, e))
+    if(shouldreport(&token, last_err, e))
     {
         if(cm) {
             gettesterrorlist()->push_back(e);
@@ -94,16 +94,18 @@ int Errors::newerror(p_errors err, token_entity token, string xcmts) {
     return 0;
 }
 
-bool Errors::shouldreport(token_entity *token, const string &xcmts,
-                          const parseerror &last_err, const parseerror &e) const {
+bool Errors::shouldreport(token_entity *token, const parseerror &last_err,
+                          const parseerror &e) const {
     if(last_err.error != e.error && !(last_err.line == e.line && last_err.col == e.col)
-            && (last_err.error.find(xcmts) == std::string::npos))
+       && (last_err.error.find(e.error) == std::string::npos))
     {
         if(token != NULL)
-            return (last_err.error.find(token->gettoken()) == std::string::npos);
+            return (last_err.error.find(token->gettoken()) == std::string::npos) &&
+                    ((last_err.line-e.line)!=-1);
 
         return true;
     }
+
 
     return false;
 }
@@ -113,7 +115,7 @@ void Errors::newerror(p_errors err, int l, int c, string xcmts) {
     parseerror e(kp, l,c, xcmts);
     parseerror last_err = cm ? lastcheckederr : lasterr;
 
-    if(shouldreport(NULL, xcmts, last_err, e))
+    if(shouldreport(NULL, last_err, e))
     {
         if(cm) {
             gettesterrorlist()->push_back(e);

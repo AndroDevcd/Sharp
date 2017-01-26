@@ -46,6 +46,8 @@ enum token_type
     LEFTBRACE, // [
     RIGHTBRACE, // ]
     PTR, // ->
+    INC, // ++
+    DEC, // --
     _EOF, // end of file
 
     NONE // not a type

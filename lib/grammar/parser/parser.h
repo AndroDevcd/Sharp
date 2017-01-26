@@ -150,6 +150,8 @@ private:
     void parse_typeargs(ast *pAst);
 
     void parse_valuelist(ast *pAst);
+
+    bool isexprsymbol(string basic_string);
 };
 
 #endif //SHARP_PARRSER_H

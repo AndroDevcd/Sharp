@@ -108,7 +108,7 @@ private:
     parseerror lastcheckederr;
     bool _err, cm;
 
-    bool shouldreport(token_entity *token, const string &xcmts, const parseerror &last_err, const parseerror &e) const;
+    bool shouldreport(token_entity *token, const parseerror &last_err, const parseerror &e) const;
 
     string geterrors(list<parseerror> *errors);
 };

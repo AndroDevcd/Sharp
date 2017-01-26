@@ -419,10 +419,9 @@ bool parser::isassiment_decl(token_entity token) {
 
 bool parser::parse_literal(ast *pAst) {
     token_entity e = peek(1);
-    if(e.getid() == BOOLEAN_LITERAL || e.getid() == CHAR_LITERAL
-       || e.getid() == INTEGER_LITERAL || e.getid() == STRING_LITERAL
-       || e.getid() == HEX_LITERAL || e.gettoken() == "true" ||
-       e.gettoken() == "false")
+    if(e.getid() == CHAR_LITERAL || e.getid() == INTEGER_LITERAL
+       || e.getid() == STRING_LITERAL || e.getid() == HEX_LITERAL
+       || e.gettoken() == "true" || e.gettoken() == "false")
     {
         advance();
         pAst->add_entity(current());
@@ -558,12 +557,89 @@ void parser::parse_valuelist(ast *pAst) {
     expect(RIGHTPAREN, pAst, "`)`");
 }
 
+bool parser::isexprsymbol(string token) {
+    return token == "[" || token == "++" ||
+            token == "--" || token == "*" ||
+            token == "/" || token == "%" ||
+            token == "-" || token == "+";
+}
+
 bool parser::parse_expression(ast *pAst) {
     pAst = get_ast(pAst, ast_expression);
 
+    /* ++ or -- or - or + before the expression */
+    if(peek(1).gettokentype() == INC || peek(1).gettokentype() == DEC
+            || peek(1).gettokentype() == PLUS || peek(1).gettokentype() == MINUS)
+    {
+        advance();
+        pAst->add_entity(current());
+        parse_expression(pAst);
+        return true;
+    }
+
+
+    if(peek(1).gettokentype() == LEFTPAREN)
+    {
+        this->retainstate(pAst);
+        errors->enablecheck_mode();
+
+        advance();
+        pAst->add_entity(current());
+
+        if(!parse_utype(pAst))
+        {
+            errors->pass();
+            this->rollback();
+        } else {
+            if(peek(1).gettokentype() == RIGHTPAREN)
+            {
+                expect(RIGHTPAREN, pAst, "`)`");
+                if(!parse_expression(pAst))
+                {
+                    errors->pass();
+                    this->rollback();
+                } else
+                {
+                    errors->fail();
+                    return true;
+                }
+            }else {
+                errors->pass();
+                this->rollback();
+            }
+        }
+
+    }
+
+
+    if(peek(1).gettokentype() == NOT)
+    {
+        advance();
+        pAst->add_entity(current());
+
+        parse_expression(pAst);
+
+        if(!isexprsymbol(peek(1).gettoken()))
+            return true;
+    }
+
+    if(peek(1).gettokentype() == LEFTPAREN)
+    {
+        advance();
+        pAst->add_entity(current());
+
+        parse_expression(pAst);
+
+        expect(RIGHTPAREN, pAst, "`)`");
+
+        if(!isexprsymbol(peek(1).gettoken()))
+            return true;
+    }
+
     this->retainstate(pAst);
     if(parse_primaryexpr(pAst)) {
-        return true;
+        if(!isexprsymbol(peek(1).gettoken()))
+            return true;
     }
     else {
         this->rollback();
@@ -575,7 +651,9 @@ bool parser::parse_expression(ast *pAst) {
         expect_token(pAst, "this", "");
         expect(PTR, pAst, "`->` after this");
         parse_expression(pAst);
-        return true;
+
+        if(!isexprsymbol(peek(1).gettoken()))
+            return true;
     }
 
     if(peek(1).gettoken() == "new")
@@ -590,6 +668,51 @@ bool parser::parse_expression(ast *pAst) {
         }
 
         parse_valuelist(pAst);
+
+        if(!isexprsymbol(peek(1).gettoken()))
+            return true;
+    }
+
+    if(peek(1).gettokentype() == LEFTBRACE)
+    {
+        advance();
+        pAst->add_entity(current());
+
+        parse_expression(pAst);
+        expect(RIGHTBRACE, pAst, "`]`");
+
+        if(!isexprsymbol(peek(1).gettoken()))
+            return true;
+    }
+
+    /* ++ or -- after the expression */
+    if(peek(1).gettokentype() == INC || peek(1).gettokentype() == DEC)
+    {
+        advance();
+        pAst->add_entity(current());
+
+        if(!isexprsymbol(peek(1).gettoken()))
+            return true;
+    }
+
+    /* expression ('*'|'/'|'%') expression */
+    if(peek(1).gettokentype() == MULT || peek(1).gettokentype() == DIV ||
+            peek(1).gettokentype() == MOD)
+    {
+        advance();
+        pAst->add_entity(current());
+
+        parse_expression(pAst);
+        return true;
+    }
+
+    /* expression ('+'|'-') expression */
+    if(peek(1).gettokentype() == PLUS || peek(1).gettokentype() == MINUS)
+    {
+        advance();
+        pAst->add_entity(current());
+
+        parse_expression(pAst);
         return true;
     }
 

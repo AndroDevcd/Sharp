@@ -19,7 +19,6 @@ enum token_entity_id
     STRING_LITERAL,
     CHAR_LITERAL,
     LITERAL,
-    BOOLEAN_LITERAL,
     VALUE,
     ACCESSTYPE,
     SINGLELINE_COMMENT,

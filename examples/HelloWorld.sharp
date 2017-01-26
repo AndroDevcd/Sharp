@@ -7,6 +7,14 @@ class Start
 
     function foo()
     {
+        int q = (int)z++/7;
+        int q = 5 * 4;
+        int i = (((int)v--)/6);
+        bool i = !z++;
+        int i = (short) x[3]++ + 6;
+        int i = ((short) x[3]++) + 6/9;
+        int b = --arr[9];
+        String s = new String(x[3], 0);
         String i = new Map<String[], math#Int>(this->var);
         int r = this->var;
         int x = 0_000_000.11___0e+10;
@@ -34,7 +42,7 @@ class Start
         h = examples.x#B.a;
         examples.B.a = examples;
         examples.B.a u = examples.B.a;
-        sys.io.open("/usr/share/libutils.so", sys.io#BIN, this->x, new String("string"), sys.io.read("/usr/share/java-7_8.jar"));
+        sys.io.open("/usr/share/libutils.so", sys.io#BIN, this->x++, new String("string"), sys.io.read("/usr/share/java-7_8.jar"));
 
         x = 9;
         return i;
