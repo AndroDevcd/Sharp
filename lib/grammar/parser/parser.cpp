@@ -252,6 +252,16 @@ bool parser::expectidentifier(ast* pAst) {
     return false;
 }
 
+
+void parser::expect_token(ast *pAst, string token, const char *message) {
+    if(current().gettoken() != token)
+    {
+        errors->newerror(GENERIC, current(), "expected " + std::string(message));
+    } else {
+        pAst->add_entity(current());
+    }
+}
+
 bool parser::expect(token_type type, const char *expectedstr) {
     advance();
 
@@ -380,7 +390,8 @@ void parser::parse_variabledecl(ast *pAst) {
         pAst->add_entity(entity);
     }
     pushback();
-    parse_type_identifier(pAst);
+    if(!parse_type_identifier(pAst))
+        errors->newerror(GENERIC, current(), "expected native type or reference pointer.");
     expectidentifier(pAst);
 
     parse_valueassignment(pAst);
@@ -406,33 +417,131 @@ bool parser::isassiment_decl(token_entity token) {
     return token.gettokentype() == ASSIGN && token.gettoken() == "=";
 }
 
-bool parser::parse_value(ast *pAst) {
-    pAst = get_ast(pAst, ast_value);
-
-    errors->enable(_emcheck);
-    if(parse_reference_pointer(pAst)) {
-        errors->disable((void*)false);
-        return true;
-    }
-    else {
-        errors->disable((void*)true);
-        pushback();
-    }
-
+bool parser::parse_literal(ast *pAst) {
     token_entity e = peek(1);
     if(e.getid() == BOOLEAN_LITERAL || e.getid() == CHAR_LITERAL
        || e.getid() == INTEGER_LITERAL || e.getid() == STRING_LITERAL
        || e.getid() == HEX_LITERAL || e.gettoken() == "true" ||
-            e.gettoken() == "false")
+       e.gettoken() == "false")
     {
         advance();
         pAst->add_entity(current());
         return true;
     }
     else {
-        errors->newerror(GENERIC, current(), "expected identifier or literal");
+        errors->newerror(GENERIC, current(), "expected literal");
         return false;
     }
+}
+
+bool parser::parse_utype(ast *pAst) {
+    pAst = get_ast(pAst, ast_utype);
+
+    if(parse_type_identifier(pAst))
+    {
+        advance();
+        if(current().gettokentype() == LEFTBRACE)
+        {
+            pAst->add_entity(current());
+            expect(RIGHTBRACE, pAst, "`]`");
+        }
+
+        return true;
+    }
+    else
+        errors->newerror(GENERIC, current(), "expected native type or reference pointer.");
+
+    return false;
+}
+
+bool parser::parse_primaryexpr(ast *pAst) {
+    pAst = get_ast(pAst, ast_primary_expr);
+
+    errors->enablecheck_mode();
+    if(parse_literal(pAst))
+    {
+        errors->fail();
+        return true;
+    }
+    errors->pass();
+
+    errors->enablecheck_mode();
+    this->retainstate(pAst);
+    if(parse_utype(pAst))
+    {
+        if(peek(1).gettokentype() == DOT)
+        {
+            expect(DOT, pAst->getsubast(0), "`.`");
+            advance();
+
+            expect_token(pAst->getsubast(0), "class", "`class` after primary expression");
+            errors->fail();
+            return true;
+        }else
+            pAst = this->rollback();
+    } else
+        pAst = this->rollback();
+    errors->pass();
+
+    if(peek(1).gettoken() == "void")
+    {
+        advance();
+        pAst->add_entity(current());
+
+        expect(DOT, pAst, "`.`");
+        advance();
+
+        expect_token(pAst, "class", "`class` after primary expression");
+        return true;
+    }
+
+    errors->enablecheck_mode();
+    this->retainstate(pAst);
+    if(parse_reference_pointer(pAst)) {
+        if(peek(1).gettokentype() == PTR)
+        {
+            this->rollback();
+            errors->pass();
+            return false;
+        }
+        errors->fail();
+        return true;
+    }
+    else {
+        pushback();
+        errors->pass();
+    }
+
+    return false;
+}
+
+bool parser::parse_expression(ast *pAst) {
+    pAst = get_ast(pAst, ast_expression);
+
+    this->retainstate(pAst);
+    if(parse_primaryexpr(pAst)) {
+        return true;
+    }
+    else {
+        this->rollback();
+    }
+
+    if(peek(1).gettoken() == "this")
+    {
+        advance();
+        expect_token(pAst, "this", "");
+        expect(PTR, pAst, "`->` after this");
+        parse_expression(pAst);
+        return true;
+    }
+
+    errors->newerror(GENERIC, current(), "expected expression");
+    return false;
+}
+
+bool parser::parse_value(ast *pAst) {
+    pAst = get_ast(pAst, ast_value);
+    return parse_expression(pAst);
 }
 
 void parser::parse_methoddecl(ast *pAst) {
@@ -472,7 +581,8 @@ void parser::parse_methodparams(ast* pAst) {
                 first = false;
 
             pushback();
-            parse_type_identifier(pAst);
+            if(!parse_type_identifier(pAst))
+                errors->newerror(GENERIC, current(), "expected native type or reference pointer.");
             if(!expectidentifier(pAst))
             {
                 pushback();
@@ -598,7 +708,8 @@ void parser::parse_methodreturn_type(ast *pAst) {
         advance();
 
         pAst->add_entity(current());
-        parse_type_identifier(pAst);
+        if(!parse_type_identifier(pAst))
+            errors->newerror(GENERIC, current(), "expected native type or reference pointer.");
     }
 }
 
@@ -634,10 +745,10 @@ void parser::parse_method_invocation(ast *pAst) {
 
             this->retainstate(pAst);
             pushback();
-            errors->enable(_emcheck);
+            errors->enablecheck_mode();
             if(parse_reference_pointer(pAst))
             {
-                errors->disable((void*)false);
+                errors->fail();
                 if(peek(1).gettokentype() == LEFTPAREN)
                 {
                     // method invocation
@@ -646,15 +757,15 @@ void parser::parse_method_invocation(ast *pAst) {
                     continue;
                 }
                 else {
-                    this->cursor = rState->rCursor-1;
-                    this->ast_cursor = rState->rAstcursor;
+                    this->cursor = (*std::next(rState->begin(),
+                                               rStateCursor)).rCursor-1;
+                    this->ast_cursor = (*std::next(rState->begin(),
+                                                   rStateCursor)).rAstcursor;
                     pAst->freelastsub();
                     advance();
                 }
             }
-            else
-                pushback();
-            errors->disable((void*)true);
+            errors->pass();
         }
 
         if(current().gettokentype() == COMMA)
@@ -784,6 +895,12 @@ void parser::parse_modulename(ast* pAst)
 
     advance();
     while(current().gettokentype() == DOT) {
+        if(isexprkeyword(peek(1).gettoken()))
+        {
+            pushback();
+            break;
+        }
+
         pAst->add_entity(current());
 
         expectidentifier(pAst);
@@ -850,7 +967,7 @@ bool parser::iskeyword(string key) {
            || key == "public";
 }
 
-void parser::parse_type_identifier(ast *pAst) {
+bool parser::parse_type_identifier(ast *pAst) {
     pAst = get_ast(pAst, ast_type_identifier);
     advance();
 
@@ -859,19 +976,19 @@ void parser::parse_type_identifier(ast *pAst) {
     }
     else {
         pAst->add_entity(current());
-        return;
+        return true;
     }
 
-    errors->enable(_emcheck);
+    errors->enablecheck_mode();
     if(!parse_reference_pointer(pAst)){}
     else {
 
-        errors->disable((void*)true);
-        return;
+        errors->pass();
+        return true;
     }
 
-    errors->disable((void*)true);
-    errors->newerror(GENERIC, current(), "expected native type or reference pointer.");
+    errors->pass();
+    return false;
 }
 
 bool parser::parse_reference_pointer(ast *pAst) {
@@ -903,6 +1020,12 @@ bool parser::parse_reference_pointer(ast *pAst) {
             advance();
 
         while(current().gettokentype() == DOT) {
+            if(isexprkeyword(peek(1).gettoken()))
+            {
+                pushback();
+                break;
+            }
+
             pAst->add_entity(current());
 
             expectidentifier(pAst);
@@ -936,7 +1059,9 @@ void parser::free() {
         ast_cursor = 0;
         remove_accesstypes();
         this->tree->clear();
+        this->rState->clear();
         std::free(this->tree); this->tree = NULL;
+        std::free(this->rState); this->rState = NULL;
         std::free(this->_current); this->_current = NULL;
         std::free(this->access_types); this->access_types = NULL;
         errors->free();
@@ -944,17 +1069,30 @@ void parser::free() {
 }
 
 void parser::retainstate(ast* pAst) {
-    rState->rAst = pAst;
-    rState->rAstcursor = ast_cursor;
-    rState->rCursor = cursor;
+    rState->push_back(parser_state(pAst, cursor, ast_cursor));
+    rStateCursor++;
 }
 
 ast* parser::rollback() {
-    ast_cursor = rState->rAstcursor;
-    cursor = rState->rCursor-1;
-    advance();
+    if(rStateCursor >= 0)
+    {
+        parser_state* ps = &(*std::next(rState->begin(),
+                                        rStateCursor));
+        ast* pAst = ps->rAst;
+        ast_cursor = ps->rAstcursor;
+        cursor = ps->rCursor-1;
+        advance();
 
-    rState->rAst->freesubs();
-    rState->rAst->freeentities();
-    return rState->rAst;
+        ps->rAst->freesubs();
+        ps->rAst->freeentities();
+        rState->pop_back();
+        rStateCursor--;
+        return pAst;
+    }
+
+    return NULL;
+}
+
+bool parser::isexprkeyword(string token) {
+    return (token == "class");
 }

@@ -18,6 +18,14 @@ public:
     {
     }
 
+    parser_state(ast* pAst, int64_t c, int64_t ac)
+            :
+            rAst(pAst),
+            rCursor(c),
+            rAstcursor(ac)
+    {
+    }
+
     ast* rAst;
     int64_t  rCursor;
     int64_t rAstcursor;

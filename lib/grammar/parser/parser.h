@@ -18,11 +18,12 @@ public:
     :
             toks(tokenizer),
             cursor(0),
-            ast_cursor(-1)
+            ast_cursor(-1),
+            rStateCursor(-1)
     {
         access_types = new list<token_entity>();
         tree = new list<ast>();
-        rState = new parser_state();
+        rState = new list<parser_state>();
 
         if(tokenizer != NULL && tokenizer->geterrors() != NULL &&
                 !tokenizer->geterrors()->_errs())
@@ -48,7 +49,8 @@ private:
     int64_t cursor;
     tokenizer *toks;
     list<ast> *tree;
-    parser_state* rState;
+    list<parser_state>* rState;
+    int64_t rStateCursor;
     token_entity* _current;
     int64_t  ast_cursor;
     list<token_entity> *access_types;
@@ -116,7 +118,7 @@ private:
 
     bool expectidentifier(ast *pAst);
 
-    void parse_type_identifier(ast *pAst);
+    bool parse_type_identifier(ast *pAst);
 
     bool parse_reference_pointer(ast *pAst);
 
@@ -132,6 +134,18 @@ private:
     ast* rollback();
 
     void parse_method_invocation(ast *pAst);
+
+    bool parse_expression(ast *pAst);
+
+    bool parse_primaryexpr(ast *pAst);
+
+    bool parse_literal(ast *pAst);
+
+    bool parse_utype(ast *pAst);
+
+    void expect_token(ast *pAst, string token, const char *message);
+
+    bool isexprkeyword(string basic_string);
 };
 
 #endif //SHARP_PARRSER_H
