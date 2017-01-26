@@ -63,7 +63,6 @@ A value consists of an <expression>
 
 <TypeArgs>:
 '<' <type-list> '>'
-    |   <type-list>
 
 <value-list>:
 <value> (',' <value>)*
@@ -91,12 +90,13 @@ A value consists of an <expression>
 <expression>:
 <primary-expr>
     | 'this' '->' <expression>
-    | new TypeArgs ['(' <value-list> ')']
+    | new uType [TypeArgs] '(' [<value-list>] ')'
     | expression '[' expression ']'
     | '(' uType ')' expression
     | expression ('++' | '--')
     | ('+' | '-' | '++' | '--') expression
     | '!' expression
+    | '(' expression ')'
     | expression ('*'|'/'|'%') expression
     | expression ('+'|'-') expression
     | expression ('<' '<' | '>' '>' '>' | '>' '>') expression

@@ -7,6 +7,7 @@ class Start
 
     function foo()
     {
+        String i = new Map<String[], math#Int>(this->var);
         int r = this->var;
         int x = 0_000_000.11___0e+10;
         int y = 0x3344b8ef3_382848;
@@ -23,16 +24,17 @@ class Start
         }
 
         int i = C.b;
+        String s;
         examples.B.a x;
-        examples.x#B.a z = 0;
+        examples.x#B.a z = 5;
         examples y;
-        examples.B.a k = 0;
+        examples.B.a k = new Example("this is a test");
 
         examples.B.a w = examples.B.a;
         h = examples.x#B.a;
         examples.B.a = examples;
         examples.B.a u = examples.B.a;
-        sys.io.open("/usr/share/libutils.so", sys.io#BIN, this->x, sys.io.read("/usr/share/java-7_8.jar"));
+        sys.io.open("/usr/share/libutils.so", sys.io#BIN, this->x, new String("string"), sys.io.read("/usr/share/java-7_8.jar"));
 
         x = 9;
         return i;

@@ -146,6 +146,10 @@ private:
     void expect_token(ast *pAst, string token, const char *message);
 
     bool isexprkeyword(string basic_string);
+
+    void parse_typeargs(ast *pAst);
+
+    void parse_valuelist(ast *pAst);
 };
 
 #endif //SHARP_PARRSER_H

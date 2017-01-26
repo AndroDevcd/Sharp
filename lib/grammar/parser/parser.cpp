@@ -439,10 +439,11 @@ bool parser::parse_utype(ast *pAst) {
 
     if(parse_type_identifier(pAst))
     {
-        advance();
-        if(current().gettokentype() == LEFTBRACE)
+        if(peek(1).gettokentype() == LEFTBRACE)
         {
             pAst->add_entity(current());
+            advance();
+
             expect(RIGHTBRACE, pAst, "`]`");
         }
 
@@ -515,6 +516,48 @@ bool parser::parse_primaryexpr(ast *pAst) {
     return false;
 }
 
+void parser::parse_typeargs(ast *pAst) {
+    pAst = get_ast(pAst, ast_type_arg);
+
+    expect(LESSTHAN, pAst, "`<`");
+
+    if(peek(1).gettokentype() != GREATERTHAN)
+    {
+        parse_utype(pAst);
+
+        _pUtype:
+            if(peek(1).gettokentype() == COMMA)
+            {
+                expect(COMMA, pAst, "`,`");
+                parse_utype(pAst);
+                goto _pUtype;
+            }
+    }
+
+    expect(GREATERTHAN, pAst, "`>`");
+}
+
+void parser::parse_valuelist(ast *pAst) {
+    pAst = get_ast(pAst, ast_value_list);
+
+    expect(LEFTPAREN, pAst, "`(`");
+
+    if(peek(1).gettokentype() != RIGHTPAREN)
+    {
+        parse_value(pAst);
+
+        _pValue:
+        if(peek(1).gettokentype() == COMMA)
+        {
+            expect(COMMA, pAst, "`,`");
+            parse_value(pAst);
+            goto _pValue;
+        }
+    }
+
+    expect(RIGHTPAREN, pAst, "`)`");
+}
+
 bool parser::parse_expression(ast *pAst) {
     pAst = get_ast(pAst, ast_expression);
 
@@ -532,6 +575,21 @@ bool parser::parse_expression(ast *pAst) {
         expect_token(pAst, "this", "");
         expect(PTR, pAst, "`->` after this");
         parse_expression(pAst);
+        return true;
+    }
+
+    if(peek(1).gettoken() == "new")
+    {
+        advance();
+        expect_token(pAst, "new", "");
+        parse_utype(pAst);
+
+        if(peek(1).gettokentype() == LESSTHAN)
+        {
+            parse_typeargs(pAst);
+        }
+
+        parse_valuelist(pAst);
         return true;
     }
 
@@ -896,10 +954,7 @@ void parser::parse_modulename(ast* pAst)
     advance();
     while(current().gettokentype() == DOT) {
         if(isexprkeyword(peek(1).gettoken()))
-        {
-            pushback();
             break;
-        }
 
         pAst->add_entity(current());
 
@@ -964,7 +1019,7 @@ bool parser::iskeyword(string key) {
            || key == "function" || key == "import"
            || key == "return" || key == "this"
            || key == "const" || key == "override"
-           || key == "public";
+           || key == "public" || key == "new";
 }
 
 bool parser::parse_type_identifier(ast *pAst) {
@@ -1021,10 +1076,7 @@ bool parser::parse_reference_pointer(ast *pAst) {
 
         while(current().gettokentype() == DOT) {
             if(isexprkeyword(peek(1).gettoken()))
-            {
-                pushback();
                 break;
-            }
 
             pAst->add_entity(current());
 

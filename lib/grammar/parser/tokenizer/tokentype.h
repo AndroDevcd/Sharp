@@ -34,7 +34,7 @@ enum token_type
     LTE, // <=
     GTE, // >=
     EQEQ, // ==
-    NOTEQ, // <>
+    NOTEQ, // !=
     SHL, // <<
     SHR, // >>
     LESSTHAN,

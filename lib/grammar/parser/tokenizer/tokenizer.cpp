@@ -165,7 +165,7 @@ void tokenizer::scan_symbol() {
 
         if ((chs[0] == '<') && (chs[1] == '=')) type = LTE;
         else if ((chs[0] == '>') && (chs[1] == '=')) type = GTE;
-        else if ((chs[0] == '<') && (chs[1] == '>')) type = NOTEQ;
+        else if ((chs[0] == '!') && (chs[1] == '=')) type = NOTEQ;
         else if ((chs[0] == '=') && (chs[1] == '=')) type = EQEQ;
         else if ((chs[0] == '<') && (chs[1] == '<')) type = SHL;
         else if ((chs[0] == '>') && (chs[1] == '>')) type = SHR;
