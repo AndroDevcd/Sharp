@@ -83,15 +83,15 @@ A value consists of an <expression>
    |   '%='
 
 <primary-expr>:
-<refrence-identifier>
-    |   <literal>
-    |   <uType> '.' class
-    |   'void' '.' class
+<literal>
+    | <uType> '.' class
+    | 'void' '.' class
+    | <refrence-identifier>
 
 <expression>:
 <primary-expr>
     | 'this' '->' <expression>
-    | <expression> '.' new TypeArgs ['(' <value-list> ')']
+    | new TypeArgs ['(' <value-list> ')']
     | expression '[' expression ']'
     | '(' uType ')' expression
     | expression ('++' | '--')

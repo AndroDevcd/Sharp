@@ -65,23 +65,17 @@ public:
 
 class ast;
 
-enum _error_mode
-{
-    _emnone = 0x0,
-    _emcheck = 0x1
-};
-
 class Errors
 {
 public:
     Errors(list<string>* lines)
     :
             lines(lines),
-            mode(_emnone)
+            teCursor(-1)
     {
         errors = new list<parseerror>();
         uo_errors = new list<parseerror>();
-        _testerrors = new list<parseerror>();
+        _testerrors = new list<list<parseerror>*>();
         lasterr = parseerror();
         lastcheckederr = parseerror();
     }
@@ -93,22 +87,26 @@ public:
     int newerror(p_errors err, token_entity token, string xcmts = "");
     void newerror(p_errors err, int l, int c, string xcmts = "");
     bool _errs();
-    void enable(int mode);
-    void disable(void*arg);
+    void enablecheck_mode();
+    void fail();
+    void pass();
 
     void free();
 
 private:
     string getline(int line);
     keypair<p_errors, string> geterrorbyid(p_errors);
+    list<parseerror>* gettesterrorlist();
+    void addtesterror_list();
+    void removetesterror_list();
 
     list<string>* lines;
     list<parseerror>* errors, *uo_errors;
-    list<parseerror>* _testerrors;
+    list<list<parseerror>*>* _testerrors;
+    int64_t  teCursor;
     parseerror lasterr;
     parseerror lastcheckederr;
-    int mode;
-    bool _err;
+    bool _err, cm;
 
     bool shouldreport(token_entity *token, const string &xcmts, const parseerror &last_err, const parseerror &e) const;
 

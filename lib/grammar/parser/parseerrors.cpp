@@ -71,12 +71,12 @@ string Errors::getall_errors() {
 int Errors::newerror(p_errors err, token_entity token, string xcmts) {
     keypair<p_errors, string> kp = geterrorbyid(err);
     parseerror e(kp, token, xcmts);
-    parseerror last_err = mode == _emcheck ? lastcheckederr : lasterr;
+    parseerror last_err = cm ? lastcheckederr : lasterr;
 
     if(shouldreport(&token, xcmts, last_err, e))
     {
-        if(mode == _emcheck) {
-            _testerrors->push_back(e);
+        if(cm) {
+            gettesterrorlist()->push_back(e);
             lastcheckederr = e;
             return 1;
         }
@@ -111,12 +111,12 @@ bool Errors::shouldreport(token_entity *token, const string &xcmts,
 void Errors::newerror(p_errors err, int l, int c, string xcmts) {
     keypair<p_errors, string> kp = geterrorbyid(err);
     parseerror e(kp, l,c, xcmts);
-    parseerror last_err = mode == _emcheck ? lastcheckederr : lasterr;
+    parseerror last_err = cm ? lastcheckederr : lasterr;
 
     if(shouldreport(NULL, xcmts, last_err, e))
     {
-        if(mode == _emcheck) {
-            _testerrors->push_back(e);
+        if(cm) {
+            gettesterrorlist()->push_back(e);
             lastcheckederr = e;
             return;
         }
@@ -146,46 +146,54 @@ bool Errors::_errs() {
     return _err;
 }
 
-void Errors::enable(int mode) {
-    if(this->mode != _emnone) {
-        this->mode = _emnone;
-        newerror(GENERIC, 0,0, "faulty mode set, mode enabled unexpectedly.");
-    }
-
-    this->mode = mode;
+void Errors::enablecheck_mode() {
+    this->cm = true;
+    addtesterror_list();
 }
 
-void Errors::disable(void *arg) {
-    bool pass;
+list<parseerror> *Errors::gettesterrorlist() {
+    return *std::next(_testerrors->begin(), teCursor);
+}
 
-    switch(mode) {
-        case _emcheck:
-            pass = (bool)arg;
-            if(_testerrors->size() > 0) {
-                if(pass)
-                    goto end;
-
-                for(parseerror &err : *_testerrors)
-                {
-                    errors->push_back(err);
-                    uo_errors->push_back(err);
-                }
-                _err = true;
-                lasterr = lastcheckederr;
-            }
-
-        end:
-            _testerrors->clear();
-            lastcheckederr = parseerror();
-            mode = _emnone;
-            break;
-        default:
-            break;
+void Errors::removetesterror_list() {
+    if(_testerrors->size() != 0)
+    {
+        list<parseerror> *lst = *std::next(_testerrors->begin(), teCursor);
+        lst->clear();
+        _testerrors->pop_back();
+        teCursor--;
+        if(teCursor < 0) cm = false;
     }
+}
+
+void Errors::addtesterror_list() {
+    _testerrors->push_back(new list<parseerror>());
+    teCursor++;
+}
+
+void Errors::fail() {
+    if(_testerrors->size() > 0) {
+
+        for(parseerror &err : *gettesterrorlist())
+        {
+            errors->push_back(err);
+            uo_errors->push_back(err);
+        }
+        _err = true;
+        lasterr = lastcheckederr;
+    }
+
+    lastcheckederr = parseerror();
+    removetesterror_list();
+}
+
+void Errors::pass() {
+    lastcheckederr = parseerror();
+    removetesterror_list();
 }
 
 void Errors::free() {
-    this->mode = _emnone;
+    this->cm = false;
     this->_err = false;
     this->lastcheckederr = parseerror();
     this->lasterr = parseerror();

@@ -171,6 +171,7 @@ void tokenizer::scan_symbol() {
         else if ((chs[0] == '>') && (chs[1] == '>')) type = SHR;
         else if ((chs[0] == '&') && (chs[1] == '&')) type = AND;
         else if ((chs[0] == '|') && (chs[1] == '|')) type = OR;
+        else if ((chs[0] == '-') && (chs[1] == '>')) type = PTR;
 
         if (NONE != type)
         {
@@ -220,6 +221,10 @@ void tokenizer::scan_symbol() {
         entites->push_back(token_entity(string(1, current()), SINGLE, col, line, RIGHTCURLY));
     else if ('.' == current())
         entites->push_back(token_entity(string(1, current()), SINGLE, col, line, DOT));
+    else if ('[' == current())
+        entites->push_back(token_entity(string(1, current()), SINGLE, col, line, LEFTBRACE));
+    else if (']' == current())
+        entites->push_back(token_entity(string(1, current()), SINGLE, col, line, RIGHTBRACE));
     else
     {
         errors->newerror(UNEXPECTED_SYMBOL, line, col, " `" + string(1, current()) + "`");
