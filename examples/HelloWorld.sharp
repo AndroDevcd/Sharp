@@ -8,6 +8,12 @@ import d.a.b.x;
 class Start // add 'base <refid>' to class decl
 {
 
+    macros _get_addr_info (int x, char c)
+    {
+        int portid = x;
+        sys.io.open((short)c, sys.io.PORT);
+    }
+
     function foo()
     {
         examples.B.a x;
@@ -23,14 +29,15 @@ class Start // add 'base <refid>' to class decl
         int q = 5 * 4;
         int i = (((int)v--)/6);
         bool i = !z++;
+        Map<int> mp = null;
         int i = (short) x[3]++ + 6;
         int i = ((short) x[3]++) + 6/9;
         int b = --arr[9];
         String s = new String(x[3], 0);
-        String i = new Map<List<Map<int, String> >[], math#Int>(self->var);
+        String i = new Map<List<Map<int, String>>, math#Int>(self->var);
         int r = self->var;
         int x = 0_000_000.11___0e+10;
-        int y = 0x3344b8ef3_382848;
+        int[] y = 0x3344b8ef3_382848;
         short u = 0x4376;
     }
 
@@ -38,13 +45,13 @@ class Start // add 'base <refid>' to class decl
     * Main function
     */
     private static override function main(examples.b#Class.var b6, Integer#Int[] x,
-            List<Type<int> > lst,Int b, Int.c z) : int
+            List<Type<int>> lst,Int b, Int.c z) : int
     { // close up gap with processing xpression after function call (parse '++' and '--'
         {
             int i = ""'n''m''h''y';
         }
 
-        int i = C.b;
+        int i = C.b >> 5;
         z %= 99.1345;
         String s += "";
         String s;
@@ -57,7 +64,7 @@ class Start // add 'base <refid>' to class decl
         h = examples.x#B.a;
         examples.B.a = examples;
         examples.B.a( u = examples.B.a;
-        sys.io.open("/usr/share/libutils.so", sys.io#BIN, self->x++,, new String("string"), sys.io.read("/usr/share/java-7_8.jar"));
+        sys.io.open("/usr/share/libutils.so", sys.io#BIN, self->x++, new String("string"), sys.io.read("/usr/share/java-7_8.jar"));
 
         x = 9;
         return i;

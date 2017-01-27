@@ -9,6 +9,7 @@ void parser::parse()
     if(toks->getentities() == 0)
         return;
 
+    parsed = true;
     errors = new Errors(toks->getlines());
     _current= &(*std::next(toks->getentities()->begin(), cursor));
 
@@ -171,6 +172,10 @@ bool parser::isreturn_stmnt(token_entity entity) {
     return entity.getid() == IDENTIFIER && entity.gettoken() == "return";
 }
 
+bool parser::ismacros_decl(token_entity entity) {
+    return entity.getid() == IDENTIFIER && entity.gettoken() == "macros";
+}
+
 bool parser::isnative_type(string type) {
     return type == "int" || type == "short"
            || type == "long" || type == "bool"
@@ -289,6 +294,10 @@ void parser::parse_classblock(ast *pAst) {
             }
             parse_importdecl(pAst);
         }
+        else if(ismacros_decl(current()))
+        {
+            parse_macrosdecl(pAst);
+        }
         else if(isvariable_decl(current()))
         {
             parse_variabledecl(pAst);
@@ -370,8 +379,9 @@ void parser::parse_variabledecl(ast *pAst) {
         pAst->add_entity(entity);
     }
     pushback();
-    if(!parse_type_identifier(pAst))
+    if(!parse_utype(pAst))
         errors->newerror(GENERIC, current(), "expected native type or reference pointer.");
+    parse_memaccess_flag(pAst);
     expectidentifier(pAst);
 
     parse_valueassignment(pAst);
@@ -518,6 +528,7 @@ bool parser::parse_primaryexpr(ast *pAst) {
     return false;
 }
 
+bool skipbracket = false;
 void parser::parse_typeargs(ast *pAst) {
     pAst = get_ast(pAst, ast_type_arg);
 
@@ -536,7 +547,15 @@ void parser::parse_typeargs(ast *pAst) {
         }
     }
 
-    expect(GREATERTHAN, pAst, "`>`");
+    if(peek(1).gettokentype() == SHR)
+    {
+        advance();
+        skipbracket = true;
+    }
+    else if(skipbracket){
+        skipbracket = false; }
+    else
+        expect(GREATERTHAN, pAst, "`>`");
 }
 
 void parser::parse_valuelist(ast *pAst) {
@@ -677,6 +696,13 @@ bool parser::parse_expression(ast *pAst) {
             return true;
     }
 
+    if(peek(1).gettoken() == "null")
+    {
+        advance();
+        expect_token(pAst, "null", "");
+        return true;
+    }
+
     if(peek(1).gettoken() == "new")
     {
         advance();
@@ -814,14 +840,30 @@ bool parser::parse_value(ast *pAst) {
     return parse_expression(pAst);
 }
 bool parser::parse_utypearg(ast* pAst) {
+    pAst = get_ast(pAst, ast_utype_arg);
+
     if(parse_utype(pAst))
     {
+        parse_memaccess_flag(pAst);
         parse_type_identifier(pAst);
         return true;
     }else
         errors->newerror(GENERIC, current(), "expected native type or reference pointer.");
 
     return false;
+}
+
+bool parser::ismemaccess_flag(string token) {
+    return token == "&" || token == "*";
+}
+
+void parser::parse_memaccess_flag(ast *pAst) {
+    if(ismemaccess_flag(peek(1).gettoken()))
+    {
+        pAst = get_ast(pAst, ast_mem_access_flag);
+        advance();
+        pAst->add_entity(current());
+    }
 }
 
 void parser::parse_utypearg_list(ast* pAst) {
@@ -843,8 +885,53 @@ void parser::parse_utypearg_list(ast* pAst) {
     expect(RIGHTPAREN, pAst, "`)`");
 }
 
+void parser::parse_block(ast* pAst) {
+    expect(LEFTCURLY, "`{`");
+    pAst = get_ast(pAst, ast_block);
+
+    while(!isend())
+    {
+        advance();
+        if (current().gettokentype() == RIGHTCURLY)
+        {
+            pushback();
+            break;
+        }
+        else if(current().gettokentype() == LEFTCURLY)
+        {
+            pushback();
+            parse_block(pAst);
+        }
+        else if(current().gettokentype() == _EOF)
+        {
+            errors->newerror(UNEXPECTED_EOF, current());
+            break;
+        } else
+            parse_statement(pAst);
+
+        remove_accesstypes();
+    }
+
+    expect(RIGHTCURLY, "`}`");
+}
+
+void parser::parse_macrosdecl(ast *pAst) {
+    pAst = get_ast(pAst, ast_method_decl);
+
+    for(token_entity &entity : *access_types)
+    {
+        pAst->add_entity(entity);
+    }
+    pAst->add_entity(current());
+
+    expectidentifier(pAst);
+
+    parse_utypearg_list(pAst);
+    parse_block(pAst);
+}
+
 void parser::parse_methoddecl(ast *pAst) {
-    pAst = get_ast(pAst, ast_method_inv);
+    pAst = get_ast(pAst, ast_method_decl);
 
     for(token_entity &entity : *access_types)
     {
@@ -857,7 +944,8 @@ void parser::parse_methoddecl(ast *pAst) {
     parse_utypearg_list(pAst);
 
     parse_methodreturn_type(pAst);
-    parse_methodblock(pAst);
+    parse_block(pAst);
+    //parse_methodblock(pAst);
 
 }
 
@@ -941,6 +1029,11 @@ void parser::parse_statement(ast* pAst) {
     {
         parse_variabledecl(pAst);
     }
+    else if(ismacros_decl(current()))
+    {
+        errors->newerror(GENERIC, current(), "macros declaration not allowed here");
+        parse_macrosdecl(pAst);
+    }
     else if(ismodule_decl(current()))
     {
         errors->newerror(GENERIC, current(), "module declaration not allowed here");
@@ -969,10 +1062,11 @@ void parser::parse_statement(ast* pAst) {
         /*
          * variable decl?
          */
-        if(parse_reference_pointer(pAst))
+        if(parse_utype(pAst))
         {
 
-            if(peek(1).getid() == IDENTIFIER)
+            if(peek(1).getid() == IDENTIFIER ||
+                    (ismemaccess_flag(peek(1).gettoken()) && peek(2).getid() == IDENTIFIER))
             {
                 // Variable decliration
                 pAst = this->rollback();
@@ -1082,7 +1176,8 @@ bool parser::iskeyword(string key) {
            || key == "return" || key == "self"
            || key == "const" || key == "override"
            || key == "public" || key == "new"
-           || key == "void";
+           || key == "void" || key == "macros"
+           || key == "null";
 }
 
 bool parser::parse_type_identifier(ast *pAst) {

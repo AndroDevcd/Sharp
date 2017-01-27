@@ -4,6 +4,8 @@
 #include <chrono>
 #include "lib/util/file.h"
 
+#define WIN32_LEAN_AND_MEAN
+
 template<typename TimeT = std::chrono::milliseconds>
 struct measure
 {
@@ -37,17 +39,21 @@ void compile(string code)
 
     parser parser(&tokenizer1);
 
-    if(parser.geterrors()->_errs())
+    if(parser.parsed)
     {
-        cout << parser.geterrors()->getall_errors();
-        cout << endl << endl << "#################################################################\n";
-        cout << parser.geterrors()->getuo_errors();
+        if(parser.geterrors()->_errs())
+        {
+            cout << parser.geterrors()->getall_errors();
+            cout << endl << endl << "#################################################################\n";
+            cout << parser.geterrors()->getuo_errors();
+        }
+
+        cout << endl << endl << "==========================================================\n" ;
+        cout << "Errors: " << parser.geterrors()->error_count() << " Unoptimized errors: " << parser.geterrors()->uoerror_count() << endl;
+
+        parser.free();
     }
 
-    cout << endl << endl << "==========================================================\n" ;
-    cout << "Errors: " << parser.geterrors()->error_count() << " Unoptimized errors: " << parser.geterrors()->uoerror_count() << endl;
-
-    parser.free();
     tokenizer1.free();
 }
 
