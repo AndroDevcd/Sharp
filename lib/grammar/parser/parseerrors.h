@@ -71,7 +71,9 @@ public:
     Errors(list<string>* lines)
     :
             lines(lines),
-            teCursor(-1)
+            teCursor(-1),
+            _err(false),
+            cm(false)
     {
         errors = new list<parseerror>();
         uo_errors = new list<parseerror>();

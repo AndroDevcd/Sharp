@@ -34,21 +34,33 @@ enum token_type
     LTE, // <=
     GTE, // >=
     EQEQ, // ==
+    PLUSEQ,
+    MINUSEQ,
+    MULTEQ,
+    DIVEQ,
+    ANDEQ,
+    OREQ,
+    XOREQ,
+    MODEQ,
     NOTEQ, // !=
     SHL, // <<
     SHR, // >>
     LESSTHAN,
     GREATERTHAN,
     AND,
+    ANDAND, // &&
     OR,
+    OROR, // ||
+    XOR, // ^
     NOT, // !
     ASSIGN, // =
     LEFTBRACE, // [
     RIGHTBRACE, // ]
+    QUESMK, // ?
     PTR, // ->
     INC, // ++
     DEC, // --
-    _EOF, // end of file
+    _EOF = 9999, // end of file
 
     NONE // not a type
 };

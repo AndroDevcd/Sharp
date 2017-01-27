@@ -26,7 +26,7 @@ A number-literal consists of (<number>, <numberset>, or <numberset>.<numberset>)
 <string-literal>:
 A string-literal starts with `"` and contains all characters until a unescaped `"` is reached or a new line.
 String escape character is `\` with multiple escape values: \n, \b, \v, \t.
-Variables are printed (scope based) via `{<refrence-identifier>} or {this.<refrence-identifier>}`
+Variables are printed (scope based) via `{<refrence-identifier>} or {self-><refrence-identifier>}`
 by concatinating the string to the value via `+ <refrence-identifier>`
 
 <boolean-literal>:
@@ -65,7 +65,19 @@ A value consists of an <expression>
 '<' <type-list> '>'
 
 <value-list>:
-<value> (',' <value>)*
+[ '(' <value> (',' <value>)* ')']
+
+<uTypeArgOpt>:
+<typeidentifier> [<TypeArgs>] [([])] [<typeidentifier>]
+
+<uTypeArg>:
+<typeidentifier> [<TypeArgs>] [([])] <typeidentifier>
+
+<uTypeArg-list-opt>;
+[ '(' <uTypeArgOpt> (',' <uTypeArgOpt>)* ')']
+
+<uTypeArg-list>;
+[ '(' <uTypeArg> (',' <uTypeArg>)* ')']
 
 <assign-expr>:
 '='
@@ -86,11 +98,12 @@ A value consists of an <expression>
     | <uType> '.' class
     | 'void' '.' class
     | <refrence-identifier>
+    | <refrence-identifier> <value-list> [expression] // method invocation
 
 <expression>:
 <primary-expr>
-    | 'this' '->' <expression>
-    | new uType [TypeArgs] '(' [<value-list>] ')'
+    | 'self' '->' <expression>
+    | new uType [TypeArgs] [<value-list>]
     | expression '[' expression ']'
     | '(' uType ')' expression
     | expression ('++' | '--')
@@ -99,14 +112,10 @@ A value consists of an <expression>
     | '(' expression ')'
     | expression ('*'|'/'|'%') expression
     | expression ('+'|'-') expression
-    | expression ('<' '<' | '>' '>' '>' | '>' '>') expression
+    | expression ('<' '<' | '>' '>') expression
     | expression ('<=' | '>=' | '>' | '<') expression
     | expression ('==' | '!=') expression
-    | expression '&' expression
-    | expression '^' expression
-    | expression '|' expression
-    | expression '&&' expression
-    | expression '||' expression
+    | expression ('&' | '^' | '|' | '&&' | '||') expression
     | expression '?' expression ':' expression
     | expression <assign-expr> expression
 
@@ -148,11 +157,21 @@ Method Invocation statement:
 <refrence-identifier = name>([<value-list>]) ;
 
 If statement:
-if (<expression>) { <statements>* }
+if (<expression>) { <statement>* }
 
 <return-statement>:
 `return <value>` ;
 
+<external-typeidentifier-decl>:
+<typeidentifier> <identifier>
+
+<external-method-decl>:
+<refrence-identifier> <uTypeArg-list-opt>
+
+<external-statement>:
+extern (<external-method-decl> | <external-typeidentifier-decl>)
+
 <statement>:
-    <return-statement> |
-    <variable-declaration>
+<return-statement>
+     | <variable-declaration>
+     | <expression>

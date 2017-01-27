@@ -72,8 +72,6 @@ private:
 
     bool ismethod_decl(token_entity token);
 
-    bool isstatement_decl(token_entity token);
-
     bool isnative_type(string type);
 
     bool isaccess_decl(token_entity token);
@@ -94,13 +92,9 @@ private:
 
     void parse_variabledecl(ast *pAst);
 
-    bool isassiment_decl(token_entity token);
-
     bool parse_value(ast *pAst);
 
     void parse_methoddecl(ast *pAst);
-
-    void parse_methodparams(ast *pAst);
 
     void expect(token_type ty, ast *pAst, const char *expectedstr);
 
@@ -111,8 +105,6 @@ private:
     bool isreturn_stmnt(token_entity entity);
 
     void parse_returnstmnt(ast *pAst);
-
-    bool issemicolon(token_entity entity);
 
     void parse_all(ast *pAst);
 
@@ -128,12 +120,9 @@ private:
 
     void parse_valueassignment(ast *pAst);
 
-    void parse_variable_assignmentstmnt(ast *pAst);
-
     void retainstate(ast*);
+    void dumpstate();
     ast* rollback();
-
-    void parse_method_invocation(ast *pAst);
 
     bool parse_expression(ast *pAst);
 
@@ -149,9 +138,15 @@ private:
 
     void parse_typeargs(ast *pAst);
 
+    bool parse_utypearg(ast *pAst);
+
+    void parse_utypearg_list(ast *pAst);
+
     void parse_valuelist(ast *pAst);
 
     bool isexprsymbol(string basic_string);
+
+    bool isassign_exprsymbol(string token);
 };
 
 #endif //SHARP_PARRSER_H

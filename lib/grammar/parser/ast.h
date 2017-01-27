@@ -16,6 +16,8 @@ enum ast_types
     ast_var_decl,
     ast_value,
     ast_value_list,
+    ast_utype_arg_list,
+    ast_utype_arg,
     ast_expression,
     ast_primary_expr,
     ast_utype,
@@ -40,7 +42,7 @@ class ast
 {
 public:
     ast(ast* parent, ast_types type)
-    :
+            :
             type(type),
             parent(parent)
     {

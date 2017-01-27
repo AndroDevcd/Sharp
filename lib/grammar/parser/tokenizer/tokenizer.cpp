@@ -169,11 +169,19 @@ void tokenizer::scan_symbol() {
         else if ((chs[0] == '=') && (chs[1] == '=')) type = EQEQ;
         else if ((chs[0] == '<') && (chs[1] == '<')) type = SHL;
         else if ((chs[0] == '>') && (chs[1] == '>')) type = SHR;
-        else if ((chs[0] == '&') && (chs[1] == '&')) type = AND;
-        else if ((chs[0] == '|') && (chs[1] == '|')) type = OR;
+        else if ((chs[0] == '&') && (chs[1] == '&')) type = ANDAND;
+        else if ((chs[0] == '|') && (chs[1] == '|')) type = OROR;
         else if ((chs[0] == '-') && (chs[1] == '>')) type = PTR;
         else if ((chs[0] == '+') && (chs[1] == '+')) type = INC;
         else if ((chs[0] == '-') && (chs[1] == '-')) type = DEC;
+        else if ((chs[0] == '+') && (chs[1] == '=')) type = PLUSEQ;
+        else if ((chs[0] == '*') && (chs[1] == '=')) type = MULTEQ;
+        else if ((chs[0] == '-') && (chs[1] == '=')) type = MINUSEQ;
+        else if ((chs[0] == '/') && (chs[1] == '=')) type = DIVEQ;
+        else if ((chs[0] == '&') && (chs[1] == '=')) type = ANDEQ;
+        else if ((chs[0] == '|') && (chs[1] == '=')) type = OREQ;
+        else if ((chs[0] == '^') && (chs[1] == '=')) type = XOREQ;
+        else if ((chs[0] == '%') && (chs[1] == '=')) type = MODEQ;
 
         if (NONE != type)
         {
@@ -227,6 +235,14 @@ void tokenizer::scan_symbol() {
         entites->push_back(token_entity(string(1, current()), SINGLE, col, line, LEFTBRACE));
     else if (']' == current())
         entites->push_back(token_entity(string(1, current()), SINGLE, col, line, RIGHTBRACE));
+    else if ('&' == current())
+        entites->push_back(token_entity(string(1, current()), SINGLE, col, line, AND));
+    else if ('|' == current())
+        entites->push_back(token_entity(string(1, current()), SINGLE, col, line, OR));
+    else if ('^' == current())
+        entites->push_back(token_entity(string(1, current()), SINGLE, col, line, XOR));
+    else if ('?' == current())
+        entites->push_back(token_entity(string(1, current()), SINGLE, col, line, QUESMK));
     else
     {
         errors->newerror(UNEXPECTED_SYMBOL, line, col, " `" + string(1, current()) + "`");

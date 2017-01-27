@@ -99,7 +99,8 @@ bool Errors::shouldreport(token_entity *token, const parseerror &last_err,
     if(last_err.error != e.error && !(last_err.line == e.line && last_err.col == e.col)
        && (last_err.error.find(e.error) == std::string::npos))
     {
-        if(token != NULL)
+        if(token != NULL && !(token->getid() == SINGLE || token->getid() == CHAR_LITERAL ||
+                token->getid() == STRING_LITERAL || token->getid() == INTEGER_LITERAL))
             return (last_err.error.find(token->gettoken()) == std::string::npos) &&
                     ((last_err.line-e.line)!=-1);
 
@@ -182,7 +183,7 @@ void Errors::fail() {
             uo_errors->push_back(err);
         }
         _err = true;
-        lasterr = lastcheckederr;
+        if(teCursor < 0) lasterr = lastcheckederr;
     }
 
     lastcheckederr = parseerror();
