@@ -414,6 +414,9 @@ bool parser::parse_utype(ast *pAst) {
 
     if(parse_type_identifier(pAst))
     {
+        if(peek(1).gettokentype() == LESSTHAN)
+            parse_typeargs(pAst);
+
         if(peek(1).gettokentype() == LEFTBRACE)
         {
             pAst->add_entity(current());
@@ -480,15 +483,26 @@ bool parser::parse_primaryexpr(ast *pAst) {
             parse_valuelist(pAst);
             errors->fail();
 
-            errors->enablecheck_mode();
-            this->retainstate(pAst);
-            if(!parse_expression(pAst))
+            /* func()++ or func()--
+             * This expression rule dosen't process correctly by itsself
+             * so we hav to do it ourselves
+             */
+            if(peek(1).gettokentype() == INC || peek(1).gettokentype() == DEC)
             {
-                errors->pass();
-                this->rollback();
-            } else {
-                this->dumpstate();
-                errors->fail();
+                advance();
+                pAst->add_entity(current());
+            }
+            else {
+                errors->enablecheck_mode();
+                this->retainstate(pAst);
+                if(!parse_expression(pAst))
+                {
+                    errors->pass();
+                    this->rollback();
+                } else {
+                    this->dumpstate();
+                    errors->fail();
+                }
             }
 
             return true;
@@ -656,7 +670,7 @@ bool parser::parse_expression(ast *pAst) {
     {
         advance();
         expect_token(pAst, "self", "");
-        expect(PTR, pAst, "`->` after this");
+        expect(PTR, pAst, "`->` after self");
         parse_expression(pAst);
 
         if(!isexprsymbol(peek(1).gettoken()))
@@ -800,17 +814,8 @@ bool parser::parse_value(ast *pAst) {
     return parse_expression(pAst);
 }
 bool parser::parse_utypearg(ast* pAst) {
-    if(parse_type_identifier(pAst))
+    if(parse_utype(pAst))
     {
-        if(peek(1).gettokentype() == LESSTHAN)
-            parse_typeargs(pAst);
-
-        if(peek(1).gettokentype() == LEFTBRACE) {
-            pAst->add_entity(current());
-            advance();
-            expect(RIGHTBRACE, pAst, "`]`");
-        }
-
         parse_type_identifier(pAst);
         return true;
     }else

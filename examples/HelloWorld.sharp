@@ -11,7 +11,7 @@ class Start // add 'base <refid>' to class decl
     function foo()
     {
         examples.B.a x;
-        uInt64 u = new uInt64();
+        uInt64 u = new uInt64(foo() == foo()++ ? 1 : 0);
         short squery = SQL.query(cursor, x /9 ? 504 : 403, io.READ)/113;
         short query = x>>9 ? 103 : (x<<2)-9;
         int q = i ^ 8 && ((x << 2) | 1);
@@ -27,7 +27,7 @@ class Start // add 'base <refid>' to class decl
         int i = ((short) x[3]++) + 6/9;
         int b = --arr[9];
         String s = new String(x[3], 0);
-        String i = new Map<String[], math#Int>(self->var);
+        String i = new Map<List<Map<int, String> >[], math#Int>(self->var);
         int r = self->var;
         int x = 0_000_000.11___0e+10;
         int y = 0x3344b8ef3_382848;
@@ -38,8 +38,8 @@ class Start // add 'base <refid>' to class decl
     * Main function
     */
     private static override function main(examples.b#Class.var b6, Integer#Int[] x,
-            List<int> lst,Int b, Int.c z) : int
-    {
+            List<Type<int> > lst,Int b, Int.c z) : int
+    { // close up gap with processing xpression after function call (parse '++' and '--'
         {
             int i = ""'n''m''h''y';
         }
@@ -65,10 +65,6 @@ class Start // add 'base <refid>' to class decl
 
     private static override function main(examples.b#Class.var b6, Integer#Int x, Int b, Int.c z) : int
     {
-        /*
-        * Close up gaps for processing statements
-        * and start processing them in full
-        */
         {
             int i = ""'n''m''h''y';
         }

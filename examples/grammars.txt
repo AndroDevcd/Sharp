@@ -56,7 +56,7 @@ An <nativetype> or <refrence-identifier>
 A value consists of an <expression>
 
 <uType>:
-<typeidentifier> [([])]
+<typeidentifier> [<TypeArgs>] [([])]
 
 <type-list>;
 <uType> (',' <uType>)*
@@ -68,10 +68,10 @@ A value consists of an <expression>
 [ '(' <value> (',' <value>)* ')']
 
 <uTypeArgOpt>:
-<typeidentifier> [<TypeArgs>] [([])] [<typeidentifier>]
+<uType> [<typeidentifier>]
 
 <uTypeArg>:
-<typeidentifier> [<TypeArgs>] [([])] <typeidentifier>
+<uType> <typeidentifier>
 
 <uTypeArg-list-opt>;
 [ '(' <uTypeArgOpt> (',' <uTypeArgOpt>)* ')']
@@ -142,7 +142,7 @@ Class Declaration:
 `[<accesstype>] class <identifier = name> {}`
 
 Method Declaration:
-`[<accesstype>] function <identifier = name> ([<typeidentifier> <identifier = name>,...]) [: <typeidentifier>] { <statement>* }`
+`[<accesstype>] function <identifier = name> <uTypeArg-list> [: <typeidentifier>] { <statement>* }`
 
 Variable Declaration statement:
 `[<accesstype>] <typeidentifier> <identifier = name> [ <assign-expr> <value>] ;`
@@ -168,7 +168,7 @@ if (<expression>) { <statement>* }
 <external-method-decl>:
 <refrence-identifier> <uTypeArg-list-opt>
 
-<external-statement>:
+<external-decliration>:
 extern (<external-method-decl> | <external-typeidentifier-decl>)
 
 <statement>:
