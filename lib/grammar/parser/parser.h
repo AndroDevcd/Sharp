@@ -19,15 +19,19 @@ public:
             toks(tokenizer),
             cursor(0),
             ast_cursor(-1),
-            rStateCursor(-1)
+            rStateCursor(-1),
+            parsed(false),
+            tree(NULL)
     {
-        access_types = new list<token_entity>();
-        tree = new list<ast>();
-        rState = new list<parser_state>();
-
         if(tokenizer != NULL && tokenizer->geterrors() != NULL &&
                 !tokenizer->geterrors()->_errs())
+        {
+            access_types = new list<token_entity>();
+            tree = new list<ast>();
+            rState = new list<parser_state>();
+
             parse();
+        }
         else {
             std::free(access_types); access_types = NULL;
             std::free(tree); tree = NULL;
@@ -37,6 +41,7 @@ public:
     Errors* geterrors();
     ast* ast_at(long p);
     void free();
+    bool parsed;
 
 private:
     void parse();
@@ -147,6 +152,16 @@ private:
     bool isexprsymbol(string basic_string);
 
     bool isassign_exprsymbol(string token);
+
+    void parse_memaccess_flag(ast *pAst);
+
+    bool ismemaccess_flag(string basic_string);
+
+    bool ismacros_decl(token_entity entity);
+
+    void parse_macrosdecl(ast *pAst);
+
+    void parse_block(ast *pAst);
 };
 
 #endif //SHARP_PARRSER_H

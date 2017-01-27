@@ -64,6 +64,10 @@ A value consists of an <expression>
 <TypeArgs>:
 '<' <type-list> '>'
 
+<MemAccessFlag>:
+'&'
+    | '*'
+
 <value-list>:
 [ '(' <value> (',' <value>)* ')']
 
@@ -71,7 +75,7 @@ A value consists of an <expression>
 <uType> [<typeidentifier>]
 
 <uTypeArg>:
-<uType> <typeidentifier>
+<uType> <MemAccessFlag> <typeidentifier>
 
 <uTypeArg-list-opt>;
 [ '(' <uTypeArgOpt> (',' <uTypeArgOpt>)* ')']
@@ -103,6 +107,7 @@ A value consists of an <expression>
 <expression>:
 <primary-expr>
     | 'self' '->' <expression>
+    | null
     | new uType [TypeArgs] [<value-list>]
     | expression '[' expression ']'
     | '(' uType ')' expression
@@ -141,14 +146,14 @@ import <modulename> ;
 Class Declaration:
 `[<accesstype>] class <identifier = name> {}`
 
+<block>:
+{ <statements>* }
+
 Method Declaration:
-`[<accesstype>] function <identifier = name> <uTypeArg-list> [: <typeidentifier>] { <statement>* }`
+`[<accesstype>] function <identifier = name> <uTypeArg-list> [: <typeidentifier>] <block>
 
 Variable Declaration statement:
-`[<accesstype>] <typeidentifier> <identifier = name> [ <assign-expr> <value>] ;`
-
-Variable Assignment statement;
-<refrence-identifier> = <value> ;
+`[<accesstype>] <uType> <identifier = name> <MemAccessFlag> [ <assign-expr> <value>] ;`
 
 Single Line comment Declaration:
 `//`
@@ -161,6 +166,9 @@ if (<expression>) { <statement>* }
 
 <return-statement>:
 `return <value>` ;
+
+<macros-decliration>:
+'macros' <identifier> <uTypeArg-list> <block>
 
 <external-typeidentifier-decl>:
 <typeidentifier> <identifier>

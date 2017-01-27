@@ -49,7 +49,7 @@ void tokenizer::scan()
     {
         scan_symbol();
     }
-    else if(isletter(current()))
+    else if(isletter(current()) || current() == '_')
     {
         scan_identifier();
     }
@@ -254,14 +254,21 @@ void tokenizer::scan_symbol() {
 
 void tokenizer::scan_identifier() {
     stringstream var;
+    bool hasletter = false;
 
     while(!isend() && (isalnum(current()) || current() == '_'))
     {
+        if(isletter(current()))
+            hasletter = true;
+
         var << current();
         advance();
     }
 
-    entites->push_back(token_entity(var.str(), IDENTIFIER, col, line));
+    if(!hasletter)
+        errors->newerror(GENERIC, line, col, " expected at least 1 letter in identifier `" + var.str() + "`");
+    else
+        entites->push_back(token_entity(var.str(), IDENTIFIER, col, line));
 }
 
 void tokenizer::scan_stringliteral() {
