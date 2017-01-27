@@ -304,7 +304,10 @@ void parser::parse_classblock(ast *pAst) {
         }
         else if(ismethod_decl(current()))
         {
-            parse_methoddecl(pAst);
+            if(peek(1).gettoken() == "operator")
+                parse_operatordecl(pAst);
+            else
+                parse_methoddecl(pAst);
         }
         else if(current().gettokentype() == _EOF)
         {
@@ -380,7 +383,7 @@ void parser::parse_variabledecl(ast *pAst) {
     }
     pushback();
     if(!parse_utype(pAst))
-        errors->newerror(GENERIC, current(), "expected native type or reference pointer.");
+        errors->newerror(GENERIC, current(), "expected native type or reference pointer");
     parse_memaccess_flag(pAst);
     expectidentifier(pAst);
 
@@ -435,10 +438,11 @@ bool parser::parse_utype(ast *pAst) {
             expect(RIGHTBRACE, pAst, "`]`");
         }
 
+        parse_memaccess_flag(pAst);
         return true;
     }
     else
-        errors->newerror(GENERIC, current(), "expected native type or reference pointer.");
+        errors->newerror(GENERIC, current(), "expected native type or reference pointer");
 
     return false;
 }
@@ -600,6 +604,14 @@ bool parser::isexprsymbol(string token) {
            token == "&&" || token == "||"||
            token == "^" || token == "?" ||
            isassign_exprsymbol(token);
+}
+
+bool parser::isoverride_operator(string token) {
+    return isassign_exprsymbol(token) ||
+            token == "++" ||token == "--" ||
+            token == "*" || token == "/" ||
+            token == "%" || token == "-" ||
+            token == "+";
 }
 
 bool parser::parse_expression(ast *pAst) {
@@ -844,11 +856,10 @@ bool parser::parse_utypearg(ast* pAst) {
 
     if(parse_utype(pAst))
     {
-        parse_memaccess_flag(pAst);
         parse_type_identifier(pAst);
         return true;
     }else
-        errors->newerror(GENERIC, current(), "expected native type or reference pointer.");
+        errors->newerror(GENERIC, current(), "expected native type or reference pointer");
 
     return false;
 }
@@ -930,6 +941,31 @@ void parser::parse_macrosdecl(ast *pAst) {
     parse_block(pAst);
 }
 
+void parser::parse_operatordecl(ast *pAst) {
+    pAst = get_ast(pAst, ast_operator_decl);
+
+    for(token_entity &entity : *access_types)
+    {
+        pAst->add_entity(entity);
+    }
+    pAst->add_entity(current());
+
+    advance();
+    expect_token(
+            pAst, "operator", "`operator`");
+
+    advance();
+    if(!isoverride_operator(current().gettoken()))
+        errors->newerror(GENERIC, current(), "expected override operator");
+    else
+        pAst->add_entity(current());
+
+    parse_utypearg_list(pAst);
+
+    parse_methodreturn_type(pAst); // assign-expr operators must return void
+    parse_block(pAst);
+}
+
 void parser::parse_methoddecl(ast *pAst) {
     pAst = get_ast(pAst, ast_method_decl);
 
@@ -945,7 +981,6 @@ void parser::parse_methoddecl(ast *pAst) {
 
     parse_methodreturn_type(pAst);
     parse_block(pAst);
-    //parse_methodblock(pAst);
 
 }
 
@@ -1007,7 +1042,7 @@ void parser::parse_methodreturn_type(ast *pAst) {
 
         pAst->add_entity(current());
         if(!parse_type_identifier(pAst))
-            errors->newerror(GENERIC, current(), "expected native type or reference pointer.");
+            errors->newerror(GENERIC, current(), "expected native type or reference pointer");
     }
 }
 
@@ -1136,7 +1171,10 @@ void parser::parse_all(ast *pAst) {
     }
     else if(ismethod_decl(current()))
     {
-        parse_methoddecl(pAst);
+        if(peek(1).gettoken() == "operator")
+            parse_operatordecl(pAst);
+        else
+            parse_methoddecl(pAst);
     }
     else if(ismodule_decl(current()))
     {
@@ -1177,7 +1215,7 @@ bool parser::iskeyword(string key) {
            || key == "const" || key == "override"
            || key == "public" || key == "new"
            || key == "void" || key == "macros"
-           || key == "null";
+           || key == "null" || key == "operator";
 }
 
 bool parser::parse_type_identifier(ast *pAst) {

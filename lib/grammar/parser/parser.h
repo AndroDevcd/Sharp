@@ -162,6 +162,10 @@ private:
     void parse_macrosdecl(ast *pAst);
 
     void parse_block(ast *pAst);
+
+    void parse_operatordecl(ast *pAst);
+
+    bool isoverride_operator(std::string t);
 };
 
 #endif //SHARP_PARRSER_H

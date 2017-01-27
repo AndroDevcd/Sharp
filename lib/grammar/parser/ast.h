@@ -15,6 +15,7 @@ enum ast_types
     ast_module_decl,
     ast_macros_decl,
     ast_method_decl,
+    ast_operator_decl,
     ast_var_decl,
     ast_value,
     ast_value_list,

@@ -8,10 +8,22 @@ import d.a.b.x;
 class Start // add 'base <refid>' to class decl
 {
 
+    /*
+    * Macros always return void
+    */
     macros _get_addr_info (int x, char c)
     {
         int portid = x;
         sys.io.open((short)c, sys.io.PORT);
+    }
+
+    /*
+    * assign-expr operators must return void,
+    * all other operators must return a value
+    */
+    function operator+(String s) : int
+    {
+        return 0;
     }
 
     function foo()
@@ -28,14 +40,16 @@ class Start // add 'base <refid>' to class decl
         int q = (int)z++/7;
         int q = 5 * 4;
         int i = (((int)v--)/6);
+        _get_addr_info(190_132_999, c);
         bool i = !z++;
         Map<int> mp = null;
         int i = (short) x[3]++ + 6;
         int i = ((short) x[3]++) + 6/9;
         int b = --arr[9];
         String s = new String(x[3], 0);
-        String i = new Map<List<Map<int, String>>, math#Int>(self->var);
+        String i = new Map<List<Map<int, String>*>, math#Int>(self->var);
         int r = self->var;
+        Object o = null;
         int x = 0_000_000.11___0e+10;
         int[] y = 0x3344b8ef3_382848;
         short u = 0x4376;
@@ -44,7 +58,7 @@ class Start // add 'base <refid>' to class decl
     /*
     * Main function
     */
-    private static override function main(examples.b#Class.var b6, Integer#Int[] x,
+    private static override function main(examples.b#Class.var& b6, Integer#Int[] x,
             List<Type<int>> lst,Int b, Int.c z) : int
     { // close up gap with processing xpression after function call (parse '++' and '--'
         {

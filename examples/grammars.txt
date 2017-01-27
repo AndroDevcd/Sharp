@@ -56,7 +56,7 @@ An <nativetype> or <refrence-identifier>
 A value consists of an <expression>
 
 <uType>:
-<typeidentifier> [<TypeArgs>] [([])]
+<typeidentifier> [<TypeArgs>] [([])] [<MemAccessFlag>]
 
 <type-list>;
 <uType> (',' <uType>)*
@@ -75,7 +75,7 @@ A value consists of an <expression>
 <uType> [<typeidentifier>]
 
 <uTypeArg>:
-<uType> <MemAccessFlag> <typeidentifier>
+<uType> <typeidentifier>
 
 <uTypeArg-list-opt>;
 [ '(' <uTypeArgOpt> (',' <uTypeArgOpt>)* ')']
@@ -96,6 +96,16 @@ A value consists of an <expression>
    |   '>>>='
    |   '<<='
    |   '%='
+
+<override-operator>:
+<assign-expr>
+    | '*'
+    |'/'
+    |'%'
+    | '+'
+    | '-'
+    | '++'
+    | '--'
 
 <primary-expr>:
 <literal>
@@ -152,6 +162,9 @@ Class Declaration:
 Method Declaration:
 `[<accesstype>] function <identifier = name> <uTypeArg-list> [: <typeidentifier>] <block>
 
+Operator Declaration:
+`[<accesstype>] function operator <override-operator> <uTypeArg-list> [: <typeidentifier>] <block>
+
 Variable Declaration statement:
 `[<accesstype>] <uType> <identifier = name> <MemAccessFlag> [ <assign-expr> <value>] ;`
 
@@ -162,7 +175,7 @@ Method Invocation statement:
 <refrence-identifier = name>([<value-list>]) ;
 
 If statement:
-if (<expression>) { <statement>* }
+if (<expression>) <block>
 
 <return-statement>:
 `return <value>` ;
