@@ -697,7 +697,7 @@ bool parser::isoverride_operator(string token) {
             token == "++" ||token == "--" ||
             token == "*" || token == "/" ||
             token == "%" || token == "-" ||
-            token == "+";
+            token == "+" || token == "=";
 }
 
 bool parser::parse_expression(ast *pAst) {

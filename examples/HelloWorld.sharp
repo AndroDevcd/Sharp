@@ -34,6 +34,7 @@ class Start<K,T> base Application<int> // add 'base <refid>' to class decl
 
     function foo()
     {
+        int* z = &x;
         examples.B.a x;
         uInt64 u = new uInt64(foo() == foo()++ ? 1 : 0);
         short squery = SQL.query(cursor, x /9 ? 504 : 403, io.READ)/113;

@@ -50,8 +50,8 @@ void compile(string code)
                 if(parser.geterrors()->_errs())
                 {
                     cout << parser.geterrors()->getall_errors();
-                    cout << endl << endl << "#################################################################\n";
-                    cout << parser.geterrors()->getuo_errors();
+                    //cout << endl << endl << "#################################################################\n";
+                    //cout << parser.geterrors()->getuo_errors();
                 }
 
                 cout << endl << endl << "==========================================================\n" ;
@@ -67,7 +67,7 @@ void compile(string code)
 
 int main() {
     std::cout << "compile time " << measure<>::execution(
-            compile, file::read_alltext("examples\\HelloWorld.sharp")
+            compile, file::read_alltext("examples\\example1.sharp")
     ) << "ms" << std::endl;
     return 0;
 }

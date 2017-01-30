@@ -1,0 +1,9 @@
+mod application;
+
+class Start {
+
+     public static function __init(String[] args) {
+        String n = "Hello World";
+        return 0;
+     }
+}
