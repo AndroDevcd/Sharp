@@ -64,6 +64,10 @@ A value consists of an <expression>
 <TypeArgs>:
 '<' <type-list> '>'
 
+<TypeDeclarators>:
+'<' <ideitifier> [',' <ideitifier>]* '>'
+
+
 <MemAccessFlag>:
 '&'
     | '*'
@@ -72,16 +76,19 @@ A value consists of an <expression>
 [ '(' <value> (',' <value>)* ')']
 
 <uTypeArgOpt>:
-<uType> [<typeidentifier>]
+<uType> [<identifier>]
 
 <uTypeArg>:
-<uType> <typeidentifier>
+<uType> <identifier>
 
 <uTypeArg-list-opt>;
 [ '(' <uTypeArgOpt> (',' <uTypeArgOpt>)* ')']
 
 <uTypeArg-list>;
 [ '(' <uTypeArg> (',' <uTypeArg>)* ')']
+
+<VectorArray>:
+'{' <expression> (',' <expression>)* '}'
 
 <assign-expr>:
 '='
@@ -112,19 +119,20 @@ A value consists of an <expression>
     | <uType> '.' class
     | 'void' '.' class
     | <refrence-identifier>
-    | <refrence-identifier> <value-list> [expression] // method invocation
+    | [.] <refrence-identifier> <value-list> [expression] // method invocation
 
 <expression>:
 <primary-expr>
     | 'self' '->' <expression>
     | null
-    | new uType [TypeArgs] [<value-list>]
+    | new uType [TypeArgs] [([<value-list>] | [VectorArray>])]
     | expression '[' expression ']'
     | '(' uType ')' expression
     | expression ('++' | '--')
     | ('+' | '-' | '++' | '--') expression
     | '!' expression
     | '(' expression ')'
+    | <VectorArray> // allowed for processing purposes only language does not allow random arrays
     | expression ('*'|'/'|'%') expression
     | expression ('+'|'-') expression
     | expression ('<' '<' | '>' '>') expression
@@ -154,7 +162,7 @@ Import Declaration:
 import <modulename> ;
 
 Class Declaration:
-`[<accesstype>] class <identifier = name> {}`
+`[<accesstype>] class <identifier = name> <TypeDeclarators> [base <refrence-identifier> ] {}`
 
 <block>:
 { <statements>* }
@@ -175,7 +183,25 @@ Method Invocation statement:
 <refrence-identifier = name>([<value-list>]) ;
 
 If statement:
-if (<expression>) <block>
+if (<expression>) <block> [else [if] block]*
+
+While statement:
+while (<expression>) <block>
+
+Do While statement:
+do  <block> while(<expression>)
+
+catchClause:
+catch (<utypeArgOpt>) block
+
+finallyBlock;
+finally block
+
+Try/catch  statement:
+try <block> [catchClause [finallyBlock] ]
+
+Throw statement:
+throw <expression> ;
 
 <return-statement>:
 `return <value>` ;
@@ -184,7 +210,7 @@ if (<expression>) <block>
 'macros' <identifier> <uTypeArg-list> <block>
 
 <external-typeidentifier-decl>:
-<typeidentifier> <identifier>
+<uTypeArg>
 
 <external-method-decl>:
 <refrence-identifier> <uTypeArg-list-opt>
@@ -194,5 +220,14 @@ extern (<external-method-decl> | <external-typeidentifier-decl>)
 
 <statement>:
 <return-statement>
+     | <if-statement>
+     | <while-statement>
+     | <dowhile-statement>
+     | <trycatch-statement>
+     | <throw-statement>
+     | continue [identifier] ;
+     | break ;
+     | goto [identifier] ;
+     | identifier ':' <statement>
      | <variable-declaration>
      | <expression>

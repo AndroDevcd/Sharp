@@ -25,36 +25,44 @@ class CharStream;
 void compile(string code)
 {
     int_errs();
-    tokenizer tokenizer1(code);
+    bool comp = false;
+    for(int i = 0; i < 90; i++)
+    {
+        tokenizer tokenizer1(code);
 
 //    for(token_entity &entity : *tokenizer1.getentities())
 //    {
 //        cout << "entity " << entity.getid() << ", type " << entity.gettokentype() << " :  " << entity.gettoken().c_str() << endl;
 //    }
 
-    if(tokenizer1.geterrors()->_errs())
-    {
-        cout << tokenizer1.geterrors()->getall_errors();
-    }
-
-    parser parser(&tokenizer1);
-
-    if(parser.parsed)
-    {
-        if(parser.geterrors()->_errs())
+        if(tokenizer1.geterrors()->_errs())
         {
-            cout << parser.geterrors()->getall_errors();
-            cout << endl << endl << "#################################################################\n";
-            cout << parser.geterrors()->getuo_errors();
+            cout << tokenizer1.geterrors()->getall_errors();
         }
 
-        cout << endl << endl << "==========================================================\n" ;
-        cout << "Errors: " << parser.geterrors()->error_count() << " Unoptimized errors: " << parser.geterrors()->uoerror_count() << endl;
+        parser parser(&tokenizer1);
 
-        parser.free();
+        if(parser.parsed)
+        {
+            if(!comp && i == 89)
+            {
+                comp = true;
+                if(parser.geterrors()->_errs())
+                {
+                    cout << parser.geterrors()->getall_errors();
+                    cout << endl << endl << "#################################################################\n";
+                    cout << parser.geterrors()->getuo_errors();
+                }
+
+                cout << endl << endl << "==========================================================\n" ;
+                cout << "Errors: " << parser.geterrors()->error_count() << " Unoptimized errors: " << parser.geterrors()->uoerror_count() << endl;
+            }
+
+            parser.free();
+        }
+
+        tokenizer1.free();
     }
-
-    tokenizer1.free();
 }
 
 int main() {

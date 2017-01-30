@@ -47,6 +47,10 @@ void parser::eval(ast* _ast) {
         remove_accesstypes();
         return;
     }
+    else if(isextern_stmnt(current()))
+    {
+        parse_externstmnt(_ast);
+    }
     else if(ismodule_decl(current()))
     {
         if(access_types->size() > 0)
@@ -78,6 +82,25 @@ void parser::eval(ast* _ast) {
     remove_accesstypes();
 }
 
+
+void parser::parse_type_declarators(ast *pAst) {
+    pAst = get_ast(pAst, ast_type_arg);
+
+    expect(LESSTHAN, pAst, "`<`");
+
+    expectidentifier(pAst);
+
+    _pIdentifier:
+    if(peek(1).gettokentype() == COMMA)
+    {
+        expect(COMMA, pAst, "`,`");
+        expectidentifier(pAst);
+        goto _pIdentifier;
+    }
+
+    expect(GREATERTHAN, pAst, "`>`");
+}
+
 void parser::parse_classdecl(ast* _ast) {
     _ast = get_ast(_ast, ast_class_decl);
 
@@ -89,6 +112,19 @@ void parser::parse_classdecl(ast* _ast) {
 
 
     expectidentifier(_ast);
+    if(peek(1).gettokentype() == LESSTHAN)
+        parse_type_declarators(_ast);
+
+    if(peek(1).gettoken() == "base")
+    {
+        advance();
+        expect_token(_ast, "base", "");
+
+        parse_reference_pointer(_ast);
+
+        if(peek(1).gettokentype() == LESSTHAN)
+            parse_typeargs(_ast);
+    }
 
     parse_classblock(_ast);
 }
@@ -99,11 +135,7 @@ void parser::parse_importdecl(ast* _ast) {
 
     parse_modulename(_ast);
 
-    if(!expect(SEMICOLON, "`;`"))
-    {
-        pushback();
-        return;
-    }
+    expect(SEMICOLON, "`;`");
 
     //cout << "parsed import declaration" << endl;
 }
@@ -176,11 +208,35 @@ bool parser::ismacros_decl(token_entity entity) {
     return entity.getid() == IDENTIFIER && entity.gettoken() == "macros";
 }
 
+bool parser::isif_stmnt(token_entity entity) {
+    return entity.getid() == IDENTIFIER && entity.gettoken() == "if";
+}
+
+bool parser::iswhile_stmnt(token_entity entity) {
+    return entity.getid() == IDENTIFIER && entity.gettoken() == "while";
+}
+
+bool parser::isdowhile_stmnt(token_entity entity) {
+    return entity.getid() == IDENTIFIER && entity.gettoken() == "do";
+}
+
+bool parser::istrycatch_stmnt(token_entity entity) {
+    return entity.getid() == IDENTIFIER && entity.gettoken() == "try";
+}
+
+bool parser::isthrow_stmnt(token_entity entity) {
+    return entity.getid() == IDENTIFIER && entity.gettoken() == "throw";
+}
+
+bool parser::isextern_stmnt(token_entity entity) {
+    return entity.getid() == IDENTIFIER && entity.gettoken() == "extern";
+}
+
 bool parser::isnative_type(string type) {
     return type == "int" || type == "short"
            || type == "long" || type == "bool"
            || type == "char" || type == "float"
-           || type == "double";
+           || type == "double" || type == "string";
 }
 
 bool parser::isaccess_decl(token_entity token) {
@@ -268,6 +324,7 @@ void parser::parse_classblock(ast *pAst) {
 
     while(!isend() && brackets > 0)
     {
+        for(int i = 0; i < 1000; i++){}
         advance();
         if(isaccess_decl(current()))
         {
@@ -281,6 +338,10 @@ void parser::parse_classblock(ast *pAst) {
                 errors->newerror(ILLEGAL_ACCESS_DECLARATION, current());
             }
             parse_moduledecl(pAst);
+        }
+        else if(isextern_stmnt(current()))
+        {
+            parse_externstmnt(pAst);
         }
         else if(isclass_decl(current()))
         {
@@ -335,6 +396,26 @@ void parser::parse_classblock(ast *pAst) {
         else if(current().gettokentype() == LEFTCURLY)
             brackets++;
         else {
+            // save parser state
+            this->retainstate(pAst);
+            pushback();
+
+            /*
+             * variable decl?
+             */
+            if(parse_utype(pAst))
+            {
+                if(peek(1).getid() == IDENTIFIER)
+                {
+                    // Variable decliration
+                    pAst = this->rollback();
+                    parse_variabledecl(pAst);
+                    remove_accesstypes();
+                    continue;
+                }
+            }
+
+            pAst = this->rollback();
             errors->newerror(GENERIC, current(), "expected method, class, or variable declaration");
             parse_all(pAst);
         }
@@ -491,6 +572,11 @@ bool parser::parse_primaryexpr(ast *pAst) {
     }
 
     errors->enablecheck_mode();
+    if(peek(1).gettokentype() == DOT) {
+        advance();
+        pAst->add_entity(current());
+    }
+
     if(parse_reference_pointer(pAst)) {
         if(peek(1).gettokentype() == LEFTPAREN)
         {
@@ -687,6 +773,12 @@ bool parser::parse_expression(ast *pAst) {
             return true;
     }
 
+    if(peek(1).gettokentype() == LEFTCURLY)
+    {
+        parse_vectorarray(pAst);
+        return true;
+    }
+
     this->retainstate(pAst);
     if(parse_primaryexpr(pAst)) {
         this->dumpstate();
@@ -726,10 +818,12 @@ bool parser::parse_expression(ast *pAst) {
             parse_typeargs(pAst);
         }
 
-        parse_valuelist(pAst);
+        if(peek(1).gettokentype() == LEFTCURLY)
+            parse_vectorarray(pAst);
+        else
+            parse_valuelist(pAst);
 
-        if(!isexprsymbol(peek(1).gettoken()))
-            return true;
+        return true;
     }
 
     if(peek(1).gettokentype() == LEFTBRACE)
@@ -851,12 +945,32 @@ bool parser::parse_value(ast *pAst) {
     pAst = get_ast(pAst, ast_value);
     return parse_expression(pAst);
 }
+
 bool parser::parse_utypearg(ast* pAst) {
     pAst = get_ast(pAst, ast_utype_arg);
 
     if(parse_utype(pAst))
     {
-        parse_type_identifier(pAst);
+        expectidentifier(pAst);
+        return true;
+    }else
+        errors->newerror(GENERIC, current(), "expected native type or reference pointer");
+
+    return false;
+}
+
+bool parser::parse_utypearg_opt(ast* pAst) {
+    pAst = get_ast(pAst, ast_utype_arg_opt);
+
+    if(parse_utype(pAst))
+    {
+        errors->enablecheck_mode();
+        if(!expectidentifier(pAst)) {
+            errors->pass();
+            pushback();
+        }
+        else
+            errors->fail();
         return true;
     }else
         errors->newerror(GENERIC, current(), "expected native type or reference pointer");
@@ -875,6 +989,44 @@ void parser::parse_memaccess_flag(ast *pAst) {
         advance();
         pAst->add_entity(current());
     }
+}
+
+void parser::parse_vectorarray(ast* pAst) {
+    pAst = get_ast(pAst, ast_vector_array);
+    expect(LEFTCURLY, pAst, "`{`");
+
+    if(peek(1).gettokentype() != RIGHTPAREN)
+    {
+        parse_expression(pAst);
+        _pExpr:
+        if(peek(1).gettokentype() == COMMA)
+        {
+            expect(COMMA, pAst, "`,`");
+            parse_expression(pAst);
+            goto _pExpr;
+        }
+    }
+
+    expect(RIGHTCURLY, pAst, "`}`");
+}
+
+void parser::parse_utypearg_list_opt(ast* pAst) {
+    pAst = get_ast(pAst, ast_utype_arg_list_opt);
+    expect(LEFTPAREN, pAst, "`(`");
+
+    if(peek(1).gettokentype() != RIGHTPAREN)
+    {
+        parse_utypearg_opt(pAst);
+        _puTypeArgOpt:
+        if(peek(1).gettokentype() == COMMA)
+        {
+            expect(COMMA, pAst, "`,`");
+            parse_utypearg_opt(pAst);
+            goto _puTypeArgOpt;
+        }
+    }
+
+    expect(RIGHTPAREN, pAst, "`)`");
 }
 
 void parser::parse_utypearg_list(ast* pAst) {
@@ -939,6 +1091,8 @@ void parser::parse_macrosdecl(ast *pAst) {
 
     parse_utypearg_list(pAst);
     parse_block(pAst);
+
+    expect(SEMICOLON, pAst, "`;`");
 }
 
 void parser::parse_operatordecl(ast *pAst) {
@@ -1051,6 +1205,185 @@ void parser::parse_returnstmnt(ast *pAst) {
 
     pAst->add_entity(current());
     parse_value(pAst);
+
+    expect(SEMICOLON, pAst, "`;`");
+}
+
+void parser::parse_whilestmnt(ast *pAst) {
+    pAst = get_ast(pAst, ast_while_statement);
+
+    expect_token(pAst, "while", "`while`");
+
+    expect(LEFTPAREN, pAst, "`(`");
+    parse_expression(pAst);
+    expect(RIGHTPAREN, pAst, "`)`");
+
+    parse_block(pAst);
+}
+
+void parser::parse_dowhilestmnt(ast *pAst) {
+    pAst = get_ast(pAst, ast_while_statement);
+
+    expect_token(pAst, "do", "`do`");
+    parse_block(pAst);
+
+    advance();
+    expect_token(pAst, "while", "`while`");
+    expect(LEFTPAREN, pAst, "`(`");
+    parse_expression(pAst);
+    expect(RIGHTPAREN, pAst, "`)`");
+
+    expect(SEMICOLON, pAst, "`;`");
+
+}
+
+void parser::parse_ifstmnt(ast *pAst) {
+    pAst = get_ast(pAst, ast_if_statement);
+
+    expect_token(pAst, "if", "`if`");
+
+    expect(LEFTPAREN, pAst, "`(`");
+    parse_expression(pAst);
+    expect(RIGHTPAREN, pAst, "`)`");
+
+    parse_block(pAst);
+
+    condexpr:
+    if(peek(1).gettoken() == "else")
+    {
+        if(peek(2).gettoken() == "if")
+        {
+            pAst = get_ast(pAst, ast_elseif_statement);
+
+            advance();
+            pAst->add_entity(current());
+            advance();
+            pAst->add_entity(current());
+
+            expect(LEFTPAREN, pAst, "`(`");
+            parse_expression(pAst);
+            expect(RIGHTPAREN, pAst, "`)`");
+        }
+        else
+        {
+            pAst = get_ast(pAst, ast_else_statement);
+
+            advance();
+            pAst->add_entity(current());
+        }
+
+
+        parse_block(pAst);
+        goto condexpr;
+    }
+}
+
+void parser::parse_catchclause(ast *pAst) {
+    pAst = get_ast(pAst, ast_catch_clause);
+
+    advance();
+    expect_token(pAst, "catch", "`catch`");
+
+    expect(LEFTPAREN, pAst, "`(`");
+    parse_utypearg_opt(pAst);
+    expect(RIGHTPAREN, pAst, "`)`");
+
+    parse_block(pAst);
+}
+
+void parser::parse_finallyblock(ast *pAst) {
+    pAst = get_ast(pAst, ast_finally_block);
+
+    advance();
+    expect_token(pAst, "finally", "`finally`");
+    parse_block(pAst);
+}
+
+void parser::parse_trycatch(ast *pAst) {
+    pAst = get_ast(pAst, ast_trycatch_statement);
+
+    expect_token(pAst, "try", "`try`");
+    parse_block(pAst);
+
+    while(peek(1).gettoken() == "catch")
+        parse_catchclause(pAst);
+
+    if(peek(1).gettoken() == "finally")
+    {
+        parse_finallyblock(pAst);
+    }
+}
+
+void parser::parse_throwstmnt(ast *pAst) {
+    pAst = get_ast(pAst, ast_throw_statement);
+
+    expect_token(pAst, "throw", "`throw`");
+    parse_expression(pAst);
+    expect(SEMICOLON, pAst, "`;`");
+}
+
+bool parser::parse_extern_methoddecl(ast *pAst) {
+    pAst = get_ast(pAst, ast_extern_method_decl);
+
+    if(!parse_reference_pointer(pAst)){
+        return false;
+    }
+
+    if(peek(1).gettokentype() == LEFTPAREN) {
+        parse_utypearg_list_opt(pAst);
+        return true;
+    }
+
+    return false;
+}
+
+bool parser::parse_extern_typeideitifier_decl(ast *pAst) {
+    pAst = get_ast(pAst, ast_extern_typeid_decl);
+    return parse_utypearg(pAst);
+}
+
+void parser::parse_externstmnt(ast *pAst) {
+    pAst = get_ast(pAst, ast_extern_statement);
+    expect_token(pAst, "extern", "`extern`");
+
+    this->retainstate(pAst);
+    errors->enablecheck_mode();
+    if(parse_extern_methoddecl(pAst))
+    {
+        errors->fail();
+        this->dumpstate();
+    }
+    else {
+        errors->pass();
+        this->rollback();
+
+        this->retainstate(pAst);
+        errors->enablecheck_mode();
+        if(parse_extern_typeideitifier_decl(pAst))
+        {
+            errors->fail();
+            this->dumpstate();
+        }
+        else {
+            this->rollback();
+            errors->newerror(GENERIC, current(), "expected external method or type "
+                    "identifier declaration after `extern`");
+        }
+    }
+
+    expect(SEMICOLON, pAst, "`;`");
+}
+
+void parser::parse_labeldecl(ast *pAst) {
+    pAst = get_ast(pAst, ast_label_decl);
+
+    pushback();
+    expectidentifier(pAst);
+    expect(COLON, pAst, "`:` after label decliration");
+
+    advance();
+    parse_statement(pAst);
+
 }
 
 void parser::parse_statement(ast* pAst) {
@@ -1060,10 +1393,72 @@ void parser::parse_statement(ast* pAst) {
     {
         parse_returnstmnt(pAst);
     }
+    else if(isif_stmnt(current()))
+    {
+        parse_ifstmnt(pAst);
+    }
+    else if(iswhile_stmnt(current()))
+    {
+        parse_whilestmnt(pAst);
+    }
+    else if(isdowhile_stmnt(current()))
+    {
+        parse_dowhilestmnt(pAst);
+    }
+    else if(istrycatch_stmnt(current()))
+    {
+        parse_trycatch(pAst);
+    }
+    else if(isthrow_stmnt(current()))
+    {
+        parse_throwstmnt(pAst);
+    }
+    else if(isextern_stmnt(current()))
+    {
+        parse_externstmnt(pAst);
+    }
+    else if(current().gettoken() == "continue")
+    {
+        ast* pAst2 = get_ast(pAst, ast_continue_statement);
+
+        expect_token(pAst2, "continue", "`continue`");
+
+        errors->enablecheck_mode();
+        if(!expectidentifier(pAst)) {
+            errors->pass();
+            pushback();
+        }
+        else
+            errors->fail();
+        expect(SEMICOLON, pAst, "`;`");
+    }
+    else if(current().gettoken() == "break")
+    {
+        ast* pAst2 = get_ast(pAst, ast_break_statement);
+
+        expect_token(pAst2, "break", "`break`");
+        expect(SEMICOLON, pAst, "`;`");
+    }
+    else if(current().gettoken() == "goto")
+    {
+        ast* pAst2 = get_ast(pAst, ast_goto_statement);
+
+        expect_token(pAst2, "goto", "`goto`");
+
+        errors->enablecheck_mode();
+        if(!expectidentifier(pAst)) {
+            errors->pass();
+            pushback();
+        }
+        else
+            errors->fail();
+        expect(SEMICOLON, pAst, "`;`");
+    }
     else if(isvariable_decl(current()))
     {
         parse_variabledecl(pAst);
     }
+        /* these are just in case there is a missed bracket anywhere */
     else if(ismacros_decl(current()))
     {
         errors->newerror(GENERIC, current(), "macros declaration not allowed here");
@@ -1100,8 +1495,13 @@ void parser::parse_statement(ast* pAst) {
         if(parse_utype(pAst))
         {
 
-            if(peek(1).getid() == IDENTIFIER ||
-                    (ismemaccess_flag(peek(1).gettoken()) && peek(2).getid() == IDENTIFIER))
+            if(peek(1).gettokentype() == COLON)
+            {
+                pAst = this->rollback();
+                parse_labeldecl(pAst);
+                return;
+            }
+            else if(peek(1).getid() == IDENTIFIER)
             {
                 // Variable decliration
                 pAst = this->rollback();
@@ -1215,7 +1615,14 @@ bool parser::iskeyword(string key) {
            || key == "const" || key == "override"
            || key == "public" || key == "new"
            || key == "void" || key == "macros"
-           || key == "null" || key == "operator";
+           || key == "null" || key == "operator"
+           || key == "base" || key == "if"
+           || key == "while" || key == "do"
+           || key == "try" || key == "catch"
+           || key == "finally" || key == "throw"
+           || key == "continue" || key == "goto"
+           || key == "break" || key == "else"
+           || key == "extern" || key == "string";
 }
 
 bool parser::parse_type_identifier(ast *pAst) {

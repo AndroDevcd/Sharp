@@ -2,20 +2,26 @@ mod examples_x.b.x;
 
 import d.a.b.x;
 
-//extern main(String[] args);
+extern application#Start.main(String[] args);
+extern examples#String[] args;
+extern Start.main(Map<int>[]*, String);
 
 
-class Start // add 'base <refid>' to class decl
+class Start<K,T> base Application<int> // add 'base <refid>' to class decl
 {
+
+    K var;
 
     /*
     * Macros always return void
     */
     macros _get_addr_info (int x, char c)
     {
+        string n = null; // cannot assign null to native string
+        label:
         int portid = x;
         sys.io.open((short)c, sys.io.PORT);
-    }
+    };
 
     /*
     * assign-expr operators must return void,
@@ -37,15 +43,57 @@ class Start // add 'base <refid>' to class decl
         String z = x << (char)9 << (char)7 + "'";
         String q = 'h' + 'e' + 'l' + 'l' + 'o' + "!";
         mod examples_x.b.x;
+        int[] i = new int[]{1, 2, 3, 4, 5, 7};
+        A[] a = new A[]{ new A("1"), new A("2"), new A("3", { 9 } ) };
         int q = (int)z++/7;
-        int q = 5 * 4;
-        int i = (((int)v--)/6);
-        _get_addr_info(190_132_999, c);
-        bool i = !z++;
-        Map<int> mp = null;
-        int i = (short) x[3]++ + 6;
-        int i = ((short) x[3]++) + 6/9;
-        int b = --arr[9];
+
+        if(x < Main.var) {
+            int q = 5 * 4;
+            int i = (((int)v--)/6);
+
+            while(io.NextLine() != EOF) {
+                _get_addr_info(190_132_999, c);
+                bool i = !z++;
+                Map<int> mp = null;
+                do {
+                    label:
+                    break;
+                    int i = (short) x[3]++ + 6;
+                    int i = ((short) x[3]++) + 6/9;
+                    int b = --arr[9];
+                }while(Main.var-- > 0);
+                goto label;
+                continue;
+            }
+        }
+        else if(x == Main.class){
+               Main.chain()
+                .chain()
+                .chain();
+
+        }
+        else {
+            goto expr;
+        }
+
+        try {
+            io.print("Hello");
+        }catch(Exception e)
+        {
+            uInt64 u = new uInt64(foo() == foo()++ ? 1 : 0);
+            short squery = SQL.query(cursor, x /9 ? 504 : 403, io.READ)/113;
+            short query = x>>9 ? 103 : (x<<2)-9;
+        }
+        catch(nullptr){}
+        finally{
+            if(file != null)
+            {
+                file.close();
+            }
+
+            throw new Exception();
+        }
+
         String s = new String(x[3], 0);
         String i = new Map<List<Map<int, String>*>, math#Int>(self->var);
         int r = self->var;
@@ -64,6 +112,10 @@ class Start // add 'base <refid>' to class decl
         {
             int i = ""'n''m''h''y';
         }
+
+        // asm( // make asm decl to process on the fly vm code
+        //  int 0x63;
+        // );
 
         int i = C.b >> 5;
         z %= 99.1345;

@@ -166,6 +166,48 @@ private:
     void parse_operatordecl(ast *pAst);
 
     bool isoverride_operator(std::string t);
+
+    void parse_vectorarray(ast *pAst);
+
+    bool isif_stmnt(token_entity entity);
+
+    bool iswhile_stmnt(token_entity entity);
+
+    void parse_whilestmnt(ast *pAst);
+
+    void parse_ifstmnt(ast *pAst);
+
+    bool isdowhile_stmnt(token_entity entity);
+
+    void parse_dowhilestmnt(ast *pAst);
+
+    bool istrycatch_stmnt(token_entity entity);
+
+    void parse_trycatch(ast *pAst);
+
+    void parse_catchclause(ast *pAst);
+
+    void parse_finallyblock(ast *pAst);
+
+    bool parse_utypearg_opt(ast *pAst);
+
+    bool isthrow_stmnt(token_entity entity);
+
+    void parse_throwstmnt(ast *pAst);
+
+    void parse_labeldecl(ast *pAst);
+
+    void parse_type_declarators(ast *pAst);
+
+    bool isextern_stmnt(token_entity entity);
+
+    void parse_externstmnt(ast *pAst);
+
+    bool parse_extern_methoddecl(ast *pAst);
+
+    bool parse_extern_typeideitifier_decl(ast *pAst);
+
+    void parse_utypearg_list_opt(ast *pAst);
 };
 
 #endif //SHARP_PARRSER_H
