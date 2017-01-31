@@ -3,6 +3,7 @@
 #include "lib/grammar/parser/parser.h"
 #include <chrono>
 #include "lib/util/file.h"
+#include "lib/grammar/runtime.h"
 
 #define WIN32_LEAN_AND_MEAN
 
@@ -22,52 +23,60 @@ struct measure
 
 class CharStream;
 
-void compile(string code)
+void compile(const char* file)
 {
+    string code = file::read_alltext(file);
+    if(code == "") return;
+
     int_errs();
-    bool comp = false;
-    for(int i = 0; i < 90; i++)
-    {
-        tokenizer tokenizer1(code);
+    tokenizer tokenizer1(code, file);
 
 //    for(token_entity &entity : *tokenizer1.getentities())
 //    {
 //        cout << "entity " << entity.getid() << ", type " << entity.gettokentype() << " :  " << entity.gettoken().c_str() << endl;
 //    }
 
-        if(tokenizer1.geterrors()->_errs())
-        {
-            cout << tokenizer1.geterrors()->getall_errors();
-        }
-
-        parser parser(&tokenizer1);
-
-        if(parser.parsed)
-        {
-            if(!comp && i == 89)
-            {
-                comp = true;
-                if(parser.geterrors()->_errs())
-                {
-                    cout << parser.geterrors()->getall_errors();
-                    cout << endl << endl << "#################################################################\n";
-                    cout << parser.geterrors()->getuo_errors();
-                }
-
-                cout << endl << endl << "==========================================================\n" ;
-                cout << "Errors: " << parser.geterrors()->error_count() << " Unoptimized errors: " << parser.geterrors()->uoerror_count() << endl;
-            }
-
-            parser.free();
-        }
-
-        tokenizer1.free();
+    if(tokenizer1.geterrors()->_errs())
+    {
+        cout << tokenizer1.geterrors()->getall_errors();
     }
+
+    parser p(&tokenizer1);
+
+    if(p.parsed)
+    {
+        if(p.geterrors()->_errs())
+        {
+            cout << p.geterrors()->getall_errors();
+            //cout << endl << endl << "#################################################################\n";
+            //cout << p.geterrors()->getuo_errors();
+            cout << endl << endl << "==========================================================\n" ;
+            cout << "Errors: " << p.geterrors()->error_count() << " Unoptimized errors: " << p.geterrors()->uoerror_count() << endl;
+        }
+        else {
+            cout << "runtime starting.." << endl;
+            list<parser*> parsers;
+            parsers.push_back(&p);
+
+            runtime rt("", parsers);
+            rt.cleanup();
+        }
+
+
+
+
+
+        p.free();
+    }
+
+    tokenizer1.free();
+
+
 }
 
 int main() {
     std::cout << "compile time " << measure<>::execution(
-            compile, file::read_alltext("examples\\example2.sharp")
+            compile, "examples\\example2.sharp"
     ) << "ms" << std::endl;
     return 0;
 }

@@ -48,8 +48,8 @@ string Errors::geterrors(list<parseerror>* errors)
     stringstream errorlist;
     for(const parseerror &err : *errors)
     {
-        errorlist << "error S800" << err.id << ":  " << err.error.c_str()
-                  << ", at line " << err.line << ":" << err.col << endl;
+        errorlist << fn << ":" << err.line << ":" << err.col << " error S800" << err.id << ":  " << err.error.c_str()
+                  << endl;
         errorlist << '\t' << getline(err.line) << endl << '\t';
 
         for(int i = 0; i < err.col-1; i++)
@@ -182,8 +182,11 @@ void Errors::fail() {
             errors->push_back(err);
             uo_errors->push_back(err);
         }
-        _err = true;
-        if(teCursor < 0) lasterr = lastcheckederr;
+
+        if(teCursor < 0) {
+            lasterr = lastcheckederr;
+            _err = true;
+        }
     }
 
     lastcheckederr = parseerror();

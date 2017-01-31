@@ -15,6 +15,7 @@ enum ast_types
     ast_module_decl,
     ast_macros_decl,
     ast_method_decl,
+    ast_construct_decl,
     ast_extern_method_decl,
     ast_extern_typeid_decl,
     ast_label_decl,
@@ -62,10 +63,12 @@ enum ast_types
 class ast
 {
 public:
-    ast(ast* parent, ast_types type)
+    ast(ast* parent, ast_types type, int line, int col)
             :
             type(type),
-            parent(parent)
+            parent(parent),
+            line(line),
+            col(col)
     {
         sub_asts = new list<ast>();
         entities = new list<token_entity>();
@@ -81,11 +84,13 @@ public:
 
     void add_entity(token_entity entity);
     void add_ast(ast _ast);
+    void pop_ast();
     void free();
 
     void freeentities();
     void freelastsub();
 
+    int line, col;
 private:
     ast_types type;
     ast *parent;

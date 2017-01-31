@@ -29,7 +29,6 @@ public:
             access_types = new list<token_entity>();
             tree = new list<ast>();
             rState = new list<parser_state>();
-
             parse();
         }
         else {
@@ -40,8 +39,11 @@ public:
 
     Errors* geterrors();
     ast* ast_at(long p);
+    size_t treesize() { return tree->size(); }
     void free();
+
     bool parsed;
+    tokenizer *toks;
 
 private:
     void parse();
@@ -52,7 +54,6 @@ private:
     static bool iskeyword(string key);
 
     int64_t cursor;
-    tokenizer *toks;
     list<ast> *tree;
     list<parser_state>* rState;
     int64_t rStateCursor;
@@ -208,6 +209,12 @@ private:
     bool parse_extern_typeideitifier_decl(ast *pAst);
 
     void parse_utypearg_list_opt(ast *pAst);
+
+    void parse_constructor(ast *pAst);
+
+    bool isconstructor_decl();
+
+    ast *rollbacklast();
 };
 
 #endif //SHARP_PARRSER_H

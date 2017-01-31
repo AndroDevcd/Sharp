@@ -10,7 +10,7 @@ void parser::parse()
         return;
 
     parsed = true;
-    errors = new Errors(toks->getlines());
+    errors = new Errors(toks->getlines(), toks->file);
     _current= &(*std::next(toks->getentities()->begin(), cursor));
 
     while(!isend())
@@ -232,6 +232,11 @@ bool parser::isextern_stmnt(token_entity entity) {
     return entity.getid() == IDENTIFIER && entity.gettoken() == "extern";
 }
 
+bool parser::isconstructor_decl() {
+    return current().getid() == IDENTIFIER && !iskeyword(current().gettoken()) &&
+           peek(1).gettokentype() == LEFTPAREN;
+}
+
 bool parser::isnative_type(string type) {
     return type == "int" || type == "short"
            || type == "long" || type == "bool"
@@ -330,7 +335,6 @@ void parser::parse_classblock(ast *pAst) {
 
     while(!isend() && brackets > 0)
     {
-        for(int i = 0; i < 1000; i++){}
         advance();
         if(isaccess_decl(current()))
         {
@@ -376,6 +380,10 @@ void parser::parse_classblock(ast *pAst) {
             else
                 parse_methoddecl(pAst);
         }
+        else if(isconstructor_decl())
+        {
+            parse_constructor(pAst);
+        }
         else if(current().gettokentype() == _EOF)
         {
             errors->newerror(UNEXPECTED_EOF, current());
@@ -414,7 +422,7 @@ void parser::parse_classblock(ast *pAst) {
                 if(peek(1).getid() == IDENTIFIER)
                 {
                     // Variable decliration
-                    pAst = this->rollback();
+                    pAst = this->rollbacklast();
                     parse_variabledecl(pAst);
                     remove_accesstypes();
                     continue;
@@ -444,13 +452,13 @@ void parser::parse_classblock(ast *pAst) {
 ast * parser::get_ast(ast *pAst, ast_types typ) {
     if(pAst == NULL)
     {
-        tree->push_back(ast(NULL, typ));
+        tree->push_back(ast(NULL, typ, current().getline(), current().getcolumn()));
         ast_cursor++;
 
         return ast_at(ast_cursor);
     }
     else {
-        pAst->add_ast(ast(pAst, typ));
+        pAst->add_ast(ast(pAst, typ, current().getline(), current().getcolumn()));
 
         return pAst->getsubast(pAst->getsubastcount() - 1);
     }
@@ -572,18 +580,6 @@ bool parser::parse_primaryexpr(ast *pAst) {
     } else
         pAst = this->rollback();
     errors->pass();
-
-    if(peek(1).gettoken() == "void")
-    {
-        advance();
-        pAst->add_entity(current());
-
-        expect(DOT, pAst, "`.`");
-        advance();
-
-        expect_token(pAst, "class", "`class` after primary expression");
-        return true;
-    }
 
     errors->enablecheck_mode();
     if(peek(1).gettokentype() == DOT) {
@@ -1160,6 +1156,21 @@ void parser::parse_operatordecl(ast *pAst) {
     parse_utypearg_list(pAst);
 
     parse_methodreturn_type(pAst); // assign-expr operators must return void
+    parse_block(pAst);
+}
+
+void parser::parse_constructor(ast *pAst) {
+    pAst = get_ast(pAst, ast_construct_decl);
+
+    for(token_entity &entity : *access_types)
+    {
+        pAst->add_entity(entity);
+    }
+    pushback();
+
+    expectidentifier(pAst);
+
+    parse_utypearg_list(pAst);
     parse_block(pAst);
 }
 
@@ -1765,6 +1776,7 @@ void parser::free() {
         std::free(this->_current); this->_current = NULL;
         std::free(this->access_types); this->access_types = NULL;
         errors->free();
+        std::free(errors); this->errors = NULL;
     }
 }
 
@@ -1779,6 +1791,31 @@ void parser::dumpstate() {
         rState->pop_back();
         rStateCursor--;
     }
+}
+
+ast* parser::rollbacklast() {
+    if(rStateCursor >= 0)
+    {
+        parser_state* ps = &(*std::next(rState->begin(),
+                                        rStateCursor));
+        ast* pAst = ps->rAst;
+        ast_cursor = ps->rAstcursor;
+        cursor = ps->rCursor-1;
+        advance();
+
+        if(pAst->getsubastcount() == 1) {
+            ps->rAst->freesubs();
+            ps->rAst->freeentities();
+        }
+        else {
+            pAst->freelastsub();
+        }
+        rState->pop_back();
+        rStateCursor--;
+        return pAst;
+    }
+
+    return NULL;
 }
 
 ast* parser::rollback() {

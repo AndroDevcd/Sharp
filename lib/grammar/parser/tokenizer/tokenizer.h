@@ -13,12 +13,13 @@
 class tokenizer
 {
 public:
-    tokenizer(string tokens)
+    tokenizer(string tokens, string file)
     :
             toks(tokens),
             cursor(0),
             col(0),
-            line(1)
+            line(1),
+            file(file)
     {
         entites = new list<token_entity>();
         lines = new list<string>();
@@ -31,6 +32,7 @@ public:
     Errors* geterrors();
     list<string>* getlines();
 
+    string file;
     token_entity* EOF_token;
     void free();
 private:
