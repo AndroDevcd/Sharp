@@ -118,7 +118,6 @@ A value consists of an <expression>
 <primary-expr>:
 <literal>
     | [.] <uType> '.' class
-    | 'void' '.' class
     | <refrence-identifier>
     | [.] <refrence-identifier> <value-list> [expression] // method invocation
 
@@ -168,6 +167,9 @@ Class Declaration:
 
 <block>:
 { <statements>* }
+
+Class Constructor Declaration:
+`[<accesstype>] <identifier = name> <uTypeArg-list> <block>
 
 Method Declaration:
 `[<accesstype>] function <identifier = name> <uTypeArg-list> [: <typeidentifier>] <block>

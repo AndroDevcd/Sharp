@@ -5,9 +5,31 @@ import system.io;
 class Start {
 
      dynamic_object o = 9;
+     Heap heap = null;
+     Heap heap = null;
+
+    public Start() {
+
+    }
+
+     public static function initGc() {
+        o = new Gc();
+        Thread thread = new Thread("gc_thread", o);
+        thread.start();
+     }
+
+     public static function initHeap() {
+        heap = new Heap(128, Heap.KB_UNIT);
+        if(heap == null) {
+            throw new OutOfMemoryException("could not create the heap.");
+        }
+
+        heap.attachToGc();
+     }
 
      public static function __init(String[] args) {
-        String n = "Hello World";
+        initGc();
+        initHeap();
         return 0;
      }
 }

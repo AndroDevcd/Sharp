@@ -21,7 +21,7 @@ void tokenizer::parse()
         return;
 
     parse_lines();
-    errors = new Errors(lines);
+    errors = new Errors(lines, file);
 
     while(!isend())
     {

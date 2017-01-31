@@ -68,12 +68,13 @@ class ast;
 class Errors
 {
 public:
-    Errors(list<string>* lines)
+    Errors(list<string>* lines, string file_name)
     :
             lines(lines),
             teCursor(-1),
             _err(false),
-            cm(false)
+            cm(false),
+            fn(file_name)
     {
         errors = new list<parseerror>();
         uo_errors = new list<parseerror>();
@@ -109,6 +110,7 @@ private:
     parseerror lasterr;
     parseerror lastcheckederr;
     bool _err, cm;
+    string fn;
 
     bool shouldreport(token_entity *token, const parseerror &last_err, const parseerror &e) const;
 
