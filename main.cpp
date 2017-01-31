@@ -67,7 +67,7 @@ void compile(string code)
 
 int main() {
     std::cout << "compile time " << measure<>::execution(
-            compile, file::read_alltext("examples\\example1.sharp")
+            compile, file::read_alltext("examples\\example2.sharp")
     ) << "ms" << std::endl;
     return 0;
 }

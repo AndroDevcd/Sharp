@@ -1,0 +1,13 @@
+mod application;
+
+import system.io;
+
+class Start {
+
+     dynamic_object o = 9;
+
+     public static function __init(String[] args) {
+        String n = "Hello World";
+        return 0;
+     }
+}
