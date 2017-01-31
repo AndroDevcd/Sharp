@@ -117,7 +117,7 @@ A value consists of an <expression>
 
 <primary-expr>:
 <literal>
-    | <uType> '.' class
+    | [.] <uType> '.' class
     | 'void' '.' class
     | <refrence-identifier>
     | [.] <refrence-identifier> <value-list> [expression] // method invocation
@@ -126,8 +126,9 @@ A value consists of an <expression>
 <primary-expr>
     | 'self' '->' <expression>
     | null
+    | '.' class
     | new uType [TypeArgs] [([<value-list>] | [VectorArray>])]
-    | expression '[' expression ']'
+    | expression '[' expression ']' [expression]
     | '(' uType ')' expression
     | expression ('++' | '--')
     | ('+' | '-' | '++' | '--') expression

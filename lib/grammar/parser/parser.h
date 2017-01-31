@@ -141,7 +141,7 @@ private:
 
     bool isexprkeyword(string basic_string);
 
-    void parse_typeargs(ast *pAst);
+    bool parse_typeargs(ast *pAst);
 
     bool parse_utypearg(ast *pAst);
 

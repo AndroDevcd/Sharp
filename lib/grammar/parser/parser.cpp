@@ -236,7 +236,13 @@ bool parser::isnative_type(string type) {
     return type == "int" || type == "short"
            || type == "long" || type == "bool"
            || type == "char" || type == "float"
-           || type == "double" || type == "string";
+           || type == "double" || type == "string"
+           /*
+            * This is not a native type but we want this to be
+            * able to be set as a variable
+            */
+           || type == "dynamic_object"
+            ;
 }
 
 bool parser::isaccess_decl(token_entity token) {
@@ -509,7 +515,10 @@ bool parser::parse_utype(ast *pAst) {
     if(parse_type_identifier(pAst))
     {
         if(peek(1).gettokentype() == LESSTHAN)
-            parse_typeargs(pAst);
+        {
+            if(!parse_typeargs(pAst))
+                return false;
+        }
 
         if(peek(1).gettokentype() == LEFTBRACE)
         {
@@ -540,6 +549,11 @@ bool parser::parse_primaryexpr(ast *pAst) {
     errors->pass();
 
     errors->enablecheck_mode();
+    if(peek(1).gettokentype() == DOT) {
+        advance();
+        pAst->add_entity(current());
+    }
+
     this->retainstate(pAst);
     if(parse_utype(pAst))
     {
@@ -619,14 +633,15 @@ bool parser::parse_primaryexpr(ast *pAst) {
 }
 
 bool skipbracket = false;
-void parser::parse_typeargs(ast *pAst) {
+bool parser::parse_typeargs(ast *pAst) {
     pAst = get_ast(pAst, ast_type_arg);
 
     expect(LESSTHAN, pAst, "`<`");
 
     if(peek(1).gettokentype() != GREATERTHAN)
     {
-        parse_utype(pAst);
+        if(!parse_utype(pAst))
+            return false;
 
         _pUtype:
         if(peek(1).gettokentype() == COMMA)
@@ -646,6 +661,8 @@ void parser::parse_typeargs(ast *pAst) {
         skipbracket = false; }
     else
         expect(GREATERTHAN, pAst, "`>`");
+
+    return true;
 }
 
 void parser::parse_valuelist(ast *pAst) {
@@ -826,6 +843,16 @@ bool parser::parse_expression(ast *pAst) {
         return true;
     }
 
+    if(peek(1).gettokentype() == DOT)
+    {
+        advance();
+        pAst->add_entity(current());
+
+        advance();
+        expect_token(pAst, "class", "`class`");
+        return true;
+    }
+
     if(peek(1).gettokentype() == LEFTBRACE)
     {
         advance();
@@ -834,9 +861,25 @@ bool parser::parse_expression(ast *pAst) {
         parse_expression(pAst);
         expect(RIGHTBRACE, pAst, "`]`");
 
-        if(!isexprsymbol(peek(1).gettoken()))
+
+
+        if(!isexprsymbol(peek(1).gettoken())){
+            errors->enablecheck_mode();
+            this->retainstate(pAst);
+            if(!parse_expression(pAst)) {
+                this->rollback();
+                errors->pass();
+            }
+            else {
+                errors->fail();
+                this->dumpstate();
+            }
+
             return true;
+        }
     }
+
+
 
     /* ++ or -- after the expression */
     if(peek(1).gettokentype() == INC || peek(1).gettokentype() == DEC)
@@ -1622,7 +1665,8 @@ bool parser::iskeyword(string key) {
            || key == "finally" || key == "throw"
            || key == "continue" || key == "goto"
            || key == "break" || key == "else"
-           || key == "extern" || key == "string";
+           || key == "extern" || key == "string"
+           || key == "dynamic_object";
 }
 
 bool parser::parse_type_identifier(ast *pAst) {
@@ -1678,7 +1722,7 @@ bool parser::parse_reference_pointer(ast *pAst) {
         if(expectidentifier(pAst))
             advance();
 
-        while(current().gettokentype() == DOT) {
+        while(current().gettokentype() == DOT ) {
             if(isexprkeyword(peek(1).gettoken()))
                 break;
 
