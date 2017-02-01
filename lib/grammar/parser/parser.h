@@ -29,11 +29,8 @@ public:
             access_types = new list<token_entity>();
             tree = new list<ast>();
             rState = new list<parser_state>();
+            lines = new list<string>();
             parse();
-        }
-        else {
-            std::free(access_types); access_types = NULL;
-            std::free(tree); tree = NULL;
         }
     }
 
@@ -43,7 +40,8 @@ public:
     void free();
 
     bool parsed;
-    tokenizer *toks;
+    list<string>* lines;
+    string sourcefile;
 
 private:
     void parse();
@@ -59,6 +57,7 @@ private:
     int64_t rStateCursor;
     token_entity* _current;
     int64_t  ast_cursor;
+    tokenizer *toks;
     list<token_entity> *access_types;
     Errors *errors;
 

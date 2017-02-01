@@ -142,11 +142,11 @@ string Errors::getline(int line) {
 }
 
 keypair<p_errors, string> Errors::geterrorbyid(p_errors err) {
-    return *std::next(predefined_errs.begin(), err);
+    return *std::next(predefined_errs.begin(), (int)err);
 }
 
 bool Errors::_errs() {
-    return _err;
+    return _err && uo_errors->size() != 0;
 }
 
 void Errors::enablecheck_mode() {

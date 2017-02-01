@@ -19,6 +19,8 @@ public:
     static bool empty(const char *file);
 
     static bool exists(const char *file);
+
+    static bool endswith(string ext, string f);
 };
 
 #endif //SHARP_FILE_H

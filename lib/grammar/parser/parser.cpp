@@ -10,7 +10,11 @@ void parser::parse()
         return;
 
     parsed = true;
-    errors = new Errors(toks->getlines(), toks->file);
+    std::copy(toks->getlines()->begin(), toks->getlines()->end(),
+              std::back_inserter(*lines));
+    sourcefile = toks->file;
+
+    errors = new Errors(lines, sourcefile);
     _current= &(*std::next(toks->getentities()->begin(), cursor));
 
     while(!isend())
@@ -20,11 +24,6 @@ void parser::parse()
 
     if(errors->_errs())
         return;
-
-    for(auto &ast : *tree)
-    {
-        int i = 0;
-    }
 }
 
 Errors* parser::geterrors()

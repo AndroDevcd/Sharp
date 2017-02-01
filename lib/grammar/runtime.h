@@ -56,4 +56,36 @@ private:
     bool preprocess();
 };
 
+#define progname "bootstrap"
+#define progvers "0.1.0"
+
+struct options {
+    /*
+     * Activate aggressive error reporting for the bootstrapper.
+     */
+    bool aggressive_errors = false;
+
+    /*
+     * Only compile all the files
+     */
+    bool compile = false;
+
+    /*
+     * Output file to write to
+     */
+    string out = "out";
+
+    /*
+     * Disable warnings
+     */
+    bool warnings = true;
+
+    /*
+     * Enable warnings as errors
+     */
+    bool werrors = false;
+};
+
+int _bootstrap(int argc, const char* argv[]);
+
 #endif //SHARP_RUNTIME_H

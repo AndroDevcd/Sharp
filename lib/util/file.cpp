@@ -77,3 +77,13 @@ string file::read_alltext(const char *file)
 
     return f.str();
 }
+
+bool file::endswith(string ext, string file) {
+    size_t ext_t = ext.length();
+    stringstream extension;
+    for(size_t i = file.length() - ext_t; i < file.length(); i++){
+        extension << file.at(i);
+    }
+
+    return extension.str() == ext;
+}
