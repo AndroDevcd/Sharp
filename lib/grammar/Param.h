@@ -14,14 +14,17 @@ class ClassObject;
 class Param
 {
 public:
+    Param(Field field)
+    {
+        this->field = new Field();
+        *this->field = field;
+    }
+
     bool match(Param& param);
     static bool match(list<Param>& p1, list<Param>& p2);
 
-    NativeField nf;
-    union {
-        Field* field;
-        ClassObject* klass;
-    };
+
+    Field* field;
 };
 
 #endif //SHARP_PARAM_H

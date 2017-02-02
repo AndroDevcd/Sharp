@@ -69,6 +69,26 @@ class C {
         public function C2(int i) {
 
         }
+        public function C2(int i) {
+
+        }
+
+        public function foo2(int i, Map<int> x) {
+
+        }
+        int var = 10;
+    }
+
+    class C4 {
+
+        int var = 9;
+        public function C2(int i) {
+
+        }
+
+        public function foo2(int i, Map<int> x) {
+
+        }
 
         public function foo2(int i, Map<int> x) {
 

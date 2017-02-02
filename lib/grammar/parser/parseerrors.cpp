@@ -41,6 +41,18 @@ void int_errs()
 
     err.set(MISSING_BRACKET, "missing bracket");
     predefined_errs.push_back(err);
+
+    err.set(INVALID_ACCESS_SPECIFIER, "invalid access specifier");
+    predefined_errs.push_back(err);
+
+    err.set(MULTIPLE_DEFINITION, "multiple definition of");
+    predefined_errs.push_back(err);
+
+    err.set(PREVIOUSLY_DEFINED, "");
+    predefined_errs.push_back(err);
+
+    err.set(DUPLICATE_CLASS, "Duplicate class:");
+    predefined_errs.push_back(err);
 }
 
 string Errors::geterrors(list<parseerror>* errors)
@@ -48,7 +60,7 @@ string Errors::geterrors(list<parseerror>* errors)
     stringstream errorlist;
     for(const parseerror &err : *errors)
     {
-        errorlist << fn << ":" << err.line << ":" << err.col << " error S800" << err.id << ":  " << err.error.c_str()
+        errorlist << fn << ":" << err.line << ":" << err.col << " error S80" << err.id << ":  " << err.error.c_str()
                   << endl;
         errorlist << '\t' << getline(err.line) << endl << '\t';
 

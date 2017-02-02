@@ -9,10 +9,14 @@ size_t ClassObject::constructorCount() {
     return constructors->size();
 }
 
-bool ClassObject::addChildClass(ClassObject& klass) {
-    if(getChildClass(klass.name))
+bool ClassObject::addChildClass(ClassObject klass) {
+    if(getChildClass(klass.name) != NULL) {
+        if(this->getChildClass(klass.name) || this->name == klass.name)
+            return false;
         return false;
+    }
 
+    klass.parent = this;
     childClasses->push_back(klass);
     return true;
 }
@@ -30,7 +34,7 @@ Method *ClassObject::getConstructor(list<Param>& params) {
     return NULL;
 }
 
-bool ClassObject::addConstructor(Method &constr) {
+bool ClassObject::addConstructor(Method constr) {
     if(getConstructor(*constr.getParams()))
         return false;
 
@@ -55,7 +59,7 @@ Method *ClassObject::getFunction(string name, list<Param>& params) {
     return NULL;
 }
 
-bool ClassObject::addFunction(Method& function) {
+bool ClassObject::addFunction(Method function) {
     if(getFunction(function.getName(), *function.getParams()))
         return false;
 
@@ -80,8 +84,12 @@ Field* ClassObject::getField(string name) {
     return NULL;
 }
 
-bool ClassObject::addField(Field &field) {
+bool ClassObject::addField(Field field) {
+    if(getField(field.name) != NULL)
+        return false;
+
     fields->push_back(field);
+    return true;
 }
 
 size_t ClassObject::childClassCount() {
@@ -99,4 +107,8 @@ ClassObject* ClassObject::getChildClass(string name) {
     }
 
     return NULL;
+}
+
+void ClassObject::free() {
+
 }

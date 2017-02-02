@@ -21,7 +21,7 @@ public:
             module_name(pmodule),
             uid(uid),
             modifier(modifier),
-            nf(fnof)
+            parent(NULL)
     {
         functions = new list<Method>();
         constructors = new list<Method>();
@@ -29,21 +29,6 @@ public:
         childClasses = new list<ClassObject>();
     }
 
-    ClassObject(string name, string pmodule, long uid, AccessModifier modifier, NativeField nf)
-            :
-            name(name),
-            module_name(pmodule),
-            uid(uid),
-            nf(nf),
-            modifier(modifier),
-            functions(NULL),
-            fields(NULL),
-            childClasses(NULL),
-            constructors(NULL)
-    {
-    }
-
-    bool isNative() { return nf != fnof; }
     AccessModifier getAccessModifier() { return modifier; }
     long getUID() { return uid; }
     string getName() { return name; }
@@ -55,25 +40,25 @@ public:
     size_t constructorCount();
     Method* getConstructor(int p);
     Method* getConstructor(list<Param>& params);
-    bool addConstructor(Method& constr);
+    bool addConstructor(Method constr);
 
     size_t functionCount();
     Method* getFunction(int p);
     Method* getFunction(string name, list<Param>& params);
-    bool addFunction(Method &function);
+    bool addFunction(Method function);
 
     size_t fieldCount();
     Field* getField(int p);
     Field* getField(string name);
-    bool addField(Field& field);
+    bool addField(Field field);
 
     size_t childClassCount();
     ClassObject* getChildClass(int p);
     ClassObject* getChildClass(string name);
-    bool addChildClass(ClassObject& constr);
+    bool addChildClass(ClassObject constr);
+    void free();
 
 private:
-    const NativeField nf;
     const AccessModifier modifier;
     const long uid;
     const string name;
@@ -82,6 +67,7 @@ private:
     list<Method>* functions;
     list<Field> *fields;
     list<ClassObject>* childClasses;
+    ClassObject* parent;
 };
 
 

@@ -1117,7 +1117,7 @@ void parser::parse_block(ast* pAst) {
 }
 
 void parser::parse_macrosdecl(ast *pAst) {
-    pAst = get_ast(pAst, ast_method_decl);
+    pAst = get_ast(pAst, ast_macros_decl);
 
     for(token_entity &entity : *access_types)
     {
@@ -1753,6 +1753,7 @@ bool parser::parse_reference_pointer(ast *pAst) {
 void parser::free() {
     this->cursor = 0;
     this->toks = NULL;
+    this->_current = NULL;
 
     if(this->tree != NULL) {
         /*
@@ -1772,7 +1773,6 @@ void parser::free() {
         this->rState->clear();
         std::free(this->tree); this->tree = NULL;
         std::free(this->rState); this->rState = NULL;
-        std::free(this->_current); this->_current = NULL;
         std::free(this->access_types); this->access_types = NULL;
         errors->free();
         std::free(errors); this->errors = NULL;

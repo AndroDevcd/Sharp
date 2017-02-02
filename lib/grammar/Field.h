@@ -8,36 +8,78 @@
 #include "../../stdimports.h"
 #include "NativeField.h"
 #include "AccessModifier.h"
+#include <list>
 
 class ClassObject;
 
 class Field {
 public:
-    Field(NativeField nf, uint64_t uid, string name, ClassObject* parent, AccessModifier modifiers[3])
+    Field(NativeField nf, uint64_t uid, string name, ClassObject* parent, list<AccessModifier>* modifiers)
     :
             nf(nf),
             uid(uid),
             name(name),
-            parent(parent)
+            parent(parent),
+            klass(NULL)
     {
-        this->modifiers[0] = modifiers[0];
-        this->modifiers[1] = modifiers[1];
-        this->modifiers[2] = modifiers[2];
+        this->modifiers = new list<AccessModifier>();
+        if(modifiers == NULL)
+            this->modifiers = NULL;
+        else
+            *this->modifiers = *modifiers;
+    }
+
+    Field(ClassObject* klass, uint64_t uid, string name, ClassObject* parent, list<AccessModifier>* modifiers)
+            :
+            nf(fnof),
+            uid(uid),
+            name(name),
+            parent(parent),
+            klass(klass)
+    {
+        this->modifiers = new list<AccessModifier>();
+        if(modifiers == NULL)
+            this->modifiers = NULL;
+        else
+            *this->modifiers = *modifiers;
     }
 
     Field()
             :
             nf(fnof),
             uid(0),
-            name("")
+            name(""),
+            modifiers(NULL)
     {
     }
 
-    const NativeField nf;
-    const uint64_t uid;
-    const string name;
+    void clear() {
+        klass = NULL;
+        parent = NULL;
+        if(modifiers != NULL) std::free(modifiers);
+        modifiers = NULL;
+    }
+
+    bool operator==(const Field& f);
+
+    void operator=(const Field& f)
+    {
+        clear();
+
+        nf = f.nf;
+        klass = f.klass;
+        uid = f.uid;
+        name = f.name;
+        parent = f.parent;
+        modifiers = f.modifiers;
+    }
+
+    NativeField nf;
+    ClassObject* klass;
+    uint64_t uid;
+    string name;
     ClassObject* parent;
-    AccessModifier modifiers[3]; // 3 max modifiers
+    list<AccessModifier>* modifiers; // 3 max modifiers
 };
 
 

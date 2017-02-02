@@ -3,18 +3,21 @@
 //
 #include "Param.h"
 #include "ClassObject.h"
+#include "runtime.h"
 
 bool Param::match(Param &param) {
-    if(nf == fnof)
-        return param.nf == nf && klass->match(param.klass);
+    if(field == NULL || param.field == NULL)
+        return false;
+
+    return *field == *param.field;
 }
 
 bool Param::match(list<Param>& p1, list<Param>& p2) {
     if(p1.size() != p2.size())
         return false;
 
-    int iter = 0;
-    for(Param param : p1) {
+    size_t iter = 0;
+    for(Param& param : p1) {
         if(!param.match(*std::next(p2.begin(), iter++)))
             return false;
     }

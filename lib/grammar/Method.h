@@ -14,18 +14,30 @@ class ClassObject;
 class Method {
 
 public:
-    Method(string name, ClassObject* klass, list<Param> params, AccessModifier modifiers[3],
+    Method(string name, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers,
            ClassObject* rtype)
     :
             name(name),
             pklass(klass),
-            rType(rtype)
+            rType(rtype),
+            n_rType(fnof)
     {
         this->params = new list<Param>();
 
-        this->modifiers[0] = modifiers[0];
-        this->modifiers[1] = modifiers[1];
-        this->modifiers[2] = modifiers[2];
+        for(Param &param : params){
+            this->params->push_back(param);
+        }
+    }
+
+    Method(string name, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers,
+           NativeField rtype)
+            :
+            name(name),
+            pklass(klass),
+            n_rType(rtype),
+            rType(NULL)
+    {
+        this->params = new list<Param>();
 
         for(Param &param : params){
             this->params->push_back(param);
@@ -40,11 +52,12 @@ public:
     Param getParam(int p) { return *std::next(params->begin(), p); }
 
 private:
-    AccessModifier modifiers[3]; // 3 max modifiers
+    list<AccessModifier> modifiers; // 3 max modifiers
     ClassObject* pklass;
     string name;
     list<Param>* params;
     ClassObject* rType;
+    NativeField n_rType;
 };
 
 
