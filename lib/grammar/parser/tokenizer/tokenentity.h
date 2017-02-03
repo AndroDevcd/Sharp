@@ -73,6 +73,11 @@ public:
         return this->type == ty;
     }
 
+    bool operator==(const string& s)
+    {
+        return this->tok == s;
+    }
+
     token_entity_id getid();
     void setid(token_entity_id id);
     string gettoken();

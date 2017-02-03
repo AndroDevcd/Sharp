@@ -4,6 +4,7 @@
 
 #include "ClassObject.h"
 #include "Param.h"
+#include "runtime.h"
 
 size_t ClassObject::constructorCount() {
     return constructors->size();
@@ -35,7 +36,7 @@ Method *ClassObject::getConstructor(list<Param>& params) {
 }
 
 bool ClassObject::addConstructor(Method constr) {
-    if(getConstructor(*constr.getParams()))
+    if(getConstructor(*constr.getParams()) != NULL)
         return false;
 
     constructors->push_back(constr);
@@ -60,7 +61,7 @@ Method *ClassObject::getFunction(string name, list<Param>& params) {
 }
 
 bool ClassObject::addFunction(Method function) {
-    if(getFunction(function.getName(), *function.getParams()))
+    if(getFunction(function.getName(), *function.getParams()) != NULL)
         return false;
 
     functions->push_back(function);
@@ -111,4 +112,29 @@ ClassObject* ClassObject::getChildClass(string name) {
 
 void ClassObject::free() {
 
+}
+
+size_t ClassObject::overloadCount() {
+    return overloads->size();
+}
+
+OperatorOverload *ClassObject::getOverload(size_t p) {
+    return &element_at(*overloads, p);
+}
+
+OperatorOverload *ClassObject::getOverload(_operator op, list<Param> &params) {
+    for(OperatorOverload& oper : *overloads) {
+        if(Param::match(*oper.getParams(), params) && op == oper.getOperator())
+            return &oper;
+    }
+
+    return NULL;
+}
+
+bool ClassObject::addOperatorOverload(OperatorOverload overload) {
+    if(getOverload(overload.getOperator(), *overload.getParams()) != NULL)
+        return false;
+
+    overloads->push_back(overload);
+    return true;
 }

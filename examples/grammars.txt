@@ -99,9 +99,8 @@ A value consists of an <expression>
    |   '&='
    |   '|='
    |   '^='
-   |   '>>='
-   |   '>>>='
-   |   '<<='
+   |   '>>=' // not added
+   |   '<<=' // not added
    |   '%='
 
 <override-operator>:
@@ -113,7 +112,8 @@ A value consists of an <expression>
     | '-'
     | '++'
     | '--'
-    | '='
+    | '=' // must return left assignee type
+    | '==' // must return bool
 
 <primary-expr>:
 <literal>

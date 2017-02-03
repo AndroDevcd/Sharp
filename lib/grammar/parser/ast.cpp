@@ -21,6 +21,7 @@ long ast::getsubastcount()
 
 ast* ast::getsubast(long at)
 {
+    if(sub_asts->size() == 0) return NULL;
     return &(*std::next(sub_asts->begin(), at));
 }
 
@@ -31,6 +32,7 @@ long ast::getentitycount()
 
 token_entity ast::getentity(long at)
 {
+    if(entities->size() == 0) return token_entity();
     return *std::next(entities->begin(), at);
 }
 

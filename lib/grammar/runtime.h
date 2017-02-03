@@ -78,6 +78,10 @@ private:
     list<Param> ast_toparams(ast *pAst, ClassObject* parent);
 
     string get_modulename(ast *pAst);
+
+    list<string> parse_templArgs(ast *pAst);
+
+    void preprocc_operator_decl(ast *pAst, ClassObject *pObject);
 };
 
 #define progname "bootstrap"
@@ -113,8 +117,17 @@ struct options {
 int _bootstrap(int argc, const char* argv[]);
 
 template <class T>
-inline T element_at(list<T> l, size_t x) {
+inline T& element_at(list<T>& l, size_t x) {
     return *std::next(l.begin(), x);
+}
+
+template <class T>
+inline bool element_has(list<T>& l, T search) {
+    for(T var : l) {
+        if(search == var)
+            return true;
+    }
+    return false;
 }
 
 #endif //SHARP_RUNTIME_H

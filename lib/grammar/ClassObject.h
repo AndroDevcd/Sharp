@@ -11,22 +11,34 @@
 #include "Field.h"
 #include "NativeField.h"
 #include "AccessModifier.h"
+#include "OperatorOverload.h"
+#include "../util/keypair.h"
 
 class ClassObject {
 
 public:
-    ClassObject(string name, string pmodule, long uid, AccessModifier modifier)
+    ClassObject(string name, string pmodule, long uid, AccessModifier modifier, bool templ,
+                list<string> templs)
     :
             name(name),
             module_name(pmodule),
             uid(uid),
             modifier(modifier),
-            parent(NULL)
+            parent(NULL),
+            templClass(templ),
+            base(NULL)
     {
         functions = new list<Method>();
         constructors = new list<Method>();
+        overloads = new list<OperatorOverload>();
         fields = new list<Field>();
         childClasses = new list<ClassObject>();
+
+        if(templ) {
+            this->tmplRefs = new list<string>();
+            *this->tmplRefs = templs;
+        } else
+            this->tmplRefs = NULL;
     }
 
     AccessModifier getAccessModifier() { return modifier; }
@@ -34,8 +46,13 @@ public:
     string getName() { return name; }
     string getModuleName() { return module_name; }
     bool match(ClassObject* klass) {
-        return klass->uid == uid;
+        return klass != NULL && klass->uid == uid;
     }
+    void setBaseClass(ClassObject* base) {
+        this->base = base;
+    }
+    list<string>* getTemplRefs() { return tmplRefs; }
+    bool isTmplClass() { return templClass; }
 
     size_t constructorCount();
     Method* getConstructor(int p);
@@ -46,6 +63,11 @@ public:
     Method* getFunction(int p);
     Method* getFunction(string name, list<Param>& params);
     bool addFunction(Method function);
+
+    size_t overloadCount();
+    OperatorOverload* getOverload(size_t p);
+    OperatorOverload* getOverload(_operator op, list<Param>& params);
+    bool addOperatorOverload(OperatorOverload overload);
 
     size_t fieldCount();
     Field* getField(int p);
@@ -61,13 +83,17 @@ public:
 private:
     const AccessModifier modifier;
     const long uid;
+    const bool templClass;
     const string name;
     const string module_name;
     list<Method>* constructors;
     list<Method>* functions;
+    list<OperatorOverload>* overloads;
     list<Field> *fields;
+    list<string> *tmplRefs;
     list<ClassObject>* childClasses;
     ClassObject* parent;
+    ClassObject* base;
 };
 
 

@@ -1,0 +1,38 @@
+mod application;
+
+import system.io;
+
+class Start1 {
+
+    class SimpleClass<k> base ComplexClass {
+        K var;
+        int value;
+
+        public SimpleClass() {
+            value = 9;
+        }
+
+        public override function run() {
+
+        }
+
+        public function operator+(SimpleClass<K> simple) : int {
+            return value + simple.value;
+        }
+    }
+
+    public static function main(String[] args) {
+        io.console.write("Hello World");
+        SimpleClass<String> sk;
+        SimpleClass<String> sk2;
+        int value = sk + sk2; // int == 18
+
+    }
+}
+
+class Runtime {
+
+    private static function __init(string[] args) {
+
+    }
+}

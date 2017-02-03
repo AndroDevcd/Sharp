@@ -9,6 +9,7 @@
 options c_options;
 size_t succeeded, failed;
 void parse_options(list<keypair<string, string>> list);
+_operator string_toop(string op);
 
 void runtime::interpret() {
     if(preprocess()) {
@@ -64,6 +65,9 @@ bool runtime::preprocess() {
             else if(trunk->gettype() == ast_import_decl) {
                 string import = get_modulename(trunk->getsubast(0));
                 imports.push_back(import);
+            }
+            else if(trunk->gettype() == ast_macros_decl) {
+                
             }
             else if(trunk->gettype() == ast_module_decl) {
                 errors->newerror(GENERIC, trunk->line, trunk->col, "file module cannot be declared more than once");
@@ -210,11 +214,98 @@ list<Param> runtime::ast_toparams(ast *pAst, ClassObject* parent) {
     return params;
 }
 
+list<string> runtime::parse_templArgs(ast *pAst) {
+    list<string> tmplArgs;
+    if(pAst == NULL || pAst->gettype() != ast_type_declarator)
+        return tmplArgs;
+
+    token_entity entity;
+    for(size_t i = 1; i < pAst->getentitycount(); i++) {
+        entity = pAst->getentity(i);
+
+        if(entity == ">")
+            break;
+        else if(entity == ","){}
+        else
+            tmplArgs.push_back(entity.gettoken());
+    }
+
+    return tmplArgs;
+}
+
+void runtime::preprocc_operator_decl(ast *pAst, ClassObject *pObject) {
+    ast *tmp;
+    list<AccessModifier> modifiers;
+    bool methodAdded, tmplMethod=false;
+
+    if(isaccess_decl(pAst->getentity(0))) {
+        modifiers = this->preprocc_access_modifier(pAst);
+        if(modifiers.size() > 3)
+            this->errors->newerror(GENERIC, pAst->line, pAst->col, "too many access specifiers");
+        else {
+            int m=ismethod_access_specifiers(modifiers);
+            switch(m) {
+                case -1:
+                    break;
+                default:
+                    this->errors->newerror(INVALID_ACCESS_SPECIFIER, pAst->getentity(m).getline(),
+                                           pAst->getentity(m).getcolumn(), " `" + pAst->getentity(m).gettoken() + "`");
+                    break;
+            }
+        }
+    }
+
+    list<Param> params;
+    NativeField n_rtype = fnof;
+
+    if(pAst->getsubastcount() == 3) {
+        tmp = pAst->getsubast(1)->getsubast(0);
+        if(tmp->getentitycount() > 0)
+            n_rtype = entity_tonativefield(tmp->getentity(0));
+        tmp = pAst->getsubast(0);
+    } else {
+        tmp = pAst->getsubast(1);
+        n_rtype = fvoid;
+    }
+
+    params = ast_toparams(pAst->getsubast(0), pObject);
+    string op = pAst->getentity(pAst->getentitycount()-1).gettoken();
+
+    if(tmp->gettype() == ast_utype_arg_list && n_rtype != fnof) {
+        methodAdded =pObject->addOperatorOverload(OperatorOverload(pObject, params, modifiers, n_rtype, string_toop(op)));
+    } else {
+        if(pObject->isTmplClass() && pAst->getsubastcount() == 3 ) {
+            ast* astRefPtr = pAst->getsubast(1)->getsubast(0)->getsubast(0);
+
+            /* Check if rtype class is template parameter */
+            if(astRefPtr->getentitycount() == 1 && element_has(*pObject->getTemplRefs(), astRefPtr->getentity(0).gettoken())){
+                methodAdded =pObject->addOperatorOverload(OperatorOverload(pObject, params, modifiers, astRefPtr->getentity(0).gettoken(), string_toop(op)));
+                tmplMethod = true;
+            }
+            else
+                methodAdded =pObject->addOperatorOverload(OperatorOverload(pObject, params, modifiers, NULL, string_toop(op)));
+        }
+        else
+            methodAdded =pObject->addOperatorOverload(OperatorOverload(pObject, params, modifiers, NULL, string_toop(op)));
+    }
+
+
+    if(!methodAdded) {
+        this->errors->newerror(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
+                               "function `$operator" + op + "` is already defined in the scope");
+    }
+
+    if(tmplMethod)
+        cout << "Template operator overload created\n";
+    else
+        cout << "operator overload created\n";
+}
+
 void runtime::preprocc_method_decl(ast *pAst, ClassObject *pObject) {
     ast *tmp;
     list<AccessModifier> modifiers;
     int namepos=1;
-    bool methodAdded;
+    bool methodAdded, tmplMethod=false;
 
     if(isaccess_decl(pAst->getentity(0))) {
         modifiers = this->preprocc_access_modifier(pAst);
@@ -242,7 +333,7 @@ void runtime::preprocc_method_decl(ast *pAst, ClassObject *pObject) {
         tmp = pAst->getsubast(1)->getsubast(0);
         if(tmp->getentitycount() > 0)
             n_rtype = entity_tonativefield(tmp->getentity(0));
-        tmp = pAst->getsubast(2);
+        tmp = pAst->getsubast(0);
     } else {
         tmp = pAst->getsubast(1);
         n_rtype = fvoid;
@@ -252,22 +343,39 @@ void runtime::preprocc_method_decl(ast *pAst, ClassObject *pObject) {
 
     if(tmp->gettype() == ast_utype_arg_list && n_rtype != fnof) {
         methodAdded =pObject->addFunction(Method(name, pObject, params, modifiers, n_rtype));
-    } else
-        methodAdded =pObject->addFunction(Method(name, pObject, params, modifiers, NULL));
+    } else {
+        if(pObject->isTmplClass() && pAst->getsubastcount() == 3 ) {
+            ast* astRefPtr = pAst->getsubast(1)->getsubast(0)->getsubast(0);
+
+            /* Check if rtype class is template parameter */
+            if(astRefPtr->getentitycount() == 1 && element_has(*pObject->getTemplRefs(), astRefPtr->getentity(0).gettoken())){
+                methodAdded =pObject->addFunction(Method(name, pObject, params, modifiers,astRefPtr->getentity(0).gettoken()));
+                tmplMethod = true;
+            }
+            else
+                methodAdded =pObject->addFunction(Method(name, pObject, params, modifiers, NULL));
+        }
+        else
+            methodAdded =pObject->addFunction(Method(name, pObject, params, modifiers, NULL));
+    }
+
 
     if(!methodAdded) {
         this->errors->newerror(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
                                "function `" + name + "` is already defined in the scope");
     }
 
-    cout << "method created\n";
+    if(tmplMethod)
+        cout << "Template method created\n";
+    else
+        cout << "method created\n";
 }
 
 void runtime::preprocc_var_decl(ast *pAst, ClassObject *pObject) {
     ast *tmp;
     list<AccessModifier> modifiers;
     int namepos=0;
-    bool fieldAdded;
+    bool fieldAdded, tmplField=false;
 
     if(isaccess_decl(pAst->getentity(0))) {
         modifiers = this->preprocc_access_modifier(pAst);
@@ -292,19 +400,32 @@ void runtime::preprocc_var_decl(ast *pAst, ClassObject *pObject) {
     if(tmp->gettype() == ast_type_identifier && tmp->getentitycount() != 0){
         fieldAdded =pObject->addField(Field(entity_tonativefield(tmp->getentity(0)),
                                uid++, name, pObject, &modifiers)); // native field
-    } else
-        fieldAdded =pObject->addField(Field(NULL, uid++, name, pObject, &modifiers)); // Refrence field
+    } else {
+        ast* templRefAst = tmp->getsubast(0);
+        if(templRefAst->getentitycount() == 1 &&
+                element_has(*pObject->getTemplRefs(), templRefAst->getentity(0).gettoken())) {
+            fieldAdded =pObject->addField(Field(templRefAst->getentity(0).gettoken(), uid++, name, pObject, &modifiers)); // Template field
+            tmplField = true;
+        } else
+            fieldAdded =pObject->addField(Field(NULL, uid++, name, pObject, &modifiers)); // Refrence field
+
+    }
+
 
     if(!fieldAdded) {
         this->errors->newerror(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
                                "variable `" + name + "` is already defined in the scope");
     }
-    cout << "variable created\n";
+
+    if(tmplField)
+        cout << "Template variable created\n";
+    else
+        cout << "variable created\n";
 }
 
 void runtime::preprocc_class_decl(ast *trunk, ClassObject* parent) {
     ast *pAst, *block;
-    block = trunk->getsubast(0);
+    block = trunk->getsubast(trunk->getsubastcount()-1);
     list<AccessModifier> modifiers;
     ClassObject* klass;
     int namepos=1;
@@ -324,9 +445,12 @@ void runtime::preprocc_class_decl(ast *trunk, ClassObject* parent) {
     }
 
     string name =  trunk->getentity(namepos).gettoken();
+    list<string> templArgs = parse_templArgs(trunk->getsubastcount() <= 1 ? NULL:trunk->getsubast(0));
+    bool isTempl = templArgs.size() != 0;
+
     if(parent == NULL) {
         if(!this->add_class(ClassObject(name,
-                    current_module, this->uid++, mPublic))){
+                    current_module, this->uid++, mPublic, isTempl, templArgs))){
             this->errors->newerror(PREVIOUSLY_DEFINED, trunk->line, trunk->col, "class `" + name +
                                "` is already defined in module {" + current_module + "}");
             return;
@@ -334,7 +458,7 @@ void runtime::preprocc_class_decl(ast *trunk, ClassObject* parent) {
             klass = getClass(current_module, name);
     } else {
         if(!parent->addChildClass(ClassObject(name,
-                                             current_module, this->uid++, mPublic))) {
+                                             current_module, this->uid++, mPublic, isTempl, templArgs))) {
             this->errors->newerror(DUPLICATE_CLASS, trunk->line, trunk->col, " '" + name + "'");
             return;
         } else
@@ -354,7 +478,18 @@ void runtime::preprocc_class_decl(ast *trunk, ClassObject* parent) {
         else if(pAst->gettype() == ast_method_decl) {
             preprocc_method_decl(pAst, klass);
         }
-        //create sub methods to preprocess each block element
+        else if(pAst->gettype() == ast_operator_decl) {
+            preprocc_operator_decl(pAst, klass);
+        }
+        else if(pAst->gettype() == ast_construct_decl) {
+
+        }
+        else if(pAst->gettype() == ast_macros_decl) {
+
+        }
+        else if(pAst->gettype() == ast_import_decl) {
+
+        }
     }
 }
 
@@ -645,4 +780,42 @@ AccessModifier runtime::entity_tomodifier(token_entity entity) {
     else if(entity.gettoken() == "override")
         return mOverride;
     return mStatic;
+}
+
+_operator string_toop(string op) {
+    if(op=="+")
+        return op_PLUS;
+    if(op=="-")
+        return op_MINUS;
+    if(op=="*")
+        return op_MULT;
+    if(op=="/")
+        return op_DIV;
+    if(op=="%")
+        return op_MOD;
+    if(op=="++")
+        return op_INC;
+    if(op=="--")
+        return op_DEC;
+    if(op=="=")
+        return op_EQUALS;
+    if(op=="==")
+        return op_EQUALS_EQ;
+    if(op=="+=")
+        return op_PLUS_EQ;
+    if(op=="-=")
+        return op_MIN_EQ;
+    if(op=="*=")
+        return op_MULT_EQ;
+    if(op=="/=")
+        return op_DIV_EQ;
+    if(op=="&=")
+        return op_AND_EQ;
+    if(op=="|=")
+        return op_OR_EQ;
+    if(op=="!=")
+        return op_NOT_EQ;
+    if(op=="%=")
+        return op_MOD_EQ;
+    return op_NO;
 }

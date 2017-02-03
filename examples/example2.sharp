@@ -2,17 +2,21 @@ mod application;
 
 import system.io;
 
-class Start {
+class Start1<K> {
 
      dynamic_object o = 9;
      public static const Heap heap = null;
-     Heap heap = null;
+     K heap = null;
 
     public Start() {
 
     }
 
-     public static function initGc(int x, Heap heap) : int {
+     public function operator+(SimpleClass<K> simple) : K {
+         return value + simple.value;
+     }
+
+     public static function initGc(int x, Heap heap) : K {
         o = new Gc();
         Thread thread = new Thread("gc_thread", o);
         thread.start();

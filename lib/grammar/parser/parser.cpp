@@ -83,7 +83,7 @@ void parser::eval(ast* _ast) {
 
 
 void parser::parse_type_declarators(ast *pAst) {
-    pAst = get_ast(pAst, ast_type_arg);
+    pAst = get_ast(pAst, ast_type_declarator);
 
     expect(LESSTHAN, pAst, "`<`");
 
@@ -709,7 +709,7 @@ bool parser::isoverride_operator(string token) {
             token == "++" ||token == "--" ||
             token == "*" || token == "/" ||
             token == "%" || token == "-" ||
-            token == "+" || token == "=";
+            token == "+" || token == "==";
 }
 
 bool parser::parse_expression(ast *pAst) {
