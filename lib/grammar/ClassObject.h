@@ -88,6 +88,7 @@ private:
     const string module_name;
     list<Method>* constructors;
     list<Method>* functions;
+    list<Method>* macros;
     list<OperatorOverload>* overloads;
     list<Field> *fields;
     list<string> *tmplRefs;

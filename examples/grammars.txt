@@ -124,6 +124,7 @@ A value consists of an <expression>
 <expression>:
 <primary-expr>
     | 'self' '->' <expression>
+    | 'base' '->' <expression>
     | null
     | '.' class
     | new uType [TypeArgs] [([<value-list>] | [VectorArray>])]
@@ -222,6 +223,9 @@ throw <expression> ;
 <external-decliration>:
 extern (<external-method-decl> | <external-typeidentifier-decl>)
 
+<asm-decl>:
+Inline assembly decliration that can only be declared in a method or macros
+
 <statement>:
 <return-statement>
      | <if-statement>
@@ -235,3 +239,4 @@ extern (<external-method-decl> | <external-typeidentifier-decl>)
      | identifier ':' <statement>
      | <variable-declaration>
      | <expression>
+     | <asm-decl> // add this

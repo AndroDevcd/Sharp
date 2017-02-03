@@ -362,6 +362,7 @@ void parser::parse_classblock(ast *pAst) {
             {
                 errors->newerror(ILLEGAL_ACCESS_DECLARATION, current());
             }
+            errors->newerror(GENERIC, current(), "unexpected import declaration");
             parse_importdecl(pAst);
         }
         else if(ismacros_decl(current()))
@@ -806,6 +807,17 @@ bool parser::parse_expression(ast *pAst) {
         advance();
         expect_token(pAst, "self", "");
         expect(PTR, pAst, "`->` after self");
+        parse_expression(pAst);
+
+        if(!isexprsymbol(peek(1).gettoken()))
+            return true;
+    }
+
+    if(peek(1).gettoken() == "base")
+    {
+        advance();
+        expect_token(pAst, "base", "");
+        expect(PTR, pAst, "`->` after base");
         parse_expression(pAst);
 
         if(!isexprsymbol(peek(1).gettoken()))
@@ -1539,6 +1551,7 @@ void parser::parse_statement(ast* pAst) {
     else
     {
         // save parser state
+        errors->enablecheck_mode();
         this->retainstate(pAst);
         pushback();
 
@@ -1547,7 +1560,7 @@ void parser::parse_statement(ast* pAst) {
          */
         if(parse_utype(pAst))
         {
-
+            errors->pass();
             if(peek(1).gettokentype() == COLON)
             {
                 pAst = this->rollback();
@@ -1561,7 +1574,8 @@ void parser::parse_statement(ast* pAst) {
                 parse_variabledecl(pAst);
                 return;
             }
-        }
+        } else
+            errors->pass();
 
         pAst = this->rollback();
         pushback();

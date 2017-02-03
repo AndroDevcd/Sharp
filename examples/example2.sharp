@@ -2,13 +2,17 @@ mod application;
 
 import system.io;
 
-class Start1<K> {
+class Start<K> {
 
      dynamic_object o = 9;
      public static const Heap heap = null;
      K heap = null;
 
     public Start() {
+
+    }
+
+    public Start1() {
 
     }
 
@@ -20,6 +24,8 @@ class Start1<K> {
         o = new Gc();
         Thread thread = new Thread("gc_thread", o);
         thread.start();
+        base->run();
+        self->run();
      }
 
      public public static function initHeap() {

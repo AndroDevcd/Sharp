@@ -67,7 +67,7 @@ bool runtime::preprocess() {
                 imports.push_back(import);
             }
             else if(trunk->gettype() == ast_macros_decl) {
-                
+
             }
             else if(trunk->gettype() == ast_module_decl) {
                 errors->newerror(GENERIC, trunk->line, trunk->col, "file module cannot be declared more than once");
@@ -231,6 +231,52 @@ list<string> runtime::parse_templArgs(ast *pAst) {
     }
 
     return tmplArgs;
+}
+
+void runtime::preprocc_macros_decl(ast *pAst, ClassObject *pObject) {
+    ast *tmp;
+    list<AccessModifier> modifiers;
+    int namepos=1;
+    bool methodAdded;
+
+}
+
+void runtime::preprocc_constructor_decl(ast *pAst, ClassObject *pObject) {
+    ast *tmp;
+    list<AccessModifier> modifiers;
+    int namepos=0;
+    bool methodAdded;
+
+    if(isaccess_decl(pAst->getentity(0))) {
+        modifiers = this->preprocc_access_modifier(pAst);
+        if(modifiers.size() > 1)
+            this->errors->newerror(GENERIC, pAst->line, pAst->col, "too many access specifiers");
+        else {
+            AccessModifier mod = element_at(modifiers, 0);
+
+            if(mod != mPublic && mod != mPrivate && mod != mProtected)
+                this->errors->newerror(INVALID_ACCESS_SPECIFIER, pAst->line, pAst->col,
+                                       " `" + pAst->getentity(0).gettoken() + "`");
+        }
+        namepos+=modifiers.size();
+    }
+
+
+    list<Param> params;
+    string name = pAst->getentity(namepos).gettoken();
+    if(name == pObject->getName()) {
+        params = ast_toparams(pAst->getsubast(0), pObject);
+        methodAdded =pObject->addConstructor(Method(name , pObject, params, modifiers, fvoid));
+
+        if(!methodAdded) {
+            this->errors->newerror(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
+                                   "constructor `" + name + "` is already defined in the scope");
+        }
+    } else
+        this->errors->newerror(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
+                               "constructor `" + name + "` must be the same name as its parent");
+
+    cout << "constructor created\n";
 }
 
 void runtime::preprocc_operator_decl(ast *pAst, ClassObject *pObject) {
@@ -482,13 +528,10 @@ void runtime::preprocc_class_decl(ast *trunk, ClassObject* parent) {
             preprocc_operator_decl(pAst, klass);
         }
         else if(pAst->gettype() == ast_construct_decl) {
-
+            preprocc_constructor_decl(pAst, klass);
         }
         else if(pAst->gettype() == ast_macros_decl) {
-
-        }
-        else if(pAst->gettype() == ast_import_decl) {
-
+            preprocc_macros_decl(pAst, klass);
         }
     }
 }
@@ -660,6 +703,7 @@ void _srt_start(list<string> files)
                 failed++;
             } else {
                 parsers.push_back(p);
+                succeeded++;
             }
         }
 
@@ -669,11 +713,12 @@ void _srt_start(list<string> files)
     }
 
     if(errors == 0 && uo_errors == 0) {
-          runtime rt(c_options.out, parsers);
+        failed = 0, succeeded=0;
+        runtime rt(c_options.out, parsers);
 
-          errors+=rt.errs;
-          uo_errors+=rt.uo_errs;
-          rt.cleanup();
+        errors+=rt.errs;
+        uo_errors+=rt.uo_errs;
+        rt.cleanup();
     }
     else {
         for(parser* p2 : parsers) {
@@ -706,6 +751,27 @@ bool runtime::class_exists(string module, string name) {
         }
     }
 
+    return false;
+}
+
+Method *runtime::getmacros(string module, string name, list<Param> params) {
+    for(Method& macro : *macros) {
+        if(Param::match(*macro.getParams(), params) && name == macro.getName()) {
+            if(module != "")
+                return module == macro.getModule() ? &macro : NULL;
+
+            return &macro;
+        }
+    }
+
+    return NULL;
+}
+
+bool runtime::add_macros(Method macro) {
+    if(getmacros(macro.getModule(), macro.getName(), *macro.getParams()) != NULL) {
+        macros->push_back(macro);
+        return true;
+    }
     return false;
 }
 

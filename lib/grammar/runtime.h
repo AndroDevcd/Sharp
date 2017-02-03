@@ -36,8 +36,10 @@ public:
     bool module_exists(string name);
     bool class_exists(string module, string name);
     bool add_class(ClassObject klass);
+    bool add_macros(Method macro);
     void add_module(string name);
     ClassObject* getClass(string module, string name);
+    Method* getmacros(string module, string name, list<Param> params);
     void cleanup();
 
     Errors* errors;
@@ -46,6 +48,7 @@ private:
     list<parser*> parsers;
     string out;
     list<string>* modules;
+    list<Method>* macros;
     string current_module;
     list<ClassObject>* classes;
     list<keypair<string, list<string>>>*  import_map;
@@ -82,6 +85,10 @@ private:
     list<string> parse_templArgs(ast *pAst);
 
     void preprocc_operator_decl(ast *pAst, ClassObject *pObject);
+
+    void preprocc_constructor_decl(ast *pAst, ClassObject *pObject);
+
+    void preprocc_macros_decl(ast *pAst, ClassObject *pObject);
 };
 
 #define progname "bootstrap"

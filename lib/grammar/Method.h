@@ -21,7 +21,8 @@ public:
             pklass(klass),
             rType(rtype),
             n_rType(fnof),
-            templName("")
+            templName(""),
+            module("")
     {
         this->params = new list<Param>();
 
@@ -37,7 +38,8 @@ public:
             pklass(klass),
             n_rType(rtype),
             rType(NULL),
-            templName("")
+            templName(""),
+            module("")
     {
         this->params = new list<Param>();
 
@@ -52,7 +54,24 @@ public:
             pklass(klass),
             n_rType(fnof),
             rType(NULL),
-            templName(tmplName)
+            templName(tmplName),
+            module("")
+    {
+        this->params = new list<Param>();
+
+        for(Param &param : params){
+            this->params->push_back(param);
+        }
+    }
+
+    Method(string name, string module, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers)
+            :
+            name(name),
+            pklass(klass),
+            n_rType(fvoid),
+            rType(NULL),
+            templName(""),
+            module(module)
     {
         this->params = new list<Param>();
 
@@ -64,6 +83,7 @@ public:
     ClassObject* getParentClass() { return pklass; }
     ClassObject* getReturnType() { return rType; }
     string getName() { return name; }
+    string getModule() { return module; }
     size_t paramCount() { return params->size(); }
     list<Param>* getParams() { return params; }
     Param getParam(int p) { return *std::next(params->begin(), p); }
@@ -73,6 +93,7 @@ private:
     list<AccessModifier> modifiers; // 3 max modifiers
     ClassObject* pklass;
     string name;
+    string module;
     string templName;
     list<Param>* params;
     ClassObject* rType;
