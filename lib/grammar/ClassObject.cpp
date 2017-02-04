@@ -138,3 +138,28 @@ bool ClassObject::addOperatorOverload(OperatorOverload overload) {
     overloads->push_back(overload);
     return true;
 }
+
+size_t ClassObject::macrosCount() {
+    return macros->size();
+}
+
+Method *ClassObject::getMacros(int p) {
+    return &element_at(*macros,p);
+}
+
+Method *ClassObject::getMacros(string name, list<Param> &params) {
+    for(Method& macro : *macros) {
+        if(Param::match(*macro.getParams(), params) && name == macro.getName())
+            return &macro;
+    }
+
+    return NULL;
+}
+
+bool ClassObject::addMacros(Method macro) {
+    if(getFunction(macro.getName(), *macro.getParams()) != NULL)
+        return false;
+
+    macros->push_back(macro);
+    return true;
+}

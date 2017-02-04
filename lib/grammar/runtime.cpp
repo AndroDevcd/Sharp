@@ -29,8 +29,12 @@ void runtime::interpret() {
                 errs+= errors->error_count();
                 uo_errs+= errors->uoerror_count();
                 failed++;
-            } else
+            } else {
+                if(errors->_warnings())
+                    cout << errors->getall_errors();
+
                 succeeded++;
+            }
 
             errors->free();
             std::free(errors); this->errors = NULL;
@@ -67,7 +71,7 @@ bool runtime::preprocess() {
                 imports.push_back(import);
             }
             else if(trunk->gettype() == ast_macros_decl) {
-
+                preprocc_macros_decl(trunk, NULL);
             }
             else if(trunk->gettype() == ast_module_decl) {
                 errors->newerror(GENERIC, trunk->line, trunk->col, "file module cannot be declared more than once");
@@ -87,14 +91,28 @@ bool runtime::preprocess() {
 
             semtekerrors = true;
             failed++;
-        } else
+        } else {
+            if (errors->_warnings())
+                cout << errors->getall_errors();
+
             succeeded++;
+        }
 
         errors->free();
         std::free(errors); this->errors = NULL;
     }
 
     return !semtekerrors;
+}
+
+void runtime::warning(p_errors error, int line, int col, string xcmnts) {
+    if(c_options.warnings) {
+        if(c_options.werrors){
+            errors->newerror(error, line, col, xcmnts);
+        } else {
+            errors->newwarning(error, line, col, xcmnts);
+        }
+    }
 }
 
 string runtime::get_modulename(ast *pAst) {
@@ -116,6 +134,29 @@ bool runtime::isaccess_decl(token_entity token) {
             token.getid() == IDENTIFIER && token.gettoken() == "public";
 }
 
+int runtime::ismacro_access_specifiers(list<AccessModifier>& modifiers) {
+    int iter=0;
+    for(AccessModifier m : modifiers) {
+        if(m > mStatic)
+            return iter;
+        iter++;
+    }
+
+    if(element_at(modifiers, 0) <= mProtected) {
+        if(modifiers.size() > 2)
+            return (int)(modifiers.size() - 1);
+        else if(modifiers.size() == 2) {
+            if(element_at(modifiers, 1) != mStatic)
+                return 1;
+        }
+    }
+    else if(element_at(modifiers, 0) == mStatic) {
+        if(modifiers.size() > 1)
+            return (int)(modifiers.size() - 1);
+    }
+    return -1;
+}
+
 int runtime::isvar_access_specifiers(list<AccessModifier>& modifiers) {
     int iter=0;
     for(AccessModifier m : modifiers) {
@@ -129,7 +170,7 @@ int runtime::isvar_access_specifiers(list<AccessModifier>& modifiers) {
             return (int)(modifiers.size() - 1);
         else if(modifiers.size() == 2) {
             if((element_at(modifiers, 1) != mConst
-                || element_at(modifiers, 1) != mStatic))
+                && element_at(modifiers, 1) != mStatic))
                 return 1;
         }
         else if(modifiers.size() == 3) {
@@ -153,7 +194,7 @@ int runtime::isvar_access_specifiers(list<AccessModifier>& modifiers) {
 }
 
 int runtime::ismethod_access_specifiers(list<AccessModifier>& modifiers) {
-    int iter=0;
+    int iter=0, acess=0;
     for(AccessModifier m : modifiers) {
         if(m == mConst)
             return iter;
@@ -164,7 +205,7 @@ int runtime::ismethod_access_specifiers(list<AccessModifier>& modifiers) {
         if(modifiers.size() > 3)
             return (int)(modifiers.size() - 1);
         else if(modifiers.size() == 2) {
-            if(element_at(modifiers, 1) != mStatic)
+            if(element_at(modifiers, 1) != mStatic && element_at(modifiers, 1) != mOverride)
                 return 1;
         }
         else if(modifiers.size() == 3) {
@@ -237,8 +278,71 @@ void runtime::preprocc_macros_decl(ast *pAst, ClassObject *pObject) {
     ast *tmp;
     list<AccessModifier> modifiers;
     int namepos=1;
-    bool methodAdded;
+    bool macrosAdded;
 
+    if(isaccess_decl(pAst->getentity(0))) {
+        modifiers = this->preprocc_access_modifier(pAst);
+        if (modifiers.size() > 2)
+            this->errors->newerror(GENERIC, pAst->line, pAst->col, "too many access specifiers");
+        else {
+            int m = ismethod_access_specifiers(modifiers);
+            switch (m) {
+                case -1:
+                    break;
+                default:
+                    this->errors->newerror(INVALID_ACCESS_SPECIFIER, pAst->getentity(m).getline(),
+                                           pAst->getentity(m).getcolumn(), " `" + pAst->getentity(m).gettoken() + "`");
+                    break;
+            }
+        }
+
+
+        if(!element_has(modifiers, mPublic) && !element_has(modifiers, mPrivate)
+           && element_has(modifiers, mProtected)) {
+            modifiers.push_back(mPublic);
+        }
+
+        if(element_has(modifiers, mStatic))
+            warning(REDUNDANT_TOKEN, pAst->getentity(element_index(modifiers, mStatic)).getline(),
+                    pAst->getentity(element_index(modifiers, mStatic)).getcolumn(), " `static`, macros are static by default");
+    } else
+        modifiers.push_back(mPublic);
+
+    list<Param> params;
+    NativeField n_rtype = fnof;
+    string name =  pAst->getentity(namepos).gettoken();
+
+    if(pAst->getsubastcount() == 3) {
+        tmp = pAst->getsubast(1)->getsubast(0);
+        if(tmp->getentitycount() > 0)
+            n_rtype = entity_tonativefield(tmp->getentity(0));
+        tmp = pAst->getsubast(0);
+    } else {
+        tmp = pAst->getsubast(1);
+        n_rtype = fvoid;
+    }
+
+    params = ast_toparams(pAst->getsubast(0), pObject);
+
+    if(tmp->gettype() == ast_utype_arg_list && n_rtype != fnof) {
+        if(pObject != NULL)
+            macrosAdded =pObject->addMacros(Method(name, pObject, params, modifiers, n_rtype));
+        else
+            macrosAdded =add_macros(Method(name, pObject, params, modifiers, n_rtype));
+    } else {
+        if(pObject != NULL)
+            macrosAdded =pObject->addFunction(Method(name, pObject, params, modifiers, NULL));
+        else
+            macrosAdded =add_macros(Method(name, pObject, params, modifiers, NULL));
+    }
+
+
+    if(!macrosAdded) {
+        this->errors->newerror(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
+                               "function `" + name + "` is already defined in the scope");
+    }
+
+    cout << "macros created\n";
 }
 
 void runtime::preprocc_constructor_decl(ast *pAst, ClassObject *pObject) {
@@ -259,7 +363,8 @@ void runtime::preprocc_constructor_decl(ast *pAst, ClassObject *pObject) {
                                        " `" + pAst->getentity(0).gettoken() + "`");
         }
         namepos+=modifiers.size();
-    }
+    } else
+        modifiers.push_back(mPublic);
 
 
     list<Param> params;
@@ -299,7 +404,13 @@ void runtime::preprocc_operator_decl(ast *pAst, ClassObject *pObject) {
                     break;
             }
         }
-    }
+
+        if(!element_has(modifiers, mPublic) && !element_has(modifiers, mPrivate)
+           && element_has(modifiers, mProtected)) {
+            modifiers.push_back(mPublic);
+        }
+    } else
+        modifiers.push_back(mPublic);
 
     list<Param> params;
     NativeField n_rtype = fnof;
@@ -368,8 +479,14 @@ void runtime::preprocc_method_decl(ast *pAst, ClassObject *pObject) {
                     break;
             }
         }
+
+        if(!element_has(modifiers, mPublic) && !element_has(modifiers, mPrivate)
+           && element_has(modifiers, mProtected)) {
+            modifiers.push_back(mPublic);
+        }
         namepos+=modifiers.size();
-    }
+    } else
+        modifiers.push_back(mPublic);
 
     list<Param> params;
     NativeField n_rtype = fnof;
@@ -438,8 +555,14 @@ void runtime::preprocc_var_decl(ast *pAst, ClassObject *pObject) {
                     break;
             }
         }
+
+        if(!element_has(modifiers, mPublic) && !element_has(modifiers, mPrivate)
+           && element_has(modifiers, mProtected)) {
+            modifiers.push_back(mPublic);
+        }
         namepos+=modifiers.size();
-    }
+    } else
+        modifiers.push_back(mPublic);
 
     string name =  pAst->getentity(namepos).gettoken();
     tmp = pAst->getsubast(0)->getsubast(0);
@@ -469,7 +592,7 @@ void runtime::preprocc_var_decl(ast *pAst, ClassObject *pObject) {
         cout << "variable created\n";
 }
 
-void runtime::preprocc_class_decl(ast *trunk, ClassObject* parent) {
+void runtime:: preprocc_class_decl(ast *trunk, ClassObject* parent) {
     ast *pAst, *block;
     block = trunk->getsubast(trunk->getsubastcount()-1);
     list<AccessModifier> modifiers;
@@ -488,7 +611,8 @@ void runtime::preprocc_class_decl(ast *trunk, ClassObject* parent) {
                                  " `" + trunk->getentity(0).gettoken() + "`");
         }
         namepos+=modifiers.size();
-    }
+    } else
+        modifiers.push_back(mPublic);
 
     string name =  trunk->getentity(namepos).gettoken();
     list<string> templArgs = parse_templArgs(trunk->getsubastcount() <= 1 ? NULL:trunk->getsubast(0));
@@ -561,6 +685,18 @@ void runtime::cleanup() {
     }
     classes->clear();
     std::free(classes); classes = NULL;
+
+    for(keypair<string, list<string>>& map : *import_map) {
+        map.value.clear();
+    }
+    import_map->clear();
+    std::free(import_map); import_map = NULL;
+
+    for(Method& macro : *macros) {
+        macro.clear();
+    }
+    macros->clear();
+    std::free(macros); macros = NULL;
 }
 
 void rt_error(string message) {

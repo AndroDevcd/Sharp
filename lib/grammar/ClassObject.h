@@ -30,6 +30,7 @@ public:
     {
         functions = new list<Method>();
         constructors = new list<Method>();
+        macros = new list<Method>();
         overloads = new list<OperatorOverload>();
         fields = new list<Field>();
         childClasses = new list<ClassObject>();
@@ -73,6 +74,11 @@ public:
     Field* getField(int p);
     Field* getField(string name);
     bool addField(Field field);
+
+    size_t macrosCount();
+    Method* getMacros(int p);
+    Method* getMacros(string name, list<Param>& params);
+    bool addMacros(Method macros);
 
     size_t childClassCount();
     ClassObject* getChildClass(int p);

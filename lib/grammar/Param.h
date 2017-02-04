@@ -22,6 +22,12 @@ public:
 
     bool match(Param& param);
     static bool match(list<Param>& p1, list<Param>& p2);
+    void free() {
+        if(field == NULL) return;
+
+        field->free();
+        std::free(field); field = NULL;
+    }
 
 
     Field* field;

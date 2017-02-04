@@ -27,6 +27,7 @@ enum p_errors
     MULTIPLE_DEFINITION = 12,
     PREVIOUSLY_DEFINED = 13,
     DUPLICATE_CLASS = 14,
+    REDUNDANT_TOKEN = 15,
 
     NO_ERR = 999
 };
@@ -51,6 +52,16 @@ public:
         error = (err.value + addon);
         line = l;
         col = c;
+        warning = false;
+    }
+
+    parseerror(bool warning, keypair<p_errors, string> err, int l, int c, string addon = "")
+    {
+        id = err.key;
+        error = (err.value + addon);
+        line = l;
+        col = c;
+        this->warning = warning;
     }
 
     parseerror(keypair<p_errors, string> err, token_entity token, string addon = "")
@@ -59,12 +70,14 @@ public:
         error = (err.value + addon);
         line = token.getline();
         col = token.getcolumn();
+        warning = false;
     }
 
     p_errors id;
     string error;
     int line;
     int col;
+    bool warning;
 };
 
 class ast;
@@ -78,7 +91,8 @@ public:
             teCursor(-1),
             _err(false),
             cm(false),
-            fn(file_name)
+            fn(file_name),
+            warnings(false)
     {
         errors = new list<parseerror>();
         uo_errors = new list<parseerror>();
@@ -93,7 +107,9 @@ public:
     uint64_t uoerror_count() { return uo_errors->size(); }
     int newerror(p_errors err, token_entity token, string xcmts = "");
     void newerror(p_errors err, int l, int c, string xcmts = "");
+    void newwarning(p_errors err, int l, int c, string xcmts);
     bool _errs();
+    bool _warnings() { return warnings; }
     void enablecheck_mode();
     void fail();
     void pass();
@@ -114,11 +130,14 @@ private:
     parseerror lasterr;
     parseerror lastcheckederr;
     bool _err, cm;
+    bool warnings;
     string fn;
 
     bool shouldreport(token_entity *token, const parseerror &last_err, const parseerror &e) const;
 
     string geterrors(list<parseerror> *errors);
+
+
 };
 
 #endif //SHARP_PARSEERRORS_H

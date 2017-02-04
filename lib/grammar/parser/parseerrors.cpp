@@ -51,7 +51,10 @@ void int_errs()
     err.set(PREVIOUSLY_DEFINED, "");
     predefined_errs.push_back(err);
 
-    err.set(DUPLICATE_CLASS, "Duplicate class:");
+    err.set(DUPLICATE_CLASS, "duplicate class:");
+    predefined_errs.push_back(err);
+
+    err.set(REDUNDANT_TOKEN, "redundant token");
     predefined_errs.push_back(err);
 }
 
@@ -60,8 +63,13 @@ string Errors::geterrors(list<parseerror>* errors)
     stringstream errorlist;
     for(const parseerror &err : *errors)
     {
-        errorlist << fn << ":" << err.line << ":" << err.col << " error S80" << err.id << ":  " << err.error.c_str()
+        if(err.warning)
+        errorlist << fn << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
                   << endl;
+        else
+            errorlist << fn << ":" << err.line << ":" << err.col << ": error S80" << err.id << ":  " << err.error.c_str()
+                      << endl;
+
         errorlist << '\t' << getline(err.line) << endl << '\t';
 
         for(int i = 0; i < err.col-1; i++)
@@ -144,6 +152,15 @@ void Errors::newerror(p_errors err, int l, int c, string xcmts) {
     else {
         uo_errors->push_back(e);
     }
+}
+
+void Errors::newwarning(p_errors err, int l, int c, string xcmts) {
+    keypair<p_errors, string> kp = geterrorbyid(err);
+    parseerror e(true, kp, l,c, xcmts);
+    parseerror last_err = cm ? lastcheckederr : lasterr;
+
+    errors->push_back(e);
+    warnings = true;
 }
 
 string Errors::getline(int line) {

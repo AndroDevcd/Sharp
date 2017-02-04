@@ -94,6 +94,12 @@ public:
         parent = f.parent;
         modifiers = f.modifiers;
     }
+    void free(){
+        if(modifiers == NULL) return;
+
+        modifiers->clear();
+        std::free(modifiers); modifiers = NULL;
+    }
 
     NativeField nf;
     ClassObject* klass;

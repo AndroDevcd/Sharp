@@ -88,6 +88,14 @@ public:
     list<Param>* getParams() { return params; }
     Param getParam(int p) { return *std::next(params->begin(), p); }
     bool isTemplFunction() { return templName != ""; }
+    void clear() {
+        modifiers.clear();
+
+        for(Param& param : *params) {
+            param.free();
+        }
+        std::free(params); params = NULL;
+    }
 
 private:
     list<AccessModifier> modifiers; // 3 max modifiers

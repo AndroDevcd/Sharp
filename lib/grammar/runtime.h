@@ -26,6 +26,7 @@ public:
                 return;
         }
 
+        macros = new list<Method>();
         modules = new list<string>();
         classes = new list<ClassObject>();
         import_map = new list<keypair<string, list<string>>>();
@@ -89,6 +90,10 @@ private:
     void preprocc_constructor_decl(ast *pAst, ClassObject *pObject);
 
     void preprocc_macros_decl(ast *pAst, ClassObject *pObject);
+
+    int ismacro_access_specifiers(list<AccessModifier> &modifiers);
+
+    void warning(p_errors error, int line, int col, string xcmnts);
 };
 
 #define progname "bootstrap"
@@ -126,6 +131,28 @@ int _bootstrap(int argc, const char* argv[]);
 template <class T>
 inline T& element_at(list<T>& l, size_t x) {
     return *std::next(l.begin(), x);
+}
+
+template <class T>
+inline T& element_at(list<T>& l, T search) {
+    for(T var : l) {
+        if(search == var)
+            return var;
+    }
+
+    return *std::next(l.begin(), 0);
+}
+
+template <class T>
+inline long element_index(list<T>& l, T search) {
+    long iter=0;
+    for(T var : l) {
+        if(search == var)
+            return iter;
+        iter++;
+    }
+
+    return -1;
 }
 
 template <class T>

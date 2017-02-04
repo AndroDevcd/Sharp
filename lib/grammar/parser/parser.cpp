@@ -346,6 +346,7 @@ void parser::parse_classblock(ast *pAst) {
             {
                 errors->newerror(ILLEGAL_ACCESS_DECLARATION, current());
             }
+            errors->newerror(GENERIC, current(), "unexpected module declaration");
             parse_moduledecl(pAst);
         }
         else if(isextern_stmnt(current()))
