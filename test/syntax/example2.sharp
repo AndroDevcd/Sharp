@@ -2,17 +2,17 @@ mod application;
 
 import system.io;
 
-class Start<K> {
+class Main<K> {
 
      dynamic_object o = 9;
      public static const Heap heap = null;
      K heap = null;
 
-    public Start() {
+    public Main() {
 
     }
 
-    public Start1() {
+    public Main1() {
 
     }
 
@@ -28,7 +28,7 @@ class Start<K> {
         self->run();
      }
 
-     public public static function initHeap() {
+     public static function initHeap() {
         heap = new Heap(128, Heap.KB_UNIT);
         if(heap == null) {
             throw new OutOfMemoryException("could not create the heap.");

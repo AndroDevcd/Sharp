@@ -1,0 +1,10 @@
+mod application;
+
+import io;
+
+class Main {
+
+    public static function main(String[] args) : int {
+        io.console.write("Hello World");
+    }
+}

@@ -2,7 +2,7 @@ mod application;
 
 import system.io;
 
-class Start {
+class Main {
 
     int var;
     dynamic_object o;

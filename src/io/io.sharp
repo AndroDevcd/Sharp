@@ -1,0 +1,29 @@
+mod io;
+
+class io {
+
+    static Console console;
+
+    class Console {
+
+        function write(String chrs) {
+            /* Output data to the console */
+        }
+
+        function read() : char {
+            /* Read char from the console */
+        }
+
+        function readLine() : String {
+            char input = read();
+            String line;
+
+            while(input != '\n') {
+                line += input;
+                input = read();
+            }
+
+            return line;
+        }
+    }
+}

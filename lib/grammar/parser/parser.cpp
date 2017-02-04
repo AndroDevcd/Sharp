@@ -1204,56 +1204,6 @@ void parser::parse_methoddecl(ast *pAst) {
 
 }
 
-void parser::parse_methodblock(ast *pAst) {
-    expect(LEFTCURLY, "`{` after method declaration");
-    pAst = get_ast(pAst, ast_block);
-    ast *ref = pAst;
-
-    int brackets = 1;
-
-    while(!isend() && brackets > 0)
-    {
-        advance();
-        if (current().gettokentype() == RIGHTCURLY)
-        {
-            pAst = pAst->getparent() == NULL ? ref : pAst->getparent();
-            if((brackets-1) < 0)
-            {
-                errors->newerror(ILLEGAL_BRACKET_MISMATCH, current());
-            }
-            else
-            {
-                brackets--;
-
-                // end of method block
-                if(brackets == 0)
-                {
-                    pushback();
-                    break;
-                }
-            }
-        }
-        else if(current().gettokentype() == LEFTCURLY)
-        {
-            pAst = get_ast(pAst, ast_block);
-            brackets++;
-        }
-        else if(current().gettokentype() == _EOF)
-        {
-            errors->newerror(UNEXPECTED_EOF, current());
-            break;
-        } else
-            parse_statement(pAst);
-
-        remove_accesstypes();
-    }
-
-    if(brackets != 0)
-        errors->newerror(MISSING_BRACKET, current(), " expected `}` at end of method declaration");
-
-    expect(RIGHTCURLY, "`}` at end of method declaration");
-}
-
 void parser::parse_methodreturn_type(ast *pAst) {
     if(peek(1).gettokentype() == COLON)
     {

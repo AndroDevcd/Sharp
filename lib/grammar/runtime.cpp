@@ -285,7 +285,7 @@ void runtime::preprocc_macros_decl(ast *pAst, ClassObject *pObject) {
         if (modifiers.size() > 2)
             this->errors->newerror(GENERIC, pAst->line, pAst->col, "too many access specifiers");
         else {
-            int m = ismethod_access_specifiers(modifiers);
+            int m = ismacro_access_specifiers(modifiers);
             switch (m) {
                 case -1:
                     break;

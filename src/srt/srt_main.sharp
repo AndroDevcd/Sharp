@@ -1,0 +1,16 @@
+mod application;
+
+extern application#Main.main(String[]);
+
+class Start {
+
+    public static function __init(string[] args) : int {
+        /* Initialize singleton libraries and GC */
+
+        String[] args = null;
+        int retVal = main(args);
+
+        /* Shutdown threads and do other stuff before exit */
+        return retVal;
+    }
+}

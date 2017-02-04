@@ -103,8 +103,6 @@ private:
 
     void expect(token_type ty, ast *pAst, const char *expectedstr);
 
-    void parse_methodblock(ast *pAst);
-
     void parse_methodreturn_type(ast *pAst);
 
     bool isreturn_stmnt(token_entity entity);
