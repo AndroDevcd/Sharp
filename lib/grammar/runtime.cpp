@@ -709,12 +709,12 @@ void help() {
     cout << "Source file must have a .sharp extension to be compiled\n" << endl;
     cout << "[-options]\n\n    -V                print the bootstrap version number and exit" << endl;
     cout <<               "    -showversion      print the bootstrap version number and continue." << endl;
-    cout <<               "    -o<file>          set the output object file. Default is application.xso." << endl;
+    cout <<               "    -o<file>          set the output object file." << endl;
     cout <<               "    -c                compile only and do not generate object file." << endl;
     cout <<               "    -a                enable aggressive error reporting." << endl;
     cout <<               "    -w                disable warnings." << endl;
     cout <<               "    -we               enable warnings as errors." << endl;
-    cout <<               "    --help -?         display this help message." << endl;
+    cout <<               "    --h -?            display this help message." << endl;
 }
 
 #define opt(v) strcmp(argv[i], v) == 0
@@ -748,7 +748,7 @@ int _bootstrap(int argc, const char* argv[]) {
             print_vers();
             exit(0);
         }
-        else if(opt("-h")){
+        else if(opt("-h") || opt("-?")){
             help();
             exit(0);
         }
@@ -768,11 +768,20 @@ int _bootstrap(int argc, const char* argv[]) {
         }
         else {
             // add the source files
+            string f;
             do {
-                files.push_back(string(argv[i++]));
+                f =string(argv[i++]);
+
+                if(!element_has(files, f))
+                    files.push_back(f);
             }while(i<argc);
             break;
         }
+    }
+
+    if(files.size() == 0){
+        help();
+        return 1;
     }
 
     for(string file : files){

@@ -16,6 +16,10 @@ class Main<K> {
 
     }
 
+    macros internal () {
+
+    };
+
      public function operator+(SimpleClass<K> simple) : K {
          return value + simple.value;
      }

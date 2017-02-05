@@ -470,23 +470,33 @@ void parser::pushback() {
     cursor--;
 }
 
+int partialdecl = 0;
 void parser::parse_variabledecl(ast *pAst) {
     pAst = get_ast(pAst, ast_var_decl);
 
-    for(token_entity &entity : *access_types)
-    {
-        pAst->add_entity(entity);
-    }
-    pushback();
-    if(!parse_utype(pAst))
-        errors->newerror(GENERIC, current(), "expected native type or reference pointer");
+    if(partialdecl ==0) {
+        for(token_entity &entity : *access_types)
+        {
+            pAst->add_entity(entity);
+        }
+        pushback();
+        if(!parse_utype(pAst))
+            errors->newerror(GENERIC, current(), "expected native type or reference pointer");
+    } else
+        partialdecl--;
+
     parse_memaccess_flag(pAst);
     expectidentifier(pAst);
 
     parse_valueassignment(pAst);
 
-    if(!expect(SEMICOLON, "`;`"))
-        return;
+    if(peek(1).gettokentype() == COMMA) {
+        partialdecl++;
+        expect(COMMA, "`,`");
+
+        parse_variabledecl(pAst->getparent()->gettype() == ast_var_decl ? pAst->getparent() : pAst);
+    } else if(partialdecl == 0)
+        expect(SEMICOLON, "`;`");
 
     //cout << "parsed variable declaration" << endl;
 }
@@ -807,8 +817,11 @@ bool parser::parse_expression(ast *pAst) {
     {
         advance();
         expect_token(pAst, "self", "");
-        expect(PTR, pAst, "`->` after self");
-        parse_expression(pAst);
+
+        if(peek(1).gettokentype() == PTR) {
+            expect(PTR, pAst, "`->` after self");
+            parse_expression(pAst);
+        }
 
         if(!isexprsymbol(peek(1).gettoken()))
             return true;

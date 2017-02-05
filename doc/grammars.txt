@@ -123,6 +123,7 @@ A value consists of an <expression>
 
 <expression>:
 <primary-expr>
+    | 'self'
     | 'self' '->' <expression>
     | 'base' '->' <expression>
     | null
@@ -179,7 +180,7 @@ Operator Declaration:
 `[<accesstype>] function operator <override-operator> <uTypeArg-list> [: <typeidentifier>] <block>
 
 Variable Declaration statement:
-`[<accesstype>] <uType> <identifier = name> <MemAccessFlag> [ <assign-expr> <value>] ;`
+`[<accesstype>] <uType> <identifier = name> <MemAccessFlag> [ <assign-expr> <value>] [, <variable-decl>] ;`
 
 Single Line comment Declaration:
 `//`
@@ -194,13 +195,13 @@ While statement:
 while (<expression>) <block>
 
 Do While statement:
-do  <block> while(<expression>)
+do  <block> while(<expression>) ;
 
 catchClause:
 catch (<utypeArgOpt>) block
 
 finallyBlock;
-finally block
+finally <block>
 
 Try/catch  statement:
 try <block> [catchClause [finallyBlock] ]
@@ -212,7 +213,7 @@ throw <expression> ;
 `return <value>` ;
 
 <macros-decliration>:
-'macros' <identifier> <uTypeArg-list> <block>
+'macros' <identifier> <uTypeArg-list> <block> ;
 
 <external-typeidentifier-decl>:
 <uTypeArg>
@@ -221,10 +222,11 @@ throw <expression> ;
 <refrence-identifier> <uTypeArg-list-opt>
 
 <external-decliration>:
-extern (<external-method-decl> | <external-typeidentifier-decl>)
+extern (<external-method-decl> | <external-typeidentifier-decl>) ;
 
-<asm-decl>:
+<asm-decl>: // not added
 Inline assembly decliration that can only be declared in a method or macros
+asm ( <asm-statement>* ) ;
 
 <statement>:
 <return-statement>

@@ -29,6 +29,8 @@ class Main1 {
         io.console.write("Hello World");
         SimpleClass<String> sk;
         SimpleClass<String> sk2;
+
+        int i =0, f, g;
         int value = sk + sk2; // int == 18
 
     }
