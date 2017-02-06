@@ -4,11 +4,15 @@ import system.io;
 
 class Main1 {
 
-    public static macros m() {
+//    public static macros m() {
+//
+//    };
+//
+//    public macros m() {
+//
+//    };
 
-    };
-
-    public public class SimpleClass<k> base ComplexClass {
+    public class SimpleClass<k> base ComplexClass {
         K var;
         int value;
 

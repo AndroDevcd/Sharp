@@ -18,7 +18,7 @@ class ClassObject {
 
 public:
     ClassObject(string name, string pmodule, long uid, AccessModifier modifier, bool templ,
-                list<string> templs)
+                list<string> templs, RuntimeNote note)
     :
             name(name),
             module_name(pmodule),
@@ -26,7 +26,8 @@ public:
             modifier(modifier),
             parent(NULL),
             templClass(templ),
-            base(NULL)
+            base(NULL),
+            note(note)
     {
         functions = new list<Method>();
         constructors = new list<Method>();
@@ -86,6 +87,7 @@ public:
     bool addChildClass(ClassObject constr);
     void free();
 
+    RuntimeNote note;
 private:
     const AccessModifier modifier;
     const long uid;

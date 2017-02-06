@@ -157,7 +157,7 @@ Method *ClassObject::getMacros(string name, list<Param> &params) {
 }
 
 bool ClassObject::addMacros(Method macro) {
-    if(getFunction(macro.getName(), *macro.getParams()) != NULL)
+    if(getMacros(macro.getName(), *macro.getParams()) != NULL)
         return false;
 
     macros->push_back(macro);

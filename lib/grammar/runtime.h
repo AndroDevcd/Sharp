@@ -19,7 +19,9 @@ public:
             uid(0),
             errs(0),
             uo_errs(0),
-            current_module("")
+            current_module(""),
+            last_note("","",0,0),
+            last_notemsg("")
     {
         for(parser* p : parsers) {
             if(!p->parsed)
@@ -46,6 +48,7 @@ public:
     Errors* errors;
     size_t errs, uo_errs;
 private:
+    parser* _current;
     list<parser*> parsers;
     string out;
     list<string>* modules;
@@ -54,6 +57,10 @@ private:
     list<ClassObject>* classes;
     list<keypair<string, list<string>>>*  import_map;
     uint64_t uid;
+
+    /* One off variables */
+    RuntimeNote last_note;
+    string last_notemsg;
 
     void interpret();
 
@@ -94,6 +101,8 @@ private:
     int ismacro_access_specifiers(list<AccessModifier> &modifiers);
 
     void warning(p_errors error, int line, int col, string xcmnts);
+
+    void printnote(RuntimeNote& note, string msg);
 };
 
 #define progname "bootstrap"
@@ -121,12 +130,19 @@ struct options {
     bool warnings = true;
 
     /*
+     * Optimize code
+     */
+    bool optimize = false;
+
+    /*
      * Enable warnings as errors
      */
     bool werrors = false;
 };
 
 int _bootstrap(int argc, const char* argv[]);
+
+extern options c_options;
 
 template <class T>
 inline T& element_at(list<T>& l, size_t x) {

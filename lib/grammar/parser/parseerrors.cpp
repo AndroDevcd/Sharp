@@ -58,19 +58,35 @@ void int_errs()
     predefined_errs.push_back(err);
 }
 
+void Errors::print_error(parseerror &err) {
+    if(err.warning)
+        cout << fn << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
+                  << endl;
+    else
+        cout << fn << ":" << err.line << ":" << err.col << ": error S80" << err.id << ":  " << err.error.c_str()
+                  << endl;
+
+    cout << '\t' << getline(err.line) << endl << '\t';
+
+    for(int i = 0; i < err.col-1; i++)
+        cout << " ";
+    cout << "^" << endl;
+}
+
 string Errors::geterrors(list<parseerror>* errors)
 {
     stringstream errorlist;
     for(const parseerror &err : *errors)
     {
         if(err.warning)
-        errorlist << fn << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
-                  << endl;
+            errorlist << fn << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
+                      << endl;
         else
             errorlist << fn << ":" << err.line << ":" << err.col << ": error S80" << err.id << ":  " << err.error.c_str()
                       << endl;
 
         errorlist << '\t' << getline(err.line) << endl << '\t';
+
 
         for(int i = 0; i < err.col-1; i++)
             errorlist << " ";
@@ -80,12 +96,16 @@ string Errors::geterrors(list<parseerror>* errors)
     return errorlist.str();
 }
 
-string Errors::getuo_errors() {
-    return geterrors(uo_errors);
-}
-
-string Errors::getall_errors() {
-    return geterrors(errors);
+void Errors::print_errors() {
+    if(!asis) {
+        if(_err) {
+            if(aggressive) // print aggressive errors
+                cout << geterrors(uo_errors);
+            else // print optimized errors
+                cout << geterrors(errors);
+        } else // print warnings
+            cout << geterrors(errors);
+    }
 }
 
 int Errors::newerror(p_errors err, token_entity token, string xcmts) {
@@ -95,7 +115,9 @@ int Errors::newerror(p_errors err, token_entity token, string xcmts) {
 
     if(shouldreport(&token, last_err, e))
     {
-        if(cm) {
+        if(asis) {
+            print_error(e);
+        } else if(cm) {
             gettesterrorlist()->push_back(e);
             lastcheckederr = e;
             return 1;
@@ -138,7 +160,9 @@ void Errors::newerror(p_errors err, int l, int c, string xcmts) {
 
     if(shouldreport(NULL, last_err, e))
     {
-        if(cm) {
+        if(asis) {
+            print_error(e);
+        } else if(cm) {
             gettesterrorlist()->push_back(e);
             lastcheckederr = e;
             return;
@@ -158,6 +182,9 @@ void Errors::newwarning(p_errors err, int l, int c, string xcmts) {
     keypair<p_errors, string> kp = geterrorbyid(err);
     parseerror e(true, kp, l,c, xcmts);
     parseerror last_err = cm ? lastcheckederr : lasterr;
+
+    if(asis)
+        print_error(e);
 
     errors->push_back(e);
     warnings = true;

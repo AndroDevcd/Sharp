@@ -2,6 +2,7 @@
 // Created by bknun on 1/6/2017.
 //
 #include "tokenizer.h"
+#include "../../runtime.h"
 #include <sstream>
 #include <string>
 
@@ -21,7 +22,7 @@ void tokenizer::parse()
         return;
 
     parse_lines();
-    errors = new Errors(lines, file);
+    errors = new Errors(lines, file, false, c_options.aggressive_errors);
 
     while(!isend())
     {

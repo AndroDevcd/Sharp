@@ -8,20 +8,23 @@
 #include "../../stdimports.h"
 #include "NativeField.h"
 #include "AccessModifier.h"
+#include "RuntimeNote.h"
 #include <list>
 
 class ClassObject;
 
 class Field {
 public:
-    Field(NativeField nf, uint64_t uid, string name, ClassObject* parent, list<AccessModifier>* modifiers)
+    Field(NativeField nf, uint64_t uid, string name, ClassObject* parent, list<AccessModifier>* modifiers,
+          RuntimeNote note)
     :
             nf(nf),
             uid(uid),
             name(name),
             parent(parent),
             klass(NULL),
-            templName("")
+            templName(""),
+            note(note)
     {
         this->modifiers = new list<AccessModifier>();
         if(modifiers == NULL)
@@ -30,14 +33,16 @@ public:
             *this->modifiers = *modifiers;
     }
 
-    Field(ClassObject* klass, uint64_t uid, string name, ClassObject* parent, list<AccessModifier>* modifiers)
+    Field(ClassObject* klass, uint64_t uid, string name, ClassObject* parent, list<AccessModifier>* modifiers,
+          RuntimeNote note)
             :
             nf(fnof),
             uid(uid),
             name(name),
             parent(parent),
             klass(klass),
-            templName("")
+            templName(""),
+            note(note)
     {
         this->modifiers = new list<AccessModifier>();
         if(modifiers == NULL)
@@ -47,14 +52,16 @@ public:
     }
 
     /* For template Fields */
-    Field(string templName, uint64_t uid, string name, ClassObject* parent, list<AccessModifier>* modifiers)
+    Field(string templName, uint64_t uid, string name, ClassObject* parent, list<AccessModifier>* modifiers,
+          RuntimeNote note)
             :
             nf(fnof),
             uid(uid),
             name(name),
             parent(parent),
             klass(NULL),
-            templName(templName)
+            templName(templName),
+            note(note)
     {
         this->modifiers = new list<AccessModifier>();
         if(modifiers == NULL)
@@ -68,7 +75,8 @@ public:
             nf(fnof),
             uid(0),
             name(""),
-            modifiers(NULL)
+            modifiers(NULL),
+            note("","",0,0)
     {
     }
 
@@ -101,6 +109,7 @@ public:
         std::free(modifiers); modifiers = NULL;
     }
 
+    RuntimeNote note;
     NativeField nf;
     ClassObject* klass;
     uint64_t uid;

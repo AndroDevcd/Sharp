@@ -16,25 +16,17 @@ void runtime::interpret() {
         succeeded = 0; // There were no errors to stop the files that succeeded
 
         for(parser* p : parsers) {
-            errors = new Errors(p->lines, p->sourcefile);
-
+            errors = new Errors(p->lines, p->sourcefile, true, c_options.aggressive_errors);
+            _current = p;
 
 
             if(errors->_errs()){
-                if(c_options.aggressive_errors)
-                    cout << errors->getuo_errors();
-                else
-                    cout << errors->getall_errors();
-
                 errs+= errors->error_count();
                 uo_errs+= errors->uoerror_count();
                 failed++;
-            } else {
-                if(errors->_warnings())
-                    cout << errors->getall_errors();
-
+            } else
                 succeeded++;
-            }
+
 
             errors->free();
             std::free(errors); this->errors = NULL;
@@ -45,7 +37,8 @@ void runtime::interpret() {
 bool runtime::preprocess() {
     bool semtekerrors = false;
     for(parser* p : parsers) {
-        errors = new Errors(p->lines, p->sourcefile);
+        errors = new Errors(p->lines, p->sourcefile, true, c_options.aggressive_errors);
+        _current = p;
 
         current_module = "$invisible";
         const size_t ts= p->treesize();
@@ -81,22 +74,13 @@ bool runtime::preprocess() {
         resolve_map.set(p->sourcefile, imports);
         import_map->push_back(resolve_map);
         if(errors->_errs()){
-            if(c_options.aggressive_errors)
-                cout << errors->getuo_errors();
-            else
-                cout << errors->getall_errors();
-
             errs+= errors->error_count();
             uo_errs+= errors->uoerror_count();
 
             semtekerrors = true;
             failed++;
-        } else {
-            if (errors->_warnings())
-                cout << errors->getall_errors();
-
+        } else
             succeeded++;
-        }
 
         errors->free();
         std::free(errors); this->errors = NULL;
@@ -244,11 +228,14 @@ list<Param> runtime::ast_toparams(ast *pAst, ClassObject* parent) {
         if(tmp->getentitycount() > 0) {
             params.push_back(Param(Field(
                     entity_tonativefield(tmp->getentity(0)), uid++,
-                    name, parent, NULL)));
+                    name, parent, NULL,
+                    RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                pAst->line, pAst->col))));
         } else {
 
             params.push_back(Param(Field(
-                    NULL, uid++,name, parent, NULL)));
+                    NULL, uid++,name, parent, NULL, RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                pAst->line, pAst->col))));
         }
     }
 
@@ -296,7 +283,7 @@ void runtime::preprocc_macros_decl(ast *pAst, ClassObject *pObject) {
             }
         }
 
-
+        namepos+=modifiers.size();
         if(!element_has(modifiers, mPublic) && !element_has(modifiers, mPrivate)
            && element_has(modifiers, mProtected)) {
             modifiers.push_back(mPublic);
@@ -316,37 +303,43 @@ void runtime::preprocc_macros_decl(ast *pAst, ClassObject *pObject) {
         tmp = pAst->getsubast(1)->getsubast(0);
         if(tmp->getentitycount() > 0)
             n_rtype = entity_tonativefield(tmp->getentity(0));
-        tmp = pAst->getsubast(0);
-    } else {
-        tmp = pAst->getsubast(1);
+    } else
         n_rtype = fvoid;
-    }
 
+    tmp = pAst->getsubast(0);
     params = ast_toparams(pAst->getsubast(0), pObject);
 
     if(tmp->gettype() == ast_utype_arg_list && n_rtype != fnof) {
         if(pObject != NULL)
-            macrosAdded =pObject->addMacros(Method(name, pObject, params, modifiers, n_rtype));
+            macrosAdded =pObject->addMacros(Method(name, current_module, pObject, params, modifiers, n_rtype, RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                                                          pAst->line, pAst->col)));
         else
-            macrosAdded =add_macros(Method(name, pObject, params, modifiers, n_rtype));
+            macrosAdded =add_macros(Method(name, current_module, pObject, params, modifiers, n_rtype, RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                                                  pAst->line, pAst->col)));
     } else {
         if(pObject != NULL)
-            macrosAdded =pObject->addFunction(Method(name, pObject, params, modifiers, NULL));
+            macrosAdded =pObject->addMacros(Method(name, current_module, pObject, params, modifiers, NULL, RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                                                         pAst->line, pAst->col)));
         else
-            macrosAdded =add_macros(Method(name, pObject, params, modifiers, NULL));
+            macrosAdded =add_macros(Method(name, current_module, pObject, params, modifiers, NULL, RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                                               pAst->line, pAst->col)));
     }
 
 
     if(!macrosAdded) {
         this->errors->newerror(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
-                               "function `" + name + "` is already defined in the scope");
-    }
+                               "macro `" + name + "` is already defined in the scope");
+        Method* macro;
+        if(pObject != NULL)
+            macro = pObject->getMacros(name, params);
+        else
+            macro = getmacros(current_module, name, params);
 
-    cout << "macros created\n";
+        printnote(macro->note, "macro `" + name + "` previously defined here");
+    }
 }
 
 void runtime::preprocc_constructor_decl(ast *pAst, ClassObject *pObject) {
-    ast *tmp;
     list<AccessModifier> modifiers;
     int namepos=0;
     bool methodAdded;
@@ -371,23 +364,26 @@ void runtime::preprocc_constructor_decl(ast *pAst, ClassObject *pObject) {
     string name = pAst->getentity(namepos).gettoken();
     if(name == pObject->getName()) {
         params = ast_toparams(pAst->getsubast(0), pObject);
-        methodAdded =pObject->addConstructor(Method(name , pObject, params, modifiers, fvoid));
+        methodAdded =pObject->addConstructor(Method(name, "", pObject, params, modifiers, fvoid,
+                                RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                              pAst->line, pAst->col)));
 
         if(!methodAdded) {
             this->errors->newerror(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
                                    "constructor `" + name + "` is already defined in the scope");
+            Method* constr;
+            constr = pObject->getConstructor(params);
+            printnote(constr->note, "constructor `" + name + "` previously defined here");
         }
     } else
         this->errors->newerror(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
                                "constructor `" + name + "` must be the same name as its parent");
-
-    cout << "constructor created\n";
 }
 
 void runtime::preprocc_operator_decl(ast *pAst, ClassObject *pObject) {
     ast *tmp;
     list<AccessModifier> modifiers;
-    bool methodAdded, tmplMethod=false;
+    bool methodAdded;
 
     if(isaccess_decl(pAst->getentity(0))) {
         modifiers = this->preprocc_access_modifier(pAst);
@@ -429,40 +425,45 @@ void runtime::preprocc_operator_decl(ast *pAst, ClassObject *pObject) {
     string op = pAst->getentity(pAst->getentitycount()-1).gettoken();
 
     if(tmp->gettype() == ast_utype_arg_list && n_rtype != fnof) {
-        methodAdded =pObject->addOperatorOverload(OperatorOverload(pObject, params, modifiers, n_rtype, string_toop(op)));
+        methodAdded =pObject->addOperatorOverload(OperatorOverload(RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                               pAst->line, pAst->col),
+                                                                   pObject, params, modifiers, n_rtype, string_toop(op)));
     } else {
         if(pObject->isTmplClass() && pAst->getsubastcount() == 3 ) {
             ast* astRefPtr = pAst->getsubast(1)->getsubast(0)->getsubast(0);
 
             /* Check if rtype class is template parameter */
             if(astRefPtr->getentitycount() == 1 && element_has(*pObject->getTemplRefs(), astRefPtr->getentity(0).gettoken())){
-                methodAdded =pObject->addOperatorOverload(OperatorOverload(pObject, params, modifiers, astRefPtr->getentity(0).gettoken(), string_toop(op)));
-                tmplMethod = true;
+                methodAdded =pObject->addOperatorOverload(OperatorOverload(RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                                       pAst->line, pAst->col),
+                                                                           pObject, params, modifiers, astRefPtr->getentity(0).gettoken(), string_toop(op)));
             }
             else
-                methodAdded =pObject->addOperatorOverload(OperatorOverload(pObject, params, modifiers, NULL, string_toop(op)));
+                methodAdded =pObject->addOperatorOverload(OperatorOverload(RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                                       pAst->line, pAst->col),
+                                                                           pObject, params, modifiers, NULL, string_toop(op)));
         }
         else
-            methodAdded =pObject->addOperatorOverload(OperatorOverload(pObject, params, modifiers, NULL, string_toop(op)));
+            methodAdded =pObject->addOperatorOverload(OperatorOverload(RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                                   pAst->line, pAst->col),
+                                                                       pObject, params, modifiers, NULL, string_toop(op)));
     }
 
 
     if(!methodAdded) {
         this->errors->newerror(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
                                "function `$operator" + op + "` is already defined in the scope");
+        Method* oper;
+        oper = pObject->getOverload(string_toop(op), params);
+        printnote(oper->note, "function `$operator" + op + "` previously defined here");
     }
-
-    if(tmplMethod)
-        cout << "Template operator overload created\n";
-    else
-        cout << "operator overload created\n";
 }
 
 void runtime::preprocc_method_decl(ast *pAst, ClassObject *pObject) {
     ast *tmp;
     list<AccessModifier> modifiers;
     int namepos=1;
-    bool methodAdded, tmplMethod=false;
+    bool methodAdded;
 
     if(isaccess_decl(pAst->getentity(0))) {
         modifiers = this->preprocc_access_modifier(pAst);
@@ -505,40 +506,44 @@ void runtime::preprocc_method_decl(ast *pAst, ClassObject *pObject) {
     params = ast_toparams(pAst->getsubast(0), pObject);
 
     if(tmp->gettype() == ast_utype_arg_list && n_rtype != fnof) {
-        methodAdded =pObject->addFunction(Method(name, pObject, params, modifiers, n_rtype));
+        methodAdded =pObject->addFunction(Method(name, "", pObject, params, modifiers, n_rtype,RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                                                       pAst->line, pAst->col)));
     } else {
         if(pObject->isTmplClass() && pAst->getsubastcount() == 3 ) {
             ast* astRefPtr = pAst->getsubast(1)->getsubast(0)->getsubast(0);
 
             /* Check if rtype class is template parameter */
             if(astRefPtr->getentitycount() == 1 && element_has(*pObject->getTemplRefs(), astRefPtr->getentity(0).gettoken())){
-                methodAdded =pObject->addFunction(Method(name, pObject, params, modifiers,astRefPtr->getentity(0).gettoken()));
-                tmplMethod = true;
+                methodAdded =pObject->addFunction(Method(name, "", pObject, params, modifiers,astRefPtr->getentity(0).gettoken(),
+                                                         RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                     pAst->line, pAst->col)));
             }
             else
-                methodAdded =pObject->addFunction(Method(name, pObject, params, modifiers, NULL));
+                methodAdded =pObject->addFunction(Method(name, "", pObject, params, modifiers, NULL,
+                                                         RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                     pAst->line, pAst->col)));
         }
         else
-            methodAdded =pObject->addFunction(Method(name, pObject, params, modifiers, NULL));
+            methodAdded =pObject->addFunction(Method(name, "", pObject, params, modifiers, NULL,
+                                                     RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                 pAst->line, pAst->col)));
     }
 
 
     if(!methodAdded) {
         this->errors->newerror(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
                                "function `" + name + "` is already defined in the scope");
+        Method* function;
+        function = pObject->getFunction(name, params);
+        printnote(function->note, "function `" + name + "` previously defined here");
     }
-
-    if(tmplMethod)
-        cout << "Template method created\n";
-    else
-        cout << "method created\n";
 }
 
 void runtime::preprocc_var_decl(ast *pAst, ClassObject *pObject) {
     ast *tmp;
     list<AccessModifier> modifiers;
     int namepos=0;
-    bool fieldAdded, tmplField=false;
+    bool fieldAdded;
 
     if(isaccess_decl(pAst->getentity(0))) {
         modifiers = this->preprocc_access_modifier(pAst);
@@ -568,28 +573,31 @@ void runtime::preprocc_var_decl(ast *pAst, ClassObject *pObject) {
     tmp = pAst->getsubast(0)->getsubast(0);
     if(tmp->gettype() == ast_type_identifier && tmp->getentitycount() != 0){
         fieldAdded =pObject->addField(Field(entity_tonativefield(tmp->getentity(0)),
-                               uid++, name, pObject, &modifiers)); // native field
+                               uid++, name, pObject, &modifiers,
+                                            RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                        pAst->line, pAst->col))); // native field
     } else {
         ast* templRefAst = tmp->getsubast(0);
         if(templRefAst->getentitycount() == 1 &&
                 element_has(*pObject->getTemplRefs(), templRefAst->getentity(0).gettoken())) {
-            fieldAdded =pObject->addField(Field(templRefAst->getentity(0).gettoken(), uid++, name, pObject, &modifiers)); // Template field
-            tmplField = true;
+            fieldAdded =pObject->addField(Field(templRefAst->getentity(0).gettoken(), uid++, name, pObject, &modifiers,
+                                                RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                            pAst->line, pAst->col))); // Template field
         } else
-            fieldAdded =pObject->addField(Field(NULL, uid++, name, pObject, &modifiers)); // Refrence field
+            fieldAdded =pObject->addField(Field(NULL, uid++, name, pObject, &modifiers,
+                                                RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                            pAst->line, pAst->col))); // Refrence field
 
     }
 
 
     if(!fieldAdded) {
         this->errors->newerror(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
-                               "variable `" + name + "` is already defined in the scope");
+                               "field `" + name + "` is already defined in the scope");
+        Field* field;
+        field = pObject->getField(name);
+        printnote(field->note, "field `" + name + "` previously defined here");
     }
-
-    if(tmplField)
-        cout << "Template variable created\n";
-    else
-        cout << "variable created\n";
 }
 
 void runtime:: preprocc_class_decl(ast *trunk, ClassObject* parent) {
@@ -620,22 +628,31 @@ void runtime:: preprocc_class_decl(ast *trunk, ClassObject* parent) {
 
     if(parent == NULL) {
         if(!this->add_class(ClassObject(name,
-                    current_module, this->uid++, mPublic, isTempl, templArgs))){
+                    current_module, this->uid++, mPublic, isTempl, templArgs,
+                                        RuntimeNote(_current->sourcefile, _current->geterrors()->getline(trunk->line),
+                                                    trunk->line, trunk->col)))){
             this->errors->newerror(PREVIOUSLY_DEFINED, trunk->line, trunk->col, "class `" + name +
                                "` is already defined in module {" + current_module + "}");
+            ClassObject* klazz;
+            klazz = getClass(current_module, name);
+            printnote(klazz->note, "class `" + name + "` previously defined here");
             return;
         } else
             klass = getClass(current_module, name);
     } else {
         if(!parent->addChildClass(ClassObject(name,
-                                             current_module, this->uid++, mPublic, isTempl, templArgs))) {
+                                             current_module, this->uid++, mPublic, isTempl, templArgs,
+                                              RuntimeNote(_current->sourcefile, _current->geterrors()->getline(trunk->line),
+                                                          trunk->line, trunk->col)))) {
             this->errors->newerror(DUPLICATE_CLASS, trunk->line, trunk->col, " '" + name + "'");
+
+            ClassObject* klazz;
+            klazz = parent->getChildClass(name);
+            printnote(klazz->note, "class `" + name + "` previously defined here");
             return;
         } else
             klass = parent->getChildClass(name);
     }
-
-    cout << "class created\n";
 
     for(uint32_t i = 0; i < block->getsubastcount(); i++) {
         pAst = block->getsubast(i);
@@ -712,6 +729,7 @@ void help() {
     cout <<               "    -o<file>          set the output object file." << endl;
     cout <<               "    -c                compile only and do not generate object file." << endl;
     cout <<               "    -a                enable aggressive error reporting." << endl;
+    cout <<               "    -O                optimize code." << endl;
     cout <<               "    -w                disable warnings." << endl;
     cout <<               "    -we               enable warnings as errors." << endl;
     cout <<               "    --h -?            display this help message." << endl;
@@ -747,6 +765,9 @@ int _bootstrap(int argc, const char* argv[]) {
         else if(opt("-V")){
             print_vers();
             exit(0);
+        }
+        else if(opt("-O")){
+            c_options.optimize = true;
         }
         else if(opt("-h") || opt("-?")){
             help();
@@ -824,10 +845,7 @@ void _srt_start(list<string> files)
         t = new tokenizer(source, file);
         if(t->geterrors()->_errs())
         {
-            if(c_options.aggressive_errors)
-                cout << t->geterrors()->getuo_errors();
-            else
-                cout << t->geterrors()->getall_errors();
+            t->geterrors()->print_errors();
 
             errors+= t->geterrors()->error_count();
             uo_errors+= t->geterrors()->uoerror_count();
@@ -838,10 +856,7 @@ void _srt_start(list<string> files)
 
             if(p->geterrors()->_errs())
             {
-                if(c_options.aggressive_errors)
-                    cout << p->geterrors()->getuo_errors();
-                else
-                    cout << p->geterrors()->getall_errors();
+                p->geterrors()->print_errors();
 
                 errors+= p->geterrors()->error_count();
                 uo_errors+= p->geterrors()->uoerror_count();
@@ -991,6 +1006,14 @@ AccessModifier runtime::entity_tomodifier(token_entity entity) {
     else if(entity.gettoken() == "override")
         return mOverride;
     return mStatic;
+}
+
+void runtime::printnote(RuntimeNote& note, string msg) {
+    if(last_notemsg != msg && last_note.getLine() != note.getLine())
+    {
+        cout << note.getNote(msg);
+        last_notemsg = msg;
+    }
 }
 
 _operator string_toop(string op) {

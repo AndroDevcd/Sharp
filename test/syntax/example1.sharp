@@ -2,7 +2,7 @@ mod application;
 
 import system.io;
 
-class Main {
+class Main2 {
 
     int var;
     dynamic_object o;
@@ -69,14 +69,10 @@ class C {
         public function C2(int i) {
 
         }
-        public function C2(int i) {
-
-        }
 
         public function foo2(int i, Map<int> x) {
 
         }
-        int var = 10;
     }
 
     class C4 {

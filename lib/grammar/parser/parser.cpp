@@ -2,6 +2,7 @@
 // Created by bknun on 1/7/2017.
 //
 #include "parser.h"
+#include "../runtime.h"
 #include <sstream>
 
 void parser::parse()
@@ -14,7 +15,7 @@ void parser::parse()
               std::back_inserter(*lines));
     sourcefile = toks->file;
 
-    errors = new Errors(lines, sourcefile);
+    errors = new Errors(lines, sourcefile, false, c_options.aggressive_errors);
     _current= &(*std::next(toks->getentities()->begin(), cursor));
 
     while(!isend())

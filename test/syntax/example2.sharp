@@ -6,13 +6,8 @@ class Main<K> {
 
      dynamic_object o = 9;
      public static const Heap heap = null;
-     K heap = null;
 
-    public Main() {
-
-    }
-
-    public Main1() {
+    public Main(Math i) {
 
     }
 

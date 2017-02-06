@@ -14,15 +14,16 @@ class ClassObject;
 class Method {
 
 public:
-    Method(string name, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers,
-           ClassObject* rtype)
+    Method(string name, string module, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers,
+           ClassObject* rtype, RuntimeNote note)
     :
             name(name),
             pklass(klass),
             rType(rtype),
             n_rType(fnof),
             templName(""),
-            module("")
+            module(module),
+            note(note)
     {
         this->params = new list<Param>();
 
@@ -31,15 +32,16 @@ public:
         }
     }
 
-    Method(string name, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers,
-           NativeField rtype)
+    Method(string name, string module, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers,
+           NativeField rtype, RuntimeNote note)
             :
             name(name),
             pklass(klass),
             n_rType(rtype),
             rType(NULL),
             templName(""),
-            module("")
+            module(module),
+            note(note)
     {
         this->params = new list<Param>();
 
@@ -48,14 +50,16 @@ public:
         }
     }
 
-    Method(string name, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers, string tmplName)
+    Method(string name, string module, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers,
+           string tmplName, RuntimeNote note)
             :
             name(name),
             pklass(klass),
             n_rType(fnof),
             rType(NULL),
             templName(tmplName),
-            module("")
+            module(module),
+            note(note)
     {
         this->params = new list<Param>();
 
@@ -64,14 +68,16 @@ public:
         }
     }
 
-    Method(string name, string module, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers)
+    Method(string name, string module, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers,
+            RuntimeNote note)
             :
             name(name),
             pklass(klass),
             n_rType(fvoid),
             rType(NULL),
             templName(""),
-            module(module)
+            module(module),
+            note(note)
     {
         this->params = new list<Param>();
 
@@ -97,6 +103,7 @@ public:
         std::free(params); params = NULL;
     }
 
+    RuntimeNote note;
 private:
     list<AccessModifier> modifiers; // 3 max modifiers
     ClassObject* pklass;

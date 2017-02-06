@@ -85,14 +85,16 @@ class ast;
 class Errors
 {
 public:
-    Errors(list<string>* lines, string file_name)
+    Errors(list<string>* lines, string file_name, bool asis, bool aggressive)
     :
             lines(lines),
             teCursor(-1),
             _err(false),
             cm(false),
             fn(file_name),
-            warnings(false)
+            warnings(false),
+            asis(asis),
+            aggressive(aggressive)
     {
         errors = new list<parseerror>();
         uo_errors = new list<parseerror>();
@@ -101,8 +103,7 @@ public:
         lastcheckederr = parseerror();
     }
 
-    string getall_errors();
-    string getuo_errors();
+    void print_errors();
     uint64_t error_count() { return errors->size(); }
     uint64_t uoerror_count() { return uo_errors->size(); }
     int newerror(p_errors err, token_entity token, string xcmts = "");
@@ -115,9 +116,9 @@ public:
     void pass();
 
     void free();
+    string getline(int line);
 
 private:
-    string getline(int line);
     keypair<p_errors, string> geterrorbyid(p_errors);
     list<parseerror>* gettesterrorlist();
     void addtesterror_list();
@@ -130,6 +131,7 @@ private:
     parseerror lasterr;
     parseerror lastcheckederr;
     bool _err, cm;
+    bool asis, aggressive;
     bool warnings;
     string fn;
 
@@ -138,6 +140,7 @@ private:
     string geterrors(list<parseerror> *errors);
 
 
+    void print_error(parseerror &err);
 };
 
 #endif //SHARP_PARSEERRORS_H
