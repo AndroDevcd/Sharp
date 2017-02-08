@@ -52,7 +52,7 @@ int file::write(const char *file, string data)
 string file::read_alltext(const char *file)
 {
     if(!exists(file))
-        return "file does not exist!";
+        return "";
 
     stringstream f;
     f << "";

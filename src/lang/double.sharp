@@ -1,0 +1,17 @@
+mod sharp.lang;
+
+class Double {
+    private double value;
+
+    public Double(double value) {
+        self->value = value;
+    }
+
+    private function d2str(double value) : String {
+        return "";
+    }
+
+    public function toString() : String {
+        return d2str(value);
+    }
+}

@@ -1,0 +1,17 @@
+mod sharp.lang;
+
+class Long {
+    private long value;
+
+    public Long(long value) {
+        self->value = value;
+    }
+
+    private function i2str(long value) : String{
+        return "";
+    }
+
+    public function toString() : String {
+        return i2str(value);
+    }
+}

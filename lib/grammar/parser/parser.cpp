@@ -47,10 +47,6 @@ void parser::eval(ast* _ast) {
         remove_accesstypes();
         return;
     }
-    else if(isextern_stmnt(current()))
-    {
-        parse_externstmnt(_ast);
-    }
     else if(ismodule_decl(current()))
     {
         if(access_types->size() > 0)
@@ -70,6 +66,10 @@ void parser::eval(ast* _ast) {
             errors->newerror(ILLEGAL_ACCESS_DECLARATION, current());
         }
         parse_importdecl(_ast);
+    }
+    else if(ismacros_decl(current()))
+    {
+        parse_macrosdecl(_ast);
     }
     else
     {
@@ -228,10 +228,6 @@ bool parser::isthrow_stmnt(token_entity entity) {
     return entity.getid() == IDENTIFIER && entity.gettoken() == "throw";
 }
 
-bool parser::isextern_stmnt(token_entity entity) {
-    return entity.getid() == IDENTIFIER && entity.gettoken() == "extern";
-}
-
 bool parser::isconstructor_decl() {
     return current().getid() == IDENTIFIER && !iskeyword(current().gettoken()) &&
            peek(1).gettokentype() == LEFTPAREN;
@@ -349,10 +345,6 @@ void parser::parse_classblock(ast *pAst) {
             }
             errors->newerror(GENERIC, current(), "unexpected module declaration");
             parse_moduledecl(pAst);
-        }
-        else if(isextern_stmnt(current()))
-        {
-            parse_externstmnt(pAst);
         }
         else if(isclass_decl(current()))
         {
@@ -1225,8 +1217,7 @@ void parser::parse_methodreturn_type(ast *pAst) {
         advance();
 
         pAst->add_entity(current());
-        if(!parse_type_identifier(pAst))
-            errors->newerror(GENERIC, current(), "expected native type or reference pointer");
+        parse_utype(pAst);
     }
 }
 
@@ -1352,58 +1343,6 @@ void parser::parse_throwstmnt(ast *pAst) {
     expect(SEMICOLON, pAst, "`;`");
 }
 
-bool parser::parse_extern_methoddecl(ast *pAst) {
-    pAst = get_ast(pAst, ast_extern_method_decl);
-
-    if(!parse_reference_pointer(pAst)){
-        return false;
-    }
-
-    if(peek(1).gettokentype() == LEFTPAREN) {
-        parse_utypearg_list_opt(pAst);
-        return true;
-    }
-
-    return false;
-}
-
-bool parser::parse_extern_typeideitifier_decl(ast *pAst) {
-    pAst = get_ast(pAst, ast_extern_typeid_decl);
-    return parse_utypearg(pAst);
-}
-
-void parser::parse_externstmnt(ast *pAst) {
-    pAst = get_ast(pAst, ast_extern_statement);
-    expect_token(pAst, "extern", "`extern`");
-
-    this->retainstate(pAst);
-    errors->enablecheck_mode();
-    if(parse_extern_methoddecl(pAst))
-    {
-        errors->fail();
-        this->dumpstate();
-    }
-    else {
-        errors->pass();
-        this->rollback();
-
-        this->retainstate(pAst);
-        errors->enablecheck_mode();
-        if(parse_extern_typeideitifier_decl(pAst))
-        {
-            errors->fail();
-            this->dumpstate();
-        }
-        else {
-            this->rollback();
-            errors->newerror(GENERIC, current(), "expected external method or type "
-                    "identifier declaration after `extern`");
-        }
-    }
-
-    expect(SEMICOLON, pAst, "`;`");
-}
-
 void parser::parse_labeldecl(ast *pAst) {
     pAst = get_ast(pAst, ast_label_decl);
 
@@ -1442,10 +1381,6 @@ void parser::parse_statement(ast* pAst) {
     else if(isthrow_stmnt(current()))
     {
         parse_throwstmnt(pAst);
-    }
-    else if(isextern_stmnt(current()))
-    {
-        parse_externstmnt(pAst);
     }
     else if(current().gettoken() == "continue")
     {
@@ -1654,8 +1589,7 @@ bool parser::iskeyword(string key) {
            || key == "finally" || key == "throw"
            || key == "continue" || key == "goto"
            || key == "break" || key == "else"
-           || key == "extern" || key == "string"
-           || key == "dynamic_object";
+           || key == "string" || key == "dynamic_object";
 }
 
 bool parser::parse_type_identifier(ast *pAst) {

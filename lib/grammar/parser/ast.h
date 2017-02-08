@@ -48,7 +48,6 @@ enum ast_types
     ast_else_statement,
     ast_trycatch_statement,
     ast_throw_statement,
-    ast_extern_statement,
     ast_continue_statement,
     ast_break_statement,
     ast_goto_statement,

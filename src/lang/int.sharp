@@ -1,0 +1,17 @@
+mod sharp.lang;
+
+class Int {
+    private int value;
+
+    public int(int value) {
+        self->value = value;
+    }
+
+    private function i2str(int value) : String{
+        return "";
+    }
+
+    public function toString() : String {
+        return i2str(value);
+    }
+}

@@ -103,6 +103,10 @@ private:
     void warning(p_errors error, int line, int col, string xcmnts);
 
     void printnote(RuntimeNote& note, string msg);
+
+    void parse_class_decl(ast *pAst, ClassObject* pObject);
+
+    ClassObject *parse_base_class(ast *pAst);
 };
 
 #define progname "bootstrap"

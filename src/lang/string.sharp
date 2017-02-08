@@ -1,0 +1,13 @@
+mod sharp.lang;
+
+class String {
+    private string value;
+
+    public String(string value) {
+        self->value = value;
+    }
+
+    public function value() : String {
+        return value;
+    }
+}

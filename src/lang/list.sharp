@@ -1,0 +1,19 @@
+mod sharp.lang;
+
+class List<T> {
+
+    T[] values;
+    long max;
+
+    public List(long max) {
+        self->max = max;
+    }
+
+    public List() {
+        max = -1;
+    }
+
+    public function get(long index) T& {
+        return &values[index];
+    }
+}

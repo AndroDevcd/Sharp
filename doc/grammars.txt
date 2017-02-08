@@ -174,10 +174,10 @@ Class Constructor Declaration:
 `[<accesstype>] <identifier = name> <uTypeArg-list> <block>
 
 Method Declaration:
-`[<accesstype>] function <identifier = name> <uTypeArg-list> [: <typeidentifier>] <block>
+`[<accesstype>] function <identifier = name> <uTypeArg-list> [: <uType>] <block>
 
 Operator Declaration:
-`[<accesstype>] function operator <override-operator> <uTypeArg-list> [: <typeidentifier>] <block>
+`[<accesstype>] function operator <override-operator> <uTypeArg-list> [: <uType>] <block>
 
 Variable Declaration statement:
 `[<accesstype>] <uType> <identifier = name> <MemAccessFlag> [ <assign-expr> <value>] [, <variable-decl>] ;`
@@ -214,15 +214,6 @@ throw <expression> ;
 
 <macros-decliration>:
 'macros' <identifier> <uTypeArg-list> <block> ;
-
-<external-typeidentifier-decl>:
-<uTypeArg>
-
-<external-method-decl>:
-<refrence-identifier> <uTypeArg-list-opt>
-
-<external-decliration>:
-extern (<external-method-decl> | <external-typeidentifier-decl>) ;
 
 <asm-decl>: // not added
 Inline assembly decliration that can only be declared in a method or macros

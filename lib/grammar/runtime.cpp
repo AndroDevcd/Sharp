@@ -19,6 +19,30 @@ void runtime::interpret() {
             errors = new Errors(p->lines, p->sourcefile, true, c_options.aggressive_errors);
             _current = p;
 
+            const size_t ast_count = p->treesize();
+            ast* pAst;
+
+            for(size_t i = 0; i < ast_count; i++) {
+                pAst = p->ast_at(i);
+
+                switch(pAst->gettype()) {
+                    case ast_module_decl:
+                        break;
+                    case ast_import_decl:
+                        break;
+
+                    case ast_class_decl:
+                        parse_class_decl(pAst, NULL);
+                        break;
+
+                    case ast_macros_decl:
+                        break;
+
+                    default:
+                        errors->newerror(INTERNAL_ERROR, pAst->line, pAst->col, " unexpected ast type");
+                        break;
+                }
+            }
 
             if(errors->_errs()){
                 errs+= errors->error_count();
@@ -27,11 +51,24 @@ void runtime::interpret() {
             } else
                 succeeded++;
 
-
             errors->free();
             std::free(errors); this->errors = NULL;
         }
     }
+}
+
+ClassObject *runtime::parse_base_class(ast *pAst) {
+    ClassObject* klass=NULL;
+    for(int i = 0; i < pAst->getentitycount(); i++) {
+        if(pAst->getentity(0).gettoken() == "base") {
+            // process base class
+        }
+    }
+    return klass;
+}
+
+void runtime::parse_class_decl(ast *pAst, ClassObject* pObject) {
+    ClassObject* base = parse_base_class(pAst);
 }
 
 bool runtime::preprocess() {
@@ -71,6 +108,7 @@ bool runtime::preprocess() {
             }
         }
 
+        imports.push_back(current_module);
         resolve_map.set(p->sourcefile, imports);
         import_map->push_back(resolve_map);
         if(errors->_errs()){
@@ -928,7 +966,7 @@ Method *runtime::getmacros(string module, string name, list<Param> params) {
 }
 
 bool runtime::add_macros(Method macro) {
-    if(getmacros(macro.getModule(), macro.getName(), *macro.getParams()) != NULL) {
+    if(getmacros(macro.getModule(), macro.getName(), *macro.getParams()) == NULL) {
         macros->push_back(macro);
         return true;
     }

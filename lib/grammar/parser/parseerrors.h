@@ -28,6 +28,7 @@ enum p_errors
     PREVIOUSLY_DEFINED = 13,
     DUPLICATE_CLASS = 14,
     REDUNDANT_TOKEN = 15,
+    INTERNAL_ERROR = 16,
 
     NO_ERR = 999
 };

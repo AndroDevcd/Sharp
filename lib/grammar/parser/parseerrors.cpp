@@ -56,6 +56,9 @@ void int_errs()
 
     err.set(REDUNDANT_TOKEN, "redundant token");
     predefined_errs.push_back(err);
+
+    err.set(INTERNAL_ERROR, "internal runtime error");
+    predefined_errs.push_back(err);
 }
 
 void Errors::print_error(parseerror &err) {

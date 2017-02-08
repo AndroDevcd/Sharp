@@ -2,6 +2,9 @@ mod application;
 
 import system.io;
 
+    macros internal () {
+
+    };
 class Main<K> {
 
      dynamic_object o = 9;

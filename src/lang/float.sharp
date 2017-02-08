@@ -1,0 +1,17 @@
+mod sharp.lang;
+
+class Float {
+    private float value;
+
+    public Float(float value) {
+        self->value = value;
+    }
+
+    private function f2str(double value) : String {
+        return "";
+    }
+
+    public function toString() : String {
+        return f2str(value);
+    }
+}

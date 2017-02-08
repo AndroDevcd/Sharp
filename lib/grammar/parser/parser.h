@@ -197,14 +197,6 @@ private:
 
     void parse_type_declarators(ast *pAst);
 
-    bool isextern_stmnt(token_entity entity);
-
-    void parse_externstmnt(ast *pAst);
-
-    bool parse_extern_methoddecl(ast *pAst);
-
-    bool parse_extern_typeideitifier_decl(ast *pAst);
-
     void parse_utypearg_list_opt(ast *pAst);
 
     void parse_constructor(ast *pAst);

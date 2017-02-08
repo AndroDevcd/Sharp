@@ -2,11 +2,6 @@ mod examples_x.b.x;
 
 import d.a.b.x;
 
-extern application#Start.main(String[] args);
-extern examples#String[] args;
-extern Start.main(Map<int>[]*, String);
-
-
 class Start<K,T> base Application<int> // add 'base <refid>' to class decl
 {
 
