@@ -31,6 +31,7 @@ enum ast_types
     ast_utype_arg_opt,
     ast_expression,
     ast_primary_expr,
+    ast_dotnotation_call_expr,
     ast_utype,
     ast_type_arg,
     ast_type_declarator,
@@ -84,11 +85,11 @@ public:
 
     void add_entity(token_entity entity);
     void add_ast(ast _ast);
-    void pop_ast();
     void free();
 
     void freeentities();
     void freelastsub();
+    void freelastentity();
 
     int line, col;
 private:

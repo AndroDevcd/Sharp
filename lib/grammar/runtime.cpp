@@ -8,7 +8,6 @@
 
 options c_options;
 size_t succeeded, failed;
-void parse_options(list<keypair<string, string>> list);
 _operator string_toop(string op);
 
 void runtime::interpret() {
@@ -79,7 +78,7 @@ bool runtime::preprocess() {
 
         current_module = "$invisible";
         const size_t ts= p->treesize();
-        keypair<string, list<string>> resolve_map;
+        keypair<string, std::list<string>> resolve_map;
         list<string> imports;
 
         ast* trunk;
@@ -741,7 +740,7 @@ void runtime::cleanup() {
     classes->clear();
     std::free(classes); classes = NULL;
 
-    for(keypair<string, list<string>>& map : *import_map) {
+    for(keypair<string, std::list<string>>& map : *import_map) {
         map.value.clear();
     }
     import_map->clear();
@@ -847,7 +846,7 @@ int _bootstrap(int argc, const char* argv[]) {
         if(!file::exists(file.c_str())){
             rt_error("file `" + file + "` dosent exist!");
         }
-        else if(!file::endswith(".sharp", file)){
+        if(!file::endswith(".sharp", file)){
             rt_error("file `" + file + "` is not a sharp file!");
         }
     }
@@ -862,7 +861,7 @@ void print_vers() {
 
 void _srt_start(list<string> files)
 {
-    list<parser*> parsers;
+    std::list<parser*> parsers;
     parser* p = NULL;
     tokenizer* t;
     string source;

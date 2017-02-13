@@ -585,48 +585,15 @@ bool parser::parse_primaryexpr(ast *pAst) {
         pAst = this->rollback();
     errors->pass();
 
+    this->retainstate(pAst);
     errors->enablecheck_mode();
-    if(peek(1).gettokentype() == DOT) {
-        advance();
-        pAst->add_entity(current());
-    }
-
-    if(parse_reference_pointer(pAst)) {
-        if(peek(1).gettokentype() == LEFTPAREN)
-        {
-            parse_valuelist(pAst);
-            errors->fail();
-
-            /* func()++ or func()--
-             * This expression rule dosen't process correctly by itsself
-             * so we hav to do it ourselves
-             */
-            if(peek(1).gettokentype() == INC || peek(1).gettokentype() == DEC)
-            {
-                advance();
-                pAst->add_entity(current());
-            }
-            else {
-                errors->enablecheck_mode();
-                this->retainstate(pAst);
-                if(!parse_expression(pAst))
-                {
-                    errors->pass();
-                    this->rollback();
-                } else {
-                    this->dumpstate();
-                    errors->fail();
-                }
-            }
-
-            return true;
-        }
+    if(parse_dot_notation_call_expr(pAst)) {
+        this->dumpstate();
         errors->fail();
         return true;
-    }
-    else {
-        pushback();
+    } else {
         errors->pass();
+        pAst = this->rollback();
     }
 
     return false;
@@ -717,6 +684,49 @@ bool parser::isoverride_operator(string token) {
             token == "+" || token == "==";
 }
 
+bool parser::parse_dot_notation_call_expr(ast *pAst) {
+    pAst = get_ast(pAst, ast_dotnotation_call_expr);
+
+    if(peek(1).gettokentype() == DOT)
+    {
+        advance();
+        pAst->add_entity(current());
+    }
+
+    if(parse_reference_pointer(pAst)) {
+        if(peek(1).gettokentype() == LEFTPAREN) {
+            parse_valuelist(pAst);
+
+            /* func()++ or func()--
+             * This expression rule dosen't process correctly by itsself
+             * so we hav to do it ourselves
+             */
+            if(peek(1).gettokentype() == INC || peek(1).gettokentype() == DEC)
+            {
+                advance();
+                pAst->add_entity(current());
+            }
+            else {
+                errors->enablecheck_mode();
+                this->retainstate(pAst);
+                if(!parse_expression(pAst))
+                {
+                    errors->pass();
+                    this->rollback();
+                } else {
+                    this->dumpstate();
+                    errors->fail();
+                }
+            }
+        }
+    } else {
+        pushback();
+        return false;
+    }
+
+    return true;
+}
+
 bool parser::parse_expression(ast *pAst) {
     pAst = get_ast(pAst, ast_expression);
 
@@ -786,8 +796,19 @@ bool parser::parse_expression(ast *pAst) {
 
         expect(RIGHTPAREN, pAst, "`)`");
 
-        if(!isexprsymbol(peek(1).gettoken()))
+        if(!isexprsymbol(peek(1).gettoken())) {
+            this->retainstate(pAst);
+            errors->enablecheck_mode();
+            if(parse_dot_notation_call_expr(pAst)) {
+                this->dumpstate();
+                errors->fail();
+            } else {
+                errors->pass();
+                pAst = this->rollback();
+            }
+
             return true;
+        }
     }
 
     if(peek(1).gettokentype() == LEFTCURLY)

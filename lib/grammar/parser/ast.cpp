@@ -86,3 +86,7 @@ void ast::freelastsub() {
 void ast::freeentities() {
     this->entities->clear();
 }
+
+void ast::freelastentity() {
+    this->entities->pop_back();
+}

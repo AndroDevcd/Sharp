@@ -203,6 +203,8 @@ private:
 
     bool isconstructor_decl();
 
+    bool parse_dot_notation_call_expr(ast *pAst);
+
     ast *rollbacklast();
 };
 

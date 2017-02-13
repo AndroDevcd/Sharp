@@ -55,7 +55,7 @@ private:
     list<Method>* macros;
     string current_module;
     list<ClassObject>* classes;
-    list<keypair<string, list<string>>>*  import_map;
+    list<keypair<string, std::list<string>>>*  import_map;
     uint64_t uid;
 
     /* One off variables */
