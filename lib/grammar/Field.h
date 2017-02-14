@@ -23,7 +23,6 @@ public:
             name(name),
             parent(parent),
             klass(NULL),
-            templName(""),
             note(note)
     {
         this->modifiers = new list<AccessModifier>();
@@ -41,26 +40,6 @@ public:
             name(name),
             parent(parent),
             klass(klass),
-            templName(""),
-            note(note)
-    {
-        this->modifiers = new list<AccessModifier>();
-        if(modifiers == NULL)
-            this->modifiers = NULL;
-        else
-            *this->modifiers = *modifiers;
-    }
-
-    /* For template Fields */
-    Field(string templName, uint64_t uid, string name, ClassObject* parent, list<AccessModifier>* modifiers,
-          RuntimeNote note)
-            :
-            nf(fnof),
-            uid(uid),
-            name(name),
-            parent(parent),
-            klass(NULL),
-            templName(templName),
             note(note)
     {
         this->modifiers = new list<AccessModifier>();
@@ -87,8 +66,6 @@ public:
         modifiers = NULL;
     }
 
-    bool isTempl() { return templName != ""; }
-
     bool operator==(const Field& f);
 
     void operator=(const Field& f)
@@ -114,7 +91,6 @@ public:
     ClassObject* klass;
     uint64_t uid;
     string name;
-    string templName;
     ClassObject* parent;
     list<AccessModifier>* modifiers; // 3 max modifiers
 };

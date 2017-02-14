@@ -82,25 +82,6 @@ void parser::eval(ast* _ast) {
     remove_accesstypes();
 }
 
-
-void parser::parse_type_declarators(ast *pAst) {
-    pAst = get_ast(pAst, ast_type_declarator);
-
-    expect(LESSTHAN, pAst, "`<`");
-
-    expectidentifier(pAst);
-
-    _pIdentifier:
-    if(peek(1).gettokentype() == COMMA)
-    {
-        expect(COMMA, pAst, "`,`");
-        expectidentifier(pAst);
-        goto _pIdentifier;
-    }
-
-    expect(GREATERTHAN, pAst, "`>`");
-}
-
 void parser::parse_classdecl(ast* _ast) { // 1
     _ast = get_ast(_ast, ast_class_decl);
 
@@ -112,8 +93,6 @@ void parser::parse_classdecl(ast* _ast) { // 1
 
 
     expectidentifier(_ast);
-    if(peek(1).gettokentype() == LESSTHAN)
-        parse_type_declarators(_ast);
 
     if(peek(1).gettoken() == "base")
     {
@@ -121,9 +100,6 @@ void parser::parse_classdecl(ast* _ast) { // 1
         expect_token(_ast, "base", "");
 
         parse_reference_pointer(_ast);
-
-        if(peek(1).gettokentype() == LESSTHAN)
-            parse_typeargs(_ast);
     }
 
     parse_classblock(_ast);
@@ -526,12 +502,6 @@ bool parser::parse_utype(ast *pAst) {
 
     if(parse_type_identifier(pAst))
     {
-        if(peek(1).gettokentype() == LESSTHAN)
-        {
-            if(!parse_typeargs(pAst))
-                return false;
-        }
-
         if(peek(1).gettokentype() == LEFTBRACE)
         {
             pAst->add_entity(current());
@@ -597,39 +567,6 @@ bool parser::parse_primaryexpr(ast *pAst) {
     }
 
     return false;
-}
-
-bool skipbracket = false;
-bool parser::parse_typeargs(ast *pAst) {
-    pAst = get_ast(pAst, ast_type_arg);
-
-    expect(LESSTHAN, pAst, "`<`");
-
-    if(peek(1).gettokentype() != GREATERTHAN)
-    {
-        if(!parse_utype(pAst))
-            return false;
-
-        _pUtype:
-        if(peek(1).gettokentype() == COMMA)
-        {
-            expect(COMMA, pAst, "`,`");
-            parse_utype(pAst);
-            goto _pUtype;
-        }
-    }
-
-    if(peek(1).gettokentype() == SHR)
-    {
-        advance();
-        skipbracket = true;
-    }
-    else if(skipbracket){
-        skipbracket = false; }
-    else
-        expect(GREATERTHAN, pAst, "`>`");
-
-    return true;
 }
 
 void parser::parse_valuelist(ast *pAst) {
@@ -864,11 +801,6 @@ bool parser::parse_expression(ast *pAst) {
         advance();
         expect_token(pAst, "new", "");
         parse_utype(pAst);
-
-        if(peek(1).gettokentype() == LESSTHAN)
-        {
-            parse_typeargs(pAst);
-        }
 
         if(peek(1).gettokentype() == LEFTCURLY)
             parse_vectorarray(pAst);

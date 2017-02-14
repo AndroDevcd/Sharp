@@ -42,12 +42,6 @@ public:
         this->op = op;
     }
 
-
-    OperatorOverload(RuntimeNote note, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers,
-                     string tmplName, _operator op) : Method("$operator", "", klass, params, modifiers, tmplName, note) {
-        this->op = op;
-    }
-
     _operator getOperator() { return op; }
 
 private:

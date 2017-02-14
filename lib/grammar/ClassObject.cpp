@@ -164,15 +164,24 @@ bool ClassObject::addMacros(Method macro) {
     return true;
 }
 
+int cSuper = 1;
 bool ClassObject::curcular(ClassObject *pObject) {
+    cSuper--;
+
     if(pObject == NULL)
         return false;
-    if(super != NULL) return super->curcular(pObject);
-
-    for(ClassObject& klass : *this->childClasses) {
-        if(klass.match(pObject) || klass.curcular(pObject))
-            return true;
+    if(cSuper == 0 && super != NULL) {
+        cSuper++;
+        return super->curcular(pObject);
     }
 
+    for(ClassObject& klass : *this->childClasses) {
+        if(klass.match(pObject) || klass.curcular(pObject)) {
+            cSuper = 0;
+            return true;
+        }
+    }
+
+    cSuper = 0;
     return false;
 }

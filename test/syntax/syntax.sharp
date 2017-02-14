@@ -2,10 +2,10 @@ mod examples_x.b.x;
 
 import d.a.b.x;
 
-class Start<K,T> base Application<int> // add 'base <refid>' to class decl
+class Start base Application // add 'base <refid>' to class decl
 {
 
-    K var;
+    dynamic_object var;
 
     /*
     * Macros always return void
@@ -50,7 +50,7 @@ class Start<K,T> base Application<int> // add 'base <refid>' to class decl
             while(io.NextLine() != EOF) {
                 _get_addr_info(190_132_999, c);
                 bool i = !z++;
-                Map<int> mp = null;
+                Map mp = null;
                 do {
                     label:
                     break;
@@ -91,7 +91,7 @@ class Start<K,T> base Application<int> // add 'base <refid>' to class decl
         }
 
         String s = new String(x[3], 0);
-        String i = new Map<List<Map<int, String>*>, math#Int>(self->var);
+        String i = new Map(self->var);
         int r = self->var;
         Object o = null;
         int x = 0_000_000.11___0e+10;
@@ -103,7 +103,7 @@ class Start<K,T> base Application<int> // add 'base <refid>' to class decl
     * Main function
     */
     private static override function main(examples.b#Class.var& b6, Integer#Int[] x,
-            List<Type<int>> lst,Int b, Int.c z) : int
+            List lst,Int b, Int.c z) : int
     { // close up gap with processing xpression after function call (parse '++' and '--'
         {
             int i = ""'n''m''h''y';

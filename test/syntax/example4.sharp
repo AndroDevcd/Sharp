@@ -2,7 +2,7 @@ mod application;
 
 import io;
 
-class Main base Main {
+class Main base D.B.F {
 
     public static function main(String[] args) : int {
         io.console.write("Hello World");
@@ -16,3 +16,13 @@ class Main base Main {
         }
     }
 }
+
+    class D {
+        class B base C {
+
+
+        class F base C {
+
+        }
+        }
+    }

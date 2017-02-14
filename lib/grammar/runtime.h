@@ -8,6 +8,7 @@
 #include "../../stdimports.h"
 #include "parser/parser.h"
 #include "ClassObject.h"
+#include "Environment.h"
 
 class ref_ptr;
 class ResolvedRefrence;
@@ -31,6 +32,7 @@ public:
                 return;
         }
 
+        env = new Environment();
         macros = new list<Method>();
         modules = new list<string>();
         classes = new list<ClassObject>();
@@ -52,6 +54,7 @@ public:
     size_t errs, uo_errs;
 private:
     ast* _astcursor;
+    Environment* env;
     parser* _current;
     list<parser*> parsers;
     string out;
@@ -94,8 +97,6 @@ private:
 
     string get_modulename(ast *pAst);
 
-    list<string> parse_templArgs(ast *pAst);
-
     void preprocc_operator_decl(ast *pAst, ClassObject *pObject);
 
     void preprocc_constructor_decl(ast *pAst, ClassObject *pObject);
@@ -117,6 +118,11 @@ private:
     ResolvedRefrence resolve_refrence_ptr(ast* pAst, ref_ptr &ref_ptr);
 
     ClassObject* resolve_class_refrence(ast *pAst, ref_ptr &ptr);
+
+    CXX11_INLINE
+    ClassObject *try_class_resolve(string intmodule, string name);
+
+    ResolvedRefrence parse_utype(ast *pAst);
 };
 
 #define progname "bootstrap"
@@ -250,6 +256,24 @@ public:
         OO,
         NOTRESOLVED
     };
+
+    bool same(ResolvedRefrence& ref) {
+        if(rt != NOTRESOLVED && rt == ref.rt) {
+            if(rt == FIELD) {
+                return *field == *ref.field;
+            } else if(rt == CLASS) {
+                return klass->match(ref.klass);
+            } else if(rt == METHOD || rt == MACROS) {
+                return Param::match(*method->getParams(), *ref.method->getParams()) &&
+                        method->getName() == ref.method->getName();
+            } else if(rt == OO) {
+                return Param::match(*oo->getParams(), *ref.oo->getParams()) &&
+                       oo->getOperator() == ref.oo->getOperator();
+            }
+        }
+
+        return false;
+    }
 
     refrenceType rt;
     ClassObject* klass;

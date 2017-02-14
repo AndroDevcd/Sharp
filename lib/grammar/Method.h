@@ -21,7 +21,6 @@ public:
             pklass(klass),
             rType(rtype),
             n_rType(fnof),
-            templName(""),
             module(module),
             note(note)
     {
@@ -39,43 +38,6 @@ public:
             pklass(klass),
             n_rType(rtype),
             rType(NULL),
-            templName(""),
-            module(module),
-            note(note)
-    {
-        this->params = new list<Param>();
-
-        for(Param &param : params){
-            this->params->push_back(param);
-        }
-    }
-
-    Method(string name, string module, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers,
-           string tmplName, RuntimeNote note)
-            :
-            name(name),
-            pklass(klass),
-            n_rType(fnof),
-            rType(NULL),
-            templName(tmplName),
-            module(module),
-            note(note)
-    {
-        this->params = new list<Param>();
-
-        for(Param &param : params){
-            this->params->push_back(param);
-        }
-    }
-
-    Method(string name, string module, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers,
-            RuntimeNote note)
-            :
-            name(name),
-            pklass(klass),
-            n_rType(fvoid),
-            rType(NULL),
-            templName(""),
             module(module),
             note(note)
     {
@@ -93,7 +55,6 @@ public:
     size_t paramCount() { return params->size(); }
     list<Param>* getParams() { return params; }
     Param getParam(int p) { return *std::next(params->begin(), p); }
-    bool isTemplFunction() { return templName != ""; }
     void clear() {
         modifiers.clear();
 
@@ -109,7 +70,6 @@ private:
     ClassObject* pklass;
     string name;
     string module;
-    string templName;
     list<Param>* params;
     ClassObject* rType;
     NativeField n_rType;

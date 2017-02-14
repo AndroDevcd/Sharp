@@ -17,15 +17,13 @@
 class ClassObject {
 
 public:
-    ClassObject(string name, string pmodule, long uid, AccessModifier modifier, bool templ,
-                list<string> templs, RuntimeNote note)
+    ClassObject(string name, string pmodule, long uid, AccessModifier modifier, RuntimeNote note)
     :
             name(name),
             module_name(pmodule),
             uid(uid),
             modifier(modifier),
             parent(NULL),
-            templClass(templ),
             base(NULL),
             super(NULL),
             note(note)
@@ -36,12 +34,6 @@ public:
         overloads = new list<OperatorOverload>();
         fields = new list<Field>();
         childClasses = new list<ClassObject>();
-
-        if(templ) {
-            this->tmplRefs = new list<string>();
-            *this->tmplRefs = templs;
-        } else
-            this->tmplRefs = NULL;
     }
 
     AccessModifier getAccessModifier() { return modifier; }
@@ -57,8 +49,6 @@ public:
     void setSuperClass(ClassObject* sup) {
         this->super = sup;
     }
-    list<string>* getTemplRefs() { return tmplRefs; }
-    bool isTmplClass() { return templClass; }
 
     size_t constructorCount();
     Method* getConstructor(int p);
@@ -98,7 +88,6 @@ public:
 private:
     const AccessModifier modifier;
     const long uid;
-    const bool templClass;
     const string name;
     const string module_name;
     list<Method>* constructors;
@@ -106,7 +95,6 @@ private:
     list<Method>* macros;
     list<OperatorOverload>* overloads;
     list<Field> *fields;
-    list<string> *tmplRefs;
     list<ClassObject>* childClasses;
     ClassObject* parent, *super;
     ClassObject* base;

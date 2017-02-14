@@ -7,7 +7,7 @@ class Main2 {
     int var;
     dynamic_object o;
 
-    public function reflect(Map<Int<int>> yacht ) {
+    public function reflect(Map yacht ) {
        if(yacht < 3) {
           io.print("Yachtzee");
           if (yacht == 2){

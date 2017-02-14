@@ -5,7 +5,7 @@ import system.io;
     macros internal () {
 
     };
-class Main<K> {
+class Main {
 
      dynamic_object o = 9;
      public static const Heap heap = null;
@@ -18,11 +18,11 @@ class Main<K> {
 
     };
 
-     public function operator+(SimpleClass<K> simple) : K {
+     public function operator+(SimpleClass simple) : dynamic_object {
          return value + simple.value;
      }
 
-     public static function initGc(int x, Heap heap) : K {
+     public static function initGc(int x, Heap heap) : dynamic_object {
         o = new Gc();
         Thread thread = new Thread("gc_thread", o);
         thread.start();

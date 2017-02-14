@@ -11,5 +11,6 @@
 
 using namespace std;
 
+#define CXX11_INLINE inline
 
 #endif //SHARP_STDIMPORTS_H

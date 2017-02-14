@@ -12,7 +12,7 @@ _operator string_toop(string op);
 
 void runtime::interpret() {
     if(preprocess()) {
-        succeeded = 0; // There were no errors to stop the files that succeeded
+        succeeded = 0; /* There were no errors to stop the files that succeeded */
 
         for(parser* p : parsers) {
             errors = new Errors(p->lines, p->sourcefile, true, c_options.aggressive_errors);
@@ -89,7 +89,7 @@ ClassObject *runtime::parse_base_class(ast *pAst, ClassObject* inheritor) {
 
     for(int i = 0; i < pAst->getentitycount(); i++) {
         if(pAst->getentity(i).gettoken() == "base") {
-            int base_ptr = pAst->hassubast(ast_type_declarator) ? 1 : 0;
+            int base_ptr = 0;
             ref_ptr ptr = parse_refrence_ptr(pAst->getsubast(base_ptr));
 
             klass = resolve_class_refrence(pAst->getsubast(base_ptr), ptr);
@@ -103,10 +103,7 @@ ClassObject *runtime::parse_base_class(ast *pAst, ClassObject* inheritor) {
                                      "circular dependency of class `" + ptr.refname + "` in parent class `" + inheritor->getName() + "`");
                 }
                 else {
-
-                    if(pAst->getsubast(++base_ptr)->gettype() == ast_type_arg) {
-                        // create runtime class from type args
-                    }
+                    env->create_class(int_ClassObject(klass));
                 }
             }
 
@@ -139,8 +136,30 @@ ClassObject* runtime::resolve_class_refrence(ast *pAst, ref_ptr &ptr) {
     return NULL;
 }
 
+ResolvedRefrence runtime::parse_utype(ast *pAst) {
+    ref_ptr ptr = parse_refrence_ptr(pAst->getsubast(0));
+    ResolvedRefrence resolvedRefrence = resolve_refrence_ptr(pAst, ptr);
+
+    if(resolvedRefrence.rt == ResolvedRefrence::NOTRESOLVED) {
+        // TODO: check for other resolution types
+        errors->newerror(COULD_NOT_RESOLVE, pAst->line, pAst->col, " `" + ptr.refname + "` " +
+                                                                   (ptr.module == "" ? "" : "in module {" + ptr.module + "} "));
+    }
+
+    return resolvedRefrence;
+}
+
 void runtime::parse_class_decl(ast *pAst, ClassObject* pObject) {
     // create runtime class
+    int namepos=1;
+
+    if(isaccess_decl(pAst->getentity(0))) {
+        namepos+=this->preprocc_access_modifier(pAst).size();
+    }
+
+    string name =  pAst->getentity(namepos).gettoken();
+
+    env->create_class(int_ClassObject(getClass(current_module, name)));
     ClassObject* base = parse_base_class(pAst, pObject);
 }
 
@@ -353,25 +372,6 @@ list<Param> runtime::ast_toparams(ast *pAst, ClassObject* parent) {
     return params;
 }
 
-list<string> runtime::parse_templArgs(ast *pAst) {
-    list<string> tmplArgs;
-    if(pAst == NULL || pAst->gettype() != ast_type_declarator)
-        return tmplArgs;
-
-    token_entity entity;
-    for(size_t i = 1; i < pAst->getentitycount(); i++) {
-        entity = pAst->getentity(i);
-
-        if(entity == ">")
-            break;
-        else if(entity == ","){}
-        else
-            tmplArgs.push_back(entity.gettoken());
-    }
-
-    return tmplArgs;
-}
-
 void runtime::preprocc_macros_decl(ast *pAst, ClassObject *pObject) {
     ast *tmp;
     list<AccessModifier> modifiers;
@@ -540,24 +540,9 @@ void runtime::preprocc_operator_decl(ast *pAst, ClassObject *pObject) {
                                                                                pAst->line, pAst->col),
                                                                    pObject, params, modifiers, n_rtype, string_toop(op)));
     } else {
-        if(pObject->isTmplClass() && pAst->getsubastcount() == 3 ) {
-            ast* astRefPtr = pAst->getsubast(1)->getsubast(0)->getsubast(0);
-
-            /* Check if rtype class is template parameter */
-            if(astRefPtr->getentitycount() == 1 && element_has(*pObject->getTemplRefs(), astRefPtr->getentity(0).gettoken())){
-                methodAdded =pObject->addOperatorOverload(OperatorOverload(RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
-                                                                                       pAst->line, pAst->col),
-                                                                           pObject, params, modifiers, astRefPtr->getentity(0).gettoken(), string_toop(op)));
-            }
-            else
-                methodAdded =pObject->addOperatorOverload(OperatorOverload(RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
-                                                                                       pAst->line, pAst->col),
-                                                                           pObject, params, modifiers, NULL, string_toop(op)));
-        }
-        else
-            methodAdded =pObject->addOperatorOverload(OperatorOverload(RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
-                                                                                   pAst->line, pAst->col),
-                                                                       pObject, params, modifiers, NULL, string_toop(op)));
+        methodAdded =pObject->addOperatorOverload(OperatorOverload(RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                                               pAst->line, pAst->col),
+                                                                   pObject, params, modifiers, NULL, string_toop(op)));
     }
 
 
@@ -620,24 +605,9 @@ void runtime::preprocc_method_decl(ast *pAst, ClassObject *pObject) {
         methodAdded =pObject->addFunction(Method(name, "", pObject, params, modifiers, n_rtype,RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
                                                                                                        pAst->line, pAst->col)));
     } else {
-        if(pObject->isTmplClass() && pAst->getsubastcount() == 3 ) {
-            ast* astRefPtr = pAst->getsubast(1)->getsubast(0)->getsubast(0);
-
-            /* Check if rtype class is template parameter */
-            if(astRefPtr->getentitycount() == 1 && element_has(*pObject->getTemplRefs(), astRefPtr->getentity(0).gettoken())){
-                methodAdded =pObject->addFunction(Method(name, "", pObject, params, modifiers,astRefPtr->getentity(0).gettoken(),
-                                                         RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
-                                                                     pAst->line, pAst->col)));
-            }
-            else
-                methodAdded =pObject->addFunction(Method(name, "", pObject, params, modifiers, NULL,
-                                                         RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
-                                                                     pAst->line, pAst->col)));
-        }
-        else
-            methodAdded =pObject->addFunction(Method(name, "", pObject, params, modifiers, NULL,
-                                                     RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
-                                                                 pAst->line, pAst->col)));
+        methodAdded =pObject->addFunction(Method(name, "", pObject, params, modifiers, NULL,
+                                                 RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                             pAst->line, pAst->col)));
     }
 
 
@@ -688,16 +658,9 @@ void runtime::preprocc_var_decl(ast *pAst, ClassObject *pObject) {
                                             RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
                                                         pAst->line, pAst->col))); // native field
     } else {
-        ast* templRefAst = tmp->getsubast(0);
-        if(templRefAst->getentitycount() == 1 &&
-                element_has(*pObject->getTemplRefs(), templRefAst->getentity(0).gettoken())) {
-            fieldAdded =pObject->addField(Field(templRefAst->getentity(0).gettoken(), uid++, name, pObject, &modifiers,
-                                                RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
-                                                            pAst->line, pAst->col))); // Template field
-        } else
-            fieldAdded =pObject->addField(Field(NULL, uid++, name, pObject, &modifiers,
-                                                RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
-                                                            pAst->line, pAst->col))); // Refrence field
+        fieldAdded =pObject->addField(Field(NULL, uid++, name, pObject, &modifiers,
+                                            RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
+                                                        pAst->line, pAst->col))); // Refrence field
 
     }
 
@@ -734,12 +697,10 @@ void runtime:: preprocc_class_decl(ast *trunk, ClassObject* parent) {
         modifiers.push_back(mPublic);
 
     string name =  trunk->getentity(namepos).gettoken();
-    list<string> templArgs = parse_templArgs(trunk->getsubastcount() <= 1 ? NULL:trunk->getsubast(0));
-    bool isTempl = templArgs.size() != 0;
 
     if(parent == NULL) {
         if(!this->add_class(ClassObject(name,
-                    current_module, this->uid++, mPublic, isTempl, templArgs,
+                    current_module, this->uid++, mPublic,
                                         RuntimeNote(_current->sourcefile, _current->geterrors()->getline(trunk->line),
                                                     trunk->line, trunk->col)))){
             this->errors->newerror(PREVIOUSLY_DEFINED, trunk->line, trunk->col, "class `" + name +
@@ -752,7 +713,7 @@ void runtime:: preprocc_class_decl(ast *trunk, ClassObject* parent) {
             klass = getClass(current_module, name);
     } else {
         if(!parent->addChildClass(ClassObject(name,
-                                             current_module, this->uid++, mPublic, isTempl, templArgs,
+                                             current_module, this->uid++, mPublic,
                                               RuntimeNote(_current->sourcefile, _current->geterrors()->getline(trunk->line),
                                                           trunk->line, trunk->col)))) {
             this->errors->newerror(DUPLICATE_CLASS, trunk->line, trunk->col, " '" + name + "'");
@@ -1103,6 +1064,8 @@ NativeField runtime::entity_tonativefield(token_entity entity) {
         return fchar;
     else if(entity.gettoken() == "string")
         return fstring;
+    else if(entity.gettoken() == "dynamic_object")
+        return fdynamic;
     return fnof;
 }
 
@@ -1130,11 +1093,31 @@ void runtime::printnote(RuntimeNote& note, string msg) {
     }
 }
 
+ClassObject* runtime::try_class_resolve(string intmodule, string name) {
+    ClassObject* ref = NULL;
+
+    if((ref = getClass(intmodule, name)) == NULL) {
+        for(keypair<string, std::list<string>> &map : *import_map) {
+            if(map.key == _current->sourcefile) {
+
+                for(string mod : map.value) {
+                    if((ref = getClass(mod, name)) != NULL)
+                        return ref;
+                }
+
+                break;
+            }
+        }
+    }
+
+    return ref;
+}
+
 ResolvedRefrence runtime::resolve_refrence_ptr(ast* pAst, ref_ptr &ref_ptr) {
     ResolvedRefrence refrence;
 
     if(ref_ptr.class_heiarchy->size() == 0) {
-        ClassObject* klass = getClass(ref_ptr.module, ref_ptr.refname);
+        ClassObject* klass = try_class_resolve(ref_ptr.module, ref_ptr.refname);
         if(klass == NULL) {
             refrence.rt = ResolvedRefrence::NOTRESOLVED;
         } else {
@@ -1142,7 +1125,7 @@ ResolvedRefrence runtime::resolve_refrence_ptr(ast* pAst, ref_ptr &ref_ptr) {
             refrence.klass = klass;
         }
     } else {
-        ClassObject* klass = getClass(ref_ptr.module, element_at(*ref_ptr.class_heiarchy, 0));
+        ClassObject* klass = try_class_resolve(ref_ptr.module, element_at(*ref_ptr.class_heiarchy, 0));
         if(klass == NULL) {
             refrence.rt = ResolvedRefrence::NOTRESOLVED;
         } else {
@@ -1154,13 +1137,19 @@ ResolvedRefrence runtime::resolve_refrence_ptr(ast* pAst, ref_ptr &ref_ptr) {
                 if((childClass = klass->getChildClass(className)) == NULL) {
                     refrence.rt = ResolvedRefrence::NOTRESOLVED;
                     break;
+                } else {
+                    klass = childClass;
                 }
+
             }
 
             if(childClass != NULL) {
                 if(childClass->getField(ref_ptr.refname) != NULL) {
                     refrence.rt = ResolvedRefrence::FIELD;
                     refrence.field = childClass->getField(ref_ptr.refname);
+                }  else if(childClass->getChildClass(ref_ptr.refname) != NULL) {
+                    refrence.rt = ResolvedRefrence::CLASS;
+                    refrence.klass = klass->getChildClass(ref_ptr.refname);
                 } else {
                     refrence.rt = ResolvedRefrence::NOTRESOLVED;
                 }

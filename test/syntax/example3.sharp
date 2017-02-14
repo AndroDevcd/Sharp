@@ -12,8 +12,8 @@ class Main1 {
 //
 //    };
 
-    public class SimpleClass<k> base ComplexClass {
-        K var;
+    public class SimpleClass base ComplexClass {
+        dynamic_object var;
         int value;
 
         public SimpleClass() {
@@ -24,15 +24,15 @@ class Main1 {
 
         }
 
-        public function operator+(SimpleClass<K> simple) : int {
+        public function operator+(SimpleClass simple) : int {
             return value + simple.value;
         }
     }
 
     public static function main(String[] args) : int {
         io.console.write("Hello World");
-        SimpleClass<String> sk;
-        SimpleClass<String> sk2;
+        SimpleClass sk;
+        SimpleClass sk2;
 
         int i =0, f, g;
         int value = sk + sk2; // int == 18

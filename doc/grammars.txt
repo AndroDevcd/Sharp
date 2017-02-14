@@ -56,17 +56,7 @@ An <nativetype> or <refrence-identifier>
 A value consists of an <expression>
 
 <uType>:
-<typeidentifier> [<TypeArgs>] [([])] [<MemAccessFlag>]
-
-<type-list>;
-<uType> (',' <uType>)*
-
-<TypeArgs>:
-'<' <type-list> '>'
-
-<TypeDeclarators>:
-'<' <ideitifier> [',' <ideitifier>]* '>'
-
+<typeidentifier> [([])] [<MemAccessFlag>]
 
 <MemAccessFlag>:
 '&'
@@ -131,7 +121,7 @@ A value consists of an <expression>
     | 'base' '->' <expression>
     | null
     | '.' class
-    | new uType [TypeArgs] [([<value-list>] | [VectorArray>])]
+    | new uType [([<value-list>] | [VectorArray>])]
     | expression '[' expression ']' [expression]
     | '(' uType ')' expression
     | expression ('++' | '--')
@@ -168,7 +158,7 @@ Import Declaration:
 import <modulename> ;
 
 Class Declaration:
-`[<accesstype>] class <identifier = name> <TypeDeclarators> [base <refrence-identifier> ] {}`
+`[<accesstype>] class <identifier = name> [base <refrence-identifier> ] {}`
 
 <block>:
 { <statements>* }

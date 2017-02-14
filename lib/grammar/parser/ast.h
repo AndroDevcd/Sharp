@@ -33,8 +33,6 @@ enum ast_types
     ast_primary_expr,
     ast_dotnotation_call_expr,
     ast_utype,
-    ast_type_arg,
-    ast_type_declarator,
     ast_method_params,
     ast_method_inv_params,
     ast_block,

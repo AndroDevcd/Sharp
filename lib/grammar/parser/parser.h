@@ -139,8 +139,6 @@ private:
 
     bool isexprkeyword(string basic_string);
 
-    bool parse_typeargs(ast *pAst);
-
     bool parse_utypearg(ast *pAst);
 
     void parse_utypearg_list(ast *pAst);
@@ -194,8 +192,6 @@ private:
     void parse_throwstmnt(ast *pAst);
 
     void parse_labeldecl(ast *pAst);
-
-    void parse_type_declarators(ast *pAst);
 
     void parse_utypearg_list_opt(ast *pAst);
 
