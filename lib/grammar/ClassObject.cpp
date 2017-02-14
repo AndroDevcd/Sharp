@@ -163,3 +163,16 @@ bool ClassObject::addMacros(Method macro) {
     macros->push_back(macro);
     return true;
 }
+
+bool ClassObject::curcular(ClassObject *pObject) {
+    if(pObject == NULL)
+        return false;
+    if(super != NULL) return super->curcular(pObject);
+
+    for(ClassObject& klass : *this->childClasses) {
+        if(klass.match(pObject) || klass.curcular(pObject))
+            return true;
+    }
+
+    return false;
+}

@@ -16,33 +16,35 @@ ast* ast::getparent()
 
 long ast::getsubastcount()
 {
-    return sub_asts->size();
+    return numAsts;
 }
 
 ast* ast::getsubast(long at)
 {
-    if(sub_asts->size() == 0) return NULL;
+    if(numAsts == 0) return NULL;
     return &(*std::next(sub_asts->begin(), at));
 }
 
 long ast::getentitycount()
 {
-    return entities->size();
+    return numEntities;
 }
 
 token_entity ast::getentity(long at)
 {
-    if(entities->size() == 0) return token_entity();
+    if(numEntities == 0) return token_entity();
     return *std::next(entities->begin(), at);
 }
 
 void ast::add_entity(token_entity entity)
 {
+    numEntities++;
     entities->push_back(entity);
 }
 
 void ast::add_ast(ast _ast)
 {
+    numAsts++;
     sub_asts->push_back(_ast);
 }
 
@@ -50,6 +52,8 @@ void ast::free() {
     this->type = ast_none;
     this->parent = NULL;
     this->entities->clear();
+    numAsts = 0;
+    numEntities = 0;
     std::free(this->entities); this->entities = NULL;
 
     ast* pAst;
@@ -73,6 +77,7 @@ void ast::freesubs() {
         pAst->free();
     }
 
+    numAsts = 0;
     this->sub_asts->clear();
 }
 
@@ -80,13 +85,34 @@ void ast::freelastsub() {
     ast* pAst = &(*std::next(this->sub_asts->begin(),
                              this->sub_asts->size()-1));
     pAst->free();
+    numAsts--;
     this->sub_asts->pop_back();
 }
 
 void ast::freeentities() {
+    numEntities = 0;
     this->entities->clear();
 }
 
 void ast::freelastentity() {
+    numEntities--;
     this->entities->pop_back();
 }
+
+bool ast::hassubast(ast_types at) {
+    for(ast &pAst : *sub_asts) {
+        if(pAst.gettype() == at)
+            return true;
+    }
+    return false;
+}
+
+bool ast::hasentity(token_type t) {
+
+    for(token_entity &e : *entities) {
+        if(e.gettokentype() == t)
+            return true;
+    }
+    return false;
+}
+

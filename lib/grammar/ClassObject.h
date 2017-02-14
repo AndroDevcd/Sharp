@@ -27,6 +27,7 @@ public:
             parent(NULL),
             templClass(templ),
             base(NULL),
+            super(NULL),
             note(note)
     {
         functions = new list<Method>();
@@ -52,6 +53,9 @@ public:
     }
     void setBaseClass(ClassObject* base) {
         this->base = base;
+    }
+    void setSuperClass(ClassObject* sup) {
+        this->super = sup;
     }
     list<string>* getTemplRefs() { return tmplRefs; }
     bool isTmplClass() { return templClass; }
@@ -88,6 +92,9 @@ public:
     void free();
 
     RuntimeNote note;
+
+    bool curcular(ClassObject *pObject);
+
 private:
     const AccessModifier modifier;
     const long uid;
@@ -101,7 +108,7 @@ private:
     list<Field> *fields;
     list<string> *tmplRefs;
     list<ClassObject>* childClasses;
-    ClassObject* parent;
+    ClassObject* parent, *super;
     ClassObject* base;
 };
 

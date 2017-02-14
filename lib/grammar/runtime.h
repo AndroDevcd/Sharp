@@ -9,6 +9,9 @@
 #include "parser/parser.h"
 #include "ClassObject.h"
 
+class ref_ptr;
+class ResolvedRefrence;
+
 class runtime
 {
 public:
@@ -48,6 +51,7 @@ public:
     Errors* errors;
     size_t errs, uo_errs;
 private:
+    ast* _astcursor;
     parser* _current;
     list<parser*> parsers;
     string out;
@@ -106,7 +110,13 @@ private:
 
     void parse_class_decl(ast *pAst, ClassObject* pObject);
 
-    ClassObject *parse_base_class(ast *pAst);
+    ClassObject *parse_base_class(ast *pAst, ClassObject* pObject);
+
+    ref_ptr parse_refrence_ptr(ast *pAst);
+
+    ResolvedRefrence resolve_refrence_ptr(ast* pAst, ref_ptr &ref_ptr);
+
+    ClassObject* resolve_class_refrence(ast *pAst, ref_ptr &ptr);
 };
 
 #define progname "bootstrap"
@@ -183,5 +193,69 @@ inline bool element_has(list<T>& l, T search) {
     }
     return false;
 }
+
+class ref_ptr {
+public:
+    ref_ptr() {
+        class_heiarchy = new list<string>();
+        module = "";
+        refname = "";
+    }
+
+    void operator=(list<string>* ch) {
+        if(ch != NULL) {
+            *class_heiarchy = *ch;
+        }
+    }
+
+    ~ref_ptr() {
+        class_heiarchy->clear();
+        std::free (class_heiarchy);
+        class_heiarchy = NULL;
+    }
+
+    void print() {
+        // dev code
+        cout << "refrence pointer -----" << endl;
+        cout << "id: " << refname << endl;
+        cout << "mod: " << module << endl;
+        cout << "class: ";
+        for(string n : *class_heiarchy)
+            cout << n << ".";
+        cout << endl;
+    }
+
+    string module;
+    list<string>* class_heiarchy;
+    string refname;
+};
+
+class ResolvedRefrence {
+public:
+    ResolvedRefrence()
+    :
+            rt(NOTRESOLVED),
+            field(NULL),
+            method(NULL),
+            klass(NULL),
+            oo(NULL)
+    {
+    }
+
+    enum refrenceType {
+        FIELD,
+        CLASS,
+        METHOD,
+        MACROS,
+        OO,
+        NOTRESOLVED
+    };
+
+    refrenceType rt;
+    ClassObject* klass;
+    Field* field;
+    Method* method;
+    OperatorOverload* oo;
+};
 
 #endif //SHARP_RUNTIME_H

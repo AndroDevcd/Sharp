@@ -59,6 +59,12 @@ void int_errs()
 
     err.set(INTERNAL_ERROR, "internal runtime error");
     predefined_errs.push_back(err);
+
+    err.set(COULD_NOT_RESOLVE, "could not resolve symbol");
+    predefined_errs.push_back(err);
+
+    err.set(EXPECTED_REFRENCE_OF_TYPE, "expected refrence of type");
+    predefined_errs.push_back(err);
 }
 
 void Errors::print_error(parseerror &err) {

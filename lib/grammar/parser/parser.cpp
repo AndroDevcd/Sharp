@@ -101,7 +101,7 @@ void parser::parse_type_declarators(ast *pAst) {
     expect(GREATERTHAN, pAst, "`>`");
 }
 
-void parser::parse_classdecl(ast* _ast) {
+void parser::parse_classdecl(ast* _ast) { // 1
     _ast = get_ast(_ast, ast_class_decl);
 
     for(token_entity &entity : *access_types)

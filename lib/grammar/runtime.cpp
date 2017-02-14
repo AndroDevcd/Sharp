@@ -56,18 +56,92 @@ void runtime::interpret() {
     }
 }
 
-ClassObject *runtime::parse_base_class(ast *pAst) {
-    ClassObject* klass=NULL;
-    for(int i = 0; i < pAst->getentitycount(); i++) {
-        if(pAst->getentity(0).gettoken() == "base") {
-            // process base class
+ref_ptr runtime::parse_refrence_ptr(ast *pAst) {
+    bool hashfound = false, last, hash = pAst->hasentity(HASH);
+    string id;
+    ref_ptr ptr;
+
+    for(long i = 0; i < pAst->getentitycount(); i++) {
+        id = pAst->getentity(i).gettoken();
+        last = i + 1 >= pAst->getentitycount();
+
+        if(id == ".")
+            continue;
+        else if(id == "#") {
+            hashfound = true;
+            continue;
+        }
+
+        if(hash && !hashfound && !last) {
+            ptr.module +=id;
+        } else if(!last) {
+            ptr.class_heiarchy->push_back(id);
+        } else {
+            ptr.refname = id;
         }
     }
+
+    return ptr;
+}
+
+ClassObject *runtime::parse_base_class(ast *pAst, ClassObject* inheritor) {
+    ClassObject* klass=NULL;
+
+    for(int i = 0; i < pAst->getentitycount(); i++) {
+        if(pAst->getentity(i).gettoken() == "base") {
+            int base_ptr = pAst->hassubast(ast_type_declarator) ? 1 : 0;
+            ref_ptr ptr = parse_refrence_ptr(pAst->getsubast(base_ptr));
+
+            klass = resolve_class_refrence(pAst->getsubast(base_ptr), ptr);
+
+            if(klass != NULL) {
+                if(klass->match(inheritor)) {
+                    errors->newerror(GENERIC, pAst->line, pAst->col, "class `" + ptr.refname + "` cannot inherit itsself");
+                }
+                else if(inheritor->curcular(klass)) {
+                    errors->newerror(GENERIC, pAst->getsubast(base_ptr)->line, pAst->getsubast(base_ptr)->col,
+                                     "circular dependency of class `" + ptr.refname + "` in parent class `" + inheritor->getName() + "`");
+                }
+                else {
+
+                    if(pAst->getsubast(++base_ptr)->gettype() == ast_type_arg) {
+                        // create runtime class from type args
+                    }
+                }
+            }
+
+            break;
+        }
+        else if(pAst->getentity(i).gettoken() == "class" && inheritor == NULL) {
+            inheritor = getClass(current_module, pAst->getentity(i+1).gettoken());
+        }
+    }
+
     return klass;
 }
 
+ClassObject* runtime::resolve_class_refrence(ast *pAst, ref_ptr &ptr) {
+    ResolvedRefrence resolvedRefrence = resolve_refrence_ptr(pAst, ptr);
+
+    if(resolvedRefrence.rt == ResolvedRefrence::NOTRESOLVED) {
+        errors->newerror(COULD_NOT_RESOLVE, pAst->line, pAst->col, " `" + ptr.refname + "` " +
+                            (ptr.module == "" ? "" : "in module {" + ptr.module + "} "));
+    } else {
+
+        if(resolvedRefrence.rt == ResolvedRefrence::CLASS) {
+            return resolvedRefrence.klass;
+        }
+        else if(resolvedRefrence.rt == ResolvedRefrence::FIELD) {
+            errors->newerror(EXPECTED_REFRENCE_OF_TYPE, pAst->line, pAst->col, " 'class' instead of 'field'");
+        }
+    }
+
+    return NULL;
+}
+
 void runtime::parse_class_decl(ast *pAst, ClassObject* pObject) {
-    ClassObject* base = parse_base_class(pAst);
+    // create runtime class
+    ClassObject* base = parse_base_class(pAst, pObject);
 }
 
 bool runtime::preprocess() {
@@ -689,7 +763,10 @@ void runtime:: preprocc_class_decl(ast *trunk, ClassObject* parent) {
             return;
         } else
             klass = parent->getChildClass(name);
+
+        klass->setSuperClass(parent);
     }
+
 
     for(uint32_t i = 0; i < block->getsubastcount(); i++) {
         pAst = block->getsubast(i);
@@ -768,7 +845,7 @@ void help() {
     cout <<               "    -a                enable aggressive error reporting." << endl;
     cout <<               "    -O                optimize code." << endl;
     cout <<               "    -w                disable warnings." << endl;
-    cout <<               "    -we               enable warnings as errors." << endl;
+    cout <<               "    -werror           enable warnings as errors." << endl;
     cout <<               "    --h -?            display this help message." << endl;
 }
 
@@ -817,7 +894,7 @@ int _bootstrap(int argc, const char* argv[]) {
         else if(opt("-w")){
             c_options.warnings = false;
         }
-        else if(opt("-we")){
+        else if(opt("-werror")){
             c_options.werrors = true;
             c_options.warnings = true;
         }
@@ -1051,6 +1128,57 @@ void runtime::printnote(RuntimeNote& note, string msg) {
         cout << note.getNote(msg);
         last_notemsg = msg;
     }
+}
+
+ResolvedRefrence runtime::resolve_refrence_ptr(ast* pAst, ref_ptr &ref_ptr) {
+    ResolvedRefrence refrence;
+
+    if(ref_ptr.class_heiarchy->size() == 0) {
+        ClassObject* klass = getClass(ref_ptr.module, ref_ptr.refname);
+        if(klass == NULL) {
+            refrence.rt = ResolvedRefrence::NOTRESOLVED;
+        } else {
+            refrence.rt = ResolvedRefrence::CLASS;
+            refrence.klass = klass;
+        }
+    } else {
+        ClassObject* klass = getClass(ref_ptr.module, element_at(*ref_ptr.class_heiarchy, 0));
+        if(klass == NULL) {
+            refrence.rt = ResolvedRefrence::NOTRESOLVED;
+        } else {
+            ClassObject* childClass = NULL;
+            string className;
+            for(size_t i = 1; i < ref_ptr.class_heiarchy->size(); i++) {
+                className = element_at(*ref_ptr.class_heiarchy, i);
+
+                if((childClass = klass->getChildClass(className)) == NULL) {
+                    refrence.rt = ResolvedRefrence::NOTRESOLVED;
+                    break;
+                }
+            }
+
+            if(childClass != NULL) {
+                if(childClass->getField(ref_ptr.refname) != NULL) {
+                    refrence.rt = ResolvedRefrence::FIELD;
+                    refrence.field = childClass->getField(ref_ptr.refname);
+                } else {
+                    refrence.rt = ResolvedRefrence::NOTRESOLVED;
+                }
+            } else {
+                if(klass->getField(ref_ptr.refname) != NULL) {
+                    refrence.rt = ResolvedRefrence::FIELD;
+                    refrence.field = klass->getField(ref_ptr.refname);
+                } else if(klass->getChildClass(ref_ptr.refname) != NULL) {
+                    refrence.rt = ResolvedRefrence::CLASS;
+                    refrence.klass = klass->getChildClass(ref_ptr.refname);
+                } else {
+                    refrence.rt = ResolvedRefrence::NOTRESOLVED;
+                }
+            }
+        }
+    }
+
+    return refrence;
 }
 
 _operator string_toop(string op) {

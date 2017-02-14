@@ -1,0 +1,18 @@
+mod application;
+
+import io;
+
+class Main base Main {
+
+    public static function main(String[] args) : int {
+        io.console.write("Hello World");
+        return 0;
+    }
+
+    class C {
+        class B base C {
+
+
+        }
+    }
+}

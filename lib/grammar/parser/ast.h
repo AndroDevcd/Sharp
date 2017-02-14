@@ -69,7 +69,9 @@ public:
             type(type),
             parent(parent),
             line(line),
-            col(col)
+            col(col),
+            numEntities(0),
+            numAsts(0)
     {
         sub_asts = new list<ast>();
         entities = new list<token_entity>();
@@ -79,6 +81,8 @@ public:
     ast* getparent();
     long getsubastcount();
     ast *getsubast(long at);
+    bool hassubast(ast_types at);
+    bool hasentity(token_type t);
     void freesubs();
     long getentitycount();
     token_entity getentity(long at);
@@ -92,6 +96,7 @@ public:
     void freelastentity();
 
     int line, col;
+    long numEntities, numAsts;
 private:
     ast_types type;
     ast *parent;
