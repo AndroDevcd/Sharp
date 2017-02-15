@@ -40,6 +40,8 @@ public:
     long getUID() { return uid; }
     string getName() { return name; }
     string getModuleName() { return module_name; }
+    ClassObject* getSuperClass() { return super; }
+    ClassObject* getBaseClass() { return base; }
     bool match(ClassObject* klass) {
         return klass != NULL && klass->uid == uid;
     }
@@ -84,6 +86,8 @@ public:
     RuntimeNote note;
 
     bool curcular(ClassObject *pObject);
+
+    bool matchBase(ClassObject *pObject);
 
 private:
     const AccessModifier modifier;
