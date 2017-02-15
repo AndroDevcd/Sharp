@@ -1,8 +1,6 @@
 mod application;
 
-import io;
-
-class Main base D.B.F {
+class Main base D.G.B {
 
     public static function main(String[] args) : int {
         io.console.write("Hello World");
@@ -10,7 +8,7 @@ class Main base D.B.F {
     }
 
     class C {
-        class B base C {
+        class B base Main.C {
 
 
         }
@@ -18,10 +16,10 @@ class Main base D.B.F {
 }
 
     class D {
-        class B base C {
+        class B base Main.C {
 
 
-        class F base C {
+        class F base D {
 
         }
         }

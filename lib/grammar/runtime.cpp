@@ -28,6 +28,7 @@ void runtime::interpret() {
                     case ast_module_decl:
                         break;
                     case ast_import_decl:
+                        parse_import_decl(pAst);
                         break;
 
                     case ast_class_decl:
@@ -53,6 +54,14 @@ void runtime::interpret() {
             errors->free();
             std::free(errors); this->errors = NULL;
         }
+    }
+}
+
+void runtime::parse_import_decl(ast *pAst) {
+    string import = get_modulename(pAst->getsubast(0));
+    if(!element_has(*modules, import)) {
+        errors->newerror(COULD_NOT_RESOLVE, pAst->getsubast(0)->line, pAst->getsubast(0)->col,
+                         " `" + import + "` ");
     }
 }
 
@@ -85,7 +94,7 @@ ref_ptr runtime::parse_refrence_ptr(ast *pAst) {
 }
 
 ClassObject *runtime::parse_base_class(ast *pAst, ClassObject* inheritor) {
-    ClassObject* klass=NULL;
+    ClassObject* klass=NULL, *creator = NULL;
 
     for(int i = 0; i < pAst->getentitycount(); i++) {
         if(pAst->getentity(i).gettoken() == "base") {
@@ -95,12 +104,9 @@ ClassObject *runtime::parse_base_class(ast *pAst, ClassObject* inheritor) {
             klass = resolve_class_refrence(pAst->getsubast(base_ptr), ptr);
 
             if(klass != NULL) {
-                if(klass->match(inheritor)) {
-                    errors->newerror(GENERIC, pAst->line, pAst->col, "class `" + ptr.refname + "` cannot inherit itsself");
-                }
-                else if(inheritor->curcular(klass)) {
+                if(getSuper(inheritor)->match(klass) || klass->match(inheritor) || inheritor->curcular(klass) || creator->match(klass->getBaseClass())) {
                     errors->newerror(GENERIC, pAst->getsubast(base_ptr)->line, pAst->getsubast(base_ptr)->col,
-                                     "circular dependency of class `" + ptr.refname + "` in parent class `" + inheritor->getName() + "`");
+                                     "cyclic dependency of class `" + ptr.refname + "` in parent class `" + inheritor->getName() + "`");
                 }
                 else {
                     env->create_class(int_ClassObject(klass));
@@ -109,8 +115,12 @@ ClassObject *runtime::parse_base_class(ast *pAst, ClassObject* inheritor) {
 
             break;
         }
-        else if(pAst->getentity(i).gettoken() == "class" && inheritor == NULL) {
-            inheritor = getClass(current_module, pAst->getentity(i+1).gettoken());
+        else if(pAst->getentity(i).gettoken() == "class") {
+            if(inheritor == NULL) {
+                inheritor = getClass(current_module, pAst->getentity(i+1).gettoken());
+                creator = inheritor;
+            } else
+                creator = inheritor->getChildClass(pAst->getentity(i+1).gettoken());
         }
     }
 
@@ -121,7 +131,7 @@ ClassObject* runtime::resolve_class_refrence(ast *pAst, ref_ptr &ptr) {
     ResolvedRefrence resolvedRefrence = resolve_refrence_ptr(pAst, ptr);
 
     if(resolvedRefrence.rt == ResolvedRefrence::NOTRESOLVED) {
-        errors->newerror(COULD_NOT_RESOLVE, pAst->line, pAst->col, " `" + ptr.refname + "` " +
+        errors->newerror(COULD_NOT_RESOLVE, pAst->line, pAst->col, " `" + resolvedRefrence.unresolved + "` " +
                             (ptr.module == "" ? "" : "in module {" + ptr.module + "} "));
     } else {
 
@@ -142,15 +152,20 @@ ResolvedRefrence runtime::parse_utype(ast *pAst) {
 
     if(resolvedRefrence.rt == ResolvedRefrence::NOTRESOLVED) {
         // TODO: check for other resolution types
-        errors->newerror(COULD_NOT_RESOLVE, pAst->line, pAst->col, " `" + ptr.refname + "` " +
+        errors->newerror(COULD_NOT_RESOLVE, pAst->line, pAst->col, " `" + resolvedRefrence.unresolved + "` " +
                                                                    (ptr.module == "" ? "" : "in module {" + ptr.module + "} "));
     }
 
     return resolvedRefrence;
 }
 
+void runtime::parse_var_decl(ast *pAst, ClassObject *pObject) {
+
+}
+
 void runtime::parse_class_decl(ast *pAst, ClassObject* pObject) {
     // create runtime class
+    ClassObject* klass;
     int namepos=1;
 
     if(isaccess_decl(pAst->getentity(0))) {
@@ -158,9 +173,40 @@ void runtime::parse_class_decl(ast *pAst, ClassObject* pObject) {
     }
 
     string name =  pAst->getentity(namepos).gettoken();
+    if(pObject == NULL) {
+        klass = getClass(current_module, name);
+    } else {
+        klass = pObject->getChildClass(name);
+        klass->setSuperClass(getSuper(pObject));
+    }
 
-    env->create_class(int_ClassObject(getClass(current_module, name)));
-    ClassObject* base = parse_base_class(pAst, pObject);
+    env->create_class(int_ClassObject(klass));
+    klass->setBaseClass(parse_base_class(pAst, pObject));
+
+    ast* block = pAst->getsubast(pAst->getsubastcount() - 1);
+    for(uint32_t i = 0; i < block->getsubastcount(); i++) {
+        pAst = block->getsubast(i);
+
+        switch(pAst->gettype()) {
+            case ast_class_decl:
+                parse_class_decl(pAst, klass);
+                break;
+            case ast_var_decl:
+                parse_var_decl(pAst, klass);
+                break;
+            case ast_method_decl:
+                break;
+            case ast_operator_decl:
+                break;
+            case ast_construct_decl:
+                break;
+            case ast_macros_decl:
+                break;
+            default:
+                errors->newerror(INTERNAL_ERROR, pAst->line, pAst->col, " unexpected ast type");
+                break;
+        }
+    }
 }
 
 bool runtime::preprocess() {
@@ -724,8 +770,6 @@ void runtime:: preprocc_class_decl(ast *trunk, ClassObject* parent) {
             return;
         } else
             klass = parent->getChildClass(name);
-
-        klass->setSuperClass(parent);
     }
 
 
@@ -1120,6 +1164,7 @@ ResolvedRefrence runtime::resolve_refrence_ptr(ast* pAst, ref_ptr &ref_ptr) {
         ClassObject* klass = try_class_resolve(ref_ptr.module, ref_ptr.refname);
         if(klass == NULL) {
             refrence.rt = ResolvedRefrence::NOTRESOLVED;
+            refrence.unresolved = ref_ptr.refname;
         } else {
             refrence.rt = ResolvedRefrence::CLASS;
             refrence.klass = klass;
@@ -1128,6 +1173,7 @@ ResolvedRefrence runtime::resolve_refrence_ptr(ast* pAst, ref_ptr &ref_ptr) {
         ClassObject* klass = try_class_resolve(ref_ptr.module, element_at(*ref_ptr.class_heiarchy, 0));
         if(klass == NULL) {
             refrence.rt = ResolvedRefrence::NOTRESOLVED;
+            refrence.unresolved = element_at(*ref_ptr.class_heiarchy, 0);
         } else {
             ClassObject* childClass = NULL;
             string className;
@@ -1136,7 +1182,8 @@ ResolvedRefrence runtime::resolve_refrence_ptr(ast* pAst, ref_ptr &ref_ptr) {
 
                 if((childClass = klass->getChildClass(className)) == NULL) {
                     refrence.rt = ResolvedRefrence::NOTRESOLVED;
-                    break;
+                    refrence.unresolved = className;
+                    return refrence;
                 } else {
                     klass = childClass;
                 }
@@ -1152,6 +1199,7 @@ ResolvedRefrence runtime::resolve_refrence_ptr(ast* pAst, ref_ptr &ref_ptr) {
                     refrence.klass = klass->getChildClass(ref_ptr.refname);
                 } else {
                     refrence.rt = ResolvedRefrence::NOTRESOLVED;
+                    refrence.unresolved = ref_ptr.refname;
                 }
             } else {
                 if(klass->getField(ref_ptr.refname) != NULL) {
@@ -1162,12 +1210,26 @@ ResolvedRefrence runtime::resolve_refrence_ptr(ast* pAst, ref_ptr &ref_ptr) {
                     refrence.klass = klass->getChildClass(ref_ptr.refname);
                 } else {
                     refrence.rt = ResolvedRefrence::NOTRESOLVED;
+                    refrence.unresolved = ref_ptr.refname;
                 }
             }
         }
     }
 
     return refrence;
+}
+
+ClassObject *runtime::getSuper(ClassObject *pObject) {
+    ClassObject* super = pObject;
+    for( ;; ) {
+        if(pObject->getSuperClass() == NULL)
+            return super;
+        else {
+            super = pObject->getSuperClass();
+            pObject = super;
+        }
+    }
+    return super;
 }
 
 _operator string_toop(string op) {

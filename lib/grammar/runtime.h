@@ -123,6 +123,12 @@ private:
     ClassObject *try_class_resolve(string intmodule, string name);
 
     ResolvedRefrence parse_utype(ast *pAst);
+
+    void parse_import_decl(ast *pAst);
+
+    ClassObject *getSuper(ClassObject *pObject);
+
+    void parse_var_decl(ast *pAst, ClassObject *pObject);
 };
 
 #define progname "bootstrap"
@@ -244,7 +250,8 @@ public:
             field(NULL),
             method(NULL),
             klass(NULL),
-            oo(NULL)
+            oo(NULL),
+            unresolved("")
     {
     }
 
@@ -275,6 +282,7 @@ public:
         return false;
     }
 
+    string unresolved;
     refrenceType rt;
     ClassObject* klass;
     Field* field;
