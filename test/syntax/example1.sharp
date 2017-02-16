@@ -70,7 +70,7 @@ class C {
 
         }
 
-        public function foo2(int i, Map<int> x) {
+        public function foo2(int i, Map x) {
 
         }
     }
@@ -82,11 +82,11 @@ class C {
 
         }
 
-        public function foo2(int i, Map<int> x) {
+        public function foo2(int i, Map x) {
 
         }
 
-        public function foo2(int i, Map<int> x) {
+        public function foo2(int i, Map x) {
 
         }
     }
@@ -95,7 +95,7 @@ class C {
 
     }
 
-    public function foo2(int i, Map<int> x) {
+    public function foo2(int i, Map x) {
 
     }
 }
