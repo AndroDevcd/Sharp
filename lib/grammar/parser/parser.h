@@ -44,6 +44,7 @@ public:
     string sourcefile;
 
     static bool isnative_type(string type);
+    static bool isassign_exprsymbol(string token);
 private:
     void parse();
     bool isend();
@@ -145,8 +146,6 @@ private:
     void parse_valuelist(ast *pAst);
 
     bool isexprsymbol(string basic_string);
-
-    bool isassign_exprsymbol(string token);
 
     void parse_memaccess_flag(ast *pAst);
 

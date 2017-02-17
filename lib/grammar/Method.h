@@ -65,6 +65,7 @@ public:
     }
 
     RuntimeNote note;
+    uint64_t vaddr;
 private:
     list<AccessModifier> modifiers; // 3 max modifiers
     ClassObject* pklass;

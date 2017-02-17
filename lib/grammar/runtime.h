@@ -10,6 +10,7 @@
 #include "ClassObject.h"
 #include "Environment.h"
 #include "BytecodeStream.h"
+#include "Opcode.h"
 
 class ref_ptr;
 class ResolvedRefrence;
@@ -33,7 +34,7 @@ public:
     {
     }
 
-    enum refrenceType {
+    enum RefrenceType {
         FIELD,
         CLASS,
         METHOD,
@@ -43,7 +44,7 @@ public:
         NOTRESOLVED
     };
 
-    static string toString(refrenceType type) {
+    static string toString(RefrenceType type) {
         switch(type) {
             case FIELD:
                 return "field";
@@ -63,12 +64,65 @@ public:
     }
 
     string unresolved;
-    refrenceType rt;
+    RefrenceType rt;
     NativeField nf;
     ClassObject* klass;
     Field* field;
     Method* method;
     OperatorOverload* oo;
+};
+
+class ExprValue {
+
+public:
+    ExprValue()
+    :
+            et(UNKNOWN),
+            str_val(""),
+            int_val(0),
+            char_val(0)
+    {
+        ref = ResolvedRefrence();
+    }
+
+
+    enum ExprType {
+        STR_LITERAL,
+        CHAR_LITERAL,
+        INT_LITERAL,
+        HEX_LITERAL,
+        BOOL_LITERAL,
+        REFRENCE,
+        UNKNOWN
+    };
+
+    string typeToString() {
+        switch (et) {
+            case STR_LITERAL:
+                return "string literal";
+            case CHAR_LITERAL:
+                return "character literal";
+            case INT_LITERAL:
+                return "integer literal";
+            case BOOL_LITERAL:
+                return "bool literal";
+            case HEX_LITERAL:
+                return "hex literal";
+            case REFRENCE:
+                return "refrence {" + ResolvedRefrence::toString(ref.rt) + "}";
+            case UNKNOWN:
+                return "string literal";
+
+        }
+    }
+
+
+    ExprType et;
+    ResolvedRefrence ref;
+    string str_val;
+    int64_t int_val;
+    char char_val;
+    bool bool_val;
 };
 
 class runtime
@@ -193,9 +247,22 @@ private:
 
     void injectConstructors();
 
-    bool expectReferenceType(ResolvedRefrence refrence, ResolvedRefrence::refrenceType type, ast *pAst);
+    bool expectReferenceType(ResolvedRefrence refrence, ResolvedRefrence::RefrenceType type, ast *pAst);
 
     ref_ptr parse_type_identifier(ast *pAst);
+
+    ExprValue parse_value(ast *pAst);
+
+    ExprValue parse_expression(ast *pAst);
+
+    void checkCast(ast* pAst, ExprValue value, ResolvedRefrence cast);
+
+    string nativefield_tostr(NativeField nf);
+
+    bool nativeFieldCompare(NativeField field, ExprValue::ExprType type);
+
+    void addInstruction(Opcode opcode, double *pInt, int n);
+
 };
 
 #define progname "bootstrap"

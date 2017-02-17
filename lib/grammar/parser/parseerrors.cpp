@@ -65,6 +65,12 @@ void int_errs()
 
     err.set(EXPECTED_REFRENCE_OF_TYPE, "expected refrence of type");
     predefined_errs.push_back(err);
+
+    err.set(INVALID_CAST, "invalid cast of type");
+    predefined_errs.push_back(err);
+
+    err.set(REDUNDANT_CAST, "redundant cast of type");
+    predefined_errs.push_back(err);
 }
 
 void Errors::print_error(parseerror &err) {

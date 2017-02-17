@@ -483,6 +483,8 @@ void parser::parse_valueassignment(ast *pAst) {
 }
 
 bool parser::parse_literal(ast *pAst) {
+    pAst = get_ast(pAst, ast_literal);
+
     token_entity e = peek(1);
     if(e.getid() == CHAR_LITERAL || e.getid() == INTEGER_LITERAL
        || e.getid() == STRING_LITERAL || e.getid() == HEX_LITERAL
@@ -1535,14 +1537,12 @@ bool parser::iskeyword(string key) {
            || key == "return" || key == "self"
            || key == "const" || key == "override"
            || key == "public" || key == "new"
-           || key == "void" || key == "macros"
-           || key == "null" || key == "operator"
-           || key == "base" || key == "if"
-           || key == "while" || key == "do"
-           || key == "try" || key == "catch"
-           || key == "finally" || key == "throw"
-           || key == "continue" || key == "goto"
-           || key == "break" || key == "else"
+           || key == "macros" || key == "null"
+           || key == "operator" || key == "base"
+           || key == "if" || key == "while"
+           || key == "do" || key == "try" || key == "catch"
+           || key == "finally" || key == "throw" || key == "continue"
+           || key == "goto" || key == "break" || key == "else"
            || key == "string" || key == "dynamic_object";
 }
 

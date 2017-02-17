@@ -5,6 +5,7 @@
 #include <sstream>
 #include "runtime.h"
 #include "../util/file.h"
+#include "Opcode.h"
 
 options c_options;
 size_t succeeded, failed;
@@ -188,11 +189,22 @@ void runtime::parse_var_decl(ast *pAst) {
 
     string name =  pAst->getentity(namepos).gettoken();
     Field* field = rState.instance->refrence->getField(name);
+    //addInstruction(__new_0, new double[] {}, 0);
 
     ResolvedRefrence ref = parse_utype(pAst->getsubast(0));
-    if(ref.rt != ResolvedRefrence::NATIVE)
-        expectReferenceType(ref, ResolvedRefrence::CLASS, pAst->getsubast(0));
+    if(ref.rt != ResolvedRefrence::NATIVE && ref.rt != ResolvedRefrence::CLASS) {
 
+        errors->newerror(EXPECTED_REFRENCE_OF_TYPE, pAst->getsubast(0)->line, pAst->getsubast(0)->col, " 'class' or 'native type' instead of '" +
+                                                                           ResolvedRefrence::toString(ref.rt) + "'");
+    }
+
+    if(parser::isassign_exprsymbol(pAst->getentity(namepos+1).gettoken())) {
+        ExprValue value = parse_value(pAst);
+    }
+
+    if(pAst->hasentity(COMMA)) {
+
+    }
     // check for value assignment and other vars.
     // if it dosent have a var decl init it to default value in injector (if not in method)
 }
@@ -1272,13 +1284,152 @@ ClassObject *runtime::getSuper(ClassObject *pObject) {
     return super;
 }
 
-bool runtime::expectReferenceType(ResolvedRefrence refrence, ResolvedRefrence::refrenceType expectedType, ast *pAst) {
+bool runtime::expectReferenceType(ResolvedRefrence refrence, ResolvedRefrence::RefrenceType expectedType, ast *pAst) {
     if(refrence.rt == expectedType)
         return true;
 
     errors->newerror(EXPECTED_REFRENCE_OF_TYPE, pAst->line, pAst->col, " '" + ResolvedRefrence::toString(expectedType) + "' instead of '" +
             ResolvedRefrence::toString(refrence.rt) + "'");
     return false;
+}
+
+ExprValue runtime::parse_value(ast *pAst) {
+    return parse_expression(pAst->getsubast(0));
+}
+
+ExprValue runtime::parse_expression(ast *pAst) {
+    ExprValue evalue;
+
+    /* ++ or -- or - or + before the expression */
+    // skip
+
+    if(pAst->hasentity(LEFTPAREN) && pAst->hasentity(RIGHTPAREN)) {
+        if(pAst->getsubast(0)->gettype() == ast_utype) {
+            ResolvedRefrence ptr = parse_utype(pAst->getsubast(0));
+            ExprValue value = parse_expression(pAst->getsubast(1));
+
+            checkCast(pAst->getsubast(0), value, ptr);
+        }
+    }
+
+    return evalue;
+}
+
+void runtime::checkCast(ast* pAst, ExprValue value, ResolvedRefrence cast) {
+
+    if(value.et == ExprValue::UNKNOWN) {
+
+    }
+
+    switch (cast.rt) {
+        case ResolvedRefrence::NATIVE:
+            if(nativeFieldCompare(cast.nf, value.et))
+                warning(REDUNDANT_CAST, pAst->line, pAst->col, " `" + ResolvedRefrence::toString(cast.rt)
+                    + "` and `" + value.typeToString() + "`");
+
+            if(cast.nf <= fchar) {
+                if(value.et == ExprValue::STR_LITERAL || value.et == ExprValue::REFRENCE
+                        || value.et == ExprValue::UNKNOWN) {
+                    errors->newerror(INVALID_CAST, pAst->col, pAst->line, " `" + nativefield_tostr(cast.nf) +
+                            "` and `" + value.typeToString() + "`");
+                }
+            }
+
+            if(cast.nf == fstring) {
+                if(value.et != ExprValue::STR_LITERAL) {
+                    errors->newerror(INVALID_CAST, pAst->col, pAst->line, " `string` and `" + value.typeToString() + "`");
+                }
+            }
+
+            if(cast.nf == fdynamic) {
+                if(value.et != ExprValue::REFRENCE) {
+                    errors->newerror(INVALID_CAST, pAst->col, pAst->line, " `dynamic object` and `" + value.typeToString() + "`");
+                }
+            }
+            break;
+        case ResolvedRefrence::FIELD:
+            errors->newerror(INVALID_CAST, pAst->col, pAst->line, " cannot cast field field");
+            break;
+        case ResolvedRefrence::METHOD:
+        case ResolvedRefrence::MACROS:
+        case ResolvedRefrence::OO:
+            errors->newerror(INVALID_CAST, pAst->col, pAst->line, " cannot cast a method");
+            break;
+
+        case ResolvedRefrence::CLASS:
+            if(value.et != ExprValue::REFRENCE || (value.ref.rt != ResolvedRefrence::CLASS && value.ref.rt != ResolvedRefrence::FIELD)) {
+                errors->newerror(INVALID_CAST, pAst->col, pAst->line, " `class` and `" + value.typeToString() + "`");
+                return;
+            }
+
+            if(!cast.klass->match(value.ref.klass)) {
+                errors->newerror(INVALID_CAST, pAst->col, pAst->line, " `class` and `" + value.typeToString() + "`");
+            }
+            break;
+
+        default: // not resolved already complained about
+            break;
+    }
+}
+
+string runtime::nativefield_tostr(NativeField nf) {
+    switch (nf) {
+        case fint:
+            return "int";
+        case fshort:
+            return "short";
+        case flong:
+            return "long";
+        case fdouble:
+            return "doub;e";
+        case ffloat:
+            return "float";
+        case fbool:
+            return "bool";
+        case fchar:
+            return "char";
+        case fstring:
+            return "string";
+        case fdynamic:
+            return "dynamic object";
+        case fvoid:
+            return "void";
+        case fnof:
+            return "not a native field";
+    }
+}
+
+bool runtime::nativeFieldCompare(NativeField field, ExprValue::ExprType type) {
+    switch (field) {
+        case fint:
+        case fshort:
+        case flong:
+        case fdouble:
+        case ffloat:
+            return type == ExprValue::INT_LITERAL;
+        case fbool:
+            return type == ExprValue::BOOL_LITERAL;
+        case fchar:
+            return type == ExprValue::CHAR_LITERAL;
+        case fstring:
+            return type == ExprValue::STR_LITERAL;
+        default:
+            return false;
+    }
+}
+
+void runtime::addInstruction(Opcode opcode, double *pInt, int n) {
+    if(rState.fn == NULL) {
+        rState.injector.add((int)opcode);
+
+        for(int i = 0; i < n; i++)
+            rState.injector.add(pInt[i]);
+    } else {
+        rState.fn->bytecode.add((int)opcode);
+
+        for(int i = 0; i < n; i++)
+            rState.fn->bytecode.add(pInt[i]);
+    }
 }
 
 _operator string_toop(string op) {

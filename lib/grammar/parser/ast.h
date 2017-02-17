@@ -54,6 +54,7 @@ enum ast_types
     ast_type_identifier,
     ast_refrence_pointer,
     ast_modulename,
+    ast_literal,
 
     ast_entity, // the base level ast
     ast_none

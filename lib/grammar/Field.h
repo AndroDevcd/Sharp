@@ -94,7 +94,7 @@ public:
     RuntimeNote note;
     NativeField nf;
     ClassObject* klass;
-    uint64_t uid;
+    uint64_t uid, vaddr;
     string name;
     ClassObject* parent;
     list<AccessModifier>* modifiers; // 3 max modifiers

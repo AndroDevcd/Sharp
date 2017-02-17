@@ -31,11 +31,13 @@ enum p_errors
     INTERNAL_ERROR = 16,
     COULD_NOT_RESOLVE = 17,
     EXPECTED_REFRENCE_OF_TYPE = 18,
+    INVALID_CAST = 19,
+    REDUNDANT_CAST = 20,
 
     NO_ERR = 999
 };
 
-static list<keypair<p_errors, string>> predefined_errs;
+static std::list<keypair<p_errors, string>> predefined_errs;
 void int_errs();
 
 struct parseerror

@@ -1,10 +1,12 @@
 mod application;
 
 class Main {
-    Main i = 9;
+    Main i = (int)9;
 
-    public static function main(String[] args) : int {
+    public static function main(String[] args) {
         io.console.write("Hello World");
+
+        i = (A)b;
         return 0;
     }
 
