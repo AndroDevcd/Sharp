@@ -1,6 +1,8 @@
 #include <iostream>
 #include <chrono>
-#include "lib/grammar/runtime.h"
+
+#include "lib/runtime/startup.h"
+//#include "lib/grammar/runtime.h"
 
 #define WIN32_LEAN_AND_MEAN
 
@@ -19,8 +21,13 @@ struct measure
 };
 
 int main(int argc, const char* argv[]) {
-    std::cout << "compile time " << measure<>::execution(
-            _bootstrap, argc, argv
+
+//    std::cout << "compile time " << measure<>::execution(
+//            _bootstrap, argc, argv
+//    ) << "ms" << std::endl;
+
+    std::cout << "vm time " << measure<>::execution(
+            runtimeStart, argc, argv
     ) << "ms" << std::endl;
     return 0;
 }

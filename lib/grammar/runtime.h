@@ -295,6 +295,16 @@ struct options {
     bool optimize = false;
 
     /*
+     * Set code to be debuggable
+     */
+    bool debug = true;
+
+    /*
+     * Strip debugging info (if-applicable)
+     */
+    bool strip = false;
+
+    /*
      * Enable warnings as errors
      */
     bool werrors = false;

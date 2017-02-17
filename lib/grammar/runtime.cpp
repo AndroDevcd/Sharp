@@ -888,7 +888,7 @@ void runtime::cleanup() {
 }
 
 void rt_error(string message) {
-    cout << "sharp:  error: " << message << endl;
+    cout << "bootstrap:  error: " << message << endl;
     exit(1);
 }
 
@@ -900,9 +900,11 @@ void help() {
     cout <<               "    -o<file>          set the output object file." << endl;
     cout <<               "    -c                compile only and do not generate object file." << endl;
     cout <<               "    -a                enable aggressive error reporting." << endl;
+    cout <<               "    -s                strip debugging info." << endl;
     cout <<               "    -O                optimize code." << endl;
     cout <<               "    -w                disable warnings." << endl;
     cout <<               "    -werror           enable warnings as errors." << endl;
+    cout <<               "    -release -r       disable debugging on application." << endl;
     cout <<               "    --h -?            display this help message." << endl;
 }
 
@@ -921,54 +923,65 @@ int _bootstrap(int argc, const char* argv[]) {
 
     list<string> files;
     for (int i = 1; i < argc; ++i) {
-        if(opt("-a")){
-            c_options.aggressive_errors = true;
-        }
-        else if(opt("-c")){
-            c_options.compile = true;
-        }
-        else if(opt("-o")){
-            if(i+1 >= argc)
-                rt_error("output file required after option `-o`");
-            else
-                c_options.out = string(argv[++i]);
-        }
-        else if(opt("-V")){
-            print_vers();
-            exit(0);
-        }
-        else if(opt("-O")){
-            c_options.optimize = true;
-        }
-        else if(opt("-h") || opt("-?")){
-            help();
-            exit(0);
-        }
-        else if(opt("-showversion")){
-            print_vers();
-            cout << endl;
-        }
-        else if(opt("-w")){
-            c_options.warnings = false;
-        }
-        else if(opt("-werror")){
-            c_options.werrors = true;
-            c_options.warnings = true;
-        }
-        else if(string(argv[i]).at(0) == '-'){
-            rt_error("invalid option `" + string(argv[i]) + "`, try bootstrap -h");
-        }
-        else {
-            // add the source files
-            string f;
-            do {
-                f =string(argv[i++]);
+        args_:
+            if(opt("-a")){
+                c_options.aggressive_errors = true;
+            }
+            else if(opt("-c")){
+                c_options.compile = true;
+            }
+            else if(opt("-o")){
+                if(i+1 >= argc)
+                    rt_error("output file required after option `-o`");
+                else
+                    c_options.out = string(argv[++i]);
+            }
+            else if(opt("-V")){
+                print_vers();
+                exit(0);
+            }
+            else if(opt("-O")){
+                c_options.optimize = true;
+            }
+            else if(opt("-h") || opt("-?")){
+                help();
+                exit(0);
+            }
+            else if(opt("-R") || opt("-release")){
+                c_options.optimize = true;
+                c_options.debug = false;
+                c_options.strip = true;
+            }
+            else if(opt("-s")){
+                c_options.strip = true;
+            }
+            else if(opt("-showversion")){
+                print_vers();
+                cout << endl;
+            }
+            else if(opt("-w")){
+                c_options.warnings = false;
+            }
+            else if(opt("-werror")){
+                c_options.werrors = true;
+                c_options.warnings = true;
+            }
+            else if(string(argv[i]).at(0) == '-'){
+                rt_error("invalid option `" + string(argv[i]) + "`, try bootstrap -h");
+            }
+            else {
+                // add the source files
+                string f;
+                do {
+                    if(string(argv[i]).at(0) == '-')
+                        goto args;
+                    f =string(argv[i++]);
 
-                if(!element_has(files, f))
-                    files.push_back(f);
-            }while(i<argc);
-            break;
-        }
+                    if(!element_has(files, f))
+                        files.push_back(f);
+                }while(i<argc);
+                break;
+            }
     }
 
     if(files.size() == 0){
@@ -978,7 +991,7 @@ int _bootstrap(int argc, const char* argv[]) {
 
     for(string file : files){
         if(!file::exists(file.c_str())){
-            rt_error("file `" + file + "` dosent exist!");
+            rt_error("file `" + file + "` doesnt exist!");
         }
         if(!file::endswith(".sharp", file)){
             rt_error("file `" + file + "` is not a sharp file!");
