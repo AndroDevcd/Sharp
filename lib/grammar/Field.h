@@ -23,7 +23,9 @@ public:
             name(name),
             parent(parent),
             klass(NULL),
-            note(note)
+            note(note),
+            refrence(false),
+            pointer(false)
     {
         this->modifiers = new list<AccessModifier>();
         if(modifiers == NULL)
@@ -40,7 +42,9 @@ public:
             name(name),
             parent(parent),
             klass(klass),
-            note(note)
+            note(note),
+            refrence(false),
+            pointer(false)
     {
         this->modifiers = new list<AccessModifier>();
         if(modifiers == NULL)
@@ -55,22 +59,17 @@ public:
             uid(0),
             name(""),
             modifiers(NULL),
-            note("","",0,0)
+            note("","",0,0),
+            refrence(false),
+            pointer(false)
     {
-    }
-
-    void clear() {
-        klass = NULL;
-        parent = NULL;
-        if(modifiers != NULL) std::free(modifiers);
-        modifiers = NULL;
     }
 
     bool operator==(const Field& f);
 
     void operator=(const Field& f)
     {
-        clear();
+        free();
 
         nf = f.nf;
         klass = f.klass;
@@ -78,14 +77,20 @@ public:
         name = f.name;
         parent = f.parent;
         modifiers = f.modifiers;
+        refrence = f.refrence;
     }
     void free(){
-        if(modifiers == NULL) return;
+        klass = NULL;
+        parent = NULL;
 
-        modifiers->clear();
-        std::free(modifiers); modifiers = NULL;
+        if(modifiers != NULL) {
+            modifiers->clear();
+            std::free (modifiers);
+        }
+        modifiers = NULL;
     }
 
+    bool refrence, pointer;
     RuntimeNote note;
     NativeField nf;
     ClassObject* klass;

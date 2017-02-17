@@ -65,6 +65,15 @@ void runtime::parse_import_decl(ast *pAst) {
     }
 }
 
+ref_ptr runtime::parse_type_identifier(ast *pAst) {
+    if(pAst->getsubastcount() == 0) {
+        ref_ptr ptr;
+        ptr.refname = pAst->getentity(0).gettoken();
+        return ptr;
+    } else
+        return parse_refrence_ptr(pAst->getsubast(0));
+}
+
 ref_ptr runtime::parse_refrence_ptr(ast *pAst) {
     bool hashfound = false, last, hash = pAst->hasentity(HASH);
     string id;
@@ -128,18 +137,15 @@ ClassObject *runtime::parse_base_class(ast *pAst, ClassObject* inheritor) {
 }
 
 ClassObject* runtime::resolve_class_refrence(ast *pAst, ref_ptr &ptr) {
-    ResolvedRefrence resolvedRefrence = resolve_refrence_ptr(pAst, ptr);
+    ResolvedRefrence resolvedRefrence = resolve_refrence_ptr(ptr);
 
     if(resolvedRefrence.rt == ResolvedRefrence::NOTRESOLVED) {
         errors->newerror(COULD_NOT_RESOLVE, pAst->line, pAst->col, " `" + resolvedRefrence.unresolved + "` " +
                             (ptr.module == "" ? "" : "in module {" + ptr.module + "} "));
     } else {
 
-        if(resolvedRefrence.rt == ResolvedRefrence::CLASS) {
+        if(expectReferenceType(resolvedRefrence, ResolvedRefrence::CLASS, pAst)) {
             return resolvedRefrence.klass;
-        }
-        else if(resolvedRefrence.rt == ResolvedRefrence::FIELD) {
-            errors->newerror(EXPECTED_REFRENCE_OF_TYPE, pAst->line, pAst->col, " 'class' instead of 'field'");
         }
     }
 
@@ -147,20 +153,48 @@ ClassObject* runtime::resolve_class_refrence(ast *pAst, ref_ptr &ptr) {
 }
 
 ResolvedRefrence runtime::parse_utype(ast *pAst) {
-    ref_ptr ptr = parse_refrence_ptr(pAst->getsubast(0));
-    ResolvedRefrence resolvedRefrence = resolve_refrence_ptr(pAst, ptr);
+    ref_ptr ptr = parse_type_identifier(pAst->getsubast(0));
+
+    if(ptr.module == "" && parser::isnative_type(ptr.refname)) {
+        ResolvedRefrence refrence;
+        refrence.nf = token_tonativefield(ptr.refname);
+        refrence.rt = ResolvedRefrence::NATIVE;
+        return refrence;
+    }
+
+    ResolvedRefrence resolvedRefrence = resolve_refrence_ptr(ptr);
 
     if(resolvedRefrence.rt == ResolvedRefrence::NOTRESOLVED) {
         // TODO: check for other resolution types
-        errors->newerror(COULD_NOT_RESOLVE, pAst->line, pAst->col, " `" + resolvedRefrence.unresolved + "` " +
+        errors->newerror(COULD_NOT_RESOLVE, pAst->getsubast(0)->line, pAst->col, " `" + resolvedRefrence.unresolved + "` " +
                                                                    (ptr.module == "" ? "" : "in module {" + ptr.module + "} "));
     }
 
     return resolvedRefrence;
 }
 
-void runtime::parse_var_decl(ast *pAst, ClassObject *pObject) {
+void runtime::injectConstructors() {
+    for(int_Method& constr : *rState.instance->constructors) {
+        constr.bytecode.inject(rState.injector, 0);
+    }
+}
 
+void runtime::parse_var_decl(ast *pAst) {
+    int namepos=0;
+
+    if(isaccess_decl(pAst->getentity(0))) {
+        namepos+=this->preprocc_access_modifier(pAst).size();
+    }
+
+    string name =  pAst->getentity(namepos).gettoken();
+    Field* field = rState.instance->refrence->getField(name);
+
+    ResolvedRefrence ref = parse_utype(pAst->getsubast(0));
+    if(ref.rt != ResolvedRefrence::NATIVE)
+        expectReferenceType(ref, ResolvedRefrence::CLASS, pAst->getsubast(0));
+
+    // check for value assignment and other vars.
+    // if it dosent have a var decl init it to default value in injector (if not in method)
 }
 
 void runtime::parse_class_decl(ast *pAst, ClassObject* pObject) {
@@ -180,8 +214,11 @@ void runtime::parse_class_decl(ast *pAst, ClassObject* pObject) {
         klass->setSuperClass(getSuper(pObject));
     }
 
-    env->create_class(int_ClassObject(klass));
+    rState.fn = NULL;
+    rState.instance = env->create_class(int_ClassObject(klass));
     klass->setBaseClass(parse_base_class(pAst, pObject));
+
+
 
     ast* block = pAst->getsubast(pAst->getsubastcount() - 1);
     for(uint32_t i = 0; i < block->getsubastcount(); i++) {
@@ -192,9 +229,12 @@ void runtime::parse_class_decl(ast *pAst, ClassObject* pObject) {
                 parse_class_decl(pAst, klass);
                 break;
             case ast_var_decl:
-                parse_var_decl(pAst, klass);
+                parse_var_decl(pAst);
+
+                injectConstructors();
                 break;
             case ast_method_decl:
+                rState.fn = NULL;
                 break;
             case ast_operator_decl:
                 break;
@@ -403,7 +443,7 @@ list<Param> runtime::ast_toparams(ast *pAst, ClassObject* parent) {
         string name = pAst->getsubast(i)->getentity(0).gettoken();
         if(tmp->getentitycount() > 0) {
             params.push_back(Param(Field(
-                    entity_tonativefield(tmp->getentity(0)), uid++,
+                    token_tonativefield(tmp->getentity(0).gettoken()), uid++,
                     name, parent, NULL,
                     RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
                                 pAst->line, pAst->col))));
@@ -459,7 +499,7 @@ void runtime::preprocc_macros_decl(ast *pAst, ClassObject *pObject) {
     if(pAst->getsubastcount() == 3) {
         tmp = pAst->getsubast(1)->getsubast(0);
         if(tmp->getentitycount() > 0)
-            n_rtype = entity_tonativefield(tmp->getentity(0));
+            n_rtype = token_tonativefield(tmp->getentity(0).gettoken());
     } else
         n_rtype = fvoid;
 
@@ -571,7 +611,7 @@ void runtime::preprocc_operator_decl(ast *pAst, ClassObject *pObject) {
     if(pAst->getsubastcount() == 3) {
         tmp = pAst->getsubast(1)->getsubast(0);
         if(tmp->getentitycount() > 0)
-            n_rtype = entity_tonativefield(tmp->getentity(0));
+            n_rtype = token_tonativefield(tmp->getentity(0).gettoken());
         tmp = pAst->getsubast(0);
     } else {
         tmp = pAst->getsubast(1);
@@ -638,7 +678,7 @@ void runtime::preprocc_method_decl(ast *pAst, ClassObject *pObject) {
     if(pAst->getsubastcount() == 3) {
         tmp = pAst->getsubast(1)->getsubast(0);
         if(tmp->getentitycount() > 0)
-            n_rtype = entity_tonativefield(tmp->getentity(0));
+            n_rtype = token_tonativefield(tmp->getentity(0).gettoken());
         tmp = pAst->getsubast(0);
     } else {
         tmp = pAst->getsubast(1);
@@ -699,7 +739,7 @@ void runtime::preprocc_var_decl(ast *pAst, ClassObject *pObject) {
     string name =  pAst->getentity(namepos).gettoken();
     tmp = pAst->getsubast(0)->getsubast(0);
     if(tmp->gettype() == ast_type_identifier && tmp->getentitycount() != 0){
-        fieldAdded =pObject->addField(Field(entity_tonativefield(tmp->getentity(0)),
+        fieldAdded =pObject->addField(Field(token_tonativefield(tmp->getentity(0).gettoken()),
                                uid++, name, pObject, &modifiers,
                                             RuntimeNote(_current->sourcefile, _current->geterrors()->getline(pAst->line),
                                                         pAst->line, pAst->col))); // native field
@@ -1091,24 +1131,24 @@ string runtime::ast_tostring(ast *pAst) {
     return str.str();
 }
 
-NativeField runtime::entity_tonativefield(token_entity entity) {
-    if(entity.gettoken() == "int")
+NativeField runtime::token_tonativefield(string entity) {
+    if(entity == "int")
         return fint;
-    else if(entity.gettoken() == "short")
+    else if(entity == "short")
         return fshort;
-    else if(entity.gettoken() == "long")
+    else if(entity == "long")
         return flong;
-    else if(entity.gettoken() == "double")
+    else if(entity == "double")
         return fdouble;
-    else if(entity.gettoken() == "float")
+    else if(entity == "float")
         return ffloat;
-    else if(entity.gettoken() == "bool")
+    else if(entity == "bool")
         return fbool;
-    else if(entity.gettoken() == "char")
+    else if(entity == "char")
         return fchar;
-    else if(entity.gettoken() == "string")
+    else if(entity == "string")
         return fstring;
-    else if(entity.gettoken() == "dynamic_object")
+    else if(entity == "dynamic_object")
         return fdynamic;
     return fnof;
 }
@@ -1157,7 +1197,7 @@ ClassObject* runtime::try_class_resolve(string intmodule, string name) {
     return ref;
 }
 
-ResolvedRefrence runtime::resolve_refrence_ptr(ast* pAst, ref_ptr &ref_ptr) {
+ResolvedRefrence runtime::resolve_refrence_ptr(ref_ptr &ref_ptr) {
     ResolvedRefrence refrence;
 
     if(ref_ptr.class_heiarchy->size() == 0) {
@@ -1230,6 +1270,15 @@ ClassObject *runtime::getSuper(ClassObject *pObject) {
         }
     }
     return super;
+}
+
+bool runtime::expectReferenceType(ResolvedRefrence refrence, ResolvedRefrence::refrenceType expectedType, ast *pAst) {
+    if(refrence.rt == expectedType)
+        return true;
+
+    errors->newerror(EXPECTED_REFRENCE_OF_TYPE, pAst->line, pAst->col, " '" + ResolvedRefrence::toString(expectedType) + "' instead of '" +
+            ResolvedRefrence::toString(refrence.rt) + "'");
+    return false;
 }
 
 _operator string_toop(string op) {

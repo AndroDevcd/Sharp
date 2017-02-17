@@ -5,28 +5,25 @@
 #include "Environment.h"
 #include "runtime.h"
 
-void Environment::create_class(int_ClassObject obj) {
+int_ClassObject* Environment::create_class(int_ClassObject obj) {
     for(int_ClassObject& o : *classes) {
-        if(o.uid == obj.uid) {
-            return;
+        if(o.refrence->match(obj.refrence)) {
+            return &o;
         }
     }
 
     classes->push_back(obj);
-}
-
-int_Method::int_Method(const string &name, const string &module, ClassObject *klass, const list <Param> &params,
-                       const list <AccessModifier> &modifiers, ClassObject *rtype, const RuntimeNote &note) : Method(
-        name, module, klass, params, modifiers, rtype, note) {
-
-}
-
-int_Method::int_Method(string name, string module, ClassObject *klass, list <Param> params,
-                       list <AccessModifier> modifiers, NativeField rtype, RuntimeNote note) : Method(name, module,
-        klass, params, modifiers, rtype, note) {
-
+    return &element_at(*classes, classes->size() - 1);
 }
 
 void int_ClassObject::create(ClassObject *klass) {
+    this->refrence = klass;
 
+    for(int64_t i = 0; i < klass->functionCount(); i++) {
+        this->functions->push_back(int_Method(klass->getFunction(i)));
+    }
+
+    for(int64_t i = 0; i < klass->constructorCount(); i++) {
+        this->constructors->push_back(int_Method(klass->getConstructor(i)));
+    }
 }
