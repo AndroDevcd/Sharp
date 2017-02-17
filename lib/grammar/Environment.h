@@ -8,6 +8,7 @@
 #include "../../stdimports.h"
 #include "OperatorOverload.h"
 #include "../util/keypair.h"
+#include "BytecodeStream.h"
 
 class Field;
 class ClassObject;
@@ -22,60 +23,60 @@ public:
     Environment()
     {
         classes = new std::list<int_ClassObject>();
+        macros = new std::list<int_Method>();
     }
 
-    void create_class(int_ClassObject obj);
+    int_ClassObject* create_class(int_ClassObject obj);
 
 private:
     std::list<int_ClassObject>* classes;
+    std::list<int_Method>* macros;
 };
 
 class int_ClassObject {
 public:
     /* Create object from class */
     int_ClassObject()
-    :
-            name(""),
-            module_name(""),
-            uid(0)
     {
         constructors = new std::list<int_Method>();
         functions = new std::list<int_Method>();
-        macros = new std::list<int_Method>();
-        fields = new std::list<Field>();
-        tmap = new std::list<ResolvedRefrence>();
     }
 
     int_ClassObject(ClassObject* klass)
     {
+        constructors = new std::list<int_Method>();
+        functions = new std::list<int_Method>();
+
         create(klass);
     }
 
     void create(ClassObject* klass);
 
-    long uid;
-    bool tmpl;
-    const string name;
-    const string module_name;
     std::list<int_Method>* constructors;
     std::list<int_Method>* functions;
-    std::list<int_Method>* macros;
-    std::list<Field> *fields;
-    std::list<ResolvedRefrence>* tmap;
-    ClassObject* parent, *super;
-    ClassObject* base;
+    ClassObject* refrence;
 };
 
-class int_Method : public Method {
+class int_Method {
 public:
-    int_Method(const string &name, const string &module, ClassObject *klass, const list <Param> &params,
-               const list <AccessModifier> &modifiers, ClassObject *rtype, const RuntimeNote &note);
-    int_Method(string name, string module, ClassObject* klass, list<Param> params, list<AccessModifier> modifiers,
-               NativeField rtype, RuntimeNote note);
-private:
-    _operator op;
-    // code for storing executable bytecode
+    int_Method(Method* ref)
+    :
+            refrence(ref),
+            op(op_NO)
+    {
+    }
 
+    int_Method(Method* ref, _operator op)
+            :
+            refrence(ref),
+            op(op)
+    {
+    }
+
+    BytecodeStream bytecode;
+private:
+    Method* refrence;
+    _operator op;
 };
 
 

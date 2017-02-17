@@ -43,6 +43,7 @@ public:
     list<string>* lines;
     string sourcefile;
 
+    static bool isnative_type(string type);
 private:
     void parse();
     bool isend();
@@ -76,8 +77,6 @@ private:
     bool isvariable_decl(token_entity token);
 
     bool ismethod_decl(token_entity token);
-
-    bool isnative_type(string type);
 
     bool isaccess_decl(token_entity token);
 

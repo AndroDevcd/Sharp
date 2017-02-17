@@ -9,9 +9,67 @@
 #include "parser/parser.h"
 #include "ClassObject.h"
 #include "Environment.h"
+#include "BytecodeStream.h"
 
 class ref_ptr;
 class ResolvedRefrence;
+
+struct RunState {
+    int_ClassObject* instance;
+    int_Method* fn;
+    BytecodeStream injector;
+};
+
+class ResolvedRefrence {
+public:
+    ResolvedRefrence()
+            :
+            rt(NOTRESOLVED),
+            field(NULL),
+            method(NULL),
+            klass(NULL),
+            oo(NULL),
+            unresolved("")
+    {
+    }
+
+    enum refrenceType {
+        FIELD,
+        CLASS,
+        METHOD,
+        MACROS,
+        OO,
+        NATIVE,
+        NOTRESOLVED
+    };
+
+    static string toString(refrenceType type) {
+        switch(type) {
+            case FIELD:
+                return "field";
+            case CLASS:
+                return "class";
+            case METHOD:
+                return "method";
+            case MACROS:
+                return "macros";
+            case OO:
+                return "operator overload";
+            case NATIVE:
+                return "native type";
+            default:
+                return "unknown";
+        }
+    }
+
+    string unresolved;
+    refrenceType rt;
+    NativeField nf;
+    ClassObject* klass;
+    Field* field;
+    Method* method;
+    OperatorOverload* oo;
+};
 
 class runtime
 {
@@ -31,6 +89,9 @@ public:
             if(!p->parsed)
                 return;
         }
+
+        rState.fn = NULL;
+        rState.instance = NULL;
 
         env = new Environment();
         macros = new list<Method>();
@@ -53,8 +114,8 @@ public:
     Errors* errors;
     size_t errs, uo_errs;
 private:
-    ast* _astcursor;
     Environment* env;
+    RunState rState;
     parser* _current;
     list<parser*> parsers;
     string out;
@@ -87,7 +148,7 @@ private:
 
     int isvar_access_specifiers(list<AccessModifier>& modifiers);
 
-    NativeField entity_tonativefield(token_entity entity);
+    NativeField token_tonativefield(string entity);
 
     void preprocc_method_decl(ast *pAst, ClassObject *pObject);
 
@@ -115,7 +176,7 @@ private:
 
     ref_ptr parse_refrence_ptr(ast *pAst);
 
-    ResolvedRefrence resolve_refrence_ptr(ast* pAst, ref_ptr &ref_ptr);
+    ResolvedRefrence resolve_refrence_ptr(ref_ptr &ref_ptr);
 
     ClassObject* resolve_class_refrence(ast *pAst, ref_ptr &ptr);
 
@@ -128,11 +189,17 @@ private:
 
     ClassObject *getSuper(ClassObject *pObject);
 
-    void parse_var_decl(ast *pAst, ClassObject *pObject);
+    void parse_var_decl(ast *pAst);
+
+    void injectConstructors();
+
+    bool expectReferenceType(ResolvedRefrence refrence, ResolvedRefrence::refrenceType type, ast *pAst);
+
+    ref_ptr parse_type_identifier(ast *pAst);
 };
 
 #define progname "bootstrap"
-#define progvers "0.1.5"
+#define progvers "0.1.6"
 
 struct options {
     /*
@@ -240,54 +307,6 @@ public:
     string module;
     list<string>* class_heiarchy;
     string refname;
-};
-
-class ResolvedRefrence {
-public:
-    ResolvedRefrence()
-    :
-            rt(NOTRESOLVED),
-            field(NULL),
-            method(NULL),
-            klass(NULL),
-            oo(NULL),
-            unresolved("")
-    {
-    }
-
-    enum refrenceType {
-        FIELD,
-        CLASS,
-        METHOD,
-        MACROS,
-        OO,
-        NOTRESOLVED
-    };
-
-    bool same(ResolvedRefrence& ref) {
-        if(rt != NOTRESOLVED && rt == ref.rt) {
-            if(rt == FIELD) {
-                return *field == *ref.field;
-            } else if(rt == CLASS) {
-                return klass->match(ref.klass);
-            } else if(rt == METHOD || rt == MACROS) {
-                return Param::match(*method->getParams(), *ref.method->getParams()) &&
-                        method->getName() == ref.method->getName();
-            } else if(rt == OO) {
-                return Param::match(*oo->getParams(), *ref.oo->getParams()) &&
-                       oo->getOperator() == ref.oo->getOperator();
-            }
-        }
-
-        return false;
-    }
-
-    string unresolved;
-    refrenceType rt;
-    ClassObject* klass;
-    Field* field;
-    Method* method;
-    OperatorOverload* oo;
 };
 
 #endif //SHARP_RUNTIME_H

@@ -428,7 +428,7 @@ ast * parser::get_ast(ast *pAst, ast_types typ) {
         return ast_at(ast_cursor);
     }
     else {
-        pAst->add_ast(ast(pAst, typ, current().getline(), current().getcolumn()));
+        pAst->add_ast(ast(pAst, typ, peek(1).getline(), peek(1).getcolumn()));
 
         return pAst->getsubast(pAst->getsubastcount() - 1);
     }
@@ -451,10 +451,11 @@ void parser::parse_variabledecl(ast *pAst) {
         pushback();
         if(!parse_utype(pAst))
             errors->newerror(GENERIC, current(), "expected native type or reference pointer");
-    } else
+    } else {
         partialdecl--;
+        parse_memaccess_flag(pAst);
+    }
 
-    parse_memaccess_flag(pAst);
     expectidentifier(pAst);
 
     parse_valueassignment(pAst);
