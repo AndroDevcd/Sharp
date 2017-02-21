@@ -5,7 +5,10 @@
 #ifndef SHARP_META_H
 #define SHARP_META_H
 
-
+/**
+ * File and debugging info, line
+ * by line debugging meta data
+ */
 class Meta {
 
 };

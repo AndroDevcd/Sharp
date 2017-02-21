@@ -5,15 +5,20 @@
 #ifndef SHARP_STARTUP_H
 #define SHARP_STARTUP_H
 
+#include "../../stdimports.h"
+
 int runtimeStart(int argc, const char* argv[]);
 
-#define vm_
+void error(string message);
+
 #define progname "sharp"
-#define progvers "0.1.0"
+#define rev "r1"
+#define progvers "0.1.0" rev
 
 struct options {
 
 };
 
+extern options c_options;
 
 #endif //SHARP_STARTUP_H

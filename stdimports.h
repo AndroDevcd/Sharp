@@ -8,6 +8,7 @@
 #include <iostream>
 #include <stdint.h>
 #include <cstdlib>
+#include <sstream>
 #include <list>
 
 using namespace std;

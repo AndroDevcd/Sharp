@@ -3,15 +3,18 @@
 //
 
 #include <cstring>
+#include <cstdio>
 #include "../../stdimports.h"
 #include "startup.h"
 #include "../util/file.h"
+#include "interp/vm.h"
+#include "internal/Environment.h"
 
 options c_options;
-int __vinit(string e);
+int __vinit(string e, list<string> pArgs);
 
 void version() {
-
+    cout << progname << " " << progvers;
 }
 
 void error(string message) {
@@ -31,12 +34,13 @@ void help() {
 
 int runtimeStart(int argc, const char* argv[])
 {
-    if (argc < 2) { // We expect 2 arguments: the source file(s), and program options
+    if (argc < 2) { // We expect at least 1 argument: the executable
         help();
         return 1;
     }
 
     string executable ="";
+    list<string> pArgs;
     for (int i = 1; i < argc; ++i) {
         if(opt("-V")){
             version();
@@ -55,13 +59,10 @@ int runtimeStart(int argc, const char* argv[])
         }
         else {
             // add the source files
-            if(executable == "")
-                executable = argv[i];
-            else {
-                error("multiple executables '" + executable + "' and '" + argv[i] + "'");
-                break;
-            }
-            continue;
+            executable = argv[i++];
+            while(i < argc)
+                pArgs.push_back(string(argv[i++]));
+            break;
         }
     }
 
@@ -74,9 +75,26 @@ int runtimeStart(int argc, const char* argv[])
         error("file `" + executable + "` doesnt exist!");
     }
 
-    return __vinit(executable);
+    return __vinit(executable, pArgs);
 }
 
-int __vinit(string exe) {
+int __vinit(string exe, list<string> pArgs) {
+    SharpVM* vm = NULL;
+    Environment* env = NULL;
+
+
+    if(CreateSharpVM(&vm, &env, exe, pArgs) != 0) {
+        fprintf(stderr, "Sharp VM init failed (check log file)\n");
+        goto bail;
+    }
+
     return 0;
+
+    bail:
+        if(vm != NULL) {
+            vm->DetatchCurrentThread();
+            vm->DestroySharpVM();
+        }
+
+        return 1;
 }
