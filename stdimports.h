@@ -13,12 +13,20 @@
 
 using namespace std;
 
-#ifndef __wtypes_h__
-#include <wtypes.h>
-#endif
+#define WIN32_
+//#define POSIX_
 
-#ifndef __WINDEF_
-#include <windef.h>
+#ifdef WIN32_
+    #ifndef __wtypes_h__
+    #include <wtypes.h>
+    #endif
+
+    #ifndef __WINDEF_
+    #include <windef.h>
+    #endif
+#endif
+#ifdef POSIX_
+    #include <pthread.h>
 #endif
 
 #define CXX11_INLINE inline

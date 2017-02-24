@@ -14,7 +14,12 @@ public:
     static void Startup();
 
     uint32_t id;
-    HANDLE* pthread;
+#ifdef WIN32_
+    HANDLE* thread;
+#endif
+#ifdef POSIX_
+    pthread_t thread;
+#endif
 };
 
 
