@@ -118,8 +118,7 @@ int Process_Exe(std::string exe)
                     manifest.strings =getlong(f);
                     break;
                 default:
-                    error("file `" + exe + "` may be corrupt");
-                    return 1; /* for lint */
+                    throw std::runtime_error("file `" + exe + "` may be corrupt");
             }
 
             if(fl == eoh) {
@@ -136,7 +135,7 @@ int Process_Exe(std::string exe)
         }
 
         if(f.at(n++) != sdata)
-            error("file `" + exe + "` may be corrupt");
+            throw std::runtime_error("file `" + exe + "` may be corrupt");
 
         /* Data section */
         list<MetaClass> mClasses;
@@ -215,8 +214,7 @@ int Process_Exe(std::string exe)
                 case sstring:
                     break;
                 default:
-                    error("file `" + exe + "` may be corrupt");
-                    return 1; /* for lint */
+                    throw std::runtime_error("file `" + exe + "` may be corrupt");
             }
 
             if(fl == sstring) {
@@ -260,8 +258,7 @@ int Process_Exe(std::string exe)
                     break;
 
                 default:
-                    error("file `" + exe + "` may be corrupt");
-                    return 1; /* for lint */
+                    throw std::runtime_error("file `" + exe + "` may be corrupt");
             }
 
             if(fl == eos) {
@@ -272,7 +269,7 @@ int Process_Exe(std::string exe)
         }
 
         if(f.at(n++) != stext)
-            error("file `" + exe + "` may be corrupt");
+            throw std::runtime_error("file `" + exe + "` may be corrupt");
 
         /* Text section */
         uint64_t dc=0, bRef=0;
@@ -303,8 +300,7 @@ int Process_Exe(std::string exe)
                 case eos:
                     break;
                 default:
-                    error("file `" + exe + "` may be corrupt");
-                    return 1; /* for lint */
+                    throw std::runtime_error("file `" + exe + "` may be corrupt");
             }
 
             if(fl == eos) {
