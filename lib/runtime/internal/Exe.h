@@ -9,10 +9,17 @@
 #include "../Manifest.h"
 #include "../Meta.h"
 
+extern stringstream sdf;
+extern uint64_t jobIndx;
+
 int Process_Exe(std::string);
 
 Manifest& getManifest();
 
 Meta& getMetaData();
+
+void pushStackDump();
+
+void updateStackFile(string status);
 
 #endif //SHARP_EXE_H

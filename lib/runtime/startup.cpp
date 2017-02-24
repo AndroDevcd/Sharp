@@ -9,6 +9,7 @@
 #include "../util/file.h"
 #include "interp/vm.h"
 #include "internal/Environment.h"
+#include "internal/Exe.h"
 
 options c_options;
 int __vinit(string e, list<string> pArgs);
@@ -92,6 +93,10 @@ int __vinit(string exe, list<string> pArgs) {
 
     bail:
         if(vm != NULL) {
+            jobIndx = 0;
+            updateStackFile("shutting down sharp VM");
+            pushStackDump();
+
             vm->DetatchCurrentThread();
             vm->DestroySharpVM();
         }

@@ -54,8 +54,7 @@ string file::read_alltext(const char *file)
     if(!exists(file))
         return "";
 
-    stringstream f;
-    f << "";
+    string data = "";
 
     try {
         string tmp;
@@ -64,18 +63,18 @@ string file::read_alltext(const char *file)
         while(!input.eof()) {
             tmp = "";
             getline(input, tmp);
-            f << tmp;
-            f << "\n";
+            data += tmp;
+            data+= "\n";
         }
     }
     catch(std::bad_alloc& ba){
-        return f.str();
+        return data;
     }
     catch(std::exception& e){
-        return f.str();
+        return data;
     }
 
-    return f.str();
+    return data;
 }
 
 bool file::endswith(string ext, string file) {

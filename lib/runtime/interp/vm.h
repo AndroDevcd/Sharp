@@ -7,6 +7,7 @@
 
 #include "../../../stdimports.h"
 #include "../oo/ClassObject.h"
+#include "../oo/string.h"
 
 class Environment;
 
@@ -17,9 +18,14 @@ public:
 
     void DetatchCurrentThread();
 
+    void Execute(Method* method);
+
     Method* methods;
     ClassObject* classes;
-
+    gc_object* objects;
+    String* strings;
+    double* bytecode;
+    int32_t sp, ip;
 };
 
 extern SharpVM* vm;

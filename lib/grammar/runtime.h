@@ -295,7 +295,7 @@ struct options {
     bool optimize = false;
 
     /*
-     * Set code to be debuggable
+     * Set code to be debuggable (flag only used in manifest creation)
      */
     bool debug = true;
 

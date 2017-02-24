@@ -8,7 +8,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 
-template<typename TimeT = std::chrono::milliseconds>
+template<typename TimeT = std::chrono::microseconds>
 struct measure
 {
     template<typename F, typename ...Args>
@@ -39,10 +39,52 @@ void buildExe() {
     executable << copy(0, 15) << ((char)0x07);
     executable << ((char)0x1b) << ((char)0x0c);
 
-    char c  =0x42;
-    stringstream ss;
-    ss<< c;
-    cout << "s " << ss.str() << endl;
+    /* manifest */
+    executable << (char)0x1;
+    executable << (char)0x2 << "helloworld" << (char)0x0; // application
+    executable << (char)0x4 << "1.0" << (char)0x0; // version
+    executable << (char)0x5 << (char)0x0; // debug
+    executable << (char)0x6 << 0 << (char)0x0; // entry
+    executable << (char)0x7 << 0 << (char)0x0; // methods
+    executable << (char)0x8 << 1 << (char)0x0; // classes
+    executable << (char)0x9 << 1 << (char)0x0; // fvers
+    executable << (char)0x0b << 7 << (char)0x0 << endl; // isize
+    executable << (char)0x0c << 1 << (char)0x0 << endl; // strings
+    executable << (char)0x03;
+
+    /* Data section */
+    executable << (char)0x05 << endl;
+
+    executable << (char)0x2f; // class
+    executable << "-1" << (char)0x0; // super class
+    executable << "0" << (char)0x0; // claas id
+    executable << "Main" << (char)0x0; // name
+    executable << "0" << (char)0x0; // fields
+    executable << "1" << (char)0x0; // methods
+
+    /* methods */
+    executable << endl;
+    executable << (char)0x4c; // method
+    executable << "main" << (char)0x0; // name
+    executable << "1" << (char)0x0; // id
+    executable << "0" << (char)0x0; // entry
+    executable << endl;
+
+    // string section
+    executable << (char)0x02;
+    executable << (char)0x1e << "0" << (char)0x0 << "Hello, World!" << (char)0x0;
+    executable << endl;
+    executable << (char)0x1d;
+
+    /* Text section */
+    executable << (char)0x0e;
+    executable << endl;
+    executable << (char)0x05 << (char)0x0 << (char)0x0; // nop
+    executable << (char)0x05 << (char)0x1 << (char)0x1 << "0" << (char)0x0; // push_str
+    executable << (char)0x05 << (char)0x1 << (char)0x2 << "0x0" << (char)0x0; // _int
+    executable << (char)0x05 << (char)0x1 << (char)0x3 << "1" << (char)0x0; // pushi
+    executable << endl;
+    executable << (char)0x1d;
 
     executable << endl;
     file::write("out", executable.str());
@@ -57,6 +99,6 @@ int main(int argc, const char* argv[]) {
 
     std::cout << "vm time " << measure<>::execution(
             runtimeStart, argc, argv
-    ) << "ms" << std::endl;
+    ) << "us" << std::endl;
     return 0;
 }

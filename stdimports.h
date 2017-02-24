@@ -13,6 +13,14 @@
 
 using namespace std;
 
+#ifndef __wtypes_h__
+#include <wtypes.h>
+#endif
+
+#ifndef __WINDEF_
+#include <windef.h>
+#endif
+
 #define CXX11_INLINE inline
 
 #endif //SHARP_STDIMPORTS_H

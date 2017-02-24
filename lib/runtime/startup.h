@@ -21,4 +21,40 @@ struct options {
 
 extern options c_options;
 
+template <class T>
+inline T& element_at(list<T>& l, size_t x) {
+    return *std::next(l.begin(), x);
+}
+
+template <class T>
+inline T& element_at(list<T>& l, T search) {
+    for(T var : l) {
+        if(search == var)
+            return var;
+    }
+
+    return *std::next(l.begin(), 0);
+}
+
+template <class T>
+inline long element_index(list<T>& l, T search) {
+    long iter=0;
+    for(T var : l) {
+        if(search == var)
+            return iter;
+        iter++;
+    }
+
+    return -1;
+}
+
+template <class T>
+inline bool element_has(list<T>& l, T search) {
+    for(T var : l) {
+        if(search == var)
+            return true;
+    }
+    return false;
+}
+
 #endif //SHARP_STARTUP_H

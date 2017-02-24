@@ -19,10 +19,8 @@ struct Manifest {
     int64_t methods, classes;
     int fvers;
     int target;
-    int isize;
-    int64_t addrs,
-            saddrs,
-            laddrs;
+    int64_t isize;
+    int64_t strings;
 };
 
 
