@@ -20,12 +20,16 @@ public:
 
     void Execute(Method* method);
 
-    Method* methods;
-    ClassObject* classes;
-    gc_object* objects;
-    String* strings;
-    double* bytecode;
-    int32_t sp, ip;
+    static
+#ifdef WIN32_
+    DWORD WINAPI
+#endif
+#ifdef POSIX_
+    void*
+#endif
+    InterpreterThreadStart(void *arg);
+
+    static void Shutdown();
 };
 
 extern SharpVM* vm;

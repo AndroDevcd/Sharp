@@ -8,6 +8,7 @@
 #include "Environment.h"
 #include "../oo/Field.h"
 #include "../interp/vm.h"
+#include "../oo/Method.h"
 
 #define offset 0xf
 #define file_sig 0x0f
@@ -143,11 +144,11 @@ int Process_Exe(std::string exe)
         int64_t cRef=0, mRef=0;
         updateStackFile("processing .data section");
 
-        vm->classes = new ClassObject[manifest.classes];
-        vm->methods = new Method[manifest.methods];
-        vm->strings = new String[manifest.strings];
-        vm->bytecode = new double[manifest.isize];
-        vm->objects = NULL;
+        env->classes = new ClassObject[manifest.classes];
+        env->methods = new Method[manifest.methods];
+        env->strings = new String[manifest.strings];
+        env->bytecode = new double[manifest.isize];
+        env->objects = NULL;
 
         for (;;) {
 
@@ -160,7 +161,7 @@ int Process_Exe(std::string exe)
 
                 case data_class: {
                     int64_t fc=0, mc=0;
-                    ClassObject* c = &vm->classes[cRef];
+                    ClassObject* c = &env->classes[cRef];
                     mClasses.push_back(MetaClass(c, getlong(f)));
 
                     c->id = getlong(f);
@@ -209,7 +210,7 @@ int Process_Exe(std::string exe)
                 }
 
                 case data_method:
-                    getMethod(f, NULL, &vm->methods[mRef++]);
+                    getMethod(f, NULL, &env->methods[mRef++]);
                     break;
                 case sstring:
                     break;
@@ -247,8 +248,8 @@ int Process_Exe(std::string exe)
 
                 case data_string: {
                     sc++;
-                    vm->strings[sRef].id = getlong(f);
-                    vm->strings[sRef].value = getstring(f);
+                    env->strings[sRef].id = getlong(f);
+                    env->strings[sRef].value = getstring(f);
 
                     sRef++;
                     break;
@@ -290,10 +291,10 @@ int Process_Exe(std::string exe)
                     if(bRef >= manifest.isize || (bRef+bytes) >= manifest.isize)
                         throw std::runtime_error("text section may be corrupt");
 
-                    vm->bytecode[bRef++] = f.at(n++); // instruction
+                    env->bytecode[bRef++] = f.at(n++); // instruction
                     for(int i = 0; i < bytes; i++) {
                         dc++;
-                        vm->bytecode[bRef++] = getnumber(f); // operands
+                        env->bytecode[bRef++] = getnumber(f); // operands
                     }
                 }
 
@@ -320,8 +321,8 @@ int Process_Exe(std::string exe)
 
 ClassObject *findClass(int64_t superClass) {
     for(uint64_t i = 0; i < manifest.classes; i++) {
-        if(vm->classes[i].id == superClass)
-            return &vm->classes[i];
+        if(env->classes[i].id == superClass)
+            return &env->classes[i];
     }
 
     return NULL;

@@ -3,3 +3,11 @@
 //
 
 #include "FastStack.h"
+
+void FastStack::free() {
+
+}
+
+int FastStack::popInt() {
+    return 0;
+}

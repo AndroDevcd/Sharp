@@ -17,6 +17,9 @@ using namespace std;
 //#define POSIX_
 
 #ifdef WIN32_
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
+
     #ifndef __wtypes_h__
     #include <wtypes.h>
     #endif
@@ -27,6 +30,9 @@ using namespace std;
 #endif
 #ifdef POSIX_
     #include <pthread.h>
+    #include <unistd.h>
+
+    #define POSIX_USEC_INTERVAL 1000
 #endif
 
 #define CXX11_INLINE inline

@@ -11,6 +11,7 @@
 
 extern stringstream sdf;
 extern uint64_t jobIndx;
+extern Manifest manifest;
 
 int Process_Exe(std::string);
 

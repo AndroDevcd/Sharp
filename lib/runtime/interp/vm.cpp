@@ -34,3 +34,23 @@ void SharpVM::DestroySharpVM() {
 void SharpVM::DetatchCurrentThread() {
 
 }
+
+#ifdef WIN32_
+DWORD WINAPI
+#endif
+#ifdef POSIX_
+void*
+#endif
+    SharpVM::InterpreterThreadStart(void *arg) {
+
+#ifdef WIN32_
+        return 0;
+#endif
+#ifdef POSIX_
+        return NULL;
+#endif
+    }
+
+void SharpVM::Shutdown() {
+
+}

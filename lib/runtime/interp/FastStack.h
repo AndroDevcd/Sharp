@@ -7,7 +7,11 @@
 
 
 class FastStack {
+public:
 
+    int popInt();
+
+    void free();
 };
 
 
