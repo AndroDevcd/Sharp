@@ -11,23 +11,23 @@ void ClassObject::free() {
     if(fields != NULL) {
         for(int64_t i = 0; i < fieldCount; i++)
             fields[i].free();
-        delete (fields); fields = NULL;
+        std::free(fields); fields = NULL;
 
         if(super != NULL) {
             super->free();
-            delete (super); super = NULL;
+            std::free(super); super = NULL;
         }
     }
 
     if(flds != NULL) {
         for(int64_t i = 0; i < fieldCount; i++)
             flds[i].free();
-        delete (flds); flds = NULL;
+        std::free(flds); flds = NULL;
     }
 
     if(methods != NULL) {
         for(int64_t i = 0; i < methodCount; i++)
             methods[i].free();
-        delete (methods); methods = NULL;
+        std::free(methods); methods = NULL;
     }
 }
