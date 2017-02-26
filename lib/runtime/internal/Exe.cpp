@@ -149,11 +149,11 @@ int Process_Exe(std::string exe)
         int64_t cRef=0, mRef=0;
         updateStackFile("processing .data section");
 
-        env->classes = new ClassObject[manifest.classes];
-        env->objects = new gc_object[manifest.classes];
-        env->methods = new Method[manifest.methods];
-        env->strings = new String[manifest.strings];
-        env->bytecode = new double[manifest.isize];
+        env->classes = (ClassObject*) malloc(manifest.classes*sizeof(ClassObject));
+        env->objects = (gc_object*) malloc(manifest.classes*sizeof(gc_object));
+        env->methods = (Method*) malloc(manifest.methods*sizeof(Method));
+        env->strings = (String*) malloc(manifest.strings*sizeof(String));
+        env->bytecode = (double*) malloc(manifest.isize*sizeof(double));
 
         for (;;) {
 
@@ -174,11 +174,11 @@ int Process_Exe(std::string exe)
                     c->fieldCount = getlong(f);
                     c->methodCount = getlong(f);
                     if(c->fieldCount != 0) {
-                        c->flds = new Field[c->fieldCount];
+                        c->flds = (Field*) malloc(c->fieldCount*sizeof(Field));
                     } else
                         c->flds = NULL;
                     if(c->methodCount != 0) {
-                        c->methods = new Method[c->methodCount];
+                        c->methods = (Method*) malloc(c->methodCount*sizeof(Method));
                     } else
                         c->methods = NULL;
                     c->super = NULL;
@@ -378,7 +378,7 @@ int64_t getlong(string exe) {
 
 std::string string_forward(std::string str, size_t begin, size_t end) {
     if(begin >= str.size() || end >= str.size())
-        throw new std::invalid_argument("unexpected end of stream");
+        throw std::invalid_argument("unexpected end of stream");
 
     size_t it=0;
     string s;

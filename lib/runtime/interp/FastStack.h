@@ -27,7 +27,7 @@ public:
     }
 
     void init() {
-        lst = new StackItem[default_stack];
+        lst = (StackItem*) malloc(default_stack*sizeof(StackItem));
         len = default_stack;
     }
 
