@@ -232,7 +232,7 @@ void Thread::killAll() {
                 thread->term();
             }
 
-            delete (thread); thread = NULL;
+            std::free(thread); thread = NULL;
         }
     }
 }
@@ -270,10 +270,10 @@ void Thread::shutdown() {
     if(threads != NULL) {
         Thread::killAll();
         Thread::self->term();
-        delete (Thread::self);
+        std::free(Thread::self);
 
         Thread::threads->clear();
-        delete (Thread::threads);
+        std::free(Thread::threads);
     }
 }
 

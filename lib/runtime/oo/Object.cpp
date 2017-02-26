@@ -37,21 +37,21 @@ void gc_object::free() {
             case nativefloat:
             case nativedouble: {
                 if(obj != Environment::nilObject) {
-                    delete (obj);
+                    std::free(obj);
                 }
                 break;
             }
             case classobject: {
                 if(klass != Environment::nilClass) {
                     klass->free();
-                    delete (klass);
+                    std::free(klass);
                 }
                 break;
             }
             case arrayobject: {
                 if(arry != Environment::nilArray) {
                     arry->free();
-                    delete (arry);
+                    std::free(arry);
                 }
                 break;
             }
