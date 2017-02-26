@@ -50,7 +50,7 @@ void buildExe() {
     executable << (char)0x9 << 1 << (char)0x0; // fvers
     executable << (char)0x0b << 7 << (char)0x0 << endl; // isize
     executable << (char)0x0c << 1 << (char)0x0; // strings
-    executable << (char)0x0e << 1 << (char)0x0;
+    executable << (char)0x0e << 1 << (char)0x0; // base address
     executable << (char)0x03;
 
     /* Data section */
