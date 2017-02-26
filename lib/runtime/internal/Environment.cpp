@@ -64,7 +64,9 @@ ClassObject *Environment::findClass(int64_t id) {
 
 void Environment::shutdown() {
     updateStackFile("Destroying environment");
+    cout << "out" << endl;
     std::free (this->bytecode);
+    cout << "out" << endl;
     std::free (this->strings);
 
     cout << "out" << endl;
