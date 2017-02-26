@@ -10,6 +10,7 @@
 #include "interp/vm.h"
 #include "internal/Environment.h"
 #include "internal/Exe.h"
+#include "internal/Thread.h"
 
 options c_options;
 int __vinit(string e, list<string> pArgs);
@@ -89,7 +90,9 @@ int __vinit(string exe, list<string> pArgs) {
         goto bail;
     }
 
-    return 0;
+    vm->InterpreterThreadStart(element_at(*Thread::threads, 0));
+
+    return Thread::self->exitVal;
 
     bail:
         if(vm != NULL) {
@@ -97,7 +100,6 @@ int __vinit(string exe, list<string> pArgs) {
             updateStackFile("shutting down sharp VM");
             pushStackDump();
 
-            vm->DetatchCurrentThread();
             vm->DestroySharpVM();
         }
 

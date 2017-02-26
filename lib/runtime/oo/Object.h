@@ -20,7 +20,8 @@ enum Type {
     nativefloat,
     nativedouble,
     classobject,
-    arrayobject
+    arrayobject,
+    nilobject
 };
 
 /* native object */
@@ -39,6 +40,9 @@ struct Object {
 /* Objects stored in memory */
 class gc_object {
 public:
+    gc_object();
+
+    gc_object(Type type);
 
     int32_t refCounter;
     gc_mark mark;
@@ -46,6 +50,8 @@ public:
     Object* obj;
     ArrayObject* arry;
     ClassObject* klass;
+
+    void free();
 };
 
 #endif //SHARP_OBJECT_H

@@ -23,6 +23,10 @@ public:
     int64_t id;
     int type;
     ClassObject* owner;
+
+    void free() {
+        owner = NULL;
+    }
 };
 
 

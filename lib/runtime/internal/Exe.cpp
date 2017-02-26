@@ -9,6 +9,7 @@
 #include "../oo/Field.h"
 #include "../interp/vm.h"
 #include "../oo/Method.h"
+#include "../oo/Object.h"
 
 #define offset 0xf
 #define file_sig 0x0f
@@ -18,7 +19,7 @@
 #define manif 0x1
 #define eoh 0x03
 #define nil 0x0
-#define hsz 0x09
+#define hsz 0x0a
 #define eos 0x1d
 #define sdata 0x05
 #define sstring 0x02
@@ -62,6 +63,7 @@ int Process_Exe(std::string exe)
         error("file `" + exe + "` doesnt exist!");
     }
 
+    manifest.executable = exe;
     f = file::read_alltext(exe.c_str());
     if(f == "")
         return 1;
@@ -118,6 +120,9 @@ int Process_Exe(std::string exe)
                 case 0x0c:
                     manifest.strings =getlong(f);
                     break;
+                case 0x0e:
+                    manifest.baseaddr =getlong(f);
+                    break;
                 default:
                     throw std::runtime_error("file `" + exe + "` may be corrupt");
             }
@@ -145,6 +150,7 @@ int Process_Exe(std::string exe)
         updateStackFile("processing .data section");
 
         env->classes = new ClassObject[manifest.classes];
+        env->objects = new gc_object[manifest.classes];
         env->methods = new Method[manifest.methods];
         env->strings = new String[manifest.strings];
         env->bytecode = new double[manifest.isize];
@@ -168,8 +174,14 @@ int Process_Exe(std::string exe)
                     c->name = getstring(f);
                     c->fieldCount = getlong(f);
                     c->methodCount = getlong(f);
-                    c->flds = new Field[c->fieldCount];
-                    c->methods = new Method[c->methodCount];
+                    if(c->fieldCount != 0) {
+                        c->flds = new Field[c->fieldCount];
+                    } else
+                        c->flds = NULL;
+                    if(c->methodCount != 0) {
+                        c->methods = new Method[c->methodCount];
+                    } else
+                        c->methods = NULL;
                     c->super = NULL;
                     c->fields = NULL;
 
@@ -193,7 +205,11 @@ int Process_Exe(std::string exe)
                         for( ;; ) {
                             if(f.at(n) == data_method) {
                                 n++;
-                                getMethod(f, c, &c->methods[mc++]);
+                                getMethod(f, c, &c->methods[mc]);
+
+                                if(manifest.entry == c->methods[mc].id)
+                                    manifest.main = &c->methods[mc];
+                                mc++;
                             } else if(f.at(n) == 0x0a || f.at(n) == 0x0d){
                                 n++;
                             } else
@@ -395,7 +411,7 @@ Meta& getMetaData() {
 }
 
 void pushStackDump() {
-    file::write("stack_dump.txt", stackdump.str());
+    file::write((manifest.executable + ".stackdump").c_str(), stackdump.str());
 }
 
 void updateStackFile(string status) {

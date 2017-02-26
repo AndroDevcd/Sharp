@@ -9,6 +9,8 @@
 #include "../../../stdimports.h"
 #include "Monitor.h"
 #include "../interp/FastStack.h"
+#include "../oo/ClassObject.h"
+#include "../oo/Exception.h"
 
 class Method;
 
@@ -16,7 +18,6 @@ enum ThreadState {
     thread_init,
     thread_running,
     thread_suspend,
-    thread_zombie,
     thread_killed
 };
 
@@ -31,11 +32,17 @@ public:
             suspended(false),
             name(""),
             main(NULL),
-            exitVal(-1),
-            suspendPending(false)
+            exitVal(1),
+            suspendPending(false),
+            exceptionThrown(false),
+            throwable()
 
     {
         threads = new list<Thread*>();
+
+#ifdef WIN32_
+        thread = NULL;
+#endif
     }
 
     static void Startup();
@@ -48,9 +55,13 @@ public:
     static void waitForThreadSuspend(Thread* thread);
     static int unsuspendThread(int32_t);
     static void suspendThread(int32_t);
+    static void killAll();
+    static void shutdown();
 
 
-    void Create(string, int64_t, int64_t);
+    void Create(string, ClassObject*, int64_t);
+    void Create(string);
+    void exit();
 
     thread_local
     static Thread* self;
@@ -66,9 +77,11 @@ public:
     Method* main;
     int exitVal;
     bool suspendPending;
+    bool exceptionThrown;
 
-    int32_t sp, ip;
+    int32_t ip;
     FastStack stack;
+    Throwable throwable;
 #ifdef WIN32_
     HANDLE thread;
 #endif
@@ -76,14 +89,16 @@ public:
     pthread_t thread;
 #endif
 
+    void term();
+
 private:
 
     void wait();
-    void term();
 
     static int threadjoin(Thread*);
     static int unsuspendThread(Thread*);
     static void suspendThread(Thread*);
+    static int interrupt(Thread*);
 };
 
 #define ZombieMax 0x7e

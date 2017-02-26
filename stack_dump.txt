@@ -1,7 +1,0 @@
-Creating virtual machine:
-	reading executable
-		processing manifest
-		processing .data section
-		processing .string section
-		processing .text section
-		exception thrown: text section may be corrupt

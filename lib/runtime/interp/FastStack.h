@@ -5,13 +5,41 @@
 #ifndef SHARP_FASTSTACK_H
 #define SHARP_FASTSTACK_H
 
+#include "../../../stdimports.h"
+
+#define default_stack 0xffe
+
+class gc_object;
+
+struct StackItem {
+    double value;
+    gc_object* object;
+};
 
 class FastStack {
 public:
+    FastStack()
+    :
+            lst(NULL),
+            len(0),
+            sp(-1)
+    {
+    }
+
+    void init() {
+        lst = new StackItem[default_stack];
+        len = default_stack;
+    }
+
+    int32_t len;
 
     int popInt();
 
     void free();
+
+private:
+    StackItem* lst;
+    int32_t sp;
 };
 
 

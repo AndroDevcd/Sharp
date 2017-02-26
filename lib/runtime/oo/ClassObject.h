@@ -13,12 +13,42 @@ class Method;
 
 class ClassObject {
 public:
+    ClassObject()
+    :
+            name(""),
+            flds(NULL),
+            methods(NULL),
+            super(NULL),
+            id(-1),
+            fieldCount(0),
+            methodCount(0),
+            fields(NULL)
+    {
+    }
+
+    ClassObject(string name, Field* fields, int64_t fc,
+                Method* methods, int64_t mc, ClassObject* super,
+                int64_t id)
+    :
+            name(name),
+            flds(flds),
+            methods(methods),
+            super(super),
+            id(id),
+            fieldCount(fc),
+            methodCount(mc),
+            fields(NULL)
+    {
+    }
+
     string name;
     Field* flds;
     gc_object* fields;
     Method* methods;
     ClassObject* super;
     int64_t id, fieldCount, methodCount;
+
+    void free();
 };
 
 

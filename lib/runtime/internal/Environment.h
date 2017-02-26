@@ -11,6 +11,8 @@
 class gc_object;
 class Method;
 class ClassObject;
+class Object;
+class ArrayObject;
 
 class Environment {
 public:
@@ -29,7 +31,14 @@ public:
     Method* getMethod(int64_t id);
     Method* getMethodFromClass(ClassObject* classObject, int64_t id);
     ClassObject* findClass(string name);
+    ClassObject* tryFindClass(string name);
     ClassObject* findClass(int64_t id);
+
+    static ClassObject* newClass(int64_t);
+
+    static ClassObject* nilClass;
+    static Object* nilObject;
+    static ArrayObject* nilArray;
 
     gc_object* objects;
 
@@ -37,6 +46,8 @@ public:
     ClassObject* classes;
     String* strings;
     double* bytecode;
+
+    void shutdown();
 };
 
 extern Environment* env;

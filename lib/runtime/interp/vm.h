@@ -16,8 +16,6 @@ class SharpVM {
 public:
     void DestroySharpVM();
 
-    void DetatchCurrentThread();
-
     void Execute(Method* method);
 
     static
@@ -29,7 +27,7 @@ public:
 #endif
     InterpreterThreadStart(void *arg);
 
-    static void Shutdown();
+    void Shutdown();
 };
 
 extern SharpVM* vm;

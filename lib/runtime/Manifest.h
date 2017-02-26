@@ -7,11 +7,14 @@
 
 #include "../../stdimports.h"
 
+class Method;
+
 /**
  * Application info
  */
 struct Manifest {
 
+    string executable;
     string application;
     string version;
     bool debug;
@@ -21,6 +24,8 @@ struct Manifest {
     int target;
     int64_t isize;
     int64_t strings;
+    int64_t baseaddr;
+    Method* main;
 };
 
 

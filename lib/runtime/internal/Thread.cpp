@@ -16,14 +16,27 @@ list<Thread*>* Thread::threads = NULL;
 void Thread::Startup() {
     updateStackFile("starting up thread manager");
     threads = new list<Thread*>();
-    // TODO: attach current thread as main thread
+    threads->push_back(new Thread());
+
+    Thread* main = element_at(*threads, 0);
+    main->stack.init();
+    main->main = manifest.main;
+    main->Create("Main");
 }
 
-void Thread::Create(string name, int64_t klass, int64_t method) {
+void Thread::Create(string name, ClassObject* klass, int64_t method) {
     this->monitor = new Monitor();
-    this->main = env->getMethodFromClass(env->findClass(klass), method);
+    this->main = env->getMethodFromClass(klass, method);
     this->name = name;
     this->id = Thread::tid++;
+    this->stack.init();
+}
+
+void Thread::Create(string name) {
+    this->monitor = new Monitor();
+    this->name = name;
+    this->id = Thread::tid++;
+    this->stack.init();
 }
 
 Thread *Thread::getThread(int32_t id) {
@@ -130,52 +143,7 @@ int Thread::interrupt(int32_t id) {
     if(thread == NULL)
         return 1;
 
-    if (thread->state == thread_running)
-    {
-        waitForThreadSuspend(thread);
-
-        if (thread->id == main_threadid)
-        {
-
-            /*
-            * Shutdown all running threads
-            * and de-allocate all allocated
-            * memory. If we do not call join()
-            * to wait for all other threads
-            * regardless of what they are doing, we
-            * stop them.
-            */
-            SharpVM::Shutdown();
-        }
-        else
-        {
-#ifdef WIN32_
-            try {
-                thread->exitVal = thread->stack.popInt();
-
-                if(!TerminateThread(
-                        thread->thread,
-                        thread->exitVal
-                )) {
-                    thread->term();
-                    return 0;
-                }
-            } catch(Exception){}
-#endif
-#ifdef POSIX_
-            try {
-                thread->exitVal = thread->stack.popInt();
-
-                if(!pthread_kill(thread->thread, thread->exitVal)) {
-                    thread->term();
-                    return 0;
-                }
-            } catch(Exception){}
-#endif
-        }
-    }
-
-    return 2;
+    return interrupt(thread);
 }
 
 void Thread::waitForThreadSuspend(Thread *thread) {
@@ -250,4 +218,94 @@ int Thread::threadjoin(Thread *thread) {
     }
 
     return 2;
+}
+
+void Thread::killAll() {
+    for(Thread* thread : *threads) {
+        if(thread->id != self->id) {
+            if(thread->state == thread_running) {
+                suspendThread(thread);
+                waitForThreadSuspend(thread);
+
+                interrupt(thread);
+            } else {
+                thread->term();
+            }
+
+            std::free (thread); thread = NULL;
+        }
+    }
+}
+
+int Thread::interrupt(Thread *thread) {
+    if (thread->state == thread_running)
+    {
+        waitForThreadSuspend(thread);
+
+        if (thread->id == main_threadid)
+        {
+
+            /*
+            * Shutdown all running threads
+            * and de-allocate all allocated
+            * memory. If we do not call join()
+            * to wait for all other threads
+            * regardless of what they are doing, we
+            * stop them.
+            */
+            vm->Shutdown();
+        }
+        else
+        {
+#ifdef WIN32_
+            try {
+                thread->exitVal = thread->stack.popInt();
+
+                if(!TerminateThread(
+                        thread->thread,
+                        thread->exitVal
+                )) {
+                    thread->term();
+                    return 0;
+                }
+            } catch(Exception){}
+#endif
+#ifdef POSIX_
+            try {
+                thread->exitVal = thread->stack.popInt();
+
+                if(!pthread_kill(thread->thread, thread->exitVal)) {
+                    thread->term();
+                    return 0;
+                }
+            } catch(Exception){}
+#endif
+        }
+    }
+
+    return 2;
+}
+
+void Thread::shutdown() {
+    if(threads != NULL) {
+        Thread::killAll();
+        Thread::self->term();
+        std::free (Thread::self);
+
+        Thread::threads->clear();
+        std::free (Thread::threads);
+    }
+}
+
+void Thread::exit() {
+    try {
+        this->exitVal = this->stack.popInt();
+    } catch (Exception) {
+        this->exitVal = 203;
+    }
+
+    this->state = thread_killed;
+    if(this->exceptionThrown) {
+        // TODO: handle exception
+    }
 }
