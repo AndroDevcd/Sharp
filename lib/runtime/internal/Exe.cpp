@@ -149,12 +149,11 @@ int Process_Exe(std::string exe)
         int64_t cRef=0, mRef=0;
         updateStackFile("processing .data section");
 
-        env->classes = (ClassObject*) malloc(manifest.classes*sizeof(ClassObject));
-        env->objects = (gc_object*) malloc(manifest.classes*sizeof(gc_object));
-        env->methods = (Method*) malloc(manifest.methods*sizeof(Method));
-        env->strings = (String*) malloc(manifest.strings*sizeof(String));
-        env->bytecode = (double*) malloc(manifest.isize*sizeof(double));
-        env->objects = NULL;
+        env->classes = new ClassObject[manifest.classes];
+        env->objects = new gc_object[manifest.classes];
+        env->methods = new Method[manifest.methods];
+        env->strings = new String[manifest.strings];
+        env->bytecode = new double[manifest.isize];
 
         for (;;) {
 
