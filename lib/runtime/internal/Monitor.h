@@ -26,7 +26,7 @@ public:
                 NULL);
         #endif
         #ifdef POSIX_
-        pthread_mutex_init ( &mutex, NULL);
+        //pthread_mutex_init ( &mutex, NULL);
         #endif
     }
 
