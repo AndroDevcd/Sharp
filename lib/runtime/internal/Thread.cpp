@@ -15,10 +15,12 @@ list<Thread*>* Thread::threads = NULL;
 
 void Thread::Startup() {
     updateStackFile("starting up thread manager");
-    threads = new list<Thread*>();
-    threads->push_back(new Thread());
+    Thread::threads = new list<Thread*>();
+    Thread::threads->push_back(new Thread());
 
-    Thread* main = element_at(*threads, 0);
+    Thread* main = element_at(*Thread::threads, 0);
+    if(main == NULL)
+        cout << "error!";
     main->stack.init();
     main->main = manifest.main;
     main->Create("Main");
