@@ -28,7 +28,7 @@ bool Monitor::lock() {
             INFINITE);  // no time-out interval
 #endif
 #ifdef POSIX_
-    success = !pthread_mutex_lock( &count_mutex );
+    success = !pthread_mutex_lock( &mutex );
 #endif
     if(success) status = monitor_busy;
     return success;

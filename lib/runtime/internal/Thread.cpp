@@ -123,7 +123,7 @@ int Thread::start(int32_t id) {
     if(pthread_create( &thread->thread, NULL, vm->InterpreterThreadStart, (void*) thread))
         return 3; // thread was not started
     else {
-        thread->state = thread_init
+        thread->state = thread_init;
         return waitForThread(thread);
     }
 #endif
@@ -257,29 +257,9 @@ int Thread::interrupt(Thread *thread) {
         }
         else
         {
-#ifdef WIN32_
-            try {
-                thread->exitVal = thread->stack.popInt();
-
-                if(!TerminateThread(
-                        thread->thread,
-                        thread->exitVal
-                )) {
-                    thread->term();
-                    return 0;
-                }
-            } catch(Exception){}
-#endif
-#ifdef POSIX_
-            try {
-                thread->exitVal = thread->stack.popInt();
-
-                if(!pthread_kill(thread->thread, thread->exitVal)) {
-                    thread->term();
-                    return 0;
-                }
-            } catch(Exception){}
-#endif
+            thread->state = thread_killed; // terminate thread
+            unsuspendThread(thread);
+            return 0;
         }
     }
 
