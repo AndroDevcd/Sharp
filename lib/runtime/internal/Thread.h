@@ -38,7 +38,6 @@ public:
             throwable()
 
     {
-        threads = new list<Thread*>();
 
 #ifdef WIN32_
         thread = NULL;

@@ -19,8 +19,6 @@ void Thread::Startup() {
     Thread::threads->push_back(new Thread());
 
     Thread* main = element_at(*Thread::threads, 0);
-    if(main == NULL)
-        cout << "error!";
     main->stack.init();
     main->main = manifest.main;
     main->Create("Main");
