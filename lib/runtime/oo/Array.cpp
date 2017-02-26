@@ -8,7 +8,7 @@
 
 ArrayObject::ArrayObject(int64_t max, int type) {
     len = max;
-    this->arry = (gc_object*) malloc(max*sizeof(gc_object));
+    this->arry = new gc_object[max];
     for(int64_t i = 0; i < max; i++) {
         this->arry[i] = gc_object((Type)type);
     }
@@ -22,6 +22,6 @@ void ArrayObject::free() {
         }
 
         len = 0;
-        std::free(this->arry); arry = NULL;
+        delete (this->arry); arry = NULL;
     }
 }
