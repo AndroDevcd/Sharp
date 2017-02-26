@@ -29,6 +29,8 @@ int CreateSharpVM(SharpVM** pVM, Environment** pEnv, std::string exe, std::list<
 
     Thread::Startup();
 
+    updateStackFile("(internal) Adding helper classes and objects");
+
     env->nilClass = new ClassObject(
             "$internal#NillClass",
             new Field[0] {},
@@ -51,6 +53,7 @@ int CreateSharpVM(SharpVM** pVM, Environment** pEnv, std::string exe, std::list<
 }
 
 void SharpVM::DestroySharpVM() {
+    updateStackFile("Shutting down threads");
     Thread::self->exit();
     Thread::shutdown();
 }
