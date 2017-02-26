@@ -69,7 +69,7 @@ void Environment::shutdown() {
     cout << "out" << endl;
     for(int64_t i = 0; i < manifest.strings; i++)
         this->strings->value = "";
-    std::free(this->strings);
+    //std::free(this->strings);
 
     cout << "out" << endl;
     for(int64_t i = 0; i < manifest.classes; i++)
