@@ -67,7 +67,10 @@ void Environment::shutdown() {
     std::free (this->bytecode);
     std::free (this->strings);
 
+    cout << "out" << endl;
     for(int64_t i = 0; i < manifest.classes; i++)
         this->classes->free();
+    cout << "out" << endl;
     std::free (this->classes);
+    cout << "out" << endl;
 }
