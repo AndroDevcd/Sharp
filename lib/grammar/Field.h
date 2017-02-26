@@ -85,7 +85,7 @@ public:
 
         if(modifiers != NULL) {
             modifiers->clear();
-            std::free (modifiers);
+            delete (modifiers);
         }
         modifiers = NULL;
     }
