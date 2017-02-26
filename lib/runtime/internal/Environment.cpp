@@ -64,17 +64,19 @@ ClassObject *Environment::findClass(int64_t id) {
 
 void Environment::shutdown() {
     updateStackFile("Destroying environment");
-//    cout << "out" << endl;
-//    std::free (this->bytecode);
-//    cout << "out" << endl;
-//    for(int64_t i = 0; i < manifest.strings; i++)
-//        this->strings->value = "";
-//    std::free(this->strings);
-//
-//    cout << "out" << endl;
-//    for(int64_t i = 0; i < manifest.classes; i++)
-//        this->classes->free();
-//    cout << "out" << endl;
-//    std::free(this->classes);
-//    cout << "out" << endl;
+    cout << "out" << endl;
+    cout << "bytecode " << this->bytecode[0] << endl;
+    std::free (this->bytecode);
+    cout << "out" << endl;
+    for(int64_t i = 0; i < manifest.strings; i++)
+        this->strings->value = "";
+    cout << "string " << this->strings[0].value << endl;
+    std::free(this->strings);
+
+    cout << "out" << endl;
+    for(int64_t i = 0; i < manifest.classes; i++)
+        this->classes->free();
+    cout << "out" << endl;
+    std::free(this->classes);
+    cout << "out" << endl;
 }
