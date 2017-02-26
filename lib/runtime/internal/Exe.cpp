@@ -417,6 +417,8 @@ void pushStackDump() {
 void updateStackFile(string status) {
     for(int i = 0; i < jobIndx; i++) {
         stackdump << "\t";
+        cout << "\t";
     }
     stackdump << status << endl;
+    cout << status << endl;
 }
