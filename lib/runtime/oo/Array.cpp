@@ -22,6 +22,6 @@ void ArrayObject::free() {
         }
 
         len = 0;
-        std::free (this->arry); arry = NULL;
+        delete (this->arry); arry = NULL;
     }
 }
