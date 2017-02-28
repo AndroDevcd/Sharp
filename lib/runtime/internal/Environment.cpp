@@ -7,10 +7,13 @@
 #include "../oo/Method.h"
 #include "../oo/Exception.h"
 #include "../oo/ClassObject.h"
+#include "../oo/Object.h"
+#include "../oo/Reference.h"
 
 ClassObject* Environment::nilClass = NULL;
 Object* Environment::nilObject = NULL;
 ArrayObject* Environment::nilArray = NULL;
+Reference* Environment::nilReference = NULL;
 
 Method *Environment::getMethod(int64_t id) {
     for(uint64_t i = 0; i < manifest.methods; i++) {
@@ -71,5 +74,20 @@ void Environment::shutdown() {
 
     for(int64_t i = 0; i < manifest.classes; i++)
         this->classes->free();
-    std::free(this->classes);
+    std::free (this->classes);
+}
+
+void Environment::newClass(int64_t object, int64_t klass) {
+    if(objects[object].mark == gc_green)
+        objects[object].free();
+
+    objects[object].mark = gc_green;
+    objects[object].klass = findClass(klass)->newdup();
+}
+
+void Environment::init() {
+    for(int64_t i = 0; i < manifest.classes; i++) {
+        objects[i].mark = gc_green;
+        objects[i].klass = classes[i].newdup();
+    }
 }

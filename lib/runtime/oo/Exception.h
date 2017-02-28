@@ -9,6 +9,8 @@
 #include <stdexcept>
 
 class ClassObject;
+class Method;
+class CallStack;
 
 class Throwable {
 public:
@@ -26,7 +28,9 @@ public:
     {
     }
 
-    string buildMessage(list<Method*> callStack);
+    string buildMessage(CallStack &cs);
+
+    void drop();
 
     ClassObject* throwable;
     string message;
@@ -34,24 +38,9 @@ public:
 
 class Exception : public std::runtime_error {
 public:
-    Exception(const char *msg) : runtime_error(msg)
-    {
-        this->msg = string(msg);
-    }
-    Exception(const std::string &__arg)
-            :
-            throwable(NULL), // native exception
-            runtime_error(__arg)
-    {
-        msg = __arg;
-    }
-    Exception(ClassObject* throwable, const std::string &__arg)
-            :
-            throwable(throwable),
-            runtime_error(__arg)
-    {
-        msg = __arg;
-    }
+    Exception(const char *msg);
+    Exception(const std::string &__arg);
+    Exception(ClassObject* throwable, const std::string &__arg);
 
     Throwable getThrowable() { return Throwable(throwable, msg); }
 

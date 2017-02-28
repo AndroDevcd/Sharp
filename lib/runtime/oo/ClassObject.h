@@ -49,6 +49,8 @@ public:
     int64_t id, fieldCount, methodCount;
 
     void free();
+
+    ClassObject *newdup();
 };
 
 

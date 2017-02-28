@@ -6,11 +6,14 @@
 #include "../oo/Field.h"
 #include "../oo/Object.h"
 #include "../oo/Method.h"
+#include "../internal/Environment.h"
 
 void ClassObject::free() {
     if(fields != NULL) {
-        for(int64_t i = 0; i < fieldCount; i++)
+        for(int64_t i = 0; i < fieldCount; i++) {
+            fields[i].invalidate();
             fields[i].free();
+        }
         std::free(fields); fields = NULL;
 
         if(super != NULL) {
@@ -30,4 +33,19 @@ void ClassObject::free() {
             methods[i].free();
         std::free(methods); methods = NULL;
     }
+}
+
+ClassObject *ClassObject::newdup() {
+    ClassObject* klass = new ClassObject(name, flds, fieldCount,
+                                         methods, methodCount, super,
+                                         id);
+
+    if(fieldCount > 0) {
+        klass->fields = new gc_object[fieldCount];
+        for(int64_t i = 0; i < fieldCount; i++)
+            klass->fields[i].type = (Type)flds[i].type;
+    } else {
+        klass->fields = NULL;
+    }
+    return klass;
 }

@@ -1,13 +1,15 @@
 mod application;
 
 class Main {
-    Main i = (int)9;
 
     public static function main(String[] args) {
         io.console.write("Hello World");
-
-        i = (A)b;
         return 0;
     }
 
+}
+
+class A {
+    A klass;
+    int nativeInt;
 }

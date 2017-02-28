@@ -11,6 +11,7 @@ class ClassObject;
 
 class Field {
 public:
+
     void operator=(Field& field) {
 
         this->id = field.id;

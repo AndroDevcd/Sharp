@@ -7,9 +7,12 @@
 
 #include <cstdint>
 #include "../alloc/mark.h"
+#include "../../../stdimports.h"
+#include "string.h"
 
 class ArrayObject;
 class ClassObject;
+class Reference;
 
 enum Type {
     nativeint,
@@ -19,13 +22,16 @@ enum Type {
     nativebool,
     nativefloat,
     nativedouble,
+    nativestring,
     classobject,
     arrayobject,
+    refrenceobject,
     nilobject
 };
 
 /* native object */
 struct Object {
+
     union {
         bool nBool;
         int8_t nChar;
@@ -35,6 +41,7 @@ struct Object {
         float nFloat;
         double nDouble;
     };
+    nString str;
 };
 
 /* Objects stored in memory */
@@ -44,14 +51,20 @@ public:
 
     gc_object(Type type);
 
-    int32_t refCounter;
+    list<Reference*>* refs;
+
     gc_mark mark;
     Type type;
     Object* obj;
     ArrayObject* arry;
     ClassObject* klass;
+    Reference* ref;
 
     void free();
+
+    void invalidate();
+
+    void inv_reference(Reference *pReference);
 };
 
 #endif //SHARP_OBJECT_H

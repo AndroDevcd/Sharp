@@ -13,6 +13,7 @@ class Method;
 class ClassObject;
 class Object;
 class ArrayObject;
+class Reference;
 
 class Environment {
 public:
@@ -34,11 +35,18 @@ public:
     ClassObject* tryFindClass(string name);
     ClassObject* findClass(int64_t id);
 
-    static ClassObject* newClass(int64_t);
+    void newClass(int64_t,int64_t);
 
     static ClassObject* nilClass;
     static Object* nilObject;
     static ArrayObject* nilArray;
+    static Reference* nilReference;
+
+    // TODO: create the aux classes to be used internally
+    static ClassObject* Throwable;
+    static ClassObject* StackOverflowErr;
+    static ClassObject* RuntimeException; // compare exceptions by name not id
+    static ClassObject* ThreadStackException;
 
     gc_object* objects;
 
@@ -48,6 +56,8 @@ public:
     double* bytecode;
 
     void shutdown();
+
+    void init();
 };
 
 extern Environment* env;

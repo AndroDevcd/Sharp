@@ -11,6 +11,7 @@
 #include "../interp/FastStack.h"
 #include "../oo/ClassObject.h"
 #include "../oo/Exception.h"
+#include "../interp/CallStack.h"
 
 class Method;
 
@@ -78,8 +79,9 @@ public:
     bool suspendPending;
     bool exceptionThrown;
 
-    int32_t ip;
+    uint64_t pc;
     FastStack stack;
+    CallStack cstack;
     Throwable throwable;
 #ifdef WIN32_
     HANDLE thread;

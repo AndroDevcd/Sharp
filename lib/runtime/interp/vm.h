@@ -28,6 +28,10 @@ public:
     InterpreterThreadStart(void *arg);
 
     void Shutdown();
+
+    void interrupt(int32_t i);
+
+    int exitVal;
 };
 
 extern SharpVM* vm;

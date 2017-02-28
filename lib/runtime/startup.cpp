@@ -94,7 +94,7 @@ int __vinit(string exe, list<string> pArgs) {
     vm->InterpreterThreadStart(element_at(*Thread::threads, 0));
 
     updateStackFile("Virtual machine shutdown");
-    return Thread::self->exitVal;
+    return vm->exitVal;
 
     bail:
         if(vm != NULL) {

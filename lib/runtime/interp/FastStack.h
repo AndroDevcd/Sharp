@@ -6,6 +6,8 @@
 #define SHARP_FASTSTACK_H
 
 #include "../../../stdimports.h"
+#include "../oo/Reference.h"
+#include "../oo/string.h"
 
 #define default_stack 0xffe
 
@@ -13,7 +15,8 @@ class gc_object;
 
 struct StackItem {
     double value;
-    gc_object* object;
+    nString str;
+    Reference object;
 };
 
 class FastStack {
@@ -33,7 +36,10 @@ public:
 
     int32_t len;
 
+    void push(double value);
+    void pushs(string value);
     int popInt();
+    string popString();
 
     void free();
 

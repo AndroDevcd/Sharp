@@ -11,6 +11,8 @@
 #include "../oo/Array.h"
 #include "../oo/Object.h"
 #include "../oo/Exception.h"
+#include "../oo/Reference.h"
+#include "Opcode.h"
 
 SharpVM* vm;
 Environment* env;
@@ -48,13 +50,62 @@ int CreateSharpVM(SharpVM** pVM, Environment** pEnv, std::string exe, std::list<
      */
     env->nilObject = new Object();
     env->nilArray = new ArrayObject();
+    env->nilReference = new Reference();
+
+    /**
+     * Aux classes
+     */
+    env->Throwable = new ClassObject(
+            "sharp.lang#Throwable",
+            new Field[0] { },
+            0,
+            new Method[0] {},
+            0,
+            NULL,
+            ++manifest.baseaddr
+    );
+
+    env->RuntimeException = new ClassObject(
+            "sharp.lang#RuntimeException",
+            new Field[0] { },
+            0,
+            new Method[0] {},
+            0,
+            env->Throwable,
+            ++manifest.baseaddr
+    );
+
+    env->StackOverflowErr = new ClassObject(
+            "sharp.lang#StackOverflowErr",
+            new Field[0] { },
+            0,
+            new Method[0] {},
+            0,
+            env->RuntimeException,
+            ++manifest.baseaddr
+    );
+
+    env->ThreadStackException = new ClassObject(
+            "sharp.lang#ThreadStackException",
+            new Field[0] { },
+            0,
+            new Method[0] {},
+            0,
+            env->RuntimeException,
+            ++manifest.baseaddr
+    );
+
+    updateStackFile("initializing memory objects");
+    env->init();
 
     return 0;
 }
 
 void SharpVM::DestroySharpVM() {
     updateStackFile("Shutting down threads");
-    Thread::self->exit();
+    if(Thread::self != NULL)
+        Thread::self->exit();
+    exitVal = Thread::self->exitVal;
     Thread::shutdown();
 }
 
@@ -66,10 +117,17 @@ void*
 #endif
     SharpVM::InterpreterThreadStart(void *arg) {
         Thread::self = (Thread*)arg;
+        Thread::self->state = thread_running;
 
         try {
             Method* main = Thread::self->main;
-            vm->Execute(main);
+            if(main != NULL) {
+                Thread::self->cstack.push(main);
+                vm->Execute(main);
+                Thread::self->cstack.pop();
+            } else {
+                // handle error
+            }
         } catch (Exception &e) {
             Thread::self->throwable = e.getThrowable();
         }
@@ -108,5 +166,58 @@ void SharpVM::Shutdown() {
 }
 
 void SharpVM::Execute(Method *method) {
-    // TODO: write bytecode interpreter
+    uint64_t *pc = &Thread::self->pc;
+    Thread* self = Thread::self;
+
+    int64_t address;
+    *pc = method->entry;
+
+    try {
+        for (;;) {
+
+            if(self->suspendPending)
+                Thread::suspendSelf();
+            if(self->state == thread_killed)
+                return;
+
+            switch((int)env->bytecode[(*pc)++]) {
+                case nop:
+                    break;
+                case push_str:
+                    self->stack.pushs(env->strings[(int64_t )env->bytecode[(*pc)++]].value);
+                    break;
+                case _int:
+                    interrupt((int32_t )env->bytecode[(*pc)++]);
+                    break;
+                case pushi:
+                    self->stack.push((int32_t )env->bytecode[(*pc)++]);
+                    break;
+                case ret:
+                    return;
+                case hlt:
+                    self->state = thread_killed;
+                    break;
+                case _new:
+                    address = (int64_t )env->bytecode[(*pc)++];
+                    env->newClass(address, (int32_t )env->bytecode[(*pc)++]);
+                    break;
+                default:
+                    // unsupported
+                    break;
+            }
+        }
+    } catch (Exception &e) {
+        self->throwable = e.getThrowable();
+        self->exceptionThrown = true;
+
+        // TODO: handle exception
+    }
+}
+
+void SharpVM::interrupt(int32_t signal) {
+    switch (signal) {
+        case 0x9f:
+            cout << Thread::self->stack.popString();
+            break;
+    }
 }

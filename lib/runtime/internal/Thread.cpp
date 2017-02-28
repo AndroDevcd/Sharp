@@ -37,6 +37,7 @@ void Thread::Create(string name) {
     this->name = name;
     this->id = Thread::tid++;
     this->stack.init();
+    this->cstack.init();
 }
 
 Thread *Thread::getThread(int32_t id) {
@@ -190,8 +191,9 @@ void Thread::suspendThread(Thread *thread) {
 
 void Thread::term() {
     this->monitor->unlock();
-    delete (this->monitor);
+    std::free (this->monitor);
     this->stack.free();
+    this->cstack.free();
 }
 
 int Thread::join(int32_t id) {
@@ -233,7 +235,7 @@ void Thread::killAll() {
                 thread->term();
             }
 
-            delete (thread); thread = NULL;
+            std::free (thread); thread = NULL;
         }
     }
 }
@@ -271,10 +273,10 @@ void Thread::shutdown() {
     if(threads != NULL) {
         Thread::killAll();
         Thread::self->term();
-        delete (Thread::self);
+        std::free (Thread::self);
 
         Thread::threads->clear();
-        delete (Thread::threads);
+        std::free (Thread::threads);
     }
 }
 
