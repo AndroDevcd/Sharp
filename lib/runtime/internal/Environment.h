@@ -36,6 +36,10 @@ public:
     ClassObject* findClass(int64_t id);
 
     void newClass(int64_t,int64_t);
+    void newClass(gc_object*,int64_t);
+    void newNative(gc_object*, int8_t);
+    void newArray(gc_object*, int64_t);
+    void newRefrence(gc_object*);
 
     static ClassObject* nilClass;
     static Object* nilObject;
@@ -47,6 +51,8 @@ public:
     static ClassObject* StackOverflowErr;
     static ClassObject* RuntimeException; // compare exceptions by name not id
     static ClassObject* ThreadStackException;
+    static ClassObject* IndexOutOfBoundsException;
+    static ClassObject* NullptrException;
 
     gc_object* objects;
 
@@ -58,6 +64,8 @@ public:
     void shutdown();
 
     void init();
+
+    static void free(gc_object*, int64_t);
 };
 
 extern Environment* env;

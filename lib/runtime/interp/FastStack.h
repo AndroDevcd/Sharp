@@ -15,8 +15,8 @@ class gc_object;
 
 struct StackItem {
     double value;
-    nString str;
     Reference object;
+    nString str;
 };
 
 class FastStack {
@@ -38,10 +38,16 @@ public:
 
     void push(double value);
     void pushs(string value);
-    int popInt();
+    void pushs(nString value);
+    void pusho(gc_object* value);
+    void pushr(Reference* value);
+    double popInt();
     string popString();
+    gc_object* popObject();
 
     void free();
+
+    void popvoid();
 
 private:
     StackItem* lst;

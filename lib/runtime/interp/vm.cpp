@@ -95,6 +95,26 @@ int CreateSharpVM(SharpVM** pVM, Environment** pEnv, std::string exe, std::list<
             ++manifest.baseaddr
     );
 
+    env->IndexOutOfBoundsException = new ClassObject(
+            "sharp.lang#IndexOutOfBoundsException",
+            new Field[0] { },
+            0,
+            new Method[0] {},
+            0,
+            env->RuntimeException,
+            ++manifest.baseaddr
+    );
+
+    env->NullptrException = new ClassObject(
+            "sharp.lang#NullptrException",
+            new Field[0] { },
+            0,
+            new Method[0] {},
+            0,
+            env->RuntimeException,
+            ++manifest.baseaddr
+    );
+
     updateStackFile("initializing memory objects");
     env->init();
 
@@ -124,7 +144,6 @@ void*
             if(main != NULL) {
                 Thread::self->cstack.push(main);
                 vm->Execute(main);
-                Thread::self->cstack.pop();
             } else {
                 // handle error
             }
@@ -169,8 +188,12 @@ void SharpVM::Execute(Method *method) {
     uint64_t *pc = &Thread::self->pc;
     Thread* self = Thread::self;
 
-    int64_t address;
     *pc = method->entry;
+
+    int64_t address;
+    gc_object* obj, *ref;
+    double ival;
+    string strVal;
 
     try {
         for (;;) {
@@ -190,9 +213,10 @@ void SharpVM::Execute(Method *method) {
                     interrupt((int32_t )env->bytecode[(*pc)++]);
                     break;
                 case pushi:
-                    self->stack.push((int32_t )env->bytecode[(*pc)++]);
+                    self->stack.push(env->bytecode[(*pc)++]);
                     break;
                 case ret:
+                    self->cstack.pop();
                     return;
                 case hlt:
                     self->state = thread_killed;
@@ -201,11 +225,240 @@ void SharpVM::Execute(Method *method) {
                     address = (int64_t )env->bytecode[(*pc)++];
                     env->newClass(address, (int32_t )env->bytecode[(*pc)++]);
                     break;
+                case casti:
+                    self->stack.push((int32_t )self->stack.popInt());
+                    break;
+                case casts:
+                    self->stack.push((int16_t )self->stack.popInt());
+                    break;
+                case castl:
+                    self->stack.push((int64_t )self->stack.popInt());
+                    break;
+                case castc:
+                    self->stack.push((int8_t )self->stack.popInt());
+                    break;
+                case castb:
+                    self->stack.push((bool )self->stack.popInt());
+                    break;
+                case castf:
+                    self->stack.push((float )self->stack.popInt());
+                    break;
+                case castd:
+                    break;
+                case add:
+                    ival = self->stack.popInt();
+                    self->stack.push(ival+self->stack.popInt());
+                    break;
+                case sub:
+                    ival = self->stack.popInt();
+                    self->stack.push(ival-self->stack.popInt());
+                    break;
+                case mult:
+                    ival = self->stack.popInt();
+                    self->stack.push(ival*self->stack.popInt());
+                    break;
+                case _div:
+                    ival = self->stack.popInt();
+                    self->stack.push(ival/self->stack.popInt());
+                    break;
+                case mod:
+                    ival = self->stack.popInt();
+                    self->stack.push((int64_t )ival%(int64_t )self->stack.popInt());
+                    break;
+                case pop:
+                    self->stack.popvoid();
+                    break;
+                case load:
+                    self->stack.pusho(&env->objects[(int64_t )env->bytecode[(*pc)++]]);
+                    break;
+                case geti:
+                    self->stack.push(self->stack.popObject()->obj->nInt);
+                    break;
+                case gets:
+                    self->stack.push(self->stack.popObject()->obj->nShort);
+                    break;
+                case getl:
+                    self->stack.push(self->stack.popObject()->obj->nLong);
+                    break;
+                case getc:
+                    self->stack.push(self->stack.popObject()->obj->nChar);
+                    break;
+                case getb:
+                    self->stack.push(self->stack.popObject()->obj->nBool);
+                    break;
+                case getf:
+                    self->stack.push(self->stack.popObject()->obj->nFloat);
+                    break;
+                case getd:
+                    self->stack.push(self->stack.popObject()->obj->nDouble);
+                    break;
+                case get_str:
+                    self->stack.pushs(self->stack.popObject()->obj->str);
+                    break;
+                case get_arrx:
+                    self->stack.pusho(self->stack.popObject()->arry->get((int64_t )env->bytecode[(*pc)++]));
+                    break;
+                case _new2:
+                    env->newClass(self->stack.popObject(), (int32_t )env->bytecode[(*pc)++]);
+                    break;
+                case null:
+                    self->stack.popObject()->free();
+                    break;
+                case _new3:
+                    env->newNative(self->stack.popObject(), (int8_t )env->bytecode[(*pc)++]);
+                    break;
+                case _new4:
+                    env->newArray(self->stack.popObject(), (int8_t )env->bytecode[(*pc)++]);
+                    break;
+                case _new5:
+                    env->newRefrence(self->stack.popObject());
+                    break;
+                case get_classx:
+                    self->stack.pusho(
+                            self->stack.popObject()->klass->get_field((int64_t )env->bytecode[(*pc)++]));
+                    break;
+                case get_ref:
+                    self->stack.pushr(self->stack.popObject()->ref);
+                    break;
+                case rstore:
+                    obj = self->stack.popObject();
+                    ref = self->stack.popObject();
+                    ref->ref->add(obj);
+                    break;
+                case istore:
+                    self->stack.popObject()->obj->nInt = (int32_t )self->stack.popInt();
+                    break;
+                case sstore:
+                    self->stack.popObject()->obj->nShort = (int16_t )self->stack.popInt();
+                    break;
+                case lstore:
+                    self->stack.popObject()->obj->nLong = (int64_t )self->stack.popInt();
+                    break;
+                case cstore:
+                    self->stack.popObject()->obj->nChar = (int8_t )self->stack.popInt();
+                    break;
+                case bstore:
+                    self->stack.popObject()->obj->nBool = (bool )self->stack.popInt();
+                    break;
+                case fstore:
+                    self->stack.popObject()->obj->nFloat = (float )self->stack.popInt();
+                    break;
+                case dstore:
+                    self->stack.popObject()->obj->nDouble = self->stack.popInt();
+                    break;
+                case store_str:
+                    self->stack.popObject()->obj->str = self->stack.popString();
+                    break;
+                case _copy:
+                    obj = self->stack.popObject();
+                    self->stack.popObject()->copy_object(obj);
+                    break;
+                case ifeq:
+                    ival = self->stack.popInt();
+                    self->stack.push(ival==self->stack.popInt());
+                    break;
+                case ifneq:
+                    ival = self->stack.popInt();
+                    self->stack.push(ival!=self->stack.popInt());
+                    break;
+                case iflt:
+                    ival = self->stack.popInt();
+                    self->stack.push(ival<self->stack.popInt());
+                    break;
+                case ifge:
+                    ival = self->stack.popInt();
+                    self->stack.push(ival >= self->stack.popInt());
+                    break;
+                case ifgt:
+                    ival = self->stack.popInt();
+                    self->stack.push(ival > self->stack.popInt());
+                    break;
+                case ifle:
+                    ival = self->stack.popInt();
+                    self->stack.push(ival <= self->stack.popInt());
+                    break;
+                case str_cmpeq:
+                    strVal = self->stack.popString();
+                    self->stack.push(strVal == self->stack.popString());
+                    break;
+                case str_cmpne:
+                    strVal = self->stack.popString();
+                    self->stack.push(strVal != self->stack.popString());
+                    break;
+                case str_cmplt:
+                    strVal = self->stack.popString();
+                    self->stack.push(strVal < self->stack.popString());
+                    break;
+                case str_cmpgt:
+                    strVal = self->stack.popString();
+                    self->stack.push(strVal > self->stack.popString());
+                    break;
+                case str_cmple:
+                    strVal = self->stack.popString();
+                    self->stack.push(strVal <= self->stack.popString());
+                    break;
+                case str_cmpge:
+                    strVal = self->stack.popString();
+                    self->stack.push(strVal >= self->stack.popString());
+                    break;
+                case jmpeq: {
+                    if(self->stack.popInt() == 1) {
+                        (*pc) +=env->bytecode[(*pc)++];
+                        if(*pc >= manifest.isize || *pc < 0)
+                            throw Exception("invalid address jump");
+                    }
+                    break;
+                }
+                case jmpne:{
+                    if(self->stack.popInt() == 0) {
+                        (*pc) +=env->bytecode[(*pc)++];
+                        if(*pc >= manifest.isize || *pc < 0)
+                            throw Exception("invalid address jump");
+                    }
+                    break;
+                }
+                case neg:
+                    self->stack.push(-self->stack.popInt());
+                    break;
+                case _and:
+                    ival = self->stack.popInt();
+                    self->stack.push((int64_t )ival&(int64_t )self->stack.popInt());
+                    break;
+                case _or:
+                    ival = self->stack.popInt();
+                    self->stack.push((int64_t )ival|(int64_t )self->stack.popInt());
+                    break;
+                case _xor:
+                    ival = self->stack.popInt();
+                    self->stack.push((int64_t )ival^(int64_t )self->stack.popInt());
+                    break;
+                case and2:
+                    ival = self->stack.popInt();
+                    self->stack.push(ival&&self->stack.popInt());
+                    break;
+                case or2:
+                    ival = self->stack.popInt();
+                    self->stack.push(ival||self->stack.popInt());
+                    break;
+                case _goto: {
+                    (*pc) =(uint64_t )self->stack.popInt();
+                    if(*pc >= manifest.isize || *pc < 0)
+                        throw Exception("invalid address jump");
+                    break;
+                }
+                case _iadr:
+                    self->stack.push((*pc));
+                    break;
+                case invoke: {
+                    break;
+                }
                 default:
                     // unsupported
                     break;
             }
         }
+    } catch (std::bad_alloc &e) {
+        // TODO: throw out of memory error
     } catch (Exception &e) {
         self->throwable = e.getThrowable();
         self->exceptionThrown = true;
@@ -218,6 +471,15 @@ void SharpVM::interrupt(int32_t signal) {
     switch (signal) {
         case 0x9f:
             cout << Thread::self->stack.popString();
+            break;
+        case 0xa0:
+            Thread::self->stack.popObject()->monitor->lock();
+            break;
+        case 0xa1:
+            Thread::self->stack.popObject()->monitor->unlock();
+            break;
+        default:
+            // unsupported
             break;
     }
 }

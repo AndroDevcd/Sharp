@@ -19,11 +19,16 @@ public:
     }
 
     ArrayObject(int64_t max, int type);
+    ArrayObject(int64_t max);
+
+    gc_object* get(int64_t);
 
     int64_t len;
-    gc_object* arry;
 
     void free();
+
+private:
+    gc_object* arry;
 };
 
 

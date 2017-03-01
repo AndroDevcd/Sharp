@@ -347,6 +347,7 @@ void getMethod(string exe, ClassObject *parent, Method* method) {
     method->name = getstring(exe);
     method->id = getlong(exe);
     method->entry = getlong(exe);
+    method->locals = getlong(exe);
     method->owner = parent;
     method->ret = -1;
 }

@@ -6,17 +6,28 @@
 #define SHARP_REFRENCE_H
 
 #include "Exception.h"
+#include "Object.h"
 
 class gc_object;
 
 class Reference {
 
 public:
-
-    CXX11_INLINE
-    void add(gc_object* obj) {
-        object = obj;
+    Reference()
+    :
+            object(NULL)
+    {
     }
+
+    void operator=(const Reference &r) {
+        if(object != NULL) {
+            object->inv_reference(this);
+        }
+
+        add(r.object);
+    }
+
+    void add(gc_object* obj);
 
     CXX11_INLINE
     void notify() {

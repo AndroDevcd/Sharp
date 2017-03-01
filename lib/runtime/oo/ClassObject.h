@@ -51,6 +51,7 @@ public:
     void free();
 
     ClassObject *newdup();
+    gc_object* get_field(int64_t);
 };
 
 

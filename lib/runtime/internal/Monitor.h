@@ -30,6 +30,17 @@ public:
         #endif
     }
 
+    ~Monitor()
+    {
+#ifdef WIN32_
+        CloseHandle(mutex);
+        status = monitor_free;
+#endif
+#ifdef POSIX_
+        unlock();
+#endif
+    }
+
     bool lock();
     void unlock();
 

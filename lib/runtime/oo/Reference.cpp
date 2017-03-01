@@ -3,3 +3,8 @@
 //
 
 #include "Reference.h"
+
+void Reference::add(gc_object *obj) {
+    obj->refs->push_back(this);
+    object = obj;
+}

@@ -22,7 +22,7 @@ struct measure
     }
 };
 
-string copy(char c, int t) {
+string copychars(char c, int t) {
     string s;
     int it = 0;
 
@@ -36,7 +36,7 @@ void buildExe() {
     stringstream executable;
 
     executable << ((char)0x0f) << "SEF";
-    executable << copy(0, 15) << ((char)0x07);
+    executable << copychars(0, 15) << ((char)0x07);
     executable << ((char)0x1b) << ((char)0x0c);
 
     /* manifest */
@@ -69,6 +69,7 @@ void buildExe() {
     executable << "main" << (char)0x0; // name
     executable << "1" << (char)0x0; // id
     executable << "0" << (char)0x0; // entry
+    executable << "0" << (char)0x0; // locals
     executable << endl;
 
     executable << (char)0x2f; // class

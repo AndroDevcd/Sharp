@@ -9,6 +9,7 @@
 #include "../alloc/mark.h"
 #include "../../../stdimports.h"
 #include "string.h"
+#include "../internal/Monitor.h"
 
 class ArrayObject;
 class ClassObject;
@@ -59,12 +60,15 @@ public:
     ArrayObject* arry;
     ClassObject* klass;
     Reference* ref;
+    Monitor* monitor;
 
     void free();
 
     void invalidate();
 
     void inv_reference(Reference *pReference);
+
+    void copy_object(gc_object *pObject);
 };
 
 #endif //SHARP_OBJECT_H

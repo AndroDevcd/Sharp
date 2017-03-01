@@ -12,7 +12,7 @@
 class Method;
 
 /* 20k recursive calls */
-#define default_stack 0x4ffc
+#define default_cstack 0x4ffc
 
 class CallStack {
 
@@ -20,35 +20,25 @@ public:
     CallStack()
             :
             stack(NULL),
+            locals(NULL),
             len(0),
             sp(-1)
     {
     }
 
     void init() {
-        stack = new Method*[default_stack];
-        len = default_stack;
-    }
+        stack = new Method*[default_cstack];
+        lstack = new gc_object*[default_cstack];
 
-    CXX11_INLINE
-    void push(Method* method) {
-        sp++;
-
-        if(sp >= default_stack) throw Exception(""); // stack overflow error
-        current = method;
-        stack[sp] = method;
-    }
-
-    void pop() {
-        sp--;
-
-        if(sp < -1) {
-            current = NULL;
-            return;
+        for(long i = 0; i < default_cstack; i++) {
+            lstack[i] = NULL;
         }
-
-        current = stack[sp];
+        len = default_cstack;
     }
+
+    void push(Method* method);
+
+    void pop();
 
     CXX11_INLINE
     Method* at(int32_t x) {
@@ -57,12 +47,15 @@ public:
         return stack[x];
     }
 
+    gc_object* instance;
+    gc_object* locals;
     Method *current;
     int32_t len;
 
     void free() {
         if(len != 0) {
             std::free (stack); stack = NULL;
+            std::free (lstack); lstack = NULL;
             current = NULL;
             sp = -1, len = 0;
         }
@@ -71,6 +64,7 @@ public:
 private:
     int32_t sp;
     Method** stack;
+    gc_object** lstack;
 };
 
 

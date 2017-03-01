@@ -4,6 +4,8 @@ class Main {
 
     public static function main(String[] args) {
         io.console.write("Hello World");
+        int i = 0;
+
         return 0;
     }
 

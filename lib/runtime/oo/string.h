@@ -46,6 +46,7 @@ public:
         // TODO: implement
     }
 
+    CXX11_INLINE
     string str() {
         if(len==0) return "";
         return string(chars,len);

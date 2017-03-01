@@ -24,10 +24,12 @@ public:
     string name;
     int64_t id;
     int64_t entry, ret;
+    int64_t locals;
 
     void free() {
         owner = NULL;
     }
+
 };
 
 

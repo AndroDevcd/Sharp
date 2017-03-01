@@ -13,7 +13,9 @@ gc_object::gc_object() {
     this->arry = Environment::nilArray;
     this->mark = gc_orange;
     this->obj = Environment::nilObject;
+    this->ref = Environment::nilReference;
     this->refs = new list<Reference*>();
+    this->monitor = new Monitor();
     this->type = nilobject;
 }
 
@@ -22,13 +24,16 @@ gc_object::gc_object(Type type) {
     this->arry = Environment::nilArray;
     this->mark = gc_orange;
     this->obj = Environment::nilObject;
+    this->ref = Environment::nilReference;
     this->refs = new list<Reference*>();
+    this->monitor = new Monitor();
     this->type = type;
 }
 
 void gc_object::free() {
     if(mark == gc_green) {
         mark = gc_orange;
+
         if(type <=nativedouble) {
             if(obj != Environment::nilObject) {
                 std::free(obj);
@@ -79,4 +84,8 @@ void gc_object::inv_reference(Reference *pReference) {
 
         ++i;
     }
+}
+
+void gc_object::copy_object(gc_object *pObject) {
+    // TODO: implement
 }

@@ -22,6 +22,7 @@ void Monitor::unlock() {
 
 bool Monitor::lock() {
     bool success;
+    if(status == monitor_busy) return true;
 #ifdef WIN32_
     success = !WaitForSingleObject(
             mutex,    // handle to mutex
