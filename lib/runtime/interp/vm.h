@@ -32,6 +32,8 @@ public:
     void interrupt(int32_t i);
 
     int exitVal;
+
+    uint64_t Call(Method *pMethod);
 };
 
 extern SharpVM* vm;

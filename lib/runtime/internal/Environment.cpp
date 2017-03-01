@@ -16,6 +16,7 @@ ClassObject* Environment::nilClass = NULL;
 Object* Environment::nilObject = NULL;
 ArrayObject* Environment::nilArray = NULL;
 Reference* Environment::nilReference = NULL;
+gc_object* Environment::emptyObject = NULL;
 
 ClassObject* Environment::Throwable = NULL;
 ClassObject* Environment::StackOverflowErr = NULL;

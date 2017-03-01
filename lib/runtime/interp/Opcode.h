@@ -76,6 +76,18 @@ enum Opcode {
     _goto,
     _iadr,
     invoke, // ([integer], [integer]) arg1: address to function arg2: address to class object
+    instance_store, // no args
+    get_self,
+    arry_len,
+    _throw,
+    lload, // ([integer]) arg1: object index
+    _catch,
+    str_append,
+    str_append2,
+    _strtod,
+    _strtol,
+    _lsh,
+    _rsh,
 };
 
 #endif //SHARP_OPCODE_H

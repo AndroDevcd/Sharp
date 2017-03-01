@@ -51,6 +51,7 @@ int CreateSharpVM(SharpVM** pVM, Environment** pEnv, std::string exe, std::list<
     env->nilObject = new Object();
     env->nilArray = new ArrayObject();
     env->nilReference = new Reference();
+    env->emptyObject = new gc_object();
 
     /**
      * Aux classes
@@ -123,9 +124,11 @@ int CreateSharpVM(SharpVM** pVM, Environment** pEnv, std::string exe, std::list<
 
 void SharpVM::DestroySharpVM() {
     updateStackFile("Shutting down threads");
-    if(Thread::self != NULL)
+    if(Thread::self != NULL) {
         Thread::self->exit();
-    exitVal = Thread::self->exitVal;
+        exitVal = Thread::self->exitVal;
+    } else
+        exitVal = 1;
     Thread::shutdown();
 }
 
@@ -190,6 +193,7 @@ void SharpVM::Execute(Method *method) {
 
     *pc = method->entry;
 
+    Method* func;
     int64_t address;
     gc_object* obj, *ref;
     double ival;
@@ -450,8 +454,49 @@ void SharpVM::Execute(Method *method) {
                     self->stack.push((*pc));
                     break;
                 case invoke: {
+                    obj = self->cstack.instance;
+                    (*pc) = Call(env->getMethod((int64_t )env->bytecode[(*pc)++]));
+                    self->cstack.instance = obj;
                     break;
                 }
+                case instance_store:
+                    self->cstack.instance = self->stack.popObject();
+                    break;
+                case get_self:
+                    self->stack.pusho(self->cstack.instance);
+                    break;
+                case arry_len:
+                    self->stack.push(self->stack.popObject()->arry->len);
+                    break;
+                case _throw:
+                    throw Exception(self->stack.popObject()->klass, "");
+                case lload:
+                    self->stack.pusho(&self->cstack.locals[(int64_t )env->bytecode[(*pc)++]]);
+                    break;
+                case _catch:
+                    break;
+                case str_append:
+                    strVal = self->stack.popString();
+                    self->stack.pushs(strVal += self->stack.popInt());
+                    break;
+                case str_append2:
+                    strVal = self->stack.popString();
+                    self->stack.pushs(strVal + self->stack.popString());
+                    break;
+                case _strtod:
+                    self->stack.push(strtod(self->stack.popString().c_str(), NULL));
+                    break;
+                case _strtol:
+                    self->stack.push(strtoll(self->stack.popString().c_str(), NULL, 0));
+                    break;
+                case _lsh:
+                    ival = self->stack.popInt();
+                    self->stack.push((int64_t )ival<<(int64_t )self->stack.popInt());
+                    break;
+                case _rsh:
+                    ival = self->stack.popInt();
+                    self->stack.push((int64_t )ival>>(int64_t )self->stack.popInt());
+                    break;
                 default:
                     // unsupported
                     break;
@@ -482,4 +527,13 @@ void SharpVM::interrupt(int32_t signal) {
             // unsupported
             break;
     }
+}
+
+uint64_t SharpVM::Call(Method *func) {
+    uint64_t pc = Thread::self->pc;
+    Thread::self->cstack.push(func);
+    Thread::self->cstack.instance = env->emptyObject;
+
+    Execute(func);
+    return pc;
 }

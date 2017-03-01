@@ -45,6 +45,7 @@ public:
     static Object* nilObject;
     static ArrayObject* nilArray;
     static Reference* nilReference;
+    static gc_object* emptyObject;
 
     // TODO: create the aux classes to be used internally
     static ClassObject* Throwable;
