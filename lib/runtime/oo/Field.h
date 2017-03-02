@@ -18,11 +18,13 @@ public:
         this->name = field.name;
         this->type = field.type;
         this->owner = field.owner;
+        this->isstatic = field.isstatic;
     }
 
     string name;
     int64_t id;
     int type;
+    bool isstatic;
     ClassObject* owner;
 
     void free() {

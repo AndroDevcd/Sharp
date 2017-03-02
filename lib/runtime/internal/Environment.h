@@ -50,7 +50,7 @@ public:
     // TODO: create the aux classes to be used internally
     static ClassObject* Throwable;
     static ClassObject* StackOverflowErr;
-    static ClassObject* RuntimeException; // compare exceptions by name not id
+    static ClassObject* RuntimeException; // TODO: compare exceptions by name not id
     static ClassObject* ThreadStackException;
     static ClassObject* IndexOutOfBoundsException;
     static ClassObject* NullptrException;

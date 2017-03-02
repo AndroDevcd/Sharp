@@ -24,7 +24,10 @@ public:
             object->inv_reference(this);
         }
 
-        add(r.object);
+        object = NULL;
+        if(r.object != NULL) {
+            add(r.object);
+        }
     }
 
     void add(gc_object* obj);

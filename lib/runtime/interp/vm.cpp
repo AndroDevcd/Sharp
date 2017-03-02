@@ -146,6 +146,8 @@ void*
             Method* main = Thread::self->main;
             if(main != NULL) {
                 Thread::self->cstack.push(main);
+                Thread::self->cstack.instance = env->emptyObject;
+
                 vm->Execute(main);
             } else {
                 // handle error
@@ -196,7 +198,7 @@ void SharpVM::Execute(Method *method) {
     Method* func;
     int64_t address;
     gc_object* obj, *ref;
-    double ival;
+    double ival, ival2;
     string strVal;
 
     try {
@@ -330,28 +332,36 @@ void SharpVM::Execute(Method *method) {
                     ref->ref->add(obj);
                     break;
                 case istore:
-                    self->stack.popObject()->obj->nInt = (int32_t )self->stack.popInt();
+                    ival = self->stack.popInt();
+                    self->stack.popObject()->obj->nInt = (int32_t )ival;
                     break;
                 case sstore:
-                    self->stack.popObject()->obj->nShort = (int16_t )self->stack.popInt();
+                    ival = self->stack.popInt();
+                    self->stack.popObject()->obj->nShort = (int16_t )ival;
                     break;
                 case lstore:
-                    self->stack.popObject()->obj->nLong = (int64_t )self->stack.popInt();
+                    ival = self->stack.popInt();
+                    self->stack.popObject()->obj->nLong = (int64_t )ival;
                     break;
                 case cstore:
-                    self->stack.popObject()->obj->nChar = (int8_t )self->stack.popInt();
+                    ival = self->stack.popInt();
+                    self->stack.popObject()->obj->nChar = (int8_t )ival;
                     break;
                 case bstore:
-                    self->stack.popObject()->obj->nBool = (bool )self->stack.popInt();
+                    ival = self->stack.popInt();
+                    self->stack.popObject()->obj->nBool = (bool )ival;
                     break;
                 case fstore:
-                    self->stack.popObject()->obj->nFloat = (float )self->stack.popInt();
+                    ival = self->stack.popInt();
+                    self->stack.popObject()->obj->nFloat = (float )ival;
                     break;
                 case dstore:
-                    self->stack.popObject()->obj->nDouble = self->stack.popInt();
+                    ival = self->stack.popInt();
+                    self->stack.popObject()->obj->nDouble = ival;
                     break;
                 case store_str:
-                    self->stack.popObject()->obj->str = self->stack.popString();
+                    strVal = self->stack.popString();
+                    self->stack.popObject()->obj->str = strVal;
                     break;
                 case _copy:
                     obj = self->stack.popObject();
@@ -407,17 +417,19 @@ void SharpVM::Execute(Method *method) {
                     break;
                 case jmpeq: {
                     if(self->stack.popInt() == 1) {
-                        (*pc) +=env->bytecode[(*pc)++];
-                        if(*pc >= manifest.isize || *pc < 0)
+                        ival = (*pc)+env->bytecode[(*pc)++];
+                        if(ival >= manifest.isize || ival < 0)
                             throw Exception("invalid address jump");
+                        (*pc) =(uint64_t )ival;
                     }
                     break;
                 }
                 case jmpne:{
                     if(self->stack.popInt() == 0) {
-                        (*pc) +=env->bytecode[(*pc)++];
-                        if(*pc >= manifest.isize || *pc < 0)
+                        ival = (*pc)+env->bytecode[(*pc)++];
+                        if(ival >= manifest.isize || ival < 0)
                             throw Exception("invalid address jump");
+                        (*pc) =(uint64_t )ival;
                     }
                     break;
                 }
@@ -445,9 +457,10 @@ void SharpVM::Execute(Method *method) {
                     self->stack.push(ival||self->stack.popInt());
                     break;
                 case _goto: {
-                    (*pc) =(uint64_t )self->stack.popInt();
-                    if(*pc >= manifest.isize || *pc < 0)
+                    ival = self->stack.popInt();
+                    if(ival >= manifest.isize || ival < 0)
                         throw Exception("invalid address jump");
+                    (*pc) =(uint64_t )ival;
                     break;
                 }
                 case _iadr:
@@ -496,6 +509,75 @@ void SharpVM::Execute(Method *method) {
                 case _rsh:
                     ival = self->stack.popInt();
                     self->stack.push((int64_t )ival>>(int64_t )self->stack.popInt());
+                    break;
+                case _lbl:
+                    self->stack.popObject()->obj->nLong = (*pc);
+                    break;
+                case iinc:
+                    self->stack.popObject()->obj->nInt++;
+                    break;
+                case sinc:
+                    self->stack.popObject()->obj->nShort++;
+                    break;
+                case linc:
+                    self->stack.popObject()->obj->nLong++;
+                    break;
+                case cinc:
+                    self->stack.popObject()->obj->nChar++;
+                    break;
+                case binc:
+                    self->stack.popObject()->obj->nBool++;
+                    break;
+                case finc:
+                    self->stack.popObject()->obj->nFloat++;
+                    break;
+                case dinc:
+                    self->stack.popObject()->obj->nDouble++;
+                    break;
+
+                case idec:
+                    self->stack.popObject()->obj->nInt++;
+                    break;
+                case sdec:
+                    self->stack.popObject()->obj->nShort++;
+                    break;
+                case ldec:
+                    self->stack.popObject()->obj->nLong++;
+                    break;
+                case cdec:
+                    self->stack.popObject()->obj->nChar++;
+                    break;
+                case bdec:
+                    self->stack.popObject()->obj->nBool++;
+                    break;
+                case fdec:
+                    self->stack.popObject()->obj->nFloat++;
+                    break;
+                case ddec:
+                    self->stack.popObject()->obj->nDouble++;
+                    break;
+                case _goto_e: {
+                    ival = self->stack.popInt();
+                    ival2 = self->stack.popInt();
+                    if(ival == 1) {
+                        if((uint64_t )ival2 >= manifest.isize || (uint64_t )ival2 < 0)
+                            throw Exception("invalid address jump");
+                        (*pc) =(uint64_t )ival2;
+                    }
+                    break;
+                }
+                case _goto_ne: {
+                    ival = self->stack.popInt();
+                    ival2 = self->stack.popInt();
+                    if(ival == 0) {
+                        if((uint64_t )ival2 >= manifest.isize || (uint64_t )ival2 < 0)
+                            throw Exception("invalid address jump");
+                        (*pc) =(uint64_t )ival2;
+                    }
+                    break;
+                }
+                case _swap:
+                    self->stack.swap();
                     break;
                 default:
                     // unsupported

@@ -17,6 +17,21 @@ struct StackItem {
     double value;
     Reference object;
     nString str;
+
+    void operator=(const StackItem &item) {
+        value = item.value;
+        object = item.object;
+        str = item.str;
+    }
+
+    ~StackItem()
+    {
+        str = "";
+        if(object.get_unsafe() != NULL) {
+            object.get_unsafe()->inv_reference(&object);
+            object.notify();
+        }
+    }
 };
 
 class FastStack {
@@ -48,6 +63,8 @@ public:
     void free();
 
     void popvoid();
+
+    void swap();
 
 private:
     StackItem* lst;

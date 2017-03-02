@@ -65,6 +65,7 @@ gc_object *FastStack::popObject() {
     o->inv_reference(&lst[sp].object);
     lst[sp].object.notify();
 
+    sp--;
     return o;
 }
 
@@ -73,4 +74,13 @@ void FastStack::pushr(Reference *value) {
     if(sp > len)
         throw Exception(Environment::StackOverflowErr, "");
     lst[sp].object = *value;
+}
+
+void FastStack::swap() {
+    if(sp < 1)
+        throw Exception(Environment::ThreadStackException, "illegal stack swap");
+
+    StackItem tmp = lst[sp];
+    lst[sp] = lst[sp-1];
+    lst[sp-1] = tmp;
 }

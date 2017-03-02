@@ -355,7 +355,8 @@ void getMethod(string exe, ClassObject *parent, Method* method) {
 void getField(string exe, list <MetaField>& mFields, Field* field) {
     field->name = getstring(exe);
     field->id = getlong(exe);
-    field->type = getlong(exe);
+    field->type = (int)getlong(exe);
+    field->isstatic = (bool)getlong(exe);
     field->owner = NULL;
     mFields.push_back(MetaField(field, getlong(exe)));
 }
