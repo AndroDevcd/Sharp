@@ -15,9 +15,10 @@ class gc_object;
 
 struct StackItem {
     double value;
-    Reference object;
+    gc_object* object;
     nString str;
 
+    CXX11_INLINE
     void operator=(const StackItem &item) {
         value = item.value;
         object = item.object;
@@ -27,10 +28,6 @@ struct StackItem {
     ~StackItem()
     {
         str = "";
-        if(object.get_unsafe() != NULL) {
-            object.get_unsafe()->inv_reference(&object);
-            object.notify();
-        }
     }
 };
 
@@ -55,7 +52,6 @@ public:
     void pushs(string value);
     void pushs(nString value);
     void pusho(gc_object* value);
-    void pushr(Reference* value);
     double popInt();
     string popString();
     gc_object* popObject();

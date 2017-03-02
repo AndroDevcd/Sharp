@@ -8,7 +8,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 
-template<typename TimeT = std::chrono::seconds>
+template<typename TimeT = std::chrono::milliseconds>
 struct measure
 {
     template<typename F, typename ...Args>
@@ -123,7 +123,7 @@ void buildExe() {
     executable << (char)0x05 << (char)0x1 << (char)0x3 << 0 << (char)0x0; // pushi
     executable << (char)0x05 << (char)0x0 << (char)0x26 << (char)0x0; // istore
     executable << (char)0x05 << (char)0x1 << (char)0x4a << 1 << (char)0x0; // lload (max)
-    executable << (char)0x05 << (char)0x1 << (char)0x3 << 10000000 << (char)0x0; // pushi
+    executable << (char)0x05 << (char)0x1 << (char)0x3 << 100000000 << (char)0x0; // pushi
     executable << (char)0x05 << (char)0x0 << (char)0x26 << (char)0x0; // istore
 
     executable << (char)0x05 << (char)0x1 << (char)0x4a << 2 << (char)0x0; // lload (_label)

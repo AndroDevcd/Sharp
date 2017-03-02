@@ -32,6 +32,11 @@ public:
         chars = NULL;
     }
 
+    ~nString()
+    {
+        free();
+    }
+
     void operator=(const string &str) {
         free();
 

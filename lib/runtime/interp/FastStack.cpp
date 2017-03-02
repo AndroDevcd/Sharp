@@ -49,7 +49,7 @@ void FastStack::pusho(gc_object *value) {
     sp++;
     if(sp > len)
         throw Exception(Environment::StackOverflowErr, "");
-    lst[sp].object.add(value);
+    lst[sp].object = value;
 }
 
 void FastStack::popvoid() {
@@ -61,19 +61,7 @@ void FastStack::popvoid() {
 gc_object *FastStack::popObject() {
     if(sp < 0)
         throw Exception(Environment::ThreadStackException, "illegal stack pop");
-    gc_object* o = lst[sp].object.get();
-    o->inv_reference(&lst[sp].object);
-    lst[sp].object.notify();
-
-    sp--;
-    return o;
-}
-
-void FastStack::pushr(Reference *value) {
-    sp++;
-    if(sp > len)
-        throw Exception(Environment::StackOverflowErr, "");
-    lst[sp].object = *value;
+    return lst[sp--].object;
 }
 
 void FastStack::swap() {

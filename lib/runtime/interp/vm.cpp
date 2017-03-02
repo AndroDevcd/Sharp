@@ -204,6 +204,7 @@ void SharpVM::Execute(Method *method) {
     try {
         for (;;) {
 
+            interp:
             if(self->suspendPending)
                 Thread::suspendSelf();
             if(self->state == thread_killed)
@@ -217,10 +218,10 @@ void SharpVM::Execute(Method *method) {
                     break;
                 case _int:
                     interrupt((int32_t )env->bytecode[(*pc)++]);
-                    break;
+                    goto interp;
                 case pushi:
                     self->stack.push(env->bytecode[(*pc)++]);
-                    break;
+                    goto interp;
                 case ret:
                     self->cstack.pop();
                     return;
@@ -279,13 +280,13 @@ void SharpVM::Execute(Method *method) {
                     break;
                 case geti:
                     self->stack.push(self->stack.popObject()->obj->nInt);
-                    break;
+                    goto interp;
                 case gets:
                     self->stack.push(self->stack.popObject()->obj->nShort);
                     break;
                 case getl:
                     self->stack.push(self->stack.popObject()->obj->nLong);
-                    break;
+                    goto interp;
                 case getc:
                     self->stack.push(self->stack.popObject()->obj->nChar);
                     break;
@@ -306,13 +307,13 @@ void SharpVM::Execute(Method *method) {
                     break;
                 case _new2:
                     env->newClass(self->stack.popObject(), (int32_t )env->bytecode[(*pc)++]);
-                    break;
+                    goto interp;
                 case null:
                     self->stack.popObject()->free();
                     break;
                 case _new3:
                     env->newNative(self->stack.popObject(), (int8_t )env->bytecode[(*pc)++]);
-                    break;
+                    goto interp;
                 case _new4:
                     env->newArray(self->stack.popObject(), (int8_t )env->bytecode[(*pc)++]);
                     break;
@@ -324,7 +325,7 @@ void SharpVM::Execute(Method *method) {
                             self->stack.popObject()->klass->get_field((int64_t )env->bytecode[(*pc)++]));
                     break;
                 case get_ref:
-                    self->stack.pushr(self->stack.popObject()->ref);
+                    self->stack.pusho(self->stack.popObject()->ref->get());
                     break;
                 case rstore:
                     obj = self->stack.popObject();
@@ -334,7 +335,7 @@ void SharpVM::Execute(Method *method) {
                 case istore:
                     ival = self->stack.popInt();
                     self->stack.popObject()->obj->nInt = (int32_t )ival;
-                    break;
+                    goto interp;
                 case sstore:
                     ival = self->stack.popInt();
                     self->stack.popObject()->obj->nShort = (int16_t )ival;
@@ -342,7 +343,7 @@ void SharpVM::Execute(Method *method) {
                 case lstore:
                     ival = self->stack.popInt();
                     self->stack.popObject()->obj->nLong = (int64_t )ival;
-                    break;
+                    goto interp;
                 case cstore:
                     ival = self->stack.popInt();
                     self->stack.popObject()->obj->nChar = (int8_t )ival;
@@ -378,7 +379,7 @@ void SharpVM::Execute(Method *method) {
                 case iflt:
                     ival = self->stack.popInt();
                     self->stack.push(ival<self->stack.popInt());
-                    break;
+                    goto interp;
                 case ifge:
                     ival = self->stack.popInt();
                     self->stack.push(ival >= self->stack.popInt());
@@ -485,7 +486,7 @@ void SharpVM::Execute(Method *method) {
                     throw Exception(self->stack.popObject()->klass, "");
                 case lload:
                     self->stack.pusho(&self->cstack.locals[(int64_t )env->bytecode[(*pc)++]]);
-                    break;
+                    goto interp;
                 case _catch:
                     break;
                 case str_append:
@@ -512,10 +513,10 @@ void SharpVM::Execute(Method *method) {
                     break;
                 case _lbl:
                     self->stack.popObject()->obj->nLong = (*pc);
-                    break;
+                    goto interp;
                 case iinc:
                     self->stack.popObject()->obj->nInt++;
-                    break;
+                    goto interp;
                 case sinc:
                     self->stack.popObject()->obj->nShort++;
                     break;
@@ -534,7 +535,6 @@ void SharpVM::Execute(Method *method) {
                 case dinc:
                     self->stack.popObject()->obj->nDouble++;
                     break;
-
                 case idec:
                     self->stack.popObject()->obj->nInt++;
                     break;
@@ -564,7 +564,7 @@ void SharpVM::Execute(Method *method) {
                             throw Exception("invalid address jump");
                         (*pc) =(uint64_t )ival2;
                     }
-                    break;
+                    goto interp;
                 }
                 case _goto_ne: {
                     ival = self->stack.popInt();
@@ -574,11 +574,11 @@ void SharpVM::Execute(Method *method) {
                             throw Exception("invalid address jump");
                         (*pc) =(uint64_t )ival2;
                     }
-                    break;
+                    goto interp;
                 }
                 case _swap:
                     self->stack.swap();
-                    break;
+                    goto interp;
                 default:
                     // unsupported
                     break;
