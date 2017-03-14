@@ -110,6 +110,7 @@ void Environment::init() {
     for(int64_t i = 0; i < manifest.classes; i++) {
         objects[i].mark = gc_green;
         objects[i].klass = classes[i].newdup();
+        objects[i].monitor = new Monitor();
     }
 }
 
@@ -121,25 +122,13 @@ void Environment::newNative(gc_object *object, int8_t type) {
     object->obj = new Object();
     switch(type) {
         case nativeint:
-            object->obj->nInt = 0;
-            return;
         case nativeshort:
-            object->obj->nShort = 0;
-            return;
         case nativelong:
-            object->obj->nLong = 0;
-            return;
         case nativechar:
-            object->obj->nChar = 0;
-            return;
         case nativebool:
-            object->obj->nBool = 0;
-            return;
         case nativefloat:
-            object->obj->nFloat = 0;
-            return;
         case nativedouble:
-            object->obj->nDouble = 0;
+            object->obj->prim = 0;
             return;
         case nativestring:
             object->obj->str = nString();
@@ -172,10 +161,10 @@ void Environment::free(gc_object *objects, int64_t len) {
         for(int64_t i = 0; i < len; i++) {
             objects[i].invalidate();
             objects[i].free();
-            objects[i].refs->clear();
+            //objects[i].refs->clear();
             std::free (objects[i].refs);
 
-            objects[i].monitor->~Monitor();
+            //objects[i].monitor->~Monitor();
         }
         std::free (objects);
     }

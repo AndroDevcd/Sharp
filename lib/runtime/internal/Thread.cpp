@@ -185,6 +185,7 @@ void Thread::suspendThread(Thread *thread) {
     if(thread->id == self->id)
         suspendSelf();
     else {
+        thread->event++;
         thread->suspendPending = true;
     }
 }
@@ -260,6 +261,7 @@ int Thread::interrupt(Thread *thread) {
         }
         else
         {
+            thread->event++;
             thread->state = thread_killed; // terminate thread
             unsuspendThread(thread);
             return 0;
@@ -282,7 +284,7 @@ void Thread::shutdown() {
 
 void Thread::exit() {
     try {
-        this->exitVal = this->stack.popInt();
+        this->exitVal = 0;//(int)this->stack.pop()->obj->prim;
     } catch (Exception) {
         this->exitVal = 203;
     }

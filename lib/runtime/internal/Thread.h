@@ -36,6 +36,7 @@ public:
             exitVal(1),
             suspendPending(false),
             exceptionThrown(false),
+            event(0),
             throwable()
 
     {
@@ -76,6 +77,7 @@ public:
     string name;
     Method* main;
     int exitVal;
+    int event;
     bool suspendPending;
     bool exceptionThrown;
 

@@ -14,7 +14,7 @@ gc_object::gc_object() {
     this->mark = gc_orange;
     this->obj = Environment::nilObject;
     this->ref = Environment::nilReference;
-    this->refs = new list<Reference*>();
+    this->refCount = 0;
     this->monitor = new Monitor();
     this->type = nilobject;
 }
@@ -25,7 +25,7 @@ gc_object::gc_object(Type type) {
     this->mark = gc_orange;
     this->obj = Environment::nilObject;
     this->ref = Environment::nilReference;
-    this->refs = new list<Reference*>();
+    this->refCount = 0;
     this->monitor = new Monitor();
     this->type = type;
 }
@@ -68,21 +68,22 @@ void gc_object::free() {
 }
 
 void gc_object::invalidate() {
-    for(Reference* refrence : *this->refs) {
+    int iter=0;
+    for(Reference* refrence : this->refs) {
+        if(iter++ >= refCount) break;
         refrence->notify();
     }
 }
 
 void gc_object::inv_reference(Reference *pReference) {
-    std::list<Reference*>::iterator i = refs->begin();
-    while (i != refs->end())
-    {
-        if ((*i) == pReference) {
-            refs->erase(i++);
+
+    int iter=0;
+    for(Reference* refrence : this->refs) {
+        if(iter++ >= refCount) break;
+        if (refrence == pReference) {
+            refs[iter] = NULL;
             return;
         }
-
-        ++i;
     }
 }
 

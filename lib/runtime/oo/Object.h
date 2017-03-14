@@ -11,6 +11,8 @@
 #include "string.h"
 #include "../internal/Monitor.h"
 
+#define ref_cap 0x16e
+
 class ArrayObject;
 class ClassObject;
 class Reference;
@@ -32,16 +34,7 @@ enum Type {
 
 /* native object */
 struct Object {
-
-    union {
-        bool nBool;
-        int8_t nChar;
-        int16_t nShort;
-        int32_t nInt;
-        int64_t nLong;
-        float nFloat;
-        double nDouble;
-    };
+    double prim;
     nString str;
 };
 
@@ -52,7 +45,8 @@ public:
 
     gc_object(Type type);
 
-    list<Reference*>* refs;
+    Reference* refs[ref_cap];
+    int refCount;
 
     gc_mark mark;
     Type type;

@@ -47,6 +47,9 @@ public:
         return stack[x];
     }
 
+
+    void Execute();
+
     gc_object* instance;
     gc_object* locals;
     Method *current;

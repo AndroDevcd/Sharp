@@ -7,49 +7,15 @@
 #include "../internal/Environment.h"
 
 void FastStack::free() {
-    std::free (lst);
-    lst = NULL;
+    std::free (stack);
+    stack = NULL;
     len = 0;
 }
 
-double FastStack::popInt() {
-    if(sp < 0)
-        throw Exception(Environment::ThreadStackException, "illegal stack pop");
-    return lst[sp--].value;
-}
-
-void FastStack::push(double value) {
-    sp++;
-    if(sp >= len)
+void FastStack::push(gc_object *value) {
+    if(++sp > len)
         throw Exception(Environment::StackOverflowErr, "");
-    lst[sp].value = value;
-}
-
-void FastStack::pushs(string value) {
-    sp++;
-    if(sp >= len)
-        throw Exception(Environment::StackOverflowErr, "");
-    lst[sp].str = value;
-}
-
-void FastStack::pushs(nString value) {
-    sp++;
-    if(sp >= len)
-        throw Exception(Environment::StackOverflowErr, "");
-    lst[sp].str = value.str();
-}
-
-string FastStack::popString() {
-    if(sp < 0)
-        throw Exception(Environment::ThreadStackException, "illegal stack pop");
-    return lst[sp--].str.str();
-}
-
-void FastStack::pusho(gc_object *value) {
-    sp++;
-    if(sp > len)
-        throw Exception(Environment::StackOverflowErr, "");
-    lst[sp].object = value;
+    stack[sp].v = value;
 }
 
 void FastStack::popvoid() {
@@ -58,17 +24,76 @@ void FastStack::popvoid() {
     sp--;
 }
 
-gc_object *FastStack::popObject() {
-    if(sp < 0)
-        throw Exception(Environment::ThreadStackException, "illegal stack pop");
-    return lst[sp--].object;
-}
-
 void FastStack::swap() {
     if(sp < 1)
         throw Exception(Environment::ThreadStackException, "illegal stack swap");
 
-    StackItem tmp = lst[sp];
-    lst[sp] = lst[sp-1];
-    lst[sp-1] = tmp;
+    s_it pVoid = stack[sp];
+    stack[sp] = stack[sp-1];
+    stack[sp-1] = pVoid;
+}
+
+gc_object *FastStack::pop() {
+    if(sp < 0)
+        throw Exception(Environment::ThreadStackException, "illegal stack pop");
+    return (gc_object*)stack[sp--].v;
+}
+
+void FastStack::push(nString value) {
+    if(++sp >= len)
+        throw Exception(Environment::StackOverflowErr, "");
+    stack[sp].s = value;
+}
+
+nString FastStack::pops() {
+    if(sp < 0)
+        throw Exception(Environment::ThreadStackException, "illegal stack pop");
+    return stack[sp--].s;
+}
+
+void FastStack::push(double value) {
+    if(++sp >= len)
+        throw Exception(Environment::StackOverflowErr, "");
+    stack[sp].n = value;
+}
+double FastStack::popn() {
+    if(sp < 0)
+        throw Exception(Environment::ThreadStackException, "illegal stack pop");
+    return stack[sp--].n;
+}
+
+void FastStack::cast32() {
+    if(sp < 0)
+        throw Exception(Environment::ThreadStackException, "illegal stack pop");
+    stack[sp].n = (int32_t)stack[sp].n;
+}
+
+void FastStack::cast16() {
+    if(sp < 0)
+        throw Exception(Environment::ThreadStackException, "illegal stack pop");
+    stack[sp].n = (int16_t)stack[sp].n;
+}
+
+void FastStack::cast64() {
+    if(sp < 0)
+        throw Exception(Environment::ThreadStackException, "illegal stack pop");
+    stack[sp].n = (int64_t)stack[sp].n;
+}
+
+void FastStack::cast8() {
+    if(sp < 0)
+        throw Exception(Environment::ThreadStackException, "illegal stack pop");
+    stack[sp].n = (int8_t)stack[sp].n;
+}
+
+void FastStack::castbool() {
+    if(sp < 0)
+        throw Exception(Environment::ThreadStackException, "illegal stack pop");
+    stack[sp].n = (bool)stack[sp].n;
+}
+
+void FastStack::castfloat() {
+    if(sp < 0)
+        throw Exception(Environment::ThreadStackException, "illegal stack pop");
+    stack[sp].n = (float)stack[sp].n;
 }

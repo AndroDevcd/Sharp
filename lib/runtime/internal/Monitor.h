@@ -33,7 +33,7 @@ public:
     ~Monitor()
     {
 #ifdef WIN32_
-        CloseHandle(mutex);
+        //CloseHandle(mutex);
         status = monitor_free;
 #endif
 #ifdef POSIX_

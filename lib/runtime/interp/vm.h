@@ -16,8 +16,6 @@ class SharpVM {
 public:
     void DestroySharpVM();
 
-    void Execute(Method* method);
-
     static
 #ifdef WIN32_
     DWORD WINAPI

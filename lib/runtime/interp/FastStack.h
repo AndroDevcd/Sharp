@@ -13,21 +13,16 @@
 
 class gc_object;
 
-struct StackItem {
-    double value;
-    gc_object* object;
-    nString str;
+struct s_it{
+    double n;
+    nString s;
+    void* v;
 
     CXX11_INLINE
-    void operator=(const StackItem &item) {
-        value = item.value;
-        object = item.object;
-        str = item.str;
-    }
-
-    ~StackItem()
-    {
-        str = "";
+    void operator=(const s_it &s){
+        n = s.n;
+        this->s = s.s;
+        v = s.v;
     }
 };
 
@@ -35,26 +30,31 @@ class FastStack {
 public:
     FastStack()
     :
-            lst(NULL),
+            stack(NULL),
             len(0),
             sp(-1)
     {
     }
 
     void init() {
-        lst = new StackItem[default_stack];
+        stack = new s_it[default_stack];
         len = default_stack;
     }
 
     int32_t len;
 
+    void push(gc_object* value);
+    void push(nString value);
     void push(double value);
-    void pushs(string value);
-    void pushs(nString value);
-    void pusho(gc_object* value);
-    double popInt();
-    string popString();
-    gc_object* popObject();
+    gc_object* pop();
+    nString pops();
+    double popn();
+    void cast32();
+    void cast16();
+    void cast64();
+    void cast8();
+    void castbool();
+    void castfloat();
 
     void free();
 
@@ -63,8 +63,9 @@ public:
     void swap();
 
 private:
-    StackItem* lst;
+    s_it* stack;
     int32_t sp;
+
 };
 
 

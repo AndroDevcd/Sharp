@@ -25,7 +25,7 @@ enum Opcode {
     mult=0x10, // no args
     _div=0x11, // no args
     mod=0x12, // no args
-    pop=0x13, // no args
+    _pop=0x13, // no args
     load=0x14, // ([integer]) arg1: object address
     geti=0x15, // noargs
     gets=0x16, // noargs
@@ -106,6 +106,10 @@ enum Opcode {
     _goto_e=0x61, // no args
     _goto_ne=0x62, // no args
     _swap=0x63, // no args
+    loadi=0x64, // ([integer]) arg1: object index
 };
+
+#define OPCODE (i) (i & 0x7F000) >> 7
+#define OP_REG1 (i) (i & 0x7F000) >> 7
 
 #endif //SHARP_OPCODE_H

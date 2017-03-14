@@ -109,7 +109,7 @@ void buildExe() {
     executable << (char)0x0e;
     executable << endl;
     executable << (char)0x05 << (char)0x0 << (char)0x0; // nop
-    executable << (char)0x05 << (char)0x1 << (char)0x1 << "0" << (char)0x0; // push_str
+    executable << (char)0x05 << (char)0x1 << (char)0x3 << "0" << (char)0x0; // pushi
     executable << (char)0x05 << (char)0x1 << (char)0x2 << 0x9f << (char)0x0; // _int
 
     // for loop
