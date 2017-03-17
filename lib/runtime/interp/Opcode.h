@@ -32,7 +32,7 @@
 #define SET_Ci(i, op, a1, n, a2) i=((op | ((n & 1) << 8) | (a1 << 9)) | ((int64_t)a2 << 36));
 
 #define GET_OP(i) (i & OPCODE_MASK)
-#define GET_Da(i) ((i >> 8))
+#define GET_Da(i) ((i >> 8)) // TODO: fix this
 #define GET_Ca(i) (((i >> 8) & 1) ? -(i >> 9 & 0x7FFFFFF) : (i >> 9 & 0x7FFFFFF))
 #define GET_Cb(i) (i >> 36)
 
