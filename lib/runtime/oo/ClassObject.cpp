@@ -11,7 +11,6 @@
 void ClassObject::free() {
     if(fields != NULL) {
         for(int64_t i = 0; i < fieldCount; i++) {
-            fields[i].invalidate();
             fields[i].free();
         }
         std::free(fields); fields = NULL;

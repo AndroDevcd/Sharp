@@ -10,6 +10,7 @@
 #include "../../../stdimports.h"
 #include "string.h"
 #include "../internal/Monitor.h"
+#include "Exception.h"
 
 #define ref_cap 0x16e
 
@@ -18,50 +19,61 @@ class ClassObject;
 class Reference;
 
 enum Type {
-    nativeint,
-    nativeshort,
-    nativelong,
-    nativechar,
-    nativebool,
-    nativefloat,
-    nativedouble,
-    nativestring,
-    classobject,
-    arrayobject,
-    refrenceobject,
-    nilobject
+    nativeint=-1,
+    nativeshort=-2,
+    nativelong=-3,
+    nativechar=-4,
+    nativebool=-5,
+    nativefloat=-6,
+    nativedouble=-7,
+    classobject=-8,
+    refrenceobject=-9,
+    nilobject=-10
 };
 
-/* native object */
-struct Object {
-    double prim;
-    nString str;
+struct sValue{
+    union{
+        union {
+            bool b;
+            int8_t c;
+            int16_t s;
+            int32_t i;
+            int64_t l;
+            float f;
+            double d;
+        };
+    };
 };
+
+#define _nativewrite(i,data) \
+    HEAD[i]=data;
+
+
+#define _nativewrite2(ix,data) \
+    ptr->HEAD[ix]=data;
+
+#define _nativewrite3(ix,data) \
+    ptr->HEAD[ix]+=data;
+
+#define _nativeread(r, ix) \
+        regs[r]=ptr->HEAD[i];
 
 /* Objects stored in memory */
 class gc_object {
 public:
     gc_object();
 
-    gc_object(Type type);
+    gc_object(int64_t type);
 
-    Reference* refs[ref_cap];
-    int refCount;
+    double *HEAD;
 
     gc_mark mark;
-    Type type;
-    Object* obj;
-    ArrayObject* arry;
-    ClassObject* klass;
-    Reference* ref;
+    int64_t type, size;
+    gc_object *next, *prev;
     Monitor* monitor;
 
     void free();
-
-    void invalidate();
-
-    void inv_reference(Reference *pReference);
-
+    void createnative(int type, int64_t size);
     void copy_object(gc_object *pObject);
 };
 

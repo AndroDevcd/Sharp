@@ -38,6 +38,7 @@ void Thread::Create(string name) {
     this->id = Thread::tid++;
     this->stack.init();
     this->cstack.init();
+    this->cstack.thread_stack = &this->stack;
 }
 
 Thread *Thread::getThread(int32_t id) {

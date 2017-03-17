@@ -9,6 +9,7 @@
 #include "../oo/Field.h"
 #include "../oo/Method.h"
 #include "../oo/Array.h"
+#include "../oo/Object.h"
 
 SharpVM* vm;
 Environment* env;
@@ -44,9 +45,7 @@ int CreateSharpVM(SharpVM** pVM, Environment** pEnv, std::string exe, std::list<
      * for assigning objects to prevent seg faults on invalid
      * instruction executions
      */
-    env->nilObject = new Object();
     env->nilArray = new ArrayObject();
-    env->nilReference = new Reference();
     env->emptyObject = new gc_object();
 
     /**
@@ -179,7 +178,7 @@ void*
 
 void SharpVM::Shutdown() {
     DestroySharpVM();
-    env->shutdown();
+    //env->shutdown();
 }
 
 void SharpVM::interrupt(int32_t signal) {

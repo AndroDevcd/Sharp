@@ -11,9 +11,7 @@
 class gc_object;
 class Method;
 class ClassObject;
-class Object;
 class ArrayObject;
-class Reference;
 
 class Environment {
 public:
@@ -42,9 +40,7 @@ public:
     void newRefrence(gc_object*);
 
     static ClassObject* nilClass;
-    static Object* nilObject;
     static ArrayObject* nilArray;
-    static Reference* nilReference;
     static gc_object* emptyObject;
 
     // TODO: create the aux classes to be used internally

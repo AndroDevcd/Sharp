@@ -10,18 +10,21 @@
 #include "../oo/Field.h"
 #include "../oo/Method.h"
 #include "../oo/Array.h"
+#include "register.h"
+#include "../oo/Object.h"
 
 void CallStack::push(Method *method) {
     sp++;
 
     if(sp >= default_cstack) throw Exception(Environment::StackOverflowErr, ""); // stack overflow error
     current = method;
-    stack[sp] = method;
+    stack[sp].callee = method;
     if(current->locals == 0)
-        lstack[sp] = NULL;
+        stack[sp].locals = NULL;
     else
-        lstack[sp] = new gc_object[current->locals];
-    locals = lstack[sp];
+        stack[sp].locals = new gc_object[current->locals];
+    regs = stack[sp].rgs;
+    locals = stack[sp].locals;
 }
 
 void CallStack::pop() {
@@ -30,12 +33,14 @@ void CallStack::pop() {
     if(sp <= -1) {
         Environment::free(locals, current->locals);
         current = NULL;
+        regs=NULL;
         return;
     }
 
     Environment::free(locals, current->locals);
-    current = stack[sp];
-    locals = lstack[sp];
+    current = stack[sp].callee;
+    locals = stack[sp].locals;
+    regs = stack[sp].rgs;
 }
 
 void CallStack::Execute() {
@@ -44,10 +49,70 @@ void CallStack::Execute() {
 
     *pc = current->entry;
 
-    int64_t address;
-    gc_object* obj, *ref;
-    double ival, ival2;
-    string strVal;
+    gc_object *ptr=NULL;
+
+    int64_t i;
+    SET_Ei(i, 3)
+
+    cout << "class E\n"
+         << "op " << GET_OP(i);
+
+    cout << endl << endl;
+
+    SET_Di(i, 33, -36028797018963968)
+
+    cout << "class D\n"
+         << "op " << GET_OP(i) << endl
+         << "arg 1 " << GET_Da(i);
+
+    cout << endl << endl;
+
+    SET_Ci(i, 33, 13421776,0, 134217725)
+
+    cout << " i " << i << endl;
+    cout << "class C\n"
+         << "op " << GET_OP(i) << endl
+         << "arg 1 " << GET_Ca(i) << endl
+         << "arg 2 " << GET_Cb(i);
+
+    cout << endl << endl;
+
+    /*
+     * Loop speed test
+     */
+    env->bytecode = new double[64] {
+            0,      // nop
+            2,      // movi %ebx,#0
+            ebx, 0,
+            2,      // movi %ecx, #100000000
+            ecx, 100,
+
+            33,     // movl 3
+            3,
+            5,      // new {int},1
+            nativeint, 1,
+            // .L1 (@12)
+            33,     // movl 3
+            3,
+            2,      // movi %adx,#0
+            adx, 0,
+            39,     // movd %adx,1
+            adx, 1,
+
+            19,     // inc %ebx
+            ebx,
+            2,      // movi %ecf,#5.6
+            ecf, 5.6,
+            2,      // movi %edf,#1.442
+            edf, 1.442,
+            13,     // add %ecf,%edf
+            ecf, edf,
+            23,     // lt %ebx,%ecx
+            ebx, ecx,
+            37,     // bre
+            12,
+            3,      // ret
+    };
 
     try {
         for (;;) {
@@ -59,305 +124,90 @@ void CallStack::Execute() {
                 return;
 
             switch((int)env->bytecode[(*pc)++]) {
-                case nop:
-                    goto interp;
-//                case push_str:
-//                    self->stack.pushs(env->strings[(int64_t )env->bytecode[(*pc)++]].value);
-//                    goto interp;
-                case _int:
-                    vm->interrupt((int32_t )env->bytecode[(*pc)++]);
-                    goto interp;
-                case pushi:
-                    self->stack.push(env->bytecode[(*pc)++]);
-                    goto interp;
-                case ret:
-                    pop();
-                    return;
-                case hlt:
-                    self->state = thread_killed;
-                    goto interp;
-                case _new:
-                    address = (int64_t )env->bytecode[(*pc)++];
-                    env->newClass(address, (int32_t )env->bytecode[(*pc)++]);
-                    goto interp;
-                case casti:
-                    self->stack.cast32();
-                    goto interp;
-                case casts:
-                    self->stack.cast16();
-                    goto interp;
-                case castl:
-                    self->stack.cast64();
-                    goto interp;
-                case castc:
-                    self->stack.cast8();
-                    goto interp;
-                case castb:
-                    self->stack.castbool();
-                    goto interp;
-                case castf:
-                    self->stack.castfloat();
-                    goto interp;
-                case castd:
-                    goto interp;
-                case add:
-                    ival = self->stack.popn();
-                    self->stack.push(ival+self->stack.popn());
-                    goto interp;
-                case sub:
-                    ival = self->stack.popn();
-                    self->stack.push(ival-self->stack.popn());
-                    goto interp;
-                case mult:
-                    ival = self->stack.popn();
-                    self->stack.push(ival*self->stack.popn());
-                    goto interp;
-                case _div:
-                    ival = self->stack.popn();
-                    self->stack.push(ival/self->stack.popn());
-                    goto interp;
-                case mod:
-                    ival = self->stack.popn();
-                    self->stack.push((int64_t )ival%(int64_t )self->stack.popn());
-                    goto interp;
-                case _pop:
-                    self->stack.popvoid();
-                    goto interp;
-                case load:
-                    self->stack.push(&env->objects[(int64_t )env->bytecode[(*pc)++]]);
-                    goto interp;
-                case geti:
-                case gets:
-                case getl:
-                case getc:
-                case getb:
-                case getf:
-                case getd:
-                    self->stack.push(self->stack.pop()->obj->prim);
-                    goto interp;
-                case get_str:
-                    //self->stack.pushs(self->stack.pop()->obj->str);
-                    goto interp;
-                case get_arrx:
-                    self->stack.push(self->stack.pop()->arry->get((int64_t )env->bytecode[(*pc)++]));
-                    goto interp;
-                case _new2:
-                    env->newClass(self->stack.pop(), (int32_t )env->bytecode[(*pc)++]);
-                    goto interp;
-                case null:
-                    self->stack.pop()->free();
-                    goto interp;
-                case _new3:
-                    env->newNative(self->stack.pop(), (int8_t )env->bytecode[(*pc)++]);
-                    goto interp;
-                case _new4:
-                    env->newArray(self->stack.pop(), (int8_t )env->bytecode[(*pc)++]);
-                    goto interp;
-                case _new5:
-                    env->newRefrence(self->stack.pop());
-                    goto interp;
-                case get_classx:
-                    self->stack.push(
-                            self->stack.pop()->klass->get_field((int64_t )env->bytecode[(*pc)++]));
-                    goto interp;
-                case get_ref:
-                    self->stack.push(self->stack.pop()->ref->get());
-                    goto interp;
-                case rstore:
-                    obj = self->stack.pop();
-                    ref = self->stack.pop();
-                    ref->ref->add(obj);
-                    goto interp;
-                case istore:
-                case sstore:
-                case lstore:
-                case cstore:
-                case bstore:
-                case fstore:
-                case dstore:
-                    ival = self->stack.popn();
-                    self->stack.pop()->obj->prim = ival;
-                    goto interp;
-                case store_str:
-//                    strVal = self->stack.popString();
-//                    self->stack.pop()->obj->str = strVal;
-                    goto interp;
-                case _copy:
-                    obj = self->stack.pop();
-                    self->stack.pop()->copy_object(obj);
-                    goto interp;
-                case ifeq:
-                    ival = self->stack.popn();
-                    self->stack.push(ival==self->stack.popn());
-                    goto interp;
-                case ifneq:
-                    ival = self->stack.popn();
-                    self->stack.push(ival!=self->stack.popn());
-                    goto interp;
-                case iflt:
-                    ival = self->stack.popn();
-                    self->stack.push(ival<self->stack.popn());
-                    goto interp;
-                case ifge:
-                    ival = self->stack.popn();
-                    self->stack.push(ival >= self->stack.popn());
-                    goto interp;
-                case ifgt:
-                    ival = self->stack.popn();
-                    self->stack.push(ival > self->stack.popn());
-                    goto interp;
-                case ifle:
-                    ival = self->stack.popn();
-                    self->stack.push(ival <= self->stack.popn());
-                    goto interp;
-                case str_cmpeq:
-//                    strVal = self->stack.popString();
-//                    self->stack.push(strVal == self->stack.popString());
-                    goto interp;
-                case str_cmpne:
-//                    strVal = self->stack.popString();
-//                    self->stack.push(strVal != self->stack.popString());
-                    goto interp;
-                case str_cmplt:
-//                    strVal = self->stack.popString();
-//                    self->stack.push(strVal < self->stack.popString());
-                    goto interp;
-                case str_cmpgt:
-//                    strVal = self->stack.popString();
-//                    self->stack.push(strVal > self->stack.popString());
-                    goto interp;
-                case str_cmple:
-//                    strVal = self->stack.popString();
-//                    self->stack.push(strVal <= self->stack.popString());
-                    goto interp;
-                case str_cmpge:
-//                    strVal = self->stack.popString();
-//                    self->stack.push(strVal >= self->stack.popString());
-                    goto interp;
-                case jmpeq: {
-                    if(self->stack.popn() == 1) {
-                        (*pc) +=(uint64_t )env->bytecode[(*pc)];
-                    }
-                    (*pc)++;
-                    goto interp;
-                }
-                case jmpne:{
-                    if(self->stack.popn() == 0) {
-                        (*pc) +=(uint64_t )env->bytecode[(*pc)];
-                    }
-                    (*pc)++;
-                    goto interp;
-                }
-                case neg:
-                    self->stack.push(-self->stack.popn());
-                    goto interp;
-                case _and:
-                    ival = self->stack.popn();
-                    self->stack.push((int64_t )ival&(int64_t )self->stack.popn());
-                    goto interp;
-                case _or:
-                    ival = self->stack.popn();
-                    self->stack.push((int64_t )ival|(int64_t )self->stack.popn());
-                    goto interp;
-                case _xor:
-                    ival = self->stack.popn();
-                    self->stack.push((int64_t )ival^(int64_t )self->stack.popn());
-                    goto interp;
-                case and2:
-                    ival = self->stack.popn();
-                    self->stack.push(ival&&self->stack.popn());
-                    goto interp;
-                case or2:
-                    ival = self->stack.popn();
-                    self->stack.push(ival||self->stack.popn());
-                    goto interp;
-                case _goto: {
-                    (*pc) =(uint64_t )self->stack.popn();
-                    goto interp;
-                }
-                case _iadr:
-                    self->stack.push((*pc));
-                    goto interp;
-                case invoke: {
-                    (*pc) = vm->Call(env->getMethod((int64_t )env->bytecode[(*pc)++]));
-                    goto interp;
-                }
-                case instance_store:
-                    instance = self->stack.pop();
-                    goto interp;
-                case get_self:
-                    self->stack.push(instance);
-                    goto interp;
-                case arry_len:
-                    self->stack.push(self->stack.pop()->arry->len);
-                    goto interp;
-                case _throw:
-                    throw Exception(self->stack.pop()->klass, "");
-                case lload:
-                    self->stack.push(&locals[(int64_t )env->bytecode[(*pc)++]]);
-                    goto interp;
-                case _catch:
-                    goto interp;
-                case str_append:
-                    // strVal = self->stack.popString();
-                    //self->stack.pushs(strVal += self->stack.popn());
-                    goto interp;
-                case str_append2:
-                    //strVal = self->stack.popString();
-                    //self->stack.pushs(strVal + self->stack.popString());
-                    goto interp;
-                case _strtod:
-                    //self->stack.push(strtod(self->stack.popString().c_str(), NULL));
-                    goto interp;
-                case _strtol:
-                    //self->stack.push(strtoll(self->stack.popString().c_str(), NULL, 0));
-                    goto interp;
-                case _lsh:
-                    ival = self->stack.popn();
-                    self->stack.push((int64_t )ival<<(int64_t )self->stack.popn());
-                    goto interp;
-                case _rsh:
-                    ival = self->stack.popn();
-                    self->stack.push((int64_t )ival>>(int64_t )self->stack.popn());
-                    goto interp;
-                case _lbl:
-                    self->stack.pop()->obj->prim = (*pc);
-                    goto interp;
-                case iinc:
-                case sinc:
-                case linc:
-                case cinc:
-                case binc:
-                case finc:
-                case dinc:
-                    self->stack.pop()->obj->prim++;
-                    goto interp;
-                case idec:
-                case sdec:
-                case ldec:
-                case cdec:
-                case bdec:
-                case fdec:
-                case ddec:
-                    self->stack.pop()->obj->prim--;
-                    goto interp;
-                case _goto_e: {
-                    ival = self->stack.popn();
-                    ival2 = self->stack.popn();
-                    if(ival == 1) (*pc) =(uint64_t )ival2;
-                    goto interp;
-                }
-                case _goto_ne: {
-                    ival = self->stack.popn();
-                    if(ival == 0) (*pc) =(uint64_t )self->stack.popn();
-                    goto interp;
-                }
-                case _swap:
-                    self->stack.swap();
-                    goto interp;
-                case loadi:
-                    self->stack.push(env->objects[(int64_t )env->bytecode[(*pc)++]].obj->prim);
-                    goto interp;
+                case 0:
+                    NOP
+                case 1:
+                    _int(env->bytecode[(*pc)++])
+                case 2:
+                    movi((int64_t)env->bytecode[(*pc)++],env->bytecode[(*pc)++])
+                case 3:
+                    ret
+                case 4:
+                    hlt
+                case 5:
+                    _new((int)env->bytecode[(*pc)],(int64_t)env->bytecode[(*pc)+1])
+                case 6:
+                    check_cast
+                case 7:
+                    pushd(env->bytecode[(*pc)++])
+                case 8:
+                    mov8((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 9:
+                    mov16((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 10:
+                    mov32((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 11:
+                    mov64((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 12:
+                    pushr((int64_t)env->bytecode[(*pc)++])
+                case 13:
+                    add((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 14:
+                    sub((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 15:
+                    mult((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 16:
+                    div((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 17:
+                    mod((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 18:
+                    _pop
+                case 19:
+                    inc((int64_t)env->bytecode[(*pc)++])
+                case 20:
+                    dec((int64_t)env->bytecode[(*pc)++])
+                case 21:
+                    swapr((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 22:
+                    movx((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 23:
+                    lt((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 24:
+                    movpc
+                case 25:
+                    brh
+                case 26:
+                    bre
+                case 27:
+                    _join((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 28:
+                    ife
+                case 29:
+                    ifne
+                case 30:
+                    gt((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 31:
+                    gte((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 32:
+                    lte((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
+                case 33:
+                    movl(&locals[(int64_t)env->bytecode[(*pc)++]])
+                case 34:
+                    object_nxt
+                case 35:
+                    object_prev
+                case 36: // rmov
+                    _nativewrite2((int)env->bytecode[(*pc)++], regs[(int64_t)env->bytecode[(*pc)++]]) _brh
+                case 37:
+                    je(env->bytecode[(*pc)++])
+                case 38: // mov
+                    _nativewrite3((int)env->bytecode[(*pc)++],env->bytecode[(*pc)++]) _brh
+                case 39: // movd
+                    _nativewrite2((int)env->bytecode[(*pc)++],env->bytecode[(*pc)++]) _brh
+                case 40:
+                    movbi(env->bytecode[(*pc)++])
+                case 41:
+                    _sizeof((int64_t)env->bytecode[(*pc)++])
                 default:
                     // unsupported
                     goto interp;

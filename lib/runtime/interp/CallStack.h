@@ -11,8 +11,14 @@
 
 class Method;
 
-/* 20k recursive calls */
-#define default_cstack 0x4ffc
+/* 8k recursive calls */
+#define default_cstack 0x1fc0
+
+struct gc_stack {
+    gc_object* locals;
+    double rgs[9];
+    Method* callee;
+};
 
 class CallStack {
 
@@ -21,18 +27,14 @@ public:
             :
             stack(NULL),
             locals(NULL),
+            instance(NULL),
             len(0),
             sp(-1)
     {
     }
 
     void init() {
-        stack = new Method*[default_cstack];
-        lstack = new gc_object*[default_cstack];
-
-        for(long i = 0; i < default_cstack; i++) {
-            lstack[i] = NULL;
-        }
+        stack = new gc_stack[default_cstack];
         len = default_cstack;
     }
 
@@ -44,7 +46,7 @@ public:
     Method* at(int32_t x) {
         if(x > len || x < 0)
             return NULL;
-        return stack[x];
+        return stack[x].callee;
     }
 
 
@@ -53,12 +55,13 @@ public:
     gc_object* instance;
     gc_object* locals;
     Method *current;
+    double* regs;
     int32_t len;
+    FastStack* thread_stack;
 
     void free() {
         if(len != 0) {
             std::free (stack); stack = NULL;
-            std::free (lstack); lstack = NULL;
             current = NULL;
             sp = -1, len = 0;
         }
@@ -66,8 +69,7 @@ public:
 
 private:
     int32_t sp;
-    Method** stack;
-    gc_object** lstack;
+    gc_stack* stack;
 };
 
 

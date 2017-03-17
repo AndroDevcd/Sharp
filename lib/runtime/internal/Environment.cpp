@@ -8,14 +8,11 @@
 #include "../oo/Exception.h"
 #include "../oo/ClassObject.h"
 #include "../oo/Object.h"
-#include "../oo/Reference.h"
 #include "../oo/Array.h"
 #include "../internal/Monitor.h"
 
 ClassObject* Environment::nilClass = NULL;
-Object* Environment::nilObject = NULL;
 ArrayObject* Environment::nilArray = NULL;
-Reference* Environment::nilReference = NULL;
 gc_object* Environment::emptyObject = NULL;
 
 ClassObject* Environment::Throwable = NULL;
@@ -95,7 +92,6 @@ void Environment::newClass(int64_t object, int64_t klass) {
 
     objects[object].type = classobject;
     objects[object].mark = gc_green;
-    objects[object].klass = findClass(klass)->newdup();
 }
 
 void Environment::newClass(gc_object* object, int64_t klass) {
@@ -103,13 +99,11 @@ void Environment::newClass(gc_object* object, int64_t klass) {
         object->free();
 
     object->mark = gc_green;
-    object->klass = findClass(klass)->newdup();
 }
 
 void Environment::init() {
     for(int64_t i = 0; i < manifest.classes; i++) {
         objects[i].mark = gc_green;
-        objects[i].klass = classes[i].newdup();
         objects[i].monitor = new Monitor();
     }
 }
@@ -119,7 +113,6 @@ void Environment::newNative(gc_object *object, int8_t type) {
         object->free();
 
     object->type = (Type)type;
-    object->obj = new Object();
     switch(type) {
         case nativeint:
         case nativeshort:
@@ -128,14 +121,9 @@ void Environment::newNative(gc_object *object, int8_t type) {
         case nativebool:
         case nativefloat:
         case nativedouble:
-            object->obj->prim = 0;
-            return;
-        case nativestring:
-            object->obj->str = nString();
             return;
         default:
             object->type = nilobject;
-            std::free (object->obj); object->obj = nilObject;
             return;
     }
 }
@@ -144,8 +132,6 @@ void Environment::newArray(gc_object *object, int64_t len) {
     if(object->mark == gc_green)
         object->free();
 
-    object->type = arrayobject;
-    object->arry = new ArrayObject(len);
 }
 
 void Environment::newRefrence(gc_object *object) {
@@ -153,19 +139,18 @@ void Environment::newRefrence(gc_object *object) {
         object->free();
 
     object->type = refrenceobject;
-    object->ref = new Reference();
 }
 
 void Environment::free(gc_object *objects, int64_t len) {
     if(len > 0 && objects != NULL) {
         for(int64_t i = 0; i < len; i++) {
-            objects[i].invalidate();
-            objects[i].free();
+            //objects[i].invalidate();
+            //objects[i].free();
             //objects[i].refs->clear();
-            std::free (objects[i].refs);
+            //std::free (objects[i].refs);
 
             //objects[i].monitor->~Monitor();
         }
-        std::free (objects);
+        //std::free (objects);
     }
 }

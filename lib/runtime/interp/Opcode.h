@@ -5,111 +5,122 @@
 #ifndef SHARP_OPCODE_H
 #define SHARP_OPCODE_H
 
-enum Opcode {
-    nop=0x0, // no args
-    push_str=0x1, // ([integer]) arg1: integer string refrence
-    _int=0x2, // ([integer]) arg1: system call id
-    pushi=0x3, // ([integer]) arg1: integer literal to push to stack
-    ret=0x4, // no args
-    hlt=0x5, // no args
-    _new=0x6, // ([integer], [integer]) arg1: address to object arg2: address to class
-    casti=0x7, // no args
-    casts=0x8, // no args
-    castl=0x9, // no args
-    castc=0xa, // no args
-    castb=0xb, // no args
-    castf=0xc, // no args
-    castd=0xd, // no args
-    add=0xe, // no args
-    sub=0xf, // no args
-    mult=0x10, // no args
-    _div=0x11, // no args
-    mod=0x12, // no args
-    _pop=0x13, // no args
-    load=0x14, // ([integer]) arg1: object address
-    geti=0x15, // noargs
-    gets=0x16, // noargs
-    getl=0x17, // noargs
-    getc=0x18, // noargs
-    getb=0x19, // noargs
-    getf=0x1a, // noargs
-    getd=0x1b, // noargs
-    get_str=0x1c, // noargs
-    get_arrx=0x1d, // ([integer]) arg1: index of array
-    _new2=0x1e, // ([integer]) arg1: address to class
-    null=0x1f, // no args
-    _new3=0x20, // ([integer]) arg1: type of native object
-    _new4=0x21, // ([integer]) arg1: length of array
-    _new5=0x22, // no args
-    get_classx=0x23, // ([integer]) arg1: index of field
-    get_ref=0x24, // no args
-    rstore=0x25, // no args
-    istore=0x26, // no args
-    sstore=0x27, // no args
-    lstore=0x28, // no args
-    cstore=0x29, // no args
-    bstore=0x2a, // no args
-    fstore=0x2b, // no args
-    dstore=0x2c, // no args
-    store_str=0x2d, // no args
-    _copy=0x2e, // no args
-    ifeq=0x2f, //
-    ifneq=0x30,
-    iflt=0x31,
-    ifge=0x32,
-    ifgt=0x33,
-    ifle=0x34,
-    str_cmpeq=0x35,
-    str_cmpne=0x36,
-    str_cmplt=0x37,
-    str_cmpgt=0x38,
-    str_cmple=0x39,
-    str_cmpge=0x3a,
-    jmpeq=0x3b,
-    jmpne=0x3c,
-    neg=0x3d,
-    _and=0x3e,
-    _or=0x3f,
-    _xor=0x40,
-    and2=0x41,
-    or2=0x42,
-    _goto=0x43,
-    _iadr=0x44,
-    invoke=0x45, // ([integer], [integer]) arg1: address to function arg2: address to class object
-    instance_store=0x46, // no args
-    get_self=0x47,
-    arry_len=0x48,
-    _throw=0x49,
-    lload=0x4a, // ([integer]) arg1: object index
-    _catch=0x4b,
-    str_append=0x4c,
-    str_append2=0x4d,
-    _strtod=0x4e,
-    _strtol=0x4f,
-    _lsh=0x50,
-    _rsh=0x51,
-    _lbl=0x52, // no args
-    iinc=0x53, // no args
-    sinc=0x54, // no args
-    linc=0x55, // no args
-    cinc=0x56, // no args
-    binc=0x57, // no args
-    finc=0x58, // no args
-    dinc=0x59, // no args
-    idec=0x5a, // no args
-    sdec=0x5b, // no args
-    ldec=0x5c, // no args
-    cdec=0x5d, // no args
-    bdec=0x5e, // no args
-    fdec=0x5f, // no args
-    ddec=0x60, // no args
-    _goto_e=0x61, // no args
-    _goto_ne=0x62, // no args
-    _swap=0x63, // no args
-    loadi=0x64, // ([integer]) arg1: object index
-};
+#include "../../../stdimports.h"
 
-#define OPCODE (i) (i & 0x7F000) >> 7
-#define OP_REG1 (i) (i & 0x7F000) >> 7
+/**
+ * Bit layout
+ *
+ * Class D Instruction
+    | 123456789012345678901234567890123456789012345678901234 | 12345678 |  max: 7FFFFFFFFFFFFF
+    |						argument						  |  opcode  |
+
+    max 36028797018963967 min -36028797018963968
+
+    Class C Instruction
+    | 190123456789012345678901234 | 0123456789012345678901234567 | 12345678 | max: FFFFFFF
+    |			 argument		 |			argument		   |  opcode  |
+
+    max 134217727 min -134217727
+ */
+
+#define OPCODE_MASK 0xff
+
+#define SET_Ei(i, op) i=op;
+
+#define SET_Di(i, op, a1) i=((op) | (a1 << 8));
+
+#define SET_Ci(i, op, a1, n, a2) i=((op | ((n & 1) << 8) | (a1 << 9)) | ((int64_t)a2 << 36));
+
+#define GET_OP(i) (i & OPCODE_MASK)
+#define GET_Da(i) ((i >> 8))
+#define GET_Ca(i) (((i >> 8) & 1) ? -(i >> 9 & 0x7FFFFFF) : (i >> 9 & 0x7FFFFFF))
+#define GET_Cb(i) (i >> 36)
+
+#define _brh goto interp;
+
+#define NOP _brh
+
+#define _int(x) vm->interrupt(x); _brh
+
+#define movi(r,x) regs[r]=x; _brh
+
+#define ret { pop(); return; } _brh
+
+#define hlt self->state=thread_killed; _brh
+
+#define _new(t,x) \
+{ \
+    ptr->createnative(t,x);\
+    (*pc)+=2; \
+}; _brh
+
+#define check_cast \
+{ \
+    \
+}; _brh
+
+#define pushd(x) thread_stack->push(x); _brh
+
+#define mov8(r,x) regs[r]=(int8_t)regs[x]; _brh
+
+#define mov16(r,x) regs[r]=(int16_t)regs[x]; _brh
+
+#define mov32(r,x) regs[r]=(int32_t)regs[x]; _brh
+
+#define mov64(r,x) regs[r]=(int64_t)regs[x]; _brh
+
+#define pushr(r) thread_stack->push(regs[r]); _brh
+
+#define add(r,x) regs[0x0008]=regs[r]+regs[x]; _brh
+
+#define sub(r,x) regs[0x0008]=regs[r]-regs[x]; _brh _brh
+
+#define mult(r,x) regs[0x0008]=regs[r]*regs[x]; _brh _brh
+
+#define div(r,x) regs[0x0008]=regs[r]/regs[x]; _brh _brh
+
+#define mod(r,x) regs[0x0008]=(int64_t)regs[r]%(int64_t)regs[x]; _brh
+
+#define _pop _brh
+
+#define inc(r) regs[r]++; _brh
+
+#define dec(r) regs[r]--; _brh
+
+#define swapr(r,x) regs[r]=regs[x]; _brh
+
+#define movx(r,x) _nativeread(r,x) _brh
+
+#define lt(r,x) regs[0x0002]=regs[r]<regs[x]; _brh
+
+#define movpc regs[0x0000]=*pc; _brh
+
+#define brh *pc=regs[0x0000]; _brh
+
+#define bre if(regs[0x0002])*pc=regs[0x0000]; _brh
+
+#define je(x) if(regs[0x0002])*pc=x; else x; _brh
+
+#define _join(h,l) thread_stack->push(strtod (string(h + "." + l).c_str(),NULL)); _brh
+
+#define ife if((regs[0x0002]) == false)*pc=regs[0x0000]; _brh
+
+#define ifne if((!regs[0x0002]) == false)*pc=regs[0x0000]; _brh
+
+#define gt(r,x) regs[0x0002]=regs[r]>regs[x]; _brh
+
+#define gte(r,x) regs[0x0002]=regs[r]>=regs[x]; _brh
+
+#define lte(r,x) regs[0x0002]=regs[r]<regs[x]; _brh
+
+#define movl(x) ptr=x; _brh
+
+#define object_nxt ptr=ptr->next; _brh
+
+#define object_prev ptr=ptr->prev; _brh
+
+#define movbi(x) regs[0x0008]=x; _brh
+
+#define _sizeof(r) regs[r]=ptr->size; _brh
 
 #endif //SHARP_OPCODE_H

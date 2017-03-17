@@ -6,7 +6,6 @@
 #define SHARP_FASTSTACK_H
 
 #include "../../../stdimports.h"
-#include "../oo/Reference.h"
 #include "../oo/string.h"
 
 #define default_stack 0xffe
@@ -15,15 +14,7 @@ class gc_object;
 
 struct s_it{
     double n;
-    nString s;
     void* v;
-
-    CXX11_INLINE
-    void operator=(const s_it &s){
-        n = s.n;
-        this->s = s.s;
-        v = s.v;
-    }
 };
 
 class FastStack {
@@ -43,18 +34,24 @@ public:
 
     int32_t len;
 
-    void push(gc_object* value);
-    void push(nString value);
-    void push(double value);
-    gc_object* pop();
-    nString pops();
-    double popn();
-    void cast32();
-    void cast16();
-    void cast64();
-    void cast8();
-    void castbool();
-    void castfloat();
+    CXX11_INLINE
+    void push(gc_object* value){
+        stack[++sp].v = value;
+    }
+    CXX11_INLINE
+    void push(double value){
+        stack[++sp].n = value;
+    }
+
+    CXX11_INLINE
+    gc_object* pop(){
+        return (gc_object*)stack[sp--].v;
+    }
+
+    CXX11_INLINE
+    double popn(){
+        return stack[sp--].n;
+    }
 
     void free();
 

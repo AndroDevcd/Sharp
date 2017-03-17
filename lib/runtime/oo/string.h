@@ -47,6 +47,17 @@ public:
         }
     }
 
+    void operator=(const nString &_str) {
+        free();
+
+        const string s = string(_str.chars,_str.len);
+        if(s != "") {
+            len = s.size();
+            chars = new char[len];
+            set(s);
+        }
+    }
+
     void operator+=(const string &s) {
         // TODO: implement
     }
