@@ -199,10 +199,10 @@ void SharpVM::interrupt(int32_t signal) {
 }
 
 uint64_t SharpVM::Call(Method *func) {
-    uint64_t pc = Thread::self->pc;
+    //uint64_t pc = Thread::self->pc;
     Thread::self->cstack.push(func);
     Thread::self->cstack.instance = env->emptyObject;
 
     Thread::self->cstack.Execute();
-    return pc;
+    return 0;
 }

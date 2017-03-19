@@ -16,7 +16,7 @@ class Method;
 
 struct gc_stack {
     gc_object* locals;
-    double rgs[9];
+    double rgs[10];
     Method* callee;
 };
 

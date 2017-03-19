@@ -12,6 +12,8 @@
 #include "../oo/Array.h"
 #include "register.h"
 #include "../oo/Object.h"
+#include "../startup.h"
+#include <iomanip>
 
 void CallStack::push(Method *method) {
     sp++;
@@ -43,23 +45,84 @@ void CallStack::pop() {
     regs = stack[sp].rgs;
 }
 
-void CallStack::Execute() {
-    uint64_t *pc = &Thread::self->pc;
-    Thread* self = Thread::self;
 
-    *pc = current->entry;
+double exponent(int64_t n){
+    if (n < 100000){
+        // 5 or less
+        if (n < 100){
+            // 1 or 2
+            if (n < 10)
+                return n*0.1;
+            else
+                return n*0.01;
+        }else{
+            // 3 or 4 or 5
+            if (n < 1000)
+                return n*0.001;
+            else{
+                // 4 or 5
+                if (n < 10000)
+                    return n*0.0001;
+                else
+                    return n*0.00001;
+            }
+        }
+    } else {
+        // 6 or more
+        if (n < 10000000) {
+            // 6 or 7
+            if (n < 1000000)
+                return n*0.000001;
+            else
+                return n*0.0000001;
+        } else if(n < 1000000000) {
+            // 8 to 10
+            if (n < 100000000)
+                return n*0.00000001;
+            else {
+                // 9 or 10
+                if (n < 1000000000)
+                    return n*0.000000001;
+                else
+                    return n*0.0000000001;
+            }
+        } else if(n < 1000000000000000) {
+            // 11 to 15
+            if (n < 100000000000)
+                return n*0.00000000001;
+            else {
+                // 12 to 15
+                if (n < 1000000000000)
+                    return n*0.000000000001;
+                else if (n < 10000000000000)
+                    return n*0.0000000000001;
+                else if (n < 100000000000000)
+                    return n*0.00000000000001;
+                else
+                    return n*0.000000000000001;
+            }
+        }
+        else {
+            return n*0.0000000000000001;
+        }
+    }
+}
+
+void CallStack::Execute() {
+    int64_t *pc = NULL;
+    Thread* self = Thread::self;
 
     gc_object *ptr=NULL;
 
     int64_t i;
-    SET_Ei(i, 3)
+    SET_Ei(i, 3);
 
     cout << "class E\n"
          << "op " << GET_OP(i);
 
     cout << endl << endl;
 
-    SET_Di(i, 33, -36028797018963968)
+    SET_Di(i, 33, 100000000);
 
     cout << "class D\n"
          << "op " << GET_OP(i) << endl
@@ -67,7 +130,7 @@ void CallStack::Execute() {
 
     cout << endl << endl;
 
-    SET_Ci(i, 33, 13421776,0, 134217725)
+    SET_Ci(i, 254, 0x7FFFFFF,0, -0x7FFFFFF);
 
     cout << " i " << i << endl;
     cout << "class C\n"
@@ -80,39 +143,32 @@ void CallStack::Execute() {
     /*
      * Loop speed test
      */
-    env->bytecode = new double[64] {
-            0,      // nop
-            2,      // movi %ebx,#0
-            ebx, 0,
-            2,      // movi %ecx, #100000000
-            ecx, 100,
+    env->bytecode = new int64_t[64] {
+            SET_Ei(i, _NOP),                        // nop
+            SET_Di(i, MOVI, 0), ebx,                // movi %ebx,#0
+            SET_Di(i, MOVI, 100), ecx,        // movi %ecx, #100000000
+            SET_Di(i, MOVL, 3),                     // movl 3
 
-            33,     // movl 3
-            3,
-            5,      // new {int},1
-            nativeint, 1,
-            // .L1 (@12)
-            33,     // movl 3
-            3,
-            2,      // movi %adx,#0
-            adx, 0,
-            39,     // movd %adx,1
-            adx, 1,
+            SET_Di(i, MOVI, 1), egx,                // movi %egx,1     ; alloc size 1 of object
+            SET_Ci(i, NEW, abs(nativeint), 1, egx), // new {int},%egx
+                                                    // .L1
+            SET_Di(i, MOVL, 3),                     // movl 3
+            SET_Di(i, MOVI, 0), adx,                // movi %adx,#0
+            SET_Ci(i, MOV, adx,0, 1),               // mov %adx,1       ; increment local variable
+            SET_Di(i, MOVBI, 53723), 687697862,     // movbi #53723.687697862
+            SET_Di(i, PUT, ebx),
+            SET_Di(i, MOVI, 10), egx,                // movi %adx,#0
+            SET_Di(i, PUTC, egx),
 
-            19,     // inc %ebx
-            ebx,
-            2,      // movi %ecf,#5.6
-            ecf, 5.6,
-            2,      // movi %edf,#1.442
-            edf, 1.442,
-            13,     // add %ecf,%edf
-            ecf, edf,
-            23,     // lt %ebx,%ecx
-            ebx, ecx,
-            37,     // bre
-            12,
-            3,      // ret
+            SET_Di(i, INC, ebx),                    // inc %ebx
+
+            SET_Ci(i, LT, ebx,0, ecx),              // lt %ebx,%ecx
+            SET_Di(i, MOVI, 10), adx,               // movi %adx,.L1    ; store jump address in adx
+            SET_Ei(i, BRE),                          // bre
+            SET_Ei(i, RET),
     };
+
+    pc = &env->bytecode[current->entry];
 
     try {
         for (;;) {
@@ -123,91 +179,87 @@ void CallStack::Execute() {
             if(self->state == thread_killed)
                 return;
 
-            switch((int)env->bytecode[(*pc)++]) {
-                case 0:
+            switch(GET_OP(*pc)) {
+                case _NOP:
                     NOP
-                case 1:
-                    _int(env->bytecode[(*pc)++])
-                case 2:
-                    movi((int64_t)env->bytecode[(*pc)++],env->bytecode[(*pc)++])
-                case 3:
+                case _INT:
+                    _int(GET_Da(*pc))
+                case MOVI:
+                    movi(GET_Da(*pc))
+                case RET:
                     ret
-                case 4:
+                case HLT:
                     hlt
-                case 5:
-                    _new((int)env->bytecode[(*pc)],(int64_t)env->bytecode[(*pc)+1])
-                case 6:
+                case NEW: /* Requires register value */
+                    _new(GET_Ca(*pc),GET_Cb(*pc))
+                case CHECK_CAST:
                     check_cast
-                case 7:
-                    pushd(env->bytecode[(*pc)++])
-                case 8:
-                    mov8((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 9:
-                    mov16((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 10:
-                    mov32((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 11:
-                    mov64((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 12:
-                    pushr((int64_t)env->bytecode[(*pc)++])
-                case 13:
-                    add((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 14:
-                    sub((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 15:
-                    mult((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 16:
-                    div((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 17:
-                    mod((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 18:
+                case MOV8:
+                    mov8(GET_Ca(*pc),GET_Cb(*pc))
+                case MOV16:
+                    mov16(GET_Ca(*pc),GET_Cb(*pc))
+                case MOV32:
+                    mov32(GET_Ca(*pc),GET_Cb(*pc))
+                case MOV64:
+                    mov64(GET_Ca(*pc),GET_Cb(*pc))
+                case PUSHR:
+                    pushr(GET_Da(*pc))
+                case ADD:
+                    add(GET_Ca(*pc),GET_Cb(*pc))
+                case SUB:
+                    sub(GET_Ca(*pc),GET_Cb(*pc))
+                case MUL:
+                    mul(GET_Ca(*pc),GET_Cb(*pc))
+                case DIV:
+                    div(GET_Ca(*pc),GET_Cb(*pc))
+                case MOD:
+                    mod(GET_Ca(*pc),GET_Cb(*pc))
+                case POP:
                     _pop
-                case 19:
-                    inc((int64_t)env->bytecode[(*pc)++])
-                case 20:
-                    dec((int64_t)env->bytecode[(*pc)++])
-                case 21:
-                    swapr((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 22:
-                    movx((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 23:
-                    lt((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 24:
-                    movpc
-                case 25:
+                case INC:
+                    inc(GET_Da(*pc))
+                case DEC:
+                    dec(GET_Da(*pc))
+                case MOVR:
+                    movr(GET_Ca(*pc),GET_Cb(*pc))
+                case MOVX: /* Requires register value */
+                    movx(GET_Ca(*pc),GET_Cb(*pc))
+                case LT:
+                    lt(GET_Ca(*pc),GET_Cb(*pc))
+                case BRH:
                     brh
-                case 26:
+                case BRE:
                     bre
-                case 27:
-                    _join((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 28:
+                case IFE:
                     ife
-                case 29:
+                case IFNE:
                     ifne
-                case 30:
-                    gt((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 31:
-                    gte((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 32:
-                    lte((int64_t)env->bytecode[(*pc)++],(int64_t)env->bytecode[(*pc)++])
-                case 33:
-                    movl(&locals[(int64_t)env->bytecode[(*pc)++]])
-                case 34:
+                case GT:
+                    gt(GET_Ca(*pc),GET_Cb(*pc))
+                case GTE:
+                    gte(GET_Ca(*pc),GET_Cb(*pc))
+                case LTE:
+                    lte(GET_Ca(*pc),GET_Cb(*pc))
+                case MOVL:
+                    movl(&locals[GET_Da(*pc)])
+                case OBJECT_NXT:
                     object_nxt
-                case 35:
+                case OBJECT_PREV:
                     object_prev
-                case 36: // rmov
-                    _nativewrite2((int)env->bytecode[(*pc)++], regs[(int64_t)env->bytecode[(*pc)++]]) _brh
-                case 37:
-                    je(env->bytecode[(*pc)++])
-                case 38: // mov
-                    _nativewrite3((int)env->bytecode[(*pc)++],env->bytecode[(*pc)++]) _brh
-                case 39: // movd
-                    _nativewrite2((int)env->bytecode[(*pc)++],env->bytecode[(*pc)++]) _brh
-                case 40:
-                    movbi(env->bytecode[(*pc)++])
-                case 41:
-                    _sizeof((int64_t)env->bytecode[(*pc)++])
+                case RMOV:
+                    _nativewrite2((int64_t)regs[GET_Ca(*pc)],regs[GET_Cb(*pc)]) _brh
+                case MOV:
+                    _nativewrite3((int64_t)regs[GET_Ca(*pc)],GET_Cb(*pc)) _brh
+                case MOVD:
+                    _nativewrite2((int64_t)regs[GET_Ca(*pc)],GET_Cb(*pc)) _brh
+                case MOVBI:
+                    movbi(((double)GET_Da(*pc) + exponent(*(pc+1))))
+                case _SIZEOF:
+                    _sizeof(GET_Da(*pc))
+                case PUT:
+                    _put(GET_Da(*pc))
+                case PUTC:
+                    putc(GET_Da(*pc))
                 default:
                     // unsupported
                     goto interp;

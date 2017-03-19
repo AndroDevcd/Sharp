@@ -56,7 +56,7 @@ public:
     Method* methods;
     ClassObject* classes;
     String* strings;
-    double* bytecode;
+    int64_t * bytecode;
 
     void shutdown();
 

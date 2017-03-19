@@ -153,7 +153,7 @@ int Process_Exe(std::string exe)
         env->objects = new gc_object[manifest.classes]();
         env->methods = new Method[manifest.methods]();
         env->strings = new String[manifest.strings]();
-        env->bytecode = new double[manifest.isize];
+        env->bytecode = new int64_t[manifest.isize];
 
         for (;;) {
 

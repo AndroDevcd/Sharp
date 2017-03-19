@@ -55,8 +55,8 @@ struct sValue{
 #define _nativewrite3(ix,data) \
     ptr->HEAD[ix]+=data;
 
-#define _nativeread(r, ix) \
-        regs[r]=ptr->HEAD[i];
+#define _nativeread(r,rx) \
+        regs[r]=ptr->HEAD[(int64_t)regs[rx]];
 
 /* Objects stored in memory */
 class gc_object {

@@ -81,7 +81,6 @@ public:
     bool suspendPending;
     bool exceptionThrown;
 
-    uint64_t pc;
     FastStack stack;
     CallStack cstack;
     Throwable throwable;
