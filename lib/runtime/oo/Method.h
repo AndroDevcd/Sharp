@@ -17,13 +17,13 @@ public:
         owner = m.owner;
         id = m.id;
         entry = m.entry;
-        ret = m.ret;
+        retAdr = m.retAdr;
     }
 
     ClassObject* owner;
     string name;
     int64_t id;
-    int64_t entry, ret;
+    int64_t entry, retAdr;
     int64_t locals;
 
     void free() {

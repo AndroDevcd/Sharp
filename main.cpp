@@ -4,6 +4,9 @@
 #include "stdimports.h"
 #include "lib/runtime/startup.h"
 #include "lib/util/file.h"
+#include "lib/runtime/internal/Exe.h"
+#include "lib/runtime/interp/Opcode.h"
+#include "lib/runtime/interp/register.h"
 //#include "lib/grammar/runtime.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -32,8 +35,36 @@ string copychars(char c, int t) {
     return s;
 }
 
+string mi64_tostr(int64_t mi64_)
+{
+    string str;
+    mi64_t mi;
+    SET_mi64(mi, mi64_);
+
+    str+=(signed char)GET_mi32w(mi.A);
+    str+=(signed char)GET_mi32x(mi.A);
+    str+=(signed char)GET_mi32y(mi.A);
+    str+=(signed char)GET_mi32z(mi.A);
+
+    str+=(signed char)GET_mi32w(mi.B);
+    str+=(signed char)GET_mi32x(mi.B);
+    str+=(signed char)GET_mi32y(mi.B);
+    str+=(signed char)GET_mi32z(mi.B);
+    return str;
+}
+
+string mi64_tostr(int64_t mi64_, int64_t overflow)
+{
+    string str;
+
+    str+=mi64_tostr(mi64_);
+    str+=mi64_tostr(overflow);
+    return str;
+}
+
 void buildExe() {
     stringstream executable;
+    int64_t i;
 
     executable << ((char)0x0f) << "SEF";
     executable << copychars(0, 15) << ((char)0x07);
@@ -108,41 +139,23 @@ void buildExe() {
     /* Text section */
     executable << (char)0x0e;
     executable << endl;
-    executable << (char)0x05 << (char)0x0 << (char)0x0; // nop
-    executable << (char)0x05 << (char)0x1 << (char)0x3 << "0" << (char)0x0; // pushi
-    executable << (char)0x05 << (char)0x1 << (char)0x2 << 0x9f << (char)0x0; // _int
 
-    // for loop
-    executable << (char)0x05 << (char)0x1 << (char)0x4a << 0 << (char)0x0; // lload (x)
-    executable << (char)0x05 << (char)0x1 << (char)0x4a << 1 << (char)0x0; // lload (max)
-    executable << (char)0x05 << (char)0x1 << (char)0x4a << 2 << (char)0x0; // lload (_label)
-    executable << (char)0x05 << (char)0x1 << (char)0x20 << 0 << (char)0x0; // _new3
-    executable << (char)0x05 << (char)0x1 << (char)0x20 << 0 << (char)0x0; // _new3
-    executable << (char)0x05 << (char)0x1 << (char)0x20 << 2 << (char)0x0; // _new3
-    executable << (char)0x05 << (char)0x1 << (char)0x4a << 0 << (char)0x0; // lload (x)
-    executable << (char)0x05 << (char)0x1 << (char)0x3 << 0 << (char)0x0; // pushi
-    executable << (char)0x05 << (char)0x0 << (char)0x26 << (char)0x0; // istore
-    executable << (char)0x05 << (char)0x1 << (char)0x4a << 1 << (char)0x0; // lload (max)
-    executable << (char)0x05 << (char)0x1 << (char)0x3 << 1000000 << (char)0x0; // pushi
-    executable << (char)0x05 << (char)0x0 << (char)0x26 << (char)0x0; // istore
+    executable << (char)0x05; executable << mi64_tostr(SET_Ei(i, _NOP));
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 0), ebx);
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 100000000), ecx);
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVL, 3));
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 1), egx);
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVL, 3));
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 0), adx);
+    executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, MOV, adx,0, 1));
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVBI, 53723), 687697862);
+    executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, MOVX, egx,0, adx));
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, INC, ebx));
+    executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, LT, ebx,0, ecx));
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 10), adx);
+    executable << (char)0x05; executable << mi64_tostr(SET_Ei(i, BRE));
+    executable << (char)0x05; executable << mi64_tostr(SET_Ei(i, RET));
 
-    executable << (char)0x05 << (char)0x1 << (char)0x4a << 2 << (char)0x0; // lload (_label)
-    executable << (char)0x05 << (char)0x0 << (char)0x52 << (char)0x0; // _lbl
-
-    executable << (char)0x05 << (char)0x1 << (char)0x4a << 0 << (char)0x0; // lload (x)
-    executable << (char)0x05 << (char)0x0 << (char)0x53 << (char)0x0; // iinc
-    executable << (char)0x05 << (char)0x1 << (char)0x4a << 1 << (char)0x0; // lload (max)
-    executable << (char)0x05 << (char)0x0 << (char)0x15 << (char)0x0; // geti
-    executable << (char)0x05 << (char)0x1 << (char)0x4a << 0 << (char)0x0; // lload (x)
-    executable << (char)0x05 << (char)0x0 << (char)0x15 << (char)0x0; // geti
-    executable << (char)0x05 << (char)0x0 << (char)0x31 << (char)0x0; // iflt
-    executable << (char)0x05 << (char)0x1 << (char)0x4a << 2 << (char)0x0; // lload (_label)
-    executable << (char)0x05 << (char)0x0 << (char)0x15 << (char)0x0; // geti (remove this to figure out seg fault)
-    executable << (char)0x05 << (char)0x0 << (char)0x63 << (char)0x0; // _swap
-    executable << (char)0x05 << (char)0x0 << (char)0x61 << (char)0x0; // _goto_e
-
-    executable << (char)0x05 << (char)0x1 << (char)0x3 << "1" << (char)0x0; // pushi
-    executable << (char)0x05 << (char)0x0 << (char)0x4 << (char)0x0; // ret
     executable << endl;
     executable << (char)0x1d;
 

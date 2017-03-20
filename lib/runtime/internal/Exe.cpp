@@ -10,6 +10,7 @@
 #include "../interp/vm.h"
 #include "../oo/Method.h"
 #include "../oo/Object.h"
+#include "../interp/Opcode.h"
 
 #define offset 0xf
 #define file_sig 0x0f
@@ -288,7 +289,7 @@ int Process_Exe(std::string exe)
             throw std::runtime_error("file `" + exe + "` may be corrupt");
 
         /* Text section */
-        uint64_t dc=0, bRef=0;
+        uint64_t bRef=0, extra=0;
         updateStackFile("processing .text section");
 
         for (;;) {
@@ -301,16 +302,21 @@ int Process_Exe(std::string exe)
                     break;
 
                 case data_byte: {
-                    dc++;
-                    int bytes = f.at(n++);
-                    if(bRef >= manifest.isize || (bRef+bytes) >= manifest.isize)
+                    if(bRef >= manifest.isize)
                         throw std::runtime_error("text section may be corrupt");
 
-                    env->bytecode[bRef++] = f.at(n++); // instruction
-                    for(int i = 0; i < bytes; i++) {
-                        dc++;
-                        env->bytecode[bRef++] = getnumber(f); // operands
+                    env->bytecode[bRef] = GET_mi64(
+                            GET_mi32(f), GET_mi32(f)
+                    );
+
+                    if(GET_OP(env->bytecode[bRef]) == MOVI ||
+                            GET_OP(env->bytecode[bRef]) == MOVBI)
+                    {
+                        env->bytecode[++bRef] = GET_mi64(
+                                GET_mi32(f), GET_mi32(f)
+                        );
                     }
+                    bRef++;
                 }
 
                 case eos:
@@ -320,7 +326,7 @@ int Process_Exe(std::string exe)
             }
 
             if(fl == eos) {
-                if(dc != manifest.isize)
+                if(bRef != manifest.isize)
                     throw std::runtime_error("text section may be corrupt");
                 break;
             }
@@ -349,7 +355,7 @@ void getMethod(string exe, ClassObject *parent, Method* method) {
     method->entry = getlong(exe);
     method->locals = getlong(exe);
     method->owner = parent;
-    method->ret = -1;
+    method->retAdr = -1;
 }
 
 void getField(string exe, list <MetaField>& mFields, Field* field) {

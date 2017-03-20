@@ -109,29 +109,6 @@ double exponent(int64_t n){
     }
 }
 
-struct mi64_t {
-    int32_t A;
-    int32_t B;
-};
-
-#define SET_mi32A(mi, i) mi.A=(i >> 32)
-
-#define SET_mi32B(mi, i) mi.B=( i & 0xFFFFFFFF)
-
-#define SET_mi64(mi, i) \
-    SET_mi32A(mi,i); \
-    SET_mi32B(mi,i); \
-
-#define GET_mi64(A, B) (((int64_t)A << 32) | (B))
-
-
-#define GET_mi32w(i) (i >> 24)
-#define GET_mi32x(i) ((i >> 16) & 0xff)
-#define GET_mi32y(i) ((i >> 8) & 0xff )
-#define GET_mi32z(i) (i & 0xff)
-
-#define SET_mi32(w,x,y,z) ((z) | ((int32_t)y << 8) | ((int32_t)x << 16) | ((int32_t)w << 24))
-
 void CallStack::Execute() {
     int64_t *pc = NULL;
     Thread* self = Thread::self;
