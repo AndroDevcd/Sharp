@@ -3,34 +3,52 @@
 //
 
 #include "Monitor.h"
+#include "Thread.h"
 
 void Monitor::unlock() {
     if(status == monitor_free)
         return;
 
-#ifdef WIN32_
-    if( !ReleaseMutex(mutex) ) {
-        // error
-    } else
-        status = monitor_free;
-#endif
-#ifdef POSIX_
-    if(!pthread_mutex_unlock( &mutex ))
-        status = monitor_free;
-#endif
+    status = monitor_free;
+    threadid = -1;
 }
 
-bool Monitor::lock() {
-    bool success;
-    if(status == monitor_busy) return true;
-#ifdef WIN32_
-    success = !WaitForSingleObject(
-            mutex,    // handle to mutex
-            INFINITE);  // no time-out interval
-#endif
-#ifdef POSIX_
-    success = !pthread_mutex_lock( &mutex );
-#endif
-    if(success) status = monitor_busy;
-    return success;
+
+bool Monitor::acquire(int32_t spins) {
+    if(Thread::self->id == threadid)
+        return true;
+
+    wait:
+        _thread_wait_for_lock(spins);
+
+    if(!do_lock())
+    {
+        if(spins == INDEFINITE)
+            goto wait;
+        else
+            return false;
+    } else {
+
+        threadid = Thread::self->id;
+        status = monitor_busy;
+        return true;
+    }
+}
+
+void Monitor::_thread_wait_for_lock(int32_t spins)
+{
+    int32_t retryCount = 1;
+    while (!do_lock())
+    {
+        if(retryCount++ == spins)
+        {
+            if(spins == INDEFINITE)
+            {
+                retryCount = 1;
+                continue;
+            }
+
+            return;
+        }
+    }
 }

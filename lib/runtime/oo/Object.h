@@ -31,20 +31,6 @@ enum Type {
     nilobject=-10
 };
 
-struct sValue{
-    union{
-        union {
-            bool b;
-            int8_t c;
-            int16_t s;
-            int32_t i;
-            int64_t l;
-            float f;
-            double d;
-        };
-    };
-};
-
 #define _nativewrite(i,data) \
     HEAD[i]=data;
 

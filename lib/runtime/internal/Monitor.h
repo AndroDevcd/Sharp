@@ -7,9 +7,11 @@
 
 #include "../../../stdimports.h"
 
+#define INDEFINITE 0
+
 enum LockStatus {
-    monitor_busy,
-    monitor_free
+    monitor_busy=0x1,
+    monitor_free=0x0
 };
 
 class Monitor {
@@ -19,40 +21,24 @@ public:
             threadid(-1),
             status(monitor_free)
     {
-        #ifdef WIN32_
-        mutex = CreateMutex(
-                NULL,              // default security attributes
-                FALSE,             // initially not owned
-                NULL);
-        #endif
-        #ifdef POSIX_
-        pthread_mutex_init ( &mutex, NULL);
-        #endif
     }
 
     ~Monitor()
     {
-#ifdef WIN32_
-        //CloseHandle(mutex);
-        status = monitor_free;
-#endif
-#ifdef POSIX_
         unlock();
-#endif
     }
 
-    bool lock();
+    CXX11_INLINE
+    bool do_lock() {
+        return status == monitor_free;
+    }
+
+    void _thread_wait_for_lock(int32_t);
+    bool acquire(int32_t spins = INDEFINITE);
     void unlock();
 
     int32_t  threadid;
     LockStatus status;
-
-#ifdef WIN32_
-    HANDLE mutex;
-#endif
-#ifdef POSIX_
-    pthread_mutex_t mutex;
-#endif
 };
 
 

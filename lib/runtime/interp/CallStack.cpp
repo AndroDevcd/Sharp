@@ -13,6 +13,7 @@
 #include "register.h"
 #include "../oo/Object.h"
 #include "../startup.h"
+#include "../../util/file.h"
 #include <iomanip>
 
 void CallStack::push(Method *method) {
@@ -108,6 +109,29 @@ double exponent(int64_t n){
     }
 }
 
+struct mi64_t {
+    int32_t A;
+    int32_t B;
+};
+
+#define SET_mi32A(mi, i) mi.A=(i >> 32)
+
+#define SET_mi32B(mi, i) mi.B=( i & 0xFFFFFFFF)
+
+#define SET_mi64(mi, i) \
+    SET_mi32A(mi,i); \
+    SET_mi32B(mi,i); \
+
+#define GET_mi64(A, B) (((int64_t)A << 32) | (B))
+
+
+#define GET_mi32w(i) (i >> 24)
+#define GET_mi32x(i) ((i >> 16) & 0xff)
+#define GET_mi32y(i) ((i >> 8) & 0xff )
+#define GET_mi32z(i) (i & 0xff)
+
+#define SET_mi32(w,x,y,z) ((z) | ((int32_t)y << 8) | ((int32_t)x << 16) | ((int32_t)w << 24))
+
 void CallStack::Execute() {
     int64_t *pc = NULL;
     Thread* self = Thread::self;
@@ -115,11 +139,10 @@ void CallStack::Execute() {
     gc_object *ptr=NULL;
 
     int64_t i;
-
     /*
      * Loop speed test
      */
-    env->bytecode = new int64_t[64] {
+    env->bytecode = new int64_t[22] {
             SET_Ei(i, _NOP),                        // nop
             SET_Di(i, MOVI, 0), ebx,                // movi %ebx,#0
             SET_Di(i, MOVI, 100000000), ecx,        // movi %ecx, #100000000

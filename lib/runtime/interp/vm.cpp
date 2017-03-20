@@ -187,7 +187,7 @@ void SharpVM::interrupt(int32_t signal) {
             cout << env->strings[(int64_t )Thread::self->stack.popn()].value;
             break;
         case 0xa0:
-            Thread::self->stack.pop()->monitor->lock();
+            Thread::self->stack.pop()->monitor->acquire();
             break;
         case 0xa1:
             Thread::self->stack.pop()->monitor->unlock();
