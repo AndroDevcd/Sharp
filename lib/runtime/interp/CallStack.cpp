@@ -115,30 +115,6 @@ void CallStack::Execute() {
     gc_object *ptr=NULL;
 
     int64_t i;
-    SET_Ei(i, 3);
-
-    cout << "class E\n"
-         << "op " << GET_OP(i);
-
-    cout << endl << endl;
-
-    SET_Di(i, 33, 100000000);
-
-    cout << "class D\n"
-         << "op " << GET_OP(i) << endl
-         << "arg 1 " << GET_Da(i);
-
-    cout << endl << endl;
-
-    SET_Ci(i, 254, 0x7FFFFFF,0, -0x7FFFFFF);
-
-    cout << " i " << i << endl;
-    cout << "class C\n"
-         << "op " << GET_OP(i) << endl
-         << "arg 1 " << GET_Ca(i) << endl
-         << "arg 2 " << GET_Cb(i);
-
-    cout << endl << endl;
 
     /*
      * Loop speed test
@@ -146,8 +122,8 @@ void CallStack::Execute() {
     env->bytecode = new int64_t[64] {
             SET_Ei(i, _NOP),                        // nop
             SET_Di(i, MOVI, 0), ebx,                // movi %ebx,#0
-            SET_Di(i, MOVI, 100), ecx,        // movi %ecx, #100000000
-            SET_Di(i, MOVL, 3),                     // movl 3
+            SET_Di(i, MOVI, 100000000), ecx,        // movi %ecx, #100000000
+            SET_Di(i, MOVL, 3),                     // movl 3 
 
             SET_Di(i, MOVI, 1), egx,                // movi %egx,1     ; alloc size 1 of object
             SET_Ci(i, NEW, abs(nativeint), 1, egx), // new {int},%egx
@@ -156,9 +132,7 @@ void CallStack::Execute() {
             SET_Di(i, MOVI, 0), adx,                // movi %adx,#0
             SET_Ci(i, MOV, adx,0, 1),               // mov %adx,1       ; increment local variable
             SET_Di(i, MOVBI, 53723), 687697862,     // movbi #53723.687697862
-            SET_Di(i, PUT, ebx),
-            SET_Di(i, MOVI, 10), egx,                // movi %adx,#0
-            SET_Di(i, PUTC, egx),
+            SET_Ci(i, MOVX, egx,0, adx),            // movx %egx,%adx   ; store local variable's value
 
             SET_Di(i, INC, ebx),                    // inc %ebx
 
@@ -253,7 +227,7 @@ void CallStack::Execute() {
                 case MOVD:
                     _nativewrite2((int64_t)regs[GET_Ca(*pc)],GET_Cb(*pc)) _brh
                 case MOVBI:
-                    movbi(((double)GET_Da(*pc) + exponent(*(pc+1))))
+                    movbi(GET_Da(*pc) + exponent(*(pc+1)))
                 case _SIZEOF:
                     _sizeof(GET_Da(*pc))
                 case PUT:
