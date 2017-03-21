@@ -6,6 +6,7 @@
 #define SHARP_FIELD_H
 
 #include "../../../stdimports.h"
+#include "string.h"
 
 class ClassObject;
 
@@ -21,7 +22,7 @@ public:
         this->isstatic = field.isstatic;
     }
 
-    string name;
+    nString name;
     int64_t id;
     int type;
     bool isstatic;
