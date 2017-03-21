@@ -39,10 +39,6 @@ public:
     void newArray(gc_object*, int64_t);
     void newRefrence(gc_object*);
 
-    static ClassObject* nilClass;
-    static ArrayObject* nilArray;
-    static gc_object* emptyObject;
-
     // TODO: create the aux classes to be used internally
     static ClassObject* Throwable;
     static ClassObject* StackOverflowErr;

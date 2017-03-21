@@ -17,8 +17,8 @@ Environment* env;
 int CreateSharpVM(std::string exe, std::list<string> pArgs)
 {
     updateStackFile("Creating virtual machine:");
-    vm = new SharpVM();
-    env = new Environment();
+    vm = (SharpVM*)malloc(sizeof(SharpVM)*1);
+    env = (Environment*)malloc(sizeof(Environment)*1);
 
     if(Process_Exe(exe) != 0)
         return 1;
@@ -26,24 +26,6 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
     Thread::Startup();
 
     updateStackFile("(internal) Adding helper classes and objects");
-
-    env->nilClass = new ClassObject(
-            "$internal#NillClass",
-            new Field[0] {},
-            0,
-            new Method[0] {},
-            0,
-            NULL,
-            ++manifest.baseaddr
-    );
-
-    /**
-     * Native objects cannot be null but this will be used
-     * for assigning objects to prevent seg faults on invalid
-     * instruction executions
-     */
-    env->nilArray = new ArrayObject();
-    env->emptyObject = new gc_object();
 
     /**
      * Aux classes
@@ -202,7 +184,7 @@ void SharpVM::interrupt(int32_t signal) {
 uint64_t SharpVM::Call(Method *func) {
     //uint64_t pc = Thread::self->pc;
     Thread::self->cstack.push(func);
-    Thread::self->cstack.instance = env->emptyObject;
+    Thread::self->cstack.instance = NULL;
 
     Thread::self->cstack.Execute();
     return 0;

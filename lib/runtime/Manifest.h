@@ -19,11 +19,11 @@ struct Manifest {
     string version;
     bool debug;
     int64_t entry;
-    int64_t methods, classes;
+    size_t methods, classes;
     int fvers;
     int target;
     int64_t isize;
-    int64_t strings;
+    size_t strings;
     int64_t baseaddr;
     Method* main;
 };

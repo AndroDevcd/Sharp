@@ -11,10 +11,6 @@
 #include "../oo/Array.h"
 #include "../internal/Monitor.h"
 
-ClassObject* Environment::nilClass = NULL;
-ArrayObject* Environment::nilArray = NULL;
-gc_object* Environment::emptyObject = NULL;
-
 ClassObject* Environment::Throwable = NULL;
 ClassObject* Environment::StackOverflowErr = NULL;
 ClassObject* Environment::RuntimeException = NULL;

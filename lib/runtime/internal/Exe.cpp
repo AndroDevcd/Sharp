@@ -154,11 +154,11 @@ int Process_Exe(std::string exe)
         int64_t cRef=0, mRef=0;
         updateStackFile("processing .data section");
 
-        env->classes = new ClassObject[manifest.classes]();
-        env->objects = new gc_object[manifest.classes]();
-        env->methods = new Method[manifest.methods]();
-        env->strings = new String[manifest.strings]();
-        env->bytecode = new int64_t[manifest.isize];
+        env->classes =(ClassObject*)malloc(sizeof(ClassObject)*manifest.classes);
+        env->objects = (gc_object*)malloc(sizeof(gc_object)*manifest.classes);
+        env->methods = (Method*)malloc(sizeof(Method)*manifest.methods);
+        env->strings = (String*)malloc(sizeof(String)*manifest.strings);
+        env->bytecode = (int64_t*)malloc(sizeof(int64_t)*manifest.isize);
 
         for (;;) {
 

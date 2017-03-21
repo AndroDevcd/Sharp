@@ -119,8 +119,6 @@ void CallStack::Execute() {
 
 
     pc = &env->bytecode[current->entry];
-
-            cout << "op = " << GET_OP(*pc) << endl; 
             
     try {
         for (;;) {
@@ -130,12 +128,6 @@ void CallStack::Execute() {
                 Thread::suspendSelf();
             if(self->state == thread_killed)
                 return;
-
-            cout << "op = " << GET_OP(*pc) << endl;
-            cout << "Da = " << GET_Da(*pc) << endl;
-
-            cout << "Ca = " << GET_Ca(*pc) << endl;
-            cout << "Cb = " << GET_Cb(*pc) << endl << endl;
 
             switch(GET_OP(*pc)) {
                 case _NOP:
