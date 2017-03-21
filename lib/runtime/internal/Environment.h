@@ -60,7 +60,7 @@ public:
 
     void shutdown();
 
-    void init();
+    static void init(gc_object*,int64_t);
 
     static void free(gc_object*, int64_t);
 };

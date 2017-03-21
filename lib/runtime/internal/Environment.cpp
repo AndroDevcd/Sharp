@@ -101,10 +101,9 @@ void Environment::newClass(gc_object* object, int64_t klass) {
     object->mark = gc_green;
 }
 
-void Environment::init() {
-    cout.precision(16);
-    for(int64_t i = 0; i < manifest.classes; i++) {
-        objects[i].mark = gc_green;
+void Environment::init(gc_object* objects, int64_t size) {
+    for(int64_t i = 0; i < size; i++) {
+        objects[i].mark = gc_orange;
         objects[i].monitor = new Monitor();
     }
 }

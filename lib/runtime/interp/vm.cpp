@@ -109,7 +109,8 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
     );
 
     updateStackFile("initializing memory objects");
-    env->init();
+    cout.precision(16);
+    env->init(env->objects, manifest.classes);
 
     return 0;
 }

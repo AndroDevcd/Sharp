@@ -24,8 +24,10 @@ void CallStack::push(Method *method) {
     stack[sp].callee = method;
     if(current->locals == 0)
         stack[sp].locals = NULL;
-    else
+    else {
         stack[sp].locals = new gc_object[current->locals];
+        env->init(stack[sp].locals, current->locals);
+    }
     regs = stack[sp].rgs;
     locals = stack[sp].locals;
 }
@@ -118,6 +120,8 @@ void CallStack::Execute() {
 
     pc = &env->bytecode[current->entry];
 
+            cout << "op = " << GET_OP(*pc) << endl; 
+            
     try {
         for (;;) {
 

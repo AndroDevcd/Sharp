@@ -32,16 +32,20 @@ enum Type {
 };
 
 #define _nativewrite(i,data) \
+    cout << "create object size" << size << endl; \
     HEAD[i]=data;
 
 
 #define _nativewrite2(ix,data) \
+    cout << "object size" << ptr->size << endl; \
     ptr->HEAD[ix]=data;
 
 #define _nativewrite3(ix,data) \
+    cout << "object size" << ptr->size << endl; \
     ptr->HEAD[ix]+=data;
 
 #define _nativeread(r,rx) \
+    cout << "object size" << ptr->size << endl; \
         regs[r]=ptr->HEAD[(int64_t)regs[rx]];
 
 /* Objects stored in memory */

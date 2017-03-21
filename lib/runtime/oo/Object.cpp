@@ -34,7 +34,9 @@ void gc_object::copy_object(gc_object *pObject) {
 }
 
 void gc_object::createnative(int type, int64_t size) {
+        cout << "CREATE OBJECT " << size << " mark " << mark << endl;
     if(mark != gc_green) {
+        cout << "CREATE OBJECT " << size << endl;
         HEAD=new double[size];
         this->type=type;
         this->size=size;
