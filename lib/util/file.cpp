@@ -3,6 +3,7 @@
 //
 #include "file.h"
 #include <sstream>
+#include<stdio.h>
 #include <fstream>
 
 bool file::exists(const char *file)
@@ -31,50 +32,71 @@ bool file::empty(const char *file)
     return true;
 }
 
-int file::write(const char *file, string data)
+int file::write(const char *f, string data)
 {
     try {
-        ofstream f (file);
-        if (f.is_open())
-        {
-            f << data;
-            f.close();
-            return 0;
-        }
-        else
-            return -1;
+        FILE* fp=NULL;
+
+        fp = fopen(f,"wb+");
+        if(fp == 0)
+            return 1;  // could not open file
+
+        unsigned int p=0;
+        do {
+            fputc( data.at(p++), fp );
+        }while(p<data.size());
+        fclose(fp);
     }
     catch(std::bad_alloc& ba){
         return -1;
     }
 }
 
-string file::read_alltext(const char *file)
+uint64_t file_size(FILE *fp)
 {
-    if(!exists(file))
+    uint64_t len, cur;
+    cur = ftell( fp );            /* remember where we are */
+    fseek( fp, 0L, SEEK_END );    /* move to the end */
+    len = ftell( fp );            /* get position there */
+    fseek( fp, cur, SEEK_SET );   /* return back to original position */
+
+    return ( len );
+}
+
+string file::read_alltext(const char *f)
+{
+    if(!exists(f))
         return "";
 
-    string data = "";
-
     try {
-        string tmp;
-        ifstream input(file);
 
-        while(!input.eof()) {
-            tmp = "";
-            getline(input, tmp);
-            data += tmp;
-            data+= "\n";
-        }
+        FILE* fp=NULL;
+        int64_t len;
+        string s;
+
+        fp = fopen(f,"rb");
+        if(fp == 0)
+            return "";  // could not open file
+
+
+        len = file_size(fp);
+        if(len == -1) 1;
+        //printf("buf size %u\n", (unsigned int)len);
+        unsigned int p=0;
+
+        do {
+            s+= getc(fp);
+        }while(p++<(len));
+        fclose(fp);
+        return s;
     }
     catch(std::bad_alloc& ba){
-        return data;
+        return "";
     }
     catch(std::exception& e){
-        return data;
+        return "";
     }
 
-    return data;
 }
 
 bool file::endswith(string ext, string file) {

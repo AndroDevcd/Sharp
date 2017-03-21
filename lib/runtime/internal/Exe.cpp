@@ -53,6 +53,10 @@ void getMethod(string exe, ClassObject *parent, Method* method);
 
 ClassObject *findClass(int64_t superClass);
 
+bool overflowOp(int op) ;
+
+mi32_t read_mi32(std::string) ;
+
 int Process_Exe(std::string exe)
 {
     string f = "";
@@ -305,15 +309,35 @@ int Process_Exe(std::string exe)
                     if(bRef >= manifest.isize)
                         throw std::runtime_error("text section may be corrupt");
 
+                    mi32_t I32;
+                    I32=read_mi32(f);
+                    int32_t mi32=SET_mi32( \
+                            I32.w, I32.x, \
+                            I32.y, I32.z \
+                        );
+
+                    I32=read_mi32(f);
                     env->bytecode[bRef] = GET_mi64(
-                            GET_mi32(f), GET_mi32(f)
+                            mi32, (mi32=SET_mi32( \
+                            I32.w, I32.x, \
+                            I32.y, I32.z \
+                        ))
                     );
 
-                    if(GET_OP(env->bytecode[bRef]) == MOVI ||
-                            GET_OP(env->bytecode[bRef]) == MOVBI)
+                    if(overflowOp(GET_OP(env->bytecode[bRef])))
                     {
+                        I32=read_mi32(f);
+                        mi32=SET_mi32( \
+                            I32.w, I32.x, \
+                            I32.y, I32.z \
+                        );
+
+                        I32=read_mi32(f);
                         env->bytecode[++bRef] = GET_mi64(
-                                GET_mi32(f), GET_mi32(f)
+                                mi32, SET_mi32( \
+                                    I32.w, I32.x, \
+                                    I32.y, I32.z \
+                                )
                         );
                     }
                     bRef++;
@@ -338,6 +362,21 @@ int Process_Exe(std::string exe)
     }
 
     return 0;
+}
+
+mi32_t read_mi32(string exe) {
+    mi32_t mi32;
+    mi32.w = exe.at(n++)==1?-1*(exe.at(n++)):exe.at(n++);
+    mi32.x = exe.at(n++)==1?-1*(exe.at(n++)):exe.at(n++);
+    mi32.y = exe.at(n++)==1?-1*(exe.at(n++)):exe.at(n++);
+    mi32.z = exe.at(n++)==1?-1*(exe.at(n++)):exe.at(n++);
+
+    return mi32;
+}
+
+bool overflowOp(int op) {
+    return op == MOVI ||
+           op == MOVBI;
 }
 
 ClassObject *findClass(int64_t superClass) {

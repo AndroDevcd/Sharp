@@ -25,11 +25,11 @@
 
 #define OPCODE_MASK 0xff
 
-#define SET_Ei(i, op) i=op
+#define SET_Ei(i, op) (i=op)
 
-#define SET_Di(i, op, a1) i=((op) | ((int64_t)a1 << 8))
+#define SET_Di(i, op, a1) (i=((op) | ((int64_t)a1 << 8)))
 
-#define SET_Ci(i, op, a1, n, a2) i=((op | ((n & 1) << 8) | ((int64_t)a1 << 9)) | ((int64_t)a2 << 36))
+#define SET_Ci(i, op, a1, n, a2) (i=((op | ((n & 1) << 8) | ((int64_t)a1 << 9)) | ((int64_t)a2 << 36)))
 
 #define GET_OP(i) (i & OPCODE_MASK)
 #define GET_Da(i) (i >> 8)

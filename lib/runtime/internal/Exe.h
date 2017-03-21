@@ -18,6 +18,13 @@ struct mi64_t {
     int32_t B;
 };
 
+struct mi32_t {
+    int8_t w;
+    int8_t x;
+    int8_t y;
+    int8_t z;
+};
+
 #define SET_mi32A(mi, i) mi.A=(i >> 32)
 
 #define SET_mi32B(mi, i) mi.B=( i & 0xFFFFFFFF)
@@ -27,20 +34,14 @@ struct mi64_t {
     SET_mi32B(mi,i); \
 
 
-#define GET_mi64(A, B) (((int64_t)A << 32) | (B))
+#define GET_mi64(A, B) (((int64_t)A << 32) | ((int64_t)B & 0xFFFFFFFF))
 
-#define GET_mi32w(i) (i >> 24)
-#define GET_mi32x(i) ((i >> 16) & 0xff)
-#define GET_mi32y(i) ((i >> 8) & 0xff )
-#define GET_mi32z(i) (i & 0xff)
+#define GET_mi32w(i) ((int8_t)(i >> 24))
+#define GET_mi32x(i) ((int8_t)((i >> 16) & 0xff))
+#define GET_mi32y(i) ((int8_t)((i >> 8) & 0xff ))
+#define GET_mi32z(i) ((int8_t)(i & 0xff))
 
 #define SET_mi32(w,x,y,z) ((z) | ((int32_t)y << 8) | ((int32_t)x << 16) | ((int32_t)w << 24))
-
-#define GET_mi32(exe) \
-    SET_mi32( \
-        GET_mi32w(exe.at(n++)), GET_mi32x(exe.at(n++)), \
-        GET_mi32y(exe.at(n++)), GET_mi32z(exe.at(n++)) \
-    )
 
 int Process_Exe(std::string);
 

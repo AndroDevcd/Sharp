@@ -7,6 +7,7 @@
 #include "lib/runtime/internal/Exe.h"
 #include "lib/runtime/interp/Opcode.h"
 #include "lib/runtime/interp/register.h"
+#include "lib/runtime/oo/Object.h"
 //#include "lib/grammar/runtime.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -35,21 +36,22 @@ string copychars(char c, int t) {
     return s;
 }
 
-string mi64_tostr(int64_t mi64_)
+string mi64_tostr(int64_t i64)
 {
     string str;
     mi64_t mi;
-    SET_mi64(mi, mi64_);
+    SET_mi64(mi, i64);
+    i64 = GET_mi64(mi.A, mi.B);
 
-    str+=(signed char)GET_mi32w(mi.A);
-    str+=(signed char)GET_mi32x(mi.A);
-    str+=(signed char)GET_mi32y(mi.A);
-    str+=(signed char)GET_mi32z(mi.A);
+    str+=GET_mi32w(mi.A)<0?(char)1:(char)0; str+=(char)abs(GET_mi32w(mi.A));
+    str+=GET_mi32x(mi.A)<0?(char)1:(char)0; str+=(char)abs(GET_mi32x(mi.A));
+    str+=GET_mi32y(mi.A)<0?(char)1:(char)0; str+=(char)abs(GET_mi32y(mi.A));
+    str+=GET_mi32z(mi.A)<0?(char)1:(char)0; str+=(char)abs(GET_mi32z(mi.A));
 
-    str+=(signed char)GET_mi32w(mi.B);
-    str+=(signed char)GET_mi32x(mi.B);
-    str+=(signed char)GET_mi32y(mi.B);
-    str+=(signed char)GET_mi32z(mi.B);
+    str+=GET_mi32w(mi.B)<0?(char)1:(char)0; str+=(char)abs(GET_mi32w(mi.B));
+    str+=GET_mi32x(mi.B)<0?(char)1:(char)0; str+=(char)abs(GET_mi32x(mi.B));
+    str+=GET_mi32y(mi.B)<0?(char)1:(char)0; str+=(char)abs(GET_mi32y(mi.B));
+    str+=GET_mi32z(mi.B)<0?(char)1:(char)0; str+=(char)abs(GET_mi32z(mi.B));
     return str;
 }
 
@@ -79,7 +81,7 @@ void buildExe() {
     executable << (char)0x7 << 0 << (char)0x0; // methods
     executable << (char)0x8 << 2 << (char)0x0; // classes ---
     executable << (char)0x9 << 1 << (char)0x0; // fvers
-    executable << (char)0x0b << 48 << (char)0x0 << endl; // isize ---
+    executable << (char)0x0b << 22 << (char)0x0 << endl; // isize ---
     executable << (char)0x0c << 1 << (char)0x0; // strings
     executable << (char)0x0e << 4 << (char)0x0; // base address ---
     executable << (char)0x03;
@@ -140,11 +142,13 @@ void buildExe() {
     executable << (char)0x0e;
     executable << endl;
 
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 100000000), ecx);
     executable << (char)0x05; executable << mi64_tostr(SET_Ei(i, _NOP));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 0), ebx);
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 100000000), ecx);
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVL, 3));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 1), egx);
+    executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, NEW, abs(nativeint), 1, egx));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVL, 3));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 0), adx);
     executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, MOV, adx,0, 1));
@@ -168,6 +172,14 @@ int main(int argc, const char* argv[]) {
 //    std::cout << "compile time " << measure<>::execution(
 //            _bootstrap, argc, argv
 //    ) << "ms" << std::endl;
+
+    int64_t i64 = SET_Di(i64, MOVI, 100000000);
+    mi64_t instr;
+    SET_mi64(instr, i64); // TODO: fix processing of data
+    int64_t i2 = GET_mi64(SET_mi32(GET_mi32w(instr.A), GET_mi32x(instr.A),
+                                   GET_mi32y(instr.A),GET_mi32z(instr.A)), SET_mi32(GET_mi32w(instr.B), GET_mi32x(instr.B),
+                                                                                    GET_mi32y(instr.B),GET_mi32z(instr.B)));
+
     buildExe();
 
     std::cout << "vm time " << measure<>::execution(

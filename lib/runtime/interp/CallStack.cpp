@@ -115,32 +115,6 @@ void CallStack::Execute() {
 
     gc_object *ptr=NULL;
 
-    int64_t i;
-    /*
-     * Loop speed test
-     */
-    env->bytecode = new int64_t[22] {
-            SET_Ei(i, _NOP),                        // nop
-            SET_Di(i, MOVI, 0), ebx,                // movi %ebx,#0
-            SET_Di(i, MOVI, 100000000), ecx,        // movi %ecx, #100000000
-            SET_Di(i, MOVL, 3),                     // movl 3 
-
-            SET_Di(i, MOVI, 1), egx,                // movi %egx,1     ; alloc size 1 of object
-            SET_Ci(i, NEW, abs(nativeint), 1, egx), // new {int},%egx
-                                                    // .L1
-            SET_Di(i, MOVL, 3),                     // movl 3
-            SET_Di(i, MOVI, 0), adx,                // movi %adx,#0
-            SET_Ci(i, MOV, adx,0, 1),               // mov %adx,1       ; increment local variable
-            SET_Di(i, MOVBI, 53723), 687697862,     // movbi #53723.687697862
-            SET_Ci(i, MOVX, egx,0, adx),            // movx %egx,%adx   ; store local variable's value
-
-            SET_Di(i, INC, ebx),                    // inc %ebx
-
-            SET_Ci(i, LT, ebx,0, ecx),              // lt %ebx,%ecx
-            SET_Di(i, MOVI, 10), adx,               // movi %adx,.L1    ; store jump address in adx
-            SET_Ei(i, BRE),                          // bre
-            SET_Ei(i, RET),
-    };
 
     pc = &env->bytecode[current->entry];
 
