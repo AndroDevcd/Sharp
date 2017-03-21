@@ -43,15 +43,15 @@ string mi64_tostr(int64_t i64)
     SET_mi64(mi, i64);
     i64 = GET_mi64(mi.A, mi.B);
 
-    str+=GET_mi32w(mi.A)<0?(char)1:(char)0; str+=(char)abs(GET_mi32w(mi.A));
-    str+=GET_mi32x(mi.A)<0?(char)1:(char)0; str+=(char)abs(GET_mi32x(mi.A));
-    str+=GET_mi32y(mi.A)<0?(char)1:(char)0; str+=(char)abs(GET_mi32y(mi.A));
-    str+=GET_mi32z(mi.A)<0?(char)1:(char)0; str+=(char)abs(GET_mi32z(mi.A));
+    str+=(uint8_t)GET_mi32w(mi.A);
+    str+=(uint8_t)GET_mi32x(mi.A);
+    str+=(uint8_t)GET_mi32y(mi.A);
+    str+=(uint8_t)GET_mi32z(mi.A);
 
-    str+=GET_mi32w(mi.B)<0?(char)1:(char)0; str+=(char)abs(GET_mi32w(mi.B));
-    str+=GET_mi32x(mi.B)<0?(char)1:(char)0; str+=(char)abs(GET_mi32x(mi.B));
-    str+=GET_mi32y(mi.B)<0?(char)1:(char)0; str+=(char)abs(GET_mi32y(mi.B));
-    str+=GET_mi32z(mi.B)<0?(char)1:(char)0; str+=(char)abs(GET_mi32z(mi.B));
+    str+=(uint8_t)GET_mi32w(mi.B);
+    str+=(uint8_t)GET_mi32x(mi.B);
+    str+=(uint8_t)GET_mi32y(mi.B);
+    str+=(uint8_t)GET_mi32z(mi.B);
     return str;
 }
 
@@ -142,10 +142,9 @@ void buildExe() {
     executable << (char)0x0e;
     executable << endl;
 
-    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 100000000), ecx);
     executable << (char)0x05; executable << mi64_tostr(SET_Ei(i, _NOP));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 0), ebx);
-    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 100000000), ecx);
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 1), ecx);
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVL, 3));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 1), egx);
     executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, NEW, abs(nativeint), 1, egx));
@@ -173,12 +172,13 @@ int main(int argc, const char* argv[]) {
 //            _bootstrap, argc, argv
 //    ) << "ms" << std::endl;
 
-    int64_t i64 = SET_Di(i64, MOVI, 100000000);
+    int64_t i64 = SET_Ei(i64, BRE);
     mi64_t instr;
-    SET_mi64(instr, i64); // TODO: fix processing of data
+    SET_mi64(instr, i64);
     int64_t i2 = GET_mi64(SET_mi32(GET_mi32w(instr.A), GET_mi32x(instr.A),
-                                   GET_mi32y(instr.A),GET_mi32z(instr.A)), SET_mi32(GET_mi32w(instr.B), GET_mi32x(instr.B),
-                                                                                    GET_mi32y(instr.B),GET_mi32z(instr.B)));
+                                   GET_mi32y(instr.A),GET_mi32z(instr.A)),
+                          SET_mi32(GET_mi32w(instr.B), GET_mi32x(instr.B),
+                                   GET_mi32y(instr.B),GET_mi32z(instr.B)));
 
     buildExe();
 

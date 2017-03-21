@@ -81,11 +81,7 @@ int runtimeStart(int argc, const char* argv[])
 }
 
 int __vinit(string exe, list<string> pArgs) {
-    SharpVM* vm = NULL;
-    Environment* env = NULL;
-
-
-    if(CreateSharpVM(&vm, &env, exe, pArgs) != 0) {
+    if(CreateSharpVM(exe, pArgs) != 0) {
         fprintf(stderr, "Sharp VM init failed (check log file)\n");
         goto bail;
     }
@@ -93,7 +89,6 @@ int __vinit(string exe, list<string> pArgs) {
     updateStackFile("Starting interpreter");
     vm->InterpreterThreadStart(element_at(*Thread::threads, 0));
 
-    updateStackFile("Virtual machine shutdown");
     return vm->exitVal;
 
     bail:

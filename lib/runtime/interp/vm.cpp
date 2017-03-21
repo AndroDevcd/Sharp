@@ -14,14 +14,11 @@
 SharpVM* vm;
 Environment* env;
 
-int CreateSharpVM(SharpVM** pVM, Environment** pEnv, std::string exe, std::list<string> pArgs)
+int CreateSharpVM(std::string exe, std::list<string> pArgs)
 {
     updateStackFile("Creating virtual machine:");
     vm = new SharpVM();
     env = new Environment();
-
-    *pVM = vm;
-    *pEnv = env;
 
     if(Process_Exe(exe) != 0)
         return 1;
@@ -148,6 +145,7 @@ void*
             Thread::self->throwable = e.getThrowable();
         }
 
+    cout << "done..." << endl;
         if (Thread::self->id == main_threadid)
         {
             /*
@@ -158,7 +156,9 @@ void*
             * regardless of what they are doing, we
             * stop them.
             */
+            cout << "done..." << endl;
             vm->Shutdown();
+            cout << "done..." << endl;
         }
         else
         {

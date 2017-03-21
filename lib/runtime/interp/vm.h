@@ -37,6 +37,6 @@ public:
 extern SharpVM* vm;
 extern Environment* env;
 
-int CreateSharpVM(SharpVM**, Environment**, std::string, std::list<string>);
+int CreateSharpVM(std::string, std::list<string>);
 
 #endif //SHARP_VM_H

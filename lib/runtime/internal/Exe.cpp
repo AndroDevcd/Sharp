@@ -309,38 +309,65 @@ int Process_Exe(std::string exe)
                     if(bRef >= manifest.isize)
                         throw std::runtime_error("text section may be corrupt");
 
-                    mi32_t I32;
-                    I32=read_mi32(f);
-                    int32_t mi32=SET_mi32( \
-                            I32.w, I32.x, \
-                            I32.y, I32.z \
-                        );
-
-                    I32=read_mi32(f);
                     env->bytecode[bRef] = GET_mi64(
-                            mi32, (mi32=SET_mi32( \
-                            I32.w, I32.x, \
-                            I32.y, I32.z \
-                        ))
+                            SET_mi32(f.at(n), f.at(n+1),
+                            f.at(n+2), f.at(n+3)
+                        ), SET_mi32(f.at(n+4), f.at(n+5),
+                            f.at(n+6), f.at(n+7)
+                        )
                     );
 
+                    int8_t ww=f.at(n);
+                    int8_t xx=f.at(n+1);
+                    int8_t yy=f.at(n+2);
+                    int8_t zz=f.at(n+3);
+
+                    int32_t iA1=SET_mi32(f.at(n), f.at(n+1),
+                                         f.at(n+2), f.at(n+3)
+                    );
+                    int32_t iB1=SET_mi32(f.at(n+4), f.at(n+5),
+                                        f.at(n+6), f.at(n+7)
+                    );
+
+                    int op = GET_OP(env->bytecode[bRef]);
+                    int a1a = GET_Da(env->bytecode[bRef]);
+
+                    int a1b = GET_Ca(env->bytecode[bRef]);
+                    int a2 = GET_Cb(env->bytecode[bRef]);
+
+                    n+=8;
                     if(overflowOp(GET_OP(env->bytecode[bRef])))
                     {
-                        I32=read_mi32(f);
-                        mi32=SET_mi32( \
-                            I32.w, I32.x, \
-                            I32.y, I32.z \
+                        env->bytecode[++bRef] = GET_mi64(
+                                SET_mi32(f.at(n), f.at(n+1),
+                            f.at(n+2), f.at(n+3)
+                        ), SET_mi32(f.at(n+4), f.at(n+5),
+                            f.at(n+6), f.at(n+7)
+                        )
                         );
 
-                        I32=read_mi32(f);
-                        env->bytecode[++bRef] = GET_mi64(
-                                mi32, SET_mi32( \
-                                    I32.w, I32.x, \
-                                    I32.y, I32.z \
-                                )
+                        int8_t ww=f.at(n);
+                        int8_t xx=f.at(n+1);
+                        int8_t yy=f.at(n+2);
+                        int8_t zz=f.at(n+3);
+
+                        int32_t iA1=SET_mi32(f.at(n), f.at(n+1),
+                                             f.at(n+2), f.at(n+3)
                         );
+                        int32_t iB1=SET_mi32(f.at(n+4), f.at(n+5),
+                                             f.at(n+6), f.at(n+7)
+                        );
+
+                        int op = GET_OP(env->bytecode[bRef]);
+                        int a1a = GET_Da(env->bytecode[bRef]);
+
+                        int a1b = GET_Ca(env->bytecode[bRef]);
+                        int a2 = GET_Cb(env->bytecode[bRef]);
+
+                        n+=8;
                     }
                     bRef++;
+                    break;
                 }
 
                 case eos:
@@ -366,10 +393,10 @@ int Process_Exe(std::string exe)
 
 mi32_t read_mi32(string exe) {
     mi32_t mi32;
-    mi32.w = exe.at(n++)==1?-1*(exe.at(n++)):exe.at(n++);
-    mi32.x = exe.at(n++)==1?-1*(exe.at(n++)):exe.at(n++);
-    mi32.y = exe.at(n++)==1?-1*(exe.at(n++)):exe.at(n++);
-    mi32.z = exe.at(n++)==1?-1*(exe.at(n++)):exe.at(n++);
+    mi32.w = (uint8_t )exe.at(n++);
+    mi32.x = (uint8_t )exe.at(n++);
+    mi32.y = (uint8_t )exe.at(n++);
+    mi32.z = (uint8_t )exe.at(n++);
 
     return mi32;
 }
