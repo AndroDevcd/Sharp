@@ -169,5 +169,6 @@ int main(int argc, const char* argv[]) {
     buildExe();
 
     runtimeStart( argc, argv );
+    cout << "program exiting..." << endl;
     return 0;
 }

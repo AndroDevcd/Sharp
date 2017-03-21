@@ -27,7 +27,7 @@ public:
     Thread()
     :
             id(-1),
-            monitor(NULL),
+            monitor(),
             dameon(false),
             state(thread_killed),
             suspended(false),
@@ -69,11 +69,11 @@ public:
     static list<Thread*>* threads;
 
     int32_t id;
-    Monitor* monitor;
+    Monitor monitor;
     bool dameon;
     ThreadState state;
     bool suspended;
-    string name;
+    nString name;
     Method* main;
     int exitVal;
     bool suspendPending;

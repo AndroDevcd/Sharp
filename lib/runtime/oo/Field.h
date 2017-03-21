@@ -12,6 +12,11 @@ class ClassObject;
 
 class Field {
 public:
+    Field()
+    :
+        name()
+    {
+    }
 
     void operator=(Field& field) {
 

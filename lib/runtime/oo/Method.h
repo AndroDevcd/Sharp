@@ -13,6 +13,12 @@ class ClassObject;
 class Method {
 
 public:
+    Method()
+    :
+            name()
+    {
+    }
+
     void operator=(Method& m) {
         name = m.name;
         owner = m.owner;

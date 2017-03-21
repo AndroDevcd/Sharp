@@ -16,24 +16,26 @@ list<Thread*>* Thread::threads = NULL;
 void Thread::Startup() {
     updateStackFile("starting up thread manager");
     Thread::threads = new list<Thread*>();
-    Thread::threads->push_back(new Thread());
+    Thread::threads->push_back((Thread*)malloc(sizeof(Thread)*1));
 
     Thread* main = element_at(*Thread::threads, 0);
+    self = main;
     main->stack.init();
     main->main = manifest.main;
     main->Create("Main");
 }
 
 void Thread::Create(string name, ClassObject* klass, int64_t method) {
-    this->monitor = new Monitor();
+    this->monitor = Monitor();
     this->main = env->getMethodFromClass(klass, method);
     this->name = name;
     this->id = Thread::tid++;
     this->stack.init();
+    this->cstack.init();
 }
 
 void Thread::Create(string name) {
-    this->monitor = new Monitor();
+    this->monitor = Monitor();
     this->name = name;
     this->id = Thread::tid++;
     this->stack.init();
@@ -191,8 +193,7 @@ void Thread::suspendThread(Thread *thread) {
 }
 
 void Thread::term() {
-    this->monitor->unlock();
-    std::free (this->monitor);
+    this->monitor.unlock();
     this->stack.free();
     this->cstack.free();
 }

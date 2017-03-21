@@ -34,6 +34,7 @@ public:
     }
 
     void init() {
+        sp=-1;
         stack = new gc_stack[default_cstack];
         len = default_cstack;
     }

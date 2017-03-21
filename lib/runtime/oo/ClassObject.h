@@ -16,7 +16,7 @@ class ClassObject {
 public:
     ClassObject()
     :
-            name(""),
+            name(),
             flds(NULL),
             methods(NULL),
             super(NULL),
