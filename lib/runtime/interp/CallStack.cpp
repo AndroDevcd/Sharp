@@ -127,6 +127,12 @@ void CallStack::Execute() {
             if(self->state == thread_killed)
                 return;
 
+            cout << "op = " << GET_OP(*pc) << endl;
+            cout << "Da = " << GET_Da(*pc) << endl;
+
+            cout << "Ca = " << GET_Ca(*pc) << endl;
+            cout << "Cb = " << GET_Cb(*pc) << endl << endl;
+
             switch(GET_OP(*pc)) {
                 case _NOP:
                     NOP
