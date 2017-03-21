@@ -6,6 +6,7 @@
 #define SHARP_CLASSOBJECT_H
 
 #include "../../../stdimports.h"
+#include "string.h"
 
 class Field;
 class gc_object;
@@ -41,7 +42,7 @@ public:
     {
     }
 
-    string name;
+    nString name;
     Field* flds;
     gc_object* fields;
     Method* methods;

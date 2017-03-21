@@ -31,7 +31,7 @@ Method *Environment::getMethod(int64_t id) {
 
 ClassObject *Environment::findClass(string name) {
     for (uint64_t i = 0; i < manifest.classes; i++) {
-        if (env->classes[i].name == name)
+        if (env->classes[i].name.str() == name)
             return &env->classes[i];
     }
 
@@ -40,7 +40,7 @@ ClassObject *Environment::findClass(string name) {
 
 ClassObject *Environment::tryFindClass(string name) {
     for (uint64_t i = 0; i < manifest.classes; i++) {
-        if (env->classes[i].name == name)
+        if (env->classes[i].name.str() == name)
             return &env->classes[i];
     }
 

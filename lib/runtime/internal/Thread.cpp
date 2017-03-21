@@ -186,7 +186,6 @@ void Thread::suspendThread(Thread *thread) {
     if(thread->id == self->id)
         suspendSelf();
     else {
-        thread->event++;
         thread->suspendPending = true;
     }
 }
@@ -229,16 +228,14 @@ void Thread::killAll() {
     for(Thread* thread : *threads) {
         if(thread->id != self->id) {
             if(thread->state == thread_running) {
-                suspendThread(thread);
-                waitForThreadSuspend(thread);
-
                 interrupt(thread);
             } else {
                 thread->term();
             }
-
-            std::free (thread); thread = NULL;
+        } else {
+            thread->term();
         }
+        std::free (thread); thread = NULL;
     }
 }
 
@@ -262,9 +259,7 @@ int Thread::interrupt(Thread *thread) {
         }
         else
         {
-            thread->event++;
             thread->state = thread_killed; // terminate thread
-            unsuspendThread(thread);
             return 0;
         }
     }
@@ -274,9 +269,8 @@ int Thread::interrupt(Thread *thread) {
 
 void Thread::shutdown() {
     if(threads != NULL) {
-        Thread::killAll();
         Thread::self->term();
-        std::free (Thread::self);
+        Thread::killAll();
 
         Thread::threads->clear();
         std::free (Thread::threads);

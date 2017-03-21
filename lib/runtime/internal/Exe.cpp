@@ -171,7 +171,7 @@ int Process_Exe(std::string exe)
 
                 case data_class: {
                     int64_t fc=0, mc=0;
-                    ClassObject* c = &env->classes[cRef];
+                    ClassObject* c = &env->classes[cRef++];
                     mClasses.push_back(MetaClass(c, getlong(f)));
 
                     c->id = getlong(f);
@@ -224,8 +224,6 @@ int Process_Exe(std::string exe)
                             throw std::runtime_error("invalid method size");
                         }
                     }
-
-                    cRef++;
                     break;
                 }
 

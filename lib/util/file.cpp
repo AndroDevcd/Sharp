@@ -32,7 +32,7 @@ bool file::empty(const char *file)
     return true;
 }
 
-int file::write(const char *f, string data)
+int file::write(const char *f, string stream)
 {
     try {
         FILE* fp=NULL;
@@ -43,8 +43,8 @@ int file::write(const char *f, string data)
 
         unsigned int p=0;
         do {
-            fputc( data.at(p++), fp );
-        }while(p<data.size());
+            fputc( stream.at(p++), fp );
+        }while(p<stream.size());
         fclose(fp);
     }
     catch(std::bad_alloc& ba){
