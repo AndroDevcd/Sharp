@@ -7,7 +7,7 @@
 
 #include "../oo/string.h"
 #include "../interp/FastStack.h"
-#include "../OO/ClassObject.h"
+#include "../oo/ClassObject.h"
 
 class gc_object;
 class Method;
