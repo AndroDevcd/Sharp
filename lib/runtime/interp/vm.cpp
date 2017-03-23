@@ -93,9 +93,10 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
 }
 
 void SharpVM::DestroySharpVM() {
-    if(Thread::self != NULL) {
-        Thread::self->exit();
-        exitVal = Thread::self->exitVal;
+    Thread* t = thread_self;
+    if(t != NULL) {
+        t->exit();
+        exitVal = t->exitVal;
     } else
         exitVal = 1;
     Thread::shutdown();
@@ -108,21 +109,22 @@ DWORD WINAPI
 void*
 #endif
     SharpVM::InterpreterThreadStart(void *arg) {
-        Thread::self = (Thread*)arg;
-        Thread::self->state = thread_running;
+        Thread* self = (Thread*)arg;
+        thread_self = self;
+        self->state = thread_running;
 
         try {
-            Method* main = Thread::self->main;
+            Method* main = self->main;
             if(main != NULL) {
                 vm->Call(main);
             } else {
                 // handle error
             }
         } catch (Exception &e) {
-            Thread::self->throwable = e.getThrowable();
+            self->throwable = e.getThrowable();
         }
 
-        if (Thread::self->id == main_threadid)
+        if (self->id == main_threadid)
         {
             /*
             * Shutdown all running threads
@@ -139,7 +141,7 @@ void*
             /*
              * Check for uncaught exception in thread before exit
              */
-            Thread::self->exit();
+            self->exit();
         }
 
 #ifdef WIN32_
@@ -158,13 +160,13 @@ void SharpVM::Shutdown() {
 void SharpVM::interrupt(int32_t signal) {
     switch (signal) {
         case 0x9f:
-            cout << env->strings[(int64_t )Thread::self->stack.popn()].value.str();
+            cout << env->strings[(int64_t )thread_self->stack.popn()].value.str();
             break;
         case 0xa0: // TodO: convert to instructions
-            Thread::self->stack.pop()->monitor.acquire();
+            thread_self->stack.pop()->monitor.acquire();
             break;
         case 0xa1:
-            Thread::self->stack.pop()->monitor.unlock();
+            thread_self->stack.pop()->monitor.unlock();
             break;
         default:
             // unsupported
@@ -173,10 +175,10 @@ void SharpVM::interrupt(int32_t signal) {
 }
 
 uint64_t SharpVM::Call(Method *func) {
-    //uint64_t pc = Thread::self->pc;
-    Thread::self->cstack.push(func);
-    Thread::self->cstack.instance = NULL;
+    //uint64_t pc = thread_self->pc;
+    thread_self->cstack.push(func);
+    thread_self->cstack.instance = NULL;
 
-    Thread::self->cstack.Execute();
+    thread_self->cstack.Execute();
     return 0;
 }

@@ -15,7 +15,7 @@ void Monitor::unlock() {
 
 
 bool Monitor::acquire(int32_t spins) {
-    if(Thread::self->id == threadid)
+    if(thread_self->id == threadid)
         return true;
 
     wait:
@@ -29,7 +29,7 @@ bool Monitor::acquire(int32_t spins) {
             return false;
     } else {
 
-        threadid = Thread::self->id;
+        threadid = thread_self->id;
         status = monitor_busy;
         return true;
     }

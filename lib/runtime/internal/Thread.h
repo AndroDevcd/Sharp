@@ -65,8 +65,6 @@ public:
     void Create(string);
     void exit();
 
-    thread_local
-    static Thread* self;
     static int32_t tid;
 
     static Thread** threads;
@@ -106,6 +104,8 @@ private:
 
     void push_thread(Thread *thread) const;
 };
+
+extern thread_local Thread* thread_self;
 
 #define ZombieMax 0x7e
 #define main_threadid 0x0

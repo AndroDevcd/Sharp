@@ -7,7 +7,7 @@
 #include "../interp/vm.h"
 
 int32_t Thread::tid = 0;
-thread_local Thread* Thread::self = NULL;
+thread_local Thread* thread_self = NULL;
 Thread** Thread::threads = NULL;
 unsigned int Thread::tp = 0;
 
@@ -19,7 +19,6 @@ void Thread::Startup() {
 
     Thread* main = (Thread*)malloc(
             sizeof(Thread)*1);
-    self = main;
     main->main = manifest.main;
     main->Create("Main");
 }
@@ -96,15 +95,15 @@ int Thread::unsuspendThread(int32_t id) {
 }
 
 void Thread::suspendSelf() {
-    self->suspended = true;
-    self->suspendPending = false;
+    thread_self->suspended = true;
+    thread_self->suspendPending = false;
 
     /*
 	 * We call wait upon suspend. This function will
 	 * sleep the thread most of the time. notify() or
 	 * resumeAllThreads() should be called to revive thread.
 	 */
-    self->wait();
+    thread_self->wait();
 }
 
 void Thread::wait() {
@@ -172,8 +171,8 @@ int Thread::waitForThread(Thread *thread) {
 }
 
 int Thread::interrupt(int32_t id) {
-    if(id == self->id)
-        return 1; // cannot interrupt self
+    if(id == thread_self->id)
+        return 1; // cannot interrupt thread_self
 
     Thread* thread = getThread(id);
     if(thread == NULL)
@@ -217,7 +216,7 @@ int Thread::unsuspendThread(Thread *thread) {
 }
 
 void Thread::suspendThread(Thread *thread) {
-    if(thread->id == self->id)
+    if(thread->id == thread_self->id)
         suspendSelf();
     else {
         thread->suspendPending = true;
@@ -231,7 +230,7 @@ void Thread::term() {
 }
 
 int Thread::join(int32_t id) {
-    if (id == self->id)
+    if (id == thread_self->id)
         return 1;
 
     Thread* thread = getThread(id);
@@ -262,7 +261,7 @@ void Thread::killAll() {
     for(unsigned int i = 0; i < tp; i++) {
         thread = threads[i];
 
-        if(thread != NULL && thread->id != self->id) {
+        if(thread != NULL && thread->id != thread_self->id) {
             if(thread->state == thread_running) {
                 interrupt(thread);
             } else {
