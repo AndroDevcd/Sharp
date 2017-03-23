@@ -120,13 +120,10 @@ void CallStack::Execute() {
     gc_object *ptr=NULL;
 
 
-    int i=0;
     pc = &env->bytecode[current->entry];
             
     try {
         for (;;) {
-
-            interp:
             if(self->suspendPending)
                 Thread::suspendSelf();
             if(self->state == thread_killed)
@@ -215,7 +212,7 @@ void CallStack::Execute() {
                     putc(GET_Da(*pc))
                 default:
                     // unsupported
-                    goto interp;
+                    continue;
             }
         }
     } catch (std::bad_alloc &e) {
