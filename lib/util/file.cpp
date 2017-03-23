@@ -22,7 +22,8 @@ bool is_whitespace(char c)
 
 bool file::empty(const char *file)
 {
-    string data = read_alltext(file);
+    stream data;
+    read_alltext(file, data);
     for(long i = 0; i < data.size(); i++)
     {
         if(!is_whitespace(data.at(i)))
@@ -32,7 +33,28 @@ bool file::empty(const char *file)
     return true;
 }
 
-int file::write(const char *f, string data)
+int file::write(const char *f, stream& data)
+{
+    try {
+        FILE* fp=NULL;
+
+        remove( f );
+        fp = fopen(f,"wb+");
+        if(fp == 0)
+            return 1;  // could not open file
+
+        unsigned int p=0;
+        do {
+            fputc( data.at(p++), fp );
+        }while(p<data.size());
+        fclose(fp);
+    }
+    catch(std::bad_alloc& ba){
+        return -1;
+    }
+}
+
+int file::write(const char *f, std::string data)
 {
     try {
         FILE* fp=NULL;
@@ -63,38 +85,35 @@ uint64_t file_size(FILE *fp)
     return ( len );
 }
 
-string file::read_alltext(const char *f)
+void file::read_alltext(const char *f, stream& _out)
 {
     if(!exists(f))
-        return "";
+        return;
 
     try {
 
         FILE* fp=NULL;
         int64_t len;
-        string s;
 
         fp = fopen(f,"rb");
         if(fp == 0)
-            return "";  // could not open file
+            return;  // could not open file
 
 
         len = file_size(fp);
         if(len == -1) 1;
-        //printf("buf size %u\n", (unsigned int)len);
         unsigned int p=0;
 
         do {
-            s+= getc(fp);
+            _out << getc(fp);
         }while(p++<(len));
         fclose(fp);
-        return s;
     }
     catch(std::bad_alloc& ba){
-        return "";
+        return;
     }
     catch(std::exception& e){
-        return "";
+        return;
     }
 
 }
@@ -107,4 +126,20 @@ bool file::endswith(string ext, string file) {
     }
 
     return extension.str() == ext;
+}
+
+void file::stream::_push_back(char _C) {
+    if(_Data == NULL)
+        begin();
+
+    if(sp>=_ds) {
+        _ds+=STREAM_CHUNK;
+        void* tptr=realloc(_Data, STREAM_CHUNK);
+        if(tptr) {
+            // TODO: handle
+        }
+        _Data=(uint8_t* )tptr;
+    }
+
+    _Data[sp++]=_C;
 }

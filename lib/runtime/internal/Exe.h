@@ -9,20 +9,12 @@
 #include "../Manifest.h"
 #include "../Meta.h"
 
-extern stringstream sdf;
 extern uint64_t jobIndx;
 extern Manifest manifest;
 
 struct mi64_t {
     int32_t A;
     int32_t B;
-};
-
-struct mi32_t {
-    int8_t w;
-    int8_t x;
-    int8_t y;
-    int8_t z;
 };
 
 #define SET_mi32A(mi, i) mi.A=(i >> 32)
@@ -44,10 +36,6 @@ struct mi32_t {
 #define SET_mi32(w,x,y,z) (((uint8_t)z) | ((uint8_t)y << 8) | ((uint8_t)x << 16) | ((uint8_t)w << 24))
 
 int Process_Exe(std::string);
-
-Manifest& getManifest();
-
-Meta& getMetaData();
 
 void pushStackDump();
 

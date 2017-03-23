@@ -87,7 +87,7 @@ int __vinit(string exe, list<string> pArgs) {
     }
 
     updateStackFile("Starting interpreter");
-    vm->InterpreterThreadStart(element_at(*Thread::threads, 0));
+    //vm->InterpreterThreadStart(element_at(*Thread::threads, 0));
 
     return vm->exitVal;
 

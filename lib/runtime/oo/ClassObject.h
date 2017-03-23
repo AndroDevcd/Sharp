@@ -31,7 +31,7 @@ public:
                 int64_t id)
     :
             name(name),
-            flds(flds),
+            flds(fields),
             methods(methods),
             super(super),
             id(id),

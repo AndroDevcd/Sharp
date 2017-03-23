@@ -11,41 +11,60 @@
 
 int32_t Thread::tid = 0;
 thread_local Thread* Thread::self = NULL;
-list<Thread*>* Thread::threads = NULL;
+Thread** Thread::threads = NULL;
+unsigned int Thread::tp = 0;
 
 void Thread::Startup() {
     updateStackFile("starting up thread manager");
-    Thread::threads = new list<Thread*>();
-    Thread::threads->push_back(new Thread());
+    Thread::threads = (Thread**)malloc(sizeof(Thread**)*MAX_THREADS);
 
-    Thread* main = element_at(*Thread::threads, 0);
-    main->stack.init();
+    Thread* main = (Thread*)malloc(
+            sizeof(Thread*)*MAX_THREADS);
     main->main = manifest.main;
     main->Create("Main");
 }
 
 void Thread::Create(string name, ClassObject* klass, int64_t method) {
-    this->monitor = new Monitor();
+    this->monitor = Monitor();
     this->main = env->getMethodFromClass(klass, method);
     this->name = name;
     this->id = Thread::tid++;
     this->stack.init();
+
+    push_thread(this);
 }
 
 void Thread::Create(string name) {
-    this->monitor = new Monitor();
+    this->monitor = Monitor();
+    this->name.init();
+
     this->name = name;
     this->id = Thread::tid++;
     this->stack.init();
     this->cstack.init();
     this->cstack.thread_stack = &this->stack;
+
+    push_thread(this);
+}
+
+void Thread::push_thread(Thread *thread) const {
+    bool threadSet = false;
+    for(unsigned int i = 0; i < tp; i++) {
+        if(threads[i] == NULL) {
+            threads[i] = thread;
+            threadSet = true;
+        }
+    }
+
+    if(!threadSet)
+        threads[tp++]=thread;
 }
 
 Thread *Thread::getThread(int32_t id) {
-    for(int32_t i = 0 ; i < threads->size(); i++) {
-        Thread* thread = element_at(*threads, i);
+    for(int32_t i = 0 ; i < tp; i++) {
+        Thread* thread = threads[i];
 
-        if(thread->id == id)
+        if(thread != NULL && thread->id == id)
             return thread;
     }
 
@@ -186,14 +205,12 @@ void Thread::suspendThread(Thread *thread) {
     if(thread->id == self->id)
         suspendSelf();
     else {
-        thread->event++;
         thread->suspendPending = true;
     }
 }
 
 void Thread::term() {
-    this->monitor->unlock();
-    std::free (this->monitor);
+    this->monitor.unlock();
     this->stack.free();
     this->cstack.free();
 }
@@ -226,8 +243,11 @@ int Thread::threadjoin(Thread *thread) {
 }
 
 void Thread::killAll() {
-    for(Thread* thread : *threads) {
-        if(thread->id != self->id) {
+    Thread* thread;
+    for(unsigned int i = 0; i < tp; i++) {
+        thread = threads[i];
+
+        if(thread != NULL && thread->id != self->id) {
             if(thread->state == thread_running) {
                 suspendThread(thread);
                 waitForThreadSuspend(thread);
@@ -240,6 +260,7 @@ void Thread::killAll() {
             std::free (thread); thread = NULL;
         }
     }
+
 }
 
 int Thread::interrupt(Thread *thread) {
@@ -262,7 +283,6 @@ int Thread::interrupt(Thread *thread) {
         }
         else
         {
-            thread->event++;
             thread->state = thread_killed; // terminate thread
             unsuspendThread(thread);
             return 0;
@@ -276,9 +296,12 @@ void Thread::shutdown() {
     if(threads != NULL) {
         Thread::killAll();
         Thread::self->term();
-        std::free (Thread::self);
 
-        Thread::threads->clear();
+        for(unsigned int i = 0; i < tp; i++) {
+            if(threads[i] != NULL)
+                std::free(threads[i]);
+        }
+
         std::free (Thread::threads);
     }
 }

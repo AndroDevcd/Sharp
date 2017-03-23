@@ -39,28 +39,26 @@ Meta meta;
 uint64_t n = 0, jobIndx=0;
 stringstream stackdump;
 
-bool checkFile(string exe);
+bool checkFile(file::stream& exe);
 
-string getstring(string exe);
+string getstring(file::stream& exe);
 
-double getnumber(string exe);
+double getnumber(file::stream& exe);
 
-int64_t getlong(string exe);
+int64_t getlong(file::stream& exe);
 
-void getField(string exe, list <MetaField>& mFields, Field* field);
+void getField(file::stream& exe, list <MetaField>& mFields, Field* field);
 
-void getMethod(string exe, ClassObject *parent, Method* method);
+void getMethod(file::stream& exe, ClassObject *parent, Method* method);
 
 ClassObject *findClass(int64_t superClass);
 
 bool overflowOp(int op) ;
 
-mi32_t read_mi32(std::string) ;
-
 int Process_Exe(std::string exe)
 {
-    string f = "";
-    int fl, ct=0;
+    file::stream _fStream;
+    int __bitFlag, hdr_cnt=0;
 
     jobIndx++;
     updateStackFile("reading executable");
@@ -69,12 +67,12 @@ int Process_Exe(std::string exe)
     }
 
     manifest.executable = exe;
-    f = file::read_alltext(exe.c_str());
-    if(f == "")
+    file::read_alltext(exe.c_str(), _fStream);
+    if(_fStream.empty())
         return 1;
 
     try {
-        if(!checkFile(f)) {
+        if(!checkFile(_fStream)) {
             error("file `" + exe + "` could not be ran");
         }
 
@@ -83,75 +81,75 @@ int Process_Exe(std::string exe)
         bool manifestFlag = false;
         for (;;) {
 
-            ct++;
-            fl = f.at(n++);
-            switch (fl) {
+            hdr_cnt++;
+            __bitFlag = _fStream.at(n++);
+            switch (__bitFlag) {
                 case 0x0:
                 case 0x0a:
                 case 0x0d:
                 case eoh:
-                    ct--;
+                    hdr_cnt--;
                     break;
 
                 case manif:
-                    ct--;
+                    hdr_cnt--;
                     manifestFlag = true;
                     break;
 
                 case 0x2:
-                    manifest.application =getstring(f);
+                    manifest.application =getstring(_fStream);
                     break;
                 case 0x4:
-                    manifest.version =getstring(f);
+                    manifest.version =getstring(_fStream);
                     break;
                 case 0x5:
-                    manifest.debug = f.at(n++) != nil;
+                    manifest.debug = _fStream.at(n++) != nil;
                     break;
                 case 0x6:
-                    manifest.entry =getlong(f);
+                    manifest.entry =getlong(_fStream);
                     break;
                 case 0x7:
-                    manifest.methods =getlong(f);
+                    manifest.methods =getlong(_fStream);
                     break;
                 case 0x8:
-                    manifest.classes =getlong(f);
+                    manifest.classes =getlong(_fStream);
                     break;
                 case 0x9:
-                    manifest.fvers =getlong(f);
+                    manifest.fvers =getlong(_fStream);
                     break;
                 case 0x0b:
-                    manifest.isize =getlong(f);
+                    manifest.isize =getlong(_fStream);
                     break;
                 case 0x0c:
-                    manifest.strings =getlong(f);
+                    manifest.strings =getlong(_fStream);
                     break;
                 case 0x0e:
-                    manifest.baseaddr =getlong(f);
+                    manifest.baseaddr =getlong(_fStream);
                     break;
                 default:
                     throw std::runtime_error("file `" + exe + "` may be corrupt");
             }
 
-            if(fl == eoh) {
+            if(__bitFlag == eoh) {
                 if(!manifestFlag)
                     throw std::runtime_error("missing manifest flag");
                 if(manifest.fvers != 1)
                     throw std::runtime_error("unknown file version");
 
-                if(ct != hsz || manifest.target > mvers)
+                if(hdr_cnt != hsz || manifest.target > mvers)
                     return 1;
 
                 break;
             }
         }
 
-        if(f.at(n++) != sdata)
+        if(_fStream.at(n++) != sdata)
             throw std::runtime_error("file `" + exe + "` may be corrupt");
 
         /* Data section */
         list<MetaClass> mClasses;
         list<MetaField> mFields;
-        int64_t cRef=0, mRef=0;
+        int64_t classRefptr=0, macroRefptr=0;
         updateStackFile("processing .data section");
 
         env->classes =(ClassObject*)malloc(sizeof(ClassObject)*manifest.classes);
@@ -162,28 +160,28 @@ int Process_Exe(std::string exe)
 
         for (;;) {
 
-            fl = f.at(n++);
-            switch (fl) {
+            __bitFlag = _fStream.at(n++);
+            switch (__bitFlag) {
                 case 0x0:
                 case 0x0a:
                 case 0x0d:
                     break;
 
                 case data_class: {
-                    int64_t fc=0, mc=0;
-                    ClassObject* c = &env->classes[cRef];
-                    mClasses.push_back(MetaClass(c, getlong(f)));
+                    int64_t fieldPtr=0, functionPtr=0;
+                    ClassObject* c = &env->classes[classRefptr++];
+                    mClasses.push_back(MetaClass(c, getlong(_fStream)));
 
-                    c->id = getlong(f);
-                    c->name = getstring(f);
-                    c->fieldCount = getlong(f);
-                    c->methodCount = getlong(f);
+                    c->id = getlong(_fStream);
+                    c->name = getstring(_fStream);
+                    c->fieldCount = getlong(_fStream);
+                    c->methodCount = getlong(_fStream);
                     if(c->fieldCount != 0) {
-                        c->flds = new Field[c->fieldCount];
+                        c->flds = (Field*)malloc(sizeof(Field)*c->fieldCount);
                     } else
                         c->flds = NULL;
                     if(c->methodCount != 0) {
-                        c->methods = new Method[c->methodCount];
+                        c->methods = (Method*)malloc(sizeof(Method)*c->methodCount);
                     } else
                         c->methods = NULL;
                     c->super = NULL;
@@ -191,46 +189,44 @@ int Process_Exe(std::string exe)
 
                     if(c->fieldCount != 0) {
                         for( ;; ) {
-                            if(f.at(n) == data_field) {
+                            if(_fStream.at(n) == data_field) {
                                 n++;
-                                getField(f, mFields, &c->flds[fc++]);
-                            } else if(f.at(n) == 0x0a || f.at(n) == 0x0d) {
+                                getField(_fStream, mFields, &c->flds[fieldPtr++]);
+                            } else if(_fStream.at(n) == 0x0a || _fStream.at(n) == 0x0d) {
                                 n++;
                             } else
                                 break;
                         }
 
-                        if(fc != c->fieldCount) {
+                        if(fieldPtr != c->fieldCount) {
                             throw std::runtime_error("invalid field size");
                         }
                     }
 
                     if(c->methodCount != 0) {
                         for( ;; ) {
-                            if(f.at(n) == data_method) {
+                            if(_fStream.at(n) == data_method) {
                                 n++;
-                                getMethod(f, c, &c->methods[mc]);
+                                getMethod(_fStream, c, &c->methods[functionPtr]);
 
-                                if(manifest.entry == c->methods[mc].id)
-                                    manifest.main = &c->methods[mc];
-                                mc++;
-                            } else if(f.at(n) == 0x0a || f.at(n) == 0x0d){
+                                if(manifest.entry == c->methods[functionPtr].id)
+                                    manifest.main = &c->methods[functionPtr];
+                                functionPtr++;
+                            } else if(_fStream.at(n) == 0x0a || _fStream.at(n) == 0x0d){
                                 n++;
                             } else
                                 break;
                         }
 
-                        if(mc != c->methodCount) {
+                        if(functionPtr != c->methodCount) {
                             throw std::runtime_error("invalid method size");
                         }
                     }
-
-                    cRef++;
                     break;
                 }
 
                 case data_method:
-                    getMethod(f, NULL, &env->methods[mRef++]);
+                    getMethod(_fStream, NULL, &env->methods[macroRefptr++]);
                     break;
                 case sstring:
                     break;
@@ -238,7 +234,7 @@ int Process_Exe(std::string exe)
                     throw std::runtime_error("file `" + exe + "` may be corrupt");
             }
 
-            if(fl == sstring) {
+            if(__bitFlag == sstring) {
                 break;
             }
         }
@@ -254,24 +250,23 @@ int Process_Exe(std::string exe)
         }
 
         /* String section */
-        int64_t sRef=0, sc=0;
+        int64_t stringPtr=0, stringCnt=0;
         updateStackFile("processing .string section");
 
         for (;;) {
 
-            fl = f.at(n++);
-            switch (fl) {
+            __bitFlag = _fStream.at(n++);
+            switch (__bitFlag) {
                 case 0x0:
                 case 0x0a:
                 case 0x0d:
                     break;
 
                 case data_string: {
-                    sc++;
-                    env->strings[sRef].id = getlong(f);
-                    env->strings[sRef].value = getstring(f);
+                    env->strings[stringPtr].id = getlong(_fStream);
+                    env->strings[stringPtr].value = getstring(_fStream);
 
-                    sRef++;
+                    stringPtr++, stringCnt++;
                     break;
                 }
 
@@ -282,14 +277,14 @@ int Process_Exe(std::string exe)
                     throw std::runtime_error("file `" + exe + "` may be corrupt");
             }
 
-            if(fl == eos) {
-                if(sc != manifest.strings)
+            if(__bitFlag == eos) {
+                if(stringCnt != manifest.strings)
                     throw std::runtime_error("invalid string size");
                 break;
             }
         }
 
-        if(f.at(n++) != stext)
+        if(_fStream.at(n++) != stext)
             throw std::runtime_error("file `" + exe + "` may be corrupt");
 
         /* Text section */
@@ -298,8 +293,8 @@ int Process_Exe(std::string exe)
 
         for (;;) {
 
-            fl = f.at(n++);
-            switch (fl) {
+            __bitFlag = _fStream.at(n++);
+            switch (__bitFlag) {
                 case 0x0:
                 case 0x0a:
                 case 0x0d:
@@ -310,61 +305,22 @@ int Process_Exe(std::string exe)
                         throw std::runtime_error("text section may be corrupt");
 
                     env->bytecode[bRef] = GET_mi64(
-                            SET_mi32(f.at(n), f.at(n+1),
-                            f.at(n+2), f.at(n+3)
-                        ), SET_mi32(f.at(n+4), f.at(n+5),
-                            f.at(n+6), f.at(n+7)
+                            SET_mi32(_fStream.at(n), _fStream.at(n+1),
+                            _fStream.at(n+2), _fStream.at(n+3)
+                        ), SET_mi32(_fStream.at(n+4), _fStream.at(n+5),
+                            _fStream.at(n+6), _fStream.at(n+7)
                         )
-                    );
+                    ); n+=8;
 
-                    int8_t ww=f.at(n);
-                    int8_t xx=f.at(n+1);
-                    int8_t yy=f.at(n+2);
-                    int8_t zz=f.at(n+3);
-
-                    int32_t iA1=SET_mi32(f.at(n), f.at(n+1),
-                                         f.at(n+2), f.at(n+3)
-                    );
-                    int32_t iB1=SET_mi32(f.at(n+4), f.at(n+5),
-                                        f.at(n+6), f.at(n+7)
-                    );
-
-                    int op = GET_OP(env->bytecode[bRef]);
-                    int a1a = GET_Da(env->bytecode[bRef]);
-
-                    int a1b = GET_Ca(env->bytecode[bRef]);
-                    int a2 = GET_Cb(env->bytecode[bRef]);
-
-                    n+=8;
                     if(overflowOp(GET_OP(env->bytecode[bRef])))
                     {
                         env->bytecode[++bRef] = GET_mi64(
-                                SET_mi32(f.at(n), f.at(n+1),
-                            f.at(n+2), f.at(n+3)
-                        ), SET_mi32(f.at(n+4), f.at(n+5),
-                            f.at(n+6), f.at(n+7)
+                                SET_mi32(_fStream.at(n), _fStream.at(n+1),
+                            _fStream.at(n+2), _fStream.at(n+3)
+                        ), SET_mi32(_fStream.at(n+4), _fStream.at(n+5),
+                            _fStream.at(n+6), _fStream.at(n+7)
                         )
-                        );
-
-                        int8_t ww=f.at(n);
-                        int8_t xx=f.at(n+1);
-                        int8_t yy=f.at(n+2);
-                        int8_t zz=f.at(n+3);
-
-                        int32_t iA1=SET_mi32(f.at(n), f.at(n+1),
-                                             f.at(n+2), f.at(n+3)
-                        );
-                        int32_t iB1=SET_mi32(f.at(n+4), f.at(n+5),
-                                             f.at(n+6), f.at(n+7)
-                        );
-
-                        int op = GET_OP(env->bytecode[bRef]);
-                        int a1a = GET_Da(env->bytecode[bRef]);
-
-                        int a1b = GET_Ca(env->bytecode[bRef]);
-                        int a2 = GET_Cb(env->bytecode[bRef]);
-
-                        n+=8;
+                        ); n+=8;
                     }
                     bRef++;
                     break;
@@ -376,7 +332,7 @@ int Process_Exe(std::string exe)
                     throw std::runtime_error("file `" + exe + "` may be corrupt");
             }
 
-            if(fl == eos) {
+            if(__bitFlag == eos) {
                 if(bRef != manifest.isize)
                     throw std::runtime_error("text section may be corrupt");
                 break;
@@ -389,16 +345,6 @@ int Process_Exe(std::string exe)
     }
 
     return 0;
-}
-
-mi32_t read_mi32(string exe) {
-    mi32_t mi32;
-    mi32.w = (uint8_t )exe.at(n++);
-    mi32.x = (uint8_t )exe.at(n++);
-    mi32.y = (uint8_t )exe.at(n++);
-    mi32.z = (uint8_t )exe.at(n++);
-
-    return mi32;
 }
 
 bool overflowOp(int op) {
@@ -415,7 +361,7 @@ ClassObject *findClass(int64_t superClass) {
     return NULL;
 }
 
-void getMethod(string exe, ClassObject *parent, Method* method) {
+void getMethod(file::stream& exe, ClassObject *parent, Method* method) {
     method->name = getstring(exe);
     method->id = getlong(exe);
     method->entry = getlong(exe);
@@ -424,7 +370,7 @@ void getMethod(string exe, ClassObject *parent, Method* method) {
     method->retAdr = -1;
 }
 
-void getField(string exe, list <MetaField>& mFields, Field* field) {
+void getField(file::stream& exe, list <MetaField>& mFields, Field* field) {
     field->name = getstring(exe);
     field->id = getlong(exe);
     field->type = (int)getlong(exe);
@@ -433,7 +379,7 @@ void getField(string exe, list <MetaField>& mFields, Field* field) {
     mFields.push_back(MetaField(field, getlong(exe)));
 }
 
-string getstring(string exe) {
+string getstring(file::stream& exe) {
     std::string s;
     while(exe.at(n++) != nil) {
         s+=exe.at(n-1);
@@ -442,17 +388,13 @@ string getstring(string exe) {
     return s;
 }
 
-double getnumber(string exe) {
-    return atof(getstring(exe).c_str());
-}
-
-int64_t getlong(string exe) {
+int64_t getlong(file::stream& exe) {
     return strtoll(getstring(exe).c_str(), NULL, 0);
 }
 
-std::string string_forward(std::string str, size_t begin, size_t end) {
+std::string string_forward(file::stream& str, size_t begin, size_t end) {
     if(begin >= str.size() || end >= str.size())
-        throw new std::invalid_argument("unexpected end of stream");
+        throw std::invalid_argument("unexpected end of stream");
 
     size_t it=0;
     string s;
@@ -462,7 +404,7 @@ std::string string_forward(std::string str, size_t begin, size_t end) {
     return s;
 }
 
-bool checkFile(string exe) {
+bool checkFile(file::stream& exe) {
     if(exe.at(n++) == file_sig && string_forward(exe, n, 3) == "SEF") {
         n +=3 + offset;
 
@@ -475,16 +417,9 @@ bool checkFile(string exe) {
     return false;
 }
 
-Manifest& getManifest() {
-    return manifest;
-}
-
-Meta& getMetaData() {
-    return meta;
-}
-
 void pushStackDump() {
-    file::write((manifest.executable + ".stackdump").c_str(), stackdump.str());
+    file::stream s(stackdump.str());
+    file::write((manifest.executable + ".stackdump").c_str(), s);
 }
 
 void updateStackFile(string status) {

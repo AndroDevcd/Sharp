@@ -13,6 +13,8 @@
 #include "../oo/Exception.h"
 #include "../interp/CallStack.h"
 
+#define MAX_THREADS 0x40fe
+
 class Method;
 
 enum ThreadState {
@@ -27,7 +29,7 @@ public:
     Thread()
     :
             id(-1),
-            monitor(NULL),
+            monitor(),
             dameon(false),
             state(thread_killed),
             suspended(false),
@@ -36,7 +38,6 @@ public:
             exitVal(1),
             suspendPending(false),
             exceptionThrown(false),
-            event(0),
             throwable()
 
     {
@@ -67,17 +68,18 @@ public:
     thread_local
     static Thread* self;
     static int32_t tid;
-    static list<Thread*>* threads;
+
+    static Thread** threads;
+    static unsigned int tp;
 
     int32_t id;
-    Monitor* monitor;
+    Monitor monitor;
     bool dameon;
     ThreadState state;
     bool suspended;
-    string name;
+    nString name;
     Method* main;
     int exitVal;
-    int event;
     bool suspendPending;
     bool exceptionThrown;
 
@@ -101,6 +103,8 @@ private:
     static int unsuspendThread(Thread*);
     static void suspendThread(Thread*);
     static int interrupt(Thread*);
+
+    void push_thread(Thread *thread) const;
 };
 
 #define ZombieMax 0x7e

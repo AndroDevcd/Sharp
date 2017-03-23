@@ -32,6 +32,11 @@ public:
         chars = NULL;
     }
 
+    void init() {
+        len=0;
+        chars=NULL;
+    }
+
     ~nString()
     {
         free();

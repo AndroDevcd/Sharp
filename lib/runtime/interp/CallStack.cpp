@@ -25,7 +25,7 @@ void CallStack::push(Method *method) {
     if(current->locals == 0)
         stack[sp].locals = NULL;
     else {
-        stack[sp].locals = new gc_object[current->locals];
+        stack[sp].locals = (gc_object*)malloc(sizeof(gc_object)*current->locals);
         env->init(stack[sp].locals, current->locals);
     }
     regs = stack[sp].rgs;

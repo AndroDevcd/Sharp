@@ -32,9 +32,9 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
      */
     env->Throwable = new ClassObject(
             "sharp.lang#Throwable",
-            new Field[0] { },
+            NULL,
             0,
-            new Method[0] {},
+            NULL,
             0,
             NULL,
             ++manifest.baseaddr
@@ -42,9 +42,9 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
 
     env->RuntimeException = new ClassObject(
             "sharp.lang#RuntimeException",
-            new Field[0] { },
+            NULL,
             0,
-            new Method[0] {},
+            NULL,
             0,
             env->Throwable,
             ++manifest.baseaddr
@@ -52,9 +52,9 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
 
     env->StackOverflowErr = new ClassObject(
             "sharp.lang#StackOverflowErr",
-            new Field[0] { },
+            NULL,
             0,
-            new Method[0] {},
+            NULL,
             0,
             env->RuntimeException,
             ++manifest.baseaddr
@@ -62,9 +62,9 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
 
     env->ThreadStackException = new ClassObject(
             "sharp.lang#ThreadStackException",
-            new Field[0] { },
+            NULL,
             0,
-            new Method[0] {},
+            NULL,
             0,
             env->RuntimeException,
             ++manifest.baseaddr
@@ -72,9 +72,9 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
 
     env->IndexOutOfBoundsException = new ClassObject(
             "sharp.lang#IndexOutOfBoundsException",
-            new Field[0] { },
+            NULL,
             0,
-            new Method[0] {},
+            NULL,
             0,
             env->RuntimeException,
             ++manifest.baseaddr
@@ -82,9 +82,9 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
 
     env->NullptrException = new ClassObject(
             "sharp.lang#NullptrException",
-            new Field[0] { },
+            NULL,
             0,
-            new Method[0] {},
+            NULL,
             0,
             env->RuntimeException,
             ++manifest.baseaddr
@@ -92,7 +92,7 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
 
     updateStackFile("initializing memory objects");
     cout.precision(16);
-    env->init(env->objects, manifest.classes);
+    env->init(env->objects, manifest.classes); // TODO: continue here
 
     return 0;
 }

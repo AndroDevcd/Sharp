@@ -40,6 +40,7 @@ public:
     void newRefrence(gc_object*);
 
     // TODO: create the aux classes to be used internally
+    // Alloce'd by new()
     static ClassObject* Throwable;
     static ClassObject* StackOverflowErr;
     static ClassObject* RuntimeException; // TODO: compare exceptions by name not id

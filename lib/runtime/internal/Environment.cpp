@@ -147,6 +147,6 @@ void Environment::free(gc_object *objects, int64_t len) {
 
             //objects[i].monitor->~Monitor();
         }
-        //std::free (objects);
+        std::free (objects);
     }
 }
