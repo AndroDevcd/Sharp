@@ -63,6 +63,7 @@ int Process_Exe(std::string exe)
         error("file `" + exe + "` doesnt exist!");
     }
 
+    manifest.executable.init();
     manifest.executable = exe;
     file::read_alltext(exe.c_str(), _fStream);
     if(_fStream.empty())
@@ -93,9 +94,11 @@ int Process_Exe(std::string exe)
                     break;
 
                 case 0x2:
+                    manifest.application.init();
                     manifest.application =getstring(_fStream);
                     break;
                 case 0x4:
+                    manifest.version.init();
                     manifest.version =getstring(_fStream);
                     break;
                 case 0x5:
@@ -168,6 +171,7 @@ int Process_Exe(std::string exe)
                     mClasses.push_back(MetaClass(c, getlong(_fStream)));
 
                     c->id = getlong(_fStream);
+                    c->name.init();
                     c->name = getstring(_fStream);
                     c->fieldCount = getlong(_fStream);
                     c->methodCount = getlong(_fStream);
@@ -259,6 +263,7 @@ int Process_Exe(std::string exe)
 
                 case data_string: {
                     env->strings[stringPtr].id = getlong(_fStream);
+                    env->strings[stringPtr].value.init();
                     env->strings[stringPtr].value = getstring(_fStream);
 
                     stringPtr++, stringCnt++;
@@ -355,6 +360,7 @@ ClassObject *findClass(int64_t superClass) {
 }
 
 void getMethod(file::stream& exe, ClassObject *parent, Method* method) {
+    method->name.init();
     method->name = getstring(exe);
     method->id = getlong(exe);
     method->entry = getlong(exe);
@@ -364,6 +370,7 @@ void getMethod(file::stream& exe, ClassObject *parent, Method* method) {
 }
 
 void getField(file::stream& exe, list <MetaField>& mFields, Field* field) {
+    field->name.init();
     field->name = getstring(exe);
     field->id = getlong(exe);
     field->type = (int)getlong(exe);
