@@ -93,12 +93,14 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
 }
 
 void SharpVM::DestroySharpVM() {
+    cout << "natively exiting thread" << endl;
     Thread* t = thread_self;
     if(t != NULL) {
         t->exit();
         exitVal = t->exitVal;
     } else
         exitVal = 1;
+    cout << "shutting down thread system" << endl;
     Thread::shutdown();
 }
 
@@ -116,6 +118,7 @@ void*
         try {
             Method* main = self->main;
             if(main != NULL) {
+                cout << "calling main" << endl;
                 vm->Call(main);
             } else {
                 // handle error
@@ -124,6 +127,7 @@ void*
             self->throwable = e.getThrowable();
         }
 
+    cout << "main ended" << endl;
         if (self->id == main_threadid)
         {
             /*
@@ -153,7 +157,9 @@ void*
     }
 
 void SharpVM::Shutdown() {
+    cout << "destroying vm" << endl;
     DestroySharpVM();
+    cout << "shutting down memory" << endl;
     env->shutdown();
 }
 

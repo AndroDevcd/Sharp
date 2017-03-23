@@ -70,7 +70,7 @@ ClassObject *Environment::findClass(int64_t id) {
 void Environment::shutdown() {
     std::free (this->bytecode);
     for(int64_t i = 0; i < manifest.strings; i++)
-        this->strings->value = "";
+        this->strings->value.free();
     std::free (this->strings);
 
     for(int64_t i = 0; i < manifest.classes; i++)

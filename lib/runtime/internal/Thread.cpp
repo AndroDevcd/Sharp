@@ -306,11 +306,13 @@ void Thread::shutdown() {
     if(threads != NULL) {
         Thread::killAll();
 
+        cout << "All threads killed" << endl;
         for(unsigned int i = 0; i < tp; i++) {
             if(threads[i] != NULL)
                 std::free(threads[i]);
         }
 
+        cout << "freeing thread list" << endl;
         std::free (Thread::threads);
     }
 }

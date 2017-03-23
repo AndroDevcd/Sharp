@@ -14,11 +14,6 @@ void ClassObject::free() {
             fields[i].free();
         }
         std::free(fields); fields = NULL;
-
-        if(super != NULL) {
-            super->free();
-            std::free(super); super = NULL;
-        }
     }
 
     if(flds != NULL) {
