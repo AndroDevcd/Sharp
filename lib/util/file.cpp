@@ -125,6 +125,15 @@ void file::stream::_push_back(char _C) {
     _Data[sp++]=_C;
 }
 
+char file::stream::at(stream_t _X) {
+    if(_X>=sp ||_X<0) {
+        stringstream _s;
+        _s << "stream::at() _X: " << _X << " >= size: " << _ds;
+        throw std::out_of_range(_s.str());
+    }
+    return _Data[_X];
+}
+
 int file::write(const char *f, string data)
 {
     try {

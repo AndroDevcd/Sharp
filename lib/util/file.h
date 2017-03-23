@@ -92,15 +92,7 @@ public:
         bool empty() { return sp==0; }
         CXX11_INLINE
         stream_t size() { return sp; }
-        char at(stream_t _X)
-        {
-            if(_X>=sp ||_X<0) {
-                stringstream _s;
-                _s << "stream::at() _X: " << _X << " >= size: " << _ds;
-                throw std::out_of_range(_s.str());
-            }
-            return _Data[_X];
-        }
+        char at(stream_t _X);
 
         void end() {
             if(_Data != NULL) {
