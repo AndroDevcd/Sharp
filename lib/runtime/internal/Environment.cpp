@@ -78,6 +78,9 @@ void Environment::shutdown() {
     std::free (this->classes);
 
     // TODO: free objects and aux classes
+    for(int64_t i = 0; i < manifest.classes; i++)
+        this->objects->free();
+    std::free (this->objects);
 }
 
 void Environment::newClass(int64_t object, int64_t klass) {

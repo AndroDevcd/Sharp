@@ -154,7 +154,7 @@ void*
 
 void SharpVM::Shutdown() {
     DestroySharpVM();
-    //env->shutdown();
+    env->shutdown();
 }
 
 void SharpVM::interrupt(int32_t signal) {

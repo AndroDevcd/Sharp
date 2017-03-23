@@ -81,14 +81,19 @@ int runtimeStart(int argc, const char* argv[])
 }
 
 int __vinit(string exe, list<string> pArgs) {
+    int result;
+
     if(CreateSharpVM(exe, pArgs) != 0) {
         fprintf(stderr, "Sharp VM init failed (check log file)\n");
         goto bail;
     }
 
     vm->InterpreterThreadStart(Thread::threads[main_threadid]);
+    result=vm->exitVal;
 
-    return vm->exitVal;
+    std::free(vm);
+    std::free(env);
+    return result;
 
     bail:
         if(vm != NULL) {
