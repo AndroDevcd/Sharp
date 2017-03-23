@@ -19,7 +19,7 @@
 void CallStack::push(Method *method) {
     sp++;
 
-    if(sp >= default_cstack) throw Exception(Environment::StackOverflowErr, ""); // stack overflow error
+    if(sp >= default_cstack) throw Exception(&Environment::StackOverflowErr, ""); // stack overflow error
     current = method;
     stack[sp].callee = method;
     if(current->locals == 0)
@@ -33,16 +33,18 @@ void CallStack::push(Method *method) {
 }
 
 void CallStack::pop() {
-    sp--;
 
-    if(sp <= -1) {
+    if((sp-1) == -1) {
         Environment::free(locals, current->locals);
+        stack[sp].locals=NULL;
         current = NULL;
         regs=NULL;
+        sp--;
         return;
     }
 
     Environment::free(locals, current->locals);
+    sp--;
     current = stack[sp].callee;
     locals = stack[sp].locals;
     regs = stack[sp].rgs;

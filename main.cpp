@@ -27,7 +27,6 @@ string mi64_tostr(int64_t i64)
     string str;
     mi64_t mi;
     SET_mi64(mi, i64);
-    i64 = GET_mi64(mi.A, mi.B);
 
     str+=(uint8_t)GET_mi32w(mi.A);
     str+=(uint8_t)GET_mi32x(mi.A);
@@ -157,14 +156,6 @@ int main(int argc, const char* argv[]) {
 //    std::cout << "compile time " << measure<>::execution(
 //            _bootstrap, argc, argv
 //    ) << "ms" << std::endl;
-
-    int64_t i64 = SET_Ei(i64, BRE);
-    mi64_t instr;
-    SET_mi64(instr, i64);
-    int64_t i2 = GET_mi64(SET_mi32(GET_mi32w(instr.A), GET_mi32x(instr.A),
-                                   GET_mi32y(instr.A),GET_mi32z(instr.A)),
-                          SET_mi32(GET_mi32w(instr.B), GET_mi32x(instr.B),
-                                   GET_mi32y(instr.B),GET_mi32z(instr.B)));
 
     buildExe();
 

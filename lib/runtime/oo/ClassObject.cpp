@@ -35,15 +35,15 @@ void ClassObject::free() {
 }
 
 ClassObject *ClassObject::newdup() {
-    ClassObject* klass = new ClassObject(name.str(), flds, fieldCount,
-                                         methods, methodCount, NULL,
-                                         id);
+    ClassObject* klass = NULL;//new ClassObject(name.str(), flds, fieldCount,
+                              //           methods, methodCount, NULL,
+                              //           id);
 
     if(super != NULL) {
         klass->super = super->newdup();
     }
     if(fieldCount > 0) {
-        klass->fields = new gc_object[fieldCount];
+        klass->fields = NULL;//new gc_object[fieldCount];
         for(int64_t i = 0; i < fieldCount; i++)
             klass->fields[i].type = (Type)flds[i].type;
     } else {
@@ -54,11 +54,11 @@ ClassObject *ClassObject::newdup() {
 
 gc_object *ClassObject::get_field(int64_t x) {
     if(fields == NULL)
-        throw Exception(Environment::NullptrException, "");
+        throw Exception(&Environment::NullptrException, "");
     if(x >= fieldCount) {
         stringstream ss;
         ss << "illegal access to class field; invalid index " << x << ", size is " << fieldCount;
-        throw Exception(Environment::IndexOutOfBoundsException, ss.str());
+        throw Exception(&Environment::IndexOutOfBoundsException, ss.str());
     }
 
     return &fields[x];

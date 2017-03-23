@@ -7,10 +7,10 @@
 
 #include "../oo/string.h"
 #include "../interp/FastStack.h"
+#include "../OO/ClassObject.h"
 
 class gc_object;
 class Method;
-class ClassObject;
 class ArrayObject;
 
 class Environment {
@@ -41,12 +41,12 @@ public:
 
     // TODO: create the aux classes to be used internally
     // Alloce'd by new()
-    static ClassObject* Throwable;
-    static ClassObject* StackOverflowErr;
-    static ClassObject* RuntimeException; // TODO: compare exceptions by name not id
-    static ClassObject* ThreadStackException;
-    static ClassObject* IndexOutOfBoundsException;
-    static ClassObject* NullptrException;
+    static ClassObject Throwable;
+    static ClassObject StackOverflowErr;
+    static ClassObject RuntimeException; // TODO: compare exceptions by name not id
+    static ClassObject ThreadStackException;
+    static ClassObject IndexOutOfBoundsException;
+    static ClassObject NullptrException;
 
     gc_object* objects;
 

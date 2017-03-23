@@ -86,16 +86,13 @@ int __vinit(string exe, list<string> pArgs) {
         goto bail;
     }
 
-    updateStackFile("Starting interpreter");
-    //vm->InterpreterThreadStart(element_at(*Thread::threads, 0));
+    vm->InterpreterThreadStart(Thread::threads[main_threadid]);
 
     return vm->exitVal;
 
     bail:
         if(vm != NULL) {
             jobIndx = 0;
-            updateStackFile("shutting down sharp VM");
-            pushStackDump();
 
             vm->DestroySharpVM();
         }

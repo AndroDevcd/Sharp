@@ -18,7 +18,7 @@ void Throwable::drop() {
 
 Exception::Exception(const char *msg)
         :
-        throwable(Environment::RuntimeException),
+        throwable(&Environment::RuntimeException),
         msg(msg),
         runtime_error(msg)
 {
@@ -26,7 +26,7 @@ Exception::Exception(const char *msg)
 
 Exception::Exception(const std::string &__arg)
         :
-        throwable(Environment::RuntimeException),
+        throwable(&Environment::RuntimeException),
         msg(msg),
         runtime_error(__arg)
 {

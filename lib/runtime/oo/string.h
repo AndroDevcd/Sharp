@@ -24,7 +24,7 @@ public:
         if(value == "") {
             chars = NULL;
         } else {
-            chars = new char[len];
+            chars = (char*)malloc(sizeof(char)*len);
             set(value);
         }
     }
@@ -51,7 +51,7 @@ public:
 
         if(str != "") {
             len = str.size();
-            chars = new char[len];
+            chars = (char*)malloc(sizeof(char)*len);
             set(str);
         }
     }
@@ -62,7 +62,7 @@ public:
         const string s = string(_str.chars,_str.len);
         if(s != "") {
             len = s.size();
-            chars = new char[len];
+            chars = (char*)malloc(sizeof(char)*len);
             set(s);
         }
     }

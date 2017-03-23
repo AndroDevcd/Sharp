@@ -14,13 +14,13 @@ void FastStack::free() {
 
 void FastStack::popvoid() {
     if(sp < 0)
-        throw Exception(Environment::ThreadStackException, "illegal stack pop");
+        throw Exception(&Environment::ThreadStackException, "illegal stack pop");
     sp--;
 }
 
 void FastStack::swap() {
     if(sp < 1)
-        throw Exception(Environment::ThreadStackException, "illegal stack swap");
+        throw Exception(&Environment::ThreadStackException, "illegal stack swap");
 
     s_it pVoid = stack[sp];
     stack[sp] = stack[sp-1];

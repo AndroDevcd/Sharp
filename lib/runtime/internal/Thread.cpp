@@ -12,13 +12,11 @@ Thread** Thread::threads = NULL;
 unsigned int Thread::tp = 0;
 
 void Thread::Startup() {
-    updateStackFile("starting up thread manager");
     Thread::threads = (Thread**)malloc(sizeof(Thread**)*MAX_THREADS);
 
     Thread* main = (Thread*)malloc(
-            sizeof(Thread*)*1);
+            sizeof(Thread)*1);
     self = main;
-    main->stack.init();
     main->main = manifest.main;
     main->Create("Main");
 }
@@ -30,6 +28,12 @@ void Thread::Create(string name, ClassObject* klass, int64_t method) {
     this->id = Thread::tid++;
     this->stack.init();
     this->cstack.init();
+    this->suspendPending = false;
+    this->exceptionThrown = false;
+    this->suspended = false;
+    this->dameon = false;
+    this->state = thread_init;
+    this->exitVal = 0;
 
     push_thread(this);
 }
@@ -43,6 +47,12 @@ void Thread::Create(string name) {
     this->stack.init();
     this->cstack.init();
     this->cstack.thread_stack = &this->stack;
+    this->suspendPending = false;
+    this->exceptionThrown = false;
+    this->suspended = false;
+    this->dameon = false;
+    this->state = thread_init;
+    this->exitVal = 0;
 
     push_thread(this);
 }
@@ -256,7 +266,6 @@ void Thread::killAll() {
         } else if(thread != NULL){
             thread->term();
         }
-        std::free (thread); thread = NULL;
     }
 
 }

@@ -37,8 +37,4 @@ struct mi64_t {
 
 int Process_Exe(std::string);
 
-void pushStackDump();
-
-void updateStackFile(string status);
-
 #endif //SHARP_EXE_H

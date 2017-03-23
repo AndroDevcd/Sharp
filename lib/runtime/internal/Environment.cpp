@@ -10,12 +10,12 @@
 #include "../oo/Object.h"
 #include "../oo/Array.h"
 
-ClassObject* Environment::Throwable = NULL;
-ClassObject* Environment::StackOverflowErr = NULL;
-ClassObject* Environment::RuntimeException = NULL;
-ClassObject* Environment::ThreadStackException = NULL;
-ClassObject* Environment::IndexOutOfBoundsException = NULL;
-ClassObject* Environment::NullptrException = NULL;
+ClassObject Environment::Throwable;
+ClassObject Environment::StackOverflowErr;
+ClassObject Environment::RuntimeException;
+ClassObject Environment::ThreadStackException;
+ClassObject Environment::IndexOutOfBoundsException;
+ClassObject Environment::NullptrException;
 
 Method *Environment::getMethod(int64_t id) {
     for(uint64_t i = 0; i < manifest.methods; i++) {
@@ -68,7 +68,6 @@ ClassObject *Environment::findClass(int64_t id) {
 }
 
 void Environment::shutdown() {
-    updateStackFile("Destroying environment");
     std::free (this->bytecode);
     for(int64_t i = 0; i < manifest.strings; i++)
         this->strings->value = "";
@@ -97,10 +96,20 @@ void Environment::newClass(gc_object* object, int64_t klass) {
 }
 
 void Environment::init(gc_object* objects, int64_t size) {
-    for(int64_t i = 0; i < size; i++) {
-        objects[i].mark = gc_orange;
-        objects[i].monitor = new Monitor();
+    if(objects != NULL)
+    {
+        gc_object* ptr=&objects[0];
+        for(int64_t i = 0; i < size; i++) {
+            ptr->HEAD=NULL;
+            ptr->prev=NULL,ptr->next=NULL;
+            ptr->mark = gc_orange;
+            ptr->size = 0;
+            ptr->monitor = Monitor();
+
+            ptr++;
+        }
     }
+
 }
 
 void Environment::newNative(gc_object *object, int8_t type) {
@@ -139,13 +148,8 @@ void Environment::newRefrence(gc_object *object) {
 void Environment::free(gc_object *objects, int64_t len) {
     if(len > 0 && objects != NULL) {
         for(int64_t i = 0; i < len; i++) {
-            //objects[i].invalidate();
-            //objects[i].free();
-            //objects[i].refs->clear();
-            //std::free (objects[i].refs);
-
-            //objects[i].monitor->~Monitor();
+            // TodO: implement
         }
-        std::free (objects);
+        std::free(objects);
     }
 }

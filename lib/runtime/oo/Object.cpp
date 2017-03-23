@@ -9,7 +9,7 @@
 
 gc_object::gc_object() {
     this->mark = gc_orange;
-    this->monitor = new Monitor();
+    this->monitor = Monitor();
     this->type = nilobject;
     this->HEAD = NULL;
     next = NULL, prev=NULL;
@@ -17,7 +17,7 @@ gc_object::gc_object() {
 
 gc_object::gc_object(int64_t type) {
     this->mark = gc_orange;
-    this->monitor = new Monitor();
+    this->monitor = Monitor();
     this->type = type;
     this->HEAD = NULL;
     next = NULL, prev=NULL;
@@ -35,7 +35,7 @@ void gc_object::copy_object(gc_object *pObject) {
 
 void gc_object::createnative(int type, int64_t size) {
     if(mark != gc_green) {
-        HEAD=new double[size];
+        HEAD= (double*)malloc(sizeof(double)*size);
         this->type=type;
         this->size=size;
         prev = NULL, next=NULL;

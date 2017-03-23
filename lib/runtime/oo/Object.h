@@ -56,7 +56,7 @@ public:
     gc_mark mark;
     int64_t type, size;
     gc_object *next, *prev;
-    Monitor* monitor;
+    Monitor monitor;
 
     void free();
     void createnative(int type, int64_t size);

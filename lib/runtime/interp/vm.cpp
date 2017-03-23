@@ -16,7 +16,6 @@ Environment* env;
 
 int CreateSharpVM(std::string exe, std::list<string> pArgs)
 {
-    updateStackFile("Creating virtual machine:");
     vm = (SharpVM*)malloc(sizeof(SharpVM)*1);
     env = (Environment*)malloc(sizeof(Environment)*1);
 
@@ -25,12 +24,10 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
 
     Thread::Startup();
 
-    updateStackFile("(internal) Adding helper classes and objects");
-
     /**
      * Aux classes
      */
-    env->Throwable = new ClassObject(
+    env->Throwable = ClassObject(
             "sharp.lang#Throwable",
             NULL,
             0,
@@ -40,65 +37,62 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
             ++manifest.baseaddr
     );
 
-    env->RuntimeException = new ClassObject(
+    env->RuntimeException = ClassObject(
             "sharp.lang#RuntimeException",
             NULL,
             0,
             NULL,
             0,
-            env->Throwable,
+            &env->Throwable,
             ++manifest.baseaddr
     );
 
-    env->StackOverflowErr = new ClassObject(
+    env->StackOverflowErr = ClassObject(
             "sharp.lang#StackOverflowErr",
             NULL,
             0,
             NULL,
             0,
-            env->RuntimeException,
+            &env->RuntimeException,
             ++manifest.baseaddr
     );
 
-    env->ThreadStackException = new ClassObject(
+    env->ThreadStackException = ClassObject(
             "sharp.lang#ThreadStackException",
             NULL,
             0,
             NULL,
             0,
-            env->RuntimeException,
+            &env->RuntimeException,
             ++manifest.baseaddr
     );
 
-    env->IndexOutOfBoundsException = new ClassObject(
+    env->IndexOutOfBoundsException = ClassObject(
             "sharp.lang#IndexOutOfBoundsException",
             NULL,
             0,
             NULL,
             0,
-            env->RuntimeException,
+            &env->RuntimeException,
             ++manifest.baseaddr
     );
 
-    env->NullptrException = new ClassObject(
+    env->NullptrException = ClassObject(
             "sharp.lang#NullptrException",
             NULL,
             0,
             NULL,
             0,
-            env->RuntimeException,
+            &env->RuntimeException,
             ++manifest.baseaddr
     );
-
-    updateStackFile("initializing memory objects");
     cout.precision(16);
-    env->init(env->objects, manifest.classes); // TODO: continue here
+    env->init(env->objects, manifest.classes);
 
     return 0;
 }
 
 void SharpVM::DestroySharpVM() {
-    updateStackFile("Shutting down threads");
     if(Thread::self != NULL) {
         Thread::self->exit();
         exitVal = Thread::self->exitVal;
@@ -128,7 +122,6 @@ void*
             Thread::self->throwable = e.getThrowable();
         }
 
-    cout << "done..." << endl;
         if (Thread::self->id == main_threadid)
         {
             /*
@@ -139,9 +132,7 @@ void*
             * regardless of what they are doing, we
             * stop them.
             */
-            cout << "done..." << endl;
             vm->Shutdown();
-            cout << "done..." << endl;
         }
         else
         {
@@ -169,11 +160,11 @@ void SharpVM::interrupt(int32_t signal) {
         case 0x9f:
             cout << env->strings[(int64_t )Thread::self->stack.popn()].value;
             break;
-        case 0xa0:
-            Thread::self->stack.pop()->monitor->acquire();
+        case 0xa0: // TodO: convert to instructions
+            Thread::self->stack.pop()->monitor.acquire();
             break;
         case 0xa1:
-            Thread::self->stack.pop()->monitor->unlock();
+            Thread::self->stack.pop()->monitor.unlock();
             break;
         default:
             // unsupported

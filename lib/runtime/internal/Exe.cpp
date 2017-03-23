@@ -31,13 +31,13 @@
 #define data_field 0x22
 #define data_string 0x1e
 #define data_byte 0x05
+#define MI_BYTES 8
 
 
 Manifest manifest;
 Meta meta;
 
 uint64_t n = 0, jobIndx=0;
-stringstream stackdump;
 
 bool checkFile(file::stream& exe);
 
@@ -59,7 +59,6 @@ int Process_Exe(std::string exe)
     int __bitFlag, hdr_cnt=0;
 
     jobIndx++;
-    updateStackFile("reading executable");
     if(!file::exists(exe.c_str())){
         error("file `" + exe + "` doesnt exist!");
     }
@@ -75,7 +74,6 @@ int Process_Exe(std::string exe)
         }
 
         jobIndx++;
-        updateStackFile("processing manifest");
         bool manifestFlag = false;
         for (;;) {
 
@@ -148,7 +146,6 @@ int Process_Exe(std::string exe)
         list<MetaClass> mClasses;
         list<MetaField> mFields;
         int64_t classRefptr=0, macroRefptr=0;
-        updateStackFile("processing .data section");
 
         env->classes =(ClassObject*)malloc(sizeof(ClassObject)*manifest.classes);
         env->objects = (gc_object*)malloc(sizeof(gc_object)*manifest.classes);
@@ -250,7 +247,6 @@ int Process_Exe(std::string exe)
 
         /* String section */
         int64_t stringPtr=0, stringCnt=0;
-        updateStackFile("processing .string section");
 
         for (;;) {
 
@@ -288,7 +284,6 @@ int Process_Exe(std::string exe)
 
         /* Text section */
         uint64_t bRef=0;
-        updateStackFile("processing .text section");
 
         for (;;) {
 
@@ -309,7 +304,7 @@ int Process_Exe(std::string exe)
                         ), SET_mi32(_fStream.at(n+4), _fStream.at(n+5),
                             _fStream.at(n+6), _fStream.at(n+7)
                         )
-                    ); n+=8;
+                    ); n+=MI_BYTES;
 
                     if(overflowOp(GET_OP(env->bytecode[bRef])))
                     {
@@ -319,7 +314,7 @@ int Process_Exe(std::string exe)
                         ), SET_mi32(_fStream.at(n+4), _fStream.at(n+5),
                             _fStream.at(n+6), _fStream.at(n+7)
                         )
-                        ); n+=8;
+                        ); n+=MI_BYTES;
                     }
                     bRef++;
                     break;
@@ -339,7 +334,6 @@ int Process_Exe(std::string exe)
         }
         jobIndx-=2;
     } catch(std::exception &e) {
-        updateStackFile("exception thrown: " + string(e.what()));
         return 1;
     }
 
@@ -414,16 +408,4 @@ bool checkFile(file::stream& exe) {
         }
     }
     return false;
-}
-
-void pushStackDump() {
-    file::stream s(stackdump.str());
-    file::write((manifest.executable + ".stackdump").c_str(), s);
-}
-
-void updateStackFile(string status) {
-    for(int i = 0; i < jobIndx; i++) {
-        stackdump << "\t";
-    }
-    stackdump << status << endl;
 }

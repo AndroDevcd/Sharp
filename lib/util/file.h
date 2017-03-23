@@ -94,7 +94,7 @@ public:
         stream_t size() { return sp; }
         char at(stream_t _X)
         {
-            if(_X>=_ds ||_X<0) {
+            if(_X>=sp ||_X<0) {
                 stringstream _s;
                 _s << "stream::at() _X: " << _X << " >= size: " << _ds;
                 throw std::out_of_range(_s.str());
