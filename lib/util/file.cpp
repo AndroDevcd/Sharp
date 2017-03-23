@@ -2,7 +2,6 @@
 // Created by bknun on 1/8/2017.
 //
 #include "file.h"
-#include <sstream>
 #include<stdio.h>
 #include <fstream>
 
@@ -47,36 +46,18 @@ int file::write(const char *f, stream& data)
         do {
             fputc( data.at(p++), fp );
         }while(p<data.size());
+
         fclose(fp);
+        return 0;
     }
     catch(std::bad_alloc& ba){
         return -1;
     }
 }
 
-int file::write(const char *f, std::string data)
+int64_t file_size(FILE *fp)
 {
-    try {
-        FILE* fp=NULL;
-
-        fp = fopen(f,"wb+");
-        if(fp == 0)
-            return 1;  // could not open file
-
-        unsigned int p=0;
-        do {
-            fputc( data.at(p++), fp );
-        }while(p<data.size());
-        fclose(fp);
-    }
-    catch(std::bad_alloc& ba){
-        return -1;
-    }
-}
-
-uint64_t file_size(FILE *fp)
-{
-    uint64_t len, cur;
+    int64_t len, cur;
     cur = ftell( fp );            /* remember where we are */
     fseek( fp, 0L, SEEK_END );    /* move to the end */
     len = ftell( fp );            /* get position there */
@@ -142,4 +123,27 @@ void file::stream::_push_back(char _C) {
     }
 
     _Data[sp++]=_C;
+}
+
+int file::write(const char *f, string data)
+{
+    try {
+        FILE* fp=NULL;
+
+        remove( f );
+        fp = fopen(f,"wb+");
+        if(fp == 0)
+            return 1;  // could not open file
+
+        unsigned int p=0;
+        do {
+            fputc( data.at(p++), fp );
+        }while(p<data.size());
+
+        fclose(fp);
+        return 0;
+    }
+    catch(std::bad_alloc& ba){
+        return -1;
+    }
 }

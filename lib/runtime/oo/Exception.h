@@ -6,6 +6,7 @@
 #define SHARP_EXCEPTION_H
 
 #include "../../../stdimports.h"
+#include "string.h"
 #include <stdexcept>
 
 class ClassObject;
@@ -33,7 +34,7 @@ public:
     void drop();
 
     ClassObject* throwable;
-    string message;
+    nString message;
 };
 
 class Exception : public std::runtime_error {

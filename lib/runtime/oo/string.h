@@ -19,10 +19,14 @@ class nString {
 public:
     nString(string value)
             :
-            len(value.size())
+            len(0)
     {
-        chars = new char[len];
-        set(value);
+        if(value == "") {
+            chars = NULL;
+        } else {
+            chars = new char[len];
+            set(value);
+        }
     }
 
     nString()

@@ -43,8 +43,6 @@ bool checkFile(file::stream& exe);
 
 string getstring(file::stream& exe);
 
-double getnumber(file::stream& exe);
-
 int64_t getlong(file::stream& exe);
 
 void getField(file::stream& exe, list <MetaField>& mFields, Field* field);
@@ -176,6 +174,7 @@ int Process_Exe(std::string exe)
                     c->name = getstring(_fStream);
                     c->fieldCount = getlong(_fStream);
                     c->methodCount = getlong(_fStream);
+
                     if(c->fieldCount != 0) {
                         c->flds = (Field*)malloc(sizeof(Field)*c->fieldCount);
                     } else
@@ -288,7 +287,7 @@ int Process_Exe(std::string exe)
             throw std::runtime_error("file `" + exe + "` may be corrupt");
 
         /* Text section */
-        uint64_t bRef=0, extra=0;
+        uint64_t bRef=0;
         updateStackFile("processing .text section");
 
         for (;;) {

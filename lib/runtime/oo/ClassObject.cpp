@@ -35,7 +35,7 @@ void ClassObject::free() {
 }
 
 ClassObject *ClassObject::newdup() {
-    ClassObject* klass = new ClassObject(name, flds, fieldCount,
+    ClassObject* klass = new ClassObject(name.str(), flds, fieldCount,
                                          methods, methodCount, NULL,
                                          id);
 

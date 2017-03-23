@@ -4,10 +4,7 @@
 
 #include "Thread.h"
 #include "Exe.h"
-#include "Environment.h"
-#include "../startup.h"
 #include "../interp/vm.h"
-#include "../oo/Exception.h"
 
 int32_t Thread::tid = 0;
 thread_local Thread* Thread::self = NULL;
@@ -19,7 +16,9 @@ void Thread::Startup() {
     Thread::threads = (Thread**)malloc(sizeof(Thread**)*MAX_THREADS);
 
     Thread* main = (Thread*)malloc(
-            sizeof(Thread*)*MAX_THREADS);
+            sizeof(Thread*)*1);
+    self = main;
+    main->stack.init();
     main->main = manifest.main;
     main->Create("Main");
 }
@@ -30,6 +29,7 @@ void Thread::Create(string name, ClassObject* klass, int64_t method) {
     this->name = name;
     this->id = Thread::tid++;
     this->stack.init();
+    this->cstack.init();
 
     push_thread(this);
 }
@@ -249,15 +249,12 @@ void Thread::killAll() {
 
         if(thread != NULL && thread->id != self->id) {
             if(thread->state == thread_running) {
-                suspendThread(thread);
-                waitForThreadSuspend(thread);
-
                 interrupt(thread);
             } else {
                 thread->term();
             }
-
-            std::free (thread); thread = NULL;
+        } else if(thread != NULL){
+            thread->term();
         }
     }
 
@@ -284,7 +281,6 @@ int Thread::interrupt(Thread *thread) {
         else
         {
             thread->state = thread_killed; // terminate thread
-            unsuspendThread(thread);
             return 0;
         }
     }
@@ -295,7 +291,6 @@ int Thread::interrupt(Thread *thread) {
 void Thread::shutdown() {
     if(threads != NULL) {
         Thread::killAll();
-        Thread::self->term();
 
         for(unsigned int i = 0; i < tp; i++) {
             if(threads[i] != NULL)

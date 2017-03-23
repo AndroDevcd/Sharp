@@ -6,12 +6,19 @@
 #define SHARP_METHOD_H
 
 #include "../../../stdimports.h"
+#include "string.h"
 
 class ClassObject;
 
 class Method {
 
 public:
+    Method()
+    :
+            name()
+    {
+    }
+
     void operator=(Method& m) {
         name = m.name;
         owner = m.owner;
@@ -21,7 +28,7 @@ public:
     }
 
     ClassObject* owner;
-    string name;
+    nString name;
     int64_t id;
     int64_t entry, retAdr;
     int64_t locals;
