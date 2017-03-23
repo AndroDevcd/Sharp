@@ -12,20 +12,6 @@
 
 #define WIN32_LEAN_AND_MEAN
 
-template<typename TimeT = std::chrono::milliseconds>
-struct measure
-{
-    template<typename F, typename ...Args>
-    static typename TimeT::rep execution(F&& func, Args&&... args)
-    {
-        auto start = std::chrono::steady_clock::now();
-        std::forward<decltype(func)>(func)(std::forward<Args>(args)...);
-        auto duration = std::chrono::duration_cast< TimeT>
-                (std::chrono::steady_clock::now() - start);
-        return duration.count();
-    }
-};
-
 string copychars(char c, int t) {
     string s;
     int it = 0;
@@ -144,7 +130,7 @@ void buildExe() {
 
     executable << (char)0x05; executable << mi64_tostr(SET_Ei(i, _NOP));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 0), ebx);
-    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 10000000), ecx);
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 1), ecx);
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVL, 3));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 1), egx);
     executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, NEW, abs(nativeint), 1, egx));
@@ -182,8 +168,7 @@ int main(int argc, const char* argv[]) {
 
     buildExe();
 
-    std::cout << "vm time " << measure<>::execution(
-            runtimeStart, argc, argv
-    ) << "ms" << std::endl;
+    runtimeStart( argc, argv );
+    cout << "program exiting..." << endl;
     return 0;
 }

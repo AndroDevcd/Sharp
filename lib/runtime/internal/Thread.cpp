@@ -256,6 +256,7 @@ void Thread::killAll() {
         } else if(thread != NULL){
             thread->term();
         }
+        std::free (thread); thread = NULL;
     }
 
 }
