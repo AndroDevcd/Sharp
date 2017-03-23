@@ -124,6 +124,7 @@ void CallStack::Execute() {
             
     try {
         for (;;) {
+            _interp:
             if(self->suspendPending)
                 Thread::suspendSelf();
             if(self->state == thread_killed)

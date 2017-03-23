@@ -36,8 +36,8 @@
 #define GET_Ca(i) (((i >> 8) & 1) ? (-1*(i >> 9 & 0x7FFFFFF)) : (i >> 9 & 0x7FFFFFF))
 #define GET_Cb(i) (i >> 36)
 
-#define _brh pc++; continue;
-#define _brh_NOINCREMENT continue;
+#define _brh pc++; goto _interp;
+#define _brh_NOINCREMENT goto _interp;
 
 #define NOP _brh
 
