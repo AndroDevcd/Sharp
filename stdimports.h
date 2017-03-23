@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <list>
+#include <stdexcept>
 
 
 using namespace std;
