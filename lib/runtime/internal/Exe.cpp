@@ -41,7 +41,7 @@ uint64_t n = 0, jobIndx=0;
 
 bool checkFile(file::stream& exe);
 
-string getstring(file::stream& exe);
+nString getstring(file::stream& exe);
 
 int64_t getlong(file::stream& exe);
 
@@ -372,8 +372,8 @@ void getField(file::stream& exe, list <MetaField>& mFields, Field* field) {
     mFields.push_back(MetaField(field, getlong(exe)));
 }
 
-string getstring(file::stream& exe) {
-    std::string s;
+nString getstring(file::stream& exe) {
+    nString s;
     while(exe.at(n++) != nil) {
         s+=exe.at(n-1);
     }
@@ -382,15 +382,15 @@ string getstring(file::stream& exe) {
 }
 
 int64_t getlong(file::stream& exe) {
-    return strtoll(getstring(exe).c_str(), NULL, 0);
+    return strtoll(getstring(exe).str().c_str(), NULL, 0);
 }
 
-std::string string_forward(file::stream& str, size_t begin, size_t end) {
+nString string_forward(file::stream& str, size_t begin, size_t end) {
     if(begin >= str.size() || end >= str.size())
         throw std::invalid_argument("unexpected end of stream");
 
     size_t it=0;
-    string s;
+    nString s;
     for(size_t i = begin; it++ < end; i++)
         s +=str.at(i);
 

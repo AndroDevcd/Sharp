@@ -87,7 +87,7 @@ void buildExe() {
     executable << "main" << (char)0x0; // name
     executable << "1" << (char)0x0; // id
     executable << "0" << (char)0x0; // entry
-    executable << "3" << (char)0x0; // locals
+    executable << "5" << (char)0x0; // locals
     executable << endl;
 
     executable << (char)0x2f; // class
@@ -130,10 +130,10 @@ void buildExe() {
     executable << (char)0x05; executable << mi64_tostr(SET_Ei(i, _NOP));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 0), ebx);
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 1), ecx);
-    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVL, 3));
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVL, 2));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 1), egx);
     executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, NEW, abs(nativeint), 1, egx));
-    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVL, 3));
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVL, 2));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 0), adx);
     executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, MOV, adx,0, 1));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVBI, 53723), 687697862);

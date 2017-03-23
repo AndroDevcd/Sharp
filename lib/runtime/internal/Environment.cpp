@@ -149,6 +149,7 @@ void Environment::free(gc_object *objects, int64_t len) {
     if(len > 0 && objects != NULL) {
         for(int64_t i = 0; i < len; i++) {
             // TodO: implement
+            objects[i].free();
         }
         std::free(objects);
     }

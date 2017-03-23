@@ -6,6 +6,7 @@
 #define SHARP_MANIFEST_H
 
 #include "../../stdimports.h"
+#include "oo/string.h"
 
 class Method;
 
@@ -14,9 +15,9 @@ class Method;
  */
 struct Manifest {
 
-    string executable;
-    string application;
-    string version;
+    nString executable;
+    nString application;
+    nString version;
     bool debug;
     int64_t entry;
     size_t methods, classes;

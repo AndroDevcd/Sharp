@@ -120,6 +120,7 @@ void CallStack::Execute() {
     gc_object *ptr=NULL;
 
 
+    int i=0;
     pc = &env->bytecode[current->entry];
             
     try {
@@ -143,6 +144,8 @@ void CallStack::Execute() {
                 case HLT:
                     hlt
                 case NEW: /* Requires register value */
+                    i=GET_Ca(*pc);
+                    i=GET_Cb(*pc);
                     _new(GET_Ca(*pc),GET_Cb(*pc))
                 case CHECK_CAST:
                     check_cast
@@ -193,6 +196,7 @@ void CallStack::Execute() {
                 case LTE:
                     lte(GET_Ca(*pc),GET_Cb(*pc))
                 case MOVL:
+                    i=GET_Da(*pc);
                     movl(&locals[GET_Da(*pc)])
                 case OBJECT_NXT:
                     object_nxt

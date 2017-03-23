@@ -13,6 +13,9 @@ unsigned int Thread::tp = 0;
 
 void Thread::Startup() {
     Thread::threads = (Thread**)malloc(sizeof(Thread**)*MAX_THREADS);
+    for(unsigned int i = 0; i < MAX_THREADS; i++) {
+        threads[i] = NULL;
+    }
 
     Thread* main = (Thread*)malloc(
             sizeof(Thread)*1);
@@ -23,6 +26,8 @@ void Thread::Startup() {
 
 void Thread::Create(string name, ClassObject* klass, int64_t method) {
     this->monitor = Monitor();
+    this->name.init();
+
     this->main = env->getMethodFromClass(klass, method);
     this->name = name;
     this->id = Thread::tid++;

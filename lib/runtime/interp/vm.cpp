@@ -158,7 +158,7 @@ void SharpVM::Shutdown() {
 void SharpVM::interrupt(int32_t signal) {
     switch (signal) {
         case 0x9f:
-            cout << env->strings[(int64_t )Thread::self->stack.popn()].value;
+            cout << env->strings[(int64_t )Thread::self->stack.popn()].value.str();
             break;
         case 0xa0: // TodO: convert to instructions
             Thread::self->stack.pop()->monitor.acquire();

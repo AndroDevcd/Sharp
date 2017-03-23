@@ -8,13 +8,6 @@
 #include <string>
 #include "../../../stdimports.h"
 
-/* native String Refrence */
-class String {
-public:
-    int64_t id;
-    string value;
-};
-
 class nString {
 public:
     nString(string value)
@@ -24,8 +17,9 @@ public:
         if(value == "") {
             chars = NULL;
         } else {
+            len=value.size();
             chars = (char*)malloc(sizeof(char)*len);
-            set(value);
+            setstr(value);
         }
     }
 
@@ -52,23 +46,32 @@ public:
         if(str != "") {
             len = str.size();
             chars = (char*)malloc(sizeof(char)*len);
-            set(str);
+            setstr(str);
         }
+    }
+
+    bool operator==(const string &str) {
+        if(str.size() != len) return false;
+        for(int64_t i = 0; i < len; i++) {
+            if(str.at(i) != chars[i])
+                return false;
+        }
+        return true;
     }
 
     void operator=(const nString &_str) {
         free();
 
-        const string s = string(_str.chars,_str.len);
-        if(s != "") {
-            len = s.size();
+        if(_str.len>0) {
+            len = _str.len;
             chars = (char*)malloc(sizeof(char)*len);
-            set(s);
+            set(_str);
         }
     }
 
-    void operator+=(const string &s) {
-        // TODO: implement
+    void operator+=(const char &c) {
+        chars = (char*)realloc(chars,sizeof(char)*(len+1));
+        chars[len++]=c;
     }
 
     CXX11_INLINE
@@ -90,10 +93,23 @@ public:
 private:
 
     CXX11_INLINE
-    void set(string value) {
+    void setstr(const string& value) {
         for(int64_t i = 0; i < len; i++)
             chars[i] = value.at(i);
     }
+
+    CXX11_INLINE
+    void set(const nString& value) {
+        for(int64_t i = 0; i < len; i++)
+            chars[i] = value.chars[i];
+    }
+};
+
+/* native String Refrence */
+class String {
+public:
+    int64_t id;
+    nString value;
 };
 
 

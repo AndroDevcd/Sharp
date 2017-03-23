@@ -26,6 +26,8 @@ gc_object::gc_object(int64_t type) {
 void gc_object::free() {
     if(mark == gc_green) {
         mark = gc_orange;
+        if(HEAD != NULL)
+            std::free(HEAD); HEAD = NULL;
     }
 }
 
@@ -39,6 +41,7 @@ void gc_object::createnative(int type, int64_t size) {
         this->type=type;
         this->size=size;
         prev = NULL, next=NULL;
+        mark = gc_green;
 
         for(int64_t i=0; i<size; i++){
             _nativewrite(i,0)
