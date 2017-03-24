@@ -35,6 +35,7 @@ public:
 
     void free() {
         owner = NULL;
+        name.free();
     }
 
 };
