@@ -91,17 +91,17 @@ void Environment::newClass(int64_t object, int64_t klass) {
     objects[object].mark = gc_green;
 }
 
-void Environment::newClass(gc_object* object, int64_t klass) {
+void Environment::newClass(Sh_object* object, int64_t klass) {
     if(object->mark == gc_green)
         object->free();
 
     object->mark = gc_green;
 }
 
-void Environment::init(gc_object* objects, int64_t size) {
+void Environment::init(Sh_object* objects, int64_t size) {
     if(objects != NULL)
     {
-        gc_object* ptr=&objects[0];
+        Sh_object* ptr=&objects[0];
         for(int64_t i = 0; i < size; i++) {
             ptr->HEAD=NULL;
             ptr->prev=NULL,ptr->next=NULL;
@@ -115,7 +115,7 @@ void Environment::init(gc_object* objects, int64_t size) {
 
 }
 
-void Environment::newNative(gc_object *object, int8_t type) {
+void Environment::newNative(Sh_object *object, int8_t type) {
     if(object->mark == gc_green)
         object->free();
 
@@ -135,20 +135,20 @@ void Environment::newNative(gc_object *object, int8_t type) {
     }
 }
 
-void Environment::newArray(gc_object *object, int64_t len) {
+void Environment::newArray(Sh_object *object, int64_t len) {
     if(object->mark == gc_green)
         object->free();
 
 }
 
-void Environment::newRefrence(gc_object *object) {
+void Environment::newRefrence(Sh_object *object) {
     if(object->mark == gc_green)
         object->free();
 
     object->type = refrenceobject;
 }
 
-void Environment::free(gc_object *objects, int64_t len) {
+void Environment::free(Sh_object *objects, int64_t len) {
     if(len > 0 && objects != NULL) {
         for(int64_t i = 0; i < len; i++) {
             // TodO: implement

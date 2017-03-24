@@ -7,7 +7,7 @@
 #include "ClassObject.h"
 #include "Array.h"
 
-gc_object::gc_object() {
+Sh_object::Sh_object() {
     this->mark = gc_orange;
     this->monitor = Monitor();
     this->type = nilobject;
@@ -15,7 +15,7 @@ gc_object::gc_object() {
     next = NULL, prev=NULL;
 }
 
-gc_object::gc_object(int64_t type) {
+Sh_object::Sh_object(int64_t type) {
     this->mark = gc_orange;
     this->monitor = Monitor();
     this->type = type;
@@ -23,7 +23,7 @@ gc_object::gc_object(int64_t type) {
     next = NULL, prev=NULL;
 }
 
-void gc_object::free() {
+void Sh_object::free() {
     if(mark == gc_green) {
         mark = gc_orange;
         if(HEAD != NULL)
@@ -31,11 +31,11 @@ void gc_object::free() {
     }
 }
 
-void gc_object::copy_object(gc_object *pObject) {
+void Sh_object::copy_object(Sh_object *pObject) {
     // TODO: implement
 }
 
-void gc_object::createnative(int type, int64_t size) {
+void Sh_object::createnative(int type, int64_t size) {
     if(mark != gc_green) {
         HEAD= (double*)malloc(sizeof(double)*size);
         this->type=type;

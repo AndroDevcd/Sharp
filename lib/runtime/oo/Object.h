@@ -45,22 +45,22 @@ enum Type {
     regs[r]=ptr->HEAD[(int64_t)regs[rx]];
 
 /* Objects stored in memory */
-class gc_object {
+class Sh_object {
 public:
-    gc_object();
+    Sh_object();
 
-    gc_object(int64_t type);
+    Sh_object(int64_t type);
 
     double *HEAD;
 
     gc_mark mark;
     int64_t type, size;
-    gc_object *next, *prev;
+    Sh_object *next, *prev;
     Monitor monitor;
 
     void free();
     void createnative(int type, int64_t size);
-    void copy_object(gc_object *pObject);
+    void copy_object(Sh_object *pObject);
 };
 
 #endif //SHARP_OBJECT_H

@@ -9,7 +9,7 @@
 #include "string.h"
 
 class Field;
-class gc_object;
+class Sh_object;
 class Method;
 
 class ClassObject {
@@ -44,7 +44,7 @@ public:
 
     nString name;
     Field* flds;
-    gc_object* fields;
+    Sh_object* fields;
     Method* methods;
     ClassObject* super;
     int64_t id, fieldCount, methodCount;
@@ -52,7 +52,7 @@ public:
     void free();
 
     ClassObject *newdup();
-    gc_object* get_field(int64_t);
+    Sh_object* get_field(int64_t);
 };
 
 

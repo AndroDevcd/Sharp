@@ -10,7 +10,7 @@
 
 #define default_stack 0xffe
 
-class gc_object;
+class Sh_object;
 
 struct s_it{
     double n;
@@ -36,7 +36,7 @@ public:
     int32_t len;
 
     CXX11_INLINE
-    void push(gc_object* value){
+    void push(Sh_object* value){
         stack[++sp].v = value;
     }
     CXX11_INLINE
@@ -45,8 +45,8 @@ public:
     }
 
     CXX11_INLINE
-    gc_object* pop(){
-        return (gc_object*)stack[sp--].v;
+    Sh_object* pop(){
+        return (Sh_object*)stack[sp--].v;
     }
 
     CXX11_INLINE

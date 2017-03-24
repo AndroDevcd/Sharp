@@ -8,9 +8,9 @@
 
 ArrayObject::ArrayObject(int64_t max, int type) {
     len = max;
-    this->arry = NULL;//new gc_object[max];
+    this->arry = NULL;//new Sh_object[max];
     for(int64_t i = 0; i < max; i++) {
-        this->arry[i] = gc_object((Type)type);
+        this->arry[i] = Sh_object((Type)type);
     }
 
 }
@@ -26,7 +26,7 @@ void ArrayObject::free() {
     }
 }
 
-gc_object* ArrayObject::get(int64_t x) {
+Sh_object* ArrayObject::get(int64_t x) {
     if(x >= len) {
         stringstream ss;
         ss << "Invalid index " << x << ", size is " << len;
@@ -37,8 +37,8 @@ gc_object* ArrayObject::get(int64_t x) {
 
 ArrayObject::ArrayObject(int64_t max) {
     len = max;
-    this->arry = NULL;//new gc_object[max];
+    this->arry = NULL;//new Sh_object[max];
     for(int64_t i = 0; i < max; i++) {
-        this->arry[i] = gc_object();
+        this->arry[i] = Sh_object();
     }
 }

@@ -38,7 +38,7 @@ ClassObject *ClassObject::newdup() {
         klass->super = super->newdup();
     }
     if(fieldCount > 0) {
-        klass->fields = NULL;//new gc_object[fieldCount];
+        klass->fields = NULL;//new Sh_object[fieldCount];
         for(int64_t i = 0; i < fieldCount; i++)
             klass->fields[i].type = (Type)flds[i].type;
     } else {
@@ -47,7 +47,7 @@ ClassObject *ClassObject::newdup() {
     return klass;
 }
 
-gc_object *ClassObject::get_field(int64_t x) {
+Sh_object *ClassObject::get_field(int64_t x) {
     if(fields == NULL)
         throw Exception(&Environment::NullptrException, "");
     if(x >= fieldCount) {

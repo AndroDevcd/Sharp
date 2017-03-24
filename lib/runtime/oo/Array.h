@@ -7,7 +7,7 @@
 
 #include "../../../stdimports.h"
 
-class gc_object;
+class Sh_object;
 
 class ArrayObject {
 public:
@@ -21,14 +21,14 @@ public:
     ArrayObject(int64_t max, int type);
     ArrayObject(int64_t max);
 
-    gc_object* get(int64_t);
+    Sh_object* get(int64_t);
 
     int64_t len;
 
     void free();
 
 private:
-    gc_object* arry;
+    Sh_object* arry;
 };
 
 

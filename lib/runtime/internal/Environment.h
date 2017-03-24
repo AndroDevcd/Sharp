@@ -9,7 +9,7 @@
 #include "../interp/FastStack.h"
 #include "../oo/ClassObject.h"
 
-class gc_object;
+class Sh_object;
 class Method;
 class ArrayObject;
 
@@ -34,10 +34,10 @@ public:
     ClassObject* findClass(int64_t id);
 
     void newClass(int64_t,int64_t);
-    void newClass(gc_object*,int64_t);
-    void newNative(gc_object*, int8_t);
-    void newArray(gc_object*, int64_t);
-    void newRefrence(gc_object*);
+    void newClass(Sh_object*,int64_t);
+    void newNative(Sh_object*, int8_t);
+    void newArray(Sh_object*, int64_t);
+    void newRefrence(Sh_object*);
 
     // TODO: create the aux classes to be used internally
     // Alloce'd by new()
@@ -48,7 +48,7 @@ public:
     static ClassObject IndexOutOfBoundsException;
     static ClassObject NullptrException;
 
-    gc_object* objects;
+    Sh_object* objects;
 
     Method* methods;
     ClassObject* classes;
@@ -57,9 +57,9 @@ public:
 
     void shutdown();
 
-    static void init(gc_object*,int64_t);
+    static void init(Sh_object*,int64_t);
 
-    static void free(gc_object*, int64_t);
+    static void free(Sh_object*, int64_t);
 };
 
 extern Environment* env;

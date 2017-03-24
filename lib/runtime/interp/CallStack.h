@@ -15,7 +15,7 @@ class Method;
 #define default_cstack 0x1fc0
 
 struct gc_stack {
-    gc_object* locals;
+    Sh_object* locals;
     double rgs[10];
     Method* callee;
 };
@@ -53,8 +53,8 @@ public:
 
     void Execute();
 
-    gc_object* instance;
-    gc_object* locals;
+    Sh_object* instance;
+    Sh_object* locals;
     Method *current;
     double* regs;
     int32_t len;

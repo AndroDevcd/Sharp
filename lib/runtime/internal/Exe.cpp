@@ -151,7 +151,7 @@ int Process_Exe(std::string exe)
         int64_t classRefptr=0, macroRefptr=0;
 
         env->classes =(ClassObject*)malloc(sizeof(ClassObject)*manifest.classes);
-        env->objects = (gc_object*)malloc(sizeof(gc_object)*manifest.classes);
+        env->objects = (Sh_object*)malloc(sizeof(Sh_object)*manifest.classes);
         env->methods = (Method*)malloc(sizeof(Method)*manifest.methods);
         env->strings = (String*)malloc(sizeof(String)*manifest.strings);
         env->bytecode = (int64_t*)malloc(sizeof(int64_t)*manifest.isize);

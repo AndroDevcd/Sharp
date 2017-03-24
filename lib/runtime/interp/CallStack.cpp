@@ -25,7 +25,7 @@ void CallStack::push(Method *method) {
     if(current->locals == 0)
         stack[sp].locals = NULL;
     else {
-        stack[sp].locals = (gc_object*)malloc(sizeof(gc_object)*current->locals);
+        stack[sp].locals = (Sh_object*)malloc(sizeof(Sh_object)*current->locals);
         env->init(stack[sp].locals, current->locals);
     }
     regs = stack[sp].rgs;
@@ -117,7 +117,7 @@ void CallStack::Execute() {
     int64_t *pc = NULL;
     Thread* self = thread_self;
 
-    gc_object *ptr=NULL;
+    Sh_object *ptr=NULL;
 
 
     pc = &env->bytecode[current->entry];
