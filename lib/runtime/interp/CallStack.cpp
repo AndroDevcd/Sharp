@@ -8,12 +8,8 @@
 #include "../internal/Thread.h"
 #include "vm.h"
 #include "../oo/Field.h"
-#include "../oo/Method.h"
 #include "../oo/Array.h"
-#include "register.h"
 #include "../oo/Object.h"
-#include "../startup.h"
-#include "../../util/file.h"
 #include <iomanip>
 
 void CallStack::push(Method *method) {
@@ -28,7 +24,7 @@ void CallStack::push(Method *method) {
         stack[sp].locals = (Sh_object*)malloc(sizeof(Sh_object)*current->locals);
         env->init(stack[sp].locals, current->locals);
     }
-    regs = stack[sp].rgs;
+    regs = &stack[sp].rgs[0];
     locals = stack[sp].locals;
 }
 
@@ -114,14 +110,11 @@ double exponent(int64_t n){
 }
 
 void CallStack::Execute() {
-    int64_t *pc = NULL;
     Thread* self = thread_self;
-
     Sh_object *ptr=NULL;
 
-
     pc = &env->bytecode[current->entry];
-            
+
     try {
         for (;;) {
             _interp:

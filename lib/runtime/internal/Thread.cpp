@@ -227,6 +227,7 @@ void Thread::term() {
     this->monitor.unlock();
     this->stack.free();
     this->cstack.free();
+    this->name.free();
 }
 
 int Thread::join(int32_t id) {
@@ -306,13 +307,12 @@ void Thread::shutdown() {
     if(threads != NULL) {
         Thread::killAll();
 
-        cout << "All threads killed" << endl;
         for(unsigned int i = 0; i < tp; i++) {
-            if(threads[i] != NULL)
-                std::free(threads[i]);
+            if(threads[i] != NULL) {
+                std::free(threads[i]); threads[i] = NULL;
+            }
         }
 
-        cout << "freeing thread list" << endl;
         std::free (Thread::threads);
     }
 }

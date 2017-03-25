@@ -14,7 +14,7 @@
 SharpVM* vm;
 Environment* env;
 
-int CreateSharpVM(std::string exe, std::list<string> pArgs)
+int CreateSharpVM(std::string exe, std::list<string>& pArgs)
 {
     vm = (SharpVM*)malloc(sizeof(SharpVM)*1);
     env = (Environment*)malloc(sizeof(Environment)*1);
@@ -93,12 +93,10 @@ int CreateSharpVM(std::string exe, std::list<string> pArgs)
 }
 
 void SharpVM::DestroySharpVM() {
-    cout << "natively exiting thread" << endl;
     if(thread_self != NULL) {
         exitVal = thread_self->exitVal;
     } else
         exitVal = 1;
-    cout << "shutting down thread system" << endl;
     Thread::shutdown();
 }
 
@@ -116,7 +114,6 @@ void*
         try {
             Method* main = self->main;
             if(main != NULL) {
-                cout << "calling main" << endl;
                 vm->Call(main);
             } else {
                 // handle error
@@ -126,7 +123,6 @@ void*
             self->exceptionThrown = true;
         }
 
-    cout << "main ended" << endl;
         /*
          * Check for uncaught exception in thread before exit
          */
@@ -154,9 +150,7 @@ void*
     }
 
 void SharpVM::Shutdown() {
-    cout << "destroying vm" << endl;
     DestroySharpVM();
-    cout << "shutting down memory" << endl;
     env->shutdown();
 }
 

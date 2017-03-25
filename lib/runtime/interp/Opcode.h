@@ -52,7 +52,6 @@
 #define _new(t,x) \
 { \
     ptr->createnative(t,regs[x]);\
-    (*pc)+=2; \
 }; _brh
 
 #define check_cast \
@@ -94,11 +93,11 @@
 
 #define brh pc=&env->bytecode[(int64_t)regs[0x0000]]; _brh_NOINCREMENT
 
-#define bre if(regs[0x0002])pc=&env->bytecode[(int64_t)regs[0x0000]]; _brh
+#define bre if(regs[0x0002])pc=&env->bytecode[(int64_t)regs[0x0000]]; else _brh
 
-#define ife if((regs[0x0002]) == false)pc=&env->bytecode[(int64_t)regs[0x0000]]; _brh
+#define ife if((regs[0x0002]) == false)pc=&env->bytecode[(int64_t)regs[0x0000]]; else  _brh
 
-#define ifne if((!regs[0x0002]) == false)pc=&env->bytecode[(int64_t)regs[0x0000]]; _brh
+#define ifne if((!regs[0x0002]) == false)pc=&env->bytecode[(int64_t)regs[0x0000]]; else _brh
 
 #define gt(r,x) regs[0x0002]=regs[r]>regs[x]; _brh
 

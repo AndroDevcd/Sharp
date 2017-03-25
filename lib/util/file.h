@@ -8,7 +8,7 @@
 #include "../../stdimports.h"
 
 typedef unsigned long stream_t;
-#define STREAM_BASE 0xffe2a
+#define STREAM_BASE 0xfe2a
 #define STREAM_CHUNK 128
 
 class file

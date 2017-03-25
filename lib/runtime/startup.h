@@ -12,8 +12,8 @@ int runtimeStart(int argc, const char* argv[]);
 void error(string message);
 
 #define progname "sharp"
-#define rev "r1"
-#define progvers "0.1.19" rev
+#define rev "r2"
+#define progvers "0.2.1" rev
 
 struct options {
 

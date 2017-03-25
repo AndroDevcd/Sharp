@@ -70,8 +70,14 @@ public:
     }
 
     void operator+=(const char &c) {
-        chars = (char*)realloc(chars,sizeof(char)*(len+1));
-        chars[len++]=c;
+        if(len == 0) {
+            len=1;
+            chars=(char*)malloc(sizeof(char)*len);
+            chars[0]=c;
+        } else {
+            chars = (char*)realloc(chars,sizeof(char)*(len+1));
+            chars[len++]=c;
+        }
     }
 
     CXX11_INLINE

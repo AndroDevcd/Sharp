@@ -69,6 +69,7 @@ public:
     }
 
 private:
+    int64_t *pc;
     int32_t sp;
     gc_stack* stack;
 };

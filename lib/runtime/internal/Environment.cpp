@@ -6,7 +6,6 @@
 #include "Exe.h"
 #include "../oo/Method.h"
 #include "../oo/Exception.h"
-#include "../oo/ClassObject.h"
 #include "../oo/Object.h"
 #include "../oo/Array.h"
 
@@ -81,6 +80,17 @@ void Environment::shutdown() {
     for(int64_t i = 0; i < manifest.classes; i++)
         this->objects->free();
     std::free (this->objects);
+
+    this->IndexOutOfBoundsException.free();
+    this->NullptrException.free();
+    this->RuntimeException.free();
+    this->StackOverflowErr.free();
+    this->ThreadStackException.free();
+    this->Throwable.free();
+
+    manifest.application.free();
+    manifest.executable.free();
+    manifest.version.free();
 }
 
 void Environment::newClass(int64_t object, int64_t klass) {

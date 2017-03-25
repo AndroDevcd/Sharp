@@ -27,6 +27,8 @@ void ClassObject::free() {
             methods[i].free();
         std::free(methods); methods = NULL;
     }
+
+    name.free();
 }
 
 ClassObject *ClassObject::newdup() {
