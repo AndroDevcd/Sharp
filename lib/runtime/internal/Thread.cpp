@@ -390,7 +390,7 @@ void*
     return waitForThread(thread);
 #endif
 #ifdef POSIX_
-    if(pthread_create( &thread->thread, NULL, threadFunc, (void*) thread))
+    if(pthread_create( &thread->thread, NULL, threadFunc, (void*) thread)!=0)
         return 3; // thread was not started
     else {
         return waitForThread(thread);
