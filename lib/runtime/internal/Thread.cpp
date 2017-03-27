@@ -159,31 +159,18 @@ int Thread::start(int32_t id) {
             thread,                 // thread self when thread is created
             0,                      // use default creation flags
             NULL);
-    if(thread->thread != NULL) thread->state = thread_init;
-    else return 3; // thread was not started
-
-    return waitForThread(thread);
+    if(thread->thread == NULL) return 3; // thread was not started
+    else
+        return 0;
 #endif
 #ifdef POSIX_
     if(pthread_create( &thread->thread, NULL, vm->InterpreterThreadStart, (void*) thread))
         return 3; // thread was not started
     else {
-        thread->state = thread_init;
-        return waitForThread(thread);
+        return 0;
     }
 #endif
 
-}
-
-int Thread::waitForThread(Thread *thread) {
-#ifdef WIN32_
-    Sleep(1);
-#endif
-#ifdef POSIX_
-    usleep(1);
-#endif
-    while (thread->state != thread_running) {}
-    return 0;
 }
 
 int Thread::interrupt(int32_t id) {
@@ -386,14 +373,13 @@ void*
             0,                      // use default creation flags
             NULL);
     if(thread->thread == NULL) return 3; // thread was not started
-
-    return waitForThread(thread);
+    else
+        return 0;
 #endif
 #ifdef POSIX_
     if(pthread_create( &thread->thread, NULL, threadFunc, (void*) thread)!=0)
         return 3; // thread was not started
-    else {
-        return waitForThread(thread);
-    }
+    else
+        return 0;
 #endif
 }

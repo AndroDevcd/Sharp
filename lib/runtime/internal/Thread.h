@@ -52,7 +52,6 @@ public:
     static int start(int32_t);
     static int interrupt(int32_t);
     static int join(int32_t);
-    static int waitForThread(Thread* thread);
     static Thread* getThread(int32_t);
     static void waitForThreadSuspend(Thread* thread);
     static void killAll();
@@ -81,7 +80,7 @@ public:
     int32_t id;
     Monitor monitor;
     bool dameon;
-    ThreadState state;
+    int state;
     bool suspended;
     nString name;
     Method* main;
