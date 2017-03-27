@@ -51,7 +51,7 @@
 
 #define _new(t,x) \
 { \
-    CHECK_PTR(ptr->createnative(t,regs[x]);)\
+    ptr->createnative(t,regs[x]);\
 }; _brh
 
 #define check_cast \
@@ -107,17 +107,22 @@
 
 #define movl(x) ptr=x; _brh
 
-#define object_nxt CHECK_PTR(ptr=ptr->nxt;) _brh
+#define object_nxt ptr=ptr->nxt; _brh
 
-#define object_prev CHECK_PTR(ptr=ptr->prev;) _brh
+#define object_prev ptr=ptr->prev; _brh // ToDO: for future check if node is null
 
 #define movbi(x) regs[0x0008]=x; pc++; _brh
 
-#define _sizeof(r) CHECK_PTR(regs[r]=ptr->size;) _brh
+#define _sizeof(r) regs[r]=ptr->size; _brh
 
 #define _put(r) cout << regs[r]; _brh
 
 #define putc(r) cout << (char)regs[r]; _brh
+
+#define _checklen(r) if(regs[r]>=ptr->size) \
+    { \
+        throw Exception("in"); \
+    }else { _brh }
 
 enum OPCODE {
     _NOP=0x0,
@@ -159,7 +164,8 @@ enum OPCODE {
     MOVBI=0x27,
     _SIZEOF=0x28,
     PUT=0x29,
-    PUTC=0x2a
+    PUTC=0x2a,
+    CHECKLEN=0x2b,
 };
 
 #endif //SHARP_OPCODE_H

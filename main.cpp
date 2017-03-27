@@ -65,7 +65,7 @@ void buildExe() {
     executable << (char)0x7 << 0 << (char)0x0; // methods
     executable << (char)0x8 << 2 << (char)0x0; // classes ---
     executable << (char)0x9 << 1 << (char)0x0; // fvers
-    executable << (char)0x0b << 22 << (char)0x0 << endl; // isize ---
+    executable << (char)0x0b << 23 << (char)0x0 << endl; // isize ---
     executable << (char)0x0c << 1 << (char)0x0; // strings
     executable << (char)0x0e << 4 << (char)0x0; // base address ---
     executable << (char)0x03;
@@ -134,6 +134,7 @@ void buildExe() {
     executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, NEW, abs(nativeint), 1, egx));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVL, 2));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 0), adx);
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, CHECKLEN, adx));
     executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, MOV, adx,0, 1));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVBI, 53723), 687697862);
     executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, MOVX, egx,0, adx));

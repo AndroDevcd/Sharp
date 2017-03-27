@@ -110,7 +110,7 @@ double exponent(int64_t n){
 
 void CallStack::Execute() {
     Thread* self = thread_self;
-    Sh_object *ptr=NULL;
+    Sh_object *ptr=NULL; // ToDO: when ptr is derefrenced assign pointer to null pointer data struct in environment
 
     pc = &env->bytecode[current->entry];
 
@@ -203,6 +203,8 @@ void CallStack::Execute() {
                     _put(GET_Da(*pc))
                 case PUTC:
                     putc(GET_Da(*pc))
+                case CHECKLEN:
+                    _checklen(GET_Da(*pc))
                 default:
                     // unsupported
                     continue;

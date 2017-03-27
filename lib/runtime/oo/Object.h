@@ -37,15 +37,13 @@ enum Type {
 
 
 #define _nativewrite2(ix,data) \
-    CHECK_PTR(ptr->HEAD[ix]=data;)
+    ptr->HEAD[ix]=data;
 
 #define _nativewrite3(ix,data) \
-    CHECK_PTR(ptr->HEAD[ix]+=data;)
+    ptr->HEAD[ix]+=data;
 
 #define _nativeread(r,rx) \
-    CHECK_PTR() regs[r]=ptr->HEAD[(int64_t)regs[rx]];
-
-#define CHECK_PTR(x) if(ptr==NULL){ throw Exception("illegal access to null pointer"); } else { x }
+    regs[r]=ptr->HEAD[(int64_t)regs[rx]];
 
 #define Sh_InvRef(x) { \
 x->HEAD=NULL; \
