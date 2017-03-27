@@ -105,7 +105,7 @@
 
 #define lte(r,x) regs[0x0002]=regs[r]<regs[x]; _brh
 
-#define movl(x) CHECK_PTR(ptr=x;) _brh
+#define movl(x) ptr=x; _brh
 
 #define object_nxt CHECK_PTR(ptr=ptr->nxt;) _brh
 

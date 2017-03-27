@@ -24,9 +24,10 @@ public:
 
     Throwable(ClassObject* throwable, string message)
             :
-            throwable(throwable),
-            message(message)
+            throwable(throwable)
     {
+        this->message.init();
+        this->message=message;
     }
 
     string buildMessage(CallStack &cs);
