@@ -210,6 +210,31 @@ void Thread::suspendThread(int32_t id) {
     suspendThread(thread);
 }
 
+void Thread::suspendAllThreads() {
+    Thread* thread;
+    for(unsigned int i= 0; i < tp; i++) {
+        thread=threads[i];
+
+        if(thread!=NULL &&
+                (thread->id != thread_self->id)){
+            suspendThread(thread);
+            waitForThreadSuspend(thread);
+        }
+    }
+}
+
+void Thread::releaseAllThreads() {
+    Thread* thread;
+    for(unsigned int i= 0; i < tp; i++) {
+        thread=threads[i];
+
+        if(thread!=NULL &&
+           (thread->id != thread_self->id)){
+            unsuspendThread(thread);
+        }
+    }
+}
+
 int Thread::unsuspendThread(Thread *thread) {
     thread->suspended = false;
     return 0;

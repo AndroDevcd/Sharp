@@ -55,7 +55,7 @@ public:
 
     gc_mark mark;
     int64_t type, size;
-    Sh_object *next, *prev;
+    Sh_object *_Node, *prev, *nxt;
     Monitor monitor;
 
     void free();

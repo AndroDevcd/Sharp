@@ -93,6 +93,10 @@ public:
 
     void term();
 
+    static void suspendAllThreads();
+
+    static void releaseAllThreads();
+
 private:
 
     void wait();
@@ -103,6 +107,7 @@ private:
     static int interrupt(Thread*);
 
     void push_thread(Thread *thread) const;
+
 };
 
 extern thread_local Thread* thread_self;

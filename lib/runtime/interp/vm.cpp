@@ -107,32 +107,31 @@ DWORD WINAPI
 void*
 #endif
     SharpVM::InterpreterThreadStart(void *arg) {
-        Thread* self = (Thread*)arg;
-        thread_self = self;
-        self->state = thread_running;
+        thread_self = (Thread*)arg;
+        thread_self->state = thread_running;
 
         try {
-            Method* main = self->main;
+            Method* main = thread_self->main;
             if(main != NULL) {
                 vm->Call(main);
             } else {
                 // handle error
             }
         } catch (Exception &e) {
-            self->throwable = e.getThrowable();
-            self->exceptionThrown = true;
+            thread_self->throwable = e.getThrowable();
+            thread_self->exceptionThrown = true;
         }
 
         /*
          * Check for uncaught exception in thread before exit
          */
-        self->exit();
+        thread_self->exit();
 
-        if (self->id == main_threadid)
+        if (thread_self->id == main_threadid)
         {
             /*
             * Shutdown all running threads
-            * and de-allocate al allocated
+            * and de-allocate all allocated
             * memory. If we do not call join()
             * to wait for all other threads
             * regardless of what they are doing, we
@@ -171,11 +170,11 @@ void SharpVM::interrupt(int32_t signal) {
     }
 }
 
-uint64_t SharpVM::Call(Method *func) {
-    //uint64_t pc = thread_self->pc;
+int64_t* SharpVM::Call(Method *func) {
+    int64_t* oldpc = thread_self->cstack.pc;
     thread_self->cstack.push(func);
     thread_self->cstack.instance = NULL;
 
     thread_self->cstack.Execute();
-    return 0;
+    return oldpc;
 }

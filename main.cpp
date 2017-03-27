@@ -1,5 +1,4 @@
 #include <iostream>
-#include <chrono>
 
 #include "stdimports.h"
 #include "lib/runtime/startup.h"
@@ -129,7 +128,7 @@ void buildExe() {
 
     executable << (char)0x05; executable << mi64_tostr(SET_Ei(i, _NOP));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 0), ebx);
-    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 10000000), ecx);
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 100000000), ecx);
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVL, 2));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 1), egx);
     executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, NEW, abs(nativeint), 1, egx));
