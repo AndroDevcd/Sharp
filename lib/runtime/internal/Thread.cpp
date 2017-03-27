@@ -292,7 +292,6 @@ void Thread::killAll() {
             thread->term();
         }
     }
-
 }
 
 int Thread::interrupt(Thread *thread) {

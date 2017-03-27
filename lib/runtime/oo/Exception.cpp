@@ -13,7 +13,7 @@ string Throwable::buildMessage(CallStack &cs) {
 
 void Throwable::drop() {
     this->throwable = NULL;
-    this->message = "";
+    this->message.free();
 }
 
 Exception::Exception(const char *msg)

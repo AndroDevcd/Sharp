@@ -18,7 +18,7 @@ public:
     Throwable()
             :
             throwable(NULL),
-            message("")
+            message()
     {
     }
 

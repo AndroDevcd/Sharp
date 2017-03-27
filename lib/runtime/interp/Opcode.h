@@ -51,7 +51,7 @@
 
 #define _new(t,x) \
 { \
-    ptr->createnative(t,regs[x]);\
+    CHECK_PTR(ptr->createnative(t,regs[x]);)\
 }; _brh
 
 #define check_cast \
@@ -105,15 +105,15 @@
 
 #define lte(r,x) regs[0x0002]=regs[r]<regs[x]; _brh
 
-#define movl(x) ptr=x; _brh
+#define movl(x) CHECK_PTR(ptr=x;) _brh
 
-#define object_nxt ptr=ptr->nxt; _brh
+#define object_nxt CHECK_PTR(ptr=ptr->nxt;) _brh
 
-#define object_prev ptr=ptr->prev; _brh
+#define object_prev CHECK_PTR(ptr=ptr->prev;) _brh
 
 #define movbi(x) regs[0x0008]=x; pc++; _brh
 
-#define _sizeof(r) regs[r]=ptr->size; _brh
+#define _sizeof(r) CHECK_PTR(regs[r]=ptr->size;) _brh
 
 #define _put(r) cout << regs[r]; _brh
 
