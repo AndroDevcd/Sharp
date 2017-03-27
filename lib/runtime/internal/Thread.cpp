@@ -385,16 +385,14 @@ void*
             thread,                 // thread self when thread is created
             0,                      // use default creation flags
             NULL);
-    if(thread->thread != NULL) thread->state = thread_init;
-    else return 3; // thread was not started
+    if(thread->thread == NULL) return 3; // thread was not started
 
     return waitForThread(thread);
 #endif
 #ifdef POSIX_
-    if(pthread_create( &thread->thread, NULL, vm->InterpreterThreadStart, (void*) thread))
+    if(pthread_create( &thread->thread, NULL, threadFunc, (void*) thread))
         return 3; // thread was not started
     else {
-        thread->state = thread_init;
         return waitForThread(thread);
     }
 #endif
