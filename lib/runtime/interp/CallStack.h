@@ -62,7 +62,9 @@ public:
 
     void free() {
         if(len != 0) {
-            std::free (stack); stack = NULL;
+            if(stack != NULL) {
+                std::free (stack); stack = NULL;
+            }
             current = NULL;
             sp = -1, len = 0;
         }

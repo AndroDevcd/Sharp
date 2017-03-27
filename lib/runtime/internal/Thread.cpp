@@ -283,11 +283,11 @@ void Thread::killAll() {
         thread = threads[i];
 
         if(thread != NULL && thread->id != thread_self->id) {
-            if(thread->state == thread_running) {
+            if(thread->state == thread_running){
                 interrupt(thread);
-            } else {
-                thread->term();
             }
+
+            thread->term();
         } else if(thread != NULL){
             thread->term();
         }

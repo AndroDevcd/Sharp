@@ -7,8 +7,10 @@
 #include "../internal/Environment.h"
 
 void FastStack::free() {
-    std::free (stack);
-    stack = NULL;
+    if(stack != NULL) {
+        std::free (stack);
+        stack = NULL;
+    }
     len = 0;
 }
 
