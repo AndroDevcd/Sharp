@@ -80,10 +80,7 @@ void GC::_collect_GC_EXPLICIT() {
 }
 
 void GC::_collect() {
-    for(unsigned int i=0; i<gc->allocptr; i++)
-    {
-        gc->gc_alloc_heap[i].free();
-    }
+    Environment::free(gc->gc_alloc_heap, gc->allocptr);
     gc->allocptr=0;
 }
 
@@ -174,10 +171,10 @@ void GC::_GC_run() {
         {
             retryCount = 0;
 #ifdef WIN32_
-            Sleep(2);
+            Sleep(4);
 #endif
 #ifdef POSIX_
-            usleep(2*POSIX_USEC_INTERVAL);
+            usleep(4*POSIX_USEC_INTERVAL);
 #endif
         } else {
             if(gc->allocptr>(gc_max_heap_size/_GC_CAP_THRESHOLD)){
@@ -188,4 +185,28 @@ void GC::_GC_run() {
         }
 
     }
+}
+
+void GC::_insert_stack(Sh_object *stack, unsigned long len) {
+    gc->mutex.acquire(INDEFINITE);
+    if(gc->allocptr == gc_max_heap_size) {
+        _collect_GC_EXPLICIT();
+    }
+
+    Sh_object* ptr =&stack[0];
+    for(unsigned long i=0; i < len; i++) {
+        if(gc->allocptr == gc_max_heap_size) {
+            _collect_GC_CONCURRENT();
+        }
+
+        gc->gc_alloc_heap[gc->allocptr].nxt=ptr->nxt;
+        gc->gc_alloc_heap[gc->allocptr].prev=ptr->prev;
+        gc->gc_alloc_heap[gc->allocptr].HEAD=ptr->HEAD;
+        gc->gc_alloc_heap[gc->allocptr]._Node=ptr->_Node;
+        gc->gc_alloc_heap[gc->allocptr].size=ptr->size;
+
+        gc->allocptr++;
+        ptr++;
+    }
+    gc->mutex.unlock();
 }

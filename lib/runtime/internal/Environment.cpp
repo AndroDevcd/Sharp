@@ -7,6 +7,7 @@
 #include "../oo/Method.h"
 #include "../oo/Exception.h"
 #include "../oo/Object.h"
+#include "../alloc/GC.h"
 
 ClassObject Environment::Throwable;
 ClassObject Environment::StackOverflowErr;
@@ -165,5 +166,11 @@ void Environment::free(Sh_object *objects, int64_t len) {
             objects[i].free();
         }
         std::free(objects);
+    }
+}
+
+void Environment::gcfree(Sh_object *objects, int64_t len) {
+    if(len > 0 && objects != NULL) {
+        GC::_insert_stack(objects, len);
     }
 }

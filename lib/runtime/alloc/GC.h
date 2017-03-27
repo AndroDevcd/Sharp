@@ -19,6 +19,7 @@ public:
     static void _collect_GC_CONCURRENT();
     static void _collect_GC_EXPLICIT();
     static void _insert(Sh_object*);
+    static void _insert_stack(Sh_object*, unsigned long);
 private:
     Monitor mutex;
     Sh_object* gc_alloc_heap;

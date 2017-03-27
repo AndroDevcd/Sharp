@@ -30,7 +30,7 @@ void CallStack::push(Method *method) {
 void CallStack::pop() {
 
     if((sp-1) == -1) {
-        Environment::free(locals, current->locals);
+        Environment::gcfree(locals, current->locals);
         stack[sp].locals=NULL;
         current = NULL;
         regs=NULL;
@@ -38,7 +38,7 @@ void CallStack::pop() {
         return;
     }
 
-    Environment::free(locals, current->locals);
+    Environment::gcfree(locals, current->locals);
     sp--;
     current = stack[sp].callee;
     locals = stack[sp].locals;
