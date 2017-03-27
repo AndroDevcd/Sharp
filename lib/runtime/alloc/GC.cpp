@@ -4,7 +4,6 @@
 
 #include "GC.h"
 #include "../internal/Thread.h"
-#include "../../../stdimports.h"
 
 size_t gc_max_heap_size = 640 * 1024 ;
 GC* GC::gc = NULL;
@@ -67,13 +66,13 @@ void* memrealloc(void* Ptr, size_t bytes) {
 }
 
 void GC::_collect_GC_CONCURRENT() {
-    gc->mutex.acquire(INFINITE);
+    gc->mutex.acquire(INDEFINITE);
         _collect();
     gc->mutex.unlock();
 }
 
 void GC::_collect_GC_EXPLICIT() {
-    gc->mutex.acquire(INFINITE);
+    gc->mutex.acquire(INDEFINITE);
     Thread::suspendAllThreads();
         _collect();
     Thread::resumeAllThreads();
@@ -97,7 +96,7 @@ void GC::_init_GC() {
 }
 
 void GC::_insert(Sh_object *gc_obj) {
-    gc->mutex.acquire(INFINITE);
+    gc->mutex.acquire(INDEFINITE);
     if(gc->allocptr == gc_max_heap_size) {
         _collect_GC_EXPLICIT();
     }
@@ -182,7 +181,7 @@ void GC::_GC_run() {
 #endif
         } else {
             if(gc->allocptr>(gc_max_heap_size/_GC_CAP_THRESHOLD)){
-                gc->mutex.acquire(INFINITE);
+                gc->mutex.acquire(INDEFINITE);
                 GC::_collect_GC_CONCURRENT();
                 gc->mutex.unlock();
             }
