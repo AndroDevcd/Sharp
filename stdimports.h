@@ -37,6 +37,10 @@ using namespace std;
     #define POSIX_USEC_INTERVAL 1000
 #endif
 
+void* memalloc(size_t bytes);
+void* memcalloc(size_t n, size_t bytes);
+void* memrealloc(void *ptr, size_t bytes);
+
 #define CXX11_INLINE inline
 
 #endif //SHARP_STDIMPORTS_H

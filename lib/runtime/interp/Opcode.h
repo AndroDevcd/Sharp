@@ -107,7 +107,7 @@
 
 #define movl(x) ptr=x; _brh
 
-#define object_nxt ptr=ptr->next; _brh
+#define object_nxt ptr=ptr->nxt; _brh
 
 #define object_prev ptr=ptr->prev; _brh
 

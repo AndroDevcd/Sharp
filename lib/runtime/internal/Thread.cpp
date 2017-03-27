@@ -61,6 +61,25 @@ void Thread::Create(string name) {
     push_thread(this);
 }
 
+void Thread::CreateDaemon(string) {
+    this->monitor = Monitor();
+    this->name.init();
+
+    this->name = name;
+    this->id = Thread::tid++;
+    this->stack=FastStack();
+    this->cstack=CallStack();
+    this->cstack.thread_stack = &this->stack;
+    this->suspendPending = false;
+    this->exceptionThrown = false;
+    this->suspended = false;
+    this->dameon = true;
+    this->state = thread_init;
+    this->exitVal = 0;
+
+    push_thread(this);
+}
+
 void Thread::push_thread(Thread *thread) const {
     bool threadSet = false;
     for(unsigned int i = 0; i < tp; i++) {
@@ -83,15 +102,6 @@ Thread *Thread::getThread(int32_t id) {
     }
 
     return NULL;
-}
-
-int Thread::unsuspendThread(int32_t id) {
-    Thread* thread = getThread(id);
-    if(thread == NULL)
-        return 1;
-
-    unsuspendThread(thread);
-    return 0;
 }
 
 void Thread::suspendSelf() {
@@ -166,7 +176,13 @@ int Thread::start(int32_t id) {
 }
 
 int Thread::waitForThread(Thread *thread) {
-    while (thread->state == thread_init) { }
+#ifdef WIN32_
+    Sleep(1);
+#endif
+#ifdef POSIX_
+    usleep(1);
+#endif
+    while (thread->state != thread_running) {}
     return 0;
 }
 
@@ -175,7 +191,7 @@ int Thread::interrupt(int32_t id) {
         return 1; // cannot interrupt thread_self
 
     Thread* thread = getThread(id);
-    if(thread == NULL)
+    if(thread == NULL || thread->dameon)
         return 1;
 
     return interrupt(thread);
@@ -202,14 +218,6 @@ void Thread::waitForThreadSuspend(Thread *thread) {
     }
 }
 
-void Thread::suspendThread(int32_t id) {
-    Thread* thread = getThread(id);
-    if(thread == NULL)
-        return;
-
-    suspendThread(thread);
-}
-
 void Thread::suspendAllThreads() {
     Thread* thread;
     for(unsigned int i= 0; i < tp; i++) {
@@ -223,7 +231,7 @@ void Thread::suspendAllThreads() {
     }
 }
 
-void Thread::releaseAllThreads() {
+void Thread::resumeAllThreads() {
     Thread* thread;
     for(unsigned int i= 0; i < tp; i++) {
         thread=threads[i];
@@ -260,7 +268,7 @@ int Thread::join(int32_t id) {
         return 1;
 
     Thread* thread = getThread(id);
-    if (thread == NULL)
+    if (thread == NULL || thread->dameon)
         return 1;
 
     return threadjoin(thread);
@@ -353,4 +361,41 @@ void Thread::exit() {
     if(this->exceptionThrown) {
         // TODO: handle exception
     }
+}
+
+int Thread::startDaemon(
+#ifdef WIN32_
+        DWORD WINAPI
+#endif
+#ifdef POSIX_
+void*
+#endif
+(*threadFunc)(void *), Thread *thread) {
+    if (thread == NULL || !thread->dameon)
+        return 1;
+
+    if(thread->state == thread_running)
+        return 2;
+
+#ifdef WIN32_
+    thread->thread = CreateThread(
+            NULL,                   // default security attributes
+            0,                      // use default stack size
+            (LPTHREAD_START_ROUTINE)threadFunc,       // thread function caller
+            thread,                 // thread self when thread is created
+            0,                      // use default creation flags
+            NULL);
+    if(thread->thread != NULL) thread->state = thread_init;
+    else return 3; // thread was not started
+
+    return waitForThread(thread);
+#endif
+#ifdef POSIX_
+    if(pthread_create( &thread->thread, NULL, vm->InterpreterThreadStart, (void*) thread))
+        return 3; // thread was not started
+    else {
+        thread->state = thread_init;
+        return waitForThread(thread);
+    }
+#endif
 }

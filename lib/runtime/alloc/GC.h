@@ -13,17 +13,30 @@ class GC {
 public:
     static GC* gc;
 
+    static void GCStartup();
+    static void GCShutdown();
     static void _init_GC();
     static void _collect_GC_CONCURRENT();
     static void _collect_GC_EXPLICIT();
     static void _insert(Sh_object*);
 private:
     Monitor mutex;
-    Sh_object** gc_alloc_heap;
+    Sh_object* gc_alloc_heap;
+    unsigned long allocptr;
     static void _collect();
+
+    static
+#ifdef WIN32_
+    DWORD WINAPI
+#endif
+#ifdef POSIX_
+    void*
+#endif
+     _GCThread_start(void *);
+
+    void _GC_run();
 };
 
-void* memalloc(size_t bytes);
-void* memcalloc(size_t bytes);
+#define _GC_CAP_THRESHOLD 1.5
 
 #endif //SHARP_GC_H

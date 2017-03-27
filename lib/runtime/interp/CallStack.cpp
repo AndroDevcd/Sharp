@@ -8,7 +8,6 @@
 #include "../internal/Thread.h"
 #include "vm.h"
 #include "../oo/Field.h"
-#include "../oo/Array.h"
 #include "../oo/Object.h"
 #include <iomanip>
 

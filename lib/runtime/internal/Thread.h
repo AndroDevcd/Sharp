@@ -18,10 +18,10 @@
 class Method;
 
 enum ThreadState {
-    thread_init,
-    thread_running,
-    thread_suspend,
-    thread_killed
+    thread_init=0x0,
+    thread_running=0x1,
+    thread_suspend=0x2,
+    thread_killed=0x3
 };
 
 class Thread {
@@ -55,14 +55,22 @@ public:
     static int waitForThread(Thread* thread);
     static Thread* getThread(int32_t);
     static void waitForThreadSuspend(Thread* thread);
-    static int unsuspendThread(int32_t);
-    static void suspendThread(int32_t);
     static void killAll();
     static void shutdown();
+
+    static int startDaemon(
+#ifdef WIN32_
+            DWORD WINAPI
+#endif
+#ifdef POSIX_
+    void*
+#endif
+    (*threadFunc)(void*), Thread* thread);
 
 
     void Create(string, ClassObject*, int64_t);
     void Create(string);
+    void CreateDaemon(string);
     void exit();
 
     static int32_t tid;
@@ -95,7 +103,7 @@ public:
 
     static void suspendAllThreads();
 
-    static void releaseAllThreads();
+    static void resumeAllThreads();
 
 private:
 

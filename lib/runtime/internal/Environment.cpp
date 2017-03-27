@@ -7,7 +7,6 @@
 #include "../oo/Method.h"
 #include "../oo/Exception.h"
 #include "../oo/Object.h"
-#include "../oo/Array.h"
 
 ClassObject Environment::Throwable;
 ClassObject Environment::StackOverflowErr;
@@ -114,10 +113,11 @@ void Environment::init(Sh_object* objects, int64_t size) {
         Sh_object* ptr=&objects[0];
         for(int64_t i = 0; i < size; i++) {
             ptr->HEAD=NULL;
-            ptr->prev=NULL,ptr->next=NULL;
+            ptr->_Node = NULL, ptr->prev=NULL,ptr->nxt=NULL;
             ptr->mark = gc_orange;
             ptr->size = 0;
             ptr->monitor = Monitor();
+            ptr->refs.init();
 
             ptr++;
         }

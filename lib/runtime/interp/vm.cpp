@@ -8,8 +8,8 @@
 #include "../internal/Thread.h"
 #include "../oo/Field.h"
 #include "../oo/Method.h"
-#include "../oo/Array.h"
 #include "../oo/Object.h"
+#include "../alloc/GC.h"
 
 SharpVM* vm;
 Environment* env;
@@ -23,6 +23,7 @@ int CreateSharpVM(std::string exe, std::list<string>& pArgs)
         return 1;
 
     Thread::Startup();
+    GC::GCStartup();
 
     /**
      * Aux classes
@@ -98,6 +99,7 @@ void SharpVM::DestroySharpVM() {
     } else
         exitVal = 1;
     Thread::shutdown();
+    GC::GCShutdown();
 }
 
 #ifdef WIN32_

@@ -11,6 +11,7 @@
 #include "string.h"
 #include "../internal/Monitor.h"
 #include "Exception.h"
+#include "../../util/List.h"
 
 #define ref_cap 0x16e
 
@@ -44,6 +45,16 @@ enum Type {
 #define _nativeread(r,rx) \
     regs[r]=ptr->HEAD[(int64_t)regs[rx]];
 
+#define Sh_InvRef(x) { \
+x->HEAD=NULL; \
+x->nxt==NULL;  \
+x->prev=NULL;  \
+x->size=0;  \
+x->_Node=NULL;  \
+x->_rNode=NULL;  \
+x->type=refrenceobject;  \
+}
+
 /* Objects stored in memory */
 class Sh_object {
 public:
@@ -57,7 +68,10 @@ public:
     int64_t type, size;
     Sh_object *_Node, *prev, *nxt;
     Monitor monitor;
+    List<Sh_object**> refs;
+    Sh_object* _rNode;
 
+    void _Sh_IncRef(Sh_object* o,Sh_object**);
     void free();
     void createnative(int type, int64_t size);
     void copy_object(Sh_object *pObject);
