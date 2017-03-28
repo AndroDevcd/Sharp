@@ -34,7 +34,7 @@ public:
     }
 
     void init() {
-        stack = (gc_stack*)malloc(sizeof(gc_stack)*default_cstack);
+        stack = (gc_stack*)memalloc(sizeof(gc_stack)*default_cstack);
         len = default_cstack;
         sp=-1;
     }

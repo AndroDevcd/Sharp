@@ -156,6 +156,12 @@ int Process_Exe(std::string exe)
         env->strings = (String*)malloc(sizeof(String)*manifest.strings);
         env->bytecode = (int64_t*)malloc(sizeof(int64_t)*manifest.isize);
 
+        if(env->classes == NULL || env->objects == NULL || env->methods == NULL
+                || env->strings == NULL || env->bytecode == NULL) {
+            throw Exception("Failed to allocate memory for program,"
+                                    " try reducing program size!");
+        }
+
         for (;;) {
 
             __bitFlag = _fStream.at(n++);

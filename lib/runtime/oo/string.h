@@ -18,7 +18,7 @@ public:
             chars = NULL;
         } else {
             len=value.size();
-            chars = (char*)malloc(sizeof(char)*len);
+            chars = (char*)memalloc(sizeof(char)*len);
             setstr(value);
         }
     }
@@ -45,7 +45,7 @@ public:
 
         if(str != "") {
             len = str.size();
-            chars = (char*)malloc(sizeof(char)*len);
+            chars = (char*)memalloc(sizeof(char)*len);
             setstr(str);
         }
     }
@@ -64,7 +64,7 @@ public:
 
         if(_str.len>0) {
             len = _str.len;
-            chars = (char*)malloc(sizeof(char)*len);
+            chars = (char*)memalloc(sizeof(char)*len);
             set(_str);
         }
     }
@@ -72,7 +72,7 @@ public:
     void operator+=(const char &c) {
         if(len == 0) {
             len=1;
-            chars=(char*)malloc(sizeof(char)*len);
+            chars=(char*)memalloc(sizeof(char)*len);
             chars[0]=c;
         } else {
             chars = (char*)realloc(chars,sizeof(char)*(len+1));

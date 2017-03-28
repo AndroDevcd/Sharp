@@ -14,7 +14,7 @@ void* memalloc(size_t bytes) {
     alloc_bytes:
         ptr=malloc(bytes);
 
-        if(ptr == NULL) {
+        if(GC::gc != NULL && ptr == NULL) {
             if(gc) {
                 throw Exception("out of memory");
             } else {
@@ -185,7 +185,7 @@ void GC::_GC_run() {
         } else {
             /*
              * Try to keep all de-allocations running
-             * simultaneously
+             * asynchronously
              */
             if(gc->allocptr>(gc_max_heap_size/_GC_CAP_THRESHOLD)){
                 gc->mutex.acquire(INDEFINITE);

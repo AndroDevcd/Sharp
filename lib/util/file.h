@@ -34,7 +34,7 @@ public:
         }
 
         void begin() {
-            _Data=(uint8_t* )malloc(sizeof(uint8_t)*STREAM_BASE);
+            _Data=(uint8_t* )memalloc(sizeof(uint8_t)*STREAM_BASE);
             _ds=STREAM_BASE;
             sp=0;
         }

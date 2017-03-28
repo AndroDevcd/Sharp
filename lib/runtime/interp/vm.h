@@ -31,7 +31,7 @@ public:
 
     int exitVal;
 
-    int64_t* Call(Method *pMethod);
+    int64_t* CallMain(Method *pMethod);
 };
 
 extern SharpVM* vm;

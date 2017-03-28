@@ -116,8 +116,8 @@ void file::stream::_push_back(char _C) {
     if(sp>=_ds) {
         _ds+=STREAM_CHUNK;
         void* tptr=realloc(_Data, STREAM_CHUNK);
-        if(tptr) {
-            // TODO: handle
+        if(tptr == NULL) {
+            throw std::bad_alloc();
         }
         _Data=(uint8_t* )tptr;
     }

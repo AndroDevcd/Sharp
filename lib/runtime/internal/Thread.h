@@ -119,7 +119,6 @@ private:
 
 extern thread_local Thread* thread_self;
 
-#define ZombieMax 0x7e
 #define main_threadid 0x0
 
 

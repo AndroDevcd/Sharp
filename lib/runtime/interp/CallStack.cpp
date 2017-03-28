@@ -20,7 +20,7 @@ void CallStack::push(Method *method) {
     if(current->locals == 0)
         stack[sp].locals = NULL;
     else {
-        stack[sp].locals = (Sh_object*)malloc(sizeof(Sh_object)*current->locals);
+        stack[sp].locals = (Sh_object*)memalloc(sizeof(Sh_object)*current->locals);
         env->init(stack[sp].locals, current->locals);
     }
     regs = &stack[sp].rgs[0];

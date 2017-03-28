@@ -16,8 +16,8 @@ Environment* env;
 
 int CreateSharpVM(std::string exe, std::list<string>& pArgs)
 {
-    vm = (SharpVM*)malloc(sizeof(SharpVM)*1);
-    env = (Environment*)malloc(sizeof(Environment)*1);
+    vm = (SharpVM*)memalloc(sizeof(SharpVM)*1);
+    env = (Environment*)memalloc(sizeof(Environment)*1);
 
     if(Process_Exe(exe) != 0)
         return 1;
@@ -115,7 +115,7 @@ void*
         try {
             Method* main = thread_self->main;
             if(main != NULL) {
-                vm->Call(main);
+                vm->CallMain(main);
             } else {
                 // handle error
             }
@@ -172,7 +172,7 @@ void SharpVM::interrupt(int32_t signal) {
     }
 }
 
-int64_t* SharpVM::Call(Method *func) {
+int64_t* SharpVM::CallMain(Method *func) {
     int64_t* oldpc = thread_self->cstack.pc;
     thread_self->cstack.push(func);
     thread_self->cstack.instance = NULL;

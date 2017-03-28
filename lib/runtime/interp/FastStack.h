@@ -28,7 +28,7 @@ public:
     }
 
     void init() {
-        stack = (s_it*)malloc(sizeof(s_it)*default_stack);
+        stack = (s_it*)memalloc(sizeof(s_it)*default_stack);
         len = default_stack;
         sp=-1;
     }
