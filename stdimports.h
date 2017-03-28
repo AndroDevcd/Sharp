@@ -15,8 +15,11 @@
 
 using namespace std;
 
+#ifdef __unix__
+#define POSIX_
+#elif defined(_WIN32) || defined(WIN32)
 #define WIN32_
-//#define POSIX_
+#endif
 
 #ifdef WIN32_
     #define WIN32_LEAN_AND_MEAN

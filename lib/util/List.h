@@ -6,6 +6,7 @@
 #define SHARP_LIST_H
 
 #include "../../stdimports.h"
+#include "../runtime/oo/Exception.h"
 
 template <class T>
 class List {
