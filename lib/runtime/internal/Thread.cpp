@@ -35,7 +35,7 @@ void Thread::Create(string name, ClassObject* klass, int64_t method) {
     this->suspendPending = false;
     this->exceptionThrown = false;
     this->suspended = false;
-    this->dameon = false;
+    this->daemon = false;
     this->state = thread_init;
     this->exitVal = 0;
 
@@ -54,7 +54,7 @@ void Thread::Create(string name) {
     this->suspendPending = false;
     this->exceptionThrown = false;
     this->suspended = false;
-    this->dameon = false;
+    this->daemon = false;
     this->state = thread_init;
     this->exitVal = 0;
 
@@ -73,7 +73,7 @@ void Thread::CreateDaemon(string) {
     this->suspendPending = false;
     this->exceptionThrown = false;
     this->suspended = false;
-    this->dameon = true;
+    this->daemon = true;
     this->state = thread_init;
     this->exitVal = 0;
 
@@ -178,7 +178,7 @@ int Thread::interrupt(int32_t id) {
         return 1; // cannot interrupt thread_self
 
     Thread* thread = getThread(id);
-    if(thread == NULL || thread->dameon)
+    if(thread == NULL || thread->daemon)
         return 1;
 
     return interrupt(thread);
@@ -255,7 +255,7 @@ int Thread::join(int32_t id) {
         return 1;
 
     Thread* thread = getThread(id);
-    if (thread == NULL || thread->dameon)
+    if (thread == NULL || thread->daemon)
         return 1;
 
     return threadjoin(thread);
@@ -357,7 +357,7 @@ int Thread::startDaemon(
 void*
 #endif
 (*threadFunc)(void *), Thread *thread) {
-    if (thread == NULL || !thread->dameon)
+    if (thread == NULL || !thread->daemon)
         return 1;
 
     if(thread->state == thread_running)

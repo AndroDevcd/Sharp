@@ -16,7 +16,7 @@ options c_options;
 int __vinit(string e, list<string> pArgs);
 
 void version() {
-    cout << progname << " " << progvers;
+    cout << progname << " " << progvers << endl;
 }
 
 void error(string message) {
@@ -54,7 +54,6 @@ int runtimeStart(int argc, const char* argv[])
         }
         else if(opt("-showversion")){
             version();
-            cout << endl;
         }
         else if(string(argv[i]).at(0) == '-'){
             error("invalid option `" + string(argv[i]) + "`, try sharp -h");

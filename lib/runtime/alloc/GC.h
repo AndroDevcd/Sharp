@@ -40,4 +40,6 @@ private:
 
 #define _GC_CAP_THRESHOLD 1.5
 
+#define GC_SLEEP_INTERVAL 4
+
 #endif //SHARP_GC_H

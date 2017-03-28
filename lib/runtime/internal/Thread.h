@@ -30,7 +30,7 @@ public:
     :
             id(-1),
             monitor(),
-            dameon(false),
+            daemon(false),
             state(thread_killed),
             suspended(false),
             name(""),
@@ -79,7 +79,7 @@ public:
 
     int32_t id;
     Monitor monitor;
-    bool dameon;
+    bool daemon;
     int state;
     bool suspended;
     nString name;

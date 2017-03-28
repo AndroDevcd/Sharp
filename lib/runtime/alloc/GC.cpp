@@ -140,7 +140,13 @@ void*
     thread_self =(Thread*)pVoid;
     thread_self->state = thread_running;
 
-    gc->_GC_run();
+    try {
+        gc->_GC_run();
+    } catch(Exception &e){
+        /* Should never happen */
+        thread_self->exceptionThrown =true;
+        thread_self->throwable=e.getThrowable();
+    }
 
     /*
          * Check for uncaught exception in thread before exit
@@ -160,10 +166,10 @@ void GC::_GC_run() {
     unsigned int retryCount = 0;
 
     for(;;) {
-        if(thread_self->suspendPending) {
+        if(thread_self->suspendPending)
             Thread::suspendSelf();
-        }
         if(thread_self->state == thread_killed) {
+            GC::_collect_GC_CONCURRENT();
             return;
         }
 
@@ -171,12 +177,16 @@ void GC::_GC_run() {
         {
             retryCount = 0;
 #ifdef WIN32_
-            Sleep(4);
+            Sleep(GC_SLEEP_INTERVAL);
 #endif
 #ifdef POSIX_
-            usleep(4*POSIX_USEC_INTERVAL);
+            usleep(GC_SLEEP_INTERVAL*POSIX_USEC_INTERVAL);
 #endif
         } else {
+            /*
+             * Try to keep all de-allocations running
+             * simultaneously
+             */
             if(gc->allocptr>(gc_max_heap_size/_GC_CAP_THRESHOLD)){
                 gc->mutex.acquire(INDEFINITE);
                 GC::_collect_GC_CONCURRENT();
