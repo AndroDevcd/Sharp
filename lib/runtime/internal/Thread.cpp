@@ -284,7 +284,11 @@ void Thread::killAll() {
 
         if(thread != NULL && thread->id != thread_self->id) {
             if(thread->state == thread_running){
-                interrupt(thread);
+                if(thread->daemon) {
+                    thread->state = thread_killed;
+                } else {
+                    interrupt(thread);
+                }
             }
 
             thread->term();
