@@ -168,6 +168,8 @@ void GC::_GC_run() {
     unsigned int retryCount = 0;
 
     for(;;) {
+        if(thread_self->suspendPending)
+            Thread::suspendSelf();
         if(thread_self->state == thread_killed) {
             GC::_collect_GC_CONCURRENT();
             return;
