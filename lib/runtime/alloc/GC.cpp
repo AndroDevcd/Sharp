@@ -80,7 +80,7 @@ void GC::_collect_GC_EXPLICIT() {
 }
 
 void GC::_collect() {
-    Environment::free(gc->gc_alloc_heap, gc->allocptr);
+    Environment::freesticky(gc->gc_alloc_heap, gc->allocptr);
     gc->allocptr=0;
 }
 
@@ -147,6 +147,8 @@ void*
         thread_self->exceptionThrown =true;
         thread_self->throwable=e.getThrowable();
     }
+
+    GC::GCShutdown();
 
     /*
          * Check for uncaught exception in thread before exit

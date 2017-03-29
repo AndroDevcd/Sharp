@@ -83,11 +83,16 @@ void file::read_alltext(const char *f, stream& _out)
 
         len = file_size(fp);
         if(len == -1) 1;
-        unsigned int p=0;
+        char c;
 
         do {
-            _out << getc(fp);
-        }while(p++<(len));
+            c = getc(fp);
+            if(c==EOF) {
+                break;
+            } else {
+                _out << c;
+            }
+        }while(true);
         fclose(fp);
     }
     catch(std::bad_alloc& ba){
@@ -132,6 +137,14 @@ char file::stream::at(stream_t _X) {
         throw std::out_of_range(_s.str());
     }
     return _Data[_X];
+}
+
+string file::stream::to_str() {
+    string s ="";
+    for(unsigned long i=0; i < size(); i++) {
+        s+=_Data[i];
+    }
+    return s;
 }
 
 int file::write(const char *f, string data)

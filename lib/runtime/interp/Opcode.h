@@ -69,13 +69,13 @@
 
 #define pushr(r) thread_stack->push(regs[r]); _brh
 
-#define add(r,x) regs[0x0008]=regs[r]+regs[x]; _brh
+#define _add(r,x) regs[0x0008]=regs[r]+regs[x]; _brh
 
-#define sub(r,x) regs[0x0008]=regs[r]-regs[x]; _brh _brh
+#define _sub(r,x) regs[0x0008]=regs[r]-regs[x]; _brh _brh
 
-#define mul(r,x) regs[0x0008]=regs[r]*regs[x]; _brh _brh
+#define _mul(r,x) regs[0x0008]=regs[r]*regs[x]; _brh _brh
 
-#define div(r,x) regs[0x0008]=regs[r]/regs[x]; _brh _brh
+#define _div(r,x) regs[0x0008]=regs[r]/regs[x]; _brh _brh
 
 #define mod(r,x) regs[0x0008]=(int64_t)regs[r]%(int64_t)regs[x]; _brh
 

@@ -60,6 +60,7 @@ public:
     static void init(Sh_object*,int64_t);
 
     static void free(Sh_object*, int64_t);
+    static void freesticky(Sh_object*, int64_t);
     static void gcfree(Sh_object*, int64_t);
 };
 

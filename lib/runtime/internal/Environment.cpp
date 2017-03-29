@@ -174,3 +174,12 @@ void Environment::gcfree(Sh_object *objects, int64_t len) {
         GC::_insert_stack(objects, len);
     }
 }
+
+void Environment::freesticky(Sh_object *objects, int64_t len) {
+    if(len > 0 && objects != NULL) {
+        for(int64_t i = 0; i < len; i++) {
+            // TodO: implement
+            objects[i].free();
+        }
+    }
+}

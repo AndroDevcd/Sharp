@@ -45,68 +45,24 @@ void CallStack::pop() {
     regs = stack[sp].rgs;
 }
 
-
-double exponent(int64_t n){
-    if (n < 100000){
-        // 5 or less
-        if (n < 100){
-            // 1 or 2
-            if (n < 10)
-                return n*0.1;
-            else
-                return n*0.01;
-        }else{
-            // 3 or 4 or 5
-            if (n < 1000)
-                return n*0.001;
-            else{
-                // 4 or 5
-                if (n < 10000)
-                    return n*0.0001;
-                else
-                    return n*0.00001;
-            }
-        }
-    } else {
-        // 6 or more
-        if (n < 10000000) {
-            // 6 or 7
-            if (n < 1000000)
-                return n*0.000001;
-            else
-                return n*0.0000001;
-        } else if(n < 1000000000) {
-            // 8 to 10
-            if (n < 100000000)
-                return n*0.00000001;
-            else {
-                // 9 or 10
-                if (n < 1000000000)
-                    return n*0.000000001;
-                else
-                    return n*0.0000000001;
-            }
-        } else if(n < 1000000000000000) {
-            // 11 to 15
-            if (n < 100000000000)
-                return n*0.00000000001;
-            else {
-                // 12 to 15
-                if (n < 1000000000000)
-                    return n*0.000000000001;
-                else if (n < 10000000000000)
-                    return n*0.0000000000001;
-                else if (n < 100000000000000)
-                    return n*0.00000000000001;
-                else
-                    return n*0.000000000000001;
-            }
-        }
-        else {
-            return n*0.0000000000000001;
-        }
-    }
-}
+#define exponent(x) \
+    (x < 10 ? x*0.1 :   \
+        (x < 100 ? x*0.01 :   \
+        (x < 1000 ? x*0.001 :   \
+        (x < 10000 ? x*0.0001 :   \
+        (x < 100000 ? x*0.00001 :   \
+        (x < 1000000 ? x*0.000001 :   \
+        (x < 10000000 ? x*0.0000001 :   \
+        (x < 100000000 ? x*0.00000001 :   \
+        (x < 1000000000 ? x*0.000000001 :   \
+        (x < 10000000000 ? x*0.0000000001 :   \
+        (x < 10000000000 ? x*0.00000000001 :   \
+        (x < 10000000000 ? x*0.000000000001 :   \
+        (x < 10000000000 ? x*0.0000000000001 :   \
+        (x < 10000000000 ? x*0.00000000000001 :   \
+        (x < 10000000000 ? x*0.000000000000001 :   \
+        (x < 10000000000 ? x*0.0000000000000001 :   \
+        10))))))))))))))))
 
 void CallStack::Execute() {
     Thread* self = thread_self;
@@ -124,67 +80,67 @@ void CallStack::Execute() {
 
             switch(GET_OP(*pc)) {
                 case _NOP:
-                    NOP
+	                NOP
                 case _INT:
-                    _int(GET_Da(*pc))
+	                _int(GET_Da(*pc))
                 case MOVI:
-                    movi(GET_Da(*pc))
+	                movi(GET_Da(*pc))
                 case RET:
-                    ret
+	                ret
                 case HLT:
-                    hlt
+	                hlt
                 case NEW: /* Requires register value */
                     _new(GET_Ca(*pc),GET_Cb(*pc))
                 case CHECK_CAST:
-                    check_cast
+	                check_cast
                 case MOV8:
-                    mov8(GET_Ca(*pc),GET_Cb(*pc))
+	                mov8(GET_Ca(*pc),GET_Cb(*pc))
                 case MOV16:
-                    mov16(GET_Ca(*pc),GET_Cb(*pc))
+	                mov16(GET_Ca(*pc),GET_Cb(*pc))
                 case MOV32:
-                    mov32(GET_Ca(*pc),GET_Cb(*pc))
+	                mov32(GET_Ca(*pc),GET_Cb(*pc))
                 case MOV64:
-                    mov64(GET_Ca(*pc),GET_Cb(*pc))
+	                mov64(GET_Ca(*pc),GET_Cb(*pc))
                 case PUSHR:
-                    pushr(GET_Da(*pc))
+	                pushr(GET_Da(*pc))
                 case ADD:
-                    add(GET_Ca(*pc),GET_Cb(*pc))
+	                _add(GET_Ca(*pc),GET_Cb(*pc))
                 case SUB:
-                    sub(GET_Ca(*pc),GET_Cb(*pc))
+	                _sub(GET_Ca(*pc),GET_Cb(*pc))
                 case MUL:
-                    mul(GET_Ca(*pc),GET_Cb(*pc))
+	                _mul(GET_Ca(*pc),GET_Cb(*pc))
                 case DIV:
-                    div(GET_Ca(*pc),GET_Cb(*pc))
+                    _div(GET_Ca(*pc),GET_Cb(*pc))
                 case MOD:
-                    mod(GET_Ca(*pc),GET_Cb(*pc))
+	                mod(GET_Ca(*pc),GET_Cb(*pc))
                 case POP:
-                    _pop
+	                _pop
                 case INC:
-                    inc(GET_Da(*pc))
+	                inc(GET_Da(*pc))
                 case DEC:
-                    dec(GET_Da(*pc))
+	                dec(GET_Da(*pc))
                 case MOVR:
-                    movr(GET_Ca(*pc),GET_Cb(*pc))
+	                movr(GET_Ca(*pc),GET_Cb(*pc))
                 case MOVX: /* Requires register value */
                     movx(GET_Ca(*pc),GET_Cb(*pc))
                 case LT:
-                    lt(GET_Ca(*pc),GET_Cb(*pc))
+	                lt(GET_Ca(*pc),GET_Cb(*pc))
                 case BRH:
-                    brh
+	                brh
                 case BRE:
-                    bre
+	                bre
                 case IFE:
-                    ife
+	                ife
                 case IFNE:
-                    ifne
+	                ifne
                 case GT:
-                    gt(GET_Ca(*pc),GET_Cb(*pc))
+	                gt(GET_Ca(*pc),GET_Cb(*pc))
                 case GTE:
-                    gte(GET_Ca(*pc),GET_Cb(*pc))
+	                gte(GET_Ca(*pc),GET_Cb(*pc))
                 case LTE:
-                    lte(GET_Ca(*pc),GET_Cb(*pc))
+	                lte(GET_Ca(*pc),GET_Cb(*pc))
                 case MOVL:
-                    movl(&locals[GET_Da(*pc)])
+	                movl(&locals[GET_Da(*pc)])
                 case OBJECT_NXT:
                     object_nxt
                 case OBJECT_PREV:
@@ -196,7 +152,7 @@ void CallStack::Execute() {
                 case MOVD:
                     _nativewrite2((int64_t)regs[GET_Ca(*pc)],GET_Cb(*pc)) _brh
                 case MOVBI:
-                    movbi(GET_Da(*pc) + exponent(*(pc+1)))
+                    movbi((GET_Da(*pc) + exponent(*(pc+1))))
                 case _SIZEOF:
                     _sizeof(GET_Da(*pc))
                 case PUT:

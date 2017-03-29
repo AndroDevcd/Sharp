@@ -3,6 +3,7 @@
 //
 #include <cstring>
 #include <sstream>
+#include <cstdio>
 #include "runtime.h"
 #include "../util/file.h"
 #include "Opcode.h"
@@ -974,7 +975,7 @@ int _bootstrap(int argc, const char* argv[]) {
                 string f;
                 do {
                     if(string(argv[i]).at(0) == '-')
-                        goto args;
+                        goto args_;
                     f =string(argv[i++]);
 
                     if(!element_has(files, f))
@@ -1011,13 +1012,15 @@ void _srt_start(list<string> files)
     std::list<parser*> parsers;
     parser* p = NULL;
     tokenizer* t;
-    string source;
+    file::stream source;
     size_t errors=0, uo_errors=0;
     succeeded=0, failed=0;
 
     for(string file : files) {
-        source = file::read_alltext(file.c_str());
-        if(source == "") {
+        source.begin();
+
+        file::read_alltext(file.c_str(), source);
+        if(source.empty()) {
             for(parser* p2 : parsers) {
                 p2->free();
                 std::free(p2);
@@ -1026,7 +1029,9 @@ void _srt_start(list<string> files)
             rt_error("file `" + file + "` is empty.");
         }
 
-        t = new tokenizer(source, file);
+        char b = EOF;
+        char c = source.at(source.size()-1);
+        t = new tokenizer(source.to_str(), file);
         if(t->geterrors()->_errs())
         {
             t->geterrors()->print_errors();
@@ -1053,7 +1058,7 @@ void _srt_start(list<string> files)
 
         t->free();
         std::free(t);
-        source = "";
+        source.end();
     }
 
     if(errors == 0 && uo_errors == 0) {

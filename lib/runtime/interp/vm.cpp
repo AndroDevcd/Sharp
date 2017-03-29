@@ -99,7 +99,6 @@ void SharpVM::DestroySharpVM() {
     } else
         exitVal = 1;
     Thread::shutdown();
-    GC::GCShutdown();
 }
 
 #ifdef WIN32_
