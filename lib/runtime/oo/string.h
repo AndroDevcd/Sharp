@@ -18,7 +18,7 @@ public:
             chars = NULL;
         } else {
             len=value.size();
-            chars = (char*)memalloc(sizeof(char)*len);
+            chars = (char*)malloc(sizeof(char)*len);
             setstr(value);
         }
     }
@@ -45,7 +45,7 @@ public:
 
         if(str != "") {
             len = str.size();
-            chars = (char*)memalloc(sizeof(char)*len);
+            chars = (char*)malloc(sizeof(char)*len);
             setstr(str);
         }
     }
@@ -64,7 +64,7 @@ public:
 
         if(_str.len>0) {
             len = _str.len;
-            chars = (char*)memalloc(sizeof(char)*len);
+            chars = (char*)malloc(sizeof(char)*len);
             set(_str);
         }
     }
