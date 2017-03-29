@@ -8,7 +8,7 @@
 #include "../../stdimports.h"
 
 typedef unsigned long stream_t;
-#define STREAM_BASE 0xfe2a
+#define STREAM_BASE 0x200
 #define STREAM_CHUNK 128
 
 class file
@@ -23,6 +23,7 @@ public:
                 _ds(0),
                 sp(0)
         {
+            begin();
         }
 
         stream(std::string _S)
@@ -34,7 +35,7 @@ public:
         }
 
         void begin() {
-            _Data=(uint8_t* )malloc(sizeof(uint8_t)*STREAM_BASE);
+            _Data=(char* )malloc(sizeof(char)*STREAM_BASE);
             _ds=STREAM_BASE;
             sp=0;
         }
@@ -106,7 +107,7 @@ public:
 
     private:
         void _push_back(char);
-        uint8_t* _Data;
+        char* _Data;
         stream_t _ds;
         stream_t sp;
     };
