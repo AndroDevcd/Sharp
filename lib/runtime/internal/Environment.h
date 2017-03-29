@@ -12,6 +12,7 @@
 class Sh_object;
 class Method;
 class ArrayObject;
+struct _gc_object;
 
 class Environment {
 public:
@@ -57,11 +58,12 @@ public:
 
     void shutdown();
 
+    static void init(_gc_object*,int64_t);
     static void init(Sh_object*,int64_t);
 
     static void free(Sh_object*, int64_t);
-    static void freesticky(Sh_object*, int64_t);
-    static void gcfree(Sh_object*, int64_t);
+    static void freesticky(_gc_object*, int64_t);
+    static void gcinsert_stack(Sh_object *, int64_t);
 };
 
 extern Environment* env;

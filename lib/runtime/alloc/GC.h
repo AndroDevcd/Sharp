@@ -9,6 +9,8 @@
 #include "../internal/Monitor.h"
 #include "../oo/Object.h"
 
+struct _gc_object;
+
 class GC {
 public:
     static GC* gc;
@@ -22,7 +24,7 @@ public:
     static void _insert_stack(Sh_object*, unsigned long);
 private:
     Monitor mutex;
-    Sh_object* gc_alloc_heap;
+    _gc_object* gc_alloc_heap;
     unsigned long allocptr;
     static void _collect();
 
@@ -36,6 +38,17 @@ private:
      _GCThread_start(void *);
 
     void _GC_run();
+};
+
+struct _gc_object{
+    double *HEAD;
+    Sh_object *_Node, *prev, *nxt;
+    Sh_object* _rNode;
+
+    void free(){
+        if(HEAD != NULL)
+            std::free(HEAD); HEAD = NULL;
+    }
 };
 
 #define _GC_CAP_THRESHOLD 1.5

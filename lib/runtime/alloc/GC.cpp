@@ -5,7 +5,7 @@
 #include "GC.h"
 #include "../internal/Thread.h"
 
-size_t gc_max_heap_size = 640 * 1024 ;
+size_t gc_max_heap_size = 128 * 1024 ;
 GC* GC::gc = NULL;
 
 void* memalloc(size_t bytes) {
@@ -87,7 +87,7 @@ void GC::_collect() {
 void GC::_init_GC() {
     gc=(GC*)malloc(sizeof(GC)*1);
     gc->mutex = Monitor();
-    gc->gc_alloc_heap=(Sh_object*)malloc(sizeof(Sh_object)*gc_max_heap_size);
+    gc->gc_alloc_heap=(_gc_object*)malloc(sizeof(_gc_object)*gc_max_heap_size);
     Environment::init(gc->gc_alloc_heap, gc_max_heap_size);
     gc->allocptr=0;
 }
@@ -102,7 +102,6 @@ void GC::_insert(Sh_object *gc_obj) {
     gc->gc_alloc_heap[gc->allocptr].prev=gc_obj->prev;
     gc->gc_alloc_heap[gc->allocptr].HEAD=gc_obj->HEAD;
     gc->gc_alloc_heap[gc->allocptr]._Node=gc_obj->_Node;
-    gc->gc_alloc_heap[gc->allocptr].size=gc_obj->size;
     gc->allocptr++;
     gc->mutex.unlock();
 }
@@ -147,8 +146,6 @@ void*
         thread_self->exceptionThrown =true;
         thread_self->throwable=e.getThrowable();
     }
-
-    GC::GCShutdown();
 
     /*
          * Check for uncaught exception in thread before exit
@@ -215,7 +212,6 @@ void GC::_insert_stack(Sh_object *stack, unsigned long len) {
         gc->gc_alloc_heap[gc->allocptr].prev=ptr->prev;
         gc->gc_alloc_heap[gc->allocptr].HEAD=ptr->HEAD;
         gc->gc_alloc_heap[gc->allocptr]._Node=ptr->_Node;
-        gc->gc_alloc_heap[gc->allocptr].size=ptr->size;
 
         gc->allocptr++;
         ptr++;
