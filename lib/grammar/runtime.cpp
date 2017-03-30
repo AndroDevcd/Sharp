@@ -1029,8 +1029,6 @@ void _srt_start(list<string> files)
             rt_error("file `" + file + "` is empty.");
         }
 
-        char b = EOF;
-        char c = source.at(source.size()-1);
         t = new tokenizer(source.to_str(), file);
         if(t->geterrors()->_errs())
         {
