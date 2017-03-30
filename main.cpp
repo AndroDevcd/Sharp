@@ -133,7 +133,7 @@ void buildExe() {
 
     executable << (char)0x05; executable << mi64_tostr(SET_Ei(i, _NOP));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 0), ebx);
-    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 1), ecx);
+    executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 10000000), ecx);
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVL, 2));
     executable << (char)0x05; executable << mi64_tostr(SET_Di(i, MOVI, 1), egx);
     executable << (char)0x05; executable << mi64_tostr(SET_Ci(i, NEW, abs(nativeint), 1, egx));
@@ -160,7 +160,7 @@ void buildExe() {
 int main(int argc, const char* argv[]) {
 
 #ifndef MAKE_COMPILER
-    //buildExe();
+    buildExe();
     runtimeStart( argc, argv );
 #else
     _bootstrap( argc, argv );
