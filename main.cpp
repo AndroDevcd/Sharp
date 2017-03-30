@@ -1,9 +1,6 @@
 #include <iostream>
-#include <chrono>
-#include <time.h>
-#include <windows.h>
-
 #include "stdimports.h"
+
 #ifdef MAKE_COMPILER
 #include "lib/grammar/runtime.h"
 #else
@@ -160,73 +157,14 @@ void buildExe() {
 }
 #endif
 
-#if defined(_MSC_VER) || defined(_MSC_EXTENSIONS)
-#define DELTA_EPOCH_IN_MICROSECS  11644473600000000Ui64
-#else
-#define DELTA_EPOCH_IN_MICROSECS  11644473600000000ULL
-#endif
-
-struct timezone
-{
-    int  tz_minuteswest; /* minutes W of Greenwich */
-    int  tz_dsttime;     /* type of dst correction */
-};
-
-FILETIME ft;
-int gettimeofday(struct timeval *tv, struct timezone *tz)
-{
-    unsigned __int64 tmpres = 0;
-    static int tzflag;
-
-    if (NULL != tv)
-    {
-        GetSystemTimeAsFileTime(&ft);
-
-        tmpres |= ft.dwHighDateTime;
-        tmpres <<= 32;
-        tmpres |= ft.dwLowDateTime;
-
-        /*converting file time to unix epoch*/
-        tmpres /= 10;  /*convert into microseconds*/
-        tmpres -= DELTA_EPOCH_IN_MICROSECS;
-        tv->tv_sec = (long)(tmpres / 1000000UL);
-        tv->tv_usec = (long)(tmpres % 1000000UL);
-    }
-
-    if (NULL != tz)
-    {
-        if (!tzflag)
-        {
-            _tzset();
-            tzflag++;
-        }
-        tz->tz_minuteswest = _timezone / 60;
-        tz->tz_dsttime = _daylight;
-    }
-
-    return 0;
-}
-
-struct timeval tv;
 int main(int argc, const char* argv[]) {
 
 #ifndef MAKE_COMPILER
-   // buildExe();
+    //buildExe();
     runtimeStart( argc, argv );
 #else
     _bootstrap( argc, argv );
 #endif
-    // gettimeofday(&tv, NULL);
-    double time = tv.tv_usec, time2=0;
-    nString s("Hello");
-    cout << "time " << (time) << endl;
-    for(long i = 0; i < 100000000000; i++) {
-        time=s.len;
-        //gettimeofday(&tv, NULL);
-        //time2=tv.tv_usec;
-    }
-    time=9;
-    //cout << "time " << (time2-time) << endl;
     cout << "program exiting..." << endl;
     return 0;
 }

@@ -12,7 +12,7 @@ Thread** Thread::threads = NULL;
 unsigned int Thread::tp = 0;
 
 void Thread::Startup() {
-    Thread::threads = (Thread**)malloc(sizeof(Thread**)*MAX_THREADS);
+    threads = (Thread**)malloc(sizeof(Thread**)*MAX_THREADS);
     for(unsigned int i = 0; i < MAX_THREADS; i++) {
         threads[i] = NULL;
     }
@@ -35,6 +35,7 @@ void Thread::Create(string name, ClassObject* klass, int64_t method) {
     this->suspendPending = false;
     this->exceptionThrown = false;
     this->suspended = false;
+    this->exited = false;
     this->daemon = false;
     this->state = thread_init;
     this->exitVal = 0;
@@ -54,6 +55,7 @@ void Thread::Create(string name) {
     this->suspendPending = false;
     this->exceptionThrown = false;
     this->suspended = false;
+    this->exited = false;
     this->daemon = false;
     this->state = thread_init;
     this->exitVal = 0;
@@ -73,6 +75,7 @@ void Thread::CreateDaemon(string) {
     this->suspendPending = false;
     this->exceptionThrown = false;
     this->suspended = false;
+    this->exited = false;
     this->daemon = true;
     this->state = thread_init;
     this->exitVal = 0;
@@ -136,6 +139,9 @@ void Thread::wait() {
 #ifdef POSIX_
             usleep(2*POSIX_USEC_INTERVAL);
 #endif
+        } else if(this->state == thread_killed) {
+            this->suspended = false;
+            return;
         }
     }
 
@@ -151,6 +157,8 @@ int Thread::start(int32_t id) {
     if(thread->state == thread_running)
         return 2;
 
+    thread->exited = false;
+    thread->state = thread_init;
 #ifdef WIN32_
     thread->thread = CreateThread(
             NULL,                   // default security attributes
@@ -161,13 +169,13 @@ int Thread::start(int32_t id) {
             NULL);
     if(thread->thread == NULL) return 3; // thread was not started
     else
-        return 0;
+        return waitForThread(thread);
 #endif
 #ifdef POSIX_
     if(pthread_create( &thread->thread, NULL, vm->InterpreterThreadStart, (void*) thread))
         return 3; // thread was not started
     else {
-        return 0;
+        return waitForThread(thread);
     }
 #endif
 
@@ -196,6 +204,7 @@ void Thread::waitForThreadSuspend(Thread *thread) {
     {
         if (retryCount++ == sMaxRetries)
         {
+            retryCount = 0;
             if(++spinCount >= sMaxSpinCount)
             {
                 return; // give up
@@ -203,6 +212,49 @@ void Thread::waitForThreadSuspend(Thread *thread) {
                 return;
         }
     }
+}
+
+void Thread::waitForThreadExit(Thread *thread) {
+    const int sMaxRetries = 10000000;
+    const int sMaxSpinCount = 25;
+
+    int spinCount = 0;
+    int retryCount = 0;
+
+    while (!thread->exited)
+    {
+        if (retryCount++ == sMaxRetries)
+        {
+            retryCount = 0;
+            if(++spinCount >= sMaxSpinCount)
+            {
+                return; // give up
+            } else if(thread->exited)
+                return;
+        }
+    }
+}
+
+int Thread::waitForThread(Thread *thread) {
+    const int sMaxRetries = 10000000;
+    const int sMaxSpinCount = 25;
+
+    int spinCount = 0;
+    int retryCount = 0;
+
+    while (thread->state != thread_running)
+    {
+        if (retryCount++ == sMaxRetries)
+        {
+            retryCount = 0;
+            if(++spinCount >= sMaxSpinCount)
+            {
+                return -255; // give up
+            } else if(thread->state != thread_running)
+                return 0;
+        }
+    }
+    return 0;
 }
 
 void Thread::suspendAllThreads() {
@@ -285,6 +337,7 @@ void Thread::killAll() {
         if(thread != NULL && thread->id != thread_self->id) {
             if(thread->state == thread_running){
                 interrupt(thread);
+                waitForThreadExit(thread);
             }
 
             thread->term();
@@ -301,7 +354,6 @@ int Thread::interrupt(Thread *thread) {
 
         if (thread->id == main_threadid)
         {
-
             /*
             * Shutdown all running threads
             * and de-allocate all allocated
@@ -332,7 +384,7 @@ void Thread::shutdown() {
             }
         }
 
-        std::free (Thread::threads);
+        std::free (threads);
     }
 }
 
@@ -343,10 +395,12 @@ void Thread::exit() {
         this->exitVal = 203;
     }
 
-    this->state = thread_killed;
     if(this->exceptionThrown) {
         // TODO: handle exception
     }
+
+    this->state = thread_killed;
+    this->exited = true;
 }
 
 int Thread::startDaemon(
@@ -363,6 +417,7 @@ void*
     if(thread->state == thread_running)
         return 2;
 
+    thread->exited = false;
 #ifdef WIN32_
     thread->thread = CreateThread(
             NULL,                   // default security attributes
@@ -373,12 +428,12 @@ void*
             NULL);
     if(thread->thread == NULL) return 3; // thread was not started
     else
-        return 0;
+        return waitForThread(thread);
 #endif
 #ifdef POSIX_
     if(pthread_create( &thread->thread, NULL, threadFunc, (void*) thread)!=0)
         return 3; // thread was not started
     else
-        return 0;
+        return waitForThread(thread);
 #endif
 }

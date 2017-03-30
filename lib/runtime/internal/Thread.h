@@ -18,10 +18,10 @@
 class Method;
 
 enum ThreadState {
-    thread_init=0x0,
-    thread_running=0x1,
-    thread_suspend=0x2,
-    thread_killed=0x3
+    thread_init=0x000,
+    thread_running=0x001,
+    thread_suspend=0x002,
+    thread_killed=0x003
 };
 
 class Thread {
@@ -54,6 +54,8 @@ public:
     static int join(int32_t);
     static Thread* getThread(int32_t);
     static void waitForThreadSuspend(Thread* thread);
+    static void waitForThreadExit(Thread* thread);
+    static int waitForThread(Thread *thread);
     static void killAll();
     static void shutdown();
 
@@ -73,7 +75,6 @@ public:
     void exit();
 
     static int32_t tid;
-
     static Thread** threads;
     static unsigned int tp;
 
@@ -82,6 +83,7 @@ public:
     bool daemon;
     int state;
     bool suspended;
+    bool exited;
     nString name;
     Method* main;
     int exitVal;

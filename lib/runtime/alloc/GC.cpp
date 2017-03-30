@@ -151,7 +151,7 @@ void*
          * Check for uncaught exception in thread before exit
          */
     thread_self->exit();
-
+    //cout << "gc exited" << endl;
 #ifdef WIN32_
     return 0;
 #endif
