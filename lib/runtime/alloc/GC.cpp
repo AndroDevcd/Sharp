@@ -187,9 +187,7 @@ void GC::_GC_run() {
              * asynchronously
              */
             if(gc->allocptr>(gc_max_heap_size/_GC_CAP_THRESHOLD)){
-                gc->mutex.acquire(INDEFINITE);
                 GC::_collect_GC_CONCURRENT();
-                gc->mutex.unlock();
             }
         }
 

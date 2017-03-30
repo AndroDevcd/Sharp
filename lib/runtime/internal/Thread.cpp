@@ -331,6 +331,8 @@ int Thread::threadjoin(Thread *thread) {
 
 void Thread::killAll() {
     Thread* thread;
+    suspendAllThreads();
+
     for(unsigned int i = 0; i < tp; i++) {
         thread = threads[i];
 
@@ -350,8 +352,6 @@ void Thread::killAll() {
 int Thread::interrupt(Thread *thread) {
     if (thread->state == thread_running)
     {
-        waitForThreadSuspend(thread);
-
         if (thread->id == main_threadid)
         {
             /*
