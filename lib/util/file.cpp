@@ -92,7 +92,7 @@ void file::read_alltext(const char *f, stream& _out)
             } else {
                 _out << c;
             }
-        }while(true);
+        }while(len--);
         fclose(fp);
     }
     catch(std::bad_alloc& ba){
