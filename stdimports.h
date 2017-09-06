@@ -15,35 +15,4 @@
 
 using namespace std;
 
-#ifdef __unix__
-#define POSIX_
-#elif defined(_WIN32) || defined(WIN32)
-#define WIN32_
-#endif
-
-#ifdef WIN32_
-    #define WIN32_LEAN_AND_MEAN
-    #include <windows.h>
-
-    #ifndef __wtypes_h__
-    #include <wtypes.h>
-    #endif
-
-    #ifndef __WINDEF_
-    #include <windef.h>
-    #endif
-#endif
-#ifdef POSIX_
-    #include <pthread.h>
-    #include <unistd.h>
-
-    #define POSIX_USEC_INTERVAL 1000
-#endif
-
-void* memalloc(size_t bytes);
-void* memcalloc(size_t n, size_t bytes);
-void* memrealloc(void *ptr, size_t bytes);
-
-#define CXX11_INLINE inline
-
 #endif //SHARP_STDIMPORTS_H

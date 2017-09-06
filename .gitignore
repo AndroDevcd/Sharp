@@ -3,5 +3,6 @@
 *.stackdump
 /cmake-build-release
 /cmake-build-debug
+/cmake-build-relwithdebinfo
 .idea/
 out
