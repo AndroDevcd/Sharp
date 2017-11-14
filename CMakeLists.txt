@@ -11,7 +11,7 @@ set(CMAKE_CXX_FLAGS_MINSIZEREL "-s -Os -O3 -Ofast ${CMAKE_CXX_FLAGS_MINSIZEREL}"
 
 # compiler
 add_definitions(-DMAKE_COMPILER)
-set(SOURCE_FILES main.cpp)
+set(SOURCE_FILES main.cpp lib/grammar/Runtime.cpp lib/grammar/Runtime.h)
 #virtual machine
 #set(SOURCE_FILES main.cpp)
 
