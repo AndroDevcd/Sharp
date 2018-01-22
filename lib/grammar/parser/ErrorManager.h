@@ -9,6 +9,7 @@
 #include "../../../stdimports.h"
 #include "../../util/keypair.h"
 #include "tokenizer/tokenentity.h"
+#include "../List.h"
 
 enum error_type
 {
@@ -58,6 +59,10 @@ public:
         line = 0;
         col = 0;
     }
+    ParseError(const ParseError &pe)
+    {
+        operator=(pe);
+    }
 
     ParseError(keypair<error_type, string> err, int l, int c, string addon = "")
     {
@@ -86,6 +91,15 @@ public:
         warning = false;
     }
 
+    void operator=(const ParseError &pe)
+    {
+        error = pe.error;
+        id=pe.id;
+        line=pe.line;
+        col=pe.col;
+        warning=pe.warning;
+    }
+
     error_type id;
     string error;
     int line;
@@ -98,16 +112,17 @@ class Ast;
 class ErrorManager
 {
 public:
-    ErrorManager(list<string>* lines, string file_name, bool asis, bool aggressiveRoporting)
+    ErrorManager(List<string>& lines, string file_name, bool asis, bool aggressiveRoporting)
             :
-            lines(lines),
+            lines(),
             teCursor(-1),
             _err(false),
             cm(false),
-            fn(file_name),
+            filname(file_name),
             asis(asis),
             aggressive(aggressiveRoporting)
     {
+        this->lines.addAll(lines);
         errors = new list<ParseError>();
         warnings = new list<ParseError>();
         unfilteredErrors = new list<ParseError>();
@@ -140,7 +155,7 @@ private:
     void addPossibleErrorList();
     void removePossibleErrorList();
 
-    list<string>* lines;
+    List<string> lines;
     list<ParseError>* errors, *unfilteredErrors, *warnings;
     list<std::list<ParseError>*>* possibleErrors;
     int64_t  teCursor;
@@ -148,7 +163,7 @@ private:
     ParseError lastCheckedError;
     bool _err, cm;
     bool asis, aggressive;
-    string fn;
+    string filname;
 
     bool shouldReport(token_entity *token, const ParseError &last_err, const ParseError &e) const;
 

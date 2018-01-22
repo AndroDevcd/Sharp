@@ -6,28 +6,28 @@
 #include "../../runtime.h"
 
 #define iswhitespace(c) \
-    (' '  == c) || ('\n' == c) || \
+    ((' '  == c) || ('\n' == c) || \
     ('\r' == c) || ('\t' == c) || \
     ('\b' == c) || ('\v' == c) || \
-    ('\f' == c) \
+    ('\f' == c)) \
 
 #define current \
-    (cursor >= toks.length()) ? \
-        toks.at(toks.length()-1) \
-    : toks.at(cursor) \
+    ((cursor >= toks.size()) ? \
+        toks.at(toks.size()-1) \
+    : toks.at(cursor)) \
 
 #define newline() \
     col = 0, line++;
 
 #define isend() \
-    cursor>=toks.length()
+    (cursor>=toks.size())
 
 #define peekend(forward) \
-    (cursor+forward)>=toks.length()
+    ((cursor+forward)>=toks.size())
 
 #define peek(forward) \
-    ((cursor+forward) >= toks.length() || (cursor+forward) < 0) ? \
-        toks.at(toks.length()-1) : toks.at(cursor+forward)
+    (((cursor+forward) >= toks.size() || (cursor+forward) < 0) ? \
+        toks.at(toks.size()-1) : toks.at(cursor+forward))
 
 #define issymbol(c) \
     ('+' == c) || ('-' == c) || \
@@ -75,7 +75,7 @@ List<token_entity>& tokenizer::getEntities()
 
 void tokenizer::parse()
 {
-    if(toks.length() == 0)
+    if(toks.size() == 0)
         return;
 
     parse_lines();
@@ -645,7 +645,7 @@ void tokenizer::parse_lines() {
         if(toks.at(i) == '\n')
         {
             parsed_first = true;
-            lines->push_back(line.str());
+            lines.add(line.str());
             line.str("");
         }
         else
@@ -653,10 +653,10 @@ void tokenizer::parse_lines() {
     }
 
     if(!parsed_first)
-        lines->push_back(line.str());
+        lines.add(line.str());
 }
 
-list<string>* tokenizer::getLines() {
+List<string>& tokenizer::getLines() {
     return lines;
 }
 
@@ -666,10 +666,9 @@ void tokenizer::free() {
     this->toks = "";
     this->cursor = 0;
     this->errors->free();
-    this->lines->clear();
+    this->lines.free();
     this->entites.free();
     delete (this->errors); this->errors = NULL;
-    delete (this->lines); this->lines = NULL;
 
 }
 

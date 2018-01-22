@@ -98,10 +98,10 @@ void initalizeErrors()
 
 void ErrorManager::printError(ParseError &err) {
     if(err.warning)
-        cout << fn << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
+        cout << filname << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
              << endl;
     else
-        cout << fn << ":" << err.line << ":" << err.col << ": error S80" << err.id << ":  " << err.error.c_str()
+        cout << filname << ":" << err.line << ":" << err.col << ": error S80" << err.id << ":  " << err.error.c_str()
              << endl;
 
     cout << '\t' << getLine(err.line) << endl << '\t';
@@ -117,10 +117,10 @@ string ErrorManager::getErrors(list<ParseError>* errors)
     for(const ParseError &err : *errors)
     {
         if(err.warning)
-            errorlist << fn << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
+            errorlist << filname << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
                       << endl;
         else
-            errorlist << fn << ":" << err.line << ":" << err.col << ": error S80" << err.id << ":  " << err.error.c_str()
+            errorlist << filname << ":" << err.line << ":" << err.col << ": error S80" << err.id << ":  " << err.error.c_str()
                       << endl;
 
         errorlist << '\t' << getLine(err.line) << endl << '\t';
@@ -254,10 +254,10 @@ void ErrorManager::createNewWarning(error_type err, int l, int c, string xcmts) 
 }
 
 string ErrorManager::getLine(int line) {
-    if((line-1) >= lines->size())
+    if((line-1) >= lines.size())
         return "End of File";
     else
-        return *std::next(lines->begin(), line-1);
+        return lines.get(line);
 }
 
 keypair<error_type, string> ErrorManager::getErrorById(error_type err) {
@@ -326,7 +326,7 @@ void ErrorManager::free() {
     this->_err = false;
     this->lastCheckedError = ParseError();
     this->lastError = ParseError();
-    this->lines = NULL;
+    this->lines.free();
     this->errors->clear();
     this->warnings->clear();
     this->possibleErrors->clear();

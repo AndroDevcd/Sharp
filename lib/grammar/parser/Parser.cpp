@@ -20,8 +20,7 @@ void Parser::parse()
         return;
 
     parsed = true;
-    std::copy(toks->getLines()->begin(), toks->getLines()->end(),
-              std::back_inserter(*lines));
+    lines.addAll(toks->getLines());
     sourcefile = toks->file;
 
     errors = new ErrorManager(lines, sourcefile, false, c_options.aggressive_errors);

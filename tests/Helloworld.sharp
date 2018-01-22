@@ -1,0 +1,21 @@
+mod application;
+
+/**
+ * Created by BraxtonN on 1/22/2018.
+ */
+class Helloworld {
+    #include <iostream>
+    #include "stdimports.h"
+    #include "lib/grammar/Runtime.h"
+    #include "lib/util/time.h"
+
+    int main(int argc, const char* argv[]) {
+        uint64_t past= Clock::realTimeInNSecs(),now;
+        _bootstrap( argc, argv );
+        now= Clock::realTimeInNSecs();
+        cout << endl << NANO_TOMILL(now-past) << "ms";
+
+        cout << "program exiting..." << endl;
+        return 0;
+    }
+}

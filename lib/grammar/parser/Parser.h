@@ -31,7 +31,7 @@ public:
             access_types = new list<token_entity>();
             tree = new list<Ast>();
             state = new list<ParserState>();
-            lines = new list<string>();
+            lines.init();
             parse();
         }
     }
@@ -42,7 +42,7 @@ public:
     void free();
 
     bool parsed;
-    list<string>* lines;
+    List<string> lines;
     string sourcefile;
 
     static bool isnative_type(string type);

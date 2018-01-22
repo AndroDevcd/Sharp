@@ -23,7 +23,7 @@ public:
             file(file)
     {
         entites.init();
-        lines = new list<string>();
+        lines.init();
 
         parse();
     }
@@ -31,7 +31,7 @@ public:
     unsigned long getEntityCount();
     List<token_entity>& getEntities();
     ErrorManager* getErrors();
-    list<string>* getLines();
+    List<string>& getLines();
 
     string file;
     token_entity* EOF_token;
@@ -53,7 +53,7 @@ private:
 
     List<token_entity> entites;
     ErrorManager* errors;
-    list<string> *lines;
+    List<string> lines;
     string toks;
 public:
     const string &getData() const;

@@ -144,11 +144,11 @@ char File::buffer::at(stream_t _X) {
 }
 
 string File::buffer::to_str() {
-    string s ="";
+    stringstream ss;
     for(unsigned long i=0; i < size(); i++) {
-        s+=_Data[i];
+        ss<<_Data[i];
     }
-    return s;
+    return ss.str();
 }
 
 int File::write(const char *f, string data)
