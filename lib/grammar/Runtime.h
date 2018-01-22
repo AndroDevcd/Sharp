@@ -17,7 +17,8 @@ class Runtime {
 struct options {
     ~options()
     {
-        out = "";
+        out.clear();
+        vers.clear();
     }
 
     /*
@@ -81,9 +82,9 @@ struct options {
     bool objDump = false;
 
     /*
-     * Machine platform target to runon
+     * Machine platform target to run on
      */
-    int target = versions.BASE;
+    int target = versions.ALPHA;
 };
 
 int _bootstrap(int argc, const char* argv[]);

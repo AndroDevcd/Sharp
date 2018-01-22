@@ -8,8 +8,8 @@
 #include <list>
 #include "../../../../stdimports.h"
 #include "tokenentity.h"
-#include "../ParseError.h"
-#include "../../../util/List2.h"
+#include "../ErrorManager.h"
+#include "../../List.h"
 
 class tokenizer
 {

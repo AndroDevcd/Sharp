@@ -47,10 +47,10 @@ enum error_type
 static std::list<keypair<error_type, string>> predefinedErrors;
 void initalizeErrors();
 
-struct ParseError
+struct ErrorManager
 {
 public:
-    ParseError()
+    ErrorManager()
             :
             error()
     {
@@ -59,7 +59,7 @@ public:
         col = 0;
     }
 
-    ParseError(keypair<error_type, string> err, int l, int c, string addon = "")
+    ErrorManager(keypair<error_type, string> err, int l, int c, string addon = "")
     {
         id = err.key;
         error = (err.value + addon);
@@ -68,7 +68,7 @@ public:
         warning = false;
     }
 
-    ParseError(bool warning, keypair<error_type, string> err, int l, int c, string addon = "")
+    ErrorManager(bool warning, keypair<error_type, string> err, int l, int c, string addon = "")
     {
         id = err.key;
         error = (err.value + addon);
@@ -77,7 +77,7 @@ public:
         this->warning = warning;
     }
 
-    ParseError(keypair<error_type, string> err, token_entity token, string addon = "")
+    ErrorManager(keypair<error_type, string> err, token_entity token, string addon = "")
     {
         id = err.key;
         error = (err.value + addon);
@@ -93,7 +93,7 @@ public:
     bool warning;
 };
 
-class ast;
+class Ast;
 
 class ErrorManager
 {
@@ -108,12 +108,12 @@ public:
             asis(asis),
             aggressive(aggressiveRoporting)
     {
-        errors = new list<ParseError>();
-        warnings = new list<ParseError>();
-        unfilteredErrors = new list<ParseError>();
-        possibleErrors = new list<std::list<ParseError>*>();
-        lastError = ParseError();
-        lastCheckedError = ParseError();
+        errors = new list<ErrorManager>();
+        warnings = new list<ErrorManager>();
+        unfilteredErrors = new list<ErrorManager>();
+        possibleErrors = new list<std::list<ErrorManager>*>();
+        lastError = ErrorManager();
+        lastCheckedError = ErrorManager();
     }
 
     void printErrors();
@@ -121,10 +121,10 @@ public:
     uint64_t getWarningCount() { return warnings->size(); }
     uint64_t getDirtyErrorCount() { return unfilteredErrors->size(); }
     int createNewError(error_type err, token_entity token, string xcmts = "");
-    int createNewError(error_type err, ast* pAst, string xcmts = "");
+    int createNewError(error_type err, Ast* pAst, string xcmts = "");
     void createNewError(error_type err, int line, int col, string xcmts = "");
     void createNewWarning(error_type err, int line, int col, string xcmts);
-    void createNewWarning(error_type err, ast* pAst, string xcmts);
+    void createNewWarning(error_type err, Ast* pAst, string xcmts);
     bool hasErrors();
     bool hasWarnings() { return warnings; }
     void enableErrorCheckMode();
@@ -136,30 +136,30 @@ public:
 
 private:
     keypair<error_type, string> getErrorById(error_type);
-    list<ParseError>* getPossibleErrorList();
+    list<ErrorManager>* getPossibleErrorList();
     void addPossibleErrorList();
     void removePossibleErrorList();
 
     list<string>* lines;
-    list<ParseError>* errors, *unfilteredErrors, *warnings;
-    list<std::list<ParseError>*>* possibleErrors;
+    list<ErrorManager>* errors, *unfilteredErrors, *warnings;
+    list<std::list<ErrorManager>*>* possibleErrors;
     int64_t  teCursor;
-    ParseError lastError;
-    ParseError lastCheckedError;
+    ErrorManager lastError;
+    ErrorManager lastCheckedError;
     bool _err, cm;
     bool asis, aggressive;
     string fn;
 
-    bool shouldReport(token_entity *token, const ParseError &last_err, const ParseError &e) const;
+    bool shouldReport(token_entity *token, const ErrorManager &last_err, const ErrorManager &e) const;
 
-    string getErrors(list<ParseError> *errors);
+    string getErrors(list<ErrorManager> *errors);
 
 
-    void printError(ParseError &err);
+    void printError(ErrorManager &err);
 
-    bool hasError(list <ParseError> *e, const ParseError &parseerror1) const;
+    bool hasError(list <ErrorManager> *e, const ErrorManager &parseerror1) const;
 
-    bool shouldReportWarning(token_entity *token, const ParseError &last_err, const ParseError &e) const;
+    bool shouldReportWarning(token_entity *token, const ErrorManager &last_err, const ErrorManager &e) const;
 };
 
 

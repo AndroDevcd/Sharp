@@ -55,6 +55,11 @@ public:
             line(0)
     {
     }
+    ~token_entity()
+    {
+        tok.clear();
+    }
+
     bool operator!=(const token_entity_id& id)
     {
         return this->id == id;
