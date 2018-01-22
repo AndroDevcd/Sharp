@@ -16,13 +16,13 @@ public:
     Parser(tokenizer *tokenizer)
     :
     toks(tokenizer),
-            cursor(0),
-    ast_cursor(-1),
-    rStateCursor(-1),
-    parsed(false),
-    tree(NULL),
-            data(""),
-    panic(false)
+        cursor(0),
+        ast_cursor(-1),
+        rStateCursor(-1),
+        parsed(false),
+        tree(NULL),
+        data(""),
+        panic(false)
     {
         if(tokenizer != NULL && tokenizer->getErrors() != NULL &&
            !tokenizer->getErrors()->hasErrors())
@@ -59,8 +59,6 @@ public:
 private:
     void parse();
     bool isend();
-    token_entity current();
-    void advance();
     token_entity peek(int forward);
 
     unsigned long cursor;
@@ -165,10 +163,6 @@ private:
 
     bool isexprsymbol(string basic_string);
 
-    bool ismacros_decl(token_entity entity);
-
-    void parse_macrosdecl(Ast *pAst);
-
     void parse_block(Ast *pAst);
 
     void parse_operatordecl(Ast *pAst);
@@ -238,14 +232,14 @@ private:
 
 #define CHECK_ERRORS \
     if(panic) return; \
-    else if(errors->getDirtyErrorCount() > _SHARP_CERROR_LIMIT) { \
+    else if(errors->getUnfilteredErrorCount() > _SHARP_CERROR_LIMIT) { \
         panic = true; \
         return; \
     }
 
-#define CHECK_ERRORS2(x) \
+#define CHECK_ERRORS_RETURN(x) \
     if(panic) return x; \
-    else if(errors->getDirtyErrorCount() > _SHARP_CERROR_LIMIT) { \
+    else if(errors->getUnfilteredErrorCount() > _SHARP_CERROR_LIMIT) { \
         panic = true; \
         return x; \
     }

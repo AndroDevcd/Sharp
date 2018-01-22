@@ -119,7 +119,7 @@ public:
     void printErrors();
     uint64_t getErrorCount() { return errors->size(); }
     uint64_t getWarningCount() { return warnings->size(); }
-    uint64_t getDirtyErrorCount() { return unfilteredErrors->size(); }
+    uint64_t getUnfilteredErrorCount() { return unfilteredErrors->size(); }
     int createNewError(error_type err, token_entity token, string xcmts = "");
     int createNewError(error_type err, Ast* pAst, string xcmts = "");
     void createNewError(error_type err, int line, int col, string xcmts = "");

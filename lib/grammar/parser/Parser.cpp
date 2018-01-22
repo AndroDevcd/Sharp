@@ -6,6 +6,14 @@
 #include "../runtime.h"
 #include <sstream>
 
+#define advance() \
+    if((cursor+1)<toks->getEntityCount()) \
+        _current = &toks->getEntities().get(++cursor); \
+    else _current =toks->EOF_token;
+
+#define current() \
+    (*_current)
+
 void Parser::parse()
 {
     if(toks->getEntities().size() == 0)
@@ -72,10 +80,6 @@ void Parser::eval(Ast* _ast) {
         }
         parse_importdecl(_ast);
     }
-    else if(ismacros_decl(current()))
-    {
-        parse_macrosdecl(_ast);
-    }
     else
     {
         // "expected class, or import declaration"
@@ -117,8 +121,6 @@ void Parser::parse_importdecl(Ast* _ast) {
     parse_modulename(_ast);
 
     expect(SEMICOLON, "`;`");
-
-    //cout << "parsed import declaration" << endl;
 }
 
 void Parser::parse_moduledecl(Ast* _ast) {
@@ -129,21 +131,6 @@ void Parser::parse_moduledecl(Ast* _ast) {
 
     if(!expect(SEMICOLON, "`;`"))
         return;
-
-    //cout << "parsed module declaration" << endl;
-}
-
-token_entity Parser::current()
-{
-    return *_current;
-}
-
-void Parser::advance()
-{
-    if((cursor+1)>=toks->getEntityCount())
-        _current =toks->EOF_token;
-    else
-        _current = &toks->getEntities().get(++cursor);
 }
 
 token_entity Parser::peek(int forward)
@@ -160,7 +147,7 @@ bool Parser::isvariable_decl(token_entity token) {
 }
 
 bool Parser::ismethod_decl(token_entity token) {
-    return token.getId() == IDENTIFIER && token.getToken() == "fn";
+    return token.getId() == IDENTIFIER && token.getToken() == "def";
 }
 
 Ast* Parser::ast_at(long p)
@@ -182,10 +169,6 @@ bool Parser::isimport_decl(token_entity entity) {
 
 bool Parser::isreturn_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "return";
-}
-
-bool Parser::ismacros_decl(token_entity entity) {
-    return entity.getId() == IDENTIFIER && entity.getToken() == "macros";
 }
 
 bool Parser::isif_stmnt(token_entity entity) {
@@ -226,23 +209,7 @@ bool Parser::isconstructor_decl() {
 }
 
 bool Parser::isnative_type(string type) {
-    return type == "var"
-
-           /*
-            * These reserved words are not native types
-            * they are only used in casting since the Sharp VM
-            * dosent store these values under the hood
-            */
-           || type == "__int8" || type == "__int16"
-           || type == "__int32" || type == "__int64"
-           || type == "__uint8" || type == "__uint16"
-           || type == "__uint32" || type == "__uint64"
-           /*
-            * This is not a native type but we want this to be
-            * able to be set as a variable
-            */
-           || type == "dynamic_object"
-            ;
+    return type == "var" || type == "object";
 }
 
 bool Parser::isaccess_decl(token_entity token) {
@@ -359,10 +326,6 @@ void Parser::parse_classblock(Ast *pAst) {
             }
             errors->createNewError(GENERIC, current(), "unexpected import declaration");
             parse_importdecl(pAst);
-        }
-        else if(ismacros_decl(current()))
-        {
-            parse_macrosdecl(pAst);
         }
         else if(isvariable_decl(current()))
         {
@@ -785,7 +748,7 @@ bool Parser::parse_array_expression(Ast* pAst) {
 
 bool Parser::parse_expression(Ast *pAst) {
     pAst = get_ast(pAst, ast_expression);
-    CHECK_ERRORS2(false)
+    CHECK_ERRORS_RETURN(false)
 
     /* ++ or -- before the expression */
     if(peek(1).getTokenType() == _INC || peek(1).getTokenType() == _DEC)
@@ -1265,23 +1228,6 @@ void Parser::parse_block(Ast* pAst) {
     expect(RIGHTCURLY, "`}`");
 }
 
-void Parser::parse_macrosdecl(Ast *pAst) {
-    pAst = get_ast(pAst, ast_macros_decl);
-
-    for(token_entity &entity : *access_types)
-    {
-        pAst->addEntity(entity);
-    }
-    pAst->addEntity(current());
-
-    expectidentifier(pAst);
-
-    parse_utypearg_list(pAst);
-    parse_block(pAst);
-
-    expect(SEMICOLON, pAst, "`;`");
-}
-
 void Parser::parse_operatordecl(Ast *pAst) {
     pAst = get_ast(pAst, ast_operator_decl);
 
@@ -1365,7 +1311,7 @@ void Parser::parse_returnstmnt(Ast *pAst) {
 void Parser::parse_assemblystmnt(Ast *pAst) {
     pAst = get_ast(pAst, ast_assembly_statement);
 
-    expect_token(pAst, "__asm", "`__asm`");
+    expect_token(pAst, "asm", "`asm`");
 
     expect(LEFTPAREN, pAst, "`(`");
     parse_assembly_block(pAst);
@@ -1618,11 +1564,6 @@ void Parser::parse_statement(Ast* pAst) {
         parse_variabledecl(pAst);
     }
         /* these are just in case there is a missed bracket anywhere */
-    else if(ismacros_decl(current()))
-    {
-        errors->createNewError(GENERIC, current(), "macros declaration not allowed here");
-        parse_macrosdecl(pAst);
-    }
     else if(ismodule_decl(current()))
     {
         errors->createNewError(GENERIC, current(), "module declaration not allowed here");
@@ -1792,21 +1733,17 @@ void Parser::parse_all(Ast *pAst) {
 bool Parser::iskeyword(string key) {
     return key == "mod" || key == "true"
            || key == "false" || key == "class"
-           || key == "__int8" || key == "__int16"
-           || key == "__int32" || key == "__int64"
-           || key == "__uint8" || key == "__uint16"
-           || key == "__uint32" || key == "__uint64"
            || key == "static" || key == "protected"
-           || key == "private" || key == "fn"
+           || key == "private" || key == "def"
            || key == "import" || key == "return"
            || key == "self" || key == "const"
            || key == "override" || key == "public" || key == "new"
-           || key == "macros" || key == "null" || key == "operator"
+           || key == "null" || key == "operator"
            || key == "base" || key == "if" || key == "while" || key == "do"
            || key == "try" || key == "catch"
            || key == "finally" || key == "throw" || key == "continue"
            || key == "goto" || key == "break" || key == "else"
-           || key == "dynamic_object" || key == "__asm" || key == "for" || key == "foreach"
+           || key == "object" || key == "asm" || key == "for" || key == "foreach"
            || key == "var" || key == "sizeof";
 }
 

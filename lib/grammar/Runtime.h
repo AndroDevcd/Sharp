@@ -6,8 +6,9 @@
 #define SHARP_RUNTIME_H
 
 #include "../../stdimports.h"
+#include "List.h"
 
-class Runtime {
+class Interpreter {
 
 };
 
@@ -88,10 +89,13 @@ struct options {
 };
 
 int _bootstrap(int argc, const char* argv[]);
+void rt_error(string message);
+void printVersion();
+std::string to_lower(string s);
+bool all_integers(string int_string);
+void exec_runtime(List<string>& files);
 
 extern options c_options;
-
-
-int _bootstrap(int argc, const char* argv[]);
+#define opt(v) strcmp(argv[i], v) == 0
 
 #endif //SHARP_RUNTIME_H
