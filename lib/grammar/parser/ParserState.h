@@ -1,0 +1,34 @@
+//
+// Created by BraxtonN on 1/22/2018.
+//
+
+#ifndef SHARP_PARSERSTATE_H
+#define SHARP_PARSERSTATE_H
+
+#include "ast.h"
+
+class ParserState {
+public:
+    ParserState()
+            :
+            ast(NULL),
+            cursor(0),
+            astCursor(0)
+    {
+    }
+
+    ParserState(Ast* pAst, int64_t cursor, int64_t astCursor)
+    :
+    ast(pAst),
+    cursor(cursor),
+    astCursor(astCursor)
+    {
+    }
+
+    Ast* ast;
+    int64_t  cursor;
+    int64_t astCursor;
+};
+
+
+#endif //SHARP_PARSERSTATE_H

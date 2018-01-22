@@ -96,7 +96,7 @@ void initalizeErrors()
     predefinedErrors.push_back(err);
 }
 
-void ErrorManager::printError(ErrorManager &err) {
+void ErrorManager::printError(ParseError &err) {
     if(err.warning)
         cout << fn << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
              << endl;
@@ -111,10 +111,10 @@ void ErrorManager::printError(ErrorManager &err) {
     cout << "^" << endl;
 }
 
-string ErrorManager::getErrors(list<ErrorManager>* errors)
+string ErrorManager::getErrors(list<ParseError>* errors)
 {
     stringstream errorlist;
-    for(const ErrorManager &err : *errors)
+    for(const ParseError &err : *errors)
     {
         if(err.warning)
             errorlist << fn << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
@@ -148,8 +148,8 @@ void ErrorManager::printErrors() {
 
 int ErrorManager::createNewError(error_type err, token_entity token, string xcmts) {
     keypair<error_type, string> kp = getErrorById(err);
-    ErrorManager e(kp, token, xcmts);
-    ErrorManager lastError = cm ? lastCheckedError : lastError;
+    ParseError e(kp, token, xcmts);
+    ParseError lastError = cm ? lastCheckedError : lastError;
 
     if(shouldReport(&token, lastError, e))
     {
@@ -174,8 +174,8 @@ int ErrorManager::createNewError(error_type err, token_entity token, string xcmt
     return 0;
 }
 
-bool ErrorManager::shouldReport(token_entity *token, const ErrorManager &lastError,
-                          const ErrorManager &e) const {
+bool ErrorManager::shouldReport(token_entity *token, const ParseError &lastError,
+                          const ParseError &e) const {
     if(lastError.error != e.error && !(lastError.line == e.line && lastError.col == e.col)
        && (lastError.error.find(e.error) == std::string::npos) && !hasError(errors, e))
     {
@@ -192,8 +192,8 @@ bool ErrorManager::shouldReport(token_entity *token, const ErrorManager &lastErr
 }
 
 
-bool ErrorManager::shouldReportWarning(token_entity *token, const ErrorManager &lastError,
-                                 const ErrorManager &e) const {
+bool ErrorManager::shouldReportWarning(token_entity *token, const ParseError &lastError,
+                                 const ParseError &e) const {
     if(lastError.error != e.error && !(lastError.line == e.line && lastError.col == e.col)
        && (lastError.error.find(e.error) == std::string::npos))
     {
@@ -211,8 +211,8 @@ bool ErrorManager::shouldReportWarning(token_entity *token, const ErrorManager &
 
 void ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
     keypair<error_type, string> kp = getErrorById(err);
-    ErrorManager e(kp, l,c, xcmts);
-    ErrorManager last_err = cm ? lastCheckedError : lastError;
+    ParseError e(kp, l,c, xcmts);
+    ParseError last_err = cm ? lastCheckedError : lastError;
 
     if(shouldReport(NULL, last_err, e))
     {
@@ -237,8 +237,8 @@ void ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
 
 void ErrorManager::createNewWarning(error_type err, int l, int c, string xcmts) {
     keypair<error_type, string> kp = getErrorById(err);
-    ErrorManager e(true, kp, l,c, xcmts);
-    ErrorManager last_err;
+    ParseError e(true, kp, l,c, xcmts);
+    ParseError last_err;
     if(warnings->size() > 0) {
         last_err = *std::next(warnings->begin(), warnings->size()-1);
     } else {
@@ -273,14 +273,14 @@ void ErrorManager::enableErrorCheckMode() {
     addPossibleErrorList();
 }
 
-list<ErrorManager> *ErrorManager::getPossibleErrorList() {
+list<ParseError> *ErrorManager::getPossibleErrorList() {
     return *std::next(possibleErrors->begin(), teCursor);
 }
 
 void ErrorManager::removePossibleErrorList() {
     if(possibleErrors->size() != 0)
     {
-        list<ErrorManager> *lst = *std::next(possibleErrors->begin(), teCursor);
+        list<ParseError> *lst = *std::next(possibleErrors->begin(), teCursor);
         lst->clear();
         delete lst;
         possibleErrors->pop_back();
@@ -290,14 +290,14 @@ void ErrorManager::removePossibleErrorList() {
 }
 
 void ErrorManager::addPossibleErrorList() {
-    possibleErrors->push_back(new list<ErrorManager>());
+    possibleErrors->push_back(new list<ParseError>());
     teCursor++;
 }
 
 void ErrorManager::fail() {
     if(possibleErrors->size() > 0) {
 
-        for(ErrorManager &err : *getPossibleErrorList())
+        for(ParseError &err : *getPossibleErrorList())
         {
             if(shouldReport(NULL, lastError, err)) {
                 errors->push_back(err);
@@ -312,20 +312,20 @@ void ErrorManager::fail() {
         }
     }
 
-    lastCheckedError = ErrorManager();
+    lastCheckedError = ParseError();
     removePossibleErrorList();
 }
 
 void ErrorManager::pass() {
-    lastCheckedError = ErrorManager();
+    lastCheckedError = ParseError();
     removePossibleErrorList();
 }
 
 void ErrorManager::free() {
     this->cm = false;
     this->_err = false;
-    this->lastCheckedError = ErrorManager();
-    this->lastError = ErrorManager();
+    this->lastCheckedError = ParseError();
+    this->lastError = ParseError();
     this->lines = NULL;
     this->errors->clear();
     this->warnings->clear();
@@ -335,8 +335,8 @@ void ErrorManager::free() {
     delete (possibleErrors); this->possibleErrors = NULL;
 }
 
-bool ErrorManager::hasError(list <ErrorManager> *e, const ErrorManager &perror) const {
-    for(ErrorManager& pe : *e) {
+bool ErrorManager::hasError(list <ParseError> *e, const ParseError &perror) const {
+    for(ParseError& pe : *e) {
         if(pe.error == perror.error)
             return true;
     }
@@ -345,8 +345,8 @@ bool ErrorManager::hasError(list <ErrorManager> *e, const ErrorManager &perror) 
 
 int ErrorManager::createNewError(error_type err, Ast *pAst, string xcmts) {
     keypair<error_type, string> kp = getErrorById(err);
-    ErrorManager e(kp, pAst->line, pAst->col, xcmts);
-    ErrorManager last_err = cm ? lastCheckedError : lastError;
+    ParseError e(kp, pAst->line, pAst->col, xcmts);
+    ParseError last_err = cm ? lastCheckedError : lastError;
 
     if(shouldReport(NULL, last_err, e))
     {
@@ -373,8 +373,8 @@ int ErrorManager::createNewError(error_type err, Ast *pAst, string xcmts) {
 
 void ErrorManager::createNewWarning(error_type err, Ast *pAst, string xcmts) {
     keypair<error_type, string> kp = getErrorById(err);
-    ErrorManager e(true, kp, pAst->line, pAst->col, xcmts);
-    ErrorManager last_err;
+    ParseError e(true, kp, pAst->line, pAst->col, xcmts);
+    ParseError last_err;
     if(warnings->size() > 0) {
         last_err = *std::next(warnings->begin(), warnings->size()-1);
     } else {

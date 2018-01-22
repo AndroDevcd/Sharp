@@ -4,6 +4,11 @@
 
 #include "Runtime.h"
 
+using namespace std;
+
+options c_options;
+Sharp versions;
+
 void help();
 
 int _bootstrap(int argc, const char* argv[])

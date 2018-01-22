@@ -47,10 +47,10 @@ enum error_type
 static std::list<keypair<error_type, string>> predefinedErrors;
 void initalizeErrors();
 
-struct ErrorManager
+struct ParseError
 {
 public:
-    ErrorManager()
+    ParseError()
             :
             error()
     {
@@ -59,7 +59,7 @@ public:
         col = 0;
     }
 
-    ErrorManager(keypair<error_type, string> err, int l, int c, string addon = "")
+    ParseError(keypair<error_type, string> err, int l, int c, string addon = "")
     {
         id = err.key;
         error = (err.value + addon);
@@ -68,7 +68,7 @@ public:
         warning = false;
     }
 
-    ErrorManager(bool warning, keypair<error_type, string> err, int l, int c, string addon = "")
+    ParseError(bool warning, keypair<error_type, string> err, int l, int c, string addon = "")
     {
         id = err.key;
         error = (err.value + addon);
@@ -77,7 +77,7 @@ public:
         this->warning = warning;
     }
 
-    ErrorManager(keypair<error_type, string> err, token_entity token, string addon = "")
+    ParseError(keypair<error_type, string> err, token_entity token, string addon = "")
     {
         id = err.key;
         error = (err.value + addon);
@@ -108,12 +108,12 @@ public:
             asis(asis),
             aggressive(aggressiveRoporting)
     {
-        errors = new list<ErrorManager>();
-        warnings = new list<ErrorManager>();
-        unfilteredErrors = new list<ErrorManager>();
-        possibleErrors = new list<std::list<ErrorManager>*>();
-        lastError = ErrorManager();
-        lastCheckedError = ErrorManager();
+        errors = new list<ParseError>();
+        warnings = new list<ParseError>();
+        unfilteredErrors = new list<ParseError>();
+        possibleErrors = new list<std::list<ParseError>*>();
+        lastError = ParseError();
+        lastCheckedError = ParseError();
     }
 
     void printErrors();
@@ -136,30 +136,30 @@ public:
 
 private:
     keypair<error_type, string> getErrorById(error_type);
-    list<ErrorManager>* getPossibleErrorList();
+    list<ParseError>* getPossibleErrorList();
     void addPossibleErrorList();
     void removePossibleErrorList();
 
     list<string>* lines;
-    list<ErrorManager>* errors, *unfilteredErrors, *warnings;
-    list<std::list<ErrorManager>*>* possibleErrors;
+    list<ParseError>* errors, *unfilteredErrors, *warnings;
+    list<std::list<ParseError>*>* possibleErrors;
     int64_t  teCursor;
-    ErrorManager lastError;
-    ErrorManager lastCheckedError;
+    ParseError lastError;
+    ParseError lastCheckedError;
     bool _err, cm;
     bool asis, aggressive;
     string fn;
 
-    bool shouldReport(token_entity *token, const ErrorManager &last_err, const ErrorManager &e) const;
+    bool shouldReport(token_entity *token, const ParseError &last_err, const ParseError &e) const;
 
-    string getErrors(list<ErrorManager> *errors);
+    string getErrors(list<ParseError> *errors);
 
 
-    void printError(ErrorManager &err);
+    void printError(ParseError &err);
 
-    bool hasError(list <ErrorManager> *e, const ErrorManager &parseerror1) const;
+    bool hasError(list <ParseError> *e, const ParseError &parseerror1) const;
 
-    bool shouldReportWarning(token_entity *token, const ErrorManager &last_err, const ErrorManager &e) const;
+    bool shouldReportWarning(token_entity *token, const ParseError &last_err, const ParseError &e) const;
 };
 
 

@@ -4,8 +4,64 @@
 
 #include "tokenizer.h"
 #include "../../runtime.h"
-#include <sstream>
-#include <string>
+
+#define iswhitespace(c) \
+    (' '  == c) || ('\n' == c) || \
+    ('\r' == c) || ('\t' == c) || \
+    ('\b' == c) || ('\v' == c) || \
+    ('\f' == c) \
+
+#define current \
+    (cursor >= toks.length()) ? \
+        toks.at(toks.length()-1) \
+    : toks.at(cursor) \
+
+#define newline() \
+    col = 0, line++;
+
+#define isend() \
+    cursor>=toks.length()
+
+#define peekend(forward) \
+    (cursor+forward)>=toks.length()
+
+#define peek(forward) \
+    ((cursor+forward) >= toks.length() || (cursor+forward) < 0) ? \
+        toks.at(toks.length()-1) : toks.at(cursor+forward)
+
+#define issymbol(c) \
+    ('+' == c) || ('-' == c) || \
+    ('*' == c) || ('/' == c) || \
+    ('^' == c) || ('<' == c) || \
+    ('>' == c) || ('=' == c) || \
+    (',' == c) || ('!' == c) || \
+    ('(' == c) || (')' == c) || \
+    ('[' == c) || (']' == c) || \
+    ('{' == c) || ('}' == c) || \
+    ('%' == c) || (':' == c) || \
+    ('?' == c) || ('&' == c) || \
+    ('|' == c) || (';' == c) || \
+    ('!' == c) || ('.' == c) || \
+    ('#' == c) || ('$' == c)
+
+#define isnumber(c) \
+    isdigit(c)
+
+#define isletter(c) \
+    isalpha(c)
+
+#define ishexnum(c) \
+    isdigit(c) || (c >= 65 && c <= 72) || \
+        (c >= 97 && c <= 104)
+
+#define advance() \
+    col++; cursor++;
+
+#define tokensLeft() \
+    toks.length() - cursor
+
+#define issign(s) \
+    s == '+' || s == '-'
 
 unsigned long tokenizer::getEntityCount()
 {

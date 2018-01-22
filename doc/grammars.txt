@@ -167,7 +167,7 @@ Method Declaration:
 `[<accesstype>] def <identifier = name> <uTypeArg-list> [: <uType>] <block>
 
 Operator Declaration:
-`[<accesstype>] fn operator <override-operator> <uTypeArg-list> [: <uType>] <block>
+`[<accesstype>] def operator <override-operator> <uTypeArg-list> [: <uType>] <block>
 
 Variable Declaration statement:
 `[<accesstype>] <uType> <identifier = name> [ <assign-expr> <value>] [, <variable-decl>] ;`

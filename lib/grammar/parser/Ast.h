@@ -122,7 +122,7 @@ public:
 
     ast_types getType();
     Ast*  getParent();
-    long getSubastCount();
+    long getSubAstCount();
     Ast *getSubAst(long at);
     Ast *getSubAst(ast_types at);
     Ast *getNextSubAst(ast_types at);

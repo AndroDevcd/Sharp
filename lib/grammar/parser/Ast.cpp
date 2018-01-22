@@ -16,7 +16,7 @@ Ast* Ast::getParent()
     return parent;
 }
 
-long Ast::getSubastCount()
+long Ast::getSubAstCount()
 {
     return sub_asts.size();
 }
@@ -155,7 +155,7 @@ Ast *Ast::getNextSubAst(ast_types at) {
 void Ast::encapsulate(ast_types at) {
 
     addAst(Ast(this, at, this->line, this->col));
-    Ast* encap = getSubAst(getSubastCount()-1);
+    Ast* encap = getSubAst(getSubAstCount()-1);
 
     for(unsigned int i = 0; i < sub_asts.size(); i++) {
         if(sub_asts.get(i).type != at)
