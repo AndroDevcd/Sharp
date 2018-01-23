@@ -228,7 +228,7 @@ private:
     bool parse_array_expression(Ast *pAst);
 };
 
-#define _SHARP_CERROR_LIMIT 9999
+#define _SHARP_CERROR_LIMIT c_options.error_limit
 
 #define CHECK_ERRORS \
     if(panic) return; \

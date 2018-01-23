@@ -146,6 +146,7 @@ void help() {
     cout <<               "    -s                string debugging info"                             << endl;
     cout <<               "    -O                optimize executable"                               << endl;
     cout <<               "    -w                disable all warnings"                              << endl;
+    cout <<               "    -errlmt<count>    set max errors the compiler allows before quitting"  << endl;
     cout <<               "    -v<version>       set the application version"                       << endl;
     cout <<               "    -unsafe -u        allow unsafe code"                                 << endl;
     cout <<               "    -objdmp           create dump file for generated assembly"           << endl;
@@ -203,6 +204,7 @@ void exec_runtime(List<string>& files)
             rt_error("file `" + file + "` is empty.");
         }
 
+        cout << "tokenize..\n";
         t = new tokenizer(source.to_str(), file);
         if(t->getErrors()->hasErrors())
         {
@@ -213,6 +215,7 @@ void exec_runtime(List<string>& files)
             failed++;
         }
         else {
+            cout << "parse..\n";
             p = new Parser(t);
 
             if(p->geterrors()->hasErrors())
@@ -237,7 +240,7 @@ void exec_runtime(List<string>& files)
         source.end();
     }
 
-    if(panic) {
+    if(panic==1) {
         cout << "Detected more than 9999+ errors, fix your freakin code!";
     }
 

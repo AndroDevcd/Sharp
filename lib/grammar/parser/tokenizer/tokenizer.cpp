@@ -30,7 +30,7 @@
         toks.at(toks.size()-1) : toks.at(cursor+forward))
 
 #define issymbol(c) \
-    ('+' == c) || ('-' == c) || \
+    (('+' == c) || ('-' == c) || \
     ('*' == c) || ('/' == c) || \
     ('^' == c) || ('<' == c) || \
     ('>' == c) || ('=' == c) || \
@@ -42,7 +42,7 @@
     ('?' == c) || ('&' == c) || \
     ('|' == c) || (';' == c) || \
     ('!' == c) || ('.' == c) || \
-    ('#' == c) || ('$' == c)
+    ('#' == c) || ('$' == c))
 
 #define isnumber(c) \
     isdigit(c)
@@ -51,17 +51,17 @@
     isalpha(c)
 
 #define ishexnum(c) \
-    isdigit(c) || (c >= 65 && c <= 72) || \
-        (c >= 97 && c <= 104)
+    (isdigit(c) || (c >= 65 && c <= 72) || \
+        (c >= 97 && c <= 104))
 
 #define advance() \
     col++; cursor++;
 
 #define tokensLeft() \
-    toks.length() - cursor
+    (toks.length() - cursor)
 
 #define issign(s) \
-    s == '+' || s == '-'
+    (s == '+' || s == '-')
 
 unsigned long tokenizer::getEntityCount()
 {

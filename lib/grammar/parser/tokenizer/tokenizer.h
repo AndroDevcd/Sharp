@@ -41,14 +41,14 @@ private:
     void parse();
     void parse_lines();
     void scan();
-    void invalidate_comments();
+    CXX11_INLINE void invalidate_comments();
     void invalidate_whitespace();
-    void scan_identifier();
-    void scan_symbol();
-    void scan_number();
+    CXX11_INLINE void scan_identifier();
+    CXX11_INLINE void scan_symbol();
+    CXX11_INLINE void scan_number();
     bool ismatch(char i, char current);
-    void scan_stringliteral();
-    void scan_characterliteral();
+    CXX11_INLINE void scan_stringliteral();
+    CXX11_INLINE void scan_characterliteral();
     string get_escaped_string(string msg) const;
 
     List<token_entity> entites;

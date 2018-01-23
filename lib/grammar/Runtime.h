@@ -83,6 +83,11 @@ struct options {
     bool objDump = false;
 
     /*
+     * Max errors the compiler will allow
+     */
+    unsigned long error_limit = 100;
+
+    /*
      * Machine platform target to run on
      */
     int target = versions.ALPHA;
