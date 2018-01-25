@@ -40,6 +40,8 @@ public:
     Ast* ast_at(long p);
     size_t treesize() { return tree->size(); }
     void free();
+    const string &getData() const;
+    tokenizer *getTokenizer() const;
 
     bool parsed;
     List<string> lines;
@@ -69,13 +71,6 @@ private:
     unsigned long ast_cursor;
     tokenizer *toks;
     std::string data;
-public:
-    const string &getData() const;
-
-public:
-    tokenizer *getTokenizer() const;
-
-private:
     list<token_entity> *access_types;
     ErrorManager *errors;
 

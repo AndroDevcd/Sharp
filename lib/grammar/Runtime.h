@@ -13,7 +13,7 @@ class Interpreter {
 };
 
 #define progname "bootstrap"
-#define progvers "0.1.102"
+#define progvers "0.2.4"
 
 struct options {
     ~options()
@@ -78,14 +78,22 @@ struct options {
     bool magic = false;
 
     /*
+     * Easter egg to enable debug mode
+     *
+     * Allows you to see a little information
+     * on what the compiler is doing
+     */
+    bool debugMode = false;
+
+    /*
      * Dump object code
      */
     bool objDump = false;
 
     /*
-     * Max errors the compiler will allow
+     * Maximum errors the compiler will allow
      */
-    unsigned long error_limit = 100;
+    unsigned long error_limit = 1000;
 
     /*
      * Machine platform target to run on

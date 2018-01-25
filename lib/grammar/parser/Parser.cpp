@@ -187,7 +187,7 @@ bool Parser::isforeach_stmnt(token_entity entity) {
 }
 
 bool Parser::isassembly_stmnt(token_entity entity) {
-    return entity.getId() == IDENTIFIER && entity.getToken() == "__asm";
+    return entity.getId() == IDENTIFIER && entity.getToken() == "asm";
 }
 
 bool Parser::isdowhile_stmnt(token_entity entity) {
@@ -1218,7 +1218,8 @@ void Parser::parse_block(Ast* pAst) {
         {
             errors->createNewError(UNEXPECTED_EOF, current());
             break;
-        } else
+        }
+        else
             parse_statement(pAst);
 
         remove_accesstypes();

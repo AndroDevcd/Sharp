@@ -46,14 +46,14 @@ using namespace std;
 
 struct Sharp {
     /**
-     * Jan 13, 2017 Initial build release of sharp 1.3, this contains
+     * Jan 13, 2017 Initial build release of sharp 0.1.3, this contains
      * all the base level support for running sharp. Sharp was
      * developed to support both windows and linux operating systems
      */
     int BASE  = 1;
 
     /**
-     * Jan 18, 2018 Build release of Sharp 2.0, this contains all the base level
+     * Jan 18, 2018 Build release of Sharp 0.2.0, this contains all the base level
      * support for sharp as well as major performance enhancments and improvements
      * throughout the platform.
      */

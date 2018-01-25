@@ -14,9 +14,9 @@
 class tokenizer
 {
 public:
-    tokenizer(string tokens, string file)
+    tokenizer(const string tokens, const string file)
             :
-            toks(tokens),
+            len(tokens.size()),
             cursor(0),
             col(0),
             line(1),
@@ -24,6 +24,15 @@ public:
     {
         entites.init();
         lines.init();
+        EOF_token = new token_entity("", SINGLE, 0, line, _EOF);
+
+        if(!tokens.empty()) {
+            toks = new char[tokens.size()];
+            strcpy(toks, tokens.c_str());
+        } else {
+            toks = NULL;
+            len = 0;
+        }
 
         parse();
     }
@@ -32,6 +41,7 @@ public:
     List<token_entity>& getEntities();
     ErrorManager* getErrors();
     List<string>& getLines();
+    const string getData() const;
 
     string file;
     token_entity* EOF_token;
@@ -40,31 +50,17 @@ public:
 private:
     void parse();
     void parse_lines();
-    void scan();
-    CXX11_INLINE void invalidate_comments();
-    void invalidate_whitespace();
-    CXX11_INLINE void scan_identifier();
-    CXX11_INLINE void scan_symbol();
-    CXX11_INLINE void scan_number();
     bool ismatch(char i, char current);
-    CXX11_INLINE void scan_stringliteral();
-    CXX11_INLINE void scan_characterliteral();
     string get_escaped_string(string msg) const;
 
     List<token_entity> entites;
     ErrorManager* errors;
     List<string> lines;
-    string toks;
-public:
-    const string &getData() const;
-
-private:
+    char* toks;
+    unsigned long len;
     unsigned long cursor;
-
     int line;
     int col;
-
-    void scan_hex();
 };
 
 #endif //SHARP_TOKENIZER_H

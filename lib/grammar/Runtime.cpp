@@ -61,6 +61,9 @@ int _bootstrap(int argc, const char* argv[])
         else if(opt("-magic")){
             c_options.magic = true;
         }
+        else if(opt("-debug")) {
+            c_options.debugMode = true;
+        }
         else if(opt("-showversion")){
             printVersion();
             cout << endl;
@@ -75,7 +78,10 @@ int _bootstrap(int argc, const char* argv[])
                 else {
                     if(to_lower(x) == "base") {
                         c_options.target = versions.BASE;
-                    } else {
+                    } else if(to_lower(x) == "alpha") {
+                        c_options.target = versions.ALPHA;
+                    }
+                    else {
                         rt_error("unknown target " + x);
                     }
                 }
@@ -96,6 +102,21 @@ int _bootstrap(int argc, const char* argv[])
         else if(opt("-werror")){
             c_options.werrors = true;
             c_options.warnings = true;
+        }
+        else if(opt("-errlmt")) {
+            std::string lmt = std::string(argv[++i]);
+            if(all_integers(lmt)) {
+                c_options.error_limit = strtoul(lmt.c_str(), NULL, 0);
+
+                if(c_options.error_limit > 100000) {
+                    rt_error("cannot set the max errors allowed higher than (100,000) - " + lmt);
+                } else if(c_options.error_limit == 0) {
+                    rt_error("cannot have an error limit of 0 ");
+                }
+            }
+            else {
+                rt_error("invalid error limit set " + lmt);
+            }
         }
         else if(opt("-objdmp")){
             c_options.objDump = true;
@@ -204,7 +225,9 @@ void exec_runtime(List<string>& files)
             rt_error("file `" + file + "` is empty.");
         }
 
-        cout << "tokenize..\n";
+        if(c_options.debugMode)
+            cout << "tokenizing " << file << endl;
+
         t = new tokenizer(source.to_str(), file);
         if(t->getErrors()->hasErrors())
         {
@@ -215,34 +238,41 @@ void exec_runtime(List<string>& files)
             failed++;
         }
         else {
-            cout << "parse..\n";
+            if(c_options.debugMode)
+                cout << "parsing " << file << endl;
+
             p = new Parser(t);
+            parsers.push_back(p);
 
             if(p->geterrors()->hasErrors())
             {
                 p->geterrors()->printErrors();
 
-                if(p->panic) {
-                    panic = 1;
-                }
-
                 errors+= p->geterrors()->getErrorCount();
                 unfilteredErrors+= p->geterrors()->getUnfilteredErrorCount();
                 failed++;
+
+                if(p->panic) {
+                    panic = 1;
+                    goto end;
+                }
+
             } else {
-                parsers.push_back(p);
                 succeeded++;
             }
         }
 
+        end:
         t->free();
         delete (t);
         source.end();
+
+        if(panic==1) {
+            cout << "Detected more than " << c_options.error_limit << "+ errors, quitting.";
+            break;
+        }
     }
 
-    if(panic==1) {
-        cout << "Detected more than 9999+ errors, fix your freakin code!";
-    }
 
     for(Parser* p2 : parsers) {
         p2->free();
@@ -250,6 +280,9 @@ void exec_runtime(List<string>& files)
     parsers.clear();
 
 //    if(!panic && errors == 0 && unfilteredErrors == 0) {
+//        if(c_options.debugMode)
+//            cout << "preparing to perform syntax analysis on project files"<< endl;
+//
 //        failed = 0, succeeded=0;
 //        runtime rt(c_options.out, parsers);
 //
@@ -271,5 +304,5 @@ void exec_runtime(List<string>& files)
 
     cout << endl << "==========================================================\n" ;
     cout << "Errors: " << (c_options.aggressive_errors ? unfilteredErrors : errors) << " Succeeded: "
-         << succeeded << " Failed: " << failed << endl;
+         << succeeded << " Failed: " << failed << " Total: " << files.size() << endl;
 }
