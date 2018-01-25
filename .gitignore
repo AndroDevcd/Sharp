@@ -1,6 +1,6 @@
 *.zip
 *.exe
 *.stackdump
-*/cmake-build
+/cmake-build*
 .idea/
 out
