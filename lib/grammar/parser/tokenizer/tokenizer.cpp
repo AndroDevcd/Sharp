@@ -120,9 +120,7 @@ void tokenizer::parse()
         else if (!comment_start(current,peek(1),mode))
             goto scan;
 
-        advance();
-        advance();
-
+        col+=2; cursor+=2;
         while (!isend() && !comment_end(current,peek(1),mode))
         {
             if(current == '\n'){
