@@ -11,6 +11,6 @@ int main(int argc, const char* argv[]) {
     if(c_options.debugMode)
         cout << endl << "Compiled in " << NANO_TOMILL(now-past) << "ms\n";
 
-    cout << "program exiting..." << endl;
+    cout << endl << "program exiting..." << endl;
     return 0;
 }
