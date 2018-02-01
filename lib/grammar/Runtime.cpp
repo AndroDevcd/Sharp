@@ -204,7 +204,7 @@ bool all_integers(string int_string) {
 
 void exec_runtime(List<string>& files)
 {
-    std::list<Parser*> parsers;
+    List<Parser*> parsers;
     Parser* p = NULL;
     tokenizer* t;
     File::buffer source;
@@ -217,9 +217,10 @@ void exec_runtime(List<string>& files)
 
         File::read_alltext(file.c_str(), source);
         if(source.empty()) {
-            for(Parser* p2 : parsers) {
-                p2->free();
-                delete(p2);
+            for(unsigned long i = 0; i < parsers.size(); i++) {
+                Parser* parser = parsers.get(i);
+                parser->free();
+                delete(parser);
             }
 
             rt_error("file `" + file + "` is empty.");
@@ -274,10 +275,12 @@ void exec_runtime(List<string>& files)
     }
 
 
-    for(Parser* p2 : parsers) {
-        p2->free();
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        Parser* parser = parsers.get(i);
+        parser->free();
+        delete(parser);
     }
-    parsers.clear();
+    parsers.free();
 
 //    if(!panic && errors == 0 && unfilteredErrors == 0) {
 //        if(c_options.debugMode)
@@ -305,4 +308,96 @@ void exec_runtime(List<string>& files)
     cout << endl << "==========================================================\n" ;
     cout << "Errors: " << (c_options.aggressive_errors ? unfilteredErrors : errors) << " Succeeded: "
          << succeeded << " Failed: " << failed << " Total: " << files.size() << endl;
+}
+
+void RuntimeEngine::compile()
+{
+    if(preprocess()) {
+
+    }
+}
+
+bool RuntimeEngine::preprocess()
+{
+    bool success = true;
+
+    for(unsigned long i = 0; i < parsers.size(); i++)
+    {
+        activeParser = parsers.get(i);
+        errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
+
+        currentModule = "$unknown";
+        keypair<string, List<string>> resolveMap;
+        List<string> imports;
+
+        for(unsigned long i = 0; i < activeParser->treesize(); i++)
+        {
+            Ast *ast = activeParser->ast_at(i);
+
+            if(i == 0 && ast->getType() == ast_module_decl) {
+                add_module(currentModule = astToString(ast->getSubAst(0)));
+                continue;
+            } else if(i == 0)
+                errors->createNewError(GENERIC, ast->line, ast->col, "module declaration must be "
+                        "first in every file");
+
+            switch(ast->getType()) {
+                case ast_class_decl:
+                    processClassDecl(ast, NULL);
+                    break;
+                case ast_import_decl:
+                    string import = getModuleName(ast->getSubAst(0));
+                    imports.push_back(import);
+                    break;
+                case ast_module_decl:
+                    errors->createNewError(GENERIC, ast->line, ast->col, "file module cannot be declared more than once");
+                    break;
+                default:
+                    errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, " unexpected ast type");
+                    break;
+            }
+        }
+    }
+
+    return success;
+}
+
+
+void RuntimeEngine::add_module(string name) {
+    if(!module_exists(name)) {
+        modules.push_back(name);
+    }
+}
+
+bool RuntimeEngine::module_exists(string name) {
+    for(unsigned long i = 0; i < modules.size(); i++) {
+        if(modules.get(i) == name)
+            return true;
+    }
+
+    return false;
+}
+
+string RuntimeEngine::astToString(Ast *ast) {
+    if(ast == NULL) return "";
+
+    stringstream str;
+    for(long i = 0; i < ast->getEntityCount(); i++) {
+        str << ast->getEntity(i).getToken();
+    }
+    return str.str();
+}
+
+string RuntimeEngine::getModuleName(Ast *ast) {
+    stringstream modulename;
+
+    for(int i = 0; i < ast->getEntityCount(); i++) {
+        modulename << ast->getEntity(i).getToken();
+    }
+    return modulename.str();
+}
+
+void RuntimeEngine::processClassDecl(Ast *ast, ClassObject *parent)
+{
+
 }

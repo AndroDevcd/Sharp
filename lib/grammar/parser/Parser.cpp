@@ -19,7 +19,6 @@ void Parser::parse()
     if(toks->getEntities().size() == 0)
         return;
 
-    parsed = true;
     lines.addAll(toks->getLines());
     sourcefile = toks->file;
 
@@ -31,9 +30,50 @@ void Parser::parse()
         if(panic)
             break;
 
-        eval(NULL);
+        // evaluate
+        if(isaccess_decl(current()))
+        {
+            parse_accesstypes();
+        }
+        CHECK_ERRORS
+
+        if(isend())
+        {
+            remove_accesstypes();
+            return;
+        }
+        else if(ismodule_decl(current()))
+        {
+            if(access_types->size() > 0)
+            {
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+            }
+            parse_moduledecl(NULL);
+        }
+        else if(isclass_decl(current()))
+        {
+            parse_classdecl(NULL);
+        }
+        else if(isimport_decl(current()))
+        {
+            if(access_types->size() > 0)
+            {
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+            }
+            parse_importdecl(NULL);
+        }
+        else
+        {
+            // "expected class, or import declaration"
+            errors->createNewError(UNEXPECTED_SYMBOL, current(), " `" + current().getToken() + "`; expected class, or import declaration");
+            parse_all(NULL);
+        }
+
+        advance();
+        remove_accesstypes();
     }
 
+    parsed = true;
     if(errors->hasErrors())
         return;
 }
@@ -45,49 +85,6 @@ ErrorManager* Parser::geterrors()
 
 bool Parser::isend() {
     return current().getTokenType() == _EOF;
-}
-
-void Parser::eval(Ast* _ast) {
-    if(isaccess_decl(current()))
-    {
-        parse_accesstypes();
-    }
-    CHECK_ERRORS
-
-    if(isend())
-    {
-        remove_accesstypes();
-        return;
-    }
-    else if(ismodule_decl(current()))
-    {
-        if(access_types->size() > 0)
-        {
-            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-        }
-        parse_moduledecl(_ast);
-    }
-    else if(isclass_decl(current()))
-    {
-        parse_classdecl(_ast);
-    }
-    else if(isimport_decl(current()))
-    {
-        if(access_types->size() > 0)
-        {
-            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-        }
-        parse_importdecl(_ast);
-    }
-    else
-    {
-        // "expected class, or import declaration"
-        errors->createNewError(UNEXPECTED_SYMBOL, current(), " `" + current().getToken() + "`; expected class, or import declaration");
-        parse_all(_ast);
-    }
-
-    advance();
-    remove_accesstypes();
 }
 
 void Parser::parse_classdecl(Ast* _ast) { // 1

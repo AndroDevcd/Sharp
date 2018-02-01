@@ -74,8 +74,6 @@ private:
     list<token_entity> *access_types;
     ErrorManager *errors;
 
-    void eval(Ast* ast);
-
     bool ismodule_decl(token_entity entity);
 
     bool isclass_decl(token_entity entity);

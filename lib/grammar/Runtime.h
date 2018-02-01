@@ -7,13 +7,51 @@
 
 #include "../../stdimports.h"
 #include "List.h"
+#include "parser/Parser.h"
+#include "ClassObject.h"
 
-class Interpreter {
+class RuntimeEngine {
+public:
+    RuntimeEngine(const string exportFile, List<Parser*> &parsers)
+    :
+            exportFile(exportFile),
+            modules(),
+            parsers()
+    {
+        this->parsers.addAll(parsers);
 
+        for(int i = 0; i < parsers.size(); i++)
+        {
+            Parser *p = parsers.get(i);
+            if(!p->parsed) {
+                return;
+            }
+        }
+
+        compile();
+    }
+
+private:
+    List<Parser*> parsers;
+    List<string> modules;
+    string exportFile;
+    ErrorManager* errors;
+    Parser* activeParser;
+    string currentModule;
+
+    void compile();
+    bool preprocess();
+
+    bool module_exists(string name);
+    void add_module(string name);
+    string astToString(Ast *ast);
+    string getModuleName(Ast *ast);
+
+    void processClassDecl(Ast *ast, ClassObject *parent);
 };
 
 #define progname "bootstrap"
-#define progvers "0.2.4"
+#define progvers "0.2.6"
 
 struct options {
     ~options()
