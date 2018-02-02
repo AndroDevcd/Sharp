@@ -16,7 +16,8 @@ public:
     :
             exportFile(exportFile),
             modules(),
-            parsers()
+            parsers(),
+            classSerialId(0)
     {
         this->parsers.addAll(parsers);
 
@@ -31,6 +32,17 @@ public:
         compile();
     }
 
+    template<class T>
+    static void freeList(List<T> &lst)
+    {
+        for(unsigned int i = 0; i < lst.size(); i++)
+        {
+            lst.get(i).free();
+        }
+        lst.free();
+    }
+
+    static unsigned long classSerialId;
 private:
     List<Parser*> parsers;
     List<string> modules;

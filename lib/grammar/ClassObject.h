@@ -13,20 +13,59 @@
 #include "AccessModifier.h"
 #include "OperatorOverload.h"
 #include "../util/keypair.h"
-#include "List.h"
 
 class ClassObject {
 
 public:
-    ClassObject(string name, string pmodule, long serial, AccessModifier modifier, RuntimeNote note)
+    ClassObject()
+            :
+            name(""),
+            module_name(""),
+            serial(0),
+            modifier(),
+            base(NULL),
+            super(NULL),
+            head(NULL),
+            note(),
+            fullName("")
+    {
+        functions.init();
+        constructors.init();
+        overloads.init();
+        fields.init();
+        childClasses.init();
+    }
+    ClassObject(string name, string pmodule, long uid, AccessModifier modifier, RuntimeNote note)
             :
             name(name),
             module_name(pmodule),
-            serialId(serial),
+            serial(uid),
             modifier(modifier),
             base(NULL),
             super(NULL),
-            note(note)
+            head(NULL),
+            note(note),
+            fullName("")
+    {
+        functions.init();
+        constructors.init();
+        overloads.init();
+        fields.init();
+        childClasses.init();
+    }
+
+    ClassObject(string name, string pmodule, long uid, AccessModifier modifier, RuntimeNote note,
+                ClassObject* parent)
+            :
+            name(name),
+            module_name(pmodule),
+            serial(uid),
+            modifier(modifier),
+            base(NULL),
+            head(NULL),
+            super(parent),
+            note(note),
+            fullName("")
     {
         functions.init();
         constructors.init();
@@ -36,13 +75,14 @@ public:
     }
 
     AccessModifier getAccessModifier() { return modifier; }
-    long getSerial() { return serialId; }
+    long getSerial() { return serial; }
     string getName() { return name; }
     string getModuleName() { return module_name; }
     ClassObject* getSuperClass() { return super; }
     ClassObject* getBaseClass() { return base; }
+    ClassObject* getHeadClass() { return head; }
     bool match(ClassObject* klass) {
-        return klass != NULL && klass->uid == uid;
+        return klass != NULL && klass->serial == serial;
     }
     void setBaseClass(ClassObject* base) {
         this->base = base;
@@ -50,25 +90,59 @@ public:
     void setSuperClass(ClassObject* sup) {
         this->super = sup;
     }
+    void setHead(ClassObject* sup) {
+        this->head = sup;
+    }
+    void setFullName(const string fullName) {
+        this->fullName = fullName;
+    }
+    string getFullName() {
+        return fullName;
+    }
+
+    void operator=(ClassObject& klass) {
+        this->base = klass.base;
+        this->childClasses = klass.childClasses;
+        this->constructors = klass.constructors;
+        this->fields = klass.fields;
+        this->fullName = klass.fullName;
+        this->functions = klass.functions;
+        this->head = klass.head;
+        this->modifier = klass.modifier;
+        this->module_name = klass.module_name;
+        this->name = klass.name;
+        this->note = klass.note;
+        this->overloads = klass.overloads;
+        this->super = klass.super;
+        this->serial = klass.serial;
+        this->address = klass.address;
+    }
 
     size_t constructorCount();
     Method* getConstructor(int p);
-    Method* getConstructor(List<Param>& params);
+    Method* getConstructor(List<Param>& params, bool useBase =false);
     bool addConstructor(Method constr);
 
     size_t functionCount();
     Method* getFunction(int p);
-    Method* getFunction(string name, List<Param>& params);
+    Method* getFunction(string name, List<Param>& params, bool useBase =false);
+    Method* getFunction(string name, int64_t _offset);
     bool addFunction(Method function);
 
     size_t overloadCount();
     OperatorOverload* getOverload(size_t p);
-    OperatorOverload* getOverload(_operator op, List<Param>& params);
+    OperatorOverload* getPostIncOverload();
+    OperatorOverload* getPostDecOverload();
+    OperatorOverload* getPreIncOverload();
+    OperatorOverload* getPreDecOverload();
+    OperatorOverload* getOverload(_operator op, List<Param>& params, bool useBase =false);
+    OperatorOverload* getOverload(_operator op, int64_t _offset);
+    bool hasOverload(_operator op);
     bool addOperatorOverload(OperatorOverload overload);
 
     size_t fieldCount();
     Field* getField(int p);
-    Field* getField(string name);
+    Field* getField(string name, bool ubase =false);
     bool addField(Field field);
 
     size_t childClassCount();
@@ -83,18 +157,32 @@ public:
 
     bool matchBase(ClassObject *pObject);
 
+    bool hasBaseClass(ClassObject *pObject);
+
+    long getFieldIndex(string name);
+
+    int baseClassDepth(ClassObject *pObject);
+
+    long getTotalFieldCount();
+
+    long getTotalFunctionCount();
+
+    long long address;
 private:
-    const AccessModifier modifier;
-    const long serialId;
-    const string name;
-    const string module_name;
+    AccessModifier modifier;
+    long serial;
+    string name;
+    string fullName;
+    string module_name;
     List<Method> constructors;
     List<Method> functions;
     List<OperatorOverload> overloads;
     List<Field> fields;
     List<ClassObject> childClasses;
-    ClassObject *super, *base;
+    ClassObject *super, *base, *head;
 };
+
+#define totalFucntionCount(x) x->functionCount()+x->constructorCount()+x->overloadCount()
 
 
 #endif //SHARP_CLASSOBJECT_H
