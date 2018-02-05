@@ -10,8 +10,8 @@ enum FieldType
     VAR,
     OBJECT,
     CLASS,
-    tVOID,
-    NOTATYPE
+    TYPEVOID,
+    UNDEFINED
 };
 
 #endif //SHARP_FIELDTYPE_H

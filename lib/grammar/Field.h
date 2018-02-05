@@ -36,7 +36,7 @@ public:
     Field(ClassObject* klass, uint64_t serial, const string name, ClassObject* parent, List<AccessModifier>& modifiers,
           RuntimeNote& note)
             :
-            type(NOTATYPE),
+            type(UNDEFINED),
             serial(serial),
             name(name),
             fullName(""),
@@ -53,7 +53,7 @@ public:
 
     Field()
             :
-            type(NOTATYPE),
+            type(UNDEFINED),
             serial(0),
             name(""),
             fullName(""),
