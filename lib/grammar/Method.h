@@ -9,6 +9,7 @@
 #include "Param.h"
 #include "List.h"
 #include "Assembler.h"
+#include "Exception.h"
 
 class ClassObject;
 

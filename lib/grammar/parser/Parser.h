@@ -36,7 +36,7 @@ public:
         }
     }
 
-    ErrorManager* geterrors();
+    ErrorManager* getErrors();
     Ast* ast_at(long p);
     size_t treesize() { return tree->size(); }
     void free();

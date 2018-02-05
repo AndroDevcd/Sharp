@@ -17,7 +17,7 @@ bool ClassObject::addChildClass(ClassObject klass) {
         return false;
     }
 
-    klass.address = RuntimeEngine::classSerialId++;
+    klass.address = RuntimeEngine::uniqueSerialId++;
     childClasses.push_back(klass);
     return true;
 }
@@ -166,7 +166,7 @@ OperatorOverload *ClassObject::getOverload(size_t p) {
     return &overloads.get(p);
 }
 
-OperatorOverload *ClassObject::getOverload(_operator op, List<Param> &params, bool useBase) {
+OperatorOverload *ClassObject::getOverload(Operator op, List<Param> &params, bool useBase) {
     for(unsigned long i = 0; i < overloads.size(); i++) {
         if(Param::match(*overloads.get(i).getParams(), params) && op == overloads.get(i).getOperator())
             return &overloads.get(i);
@@ -179,7 +179,7 @@ OperatorOverload *ClassObject::getOverload(_operator op, List<Param> &params, bo
     return NULL;
 }
 
-OperatorOverload *ClassObject::getOverload(_operator op, int64_t _offset) {
+OperatorOverload *ClassObject::getOverload(Operator op, int64_t _offset) {
     for(unsigned int i = 0; i < overloads.size(); i++) {
         OperatorOverload& oper = overloads.get(i);
         if(op == oper.getOperator()) {
@@ -263,7 +263,7 @@ int ClassObject::baseClassDepth(ClassObject *pObject) {
     }
 }
 
-bool ClassObject::hasOverload(_operator op) {
+bool ClassObject::hasOverload(Operator op) {
     for(unsigned int i = 0; i < overloads.size(); i++) {
         if(op == overloads.get(i).getOperator())
             return true;

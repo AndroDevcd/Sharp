@@ -182,3 +182,12 @@ void Ast::encapsulate(ast_types at) {
 void Ast::setAstType(ast_types t) {
     type = t;
 }
+
+Ast *Ast::getLastSubAst() {
+    if(numAsts == 0) {
+        stringstream ss;
+        ss << "internal error, ast not found at index 0";
+        throw runtime_error(ss.str());
+    }
+    return &sub_asts.last();
+}

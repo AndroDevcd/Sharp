@@ -78,7 +78,7 @@ void Parser::parse()
         return;
 }
 
-ErrorManager* Parser::geterrors()
+ErrorManager* Parser::getErrors()
 {
     return errors;
 }

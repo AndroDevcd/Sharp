@@ -224,6 +224,8 @@ public:
         return -1;
     }
 
+    bool empty() { return len==0; }
+
 private:
     CXX11_INLINE
     void __expand() {

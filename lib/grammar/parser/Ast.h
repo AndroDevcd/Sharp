@@ -123,6 +123,7 @@ public:
     Ast*  getParent();
     long getSubAstCount();
     Ast *getSubAst(long at);
+    Ast *getLastSubAst();
     Ast *getSubAst(ast_types at);
     Ast *getNextSubAst(ast_types at);
     bool hasSubAst(ast_types at);

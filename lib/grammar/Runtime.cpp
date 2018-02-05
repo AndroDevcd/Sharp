@@ -209,7 +209,7 @@ void exec_runtime(List<string>& files)
     tokenizer* t;
     File::buffer source;
     size_t errors=0, unfilteredErrors=0;
-    int succeeded=0, failed=0, panic=0;
+    long succeeded=0, failed=0, panic=0;
 
     for(unsigned int i = 0; i < files.size(); i++) {
         string& file = files.get(i);
@@ -245,12 +245,12 @@ void exec_runtime(List<string>& files)
             p = new Parser(t);
             parsers.push_back(p);
 
-            if(p->geterrors()->hasErrors())
+            if(p->getErrors()->hasErrors())
             {
-                p->geterrors()->printErrors();
+                p->getErrors()->printErrors();
 
-                errors+= p->geterrors()->getErrorCount();
-                unfilteredErrors+= p->geterrors()->getUnfilteredErrorCount();
+                errors+= p->getErrors()->getErrorCount();
+                unfilteredErrors+= p->getErrors()->getUnfilteredErrorCount();
                 failed++;
 
                 if(p->panic) {
@@ -274,36 +274,32 @@ void exec_runtime(List<string>& files)
         }
     }
 
+    if(!panic && errors == 0 && unfilteredErrors == 0) {
+        if(c_options.debugMode)
+            cout << "preparing to perform syntax analysis on project files"<< endl;
 
-    for(unsigned long i = 0; i < parsers.size(); i++) {
-        Parser* parser = parsers.get(i);
-        parser->free();
-        delete(parser);
+        RuntimeEngine engine(c_options.out, parsers);
+
+        failed = engine.failedParsers.size();
+        succeeded = engine.succeededParsers.size();
+
+        errors+=engine.errorCount;
+        unfilteredErrors+=engine.unfilteredErrorCount;
+        if(errors == 0 && unfilteredErrors == 0) {
+            if(!c_options.compile)
+                engine.generate();
+        }
+
+        engine.cleanup();
     }
-    parsers.free();
-
-//    if(!panic && errors == 0 && unfilteredErrors == 0) {
-//        if(c_options.debugMode)
-//            cout << "preparing to perform syntax analysis on project files"<< endl;
-//
-//        failed = 0, succeeded=0;
-//        runtime rt(c_options.out, parsers);
-//
-//        failed = rt.parse_map.key.size();
-//        succeeded = rt.parse_map.value.size();
-//
-//        errors+=rt.errs;
-//        unfilteredErrors+=rt.uo_errs;
-//        if(errors == 0 && unfilteredErrors == 0) {
-//            if(!c_options.compile)
-//                rt.generate();
-//        }
-//
-//        rt.cleanup();
-//    }
-//    else {
-//        /* TODO: put parse free back here*/
-//    }
+    else {
+        for(unsigned long i = 0; i < parsers.size(); i++) {
+            Parser* parser = parsers.get(i);
+            parser->free();
+            delete(parser);
+        }
+        parsers.free();
+    }
 
     cout << endl << "==========================================================\n" ;
     cout << "Errors: " << (c_options.aggressive_errors ? unfilteredErrors : errors) << " Succeeded: "
@@ -330,12 +326,15 @@ bool RuntimeEngine::preprocess()
         keypair<string, List<string>> resolveMap;
         List<string> imports;
 
+        sourceFiles.addif(activeParser->sourcefile);
+        addScope(Scope(GLOBAL_SCOPE, NULL));
         for(unsigned long i = 0; i < activeParser->treesize(); i++)
         {
             Ast *ast = activeParser->ast_at(i);
 
             if(i == 0 && ast->getType() == ast_module_decl) {
-                add_module(currentModule = astToString(ast->getSubAst(0)));
+                add_module(currentModule = parseModuleName(ast));
+                imports.push_back(currentModule);
                 continue;
             } else if(i == 0)
                 errors->createNewError(GENERIC, ast->line, ast->col, "module declaration must be "
@@ -343,17 +342,18 @@ bool RuntimeEngine::preprocess()
 
             switch(ast->getType()) {
                 case ast_class_decl:
-                    processClassDecl(ast, NULL);
+                    processClassDecl(ast);
                     break;
                 case ast_import_decl:
-                    string import = getModuleName(ast->getSubAst(0));
-                    imports.push_back(import);
+                    imports.add(parseModuleName(ast));
                     break;
-                case ast_module_decl:
+                case ast_module_decl: /* fail-safe */
                     errors->createNewError(GENERIC, ast->line, ast->col, "file module cannot be declared more than once");
                     break;
                 default:
-                    errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, " unexpected ast type");
+                    stringstream err;
+                    err << ": unknown ast type: " << ast->getType();
+                    errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
                     break;
             }
         }
@@ -362,6 +362,10 @@ bool RuntimeEngine::preprocess()
     return success;
 }
 
+Scope* RuntimeEngine::addScope(Scope scope) {
+    scopeMap.push_back(scope);
+    return currentScope();
+}
 
 void RuntimeEngine::add_module(string name) {
     if(!module_exists(name)) {
@@ -378,8 +382,9 @@ bool RuntimeEngine::module_exists(string name) {
     return false;
 }
 
-string RuntimeEngine::astToString(Ast *ast) {
+string RuntimeEngine::parseModuleName(Ast *ast) {
     if(ast == NULL) return "";
+    ast = ast->getSubAst(0); // module_list
 
     stringstream str;
     for(long i = 0; i < ast->getEntityCount(); i++) {
@@ -397,7 +402,202 @@ string RuntimeEngine::getModuleName(Ast *ast) {
     return modulename.str();
 }
 
-void RuntimeEngine::processClassDecl(Ast *ast, ClassObject *parent)
+bool RuntimeEngine::isTokenAccessDecl(token_entity token) {
+    return
+            token.getId() == IDENTIFIER && token.getToken() == "protected" ||
+            token.getId() == IDENTIFIER && token.getToken() == "private" ||
+            token.getId() == IDENTIFIER && token.getToken() == "static" ||
+            token.getId() == IDENTIFIER && token.getToken() == "const" ||
+            token.getId() == IDENTIFIER && token.getToken() == "override" ||
+            token.getId() == IDENTIFIER && token.getToken() == "public";
+}
+
+AccessModifier RuntimeEngine::entityToModifier(token_entity entity) {
+    if(entity.getToken() == "public")
+        return PUBLIC;
+    else if(entity.getToken() == "private")
+        return PRIVATE;
+    else if(entity.getToken() == "protected")
+        return PROTECTED;
+    else if(entity.getToken() == "const")
+        return mCONST;
+    else if(entity.getToken() == "static")
+        return STATIC;
+    else if(entity.getToken() == "override")
+        return OVERRIDE;
+    return mUNDEFINED;
+}
+
+
+list<AccessModifier> RuntimeEngine::parseAccessModifier(Ast *ast) {
+    int iter=0;
+    list<AccessModifier> modifiers;
+
+    do {
+        modifiers.push_back(entityToModifier(ast->getEntity(iter++)));
+    }while(isTokenAccessDecl(ast->getEntity(iter)));
+
+    return modifiers;
+}
+
+bool RuntimeEngine::parseAccessDecl(Ast *ast, List<AccessModifier> &modifiers, int &startpos) {
+    if(ast == NULL) return false;
+
+    if(isTokenAccessDecl(ast->getEntity(0))) {
+        list<AccessModifier> mods = parseAccessModifier(ast);
+        modifiers.addAll(mods);
+        startpos+=modifiers.size();
+        return true;
+    }
+    return false;
+}
+
+void RuntimeEngine::parseClassAccessModifiers(List<AccessModifier> &modifiers, Ast* ast) {
+    if(modifiers.size() > 1)
+        this->errors->createNewError(GENERIC, ast->line, ast->col, "class objects only allows for a single access "
+                "specifier (public, private, protected)");
+    else {
+        AccessModifier mod = modifiers.at(0);
+
+        if(mod != PUBLIC && mod != PRIVATE && mod != PROTECTED)
+            this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->line, ast->col,
+                                   " `" + ast->getEntity(0).getToken() + "`");
+    }
+}
+
+bool RuntimeEngine::classExists(string module, string name) {
+    ClassObject* klass = NULL;
+    for(unsigned int i = 0; i < classes.size(); i++) {
+        klass = &classes.get(i);
+        if(klass->getName() == name) {
+            if(module != "")
+                return klass->getModuleName() == module;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool RuntimeEngine::addClass(ClassObject klass) {
+    if(!classExists(klass.getModuleName(), klass.getName())) {
+        classes.add(klass);
+        return true;
+    }
+    return false;
+}
+
+void RuntimeEngine::printNote(RuntimeNote& note, string msg) {
+    if(lastNoteMsg != msg && lastNote.getLine() != note.getLine())
+    {
+        cout << note.getNote(msg);
+        lastNoteMsg = msg;
+    }
+}
+
+ClassObject *RuntimeEngine::getClass(string module, string name) {
+    ClassObject* klass = NULL;
+    for(unsigned int i = 0; i < classes.size(); i++) {
+        klass = &classes.get(i);
+        if(klass->getName() == name) {
+            if(module != "" && klass->getModuleName() == module)
+                return klass;
+            else if(module == "")
+                return klass;
+        }
+    }
+
+    return NULL;
+}
+
+ClassObject *RuntimeEngine::addGlobalClassObject(string name, List<AccessModifier>& modifiers, Ast *pAst) {
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
+                                   pAst->line, pAst->col);
+
+    if(!this->addClass(ClassObject(name, currentModule, this->uniqueSerialId++,modifiers.get(0), note))){
+
+        this->errors->createNewError(PREVIOUSLY_DEFINED, pAst->line, pAst->col, "class `" + name +
+                                                                          "` is already defined in module {" + currentModule + "}");
+
+        printNote(this->getClass(currentModule, name)->note, "class `" + name + "` previously defined here");
+        return getClass(currentModule, name);
+    } else
+        return getClass(currentModule, name);
+}
+
+ClassObject *RuntimeEngine::addChildClassObject(string name, List<AccessModifier>& modifiers, Ast *ast, ClassObject* super) {
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
+                                   ast->line, ast->col);
+
+    if(!super->addChildClass(ClassObject(name,
+                                         currentModule, this->uniqueSerialId++, modifiers.get(0),
+                                         note, super))) {
+        this->errors->createNewError(DUPLICATE_CLASS, ast->line, ast->col, " '" + name + "'");
+
+        printNote(super->getChildClass(name)->note, "class `" + name + "` previously defined here");
+        return super->getChildClass(name);
+    } else
+        return super->getChildClass(name);
+}
+
+void RuntimeEngine::remove_scope() {
+    currentScope()->free();
+    scopeMap.pop_back();
+}
+
+void RuntimeEngine::processClassDecl(Ast *ast)
 {
+    Scope* scope = currentScope();
+    Ast* block = ast->getLastSubAst();
+    List<AccessModifier> modifiers;
+    ClassObject* currentClass;
+    int startPosition=1;
+
+    if(parseAccessDecl(ast, modifiers, startPosition)){
+        parseClassAccessModifiers(modifiers, ast);
+    } else {
+        modifiers.push_back(PUBLIC);
+    }
+
+    string className =  ast->getEntity(startPosition).getToken();
+
+    if(scope->klass == NULL)
+        currentClass = addGlobalClassObject(className, modifiers, ast);
+    else
+        currentClass = addChildClassObject(className, modifiers, ast, scope->klass);
+
+
+    addScope(Scope(CLASS_SCOPE, currentClass));
+    for(long i = 0; i < block->getSubAstCount(); i++) {
+        ast = block->getSubAst(i);
+
+        switch(ast->getType()) {
+            case ast_class_decl:
+                processClassDecl(ast);
+                break;
+            case ast_var_decl:
+               // partial_parse_var_decl(ast);
+                break;
+            case ast_method_decl: /* Will be parsed later */
+                break;
+            case ast_operator_decl: /* Will be parsed later */
+                break;
+            case ast_construct_decl: /* Will be parsed later */
+                break;
+            default:
+                stringstream err;
+                err << ": unknown ast type: " << ast->getType();
+                errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
+                break;
+        }
+    }
+    remove_scope();
+}
+
+void RuntimeEngine::generate() {
+
+}
+
+void RuntimeEngine::cleanup() {
 
 }

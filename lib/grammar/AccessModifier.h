@@ -24,6 +24,8 @@ enum AccessModifier
      * Function access modifiers
      */
     OVERRIDE,
+
+    mUNDEFINED
 };
 
 #endif //SHARP_ACCESSMODIFIER_H

@@ -9,7 +9,6 @@
 #include "../../stdimports.h"
 #include "Method.h"
 #include "Field.h"
-#include "NativeField.h"
 #include "AccessModifier.h"
 #include "OperatorOverload.h"
 #include "../util/keypair.h"
@@ -135,9 +134,9 @@ public:
     OperatorOverload* getPostDecOverload();
     OperatorOverload* getPreIncOverload();
     OperatorOverload* getPreDecOverload();
-    OperatorOverload* getOverload(_operator op, List<Param>& params, bool useBase =false);
-    OperatorOverload* getOverload(_operator op, int64_t _offset);
-    bool hasOverload(_operator op);
+    OperatorOverload* getOverload(Operator op, List<Param>& params, bool useBase =false);
+    OperatorOverload* getOverload(Operator op, int64_t _offset);
+    bool hasOverload(Operator op);
     bool addOperatorOverload(OperatorOverload overload);
 
     size_t fieldCount();
