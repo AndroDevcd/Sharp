@@ -313,6 +313,11 @@ void RuntimeEngine::compile()
     }
 }
 
+/**
+ * We need to know about all the classes & variables before we attempt
+ * to try to resolve anything
+ * @return
+ */
 bool RuntimeEngine::preprocess()
 {
     bool success = true;
@@ -342,7 +347,7 @@ bool RuntimeEngine::preprocess()
 
             switch(ast->getType()) {
                 case ast_class_decl:
-                    processClassDecl(ast);
+                    parseClassDecl(ast);
                     break;
                 case ast_import_decl:
                     imports.add(parseModuleName(ast));
@@ -357,7 +362,27 @@ bool RuntimeEngine::preprocess()
                     break;
             }
         }
+
+        resolveMap.set(activeParser->sourcefile, imports);
+        importMap.push_back(resolveMap);
+        if(errors->hasErrors()){
+            errorCount+= errors->getErrorCount();
+            unfilteredErrorCount+= errors->getUnfilteredErrorCount();
+
+            success = false;
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        } else {
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        }
+
+        errors->free();
+        delete (errors); this->errors = NULL;
+        remove_scope();
     }
+
+
 
     return success;
 }
@@ -391,15 +416,6 @@ string RuntimeEngine::parseModuleName(Ast *ast) {
         str << ast->getEntity(i).getToken();
     }
     return str.str();
-}
-
-string RuntimeEngine::getModuleName(Ast *ast) {
-    stringstream modulename;
-
-    for(int i = 0; i < ast->getEntityCount(); i++) {
-        modulename << ast->getEntity(i).getToken();
-    }
-    return modulename.str();
 }
 
 bool RuntimeEngine::isTokenAccessDecl(token_entity token) {
@@ -545,7 +561,7 @@ void RuntimeEngine::remove_scope() {
     scopeMap.pop_back();
 }
 
-void RuntimeEngine::processClassDecl(Ast *ast)
+void RuntimeEngine::parseClassDecl(Ast *ast)
 {
     Scope* scope = currentScope();
     Ast* block = ast->getLastSubAst();
@@ -573,10 +589,10 @@ void RuntimeEngine::processClassDecl(Ast *ast)
 
         switch(ast->getType()) {
             case ast_class_decl:
-                processClassDecl(ast);
+                parseClassDecl(ast);
                 break;
             case ast_var_decl:
-               // partial_parse_var_decl(ast);
+                parseVarDecl(ast);
                 break;
             case ast_method_decl: /* Will be parsed later */
                 break;
@@ -594,10 +610,97 @@ void RuntimeEngine::processClassDecl(Ast *ast)
     remove_scope();
 }
 
+void RuntimeEngine::parseVarDecl(Ast *ast)
+{
+    Scope* scope = currentScope();
+    List<AccessModifier> modifiers;
+    int startpos=0;
+
+
+    if(parseAccessDecl(ast, modifiers, startpos)){
+        parseVarAccessModifiers(modifiers, ast);
+    } else {
+        modifiers.push_back(PUBLIC);
+    }
+
+    string name =  ast->getEntity(startpos).getToken();
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
+                                   ast->line, ast->col);
+
+    if(!scope->klass->addField(Field(NULL, uniqueSerialId++, name, scope->klass, modifiers, note))) {
+        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                               "field `" + name + "` is already defined in the scope");
+        printNote(note, "field `" + name + "` previously defined here");
+    }
+}
+
+int RuntimeEngine::parseVarAccessSpecifiers(List<AccessModifier> &modifiers) {
+    for(long i = 0; i < modifiers.size(); i++) {
+        AccessModifier modifier = modifiers.get(i);
+        if(modifier > STATIC)
+            return i;
+    }
+
+    if(modifiers.get(0) <= PROTECTED) {
+        if(modifiers.size() > 3)
+            return (int)(modifiers.size() - 1);
+        else if(modifiers.size() == 2) {
+            if((modifiers.get(1) != mCONST
+                && modifiers.get(1) != STATIC))
+                return 1;
+        }
+        else if(modifiers.size() == 3) {
+            if(modifiers.get(1) != STATIC)
+                return 1;
+            if(modifiers.get(2) != mCONST)
+                return 2;
+        }
+    }
+    else if(modifiers.get(0) == STATIC) {
+        if(modifiers.size() > 2)
+            return (int)(modifiers.size() - 1);
+        else if(modifiers.size() == 2 && modifiers.get(1) != mCONST)
+            return 1;
+    }
+    else if(modifiers.get(0) == mCONST) {
+        if(modifiers.size() != 1)
+            return (int)(modifiers.size() - 1);
+    }
+    return -1;
+}
+
+void RuntimeEngine::parseVarAccessModifiers(List<AccessModifier> &modifiers, Ast *ast) {
+    if(modifiers.size() > 3)
+        this->errors->createNewError(GENERIC, ast->line, ast->col, "too many access specifiers");
+    else {
+        int result = parseVarAccessSpecifiers(modifiers);
+        switch(result) {
+            case -1:
+                break;
+            default:
+                this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->getEntity(result).getLine(),
+                                             ast->getEntity(result).getColumn(), " `" + ast->getEntity(result).getToken() + "`");
+                break;
+        }
+    }
+
+    if(!modifiers.find(PUBLIC) && !modifiers.find(PRIVATE)
+       && !modifiers.find(PROTECTED)) {
+        modifiers.push_back(PUBLIC);
+    }
+}
+
 void RuntimeEngine::generate() {
 
 }
 
 void RuntimeEngine::cleanup() {
+    freeList(parsers);
+    errors->free();
+    delete(errors); errors = NULL;
+    modules.free();
 
+    freeList(classes);
+    freeList(scopeMap);
+    sourceFiles.free();
 }

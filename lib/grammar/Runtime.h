@@ -26,7 +26,8 @@ public:
             scopeMap(),
             classes(),
             errorCount(0),
-            unfilteredErrorCount(0)
+            unfilteredErrorCount(0),
+            importMap()
     {
         this->parsers.addAll(parsers);
 
@@ -66,6 +67,7 @@ private:
     List<string> sourceFiles;
     List<Scope> scopeMap;
     List<ClassObject> classes;
+    List<keypair<string, List<string>>>  importMap;
     string exportFile;
     ErrorManager* errors;
     Parser* activeParser;
@@ -77,14 +79,19 @@ private:
     int64_t i64;
 
     void compile();
+
     bool preprocess();
 
     bool module_exists(string name);
+
     void add_module(string name);
+
     string parseModuleName(Ast *ast);
-    string getModuleName(Ast *ast);
-    void processClassDecl(Ast *ast);
+
+    void parseClassDecl(Ast *ast);
+
     Scope* addScope(Scope scope);
+
     bool isTokenAccessDecl(token_entity token);
 
     AccessModifier entityToModifier(token_entity entity);
@@ -108,6 +115,12 @@ private:
     ClassObject *addChildClassObject(string name, List<AccessModifier> &modifiers, Ast *ast, ClassObject *super);
 
     void remove_scope();
+
+    void parseVarDecl(Ast *ast);
+
+    void parseVarAccessModifiers(List<AccessModifier> &modifiers, Ast *ast);
+
+    int parseVarAccessSpecifiers(List<AccessModifier> &modifiers);
 };
 
 struct BranchTable {
