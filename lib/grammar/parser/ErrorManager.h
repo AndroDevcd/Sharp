@@ -100,6 +100,10 @@ public:
         warning=pe.warning;
     }
 
+    void free() {
+        error.clear();
+    }
+
     error_type id;
     string error;
     int line;

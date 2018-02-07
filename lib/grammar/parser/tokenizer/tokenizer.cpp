@@ -13,8 +13,8 @@
 
 #define current \
     ((cursor < len) ? \
-        toks[cursor] \
-    : toks[len-1]) \
+        toks.at(cursor) \
+    : toks.at(len-1)) \
 
 #define newline() \
     col = 0, line++;
@@ -27,7 +27,7 @@
 
 #define peek(forward) \
     (((cursor+forward) >= len || (cursor+forward) < 0) ? \
-        toks[len-1] : toks[cursor+forward])
+        toks.at(len-1) : toks.at(cursor+forward))
 
 #define issymbol(c) \
     (('+' == c) || ('-' == c) || \
@@ -629,13 +629,14 @@ void tokenizer::free() {
     this->col = 0;
     this->cursor = 0;
     this->len = 0;
+    empty.clear();
     this->errors->free();
     this->lines.free();
     this->entites.free();
     delete (this->errors); this->errors = NULL;
-    delete (this->toks); this->toks = NULL;
+    toks.clear();
 }
 
-const string tokenizer::getData() const {
-    return toks != NULL ? string(toks) : "";
+string &tokenizer::getData() {
+    return !toks.empty() ? toks : empty;
 }

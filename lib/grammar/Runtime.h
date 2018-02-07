@@ -19,7 +19,6 @@ public:
             exportFile(exportFile),
             modules(),
             parsers(),
-            uniqueSerialId(0),
             failedParsers(),
             succeededParsers(),
             sourceFiles(),
@@ -27,9 +26,11 @@ public:
             classes(),
             errorCount(0),
             unfilteredErrorCount(0),
-            importMap()
+            importMap(),
+            noteMessages()
     {
         this->parsers.addAll(parsers);
+        uniqueSerialId = 0;
 
         for(int i = 0; i < parsers.size(); i++)
         {
@@ -50,6 +51,16 @@ public:
             lst.get(i).free();
         }
         lst.free();
+    }
+
+    template<class T>
+    static void freeList(list<T> &lst)
+    {
+        for(T item : lst)
+        {
+            item.free();
+        }
+        lst.clear();
     }
 
     List<string> failedParsers;
@@ -76,6 +87,7 @@ private:
     /* One off variables */
     RuntimeNote lastNote;
     string lastNoteMsg;
+    List<string> noteMessages;
     int64_t i64;
 
     void compile();
@@ -311,7 +323,7 @@ struct Scope {
 
 
 #define progname "bootstrap"
-#define progvers "0.2.8"
+#define progvers "0.2.10"
 
 struct options {
     ~options()

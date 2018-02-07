@@ -10,6 +10,7 @@
 
 using namespace std;
 
+unsigned long RuntimeEngine::uniqueSerialId = 0;
 options c_options;
 Sharp versions;
 
@@ -504,10 +505,12 @@ bool RuntimeEngine::addClass(ClassObject klass) {
 }
 
 void RuntimeEngine::printNote(RuntimeNote& note, string msg) {
-    if(lastNoteMsg != msg && lastNote.getLine() != note.getLine())
+    if(lastNoteMsg != msg && lastNote.getLine() != note.getLine()
+            && !noteMessages.find(msg))
     {
         cout << note.getNote(msg);
         lastNoteMsg = msg;
+        noteMessages.push_back(msg);
     }
 }
 
@@ -572,7 +575,7 @@ void RuntimeEngine::parseClassDecl(Ast *ast)
     if(parseAccessDecl(ast, modifiers, startPosition)){
         parseClassAccessModifiers(modifiers, ast);
     } else {
-        modifiers.push_back(PUBLIC);
+        modifiers.add(PUBLIC);
     }
 
     string className =  ast->getEntity(startPosition).getToken();
@@ -620,7 +623,7 @@ void RuntimeEngine::parseVarDecl(Ast *ast)
     if(parseAccessDecl(ast, modifiers, startpos)){
         parseVarAccessModifiers(modifiers, ast);
     } else {
-        modifiers.push_back(PUBLIC);
+        modifiers.add(PUBLIC);
     }
 
     string name =  ast->getEntity(startpos).getToken();
@@ -686,7 +689,7 @@ void RuntimeEngine::parseVarAccessModifiers(List<AccessModifier> &modifiers, Ast
 
     if(!modifiers.find(PUBLIC) && !modifiers.find(PRIVATE)
        && !modifiers.find(PROTECTED)) {
-        modifiers.push_back(PUBLIC);
+        modifiers.add(PUBLIC);
     }
 }
 
@@ -695,12 +698,27 @@ void RuntimeEngine::generate() {
 }
 
 void RuntimeEngine::cleanup() {
-    freeList(parsers);
-    errors->free();
-    delete(errors); errors = NULL;
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        parsers.get(i)->free();
+    }
+    parsers.free();
+    if(errors != NULL)
+    {
+        errors->free();
+        delete(errors); errors = NULL;
+    }
     modules.free();
 
+    for(unsigned long i = 0; i < importMap.size(); i++) {
+        importMap.get(i).value.free();
+        importMap.get(i).key.clear();
+    }
+
+    importMap.free();
     freeList(classes);
     freeList(scopeMap);
     sourceFiles.free();
+    lastNoteMsg.clear();
+    exportFile.clear();
+    noteMessages.free();
 }

@@ -6,6 +6,7 @@
 #include <sstream>
 #include "../../util/keypair.h"
 #include "Ast.h"
+#include "../Runtime.h"
 
 void initalizeErrors()
 {
@@ -217,7 +218,6 @@ void ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
     if(shouldReport(NULL, last_err, e))
     {
         if(asis) {
-            lastError = e;
             printError(e);
         } else if(cm) {
             getPossibleErrorList()->push_back(e);
@@ -324,15 +324,21 @@ void ErrorManager::pass() {
 void ErrorManager::free() {
     this->cm = false;
     this->_err = false;
-    this->lastCheckedError = ParseError();
-    this->lastError = ParseError();
+    this->lastCheckedError.free();
+    this->lastError.free();
     this->lines.free();
-    this->errors->clear();
-    this->warnings->clear();
-    this->possibleErrors->clear();
+    RuntimeEngine::freeList(*errors);
+    RuntimeEngine::freeList(*warnings);
+    RuntimeEngine::freeList(*unfilteredErrors);
+    for(std::list<ParseError>* lst : *possibleErrors) {
+        RuntimeEngine::freeList(*lst);
+        delete (lst);
+    }
+    possibleErrors->clear();
     delete (errors); this->errors = NULL;
     delete (warnings); this->warnings = NULL;
     delete (possibleErrors); this->possibleErrors = NULL;
+    delete (unfilteredErrors); this->unfilteredErrors = NULL;
 }
 
 bool ErrorManager::hasError(list <ParseError> *e, const ParseError &perror) const {

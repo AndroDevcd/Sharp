@@ -28,7 +28,7 @@ Method* ClassObject::getConstructor(int p) {
 
 Method *ClassObject::getConstructor(List<Param>& params, bool useBase) {
     for(unsigned long i = 0; i < constructors.size(); i++) {
-        if(Param::match(constructors.get(i).getParams(), params))
+        if(Param::match(*constructors.get(i).getParams(), params))
             return &constructors.get(i);
     }
 
@@ -56,7 +56,7 @@ Method* ClassObject::getFunction(int p) {
 
 Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase) {
     for(unsigned long i = 0; i < functions.size(); i++) {
-        if(Param::match(functions.get(i).getParams(), params) && name == functions.get(i).getName())
+        if(Param::match(*functions.get(i).getParams(), params) && name == functions.get(i).getName())
             return &functions.get(i);
     }
 
@@ -174,7 +174,7 @@ OperatorOverload *ClassObject::getOverload(Operator op, List<Param> &params, boo
 
 
     if(useBase && base != NULL)
-        return base->getOverload(op, params, useBase;
+        return base->getOverload(op, params, useBase);
 
     return NULL;
 }

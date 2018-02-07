@@ -16,6 +16,8 @@ class tokenizer
 public:
     tokenizer(const string tokens, const string file)
             :
+            toks(""),
+            empty(""),
             len(tokens.size()),
             cursor(0),
             col(0),
@@ -27,10 +29,9 @@ public:
         EOF_token = new token_entity("", SINGLE, 0, line, _EOF);
 
         if(!tokens.empty()) {
-            toks = new char[tokens.size()];
-            strcpy(toks, tokens.c_str());
+            toks = tokens;
         } else {
-            toks = NULL;
+            toks = "";
             len = 0;
         }
 
@@ -41,7 +42,7 @@ public:
     List<token_entity>& getEntities();
     ErrorManager* getErrors();
     List<string>& getLines();
-    const string getData() const;
+    string &getData();
 
     string file;
     token_entity* EOF_token;
@@ -56,7 +57,7 @@ private:
     List<token_entity> entites;
     ErrorManager* errors;
     List<string> lines;
-    char* toks;
+    string toks, empty;
     unsigned long len;
     unsigned long cursor;
     int line;
