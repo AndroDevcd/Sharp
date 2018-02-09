@@ -11,6 +11,8 @@
 #include "ClassObject.h"
 
 struct Scope;
+class ReferencePointer;
+class ResolvedReference;
 
 class RuntimeEngine {
 public:
@@ -27,7 +29,9 @@ public:
             errorCount(0),
             unfilteredErrorCount(0),
             importMap(),
-            noteMessages()
+            noteMessages(),
+            resolvedFields(false),
+            classSize(0)
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
@@ -83,6 +87,8 @@ private:
     ErrorManager* errors;
     Parser* activeParser;
     string currentModule;
+    bool resolvedFields;
+    unsigned long classSize;
 
     /* One off variables */
     RuntimeNote lastNote;
@@ -126,13 +132,84 @@ private:
 
     ClassObject *addChildClassObject(string name, List<AccessModifier> &modifiers, Ast *ast, ClassObject *super);
 
-    void remove_scope();
+    void removeScope();
 
     void parseVarDecl(Ast *ast);
 
     void parseVarAccessModifiers(List<AccessModifier> &modifiers, Ast *ast);
 
     int parseVarAccessSpecifiers(List<AccessModifier> &modifiers);
+
+    void resolveAllFields();
+
+    void resolveClassDecl(Ast *ast);
+
+    ReferencePointer parseReferencePtr(Ast *ast);
+
+    ResolvedReference resolveReferencePointer(ReferencePointer &ptr);
+
+    ClassObject *tryClassResolve(string moduleName, string name);
+
+    ClassObject *resolveClassRefrence(Ast *ast, ReferencePointer &ptr);
+
+    bool expectReferenceType(ResolvedReference refrence, FieldType expectedType, bool method, Ast *ast);
+
+    ClassObject *parseBaseClass(Ast *ast, int startpos);
+};
+
+class ReferencePointer {
+public:
+    ReferencePointer() {
+        classHeiarchy.init();
+        module = "";
+        referenceName = "";
+    }
+
+    void operator=(ReferencePointer ptr) {
+        this->module = ptr.module;
+        this->referenceName = ptr.referenceName;
+
+        this->classHeiarchy.addAll(ptr.classHeiarchy);
+    }
+
+    void free() {
+        classHeiarchy.free();
+        referenceName.clear();
+        module.clear();
+    }
+
+    bool singleRefrence() {
+        return module == "" && classHeiarchy.size() == 0;
+    }
+
+    bool singleRefrenceModule() {
+        return module != "" && classHeiarchy.size() == 0;
+    }
+
+    void print() {
+        // dev code
+        cout << "refrence pointer -----" << endl;
+        cout << "id: " << referenceName << endl;
+        cout << "mod: " << module << endl;
+        cout << "class: ";
+        for(int i = 0; i < classHeiarchy.size(); i++)
+            cout << classHeiarchy.at(i) << ".";
+        cout << endl;
+    }
+
+    string module;
+    List<string> classHeiarchy;
+    string referenceName;
+
+    string toString() {
+        stringstream ss;
+        if(module != "")
+            ss << module << "#";
+        for(int i = 0; i < classHeiarchy.size(); i++)
+            ss << classHeiarchy.at(i) << ".";
+        ss << referenceName << endl;
+        return ss.str();
+    }
 };
 
 struct BranchTable {
@@ -175,7 +252,7 @@ struct Scope {
             klass(NULL),
             self(false),
             base(false),
-            function(NULL),
+            currentFunction(NULL),
             blocks(0),
             loops(0),
             trys(0),
@@ -194,7 +271,7 @@ struct Scope {
             klass(klass),
             self(false),
             base(false),
-            function(NULL),
+            currentFunction(NULL),
             blocks(0),
             loops(0),
             trys(0),
@@ -213,7 +290,7 @@ struct Scope {
             klass(klass),
             self(false),
             base(false),
-            function(func),
+            currentFunction(func),
             blocks(0),
             loops(0),
             trys(0),
@@ -281,7 +358,7 @@ struct Scope {
 
     ScopeType type;
     ClassObject* klass;
-    Method* function;
+    Method* currentFunction;
     List<keypair<int, Field>> locals;
     List<keypair<std::string, int64_t>> label_map;
     List<BranchTable> branches;
@@ -317,6 +394,63 @@ struct Scope {
             }
         }
     }
+};
+
+class ResolvedReference {
+public:
+    ResolvedReference()
+            :
+            type(UNDEFINED),
+            field(NULL),
+            method(NULL),
+            klass(NULL),
+            oo(NULL),
+            referenceName(""),
+            array(false),
+            resolved(false),
+            isMethod(false)
+    {
+    }
+
+    static string typeToString(FieldType type) {
+        if(type==CLASS)
+            return "class";
+        else if(type==OBJECT)
+            return "object";
+        else if(type==VAR)
+            return "var";
+        else if(type==TYPEVOID)
+            return "void";
+        else if(type==UNDEFINED)
+            return "undefined";
+        else
+            return "unresolved";
+    }
+
+    string typeToString() {
+        if(isMethod)
+            return "method";
+        else if(type==CLASS)
+            return "class";
+        else if(type==OBJECT)
+            return "object";
+        else if(type==VAR)
+            return "var";
+        else if(type==TYPEVOID)
+            return "void";
+        else if(type==UNDEFINED)
+            return "undefined";
+        else
+            return "unresolved";
+    }
+
+    string referenceName;
+    bool array, isMethod, resolved;
+    FieldType type;
+    ClassObject* klass;
+    Field* field;
+    Method* method;
+    OperatorOverload* oo;
 };
 
 #define currentScope() (scopeMap.empty() ? NULL : &scopeMap.last())

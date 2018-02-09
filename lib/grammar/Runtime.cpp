@@ -310,7 +310,7 @@ void exec_runtime(List<string>& files)
 void RuntimeEngine::compile()
 {
     if(preprocess()) {
-
+        resolveAllFields();
     }
 }
 
@@ -380,12 +380,276 @@ bool RuntimeEngine::preprocess()
 
         errors->free();
         delete (errors); this->errors = NULL;
-        remove_scope();
+        removeScope();
     }
 
 
 
     return success;
+}
+
+void RuntimeEngine::resolveAllFields() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        activeParser = parsers.get(i);
+        errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
+        currentModule = "$unknown";
+
+        addScope(Scope(GLOBAL_SCOPE, NULL));
+        for(int i = 0; i < activeParser->treesize(); i++) {
+            Ast* ast = activeParser->ast_at(i);
+
+            if(i==0) {
+                if(ast->getType() == ast_module_decl) {
+                    add_module(currentModule = parseModuleName(ast));
+                    continue;
+                }
+            }
+
+            switch(ast->getType()) {
+                case ast_class_decl:
+                    resolveClassDecl(ast);
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+        }
+
+        if(errors->hasErrors()){
+            errorCount+= errors->getErrorCount();
+            unfilteredErrorCount+= errors->getUnfilteredErrorCount();
+
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        } else {
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        }
+
+        errors->free();
+        delete (errors); this->errors = NULL;
+        removeScope();
+    }
+}
+
+ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast) {
+    ast = ast->getSubAst(ast_refrence_pointer);
+    bool hashfound = false, last, hash = ast->hasEntity(HASH);
+    string id="";
+    ReferencePointer ptr;
+
+    for(long i = 0; i < ast->getEntityCount(); i++) {
+        id = ast->getEntity(i).getToken();
+        last = i + 1 >= ast->getEntityCount();
+
+        if(id == ".")
+            continue;
+        else if(id == "#") {
+            hashfound = true;
+            continue;
+        }
+
+        if(hash && !hashfound && !last) {
+            if(ptr.module == "")
+                ptr.module =id;
+            else
+                ptr.module += "." + id;
+        } else if(!last) {
+            ptr.classHeiarchy.push_back(id);
+        } else {
+            ptr.referenceName = id;
+        }
+    }
+
+    return ptr;
+}
+
+ClassObject* RuntimeEngine::tryClassResolve(string moduleName, string name) {
+    ClassObject* klass = NULL;
+
+    if((klass = getClass(moduleName, name)) == NULL) {
+        for(unsigned int i = 0; i < importMap.size(); i++) {
+            if(importMap.get(i).key == activeParser->sourcefile) {
+
+                List<string>& lst = importMap.get(i).value;
+                for(unsigned int x = 0; x < lst.size(); x++) {
+                    if((klass = getClass(lst.get(i), name)) != NULL)
+                        return klass;
+                }
+
+                break;
+            }
+        }
+    }
+
+    return klass;
+}
+
+ResolvedReference RuntimeEngine::resolveReferencePointer(ReferencePointer &ptr) {
+    ResolvedReference reference;
+
+    if(ptr.classHeiarchy.size() == 0) {
+        ClassObject* klass = tryClassResolve(ptr.module, ptr.referenceName);
+        if(klass == NULL) {
+            reference.type = UNDEFINED;
+            reference.referenceName = ptr.referenceName;
+        } else {
+            reference.type = CLASS;
+            reference.klass = klass;
+            reference.resolved = true;
+        }
+    } else {
+        ClassObject* klass = tryClassResolve(ptr.module, ptr.classHeiarchy.get(0));
+        if(klass == NULL) {
+            reference.type = UNDEFINED;
+            reference.referenceName = ptr.classHeiarchy.get(0);
+        } else {
+            ClassObject* childClass = NULL;
+            string className;
+            for(size_t i = 1; i < ptr.classHeiarchy.size(); i++) {
+                className = ptr.classHeiarchy.get(i);
+
+                if((childClass = klass->getChildClass(className)) == NULL) {
+                    reference.type = UNDEFINED;
+                    reference.referenceName = className;
+                    return reference;
+                } else {
+                    klass = childClass;
+                }
+
+            }
+
+            if(childClass != NULL) {
+                if(childClass->getChildClass(ptr.referenceName) != NULL) {
+                    reference.type = CLASS;
+                    reference.klass = klass->getChildClass(ptr.referenceName);
+                    reference.resolved = true;
+                } else {
+                    reference.type = UNDEFINED;
+                    reference.referenceName = ptr.referenceName;
+                }
+            } else {
+                if(klass->getChildClass(ptr.referenceName) != NULL) {
+                    reference.type = CLASS;
+                    reference.klass = klass->getChildClass(ptr.referenceName);
+                    reference.resolved = true;
+                } else {
+                    reference.type = UNDEFINED;
+                    reference.referenceName = ptr.referenceName;
+                }
+            }
+        }
+    }
+
+    return reference;
+}
+
+bool RuntimeEngine::expectReferenceType(ResolvedReference refrence, FieldType expectedType, bool method, Ast *ast) {
+    if(refrence.type == expectedType && refrence.isMethod==method)
+        return true;
+
+    errors->createNewError(EXPECTED_REFRENCE_OF_TYPE, ast->line, ast->col, " '" + (method ? "method" : ResolvedReference::typeToString(expectedType)) + "' instead of '" +
+                                                                       refrence.typeToString() + "'");
+    return false;
+}
+
+ClassObject* RuntimeEngine::resolveClassRefrence(Ast *ast, ReferencePointer &ptr) {
+    ResolvedReference resolvedRefrence = resolveReferencePointer(ptr);
+    ast = ast->getSubAst(ast_refrence_pointer);
+
+    if(!resolvedRefrence.resolved) {
+        errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col, " `" + resolvedRefrence.referenceName + "` " +
+                                                                   (ptr.module == "" ? "" : "in module {" + ptr.module + "} "));
+    } else {
+
+        if(expectReferenceType(resolvedRefrence, CLASS, false, ast)) {
+            return resolvedRefrence.klass;
+        }
+    }
+
+    return NULL;
+}
+
+ClassObject *RuntimeEngine::parseBaseClass(Ast *ast, int startpos) {
+    Scope* scope = currentScope();
+    ClassObject* klass=NULL;
+
+    if(startpos >= ast->getEntityCount()) {
+        return NULL;
+    } else {
+        ReferencePointer ptr = parseReferencePtr(ast);
+        klass = resolveClassRefrence(ast, ptr);
+
+        if(klass != NULL) {
+            if((scope->klass->getHeadClass() != NULL && scope->klass->getHeadClass()->isCurcular(klass)) ||
+               scope->klass->match(klass) || klass->match(scope->klass->getHeadClass())) {
+                errors->createNewError(GENERIC, ast->getSubAst(0)->line, ast->getSubAst(0)->col,
+                                 "cyclic dependency of class `" + ptr.referenceName + "` in parent class `" + scope->klass->getName() + "`");
+            }
+        }
+    }
+
+    return klass;
+}
+
+void RuntimeEngine::resolveClassDecl(Ast* ast) {
+    Scope* scope = currentScope();
+    Ast* block = ast->getSubAst(ast_block), *trunk;
+    List<AccessModifier> modifiers;
+    ClassObject* klass;
+    int startpos=1;
+
+    parseAccessDecl(ast, modifiers, startpos);
+    string name =  ast->getEntity(startpos).getToken();
+
+    if(scope->type == GLOBAL_SCOPE) {
+        klass = getClass(currentModule, name);
+        klass->setFullName(currentModule + "#" + name);
+    }
+    else {
+        klass = scope->klass->getChildClass(name);
+        klass->setFullName(scope->klass->getFullName() + "." + name);
+    }
+
+    if(resolvedFields)
+        klass->address = classSize++;
+
+    addScope(Scope(CLASS_SCOPE, klass));
+    klass->setBaseClass(parseBaseClass(ast, ++startpos));
+    for(long i = 0; i < block->getSubAstCount(); i++) {
+        trunk = block->getSubAst(i);
+
+        switch(trunk->getType()) {
+            case ast_class_decl:
+                resolveClassDecl(trunk);
+                break;
+            case ast_var_decl:
+                if(!resolvedFields)
+                    resolveVarDecl(trunk);
+                break;
+            case ast_method_decl:
+                if(resolvedFields)
+                    resolveMethodDecl(trunk);
+                break;
+            case ast_operator_decl:
+                if(resolvedFields)
+                    resolveOperatorDecl(trunk);
+                break;
+            case ast_construct_decl:
+                if(resolvedFields)
+                    resolveConstructorDecl(trunk);
+                break;
+            default:
+                stringstream err;
+                err << ": unknown ast type: " << trunk->getType();
+                errors->createNewError(INTERNAL_ERROR, trunk->line, trunk->col, err.str());
+                break;
+        }
+    }
+
+    if(resolvedFields)
+        addDefaultConstructor(klass, ast);
+    removeScope();
 }
 
 Scope* RuntimeEngine::addScope(Scope scope) {
@@ -559,7 +823,7 @@ ClassObject *RuntimeEngine::addChildClassObject(string name, List<AccessModifier
         return super->getChildClass(name);
 }
 
-void RuntimeEngine::remove_scope() {
+void RuntimeEngine::removeScope() {
     currentScope()->free();
     scopeMap.pop_back();
 }
@@ -575,7 +839,7 @@ void RuntimeEngine::parseClassDecl(Ast *ast)
     if(parseAccessDecl(ast, modifiers, startPosition)){
         parseClassAccessModifiers(modifiers, ast);
     } else {
-        modifiers.add(PUBLIC);
+        modifiers.add(PROTECTED);
     }
 
     string className =  ast->getEntity(startPosition).getToken();
@@ -610,7 +874,7 @@ void RuntimeEngine::parseClassDecl(Ast *ast)
                 break;
         }
     }
-    remove_scope();
+    removeScope();
 }
 
 void RuntimeEngine::parseVarDecl(Ast *ast)
