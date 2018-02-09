@@ -155,6 +155,110 @@ private:
     bool expectReferenceType(ResolvedReference refrence, FieldType expectedType, bool method, Ast *ast);
 
     ClassObject *parseBaseClass(Ast *ast, int startpos);
+
+    void resolveVarDecl(Ast *ast);
+
+    Expression parseUtype(Ast *ast);
+
+    ReferencePointer parseTypeIdentifier(Ast *ast);
+
+    FieldType tokenToNativeField(string entity);
+};
+
+enum expression_type {
+    expression_var=1,
+    expression_class=3,
+    expression_objectclass=5,
+    expression_expression=7,
+    expression_string=8,
+    expression_native=9,
+    expression_field=10,
+    expression_lclass=11,
+    expression_void=12,
+    expression_unresolved=13,
+    expression_null=14,
+    expression_unknown=0x900f
+};
+
+struct Expression {
+    Expression()
+            :
+            type(expression_unknown),
+            utype(),
+            code(),
+            dot(false),
+            link(NULL),
+            newExpression(false),
+            func(false),
+            intValue(0),
+            value(""),
+            literal(false),
+            arrayElement(false),
+            boolExpressions()
+    {
+    }
+
+    Expression(Ast* pAst)
+            :
+            type(expression_unknown),
+            utype(),
+            code(),
+            dot(false),
+            link(pAst),
+            newExpression(false),
+            func(false),
+            intValue(0),
+            value(""),
+            literal(false),
+            arrayElement(false),
+            boolExpressions()
+    {
+    }
+
+    void utype_refrence_toexpression(ResolvedReference ref);
+
+    expression_type type;
+    ResolvedReference utype;
+    Assembler code;
+    Ast* link;
+    bool dot, newExpression, func, literal, arrayElement;
+    string value;
+    double intValue;
+    List<long> boolExpressions;
+
+    bool arrayObject() {
+        switch(type) {
+            case expression_field:
+                return utype.field->array;
+            default:
+                return utype.array;
+        }
+    }
+    string typeToString();
+    void free() {
+        utype.free();
+        boolExpressions.free();
+        code.free();
+        *this=(Expression());
+    }
+
+    void operator=(Expression e);
+
+    void inject(Expression &expression);
+};
+
+struct Block {
+    Block()
+            :
+            code()
+    {
+    }
+
+    Assembler code;
+
+    void free() {
+        code.free();
+    }
 };
 
 class ReferencePointer {
@@ -443,6 +547,12 @@ public:
         else
             return "unresolved";
     }
+
+    void free() {
+        referenceName.clear();
+    }
+
+    bool isNative() { return type==VAR || type==OBJECT; }
 
     string referenceName;
     bool array, isMethod, resolved;

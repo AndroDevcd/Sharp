@@ -592,6 +592,129 @@ ClassObject *RuntimeEngine::parseBaseClass(Ast *ast, int startpos) {
     return klass;
 }
 
+string Expression::typeToString() {
+    switch(type) {
+        case expression_string:
+            return "var[]";
+        case expression_unresolved:
+            return "?";
+        case expression_var:
+            return string("var") + (utype.array ? "[]" : "");
+        case expression_lclass:
+            return utype.typeToString();
+        case expression_native:
+            return utype.typeToString();
+        case expression_unknown:
+            return "?";
+        case expression_class:
+            return utype.typeToString();
+        case expression_void:
+            return "void";
+        case expression_objectclass:
+            return "object";
+        case expression_field:
+            return utype.typeToString();
+        case expression_null:
+            return "null";
+    }
+    return utype.typeToString();
+}
+
+void Expression::operator=(Expression expression) {
+    this->type=expression.type;
+    this->newExpression=expression.newExpression;
+
+    this->code.free();
+    this->code.inject(0, expression.code);
+    this->dot=expression.dot;
+    this->func=expression.func;
+    this->intValue=expression.intValue;
+    this->literal=expression.literal;
+    this->link = expression.link;
+    this->utype  = expression.utype;
+    this->value = expression.value;
+    this->arrayElement = expression.arrayElement;
+    this->boolExpressions.addAll(expression.boolExpressions);
+}
+
+void Expression::inject(Expression &expression) {
+    this->code.inject(this->code.size(), expression.code);
+}
+
+ReferencePointer RuntimeEngine::parseTypeIdentifier(Ast *ast) {
+    ast = ast->getSubAst(ast_type_identifier);
+
+    if(ast->getSubAstCount() == 0) {
+        ReferencePointer ptr;
+        ptr.referenceName = ast->getEntity(0).getToken();
+        return ptr;
+    } else
+        return parseReferencePtr(ast);
+}
+
+FieldType RuntimeEngine::tokenToNativeField(string entity) {
+    if(entity == "var")
+        return VAR;
+    else if(entity == "object")
+        return OBJECT;
+    return UNDEFINED;
+}
+
+Expression RuntimeEngine::parseUtype(Ast* ast) {
+    ast = ast->getSubAst(ast_utype);
+
+    ReferencePointer ptr=parseTypeIdentifier(ast);
+    Expression expression;
+
+    if(ptr.singleRefrence() && Parser::isnative_type(ptr.referenceName)) {
+        expression.utype.type = tokenToNativeField(ptr.referenceName);
+        expression.type = expression_native;
+        expression.utype.referenceName = ptr.toString();
+
+        if(ast->hasEntity(LEFTBRACE) && ast->hasEntity(RIGHTBRACE)) {
+            expression.utype.array = true;
+        }
+
+        expression.link = ast;
+        ptr.free();
+        return expression;
+    }
+
+    resolveUtype(ptr, expression, ast);
+
+    if(ast->hasEntity(LEFTBRACE) && ast->hasEntity(RIGHTBRACE)) {
+        expression.utype.array = true;
+    }
+
+    expression.link = ast;
+    expression.utype.referenceName = ptr.toString();
+    ptr.free();
+    return expression;
+}
+
+void RuntimeEngine::resolveVarDecl(Ast* ast) {
+    Scope* scope = currentScope();
+    List<AccessModifier> modifiers;
+    int startpos=0;
+
+    parseAccessDecl(ast, modifiers, startpos);
+    string name =  ast->getEntity(startpos).getToken();
+    Field* field = scope->klass->getField(name);
+    Expression expression = parseUtype(ast);
+    if(expression.utype.type == ResolvedReference::CLASS) {
+        field->klass = expression.utype.klass;
+        field->type = field_class;
+    } else if(expression.utype.type == ResolvedReference::NATIVE) {
+        field->nf = expression.utype.nf;
+        field->type = field_native;
+    } else {
+        field->type = field_unresolved;
+    }
+
+    field->array = expression.utype.array;
+    field->vaddr = scope->klass->getFieldIndex(name);
+}
+
 void RuntimeEngine::resolveClassDecl(Ast* ast) {
     Scope* scope = currentScope();
     Ast* block = ast->getSubAst(ast_block), *trunk;
