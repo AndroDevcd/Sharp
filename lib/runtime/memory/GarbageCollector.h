@@ -85,6 +85,8 @@ public:
      */
     void freeObject(Object* object);
 
+    bool spaceAvailable(size_t i);
+
 private:
     unsigned long managedBytes;
     unsigned long memoryLimit;

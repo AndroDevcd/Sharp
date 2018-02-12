@@ -21,9 +21,12 @@ public:
     }
 
     void init(unsigned long inital){
-        _Data=NULL;
-        len=inital;
-        __expand();
+        if(inital > 0) {
+            _Data=NULL;
+            len=inital;
+            __expand();
+        } else
+            init();
     }
 
     void push_back(T& data) {

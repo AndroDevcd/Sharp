@@ -12,10 +12,13 @@ void* __malloc(size_t bytes)
     void* ptr =NULL;
     bool gc=false;
     alloc_bytes:
+    if(!self->spaceAvailable(bytes))
+        goto lowmem;
     ptr=malloc(bytes);
 
     if(GarbageCollector::self != NULL && ptr == NULL) {
         if(gc) {
+            lowmem:
             throw Exception("out of memory");
         } else {
             gc = true;
@@ -31,10 +34,13 @@ void* __calloc(size_t n, size_t bytes)
     void* ptr =NULL;
     bool gc=false;
     alloc_bytes:
+    if(!self->spaceAvailable(bytes))
+        goto lowmem;
     ptr=calloc(n, bytes);
 
     if(ptr == NULL) {
         if(gc) {
+            lowmem:
             throw Exception("out of memory");
         } else {
             gc=true;
@@ -50,10 +56,13 @@ void* __realloc(void *ptr, size_t bytes)
     void* rmap =NULL;
     bool gc=false;
     alloc_bytes:
+    if(!self->spaceAvailable(bytes))
+        goto lowmem;
     rmap=realloc(ptr, bytes);
 
     if(rmap == NULL) {
         if(gc) {
+            lowmem:
             throw Exception("out of memory");
         } else {
             gc=true;
@@ -356,4 +365,8 @@ unsigned long GarbageCollector::collect(SharpObject *object) {
 
 unsigned long GarbageCollector::collectMappedClass(SharpObject *pObject, ClassObject *pClassObject) {
     return 0;
+}
+
+bool GarbageCollector::spaceAvailable(size_t bytes) {
+    return (bytes+managedBytes) < memoryLimit;
 }
