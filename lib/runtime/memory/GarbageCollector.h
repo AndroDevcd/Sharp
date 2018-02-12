@@ -6,26 +6,51 @@
 #define SHARP_GARBAGECOLLECTOR_H
 
 #include "../Mutex.h"
+#include "../List.h"
 
 enum CollectionPolicy
 {
-    GC_LOW,
-    GC_CONCURRENT,
-    GC_EXPLICIT
+    GC_LOW          =0x001,
+    GC_CONCURRENT   =0x002,
+    GC_EXPLICIT     =0x003
 };
 
-class Object;
+enum CollectionGeneration
+{
+    gc_young = 0,
+    gc_adult = 1,
+    gc_old   = 2
+};
+
+struct Object;
 struct SharpObject;
+class ClassObject;
 
 class GarbageCollector {
 public:
     static GarbageCollector *self;
-    CollectionPolicy policy;
-    Mutex mutex, threadMutex;
+    Mutex mutex;
+    List<CollectionPolicy> messageQueue;
 
     void initilize();
     void shutdown();
-    void start();
+    static
+#ifdef WIN32_
+    DWORD WINAPI
+#endif
+#ifdef POSIX_
+    void*
+#endif
+    threadStart(void *);
+    void run();
+
+    /**
+     * Messages are sendable by other threads to command the garbage collector
+     * to preform a certain type of garbage collection. Most of the time the user
+     * will not have to do this
+     * @param message
+     */
+    void sendMessage(CollectionPolicy message);
 
     /**
      * @Policy: GC_LOW
@@ -39,19 +64,63 @@ public:
      * @Policy: GC_CONCURRENT
      * Concurrent collections will occur as the GC
      */
-    void collect();
+    void collect(CollectionPolicy policy);
 
-    Object* newObject(unsigned long size); /* Array allocation */
-    Object* newObject(unsigned long size, ClassObject* k); /* Class allocation */
+    SharpObject* newObject(unsigned long size); /* Array allocation */
+    SharpObject* newObject(unsigned long size, ClassObject* k); /* Class allocation */
+
+    /**
+     * Function call by virtual machine
+     * @param object
+     */
+    void freeObject(Object* object);
 
 private:
     unsigned long managedBytes;
     unsigned long memoryLimit;
+
+    /**
+     * This will keep track of our different generations and the
+     * objects that are living in them.
+     *
+     * @youngObjects: This will hold the total running count of objects
+     * living in that generation
+     *
+     * @yObjs: This is the amount of dropped objects in each generation since collection.
+     * This does not mean that if there are 100 objects dropped that every one will be freed
+     * its just an estimate
+     */
+    unsigned long youngObjects,  yObjs;     /* collect when 10% has been dropped */
+    unsigned long adultObjects,  aObjs;     /* collect when 40% has been dropped */
+    unsigned long oldObjects,    oObjs;     /* collect when 20% has been dropped */
     List<SharpObject*> heap;
 
-    void freeObject(Object* object);
-
+    void collectYoungObjects();
+    void collectAdultObjects();
+    void collectOldObjects();
+    void collect(SharpObject *object);
 };
+
+#define GC_SLEEP_INTERVAL 10
+
+/**
+ * This number must be low considering that the Garbage collector will
+ * not be collecting data every second. We want the garbage collector
+ * to be asleep as much as possible.
+ */
+#define GC_SPIN_MULTIPLIER 512
+
+#define GC_COLLECT_YOUNG() ( (unsigned int)(((double)yObjs/(double)youngObjects)*100) >= 10 )
+#define GC_COLLECT_ADULT() ( (unsigned int)(((double)aObjs/(double)adultObjects)*100) >= 40 )
+#define GC_COLLECT_OLD() ( (unsigned int)(((double)oObjs/(double)oldObjects)*100) >= 20 )
+#define GC_HEAP_LIMIT (BYTES_TO_MB(1))
+
+/**
+ * Bytes are used via the JEDEC Standard 100B.01
+ */
+#define KB_TO_BYTES(bytes) (((unsigned long)bytes)*1024)
+#define MB_TO_BYTES(bytes) (KB_TO_BYTES(bytes)*1048576)
+#define GB_TO_BYTES(bytes) (MB_TO_BYTES(bytes)*1073741824)
 
 
 #endif //SHARP_GARBAGECOLLECTOR_H

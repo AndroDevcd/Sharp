@@ -27,8 +27,9 @@ struct SharpObject
     /* info */
     ClassObject* k;
     unsigned long size;
-    long refCount;
+    unsigned int refCount : 32;
     Mutex mutex;
+    unsigned int generation : 3; /* collection generation */
 };
 
 /**

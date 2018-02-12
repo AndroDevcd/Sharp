@@ -6,10 +6,10 @@
 #include "Thread.h"
 
 void Mutex::release() {
-    if(status == monitor_free)
+    if(status == mutex_free)
         return;
 
-    status = monitor_free;
+    status = mutex_free;
     threadid = -1;
 }
 
@@ -32,7 +32,7 @@ bool Mutex::acquire(int32_t spins) {
     } else {
 
         threadid = thread_self->id;
-        status = monitor_busy;
+        status = mutex_busy;
         return true;
     }
 }

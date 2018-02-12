@@ -11,8 +11,8 @@
 #define INDEFINITE 0
 
 enum LockStatus {
-    monitor_busy=0x1,
-    monitor_free=0x0
+    mutex_busy=0x1,
+    mutex_free=0x0
 };
 
 class Mutex {
@@ -20,7 +20,7 @@ public:
     Mutex()
     :
             threadid(-1),
-            status(monitor_free)
+            status(mutex_free)
     {
     }
 
@@ -31,7 +31,7 @@ public:
 
     CXX11_INLINE
     bool locked() {
-        return status == monitor_busy;
+        return status == mutex_busy;
     }
 
     void _thread_wait_for_lock(int32_t);
