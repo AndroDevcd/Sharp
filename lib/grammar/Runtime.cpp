@@ -711,7 +711,7 @@ void RuntimeEngine::resolveVarDecl(Ast* ast) {
         field->type = field_unresolved;
     }
 
-    field->array = expression.utype.array;
+    field->isArray = expression.utype.array;
     field->vaddr = scope->klass->getFieldIndex(name);
 }
 

@@ -116,6 +116,7 @@ void GarbageCollector::shutdown() {
         /* Clear out all memory */
         for(unsigned int i = 0; i < heap.size(); i++) {
             collect(heap.get(i));
+            std::free(heap.get(i));
         }
         heap.free();
         std::free(self); self = NULL;
@@ -183,6 +184,7 @@ void GarbageCollector::collectYoungObjects() {
             if(object->refCount == 0) {
                 collect(object);
                 youngObjects--;
+                std::free(object);
                 heap.remove(i); // drop pointer and reset list
                 goto reset;
             } else {
@@ -214,6 +216,7 @@ void GarbageCollector::collectAdultObjects() {
             if(object->refCount == 0) {
                 collect(object);
                 adultObjects--;
+                std::free(object);
                 heap.remove(i); // drop pointer and reset list
                 goto reset;
             } else {
@@ -245,6 +248,7 @@ void GarbageCollector::collectOldObjects() {
             if(object->refCount == 0) {
                 collect(object);
                 oldObjects--;
+                std::free(object);
                 heap.remove(i); // drop pointer and reset list
                 goto reset;
             } else {
@@ -354,6 +358,13 @@ unsigned long GarbageCollector::collect(SharpObject *object) {
                 if(object->HEAD != NULL) {
                     bytesCollected += sizeof(double)*object->size;
                     std::free(object->HEAD); object->HEAD = NULL;
+                } else if(object->node != NULL) {
+                    for(unsigned long i = 0; i < object->size; i++) {
+                        bytesCollected += collect(&object->node[i]);
+                    }
+
+                    bytesCollected += sizeof(SharpObject)*object->size;
+                    std::free(object->node);
                 }
             }
         }
@@ -369,4 +380,48 @@ unsigned long GarbageCollector::collectMappedClass(SharpObject *pObject, ClassOb
 
 bool GarbageCollector::spaceAvailable(size_t bytes) {
     return (bytes+managedBytes) < memoryLimit;
+}
+
+SharpObject *GarbageCollector::newObject(unsigned long size) {
+    auto *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
+
+    object->init();
+    object->size = size;
+    if(size > 0) {
+        object->HEAD = (double*)__malloc(sizeof(double)*size);
+        for(unsigned int i = 0; i < object->size; i++)
+            object->HEAD[i]=0;
+    }
+
+    /* track the allocation amount */
+    managedBytes += (sizeof(SharpObject)*1)+(sizeof(double)*size);
+    heap.add(object);
+
+    return object;
+}
+
+SharpObject *GarbageCollector::newObject(unsigned long size, ClassObject *k) {
+    return nullptr;
+}
+
+SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
+    auto *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
+
+    object->init();
+    object->size = size;
+    if(size > 0) {
+        object->node = (SharpObject*)__malloc(sizeof(SharpObject)*size);
+        for(unsigned int i = 0; i < object->size; i++)
+            object->node[i].init();
+    }
+
+    /* track the allocation amount */
+    managedBytes += (sizeof(SharpObject)*1)+(sizeof(SharpObject)*size);
+    heap.add(object);
+
+    return object;
+}
+
+SharpObject *GarbageCollector::newObjectArray(unsigned long size, ClassObject *k) {
+    return nullptr;
 }

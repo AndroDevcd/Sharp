@@ -90,7 +90,6 @@ public:
             }
             __shrink();
         } else {
-            T lastElement = last();
             long long newLen=len-1,iter=1;
             for(long long i = 0; i < newLen; i++) {
                 if(iter == _X)

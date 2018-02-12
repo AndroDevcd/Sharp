@@ -7,7 +7,7 @@
 
 bool Field::operator==(Field& f)
 {
-    if(f.type == this->type && f.array == this->array) {
+    if(f.type == this->type && f.isArray == this->isArray) {
         if(type == CLASS)
             return f.nullType || (klass != NULL && klass->match(f.klass));
         else

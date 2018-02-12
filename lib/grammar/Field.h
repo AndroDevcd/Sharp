@@ -25,7 +25,7 @@ public:
             owner(parent),
             klass(NULL),
             note(note),
-            array(false),
+            isArray(false),
             nullType(false),
             local(false)
     {
@@ -43,7 +43,7 @@ public:
             owner(parent),
             klass(klass),
             note(note),
-            array(false),
+            isArray(false),
             nullType(false),
             local(false)
     {
@@ -59,7 +59,7 @@ public:
             fullName(""),
             modifiers(),
             note("","",0,0),
-            array(false),
+            isArray(false),
             nullType(false),
             local(false)
     {
@@ -78,7 +78,7 @@ public:
         fullName = f.fullName;
         owner = f.owner;
         modifiers.addAll(f.modifiers);
-        array = f.array;
+        isArray = f.isArray;
         nullType = f.nullType;
         address=f.address;
         local=f.local;
@@ -118,7 +118,7 @@ public:
         return type == OBJECT;
     }
 
-    bool array, nullType, local;
+    bool isArray, nullType, local;
     bool resolved;
     RuntimeNote note;
     FieldType type;

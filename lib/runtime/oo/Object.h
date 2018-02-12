@@ -12,7 +12,7 @@ struct ClassObject;
 
 struct SharpObject
 {
-    void __init()
+    void init()
     {
         HEAD=NULL;
         node=NULL;
@@ -20,6 +20,7 @@ struct SharpObject
         size=0;
         refCount=0;
         mutex=Mutex();
+        generation = 0x000; /* generation young */
     }
     double *HEAD;        /* data */
     SharpObject *node;   /* data */

@@ -229,7 +229,7 @@ struct Expression {
     bool arrayObject() {
         switch(type) {
             case expression_field:
-                return utype.field->array;
+                return utype.field->isArray;
             default:
                 return utype.array;
         }
