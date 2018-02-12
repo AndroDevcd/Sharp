@@ -258,7 +258,7 @@ void GarbageCollector::run() {
     for(;;) {
         if(thread_self->suspendPending)
             Thread::suspendSelf();
-        if(thread_self->state == thread_killed)
+        if(thread_self->state == THREAD_KILLED)
             return;
 
         if(!messageQueue.empty()) {
