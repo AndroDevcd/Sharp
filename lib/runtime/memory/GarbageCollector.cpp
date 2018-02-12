@@ -265,9 +265,15 @@ void GarbageCollector::run() {
             mutex.acquire(INDEFINITE);
             CollectionPolicy policy = messageQueue.last();
             messageQueue.pop_back();
-            mutex.release();
 
-            collect(policy);
+            /**
+             * We only want to run a concurrent collections
+             * in the GC thread itsself
+             */
+            if(policy != GC_CONCURRENT)
+                collect(policy);
+            else
+                mutex.release();
         }
 
         if (retryCount++ == sMaxRetries)
@@ -326,4 +332,28 @@ void GarbageCollector::sendMessage(CollectionPolicy message) {
     mutex.acquire(INDEFINITE);
     messageQueue.push_back(message);
     mutex.release();
+}
+
+unsigned long GarbageCollector::collect(SharpObject *object) {
+    if(object != NULL) {
+        unsigned long bytesCollected = sizeof(SharpObject);
+
+        if(object->size > 0) {
+            if(object->k != NULL) {
+                bytesCollected += collectMappedClass(object->node, object->k);
+            } else {
+                if(object->HEAD != NULL) {
+                    bytesCollected += sizeof(double)*object->size;
+                    std::free(object->HEAD); object->HEAD = NULL;
+                }
+            }
+        }
+        return bytesCollected;
+    }
+
+    return 0;
+}
+
+unsigned long GarbageCollector::collectMappedClass(SharpObject *pObject, ClassObject *pClassObject) {
+    return 0;
 }

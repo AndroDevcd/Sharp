@@ -19,7 +19,14 @@ enum CollectionGeneration
 {
     gc_young = 0,
     gc_adult = 1,
-    gc_old   = 2
+    gc_old   = 2,
+
+    /**
+     * This is a permanent generation. objects promoted to this generation will live
+     * for the entirety of the program and will not be garbage collected until the end of
+     * the program. Objects in this state must be set manually
+     */
+    gc_perm  = 3
 };
 
 struct Object;
@@ -69,6 +76,9 @@ public:
     SharpObject* newObject(unsigned long size); /* Array allocation */
     SharpObject* newObject(unsigned long size, ClassObject* k); /* Class allocation */
 
+    SharpObject* newObjectArray(unsigned long size); /* Array Object allocation */
+    SharpObject* newObjectArray(unsigned long size, ClassObject* k); /* Class Array allocation */
+
     /**
      * Function call by virtual machine
      * @param object
@@ -98,7 +108,19 @@ private:
     void collectYoungObjects();
     void collectAdultObjects();
     void collectOldObjects();
-    void collect(SharpObject *object);
+    /**
+     * This function returns the total ammount of bytes collected
+     * @param object
+     * @return
+     */
+    unsigned long collect(SharpObject *object);
+
+    /**
+     * Collect a mapped class object or data structure
+     * @param pObject
+     * @return
+     */
+    unsigned long collectMappedClass(SharpObject *object, ClassObject *klass);
 };
 
 #define GC_SLEEP_INTERVAL 10
