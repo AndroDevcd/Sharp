@@ -23,6 +23,7 @@ enum ThreadState {
 };
 
 class Thread {
+public:
     Thread()
             :
             id(-1),
@@ -77,6 +78,7 @@ class Thread {
     static int32_t tid;
     static List<Thread*> threads;
     static Mutex threadsMonitor;
+    static bool isAllThreadsSuspended;
 
     int32_t id;
     Mutex mutex;

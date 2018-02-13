@@ -9,6 +9,7 @@ int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
 List<Thread*> Thread::threads;
 Mutex Thread::threadsMonitor;
+bool Thread::isAllThreadsSuspended = false;
 
 /*
  * Local registers for the thread to use
@@ -303,6 +304,8 @@ int Thread::waitForThread(Thread *thread) {
 
 void Thread::suspendAllThreads() {
     Thread* thread;
+    isAllThreadsSuspended = true;
+
     for(unsigned int i= 0; i < threads.size(); i++) {
         thread=threads.get(i);
 
@@ -316,6 +319,8 @@ void Thread::suspendAllThreads() {
 
 void Thread::resumeAllThreads() {
     Thread* thread;
+    isAllThreadsSuspended = false;
+
     for(unsigned int i= 0; i < threads.size(); i++) {
         thread=threads.get(i);
 
@@ -484,4 +489,8 @@ void*
     else
         return waitForThread(thread);
 #endif
+}
+
+bool Thread::allThreadsSuspended() {
+    return isAllThreadsSuspended;
 }

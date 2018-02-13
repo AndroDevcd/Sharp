@@ -4,6 +4,7 @@
 
 #include "GarbageCollector.h"
 #include "../oo/Object.h"
+#include "../Thread.h"
 
 static GarbageCollector *self = NULL;
 
@@ -187,7 +188,7 @@ void GarbageCollector::collectYoungObjects() {
 
         if(object->generation == gc_young) {
             /* If all threads are suspended we don't have to worry about any interference */
-            if(!Thread::allThreadsSuspended())
+            if(!Thread::isAllThreadsSuspended)
                 object->mutex.acquire(INDEFINITE);
 
             // free object
@@ -201,7 +202,7 @@ void GarbageCollector::collectYoungObjects() {
                 adultObjects++;
 
                 object->generation = gc_adult;
-                if(!Thread::allThreadsSuspended())
+                if(!Thread::isAllThreadsSuspended)
                     object->mutex.release();
             }
 
@@ -219,7 +220,7 @@ void GarbageCollector::collectAdultObjects() {
 
         if(object->generation == gc_adult) {
             /* If all threads are suspended we don't have to worry about any interference */
-            if(!Thread::allThreadsSuspended())
+            if(!Thread::isAllThreadsSuspended)
                 object->mutex.acquire(INDEFINITE);
 
             // free object
@@ -233,7 +234,7 @@ void GarbageCollector::collectAdultObjects() {
                 oldObjects++;
 
                 object->generation = gc_old;
-                if(!Thread::allThreadsSuspended())
+                if(!Thread::isAllThreadsSuspended)
                     object->mutex.release();
             }
 
@@ -251,7 +252,7 @@ void GarbageCollector::collectOldObjects() {
 
         if(object->generation == gc_old) {
             /* If all threads are suspended we don't have to worry about any interference */
-            if(!Thread::allThreadsSuspended())
+            if(!Thread::isAllThreadsSuspended)
                 object->mutex.acquire(INDEFINITE);
 
             // free object
@@ -266,7 +267,7 @@ void GarbageCollector::collectOldObjects() {
                  * We are already at the highest generation so we just skip this
                  * object
                  */
-                if(!Thread::allThreadsSuspended())
+                if(!Thread::isAllThreadsSuspended)
                     object->mutex.release();
             }
 
