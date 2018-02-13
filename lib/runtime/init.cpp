@@ -6,6 +6,7 @@
 #include "../../stdimports.h"
 #include "../util/file.h"
 #include "oo/string.h"
+#include "List.h"
 
 void help() {
     std::cerr << "Usage: sharp" << " {OPTIONS} EXECUTABLE" << std::endl;
@@ -42,15 +43,15 @@ int __init(int argc, const char* argv[])
         else {
             // add the source files
             executable = argv[i++];
-            nString arg;
+             native_string arg;
             while(i < argc) {
                 arg = string(argv[i++]);
                 pArgs.push_back();
 
                 pArgs.get(pArgs.size()-1).init();
                 pArgs.get(pArgs.size()-1) = arg;
-                arg.free();
             }
+            arg.free();
             break;
         }
     }
