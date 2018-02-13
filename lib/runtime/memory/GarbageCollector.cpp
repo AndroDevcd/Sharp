@@ -110,6 +110,16 @@ void GarbageCollector::freeObject(Object *object) {
     }
 }
 
+CXX11_INLINE
+void GarbageCollector::attachObject(Object* object, SharpObject *sharpObject) {
+    if(object != NULL && sharpObject != NULL) {
+        sharpObject->mutex.acquire(INDEFINITE);
+        sharpObject->refCount++;
+        object->object = sharpObject;
+        sharpObject->mutex.release();
+    }
+}
+
 void GarbageCollector::shutdown() {
     if(self != NULL) {
         managedBytes=0;

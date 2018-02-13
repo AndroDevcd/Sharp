@@ -18,15 +18,21 @@ public:
     void init(){
         _Data=NULL;
         len=0;
+        max=0;
     }
 
     void init(unsigned long inital){
         if(inital > 0) {
             _Data=NULL;
             len=inital;
+            max=0;
             __expand();
         } else
             init();
+    }
+
+    void setMax(unsigned long max) {
+        this->max = max;
     }
 
     void push_back(T& data) {
@@ -240,6 +246,13 @@ private:
     void __expand() {
         try{
             len++;
+            if(max != 0 && len >= max) {
+                stringstream ss;
+                ss << "index out of bounds list::expand() _X: " << len
+                   << " max: " << max << endl;
+                throw Exception(ss.str());
+            }
+
             if(_Data==NULL){
                 _Data=(T*)__malloc(sizeof(T)*len);
             } else {
@@ -263,6 +276,7 @@ private:
     }
 
     unsigned  long len;
+    unsigned  long max;
     T* _Data;
 };
 

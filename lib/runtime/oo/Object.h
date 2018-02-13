@@ -40,6 +40,7 @@ struct SharpObject
 struct Object {
     SharpObject* object;
 
+    void operator=(Object &object);
 };
 
 

@@ -84,6 +84,7 @@ public:
      * @param object
      */
     void freeObject(Object* object);
+    CXX11_INLINE void attachObject(Object* object, SharpObject *sharpObject);
 
     bool spaceAvailable(size_t i);
 

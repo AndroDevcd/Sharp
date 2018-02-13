@@ -19,8 +19,7 @@ enum ThreadState {
     THREAD_CREATED      =0x000,
     THREAD_RUNNING      =0x001,
     THREAD_SUSPENDED    =0x002,
-    THREAD_KILLED       =0x003,
-    THREAD_PANICKED     =0xffff0
+    THREAD_KILLED       =0x003
 };
 
 class Thread {
@@ -77,7 +76,7 @@ class Thread {
 
     static int32_t tid;
     static List<Thread*> threads;
-    static Mutex threads_monitor;
+    static Mutex threadsMonitor;
 
     int32_t id;
     Mutex mutex;
@@ -113,22 +112,19 @@ class Thread {
 
     void run();
 
-    void init_frame();
-
 private:
-    void call_asp(int64_t id);
-    int return_asp();
+    void executeMethod(int64_t id);
+    int returnMethod();
 
     void wait();
 
-    void thread_panic(string message, List<sh_asp*> calls, List<long long> pcs);
     static int threadjoin(Thread*);
     static int unsuspendThread(Thread*);
     static void suspendThread(Thread*);
     static int interrupt(Thread*);
 
-    static void push_thread(Thread *thread);
-    static void pop_thread(Thread *thread);
+    static void pushThread(Thread *thread);
+    static void popThread(Thread *thread);
 
     bool TryThrow(sh_asp* asp, Object* exceptionObject);
     void Throw(Object *exceptionObject);
@@ -138,8 +134,11 @@ private:
     void fillStackTrace(native_string &str);
 
     string getPrettyErrorLine(long line, long sourceFile);
-
-    bool execFinally(int);
 };
+
+extern thread_local Thread* thread_self;
+extern thread_local double registers[12];
+
+#define main_threadid 0x0
 
 #endif //SHARP_THREAD_H

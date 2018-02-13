@@ -30,6 +30,7 @@ struct Method {
     int paramSize;
     long sourceFile;                /* Link to source file in code */
     int64_t cacheSize;              /* Size of the bytecode cache */
+    bool isStatic;
     List<ExceptionTable> exceptions;
     List<FinallyTable> finallyBlocks;
     List<line_table> lineNumbers;
@@ -69,6 +70,7 @@ struct Method {
         bytecode = NULL;
         address = 0;
         cacheSize = 0;
+        isStatic = false;
     }
 };
 
