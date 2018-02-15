@@ -51,6 +51,12 @@ public:
     threadStart(void *);
     void run();
 
+    static void setMemoryLimit(unsigned long limit) {
+        if(self != NULL) {
+            self->memoryLimit = limit;
+        }
+    }
+
     /**
      * Messages are sendable by other threads to command the garbage collector
      * to preform a certain type of garbage collection. Most of the time the user
@@ -78,6 +84,8 @@ public:
 
     SharpObject* newObjectArray(unsigned long size); /* Array Object allocation */
     SharpObject* newObjectArray(unsigned long size, ClassObject* k); /* Class Array allocation */
+
+    void createStringArray(SharpObject* object, native_string s); /* Native string allocation */
 
     /**
      * Function call by virtual machine

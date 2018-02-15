@@ -409,6 +409,7 @@ SharpObject *GarbageCollector::newObject(unsigned long size) {
 
     object->init();
     object->size = size;
+    object->refCount=1;
     if(size > 0) {
         object->HEAD = (double*)__malloc(sizeof(double)*size);
         for(unsigned int i = 0; i < object->size; i++)
@@ -431,6 +432,7 @@ SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
 
     object->init();
     object->size = size;
+    object->refCount=1;
     if(size > 0) {
         object->node = (SharpObject*)__malloc(sizeof(SharpObject)*size);
         for(unsigned int i = 0; i < object->size; i++)
@@ -446,4 +448,17 @@ SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
 
 SharpObject *GarbageCollector::newObjectArray(unsigned long size, ClassObject *k) {
     return nullptr;
+}
+
+void GarbageCollector::createStringArray(SharpObject *object, native_string s) {
+    if(object != NULL) {
+        object->size = s.len;
+        object->HEAD = (double*)__malloc(sizeof(double)*s.len);
+
+        for(unsigned long i = 0; i < s.len; i++) {
+            object->HEAD[i] = s.chars[i];
+        }
+
+        managedBytes += (sizeof(double)*s.len);
+    }
 }

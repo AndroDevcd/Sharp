@@ -22,7 +22,6 @@ int CreateVirtualMachine(std::string exe)
         return 1;
 
     Thread::Startup();
-    GarbageCollector::initilize();
 
     /**
      * Aux classes
@@ -248,4 +247,3 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
 void VirtualMachine::exec() {
 
 }
-

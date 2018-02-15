@@ -10,6 +10,7 @@
 #include "oo/string.h"
 
 class Environment;
+class SharpObject;
 
 class VirtualMachine {
 public:
