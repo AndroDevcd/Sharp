@@ -4,6 +4,8 @@
 
 #include "Thread.h"
 #include "memory/GarbageCollector.h"
+#include "Exe.h"
+#include "Environment.h"
 
 int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
@@ -27,7 +29,7 @@ void Thread::Startup() {
 }
 
 int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
-    if(methodAddress < 0 || methodAddress >= manifest.addresses)
+    if(methodAddress < 0 || methodAddress >= manifest.methods)
         return -1;
     Method* method = &env->methods[methodAddress];
     if(method->paramSize>0)
@@ -79,6 +81,11 @@ void Thread::Create(string name) {
     this->state = THREAD_CREATED;
     this->exitVal = 0;
     this->stack_lmt = STACK_SIZE;
+
+    for(unsigned long i = 0; i < STACK_SIZE; i++) {
+        this->dataStack[i].object.object = NULL;
+        this->dataStack[i].var=0;
+    }
 
     pushThread(this);
 }
@@ -132,7 +139,7 @@ void Thread::suspendSelf() {
 
     /*
 	 * We call wait upon suspend. This function will
-	 * sleep the thread most of the time. notify() or
+	 * sleep the thread most of the time. unsuspendThread() or
 	 * resumeAllThreads() should be called to revive thread.
 	 */
     thread_self->wait();
@@ -415,7 +422,7 @@ int Thread::interrupt(Thread *thread) {
             * regardless of what they are doing, we
             * stop them.
             */
-            env->Shutdown();
+            env->shutdown();
         }
         else
         {
@@ -489,8 +496,4 @@ void*
     else
         return waitForThread(thread);
 #endif
-}
-
-bool Thread::allThreadsSuspended() {
-    return isAllThreadsSuspended;
 }

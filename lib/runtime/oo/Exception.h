@@ -11,7 +11,6 @@
 
 class ClassObject;
 class Method;
-struct sh_asp;
 
 class Throwable {
 public:

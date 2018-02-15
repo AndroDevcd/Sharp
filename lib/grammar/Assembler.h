@@ -8,7 +8,7 @@
 
 #include <cstdint>
 #include "../../stdimports.h"
-#include "../util/keypair.h"
+#include "../util/KeyPair.h"
 #include "List.h"
 
 class Assembler {
@@ -57,7 +57,7 @@ public:
     }
 
     List<int64_t> __asm64;
-    keypair<List<string>, List<Assembler>> injectors;
+    KeyPair<List<string>, List<Assembler>> injectors;
 
     void free() {
         __asm64.free();

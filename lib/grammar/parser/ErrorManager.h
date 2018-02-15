@@ -7,7 +7,7 @@
 
 #include <list>
 #include "../../../stdimports.h"
-#include "../../util/keypair.h"
+#include "../../util/KeyPair.h"
 #include "tokenizer/tokenentity.h"
 #include "../List.h"
 
@@ -45,7 +45,7 @@ enum error_type
     NO_ERR = 999
 };
 
-static std::list<keypair<error_type, string>> predefinedErrors;
+static std::list<KeyPair<error_type, string>> predefinedErrors;
 void initalizeErrors();
 
 struct ParseError
@@ -64,7 +64,7 @@ public:
         operator=(pe);
     }
 
-    ParseError(keypair<error_type, string> err, int l, int c, string addon = "")
+    ParseError(KeyPair<error_type, string> err, int l, int c, string addon = "")
     {
         id = err.key;
         error = (err.value + addon);
@@ -73,7 +73,7 @@ public:
         warning = false;
     }
 
-    ParseError(bool warning, keypair<error_type, string> err, int l, int c, string addon = "")
+    ParseError(bool warning, KeyPair<error_type, string> err, int l, int c, string addon = "")
     {
         id = err.key;
         error = (err.value + addon);
@@ -82,7 +82,7 @@ public:
         this->warning = warning;
     }
 
-    ParseError(keypair<error_type, string> err, token_entity token, string addon = "")
+    ParseError(KeyPair<error_type, string> err, token_entity token, string addon = "")
     {
         id = err.key;
         error = (err.value + addon);
@@ -154,7 +154,7 @@ public:
     string getLine(int line);
 
 private:
-    keypair<error_type, string> getErrorById(error_type);
+    KeyPair<error_type, string> getErrorById(error_type);
     list<ParseError>* getPossibleErrorList();
     void addPossibleErrorList();
     void removePossibleErrorList();

@@ -39,7 +39,7 @@ public:
     Mutex mutex;
     List<CollectionPolicy> messageQueue;
 
-    void initilize();
+    static void initilize();
     void shutdown();
     static
 #ifdef WIN32_
@@ -83,7 +83,7 @@ public:
      * Function call by virtual machine
      * @param object
      */
-    void freeObject(Object* object);
+    CXX11_INLINE void freeObject(Object* object);
     CXX11_INLINE void attachObject(Object* object, SharpObject *sharpObject);
 
     bool spaceAvailable(size_t i);
@@ -91,6 +91,7 @@ public:
 private:
     unsigned long managedBytes;
     unsigned long memoryLimit;
+    bool isShutdown;
 
     /**
      * This will keep track of our different generations and the

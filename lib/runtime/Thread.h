@@ -112,8 +112,6 @@ public:
 
     static void resumeAllThreads();
 
-    void run();
-
 private:
     void executeMethod(int64_t id);
     int returnMethod();
@@ -128,7 +126,7 @@ private:
     static void pushThread(Thread *thread);
     static void popThread(Thread *thread);
 
-    bool TryThrow(sh_asp* asp, Object* exceptionObject);
+    bool TryThrow(Method* method, Object* exceptionObject);
     void Throw(Object *exceptionObject);
 
     void fillStackTrace(Object *exceptionObject);

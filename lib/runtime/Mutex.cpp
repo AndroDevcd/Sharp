@@ -47,6 +47,14 @@ void Mutex::_thread_wait_for_lock(int32_t spins)
     {
         if(retryCount++ == spins)
         {
+            /**
+             * We need to add this check to prevent thread deadlock
+             * problems where one thread is conflicting via mutex with
+             * another that is trying to shut it down
+             */
+            if(thread_self->suspendPending)
+                thread_self->suspendSelf();
+
             if(spins == INDEFINITE)
             {
                 __os_sleep(1);

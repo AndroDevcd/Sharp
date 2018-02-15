@@ -4,13 +4,13 @@
 
 #include "ErrorManager.h"
 #include <sstream>
-#include "../../util/keypair.h"
+#include "../../util/KeyPair.h"
 #include "Ast.h"
 #include "../Runtime.h"
 
 void initalizeErrors()
 {
-    keypair<error_type, string> err;
+    KeyPair<error_type, string> err;
 
     err.set(UNEXPECTED_SYMBOL, "unexpected symbol");
     predefinedErrors.push_back(err);
@@ -148,7 +148,7 @@ void ErrorManager::printErrors() {
 }
 
 int ErrorManager::createNewError(error_type err, token_entity token, string xcmts) {
-    keypair<error_type, string> kp = getErrorById(err);
+    KeyPair<error_type, string> kp = getErrorById(err);
     ParseError e(kp, token, xcmts);
     ParseError lastError = cm ? lastCheckedError : lastError;
 
@@ -211,7 +211,7 @@ bool ErrorManager::shouldReportWarning(token_entity *token, const ParseError &la
 }
 
 void ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
-    keypair<error_type, string> kp = getErrorById(err);
+    KeyPair<error_type, string> kp = getErrorById(err);
     ParseError e(kp, l,c, xcmts);
     ParseError last_err = cm ? lastCheckedError : lastError;
 
@@ -236,7 +236,7 @@ void ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
 }
 
 void ErrorManager::createNewWarning(error_type err, int l, int c, string xcmts) {
-    keypair<error_type, string> kp = getErrorById(err);
+    KeyPair<error_type, string> kp = getErrorById(err);
     ParseError e(true, kp, l,c, xcmts);
     ParseError last_err;
     if(warnings->size() > 0) {
@@ -260,7 +260,7 @@ string ErrorManager::getLine(int line) {
         return lines.get(line);
 }
 
-keypair<error_type, string> ErrorManager::getErrorById(error_type err) {
+KeyPair<error_type, string> ErrorManager::getErrorById(error_type err) {
     return *std::next(predefinedErrors.begin(), (int)err);
 }
 
@@ -350,7 +350,7 @@ bool ErrorManager::hasError(list <ParseError> *e, const ParseError &perror) cons
 }
 
 int ErrorManager::createNewError(error_type err, Ast *pAst, string xcmts) {
-    keypair<error_type, string> kp = getErrorById(err);
+    KeyPair<error_type, string> kp = getErrorById(err);
     ParseError e(kp, pAst->line, pAst->col, xcmts);
     ParseError last_err = cm ? lastCheckedError : lastError;
 
@@ -378,7 +378,7 @@ int ErrorManager::createNewError(error_type err, Ast *pAst, string xcmts) {
 }
 
 void ErrorManager::createNewWarning(error_type err, Ast *pAst, string xcmts) {
-    keypair<error_type, string> kp = getErrorById(err);
+    KeyPair<error_type, string> kp = getErrorById(err);
     ParseError e(true, kp, pAst->line, pAst->col, xcmts);
     ParseError last_err;
     if(warnings->size() > 0) {

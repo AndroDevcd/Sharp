@@ -12,7 +12,7 @@ using namespace std;
 
 unsigned long RuntimeEngine::uniqueSerialId = 0;
 options c_options;
-Sharp versions;
+VirtualMachine versions;
 
 void help();
 
@@ -329,7 +329,7 @@ bool RuntimeEngine::preprocess()
         errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
 
         currentModule = "$unknown";
-        keypair<string, List<string>> resolveMap;
+        KeyPair<string, List<string>> resolveMap;
         List<string> imports;
 
         sourceFiles.addif(activeParser->sourcefile);

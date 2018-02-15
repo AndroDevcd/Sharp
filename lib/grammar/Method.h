@@ -117,7 +117,7 @@ public:
     long long sourceFileLink;
     bool array, isConstructor;
     int64_t localVariables;
-    List<keypair<int64_t, long>> line_table;
+    List<KeyPair<int64_t, long>> line_table;
     List<ExceptionTable> exceptions;
     List<FinallyTable> finallyBlocks;
     List<long> unique_address_table;

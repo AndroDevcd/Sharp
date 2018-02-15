@@ -14,8 +14,8 @@
 struct line_table;
 
 /**
- * This is the re[presentation of a methon in its barest form
- * it will contail all the information to run correctly in the system
+ * This is the representation of a method in its barest form
+ * it will contain all the information to run correctly in the system
  *
  */
 struct Method {

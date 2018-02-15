@@ -82,7 +82,7 @@ private:
     List<string> sourceFiles;
     List<Scope> scopeMap;
     List<ClassObject> classes;
-    List<keypair<string, List<string>>>  importMap;
+    List<KeyPair<string, List<string>>>  importMap;
     string exportFile;
     ErrorManager* errors;
     Parser* activeParser;
@@ -407,7 +407,7 @@ struct Scope {
         branches.init();
     }
 
-    keypair<int, Field>* getLocalField(string field_name) {
+    KeyPair<int, Field>* getLocalField(string field_name) {
         if(locals.size() == 0) return NULL;
 
         for(long long i = locals.size()-1; i >= 0; i--) {
@@ -463,8 +463,8 @@ struct Scope {
     ScopeType type;
     ClassObject* klass;
     Method* currentFunction;
-    List<keypair<int, Field>> locals;
-    List<keypair<std::string, int64_t>> label_map;
+    List<KeyPair<int, Field>> locals;
+    List<KeyPair<std::string, int64_t>> label_map;
     List<BranchTable> branches;
     int blocks;
     long loops, trys, uniqueLabelSerial, last_statement;

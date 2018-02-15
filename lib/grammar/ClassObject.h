@@ -11,7 +11,7 @@
 #include "Field.h"
 #include "AccessModifier.h"
 #include "OperatorOverload.h"
-#include "../util/keypair.h"
+#include "../util/KeyPair.h"
 
 class ClassObject {
 

@@ -6,16 +6,16 @@
 #define SHARP_KEYPAIR_H
 
 template <class K, class T>
-struct keypair
+struct KeyPair
 {
-    keypair(K k, T v)
+    KeyPair(K k, T v)
             :
             key(k),
             value(v)
     {
     }
 
-    keypair()
+    KeyPair()
     {
     }
     void set(K k, T val)

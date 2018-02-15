@@ -7,6 +7,7 @@
 
 #include "../../../stdimports.h"
 #include "string.h"
+#include "../../grammar/FieldType.h"
 
 class ClassObject;
 
@@ -18,7 +19,7 @@ public:
     {
     }
 
-    void init(string name, int64_t id, int type, bool _static, bool arry,
+    void init(string name, int64_t id, FieldType type, bool _static, bool arry,
               ClassObject* owner)
     {
         this->name.init();
@@ -40,7 +41,7 @@ public:
 
     native_string name;
     int64_t serial;
-    int type;
+    FieldType type;
     bool isStatic;
     bool isArray;
     ClassObject* owner;

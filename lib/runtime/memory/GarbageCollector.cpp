@@ -23,7 +23,7 @@ void* __malloc(size_t bytes)
             throw Exception("out of memory");
         } else {
             gc = true;
-            GarbageCollector::self->collect(GC_LOW);
+            self->collect(GC_LOW);
             goto alloc_bytes;
         }
     } else {
@@ -45,7 +45,7 @@ void* __calloc(size_t n, size_t bytes)
             throw Exception("out of memory");
         } else {
             gc=true;
-            GarbageCollector::self->collect(GC_LOW);
+            self->collect(GC_LOW);
             goto alloc_bytes;
         }
     } else {
@@ -67,7 +67,7 @@ void* __realloc(void *ptr, size_t bytes)
             throw Exception("out of memory");
         } else {
             gc=true;
-            GarbageCollector::self->collect(GC_LOW);
+            self->collect(GC_LOW);
             goto alloc_bytes;
         }
     } else {
@@ -86,8 +86,10 @@ void GarbageCollector::initilize() {
     self->yObjs=0;
     self->aObjs=0;
     self->oObjs=0;
+    self->isShutdown=false;
 }
 
+CXX11_INLINE
 void GarbageCollector::freeObject(Object *object) {
     if(object != NULL && object->object != NULL)
     {
@@ -131,10 +133,14 @@ void GarbageCollector::shutdown() {
         }
         heap.free();
         std::free(self); self = NULL;
+        isShutdown=true;
     }
 }
 
 void GarbageCollector::collect(CollectionPolicy policy) {
+    if(isShutdown)
+        return;
+
     mutex.acquire(INDEFINITE);
 
     if(policy == GC_LOW) {
@@ -364,7 +370,12 @@ unsigned long GarbageCollector::collect(SharpObject *object) {
 
         if(object->size > 0) {
             if(object->k != NULL) {
-                bytesCollected += collectMappedClass(object->node, object->k);
+                for(unsigned long i = 0; i < object->size; i++) {
+                    bytesCollected += collectMappedClass(&object->node[i], object->k);
+                }
+
+                bytesCollected += sizeof(SharpObject)*object->size;
+                std::free(object->node);
             } else {
                 if(object->HEAD != NULL) {
                     bytesCollected += sizeof(double)*object->size;
