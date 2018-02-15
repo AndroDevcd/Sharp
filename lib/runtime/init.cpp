@@ -7,6 +7,27 @@
 #include "../util/file.h"
 #include "oo/string.h"
 #include "List.h"
+#include "init.h"
+#include "oo/Object.h"
+#include "VirtualMachine.h"
+#include "Thread.h"
+#include "Exe.h"
+
+options c_options;
+int startApplication(string e, List<native_string> &pArgs);
+
+void init_main(List <native_string>& list1);
+
+void createStringArray(Object *object, List<native_string> &lst);
+
+void version() {
+    cout << progname << " " << progvers << endl;
+}
+
+void error(string message) {
+    cout << "sharp:  error: " << message << endl;
+    exit(1);
+}
 
 void help() {
     std::cerr << "Usage: sharp" << " {OPTIONS} EXECUTABLE" << std::endl;
@@ -15,6 +36,8 @@ void help() {
     cout <<               "    -showversion      print the bootstrap version number and continue." << endl;
     cout <<               "    --h -?            display this help message." << endl;
 }
+
+#define opt(v) strcmp(argv[i], v) == 0
 
 int __init(int argc, const char* argv[])
 {
@@ -61,9 +84,33 @@ int __init(int argc, const char* argv[])
         return 1;
     }
 
-    if(!file::exists(executable.c_str())){
+    if(!File::exists(executable.c_str())){
         error("file `" + executable + "` doesnt exist!");
     }
 
-    return __vinit(executable, pArgs);
+    return startApplication(executable, pArgs);
+}
+
+int startApplication(string exe, List<native_string>& pArgs) {
+    int result;
+
+    if(CreateVirtualMachine(exe) != 0) {
+        fprintf(stderr, "Sharp VM init failed (check log file)\n");
+        goto bail;
+    }
+
+    init_main(pArgs);
+    vm->InterpreterThreadStart(Thread::threads.get(main_threadid));
+    result=vm->exitVal;
+
+    std::free(vm);
+    std::free(env);
+    return result;
+
+    bail:
+    if(vm != NULL) {
+        vm->destroy();
+    }
+
+    return 1;
 }

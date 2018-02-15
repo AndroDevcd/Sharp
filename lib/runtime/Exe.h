@@ -11,7 +11,6 @@
 #include "oo/ClassObject.h"
 #include "oo/Object.h"
 
-extern uint64_t jobIndx;
 extern Manifest manifest;
 extern Meta metaData;
 

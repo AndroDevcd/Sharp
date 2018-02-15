@@ -4,8 +4,9 @@
 
 #include "Exe.h"
 #include "../util/File.h"
-#include "init.h"
+#include "../util/KeyPair.h"
 #include "Environment.h"
+#include "oo/Method.h"
 
 Manifest manifest;
 Meta metaData;
@@ -30,17 +31,16 @@ void parse_source_file(List<native_string> &list, native_string str);
 
 int Process_Exe(std::string exe)
 {
-    file::buffer buffer;
+    File::buffer buffer;
     int __bitFlag, hdr_cnt=0;
 
-    jobIndx++;
-    if(!file::exists(exe.c_str())){
+    if(!File::exists(exe.c_str())){
         std::runtime_error("file `" + exe + "` doesnt exist!");
     }
 
     manifest.executable.init();
     manifest.executable = exe;
-    file::read_alltext(exe.c_str(), buffer);
+    File::read_alltext(exe.c_str(), buffer);
     if(buffer.empty())
         return 1;
 
@@ -49,7 +49,6 @@ int Process_Exe(std::string exe)
             throw std::runtime_error("file `" + exe + "` could not be ran");
         }
 
-        jobIndx++;
         bool manifestFlag = false;
         for (;;) {
 
@@ -80,19 +79,19 @@ int Process_Exe(std::string exe)
                     manifest.debug = buffer.at(n++) == 1;
                     break;
                 case 0x6:
-                    manifest.entry =getmi64(buffer);
+                    manifest.entryMethod =geti64(buffer);
                     break;
                 case 0x7:
-                    manifest.methods =getmi64(buffer);
+                    manifest.methods =geti64(buffer);
                     break;
                 case 0x8:
-                    manifest.classes =getmi64(buffer);
+                    manifest.classes =geti64(buffer);
                     break;
                 case 0x9:
                     manifest.fvers =getlong(buffer);
                     break;
                 case 0x0c:
-                    manifest.strings =getmi64(buffer);
+                    manifest.strings =geti64(buffer);
                     break;
                 case 0x0e:
                     manifest.target =getlong(buffer);
@@ -121,15 +120,15 @@ int Process_Exe(std::string exe)
             throw std::runtime_error("file `" + exe + "` may be corrupt");
 
         /* Data section */
-        list<MetaClass> mClasses;
-        list<MetaField> mFields;
+        List<KeyPair<int64_t, ClassObject*>> mClasses;
+        List<KeyPair<int64_t, Field*>> mFields;
         int64_t classRefptr=0, macroRefptr=0, fileRefptr=0;
 
         env->classes =(ClassObject*)malloc(sizeof(ClassObject)*(manifest.classes + AUX_CLASSES));
-        env->methods = (sh_asp*)malloc(sizeof(sh_asp)*manifest.methods);
+        env->methods = (Method*)malloc(sizeof(Method)*manifest.methods);
         env->strings = (String*)malloc(sizeof(String)*(manifest.strings+1));
         env->globalHeap = (Object*)malloc(sizeof(Object)*manifest.classes);
-        env->sourceFiles = (nString*)malloc(sizeof(nString)*manifest.sourceFiles);
+        env->sourceFiles = (native_string*)malloc(sizeof(native_string)*manifest.sourceFiles);
 
         if(env->classes == NULL || env->methods == NULL || env->globalHeap == NULL
            || env->strings == NULL) {
@@ -149,20 +148,20 @@ int Process_Exe(std::string exe)
                 case data_class: {
                     int64_t fieldPtr=0, functionPtr=0;
                     ClassObject* klass = &env->classes[classRefptr++];
-                    mClasses.push_back(MetaClass(klass, getlong(buffer)));
+                    mClasses.add(KeyPair<int64_t, ClassObject*>(getlong(buffer), klass));
 
-                    klass->id = getmi64(buffer);
+                    klass->serial = geti64(buffer);
                     klass->name.init();
                     klass->name = getstring(buffer);
                     klass->fieldCount = getlong(buffer);
                     klass->methodCount = getlong(buffer);
 
                     if(klass->fieldCount != 0) {
-                        klass->flds = (Field*)malloc(sizeof(Field)*klass->fieldCount);
+                        klass->fields = (Field*)malloc(sizeof(Field)*klass->fieldCount);
                     } else
-                        klass->flds = NULL;
+                        klass->fields = NULL;
                     if(klass->methodCount != 0) {
-                        klass->methods = (int64_t *)malloc(sizeof(int64_t)*klass->methodCount);
+                        klass->methods = (unsigned long*)malloc(sizeof(unsigned long)*klass->methodCount);
                     } else
                         klass->methods = NULL;
                     klass->super = NULL;
@@ -171,7 +170,7 @@ int Process_Exe(std::string exe)
                         for( ;; ) {
                             if(buffer.at(n) == data_field) {
                                 n++;
-                                getField(buffer, mFields, &klass->flds[fieldPtr++]);
+                                getField(buffer, mFields, &klass->fields[fieldPtr++]);
                             } else if(buffer.at(n) == 0x0a || buffer.at(n) == 0x0d) {
                                 n++;
                             } else
@@ -187,7 +186,7 @@ int Process_Exe(std::string exe)
                         for( ;; ) {
                             if(buffer.at(n) == data_method) {
                                 n++;
-                                klass->methods[functionPtr++] = getmi64(buffer);
+                                klass->methods[functionPtr++] = geti64(buffer);
                                 n++;
                             } else if(buffer.at(n) == 0x0a || buffer.at(n) == 0x0d){
                                 n++;
@@ -219,13 +218,17 @@ int Process_Exe(std::string exe)
         }
 
         /* Resolve classes */
-        for(MetaClass& metaClass : mClasses) {
-            if(metaClass.super != -1)
-                metaClass.c->super = findClass(metaClass.super);
+        for(unsigned long i = 0; i < mClasses.size(); i++) {
+            KeyPair<int64_t, ClassObject*> &klass =
+                    mClasses.get(i);
+            if(klass.key != -1)
+                klass.value->super = findClass(klass.key);
         }
 
-        for(MetaField& metaField : mFields) {
-            metaField.field->owner = findClass(metaField.owner);
+        for(unsigned long i = 0; i < mFields.size(); i++) {
+            KeyPair<int64_t, Field*> &field =
+                    mFields.get(i);
+            field.value->owner = findClass(field.key);
         }
 
         /* String section */
@@ -241,7 +244,7 @@ int Process_Exe(std::string exe)
                     break;
 
                 case data_string: {
-                    env->strings[stringPtr].id = getmi64(buffer); n++;
+                    env->strings[stringPtr].id = geti64(buffer); n++;
                     env->strings[stringPtr].value.init();
                     env->strings[stringPtr].value = getstring(buffer);
 
@@ -284,38 +287,38 @@ int Process_Exe(std::string exe)
                     if(aspRef >= manifest.methods)
                         throw std::runtime_error("text section may be corrupt");
 
-                    sh_asp* adsp = &env->methods[aspRef++];
-                    adsp->init();
+                    Method* method = &env->methods[aspRef++];
+                    method->init();
 
-                    adsp->id = getmi64(buffer);
-                    adsp->name = getstring(buffer);
-                    adsp->sourceFile = getlong(buffer);
-                    adsp->owner = findClass(getmi64(buffer));
-                    adsp->param_size = getmi64(buffer);
-                    adsp->frame_init = getmi64(buffer);
-                    adsp->cache_size = getmi64(buffer);
-                    adsp->self = getlong(buffer);
+                    method->address = geti64(buffer);
+                    method->name = getstring(buffer);
+                    method->sourceFile = getlong(buffer);
+                    method->owner = findClass(geti64(buffer));
+                    method->paramSize = geti64(buffer);
+                    method->stackSize = geti64(buffer);
+                    method->cacheSize = geti64(buffer);
+                    method->isStatic = getlong(buffer);
 
                     long len = getlong(buffer);
                     line_table lt;
                     for(long i = 0; i < len; i++) {
-                        lt.pc = getmi64(buffer);
-                        lt.line_number = getmi64(buffer);
-                        adsp->lineNumbers.push_back(lt);
+                        lt.pc = geti64(buffer);
+                        lt.line_number = geti64(buffer);
+                        method->lineNumbers.push_back(lt);
                     }
 
                     len = getlong(buffer);
                     ExceptionTable et;
 
                     for(long i = 0; i < len; i++) {
-                        et.handler_pc=getmi64(buffer);
-                        et.end_pc=getmi64(buffer);
-                        et.klass=getstring(buffer);
-                        et.local=getmi64(buffer);
-                        et.start_pc=getmi64(buffer);
-                        adsp->exceptions.push_back();
+                        et.handler_pc=geti64(buffer);
+                        et.end_pc=geti64(buffer);
+                        et.className=getstring(buffer);
+                        et.local=geti64(buffer);
+                        et.start_pc=geti64(buffer);
+                        method->exceptions.push_back();
 
-                        ExceptionTable &e = adsp->exceptions.get(adsp->exceptions.size()-1);
+                        ExceptionTable &e = method->exceptions.get(method->exceptions.size()-1);
                         e.init();
 
                         e = et;
@@ -325,9 +328,9 @@ int Process_Exe(std::string exe)
                     FinallyTable ft;
 
                     for(long i = 0; i < len; i++) {
-                        ft.start_pc=getmi64(buffer);
-                        ft.end_pc=getmi64(buffer);
-                        adsp->finallyBlocks.push_back(ft);
+                        ft.start_pc=geti64(buffer);
+                        ft.end_pc=geti64(buffer);
+                        method->finallyBlocks.push_back(ft);
                     }
                     break;
                 }
@@ -358,21 +361,21 @@ int Process_Exe(std::string exe)
                     break;
 
                 case data_byte: {
-                    sh_asp* adsp = &env->methods[aspRef++];
+                    Method* method = &env->methods[aspRef++];
 
-                    if(adsp->param_size > 0) {
-                        adsp->params = (int64_t*)malloc(sizeof(int64_t)*adsp->param_size);
-                        adsp->arrayFlag = (bool*)malloc(sizeof(bool)*adsp->param_size);
-                        for(unsigned int i = 0; i < adsp->param_size; i++) {
-                            adsp->params[i] = getlong(buffer);
-                            adsp->arrayFlag[i] = (bool)getlong(buffer);
+                    if(method->paramSize > 0) {
+                        method->params = (int64_t*)malloc(sizeof(int64_t)*method->paramSize);
+                        method->arrayFlag = (bool*)malloc(sizeof(bool)*method->paramSize);
+                        for(unsigned int i = 0; i < method->paramSize; i++) {
+                            method->params[i] = getlong(buffer);
+                            method->arrayFlag[i] = (bool)getlong(buffer);
                         }
                     }
 
-                    if(adsp->cache_size > 0) {
-                        adsp->bytecode = (int64_t*)malloc(sizeof(int64_t)*adsp->cache_size);
-                        for(int64_t i = 0; i < adsp->cache_size; i++) {
-                            adsp->bytecode[i] = getmi64(buffer);
+                    if(method->cacheSize > 0) {
+                        method->bytecode = (int64_t*)malloc(sizeof(int64_t)*method->cacheSize);
+                        for(int64_t i = 0; i < method->cacheSize; i++) {
+                            method->bytecode[i] = geti64(buffer);
                         }
                     }
                     break;
@@ -423,7 +426,6 @@ int Process_Exe(std::string exe)
                 }
             }
         }
-        jobIndx-=2;
     } catch(std::exception &e) {
         cout << "error " << e.what();
         return 1;
@@ -470,7 +472,7 @@ int64_t geti64(File::buffer& exe) {
 
 ClassObject *findClass(int64_t superClass) {
     for(uint64_t i = 0; i < manifest.classes; i++) {
-        if(env->classes[i].id == superClass)
+        if(env->classes[i].serial == superClass)
             return &env->classes[i];
     }
 
@@ -481,11 +483,11 @@ void getField(File::buffer& exe, List<KeyPair<int64_t, Field*>> &fieldMap, Field
     field->name.init();
     field->name = getstring(exe);
     field->serial = getlong(exe);
-    field->type = (int)getlong(exe);
+    field->type = (FieldType)getlong(exe);
     field->isStatic = (bool)getlong(exe);
     field->isArray = (bool)getlong(exe);
     field->owner = NULL;
-    mFields.push_back(MetaField(field, getlong(exe)));
+    fieldMap.add(KeyPair<int64_t, Field*>(getlong(exe), field));
 }
 
 string getstring(File::buffer& exe) {

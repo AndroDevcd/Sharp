@@ -22,7 +22,7 @@ struct Method {
     unsigned long address;          /* refrence id to the the address space */
 
     int64_t* bytecode;
-    int statckSize;                 /* inital stack space required for frame */
+    int stackSize;                 /* inital stack space required for frame */
     ClassObject* owner;
     native_string name;
     int64_t* params;
@@ -66,7 +66,7 @@ struct Method {
         arrayFlag = NULL;
         paramSize = 0;
         owner = NULL;
-        statckSize = 0;
+        stackSize = 0;
         bytecode = NULL;
         address = 0;
         cacheSize = 0;

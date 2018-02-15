@@ -40,7 +40,7 @@ int File::write(const char *f, buffer& data)
 
         remove( f );
         fp = fopen(f,"wb+");
-        if(fp == 0)
+        if(fp == nullptr)
             return 1;  // could not open file
 
         if(data.size() > 0) {
@@ -81,7 +81,7 @@ void File::read_alltext(const char *f, buffer& _out)
         int64_t len;
 
         fp = fopen(f,"rb");
-        if(fp == 0)
+        if(fp == nullptr)
             return;  // could not open file
 
 
@@ -158,7 +158,7 @@ int File::write(const char *f, string data)
 
         remove( f );
         fp = fopen(f,"wb+");
-        if(fp == 0)
+        if(fp == nullptr)
             return 1;  // could not open file
 
         unsigned int p=0;
