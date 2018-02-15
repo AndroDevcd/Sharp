@@ -139,14 +139,14 @@ private:
 #define GC_COLLECT_YOUNG() ( (unsigned int)(((double)yObjs/(double)youngObjects)*100) >= 10 )
 #define GC_COLLECT_ADULT() ( (unsigned int)(((double)aObjs/(double)adultObjects)*100) >= 40 )
 #define GC_COLLECT_OLD() ( (unsigned int)(((double)oObjs/(double)oldObjects)*100) >= 20 )
-#define GC_HEAP_LIMIT (BYTES_TO_MB(1))
+#define GC_HEAP_LIMIT (MB_TO_BYTES(1))
 
 /**
  * Bytes are used via the JEDEC Standard 100B.01
  */
 #define KB_TO_BYTES(bytes) (((unsigned long)bytes)*1024)
-#define MB_TO_BYTES(bytes) (KB_TO_BYTES(bytes)*1048576)
-#define GB_TO_BYTES(bytes) (MB_TO_BYTES(bytes)*1073741824)
+#define MB_TO_BYTES(bytes) (((unsigned long)bytes)*1048576)
+#define GB_TO_BYTES(bytes) (((unsigned long)bytes)*1073741824)
 
 
 #endif //SHARP_GARBAGECOLLECTOR_H
