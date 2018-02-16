@@ -137,6 +137,14 @@ void GarbageCollector::shutdown() {
     }
 }
 
+void GarbageCollector::startup() {
+    auto* gcThread=(Thread*)malloc(
+            sizeof(Thread)*1);
+    gcThread->CreateDaemon("gc");
+    Thread::startDaemon(
+            GarbageCollector::threadStart, gcThread);
+}
+
 void GarbageCollector::collect(CollectionPolicy policy) {
     if(isShutdown)
         return;
@@ -198,7 +206,7 @@ void GarbageCollector::collectYoungObjects() {
                 object->mutex.acquire(INDEFINITE);
 
             // free object
-            if(object->refCount == 0 && !scanObject(object)) {
+            if(object->refCount == 0) {
                 collect(object);
                 youngObjects--;
                 std::free(object);
@@ -230,7 +238,7 @@ void GarbageCollector::collectAdultObjects() {
                 object->mutex.acquire(INDEFINITE);
 
             // free object
-            if(object->refCount == 0 && !scanObject(object)) {
+            if(object->refCount == 0) {
                 collect(object);
                 adultObjects--;
                 std::free(object);
@@ -262,7 +270,7 @@ void GarbageCollector::collectOldObjects() {
                 object->mutex.acquire(INDEFINITE);
 
             // free object
-            if(object->refCount == 0 && !scanObject(object)) {
+            if(object->refCount == 0) {
                 collect(object);
                 oldObjects--;
                 std::free(object);
@@ -297,7 +305,7 @@ void GarbageCollector::run() {
             messageQueue.pop_back();
 
             /**
-             * We only want to run a concurrent collections
+             * We only want to run a concurrent collection
              * in the GC thread itsself
              */
             if(policy != GC_CONCURRENT)
@@ -369,12 +377,18 @@ unsigned long GarbageCollector::collect(SharpObject *object) {
         unsigned long bytesCollected = sizeof(SharpObject);
 
         if(object->size > 0) {
-            if(object->k != NULL) {
+            if(object->k != NULL && object->node != NULL) {
                 for(unsigned long i = 0; i < object->size; i++) {
-                    bytesCollected += collectMappedClass(object->node[i].object, object->k);
+                    /**
+                     * If the object still has references we just drop it and move on
+                     */
+                    if(object->node[i].object->refCount > 1)
+                        freeObject(&object->node[i]);
+                    else
+                        bytesCollected += collectMappedClass(&object->node[i], object->k);
                 }
 
-                bytesCollected += sizeof(SharpObject)*object->size;
+                bytesCollected += sizeof(Object)*object->size;
                 std::free(object->node);
             } else {
                 if(object->HEAD != NULL) {
@@ -382,10 +396,16 @@ unsigned long GarbageCollector::collect(SharpObject *object) {
                     std::free(object->HEAD); object->HEAD = NULL;
                 } else if(object->node != NULL) {
                     for(unsigned long i = 0; i < object->size; i++) {
-                        bytesCollected += collect(object->node[i].object);
+                        /**
+                         * If the object still has references we just drop it and move on
+                         */
+                        if(object->node[i].object->refCount > 1)
+                            freeObject(&object->node[i]);
+                        else
+                            bytesCollected += collect(object->node[i].object);
                     }
 
-                    bytesCollected += sizeof(SharpObject)*object->size;
+                    bytesCollected += sizeof(Object)*object->size;
                     std::free(object->node);
                 }
             }
@@ -396,7 +416,7 @@ unsigned long GarbageCollector::collect(SharpObject *object) {
     return 0;
 }
 
-unsigned long GarbageCollector::collectMappedClass(SharpObject *pObject, ClassObject *pClassObject) {
+unsigned long GarbageCollector::collectMappedClass(Object *pObject, ClassObject *pClassObject) {
     return 0;
 }
 
@@ -459,18 +479,4 @@ void GarbageCollector::createStringArray(Object *object, native_string s) {
             object->object->HEAD[i] = s.chars[i];
         }
     }
-}
-
-bool GarbageCollector::scanObject(SharpObject *object) {
-    if(object != NULL && object->node != NULL) {
-        for(unsigned long i = 0; i < object->size; i++) {
-            Object *o = &object->node[i];
-            if(o->object != NULL) {
-                if(o->object->refCount != 0)
-                    return true;
-                scanObject(o->object);
-            }
-        }
-    }
-    return false;
 }

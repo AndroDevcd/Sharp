@@ -40,6 +40,7 @@ public:
     List<CollectionPolicy> messageQueue;
 
     static void initilize();
+    static void startup();
     void shutdown();
     static
 #ifdef WIN32_
@@ -132,15 +133,7 @@ private:
      * @param pObject
      * @return
      */
-    unsigned long collectMappedClass(SharpObject *object, ClassObject *klass);
-
-    /**
-     * Return wether or not the object has references deeper into the structure
-     * we do not want to collect an object that has references in its child objects
-     * @param object
-     * @return
-     */
-    bool scanObject(SharpObject *object);
+    unsigned long collectMappedClass(Object *object, ClassObject *klass);
 };
 
 #define GC_SLEEP_INTERVAL 10

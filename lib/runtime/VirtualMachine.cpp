@@ -22,6 +22,7 @@ int CreateVirtualMachine(std::string exe)
         return 1;
 
     Thread::Startup();
+    GarbageCollector::startup();
 
     /**
      * Aux classes
@@ -77,7 +78,7 @@ int CreateVirtualMachine(std::string exe)
             "std.err#ThreadStackException",
             fields,
             2,
-            &env->RuntimeErr,
+            env->RuntimeErr,
             manifest.classes
     );
     env->ThreadStackException = &env->classes[manifest.classes++];
