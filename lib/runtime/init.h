@@ -17,6 +17,7 @@ void error(string message);
 
 struct options {
 
+    bool debugMode = true;
 };
 
 extern options c_options;

@@ -23,7 +23,7 @@ struct SharpObject
         generation = 0x000; /* generation young */
     }
     double *HEAD;        /* data */
-    SharpObject *node;   /* data */
+    Object *node;        /* structured data */
 
     /* info */
     ClassObject* k;

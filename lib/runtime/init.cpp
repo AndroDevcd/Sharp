@@ -4,7 +4,7 @@
 #include <cstring>
 #include <cstdio>
 #include "../../stdimports.h"
-#include "../util/file.h"
+#include "../util/File.h"
 #include "oo/string.h"
 #include "List.h"
 #include "init.h"
@@ -42,7 +42,7 @@ void help() {
 
 #define opt(v) strcmp(argv[i], v) == 0
 
-int __init(int argc, const char* argv[])
+int runtimeStart(int argc, const char* argv[])
 {
     if (argc < 2) { // We expect at least 1 argument: the executable
         help();
@@ -185,7 +185,7 @@ void init_main(List <native_string>& pArgs) {
         main->dataStack[i].var=0;
     }
     // TODO: initalize frame
-    Thread::threads[main_threadid]->init_frame();
+    //Thread::threads[main_threadid]->init_frame();
     Object* object = &main->dataStack[(long)++registers[sp]].object;
 
     createStringArray(object, pArgs);

@@ -198,7 +198,7 @@ void GarbageCollector::collectYoungObjects() {
                 object->mutex.acquire(INDEFINITE);
 
             // free object
-            if(object->refCount == 0) {
+            if(object->refCount == 0 && !scanObject(object)) {
                 collect(object);
                 youngObjects--;
                 std::free(object);
@@ -230,7 +230,7 @@ void GarbageCollector::collectAdultObjects() {
                 object->mutex.acquire(INDEFINITE);
 
             // free object
-            if(object->refCount == 0) {
+            if(object->refCount == 0 && !scanObject(object)) {
                 collect(object);
                 adultObjects--;
                 std::free(object);
@@ -262,7 +262,7 @@ void GarbageCollector::collectOldObjects() {
                 object->mutex.acquire(INDEFINITE);
 
             // free object
-            if(object->refCount == 0) {
+            if(object->refCount == 0 && !scanObject(object)) {
                 collect(object);
                 oldObjects--;
                 std::free(object);
@@ -371,7 +371,7 @@ unsigned long GarbageCollector::collect(SharpObject *object) {
         if(object->size > 0) {
             if(object->k != NULL) {
                 for(unsigned long i = 0; i < object->size; i++) {
-                    bytesCollected += collectMappedClass(&object->node[i], object->k);
+                    bytesCollected += collectMappedClass(object->node[i].object, object->k);
                 }
 
                 bytesCollected += sizeof(SharpObject)*object->size;
@@ -382,7 +382,7 @@ unsigned long GarbageCollector::collect(SharpObject *object) {
                     std::free(object->HEAD); object->HEAD = NULL;
                 } else if(object->node != NULL) {
                     for(unsigned long i = 0; i < object->size; i++) {
-                        bytesCollected += collect(&object->node[i]);
+                        bytesCollected += collect(object->node[i].object);
                     }
 
                     bytesCollected += sizeof(SharpObject)*object->size;
@@ -434,9 +434,9 @@ SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
     object->size = size;
     object->refCount=1;
     if(size > 0) {
-        object->node = (SharpObject*)__malloc(sizeof(SharpObject)*size);
+        object->node = (Object*)__malloc(sizeof(Object)*size);
         for(unsigned int i = 0; i < object->size; i++)
-            object->node[i].init();
+            object->node[i].object = NULL;
     }
 
     /* track the allocation amount */
@@ -450,15 +450,26 @@ SharpObject *GarbageCollector::newObjectArray(unsigned long size, ClassObject *k
     return nullptr;
 }
 
-void GarbageCollector::createStringArray(SharpObject *object, native_string s) {
+void GarbageCollector::createStringArray(Object *object, native_string s) {
     if(object != NULL) {
-        object->size = s.len;
-        object->HEAD = (double*)__malloc(sizeof(double)*s.len);
+        object->object = newObject(s.len);
 
         for(unsigned long i = 0; i < s.len; i++) {
-            object->HEAD[i] = s.chars[i];
+            object->object->HEAD[i] = s.chars[i];
         }
-
-        managedBytes += (sizeof(double)*s.len);
     }
+}
+
+bool GarbageCollector::scanObject(SharpObject *object) {
+    if(object != NULL && object->node != NULL) {
+        for(unsigned long i = 0; i < object->size; i++) {
+            Object *o = &object->node[i];
+            if(o->object != NULL) {
+                if(o->object->refCount != 0)
+                    return true;
+                scanObject(o->object);
+            }
+        }
+    }
+    return false;
 }

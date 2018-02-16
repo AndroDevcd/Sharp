@@ -256,8 +256,13 @@ void VirtualMachine::executeMethod(int64_t address) {
     }
 
     Method* method = env->methods+address;
-    thread_self->callStack.add(
-            Frame(thread_self->current, thread_self->pc, registers[sp], registers[fp]));
+    if(thread_self->callStack.empty())
+        thread_self->callStack.add(
+                Frame(NULL, 0, 0, 0)); // for main method
+    else
+        thread_self->callStack.add(
+                Frame(thread_self->current, thread_self->pc, registers[sp], registers[fp]));
+
 
     thread_self->current = method;
     thread_self->cache = method->bytecode;

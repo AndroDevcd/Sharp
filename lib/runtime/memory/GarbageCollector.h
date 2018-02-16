@@ -85,7 +85,7 @@ public:
     SharpObject* newObjectArray(unsigned long size); /* Array Object allocation */
     SharpObject* newObjectArray(unsigned long size, ClassObject* k); /* Class Array allocation */
 
-    void createStringArray(SharpObject* object, native_string s); /* Native string allocation */
+    void createStringArray(Object* object, native_string s); /* Native string allocation */
 
     /**
      * Function call by virtual machine
@@ -133,6 +133,14 @@ private:
      * @return
      */
     unsigned long collectMappedClass(SharpObject *object, ClassObject *klass);
+
+    /**
+     * Return wether or not the object has references deeper into the structure
+     * we do not want to collect an object that has references in its child objects
+     * @param object
+     * @return
+     */
+    bool scanObject(SharpObject *object);
 };
 
 #define GC_SLEEP_INTERVAL 10

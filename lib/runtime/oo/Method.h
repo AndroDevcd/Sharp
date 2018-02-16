@@ -96,6 +96,9 @@ public:
     uint64_t fp;
 };
 
+#define returnFrame(x) \
+    if(thread_self->callStack.size()==1) return; else { x }
+
 struct StackElement {
     double var;
     Object object;
