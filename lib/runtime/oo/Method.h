@@ -80,10 +80,20 @@ struct line_table {
 };
 
 struct Frame {
+public:
+    Frame(Method* last, uint64_t pc, uint64_t sp,
+          uint64_t fp)
+    {
+        this->last=last;
+        this->pc=pc;
+        this->sp=sp;
+        this->fp=fp;
+    }
+
     Method *last;                   /* Last method */
-    unsigned int pc;
-    unsigned int sp;
-    unsigned int fp;
+    uint64_t pc;
+    uint64_t sp;
+    uint64_t fp;
 };
 
 struct StackElement {

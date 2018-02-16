@@ -31,6 +31,17 @@ public:
 
     void sysInterrupt(int32_t i);
 
+    void executeMethod(int64_t address);
+    int returnMethod();
+    bool TryThrow(Method* method, Object* exceptionObject);
+    void Throw(Object *exceptionObject);
+
+    void fillStackTrace(Object *exceptionObject);
+
+    void fillStackTrace(native_string &str);
+
+    string getPrettyErrorLine(long line, long sourceFile);
+
     int exitVal;
 };
 

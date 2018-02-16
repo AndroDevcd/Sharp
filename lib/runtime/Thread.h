@@ -98,6 +98,7 @@ public:
     StackElement* dataStack;
     unsigned long stack_lmt;
     Cache cache;
+    int64_t cacheSize;
     Throwable throwable;
 #ifdef WIN32_
     HANDLE thread;
@@ -113,8 +114,6 @@ public:
     static void resumeAllThreads();
 
 private:
-    void executeMethod(int64_t id);
-    int returnMethod();
 
     void wait();
 
@@ -125,15 +124,6 @@ private:
 
     static void pushThread(Thread *thread);
     static void popThread(Thread *thread);
-
-    bool TryThrow(Method* method, Object* exceptionObject);
-    void Throw(Object *exceptionObject);
-
-    void fillStackTrace(Object *exceptionObject);
-
-    void fillStackTrace(native_string &str);
-
-    string getPrettyErrorLine(long line, long sourceFile);
 };
 
 extern thread_local Thread* thread_self;

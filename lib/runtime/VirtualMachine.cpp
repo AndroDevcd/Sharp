@@ -247,3 +247,35 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
 void VirtualMachine::exec() {
 
 }
+
+void VirtualMachine::executeMethod(int64_t address) {
+    if(address < 0 || address >= manifest.methods) {
+        stringstream ss;
+        ss << "could not call method @" << address << "; method not found.";
+        throw Exception(ss.str());
+    }
+
+    Method* method = env->methods+address;
+    thread_self->callStack.add(
+            Frame(thread_self->current, thread_self->pc, registers[sp], registers[fp]));
+
+    thread_self->current = method;
+    thread_self->cache = method->bytecode;
+    thread_self->cacheSize = method->cacheSize;
+    registers[fp] = (registers[sp] - method->paramSize) + 1;
+}
+
+int VirtualMachine::returnMethod() {
+
+    Frame frame = thread_self->callStack.last();
+
+    thread_self->current = frame.last;
+    thread_self->cache = frame.last->bytecode;
+    thread_self->cacheSize=frame.last->cacheSize;
+
+    thread_self->pc = frame.pc;
+    registers[sp] = frame.sp;
+    registers[fp] = frame.fp;
+    thread_self->callStack.pop_back();
+    return 0;
+}

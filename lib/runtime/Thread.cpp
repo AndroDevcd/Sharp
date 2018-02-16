@@ -497,3 +497,12 @@ void*
         return waitForThread(thread);
 #endif
 }
+
+void __os_sleep(int64_t INTERVAL) {
+#ifdef WIN32_
+    Sleep(INTERVAL);
+#endif
+#ifdef POSIX_
+    usleep(INTERVAL);
+#endif
+}
