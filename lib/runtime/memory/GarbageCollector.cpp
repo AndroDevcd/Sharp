@@ -440,7 +440,7 @@ SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
     }
 
     /* track the allocation amount */
-    managedBytes += (sizeof(SharpObject)*1)+(sizeof(SharpObject)*size);
+    managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
     heap.add(object);
 
     return object;
@@ -452,6 +452,7 @@ SharpObject *GarbageCollector::newObjectArray(unsigned long size, ClassObject *k
 
 void GarbageCollector::createStringArray(Object *object, native_string s) {
     if(object != NULL) {
+        freeObject(object);
         object->object = newObject(s.len);
 
         for(unsigned long i = 0; i < s.len; i++) {
