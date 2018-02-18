@@ -184,8 +184,7 @@ void init_main(List <native_string>& pArgs) {
         main->dataStack[i].object.object = NULL;
         main->dataStack[i].var=0;
     }
-    // TODO: initalize frame
-    //Thread::threads[main_threadid]->init_frame();
+
     Object* object = &main->dataStack[(long)++registers[sp]].object;
 
     createStringArray(object, pArgs);

@@ -9,6 +9,7 @@
 #include "register.h"
 #include "Environment.h"
 #include "../util/time.h"
+#include "Opcode.h"
 
 VirtualMachine* vm;
 Environment* env;
@@ -154,7 +155,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     thread_self->state = THREAD_RUNNING;
 
     try {
-        vm->exec();
+        thread_self->exec();
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();
@@ -243,10 +244,6 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             // unsupported
             break;
     }
-}
-
-void VirtualMachine::exec() {
-
 }
 
 void VirtualMachine::executeMethod(int64_t address) {

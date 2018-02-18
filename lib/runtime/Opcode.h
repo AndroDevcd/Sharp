@@ -54,10 +54,16 @@
 
 #define hlt state=thread_killed; _brh
 
-#define newiarray(x) CHK_NULL(ptr->createnative(__rxs[x]);) _brh
+#define newiarray(x) threas_self->dataStack[(long)++registers[sp]]. _brh
 
 #define _newstr(x) CHK_NULL(ptr->createstr(x);) _brh
 
 #define check_cast(x) CHK_NULL(ptr->checkcast(x);) _brh
+
+#define _initOpcodeTable \
+    static void* opcode_table[] = { \
+        &&_NOP,    \
+        &&_INT    \
+    };
 
 #endif //SHARP_OPCODE_H

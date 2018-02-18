@@ -6,6 +6,9 @@
 #include "memory/GarbageCollector.h"
 #include "Exe.h"
 #include "Environment.h"
+#include "VirtualMachine.h"
+#include "Opcode.h"
+#include "register.h"
 
 int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
@@ -189,7 +192,7 @@ int Thread::start(int32_t id) {
     thread->thread = CreateThread(
             NULL,                   // default security attributes
             0,                      // use default stack size
-            &env->InterpreterThreadStart,       // thread function caller
+            &vm->InterpreterThreadStart,       // thread function caller
             thread,                 // thread self when thread is created
             0,                      // use default creation flags
             NULL);
@@ -496,6 +499,42 @@ void*
     else
         return waitForThread(thread);
 #endif
+}
+
+void Thread::exec() {
+    pc = 0;
+    vm->executeMethod(main->address);
+
+    _initOpcodeTable
+    try {
+        for (;;) {
+            interp:
+            if (suspendPending)
+                suspendSelf();
+            if (state == THREAD_KILLED)
+                return;
+
+            DISPATCH();
+            _NOP:
+                _brh
+            _INT:
+                vm->sysInterrupt(GET_Da(cache[pc]));
+                _brh
+            _MOVI:
+                registers[cache[pc+1]]=GET_Da(cache[pc]); pc++;
+                _brh
+            RET:
+                returnFrame(vm->returnMethod();)
+                _brh
+            HLT:
+                state=THREAD_KILLED;
+                _brh
+            NEWARRAY:
+                dataStack[(long long)++registers[sp]].object =
+                        GarbageCollector::self->newObject(registers[GET_Da(cache[pc])]);
+                _brh
+        }
+    }
 }
 
 void __os_sleep(int64_t INTERVAL) {

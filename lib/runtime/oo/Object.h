@@ -40,7 +40,8 @@ struct SharpObject
 struct Object {
     SharpObject* object;
 
-    void operator=(Object &object);
+    CXX11_INLINE void operator=(Object &object);
+    CXX11_INLINE void operator=(SharpObject *object, bool isNew = true);
 };
 
 

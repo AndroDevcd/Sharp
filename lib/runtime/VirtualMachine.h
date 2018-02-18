@@ -25,8 +25,6 @@ public:
 #endif
     InterpreterThreadStart(void *arg);
 
-    void exec();
-
     void shutdown();
 
     void sysInterrupt(int32_t i);
