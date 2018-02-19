@@ -27,7 +27,7 @@ void Thread::Startup() {
 
     Thread* main = (Thread*)malloc(
             sizeof(Thread)*1);
-    main->main = &env->methods[manifest.entry];
+    main->main = &env->methods[manifest.entryMethod];
     main->Create("Main");
 }
 
@@ -501,9 +501,76 @@ void*
 #endif
 }
 
+double exponent(int64_t n){
+    if (n < 100000){
+        // 5 or less
+        if (n < 100){
+            // 1 or 2
+            if (n < 10)
+                return n*0.1;
+            else
+                return n*0.01;
+        }else{
+            // 3 or 4 or 5
+            if (n < 1000)
+                return n*0.001;
+            else{
+                // 4 or 5
+                if (n < 10000)
+                    return n*0.0001;
+                else
+                    return n*0.00001;
+            }
+        }
+    } else {
+        // 6 or more
+        if (n < 10000000) {
+            // 6 or 7
+            if (n < 1000000)
+                return n*0.000001;
+            else
+                return n*0.0000001;
+        } else if(n < 1000000000) {
+            // 8 to 10
+            if (n < 100000000)
+                return n*0.00000001;
+            else {
+                // 9 or 10
+                if (n < 1000000000)
+                    return n*0.000000001;
+                else
+                    return n*0.0000000001;
+            }
+        } else if(n < 1000000000000000) {
+            // 11 to 15
+            if (n < 100000000000)
+                return n*0.00000000001;
+            else {
+                // 12 to 15
+                if (n < 1000000000000)
+                    return n*0.000000000001;
+                else if (n < 10000000000000)
+                    return n*0.0000000000001;
+                else if (n < 100000000000000)
+                    return n*0.00000000000001;
+                else
+                    return n*0.000000000000001;
+            }
+        }
+        else {
+            return n*0.0000000000000001;
+        }
+    }
+}
+
 void Thread::exec() {
     pc = 0;
     vm->executeMethod(main->address);
+
+    uint64_t tmp;
+    int64_t val;
+    SharpObject* o;
+    Object* o2;
 
     _initOpcodeTable
     try {
@@ -533,7 +600,279 @@ void Thread::exec() {
                 dataStack[(long long)++registers[sp]].object =
                         GarbageCollector::self->newObject(registers[GET_Da(cache[pc])]);
                 _brh
+            CAST:
+                tmp = registers[sp];
+                dataStack[tmp-1].object.castObject(dataStack[tmp].var); registers[sp]-=2;
+                _brh
+            MOV8:
+                registers[GET_Ca(cache[pc])]=(int8_t)registers[GET_Cb(cache[pc])];
+                _brh
+            MOV16:
+                registers[GET_Ca(cache[pc])]=(int16_t)registers[GET_Cb(cache[pc])];
+                _brh
+            MOV32:
+                registers[GET_Ca(cache[pc])]=(int32_t)registers[GET_Cb(cache[pc])];
+                _brh
+            MOV64:
+                registers[GET_Ca(cache[pc])]=(int64_t)registers[GET_Cb(cache[pc])];
+                _brh
+            MOVU8:
+                registers[GET_Ca(cache[pc])]=(uint8_t)registers[GET_Cb(cache[pc])];
+                _brh
+            MOVU16:
+                registers[GET_Ca(cache[pc])]=(uint16_t)registers[GET_Cb(cache[pc])];
+                _brh
+            MOVU32:
+                registers[GET_Ca(cache[pc])]=(uint32_t)registers[GET_Cb(cache[pc])];
+                _brh
+            MOVU64:
+                registers[GET_Ca(cache[pc])]=(uint64_t)registers[GET_Cb(cache[pc])];
+                _brh
+            RSTORE:
+                dataStack[(int64_t)++registers[sp]].var = registers[GET_Da(cache[pc])];
+                _brh
+            ADD:
+                registers[cache[pc+1]]=registers[GET_Ca(cache[pc])]+registers[GET_Cb(cache[pc])]; pc++;
+                _brh
+            SUB:
+                registers[cache[pc+1]]=registers[GET_Ca(cache[pc])]-registers[GET_Cb(cache[pc])]; pc++;
+                _brh
+            MUL:
+                registers[cache[pc+1]]=registers[GET_Ca(cache[pc])]*registers[GET_Cb(cache[pc])]; pc++;
+                _brh
+            DIV:
+                registers[cache[pc+1]]=registers[GET_Ca(cache[pc])]/registers[GET_Cb(cache[pc])]; pc++;
+                _brh
+            MOD:
+                registers[cache[pc+1]]=(int64_t)registers[GET_Ca(cache[pc])]%(int64_t)registers[GET_Cb(cache[pc])]; pc++;
+                _brh
+            IADD:
+                registers[GET_Ca(cache[pc])]+=GET_Cb(cache[pc]);
+                _brh
+            ISUB:
+                registers[GET_Ca(cache[pc])]-=GET_Cb(cache[pc]);
+                _brh
+            IMUL:
+                registers[GET_Ca(cache[pc])]*=GET_Cb(cache[pc]);
+                _brh
+            IDIV:
+                registers[GET_Ca(cache[pc])]/=GET_Cb(cache[pc]);
+                _brh
+            IMOD:
+                registers[GET_Ca(cache[pc])]=(int64_t)registers[GET_Ca(cache[pc])]%(int64_t)GET_Cb(cache[pc]);
+                _brh
+            POP:
+                --registers[sp];
+                _brh
+            INC:
+                registers[GET_Da(cache[pc])]++;
+                _brh
+            DEC:
+                registers[GET_Da(cache[pc])]--;
+                _brh
+            MOVR:
+                registers[GET_Ca(cache[pc])]=registers[GET_Cb(cache[pc])];
+                _brh
+            IALOAD:
+                o = (dataStack+(uint64_t)registers[sp])->object.object;
+                if(o != NULL) {
+                    registers[GET_Ca(cache[pc])] = o->HEAD[(uint64_t)registers[GET_Cb(cache[pc])]];
+                } else throw Exception(Environment::NullptrException, "");
+                _brh
+            BRH:
+                pc=registers[adx];
+                _brh_NOINCREMENT
+            IFE:
+                if(registers[cmt]) {
+                    pc=registers[adx]; _brh_NOINCREMENT
+                } else  _brh
+            IFNE:
+                if(registers[cmt]==0) {
+                    pc=registers[adx]; _brh_NOINCREMENT
+                } else  _brh
+            LT:
+                registers[cmt]=registers[GET_Ca(cache[pc])]<registers[GET_Cb(cache[pc])];
+                _brh
+            GT:
+                registers[cmt]=registers[GET_Ca(cache[pc])]>registers[GET_Cb(cache[pc])];
+                _brh
+            LTE:
+                registers[cmt]=registers[GET_Ca(cache[pc])]<=registers[GET_Cb(cache[pc])];
+                _brh
+            GTE:
+                registers[cmt]=registers[GET_Ca(cache[pc])]>=registers[GET_Cb(cache[pc])];
+                _brh
+            MOVL:
+                o2 = &dataStack[(int64_t)registers[fp]+GET_Da(cache[pc])].object;
+                _brh
+            MOVSL:
+                o2 = &dataStack[(int64_t)registers[sp]+GET_Da(cache[pc])].object;
+                _brh
+            MOVBI:
+                registers[bmr]=GET_Da(cache[pc]); pc++;
+                _brh
+            SIZEOF:
+                CHECK_NULLOBJ(registers[GET_Da(cache[pc])]=o2->object->size;)
+                _brh
+            PUT:
+                cout << registers[GET_Da(cache[pc])];
+                _brh
+            PUTC:
+                printf("%c", (char)registers[GET_Da(cache[pc])]);
+                _brh
+            CHECKLEN:
+            CHECK_NULLOBJ(
+                    if(registers[GET_Da(cache[pc])]<o2->object->size) { _brh }
+                    else {
+                        stringstream ss;
+                        ss << "Access to Object at: " << registers[GET_Da(cache[pc])] << " size is " << o2->object->size;
+                        throw Exception(Environment::IndexOutOfBoundsException, ss.str());
+                    }
+                )
+            GOTO:
+                pc = GET_Da(cache[pc]);
+                _brh_NOINCREMENT
+            LOADPC:
+                registers[GET_Da(cache[pc])] = pc;
+                _brh
+            PUSHOBJ:
+                dataStack[(int64_t)++registers[sp]].object=o2;
+                _brh
+            DEL:
+                GarbageCollector::self->freeObject(o2);
+                _brh
+            CALL:
+                vm->executeMethod(GET_Da(cache[pc]));
+                _brh
+            NEWCLASS:
+                CHECK_NULL(*o2 = GarbageCollector::self->newObject(env->findClassBySerial(GET_Da(cache[pc])));)
+                _brh
+            MOVN: // TODO: check to see if we really need this instruction
+                CHECK_NULLOBJ(o2 = &o2->object->node[GET_Da(cache[pc])];)
+                _brh
+            SLEEP:
+                __os_sleep((int64_t)registers[GET_Da(cache[pc])]);
+                _brh
+            TEST:
+                registers[cmt]=registers[GET_Ca(cache[pc])]==registers[GET_Cb(cache[pc])];
+                _brh
+            TNE:
+                registers[cmt]=registers[GET_Ca(cache[pc])]!=registers[GET_Cb(cache[pc])];
+                _brh
+            LOCK:
+                CHECK_NULLOBJ(o2->object->mutex.acquire((int32_t)registers[GET_Da(cache[pc])]);)
+                _brh
+            ULOCK:
+                CHECK_NULLOBJ(o2->object->mutex.release();)
+                _brh
+            EXP:
+                registers[bmr] = exponent(registers[GET_Da(cache[pc])]);
+                _brh
+            MOVG:
+                o2 = &env->globalHeap[GET_Da(cache[pc])];
+                _brh
+            MOVND:
+                CHECK_NULLOBJ(o2 = &o2->object->node[(int64_t)registers[GET_Da(cache[pc])]];)
+                _brh
+            NEWOBJARRAY:
+                CHECK_NULLOBJ(*o2 = GarbageCollector::self->newObjectArray(registers[GET_Da(cache[pc])]);)
+                _brh
+            NOT:
+                registers[GET_Ca(cache[pc])]=!registers[GET_Cb(cache[pc])];
+                _brh
+            SKIP:
+                pc += GET_Da(cache[pc]);
+                _brh
+            LOADVAL:
+                registers[GET_Da(cache[pc])]=dataStack[(int64_t)registers[sp]--].var;
+                _brh
+            SHL:
+                registers[cache[pc+1]]=(int64_t)registers[GET_Ca(cache[pc])]<<(int64_t)registers[GET_Cb(cache[pc])]; pc++;
+                _brh
+            SHR:
+                registers[cache[pc+1]]=(int64_t)registers[GET_Ca(cache[pc])]>>(int64_t)registers[GET_Cb(cache[pc])]; pc++;
+                _brh
+            SKPE:
+                if(registers[cmt]) {
+                    pc+=GET_Da(cache[pc]); _brh_NOINCREMENT
+                } else _brh
+            SKNE:
+                if(registers[cmt]==0) {
+                    pc+=GET_Da(cache[pc]); _brh_NOINCREMENT
+                } else _brh
+            AND:
+                registers[cmt]=registers[GET_Ca(cache[pc])]&&registers[GET_Cb(cache[pc])];
+                _brh
+            UAND:
+                registers[cmt]=(int64_t)registers[GET_Ca(cache[pc])]&(int64_t)registers[GET_Cb(cache[pc])];
+                _brh
+            OR:
+                registers[cmt]=(int64_t)registers[GET_Ca(cache[pc])]|(int64_t)registers[GET_Cb(cache[pc])];
+                _brh
+            UNOT:
+                registers[cmt]=(int64_t)registers[GET_Ca(cache[pc])]^(int64_t)registers[GET_Cb(cache[pc])];
+                _brh
+            THROW:
+                throw Exception("", false);
+                _brh
+            CHECKNULL:
+                CHECK_NULL(registers[cmt]=o2->object==NULL;)
+                _brh
+            RETURNOBJ:
+                dataStack[(int64_t)registers[fp]].object=o2;
+                _brh
+            NEWCLASSARRAY:
+                CHECK_NULL(
+                        *o2 = GarbageCollector::self->newObjectArray(registers[GET_Da(cache[pc])],
+                                                                           env->findClassBySerial(GET_Da(cache[pc])));
+                )
+                _brh
+            NEWSTRING:
+                GarbageCollector::self->createStringArray(o2, env->getStringById(GET_Da(cache[pc])));
+                _brh
+            ADDL:
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var+=registers[GET_Ca(cache[pc])];
+                _brh
+            SUBL:
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var-=registers[GET_Ca(cache[pc])];
+                _brh
+            MULL:
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var*=registers[GET_Ca(cache[pc])];
+                _brh
+            DIVL:
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var/=registers[GET_Ca(cache[pc])];
+                _brh
+            MODL:
+                val = dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var;
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var=val%(int64_t)registers[GET_Ca(cache[pc])];
+                _brh
+            IADDL:
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var+=GET_Ca(cache[pc]);
+                _brh
+            ISUBL:
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var-=GET_Ca(cache[pc]);
+                _brh
+            IMULL:
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var*=GET_Ca(cache[pc]);
+                _brh
+            IDIVL:
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var/=GET_Ca(cache[pc]);
+                _brh
+            IMODL:
+                val = dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var;
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var=val%GET_Ca(cache[pc]);
+                _brh
+
         }
+    } catch (bad_alloc &e) {
+        cout << "std::bad_alloc\n";
+        // TODO: throw out of memory error
+    } catch (Exception &e) {
+        throwable = e.getThrowable();
+        exceptionThrown = true;
+        vm->Throw(&dataStack[(int64_t)registers[sp]].object);
+
+        DISPATCH();
     }
 }
 

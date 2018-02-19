@@ -53,12 +53,6 @@ public:
 
     native_string& getStringById(int64_t ref);
 
-    static void init(StackElement*,int64_t);
-
-    static void free(Object*, int64_t);
-    static void freesticky(Object*, int64_t);
-    static void gcinsert_stack(Object *, int64_t);
-
     SharpObject* findField(std::string name, SharpObject *object);
 };
 

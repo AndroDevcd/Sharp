@@ -5,6 +5,7 @@
 #include "GarbageCollector.h"
 #include "../oo/Object.h"
 #include "../Thread.h"
+#include "../oo/Field.h"
 
 static GarbageCollector *self = NULL;
 
@@ -372,12 +373,14 @@ void GarbageCollector::sendMessage(CollectionPolicy message) {
     mutex.release();
 }
 
-unsigned long GarbageCollector::collect(SharpObject *object) {
+void GarbageCollector::collect(SharpObject *object) {
     if(object != NULL) {
-        unsigned long bytesCollected = sizeof(SharpObject);
 
         if(object->size > 0) {
-            if(object->k != NULL && object->node != NULL) {
+            if(object->HEAD != NULL) {
+                managedBytes -= sizeof(double)*object->size;
+                std::free(object->HEAD); object->HEAD = NULL;
+            } else if(object->node != NULL) {
                 for(unsigned long i = 0; i < object->size; i++) {
                     /**
                      * If the object still has references we just drop it and move on
@@ -385,39 +388,14 @@ unsigned long GarbageCollector::collect(SharpObject *object) {
                     if(object->node[i].object->refCount > 1)
                         freeObject(&object->node[i]);
                     else
-                        bytesCollected += collectMappedClass(&object->node[i], object->k);
+                        collect(object->node[i].object);
                 }
 
-                bytesCollected += sizeof(Object)*object->size;
+                managedBytes -= sizeof(Object)*object->size;
                 std::free(object->node);
-            } else {
-                if(object->HEAD != NULL) {
-                    bytesCollected += sizeof(double)*object->size;
-                    std::free(object->HEAD); object->HEAD = NULL;
-                } else if(object->node != NULL) {
-                    for(unsigned long i = 0; i < object->size; i++) {
-                        /**
-                         * If the object still has references we just drop it and move on
-                         */
-                        if(object->node[i].object->refCount > 1)
-                            freeObject(&object->node[i]);
-                        else
-                            bytesCollected += collect(object->node[i].object);
-                    }
-
-                    bytesCollected += sizeof(Object)*object->size;
-                    std::free(object->node);
-                }
             }
         }
-        return bytesCollected;
     }
-
-    return 0;
-}
-
-unsigned long GarbageCollector::collectMappedClass(Object *pObject, ClassObject *pClassObject) {
-    return 0;
 }
 
 bool GarbageCollector::spaceAvailable(size_t bytes) {
@@ -434,17 +412,46 @@ SharpObject *GarbageCollector::newObject(unsigned long size) {
         object->HEAD = (double*)__malloc(sizeof(double)*size);
         for(unsigned int i = 0; i < object->size; i++)
             object->HEAD[i]=0;
+
+        managedBytes += (sizeof(double)*size);
     }
 
     /* track the allocation amount */
-    managedBytes += (sizeof(SharpObject)*1)+(sizeof(double)*size);
+    managedBytes += (sizeof(SharpObject)*1);
     heap.add(object);
 
     return object;
 }
 
-SharpObject *GarbageCollector::newObject(unsigned long size, ClassObject *k) {
-    return nullptr;
+SharpObject *GarbageCollector::newObject(ClassObject *k) {
+    if(k != NULL) {
+        auto *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
+
+        object->init();
+        object->size = k->fieldCount;
+        object->refCount=1;
+
+        if(k->fieldCount > 0) {
+            object->node = (Object*)__malloc(sizeof(Object)*k->fieldCount);
+            for(unsigned int i = 0; i < object->size; i++) {
+                /**
+                 * We want to set the class variables and arrays
+                 * to null and initialize the var variables
+                 */
+                if(k->fields[i].type == VAR && !k->fields[i].isArray) {
+                    object->node[i].object = newObject(1);
+                } else
+                    object->node[i].object=NULL;
+            }
+
+            managedBytes += (sizeof(Object)*k->fieldCount);
+        }
+
+        managedBytes += (sizeof(SharpObject)*1);
+        return object;
+    }
+
+    return NULL;
 }
 
 SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
@@ -457,20 +464,44 @@ SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
         object->node = (Object*)__malloc(sizeof(Object)*size);
         for(unsigned int i = 0; i < object->size; i++)
             object->node[i].object = NULL;
+
+        managedBytes += (sizeof(Object)*size);
     }
 
     /* track the allocation amount */
-    managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
+    managedBytes += (sizeof(SharpObject)*1);
     heap.add(object);
 
     return object;
 }
 
 SharpObject *GarbageCollector::newObjectArray(unsigned long size, ClassObject *k) {
-    return nullptr;
+    if(k != NULL) {
+        auto *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
+
+        object->init();
+        object->size = size;
+        object->refCount=1;
+        object->k = k;
+        if(size > 0) {
+            object->node = (Object*)__malloc(sizeof(Object)*size);
+            for(unsigned int i = 0; i < object->size; i++)
+                object->node[i].object = NULL;
+
+            managedBytes += (sizeof(Object)*size);
+        }
+
+        /* track the allocation amount */
+        managedBytes += (sizeof(SharpObject)*1);
+        heap.add(object);
+
+        return object;
+    }
+
+    return NULL;
 }
 
-void GarbageCollector::createStringArray(Object *object, native_string s) {
+void GarbageCollector::createStringArray(Object *object, native_string& s) {
     if(object != NULL) {
         freeObject(object);
         object->object = newObject(s.len);

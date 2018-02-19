@@ -81,12 +81,12 @@ public:
     void collect(CollectionPolicy policy);
 
     SharpObject* newObject(unsigned long size); /* Array allocation */
-    SharpObject* newObject(unsigned long size, ClassObject* k); /* Class allocation */
+    SharpObject* newObject(ClassObject* k); /* Class allocation */
 
     SharpObject* newObjectArray(unsigned long size); /* Array Object allocation */
     SharpObject* newObjectArray(unsigned long size, ClassObject* k); /* Class Array allocation */
 
-    void createStringArray(Object* object, native_string s); /* Native string allocation */
+    void createStringArray(Object* object, native_string& s); /* Native string allocation */
 
     /**
      * Function call by virtual machine
@@ -122,18 +122,12 @@ private:
     void collectAdultObjects();
     void collectOldObjects();
     /**
-     * This function returns the total ammount of bytes collected
+     * This function performs the actual collection of
+     * Sharp objects in the heap
      * @param object
      * @return
      */
-    unsigned long collect(SharpObject *object);
-
-    /**
-     * Collect a mapped class object or data structure
-     * @param pObject
-     * @return
-     */
-    unsigned long collectMappedClass(Object *object, ClassObject *klass);
+    void collect(SharpObject *object);
 };
 
 #define GC_SLEEP_INTERVAL 10
@@ -148,7 +142,7 @@ private:
 #define GC_COLLECT_YOUNG() ( (unsigned int)(((double)yObjs/(double)youngObjects)*100) >= 10 )
 #define GC_COLLECT_ADULT() ( (unsigned int)(((double)aObjs/(double)adultObjects)*100) >= 40 )
 #define GC_COLLECT_OLD() ( (unsigned int)(((double)oObjs/(double)oldObjects)*100) >= 20 )
-#define GC_HEAP_LIMIT (MB_TO_BYTES(1))
+#define GC_HEAP_LIMIT (MB_TO_BYTES(64))
 
 /**
  * Bytes are used via the JEDEC Standard 100B.01

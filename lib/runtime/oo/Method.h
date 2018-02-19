@@ -120,16 +120,6 @@ struct StackElement {
     }
 };
 
-#define ret_frame(x) \
-    if(curr_adsp == main->id) return; else { x }
-
-#define ret_frame2(x, ret) \
-    if(curr_adsp == main->id) return ret; else { x }
-
-#define pc_offset 2
-#define fp_offset 3
-#define sp_offset 4
-
 typedef int64_t* Cache;
 
 #endif //SHARP_METHOD_H

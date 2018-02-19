@@ -282,3 +282,116 @@ int VirtualMachine::returnMethod() {
     thread_self->callStack.pop_back();
     return 0;
 }
+
+void VirtualMachine::Throw(Object *exceptionObject) {
+    if(exceptionObject->object == NULL || exceptionObject->object->k == NULL) {
+        cout << "object ia not a class" << endl;
+        return;
+    }
+
+    throwable.throwable = exceptionObject->klass;
+    fillStackTrace(exceptionObject);
+
+    __throw:
+    if(TryThrow(env->__address_spaces+curr_adsp, exceptionObject)) {
+        exceptionThrown = false;
+        throwable.drop();
+        return;
+    }
+    for(;;) {
+        if(curr_adsp == main->id) {
+            break;
+        } else {
+            int64_t _fp=FP64;
+
+            if(return_asp()) {
+                /*
+                 * This testes if we are in a state where the stack has
+                 * been destroyed and we cant return from it
+                 */
+                if((SP64+4) >= stack_lmt || FP64==_fp)
+                    throw Exception(throwable);
+                else {
+                    exceptionObject = &__stack[SP64].object;
+                    goto __throw;
+                }
+            }
+
+            if(TryThrow(env->__address_spaces+curr_adsp, exceptionObject)) {
+                exceptionThrown = false;
+                throwable.drop();
+                return;
+            }
+        }
+    }
+
+    stringstream ss;
+    ss << "Unhandled exception on thread " << name.str() << " (most recent call last):\n"; ss << throwable.stackTrace.str();
+    ss << endl << throwable.throwable->name.str() << " ("
+       << throwable.message.str() << ")\n";
+    throw Exception(ss.str());
+}
+
+bool VirtualMachine::TryThrow(Method *method, Object *exceptionObject) {
+    int64_t pc = thread_self->pc;
+    if(method->exceptions.size() > 0) {
+        ExceptionTable* et, *tbl=NULL;
+        for(unsigned int i = 0; i < method->exceptions.size(); i++) {
+            et = &method->exceptions.get(i);
+
+            if (et->start_pc <= pc && et->end_pc >= pc)
+            {
+                if (tbl == NULL || et->start_pc > tbl->start_pc)
+                    tbl = et;
+            }
+        }
+
+        if(tbl != NULL)
+        {
+            Object* object = &thread_self->dataStack[(int64_t)registers[fp]+tbl->local].object;
+            ClassObject* klass = exceptionObject == NULL || exceptionObject->object == NULL ? NULL : exceptionObject->object->k;
+
+            for(;;) {
+                if(klass == NULL)
+                    break;
+
+                if(klass->name == tbl->className) {
+                    *object = exceptionObject;
+                    uint64_t oldpc = pc, newpc=tbl->handler_pc;
+                    thread_self->pc = tbl->handler_pc;
+
+
+//                    for(unsigned int i = 0; i < method->finallyBlocks.size(); i++) {
+//                        FinallyTable &ft = method->finallyBlocks.get(i);
+//                        if(ft.start_pc > oldpc && ft.start_pc < pc) {
+//                            pc = oldpc;
+//                            if(!execFinally(EXEC_SINGLE_FINALLY)) {
+//                                return false;
+//                            }
+//                            oldpc = pc;
+//                        }
+//                    }
+
+                    //pc = newpc;
+                    return true;
+                }
+
+                klass = klass->super;
+            }
+        }
+    }
+
+    return false;
+}
+
+void VirtualMachine::fillStackTrace(Object *exceptionObject) {
+
+}
+
+void VirtualMachine::fillStackTrace(native_string &str) {
+
+}
+
+string VirtualMachine::getPrettyErrorLine(long line, long sourceFile) {
+    return std::__cxx11::string();
+}

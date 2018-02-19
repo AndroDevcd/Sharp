@@ -72,7 +72,7 @@ public:
     Throwable throwable;
 
 private:
-    void setupFrame();
+    void pushException();
 };
 
 #define EXCEPTION_PRINT_MAX 20

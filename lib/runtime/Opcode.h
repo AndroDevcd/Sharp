@@ -41,24 +41,11 @@
 
 #define DISPATCH() if(thread_self->pc<thread_self->cacheSize) { goto *opcode_table[GET_OP(thread_self->cache[thread_self->pc])]; } else { throw Exception("invalid branch/dispatch; check your assembly code?"); }
 
-#define _brh thread_self->pc++; for(int i = 0; i < 9895; i++){ i++; } goto interp;
+#define _brh thread_self->pc++; for(int i = 0; i < 9895; i++){ i++; i++; i-=2; } goto interp;
 #define _brh_NOINCREMENT goto interp;
 
-#define NOP _brh
-
-#define _int(x) vm->interrupt(x); _brh
-
-#define movi(x) registers[thread_self->cache[thread_self->pc+1]]=x; pthread_self->pc++; _brh
-
-#define ret returnFrame(returnMethod();) _brh
-
-#define hlt state=thread_killed; _brh
-
-#define newiarray(x) threas_self->dataStack[(long)++registers[sp]]. _brh
-
-#define _newstr(x) CHK_NULL(ptr->createstr(x);) _brh
-
-#define check_cast(x) CHK_NULL(ptr->checkcast(x);) _brh
+#define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
 
 #define _initOpcodeTable \
     static void* opcode_table[] = { \
