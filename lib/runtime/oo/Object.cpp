@@ -11,7 +11,6 @@ void Object::operator=(Object &object) {
     GarbageCollector::self->attachObject(this, object.object);
 }
 
-CXX11_INLINE
 void Object::operator=(SharpObject *object) {
     GarbageCollector::self->freeObject(this);
     this->object = object;

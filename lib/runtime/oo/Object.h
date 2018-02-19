@@ -42,7 +42,7 @@ struct Object {
 
     void operator=(Object &object);
     void operator=(Object *object);
-    CXX11_INLINE void operator=(SharpObject *object);
+    void operator=(SharpObject *object);
     void castObject(uint64_t classPtr);
 };
 

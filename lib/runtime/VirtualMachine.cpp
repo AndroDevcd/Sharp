@@ -269,6 +269,8 @@ void VirtualMachine::executeMethod(int64_t address) {
 }
 
 int VirtualMachine::returnMethod() {
+    if(thread_self->callStack.size() <= 1)
+        return 1;
 
     Frame frame = thread_self->callStack.last();
 
@@ -289,46 +291,36 @@ void VirtualMachine::Throw(Object *exceptionObject) {
         return;
     }
 
-    throwable.throwable = exceptionObject->klass;
+    thread_self->throwable.throwable = exceptionObject->object->k;
     fillStackTrace(exceptionObject);
 
     __throw:
-    if(TryThrow(env->__address_spaces+curr_adsp, exceptionObject)) {
-        exceptionThrown = false;
-        throwable.drop();
+    if(TryThrow(thread_self->current, exceptionObject)) {
+        thread_self->exceptionThrown = false;
+        thread_self->throwable.drop();
         return;
     }
     for(;;) {
-        if(curr_adsp == main->id) {
+        if(thread_self->current->address == thread_self->main->address) {
             break;
         } else {
-            int64_t _fp=FP64;
-
-            if(return_asp()) {
-                /*
-                 * This testes if we are in a state where the stack has
-                 * been destroyed and we cant return from it
-                 */
-                if((SP64+4) >= stack_lmt || FP64==_fp)
-                    throw Exception(throwable);
-                else {
-                    exceptionObject = &__stack[SP64].object;
-                    goto __throw;
-                }
+            if(returnMethod() == 1) {
+                throw Exception(thread_self->throwable);
             }
 
-            if(TryThrow(env->__address_spaces+curr_adsp, exceptionObject)) {
-                exceptionThrown = false;
-                throwable.drop();
+            if(TryThrow(thread_self->current, exceptionObject)) {
+                thread_self->exceptionThrown = false;
+                thread_self->throwable.drop();
                 return;
             }
         }
     }
 
     stringstream ss;
-    ss << "Unhandled exception on thread " << name.str() << " (most recent call last):\n"; ss << throwable.stackTrace.str();
-    ss << endl << throwable.throwable->name.str() << " ("
-       << throwable.message.str() << ")\n";
+    ss << "Unhandled exception on thread " << thread_self->name.str() << " (most recent call last):\n"; ss
+            << thread_self->throwable.stackTrace.str();
+    ss << endl << thread_self->throwable.throwable->name.str() << " ("
+       << thread_self->throwable.message.str() << ")\n";
     throw Exception(ss.str());
 }
 
@@ -385,13 +377,93 @@ bool VirtualMachine::TryThrow(Method *method, Object *exceptionObject) {
 }
 
 void VirtualMachine::fillStackTrace(Object *exceptionObject) {
+    native_string str;
+    fillStackTrace(str);
+    thread_self->throwable.stackTrace = str;
 
+    if(exceptionObject->object->k != NULL) {
+
+        Object* stackTrace = env->findField("stackTrace", exceptionObject->object);
+        Object* message = env->findField("message", exceptionObject->object);
+
+        if(stackTrace != NULL) {
+            GarbageCollector::self->createStringArray(stackTrace, str);
+        }
+        if(message != NULL) {
+            if(thread_self->throwable.native)
+                GarbageCollector::self->createStringArray(message, thread_self->throwable.message);
+            else if(message->object != NULL && message->object->HEAD != NULL) {
+                stringstream ss;
+                for(unsigned long i = 0; i < message->object->size; i++) {
+                    ss << (char) message->object->HEAD[i];
+                }
+                thread_self->throwable.message = ss.str();
+            }
+        }
+    }
 }
 
 void VirtualMachine::fillStackTrace(native_string &str) {
+// fill message
+    stringstream ss;
+    Method* m = thread_self->current;
+    int64_t pc = thread_self->pc, _fp=(int64_t)registers[fp];
 
+    unsigned int pos = thread_self->callStack.size() > EXCEPTION_PRINT_MAX ? thread_self->callStack.size()
+                                                                             - EXCEPTION_PRINT_MAX : 0;
+    for(long i = pos; i < thread_self->callStack.size(); i++)
+    {
+        Frame frame = thread_self->callStack.get(i);
+
+        ss << "\tSource ";
+        if(frame.last->sourceFile != -1 && frame.last->sourceFile < manifest.sourceFiles) {
+            ss << "\""; ss << env->sourceFiles[frame.last->sourceFile].str() << "\"";
+        }
+        else
+            ss << "\"Unknown File\"";
+
+        long long x, line=-1;
+        for(x = 0; x < frame.last->lineNumbers.size(); x++)
+        {
+            if(frame.last->lineNumbers.get(x).pc > pc)
+                break;
+        }
+
+        if(x > 0) {
+            ss << ", line " << (line = frame.last->lineNumbers.get(x - 1).line_number);
+        } else
+            ss << ", line ?";
+
+        ss << ", in "; ss << frame.last->name.str() << "() [0x" << std::hex << frame.last->address << "] $0x" << frame.pc  << std::dec;
+
+        if(line != -1 && metaData.sourceFiles.size() > 0) {
+            ss << getPrettyErrorLine(line, frame.last->sourceFile);
+        }
+
+        ss << "\n";
+    }
 }
 
 string VirtualMachine::getPrettyErrorLine(long line, long sourceFile) {
-    return std::__cxx11::string();
+    stringstream ss;
+    line -=2;
+
+    if(line >= 0)
+        ss << endl << "\t   " << line << ":    "; ss << metaData.getLine(line, sourceFile);
+    line++;
+
+    if(line >= 0)
+        ss << endl << "\t   " << line << ":    "; ss << metaData.getLine(line, sourceFile);
+    line++;
+
+    ss << endl << "\t>  " << line << ":    "; ss << metaData.getLine(line, sourceFile);
+    line++;
+
+    if(metaData.hasLine(line, sourceFile))
+        ss << endl << "\t   " << line << ":    "; ss << metaData.getLine(line, sourceFile);
+    line++;
+
+    if(metaData.hasLine(line, sourceFile))
+        ss << endl << "\t   " << line << ":    "; ss << metaData.getLine(line, sourceFile);
+    return ss.str();
 }

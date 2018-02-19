@@ -2,6 +2,7 @@
 #include "stdimports.h"
 #include "lib/util/time.h"
 
+Sharp versions;
 #ifdef MAKE_COMPILER
     #include "lib/grammar/Runtime.h"
 #endif

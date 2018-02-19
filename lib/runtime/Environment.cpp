@@ -84,7 +84,7 @@ native_string& Environment::getStringById(int64_t ref) {
     return strings[0].value;
 }
 
-SharpObject* Environment::findField(std::string name, SharpObject *object) {
+Object* Environment::findField(std::string name, SharpObject *object) {
     if(object == NULL || object->k == NULL)
         return NULL;
 

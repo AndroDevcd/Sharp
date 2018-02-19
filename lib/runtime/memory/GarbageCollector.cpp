@@ -7,14 +7,14 @@
 #include "../Thread.h"
 #include "../oo/Field.h"
 
-static GarbageCollector *self = NULL;
+GarbageCollector *GarbageCollector::self = NULL;
 
 void* __malloc(size_t bytes)
 {
     void* ptr =NULL;
     bool gc=false;
     alloc_bytes:
-    if(!self->spaceAvailable(bytes))
+    if(!GarbageCollector::self->spaceAvailable(bytes))
         goto lowmem;
     ptr=malloc(bytes);
 
@@ -24,7 +24,7 @@ void* __malloc(size_t bytes)
             throw Exception("out of memory");
         } else {
             gc = true;
-            self->collect(GC_LOW);
+            GarbageCollector::self->collect(GC_LOW);
             goto alloc_bytes;
         }
     } else {
@@ -36,7 +36,7 @@ void* __calloc(size_t n, size_t bytes)
     void* ptr =NULL;
     bool gc=false;
     alloc_bytes:
-    if(!self->spaceAvailable(bytes))
+    if(!GarbageCollector::self->spaceAvailable(bytes))
         goto lowmem;
     ptr=calloc(n, bytes);
 
@@ -46,7 +46,7 @@ void* __calloc(size_t n, size_t bytes)
             throw Exception("out of memory");
         } else {
             gc=true;
-            self->collect(GC_LOW);
+            GarbageCollector::self->collect(GC_LOW);
             goto alloc_bytes;
         }
     } else {
@@ -58,7 +58,7 @@ void* __realloc(void *ptr, size_t bytes)
     void* rmap =NULL;
     bool gc=false;
     alloc_bytes:
-    if(!self->spaceAvailable(bytes))
+    if(!GarbageCollector::self->spaceAvailable(bytes))
         goto lowmem;
     rmap=realloc(ptr, bytes);
 
@@ -68,7 +68,7 @@ void* __realloc(void *ptr, size_t bytes)
             throw Exception("out of memory");
         } else {
             gc=true;
-            self->collect(GC_LOW);
+            GarbageCollector::self->collect(GC_LOW);
             goto alloc_bytes;
         }
     } else {
@@ -90,7 +90,6 @@ void GarbageCollector::initilize() {
     self->isShutdown=false;
 }
 
-CXX11_INLINE
 void GarbageCollector::freeObject(Object *object) {
     if(object != NULL && object->object != NULL)
     {
@@ -114,7 +113,6 @@ void GarbageCollector::freeObject(Object *object) {
     }
 }
 
-CXX11_INLINE
 void GarbageCollector::attachObject(Object* object, SharpObject *sharpObject) {
     if(object != NULL && sharpObject != NULL) {
         sharpObject->mutex.acquire(INDEFINITE);

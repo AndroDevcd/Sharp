@@ -12,7 +12,6 @@ using namespace std;
 
 unsigned long RuntimeEngine::uniqueSerialId = 0;
 options c_options;
-VirtualMachine versions;
 
 void help();
 

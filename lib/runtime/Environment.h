@@ -53,7 +53,7 @@ public:
 
     native_string& getStringById(int64_t ref);
 
-    SharpObject* findField(std::string name, SharpObject *object);
+    Object* findField(std::string name, SharpObject *object);
 };
 
 extern Environment* env;

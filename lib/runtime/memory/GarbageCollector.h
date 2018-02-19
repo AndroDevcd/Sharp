@@ -92,8 +92,8 @@ public:
      * Function call by virtual machine
      * @param object
      */
-    CXX11_INLINE void freeObject(Object* object);
-    CXX11_INLINE void attachObject(Object* object, SharpObject *sharpObject);
+     void freeObject(Object* object);
+     void attachObject(Object* object, SharpObject *sharpObject);
 
     bool spaceAvailable(size_t i);
 
