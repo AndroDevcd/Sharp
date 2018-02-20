@@ -455,9 +455,11 @@ void Thread::exit() {
 
     if(this->exceptionThrown) {
         this->exitVal = -800;
-        cout << "Uncaught Exception: " << throwable.throwable->name.str()
-             << ": " << throwable.message.str();
-        cout << endl << throwable.stackTrace.str();
+        stringstream ss;
+        ss << "Unhandled exception on thread " << name.str() << " (most recent call last):\n"; ss
+                << throwable.stackTrace.str();
+        ss << endl << throwable.throwable->name.str() << " ("
+           << throwable.message.str() << ")\n";
     } else {
         this->exitVal = (int)dataStack[0].var;
     }
@@ -563,18 +565,38 @@ double exponent(int64_t n){
     }
 }
 
+/**
+ * This tells the virtual machine to process code
+ * when executing a finally block or the regular processing
+ * of a function.
+ */
+short int startAddress = 0;
+
+/*
+ * We need this to keep track of which finally block we are executing
+ */
+FinallyTable finallyTable;
+
 void Thread::exec() {
-    pc = 0;
-    vm->executeMethod(main->address);
 
     uint64_t tmp;
     int64_t val;
     SharpObject* o;
     Object* o2;
+    void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
 
     _initOpcodeTable
     try {
         for (;;) {
+            /* We dont want to always run finally code when we start a thread */
+            if(startAddress == 0) goto interp;
+            Method* finnallyMethod = current;
+
+            finally:
+            if((pc <finallyTable.start_pc || pc > finallyTable.end_pc)
+               && current==finnallyMethod)
+                return;
+
             interp:
             if (suspendPending)
                 suspendSelf();

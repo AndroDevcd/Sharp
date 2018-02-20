@@ -56,9 +56,12 @@ struct FinallyTable {
     void operator=(const FinallyTable& ft) {
         start_pc=ft.start_pc;
         end_pc=ft.end_pc;
+        try_start_pc=ft.try_start_pc;
+        try_end_pc=ft.try_end_pc;
     }
 
     uint64_t start_pc, end_pc;
+    uint64_t try_start_pc, try_end_pc;
 };
 
 enum FinallyCommands {

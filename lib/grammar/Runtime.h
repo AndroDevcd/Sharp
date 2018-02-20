@@ -13,6 +13,7 @@
 struct Scope;
 class ReferencePointer;
 class ResolvedReference;
+struct Expression;
 
 class RuntimeEngine {
 public:
@@ -163,6 +164,8 @@ private:
     ReferencePointer parseTypeIdentifier(Ast *ast);
 
     FieldType tokenToNativeField(string entity);
+
+    void resolveUtype(ReferencePointer& refrence, Expression& expression, Ast* pAst);
 };
 
 enum expression_type {

@@ -155,6 +155,11 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     thread_self->state = THREAD_RUNNING;
 
     try {
+        /*
+         * Call main method
+         */
+        vm->executeMethod(thread_self->main->address);
+
         thread_self->exec();
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
@@ -260,6 +265,7 @@ void VirtualMachine::executeMethod(int64_t address) {
                 Frame(thread_self->current, thread_self->pc, registers[sp], registers[fp]));
 
 
+    thread_self->pc = 0;
     thread_self->current = method;
     thread_self->cache = method->bytecode;
     thread_self->cacheSize = method->cacheSize;
@@ -292,25 +298,46 @@ void VirtualMachine::Throw(Object *exceptionObject) {
     thread_self->throwable.throwable = exceptionObject->object->k;
     fillStackTrace(exceptionObject);
 
-    __throw:
     if(TryThrow(thread_self->current, exceptionObject)) {
         thread_self->exceptionThrown = false;
         thread_self->throwable.drop();
+        startAddress = 0;
         return;
     }
-    for(;;) {
-        if(thread_self->current->address == thread_self->main->address) {
-            break;
-        } else {
-            if(returnMethod() == 1) {
-                throw Exception(thread_self->throwable);
-            }
 
-            if(TryThrow(thread_self->current, exceptionObject)) {
-                thread_self->exceptionThrown = false;
-                thread_self->throwable.drop();
-                return;
+    while(thread_self->callStack.size() > 1) {
+        Method* method = thread_self->current;
+        uint64_t oldpc = thread_self->pc;
+
+        for(unsigned int i = 0; i < method->finallyBlocks.size(); i++) {
+            FinallyTable &ft = method->finallyBlocks.get(i);
+            if(ft.try_start_pc >= oldpc && ft.try_end_pc < oldpc) {
+                finallyTable = ft;
+                startAddress = 1;
+                thread_self->pc = ft.start_pc;
+
+                /**
+                 * Execute finally blocks before returning
+                 */
+                thread_self->exec();
             }
+        }
+
+        /**
+         * If the finally block returns while we are trying to locate where the
+         * exception will be caught we give up and the exception
+         * is lost forever
+         */
+        if(method != thread_self->current)
+            return;
+
+        returnMethod();
+
+        if(TryThrow(thread_self->current, exceptionObject)) {
+            thread_self->exceptionThrown = false;
+            thread_self->throwable.drop();
+            startAddress = 0;
+            return;
         }
     }
 
@@ -339,35 +366,10 @@ bool VirtualMachine::TryThrow(Method *method, Object *exceptionObject) {
         if(tbl != NULL)
         {
             Object* object = &thread_self->dataStack[(int64_t)registers[fp]+tbl->local].object;
-            ClassObject* klass = exceptionObject == NULL || exceptionObject->object == NULL ? NULL : exceptionObject->object->k;
+            *object = exceptionObject;
+            thread_self->pc = tbl->handler_pc;
 
-            for(;;) {
-                if(klass == NULL)
-                    break;
-
-                if(klass->name == tbl->className) {
-                    *object = exceptionObject;
-                    uint64_t oldpc = pc, newpc=tbl->handler_pc;
-                    thread_self->pc = tbl->handler_pc;
-
-
-//                    for(unsigned int i = 0; i < method->finallyBlocks.size(); i++) {
-//                        FinallyTable &ft = method->finallyBlocks.get(i);
-//                        if(ft.start_pc > oldpc && ft.start_pc < pc) {
-//                            pc = oldpc;
-//                            if(!execFinally(EXEC_SINGLE_FINALLY)) {
-//                                return false;
-//                            }
-//                            oldpc = pc;
-//                        }
-//                    }
-
-                    //pc = newpc;
-                    return true;
-                }
-
-                klass = klass->super;
-            }
+            return true;
         }
     }
 

@@ -133,4 +133,7 @@ extern thread_local double registers[12];
 
 #define main_threadid 0x0
 
+extern FinallyTable finallyTable;
+extern short int startAddress;
+
 #endif //SHARP_THREAD_H
