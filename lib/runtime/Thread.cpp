@@ -93,7 +93,7 @@ void Thread::Create(string name) {
     pushThread(this);
 }
 
-void Thread::CreateDaemon(string) {
+void Thread::CreateDaemon(string name) {
     this->mutex = Mutex();
     this->name.init();
 
@@ -452,14 +452,14 @@ void Thread::shutdown() {
 }
 
 void Thread::exit() {
-    try {
-        this->exitVal = 0;          /* Take the return value from the start function */
-    } catch (Exception) {
-        this->exitVal = 203;
-    }
 
     if(this->exceptionThrown) {
-        // TODO: handle exception
+        this->exitVal = -800;
+        cout << "Uncaught Exception: " << throwable.throwable->name.str()
+             << ": " << throwable.message.str();
+        cout << endl << throwable.stackTrace.str();
+    } else {
+        this->exitVal = (int)dataStack[0].var;
     }
 
     this->exited = true;
@@ -769,7 +769,7 @@ void Thread::exec() {
                 registers[bmr] = exponent(registers[GET_Da(cache[pc])]);
                 _brh
             MOVG:
-                o2 = &env->globalHeap[GET_Da(cache[pc])];
+                o2 = env->globalHeap+GET_Da(cache[pc]);
                 _brh
             MOVND:
                 CHECK_NULLOBJ(o2 = &o2->object->node[(int64_t)registers[GET_Da(cache[pc])]];)

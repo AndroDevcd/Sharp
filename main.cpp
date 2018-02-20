@@ -8,6 +8,7 @@ Sharp versions;
 #endif
 #ifndef MAKE_COMPILER
     #include "lib/runtime/init.h"
+
 #endif
 
 int main(int argc, const char* argv[]) {

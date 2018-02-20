@@ -125,6 +125,7 @@ void GarbageCollector::attachObject(Object* object, SharpObject *sharpObject) {
 void GarbageCollector::shutdown() {
     if(self != NULL) {
         managedBytes=0;
+        isShutdown=true;
         /* Clear out all memory */
         for(unsigned int i = 0; i < heap.size(); i++) {
             collect(heap.get(i));
@@ -132,7 +133,6 @@ void GarbageCollector::shutdown() {
         }
         heap.free();
         std::free(self); self = NULL;
-        isShutdown=true;
     }
 }
 
@@ -383,7 +383,7 @@ void GarbageCollector::collect(SharpObject *object) {
                     /**
                      * If the object still has references we just drop it and move on
                      */
-                    if(object->node[i].object->refCount > 1)
+                    if(!isShutdown && object->node[i].object->refCount > 1)
                         freeObject(&object->node[i]);
                     else
                         collect(object->node[i].object);
