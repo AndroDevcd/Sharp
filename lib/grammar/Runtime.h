@@ -34,7 +34,8 @@ public:
             resolvedFields(false),
             classSize(0),
             inline_map(),
-            methods(0)
+            methods(0),
+            main(NULL)
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
@@ -94,6 +95,7 @@ private:
     bool resolvedFields;
     unsigned long methods;
     unsigned long classSize;
+    Method* main;
 
     /* One off variables */
     RuntimeNote lastNote;
@@ -211,6 +213,20 @@ private:
     void parsConstructorAccessModifiers(List<AccessModifier> &modifiers, Ast *ast);
 
     void addDefaultConstructor(ClassObject *klass, Ast *ast);
+
+    void resolveSelfUtype(Scope *scope, ReferencePointer &reference, Expression &expression, Ast *ast);
+
+    void resolveBaseUtype(Scope *scope, ReferencePointer &reference, Expression &expression, Ast *ast);
+
+    ResolvedReference getBaseClassOrField(string name, ClassObject *start);
+
+    void resolveAllMethods();
+
+    Method *getMainMethod(Parser *p);
+
+    void analyzeImportDecl(Ast *pAst);
+
+    void createNewWarning(error_type error, int line, int col, string xcmnts);
 };
 
 class ResolvedReference {

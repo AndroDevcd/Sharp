@@ -257,7 +257,7 @@ string ErrorManager::getLine(int line) {
     if((line-1) >= lines.size())
         return "End of File";
     else
-        return lines.get(line);
+        return lines.get(line-1);
 }
 
 KeyPair<error_type, string> ErrorManager::getErrorById(error_type err) {
