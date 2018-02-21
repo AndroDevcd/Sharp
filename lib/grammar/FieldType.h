@@ -11,6 +11,7 @@ enum FieldType
     OBJECT,
     CLASS,
     TYPEVOID,
+    CLASSFIELD,
     UNDEFINED
 };
 

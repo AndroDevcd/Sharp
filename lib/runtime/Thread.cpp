@@ -884,6 +884,9 @@ void Thread::exec() {
                 val = dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var;
                 dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var=val%GET_Ca(cache[pc]);
                 _brh
+            LOADL:
+                registers[GET_Ca(cache[pc])]=dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var;
+                _brh
 
         }
     } catch (bad_alloc &e) {

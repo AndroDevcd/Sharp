@@ -7,12 +7,13 @@
 #include "List.h"
 #include "parser/Parser.h"
 #include "../util/File.h"
+#include "../runtime/Opcode.h"
+#include "../runtime/register.h"
 
 using namespace std;
 
 unsigned long RuntimeEngine::uniqueSerialId = 0;
 options c_options;
-Sha versions;
 
 void help();
 
@@ -660,15 +661,171 @@ FieldType RuntimeEngine::tokenToNativeField(string entity) {
     return UNDEFINED;
 }
 
+double RuntimeEngine::getInlinedFieldValue(Field* field) {
+    for(unsigned int i = 0; i < inline_map.size(); i++) {
+        if(inline_map.get(i).key==field->fullName)
+            return inline_map.get(i).value;
+    }
+
+    return 0;
+}
+
+
+bool RuntimeEngine::isFieldInlined(Field* field) {
+    if(!field->isStatic())
+        return false;
+
+    for(unsigned int i = 0; i < inline_map.size(); i++) {
+        if(inline_map.get(i).key==field->fullName)
+            return true;
+    }
+
+    return false;
+}
+
+int64_t RuntimeEngine::get_low_bytes(double var) {
+    stringstream ss;
+    ss.precision(16);
+    ss << var;
+    string num = ss.str(), result = "";
+    int iter=0;
+    for(unsigned int i = 0; i < num.size(); i++) {
+        if(num.at(i) == '.') {
+            for(unsigned int x = i+1; x < num.size(); x++) {
+                if(iter++ > 16)
+                    break;
+                result += num.at(x);
+            }
+            return strtoll(result.c_str(), NULL, 0);
+        }
+    }
+    return 0;
+}
+
+void RuntimeEngine::inlineVariableValue(Expression &expression, Field *field) {
+    int64_t i64;
+    double value = getInlinedFieldValue(field);
+    expression.free();
+
+    if(isDClassNumberEncodable(value))
+        expression.code.push_i64(SET_Di(i64, op_MOVI, value), ebx);
+    else {
+        expression.code.push_i64(SET_Di(i64, op_MOVBI, ((int64_t)value)), abs(get_low_bytes(value)));
+        expression.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, bmr));
+    }
+
+    expression.type=expression_var;
+    expression.literal=true;
+    expression.intValue=value;
+}
+
+bool RuntimeEngine::isDClassNumberEncodable(double var) { return ((int64_t )var > DA_MAX || (int64_t )var < DA_MIN) == false; }
+
+void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& refrence, Expression& expression, Ast* pAst, bool requireStatic) {
+    int64_t i64;
+    string object_name = "";
+    Field* field = NULL;
+    ClassObject* k;
+    bool lastRefrence = false;
+
+    for(unsigned int i = 1; i < refrence.classHeiarchy.size()+1; i++) {
+        if(i >= refrence.classHeiarchy.size()) {
+            // field? if not then class?
+            lastRefrence = true;
+            object_name = refrence.referenceName;
+        } else
+            object_name = refrence.classHeiarchy.at(i);
+
+        if((k = klass->getChildClass(object_name)) == NULL) {
+
+            // field?
+            if((field = klass->getField(object_name, true)) != NULL) {
+                // is static?
+                if(!lastRefrence && field->isArray) {
+                    errors->createNewError(INVALID_ACCESS, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " field array");
+                } else if(requireStatic && !field->isStatic() && field->type != UNDEFINED) {
+                    errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, "static access on instance field `" + object_name + "`");
+                }
+
+                // for now we are just generating code for x.x.f not Main.x...thats static access
+                expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+
+                if(lastRefrence) {
+                    expression.utype.type = CLASSFIELD;
+                    expression.utype.field = field;
+                    expression.type = expression_field;
+                }
+
+                switch(field->type) {
+                    case UNDEFINED:
+                        expression.utype.type = UNDEFINED;
+                        expression.utype.referenceName = object_name;
+                        return;
+                    case VAR:
+                        if(lastRefrence){
+                            if(isFieldInlined(field)) {
+                                inlineVariableValue(expression, field);
+                            }
+                        }
+                        else {
+                            errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, "invalid access to non-class field `" + object_name + "`");
+                            expression.utype.referenceName = object_name;
+                            return;
+                        }
+                        break;
+                    case CLASS:
+                        klass = field->klass;
+                        break;
+                }
+            } else {
+                errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + object_name + "` " +
+                        (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
+                expression.utype.type = UNDEFINED;
+                expression.utype.referenceName = object_name;
+                expression.type = expression_unknown;
+                return;
+            }
+        } else {
+            if(field != NULL) {
+                field = NULL;
+                errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " ecpected class or module before `" + object_name + "` ");
+            }
+            expression.code.push_i64(SET_Di(i64, op_MOVG, klass->address));
+            klass = k;
+
+            if(lastRefrence) {
+                expression.utype.type = CLASSFIELD;
+                expression.utype.klass = klass;
+                expression.type = expression_class;
+            }
+        }
+    }
+}
+
+void RuntimeEngine::resolveFieldHeiarchy(Field* field, ReferencePointer& refrence, Expression& expression, Ast* pAst) {
+    switch(field->type) {
+        case UNDEFINED:
+            return;
+        case VAR:
+            errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, "field `" + field->name + "` cannot be de-referenced");
+            expression.utype.type = VAR;
+            return;
+        case CLASS:
+            resolveClassHeiarchy(field->klass, refrence, expression, pAst, false);
+            return;
+    }
+}
+
+
 void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& expression, Ast* pAst) {
     Scope* scope = currentScope();
     int64_t i64;
 
     expression.link = pAst;
     if(scope->self) {
-        resolveSelfUtype(scope, refrence, expression, pAst);
+       // resolveSelfUtype(scope, refrence, expression, pAst);
     } else if(scope->base) {
-        resolveBaseUtype(scope, refrence, expression, pAst);
+      //  resolveBaseUtype(scope, refrence, expression, pAst);
     } else {
         if(refrence.singleRefrence()) {
             ClassObject* klass=NULL;
@@ -684,7 +841,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     /* Un resolvable */
                     errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line,
                                            pAst->getSubAst(ast_type_identifier)->col, " `" + refrence.referenceName + "` " +
-                                                                                                                                               (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
+                                                                                      (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
 
                     expression.utype.type = UNDEFINED;
                     expression.utype.referenceName = refrence.referenceName;
@@ -695,28 +852,27 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                 // scope_class? | scope_instance_block? | scope_static_block?
                 if(scope->type != CLASS_SCOPE && scope->getLocalField(refrence.referenceName) != NULL) {
                     field = &scope->getLocalField(refrence.referenceName)->value;
-                    expression.utype.type = ResolvedReference::FIELD;
+                    expression.utype.type = CLASSFIELD;
                     expression.utype.field = field;
                     expression.type = expression_field;
 
                     if(field->isVar()) {
-                        if(field->isObjectInMemory()) {
-                            expression.code.push_i64(SET_Di(i64, op_MOVL, field->vaddr));
-                        } else {
-                            expression.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-                            expression.code.push_i64(SET_Ci(i64, op_SMOV, ebx, 0, field->vaddr));
-                        }
+                        if(field->isArray) {
+                            expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
+                        } else
+                            expression.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, field->address));
                     }
                     else
-                        expression.code.push_i64(SET_Di(i64, op_NOP, field->vaddr));
+                        expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
                 }
-                else if((field = scope->klass->getField(refrence.refname)) != NULL) {
+                else if((field = scope->klass->getField(refrence.referenceName)) != NULL) {
                     // field?
-                    if(scope->type == scope_static_block) {
-                        errors->newerror(GENERIC, pAst->getsubast(ast_type_identifier)->line, pAst->getsubast(ast_type_identifier)->col, "cannot get object `" + refrence.refname + "` from self in static context");
+                    if(scope->type == STATIC_BLOCK) {
+                        errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col,
+                                         "cannot get object `" + refrence.referenceName + "` from self in static context");
                     }
 
-                    expression.utype.type = ResolvedReference::FIELD;
+                    expression.utype.type = CLASSFIELD;
                     expression.utype.field = field;
                     expression.type = expression_field;
 
@@ -724,21 +880,21 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                         inlineVariableValue(expression, field);
                     } else {
                         expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
-                        expression.code.push_i64(SET_Di(i64, op_MOVN, field->vaddr));
+                        expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
                     }
                 } else {
-                    if((klass = getClassGlobal(refrence.module, refrence.refname)) != NULL) {
+                    if((klass = getClass(refrence.module, refrence.referenceName)) != NULL) {
                         // global class ?
-                        expression.utype.type = ResolvedReference::CLASS;
+                        expression.utype.type = CLASS;
                         expression.utype.klass = klass;
                         expression.type = expression_class;
                     } else {
                         /* Un resolvable */
-                        errors->newerror(COULD_NOT_RESOLVE, pAst->getsubast(ast_type_identifier)->line, pAst->getsubast(ast_type_identifier)->col, " `" + refrence.refname + "` " +
-                                                                                                                                                   (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
+                        errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + refrence.referenceName + "` " +
+                                                                                  (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
 
-                        expression.utype.type = ResolvedReference::NOTRESOLVED;
-                        expression.utype.refrenceName = refrence.refname;
+                        expression.utype.type = UNDEFINED;
+                        expression.utype.referenceName = refrence.referenceName;
                         expression.type = expression_unresolved;
                     }
                 }
@@ -748,37 +904,37 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
             ClassObject* klass=NULL;
 
             // in this case we ignore scope
-            if((klass = getClassGlobal(refrence.module, refrence.refname)) != NULL) {
-                expression.utype.type = ResolvedReference::CLASS;
+            if((klass = getClass(refrence.module, refrence.referenceName)) != NULL) {
+                expression.utype.type = CLASS;
                 expression.utype.klass = klass;
                 expression.type = expression_class;
             } else {
                 /* Un resolvable */
-                errors->newerror(COULD_NOT_RESOLVE, pAst->getsubast(ast_type_identifier)->line, pAst->getsubast(ast_type_identifier)->col, " `" + refrence.refname + "` " +
-                                                                                                                                           (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
+                errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + refrence.referenceName + "` " +
+                        (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
 
-                expression.utype.type = ResolvedReference::NOTRESOLVED;
-                expression.utype.refrenceName = refrence.refname;
+                expression.utype.type = UNDEFINED;
+                expression.utype.referenceName = refrence.referenceName;
                 expression.type = expression_unresolved;
             }
         } else {
             /* field? or class? */
             ClassObject* klass=NULL;
             Field* field=NULL;
-            string starter_name = refrence.class_heiarchy->at(0);
+            string starter_name = refrence.classHeiarchy.at(0);
 
-            if(scope->type == scope_global) {
+            if(scope->type == GLOBAL_SCOPE) {
 
                 // class?
-                if((klass = getClassGlobal(refrence.module, starter_name)) != NULL) {
+                if((klass = getClass(refrence.module, starter_name)) != NULL) {
                     resolveClassHeiarchy(klass, refrence, expression, pAst);
                     return;
                 } else {
                     /* un resolvable */
-                    errors->newerror(COULD_NOT_RESOLVE, pAst->getsubast(ast_type_identifier)->line, pAst->getsubast(ast_type_identifier)->col, " `" + starter_name + "` " +
-                                                                                                                                               (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
-                    expression.utype.type = ResolvedReference::NOTRESOLVED;
-                    expression.utype.refrenceName = refrence.toString();
+                    errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + starter_name + "` " +
+                            (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
+                    expression.utype.type = UNDEFINED;
+                    expression.utype.referenceName = refrence.toString();
                     expression.type = expression_unresolved;
 
                 }
@@ -786,53 +942,54 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
 
                 // scope_class? | scope_instance_block? | scope_static_block?
                 if(refrence.module != "") {
-                    if((klass = getClassGlobal(refrence.module, starter_name)) != NULL) {
+                    if((klass = getClass(refrence.module, starter_name)) != NULL) {
                         resolveClassHeiarchy(klass, refrence, expression, pAst);
                         return;
                     } else {
-                        errors->newerror(COULD_NOT_RESOLVE, pAst->getsubast(ast_type_identifier)->line, pAst->getsubast(ast_type_identifier)->col, " `" + starter_name + "` " +
-                                                                                                                                                   (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
-                        expression.utype.type = ResolvedReference::NOTRESOLVED;
-                        expression.utype.refrenceName = refrence.toString();
+                        errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + starter_name + "` " +
+                                (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
+                        expression.utype.type = UNDEFINED;
+                        expression.utype.referenceName = refrence.toString();
                         expression.type = expression_unresolved;
                         return;
                     }
                 }
 
-                if(scope->type != scope_class && scope->getLocalField(starter_name) != NULL) {
+                if(scope->type != CLASS_SCOPE && scope->getLocalField(starter_name) != NULL) {
                     field = &scope->getLocalField(starter_name)->value;
 
-                    if(field->nativeInt()) {
-                        if(field->isObjectInMemory()) {
-                            expression.code.push_i64(SET_Di(i64, op_MOVL, field->vaddr));
-                        } else {
-                            expression.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-                            expression.code.push_i64(SET_Ci(i64, op_SMOV, ebx, 0, field->vaddr));
-                        }
+                    /**
+                     * You cannot access a var in this manner because it
+                     * is not a data structure
+                     */
+                    if(field->isVar()) {
+                        errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col,
+                                         "field `" + starter_name + "` cannot be de-referenced");
                     }
                     else
-                        expression.code.push_i64(SET_Di(i64, op_MOVL, field->vaddr));
+                        expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
                     resolveFieldHeiarchy(field, refrence, expression, pAst);
                     return;
                 }
                 else if((field = scope->klass->getField(starter_name)) != NULL) {
-                    if(scope->type == scope_static_block) {
-                        errors->newerror(GENERIC, pAst->getsubast(ast_type_identifier)->line, pAst->getsubast(ast_type_identifier)->col, "cannot get object `" + starter_name + "` from self in static context");
+                    if(scope->type == STATIC_BLOCK) {
+                        errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col,
+                                               "cannot get object `" + starter_name + "` from self in static context");
                     }
 
                     expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
-                    expression.code.push_i64(SET_Di(i64, op_MOVN, field->vaddr));
+                    expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
                     resolveFieldHeiarchy(field, refrence, expression, pAst);
                     return;
                 } else {
-                    if((klass = getClassGlobal(refrence.module, starter_name)) != NULL) {
+                    if((klass = getClass(refrence.module, starter_name)) != NULL) {
                         resolveClassHeiarchy(klass, refrence, expression, pAst);
                         return;
                     } else {
-                        errors->newerror(COULD_NOT_RESOLVE, pAst->getsubast(ast_type_identifier)->line, pAst->getsubast(ast_type_identifier)->col, " `" + starter_name + "` " +
-                                                                                                                                                   (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
-                        expression.utype.type = ResolvedReference::NOTRESOLVED;
-                        expression.utype.refrenceName = refrence.toString();
+                        errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + starter_name + "` " +
+                                (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
+                        expression.utype.type = UNDEFINED;
+                        expression.utype.referenceName = refrence.toString();
                         expression.type = expression_unresolved;
                     }
                 }
@@ -882,18 +1039,347 @@ void RuntimeEngine::resolveVarDecl(Ast* ast) {
     string name =  ast->getEntity(startpos).getToken();
     Field* field = scope->klass->getField(name);
     Expression expression = parseUtype(ast);
-    if(expression.utype.type == ResolvedReference::CLASS) {
+    if(expression.utype.type == CLASS) {
         field->klass = expression.utype.klass;
-        field->type = field_class;
-    } else if(expression.utype.type == ResolvedReference::NATIVE) {
-        field->nf = expression.utype.nf;
-        field->type = field_native;
+        field->type = CLASS;
+    } else if(expression.utype.type == VAR) {
+        field->type = VAR;
     } else {
-        field->type = field_unresolved;
+        field->type = UNDEFINED;
     }
 
     field->isArray = expression.utype.array;
-    field->vaddr = scope->klass->getFieldIndex(name);
+    field->address = scope->klass->getFieldIndex(name);
+}
+
+int RuntimeEngine::parseMethodAccessSpecifiers(List<AccessModifier> &modifiers) {
+    for(long i = 0; i < modifiers.size(); i++) {
+        AccessModifier modifier = modifiers.get(i);
+        if(modifier > mCONST)
+            return i;
+    }
+
+    if(modifiers.get(0) <= PROTECTED) {
+        if(modifiers.size() > 3)
+            return (int)(modifiers.size() - 1);
+        else if(modifiers.size() == 2) {
+            if(modifiers.get(1) != STATIC && modifiers.get(1) != OVERRIDE)
+                return 1;
+        }
+        else if(modifiers.size() == 3) {
+            if(modifiers.get(1) != STATIC)
+                return 1;
+            if(modifiers.get(2) != OVERRIDE)
+                return 2;
+        }
+    }
+    else if(modifiers.get(0) == STATIC) {
+        if(modifiers.size() > 2)
+            return (int)(modifiers.size() - 1);
+        else if(modifiers.size() == 2 && modifiers.get(1) != OVERRIDE)
+            return 1;
+    }
+    else if(modifiers.get(0) == OVERRIDE) {
+        if(modifiers.size() != 1)
+            return (int)(modifiers.size() - 1);
+    }
+    return -1;
+}
+
+void RuntimeEngine::parseMethodAccessModifiers(List<AccessModifier> &modifiers, Ast *pAst) {
+    if(modifiers.size() > 3)
+        this->errors->createNewError(GENERIC, pAst->line, pAst->col, "too many access specifiers");
+    else {
+        int m= parseMethodAccessSpecifiers(modifiers);
+        switch(m) {
+            case -1:
+                break;
+            default:
+                this->errors->createNewError(INVALID_ACCESS_SPECIFIER, pAst->getEntity(m).getLine(),
+                                       pAst->getEntity(m).getColumn(), " `" + pAst->getEntity(m).getToken() + "`");
+                break;
+        }
+    }
+
+    if(!modifiers.find(PUBLIC) && !modifiers.find(PRIVATE)
+       && modifiers.find(PROTECTED)) {
+        modifiers.add(PUBLIC);
+    }
+}
+
+bool RuntimeEngine::containsParam(List<Param> params, string param_name) {
+    for(unsigned int i = 0; i < params.size(); i++) {
+        if(params.get(i).field.name == param_name)
+            return true;
+    }
+    return false;
+}
+
+Field RuntimeEngine::fieldMapToField(string param_name, ResolvedReference& utype, Ast* pAst) {
+    Field field;
+
+    if(utype.type == CLASSFIELD) {
+        errors->createNewError(COULD_NOT_RESOLVE, utype.field->note.getLine(), utype.field->note.getCol(), " `" + utype.field->name + "`");
+        field.type = UNDEFINED;
+        field.note = utype.field->note;
+        field.modifiers.addAll(utype.field->modifiers);
+    } else if(utype.type == CLASS) {
+        field.type = CLASS;
+        field.note = utype.klass->note;
+        field.klass = utype.klass;
+        field.modifiers.add(utype.klass->getAccessModifier());
+    } else if(utype.type == VAR) {
+        field.type = VAR;
+        field.modifiers.add(PUBLIC);
+    }
+    else {
+        field.type = UNDEFINED;
+    }
+
+    field.fullName = param_name;
+    field.address = uniqueSerialId++;
+    field.name = param_name;
+    field.isArray = utype.array;
+    field.note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line), pAst->line, pAst->col);
+
+    if(utype.type == CLASSFIELD)
+        return *utype.field;
+
+    return field;
+}
+
+void RuntimeEngine::parseMethodParams(List<Param>& params, KeyPair<List<string>, List<ResolvedReference>> fields, Ast* pAst) {
+    for(unsigned int i = 0; i < fields.key.size(); i++) {
+        if(containsParam(params, fields.key.get(i))) {
+            errors->createNewError(SYMBOL_ALREADY_DEFINED, pAst->line, pAst->col, "symbol `" + fields.key.get(i) + "` already defined in the scope");
+        } else
+            params.add(Param(fieldMapToField(fields.key.get(i), fields.value.get(i), pAst)));
+    }
+}
+
+KeyPair<string, ResolvedReference> RuntimeEngine::parseUtypeArg(Ast* ast) {
+    KeyPair<string, ResolvedReference> utype_arg;
+    utype_arg.value = parseUtype(ast).utype;
+    if(ast->getEntityCount() != 0)
+        utype_arg.key = ast->getEntity(0).getToken();
+    else
+        utype_arg.key = "";
+
+    return utype_arg;
+}
+
+KeyPair<List<string>, List<ResolvedReference>> RuntimeEngine::parseUtypeArgList(Ast* ast) {
+    KeyPair<List<string>, List<ResolvedReference>> utype_argmap;
+    KeyPair<string, ResolvedReference> utype_arg;
+    utype_argmap.key.init();
+    utype_argmap.value.init();
+
+    for(unsigned int i = 0; i < ast->getSubAstCount(); i++) {
+        utype_arg = parseUtypeArg(ast->getSubAst(i));
+        utype_argmap.key.push_back(utype_arg.key);
+        utype_argmap.value.push_back(utype_arg.value);
+    }
+
+    return utype_argmap;
+}
+
+void RuntimeEngine::parseMethodReturnType(Expression& expression, Method& method) {
+    method.array = expression.utype.array;
+    if(expression.type == expression_class) {
+        method.type = CLASS;
+        method.klass = expression.utype.klass;
+    } else if(expression.type == expression_native) {
+        method.type = expression.utype.type;
+    } else {
+        method.type = UNDEFINED;
+        errors->createNewError(GENERIC, expression.link->line, expression.link->col, "expected class or native type for method's return value");
+    }
+}
+
+void RuntimeEngine::resolveMethodDecl(Ast* ast) {
+    Scope* scope = currentScope();
+    List<AccessModifier> modifiers;
+    int startpos=1;
+
+    if(parseAccessDecl(ast, modifiers, startpos)){
+        parseMethodAccessModifiers(modifiers, ast);
+    } else {
+        modifiers.add(PUBLIC);
+    }
+
+    List<Param> params;
+    string name =  ast->getEntity(startpos).getToken();
+    parseMethodParams(params, parseUtypeArgList(ast->getSubAst(ast_utype_arg_list)), ast->getSubAst(ast_utype_arg_list));
+
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
+                                   ast->line, ast->col);
+
+    Expression utype;
+    Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile));
+    if(ast->hasSubAst(ast_method_return_type)) {
+        utype = parseUtype(ast->getSubAst(ast_method_return_type));
+        parseMethodReturnType(utype, method);
+    } else
+        method.type = TYPEVOID;
+
+    method.address = methods++;
+    if(!scope->klass->addFunction(method)) {
+        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                               "function `" + name + "` is already defined in the scope");
+        printNote(scope->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
+    }
+}
+
+Operator stringToOp(string op) {
+    if(op=="+")
+        return oper_PLUS;
+    if(op=="-")
+        return oper_MINUS;
+    if(op=="*")
+        return oper_MULT;
+    if(op=="/")
+        return oper_DIV;
+    if(op=="%")
+        return oper_MOD;
+    if(op=="++")
+        return oper_INC;
+    if(op=="--")
+        return oper_DEC;
+    if(op=="=")
+        return oper_EQUALS;
+    if(op=="==")
+        return oper_EQUALS_EQ;
+    if(op=="+=")
+        return oper_PLUS_EQ;
+    if(op=="-=")
+        return oper_MIN_EQ;
+    if(op=="*=")
+        return oper_MULT_EQ;
+    if(op=="/=")
+        return oper_DIV_EQ;
+    if(op=="&=")
+        return oper_AND_EQ;
+    if(op=="|=")
+        return oper_OR_EQ;
+    if(op=="!=")
+        return oper_NOT_EQ;
+    if(op=="%=")
+        return oper_MOD_EQ;
+    if(op=="!")
+        return oper_NOT;
+    if(op=="<<")
+        return oper_SHL;
+    if(op==">>")
+        return oper_SHR;
+    if(op=="<")
+        return oper_LESSTHAN;
+    if(op==">")
+        return oper_GREATERTHAN;
+    if(op=="<=")
+        return oper_LTEQ;
+    if(op==">=")
+        return oper_GTEQ;
+    return oper_UNDEFINED;
+}
+
+void RuntimeEngine::resolveOperatorDecl(Ast* ast) {
+    Scope* scope = currentScope();
+    List<AccessModifier> modifiers;
+    int startpos=2;
+
+    if(parseAccessDecl(ast, modifiers, startpos)){
+        parseMethodAccessModifiers(modifiers, ast);
+    } else {
+        modifiers.add(PUBLIC);
+    }
+
+    List<Param> params;
+    string op =  ast->getEntity(startpos).getToken();
+    parseMethodParams(params, parseUtypeArgList(ast->getSubAst(ast_utype_arg_list)), ast->getSubAst(ast_utype_arg_list));
+
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
+                                   ast->line, ast->col);
+
+    Expression utype;
+    OperatorOverload operatorOverload = OperatorOverload(note, scope->klass, params, modifiers, NULL, stringToOp(op), sourceFiles.indexof(activeParser->sourcefile), op);
+    if(ast->hasSubAst(ast_method_return_type)) {
+        utype = parseUtype(ast->getSubAst(ast_method_return_type)->getSubAst(ast_utype));
+        parseMethodReturnType(utype, operatorOverload);
+    } else
+        operatorOverload.type = TYPEVOID;
+
+    operatorOverload.address = methods++;
+
+    if(!scope->klass->addOperatorOverload(operatorOverload)) {
+        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                               "function `" + op + "` is already defined in the scope");
+        printNote(scope->klass->getOverload(stringToOp(op), params)->note, "function `" + op + "` previously defined here");
+    }
+}
+
+void RuntimeEngine::parsConstructorAccessModifiers(List<AccessModifier> &modifiers, Ast * ast) {
+    if(modifiers.size() > 1)
+        this->errors->createNewError(GENERIC, ast->line, ast->col, "too many access specifiers");
+    else {
+        AccessModifier mod = modifiers.get(0);
+
+        if(mod != PUBLIC && mod != PRIVATE && mod != PROTECTED)
+            this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->line, ast->col,
+                                   " `" + ast->getEntity(0).getToken() + "`");
+    }
+}
+
+void RuntimeEngine::resolveConstructorDecl(Ast* ast) {
+    Scope* scope = currentScope();
+    List<AccessModifier> modifiers;
+    int startpos=0;
+
+
+    if(parseAccessDecl(ast, modifiers, startpos)){
+        parsConstructorAccessModifiers(modifiers, ast);
+    } else {
+        modifiers.add(PUBLIC);
+    }
+
+    List<Param> params;
+    string name = ast->getEntity(startpos).getToken();
+
+    if(name == scope->klass->getName()) {
+        parseMethodParams(params, parseUtypeArgList(ast->getSubAst(ast_utype_arg_list)), ast->getSubAst(ast_utype_arg_list));
+        RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
+                                       ast->line, ast->col);
+
+        Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile));
+        method.type = TYPEVOID;
+        method.isConstructor=true;
+
+        method.address = methods++;
+        if(!scope->klass->addConstructor(method)) {
+            this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                                   "constructor `" + name + "` is already defined in the scope");
+            printNote(scope->klass->getConstructor(params)->note, "constructor `" + name + "` previously defined here");
+        }
+    } else
+        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                               "constructor `" + name + "` must be the same name as its parent");
+}
+
+void RuntimeEngine::addDefaultConstructor(ClassObject* klass, Ast* ast) {
+    List<Param> emptyParams;
+    Scope* scope = currentScope();
+    List<AccessModifier> modifiers;
+    modifiers.add(PUBLIC);
+
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
+                                   ast->line, ast->col);
+
+    if(klass->getConstructor(emptyParams, false) == NULL) {
+        Method method = Method(klass->getName(), currentModule, scope->klass, emptyParams, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile));
+
+        method.isConstructor=true;
+        method.address = methods++;
+        klass->addConstructor(method);
+    }
 }
 
 void RuntimeEngine::resolveClassDecl(Ast* ast) {
@@ -1282,6 +1768,10 @@ void RuntimeEngine::cleanup() {
         importMap.get(i).key.clear();
     }
 
+    for(unsigned long i = 0; i < inline_map.size(); i++) {
+        inline_map.get(i).key.clear();
+    }
+
     importMap.free();
     freeList(classes);
     freeList(scopeMap);
@@ -1289,4 +1779,5 @@ void RuntimeEngine::cleanup() {
     lastNoteMsg.clear();
     exportFile.clear();
     noteMessages.free();
+    inline_map.free();
 }

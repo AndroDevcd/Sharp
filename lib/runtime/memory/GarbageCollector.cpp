@@ -208,7 +208,7 @@ void GarbageCollector::collectYoungObjects() {
             if(object->refCount == 0) {
                 collect(object);
                 youngObjects--;
-                std::free(object);
+                std::free(object); managedBytes -= sizeof(SharpObject)*1;
                 heap.remove(i); // drop pointer and reset list
                 goto reset;
             } else {
@@ -240,7 +240,7 @@ void GarbageCollector::collectAdultObjects() {
             if(object->refCount == 0) {
                 collect(object);
                 adultObjects--;
-                std::free(object);
+                std::free(object); managedBytes -= sizeof(SharpObject)*1;
                 heap.remove(i); // drop pointer and reset list
                 goto reset;
             } else {
@@ -272,7 +272,7 @@ void GarbageCollector::collectOldObjects() {
             if(object->refCount == 0) {
                 collect(object);
                 oldObjects--;
-                std::free(object);
+                std::free(object); managedBytes -= sizeof(SharpObject)*1;
                 heap.remove(i); // drop pointer and reset list
                 goto reset;
             } else {

@@ -135,7 +135,8 @@
         &&ISUBL,                      \
         &&IMULL,                      \
         &&IDIVL,                      \
-        &&IMODL                      \
+        &&IMODL,                      \
+        &&LOADL                      \
     };
 
 enum Opcode {
@@ -225,7 +226,8 @@ enum Opcode {
     op_ISUBL               =0x54,
     op_IMULL               =0x55,
     op_IDIVL               =0x56,
-    op_IMODL               =0x57
+    op_IMODL               =0x57,
+    op_LOADL               =0x58
 };
 
 #endif //SHARP_OPCODE_H

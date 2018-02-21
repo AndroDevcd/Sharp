@@ -32,7 +32,9 @@ public:
             importMap(),
             noteMessages(),
             resolvedFields(false),
-            classSize(0)
+            classSize(0),
+            inline_map(),
+            methods(0)
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
@@ -84,11 +86,13 @@ private:
     List<Scope> scopeMap;
     List<ClassObject> classes;
     List<KeyPair<string, List<string>>>  importMap;
+    List<KeyPair<string, double>>  inline_map;
     string exportFile;
     ErrorManager* errors;
     Parser* activeParser;
     string currentModule;
     bool resolvedFields;
+    unsigned long methods;
     unsigned long classSize;
 
     /* One off variables */
@@ -166,6 +170,110 @@ private:
     FieldType tokenToNativeField(string entity);
 
     void resolveUtype(ReferencePointer& refrence, Expression& expression, Ast* pAst);
+
+    bool isFieldInlined(Field *field);
+
+    double getInlinedFieldValue(Field *field);
+
+    void inlineVariableValue(Expression &expression, Field *field);
+
+    bool isDClassNumberEncodable(double var);
+
+    int64_t get_low_bytes(double var);
+
+    void resolveClassHeiarchy(ClassObject *klass, ReferencePointer &refrence, Expression &expression, Ast *pAst,
+                              bool requireStatic = true);
+
+    void resolveFieldHeiarchy(Field *field, ReferencePointer &refrence, Expression &expression, Ast *pAst);
+
+    void resolveMethodDecl(Ast *ast);
+
+    void parseMethodAccessModifiers(List<AccessModifier> &modifiers, Ast *pAst);
+
+    int parseMethodAccessSpecifiers(List<AccessModifier> &modifiers);
+
+    void parseMethodParams(List<Param> &params, KeyPair<List<string>, List<ResolvedReference>> fields, Ast *pAst);
+
+    bool containsParam(List<Param> params, string param_name);
+
+    Field fieldMapToField(string param_name, ResolvedReference &utype, Ast *pAst);
+
+    KeyPair<List<string>, List<ResolvedReference>> parseUtypeArgList(Ast *ast);
+
+    KeyPair<string, ResolvedReference> parseUtypeArg(Ast *ast);
+
+    void parseMethodReturnType(Expression &expression, Method &method);
+
+    void resolveOperatorDecl(Ast *ast);
+
+    void resolveConstructorDecl(Ast *ast);
+
+    void parsConstructorAccessModifiers(List<AccessModifier> &modifiers, Ast *ast);
+
+    void addDefaultConstructor(ClassObject *klass, Ast *ast);
+};
+
+class ResolvedReference {
+public:
+    ResolvedReference()
+            :
+            type(UNDEFINED),
+            field(NULL),
+            method(NULL),
+            klass(NULL),
+            oo(NULL),
+            referenceName(""),
+            array(false),
+            resolved(false),
+            isMethod(false)
+    {
+    }
+
+    static string typeToString(FieldType type) {
+        if(type==CLASS)
+            return "class";
+        else if(type==OBJECT)
+            return "object";
+        else if(type==VAR)
+            return "var";
+        else if(type==TYPEVOID)
+            return "void";
+        else if(type==UNDEFINED)
+            return "undefined";
+        else
+            return "unresolved";
+    }
+
+    string typeToString() {
+        if(isMethod)
+            return "method";
+        else if(type==CLASS)
+            return "class";
+        else if(type==OBJECT)
+            return "object";
+        else if(type==VAR)
+            return "var";
+        else if(type==TYPEVOID)
+            return "void";
+        else if(type==UNDEFINED)
+            return "undefined";
+        else
+            return "unresolved";
+    }
+
+    void free() {
+        referenceName.clear();
+    }
+
+    bool isNative() { return type==VAR || type==OBJECT; }
+
+    string referenceName;
+    bool array, isMethod, resolved;
+    FieldType type;
+    ClassObject* klass;
+    Field* field;
+    Method* method;
+    OperatorOverload* oo;
 };
 
 enum expression_type {
@@ -501,69 +609,6 @@ struct Scope {
             }
         }
     }
-};
-
-class ResolvedReference {
-public:
-    ResolvedReference()
-            :
-            type(UNDEFINED),
-            field(NULL),
-            method(NULL),
-            klass(NULL),
-            oo(NULL),
-            referenceName(""),
-            array(false),
-            resolved(false),
-            isMethod(false)
-    {
-    }
-
-    static string typeToString(FieldType type) {
-        if(type==CLASS)
-            return "class";
-        else if(type==OBJECT)
-            return "object";
-        else if(type==VAR)
-            return "var";
-        else if(type==TYPEVOID)
-            return "void";
-        else if(type==UNDEFINED)
-            return "undefined";
-        else
-            return "unresolved";
-    }
-
-    string typeToString() {
-        if(isMethod)
-            return "method";
-        else if(type==CLASS)
-            return "class";
-        else if(type==OBJECT)
-            return "object";
-        else if(type==VAR)
-            return "var";
-        else if(type==TYPEVOID)
-            return "void";
-        else if(type==UNDEFINED)
-            return "undefined";
-        else
-            return "unresolved";
-    }
-
-    void free() {
-        referenceName.clear();
-    }
-
-    bool isNative() { return type==VAR || type==OBJECT; }
-
-    string referenceName;
-    bool array, isMethod, resolved;
-    FieldType type;
-    ClassObject* klass;
-    Field* field;
-    Method* method;
-    OperatorOverload* oo;
 };
 
 #define currentScope() (scopeMap.empty() ? NULL : &scopeMap.last())
