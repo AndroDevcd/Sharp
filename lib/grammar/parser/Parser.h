@@ -230,6 +230,13 @@ private:
         return; \
     }
 
+#define SEMTEX_CHECK_ERRORS \
+    if(panic) goto report; \
+    else if(errors->getUnfilteredErrorCount() > _SHARP_CERROR_LIMIT) { \
+        panic = true; \
+        goto report; \
+    }
+
 #define CHECK_ERRORS_RETURN(x) \
     if(panic) return x; \
     else if(errors->getUnfilteredErrorCount() > _SHARP_CERROR_LIMIT) { \

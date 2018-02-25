@@ -7,11 +7,14 @@
 #include "../Environment.h"
 
 void Object::operator=(Object &object) {
+    if(&object == this) return;
+
     GarbageCollector::self->freeObject(this);
     GarbageCollector::self->attachObject(this, object.object);
 }
 
 void Object::operator=(SharpObject *object) {
+    if(object == this->object) return;
     GarbageCollector::self->freeObject(this);
     this->object = object;
 }
@@ -32,6 +35,7 @@ void Object::castObject(uint64_t classPtr) {
 }
 
 void Object::operator=(Object *object) {
+    if(object == this) return;
     GarbageCollector::self->freeObject(this);
     if(object != NULL)
         GarbageCollector::self->attachObject(this, object->object);

@@ -845,8 +845,8 @@ void Thread::exec() {
                 _brh
             NEWCLASSARRAY:
                 CHECK_NULL(
-                        *o2 = GarbageCollector::self->newObjectArray(registers[GET_Da(cache[pc])],
-                                                                           env->findClassBySerial(GET_Da(cache[pc])));
+                        *o2 = GarbageCollector::self->newObjectArray(registers[GET_Ca(cache[pc])],
+                                                                           env->findClassBySerial(GET_Cb(cache[pc])));
                 )
                 _brh
             NEWSTRING:
@@ -886,6 +886,11 @@ void Thread::exec() {
                 _brh
             LOADL:
                 registers[GET_Ca(cache[pc])]=dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var;
+                _brh
+            IALOAD_2:
+                CHECK_NULLOBJ(
+                        registers[GET_Ca(cache[pc])] = o2->HEAD[(uint64_t)registers[GET_Cb(cache[pc])]];
+                )
                 _brh
 
         }

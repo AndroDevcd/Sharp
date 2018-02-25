@@ -129,6 +129,8 @@ int Process_Exe(std::string exe)
         env->strings = (String*)malloc(sizeof(String)*(manifest.strings+1));
         env->globalHeap = (Object*)malloc(sizeof(Object)*manifest.classes);
         env->sourceFiles = (native_string*)malloc(sizeof(native_string)*manifest.sourceFiles);
+        env->strings[manifest.strings].value.init();
+        env->strings[manifest.strings].id = -1;
 
         if(env->classes == NULL || env->methods == NULL || env->globalHeap == NULL
            || env->strings == NULL) {
@@ -298,6 +300,7 @@ int Process_Exe(std::string exe)
                     method->stackSize = geti64(buffer);
                     method->cacheSize = geti64(buffer);
                     method->isStatic = getlong(buffer);
+                    method->returnVal = getlong(buffer);
 
                     long len = getlong(buffer);
                     line_table lt;
@@ -330,6 +333,8 @@ int Process_Exe(std::string exe)
                     for(long i = 0; i < len; i++) {
                         ft.start_pc=geti64(buffer);
                         ft.end_pc=geti64(buffer);
+                        ft.try_start_pc=geti64(buffer);
+                        ft.try_end_pc=geti64(buffer);
                         method->finallyBlocks.push_back(ft);
                     }
                     break;

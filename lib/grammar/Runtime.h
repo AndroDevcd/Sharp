@@ -14,6 +14,7 @@ struct Scope;
 class ReferencePointer;
 class ResolvedReference;
 struct Expression;
+enum expression_type;
 
 class RuntimeEngine {
 public:
@@ -35,7 +36,9 @@ public:
             classSize(0),
             inline_map(),
             methods(0),
-            main(NULL)
+            main(NULL),
+            stringMap(),
+            panic(false)
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
@@ -75,6 +78,7 @@ public:
     List<string> succeededParsers;
     static unsigned long uniqueSerialId;
     long errorCount, unfilteredErrorCount;
+    bool panic;
 
     void generate();
 
@@ -88,6 +92,7 @@ private:
     List<ClassObject> classes;
     List<KeyPair<string, List<string>>>  importMap;
     List<KeyPair<string, double>>  inline_map;
+    List<string> stringMap;
     string exportFile;
     ErrorManager* errors;
     Parser* activeParser;
@@ -227,6 +232,119 @@ private:
     void analyzeImportDecl(Ast *pAst);
 
     void createNewWarning(error_type error, int line, int col, string xcmnts);
+
+    void analyzeClassDecl(Ast *ast);
+
+    void setHeadClass(ClassObject *klass);
+
+    void analyzeVarDecl(Ast *ast);
+
+    Expression parseValue(Ast *ast);
+
+    Expression parseExpression(Ast *ast);
+
+    Expression parsePrimaryExpression(Ast *ast);
+
+    Expression parseLiteral(Ast *pAst);
+
+    void parseCharLiteral(token_entity token, Expression &expression);
+
+    void parseIntegerLiteral(token_entity token, Expression &expression);
+
+    string invalidateUnderscores(string basic_string);
+
+    void parseHexLiteral(token_entity token, Expression &expression);
+
+    void parseStringLiteral(token_entity token, Expression &expression);
+
+    void parseBoolLiteral(token_entity token, Expression &expression);
+
+    Expression psrseUtypeClass(Ast *pAst);
+
+    Expression parseDotNotationCall(Ast *pAst);
+
+    Method *resolveMethodUtype(Ast *utype, Ast *valueLst, Expression &out);
+
+    List<Expression> parseValueList(Ast *pAst);
+
+    bool expressionListToParams(List<Param> &params, List<Expression> &expressions);
+
+    bool splitMethodUtype(string &name, ReferencePointer &ptr);
+
+    Operator stringToOp(string op);
+
+    string paramsToString(List<Param> &param);
+
+    void pushAuthenticExpressionToStackNoInject(Expression &expression, Expression &out);
+
+    void pushExpressionToPtr(Expression &expression, Expression &out);
+
+    void pushExpressionToStack(Expression &expression, Expression &out);
+
+    expression_type methodReturntypeToExpressionType(Method *fn);
+
+    Expression &parseDotNotationChain(Ast *pAst, Expression &expression, unsigned int startpos);
+
+    Expression parseDotNotationCallContext(Expression &contextExpression, Ast *pAst);
+
+    Method *resolveContextMethodUtype(ClassObject *classContext, Ast *pAst, Ast *pAst2, Expression &out,
+                                      Expression &contextExpression);
+
+    void resolveUtypeContext(ClassObject *classContext, ReferencePointer &refrence, Expression &expression, Ast *pAst);
+
+    void pushExpressionToStackNoInject(Expression &expression, Expression &out);
+
+    Expression parseUtypeContext(ClassObject *classContext, Ast *pAst);
+
+    Expression parseArrayExpression(Expression &interm, Ast *pAst);
+
+    bool currentRefrenceAffected(Expression &expr);
+
+    void pushExpressionToRegister(Expression &expr, Expression &out, int reg);
+
+    void pushExpressionToRegisterNoInject(Expression &expr, Expression &out, int reg);
+
+    Expression parseSelfExpression(Ast *pAst);
+
+    Expression parseSelfDotNotationCall(Ast *pAst);
+
+    Method *resolveSelfMethodUtype(Ast *utype, Ast *valueList, Expression &out);
+
+    Expression parseBaseExpression(Ast *pAst);
+
+    Expression parseBaseDotNotationCall(Ast *pAst);
+
+    Method *resolveBaseMethodUtype(Ast *utype, Ast *valueList, Expression &out);
+
+    Expression parseNullExpression(Ast *pAst);
+
+    Expression parseNewExpression(Ast *pAst);
+
+    List<Expression> parseVectorArray(Ast *pAst);
+
+    void checkVectorArray(Expression &utype, List<Expression> &vecArry);
+
+    void parseNewArrayExpression(Expression &out, Expression &utype, Ast *pAst);
+
+    Expression parseSizeOfExpression(Ast *pAst);
+
+    Expression parsePostInc(Ast *pAst);
+
+    Expression parseIntermExpression(Ast *pAst);
+
+    void postIncClass(Expression &out, token_entity op, ClassObject *klass);
+
+    Expression parseArrayExpression(Ast *pAst);
+
+    Expression parseCastExpression(Ast *pAst);
+
+    void parseNativeCast(Expression &utype, Expression &arg, Expression &out);
+
+    void parseClassCast(Expression &utype, Expression &arg, Expression &out);
+
+    Expression parsePreInc(Ast *pAst);
+
+    void preIncClass(Expression &out, token_entity op, ClassObject *klass);
 };
 
 class ResolvedReference {
@@ -281,7 +399,8 @@ public:
         referenceName.clear();
     }
 
-    bool isNative() { return type==VAR || type==OBJECT; }
+    bool isVar() { return type==VAR || type==OBJECT; }
+    bool dynamicObject() { return type==OBJECT; }
 
     string referenceName;
     bool array, isMethod, resolved;

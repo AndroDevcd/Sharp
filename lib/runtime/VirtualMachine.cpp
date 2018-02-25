@@ -262,7 +262,7 @@ void VirtualMachine::executeMethod(int64_t address) {
                 Frame(NULL, 0, 0, 0)); // for main method
     else
         thread_self->callStack.add(
-                Frame(thread_self->current, thread_self->pc, registers[sp], registers[fp]));
+                Frame(thread_self->current, thread_self->pc, (registers[sp]-method->paramSize)+method->returnVal, registers[fp]));
 
 
     thread_self->pc = 0;

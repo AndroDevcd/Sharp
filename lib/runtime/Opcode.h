@@ -136,7 +136,8 @@
         &&IMULL,                      \
         &&IDIVL,                      \
         &&IMODL,                      \
-        &&LOADL                      \
+        &&LOADL,                      \
+        &&IALOAD_2                     \
     };
 
 enum Opcode {
@@ -227,7 +228,8 @@ enum Opcode {
     op_IMULL               =0x55,
     op_IDIVL               =0x56,
     op_IMODL               =0x57,
-    op_LOADL               =0x58
+    op_LOADL               =0x58,
+    op_IALOAD_2            =0x59
 };
 
 #endif //SHARP_OPCODE_H

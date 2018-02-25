@@ -23,6 +23,7 @@ struct Method {
 
     int64_t* bytecode;
     int stackSize;                 /* inital stack space required for frame */
+    short int returnVal;           /* Simple binary flag indicating the function returns a value */
     ClassObject* owner;
     native_string name;
     int64_t* params;
@@ -71,6 +72,7 @@ struct Method {
         address = 0;
         cacheSize = 0;
         isStatic = false;
+        returnVal = 0;
     }
 };
 

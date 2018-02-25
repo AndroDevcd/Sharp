@@ -64,10 +64,4 @@ struct FinallyTable {
     uint64_t try_start_pc, try_end_pc;
 };
 
-enum FinallyCommands {
-    EXEC_ALL_FINALLY=0,
-    EXEC_SINGLE_FINALLY=1,
-    EXEC_PRECEDING_FINALLY=3
-};
-
 #endif //SHARP_EXCECPTION_H
