@@ -15,7 +15,405 @@ struct Scope;
 class ReferencePointer;
 class ResolvedReference;
 struct Expression;
-enum expression_type;
+
+class ResolvedReference {
+public:
+    ResolvedReference()
+            :
+            type(UNDEFINED),
+            field(NULL),
+            method(NULL),
+            klass(NULL),
+            oo(NULL),
+            referenceName(""),
+            array(false),
+            resolved(false),
+            isMethod(false)
+    {
+    }
+
+    static string typeToString(FieldType type) {
+        if(type==CLASS)
+            return "class";
+        else if(type==OBJECT)
+            return "object";
+        else if(type==VAR)
+            return "var";
+        else if(type==TYPEVOID)
+            return "void";
+        else if(type==UNDEFINED)
+            return "undefined";
+        else
+            return "unresolved";
+    }
+
+    string typeToString() {
+        if(isMethod)
+            return "method";
+        else if(type==CLASS)
+            return "class";
+        else if(type==OBJECT)
+            return "object";
+        else if(type==VAR)
+            return "var";
+        else if(type==TYPEVOID)
+            return "void";
+        else if(type==UNDEFINED)
+            return "undefined";
+        else
+            return "unresolved";
+    }
+
+    void free() {
+        referenceName.clear();
+    }
+
+    bool isVar() { return type==VAR || type==OBJECT; }
+    bool dynamicObject() { return type==OBJECT; }
+
+    string referenceName;
+    bool array, isMethod, resolved;
+    FieldType type;
+    ClassObject* klass;
+    Field* field;
+    Method* method;
+    OperatorOverload* oo;
+};
+
+enum expression_type {
+    expression_var=1,
+    expression_class=3,
+    expression_objectclass=5,
+    expression_expression=7,
+    expression_string=8,
+    expression_native=9,
+    expression_field=10,
+    expression_lclass=11,
+    expression_void=12,
+    expression_unresolved=13,
+    expression_null=14,
+    expression_unknown=0x900f
+};
+
+struct Expression {
+    Expression()
+            :
+            type(expression_unknown),
+            utype(),
+            code(),
+            dot(false),
+            link(NULL),
+            newExpression(false),
+            func(false),
+            intValue(0),
+            value(""),
+            literal(false),
+            arrayElement(false),
+            boolExpressions()
+    {
+    }
+
+    Expression(Ast* pAst)
+            :
+            type(expression_unknown),
+            utype(),
+            code(),
+            dot(false),
+            link(pAst),
+            newExpression(false),
+            func(false),
+            intValue(0),
+            value(""),
+            literal(false),
+            arrayElement(false),
+            boolExpressions()
+    {
+    }
+
+    void utype_refrence_toexpression(ResolvedReference ref);
+
+    expression_type type;
+    ResolvedReference utype;
+    Assembler code;
+    Ast* link;
+    bool dot, newExpression, func, literal, arrayElement;
+    string value;
+    double intValue;
+    List<long> boolExpressions;
+
+    bool arrayObject() {
+        switch(type) {
+            case expression_field:
+                return utype.field->isArray;
+            default:
+                return utype.array;
+        }
+    }
+    string typeToString();
+    void free() {
+        utype.free();
+        boolExpressions.free();
+        code.free();
+        *this=(Expression());
+    }
+
+    void operator=(Expression e);
+
+    void inject(Expression &expression);
+};
+
+struct Block {
+    Block()
+            :
+            code()
+    {
+    }
+
+    Assembler code;
+
+    void free() {
+        code.free();
+    }
+};
+
+class ReferencePointer {
+public:
+    ReferencePointer() {
+        classHeiarchy.init();
+        module = "";
+        referenceName = "";
+    }
+
+    void operator=(ReferencePointer ptr) {
+        this->module = ptr.module;
+        this->referenceName = ptr.referenceName;
+
+        this->classHeiarchy.addAll(ptr.classHeiarchy);
+    }
+
+    void free() {
+        classHeiarchy.free();
+        referenceName.clear();
+        module.clear();
+    }
+
+    bool singleRefrence() {
+        return module == "" && classHeiarchy.size() == 0;
+    }
+
+    bool singleRefrenceModule() {
+        return module != "" && classHeiarchy.size() == 0;
+    }
+
+    void print() {
+        // dev code
+        cout << "refrence pointer -----" << endl;
+        cout << "id: " << referenceName << endl;
+        cout << "mod: " << module << endl;
+        cout << "class: ";
+        for(int i = 0; i < classHeiarchy.size(); i++)
+            cout << classHeiarchy.at(i) << ".";
+        cout << endl;
+    }
+
+    string module;
+    List<string> classHeiarchy;
+    string referenceName;
+
+    string toString() {
+        stringstream ss;
+        if(module != "")
+            ss << module << "#";
+        for(int i = 0; i < classHeiarchy.size(); i++)
+            ss << classHeiarchy.at(i) << ".";
+        ss << referenceName << endl;
+        return ss.str();
+    }
+};
+
+struct BranchTable {
+    BranchTable()
+            :
+            branch_pc(0),
+            line(0),
+            col(0),
+            store(false),
+            registerWatchdog(0),
+            offset(0),
+            labelName("")
+    {
+    }
+
+    int64_t branch_pc;          // where was the branch initated in the code
+    string labelName;           // the label we were trying to access
+    int line, col;
+
+    bool store;                 // is this a store instruction/
+    int registerWatchdog;      // if this is a store instruction tell me what register to put the data in
+    long offset;                // any offset to the address label
+
+    void free() {
+        labelName.clear();
+    }
+};
+
+enum ScopeType {
+    GLOBAL_SCOPE,
+    CLASS_SCOPE,
+    INSTANCE_BLOCK,
+    STATIC_BLOCK
+};
+
+struct Scope {
+    Scope()
+            :
+            type(GLOBAL_SCOPE),
+            klass(NULL),
+            self(false),
+            base(false),
+            currentFunction(NULL),
+            blocks(0),
+            loops(0),
+            trys(0),
+            uniqueLabelSerial(0),
+            reachable(true),
+            last_statement(0)
+    {
+        locals.init();
+        label_map.init();
+        branches.init();
+    }
+
+    Scope(ScopeType type, ClassObject* klass)
+            :
+            type(type),
+            klass(klass),
+            self(false),
+            base(false),
+            currentFunction(NULL),
+            blocks(0),
+            loops(0),
+            trys(0),
+            uniqueLabelSerial(0),
+            reachable(true),
+            last_statement(0)
+    {
+        locals.init();
+        label_map.init();
+        branches.init();
+    }
+
+    Scope(ScopeType type, ClassObject* klass, Method* func)
+            :
+            type(type),
+            klass(klass),
+            self(false),
+            base(false),
+            currentFunction(func),
+            blocks(0),
+            loops(0),
+            trys(0),
+            uniqueLabelSerial(0),
+            reachable(true),
+            last_statement(0)
+    {
+        locals.init();
+        label_map.init();
+        branches.init();
+    }
+
+    KeyPair<int, Field>* getLocalField(string field_name) {
+        if(locals.size() == 0) return NULL;
+
+        for(long long i = locals.size()-1; i >= 0; i--) {
+            if(locals.at(i).value.name == field_name) {
+                return &locals.get(i);
+            }
+        }
+        return NULL;
+    }
+
+    int getLocalFieldIndex(string field_name) {
+        for(long long i = locals.size()-1; i >= 0; i--) {
+            if(locals.at(i).value.name == field_name) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    int64_t getLabel(std::string name) {
+        for(unsigned int i = 0; i < label_map.size(); i++) {
+            if(label_map.get(i).key == name)
+                return label_map.get(i).value;
+        }
+        return -1;
+    }
+
+    void addBranch(string label, long offset, Assembler& assembler, int line, int col) {
+        BranchTable bt;
+        assembler.__asm64.add(0);               // add empty instruction for branch later
+        bt.branch_pc = assembler.__asm64.size()-1;
+        bt.line=line;
+        bt.col=col;
+        bt.labelName = label;
+        bt.offset=offset;
+        branches.push_back(bt);
+    }
+
+    void addStore(string label, int _register, long offset, Assembler& assembler, int line, int col) {
+        BranchTable bt;
+        bt.branch_pc=assembler.__asm64.size();
+        assembler.__asm64.add(0);               // add empty instruction for storing later
+        assembler.__asm64.add(0);
+        bt.line=line;
+        bt.col=col;
+        bt.labelName = label;
+        bt.store=true;
+        bt.offset = offset;
+        bt.registerWatchdog=_register;
+        branches.push_back(bt);
+    }
+
+    ScopeType type;
+    ClassObject* klass;
+    Method* currentFunction;
+    List<KeyPair<int, Field>> locals;
+    List<KeyPair<std::string, int64_t>> label_map;
+    List<BranchTable> branches;
+    int blocks;
+    long loops, trys, uniqueLabelSerial, last_statement;
+    bool self, base, reachable;
+
+    void free() {
+        locals.free();
+        label_map.free();
+    }
+
+    void removeLocals(int block) {
+        if(locals.size() == 0) return;
+
+        readjust:
+        for(long long i = locals.size()-1; i >= 0; i--) {
+            if(locals.at(i).key==block) {
+                locals.remove(i);
+                goto readjust;
+            }
+        }
+    }
+
+    void removeLocals(string name) {
+        if(locals.size() == 0) return;
+
+        readjust:
+        for(long long i = locals.size()-1; i >= 0; i--) {
+            if(locals.at(i).value.name==name) {
+                locals.remove(i);
+                return;
+            }
+        }
+    }
+};
 
 class RuntimeEngine {
 public:
@@ -421,404 +819,6 @@ private:
     Expression parseQuesExpression(Ast *pAst);
 };
 
-class ResolvedReference {
-public:
-    ResolvedReference()
-            :
-            type(UNDEFINED),
-            field(NULL),
-            method(NULL),
-            klass(NULL),
-            oo(NULL),
-            referenceName(""),
-            array(false),
-            resolved(false),
-            isMethod(false)
-    {
-    }
-
-    static string typeToString(FieldType type) {
-        if(type==CLASS)
-            return "class";
-        else if(type==OBJECT)
-            return "object";
-        else if(type==VAR)
-            return "var";
-        else if(type==TYPEVOID)
-            return "void";
-        else if(type==UNDEFINED)
-            return "undefined";
-        else
-            return "unresolved";
-    }
-
-    string typeToString() {
-        if(isMethod)
-            return "method";
-        else if(type==CLASS)
-            return "class";
-        else if(type==OBJECT)
-            return "object";
-        else if(type==VAR)
-            return "var";
-        else if(type==TYPEVOID)
-            return "void";
-        else if(type==UNDEFINED)
-            return "undefined";
-        else
-            return "unresolved";
-    }
-
-    void free() {
-        referenceName.clear();
-    }
-
-    bool isVar() { return type==VAR || type==OBJECT; }
-    bool dynamicObject() { return type==OBJECT; }
-
-    string referenceName;
-    bool array, isMethod, resolved;
-    FieldType type;
-    ClassObject* klass;
-    Field* field;
-    Method* method;
-    OperatorOverload* oo;
-};
-
-enum expression_type {
-    expression_var=1,
-    expression_class=3,
-    expression_objectclass=5,
-    expression_expression=7,
-    expression_string=8,
-    expression_native=9,
-    expression_field=10,
-    expression_lclass=11,
-    expression_void=12,
-    expression_unresolved=13,
-    expression_null=14,
-    expression_unknown=0x900f
-};
-
-struct Expression {
-    Expression()
-            :
-            type(expression_unknown),
-            utype(),
-            code(),
-            dot(false),
-            link(NULL),
-            newExpression(false),
-            func(false),
-            intValue(0),
-            value(""),
-            literal(false),
-            arrayElement(false),
-            boolExpressions()
-    {
-    }
-
-    Expression(Ast* pAst)
-            :
-            type(expression_unknown),
-            utype(),
-            code(),
-            dot(false),
-            link(pAst),
-            newExpression(false),
-            func(false),
-            intValue(0),
-            value(""),
-            literal(false),
-            arrayElement(false),
-            boolExpressions()
-    {
-    }
-
-    void utype_refrence_toexpression(ResolvedReference ref);
-
-    expression_type type;
-    ResolvedReference utype;
-    Assembler code;
-    Ast* link;
-    bool dot, newExpression, func, literal, arrayElement;
-    string value;
-    double intValue;
-    List<long> boolExpressions;
-
-    bool arrayObject() {
-        switch(type) {
-            case expression_field:
-                return utype.field->isArray;
-            default:
-                return utype.array;
-        }
-    }
-    string typeToString();
-    void free() {
-        utype.free();
-        boolExpressions.free();
-        code.free();
-        *this=(Expression());
-    }
-
-    void operator=(Expression e);
-
-    void inject(Expression &expression);
-};
-
-struct Block {
-    Block()
-            :
-            code()
-    {
-    }
-
-    Assembler code;
-
-    void free() {
-        code.free();
-    }
-};
-
-class ReferencePointer {
-public:
-    ReferencePointer() {
-        classHeiarchy.init();
-        module = "";
-        referenceName = "";
-    }
-
-    void operator=(ReferencePointer ptr) {
-        this->module = ptr.module;
-        this->referenceName = ptr.referenceName;
-
-        this->classHeiarchy.addAll(ptr.classHeiarchy);
-    }
-
-    void free() {
-        classHeiarchy.free();
-        referenceName.clear();
-        module.clear();
-    }
-
-    bool singleRefrence() {
-        return module == "" && classHeiarchy.size() == 0;
-    }
-
-    bool singleRefrenceModule() {
-        return module != "" && classHeiarchy.size() == 0;
-    }
-
-    void print() {
-        // dev code
-        cout << "refrence pointer -----" << endl;
-        cout << "id: " << referenceName << endl;
-        cout << "mod: " << module << endl;
-        cout << "class: ";
-        for(int i = 0; i < classHeiarchy.size(); i++)
-            cout << classHeiarchy.at(i) << ".";
-        cout << endl;
-    }
-
-    string module;
-    List<string> classHeiarchy;
-    string referenceName;
-
-    string toString() {
-        stringstream ss;
-        if(module != "")
-            ss << module << "#";
-        for(int i = 0; i < classHeiarchy.size(); i++)
-            ss << classHeiarchy.at(i) << ".";
-        ss << referenceName << endl;
-        return ss.str();
-    }
-};
-
-struct BranchTable {
-    BranchTable()
-            :
-            branch_pc(0),
-            line(0),
-            col(0),
-            store(false),
-            registerWatchdog(0),
-            offset(0),
-            labelName("")
-    {
-    }
-
-    int64_t branch_pc;          // where was the branch initated in the code
-    string labelName;           // the label we were trying to access
-    int line, col;
-
-    bool store;                 // is this a store instruction/
-    int registerWatchdog;      // if this is a store instruction tell me what register to put the data in
-    long offset;                // any offset to the address label
-
-    void free() {
-        labelName.clear();
-    }
-};
-
-enum ScopeType {
-    GLOBAL_SCOPE,
-    CLASS_SCOPE,
-    INSTANCE_BLOCK,
-    STATIC_BLOCK
-};
-
-struct Scope {
-    Scope()
-            :
-            type(GLOBAL_SCOPE),
-            klass(NULL),
-            self(false),
-            base(false),
-            currentFunction(NULL),
-            blocks(0),
-            loops(0),
-            trys(0),
-            uniqueLabelSerial(0),
-            reachable(true),
-            last_statement(0)
-    {
-        locals.init();
-        label_map.init();
-        branches.init();
-    }
-
-    Scope(ScopeType type, ClassObject* klass)
-            :
-            type(type),
-            klass(klass),
-            self(false),
-            base(false),
-            currentFunction(NULL),
-            blocks(0),
-            loops(0),
-            trys(0),
-            uniqueLabelSerial(0),
-            reachable(true),
-            last_statement(0)
-    {
-        locals.init();
-        label_map.init();
-        branches.init();
-    }
-
-    Scope(ScopeType type, ClassObject* klass, Method* func)
-            :
-            type(type),
-            klass(klass),
-            self(false),
-            base(false),
-            currentFunction(func),
-            blocks(0),
-            loops(0),
-            trys(0),
-            uniqueLabelSerial(0),
-            reachable(true),
-            last_statement(0)
-    {
-        locals.init();
-        label_map.init();
-        branches.init();
-    }
-
-    KeyPair<int, Field>* getLocalField(string field_name) {
-        if(locals.size() == 0) return NULL;
-
-        for(long long i = locals.size()-1; i >= 0; i--) {
-            if(locals.at(i).value.name == field_name) {
-                return &locals.get(i);
-            }
-        }
-        return NULL;
-    }
-
-    int getLocalFieldIndex(string field_name) {
-        for(long long i = locals.size()-1; i >= 0; i--) {
-            if(locals.at(i).value.name == field_name) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    int64_t getLabel(std::string name) {
-        for(unsigned int i = 0; i < label_map.size(); i++) {
-            if(label_map.get(i).key == name)
-                return label_map.get(i).value;
-        }
-        return -1;
-    }
-
-    void addBranch(string label, long offset, Assembler& assembler, int line, int col) {
-        BranchTable bt;
-        assembler.__asm64.add(0);               // add empty instruction for branch later
-        bt.branch_pc = assembler.__asm64.size()-1;
-        bt.line=line;
-        bt.col=col;
-        bt.labelName = label;
-        bt.offset=offset;
-        branches.push_back(bt);
-    }
-
-    void addStore(string label, int _register, long offset, Assembler& assembler, int line, int col) {
-        BranchTable bt;
-        bt.branch_pc=assembler.__asm64.size();
-        assembler.__asm64.add(0);               // add empty instruction for storing later
-        assembler.__asm64.add(0);
-        bt.line=line;
-        bt.col=col;
-        bt.labelName = label;
-        bt.store=true;
-        bt.offset = offset;
-        bt.registerWatchdog=_register;
-        branches.push_back(bt);
-    }
-
-    ScopeType type;
-    ClassObject* klass;
-    Method* currentFunction;
-    List<KeyPair<int, Field>> locals;
-    List<KeyPair<std::string, int64_t>> label_map;
-    List<BranchTable> branches;
-    int blocks;
-    long loops, trys, uniqueLabelSerial, last_statement;
-    bool self, base, reachable;
-
-    void free() {
-        locals.free();
-        label_map.free();
-    }
-
-    void removeLocals(int block) {
-        if(locals.size() == 0) return;
-
-        readjust:
-        for(long long i = locals.size()-1; i >= 0; i--) {
-            if(locals.at(i).key==block) {
-                locals.remove(i);
-                goto readjust;
-            }
-        }
-    }
-
-    void removeLocals(string name) {
-        if(locals.size() == 0) return;
-
-        readjust:
-        for(long long i = locals.size()-1; i >= 0; i--) {
-            if(locals.at(i).value.name==name) {
-                locals.remove(i);
-                return;
-            }
-        }
-    }
-};
 
 #define currentScope() (scopeMap.empty() ? NULL : &scopeMap.last())
 
