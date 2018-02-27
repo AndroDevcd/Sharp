@@ -40,6 +40,26 @@ public:
 
     string getPrettyErrorLine(long line, long sourceFile);
 
+    CXX11_INLINE
+    void executeFinally(Method *method) {
+        uint64_t oldpc = thread_self->pc;
+
+        for(unsigned int i = 0; i < method->finallyBlocks.size(); i++) {
+            FinallyTable &ft = method->finallyBlocks.get(i);
+            if(ft.try_start_pc >= oldpc && ft.try_end_pc < oldpc) {
+                finallyTable = ft;
+                startAddress = 1;
+                thread_self->pc = ft.start_pc;
+
+                /**
+                 * Execute finally blocks before returning
+                 */
+                thread_self->exec();
+                startAddress = 0;
+            }
+        }
+    }
+
     int exitVal;
 };
 

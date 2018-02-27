@@ -9,6 +9,7 @@
 #include "../util/File.h"
 #include "../runtime/Opcode.h"
 #include "../runtime/register.h"
+#include "Asm.h"
 
 using namespace std;
 
@@ -407,6 +408,1102 @@ void RuntimeEngine::setHeadClass(ClassObject *klass) {
             return;
         } else
             sup = sup->getBaseClass();
+    }
+}
+
+void RuntimeEngine::addLine(Block& block, Ast *pAst) {
+    Scope* scope = currentScope();
+
+
+    scope->currentFunction->line_table.add(KeyPair<int64_t, long>(block.code.__asm64.size(), pAst->line));
+}
+
+void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix return sign of new
+    Scope* scope = currentScope();
+    Expression returnVal, value;
+    scope->reachable=false;
+    scope->last_statement=ast_return_stmnt;
+
+    if(pAst->hasSubAst(ast_value)) {
+        value = parseValue(pAst);
+        if(!value.newExpression)
+            block.code.inject(block.code.__asm64.size(), value.code);
+
+        switch(value.type) {
+            case expression_var:
+                if(value.newExpression) {
+                    block.code.inject(block.code.__asm64.size(), value.code);
+                    block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                } else {
+                    if (value.func) {
+                        // TODO: pull value from function
+                        if(value.utype.array) {
+                            block.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+                            block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                        } else {
+                            Expression out;
+                            pushExpressionToRegisterNoInject(value, out, ebx);
+                            block.code.inject(block.code.__asm64.size(), out.code);
+                            block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
+                        }
+                    } else {
+                        Expression out;
+                        pushExpressionToRegisterNoInject(value, out, ebx);
+                        block.code.inject(block.code.__asm64.size(), out.code);
+                        block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
+                    }
+                }
+                break;
+            case expression_field:
+                if(value.utype.field->isVar() && !value.utype.field->isArray) {
+                    if(value.utype.field->local) {
+                        Expression out;
+                        pushExpressionToRegisterNoInject(value, out, ebx);
+                        block.code.inject(block.code.__asm64.size(), out.code);
+                        block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
+                    } else {
+                        block.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                        block.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, adx));
+                        block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
+                    }
+                } else if(value.utype.field->isVar() && value.utype.field->isArray) {
+                    if(value.utype.field->local) {
+                        block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
+                    } else {
+                        block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                    }
+                } else if(value.utype.field->dynamicObject() || value.utype.field->type == CLASS) {
+                    if(value.utype.field->local) {
+                        block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
+                    } else {
+                        block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                    }
+                }
+                break;
+            case expression_lclass:
+                if(value.newExpression) {
+                    block.code.inject(block.code.__asm64.size(), value.code);
+                    block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                } else {
+                    if(value.func) {
+                        /* I think we do nothing? */
+                        block.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+                        block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                    } else {
+                        block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                    }
+                }
+                break;
+            case expression_string:
+                block.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                block.code.push_i64(SET_Di(i64, op_NEWSTRING, value.intValue));
+                break;
+            case expression_null:
+                block.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                block.code.push_i64(SET_Ei(i64, op_DEL));
+                break;
+            case expression_objectclass:
+                if(value.newExpression) {
+                    block.code.inject(block.code.__asm64.size(), value.code);
+                    block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                } else {
+                    if(value.func) {
+                        /* I think we do nothing? */
+                        block.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+                        block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                    } else {
+                        if(value.utype.type == CLASSFIELD) {
+                            if(value.utype.field->local) {
+                                block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                            } else
+                                block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                        } else {
+                            block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                        }
+                    }
+                }
+                break;
+        }
+    } else {
+        value.type = expression_void;
+        if(scope->currentFunction->isConstructor) {
+            block.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+            block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+        }
+    }
+
+
+    block.code.push_i64(SET_Ei(i64, op_RET));
+    returnVal.type = methodReturntypeToExpressionType(scope->currentFunction);
+    if(returnVal.type == expression_lclass) {
+        returnVal.utype.klass = scope->currentFunction->klass;
+        returnVal.utype.type = CLASS;
+    }
+    returnVal.utype.array = scope->currentFunction->array;
+    equals(returnVal, value, ": Returning `" + value.typeToString() + "` from a function returning `" + returnVal.typeToString() + "`");
+}
+
+void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
+    Scope* scope = currentScope();
+    Expression cond, out;
+    cond = parseExpression(pAst->getSubAst(ast_expression));
+
+    string ifEndLabel;
+    stringstream ss;
+    ss << generic_label_id << scope->uniqueLabelSerial;
+    ifEndLabel=ss.str();
+
+    pushExpressionToRegister(cond, out, cmt);
+    block.code.inject(block.code.size(), out.code);
+
+    if(pAst->getSubAstCount() > 2) {
+        int64_t insertAddr, difference;
+        block.code.push_i64(SET_Di(i64, op_LOADPC, adx));
+        insertAddr=block.code.size();
+        block.code.push_i64(0);
+        block.code.push_i64(0);
+        parseBlock(pAst->getSubAst(ast_block), block);
+        difference = block.code.size()-insertAddr;
+
+        if(!scope->reachable && (scope->last_statement==ast_return_stmnt
+                                 || scope->last_statement == ast_throw_statement)) {
+            scope->reachable=true;
+        }
+
+        block.code.__asm64.replace(insertAddr++, SET_Ci(i64, op_IADD, adx,0, (difference+2)));
+        block.code.__asm64.replace(insertAddr, SET_Ei(i64, op_IFNE));
+
+        scope->addBranch(ifEndLabel, 1, block.code, pAst->getSubAst(ast_expression)->line,
+                         pAst->getSubAst(ast_expression)->col);
+
+        Ast* ast;
+        for(unsigned int i = 2; i < pAst->getSubAstCount(); i++) {
+            ast = pAst->getSubAst(i);
+            switch(ast->getType()) {
+                case ast_elseif_statement:
+                    cond = parseExpression(ast->getSubAst(ast_expression));
+
+                    out.free();
+                    pushExpressionToRegister(cond, out, cmt);
+                    block.code.inject(block.code.size(), out.code);
+
+                    block.code.push_i64(SET_Di(i64, op_LOADPC, adx));
+                    insertAddr=block.code.size();
+                    block.code.push_i64(0);
+                    block.code.push_i64(0);
+                    parseBlock(ast->getSubAst(ast_block), block);
+                    difference = block.code.size()-insertAddr;
+
+                    if(!scope->reachable && (scope->last_statement==ast_return_stmnt
+                                             || scope->last_statement == ast_throw_statement)) {
+                        scope->reachable=true;
+                    }
+
+                    block.code.__asm64.replace(insertAddr++, SET_Ci(i64, op_IADD, adx,0, (difference+2)));
+                    block.code.__asm64.replace(insertAddr, SET_Ei(i64, op_IFNE));
+
+                    scope->addBranch(ifEndLabel, 1, block.code, ast->getSubAst(ast_expression)->line,
+                                     ast->getSubAst(ast_expression)->col);
+                    break;
+                case ast_else_statement:
+                    parseBlock(ast->getSubAst(ast_block), block);
+                    break;
+            }
+        }
+    } else {
+        scope->addStore(ifEndLabel, adx, 1, block.code, pAst->getSubAst(ast_expression)->line,
+                        pAst->getSubAst(ast_expression)->col);
+        block.code.push_i64(SET_Ei(i64, op_IFNE));
+        parseBlock(pAst->getSubAst(ast_block), block);
+
+        if(!scope->reachable && (scope->last_statement==ast_return_stmnt
+                                 || scope->last_statement == ast_throw_statement)) {
+            scope->reachable=true;
+        }
+    }
+
+
+    scope->label_map.add(KeyPair<string,int64_t>(ifEndLabel, __init_label_address(block.code)));
+}
+
+void RuntimeEngine::parseAssemblyBlock(Block& block, Ast* pAst) {
+    string assembly = "";
+
+    if(pAst->getEntityCount() == 1) {
+        if(File::exists(pAst->getEntity(0).getToken().c_str())) {
+            File::buffer __ostream;
+            File::read_alltext(pAst->getEntity(0).getToken().c_str(), __ostream);
+
+            assembly = __ostream.to_str();
+            __ostream.end();
+        } else {
+            assembly = pAst->getEntity(0).getToken();
+        }
+    } else {
+        for(unsigned int i = 0; i < pAst->getEntityCount(); i++) {
+            assembly += pAst->getEntity(i).getToken() + "\n";
+        }
+    }
+
+    Asm __vasm;
+    __vasm.parse(block.code, this, assembly, pAst);
+}
+
+void RuntimeEngine::parseAssemblyStatement(Block& block, Ast* pAst) {
+    if(c_options.unsafe)
+        parseAssemblyBlock(block, pAst->getSubAst(ast_assembly_block));
+    else
+        errors->createNewError(GENERIC, pAst, "calling __asm without unsafe mode enabled. try recompiling your code with [-unsafe]");
+}
+
+bool RuntimeEngine::validateLocalField(std::string name, Ast* pAst) {
+    Scope* scope = currentScope();
+    KeyPair<int, Field>* field;
+
+    if((field = scope->getLocalField(name)) != NULL) {
+        if(scope->blocks == field->key) {
+            // err redefinition of parameter
+            errors->createNewError(DUPlICATE_DECLIRATION, pAst, " local variable `" + field->value.name + "`");
+            return false;
+        } else {
+            createNewWarning(GENERIC, pAst->line, pAst->col, " local variable `" + field->value.name + "` hides previous declaration in higher scope");
+            return true;
+        }
+    } else {
+        return true;
+    }
+}
+
+Field RuntimeEngine::utypeArgToField(KeyPair<string, ResolvedReference> arg) {
+    Field field;
+    field.name = arg.key;
+    field.isArray = arg.value.array;
+    field.fullName = field.name;
+    field.klass = arg.value.klass;
+    field.modifiers.add(PUBLIC);
+    field.type = arg.value.type;
+
+    return field;
+}
+
+void RuntimeEngine::parseUtypeArg(Ast *pAst, Scope *scope, Block &block, Expression* comparator) {
+    if(pAst->hasSubAst(ast_utype_arg)) {
+        KeyPair<string, ResolvedReference> utypeArg = parseUtypeArg(pAst->getSubAst(ast_utype_arg));
+        Expression value, out;
+
+        if(pAst->hasSubAst(ast_value)) {
+            if(comparator != NULL)
+                errors->createNewError(UNEXPECTED_SYMBOL, pAst->getSubAst(ast_value), " `;` expected");
+            value = parseValue(pAst->getSubAst(ast_value));
+        }
+
+        if(validateLocalField(utypeArg.key, pAst->getSubAst(ast_utype_arg))) {
+            if(utypeArg.value.type == CLASSFIELD) {
+                errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_utype_arg), " `" + utypeArg.value.field->name + "`");
+            }
+
+            KeyPair<int, Field> local;
+            local.set(scope->blocks, utypeArgToField(utypeArg));
+            local.value.address = scope->currentFunction->localVariables++;;
+            local.value.local=true;
+            scope->locals.push_back(local);
+
+            Expression fieldExpr = fieldToExpression(pAst, local.value);
+
+            if(value.type != expression_unknown) {
+                equals(fieldExpr, value);
+
+                token_entity operand("=", SINGLE, 0,0, ASSIGN);
+                assignValue(operand, out, fieldExpr, value, pAst);
+                block.code.inject(block.code.size(), out.code);
+            }
+        }
+    }
+}
+
+int64_t RuntimeEngine::get_label(string label) {
+    for(unsigned int i = 0; i < currentScope()->label_map.size(); i++) {
+        if(currentScope()->label_map.get(i).key == label)
+            return currentScope()->label_map.get(i).value;
+    }
+
+    return 0;
+}
+
+void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
+    Scope* scope = currentScope();
+    Expression cond, iter;
+    scope->blocks++;
+    scope->loops++;
+    scope->uniqueLabelSerial++;
+    stringstream ss;
+    string forEndLabel, forBeginLabel;
+
+    parseUtypeArg(pAst, scope, block);
+
+    ss.str("");
+    ss << for_label_begin_id << scope->uniqueLabelSerial;
+    forBeginLabel=ss.str();
+    scope->label_map.add(KeyPair<std::string, int64_t>(forBeginLabel,__init_label_address(block.code)));
+
+    ss.str("");
+    ss << for_label_end_id << scope->uniqueLabelSerial;
+    forEndLabel=ss.str();
+
+    if(pAst->hasSubAst(ast_for_expresion_cond)) {
+        Expression out;
+        cond = parseExpression(pAst->getSubAst(ast_for_expresion_cond));
+
+        pushExpressionToRegister(cond, out, cmt);
+        block.code.inject(block.code.size(), out.code);
+
+        scope->addStore(forEndLabel, adx, 1, block.code, pAst->line, pAst->col);
+        block.code.push_i64(SET_Ei(i64, op_IFNE));
+    }
+
+    parseBlock(pAst->getSubAst(ast_block), block);
+
+    if(!scope->reachable && scope->last_statement==ast_return_stmnt) {
+        scope->reachable=true;
+    }
+
+    if(pAst->hasSubAst(ast_for_expresion_iter)) {
+        iter = parseExpression(pAst->getSubAst(ast_for_expresion_iter));
+        block.code.inject(block.code.size(), iter.code);
+    }
+
+    block.code.push_i64(SET_Di(i64, op_GOTO, (get_label(forBeginLabel)+1)));
+    scope->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
+    scope->removeLocals(scope->blocks);
+    scope->blocks--;
+    scope->loops--;
+}
+
+void RuntimeEngine::getArrayValueOfExpression(Expression& expr, Expression& out) {
+    switch(expr.type) {
+        case expression_var:
+            out.type=expression_var;
+            out.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, ebx));
+            break;
+        case expression_lclass:
+            out.type=expression_lclass;
+            out.utype.klass = expr.utype.klass;
+            out.code.push_i64(SET_Di(i64, op_MOVND, ebx));
+            break;
+        case expression_field:
+            if(expr.utype.field->isVar()) {
+                out.type=expression_var;
+                out.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, ebx));
+            }
+            else {
+                out.type=expression_lclass;
+                out.utype.klass = expr.utype.field->klass;
+                out.code.push_i64(SET_Di(i64, op_MOVND, ebx));
+            }
+            break;
+        default:
+            out=expr;
+            out.code.push_i64(SET_Di(i64, op_MOVND, ebx));
+            break;
+    }
+}
+
+void RuntimeEngine::assignUtypeForeach(Ast *pAst, Scope *scope, Block &block, Expression& assignExpr) {
+    if(pAst->hasSubAst(ast_utype_arg)) {
+        KeyPair<string, ResolvedReference> utypeArg = parseUtypeArg(pAst->getSubAst(ast_utype_arg));
+        Expression out;
+
+        KeyPair<int, Field>* local = scope->getLocalField(utypeArg.key);
+        Expression fieldExpr = fieldToExpression(pAst, local->value);
+
+        token_entity operand("=", SINGLE, 0,0, ASSIGN);
+        assignValue(operand, out, fieldExpr, assignExpr, pAst);
+        block.code.inject(block.code.size(), out.code);
+    }
+}
+
+void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
+    Scope* scope = currentScope();
+    scope->blocks++;
+    scope->loops++;
+    scope->uniqueLabelSerial++;
+    string forBeginLabel, forEndLabel;
+
+    Expression arryExpression(parseExpression(pAst->getSubAst(ast_expression))), out;
+    parseUtypeArg(pAst, scope, block, &arryExpression);
+
+    /*
+     * This is stupid but we do this so we dont mess up the refrence with out local array expression variable
+     */
+    arryExpression = parseExpression(pAst->getSubAst(ast_expression));
+
+    block.code.push_i64(SET_Di(i64, op_MOVI, 0), ebx);
+    block.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+
+    if(!arryExpression.arrayObject()) {
+        errors->createNewError(GENERIC, pAst->getSubAst(ast_expression), "expression must evaluate to type array");
+    }
+
+    stringstream ss;
+    ss << for_label_begin_id << scope->uniqueLabelSerial;
+    forBeginLabel=ss.str();
+
+    ss.str("");
+    ss << for_label_end_id << scope->uniqueLabelSerial;
+    forEndLabel=ss.str();
+
+    scope->label_map.add(KeyPair<std::string, int64_t>(forBeginLabel,__init_label_address(block.code)));
+
+    block.code.inject(block.code.size(), arryExpression.code);
+
+    block.code.push_i64(SET_Ci(i64, op_SMOV, ebx,0, 0));
+    block.code.push_i64(SET_Di(i64, op_SIZEOF, egx));
+    block.code.push_i64(SET_Ci(i64, op_LT, ebx,0, egx));
+    scope->addStore(forEndLabel, adx, 1, block.code,
+                    pAst->getSubAst(ast_block)->line, pAst->getSubAst(ast_block)->col);
+    block.code.push_i64(SET_Ei(i64, op_IFNE));
+    getArrayValueOfExpression(arryExpression, out);
+    assignUtypeForeach(pAst, scope, block, out);
+
+    parseBlock(pAst->getSubAst(ast_block), block);
+
+    if(!scope->reachable && scope->last_statement==ast_return_stmnt) {
+        scope->reachable=true;
+    }
+
+    block.code.push_i64(SET_Ci(i64, op_SMOV, ebx,0, 0));
+    block.code.push_i64(SET_Di(i64, op_INC, ebx));
+    block.code.push_i64(SET_Ci(i64, op_SMOVR, ebx,0, 0));
+    block.code.push_i64(SET_Di(i64, op_GOTO, (get_label(forBeginLabel)+1)));
+    scope->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
+    block.code.push_i64(SET_Ei(i64, op_POP));
+
+    scope->removeLocals(scope->blocks);
+    scope->loops--;
+    scope->blocks--;
+}
+
+void RuntimeEngine::parseWhileStatement(Block& block, Ast* pAst) {
+    Scope* scope = currentScope();
+    string whileBeginLabel, whileEndLabel;
+
+    Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out;
+
+    stringstream ss;
+    ss << generic_label_id << ++scope->uniqueLabelSerial;
+    whileBeginLabel=ss.str();
+
+    ss.str("");
+    ss << generic_label_id << ++scope->uniqueLabelSerial;
+    whileEndLabel=ss.str();
+
+    scope->label_map.add(KeyPair<std::string, int64_t>(whileBeginLabel,__init_label_address(block.code)));
+    pushExpressionToRegister(cond, out, cmt);
+    block.code.inject(block.code.size(), out.code);
+
+    scope->addStore(whileEndLabel, adx, 1, block.code,
+                    pAst->getSubAst(ast_expression)->line, pAst->getSubAst(ast_expression)->col);
+    block.code.push_i64(SET_Ei(i64, op_IFNE));
+
+    parseBlock(pAst->getSubAst(ast_block), block);
+
+    block.code.push_i64(SET_Di(i64, op_GOTO, (get_label(whileBeginLabel)+1)));
+    scope->label_map.add(KeyPair<std::string, int64_t>(whileEndLabel,__init_label_address(block.code)));
+}
+
+void RuntimeEngine::parseDoWhileStatement(Block& block, Ast* pAst) {
+    Scope* scope = currentScope();
+    string whileBeginLabel;
+
+    stringstream ss;
+    ss << generic_label_id << ++scope->uniqueLabelSerial;
+    whileBeginLabel=ss.str();
+    scope->label_map.add(KeyPair<std::string, int64_t>(whileBeginLabel,__init_label_address(block.code)));
+
+    parseBlock(pAst->getSubAst(ast_block), block);
+
+    Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out;
+    pushExpressionToRegister(cond, out, cmt);
+    block.code.inject(block.code.size(), out.code);
+
+
+    scope->addStore(whileBeginLabel, adx, 1, block.code,
+                    pAst->getSubAst(ast_expression)->line, pAst->getSubAst(ast_expression)->col);
+    block.code.push_i64(SET_Ei(i64, op_IFE));
+}
+
+ClassObject* RuntimeEngine::parseCatchClause(Block &block, Ast *pAst, ExceptionTable et) {
+    Scope* scope = currentScope();
+    ClassObject* klass = NULL;
+
+    KeyPair<string, ResolvedReference> catcher = parseUtypeArg(pAst->getSubAst(ast_utype_arg_opt));
+
+    string name =  catcher.key;
+    KeyPair<int, Field>* field;
+    List<AccessModifier> modCompat;
+    modCompat.add(PUBLIC);
+
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
+                                   pAst->line, pAst->col);
+    Field f = Field(NULL, uniqueSerialId++, name, scope->klass, modCompat, note);
+
+    f.address = scope->currentFunction->localVariables;
+    f.local=true;
+    scope->currentFunction->localVariables++;
+    if(catcher.value.type == CLASS) {
+        f.klass = catcher.value.klass;
+        f.type = CLASS;
+    } else if(catcher.value.isVar() || catcher.value.dynamicObject()) {
+        errors->createNewError(GENERIC, pAst, " field `" + catcher.value.field->name + "` is not a class");
+        f.type = catcher.value.type;
+    } else {
+        f.type = UNDEFINED;
+    }
+
+    f.isArray = catcher.value.array;
+
+    if(validateLocalField(name, pAst)) {
+        if(catcher.value.type == CLASSFIELD) {
+            errors->createNewError(COULD_NOT_RESOLVE, pAst, " `" + catcher.value.field->name + "`");
+        }
+
+        scope->locals.add(KeyPair<int, Field>(scope->blocks, f));
+        field = scope->getLocalField(name);
+        et.local = f.address;
+        et.className = f.klass == NULL ? "" : f.klass->getFullName();
+        klass=f.klass;
+        et.handler_pc = __init_label_address(block.code)+1;
+        scope->currentFunction->exceptions.push_back(et);
+    }
+
+    // TODO: add goto to finally block
+    parseBlock(pAst->getSubAst(ast_block), block);
+    return klass;
+}
+
+void RuntimeEngine::parseFinallyBlock(Block& block, Ast* pAst) {
+    currentScope()->reachable=true;
+    parseBlock(pAst->getSubAst(ast_block), block);
+}
+
+void RuntimeEngine::parseTryCatchStatement(Block& block, Ast* pAst) {
+    Scope* scope = currentScope();
+    ExceptionTable et;
+    scope->trys++;
+    string catchEndLabel;
+    List<ClassObject*> klasses;
+    ClassObject* klass;
+
+    et.start_pc = block.code.__asm64.size();
+    parseBlock(pAst->getSubAst(ast_block), block);
+    et.end_pc = block.code.__asm64.size();
+
+    if(pAst->hasSubAst(ast_catch_clause))
+        scope->reachable=true;
+
+    stringstream ss;
+    ss << try_label_end_id << ++scope->uniqueLabelSerial;
+    catchEndLabel = ss.str();
+
+    Ast* sub;
+    for(unsigned int i = 1; i < pAst->getSubAstCount(); i++) {
+        sub = pAst->getSubAst(i);
+
+        switch(sub->getType()) {
+            case ast_catch_clause:
+                scope->blocks++;
+                klass = parseCatchClause(block, sub, et);
+                scope->addBranch(catchEndLabel, 1, block.code, sub->line, sub->col);
+
+                if(klass != NULL) {
+                    if(klasses.find(klass)) {
+                        errors->createNewError(GENERIC, sub, "exception `" + klass->getName() + "` has already been caught");
+                    } else
+                        klasses.add(klass);
+                }
+
+                scope->removeLocals(scope->blocks);
+                scope->blocks--;
+                break;
+            case ast_finally_block:
+                break;
+        }
+    }
+
+    block.code.push_i64(SET_Ei(i64, op_NOP)); // for allignment
+    block.code.push_i64(SET_Ei(i64, op_NOP));
+
+    klasses.free();
+    scope->label_map.add(KeyPair<string,int64_t>(catchEndLabel, __init_label_address(block.code)));
+
+    if(pAst->hasSubAst(ast_finally_block)) {
+        FinallyTable ft;
+        ft.try_start_pc=et.start_pc;
+        ft.try_end_pc=et.end_pc;
+        ft.start_pc=__init_label_address(block.code);
+        parseFinallyBlock(block, pAst->getSubAst(ast_finally_block));
+        ft.end_pc=__init_label_address(block.code);
+
+        scope->currentFunction->finallyBlocks.push_back(ft);
+
+    }
+    scope->trys--;
+}
+
+void RuntimeEngine::parseThrowStatement(Block& block, Ast* pAst) {
+    Expression clause = parseExpression(pAst->getSubAst(ast_expression)), out;
+    currentScope()->reachable=false;
+    currentScope()->last_statement=ast_throw_statement;
+
+    if(clause.type == expression_lclass) {
+        ClassObject* throwable = getClass("std.err", "Throwable");
+
+        if(throwable != NULL) {
+            if(clause.utype.klass->hasBaseClass(throwable)) {
+                pushExpressionToStack(clause, out);
+
+                out.code.push_i64(SET_Ei(i64, op_THROW));
+                block.code.inject(block.code.size(), out.code);
+            } else {
+                errors->createNewError(GENERIC, pAst->getSubAst(ast_expression), "class `" + clause.utype.klass->getFullName() +
+                                                                           "` does not inherit `std.err#Throwable`");
+            }
+        } else {
+            errors->createNewError(GENERIC, pAst->getSubAst(ast_expression), "missing core class `std.err#Throwable` for exception handling");
+        }
+    } else if(clause.type == expression_field) {
+        if(clause.utype.field->type == CLASS) {
+            pushExpressionToStack(clause, out);
+
+            out.code.push_i64(SET_Ei(i64, op_THROW));
+            block.code.inject(block.code.size(), out.code);
+        } else {
+            errors->createNewError(GENERIC, pAst->getSubAst(ast_expression), "field `" + clause.utype.field->name +
+                                                                       "` is not a class");
+        }
+    } else
+    {
+        errors->createNewError(GENERIC, pAst->getSubAst(ast_expression), "expression must be of type lclass");
+    }
+}
+
+void RuntimeEngine::parseContinueStatement(Block& block, Ast* pAst) {
+    Scope* scope = currentScope();
+
+    if(scope->loops > 0) {
+        stringstream name;
+        name << for_label_begin_id << scope->loops;
+        scope->addBranch(name.str(), 0, block.code, pAst->line, pAst->col);
+    } else {
+        // error not in loop
+        errors->createNewError(GENERIC, pAst, "continue statement outside of loop");
+    }
+}
+
+void RuntimeEngine::parseBreakStatement(Block& block, Ast* pAst) {
+    Scope* scope = currentScope();
+
+    if(scope->loops > 0) {
+        stringstream name;
+        name << for_label_end_id << scope->loops;
+        scope->addBranch(name.str(), 0, block.code, pAst->line, pAst->col);
+    } else {
+        // error not in loop
+        errors->createNewError(GENERIC, pAst, "break statement outside of loop");
+    }
+}
+
+void RuntimeEngine::parseGotoStatement(Block& block, Ast* pAst) {
+    Scope* scope = currentScope();
+    string label = pAst->getEntity(1).getToken();
+
+    scope->addBranch(label, 0, block.code, pAst->line, pAst->col);
+}
+
+bool RuntimeEngine::label_exists(string label) {
+    for(unsigned int i = 0; i < currentScope()->label_map.size(); i++) {
+        if(currentScope()->label_map.get(i).key == label)
+            return true;
+    }
+
+    return false;
+}
+
+void RuntimeEngine::createLabel(string name, Assembler& code, int line, int col) {
+    Scope* scope = currentScope();
+
+    if(label_exists(name)) {
+        errors->createNewError(GENERIC, line, col, "redefinition of label `" + name + "`");
+    } else {
+        scope->label_map.add(KeyPair<string, int64_t>(name, __init_label_address(code)));
+    }
+}
+
+void RuntimeEngine::parseLabelDecl(Block& block, Ast* pAst) {
+    string label = pAst->getEntity(0).getToken();
+
+    createLabel(label, block.code, pAst->getEntity(0).getLine(), pAst->getEntity(0).getColumn());
+    parseStatement(block, pAst->getSubAst(ast_statement)->getSubAst(0));
+}
+
+void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
+    Scope* scope = currentScope();
+    List<AccessModifier> modifiers;
+    int startpos=0;
+    token_entity operand = pAst->getEntity(pAst->getEntityCount()-1);
+
+    parseAccessDecl(pAst, modifiers, startpos);
+
+    string name =  pAst->getEntity(startpos).getToken();
+
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
+                                   pAst->line, pAst->col);
+    Field f = Field(NULL, uniqueSerialId++, name, scope->klass, modifiers, note);
+
+    f.address = scope->currentFunction->localVariables++;
+    f.local=true;
+    Expression utype = parseUtype(pAst->getSubAst(ast_utype));
+    if(utype.utype.type == CLASS) {
+        f.klass = utype.utype.klass;
+        f.type = CLASS;
+    } else if(utype.utype.isVar()) {
+        f.type = utype.utype.type;
+    } else {
+        f.type = UNDEFINED;
+    }
+
+    f.isArray = utype.utype.array;
+
+    if(validateLocalField(name, pAst)) {
+        if(utype.utype.type == CLASSFIELD) {
+            errors->createNewError(COULD_NOT_RESOLVE, pAst, " `" + utype.utype.field->name + "`");
+        }
+
+        scope->locals.add(KeyPair<int, Field>(scope->blocks, f));
+        Expression fieldExpr = fieldToExpression(pAst, f);
+
+        if(f.isObjectInMemory())
+            block.code.__asm64.push_back(SET_Di(i64, op_MOVL, f.address));
+
+        if(pAst->hasSubAst(ast_value)) {
+            Expression expression = parseValue(pAst), out;
+            equals(fieldExpr, expression);
+
+            if(f.isObjectInMemory()) {
+                if(operand == "=") {
+                    if(f.type==CLASS && !expression.newExpression) {
+                        initalizeNewClass(f.klass, out);
+                        block.code.inject(block.code.__asm64.size(), out.code);
+                        block.code.push_i64(SET_Di(i64, op_MOVL, f.address));
+                        block.code.push_i64(SET_Ei(i64, op_POPOBJ));
+                        out.free();
+                    }
+
+                    assignValue(operand, out, fieldExpr, expression, pAst);
+                    block.code.inject(block.code.__asm64.size(), out.code);
+                } else {
+                    errors->createNewError(GENERIC, pAst, " explicit call to operator `" + operand.getToken() + "` without initilization");
+                }
+            } else {
+                if(operand != "=") {
+                    block.code.push_i64(SET_Di(i64, op_MOVI, 0), egx);
+                    block.code.push_i64(SET_Ci(i64, op_MOVR, adx,0, fp));
+                    block.code.push_i64(SET_Ci(i64, op_SMOVR, egx,0, f.address));
+                }
+
+                assignValue(operand, out, fieldExpr, expression, pAst);
+                block.code.inject(block.code.__asm64.size(), out.code);
+            }
+        } else {
+            if(!f.isObjectInMemory()) {
+                block.code.push_i64(SET_Di(i64, op_MOVI, 0), egx);
+                block.code.push_i64(SET_Ci(i64, op_MOVR, adx,0, fp));
+                block.code.push_i64(SET_Ci(i64, op_SMOVR, egx,0, f.address));
+            } else {
+                block.code.push_i64(SET_Ei(i64, op_DEL));
+            }
+        }
+    }
+
+}
+
+void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
+    addLine(block, pAst);
+
+    if(!currentScope()->reachable) {
+        errors->createNewError(GENERIC, pAst, "unreachable statement");
+        currentScope()->reachable=true;
+    }else {
+        currentScope()->last_statement=pAst->getType();
+    }
+
+    switch(pAst->getType()) {
+        case ast_return_stmnt:
+            parseReturnStatement(block, pAst);
+            break;
+        case ast_if_statement:
+            parseIfStatement(block, pAst); // done
+            break;
+        case ast_expression: {
+            Expression expr;
+            expr = parseExpression(pAst);
+            if(expr.func && expr.type != expression_void) {
+                expr.code.push_i64(SET_Ei(i64, op_POP));
+            }
+
+            block.code.inject(block.code.size(), expr.code); // done
+        }
+            break;
+        case ast_assembly_statement:
+            parseAssemblyStatement(block, pAst); // done
+            break;
+        case ast_for_statement:
+            parseForStatement(block, pAst); // done
+            break;
+        case ast_foreach_statement:
+            parseForEachStatement(block, pAst); // done
+            break;
+        case ast_while_statement:
+            parseWhileStatement(block, pAst); // done
+            break;
+        case ast_do_while_statement:
+            parseDoWhileStatement(block, pAst); // done
+            break;
+        case ast_trycatch_statement:
+            parseTryCatchStatement(block, pAst); // done
+            break;
+        case ast_throw_statement:
+            parseThrowStatement(block, pAst); // done
+            break;
+        case ast_continue_statement:
+            parseContinueStatement(block, pAst); // done
+            break;
+        case ast_break_statement:
+            parseBreakStatement(block, pAst); // done
+            break;
+        case ast_goto_statement:
+            parseGotoStatement(block, pAst); // done
+            break;
+        case ast_label_decl:
+            parseLabelDecl(block, pAst); // done
+            break;
+        case ast_var_decl:
+            parseVarDecl(block, pAst); // done
+            break;
+        default: {
+            stringstream err;
+            err << ": unknown ast type: " << pAst->getType();
+            errors->createNewError(INTERNAL_ERROR, pAst->line, pAst->col, err.str());
+            break;
+        }
+    }
+}
+
+void RuntimeEngine::parseBlock(Ast* pAst, Block& block) {
+    Scope* scope = currentScope();
+    scope->blocks++;
+    pAst = pAst->getSubAst(ast_block);
+
+    Ast* ast;
+    for(unsigned int i = 0; i < pAst->getSubAstCount(); i++) {
+        ast = pAst->getSubAst(i);
+
+        if(ast->getType() == ast_block) {
+            parseBlock(ast, block);
+            continue;
+        } else if(ast->getSubAstCount() > 0)
+            ast = ast->getSubAst(0);
+
+        if(ast->getSubAstCount() > 0)
+            parseStatement(block, ast);
+    }
+
+    scope->removeLocals(scope->blocks);
+
+    scope->blocks--;
+}
+
+void RuntimeEngine::resolveAllBranches(Block& block) {
+    Scope *scope = currentScope();
+
+    int64_t address, i64;
+    BranchTable* bt;
+    for(unsigned int i = 0; i < scope->branches.size(); i++)
+    {
+        bt = &scope->branches.get(i);
+
+        if((address = scope->getLabel(bt->labelName)) != -1) {
+
+            if(bt->store) {
+                scope->currentFunction->unique_address_table.add(bt->branch_pc); // add indirect address store for optimizer
+
+                block.code.__asm64.replace(bt->branch_pc, SET_Di(i64, op_MOVI, (bt->offset+address)));
+                block.code.__asm64.replace(bt->branch_pc+1, bt->registerWatchdog);
+            } else {
+                block.code.__asm64.replace(bt->branch_pc, SET_Di(i64, op_GOTO, (bt->offset+address)));
+            }
+        } else
+            errors->createNewError(COULD_NOT_RESOLVE, bt->line, bt->col, " `" + bt->labelName + "`");
+    }
+
+
+    if(block.code.size() == 0 || GET_OP(block.code.__asm64.get(block.code.size() -1)) != op_RET) {
+        block.code.push_i64(SET_Ei(i64, op_RET));
+    }
+    freeList(scope->branches);
+}
+
+void RuntimeEngine::reorderFinallyBlocks(Method* method) {
+
+    if(method->finallyBlocks.size()==0)
+        return;
+
+    std::list<FinallyTable> reorderedList;
+    for(unsigned int i = 0; i < method->finallyBlocks.size(); i++) {
+        reorderedList.push_back(method->finallyBlocks.at(i));
+    }
+    reorderedList.sort([](const FinallyTable & a, const FinallyTable & b) { return a.start_pc < b.start_pc; });
+
+    method->finallyBlocks.addAll(reorderedList);
+    reorderedList.clear();
+}
+
+void RuntimeEngine::parseMethodDecl(Ast* pAst) {
+    Scope* scope = currentScope();
+    List<AccessModifier> modifiers;
+    int startpos=1;
+
+    parseAccessDecl(pAst, modifiers, startpos);
+
+    List<Param> params;
+    string name =  pAst->getEntity(startpos).getToken();
+    parseMethodParams(params, parseUtypeArgList(pAst->getSubAst(ast_utype_arg_list)), pAst->getSubAst(ast_utype_arg_list));
+
+    Method* method = scope->klass->getFunction(name, params);
+
+    if(method != NULL) {
+
+        if(method->isStatic()) {
+            addScope(Scope(STATIC_BLOCK, scope->klass, method));
+        } else {
+            addScope(Scope(INSTANCE_BLOCK, scope->klass, method));
+            method->localVariables++; // for reference to self
+        }
+
+        KeyPair<int, Field> local;
+        Scope* curr = currentScope();
+        for(unsigned int i = 0; i < params.size(); i++) {
+
+            params.get(i).field.address=method->localVariables++;
+            params.get(i).field.local=true;
+            local.set(curr->blocks, params.get(i).field);
+            curr->locals.add(local);
+        }
+
+        Block fblock;
+        parseBlock(pAst, fblock);
+
+        resolveAllBranches(fblock);
+        reorderFinallyBlocks(method);
+        method->code.__asm64.addAll(fblock.code.__asm64);
+        removeScope();
+    }
+}
+
+void RuntimeEngine::parseOperatorDecl(Ast* pAst) {
+    Scope* scope = currentScope();
+    List<AccessModifier> modifiers;
+    int startpos=1;
+
+    parseAccessDecl(pAst, modifiers, startpos);
+
+    List<Param> params;
+    string name =  pAst->getEntity(pAst->getEntityCount()-1).getToken();
+    parseMethodParams(params, parseUtypeArgList(pAst->getSubAst(ast_utype_arg_list)), pAst->getSubAst(ast_utype_arg_list));
+
+    Method* method = scope->klass->getOverload(stringToOp(name), params);
+
+    if(method != NULL) {
+
+        if(method->isStatic()) {
+            addScope(Scope(STATIC_BLOCK, scope->klass, method));
+        } else {
+            addScope(Scope(INSTANCE_BLOCK, scope->klass, method));
+            method->localVariables++;
+        }
+
+        KeyPair<int, Field> local;
+        Scope* curr = currentScope();
+        for(unsigned int i = 0; i < params.size(); i++) {
+
+            params.get(i).field.address=method->localVariables++;
+            params.get(i).field.local=true;
+            local.set(curr->blocks, params.get(i).field);
+            curr->locals.add(local);
+        }
+
+        Block fblock;
+        parseBlock(pAst->getSubAst(ast_block), fblock);
+
+        resolveAllBranches(fblock);
+        reorderFinallyBlocks(method);
+        method->code.__asm64.addAll(fblock.code.__asm64);
+        removeScope();
+    }
+}
+
+void RuntimeEngine::parseConstructorDecl(Ast* pAst) {
+    Scope* scope = currentScope();
+    List<AccessModifier> modifiers;
+    int startpos=1;
+
+    parseAccessDecl(pAst, modifiers, startpos);
+
+    List<Param> params;
+    parseMethodParams(params, parseUtypeArgList(pAst->getSubAst(ast_utype_arg_list)), pAst->getSubAst(ast_utype_arg_list));
+
+    Method* method = scope->klass->getConstructor(params);
+
+    if(method != NULL) {
+        addScope(Scope(INSTANCE_BLOCK, scope->klass, method));
+        method->localVariables++;
+
+        KeyPair<int, Field> local;
+        Scope* curr = currentScope();
+        for(unsigned int i = 0; i < params.size(); i++) {
+
+            params.get(i).field.address=method->localVariables++;
+            params.get(i).field.local=true;
+
+            local.set(curr->blocks, params.get(i).field);
+            curr->locals.add(local);
+        }
+
+        Block fblock;
+
+        for(unsigned int i = 0; i < currentScope()->klass->fieldCount(); i++) {
+            Field* field = currentScope()->klass->getField(i);
+
+            /*
+             * We want to initalize all the integer values in the constructors
+             */
+            if(field->isVar() && !field->isArray) {
+                fblock.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                fblock.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+                fblock.code.push_i64(SET_Di(i64, op_MOVI, 1), ebx);
+                fblock.code.push_i64(SET_Di(i64, op_NEWARRAY, ebx));
+            }
+        }
+
+        parseBlock(pAst->getSubAst(ast_block), fblock);
+
+        fblock.code.push_i64(SET_Di(i64, op_MOVL, 0));
+        fblock.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+
+        resolveAllBranches(fblock);
+        reorderFinallyBlocks(method);
+        method->code.__asm64.addAll(fblock.code.__asm64);
+        removeScope();
     }
 }
 
@@ -4907,6 +6004,7 @@ Expression RuntimeEngine::parseExpression(Ast *ast) {
 }
 
 Expression RuntimeEngine::parseValue(Ast *ast) {
+    ast = ast->getSubAst(ast_value);
     return parseExpression(ast);
 }
 
@@ -4966,7 +6064,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
     Field* field = scope->klass->getField(name);
 
     if(ast->hasSubAst(ast_value)) {
-        Expression expression = parseValue(ast->getSubAst(ast_value)), out;
+        Expression expression = parseValue(ast), out;
         Expression fieldExpr = fieldToExpression(ast, *field);
         fieldExpr.code.free();
         equals(fieldExpr, expression);

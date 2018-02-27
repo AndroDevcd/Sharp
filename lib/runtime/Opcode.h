@@ -45,7 +45,7 @@
 #define _brh_NOINCREMENT goto *opcodeStart;
 
 #define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
-#define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->size==0) { throw Exception(Environment::NullptrException, ""); } else { x }
 
 #define _initOpcodeTable \
     static void* opcode_table[] = { \
@@ -145,7 +145,8 @@
         &&NOTL,                        \
         &&RMOV,                          \
         &&SMOV,                          \
-        &&LOADPC_2                      \
+        &&LOADPC_2,                      \
+        &&RETURNVAL                     \
     };
 
 enum Opcode {
@@ -245,7 +246,8 @@ enum Opcode {
     op_NOTL                =0x5e,
     op_RMOV                =0x5f,
     op_SMOV                =0x60,
-    op_LOADPC_2            =0x61
+    op_LOADPC_2            =0x61,
+    op_RETURNVAL           =0x62
 };
 
 #endif //SHARP_OPCODE_H

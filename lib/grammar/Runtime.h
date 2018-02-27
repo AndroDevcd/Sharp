@@ -479,22 +479,31 @@ public:
     long errorCount, unfilteredErrorCount;
     bool panic;
 
+    List<Scope> scopeMap;
+    Parser* activeParser;
+
     void generate();
 
     void cleanup();
+
+    static string invalidateUnderscores(string basic_string);
+
+    ClassObject *getClass(string module, string name);
+
+    static int64_t get_low_bytes(double var);
+
+    static Operator stringToOp(string op);
 
 private:
     List<Parser*> parsers;
     List<string> modules;
     List<string> sourceFiles;
-    List<Scope> scopeMap;
     List<ClassObject> classes;
     List<KeyPair<string, List<string>>>  importMap;
     List<KeyPair<string, double>>  inline_map;
     List<string> stringMap;
     string exportFile;
     ErrorManager* errors;
-    Parser* activeParser;
     string currentModule;
     bool resolvedFields;
     unsigned long methods;
@@ -539,8 +548,6 @@ private:
 
     void printNote(RuntimeNote &note, string msg);
 
-    ClassObject *getClass(string module, string name);
-
     ClassObject *addChildClassObject(string name, List<AccessModifier> &modifiers, Ast *ast, ClassObject *super);
 
     void removeScope();
@@ -584,8 +591,6 @@ private:
     void inlineVariableValue(Expression &expression, Field *field);
 
     bool isDClassNumberEncodable(double var);
-
-    int64_t get_low_bytes(double var);
 
     void resolveClassHeiarchy(ClassObject *klass, ReferencePointer &refrence, Expression &expression, Ast *pAst,
                               bool requireStatic = true);
@@ -650,8 +655,6 @@ private:
 
     void parseIntegerLiteral(token_entity token, Expression &expression);
 
-    string invalidateUnderscores(string basic_string);
-
     void parseHexLiteral(token_entity token, Expression &expression);
 
     void parseStringLiteral(token_entity token, Expression &expression);
@@ -669,8 +672,6 @@ private:
     bool expressionListToParams(List<Param> &params, List<Expression> &expressions);
 
     bool splitMethodUtype(string &name, ReferencePointer &ptr);
-
-    Operator stringToOp(string op);
 
     string paramsToString(List<Param> &param);
 
@@ -823,14 +824,93 @@ private:
     Expression fieldToExpression(Ast *pAst, string name);
 
     void initalizeNewClass(ClassObject *klass, Expression &out);
+
+    void parseMethodDecl(Ast *pAst);
+
+    void parseBlock(Ast *pAst, Block &block);
+
+    void parseStatement(Block &block, Ast *pAst);
+
+    void addLine(Block &block, Ast *pAst);
+
+    void parseReturnStatement(Block &block, Ast *pAst);
+
+    void parseIfStatement(Block &block, Ast *pAst);
+
+    void parseAssemblyStatement(Block &block, Ast *pAst);
+
+    void parseAssemblyBlock(Block &block, Ast *pAst);
+
+    void parseForStatement(Block &block, Ast *pAst);
+
+    void parseUtypeArg(Ast *pAst, Scope *scope, Block &block, Expression *comparator = NULL);
+
+    bool validateLocalField(string name, Ast *pAst);
+
+    Field utypeArgToField(KeyPair<string, ResolvedReference> arg);
+
+    int64_t get_label(string label);
+
+    void parseForEachStatement(Block &block, Ast *pAst);
+
+    void getArrayValueOfExpression(Expression &expr, Expression &out);
+
+    void assignUtypeForeach(Ast *pAst, Scope *scope, Block &block, Expression &assignExpr);
+
+    void parseWhileStatement(Block &block, Ast *pAst);
+
+    void parseDoWhileStatement(Block &block, Ast *pAst);
+
+    void parseTryCatchStatement(Block &block, Ast *pAst);
+
+    ClassObject *parseCatchClause(Block &block, Ast *pAst, ExceptionTable et);
+
+    void parseFinallyBlock(Block &block, Ast *pAst);
+
+    void parseThrowStatement(Block &block, Ast *pAst);
+
+    void parseContinueStatement(Block &block, Ast *pAst);
+
+    void parseBreakStatement(Block &block, Ast *pAst);
+
+    void parseGotoStatement(Block &block, Ast *pAst);
+
+    void parseLabelDecl(Block &block, Ast *pAst);
+
+    void createLabel(string name, Assembler &code, int line, int col);
+
+    bool label_exists(string label);
+
+    void parseVarDecl(Block &block, Ast *pAst);
+
+    void resolveAllBranches(Block &block);
+
+    void reorderFinallyBlocks(Method *method);
+
+    void parseOperatorDecl(Ast *pAst);
+
+    void parseConstructorDecl(Ast *pAst);
 };
 
 
 #define currentScope() (scopeMap.empty() ? NULL : &scopeMap.last())
 
+#define init_constructor_postfix "()<init>"
+
+#define for_label_begin_id "$$for_start"
+
+#define for_label_end_id "$$for_end"
+
+#define try_label_end_id "$$try_end"
+
+#define generic_label_id "$$L"
+
+#define __init_label_address(code) (code.__asm64.size() == 0 ? 0 : code.__asm64.size() - 1)
+
+#define unique_label_id(x) "$$L" << (x)
 
 #define progname "bootstrap"
-#define progvers "0.2.12"
+#define progvers "0.2.59"
 
 struct options {
     ~options()

@@ -623,8 +623,7 @@ void Thread::exec() {
                         GarbageCollector::self->newObject(registers[GET_Da(cache[pc])]);
                 _brh
             CAST:
-                tmp = registers[sp];
-                dataStack[tmp-1].object.castObject(dataStack[tmp].var); registers[sp]-=2;
+                o2->castObject(registers[GET_Da(cache[pc])]);
                 _brh
             MOV8:
                 registers[GET_Ca(cache[pc])]=(int8_t)registers[GET_Cb(cache[pc])];
@@ -731,7 +730,7 @@ void Thread::exec() {
                 o2 = &dataStack[(int64_t)registers[sp]+GET_Da(cache[pc])].object;
                 _brh
             MOVBI:
-                registers[bmr]=GET_Da(cache[pc]); pc++;
+                registers[bmr]=GET_Da(cache[pc]) + exponent(cache[pc + 1]); pc++;
                 _brh
             SIZEOF:
                 CHECK_NULLOBJ(registers[GET_Da(cache[pc])]=o2->object->size;)
@@ -916,6 +915,9 @@ void Thread::exec() {
                 _brh
             LOADPC_2:
                 registers[GET_Ca(cache[pc])]=pc+GET_Cb(cache[pc]);
+                _brh
+            RETURNVAL:
+                dataStack[(int64_t)registers[fp]].var=registers[GET_Da(cache[pc])];
                 _brh
 
         }

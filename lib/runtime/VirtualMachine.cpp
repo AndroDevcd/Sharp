@@ -278,6 +278,9 @@ int VirtualMachine::returnMethod() {
 
     Frame frame = thread_self->callStack.last();
 
+    if(thread_self->current->finallyBlocks.size() > 0)
+        executeFinally(thread_self->current);
+
     thread_self->current = frame.last;
     thread_self->cache = frame.last->bytecode;
     thread_self->cacheSize=frame.last->cacheSize;
@@ -306,22 +309,7 @@ void VirtualMachine::Throw(Object *exceptionObject) {
     }
 
     while(thread_self->callStack.size() > 1) {
-        Method* method = thread_self->current;
-        uint64_t oldpc = thread_self->pc;
-
-        for(unsigned int i = 0; i < method->finallyBlocks.size(); i++) {
-            FinallyTable &ft = method->finallyBlocks.get(i);
-            if(ft.try_start_pc >= oldpc && ft.try_end_pc < oldpc) {
-                finallyTable = ft;
-                startAddress = 1;
-                thread_self->pc = ft.start_pc;
-
-                /**
-                 * Execute finally blocks before returning
-                 */
-                thread_self->exec();
-            }
-        }
+        executeFinally(thread_self->current);
 
         /**
          * If the finally block returns while we are trying to locate where the
