@@ -9,6 +9,7 @@
 #include "List.h"
 #include "parser/Parser.h"
 #include "ClassObject.h"
+#include "../runtime/Opcode.h"
 
 struct Scope;
 class ReferencePointer;
@@ -345,6 +346,79 @@ private:
     Expression parsePreInc(Ast *pAst);
 
     void preIncClass(Expression &out, token_entity op, ClassObject *klass);
+
+    Expression parseParenExpression(Ast *pAst);
+
+    Expression parseNotExpression(Ast *pAst);
+
+    void notClass(Expression &out, ClassObject *klass, Ast *pAst);
+
+    Expression parseBinaryExpression(Ast *pAst);
+
+    Expression parseAddExpression(Ast *pAst);
+
+    Expression parseUnary(token_entity operand, Expression &right, Ast *pAst);
+
+    void parseAddExpressionChain(Expression &out, Ast *pAst);
+
+    bool addExpressions(Expression &out, Expression &leftExpr, Expression &rightExpr, token_entity operand, double *varout);
+
+    Opcode operandToOp(token_entity operand);
+
+    void addNative(token_entity operand, FieldType type, Expression &out, Expression &left, Expression &right, Ast *pAst);
+
+    bool equals(Expression &left, Expression &right, string msg = "");
+
+    void
+    addClass(token_entity operand, ClassObject *klass, Expression &out, Expression &left, Expression &right, Ast *pAst);
+
+    void addClassChain(token_entity operand, ClassObject *klass, Expression &out, Expression &left, Expression &right,
+                       Ast *pAst);
+
+    bool constructNewString(Expression &stringExpr, Expression &right, token_entity operand, Expression &out, Ast *pAst);
+
+    void constructNewString(Expression &stringExpr, Expression &out);
+
+    void addStringConstruct(token_entity operand, ClassObject *klass, Expression &out, Expression &left, Expression &right,
+                            Ast *pAst);
+
+    bool isMathOp(token_entity entity);
+
+    Expression parseMultExpression(Ast *pAst);
+
+    Expression parseShiftExpression(Ast *pAst);
+
+    bool shiftLiteralExpressions(Expression &out, Expression &leftExpr, Expression &rightExpr, token_entity operand);
+
+    Opcode operandToShftOp(token_entity operand);
+
+    void shiftNative(token_entity operand, Expression &out, Expression &left, Expression &right, Ast *pAst);
+
+    Expression parseLessExpression(Ast *pAst);
+
+    void lessThanLiteralExpressions(Expression &out, Expression &leftExpr, Expression &rightExpr, token_entity operand);
+
+    void lessThanNative(token_entity operand, Expression &out, Expression &left, Expression &right, Ast *pAst);
+
+    Opcode operandToLessOp(token_entity operand);
+
+    Expression parseEqualExpression(Ast *pAst);
+
+    void assignValue(token_entity operand, Expression &out, Expression &left, Expression &right, Ast *pAst);
+
+    bool equalsNoErr(Expression &left, Expression &right);
+
+    void assignNative(token_entity operand, Expression &out, Expression &left, Expression &right, Ast *pAst);
+
+    Opcode operandToCompareOp(token_entity operand);
+
+    Expression parseAndExpression(Ast *pAst);
+
+    void parseAndExpressionChain(Expression &out, Ast *pAst);
+
+    Expression parseAssignExpression(Ast *pAst);
+
+    Expression parseQuesExpression(Ast *pAst);
 };
 
 class ResolvedReference {

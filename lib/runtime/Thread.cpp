@@ -865,8 +865,7 @@ void Thread::exec() {
                 dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var/=registers[GET_Ca(cache[pc])];
                 _brh
             MODL:
-                val = dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var;
-                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var=val%(int64_t)registers[GET_Ca(cache[pc])];
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].modul(registers[GET_Ca(cache[pc])]);
                 _brh
             IADDL:
                 dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var+=GET_Ca(cache[pc]);
@@ -889,8 +888,34 @@ void Thread::exec() {
                 _brh
             IALOAD_2:
                 CHECK_NULLOBJ(
-                        registers[GET_Ca(cache[pc])] = o2->HEAD[(uint64_t)registers[GET_Cb(cache[pc])]];
+                        registers[GET_Ca(cache[pc])] = o2->object->HEAD[(uint64_t)registers[GET_Cb(cache[pc])]];
                 )
+                _brh
+            POPOBJ:
+                o2 = &dataStack[(int64_t)registers[sp]--].object;
+                _brh
+            SMOVR:
+                dataStack[(int64_t)registers[sp]+GET_Ca(cache[pc])].var=registers[GET_Cb(cache[pc])];
+                _brh
+            ANDL:
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].andl(registers[GET_Ca(cache[pc])]);
+                _brh
+            ORL:
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].orl(registers[GET_Ca(cache[pc])]);
+                _brh
+            NOTL:
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].notl(registers[GET_Ca(cache[pc])]);
+                _brh
+            RMOV:
+                CHECK_NULLOBJ(
+                    o2->object->HEAD[registers[GET_Ca(cache[pc])]]=registers[GET_Cb(cache[pc])];
+                )
+                _brh
+            SMOV:
+                registers[GET_Ca(cache[pc])]=dataStack[(int64_t)registers[sp]+GET_Cb(cache[pc])].var;
+                _brh
+            LOADPC_2:
+                registers[GET_Ca(cache[pc])]=pc+GET_Cb(cache[pc]);
                 _brh
 
         }

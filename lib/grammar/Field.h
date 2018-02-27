@@ -110,9 +110,13 @@ public:
         return type == VAR;
     }
 
-//    bool isObjectInMemory() {
-//        return type == CLASS || array;
-//    }
+    bool isNative() {
+        return isVar() || dynamicObject();
+    }
+
+    bool isObjectInMemory() {
+        return type == CLASS || isArray || dynamicObject();
+    }
 
     bool dynamicObject() {
         return type == OBJECT;

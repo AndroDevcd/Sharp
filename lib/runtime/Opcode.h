@@ -137,7 +137,15 @@
         &&IDIVL,                      \
         &&IMODL,                      \
         &&LOADL,                      \
-        &&IALOAD_2                     \
+        &&IALOAD_2,                     \
+        &&POPOBJ,                       \
+        &&SMOVR,                        \
+        &&ANDL,                        \
+        &&ORL,                        \
+        &&NOTL,                        \
+        &&RMOV,                          \
+        &&SMOV,                          \
+        &&LOADPC_2                      \
     };
 
 enum Opcode {
@@ -229,7 +237,15 @@ enum Opcode {
     op_IDIVL               =0x56,
     op_IMODL               =0x57,
     op_LOADL               =0x58,
-    op_IALOAD_2            =0x59
+    op_IALOAD_2            =0x59,
+    op_POPOBJ              =0x5a,
+    op_SMOVR               =0x5b,
+    op_ANDL                =0x5c,
+    op_ORL                 =0x5d,
+    op_NOTL                =0x5e,
+    op_RMOV                =0x5f,
+    op_SMOV                =0x60,
+    op_LOADPC_2            =0x61
 };
 
 #endif //SHARP_OPCODE_H
