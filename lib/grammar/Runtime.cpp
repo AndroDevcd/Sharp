@@ -4910,6 +4910,50 @@ Expression RuntimeEngine::parseValue(Ast *ast) {
     return parseExpression(ast);
 }
 
+Expression RuntimeEngine::fieldToExpression(Ast *pAst, string name) {
+    Scope* scope=currentScope();
+    Expression fieldExpr(pAst);
+    KeyPair<int, Field>* field;
+
+    if((field =scope->getLocalField(name)) == NULL)
+        return fieldExpr;
+
+    fieldExpr.type = expression_field;
+    fieldExpr.utype.field = &field->value;
+    fieldExpr.utype.type = CLASSFIELD;
+    fieldExpr.utype.referenceName = field->value.name;
+    return fieldExpr;
+}
+
+Expression RuntimeEngine::fieldToExpression(Ast *pAst, Field& field) {
+    Scope* scope=currentScope();
+    Expression fieldExpr(pAst);
+
+    fieldExpr.type = expression_field;
+    fieldExpr.utype.field = &field;
+    fieldExpr.utype.type = CLASSFIELD;
+    fieldExpr.utype.referenceName = field.name;
+
+    if(field.isObjectInMemory()) {
+        fieldExpr.code.push_i64(SET_Di(i64, op_MOVL, field.address));
+    } else {
+        fieldExpr.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
+        fieldExpr.code.push_i64(SET_Ci(i64, op_SMOV, ebx, 0, field.address));
+    }
+    return fieldExpr;
+}
+
+void RuntimeEngine::initalizeNewClass(ClassObject* klass, Expression& out) {
+    List<Param> emptyParams;
+    Method* fn = klass->getConstructor(emptyParams);
+
+    out.code.push_i64(SET_Di(i64, op_INC, sp));
+    out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+    out.code.push_i64(SET_Di(i64, op_NEWCLASS, klass->address));
+
+    out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
+}
+
 void RuntimeEngine::analyzeVarDecl(Ast *ast) {
     Scope* scope = currentScope();
     List<AccessModifier> modifiers;
@@ -4922,26 +4966,26 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
     Field* field = scope->klass->getField(name);
 
     if(ast->hasSubAst(ast_value)) {
-        Expression expression = parse_value(ast->getSubAst(ast_value)), out;
+        Expression expression = parseValue(ast->getSubAst(ast_value)), out;
         Expression fieldExpr = fieldToExpression(ast, *field);
         fieldExpr.code.free();
         equals(fieldExpr, expression);
         operand=ast->getEntity(ast->getSubAstCount()-1);
 
-        if(field->isStatic() && field->nativeInt() && !field->array && expression.literal) {
+        if(field->isStatic() && field->isVar() && !field->isArray && expression.literal) {
             // inline local static variables
-            inline_map.add(keypair<string, double>(field->fullName, expression.intValue));
+            inline_map.add(KeyPair<string, double>(field->fullName, expression.intValue));
         } else {
             fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVL, 0));
-            fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, field->vaddr));
+            fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, field->address));
 
             if(field->isObjectInMemory()) {
                 if(operand == "=") {
-                    if(field->type==field_class && !expression._new) {
+                    if(field->type == CLASS && !expression.newExpression) {
                         initalizeNewClass(field->klass, out);
                         out.code.__asm64.push_back(SET_Di(i64, op_MOVL, 0));
-                        out.code.push_i64(SET_Di(i64, op_MOVL, field->vaddr));
-                        out.code.push_i64(SET_Ei(i64, op_POPREF));
+                        out.code.push_i64(SET_Di(i64, op_MOVL, field->address));
+                        out.code.push_i64(SET_Ei(i64, op_POPOBJ));
                     }
 
                     assignValue(operand, out, fieldExpr, expression, ast);
@@ -4953,7 +4997,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
             }
 
             if(field->isStatic()) {
-                Method* main = getMainMethod(_current);
+                Method* main = getMainMethod(activeParser);
                 if(main != NULL) {
                     main->code.inject(0, out.code); // inilize static variable at runtime start in main method
                 }

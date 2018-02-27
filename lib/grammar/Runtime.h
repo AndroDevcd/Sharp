@@ -817,6 +817,12 @@ private:
     Expression parseAssignExpression(Ast *pAst);
 
     Expression parseQuesExpression(Ast *pAst);
+
+    Expression fieldToExpression(Ast *pAst, Field &field);
+
+    Expression fieldToExpression(Ast *pAst, string name);
+
+    void initalizeNewClass(ClassObject *klass, Expression &out);
 };
 
 
