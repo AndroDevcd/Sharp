@@ -894,7 +894,7 @@ void Thread::exec() {
                 o2 = &dataStack[(int64_t)registers[sp]--].object;
                 _brh
             SMOVR:
-                dataStack[(int64_t)registers[sp]+GET_Ca(cache[pc])].var=registers[GET_Cb(cache[pc])];
+                dataStack[(int64_t)registers[sp]+GET_Cb(cache[pc])].var=registers[GET_Ca(cache[pc])];
                 _brh
             ANDL:
                 dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].andl(registers[GET_Ca(cache[pc])]);

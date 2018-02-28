@@ -239,7 +239,7 @@ struct BranchTable {
             col(0),
             store(false),
             registerWatchdog(0),
-            offset(0),
+            _offset(0),
             labelName("")
     {
     }
@@ -250,7 +250,7 @@ struct BranchTable {
 
     bool store;                 // is this a store instruction/
     int registerWatchdog;      // if this is a store instruction tell me what register to put the data in
-    long offset;                // any offset to the address label
+    long _offset;                // any offset to the address label
 
     void free() {
         labelName.clear();
@@ -357,7 +357,7 @@ struct Scope {
         bt.line=line;
         bt.col=col;
         bt.labelName = label;
-        bt.offset=offset;
+        bt._offset=offset;
         branches.push_back(bt);
     }
 
@@ -370,7 +370,7 @@ struct Scope {
         bt.col=col;
         bt.labelName = label;
         bt.store=true;
-        bt.offset = offset;
+        bt._offset = offset;
         bt.registerWatchdog=_register;
         branches.push_back(bt);
     }

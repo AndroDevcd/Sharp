@@ -1339,10 +1339,10 @@ void RuntimeEngine::resolveAllBranches(Block& block) {
             if(bt->store) {
                 scope->currentFunction->unique_address_table.add(bt->branch_pc); // add indirect address store for optimizer
 
-                block.code.__asm64.replace(bt->branch_pc, SET_Di(i64, op_MOVI, (bt->offset+address)));
+                block.code.__asm64.replace(bt->branch_pc, SET_Di(i64, op_MOVI, (bt->_offset+address)));
                 block.code.__asm64.replace(bt->branch_pc+1, bt->registerWatchdog);
             } else {
-                block.code.__asm64.replace(bt->branch_pc, SET_Di(i64, op_GOTO, (bt->offset+address)));
+                block.code.__asm64.replace(bt->branch_pc, SET_Di(i64, op_GOTO, (bt->_offset+address)));
             }
         } else
             errors->createNewError(COULD_NOT_RESOLVE, bt->line, bt->col, " `" + bt->labelName + "`");
@@ -2725,7 +2725,7 @@ Expression RuntimeEngine::parseDotNotationCall(Ast* pAst) {
 
                 expression.type = expression_var;
                 if(fn->array) {
-                    errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "call to function `" + fn->getName() + paramsToString(*fn->getParams()) + "` must return an var to use `" + entity.getToken() + "` operator");
+                    errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "call to function `" + fn->getName() + paramsToString(fn->getParams()) + "` must return an var to use `" + entity.getToken() + "` operator");
                 } else {
                     switch(fn->type) {
                         case TYPEVOID:
@@ -2752,10 +2752,10 @@ Expression RuntimeEngine::parseDotNotationCall(Ast* pAst) {
 
                                 expression.code.push_i64(SET_Di(i64, op_CALL, overload->address));
                             } else if(fn->klass->hasOverload(stringToOp(entity.getToken()))) {
-                                errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "call to function `" + fn->getName() + paramsToString(*fn->getParams()) + "`; missing overload params for operator `"
+                                errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "call to function `" + fn->getName() + paramsToString(fn->getParams()) + "`; missing overload params for operator `"
                                                                                                 + fn->klass->getFullName() + ".operator" + entity.getToken() + "`");
                             } else {
-                                errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "call to function `" + fn->getName() + paramsToString(*fn->getParams()) + "` must return an int to use `" + entity.getToken() + "` operator");
+                                errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "call to function `" + fn->getName() + paramsToString(fn->getParams()) + "` must return an int to use `" + entity.getToken() + "` operator");
                             }
                             break;
                         case UNDEFINED:
@@ -7283,7 +7283,7 @@ Field RuntimeEngine::fieldMapToField(string param_name, ResolvedReference& utype
 
     if(utype.type == CLASSFIELD) {
         errors->createNewError(COULD_NOT_RESOLVE, utype.field->note.getLine(), utype.field->note.getCol(), " `" + utype.field->name + "`");
-        field.type = UNDEFINED;
+        field.type = CLASSFIELD;
         field.note = utype.field->note;
         field.modifiers.addAll(utype.field->modifiers);
     } else if(utype.type == CLASS) {
@@ -7293,6 +7293,9 @@ Field RuntimeEngine::fieldMapToField(string param_name, ResolvedReference& utype
         field.modifiers.add(utype.klass->getAccessModifier());
     } else if(utype.type == VAR) {
         field.type = VAR;
+        field.modifiers.add(PUBLIC);
+    } else if(utype.type == OBJECT) {
+        field.type = OBJECT;
         field.modifiers.add(PUBLIC);
     }
     else {
@@ -8131,36 +8134,36 @@ std::string RuntimeEngine::generate_text_section() {
     for(long i = 0; i < allMethods.size(); i++) {
         Method* f = allMethods.get(i);
         text << (char)data_method;
-        text << i64_tostr(allMethods.get(i)->address);
-        text << allMethods.get(i)->getName() << ((char)nil);
-        text << allMethods.get(i)->sourceFileLink << ((char)nil);
-        text << i64_tostr(allMethods.get(i)->klass->address);
-        text << i64_tostr(allMethods.get(i)->paramCount());
-        text << i64_tostr(allMethods.get(i)->localVariables);
-        text << i64_tostr(allMethods.get(i)->code.__asm64.size());
-        text << (allMethods.get(i)->isStatic() ? 0 : 1) << ((char)nil);
-        text << (allMethods.get(i)->isStatic() ? 0 : 1) << ((char)nil);
-        text << (allMethods.get(i)->type==TYPEVOID ? 0 : 1) << ((char)nil);
+        text << i64_tostr(f->address);
+        text << f->getName() << ((char)nil);
+        text << f->sourceFileLink << ((char)nil);
+        text << i64_tostr(f->owner->address);
+        text << i64_tostr(f->paramCount());
+        text << i64_tostr(f->localVariables);
+        text << i64_tostr(f->code.__asm64.size());
+        text << (f->isStatic() ? 0 : 1) << ((char)nil);
+        text << (f->isStatic() ? 0 : 1) << ((char)nil);
+        text << (f->type==TYPEVOID ? 0 : 1) << ((char)nil);
 
-        text << allMethods.get(i)->line_table.size() << ((char)nil);
-        for(unsigned int x = 0; x < allMethods.get(i)->line_table.size(); x++) {
-            text << i64_tostr(allMethods.get(i)->line_table.get(x).key);
-            text << i64_tostr(allMethods.get(i)->line_table.get(x).value);
+        text << f->line_table.size() << ((char)nil);
+        for(unsigned int x = 0; x < f->line_table.size(); x++) {
+            text << i64_tostr(f->line_table.get(x).key);
+            text << i64_tostr(f->line_table.get(x).value);
         }
 
-        text << allMethods.get(i)->exceptions.size() << ((char)nil);
-        for(unsigned int x = 0; x < allMethods.get(i)->exceptions.size(); x++) {
-            ExceptionTable &et=allMethods.get(i)->exceptions.get(x);
-            text << i64_tostr(allMethods.get(i)->exceptions.get(x).handler_pc);
-            text << i64_tostr(allMethods.get(i)->exceptions.get(x).end_pc);
-            text << allMethods.get(i)->exceptions.get(x).className << ((char)nil);
-            text << i64_tostr(allMethods.get(i)->exceptions.get(x).local);
-            text << i64_tostr(allMethods.get(i)->exceptions.get(x).start_pc);
+        text << f->exceptions.size() << ((char)nil);
+        for(unsigned int x = 0; x < f->exceptions.size(); x++) {
+            ExceptionTable &et=f->exceptions.get(x);
+            text << i64_tostr(f->exceptions.get(x).handler_pc);
+            text << i64_tostr(f->exceptions.get(x).end_pc);
+            text << f->exceptions.get(x).className << ((char)nil);
+            text << i64_tostr(f->exceptions.get(x).local);
+            text << i64_tostr(f->exceptions.get(x).start_pc);
         }
 
-        text << allMethods.get(i)->finallyBlocks.size() << ((char)nil);
-        for(unsigned int x = 0; x < allMethods.get(i)->finallyBlocks.size(); x++) {
-            FinallyTable &ft=allMethods.get(i)->finallyBlocks.get(x);
+        text << f->finallyBlocks.size() << ((char)nil);
+        for(unsigned int x = 0; x < f->finallyBlocks.size(); x++) {
+            FinallyTable &ft=f->finallyBlocks.get(x);
             text << i64_tostr(ft.start_pc);
             text << i64_tostr(ft.end_pc);
             text << i64_tostr(ft.try_start_pc);
@@ -8248,7 +8251,7 @@ string RuntimeEngine::find_method(int64_t id) {
         if(allMethods.get(i)->address == id) {
             stringstream ss;
             ss << allMethods.get(i)->getFullName();
-            ss << paramsToString(*allMethods.get(i)->getParams());
+            ss << paramsToString(allMethods.get(i)->getParams());
             return ss.str();
         }
     }
@@ -8690,6 +8693,373 @@ void RuntimeEngine::createDumpFile() {
                 case op_SLEEP:
                 {
                     ss<<"sleep ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_TEST:
+                {
+                    ss<<"test ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_TNE:
+                {
+                    ss<<"tne ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_LOCK:
+                {
+                    ss<<"_lck ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_ULOCK:
+                {
+                    ss<<"ulck";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_EXP:
+                {
+                    ss<<"exp ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOVG:
+                {
+                    ss<<"movg @"<< GET_Da(x64);
+                    ss << " // @"; ss << find_class(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOVND:
+                {
+                    ss<<"movnd ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_NEWOBJARRAY:
+                {
+                    ss<<"newobj_arry ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_NOT: //c
+                {
+                    ss<<"not ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_SKIP:// d
+                {
+                    ss<<"skip @";
+                    ss<< GET_Da(x64);
+                    ss << " // pc = " << (x + GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_LOADVAL:
+                {
+                    ss<<"loadval ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_SHL:
+                {
+                    ss<<"shl ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    ss<< " -> ";
+                    ss<< Asm::registrerToString(method->code.__asm64.get(++x));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_SHR:
+                {
+                    ss<<"shr ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    ss<< " -> ";
+                    ss<< Asm::registrerToString(method->code.__asm64.get(++x));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_SKPE:
+                {
+                    ss<<"skpe ";
+                    ss<<GET_Da(x64);
+                    ss << " // pc = " << (x + GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_SKNE:
+                {
+                    ss<<"skne ";
+                    ss<<GET_Da(x64);
+                    ss << " // pc = " << (x + GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_AND:
+                {
+                    ss<<"and ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_UAND:
+                {
+                    ss<<"uand ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_OR:
+                {
+                    ss<<"or ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_UNOT:
+                {
+                    ss<<"unot ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_THROW:
+                {
+                    ss<<"throw ";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_CHECKNULL:
+                {
+                    ss<<"checknull";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_RETURNOBJ:
+                {
+                    ss<<"returnobj";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_NEWCLASSARRAY:
+                {
+                    ss<<"new_classarray ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< " ";
+                    ss << " // "; ss << find_class(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_NEWSTRING:
+                {
+                    ss<<"newstr @" << GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_ADDL:
+                {
+                    ss<<"addl ";
+                    ss<< Asm::registrerToString(GET_Ca(x64)) << ", @";
+                    ss<<GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_SUBL:
+                {
+                    ss<<"subl ";
+                    ss<< Asm::registrerToString(GET_Ca(x64)) << ", @";
+                    ss<<GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MULL:
+                {
+                    ss<<"mull ";
+                    ss<< Asm::registrerToString(GET_Ca(x64)) << ", @";
+                    ss<<GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_DIVL:
+                {
+                    ss<<"divl ";
+                    ss<< Asm::registrerToString(GET_Ca(x64)) << ", @";
+                    ss<<GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MODL:
+                {
+                    ss<<"modl #";
+                    ss<< Asm::registrerToString(GET_Ca(x64)) << ", @";
+                    ss<<GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_IADDL:
+                {
+                    ss<<"iaddl ";
+                    ss<< GET_Ca(x64) << ", @";
+                    ss<<GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_ISUBL:
+                {
+                    ss<<"isubl #";
+                    ss<< GET_Ca(x64) << ", @";
+                    ss<<GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_IMULL:
+                {
+                    ss<<"imull #";
+                    ss<< GET_Ca(x64) << ", @";
+                    ss<<GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_IDIVL:
+                {
+                    ss<<"idivl #";
+                    ss<< GET_Ca(x64) << ", @";
+                    ss<<GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_IMODL:
+                {
+                    ss<<"imodl #";
+                    ss<< GET_Ca(x64) << ", @";
+                    ss<<GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_LOADL:
+                {
+                    ss<<"loadl ";
+                    ss<< Asm::registrerToString(GET_Ca(x64)) << ", fp+";
+                    ss<<GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_IALOAD_2:
+                {
+                    ss<<"iaload_2 ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_POPOBJ:
+                {
+                    ss<<"popobj";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_SMOVR:
+                {
+                    ss<<"smovr ";
+                    ss<< Asm::registrerToString(GET_Ca(x64)) << ", sp+";
+                    if(GET_Cb(x64)<0) ss<<"[";
+                    ss<<GET_Cb(x64);
+                    if(GET_Cb(x64)<0) ss<<"]";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_ANDL:
+                {
+                    ss<<"andl ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_ORL:
+                {
+                    ss<<"orl ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_NOTL:
+                {
+                    ss<<"notl ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_RMOV:
+                {
+                    ss<<"rmov ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_SMOV:
+                {
+                    ss<<"smov ";
+                    ss<< Asm::registrerToString(GET_Ca(x64)) << ", sp+";
+                    if(GET_Cb(x64)<0) ss<<"[";
+                    ss<<GET_Cb(x64);
+                    if(GET_Cb(x64)<0) ss<<"]";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_LOADPC_2:
+                {
+                    ss<<"loadpc_2 ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", pc+";
+                    ss<< GET_Cb(x64);
+                    ss<< " // " << Asm::registrerToString(GET_Ca(x64))
+                            << " = " << (x + GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_RETURNVAL:
+                {
+                    ss<<"returnval ";
                     ss<< Asm::registrerToString(GET_Da(x64));
                     _ostream << ss.str();
                     break;

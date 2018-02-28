@@ -1,14 +1,9 @@
-mod application;
+mod internal;
 
-class Main {
+class Runtime {
     var value;
 
-    public static def main(/* String[] args */) : var {
-
-        return 0;
-    }
-
-    public static def main(/* String[] args */) : var {
+    public static def __srt_init_(object[] args) : var {
 
         return 0;
     }

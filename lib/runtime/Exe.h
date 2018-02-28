@@ -6,10 +6,9 @@
 #define SHARP_EXE_H
 
 #include "../../stdimports.h"
-#include "Manifest.h"
-#include "oo/Field.h"
-#include "oo/ClassObject.h"
-#include "oo/Object.h"
+
+class Manifest;
+class Meta;
 
 extern Manifest manifest;
 extern Meta metaData;

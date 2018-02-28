@@ -28,7 +28,7 @@ Method* ClassObject::getConstructor(int p) {
 
 Method *ClassObject::getConstructor(List<Param>& params, bool useBase) {
     for(unsigned long i = 0; i < constructors.size(); i++) {
-        if(Param::match(*constructors.get(i).getParams(), params))
+        if(Param::match(constructors.get(i).getParams(), params))
             return &constructors.get(i);
     }
 
@@ -39,7 +39,7 @@ Method *ClassObject::getConstructor(List<Param>& params, bool useBase) {
 }
 
 bool ClassObject::addConstructor(Method constr) {
-    if(getConstructor(*constr.getParams()) != NULL)
+    if(getConstructor(constr.getParams()) != NULL)
         return false;
 
     constructors.push_back(constr);
@@ -56,7 +56,7 @@ Method* ClassObject::getFunction(int p) {
 
 Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase) {
     for(unsigned long i = 0; i < functions.size(); i++) {
-        if(Param::match(*functions.get(i).getParams(), params) && name == functions.get(i).getName())
+        if(Param::match(functions.get(i).getParams(), params) && name == functions.get(i).getName())
             return &functions.get(i);
     }
 
@@ -81,7 +81,7 @@ Method *ClassObject::getFunction(string name, int64_t _offset) {
 }
 
 bool ClassObject::addFunction(Method function) {
-    if(getFunction(function.getName(), *function.getParams()) != NULL)
+    if(getFunction(function.getName(), function.getParams()) != NULL)
         return false;
 
     functions.push_back(function);
@@ -168,7 +168,7 @@ OperatorOverload *ClassObject::getOverload(size_t p) {
 
 OperatorOverload *ClassObject::getOverload(Operator op, List<Param> &params, bool useBase) {
     for(unsigned long i = 0; i < overloads.size(); i++) {
-        if(Param::match(*overloads.get(i).getParams(), params) && op == overloads.get(i).getOperator())
+        if(Param::match(overloads.get(i).getParams(), params) && op == overloads.get(i).getOperator())
             return &overloads.get(i);
     }
 
@@ -194,7 +194,7 @@ OperatorOverload *ClassObject::getOverload(Operator op, int64_t _offset) {
 }
 
 bool ClassObject::addOperatorOverload(OperatorOverload overload) {
-    if(getOverload(overload.getOperator(), *overload.getParams()) != NULL)
+    if(getOverload(overload.getOperator(), overload.getParams()) != NULL)
         return false;
 
     overloads.push_back(overload);
@@ -276,7 +276,7 @@ OperatorOverload *ClassObject::getPostIncOverload() {
     for(unsigned int i = 0; i < overloads.size(); i++) {
         OperatorOverload& oper = overloads.get(i);
         if(oper_INC == oper.getOperator()) {
-            if(oper.getParams()->size() == 1 && oper.getParams()->last().field.isVar()) {
+            if(oper.getParams().size() == 1 && oper.getParams().last().field.isVar()) {
                 return &oper;
             }
         }
@@ -289,7 +289,7 @@ OperatorOverload *ClassObject::getPostDecOverload() {
     for(unsigned int i = 0; i < overloads.size(); i++) {
         OperatorOverload& oper = overloads.get(i);
         if(oper_DEC == oper.getOperator()) {
-            if(oper.getParams()->size() == 1 && oper.getParams()->last().field.isVar()) {
+            if(oper.getParams().size() == 1 && oper.getParams().last().field.isVar()) {
                 return &oper;
             }
         }
@@ -302,7 +302,7 @@ OperatorOverload *ClassObject::getPreIncOverload() {
     for(unsigned int i = 0; i < overloads.size(); i++) {
         OperatorOverload& oper = overloads.get(i);
         if(oper_INC == oper.getOperator()) {
-            if(oper.getParams()->size() == 0) {
+            if(oper.getParams().size() == 0) {
                 return &oper;
             }
         }
@@ -315,7 +315,7 @@ OperatorOverload *ClassObject::getPreDecOverload() {
     for(unsigned int i = 0; i < overloads.size(); i++) {
         OperatorOverload& oper = overloads.get(i);
         if(oper_DEC == oper.getOperator()) {
-            if(oper.getParams()->size() == 0) {
+            if(oper.getParams().size() == 0) {
                 return &oper;
             }
         }

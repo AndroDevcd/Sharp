@@ -7,6 +7,10 @@
 #include "../util/KeyPair.h"
 #include "Environment.h"
 #include "oo/Method.h"
+#include "Manifest.h"
+#include "oo/Field.h"
+#include "oo/ClassObject.h"
+#include "oo/Object.h"
 
 Manifest manifest;
 Meta metaData;

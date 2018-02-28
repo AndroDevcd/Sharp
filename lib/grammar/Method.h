@@ -97,7 +97,7 @@ public:
     string getModule() { return module; }
     size_t paramCount() { return params.size(); }
     size_t nativeParamCount() { return params.size() + (isStatic() ? 0 : 1); }
-    List<Param>* getParams() { return &params; }
+    List<Param>& getParams() { return params; }
     Param& getParam(int p) { return params.get(p); }
     bool hasModifier(AccessModifier m) { return modifiers.find(m); }
     bool isStatic() { return modifiers.find(STATIC); }
