@@ -1,6 +1,6 @@
 mod application;
 
-class Main base Main.value {
+class Main {
     var value;
 
     public static def main(/* String[] args */) : var {

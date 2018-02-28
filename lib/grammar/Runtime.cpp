@@ -2,6 +2,7 @@
 // Created by bknun on 9/12/2017.
 //
 
+#include <codecvt>
 #include "Runtime.h"
 #include "parser/ErrorManager.h"
 #include "List.h"
@@ -10,6 +11,7 @@
 #include "../runtime/Opcode.h"
 #include "../runtime/register.h"
 #include "Asm.h"
+#include "../runtime/Exe.h"
 
 using namespace std;
 
@@ -6144,6 +6146,7 @@ void RuntimeEngine::createNewWarning(error_type error, int line, int col, string
 
 Method *RuntimeEngine::getMainMethod(Parser *p) {
     string starter_classname = "Runtime";
+    string mainMethod = "__srt_init_";
 
     ClassObject* StarterClass = getClass("internal", starter_classname);
     if(StarterClass != NULL) {
@@ -6153,16 +6156,17 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
         params.add(Field(OBJECT, 0, "args", StarterClass, modifiers, note));
         params.get(0).field.isArray = true;
 
-        Method* main = StarterClass->getFunction("__srt_init_" , params);
+        Method* main = StarterClass->getFunction(mainMethod , params);
 
         if(main == NULL) {
-            errors->createNewError(GENERIC, 1, 0, "could not locate main method '__srt_init_(object[])' in starter class");
+            errors->createNewError(GENERIC, 1, 0, "could not locate main method '" + mainMethod + "(object[])' in starter class");
         } else {
             if(!main->isStatic()) {
-                errors->createNewError(GENERIC, 1, 0, "main method '__srt_init_(object[])' must be static");
+                errors->createNewError(GENERIC, 1, 0, "main method '" + mainMethod + "(object[])' must be static");
             }
+
             if(!main->hasModifier(PUBLIC)) {
-                errors->createNewError(GENERIC, 1, 0, "main method '__srt_init_(object[])' must be public");
+                errors->createNewError(GENERIC, 1, 0, "main method '" + mainMethod + "(object[])' must be public");
             }
 
             RuntimeEngine::main = main;
@@ -7908,8 +7912,804 @@ void RuntimeEngine::parseVarAccessModifiers(List<AccessModifier> &modifiers, Ast
     }
 }
 
-void RuntimeEngine::generate() {
+string copychars(char c, int t) {
+    native_string s;
+    int it = 0;
 
+    while (it++ < t)
+        s += c;
+
+    return s.str();
+}
+
+string i64_tostr(int64_t i64)
+{
+    string str;
+    i64_t mi;
+    SET_i64(mi, i64);
+
+    str+=(uint8_t)GET_i32w(mi.A);
+    str+=(uint8_t)GET_i32x(mi.A);
+    str+=(uint8_t)GET_i32y(mi.A);
+    str+=(uint8_t)GET_i32z(mi.A);
+
+    str+=(uint8_t)GET_i32w(mi.B);
+    str+=(uint8_t)GET_i32x(mi.B);
+    str+=(uint8_t)GET_i32y(mi.B);
+    str+=(uint8_t)GET_i32z(mi.B);
+    return str;
+}
+
+std::string RuntimeEngine::generate_manifest() {
+    stringstream manifest;
+
+    manifest << (char)manif;
+    manifest << ((char)0x02); manifest << c_options.out << ((char)nil);
+    manifest << ((char)0x4); manifest << c_options.vers << ((char)nil);
+    manifest << ((char)0x5); manifest << c_options.debug ? ((char)1) : ((char)nil);
+    manifest << ((char)0x6); manifest << i64_tostr(main->address) << ((char)nil);
+    manifest << ((char)0x7); manifest << i64_tostr(methods) << ((char)nil);
+    manifest << ((char)0x8); manifest << i64_tostr(classSize) << ((char)nil);
+    manifest << ((char)0x9 ); manifest << file_vers << ((char)nil);
+    manifest << ((char)0x0c); manifest << i64_tostr(stringMap.size()) << ((char)nil);
+    manifest << ((char)0x0e); manifest << c_options.target << ((char)nil);
+    manifest << ((char)0x0f); manifest << sourceFiles.size() << ((char)nil);
+    manifest << '\n' << (char)eoh;
+
+    return manifest.str();
+}
+
+std::string RuntimeEngine::generate_header() {
+    stringstream header;
+    header << (char)file_sig << "SEF"; header << copychars(nil, offset);
+    header << (char)digi_sig1 << (char)digi_sig2 << (char)digi_sig3;
+
+    header << generate_manifest();
+    return header.str();
+}
+
+std::string RuntimeEngine::field_to_stream(Field& field) {
+    stringstream fstream;
+
+    fstream << ((char)data_field);
+    fstream << field.name << ((char)nil);
+    fstream << field.address << ((char)nil);
+    fstream << field.type << ((char)nil);
+    fstream << (field.modifiers.find(STATIC) ? 1 : 0) << ((char)nil);
+    fstream << (field.isArray ? 1 : 0) << ((char)nil);
+    fstream << (field.type == CLASS ? field.klass->address : -1) << ((char)nil);
+    fstream << endl;
+
+    return fstream.str();
+}
+
+std::string RuntimeEngine::class_to_stream(ClassObject& klass) {
+    stringstream kstream;
+
+    kstream << (char)data_class;
+    kstream << (klass.getSuperClass() == NULL ? -1 : klass.getSuperClass()->address) << ((char)nil);
+    kstream << i64_tostr(klass.address);
+    kstream << klass.getFullName() << ((char)nil);
+    kstream << klass.getTotalFieldCount() << ((char)nil);
+    kstream << klass.getTotalFunctionCount() << ((char)nil);
+
+    for(long long i = 0; i < klass.fieldCount(); i++) {
+        kstream << field_to_stream(*klass.getField(i));
+    }
+
+    ClassObject* base = klass.getBaseClass();
+    while(base != NULL) {
+        for(long long i = 0; i < base->fieldCount(); i++) {
+            kstream << field_to_stream(*base->getField(i));
+        }
+
+        base = base->getBaseClass();
+    }
+
+    /* Constructors */
+    for(long long i = 0; i < klass.constructorCount(); i++) {
+        kstream << (char)data_method;
+        kstream << i64_tostr(klass.getConstructor(i)->address) << ((char)nil);
+        allMethods.add(klass.getConstructor(i));
+    }
+
+    base = klass.getBaseClass();
+    while(base != NULL) {
+        for(long long i = 0; i < base->constructorCount(); i++) {
+            kstream << (char)data_method;
+            kstream << i64_tostr(base->getConstructor(i)->address) << ((char)nil);
+        }
+
+        base = base->getBaseClass();
+    }
+
+    /* Methods */
+    for(long long i = 0; i < klass.functionCount(); i++) {
+        kstream << (char)data_method;
+        kstream << i64_tostr(klass.getFunction(i)->address) << ((char)nil);
+        allMethods.add(klass.getFunction(i));
+    }
+
+    base = klass.getBaseClass();
+    while(base != NULL) {
+        for(long long i = 0; i < base->functionCount(); i++) {
+            kstream << (char)data_method;
+            kstream << i64_tostr(base->getFunction(i)->address) << ((char)nil);
+        }
+
+        base = base->getBaseClass();
+    }
+
+    /* Overloads */
+    for(long long i = 0; i < klass.overloadCount(); i++) {
+        kstream << (char)data_method;
+        kstream << i64_tostr(klass.getOverload(i)->address) << ((char)nil);
+        allMethods.add(klass.getOverload(i));
+    }
+
+    base = klass.getBaseClass();
+    while(base != NULL) {
+        for(long long i = 0; i < base->overloadCount(); i++) {
+            kstream << (char)data_method;
+            kstream << i64_tostr(base->getOverload(i)->address) << ((char)nil);
+        }
+
+        base = base->getBaseClass();
+    }
+
+    for(long long i = 0; i < klass.childClassCount(); i++) {
+        kstream << class_to_stream(*klass.getChildClass(i)) << endl;
+    }
+
+    return kstream.str();
+}
+
+std::string RuntimeEngine::generate_data_section() {
+    stringstream data_sec;
+    for(int64_t i = 0; i < classes.size(); i++) {
+        data_sec << class_to_stream(classes.get(i)) << endl;
+    }
+
+    for(int64_t i = 0; i < sourceFiles.size(); i++) {
+        data_sec << (char)data_file;
+        data_sec << sourceFiles.get(i) << ((char)nil);
+    }
+
+    data_sec << "\n"<< "\n" << (char)eos;
+
+    List<Method*> reorderedList;
+    int64_t iter=0;
+
+    readjust:
+    for(int64_t i = 0; i < allMethods.size(); i++) {
+        if(allMethods.get(i)->address == iter) {
+            iter++;
+            reorderedList.add(allMethods.get(i));
+            if(iter < allMethods.size())
+                goto readjust;
+        }
+    }
+
+    allMethods.addAll(reorderedList);
+    reorderedList.free();
+
+    return data_sec.str();
+}
+
+std::string RuntimeEngine::generate_string_section() {
+    stringstream strings;
+
+    for(int64_t i = 0; i < stringMap.size(); i++) {
+        strings << (char)data_string;
+        strings << i64_tostr(i) << ((char)nil) << stringMap.get(i) << ((char)nil);
+    }
+
+    strings << "\n"<< "\n" << (char)eos;
+
+    return strings.str();
+}
+
+std::string RuntimeEngine::method_to_stream(Method* method) {
+    stringstream func;
+
+    for(unsigned int i = 0; i < method->paramCount(); i++) {
+        func << method->getParam(i).field.type << ((char)nil);
+        func << (method->getParam(i).field.isArray ? 1 : 0) << ((char)nil);
+    }
+
+    for(long i = 0; i < method->code.__asm64.size(); i++) {
+        func << i64_tostr(method->code.__asm64.get(i));
+    }
+    return func.str();
+}
+
+std::string RuntimeEngine::generate_text_section() {
+    stringstream text;
+
+    text << (char)stext;
+
+    for(long i = 0; i < allMethods.size(); i++) {
+        Method* f = allMethods.get(i);
+        text << (char)data_method;
+        text << i64_tostr(allMethods.get(i)->address);
+        text << allMethods.get(i)->getName() << ((char)nil);
+        text << allMethods.get(i)->sourceFileLink << ((char)nil);
+        text << i64_tostr(allMethods.get(i)->klass->address);
+        text << i64_tostr(allMethods.get(i)->paramCount());
+        text << i64_tostr(allMethods.get(i)->localVariables);
+        text << i64_tostr(allMethods.get(i)->code.__asm64.size());
+        text << (allMethods.get(i)->isStatic() ? 0 : 1) << ((char)nil);
+        text << (allMethods.get(i)->isStatic() ? 0 : 1) << ((char)nil);
+        text << (allMethods.get(i)->type==TYPEVOID ? 0 : 1) << ((char)nil);
+
+        text << allMethods.get(i)->line_table.size() << ((char)nil);
+        for(unsigned int x = 0; x < allMethods.get(i)->line_table.size(); x++) {
+            text << i64_tostr(allMethods.get(i)->line_table.get(x).key);
+            text << i64_tostr(allMethods.get(i)->line_table.get(x).value);
+        }
+
+        text << allMethods.get(i)->exceptions.size() << ((char)nil);
+        for(unsigned int x = 0; x < allMethods.get(i)->exceptions.size(); x++) {
+            ExceptionTable &et=allMethods.get(i)->exceptions.get(x);
+            text << i64_tostr(allMethods.get(i)->exceptions.get(x).handler_pc);
+            text << i64_tostr(allMethods.get(i)->exceptions.get(x).end_pc);
+            text << allMethods.get(i)->exceptions.get(x).className << ((char)nil);
+            text << i64_tostr(allMethods.get(i)->exceptions.get(x).local);
+            text << i64_tostr(allMethods.get(i)->exceptions.get(x).start_pc);
+        }
+
+        text << allMethods.get(i)->finallyBlocks.size() << ((char)nil);
+        for(unsigned int x = 0; x < allMethods.get(i)->finallyBlocks.size(); x++) {
+            FinallyTable &ft=allMethods.get(i)->finallyBlocks.get(x);
+            text << i64_tostr(ft.start_pc);
+            text << i64_tostr(ft.end_pc);
+            text << i64_tostr(ft.try_start_pc);
+            text << i64_tostr(ft.try_end_pc);
+        }
+    }
+
+    for(long i = 0; i < allMethods.size(); i++) {
+        text << (char)data_byte;
+        text << method_to_stream(allMethods.get(i)) << endl;
+    }
+    text << "\n" << (char)eos;
+    return text.str();
+}
+
+std::string RuntimeEngine::generate_meta_section() {
+    stringstream meta;
+
+    meta << (char)smeta;
+
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        Parser* p = parsers.get(i);
+        meta << (char)data_file;
+        meta << p->getData() << (char)0x0;
+        meta << endl;
+    }
+
+    meta << "\n" << (char)eos;
+    return meta.str();
+}
+
+void RuntimeEngine::generate() {
+    File::buffer _ostream;
+    _ostream.begin();
+
+    _ostream << generate_header() ;
+    _ostream << (char)sdata;
+    _ostream << generate_data_section();
+
+    for(unsigned int i = 0; i < allMethods.size(); i++)
+    {
+        Method* method = allMethods.get(i);
+
+        if(method->code.size() == 0 || GET_OP(method->code.__asm64.last()) != op_RET) {
+            if(method->isConstructor) {
+                method->code.push_i64(SET_Di(i64, op_MOVL, 0));
+                method->code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+            }
+
+            method->code.push_i64(SET_Ei(i64, op_RET));
+        }
+    }
+
+//    if(c_options.optimize) {
+//        Optimizer optimizer; // ToDo: make struct OptimizerStat { } to create a total view of how many instructions optimized out in total
+//        for(unsigned int i = 0; i < allMethods.size(); i++)
+//        {
+//            Method* method = allMethods.get(i);
+//            optimizer.optimize(method);
+//        }
+//    }
+
+    _ostream << generate_string_section();
+    _ostream << generate_text_section();
+
+    if(c_options.debug && !c_options.strip) {
+        _ostream << generate_meta_section();
+    }
+
+    // ToDo: create line tabel and meta data
+
+    if(c_options.objDump)
+        createDumpFile();
+
+    if(File::write(c_options.out.c_str(), _ostream)) {
+        cout << progname << ": error: failed to write out to executable " << c_options.out << endl;
+    }
+    _ostream.end();
+    allMethods.free();
+}
+
+
+string RuntimeEngine::find_method(int64_t id) {
+    for(unsigned int i = 0; i < allMethods.size(); i++) {
+        if(allMethods.get(i)->address == id) {
+            stringstream ss;
+            ss << allMethods.get(i)->getFullName();
+            ss << paramsToString(*allMethods.get(i)->getParams());
+            return ss.str();
+        }
+    }
+    return "";
+}
+
+string RuntimeEngine::find_class(int64_t id) {
+    for(unsigned int i = 0; i < classes.size(); i++) {
+        if(classes.get(i).address == id)
+            return classes.get(i).getFullName();
+        else {
+            ClassObject &klass = classes.get(i);
+            for(unsigned int x = 0; x < klass.childClassCount(); x++) {
+                if(klass.getChildClass(x)->address == id)
+                    return klass.getChildClass(x)->getFullName();
+            }
+        }
+    }
+    return "";
+}
+
+void RuntimeEngine::createDumpFile() {
+    File::buffer _ostream;
+    _ostream.begin();
+
+    _ostream << "Object Dump file:\n" << "################################\n\n";
+    for(unsigned int i =0; i < allMethods.size(); i++) {
+        Method* method = allMethods.get(i);
+
+        stringstream tmp;
+        tmp << "func:@" << method->address;
+
+        _ostream << tmp.str() << " [" << method->getFullName() << "] "
+                 << method->note.getNote("") << "\n\n";
+        _ostream << method->getName() << ":\n";
+        for(unsigned int x = 0; x < method->code.size(); x++) {
+            stringstream ss;
+            int64_t x64=method->code.__asm64.get(x);
+            ss <<std::hex << "[0x" << x << std::dec << "] " << x << ":" << '\t';
+
+            switch(GET_OP(x64)) {
+                case op_NOP:
+                {
+                    ss<<"nop";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_INT:
+                {
+                    ss<<"int 0x" << std::hex << GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOVI:
+                {
+                    ss<<"movi #" << GET_Da(x64) << ", ";
+                    ss<< Asm::registrerToString(method->code.__asm64.get(++x)) ;
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_RET:
+                {
+                    ss<<"ret";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_HLT:
+                {
+                    ss<<"hlt";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_NEWARRAY:
+                {
+                    ss<<"newarry ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_CAST:
+                {
+                    ss<<"cast ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOV8:
+                {
+                    ss<<"mov8 ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOV16:
+                {
+                    ss<<"mov16 ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOV32:
+                {
+                    ss<<"mov32 ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOV64:
+                {
+                    ss<<"mov64 ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                } case op_MOVU8:
+                {
+                    ss<<"movu8 ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOVU16:
+                {
+                    ss<<"movu16 ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOVU32:
+                {
+                    ss<<"movu32 ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOVU64:
+                {
+                    ss<<"movu64 ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_RSTORE:
+                {
+                    ss<<"rstore ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_ADD:
+                {
+                    ss<<"add ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    ss<< " -> ";
+                    ss<< Asm::registrerToString(method->code.__asm64.get(++x));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_SUB:
+                {
+                    ss<<"sub ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    ss<< " -> ";
+                    ss<< Asm::registrerToString(method->code.__asm64.get(++x));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MUL:
+                {
+                    ss<<"mul ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    ss<< " -> ";
+                    ss<< Asm::registrerToString(method->code.__asm64.get(++x));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_DIV:
+                {
+                    ss<<"div ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    ss<< " -> ";
+                    ss<< Asm::registrerToString(method->code.__asm64.get(++x));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_IADD:
+                {
+                    ss<<"iadd ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", #";
+                    ss<< GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_ISUB:
+                {
+                    ss<<"isub ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", #";
+                    ss<< GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_IMUL:
+                {
+                    ss<<"imul ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", #";
+                    ss<< GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_IDIV:
+                {
+                    ss<<"idiv ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", #";
+                    ss<< GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_IMOD:
+                {
+                    ss<<"imod ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", #";
+                    ss<< GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_POP:
+                {
+                    ss<<"pop";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_INC:
+                {
+                    ss<<"inc ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_DEC:
+                {
+                    ss<<"dec ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOVR:
+                {
+                    ss<<"movr ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_IALOAD:
+                {
+                    ss<<"iaload ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_BRH:
+                {
+                    ss<<"brh";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_IFE:
+                {
+                    ss<<"ife";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_IFNE:
+                {
+                    ss<<"ifne";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_LT:
+                {
+                    ss<<"lt ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_GT:
+                {
+                    ss<<"gt ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_LTE:
+                {
+                    ss<<"lte ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_GTE:
+                {
+                    ss<<"gte ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOVL:
+                {
+                    ss<<"movl " << GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOVSL:
+                {
+                    ss<<"movsl #";
+                    ss<< GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOVBI:
+                {
+                    ss<<"movbi #" << GET_Da(x64) << ", #";
+                    ss<< method->code.__asm64.get(++x);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_SIZEOF:
+                {
+                    ss<<"sizeof ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_PUT:
+                {
+                    ss<<"put ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_PUTC:
+                {
+                    ss<<"_putc ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_CHECKLEN:
+                {
+                    ss<<"chklen ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_GOTO:
+                {
+                    ss<<"goto @" << GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_LOADPC:
+                {
+                    ss<<"loadpc ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_PUSHOBJ:
+                {
+                    ss<<"pushref";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_DEL:
+                {
+                    ss<<"del";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_CALL:
+                {
+                    ss<<"call @" << GET_Da(x64) << " // <";
+                    ss << find_method(GET_Da(x64)) << ">";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_NEWCLASS:
+                {
+                    ss<<"new_class @" << GET_Da(x64);
+                    ss << " // "; ss << find_class(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOVN:
+                {
+                    ss<<"movn #" << GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_SLEEP:
+                {
+                    ss<<"sleep ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                default:
+                    ss << "? (" << GET_OP(x64) << ")";
+                    _ostream << ss.str();
+                    break;
+            }
+
+            _ostream << "\n";
+        }
+
+        _ostream << '\n';
+    }
+
+    if(File::write((c_options.out + ".ojd").c_str(), _ostream)) {
+        cout << progname << ": error: failed to write out to dump file " << c_options.out << endl;
+    }
+    _ostream.end();
 }
 
 void RuntimeEngine::cleanup() {

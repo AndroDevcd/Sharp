@@ -437,7 +437,8 @@ public:
             methods(0),
             main(NULL),
             stringMap(),
-            panic(false)
+            panic(false),
+            allMethods()
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
@@ -509,6 +510,7 @@ private:
     unsigned long methods;
     unsigned long classSize;
     Method* main;
+    List<Method*> allMethods;
 
     /* One off variables */
     RuntimeNote lastNote;
@@ -890,6 +892,30 @@ private:
     void parseOperatorDecl(Ast *pAst);
 
     void parseConstructorDecl(Ast *pAst);
+
+    string generate_header();
+
+    string generate_manifest();
+
+    string generate_data_section();
+
+    string class_to_stream(ClassObject &klass);
+
+    string field_to_stream(Field &field);
+
+    string generate_string_section();
+
+    string generate_text_section();
+
+    string method_to_stream(Method *method);
+
+    string generate_meta_section();
+
+    void createDumpFile();
+
+    string find_method(int64_t id);
+
+    string find_class(int64_t id);
 };
 
 

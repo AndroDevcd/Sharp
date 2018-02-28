@@ -69,7 +69,7 @@ int Process_Exe(std::string exe)
 
                 case 0x2:
                     manifest.application.init();
-                    manifest.application =getstring(buffer);
+                    manifest.application = getstring(buffer);
                     break;
                 case 0x4:
                     manifest.version.init();
@@ -106,7 +106,7 @@ int Process_Exe(std::string exe)
             if(__bitFlag == eoh) {
                 if(!manifestFlag)
                     throw std::runtime_error("missing manifest flag");
-                if(manifest.fvers != 1)
+                if(manifest.fvers != file_vers)
                     throw std::runtime_error("unknown file version");
 
                 if(hdr_cnt != hsz || manifest.target > mvers)
@@ -447,8 +447,8 @@ void parse_source_file(List<native_string> &list, native_string str) {
         if(str.chars[i] == '\n')
         {
             list.push_back();
-            list.get(list.size()-1).init();
-            list.get(list.size()-1) = line;
+            list.last().init();
+            list.last() = line;
 
             line.free();
         } else {
@@ -457,8 +457,8 @@ void parse_source_file(List<native_string> &list, native_string str) {
     }
 
     list.push_back();
-    list.get(list.size()-1).init();
-    list.get(list.size()-1) = line;
+    list.last().init();
+    list.last() = line;
 
     line.free();
 }

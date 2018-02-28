@@ -40,6 +40,7 @@ struct i64_t {
 #define data_string 0x1e
 #define data_byte 0x05
 #define I64_BYTES 8
+#define file_vers 2
 
 #define SET_i32A(mi, i) mi.A=(i >> 32)
 
