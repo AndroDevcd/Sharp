@@ -766,7 +766,7 @@ void Thread::exec() {
                 vm->executeMethod(GET_Da(cache[pc]));
                 _brh
             NEWCLASS:
-                CHECK_NULL(*o2 = GarbageCollector::self->newObject(env->findClassBySerial(GET_Da(cache[pc])));)
+                CHECK_NULL(dataStack[(int64_t)++registers[sp]].object = GarbageCollector::self->newObject(env->findClassBySerial(GET_Da(cache[pc])));)
                 _brh
             MOVN: // TODO: check to see if we really need this instruction
                 CHECK_NULLOBJ(o2 = &o2->object->node[GET_Da(cache[pc])];)
@@ -796,7 +796,7 @@ void Thread::exec() {
                 CHECK_NULLOBJ(o2 = &o2->object->node[(int64_t)registers[GET_Da(cache[pc])]];)
                 _brh
             NEWOBJARRAY:
-                CHECK_NULLOBJ(*o2 = GarbageCollector::self->newObjectArray(registers[GET_Da(cache[pc])]);)
+                CHECK_NULLOBJ(dataStack[(int64_t)++registers[sp]].object = GarbageCollector::self->newObjectArray(registers[GET_Da(cache[pc])]);)
                 _brh
             NOT:
                 registers[GET_Ca(cache[pc])]=!registers[GET_Cb(cache[pc])];
@@ -844,7 +844,7 @@ void Thread::exec() {
                 _brh
             NEWCLASSARRAY:
                 CHECK_NULL(
-                        *o2 = GarbageCollector::self->newObjectArray(registers[GET_Ca(cache[pc])],
+                        dataStack[(int64_t)++registers[sp]].object = GarbageCollector::self->newObjectArray(registers[GET_Ca(cache[pc])],
                                                                            env->findClassBySerial(GET_Cb(cache[pc])));
                 )
                 _brh
@@ -896,6 +896,9 @@ void Thread::exec() {
             SMOVR:
                 dataStack[(int64_t)registers[sp]+GET_Cb(cache[pc])].var=registers[GET_Ca(cache[pc])];
                 _brh
+            SMOVR_2:
+                dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var=registers[GET_Ca(cache[pc])];
+                _brh
             ANDL:
                 dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].andl(registers[GET_Ca(cache[pc])]);
                 _brh
@@ -918,6 +921,9 @@ void Thread::exec() {
                 _brh
             RETURNVAL:
                 dataStack[(int64_t)registers[fp]].var=registers[GET_Da(cache[pc])];
+                _brh
+            ISTORE:
+                dataStack[(int64_t)++registers[sp]].var = GET_Da(cache[pc]);
                 _brh
 
         }

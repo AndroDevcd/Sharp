@@ -146,7 +146,9 @@
         &&RMOV,                          \
         &&SMOV,                          \
         &&LOADPC_2,                      \
-        &&RETURNVAL                     \
+        &&RETURNVAL,                     \
+        &&ISTORE,                        \
+        &&SMOVR_2                        \
     };
 
 enum Opcode {
@@ -247,7 +249,9 @@ enum Opcode {
     op_RMOV                =0x5f,
     op_SMOV                =0x60,
     op_LOADPC_2            =0x61,
-    op_RETURNVAL           =0x62
+    op_RETURNVAL           =0x62,
+    op_ISTORE              =0x63,
+    op_SMOVR_2             =0x64
 };
 
 #endif //SHARP_OPCODE_H

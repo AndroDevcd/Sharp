@@ -531,7 +531,6 @@ void tokenizer::parse()
                     errors->createNewError(ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", character literals cannot be empty");
                 } else
                     entites.add(token_entity(character.str(), CHAR_LITERAL, col, line));
-                goto start;
             }
             else
             {

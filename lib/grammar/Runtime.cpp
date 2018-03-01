@@ -387,8 +387,8 @@ void RuntimeEngine::compile()
                 failedParsers.addif(activeParser->sourcefile);
                 succeededParsers.removefirst(activeParser->sourcefile);
             } else {
-                failedParsers.addif(activeParser->sourcefile);
-                succeededParsers.removefirst(activeParser->sourcefile);
+                succeededParsers.addif(activeParser->sourcefile);
+                failedParsers.removefirst(activeParser->sourcefile);
             }
 
             removeScope();
@@ -427,7 +427,7 @@ void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix
     scope->last_statement=ast_return_stmnt;
 
     if(pAst->hasSubAst(ast_value)) {
-        value = parseValue(pAst);
+        value = parseValue(pAst->getSubAst(ast_value));
         if(!value.newExpression)
             block.code.inject(block.code.__asm64.size(), value.code);
 
@@ -435,6 +435,7 @@ void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix
             case expression_var:
                 if(value.newExpression) {
                     block.code.inject(block.code.__asm64.size(), value.code);
+                    block.code.push_i64(SET_Di(i64, op_MOVSL, 0));
                     block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
                 } else {
                     if (value.func) {
@@ -485,6 +486,7 @@ void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix
             case expression_lclass:
                 if(value.newExpression) {
                     block.code.inject(block.code.__asm64.size(), value.code);
+                    block.code.push_i64(SET_Di(i64, op_MOVSL, 0));
                     block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
                 } else {
                     if(value.func) {
@@ -507,6 +509,7 @@ void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix
             case expression_objectclass:
                 if(value.newExpression) {
                     block.code.inject(block.code.__asm64.size(), value.code);
+                    block.code.push_i64(SET_Di(i64, op_MOVSL, 0));
                     block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
                 } else {
                     if(value.func) {
@@ -583,7 +586,7 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
             ast = pAst->getSubAst(i);
             switch(ast->getType()) {
                 case ast_elseif_statement:
-                    cond = parseExpression(ast->getSubAst(ast_expression));
+                    cond = parseExpression(ast);
 
                     out.free();
                     pushExpressionToRegister(cond, out, cmt);
@@ -655,7 +658,7 @@ void RuntimeEngine::parseAssemblyStatement(Block& block, Ast* pAst) {
     if(c_options.unsafe)
         parseAssemblyBlock(block, pAst->getSubAst(ast_assembly_block));
     else
-        errors->createNewError(GENERIC, pAst, "calling __asm without unsafe mode enabled. try recompiling your code with [-unsafe]");
+        errors->createNewError(GENERIC, pAst, "calling asm without unsafe mode enabled. try recompiling your code with [-unsafe]");
 }
 
 bool RuntimeEngine::validateLocalField(std::string name, Ast* pAst) {
@@ -831,13 +834,13 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
     scope->uniqueLabelSerial++;
     string forBeginLabel, forEndLabel;
 
-    Expression arryExpression(parseExpression(pAst->getSubAst(ast_expression))), out;
+    Expression arryExpression(parseExpression(pAst)), out;
     parseUtypeArg(pAst, scope, block, &arryExpression);
 
     /*
      * This is stupid but we do this so we dont mess up the refrence with out local array expression variable
      */
-    arryExpression = parseExpression(pAst->getSubAst(ast_expression));
+    arryExpression = parseExpression(pAst);
 
     block.code.push_i64(SET_Di(i64, op_MOVI, 0), ebx);
     block.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
@@ -889,7 +892,7 @@ void RuntimeEngine::parseWhileStatement(Block& block, Ast* pAst) {
     Scope* scope = currentScope();
     string whileBeginLabel, whileEndLabel;
 
-    Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out;
+    Expression cond = parseExpression(pAst), out;
 
     stringstream ss;
     ss << generic_label_id << ++scope->uniqueLabelSerial;
@@ -924,7 +927,7 @@ void RuntimeEngine::parseDoWhileStatement(Block& block, Ast* pAst) {
 
     parseBlock(pAst->getSubAst(ast_block), block);
 
-    Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out;
+    Expression cond = parseExpression(pAst), out;
     pushExpressionToRegister(cond, out, cmt);
     block.code.inject(block.code.size(), out.code);
 
@@ -1053,7 +1056,7 @@ void RuntimeEngine::parseTryCatchStatement(Block& block, Ast* pAst) {
 }
 
 void RuntimeEngine::parseThrowStatement(Block& block, Ast* pAst) {
-    Expression clause = parseExpression(pAst->getSubAst(ast_expression)), out;
+    Expression clause = parseExpression(pAst), out;
     currentScope()->reachable=false;
     currentScope()->last_statement=ast_throw_statement;
 
@@ -1164,7 +1167,7 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
 
     f.address = scope->currentFunction->localVariables++;
     f.local=true;
-    Expression utype = parseUtype(pAst->getSubAst(ast_utype));
+    Expression utype = parseUtype(pAst);
     if(utype.utype.type == CLASS) {
         f.klass = utype.utype.klass;
         f.type = CLASS;
@@ -1188,7 +1191,7 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
             block.code.__asm64.push_back(SET_Di(i64, op_MOVL, f.address));
 
         if(pAst->hasSubAst(ast_value)) {
-            Expression expression = parseValue(pAst), out;
+            Expression expression = parseValue(pAst->getSubAst(ast_value)), out;
             equals(fieldExpr, expression);
 
             if(f.isObjectInMemory()) {
@@ -1209,8 +1212,7 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
             } else {
                 if(operand != "=") {
                     block.code.push_i64(SET_Di(i64, op_MOVI, 0), egx);
-                    block.code.push_i64(SET_Ci(i64, op_MOVR, adx,0, fp));
-                    block.code.push_i64(SET_Ci(i64, op_SMOVR, egx,0, f.address));
+                    block.code.push_i64(SET_Ci(i64, op_SMOVR_2, egx,0, f.address));
                 }
 
                 assignValue(operand, out, fieldExpr, expression, pAst);
@@ -1219,8 +1221,7 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
         } else {
             if(!f.isObjectInMemory()) {
                 block.code.push_i64(SET_Di(i64, op_MOVI, 0), egx);
-                block.code.push_i64(SET_Ci(i64, op_MOVR, adx,0, fp));
-                block.code.push_i64(SET_Ci(i64, op_SMOVR, egx,0, f.address));
+                block.code.push_i64(SET_Ci(i64, op_SMOVR_2, egx,0, f.address));
             } else {
                 block.code.push_i64(SET_Ei(i64, op_DEL));
             }
@@ -1763,6 +1764,8 @@ Expression RuntimeEngine::psrseUtypeClass(Ast* pAst) {
 
     if(expression.type == expression_class) {
         expression.code.push_i64(SET_Di(i64, op_MOVI, expression.utype.klass->address), ebx);
+        expression.type = expression_var;
+        expression.literal = true;
     } else {
         errors->createNewError(GENERIC, pAst->getSubAst(ast_utype)->getSubAst(ast_type_identifier)->line,
                          pAst->getSubAst(ast_utype)->getSubAst(ast_type_identifier)->col, "expected class");
@@ -2155,9 +2158,9 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
 
 
     if(fn != NULL) {
-
-        if(fn->type != TYPEVOID && fn->nativeParamCount() == 0)
-            out.code.push_i64(SET_Di(i64, op_INC, sp));
+        if(scope->type == STATIC_BLOCK && !fn->isStatic()) {
+            errors->createNewError(GENERIC, valueLst->line, valueLst->col, " call to instance function `" + fn->getFullName() +  paramsToString(params) + "` inside static block");
+        }
 
         if(!fn->isStatic()) {
             if(access && scope->last_statement == ast_return_stmnt) {
@@ -2667,6 +2670,7 @@ Expression &RuntimeEngine::parseDotNotationChain(Ast *pAst, Expression &expressi
     Ast* utype;
     Expression rightExpr;
     rightExpr =expression;
+    rightExpr.code.free();
     for(unsigned int i = startpos; i < pAst->getSubAstCount(); i++) {
         utype = pAst->getSubAst(i);
 
@@ -2688,7 +2692,7 @@ Expression &RuntimeEngine::parseDotNotationChain(Ast *pAst, Expression &expressi
         if(rightExpr.type == expression_unresolved || rightExpr.type == expression_unknown)
             break;
 
-        expression.code.inject(expression.code.size(), rightExpr.code);
+        expression.inject(rightExpr);
         expression.type = rightExpr.type;
         expression.utype = rightExpr.utype;
         expression.utype.array = rightExpr.utype.array;
@@ -3198,12 +3202,10 @@ void RuntimeEngine::checkVectorArray(Expression& utype, List<Expression>& vecArr
 }
 
 void RuntimeEngine::parseNewArrayExpression(Expression& out, Expression& utype, Ast* pAst) {
-    Expression sizeExpr = parseExpression(pAst);
+    Expression sizeExpr = parseExpression(pAst->getSubAst(ast_expression));
 
     pushExpressionToRegister(sizeExpr, out, ebx);
 
-    out.code.push_i64(SET_Di(i64, op_INC, sp));
-    out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
     if(out.type == expression_var)
         out.code.push_i64(SET_Di(i64, op_NEWARRAY, ebx));
     else if(out.type == expression_lclass) {
@@ -3219,7 +3221,7 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
     List<Expression> expressions;
     List<Param> params;
 
-    utype = parseUtype(pAst->getSubAst(ast_utype));
+    utype = parseUtype(pAst);
     if(pAst->hasSubAst(ast_vector_array)) {
         // vec array
         expressions = parseVectorArray(pAst);
@@ -3271,8 +3273,6 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
 
             if(fn!= NULL) {
 
-                expression.code.push_i64(SET_Di(i64, op_INC, sp));
-                expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
                 expression.code.push_i64(SET_Di(i64, op_NEWCLASS, utype.utype.klass->address));
 
                 for(unsigned int i = 0; i < expressions.size(); i++) {
@@ -3849,7 +3849,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& arg, Expressi
 Expression RuntimeEngine::parseCastExpression(Ast* pAst) {
     Expression expression, utype, arg;
 
-    utype = parseUtype(pAst->getSubAst(ast_utype));
+    utype = parseUtype(pAst);
     arg = parseExpression(pAst->getSubAst(ast_expression));
 
     if(utype.type != expression_unknown &&
@@ -4004,7 +4004,7 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
 Expression RuntimeEngine::parseParenExpression(Ast* pAst) {
     Expression expression;
 
-    expression = parseExpression(pAst);
+    expression = parseExpression(pAst->getSubAst(ast_expression));
 
     if(pAst->hasSubAst(ast_dotnotation_call_expr)) {
         return parseDotNotationChain(pAst->getSubAst(ast_dotnotation_call_expr), expression, 0);
@@ -4041,7 +4041,7 @@ void RuntimeEngine::notClass(Expression& out, ClassObject* klass, Ast* pAst) {
 Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
     Expression expression;
 
-    expression = parseExpression(pAst);
+    expression = parseExpression(pAst->getSubAst(ast_expression));
     switch(expression.type) {
         case expression_var:
             // negate value
@@ -4783,11 +4783,11 @@ Expression RuntimeEngine::parseAddExpression(Ast* pAst) {
 
     if(operand.getTokenType() == PLUS && pAst->getSubAstCount() == 1) {
         // left is right then add 1 to data
-        right = parseExpression(pAst);
+        right = parseExpression(pAst->getSubAst(0));
         return parseUnary(operand, right, pAst);
     } else if(operand.getTokenType() == MINUS && pAst->getSubAstCount() == 1) {
         // left is right multiply expression by -1
-        right = parseExpression(pAst);
+        right = parseExpression(pAst->getSubAst(0));
         return parseUnary(operand, right, pAst);
     }
 
@@ -5340,8 +5340,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 pushExpressionToRegister(right, out, ecx);
 
                 if(operand == "=") {
-                    out.code.push_i64(SET_Ci(i64, op_MOVR, adx,0, fp));
-                    out.code.push_i64(SET_Ci(i64, op_SMOVR, ecx,0, left.utype.field->address));
+                    out.code.push_i64(SET_Ci(i64, op_SMOVR_2, ecx,0, left.utype.field->address));
                 } else if(operand == "+=") {
                     out.code.push_i64(SET_Ci(i64, op_ADDL, ecx,0, left.utype.field->address));
                 } else if(operand == "-=") {
@@ -5955,7 +5954,7 @@ Expression RuntimeEngine::parseQuesExpression(Ast* pAst) {
 
 Expression RuntimeEngine::parseExpression(Ast *ast) {
     Expression expression;
-    Ast *encap = ast->getSubAst(ast_expression)->getSubAst(0);
+    Ast *encap = ast->getSubAst(0);
 
     switch (encap->getType()) {
         case ast_primary_expr:
@@ -6006,8 +6005,7 @@ Expression RuntimeEngine::parseExpression(Ast *ast) {
 }
 
 Expression RuntimeEngine::parseValue(Ast *ast) {
-    ast = ast->getSubAst(ast_value);
-    return parseExpression(ast);
+    return parseExpression(ast->getSubAst(ast_expression));
 }
 
 Expression RuntimeEngine::fieldToExpression(Ast *pAst, string name) {
@@ -6047,8 +6045,6 @@ void RuntimeEngine::initalizeNewClass(ClassObject* klass, Expression& out) {
     List<Param> emptyParams;
     Method* fn = klass->getConstructor(emptyParams);
 
-    out.code.push_i64(SET_Di(i64, op_INC, sp));
-    out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
     out.code.push_i64(SET_Di(i64, op_NEWCLASS, klass->address));
 
     out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
@@ -6066,7 +6062,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
     Field* field = scope->klass->getField(name);
 
     if(ast->hasSubAst(ast_value)) {
-        Expression expression = parseValue(ast), out;
+        Expression expression = parseValue(ast->getSubAst(ast_value)), out;
         Expression fieldExpr = fieldToExpression(ast, *field);
         fieldExpr.code.free();
         equals(fieldExpr, expression);
@@ -6249,8 +6245,8 @@ bool RuntimeEngine::preprocess()
             failedParsers.addif(activeParser->sourcefile);
             succeededParsers.removefirst(activeParser->sourcefile);
         } else {
-            failedParsers.addif(activeParser->sourcefile);
-            succeededParsers.removefirst(activeParser->sourcefile);
+            succeededParsers.addif(activeParser->sourcefile);
+            failedParsers.removefirst(activeParser->sourcefile);
         }
 
         errors->free();
@@ -6300,8 +6296,8 @@ void RuntimeEngine::resolveAllFields() {
             failedParsers.addif(activeParser->sourcefile);
             succeededParsers.removefirst(activeParser->sourcefile);
         } else {
-            failedParsers.addif(activeParser->sourcefile);
-            succeededParsers.removefirst(activeParser->sourcefile);
+            succeededParsers.addif(activeParser->sourcefile);
+            failedParsers.removefirst(activeParser->sourcefile);
         }
 
         errors->free();
@@ -9000,6 +8996,16 @@ void RuntimeEngine::createDumpFile() {
                     _ostream << ss.str();
                     break;
                 }
+                case op_SMOVR_2:
+                {
+                    ss<<"smovr_2 ";
+                    ss<< Asm::registrerToString(GET_Ca(x64)) << ", fp+";
+                    if(GET_Cb(x64)<0) ss<<"[";
+                    ss<<GET_Cb(x64);
+                    if(GET_Cb(x64)<0) ss<<"]";
+                    _ostream << ss.str();
+                    break;
+                }
                 case op_ANDL:
                 {
                     ss<<"andl ";
@@ -9061,6 +9067,13 @@ void RuntimeEngine::createDumpFile() {
                 {
                     ss<<"returnval ";
                     ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_ISTORE:
+                {
+                    ss<<"istore ";
+                    ss<< GET_Da(x64);
                     _ostream << ss.str();
                     break;
                 }

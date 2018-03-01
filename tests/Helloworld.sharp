@@ -3,8 +3,41 @@ mod internal;
 class Runtime {
     var value;
 
-    public static def __srt_init_(object[] args) : var {
+    private def newClass() {
+        Runtime run = new Runtime();
+    }
 
+    private def newClassSetValue() {
+        Runtime run = new Runtime();
+        run.value = 9;
+    }
+
+    private def getClassSerial() {
+        var serial = Runtime.class;
+    }
+
+    private def getSelf() : Runtime {
+        self->value = 9;
+        return self;
+    }
+
+    private def foo(var i) {
+        /* Do nothing */
+    }
+
+    private def foo2(Runtime r, var i) {
+        /* Do nothing */
+    }
+
+    private def callMethods() {
+        getSelf().foo(9);
+    }
+
+    private def complexCallMethods() {
+        getSelf().foo2(getSelf(), 99);
+    }
+
+    public static def __srt_init_(object[] args) : var {
         return 0;
     }
 }

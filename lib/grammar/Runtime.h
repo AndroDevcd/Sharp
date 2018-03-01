@@ -60,6 +60,8 @@ public:
             return "void";
         else if(type==UNDEFINED)
             return "undefined";
+        else if(type==CLASSFIELD)
+            return typeToString(field->type);
         else
             return "unresolved";
     }
@@ -391,9 +393,9 @@ struct Scope {
     }
 
     void removeLocals(int block) {
+        readjust:
         if(locals.size() == 0) return;
 
-        readjust:
         for(long long i = locals.size()-1; i >= 0; i--) {
             if(locals.at(i).key==block) {
                 locals.remove(i);
