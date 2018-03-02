@@ -37,6 +37,7 @@ public:
         this->line_table.init();
         this->modifiers.init();
         this->params.init();
+        this->assembly_table.init();
     }
 
     Method(string name, string module, ClassObject* klass, List<Param>& params, List<AccessModifier>& modifiers,
@@ -61,6 +62,7 @@ public:
         this->line_table.init();
         this->modifiers.init();
         this->params.init();
+        this->assembly_table.init();
         this->params.addAll(params);
         this->modifiers.addAll(modifiers);
     }
@@ -87,6 +89,7 @@ public:
         this->line_table.init();
         this->modifiers.init();
         this->params.init();
+        this->assembly_table.init();
         this->params.addAll(params);
         this->modifiers.addAll(modifiers);
     }
@@ -120,6 +123,7 @@ public:
     bool array, isConstructor;
     int64_t localVariables;
     List<KeyPair<int64_t, long>> line_table;
+    List<KeyPair<int64_t, int64_t>> assembly_table;
     List<ExceptionTable> exceptions;
     List<FinallyTable> finallyBlocks;
     List<long> unique_address_table;

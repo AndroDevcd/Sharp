@@ -17,12 +17,13 @@ class Runtime {
     }
 
     private def getSelf() : Runtime {
-        self->value = 9;
+        //self->value = 9;
         return self;
     }
 
-    private def foo(var i) {
+    private def foo(var i) : var {
         /* Do nothing */
+        return 1;
     }
 
     private def foo2(Runtime r, var i) {
@@ -30,11 +31,48 @@ class Runtime {
     }
 
     private def callMethods() {
-        getSelf().foo(9);
+        self->getSelf().foo(9);
     }
 
     private def complexCallMethods() {
         getSelf().foo2(getSelf(), 99);
+    }
+
+    private def forLoop() {
+        for(var i = 0; i < 10; i++) {
+            foo(9);
+        }
+    }
+
+    private def forEach() {
+        var[] arry = new var[9];
+        foreach(var i : arry) {
+            i = 0;
+            break;
+        }
+    }
+
+    private def ifStatement() {
+        var x = 9.0;
+        var y;
+        if(x >= 1) {
+            //y = 1;
+            asm("nop");
+        } else if(getSelf().value == foo(9)) {
+            //y = 2;
+            asm("nop");
+        } else {
+            //y = 3;
+            asm("nop");
+        }
+    }
+
+
+    private def whileStatement() {
+        var x = 9;
+        while (x >= 0) {
+            x--;
+        }
     }
 
     public static def __srt_init_(object[] args) : var {

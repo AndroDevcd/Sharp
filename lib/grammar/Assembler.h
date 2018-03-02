@@ -69,7 +69,11 @@ public:
         injectors.value.free();
     }
 
+    void injecti64(int64_t i, int64_t i64) {
+        if(i < 0) return;
 
+        __asm64.insert(i, i64);
+    }
 
     void inject(int64_t i, Assembler &assembler) {
         if(i < 0) return;

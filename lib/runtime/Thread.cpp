@@ -925,6 +925,9 @@ void Thread::exec() {
             ISTORE:
                 dataStack[(int64_t)++registers[sp]].var = GET_Da(cache[pc]);
                 _brh
+            ISTOREL:
+                dataStack[(int64_t)registers[fp]+GET_Db(cache[pc])].var=cache[pc+1]; pc++;
+                _brh
 
         }
     } catch (bad_alloc &e) {

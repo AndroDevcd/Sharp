@@ -167,11 +167,13 @@ struct Expression {
 struct Block {
     Block()
             :
-            code()
+            code(),
+            assembly_table()
     {
     }
 
     Assembler code;
+    List<KeyPair<int64_t, int64_t>> assembly_table;
 
     void free() {
         code.free();
@@ -918,6 +920,8 @@ private:
     string find_method(int64_t id);
 
     string find_class(int64_t id);
+
+    bool isWholeNumber(double value);
 };
 
 
