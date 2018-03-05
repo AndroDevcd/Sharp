@@ -82,7 +82,7 @@ class Runtime {
         do {
             x--;
             lbl:
-            continue;
+            //continue;
             x--;
         }
         while (x >= 0);
@@ -103,6 +103,14 @@ class Runtime {
     private def newClassArraySetValue() {
         Runtime[] run = new Runtime[9];
         run[0] = new Runtime();
+    }
+
+    private def newArrayComplex2() {
+        var[] arry = new var[] { 1, 2, 3 };
+    }
+
+    private def newArrayComplex3() {
+        object[] arry = new object[] { null, new Runtime() };
     }
 
     public static def __srt_init_(object[] args) : var {

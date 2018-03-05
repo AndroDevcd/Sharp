@@ -390,7 +390,7 @@ void GarbageCollector::collect(SharpObject *object) {
             } else if(object->node != NULL) {
                 if(!isShutdown) {
                     for(unsigned long i = 0; i < object->size; i++) {
-                        Object *o = object->node[i].object;
+                        SharpObject *o = object->node[i].object;
                         /**
                          * If the object still has references we just drop it and move on
                          */

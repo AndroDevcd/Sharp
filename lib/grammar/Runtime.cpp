@@ -1178,13 +1178,9 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
     f.address = scope->currentFunction->localVariables++;
     f.local=true;
     Expression utype = parseUtype(pAst);
+    f.type = utype.utype.type;
     if(utype.utype.type == CLASS) {
         f.klass = utype.utype.klass;
-        f.type = CLASS;
-    } else if(utype.utype.isVar()) {
-        f.type = utype.utype.type;
-    } else {
-        f.type = UNDEFINED;
     }
 
     f.isArray = utype.utype.array;
@@ -3178,6 +3174,8 @@ void RuntimeEngine::checkVectorArray(Expression& utype, List<Expression>& vecArr
                             errors->createNewError(INCOMPATIBLE_TYPES, vecArry.get(i).link->line, vecArry.get(i).link->col, ": initalization of class `" +
                                                                                                                     utype.utype.klass->getName() + "` is not compatible with class `" + vecArry.get(i).utype.klass->getName() + "`");
                         }
+                    } else if(utype.utype.type == OBJECT) {
+                        /* Do nothing */
                     } else {
                         errors->createNewError(INCOMPATIBLE_TYPES, vecArry.get(i).link->line, vecArry.get(i).link->col, ": type `" + utype.utype.typeToString() + "` is not compatible with type `"
                                                                                                                 + vecArry.get(i).utype.typeToString() + "`");
@@ -3189,6 +3187,7 @@ void RuntimeEngine::checkVectorArray(Expression& utype, List<Expression>& vecArr
                                                                                                                 + vecArry.get(i).utype.typeToString() + "`");
                     }else {
                         if(utype.utype.isVar() && vecArry.get(i).utype.isVar()) {}
+                        else if(utype.utype.isVar() && vecArry.get(i).literal && vecArry.get(i).type == expression_var) {}
                         else if(utype.utype.dynamicObject() && vecArry.get(i).utype.dynamicObject()) {}
                         else {
                             errors->createNewError(INCOMPATIBLE_TYPES, vecArry.get(i).link->line, vecArry.get(i).link->col, ": type `" + utype.utype.typeToString() + "` is not compatible with type `"
@@ -3197,8 +3196,8 @@ void RuntimeEngine::checkVectorArray(Expression& utype, List<Expression>& vecArr
                     }
                     break;
                 case expression_null:
-                    if(utype.utype.type != CLASS) {
-                        errors->createNewError(GENERIC, vecArry.get(i).link->line, vecArry.get(i).link->col, "cannot assign null to type `" + utype.utype.typeToString() + "1");
+                    if(utype.utype.type != CLASS && utype.utype.type != OBJECT) {
+                        errors->createNewError(GENERIC, vecArry.get(i).link->line, vecArry.get(i).link->col, "cannot assign null to type `" + utype.utype.typeToString() + "`");
                     }
                     break;
                 case expression_string:
@@ -3254,6 +3253,45 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                 expression.type = expression_objectclass;
         }
         expression.utype.array = true;
+
+        expression.code.push_i64(SET_Di(i64, op_MOVI, expressions.size()), ebx);
+        if(expression.type == expression_var)
+            expression.code.push_i64(SET_Di(i64, op_NEWARRAY, ebx));
+        else if(expression.type == expression_lclass) {
+            expression.code.push_i64(SET_Ci(i64, op_NEWCLASSARRAY, ebx, 0, utype.utype.klass->address));
+        }
+        else
+            expression.code.push_i64(SET_Di(i64, op_NEWOBJARRAY, ebx));
+
+        // assign values
+
+        /**
+         * Mannually assign values
+         */
+        for(long i = 0; i < expressions.size(); i++) {
+            Expression &right = expressions.get(i);
+
+
+            switch(expression.type) {
+                case expression_var:
+                    expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+
+                    pushExpressionToRegister(right, expression, ebx);
+                    expression.code.push_i64(SET_Di(i64, op_MOVI, i), adx);
+                    expression.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                    break;
+                case expression_lclass:
+                case expression_objectclass:
+                    if(right.type != expression_null) {
+                        pushExpressionToStack(right, expression);
+
+                        expression.code.push_i64(SET_Di(i64, op_MOVSL, -1)); // get our array object
+                        expression.code.push_i64(SET_Di(i64, op_MOVN, i)); // select array element
+                        expression.code.push_i64(SET_Ei(i64, op_POPOBJ)); // set object
+                    }
+                    break;
+            }
+        }
     }
     else if(pAst->hasSubAst(ast_array_expression)) {
         expression.type = utype.type;
@@ -6062,7 +6100,8 @@ Expression RuntimeEngine::fieldToExpression(Ast *pAst, Field& field) {
 
     fieldExpr.type = expression_field;
     fieldExpr.utype.field = &field;
-    fieldExpr.utype.type = CLASSFIELD;
+    fieldExpr.utype.type = field.type;
+    fieldExpr.utype.array = field.isArray;
     fieldExpr.utype.referenceName = field.name;
 
     if(field.isObjectInMemory()) {

@@ -782,7 +782,7 @@ void Thread::exec() {
                 _brh
             CALL:
                 vm->executeMethod(GET_Da(cache[pc]));
-                _brh
+                _brh_NOINCREMENT
             NEWCLASS:
                 CHECK_NULL(dataStack[(int64_t)++registers[sp]].object = GarbageCollector::self->newObject(env->findClassBySerial(GET_Da(cache[pc])));)
                 _brh

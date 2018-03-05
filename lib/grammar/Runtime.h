@@ -70,7 +70,7 @@ public:
         referenceName.clear();
     }
 
-    bool isVar() { return type==VAR || type==OBJECT; }
+    bool isVar() { return type==VAR; }
     bool dynamicObject() { return type==OBJECT; }
 
     string referenceName;
