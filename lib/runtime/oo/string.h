@@ -41,7 +41,7 @@ public:
     void operator=(const string &str) {
         free();
 
-        if(str != "") {
+        if(!str.empty()) {
             len = str.size();
             chars = (char*)malloc(sizeof(char)*len);
             assign(str);

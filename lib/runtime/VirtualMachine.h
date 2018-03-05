@@ -8,6 +8,7 @@
 #include "../../stdimports.h"
 #include "oo/ClassObject.h"
 #include "oo/string.h"
+#include "Thread.h"
 
 class Environment;
 class SharpObject;

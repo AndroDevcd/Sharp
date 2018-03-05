@@ -83,6 +83,7 @@ public:
     int32_t id;
     Mutex mutex;
     bool daemon;
+    bool terminated;
     unsigned int state;
     bool suspended;
     bool exited;

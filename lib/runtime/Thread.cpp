@@ -9,6 +9,7 @@
 #include "VirtualMachine.h"
 #include "Opcode.h"
 #include "register.h"
+#include "Manifest.h"
 
 int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
@@ -56,6 +57,7 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     thread->throwable.init();
     thread->exited = false;
     thread->daemon = false;
+    thread->terminated = false;
     thread->state = THREAD_CREATED;
     thread->exitVal = 0;
     thread->stack_lmt = stack_size;
@@ -81,9 +83,11 @@ void Thread::Create(string name) {
     this->exited = false;
     this->throwable.init();
     this->daemon = false;
+    this->terminated = false;
     this->state = THREAD_CREATED;
     this->exitVal = 0;
     this->stack_lmt = STACK_SIZE;
+    this->callStack.init();
 
     for(unsigned long i = 0; i < STACK_SIZE; i++) {
         this->dataStack[i].object.object = NULL;
@@ -107,6 +111,7 @@ void Thread::CreateDaemon(string name) {
     this->suspended = false;
     this->exited = false;
     this->daemon = true;
+    this->terminated = false;
     this->throwable.init();
     this->state = THREAD_CREATED;
     this->exitVal = 0;
@@ -186,6 +191,9 @@ int Thread::start(int32_t id) {
     if(thread->state == THREAD_RUNNING)
         return 2;
 
+    if(thread->terminated)
+        return 4;
+
     thread->exited = false;
     thread->state = THREAD_CREATED;
 #ifdef WIN32_
@@ -218,7 +226,7 @@ int Thread::destroy(int64_t id) {
     if(thread == NULL || thread->daemon)
         return 1;
 
-    if (thread->state == THREAD_KILLED)
+    if (thread->state == THREAD_KILLED || thread->terminated)
     {
         if (thread->id == main_threadid)
         {
@@ -243,6 +251,8 @@ int Thread::interrupt(int32_t id) {
     Thread* thread = getThread(id);
     if(thread == NULL || thread->daemon)
         return 1;
+    if(thread->terminated)
+        return 2;
 
     return interrupt(thread);
 }
@@ -355,6 +365,8 @@ void Thread::suspendThread(Thread *thread) {
 }
 
 void Thread::term() {
+    this->state = THREAD_KILLED;
+    this->terminated = true;
     this->mutex.release();
     if(dataStack != NULL) {
         for(unsigned long i = 0; i < this->stack_lmt; i++) {
@@ -372,6 +384,8 @@ int Thread::join(int32_t id) {
     Thread* thread = getThread(id);
     if (thread == NULL || thread->daemon)
         return 1;
+    if(thread->terminated)
+        return 2;
 
     return threadjoin(thread);
 }
@@ -402,10 +416,10 @@ void Thread::killAll() {
         if(thread != NULL && thread->id != thread_self->id) {
             if(thread->state == THREAD_RUNNING){
                 interrupt(thread);
-                waitForThreadExit(thread);
             }
 
             thread->term();
+            waitForThreadExit(thread);
         } else if(thread != NULL){
             thread->term();
         }
@@ -461,7 +475,10 @@ void Thread::exit() {
         ss << endl << throwable.throwable->name.str() << " ("
            << throwable.message.str() << ")\n";
     } else {
-        this->exitVal = (int)dataStack[0].var;
+        if(!daemon)
+            this->exitVal = (int)dataStack[0].var;
+        else
+            this->exitVal = 0;
     }
 
     this->exited = true;
@@ -584,13 +601,14 @@ void Thread::exec() {
     SharpObject* o;
     Object* o2;
     void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
+    Method* finnallyMethod;
 
     _initOpcodeTable
     try {
         for (;;) {
             /* We dont want to always run finally code when we start a thread */
             if(startAddress == 0) goto interp;
-            Method* finnallyMethod = current;
+            finnallyMethod = current;
 
             finally:
             if((pc <finallyTable.start_pc || pc > finallyTable.end_pc)
@@ -750,8 +768,8 @@ void Thread::exec() {
                         throw Exception(Environment::IndexOutOfBoundsException, ss.str());
                     }
                 )
-            GOTO:
-                pc = GET_Da(cache[pc]);
+
+                pc = GET_Da(cache[pc]);GOTO:
                 _brh_NOINCREMENT
             LOADPC:
                 registers[GET_Da(cache[pc])] = pc;
@@ -910,7 +928,7 @@ void Thread::exec() {
                 _brh
             RMOV:
                 CHECK_NULLOBJ(
-                    o2->object->HEAD[registers[GET_Ca(cache[pc])]]=registers[GET_Cb(cache[pc])];
+                    o2->object->HEAD[(int64_t)registers[GET_Ca(cache[pc])]]=registers[GET_Cb(cache[pc])];
                 )
                 _brh
             SMOV:
@@ -926,7 +944,7 @@ void Thread::exec() {
                 dataStack[(int64_t)++registers[sp]].var = GET_Da(cache[pc]);
                 _brh
             ISTOREL:
-                dataStack[(int64_t)registers[fp]+GET_Db(cache[pc])].var=cache[pc+1]; pc++;
+                dataStack[(int64_t)registers[fp]+GET_Da(cache[pc])].var=cache[pc+1]; pc++;
                 _brh
 
         }

@@ -932,7 +932,7 @@ void RuntimeEngine::parseDoWhileStatement(Block& block, Ast* pAst) {
 
     parseBlock(pAst->getSubAst(ast_block), block);
 
-    Expression cond = parseExpression(pAst), out;
+    Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out;
     pushExpressionToRegister(cond, out, cmt);
     block.code.inject(block.code.size(), out.code);
 
@@ -1008,12 +1008,15 @@ void RuntimeEngine::parseTryCatchStatement(Block& block, Ast* pAst) {
     parseBlock(pAst->getSubAst(ast_block), block);
     et.end_pc = block.code.__asm64.size();
 
+
     if(pAst->hasSubAst(ast_catch_clause))
         scope->reachable=true;
 
     stringstream ss;
     ss << try_label_end_id << ++scope->uniqueLabelSerial;
     catchEndLabel = ss.str();
+
+    scope->addBranch(catchEndLabel, 1, block.code, pAst->getSubAst(ast_block)->line, pAst->getSubAst(ast_block)->col);
 
     Ast* sub;
     for(unsigned int i = 1; i < pAst->getSubAstCount(); i++) {
@@ -1061,7 +1064,7 @@ void RuntimeEngine::parseTryCatchStatement(Block& block, Ast* pAst) {
 }
 
 void RuntimeEngine::parseThrowStatement(Block& block, Ast* pAst) {
-    Expression clause = parseExpression(pAst), out;
+    Expression clause = parseExpression(pAst->getSubAst(ast_expression)), out;
     currentScope()->reachable=false;
     currentScope()->last_statement=ast_throw_statement;
 
@@ -1097,6 +1100,8 @@ void RuntimeEngine::parseThrowStatement(Block& block, Ast* pAst) {
     }
 }
 
+// TODO: allow to be used with do while and while loops and foreach
+// also make statements after this unreachable
 void RuntimeEngine::parseContinueStatement(Block& block, Ast* pAst) {
     Scope* scope = currentScope();
 
@@ -1127,7 +1132,7 @@ void RuntimeEngine::parseGotoStatement(Block& block, Ast* pAst) {
     Scope* scope = currentScope();
     string label = pAst->getEntity(1).getToken();
 
-    scope->addBranch(label, 0, block.code, pAst->line, pAst->col);
+    scope->addBranch(label, 1, block.code, pAst->line, pAst->col);
 }
 
 bool RuntimeEngine::label_exists(string label) {
@@ -3512,7 +3517,7 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
-    Expression expression, interm, indexExpr, rightExpr;
+    Expression expression, interm, indexExpr;
     Field* field;
 
     interm = parseIntermExpression(pAst->getSubAst(0));
@@ -3559,6 +3564,8 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
             } else {
                 expression.type = expression_unknown;
             }
+
+            expression.code.push_i64(SET_Ei(i64, op_POP));
             
             break;
         case expression_string:
@@ -8160,7 +8167,6 @@ std::string RuntimeEngine::generate_text_section() {
         text << i64_tostr(f->localVariables);
         text << i64_tostr(f->code.__asm64.size());
         text << (f->isStatic() ? 0 : 1) << ((char)nil);
-        text << (f->isStatic() ? 0 : 1) << ((char)nil);
         text << (f->type==TYPEVOID ? 0 : 1) << ((char)nil);
 
         text << f->line_table.size() << ((char)nil);
@@ -8895,7 +8901,7 @@ void RuntimeEngine::createDumpFile() {
                     ss<<"new_classarray ";
                     ss<< Asm::registrerToString(GET_Ca(x64));
                     ss<< " ";
-                    ss << " // "; ss << find_class(GET_Da(x64));
+                    ss << " // "; ss << find_class(GET_Cb(x64)) << "[]";
                     _ostream << ss.str();
                     break;
                 }

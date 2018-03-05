@@ -10,6 +10,9 @@
 #include "Environment.h"
 #include "../util/time.h"
 #include "Opcode.h"
+#include "../grammar/FieldType.h"
+#include "oo/Field.h"
+#include "Manifest.h"
 
 VirtualMachine* vm;
 Environment* env;
@@ -24,6 +27,8 @@ int CreateVirtualMachine(std::string exe)
 
     Thread::Startup();
     GarbageCollector::startup();
+
+    manifest.classes -= AUX_CLASSES;
 
     /**
      * Aux classes
@@ -128,8 +133,13 @@ int CreateVirtualMachine(std::string exe)
 
     cout.precision(16);
 
+    /**
+     * Initilize all calsses to be used for static access
+     * TODO: add flag to check if class has ststic values
+     */
     for(unsigned long i = 0; i < manifest.classes; i++) {
-        env->globalHeap[i].object = NULL;
+        env->globalHeap[i].object = GarbageCollector::self->newObject(env->findClassBySerial(i));
+        env->globalHeap[i].object->generation = gc_perm;
     }
 
     return 0;
@@ -309,6 +319,7 @@ void VirtualMachine::Throw(Object *exceptionObject) {
     }
 
     while(thread_self->callStack.size() > 1) {
+        Method *method = thread_self->current;
         executeFinally(thread_self->current);
 
         /**

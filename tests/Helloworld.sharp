@@ -75,6 +75,36 @@ class Runtime {
         }
     }
 
+
+    private def doWhileStatement() {
+        var x = 9;
+        goto lbl;
+        do {
+            x--;
+            lbl:
+            continue;
+            x--;
+        }
+        while (x >= 0);
+    }
+
+
+
+    private def tryCatchStatement() {
+        try {
+            throw new Exception();
+        } catch(Exception e) {
+            var x = 9;
+        } catch(Throwable t) {
+            getSelf();
+        }
+    }
+
+    private def newClassArraySetValue() {
+        Runtime[] run = new Runtime[9];
+        run[0] = new Runtime();
+    }
+
     public static def __srt_init_(object[] args) : var {
         return 0;
     }

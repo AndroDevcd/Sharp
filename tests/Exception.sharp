@@ -1,0 +1,12 @@
+mod std.err;
+
+/**
+ * Created by braxtonn on 3/2/2018.
+ */
+class Exception base Throwable {
+    
+}
+
+class Throwable {
+
+}

@@ -128,7 +128,8 @@ int Process_Exe(std::string exe)
         List<KeyPair<int64_t, Field*>> mFields;
         int64_t classRefptr=0, macroRefptr=0, fileRefptr=0;
 
-        env->classes =(ClassObject*)malloc(sizeof(ClassObject)*(manifest.classes + AUX_CLASSES));
+        manifest.classes += AUX_CLASSES;
+        env->classes =(ClassObject*)malloc(sizeof(ClassObject)*manifest.classes);
         env->methods = (Method*)malloc(sizeof(Method)*manifest.methods);
         env->strings = (String*)malloc(sizeof(String)*(manifest.strings+1));
         env->globalHeap = (Object*)malloc(sizeof(Object)*manifest.classes);
@@ -272,8 +273,6 @@ int Process_Exe(std::string exe)
             }
         }
 
-        env->strings[stringPtr].id = stringPtr+1;
-        env->strings[stringPtr].value.init();
         if(buffer.at(n++) != stext)
             throw std::runtime_error("file `" + exe + "` may be corrupt");
 

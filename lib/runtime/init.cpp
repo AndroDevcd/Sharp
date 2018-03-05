@@ -14,6 +14,7 @@
 #include "Exe.h"
 #include "register.h"
 #include "memory/GarbageCollector.h"
+#include "Manifest.h"
 
 options c_options;
 int startApplication(string e, List<native_string> &pArgs);
@@ -180,11 +181,6 @@ void init_main(List <native_string>& pArgs) {
     registers[fp] = 0;
 
     Thread *main = Thread::threads.get(main_threadid);
-    for(unsigned long i = 0; i < main->stack_lmt; i++) {
-        main->dataStack[i].object.object = NULL;
-        main->dataStack[i].var=0;
-    }
-
     Object* object = &main->dataStack[(long)++registers[sp]].object;
 
     createStringArray(object, pArgs);

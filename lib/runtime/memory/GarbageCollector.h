@@ -130,7 +130,7 @@ private:
     void collect(SharpObject *object);
 };
 
-#define GC_SLEEP_INTERVAL 10
+#define GC_SLEEP_INTERVAL 50
 
 /**
  * This number must be low considering that the Garbage collector will

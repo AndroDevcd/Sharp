@@ -8,6 +8,7 @@
 #include "oo/Object.h"
 #include "memory/GarbageCollector.h"
 #include "oo/Field.h"
+#include "Manifest.h"
 
 ClassObject *Environment::Throwable;
 ClassObject *Environment::StackOverflowErr;
@@ -47,13 +48,15 @@ void Environment::shutdown() {
         this->strings[i].value.free();
     std::free (this->strings);
 
-    for(int64_t i = 0; i < manifest.classes; i++)
+    for(int64_t i = 0; i < manifest.classes; i++) {
         this->classes[i].free();
+    }
     std::free (this->classes);
 
     for(int64_t i = 0; i < manifest.sourceFiles; i++)
         this->sourceFiles[i].free();
     std::free (this->sourceFiles);
+
 
     /**
      * The beauty of the memory managment system is it does all the hard work for us
