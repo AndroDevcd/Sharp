@@ -10,7 +10,7 @@ class Runtime {
     }
 
     public static def __srt_init_(object[] args) : var {
-
+        print("H");
         return 0;
     }
 }

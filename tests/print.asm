@@ -19,5 +19,5 @@
     _putc %ebx
     inc %cx
     lt %cx,%ecf            // check if we have reached the end of the string
-    bre
+    ife
 ret

@@ -1954,6 +1954,8 @@ void RuntimeEngine::pushAuthenticExpressionToStackNoInject(Expression& expressio
             }
             break;
         case expression_string:
+            out.code.push_i64(SET_Di(i64, op_INC, sp));
+            out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
             out.code.push_i64(SET_Di(i64, op_NEWSTRING, expression.intValue));
             break;
         case expression_null:
@@ -2272,6 +2274,8 @@ void RuntimeEngine::pushExpressionToStackNoInject(Expression& expression, Expres
             }
             break;
         case expression_string:
+            out.code.push_i64(SET_Di(i64, op_INC, sp));
+            out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
             out.code.push_i64(SET_Di(i64, op_NEWSTRING, expression.intValue));
             break;
         case expression_null:

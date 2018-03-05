@@ -434,6 +434,7 @@ void Asm::expect_class() {
     }
 }
 
+// TODO: add functionality to search by local variable name to get address
 void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast* pAst) {
     if(code == "") return;
 
@@ -868,7 +869,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_register();
 
                 assembler.push_i64(SET_Di(i64, op_NEWOBJARRAY, i2.high_bytes));
-            }  else if(instruction_is("not")) {
+            } else if(instruction_is("not")) {
                 expect_register();
                 itmp = i2;
                 expect(",");
@@ -897,6 +898,219 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_int();
 
                 assembler.push_i64(SET_Ci(i64, op_LOADVAL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("shl")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_register();
+
+                assembler.push_i64(SET_Ci(i64, op_SHL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+
+                expect(",");
+                expect_register();
+                assembler.push_i64(i2.high_bytes);
+            } else if(instruction_is("shr")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_register();
+
+                assembler.push_i64(SET_Ci(i64, op_SHR, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+
+                expect(",");
+                expect_register();
+                assembler.push_i64(i2.high_bytes);
+            } else if(instruction_is("and")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_register();
+
+                assembler.push_i64(SET_Ci(i64, op_AND, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("uand")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_register();
+
+                assembler.push_i64(SET_Ci(i64, op_UAND, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("or")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_register();
+
+                assembler.push_i64(SET_Ci(i64, op_OR, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("unot")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_register();
+
+                assembler.push_i64(SET_Ci(i64, op_UNOT, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("throw")) {
+                assembler.push_i64(SET_Ei(i64, op_THROW));
+            } else if(instruction_is("check_null")) {
+                assembler.push_i64(SET_Ei(i64, op_CHECKNULL));
+            } else if(instruction_is("return_obj")) {
+                assembler.push_i64(SET_Ei(i64, op_RETURNOBJ));
+            } else if(instruction_is("newclass_array")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+
+                expect("<");
+                expect_class();
+                expect(">");
+
+                assembler.push_i64(SET_Ci(i64, op_NEWCLASSARRAY, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("new_string")) {
+                expect_int();
+
+                assembler.push_i64(SET_Di(i64, op_NEWSTRING, i2.high_bytes));
+            } else if(instruction_is("addl")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_ADDL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("subl")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_SUBL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("mull")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_MULL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("divl")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_DIVL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("modl")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_MODL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("iaddl")) {
+                expect_int();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_IADDL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("isubl")) {
+                expect_int();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_ISUBL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("imull")) {
+                expect_int();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_IMULL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("idivl")) {
+                expect_int();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_IDIVL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("imodl")) {
+                expect_int();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_IMODL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("loadl")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_LOADL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("iaload_2")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_register();
+
+                assembler.push_i64(SET_Ci(i64, op_IALOAD_2, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("popobj")) {
+                assembler.push_i64(SET_Ei(i64, op_POPOBJ));
+            } else if(instruction_is("smovr_2")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_SMOVR_2, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("andl")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_ANDL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("orl")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_ORL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("notl")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_NOTL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("rmov")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_register();
+
+                assembler.push_i64(SET_Ci(i64, op_RMOV, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("smov")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_SMOV, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("return_val")) {
+                expect_register();
+
+                assembler.push_i64(SET_Di(i64, op_RETURNVAL, i2.high_bytes));
+            } else if(instruction_is("istore")) {
+                expect_int();
+
+                assembler.push_i64(SET_Di(i64, op_ISTORE, i2.high_bytes));
+            } else if(instruction_is("istorel")) {
+                expect_int();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Di(i64, op_ISTORE, itmp.high_bytes), i2.high_bytes);
             } else {
                 npos++;
                 tk->getErrors()->createNewError(GENERIC, current(), "expected instruction");

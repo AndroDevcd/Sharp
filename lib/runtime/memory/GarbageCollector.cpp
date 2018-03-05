@@ -98,6 +98,7 @@ void GarbageCollector::freeObject(Object *object) {
         object->object->mutex.acquire(INDEFINITE);
         object->object->refCount--;
 
+        mutex.acquire(INDEFINITE);
         switch(object->object->generation) {
             case gc_young:
                 yObjs++;
@@ -109,6 +110,7 @@ void GarbageCollector::freeObject(Object *object) {
                 oObjs++;
                 break;
         }
+        mutex.release();
 
         object->object->mutex.release();
         object->object = NULL;
