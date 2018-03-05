@@ -24,7 +24,8 @@ int main(int argc, const char* argv[]) {
     now= Clock::realTimeInNSecs();
 
     if(c_options.debugMode)
-        cout << endl << "Compiled in " << NANO_TOMILL(now-past) << "ms\n";
+        cout << endl << "Compiled in " << NANO_TOMICRO(now-past) << "us & "
+             << NANO_TOMILL(now-past) << "ms\n";
 
     cout << endl << "program exiting..." << endl;
     return 0;

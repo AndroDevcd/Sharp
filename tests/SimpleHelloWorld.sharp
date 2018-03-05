@@ -5,7 +5,12 @@ mod internal;
  */
 class Runtime {
 
+    static def print(var[] message) {
+        asm("tests/print.asm");
+    }
+
     public static def __srt_init_(object[] args) : var {
+
         return 0;
     }
 }

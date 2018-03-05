@@ -388,14 +388,15 @@ void GarbageCollector::collect(SharpObject *object) {
             } else if(object->node != NULL) {
                 if(!isShutdown) {
                     for(unsigned long i = 0; i < object->size; i++) {
+                        Object *o = object->node[i].object;
                         /**
                          * If the object still has references we just drop it and move on
                          */
-                        if(!isShutdown && object->node[i].object->refCount > 1)
+                        if(o != NULL && o->refCount > 1)
                             freeObject(&object->node[i]);
                         else  {
-                            collect(object->node[i].object);
-                            heap.remove(object->node[i].object);
+                            collect(o);
+                            heap.remove(o);
                         }
                     }
                 }
@@ -407,7 +408,7 @@ void GarbageCollector::collect(SharpObject *object) {
         }
 
         std::free(object);
-        managedBytes -= sizeof(SharpObject);
+        managedBytes -= sizeof(SharpObject)*1;
     }
 }
 
