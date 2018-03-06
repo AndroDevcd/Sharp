@@ -30,7 +30,7 @@
 
 #define GET_OP(i) (i & OPCODE_MASK)
 #define GET_Da(i) (i >> 8)
-#define GET_Ca(i) (((i >> 8) & 0) ? (i >> 9 & 0x7FFFFFF) : (-1*(i >> 9 & 0x7FFFFFF)))
+#define GET_Ca(i) (((i >> 8) & 1) ? (-1*(i >> 9 & 0x7FFFFFF)) : (i >> 9 & 0x7FFFFFF))
 #define GET_Cb(i) (i >> 36)
 
 #define DA_MAX 36028797018963967
@@ -41,7 +41,7 @@
 
 #define DISPATCH() if(pc<cacheSize) { goto *opcode_table[GET_OP(cache[pc])]; } else { throw Exception("invalid branch/dispatch; check your assembly code?"); }
 
-#define _brh pc++; for(int i = 0; i < 9895; i++){ i++; i++; i-=2; } goto *opcodeStart;
+#define _brh pc++; goto *opcodeStart;
 #define _brh_NOINCREMENT goto *opcodeStart;
 
 #define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }

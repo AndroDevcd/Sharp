@@ -5206,7 +5206,7 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
             else if(right.type == expression_field) {
                 if(right.utype.field->isNative()) {
                     if(right.utype.field->isVar()) {
-                        return !right.utype.field->isArray;
+                        return right.utype.field->isArray==left.utype.array;
                     }
                 }
             }
@@ -5223,7 +5223,7 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
                 // add var
                 if(right.type == expression_var) {
                     if(left.utype.field->isVar()) {
-                        return !left.utype.array;
+                        return left.utype.array==right.utype.array;
                     }
                 } else if(right.type == expression_objectclass) {
                     if(left.utype.field->dynamicObject()) {

@@ -1,0 +1,66 @@
+Object Dump file:
+################################
+
+func:@0 [internal#Runtime.newClassArraySetValue] in file: tests/Helloworld.sharp:103:38: note:  
+		    private def newClassArraySetValue() {
+		                                     ^
+
+
+newClassArraySetValue:
+[0x0] 0:	movl 1
+[0x1] 1:	movi #9, ebx
+[0x3] 3:	new_classarray ebx  // internal#Runtime[]
+[0x4] 4:	movl 1
+[0x5] 5:	popobj
+[0x6] 6:	new_class @0 // internal#Runtime
+[0x7] 7:	call @2 // <internal#Runtime.Runtime()>
+[0x8] 8:	movl 1
+[0x9] 9:	pushobj
+[0xa] 10:	movi #0, ebx
+[0xc] 12:	movsl #0
+[0xd] 13:	chklen ebx
+[0xe] 14:	movnd ebx
+[0xf] 15:	pop
+[0x10] 16:	popobj
+[0x11] 17:	ret
+
+func:@1 [internal#Runtime.__srt_init_] in file: tests/Helloworld.sharp:108:34: note:  
+		    public static def __srt_init_(object[] args) : var {
+		                                 ^
+
+
+__srt_init_:
+[0x0] 0:	movi #0, ebx
+[0x2] 2:	returnval ebx
+[0x3] 3:	ret
+
+func:@2 [internal#Runtime.Runtime] in file: tests/Helloworld.sharp:3:6: note:  
+		class Runtime {
+		     ^
+
+
+Runtime:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@3 [std.err#Exception.Exception] in file: tests/Exception.sharp:6:6: note:  
+		class Exception base Throwable {
+		     ^
+
+
+Exception:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@4 [std.err#Throwable.Throwable] in file: tests/Exception.sharp:10:6: note:  
+		class Throwable {
+		     ^
+
+
+Throwable:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+

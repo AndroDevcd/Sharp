@@ -1,0 +1,81 @@
+Object Dump file:
+################################
+
+func:@0 [internal#Runtime.print] in file: tests/LoopPerformanceTest.sharp:8:21: note:  
+		    static def print(var[] message) {
+		                    ^
+
+
+print:
+[0x0] 0:	movl 0
+[0x1] 1:	sizeof ecf
+[0x2] 2:	movi #0, cx
+[0x4] 4:	test cx, ecf
+[0x5] 5:	movi #9, adx
+[0x7] 7:	ifne
+[0x8] 8:	ret
+[0x9] 9:	movi #11, adx
+[0xb] 11:	iaload_2 ebx, cx
+[0xc] 12:	_putc ebx
+[0xd] 13:	inc cx
+[0xe] 14:	lt cx, ecf
+[0xf] 15:	ife
+[0x10] 16:	ret
+
+func:@1 [internal#Runtime.__srt_init_] in file: tests/LoopPerformanceTest.sharp:12:34: note:  
+		    public static def __srt_init_(object[] args) : var {
+		                                 ^
+
+
+__srt_init_:
+[0x0] 0:	istorel 0, fp+1
+[0x2] 2:	movi #10000000, ebx
+[0x4] 4:	movr egx, ebx
+[0x5] 5:	loadl ebx, fp+1
+[0x6] 6:	lt ebx, egx
+[0x7] 7:	movr ebx, cmt
+[0x8] 8:	movr cmt, ebx
+[0x9] 9:	movi #17, adx
+[0xb] 11:	ifne
+[0xc] 12:	loadl ebx, fp+1
+[0xd] 13:	movi #1, ecx
+[0xf] 15:	addl ecx, @1
+[0x10] 16:	goto @2
+[0x11] 17:	inc sp
+[0x12] 18:	movsl #0
+[0x13] 19:	newstr @0
+[0x14] 20:	call @0 // <internal#Runtime.print(var[])>
+[0x15] 21:	movi #0, ebx
+[0x17] 23:	returnval ebx
+[0x18] 24:	ret
+
+func:@2 [internal#Runtime.Runtime] in file: tests/LoopPerformanceTest.sharp:6:6: note:  
+		class Runtime {
+		     ^
+
+
+Runtime:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@3 [std.err#Exception.Exception] in file: tests/Exception.sharp:6:6: note:  
+		class Exception base Throwable {
+		     ^
+
+
+Exception:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@4 [std.err#Throwable.Throwable] in file: tests/Exception.sharp:10:6: note:  
+		class Throwable {
+		     ^
+
+
+Throwable:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+

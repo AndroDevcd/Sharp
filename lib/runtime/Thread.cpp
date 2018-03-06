@@ -768,8 +768,8 @@ void Thread::exec() {
                         throw Exception(Environment::IndexOutOfBoundsException, ss.str());
                     }
                 )
-
-                pc = GET_Da(cache[pc]);GOTO:
+            GOTO:
+                pc = GET_Da(cache[pc]);
                 _brh_NOINCREMENT
             LOADPC:
                 registers[GET_Da(cache[pc])] = pc;
