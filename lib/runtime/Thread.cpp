@@ -14,7 +14,7 @@
 int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
 List<Thread*> Thread::threads;
-Mutex Thread::threadsMonitor;
+MUTEX Thread::threadsMonitor = NULL;
 bool Thread::isAllThreadsSuspended = false;
 
 /*
@@ -44,7 +44,8 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     Thread* thread = (Thread*)malloc(
             sizeof(Thread)*1);
 
-    thread->mutex = Mutex();
+    thread->mutex = NULL;
+    MUTEX_INIT(&thread->mutex);
     thread->name.init();
     thread->main = method;
     thread->id = Thread::tid++;
@@ -71,7 +72,8 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
 }
 
 void Thread::Create(string name) {
-    this->mutex = Mutex();
+    this->mutex = NULL;
+    MUTEX_INIT(&this->mutex);
     this->name.init();
 
     this->name = name;
@@ -98,7 +100,8 @@ void Thread::Create(string name) {
 }
 
 void Thread::CreateDaemon(string name) {
-    this->mutex = Mutex();
+    this->mutex = NULL;
+    MUTEX_INIT(&this->mutex);
     this->name.init();
 
     this->name = name;
@@ -121,15 +124,15 @@ void Thread::CreateDaemon(string name) {
 }
 
 void Thread::pushThread(Thread *thread) {
-    threadsMonitor.acquire(INDEFINITE);
+    MUTEX_LOCK(threadsMonitor)
     threads.push_back(thread);
-    threadsMonitor.release();
+    MUTEX_UNLOCK(threadsMonitor)
 }
 
 void Thread::popThread(Thread *thread) {
-    threadsMonitor.acquire(INDEFINITE);
+    MUTEX_LOCK(threadsMonitor);
     threads.removefirst(thread);
-    threadsMonitor.release();
+    MUTEX_UNLOCK(threadsMonitor);
 }
 
 Thread *Thread::getThread(int32_t id) {
@@ -367,7 +370,7 @@ void Thread::suspendThread(Thread *thread) {
 void Thread::term() {
     this->state = THREAD_KILLED;
     this->terminated = true;
-    this->mutex.release();
+    MUTEX_UNLOCK(this->mutex);
     if(dataStack != NULL) {
         for(unsigned long i = 0; i < this->stack_lmt; i++) {
             GarbageCollector::self->freeObject(&dataStack[i].object);
@@ -469,11 +472,10 @@ void Thread::exit() {
 
     if(this->exceptionThrown) {
         this->exitVal = -800;
-        stringstream ss;
-        ss << "Unhandled exception on thread " << name.str() << " (most recent call last):\n"; ss
-                << throwable.stackTrace.str();
-        ss << endl << throwable.throwable->name.str() << " ("
-           << throwable.message.str() << ")\n";
+        cout << "Unhandled exception on thread " << name.str() << " (most recent call last):\n";
+                cout << throwable.stackTrace.str();
+        cout << endl << throwable.throwable->name.str() << " "
+           << throwable.message.str() << "\n";
     } else {
         if(!daemon)
             this->exitVal = (int)dataStack[0].var;
@@ -519,6 +521,26 @@ void*
         return waitForThread(thread);
 #endif
 }
+
+#ifdef DEBUGGING
+void printRegs() {
+    cout << endl;
+    cout << "Registers: \n";
+    cout << "adx = " << registers[adx] << endl;
+    cout << "cx = " << registers[cx] << endl;
+    cout << "cmt = " << registers[cmt] << endl;
+    cout << "ebx = " << registers[ebx] << endl;
+    cout << "ecx = " << registers[ecx] << endl;
+    cout << "ecf = " << registers[ecf] << endl;
+    cout << "edf = " << registers[edf] << endl;
+    cout << "ehf = " << registers[ehf] << endl;
+    cout << "bmr = " << registers[bmr] << endl;
+    cout << "egx = " << registers[egx] << endl;
+    cout << "sp = " << registers[sp] << endl;
+    cout << "fp = " << registers[fp] << endl;
+    cout << endl;
+}
+#endif
 
 double exponent(int64_t n){
     if (n < 100000){
@@ -593,6 +615,7 @@ short int startAddress = 0;
  * We need this to keep track of which finally block we are executing
  */
 FinallyTable finallyTable;
+long count = 0;
 
 void Thread::exec() {
 
@@ -616,6 +639,8 @@ void Thread::exec() {
                 return;
 
             interp:
+            count++;
+            //cout << count << endl;
             if (suspendPending)
                 suspendSelf();
             if (state == THREAD_KILLED)
@@ -799,10 +824,10 @@ void Thread::exec() {
                 registers[cmt]=registers[GET_Ca(cache[pc])]!=registers[GET_Cb(cache[pc])];
                 _brh
             LOCK:
-                CHECK_NULLOBJ(o2->object->mutex.acquire((int32_t)registers[GET_Da(cache[pc])]);)
+                CHECK_NULLOBJ(MUTEX_LOCK(o2->object->mutex);)
                 _brh
             ULOCK:
-                CHECK_NULLOBJ(o2->object->mutex.release();)
+                CHECK_NULLOBJ(MUTEX_UNLOCK(o2->object->mutex);)
                 _brh
             EXP:
                 registers[bmr] = exponent(registers[GET_Da(cache[pc])]);
@@ -904,7 +929,7 @@ void Thread::exec() {
                 registers[GET_Ca(cache[pc])]=dataStack[(int64_t)registers[fp]+GET_Cb(cache[pc])].var;
                 _brh
             IALOAD_2:
-                CHECK_NULLOBJ(
+                CHECK_INULLOBJ(
                         registers[GET_Ca(cache[pc])] = o2->object->HEAD[(uint64_t)registers[GET_Cb(cache[pc])]];
                 )
                 _brh
@@ -954,10 +979,19 @@ void Thread::exec() {
     } catch (Exception &e) {
         throwable = e.getThrowable();
         exceptionThrown = true;
+
+        if(state == THREAD_KILLED) {
+            vm->fillStackTrace(throwable.stackTrace);
+            return;
+        }
         vm->Throw(&dataStack[(int64_t)registers[sp]].object);
 
         DISPATCH();
     }
+}
+
+void Thread::dbg() {
+    int i = 0;
 }
 
 void __os_sleep(int64_t INTERVAL) {

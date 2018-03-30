@@ -46,6 +46,14 @@ Exception::~Exception()
 
 void Exception::pushException() {
     if(thread_self != NULL && throwable.native) {
+        if(throwable.message == "out of memory") {
+            /*
+             * If there is no memory we exit
+             */
+            thread_self->state = THREAD_KILLED;
+            return;
+        }
+
         thread_self->dataStack[(int64_t)++registers[sp]].object
                 = GarbageCollector::self->newObject(throwable.throwable);
     }

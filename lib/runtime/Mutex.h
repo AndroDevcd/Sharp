@@ -5,42 +5,50 @@
 #ifndef SHARP_MUTEX_H
 #define SHARP_MUTEX_H
 
-
+#include <chrono>
+#include <thread>
+#include <mutex>
 #include "../../stdimports.h"
 
-#define INDEFINITE 0
+//Headers
+#if defined(POSIX_)
+    #include <pthread.h>
+#elif defined(WIN32_)
+    #include <windows.h>
+    #include <process.h>
+#endif
 
-enum LockStatus {
-    mutex_busy=0x1,
-    mutex_free=0x0
-};
+//Data types
+#if defined(POSIX_)
+    #define MUTEX pthread_mutex_t
+#elif defined(WIN32_)
+    #define MUTEX HANDLE
+#endif
 
-class Mutex {
-public:
-    Mutex()
-    :
-            threadid(-1),
-            status(mutex_free)
-    {
+#if defined(POSIX_)
+    #define MU_LOCK pthread_mutex_lock( &handle );
+#elif defined(WIN32_)
+    #define MU_LOCK(handle) WaitForSingleObject(&handle, INFINITE);
+#endif
+
+#if defined(POSIX_)
+    #define MU_ULOCK pthread_mutex_unlock( &handle );
+#elif defined(WIN32_)
+    #define MU_ULOCK(handle) ReleaseMutex(&handle);
+#endif \
+
+//Functions
+int MUTEX_INIT(MUTEX *mutex);
+
+#define MUTEX_LOCK(handle) \
+    if(handle != NULL) { \
+        MU_LOCK(handle) \
     }
 
-    ~Mutex()
-    {
-        release();
+#define MUTEX_UNLOCK(handle) \
+    if(handle != NULL) { \
+        MU_ULOCK(handle) \
     }
-
-    CXX11_INLINE
-    bool locked() {
-        return status == mutex_busy;
-    }
-
-    void _thread_wait_for_lock(int32_t);
-    bool acquire(int32_t spins = INDEFINITE);
-    void release();
-
-    int32_t  threadid;
-    LockStatus status;
-};
 
 
 #endif //SHARP_MUTEX_H

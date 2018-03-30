@@ -10,22 +10,22 @@ enum AccessModifier
     /*
      * Class and Field access modifiers
      */
-    PUBLIC,
-    PRIVATE,
-    PROTECTED,
+    PUBLIC=0,
+    PRIVATE=1,
+    PROTECTED=2,
 
     /*
      * Field access modifiers
      */
-    mCONST,
-    STATIC, /* Methods can use this modifier */
+    mCONST=3,
+    STATIC=4, /* Methods can use this modifier */
 
     /*
      * Function access modifiers
      */
-    OVERRIDE,
+    OVERRIDE=5,
 
-    mUNDEFINED
+    mUNDEFINED=6
 };
 
 #endif //SHARP_ACCESSMODIFIER_H

@@ -78,7 +78,8 @@ void* __realloc(void *ptr, size_t bytes)
 
 void GarbageCollector::initilize() {
     self=(GarbageCollector*)malloc(sizeof(GarbageCollector)*1);
-    self->mutex = Mutex();
+    self->mutex = NULL;
+    MUTEX_INIT(&self->mutex);
     self->heap.init();
     self->managedBytes=0;
     self->memoryLimit = 0;
@@ -95,10 +96,10 @@ void GarbageCollector::initilize() {
 void GarbageCollector::freeObject(Object *object) {
     if(object != NULL && object->object != NULL)
     {
-        object->object->mutex.acquire(INDEFINITE);
+        MUTEX_LOCK(object->object->mutex)
         object->object->refCount--;
 
-        mutex.acquire(INDEFINITE);
+        MUTEX_LOCK(mutex)
         switch(object->object->generation) {
             case gc_young:
                 yObjs++;
@@ -110,19 +111,19 @@ void GarbageCollector::freeObject(Object *object) {
                 oObjs++;
                 break;
         }
-        mutex.release();
+        MUTEX_UNLOCK(mutex)
 
-        object->object->mutex.release();
+        MUTEX_UNLOCK(object->object->mutex)
         object->object = NULL;
     }
 }
 
 void GarbageCollector::attachObject(Object* object, SharpObject *sharpObject) {
     if(object != NULL && sharpObject != NULL) {
-        sharpObject->mutex.acquire(INDEFINITE);
+        MUTEX_LOCK(sharpObject->mutex)
         sharpObject->refCount++;
         object->object = sharpObject;
-        sharpObject->mutex.release();
+        MUTEX_UNLOCK(sharpObject->mutex)
     }
 }
 
@@ -190,38 +191,37 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         }
     }
 
-    mutex.release();
+    MUTEX_UNLOCK(mutex)
 }
 
 void GarbageCollector::collectYoungObjects() {
-    SharpObject *object;
     yObjs = 0;
 
     reset:
     for(unsigned int i = 0; i < heap.size(); i++) {
 
-        mutex.acquire(INDEFINITE);
-        object = heap.get(i);
+        MUTEX_LOCK(mutex)
+        SharpObject *object = heap._Data[i];
 
-        if(object->generation == gc_young) {
+        if(object != NULL && object->generation == gc_young) {
             /* If all threads are suspended we don't have to worry about any interference */
             if(!Thread::isAllThreadsSuspended)
-                object->mutex.acquire(INDEFINITE);
+                MUTEX_LOCK(object->mutex)
 
             // free object
             if(object->refCount == 0) {
                 collect(object);
                 youngObjects--;
-                heap.remove(i); // drop pointer and reset list
-                mutex.release();
+                heap._Data[i]=NULL; // drop pointer and reset list
+                MUTEX_UNLOCK(mutex)
                 goto reset;
             } else {
                 adultObjects++;
 
                 object->generation = gc_adult;
                 if(!Thread::isAllThreadsSuspended)
-                    object->mutex.release();
-                mutex.release();
+                    MUTEX_UNLOCK(object->mutex)
+                MUTEX_UNLOCK(mutex)
             }
 
         }
@@ -235,28 +235,28 @@ void GarbageCollector::collectAdultObjects() {
     reset:
     for(unsigned int i = 0; i < heap.size(); i++) {
 
-        mutex.acquire(INDEFINITE);
-        object = heap.get(i);
+        MUTEX_LOCK(mutex)
+        object = heap._Data[i];
 
-        if(object->generation == gc_adult) {
+        if(object != NULL && object->generation == gc_adult) {
             /* If all threads are suspended we don't have to worry about any interference */
             if(!Thread::isAllThreadsSuspended)
-                object->mutex.acquire(INDEFINITE);
+                MUTEX_LOCK(object->mutex)
 
             // free object
             if(object->refCount == 0) {
                 collect(object);
                 adultObjects--;
-                heap.remove(i); // drop pointer and reset list
-                mutex.release();
+                heap._Data[i]=NULL; // drop pointer and reset list
+                MUTEX_UNLOCK(mutex)
                 goto reset;
             } else {
                 oldObjects++;
 
                 object->generation = gc_old;
                 if(!Thread::isAllThreadsSuspended)
-                    object->mutex.release();
-                mutex.release();
+                    MUTEX_UNLOCK(object->mutex)
+                MUTEX_UNLOCK(mutex)
             }
 
         }
@@ -269,20 +269,20 @@ void GarbageCollector::collectOldObjects() {
 
     reset:
     for(unsigned int i = 0; i < heap.size(); i++) {
-        mutex.acquire(INDEFINITE);
-        object = heap.get(i);
+        MUTEX_LOCK(mutex)
+        object = heap._Data[i];
 
-        if(object->generation == gc_old) {
+        if(object != NULL && object->generation == gc_old) {
             /* If all threads are suspended we don't have to worry about any interference */
             if(!Thread::isAllThreadsSuspended)
-                object->mutex.acquire(INDEFINITE);
+                MUTEX_LOCK(object->mutex)
 
             // free object
             if(object->refCount == 0) {
                 collect(object);
                 oldObjects--;
-                heap.remove(i); // drop pointer and reset list
-                mutex.release();
+                heap._Data[i]=NULL; // drop pointer and reset list
+                MUTEX_UNLOCK(mutex)
                 goto reset;
             } else {
                 /**
@@ -290,8 +290,8 @@ void GarbageCollector::collectOldObjects() {
                  * object
                  */
                 if(!Thread::isAllThreadsSuspended)
-                    object->mutex.release();
-                mutex.release();
+                    MUTEX_UNLOCK(object->mutex)
+                MUTEX_UNLOCK(mutex)
             }
 
         }
@@ -309,9 +309,10 @@ void GarbageCollector::run() {
             return;
 
         if(!messageQueue.empty()) {
-            mutex.acquire(INDEFINITE);
+            MUTEX_LOCK(mutex)
             CollectionPolicy policy = messageQueue.last();
             messageQueue.pop_back();
+            MUTEX_UNLOCK(mutex);
 
             /**
              * We only want to run a concurrent collection
@@ -319,8 +320,6 @@ void GarbageCollector::run() {
              */
             if(policy != GC_CONCURRENT)
                 collect(policy);
-            else
-                mutex.release();
         }
 
         if (retryCount++ == sMaxRetries)
@@ -375,9 +374,9 @@ GarbageCollector::threadStart(void *pVoid) {
 }
 
 void GarbageCollector::sendMessage(CollectionPolicy message) {
-    mutex.acquire(INDEFINITE);
+    MUTEX_LOCK(mutex)
     messageQueue.push_back(message);
-    mutex.release();
+    MUTEX_UNLOCK(mutex)
 }
 
 void GarbageCollector::collect(SharpObject *object) {
@@ -390,16 +389,10 @@ void GarbageCollector::collect(SharpObject *object) {
             } else if(object->node != NULL) {
                 if(!isShutdown) {
                     for(unsigned long i = 0; i < object->size; i++) {
-                        SharpObject *o = object->node[i].object;
                         /**
                          * If the object still has references we just drop it and move on
                          */
-                        if(o != NULL && o->refCount > 1)
-                            freeObject(&object->node[i]);
-                        else  {
-                            collect(o);
-                            heap.remove(o);
-                        }
+                        freeObject(&object->node[i]);
                     }
                 }
 
@@ -419,40 +412,40 @@ bool GarbageCollector::spaceAvailable(size_t bytes) {
 }
 
 SharpObject *GarbageCollector::newObject(unsigned long size) {
-    auto *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
+    SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
 
     object->init();
     object->size = size;
     object->refCount=1;
     if(size > 0) {
-        object->HEAD = (double*)__malloc(sizeof(double)*size);
-        for(unsigned int i = 0; i < object->size; i++)
-            object->HEAD[i]=0;
+        object->HEAD = (double*)__calloc(size, sizeof(double));
 
-        mutex.acquire(INDEFINITE);
+        MUTEX_LOCK(mutex)
         managedBytes += (sizeof(double)*size);
     }
 
     /* track the allocation amount */
-    mutex.acquire(INDEFINITE);
+    MUTEX_LOCK(mutex)
     managedBytes += (sizeof(SharpObject)*1);
-    heap.add(object);
-    mutex.release();
+    heap.addReplace(NULL, object);
+    youngObjects++;
+    MUTEX_UNLOCK(mutex);
 
     return object;
 }
 
 SharpObject *GarbageCollector::newObject(ClassObject *k) {
     if(k != NULL) {
-        auto *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
+        SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
 
         object->init();
         object->size = k->fieldCount;
         object->refCount=1;
         object->k = k;
 
+        MUTEX_LOCK(mutex);
         if(k->fieldCount > 0) {
-            object->node = (Object*)__malloc(sizeof(Object)*k->fieldCount);
+            object->node = (Object*)__calloc(k->fieldCount, sizeof(Object));
             for(unsigned int i = 0; i < object->size; i++) {
                 /**
                  * We want to set the class variables and arrays
@@ -460,18 +453,16 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
                  */
                 if(k->fields[i].type == VAR && !k->fields[i].isArray) {
                     object->node[i].object = newObject(1);
-                } else
-                    object->node[i].object=NULL;
+                }
             }
 
-            mutex.acquire(INDEFINITE);
             managedBytes += (sizeof(Object)*k->fieldCount);
         }
 
-        mutex.acquire(INDEFINITE);
         managedBytes += (sizeof(SharpObject)*1);
-        heap.add(object);
-        mutex.release();
+        heap.addReplace(NULL, object);
+        youngObjects++;
+        MUTEX_UNLOCK(mutex);
         return object;
     }
 
@@ -479,7 +470,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
 }
 
 SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
-    auto *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
+    SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
 
     object->init();
     object->size = size;
@@ -489,22 +480,23 @@ SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
         for(unsigned int i = 0; i < object->size; i++)
             object->node[i].object = NULL;
 
-        mutex.acquire(INDEFINITE);
+        MUTEX_LOCK(mutex)
         managedBytes += (sizeof(Object)*size);
     }
 
     /* track the allocation amount */
-    mutex.acquire(INDEFINITE);
+    MUTEX_LOCK(mutex)
     managedBytes += (sizeof(SharpObject)*1);
-    heap.add(object);
-    mutex.release();
+    heap.addReplace(NULL, object);
+    youngObjects++;
+    MUTEX_UNLOCK(mutex)
 
     return object;
 }
 
 SharpObject *GarbageCollector::newObjectArray(unsigned long size, ClassObject *k) {
     if(k != NULL) {
-        auto *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
+        SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
 
         object->init();
         object->size = size;
@@ -515,15 +507,16 @@ SharpObject *GarbageCollector::newObjectArray(unsigned long size, ClassObject *k
             for(unsigned int i = 0; i < object->size; i++)
                 object->node[i].object = NULL;
 
-            mutex.acquire(INDEFINITE);
+            MUTEX_LOCK(mutex)
             managedBytes += (sizeof(Object)*size);
         }
 
         /* track the allocation amount */
-        mutex.acquire(INDEFINITE);
+        MUTEX_LOCK(mutex)
         managedBytes += (sizeof(SharpObject)*1);
-        heap.add(object);
-        mutex.release();
+        heap.addReplace(NULL, object);
+        youngObjects++;
+        MUTEX_UNLOCK(mutex)
 
         return object;
     }

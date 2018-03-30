@@ -27,7 +27,6 @@ public:
     Thread()
             :
             id(-1),
-            mutex(),
             daemon(false),
             state(THREAD_KILLED),
             suspended(false),
@@ -41,6 +40,7 @@ public:
             dataStack(NULL)
 
     {
+        MUTEX_INIT(&mutex);
 
 #ifdef WIN32_
         thread = NULL;
@@ -77,11 +77,11 @@ public:
 
     static int32_t tid;
     static List<Thread*> threads;
-    static Mutex threadsMonitor;
+    static MUTEX threadsMonitor;
     static bool isAllThreadsSuspended;
 
     int32_t id;
-    Mutex mutex;
+    MUTEX mutex;
     bool daemon;
     bool terminated;
     unsigned int state;
@@ -108,6 +108,8 @@ public:
     pthread_t thread;
 #endif
 
+// @Remove
+    void dbg();
     void term();
 
     static void suspendAllThreads();

@@ -128,7 +128,8 @@ struct Expression {
             value(""),
             literal(false),
             arrayElement(false),
-            boolExpressions()
+            boolExpressions(),
+            inCmtRegister(false)
     {
     }
 
@@ -138,7 +139,7 @@ struct Expression {
     ResolvedReference utype;
     Assembler code;
     Ast* link;
-    bool dot, newExpression, func, literal, arrayElement;
+    bool dot, newExpression, func, literal, arrayElement, inCmtRegister;
     string value;
     double intValue;
     List<long> boolExpressions;

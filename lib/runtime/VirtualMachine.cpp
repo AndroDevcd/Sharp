@@ -154,6 +154,8 @@ void VirtualMachine::destroy() {
     GarbageCollector::self->shutdown();
 }
 
+extern long count;
+
 #ifdef WIN32_
 DWORD WINAPI
 #endif
@@ -171,6 +173,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         vm->executeMethod(thread_self->main->address);
 
         thread_self->exec();
+        cout << "instructions executed " << count << endl;
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();
@@ -266,20 +269,25 @@ void VirtualMachine::executeMethod(int64_t address) {
         throw Exception(ss.str());
     }
 
+    thread_self->dbg();
     Method* method = env->methods+address;
-    if(thread_self->callStack.empty())
+
+    if(thread_self->callStack.empty()) {
         thread_self->callStack.add(
                 Frame(NULL, 0, 0, 0)); // for main method
-    else
+    } else {
+        int64_t spAddr = method->paramSize==0 ? (method->isStatic ? method->returnVal : 0)+registers[sp] : registers[sp]-method->paramSize;
         thread_self->callStack.add(
-                Frame(thread_self->current, thread_self->pc, (registers[sp]-method->paramSize)+method->returnVal, registers[fp]));
-
+                Frame(thread_self->current, thread_self->pc, spAddr, registers[fp]));
+    }
 
     thread_self->pc = 0;
     thread_self->current = method;
     thread_self->cache = method->bytecode;
     thread_self->cacheSize = method->cacheSize;
-    registers[fp] = (registers[sp] - method->paramSize) + 1;
+    registers[fp] = thread_self->callStack.size()==1 ? registers[fp] :
+                    ((registers[sp] - method->paramSize) + (method->isStatic ? 1 : 0));
+    registers[sp] += (method->stackSize - method->paramSize);
 }
 
 int VirtualMachine::returnMethod() {
@@ -304,11 +312,12 @@ int VirtualMachine::returnMethod() {
 
 void VirtualMachine::Throw(Object *exceptionObject) {
     if(exceptionObject->object == NULL || exceptionObject->object->k == NULL) {
-        cout << "object ia not a class" << endl;
+        cout << "object is not a class" << endl;
         return;
     }
 
     thread_self->throwable.throwable = exceptionObject->object->k;
+    int t = thread_self->callStack.size();
     fillStackTrace(exceptionObject);
 
     if(TryThrow(thread_self->current, exceptionObject)) {
@@ -402,6 +411,38 @@ void VirtualMachine::fillStackTrace(Object *exceptionObject) {
     }
 }
 
+void VirtualMachine::fillMethodCall(Frame frame, stringstream &ss) {
+    if(frame.last == NULL) return;
+
+    ss << "\tSource ";
+    if(frame.last->sourceFile != -1 && frame.last->sourceFile < manifest.sourceFiles) {
+        ss << "\""; ss << env->sourceFiles[frame.last->sourceFile].str() << "\"";
+    }
+    else
+        ss << "\"Unknown File\"";
+
+    long long x, line=-1;
+    for(x = 0; x < frame.last->lineNumbers.size(); x++)
+    {
+        if(frame.last->lineNumbers.get(x).pc >= thread_self->pc)
+            break;
+    }
+
+    if(x > 0) {
+        ss << ", line " << (line = frame.last->lineNumbers.get(x - 1).line_number);
+    } else
+        ss << ", line ?";
+
+    ss << ", in "; ss << frame.last->name.str() << "() [0x" << std::hex
+                      << frame.last->address << "] $0x" << frame.pc  << std::dec;
+
+    if(line != -1 && metaData.sourceFiles.size() > 0) {
+        ss << getPrettyErrorLine(line, frame.last->sourceFile);
+    }
+
+    ss << "\n";
+}
+
 void VirtualMachine::fillStackTrace(native_string &str) {
 // fill message
     stringstream ss;
@@ -412,35 +453,13 @@ void VirtualMachine::fillStackTrace(native_string &str) {
                                                                              - EXCEPTION_PRINT_MAX : 0;
     for(long i = pos; i < thread_self->callStack.size(); i++)
     {
-        Frame frame = thread_self->callStack.get(i);
-
-        ss << "\tSource ";
-        if(frame.last->sourceFile != -1 && frame.last->sourceFile < manifest.sourceFiles) {
-            ss << "\""; ss << env->sourceFiles[frame.last->sourceFile].str() << "\"";
-        }
-        else
-            ss << "\"Unknown File\"";
-
-        long long x, line=-1;
-        for(x = 0; x < frame.last->lineNumbers.size(); x++)
-        {
-            if(frame.last->lineNumbers.get(x).pc > pc)
-                break;
-        }
-
-        if(x > 0) {
-            ss << ", line " << (line = frame.last->lineNumbers.get(x - 1).line_number);
-        } else
-            ss << ", line ?";
-
-        ss << ", in "; ss << frame.last->name.str() << "() [0x" << std::hex << frame.last->address << "] $0x" << frame.pc  << std::dec;
-
-        if(line != -1 && metaData.sourceFiles.size() > 0) {
-            ss << getPrettyErrorLine(line, frame.last->sourceFile);
-        }
-
-        ss << "\n";
+        fillMethodCall(thread_self->callStack.get(i), ss);
     }
+
+    Frame frame(thread_self->current, pc, registers[sp], _fp);
+    fillMethodCall(frame, ss);
+
+    str = ss.str();
 }
 
 string VirtualMachine::getPrettyErrorLine(long line, long sourceFile) {

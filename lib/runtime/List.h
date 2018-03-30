@@ -123,6 +123,17 @@ public:
         }
     }
 
+    void addReplace(T _X, T& _V) {
+        for(unsigned long i = 0; i < len; i++) {
+            if(_X == _Data[i]) {
+                replace(i, _V);
+                return;
+            }
+        }
+
+        add(_V);
+    }
+
     T at(unsigned long _X) {
         if(_X>=len){
             stringstream ss;
@@ -173,8 +184,8 @@ public:
         push_back(_V);
     }
 
-    void removefirst(T _V) {
-        unsigned int iter = -1;
+    int removefirst(T _V) {
+        long long iter = -1;
         for(unsigned int i = 0; i < len; i++) {
             if(_V == _Data[i]){
                 iter = i;
@@ -184,7 +195,9 @@ public:
 
         if(iter != -1) {
             remove(iter);
+            return 0;
         }
+        return 1;
     }
 
     /*
@@ -194,7 +207,7 @@ public:
     void replace(unsigned long _X, T repl) {
         if(_X>=len || _X < 0){
             stringstream ss;
-            ss << "index out of bounds list::replaceat() _X: " << _X
+            ss << "index out of bounds list::replace() _X: " << _X
                << " length: " << len << endl;
             throw Exception(ss.str());
         }
@@ -241,6 +254,7 @@ public:
 
     bool empty() { return len==0; }
 
+    T* _Data;
 private:
     CXX11_INLINE
     void __expand() {
@@ -277,7 +291,6 @@ private:
 
     unsigned  long len;
     unsigned  long max;
-    T* _Data;
 };
 
 #endif //SHARP_LIST_H

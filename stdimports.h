@@ -44,6 +44,10 @@ using namespace std;
     #define POSIX_USEC_INTERVAL 1000
 #endif
 
+#ifndef DEBUGGING
+#define DEBUGGING
+#endif
+
 struct Sharp {
     /**
      * Jan 13, 2017 Initial build release of sharp 0.1.3, this contains

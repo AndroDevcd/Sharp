@@ -62,6 +62,8 @@ public:
     }
 
     int exitVal;
+
+    void fillMethodCall(Frame frame, stringstream &ss);
 };
 
 extern VirtualMachine* vm;

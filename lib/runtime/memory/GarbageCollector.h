@@ -36,7 +36,7 @@ class ClassObject;
 class GarbageCollector {
 public:
     static GarbageCollector *self;
-    Mutex mutex;
+    MUTEX mutex;
     List<CollectionPolicy> messageQueue;
 
     static void initilize();

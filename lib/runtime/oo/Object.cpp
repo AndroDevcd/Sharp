@@ -5,19 +5,8 @@
 #include "Object.h"
 #include "../memory/GarbageCollector.h"
 #include "../Environment.h"
-
-void Object::operator=(Object &object) {
-    if(&object == this) return;
-
-    GarbageCollector::self->freeObject(this);
-    GarbageCollector::self->attachObject(this, object.object);
-}
-
-void Object::operator=(SharpObject *object) {
-    if(object == this->object) return;
-    GarbageCollector::self->freeObject(this);
-    this->object = object;
-}
+#include "../register.h"
+#include "../Thread.h"
 
 void Object::castObject(uint64_t classPtr) {
     if(this->object == NULL)
@@ -32,11 +21,4 @@ void Object::castObject(uint64_t classPtr) {
         ss << k->name.str() << "'";
         throw Exception(Environment::ClassCastException, ss.str());
     }
-}
-
-void Object::operator=(Object *object) {
-    if(object == this) return;
-    GarbageCollector::self->freeObject(this);
-    if(object != NULL)
-        GarbageCollector::self->attachObject(this, object->object);
 }

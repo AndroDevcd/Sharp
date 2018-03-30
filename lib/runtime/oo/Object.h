@@ -6,6 +6,7 @@
 #define SHARP_OBJECT_H
 
 #include "../Mutex.h"
+#include "../memory/GarbageCollector.h"
 
 struct Object;
 struct ClassObject;
@@ -17,9 +18,10 @@ struct SharpObject
         HEAD=NULL;
         node=NULL;
         k=NULL;
+        mutex = NULL;
         size=0;
         refCount=0;
-        mutex=Mutex();
+        MUTEX_INIT(&mutex);
         generation = 0x000; /* generation young */
     }
     double *HEAD;        /* data */
@@ -29,7 +31,7 @@ struct SharpObject
     ClassObject* k;
     unsigned long size;
     unsigned int refCount : 32;
-    Mutex mutex;
+    MUTEX mutex;
     unsigned int generation : 3; /* collection generation */
 };
 
@@ -40,9 +42,23 @@ struct SharpObject
 struct Object {
     SharpObject* object;
 
-    void operator=(Object &object);
-    void operator=(Object *object);
-    void operator=(SharpObject *object);
+    CXX11_INLINE void operator=(Object &object) {
+        if(&object == this) return;
+
+        GarbageCollector::self->freeObject(this);
+        GarbageCollector::self->attachObject(this, object.object);
+    }
+    CXX11_INLINE void operator=(Object *object) {
+        if(object == this) return;
+        GarbageCollector::self->freeObject(this);
+        if(object != NULL)
+            GarbageCollector::self->attachObject(this, object->object);
+    }
+    CXX11_INLINE void operator=(SharpObject *object) {
+        if(object == this->object) return;
+        GarbageCollector::self->freeObject(this);
+        this->object = object;
+    }
     void castObject(uint64_t classPtr);
 };
 
