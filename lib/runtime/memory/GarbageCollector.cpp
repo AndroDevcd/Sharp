@@ -81,7 +81,7 @@ void GarbageCollector::initilize() {
 #ifdef WIN32_
     self->mutex.initalize();
 #endif
-#ifdef POSIX
+#ifdef POSIX_
     mtx_init( &self->mutex, mtx_recursive );
 #endif
     self->_Mheap = new std::list<SharpObject*>();

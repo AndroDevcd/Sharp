@@ -19,7 +19,7 @@ List<Thread*> Thread::threads;
 #ifdef WIN32_
     recursive_mutex Thread::threadsMonitor;
 #endif
-#ifdef POSIX
+#ifdef POSIX_
     std::mutex Thread::threadsMonitor;
 #endif
 bool Thread::isAllThreadsSuspended = false;
@@ -54,7 +54,7 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
 #ifdef WIN32_
     thread->mutex.initalize();
 #endif
-#ifdef POSIX
+#ifdef POSIX_
     mtx_init( &thread->mutex, mtx_recursive );
 #endif
     thread->name.init();
@@ -86,7 +86,7 @@ void Thread::Create(string name) {
 #ifdef WIN32_
     this->mutex.initalize();
 #endif
-#ifdef POSIX
+#ifdef POSIX_
     mtx_init( &this->mutex, mtx_recursive );
 #endif
     this->name.init();
@@ -118,7 +118,7 @@ void Thread::CreateDaemon(string name) {
 #ifdef WIN32_
     this->mutex.initalize();
 #endif
-#ifdef POSIX
+#ifdef POSIX_
     mtx_init( &this->mutex, mtx_recursive );
 #endif
     this->name.init();

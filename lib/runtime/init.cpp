@@ -208,7 +208,7 @@ void createStringArray(Object *object, List<native_string> &args) {
 #ifdef WIN32_
     str = "win";
 #endif
-#ifdef POSIX
+#ifdef POSIX_
     str = "posix";
 #endif
     GarbageCollector::self->createStringArray(&object->object->node[iter++], str); /* operating system currently running on */

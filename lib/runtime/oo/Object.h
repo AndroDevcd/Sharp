@@ -21,7 +21,7 @@ struct SharpObject
 #ifdef WIN32_
         mutex.initalize();
 #endif
-#ifdef POSIX
+#ifdef POSIX_
         mtx_init( &mutex, mtx_recursive );
 #endif
         size=0;
@@ -38,7 +38,7 @@ struct SharpObject
 #ifdef WIN32_
     recursive_mutex mutex;
 #endif
-#ifdef POSIX
+#ifdef POSIX_
     std::mutex mutex;
 #endif
     unsigned int _gcInfo : 3; /* collection generation */

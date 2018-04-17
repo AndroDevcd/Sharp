@@ -43,7 +43,7 @@ public:
     #ifdef WIN32_
             mutex.initalize();
     #endif
-    #ifdef POSIX
+    #ifdef POSIX_
             mtx_init( &mutex, mtx_recursive );
     #endif
 
@@ -86,7 +86,7 @@ public:
     static recursive_mutex threadsMonitor;
     recursive_mutex mutex;
 #endif
-#ifdef POSIX
+#ifdef POSIX_
     std::mutex threadsMonitor;
     std::mutex mutex;
 #endif
