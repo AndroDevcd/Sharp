@@ -151,9 +151,10 @@ void GarbageCollector::shutdown() {
         cout << "Objects left over young: " << youngObjects << " adult: " << adultObjects
                                           << " old: " << oldObjects << endl;
         cout << "heap size: " << heap.size() << endl;
-        for (auto it = heap.begin(); it != heap.end(); it++) {
+        for (auto it = heap.begin(); it != heap.end();) {
             it = sweep(*it);
         }
+        cout << "finished\n";
         heap.clear();
         delete _Mheap;
         std::free(self); self = nullptr;
@@ -199,10 +200,10 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         /**
          * This should only be called by the GC thread itsself
          */
-        if(yObjs >1) {
+        if(GC_COLLECT_YOUNG()) {
             collectYoungObjects();
         }
-        if(aObjs>1) {
+        if(GC_COLLECT_ADULT()) {
             collectAdultObjects();
         }
         if(oObjs>1) {
@@ -228,8 +229,8 @@ void GarbageCollector::collectYoungObjects() {
             } else if(IS_MARKED(object->_gcInfo)) {
                 it = sweep(object);
             } else if(object->refCount > 0){
-//                adultObjects++;
-//                SET_GENERATION(object->generation, gc_adult);
+                adultObjects++;
+                SET_GENERATION(object->_gcInfo, gc_adult);
             } else {
                 cout << "wtf\n";
             }
@@ -332,19 +333,19 @@ void GarbageCollector::run() {
         {
             retryCount = 0;
 #ifdef WIN32_
-            //Sleep(GC_SLEEP_INTERVAL);
+            Sleep(GC_SLEEP_INTERVAL);
 #endif
 #ifdef POSIX_
             usleep(GC_SLEEP_INTERVAL*POSIX_USEC_INTERVAL);
 #endif
-        } else {
-            /**
-             * Attempt to collect objects based on the appropriate
-             * conditions. This call does not garuntee that any collections
-             * will happen
-             */
-            collect(GC_CONCURRENT);
         }
+
+        /**
+         * Attempt to collect objects based on the appropriate
+         * conditions. This call does not garuntee that any collections
+         * will happen
+         */
+        collect(GC_CONCURRENT);
 
     }
 }
