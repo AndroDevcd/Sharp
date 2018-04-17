@@ -7,7 +7,6 @@
 
 #include "../Mutex.h"
 #include "../List.h"
-#include "../../util/mingw.mutex.h"
 
 enum CollectionPolicy
 {

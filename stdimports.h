@@ -27,6 +27,7 @@ using namespace std;
 #ifdef WIN32_
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include "lib/util/mingw.mutex.h"
 
 #ifndef __wtypes_h__
 #include <wtypes.h>
@@ -40,6 +41,7 @@ using namespace std;
 #include <pthread.h>
     #include <unistd.h>
     #include <sys/time.h>
+    #include <mutex>
 
     #define POSIX_USEC_INTERVAL 1000
 #endif

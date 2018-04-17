@@ -8,7 +8,6 @@
 #include "../Thread.h"
 #include "../register.h"
 #include "../memory/GarbageCollector.h"
-#include "../../util/mingw.mutex.h"
 
 void Throwable::drop() {
     this->throwable = NULL;

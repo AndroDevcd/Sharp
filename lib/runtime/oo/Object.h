@@ -7,7 +7,6 @@
 
 #include "../Mutex.h"
 #include "../memory/GarbageCollector.h"
-#include "../../util/mingw.mutex.h"
 
 struct Object;
 struct ClassObject;
