@@ -5,7 +5,7 @@
 #ifndef SHARP_GARBAGECOLLECTOR_H
 #define SHARP_GARBAGECOLLECTOR_H
 
-#include "../Mutex.h"
+#include "../pThreadMutex.h"
 #include "../List.h"
 
 enum CollectionPolicy

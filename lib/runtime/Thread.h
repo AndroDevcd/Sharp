@@ -6,7 +6,7 @@
 #define SHARP_THREAD_H
 
 #include "../../stdimports.h"
-#include "Mutex.h"
+#include "pThreadMutex.h"
 #include "oo/ClassObject.h"
 #include "oo/Exception.h"
 #include "oo/Method.h"
@@ -44,7 +44,7 @@ public:
             mutex.initalize();
     #endif
     #ifdef POSIX_
-            mtx_init( &mutex, mtx_recursive );
+            mutex = std::mutex();
     #endif
 
 #ifdef WIN32_

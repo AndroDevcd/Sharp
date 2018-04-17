@@ -55,7 +55,7 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     thread->mutex.initalize();
 #endif
 #ifdef POSIX_
-    mtx_init( &thread->mutex, mtx_recursive );
+    thread->mutex = std::mutex();
 #endif
     thread->name.init();
     thread->main = method;
@@ -87,7 +87,7 @@ void Thread::Create(string name) {
     this->mutex.initalize();
 #endif
 #ifdef POSIX_
-    mtx_init( &this->mutex, mtx_recursive );
+    this->mutex = std::mutex();
 #endif
     this->name.init();
 
@@ -118,8 +118,8 @@ void Thread::CreateDaemon(string name) {
 #ifdef WIN32_
     this->mutex.initalize();
 #endif
-#ifdef POSIX_
-    mtx_init( &this->mutex, mtx_recursive );
+#ifdef POSIX
+    this->mutex = std::mutex();
 #endif
     this->name.init();
 

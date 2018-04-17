@@ -5,7 +5,7 @@
 #ifndef SHARP_OBJECT_H
 #define SHARP_OBJECT_H
 
-#include "../Mutex.h"
+#include "../pThreadMutex.h"
 #include "../memory/GarbageCollector.h"
 
 struct Object;
@@ -22,7 +22,7 @@ struct SharpObject
         mutex.initalize();
 #endif
 #ifdef POSIX_
-        mtx_init( &mutex, mtx_recursive );
+        mutex = std::mutex();
 #endif
         size=0;
         refCount=0;

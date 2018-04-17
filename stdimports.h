@@ -38,13 +38,13 @@ using namespace std;
 #endif
 #endif
 #ifdef POSIX_
-#include <pthread.h>
+    #include <pthread.h>
     #include <unistd.h>
     #include <sys/time.h>
-    #include <mutex>
-    #include <threads.h>
 
     #define POSIX_USEC_INTERVAL 1000
+
+    #define MUTEX pthread_mutex_t
 #endif
 
 #ifndef DEBUGGING
