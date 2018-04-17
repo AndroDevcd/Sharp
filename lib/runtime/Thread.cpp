@@ -118,7 +118,7 @@ void Thread::CreateDaemon(string name) {
 #ifdef WIN32_
     this->mutex.initalize();
 #endif
-#ifdef POSIX
+#ifdef POSIX_
     this->mutex = std::mutex();
 #endif
     this->name.init();
@@ -143,15 +143,13 @@ void Thread::CreateDaemon(string name) {
 }
 
 void Thread::pushThread(Thread *thread) {
-    MUTEX_LOCK(threadsMonitor)
+    std::lock_guard<recursive_mutex> guard(threadsMonitor);
     threads.push_back(thread);
-    MUTEX_UNLOCK(threadsMonitor)
 }
 
 void Thread::popThread(Thread *thread) {
-    MUTEX_LOCK(threadsMonitor);
+    std::lock_guard<recursive_mutex> guard(threadsMonitor);
     threads.removefirst(thread);
-    MUTEX_UNLOCK(threadsMonitor);
 }
 
 Thread *Thread::getThread(int32_t id) {
@@ -167,12 +165,14 @@ void Thread::suspendSelf() {
     thread_self->suspended = true;
     thread_self->suspendPending = false;
 
+    cout << "I am suspended " << thread_self << endl << std::flush;
     /*
 	 * We call wait upon suspend. This function will
 	 * sleep the thread most of the time. unsuspendThread() or
 	 * resumeAllThreads() should be called to revive thread.
 	 */
     thread_self->wait();
+    cout << "I am ALLIIVVFEEE " << thread_self << endl << std::flush;
 }
 
 void Thread::wait() {
@@ -303,9 +303,6 @@ void Thread::waitForThreadSuspend(Thread *thread) {
 
 void Thread::waitForThreadExit(Thread *thread) {
     const int sMaxRetries = 10000000;
-    const int sMaxSpinCount = 25;
-
-    int spinCount = 0;
     int retryCount = 0;
 
     while (!thread->exited)
@@ -313,12 +310,31 @@ void Thread::waitForThreadExit(Thread *thread) {
         if (retryCount++ == sMaxRetries)
         {
             retryCount = 0;
-            if(++spinCount >= sMaxSpinCount)
-            {
-                return; // give up
-            } else if(thread->exited)
+            if(thread->exited)
                 return;
+
+            __os_sleep(1);
         }
+    }
+}
+
+void Thread::terminateAndWaitForThreadExit(Thread *thread) {
+    const int sMaxRetries = 10000000;
+    int retryCount = 0;
+
+    thread->term();
+    while (!thread->exited)
+    {
+        if (retryCount++ == sMaxRetries)
+        {
+            retryCount = 0;
+            if(thread->exited)
+                return;
+
+            __os_sleep(1);
+        }
+
+        thread->state = THREAD_KILLED;
     }
 }
 
@@ -389,7 +405,6 @@ void Thread::suspendThread(Thread *thread) {
 void Thread::term() {
     this->state = THREAD_KILLED;
     this->terminated = true;
-    MUTEX_UNLOCK(this->mutex);
     if(dataStack != NULL) {
         for(unsigned long i = 0; i < this->stack_lmt; i++) {
             GarbageCollector::self->freeObject(&dataStack[i].object);
@@ -430,7 +445,9 @@ int Thread::threadjoin(Thread *thread) {
 
 void Thread::killAll() {
     Thread* thread;
+    cout << "suspending threads\n" << std::flush;
     suspendAllThreads();
+    cout << "SUSPENDED\n" << std::flush;
 
     for(unsigned int i = 0; i < threads.size(); i++) {
         thread = threads.get(i);
@@ -440,9 +457,13 @@ void Thread::killAll() {
                 interrupt(thread);
             }
 
-            thread->term();
-            waitForThreadExit(thread);
+            cout << "TERMINATING\n" << std::flush;
+            cout << "WWAITING" << thread << "....\n" << std::flush;
+            terminateAndWaitForThreadExit(thread);
+            cout << "DEAD\n" << std::flush;
         } else if(thread != NULL){
+
+            cout << "KILLING SELF\n" << std::flush;
             thread->term();
         }
     }
@@ -475,7 +496,9 @@ int Thread::interrupt(Thread *thread) {
 
 void Thread::shutdown() {
     if(!threads.empty()) {
+        cout << "killing everything\n" << std::flush;
         Thread::killAll();
+        cout << "threads are dead \n" << std::flush;
 
         for(unsigned int i = 0; i < threads.size(); i++) {
             if(threads.get(i) != NULL) {
@@ -502,8 +525,8 @@ void Thread::exit() {
             this->exitVal = 0;
     }
 
-    this->exited = true;
     this->state = THREAD_KILLED;
+    this->exited = true;
 }
 
 int Thread::startDaemon(

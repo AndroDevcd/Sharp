@@ -6,7 +6,6 @@
 #define SHARP_THREAD_H
 
 #include "../../stdimports.h"
-#include "pThreadMutex.h"
 #include "oo/ClassObject.h"
 #include "oo/Exception.h"
 #include "oo/Method.h"
@@ -61,6 +60,7 @@ public:
     static Thread* getThread(int32_t);
     static void waitForThreadSuspend(Thread* thread);
     static void waitForThreadExit(Thread* thread);
+    static void terminateAndWaitForThreadExit(Thread* thread);
     static int waitForThread(Thread *thread);
     static void killAll();
     static void shutdown();

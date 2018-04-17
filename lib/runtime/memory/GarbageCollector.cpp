@@ -159,7 +159,7 @@ void GarbageCollector::shutdown() {
             it = sweep(*it);
         }
         cout << "finished\n";
-        heap.clear();
+
         delete _Mheap;
         std::free(self); self = nullptr;
     }
@@ -225,14 +225,19 @@ void GarbageCollector::collectYoungObjects() {
     for (auto it = heap.begin(); it != heap.end(); it++) {
         SharpObject *object = *it;
 
+        if(thread_self->state == THREAD_KILLED)
+            return;
+
         if(GENERATION(object->_gcInfo) == gc_young) {
 
             // mark object
             if(!IS_MARKED(object->_gcInfo) && object->refCount == 0) {
                 markObject(object);
+                it = sweep(object);
             } else if(IS_MARKED(object->_gcInfo)) {
                 it = sweep(object);
             } else if(object->refCount > 0){
+                youngObjects--;
                 adultObjects++;
                 SET_GENERATION(object->_gcInfo, gc_adult);
             } else {
@@ -252,15 +257,19 @@ void GarbageCollector::collectAdultObjects() {
     start:
     for (auto it = heap.begin(); it != heap.end(); it++) {
         SharpObject *object = *it;
+        if(thread_self->state == THREAD_KILLED)
+            return;
 
         if(GENERATION(object->_gcInfo) == gc_adult) {
 
             // mark object
             if(!IS_MARKED(object->_gcInfo) && object->refCount == 0) {
                 markObject(object);
+                it = sweep(object);
             } else if(IS_MARKED(object->_gcInfo)) {
                 it = sweep(object);
             } else if(object->refCount > 0){
+                adultObjects--;
                 oldObjects++;
                 SET_GENERATION(object->_gcInfo, gc_old);
             } else {
@@ -285,6 +294,8 @@ void GarbageCollector::collectOldObjects() {
     start:
     for (auto it = heap.begin(); it != heap.end(); it++) {
         SharpObject *object = *it;
+        if(thread_self->state == THREAD_KILLED)
+            return;
 
         if(GENERATION(object->_gcInfo) == gc_old) {
 
@@ -316,8 +327,10 @@ void GarbageCollector::run() {
     for(;;) {
         if(thread_self->suspendPending)
             Thread::suspendSelf();
-        if(thread_self->state == THREAD_KILLED)
+        if(thread_self->state == THREAD_KILLED) {
+
             return;
+        }
 
         if(!messageQueue.empty()) {
             mutex.lock();
@@ -375,6 +388,7 @@ GarbageCollector::threadStart(void *pVoid) {
         /*
          * Check for uncaught exception in thread before exit
          */
+    cout << "exiting " << thread_self << endl << std::flush;
     thread_self->exit();
 #ifdef WIN32_
     return 0;
@@ -389,7 +403,7 @@ void GarbageCollector::sendMessage(CollectionPolicy message) {
     messageQueue.push_back(message);
 }
 
-list<SharpObject *>::iterator GarbageCollector::sweep(SharpObject *object) {
+list<SharpObject *>::iterator GarbageCollector::sweep(SharpObject *object, bool inv) {
     if(object != nullptr) {
 
         if(object->HEAD != nullptr) {
@@ -415,7 +429,10 @@ list<SharpObject *>::iterator GarbageCollector::sweep(SharpObject *object) {
 
         managedBytes -= sizeof(SharpObject)*1;
         std::free(object);
-        return invalidate(object);
+        if(inv)
+            return invalidate(object);
+        else
+            return list<SharpObject *>::iterator();
     }
 }
 
@@ -456,6 +473,8 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
                  */
                 if(k->fields[i].type == VAR && !k->fields[i].isArray) {
                     object->node[i].object = newObject(1);
+                } else {
+                    object->node[i].object = nullptr;
                 }
             }
 

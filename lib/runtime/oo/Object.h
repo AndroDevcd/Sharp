@@ -5,7 +5,6 @@
 #ifndef SHARP_OBJECT_H
 #define SHARP_OBJECT_H
 
-#include "../pThreadMutex.h"
 #include "../memory/GarbageCollector.h"
 
 struct Object;

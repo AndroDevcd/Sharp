@@ -150,8 +150,11 @@ void VirtualMachine::destroy() {
         exitVal = thread_self->exitVal;
     } else
         exitVal = 1;
+    cout << "shutting down threads\n" << std::flush;
     Thread::shutdown();
+    cout << "destroying gc\n" << std::flush;
     GarbageCollector::self->shutdown();
+    cout << "gc destroyed\n" << std::flush;
 }
 
 extern long count;
@@ -209,6 +212,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 }
 
 void VirtualMachine::shutdown() {
+    cout << "destroying vm\n";
     destroy();
     env->shutdown();
 }

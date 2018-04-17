@@ -5,7 +5,6 @@
 #ifndef SHARP_GARBAGECOLLECTOR_H
 #define SHARP_GARBAGECOLLECTOR_H
 
-#include "../pThreadMutex.h"
 #include "../List.h"
 
 enum CollectionPolicy
@@ -159,7 +158,7 @@ private:
      * @param object
      * @return
      */
-    list<SharpObject *>::iterator sweep(SharpObject *object);
+    list<SharpObject *>::iterator sweep(SharpObject *object, bool inv = true);
 
     void markObject(SharpObject *object);
 
@@ -172,7 +171,7 @@ private:
     }
 };
 
-#define GC_SLEEP_INTERVAL 4
+#define GC_SLEEP_INTERVAL 1
 
 /**
  * This number must be low considering that the Garbage collector will
