@@ -137,10 +137,10 @@ int CreateVirtualMachine(std::string exe)
      * Initilize all calsses to be used for static access
      * TODO: add flag to check if class has ststic values
      */
-    for(unsigned long i = 0; i < manifest.classes; i++) {
-        env->globalHeap[i].object = GarbageCollector::self->newObject(env->findClassBySerial(i));
-        env->globalHeap[i].object->generation = gc_perm;
-    }
+//    for(unsigned long i = 0; i < manifest.classes; i++) {
+//        env->globalHeap[i].object = GarbageCollector::self->newObject(env->findClassBySerial(i));
+//        env->globalHeap[i].object->generation = gc_perm;
+//    }
 
     return 0;
 }

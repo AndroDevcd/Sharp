@@ -7,7 +7,6 @@
 
 #include <chrono>
 #include <thread>
-#include <mutex>
 #include "../../stdimports.h"
 
 //Headers
@@ -26,29 +25,29 @@
 #endif
 
 #if defined(POSIX_)
-    #define MU_LOCK pthread_mutex_lock( &handle );
+    #define MU_LOCK (pthread_mutex_lock( &handle )!=0)
 #elif defined(WIN32_)
-    #define MU_LOCK(handle) WaitForSingleObject(&handle, INFINITE);
+    #define MU_LOCK(handle) (WaitForSingleObject(handle, INFINITE)!=WAIT_OBJECT_0)
 #endif
 
 #if defined(POSIX_)
     #define MU_ULOCK pthread_mutex_unlock( &handle );
 #elif defined(WIN32_)
-    #define MU_ULOCK(handle) ReleaseMutex(&handle);
+    #define MU_ULOCK(handle) ReleaseMutex(handle);
 #endif \
 
 //Functions
 int MUTEX_INIT(MUTEX *mutex);
 
 #define MUTEX_LOCK(handle) \
-    if(handle != NULL) { \
-        MU_LOCK(handle) \
-    }
+   // if(handle != NULL) { \
+       // while(MU_LOCK(handle) != 0){} \
+  //  }
 
 #define MUTEX_UNLOCK(handle) \
-    if(handle != NULL) { \
-        MU_ULOCK(handle) \
-    }
+   // if(handle != NULL) { \
+        //MU_ULOCK(handle) \
+  //  }
 
 
 #endif //SHARP_MUTEX_H

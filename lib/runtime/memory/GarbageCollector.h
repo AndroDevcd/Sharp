@@ -7,6 +7,7 @@
 
 #include "../Mutex.h"
 #include "../List.h"
+#include "../../util/mingw.mutex.h"
 
 enum CollectionPolicy
 {
@@ -33,10 +34,12 @@ struct Object;
 struct SharpObject;
 class ClassObject;
 
+#define heap (*_Mheap)
+
 class GarbageCollector {
 public:
     static GarbageCollector *self;
-    MUTEX mutex;
+    recursive_mutex mutex;
     List<CollectionPolicy> messageQueue;
 
     static void initilize();
@@ -95,8 +98,24 @@ public:
      void freeObject(Object* object);
      void attachObject(Object* object, SharpObject *sharpObject);
 
-    bool spaceAvailable(size_t i);
+    CXX11_INLINE bool spaceAvailable(size_t bytes) {
+        return (bytes+managedBytes) < memoryLimit;
+    }
 
+    /**
+     * This will keep track of our different generations and the
+     * objects that are living in them.
+     *
+     * @youngObjects: This will hold the total running count of objects
+     * living in that generation
+     *
+     * @yObjs: This is the amount of dropped objects in each generation since collection.
+     * This does not mean that if there are 100 objects dropped that every one will be freed
+     * its just an estimate
+     */
+    unsigned long yObjs;
+    unsigned long aObjs;
+    unsigned long oObjs;
 private:
     unsigned long managedBytes;
     unsigned long memoryLimit;
@@ -113,24 +132,48 @@ private:
      * This does not mean that if there are 100 objects dropped that every one will be freed
      * its just an estimate
      */
-    unsigned long youngObjects,  yObjs;     /* collect when 10% has been dropped */
-    unsigned long adultObjects,  aObjs;     /* collect when 40% has been dropped */
-    unsigned long oldObjects,    oObjs;     /* collect when 20% has been dropped */
-    List<SharpObject*> heap;
+    unsigned long youngObjects;
+    /* collect when 10% has been dropped */
+    unsigned long adultObjects;
+    /* collect when 40% has been dropped */
+    unsigned long oldObjects;
+    /* collect when 20% has been dropped */
+    unsigned long x;
+    std::list<SharpObject*>* _Mheap;
 
     void collectYoungObjects();
     void collectAdultObjects();
     void collectOldObjects();
+
+    CXX11_INLINE SharpObject *heapAt(size_t N) {
+        if (heap.size() > N)
+        {
+            std::list<SharpObject*>::iterator it = heap.begin();
+            std::advance(it, N);
+            return *it;
+        } else
+            return NULL;
+    }
     /**
      * This function performs the actual collection of
      * Sharp objects in the heap
      * @param object
      * @return
      */
-    void collect(SharpObject *object);
+    list<SharpObject *>::iterator sweep(SharpObject *object);
+
+    void markObject(SharpObject *object);
+
+    CXX11_INLINE list<SharpObject *>::iterator invalidate(SharpObject *object) {
+        for (auto it = heap.begin(); it != heap.end(); it++) {
+            if(*it == object) {
+                return heap.erase(it);
+            }
+        }
+    }
 };
 
-#define GC_SLEEP_INTERVAL 50
+#define GC_SLEEP_INTERVAL 4
 
 /**
  * This number must be low considering that the Garbage collector will
@@ -140,9 +183,28 @@ private:
 #define GC_SPIN_MULTIPLIER 512
 
 #define GC_COLLECT_YOUNG() ( (unsigned int)(((double)yObjs/(double)youngObjects)*100) >= 10 )
-#define GC_COLLECT_ADULT() ( (unsigned int)(((double)aObjs/(double)adultObjects)*100) >= 40 )
-#define GC_COLLECT_OLD() ( (unsigned int)(((double)oObjs/(double)oldObjects)*100) >= 20 )
+#define GC_COLLECT_ADULT() ( (unsigned int)(((double)aObjs/(double)adultObjects)*100) >= 2 )
+#define GC_COLLECT_OLD() ( (unsigned int)(((double)oObjs/(double)oldObjects)*100) >= 2 )
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))
+
+#define GENERATION_MASK 0x3
+#define IS_MARKED(g) ((g >> 2) & 0x001)
+#define MARK_FOR_DELETE(i, flg) (i= (i | (flg << 2)))
+#define GENERATION(g) (g & GENERATION_MASK)
+#define SET_GENERATION(g, gen) (g= (gen | ((IS_MARKED(g)) << 2)))
+
+#define UPDATE_GC(object) \
+    switch(GENERATION(object->_gcInfo)) { \
+        case gc_young: \
+            youngObjects--; \
+            break; \
+        case gc_adult: \
+            adultObjects--; \
+            break; \
+        case gc_old: \
+            oldObjects--; \
+            break; \
+    }
 
 /**
  * Bytes are used via the JEDEC Standard 100B.01

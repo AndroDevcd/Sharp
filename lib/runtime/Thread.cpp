@@ -824,10 +824,10 @@ void Thread::exec() {
                 registers[cmt]=registers[GET_Ca(cache[pc])]!=registers[GET_Cb(cache[pc])];
                 _brh
             LOCK:
-                CHECK_NULLOBJ(MUTEX_LOCK(o2->object->mutex);)
+                CHECK_NULLOBJ(o2->object->mutex.lock();)
                 _brh
             ULOCK:
-                CHECK_NULLOBJ(MUTEX_UNLOCK(o2->object->mutex);)
+                CHECK_NULLOBJ(o2->object->mutex.unlock();)
                 _brh
             EXP:
                 registers[bmr] = exponent(registers[GET_Da(cache[pc])]);

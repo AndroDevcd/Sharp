@@ -2,6 +2,7 @@
 // Created by BraxtonN on 2/15/2018.
 //
 
+#include <cstdlib>
 #include "Exe.h"
 #include "../util/File.h"
 #include "../util/KeyPair.h"

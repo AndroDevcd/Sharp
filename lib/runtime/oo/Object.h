@@ -7,6 +7,7 @@
 
 #include "../Mutex.h"
 #include "../memory/GarbageCollector.h"
+#include "../../util/mingw.mutex.h"
 
 struct Object;
 struct ClassObject;
@@ -18,11 +19,10 @@ struct SharpObject
         HEAD=NULL;
         node=NULL;
         k=NULL;
-        mutex = NULL;
+        mutex.initalize();
         size=0;
         refCount=0;
-        MUTEX_INIT(&mutex);
-        generation = 0x000; /* generation young */
+        _gcInfo = 0x000; /* generation young */
     }
     double *HEAD;        /* data */
     Object *node;        /* structured data */
@@ -31,8 +31,8 @@ struct SharpObject
     ClassObject* k;
     unsigned long size;
     unsigned int refCount : 32;
-    MUTEX mutex;
-    unsigned int generation : 3; /* collection generation */
+    recursive_mutex mutex;
+    unsigned int _gcInfo : 3; /* collection generation */
 };
 
 /**
@@ -44,19 +44,27 @@ struct Object {
 
     CXX11_INLINE void operator=(Object &object) {
         if(&object == this) return;
+        GarbageCollector::self->freeObject(this);
 
-        GarbageCollector::self->freeObject(this);
-        GarbageCollector::self->attachObject(this, object.object);
+        this->object->refCount++;
+        this->object = object.object;
+
+
     }
-    CXX11_INLINE void operator=(Object *object) {
-        if(object == this) return;
+    CXX11_INLINE void operator=(Object *o) {
+        if(o == this) return;
         GarbageCollector::self->freeObject(this);
+
         if(object != NULL)
-            GarbageCollector::self->attachObject(this, object->object);
+        {
+            this->object->refCount++;
+            this->object = o->object;
+        }
     }
     CXX11_INLINE void operator=(SharpObject *object) {
         if(object == this->object) return;
         GarbageCollector::self->freeObject(this);
+
         this->object = object;
     }
     void castObject(uint64_t classPtr);
