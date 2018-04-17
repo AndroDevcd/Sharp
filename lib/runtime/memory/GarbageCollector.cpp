@@ -84,7 +84,6 @@ void GarbageCollector::initilize() {
 #ifdef POSIX
     mtx_init( &self->mutex, mtx_recursive );
 #endif
-    self->mutex.initalize();
     self->_Mheap = new std::list<SharpObject*>();
     self->managedBytes=0;
     self->memoryLimit = 0;

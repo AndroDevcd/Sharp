@@ -18,10 +18,10 @@
 
 using namespace std;
 
-#ifdef __unix__
-#define POSIX_
-#elif defined(_WIN32) || defined(WIN32)
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 #define WIN32_
+#else
+#define POSIX_
 #endif
 
 #ifdef WIN32_

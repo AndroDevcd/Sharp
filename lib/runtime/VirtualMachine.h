@@ -11,7 +11,7 @@
 #include "Thread.h"
 
 class Environment;
-class SharpObject;
+struct SharpObject;
 
 class VirtualMachine {
 public:

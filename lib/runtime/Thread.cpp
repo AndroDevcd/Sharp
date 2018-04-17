@@ -10,11 +10,18 @@
 #include "Opcode.h"
 #include "register.h"
 #include "Manifest.h"
+#include "oo/Object.h"
 
 int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
 List<Thread*> Thread::threads;
-recursive_mutex Thread::threadsMonitor;
+
+#ifdef WIN32_
+    recursive_mutex Thread::threadsMonitor;
+#endif
+#ifdef POSIX
+    std::mutex Thread::threadsMonitor;
+#endif
 bool Thread::isAllThreadsSuspended = false;
 
 /*
@@ -224,7 +231,7 @@ int Thread::start(int32_t id) {
         return waitForThread(thread);
 #endif
 #ifdef POSIX_
-    if(pthread_create( &thread->thread, NULL, env->InterpreterThreadStart, (void*) thread))
+    if(pthread_create( &thread->thread, NULL, vm->InterpreterThreadStart, (void*) thread))
         return 3; // thread was not started
     else {
         return waitForThread(thread);
