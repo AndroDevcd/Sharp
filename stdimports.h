@@ -42,6 +42,7 @@ using namespace std;
     #include <unistd.h>
     #include <sys/time.h>
     #include <mutex>
+    #include <threads.h>
 
     #define POSIX_USEC_INTERVAL 1000
 #endif
