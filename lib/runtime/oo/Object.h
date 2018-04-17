@@ -18,7 +18,12 @@ struct SharpObject
         HEAD=NULL;
         node=NULL;
         k=NULL;
+#ifdef WIN32_
         mutex.initalize();
+#endif
+#ifdef POSIX
+        mtx_init( &mutex, mtx_recursive );
+#endif
         size=0;
         refCount=0;
         _gcInfo = 0x000; /* generation young */

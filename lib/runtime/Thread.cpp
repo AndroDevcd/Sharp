@@ -14,7 +14,7 @@
 int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
 List<Thread*> Thread::threads;
-MUTEX Thread::threadsMonitor = NULL;
+recursive_mutex Thread::threadsMonitor;
 bool Thread::isAllThreadsSuspended = false;
 
 /*
@@ -44,8 +44,12 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     Thread* thread = (Thread*)malloc(
             sizeof(Thread)*1);
 
-    thread->mutex = NULL;
-    MUTEX_INIT(&thread->mutex);
+#ifdef WIN32_
+    thread->mutex.initalize();
+#endif
+#ifdef POSIX
+    mtx_init( &thread->mutex, mtx_recursive );
+#endif
     thread->name.init();
     thread->main = method;
     thread->id = Thread::tid++;
@@ -72,8 +76,12 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
 }
 
 void Thread::Create(string name) {
-    this->mutex = NULL;
-    MUTEX_INIT(&this->mutex);
+#ifdef WIN32_
+    this->mutex.initalize();
+#endif
+#ifdef POSIX
+    mtx_init( &this->mutex, mtx_recursive );
+#endif
     this->name.init();
 
     this->name = name;
@@ -100,8 +108,12 @@ void Thread::Create(string name) {
 }
 
 void Thread::CreateDaemon(string name) {
-    this->mutex = NULL;
-    MUTEX_INIT(&this->mutex);
+#ifdef WIN32_
+    this->mutex.initalize();
+#endif
+#ifdef POSIX
+    mtx_init( &this->mutex, mtx_recursive );
+#endif
     this->name.init();
 
     this->name = name;

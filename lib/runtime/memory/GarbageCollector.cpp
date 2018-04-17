@@ -6,7 +6,6 @@
 #include "../oo/Object.h"
 #include "../Thread.h"
 #include "../oo/Field.h"
-#include "../../util/mingw.mutex.h"
 
 GarbageCollector *GarbageCollector::self = nullptr;
 
@@ -79,6 +78,12 @@ void* __realloc(void *ptr, size_t bytes)
 
 void GarbageCollector::initilize() {
     self=(GarbageCollector*)malloc(sizeof(GarbageCollector)*1);
+#ifdef WIN32_
+    self->mutex.initalize();
+#endif
+#ifdef POSIX
+    mtx_init( &self->mutex, mtx_recursive );
+#endif
     self->mutex.initalize();
     self->_Mheap = new std::list<SharpObject*>();
     self->managedBytes=0;

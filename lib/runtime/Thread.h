@@ -40,7 +40,12 @@ public:
             dataStack(NULL)
 
     {
-        MUTEX_INIT(&mutex);
+    #ifdef WIN32_
+            mutex.initalize();
+    #endif
+    #ifdef POSIX
+            mtx_init( &mutex, mtx_recursive );
+    #endif
 
 #ifdef WIN32_
         thread = NULL;
@@ -77,11 +82,17 @@ public:
 
     static int32_t tid;
     static List<Thread*> threads;
-    static MUTEX threadsMonitor;
+#ifdef WIN32_
+    static recursive_mutex threadsMonitor;
+    recursive_mutex mutex;
+#endif
+#ifdef POSIX
+    std::mutex threadsMonitor;
+    std::mutex mutex;
+#endif
     static bool isAllThreadsSuspended;
 
     int32_t id;
-    MUTEX mutex;
     bool daemon;
     bool terminated;
     unsigned int state;
