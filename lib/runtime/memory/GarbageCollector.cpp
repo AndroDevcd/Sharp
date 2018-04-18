@@ -138,14 +138,6 @@ void GarbageCollector::markObject(SharpObject *object) {
     }
 }
 
-void GarbageCollector::attachObject(Object* object, SharpObject *sharpObject) {
-    if(object != nullptr && sharpObject != nullptr) {
-        std::lock_guard<recursive_mutex> guard(sharpObject->mutex);
-        sharpObject->refCount++;
-        object->object = sharpObject;
-    }
-}
-
 void GarbageCollector::shutdown() {
     if(self != nullptr) {
         managedBytes=0;
@@ -158,7 +150,6 @@ void GarbageCollector::shutdown() {
         for (auto it = heap.begin(); it != heap.end();) {
             it = sweep(*it);
         }
-        cout << "finished\n";
 
         delete _Mheap;
         std::free(self); self = nullptr;
@@ -210,7 +201,7 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         if(GC_COLLECT_ADULT()) {
             collectAdultObjects();
         }
-        if(oObjs>1) {
+        if(GC_COLLECT_OLD()) {
             collectOldObjects();
         }
     }
@@ -221,7 +212,6 @@ void GarbageCollector::collectYoungObjects() {
     bool marked = false;
 
     mutex.lock();
-    start:
     for (auto it = heap.begin(); it != heap.end(); it++) {
         SharpObject *object = *it;
 
@@ -254,7 +244,6 @@ void GarbageCollector::collectAdultObjects() {
     bool marked = false;
 
     mutex.lock();
-    start:
     for (auto it = heap.begin(); it != heap.end(); it++) {
         SharpObject *object = *it;
         if(thread_self->state == THREAD_KILLED)
@@ -278,11 +267,6 @@ void GarbageCollector::collectAdultObjects() {
         }
     }
 
-    if(!marked) {
-        marked = true;
-        goto start;
-    }
-
     mutex.unlock();
 }
 
@@ -291,7 +275,6 @@ void GarbageCollector::collectOldObjects() {
     bool marked = false;
 
     mutex.lock();
-    start:
     for (auto it = heap.begin(); it != heap.end(); it++) {
         SharpObject *object = *it;
         if(thread_self->state == THREAD_KILLED)
@@ -312,23 +295,15 @@ void GarbageCollector::collectOldObjects() {
         }
     }
 
-    if(!marked) {
-        marked = true;
-        goto start;
-    }
-
     mutex.unlock();
 }
 
 void GarbageCollector::run() {
-    const unsigned int sMaxRetries = 128 * GC_SPIN_MULTIPLIER;
-    unsigned int retryCount = 0;
 
     for(;;) {
         if(thread_self->suspendPending)
             Thread::suspendSelf();
         if(thread_self->state == THREAD_KILLED) {
-
             return;
         }
 
@@ -346,24 +321,12 @@ void GarbageCollector::run() {
                 collect(policy);
         }
 
-        if (retryCount++ == sMaxRetries)
-        {
-            retryCount = 0;
-#ifdef WIN32_
-            Sleep(GC_SLEEP_INTERVAL);
-#endif
-#ifdef POSIX_
-            usleep(GC_SLEEP_INTERVAL*POSIX_USEC_INTERVAL);
-#endif
-        }
-
         /**
          * Attempt to collect objects based on the appropriate
          * conditions. This call does not garuntee that any collections
          * will happen
          */
         collect(GC_CONCURRENT);
-
     }
 }
 
@@ -388,7 +351,6 @@ GarbageCollector::threadStart(void *pVoid) {
         /*
          * Check for uncaught exception in thread before exit
          */
-    cout << "exiting " << thread_self << endl << std::flush;
     thread_self->exit();
 #ifdef WIN32_
     return 0;

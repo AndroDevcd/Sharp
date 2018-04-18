@@ -165,14 +165,12 @@ void Thread::suspendSelf() {
     thread_self->suspended = true;
     thread_self->suspendPending = false;
 
-    cout << "I am suspended " << thread_self << endl << std::flush;
     /*
 	 * We call wait upon suspend. This function will
 	 * sleep the thread most of the time. unsuspendThread() or
 	 * resumeAllThreads() should be called to revive thread.
 	 */
     thread_self->wait();
-    cout << "I am ALLIIVVFEEE " << thread_self << endl << std::flush;
 }
 
 void Thread::wait() {
@@ -445,9 +443,7 @@ int Thread::threadjoin(Thread *thread) {
 
 void Thread::killAll() {
     Thread* thread;
-    cout << "suspending threads\n" << std::flush;
     suspendAllThreads();
-    cout << "SUSPENDED\n" << std::flush;
 
     for(unsigned int i = 0; i < threads.size(); i++) {
         thread = threads.get(i);
@@ -457,13 +453,9 @@ void Thread::killAll() {
                 interrupt(thread);
             }
 
-            cout << "TERMINATING\n" << std::flush;
-            cout << "WWAITING" << thread << "....\n" << std::flush;
             terminateAndWaitForThreadExit(thread);
-            cout << "DEAD\n" << std::flush;
         } else if(thread != NULL){
 
-            cout << "KILLING SELF\n" << std::flush;
             thread->term();
         }
     }
@@ -496,9 +488,7 @@ int Thread::interrupt(Thread *thread) {
 
 void Thread::shutdown() {
     if(!threads.empty()) {
-        cout << "killing everything\n" << std::flush;
         Thread::killAll();
-        cout << "threads are dead \n" << std::flush;
 
         for(unsigned int i = 0; i < threads.size(); i++) {
             if(threads.get(i) != NULL) {

@@ -94,7 +94,6 @@ public:
      * @param object
      */
      void freeObject(Object* object);
-     void attachObject(Object* object, SharpObject *sharpObject);
 
     CXX11_INLINE bool spaceAvailable(size_t bytes) {
         return (bytes+managedBytes) < memoryLimit;
@@ -171,8 +170,6 @@ private:
     }
 };
 
-#define GC_SLEEP_INTERVAL 1
-
 /**
  * This number must be low considering that the Garbage collector will
  * not be collecting data every second. We want the garbage collector
@@ -181,8 +178,8 @@ private:
 #define GC_SPIN_MULTIPLIER 512
 
 #define GC_COLLECT_YOUNG() ( (unsigned int)(((double)yObjs/(double)youngObjects)*100) >= 10 )
-#define GC_COLLECT_ADULT() ( (unsigned int)(((double)aObjs/(double)adultObjects)*100) >= 2 )
-#define GC_COLLECT_OLD() ( (unsigned int)(((double)oObjs/(double)oldObjects)*100) >= 2 )
+#define GC_COLLECT_ADULT() ( (unsigned int)(((double)aObjs/(double)adultObjects)*100) >= 40 )
+#define GC_COLLECT_OLD() ( (unsigned int)(((double)oObjs/(double)oldObjects)*100) >= 20 )
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))
 
 #define GENERATION_MASK 0x3
