@@ -129,28 +129,19 @@ private:
      * This does not mean that if there are 100 objects dropped that every one will be freed
      * its just an estimate
      */
-    unsigned long youngObjects;
     /* collect when 10% has been dropped */
-    unsigned long adultObjects;
+    unsigned long youngObjects;
     /* collect when 40% has been dropped */
-    unsigned long oldObjects;
+    unsigned long adultObjects;
     /* collect when 20% has been dropped */
-    unsigned long x;
+    unsigned long oldObjects;
+    //unsigned long x;
     std::list<SharpObject*>* _Mheap;
 
     void collectYoungObjects();
     void collectAdultObjects();
     void collectOldObjects();
 
-    CXX11_INLINE SharpObject *heapAt(size_t N) {
-        if (heap.size() > N)
-        {
-            std::list<SharpObject*>::iterator it = heap.begin();
-            std::advance(it, N);
-            return *it;
-        } else
-            return NULL;
-    }
     /**
      * This function performs the actual collection of
      * Sharp objects in the heap
@@ -169,13 +160,6 @@ private:
         }
     }
 };
-
-/**
- * This number must be low considering that the Garbage collector will
- * not be collecting data every second. We want the garbage collector
- * to be asleep as much as possible.
- */
-#define GC_SPIN_MULTIPLIER 512
 
 #define GC_COLLECT_YOUNG() ( (unsigned int)(((double)yObjs/(double)youngObjects)*100) >= 10 )
 #define GC_COLLECT_ADULT() ( (unsigned int)(((double)aObjs/(double)adultObjects)*100) >= 40 )

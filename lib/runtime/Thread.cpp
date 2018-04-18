@@ -671,7 +671,7 @@ void Thread::exec() {
                 return;
 
             interp:
-            count++;
+            //count++;
             //cout << count << endl;
             if (suspendPending)
                 suspendSelf();

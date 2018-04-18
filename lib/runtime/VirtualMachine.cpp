@@ -174,7 +174,8 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         vm->executeMethod(thread_self->main->address);
 
         thread_self->exec();
-        cout << "instructions executed " << count << endl;
+        if(count != 0)
+            cout << "instructions executed " << count << endl;
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();
