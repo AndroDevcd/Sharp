@@ -3526,6 +3526,7 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
                         if(entity.getTokenType() == _INC) {
                             if(expression.utype.field->local) {
                                 if(c_options.optimize) {
+                                    expression.code.free();
                                     expression.code.push_i64(
                                             SET_Ci(i64, op_IADDL, 1,0 , interm.utype.field->address));
                                 } else {
@@ -3543,6 +3544,7 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
                         else {
                             if(expression.utype.field->local) {
                                 if(c_options.optimize) {
+                                    expression.code.free();
                                     expression.code.push_i64(
                                             SET_Ci(i64, op_ISUBL, 1,0 , interm.utype.field->address));
                                 } else {

@@ -1,0 +1,43 @@
+mod internal;
+
+/**
+ * Created by braxtonn on 3/6/2018.
+ */
+class Runtime {
+
+    var x;
+    var y;
+    var z;
+
+    /**
+            * print a single character to the console
+            */
+    public static def __print_(var char, var isCharacter)
+    {
+        if(isCharacter) {
+            asm(
+                "  loadl ebx,0               // get local 'char'                                "
+                "  _putc ebx                                                                   "
+            );
+        } else {
+            asm(
+                "  loadl ebx,0               // get local 'char'                                "
+                "  put ebx                                                                     "
+            );
+        }
+    }
+
+    static def print(var[] message) {
+        asm("tests/print.asm");
+    }
+
+    public static def __srt_init_(object[] args) : var {
+        var[] arry = new var[] { 1, 2, 3 };
+        for(var i = 0; i < sizeof(arry); i++) {
+            /* Do nothing */
+            __print_(arry[i], false);
+        }
+        print("Done!");
+        return 0;
+    }
+}

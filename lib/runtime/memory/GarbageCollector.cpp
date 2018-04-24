@@ -102,7 +102,6 @@ void GarbageCollector::freeObject(Object *object) {
     if(object != nullptr && object->object != nullptr)
     {
         std::lock_guard<recursive_mutex> guard(object->object->mutex);
-        MARK_FOR_DELETE(object->object->_gcInfo, 1);
         object->object->refCount--;
 
         switch(GENERATION(object->object->_gcInfo)) {

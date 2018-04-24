@@ -802,7 +802,7 @@ void Thread::exec() {
                 o2 = &dataStack[(int64_t)registers[fp]+GET_Da(cache[pc])].object;
                 _brh
             MOVSL:
-                o2 = &dataStack[(int64_t)registers[sp]+GET_Da(cache[pc])].object;
+                o2 = &(dataStack[(int64_t)registers[sp]+GET_Da(cache[pc])].object);
                 _brh
             MOVBI:
                 registers[bmr]=GET_Da(cache[pc]) + exponent(cache[pc + 1]); pc++;
@@ -832,7 +832,7 @@ void Thread::exec() {
                 registers[GET_Da(cache[pc])] = pc;
                 _brh
             PUSHOBJ:
-                dataStack[(int64_t)++registers[sp]].object=o2;
+                dataStack[(int64_t)++registers[sp]].object = o2;
                 _brh
             DEL:
                 GarbageCollector::self->freeObject(o2);
@@ -966,7 +966,9 @@ void Thread::exec() {
                 )
                 _brh
             POPOBJ:
-                o2 = &dataStack[(int64_t)registers[sp]--].object;
+            CHECK_NULL(
+                    *o2=dataStack[(int64_t)registers[sp]--].object;
+            )
                 _brh
             SMOVR:
                 dataStack[(int64_t)registers[sp]+GET_Cb(cache[pc])].var=registers[GET_Ca(cache[pc])];

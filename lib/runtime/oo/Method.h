@@ -101,6 +101,7 @@ public:
 #define returnFrame(x) \
     if(startAddress==0) { if(thread_self->callStack.size()==1) return; else { x } }
 
+#pragma optimize( "", off )
 struct StackElement {
     double var;
     Object object;
@@ -121,6 +122,7 @@ struct StackElement {
         var = (int64_t)var^v;
     }
 };
+#pragma optimize( "", on )
 
 typedef int64_t* Cache;
 
