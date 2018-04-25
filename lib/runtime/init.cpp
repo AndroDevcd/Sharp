@@ -84,7 +84,7 @@ int runtimeStart(int argc, const char* argv[])
                     if(isdigit(size.at(i))) {
                         parsedDigit = true;
                         ss << size.at(i);
-                    } else if(isalpha(9)) {
+                    } else if(isalpha(size.at(i))) {
                         unsigned long limit = strtoul(ss.str().c_str(), NULL, 0);
                         switch(size.at(i)) {
                             case 'k':

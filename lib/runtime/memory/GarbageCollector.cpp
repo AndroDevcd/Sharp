@@ -231,8 +231,9 @@ void GarbageCollector::collectYoungObjects() {
                 youngObjects--;
                 adultObjects++;
                 SET_GENERATION(object->_gcInfo, gc_adult);
-            } else {
-                cout << "wtf\n";
+            } else if(object->refCount == 0){
+                markObject(object);
+                it = sweep(object);
             }
         }
     }
