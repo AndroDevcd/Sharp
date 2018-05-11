@@ -14,7 +14,7 @@ class Runtime {
     }
 
     public static def __srt_init_(object[] args) : var {
-        for(var i = 0; i < 1000000; i++) {
+        for(var i = 0; i < 1; i++) {
             /* Do nothing */
             Runtime run = new Runtime();
         }

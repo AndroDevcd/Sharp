@@ -6,7 +6,6 @@
 #include "Exe.h"
 #include "Thread.h"
 #include "memory/GarbageCollector.h"
-#include "register.h"
 #include "Environment.h"
 #include "../util/time.h"
 #include "Opcode.h"
@@ -216,12 +215,13 @@ void VirtualMachine::shutdown() {
 }
 
 void VirtualMachine::sysInterrupt(int32_t signal) {
+    int32_t x;
     switch (signal) {
         case 0x9f:
             //cout << env->strings[(int64_t )thread_self->__stack[(int64_t)__rxs[sp]--].var].value.str();
             return;
         case 0xa0:
-            registers[bmr]= Clock::__os_time((int) registers[ebx]);
+            thread_self->dataStack->push(Clock::__os_time((int) thread_self->dataStack->popNumber()));
             return;
         case 0xa1:
             /**
@@ -241,22 +241,23 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     CollectionPolicy::GC_LOW);
             return;
         case 0xa3:
-            registers[bmr]= Clock::realTimeInNSecs();
+            thread_self->dataStack->push(Clock::realTimeInNSecs());
             return;
         case 0xa4:
-            registers[cmt]=Thread::start((int32_t )registers[adx]);
+            thread_self->dataStack->push(Thread::start((int32_t )thread_self->dataStack->popNumber()));
             return;
         case 0xa5:
-            registers[cmt]=Thread::join((int32_t )registers[adx]);
+            thread_self->dataStack->push(Thread::join((int32_t )thread_self->dataStack->popNumber()));
             return;
         case 0xa6:
-            registers[cmt]=Thread::interrupt((int32_t )registers[adx]);
+            thread_self->dataStack->push(Thread::interrupt((int32_t )thread_self->dataStack->popNumber()));
             return;
         case 0xa7:
-            registers[cmt]=Thread::destroy((int32_t )registers[adx]);
+            thread_self->dataStack->push(Thread::destroy((int32_t )thread_self->dataStack->popNumber()));
             return;
         case 0xa8:
-            registers[cmt]=Thread::Create((int32_t )registers[adx], (unsigned long)registers[egx]);
+            x = thread_self->dataStack->popNumber();
+            thread_self->dataStack->push(Thread::Create((int32_t )x, (unsigned long)thread_self->dataStack->popNumber()));
             return;
         default:
             // unsupported
@@ -278,18 +279,19 @@ void VirtualMachine::executeMethod(int64_t address) {
         thread_self->callStack.add(
                 Frame(NULL, 0, 0, 0)); // for main method
     } else {
-        int64_t spAddr = method->paramSize==0 ? (method->isStatic ? method->returnVal : 0)+registers[sp] : registers[sp]-method->paramSize;
+        int64_t spAddr = method->paramSize==0 ? (method->isStatic ? method->returnVal : 0)+thread_self->dataStack->sp :
+                         thread_self->dataStack->sp-method->paramSize;
         thread_self->callStack.add(
-                Frame(thread_self->current, thread_self->pc, spAddr, registers[fp]));
+                Frame(thread_self->current, thread_self->pc, spAddr, thread_self->fp));
     }
 
     thread_self->pc = 0;
     thread_self->current = method;
     thread_self->cache = method->bytecode;
     thread_self->cacheSize = method->cacheSize;
-    registers[fp] = thread_self->callStack.size()==1 ? registers[fp] :
-                    ((registers[sp] - method->paramSize) + (method->isStatic ? 1 : 0));
-    registers[sp] += (method->stackSize - method->paramSize);
+    thread_self->fp = thread_self->callStack.size()==1 ? thread_self->fp :
+                    ((thread_self->dataStack->sp - method->paramSize) + (method->isStatic ? 1 : 0));
+    thread_self->dataStack->sp += (method->stackSize - method->paramSize);
 }
 
 int VirtualMachine::returnMethod() {
@@ -306,8 +308,8 @@ int VirtualMachine::returnMethod() {
     thread_self->cacheSize=frame.last->cacheSize;
 
     thread_self->pc = frame.pc;
-    registers[sp] = frame.sp;
-    registers[fp] = frame.fp;
+    thread_self->dataStack->sp = frame.sp;
+    thread_self->fp = frame.fp;
     thread_self->callStack.pop_back();
     return 0;
 }
@@ -375,8 +377,7 @@ bool VirtualMachine::TryThrow(Method *method, Object *exceptionObject) {
 
         if(tbl != NULL)
         {
-            Object* object = &thread_self->dataStack[(int64_t)registers[fp]+tbl->local].object;
-            *object = exceptionObject;
+            thread_self->dataStack->insert(thread_self->fp+tbl->local, exceptionObject->object);
             thread_self->pc = tbl->handler_pc;
 
             return true;
@@ -402,10 +403,10 @@ void VirtualMachine::fillStackTrace(Object *exceptionObject) {
         if(message != NULL) {
             if(thread_self->throwable.native)
                 GarbageCollector::self->createStringArray(message, thread_self->throwable.message);
-            else if(message->object != NULL && message->object->HEAD != NULL) {
+            else if(message->object != NULL && message->object->data != NULL) {
                 stringstream ss;
                 for(unsigned long i = 0; i < message->object->size; i++) {
-                    ss << (char) message->object->HEAD[i];
+                    ss << (char) message->object->data[i];
                 }
                 thread_self->throwable.message = ss.str();
             }
@@ -449,7 +450,7 @@ void VirtualMachine::fillStackTrace(native_string &str) {
 // fill message
     stringstream ss;
     Method* m = thread_self->current;
-    int64_t pc = thread_self->pc, _fp=(int64_t)registers[fp];
+    int64_t pc = thread_self->pc, _fp=(int64_t)thread_self->fp;
 
     unsigned int pos = thread_self->callStack.size() > EXCEPTION_PRINT_MAX ? thread_self->callStack.size()
                                                                              - EXCEPTION_PRINT_MAX : 0;
@@ -458,7 +459,7 @@ void VirtualMachine::fillStackTrace(native_string &str) {
         fillMethodCall(thread_self->callStack.get(i), ss);
     }
 
-    Frame frame(thread_self->current, pc, registers[sp], _fp);
+    Frame frame(thread_self->current, pc, thread_self->dataStack->sp, _fp);
     fillMethodCall(frame, ss);
 
     str = ss.str();

@@ -14,7 +14,7 @@ struct SharpObject
 {
     void init()
     {
-        HEAD=NULL;
+        data=NULL;
         node=NULL;
         k=NULL;
 #ifdef WIN32_
@@ -25,42 +25,23 @@ struct SharpObject
 #endif
         size=0;
         refCount=0;
-        _gcInfo = 0x000; /* generation young */
+        mark = 0x000; /* generation young */
     }
-    double *HEAD;        /* data */
+    double *data;        /* data */
     Object *node;        /* structured data */
 
     /* info */
     ClassObject* k;
     unsigned long size;
-    unsigned int refCount : 32;
+    long int refCount : 32;
 #ifdef WIN32_
     recursive_mutex mutex;
 #endif
 #ifdef POSIX_
     std::mutex mutex;
 #endif
-    unsigned int _gcInfo : 3; /* collection generation */
+    unsigned int mark : 1; /* collection generation */
 };
-
-#define FREE_OBJ \
-    if(object != NULL) { \
-        std::lock_guard<recursive_mutex> guard(mutex); \
-        object->refCount--; \
-         \
-        switch(GENERATION(object->_gcInfo)) { \
-            case gc_young: \
-                GarbageCollector::self->yObjs++; \
-                break; \
-            case gc_adult: \
-                GarbageCollector::self->aObjs++; \
-                break; \
-            case gc_old: \
-                GarbageCollector::self->oObjs++; \
-                break; \
-        } \
-        object = nullptr; \
-    }
 
 
 /**
@@ -70,9 +51,26 @@ struct SharpObject
 struct Object {
     SharpObject* object;
 
+    CXX11_INLINE static void newRefrence(Object *object, SharpObject *o) {
+        if (object->object==o) return;
+        if(object->object != nullptr)
+        {
+            object->object->refCount--;
+            GarbageCollector::self->objs++;
+            object->object = nullptr;
+        }
+
+        object->object = o;
+    }
+
     CXX11_INLINE void operator=(Object &o) {
         if(&o == this) return;
-        FREE_OBJ
+        if(object != nullptr)
+        {
+            object->refCount--;
+            GarbageCollector::self->objs++;
+            object = nullptr;
+        }
 
         if(o.object != NULL) {
             this->object = o.object;
@@ -82,7 +80,12 @@ struct Object {
     }
     CXX11_INLINE void operator=(Object *o) {
         if(o == this) return;
-        FREE_OBJ
+        if(object != nullptr)
+        {
+            object->refCount--;
+            GarbageCollector::self->objs++;
+            object = nullptr;
+        }
 
         if(o->object != NULL)
         {
@@ -92,7 +95,12 @@ struct Object {
     }
     CXX11_INLINE void operator=(SharpObject *o) {
         if(o == this->object) return;
-        FREE_OBJ
+        if(object != nullptr)
+        {
+            object->refCount--;
+            GarbageCollector::self->objs++;
+            object = nullptr;
+        }
 
         this->object = o;
     }

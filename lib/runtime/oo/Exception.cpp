@@ -6,8 +6,8 @@
 #include "../Environment.h"
 #include "ClassObject.h"
 #include "../Thread.h"
-#include "../register.h"
 #include "../memory/GarbageCollector.h"
+#include "../../util/time.h"
 
 void Throwable::drop() {
     this->throwable = NULL;
@@ -44,9 +44,16 @@ Exception::~Exception()
     throwable.drop();
 }
 
+extern uint64_t past;
+extern uint64_t now;
 void Exception::pushException() {
     if(thread_self != NULL && throwable.native) {
         if(throwable.message == "out of memory") {
+
+            now= Clock::realTimeInNSecs();
+            cout << endl << "Compiled in " << NANO_TOMICRO(now-past) << "us & "
+                 << NANO_TOMILL(now-past) << "ms\n";
+
             /*
              * If there is no memory we exit
              */
@@ -54,8 +61,7 @@ void Exception::pushException() {
             return;
         }
 
-        thread_self->dataStack[(int64_t)++registers[sp]].object
-                = GarbageCollector::self->newObject(throwable.throwable);
+        thread_self->dataStack->push(GarbageCollector::self->newObject(throwable.throwable));
     }
 }
 

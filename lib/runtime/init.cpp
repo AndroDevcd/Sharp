@@ -12,7 +12,6 @@
 #include "VirtualMachine.h"
 #include "Thread.h"
 #include "Exe.h"
-#include "register.h"
 #include "memory/GarbageCollector.h"
 #include "Manifest.h"
 
@@ -149,7 +148,8 @@ int runtimeStart(int argc, const char* argv[])
         error("file `" + executable + "` doesnt exist!");
     }
 
-    return startApplication(executable, pArgs);
+    return 1;
+    //return startApplication(executable, pArgs);
 }
 
 int startApplication(string exe, List<native_string>& pArgs) {
@@ -177,11 +177,11 @@ int startApplication(string exe, List<native_string>& pArgs) {
 }
 
 void init_main(List <native_string>& pArgs) {
-    registers[sp] = -1;
-    registers[fp] = 0;
 
     Thread *main = Thread::threads.get(main_threadid);
-    Object* object = &main->dataStack[(long)++registers[sp]].object;
+
+    main->dataStack->push(nullptr);
+    Object* object = &main->dataStack->popObject();
 
     createStringArray(object, pArgs);
     for(unsigned int i = 0; i < pArgs.size(); i++) {
@@ -200,6 +200,7 @@ void createStringArray(Object *object, List<native_string> &args) {
     native_string str(ss.str());
 
     object->object = GarbageCollector::self->newObjectArray(size);
+    //SET_GENERATION(object->object->_gcInfo, gc_perm);
 
     GarbageCollector::self->createStringArray(&object->object->node[iter++], manifest.application);
     GarbageCollector::self->createStringArray(&object->object->node[iter++], manifest.version);

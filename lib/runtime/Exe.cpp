@@ -138,9 +138,9 @@ int Process_Exe(std::string exe)
         env->strings[manifest.strings].value.init();
         env->strings[manifest.strings].id = -1;
 
-        for(unsigned long i = 0; i < manifest.classes; i++) {
-            env->globalHeap[i].object = NULL;
-        }
+//        for(unsigned long i = 0; i < manifest.classes; i++) {
+//            env->globalHeap[i].object = NULL;
+//        }
 
         if(env->classes == NULL || env->methods == NULL || env->globalHeap == NULL
            || env->strings == NULL) {

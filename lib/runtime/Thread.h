@@ -9,6 +9,7 @@
 #include "oo/ClassObject.h"
 #include "oo/Exception.h"
 #include "oo/Method.h"
+#include "FastStack.h"
 
 #define MAX_THREADS 0xffba
 
@@ -104,10 +105,10 @@ public:
     bool suspendPending;
     bool exceptionThrown;
 
-    uint64_t pc;
+    uint64_t pc, fp;
     Method *current;
     List<Frame> callStack;
-    StackElement* dataStack;
+    FastStack*  dataStack;
     unsigned long stack_lmt;
     Cache cache;
     int64_t cacheSize;
@@ -143,7 +144,6 @@ private:
 };
 
 extern thread_local Thread* thread_self;
-extern thread_local double registers[12];
 
 #define main_threadid 0x0
 

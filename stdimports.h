@@ -25,7 +25,6 @@ using namespace std;
 #endif
 
 #ifdef WIN32_
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include "lib/util/mingw.mutex.h"
 
