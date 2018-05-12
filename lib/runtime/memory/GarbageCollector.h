@@ -135,7 +135,7 @@ private:
     unsigned long adultObjects;
     /* collect when 20% has been dropped */
     unsigned long oldObjects;
-    //unsigned long x;
+    unsigned long x;
     std::list<SharpObject*>* _Mheap;
 
     void collectYoungObjects();

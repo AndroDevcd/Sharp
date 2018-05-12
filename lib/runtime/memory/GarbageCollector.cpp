@@ -7,6 +7,7 @@
 #include "../Thread.h"
 #include "../oo/Field.h"
 
+long long hbytes;
 GarbageCollector *GarbageCollector::self = nullptr;
 
 void* __malloc(size_t bytes)
@@ -91,7 +92,7 @@ void GarbageCollector::initilize() {
     self->youngObjects=0;
     self->oldObjects=0;
     self->yObjs=0;
-    //self->x = 0;
+    self->x = 0;
     self->aObjs=0;
     self->oObjs=0;
     self->isShutdown=false;
@@ -142,13 +143,17 @@ void GarbageCollector::shutdown() {
         managedBytes=0;
         isShutdown=true;
         /* Clear out all memory */
-//        cout << "highest memory calculated: " << hBytes << endl;
-//        cout << "Objects Collected " << self->x << endl;
-//        cout << "Objects left over young: " << youngObjects << " adult: " << adultObjects
-//                                          << " old: " << oldObjects << endl;
-//        cout << "heap size: " << heap.size() << endl;
+        cout << "highest memory calculated: " << hbytes << endl;
+        cout << "Objects Collected " << self->x << endl;
+        cout << "Total managed bytes left " << self->managedBytes << endl;
+        cout << "Objects left over young: " << youngObjects << " adult: " << adultObjects
+                                          << " old: " << oldObjects << endl;
+        cout << "heap size: " << heap.size() << endl;
         for (auto it = heap.begin(); it != heap.end();) {
-            it = sweep(*it);
+            if((*it)->refCount < 1)
+                it = sweep(*it);
+            else
+                it++;
         }
 
         delete _Mheap;
@@ -192,6 +197,9 @@ void GarbageCollector::collect(CollectionPolicy policy) {
             collectYoungObjects();
             collectAdultObjects();
     } else if(policy == GC_CONCURRENT) {
+        if(managedBytes > hbytes)
+            hbytes = managedBytes;
+
         /**
          * This should only be called by the GC thread itsself
          */
@@ -211,7 +219,7 @@ void GarbageCollector::collectYoungObjects() {
     yObjs = 0;
 
     mutex.lock();
-    for (auto it = heap.begin(); it != heap.end(); it++) {
+    for (auto it = heap.begin(); it != heap.end();) {
         SharpObject *object = *it;
 
         if(thread_self->state == THREAD_KILLED) {
@@ -222,20 +230,17 @@ void GarbageCollector::collectYoungObjects() {
         if(GENERATION(object->_gcInfo) == gc_young) {
 
             // mark object
-            if(!IS_MARKED(object->_gcInfo) && object->refCount == 0) {
-                markObject(object);
-                it = sweep(object);
-            } else if(IS_MARKED(object->_gcInfo)) {
+            if(object->refCount == 0) {
                 it = sweep(object);
             } else if(object->refCount > 0){
                 youngObjects--;
                 adultObjects++;
                 SET_GENERATION(object->_gcInfo, gc_adult);
-            } else if(object->refCount == 0){
-                markObject(object);
-                it = sweep(object);
-            }
-        }
+                it++;
+            } else
+                it++;
+        } else
+            it++;
     }
 
     mutex.unlock();
@@ -306,6 +311,9 @@ void GarbageCollector::collectOldObjects() {
 
 void GarbageCollector::run() {
 
+    int maxSpins = 1000;
+    int spins = 0;
+
     for(;;) {
         if(thread_self->suspendPending)
             Thread::suspendSelf();
@@ -327,6 +335,10 @@ void GarbageCollector::run() {
                 collect(policy);
         }
 
+        if(++spins >= maxSpins) {
+            spins = 0;
+            __os_sleep(1);
+        }
 
         /**
          * Attempt to collect objects based on the appropriate
@@ -394,7 +406,7 @@ list<SharpObject *>::iterator GarbageCollector::sweep(SharpObject *object, bool 
         }
 
         UPDATE_GC(object)
-        //x++;
+        x++;
 
         managedBytes -= sizeof(SharpObject)*1;
         std::free(object);
