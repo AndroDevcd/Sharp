@@ -44,15 +44,15 @@
 #define _brh pc++; goto *opcodeStart;
 #define _brh_NOINCREMENT goto *opcodeStart;
 
-#define CHECK_NULL(x) if(o==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
-#define CHECK_NULLOBJ(x) if(o==NULL || o->node==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
-#define CHECK_INULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->data==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->size==0) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_INULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->HEAD==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
 
 #define _initOpcodeTable \
     static void* opcode_table[] = { \
         &&_NOP,            \
         &&_INT,              \
-        &&_ISTORE,              \
+        &&_MOVI,              \
         &&RET,              \
         &&HLT,              \
         &&NEWARRAY,         \
@@ -65,6 +65,7 @@
         &&MOVU16,              \
         &&MOVU32,              \
         &&MOVU64,              \
+        &&RSTORE,               \
         &&ADD,                  \
         &&SUB,                   \
         &&MUL,                   \
@@ -76,6 +77,9 @@
         &&IDIV,                   \
         &&IMOD,                   \
         &&POP,                   \
+        &&INC,                   \
+        &&DEC,                   \
+        &&MOVR,                   \
         &&IALOAD,                   \
         &&BRH,                   \
         &&IFE,                   \
@@ -85,12 +89,16 @@
         &&LTE,                   \
         &&GTE,                   \
         &&MOVL,                   \
+        &&MOVSL,                   \
         &&MOVBI,                   \
         &&SIZEOF,                   \
         &&PUT,                   \
         &&PUTC,                   \
+        &&CHECKLEN,                   \
         &&GOTO,                   \
         &&LOADPC,                   \
+        &&PUSHOBJ,                   \
+        &&DEL,                   \
         &&CALL,                   \
         &&NEWCLASS,                   \
         &&MOVN,                   \
@@ -105,6 +113,7 @@
         &&NEWOBJARRAY,                      \
         &&NOT,                      \
         &&SKIP,                      \
+        &&LOADVAL,                      \
         &&SHL,                      \
         &&SHR,                      \
         &&SKPE,                      \
@@ -114,26 +123,40 @@
         &&OR,                      \
         &&UNOT,                      \
         &&THROW,                      \
+        &&CHECKNULL,                      \
         &&RETURNOBJ,                      \
         &&NEWCLASSARRAY,                      \
         &&NEWSTRING,                      \
-        &&STOREL,                      \
+        &&ADDL,                      \
+        &&SUBL,                      \
+        &&MULL,                      \
+        &&DIVL,                      \
+        &&MODL,                      \
+        &&IADDL,                      \
+        &&ISUBL,                      \
+        &&IMULL,                      \
+        &&IDIVL,                      \
+        &&IMODL,                      \
         &&LOADL,                      \
-        &&SETOBJ,                     \
-        &&ASTORE,                       \
+        &&IALOAD_2,                     \
+        &&POPOBJ,                       \
+        &&SMOVR,                        \
+        &&ANDL,                        \
+        &&ORL,                        \
+        &&NOTL,                        \
+        &&RMOV,                          \
+        &&SMOV,                          \
         &&LOADPC_2,                      \
         &&RETURNVAL,                     \
-        &&ISTOREL,                        \
-        &&SETFIELD,                         \
-        &&AASTORE,                       \
-        &&DUP,                             \
-        &&IALOAD_1,                      \
+        &&ISTORE,                        \
+        &&SMOVR_2,                        \
+        &&ISTOREL                        \
     };
 
 enum Opcode {
     op_NOP                 =0x0,
     op_INT                 =0x1,
-    op_ISTORE              =0x2,
+    op_MOVI                =0x2,
     op_RET                 =0x3,
     op_HLT                 =0x4,
     op_NEWARRAY            =0x5,
@@ -146,69 +169,92 @@ enum Opcode {
     op_MOVU16              =0xc,
     op_MOVU32              =0xd,
     op_MOVU64              =0xe,
-    op_ADD                 =0xf,
-    op_SUB                 =0x10,
-    op_MUL                 =0x11,
-    op_DIV                 =0x12,
-    op_MOD                 =0x13,
-    op_IADD                =0x14,
-    op_ISUB                =0x15,
-    op_IMUL                =0x16,
-    op_IDIV                =0x17,
-    op_IMOD                =0x18,
-    op_POP                 =0x19,
-    op_IALOAD              =0x1a,
-    op_BRH                 =0x1b,
-    op_IFE                 =0x1c,
-    op_IFNE                =0x1d,
-    op_LT                  =0x1e,
-    op_GT                  =0x1f,
-    op_LTE                 =0x20,
-    op_GTE                 =0x21,
-    op_MOVL                =0x22,
-    op_MOVBI               =0x23,
-    op_SIZEOF              =0x24,
-    op_PUT                 =0x25,
-    op_PUTC                =0x26,
-    op_GOTO                =0x27,
-    op_LOADPC              =0x28,
-    op_CALL                =0x29,
-    op_NEWCLASS            =0x2a,
-    op_MOVN                =0x2b,
-    op_SLEEP               =0x2c,
-    op_TEST                =0x2d,
-    op_TNE                 =0x2e,
-    op_LOCK                =0x2f,
-    op_ULOCK               =0x30,
-    op_EXP                 =0x31,
-    op_MOVG                =0x32,
-    op_MOVND               =0x33,
-    op_NEWOBJARRAY         =0x34,
-    op_NOT                 =0x35,
-    op_SKIP                =0x36,
-    op_SHL                 =0x37,
-    op_SHR                 =0x38,
-    op_SKPE                =0x39,
-    op_SKNE                =0x3a,
-    op_AND                 =0x3b,
-    op_UAND                =0x3c,
-    op_OR                  =0x3d,
-    op_UNOT                =0x3e,
-    op_THROW               =0x3f,
-    op_RETURNOBJ           =0x40,
-    op_NEWCLASSARRAY       =0x41,
-    op_NEWSTRING           =0x42,
-    op_STOREL              =0x43,
-    op_LOADL               =0x44,
-    op_SETOBJ              =0x45,
-    op_ASTORE              =0x46,
-    op_LOADPC_2            =0x47,
-    op_RETURNVAL           =0x48,
-    op_ISTOREL             =0x49,
-    op_SETFIELD            =0x4a,
-    op_AASTORE             =0x4b,
-    op_DUP                 =0x4c,
-    op_IALOAD_1            =0x4d
+    op_RSTORE              =0xf,
+    op_ADD                 =0x10,
+    op_SUB                 =0x11,
+    op_MUL                 =0x12,
+    op_DIV                 =0x13,
+    op_MOD                 =0x14,
+    op_IADD                =0x15,
+    op_ISUB                =0x16,
+    op_IMUL                =0x17,
+    op_IDIV                =0x18,
+    op_IMOD                =0x19,
+    op_POP                 =0x1a,
+    op_INC                 =0x1b,
+    op_DEC                 =0x1c,
+    op_MOVR                =0x1d,
+    op_IALOAD              =0x1e,
+    op_BRH                 =0x1f,
+    op_IFE                 =0x20,
+    op_IFNE                =0x21,
+    op_LT                  =0x22,
+    op_GT                  =0x23,
+    op_LTE                 =0x24,
+    op_GTE                 =0x25,
+    op_MOVL                =0x26,
+    op_MOVSL               =0x27,
+    op_MOVBI               =0x28,
+    op_SIZEOF              =0x29,
+    op_PUT                 =0x2a,
+    op_PUTC                =0x2b,
+    op_CHECKLEN            =0x2c,
+    op_GOTO                =0x2d,
+    op_LOADPC              =0x2e,
+    op_PUSHOBJ             =0x2f,
+    op_DEL                 =0x30,
+    op_CALL                =0x31,
+    op_NEWCLASS            =0x32,
+    op_MOVN                =0x33,
+    op_SLEEP               =0x34,
+    op_TEST                =0x35,
+    op_TNE                 =0x36,
+    op_LOCK                =0x37,
+    op_ULOCK               =0x38,
+    op_EXP                 =0x39,
+    op_MOVG                =0x3a,
+    op_MOVND               =0x3b,
+    op_NEWOBJARRAY         =0x3c,
+    op_NOT                 =0x3d,
+    op_SKIP                =0x3e,
+    op_LOADVAL             =0x3f,
+    op_SHL                 =0x40,
+    op_SHR                 =0x41,
+    op_SKPE                =0x42,
+    op_SKNE                =0x43,
+    op_AND                 =0x44,
+    op_UAND                =0x45,
+    op_OR                  =0x46,
+    op_UNOT                =0x47,
+    op_THROW               =0x48,
+    op_CHECKNULL           =0x49,
+    op_RETURNOBJ           =0x4a,
+    op_NEWCLASSARRAY       =0x4b,
+    op_NEWSTRING           =0x4c,
+    op_ADDL                =0x4d,
+    op_SUBL                =0x4e,
+    op_MULL                =0x4f,
+    op_DIVL                =0x50,
+    op_MODL                =0x51,
+    op_IADDL               =0x52,
+    op_ISUBL               =0x53,
+    op_IMULL               =0x54,
+    op_IDIVL               =0x55,
+    op_IMODL               =0x56,
+    op_LOADL               =0x57,
+    op_IALOAD_2            =0x58,
+    op_POPOBJ              =0x59,
+    op_SMOVR               =0x5a,
+    op_ANDL                =0x5b,
+    op_ORL                 =0x5c,
+    op_NOTL                =0x5d,
+    op_RMOV                =0x5e,
+    op_SMOV                =0x5f,
+    op_LOADPC_2            =0x60,
+    op_RETURNVAL           =0x61,
+    op_ISTORE              =0x62,
+    op_SMOVR_2             =0x63,
+    op_ISTOREL             =0x64
 };
 
 #endif //SHARP_OPCODE_H

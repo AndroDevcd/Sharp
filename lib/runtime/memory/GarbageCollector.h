@@ -39,7 +39,6 @@ public:
     static GarbageCollector *self;
     recursive_mutex mutex;
     List<CollectionPolicy> messageQueue;
-    uint64_t x;
 
     static void initilize();
     static void startup();
@@ -89,7 +88,6 @@ public:
     SharpObject* newObjectArray(unsigned long size, ClassObject* k); /* Class Array allocation */
 
     void createStringArray(Object* object, native_string& s); /* Native string allocation */
-    void createStringArray(native_string &s);
 
     /**
      * Function call by virtual machine
@@ -112,12 +110,13 @@ public:
      * This does not mean that if there are 100 objects dropped that every one will be freed
      * its just an estimate
      */
-    unsigned long objs;
+    unsigned long yObjs;
+    unsigned long aObjs;
+    unsigned long oObjs;
 private:
     unsigned long managedBytes;
     unsigned long memoryLimit;
     bool isShutdown;
-    std::list<SharpObject*>::iterator iterator;
 
     /**
      * This will keep track of our different generations and the
@@ -131,11 +130,11 @@ private:
      * its just an estimate
      */
     /* collect when 10% has been dropped */
-    //unsigned long youngObjects;
+    unsigned long youngObjects;
     /* collect when 40% has been dropped */
-    //unsigned long adultObjects;
+    unsigned long adultObjects;
     /* collect when 20% has been dropped */
-    unsigned long liveObjects;
+    unsigned long oldObjects;
     //unsigned long x;
     std::list<SharpObject*>* _Mheap;
 
@@ -149,31 +148,42 @@ private:
      * @param object
      * @return
      */
-    void sweep(SharpObject *object);
+    list<SharpObject *>::iterator sweep(SharpObject *object, bool inv = true);
 
     void markObject(SharpObject *object);
 
-    CXX11_INLINE void invalidate(SharpObject *object) {
-        for (auto it = heap.begin(); it != heap.end();) {
+    CXX11_INLINE list<SharpObject *>::iterator invalidate(SharpObject *object) {
+        for (auto it = heap.begin(); it != heap.end(); it++) {
             if(*it == object) {
-                iterator = heap.erase(it);
-                return;
-            } else
-                ++it;
+                return heap.erase(it);
+            }
         }
     }
 };
 
-#define GC_COLLECT() ( (unsigned int)(((double)objs/(double)liveObjects)*100) >= 10 )
 #define GC_COLLECT_YOUNG() ( (unsigned int)(((double)yObjs/(double)youngObjects)*100) >= 10 )
 #define GC_COLLECT_ADULT() ( (unsigned int)(((double)aObjs/(double)adultObjects)*100) >= 40 )
 #define GC_COLLECT_OLD() ( (unsigned int)(((double)oObjs/(double)oldObjects)*100) >= 20 )
-#define GC_HEAP_LIMIT (GB_TO_BYTES(1))
+#define GC_HEAP_LIMIT (MB_TO_BYTES(64))
 
-#define IS_MARKED(g) (g == 0x1)
+#define GENERATION_MASK 0x3
+#define IS_MARKED(g) ((g >> 2) & 0x001)
+#define MARK_FOR_DELETE(i, flg) (i= (i | (flg << 2)))
+#define GENERATION(g) (g & GENERATION_MASK)
+#define SET_GENERATION(g, gen) (g= (gen | ((IS_MARKED(g)) << 2)))
 
 #define UPDATE_GC(object) \
-    liveObjects--;
+    switch(GENERATION(object->_gcInfo)) { \
+        case gc_young: \
+            youngObjects--; \
+            break; \
+        case gc_adult: \
+            adultObjects--; \
+            break; \
+        case gc_old: \
+            oldObjects--; \
+            break; \
+    }
 
 /**
  * Bytes are used via the JEDEC Standard 100B.01

@@ -5,6 +5,7 @@
 #include "Object.h"
 #include "../memory/GarbageCollector.h"
 #include "../Environment.h"
+#include "../register.h"
 #include "../Thread.h"
 
 void Object::castObject(uint64_t classPtr) {

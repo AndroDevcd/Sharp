@@ -50,9 +50,6 @@
 #define EOWNERDEAD 133
 #endif
 
-extern int locked;
-extern int unlocked;
-
 namespace std
 {
     class recursive_mutex
@@ -78,12 +75,10 @@ namespace std
         }
         void lock()
         {
-            locked++;
             EnterCriticalSection(&mHandle);
         }
         void unlock()
         {
-            unlocked++;
             LeaveCriticalSection(&mHandle);
         }
         bool try_lock()

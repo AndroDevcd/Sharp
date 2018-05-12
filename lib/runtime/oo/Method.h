@@ -99,7 +99,7 @@ public:
 };
 
 #define returnFrame(x) \
-    if(x) { return; }
+    if(startAddress==0) { if(thread_self->callStack.size()==1) return; else { x } }
 
 #pragma optimize( "", off )
 struct StackElement {
