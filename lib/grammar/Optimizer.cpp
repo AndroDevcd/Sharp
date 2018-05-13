@@ -102,6 +102,10 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
     }
 }
 
+/**
+ * [0x2] 2:	movl 2
+ * [0x4] 4:	popobj
+ */
 void Optimizer::optimizeLocalPops() {
     int64_t x64, local;
     readjust:
