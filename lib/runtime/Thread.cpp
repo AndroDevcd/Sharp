@@ -333,6 +333,7 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
         }
 
         thread->state = THREAD_KILLED;
+        thread->signal = 1;
     }
 }
 
@@ -396,7 +397,9 @@ void Thread::suspendThread(Thread *thread) {
     if(thread->id == thread_self->id)
         suspendSelf();
     else {
+        std::lock_guard<recursive_mutex> gd(thread->mutex);
         thread->suspendPending = true;
+        thread->signal = 1;
     }
 }
 
@@ -478,7 +481,9 @@ int Thread::interrupt(Thread *thread) {
         }
         else
         {
+            std::lock_guard<recursive_mutex> gd(thread->mutex);
             thread->state = THREAD_KILLED; // terminate thread
+            thread->signal = 1;
             return 0;
         }
     }
@@ -671,7 +676,7 @@ void Thread::exec() {
                 return;
 
             interp:
-            //count++;
+            count++;
             //cout << count << endl;
             if (suspendPending)
                 suspendSelf();
@@ -691,7 +696,7 @@ void Thread::exec() {
                 returnFrame(vm->returnMethod();)
                 _brh
             HLT:
-                state=THREAD_KILLED;
+                state=THREAD_KILLED; signal = 1;
                 _brh
             NEWARRAY:
                 dataStack[(long long)++registers[sp]].object =
@@ -800,6 +805,12 @@ void Thread::exec() {
                 _brh
             MOVL:
                 o2 = &dataStack[(int64_t)registers[fp]+GET_Da(cache[pc])].object;
+                _brh
+            POPL:
+                CHECK_NULL(
+                        dataStack[(int64_t)registers[fp]+GET_Da(cache[pc])].object
+                                = dataStack[(int64_t)registers[sp]--].object;
+                )
                 _brh
             MOVSL:
                 o2 = &(dataStack[(int64_t)registers[sp]+GET_Da(cache[pc])].object);
@@ -1026,6 +1037,17 @@ void Thread::exec() {
 
 void Thread::dbg() {
     int i = 0;
+}
+
+void Thread::interrupt() {
+    std::lock_guard<recursive_mutex> gd(mutex);
+
+    if (suspendPending)
+        suspendSelf();
+    if (state == THREAD_KILLED)
+        return;
+
+    signal = 0;
 }
 
 void __os_sleep(int64_t INTERVAL) {

@@ -39,7 +39,7 @@
 #define CA_MAX 134217727
 #define CA_MIN -134217727
 
-#define DISPATCH() if(pc<cacheSize) { goto *opcode_table[GET_OP(cache[pc])]; } else { throw Exception("invalid branch/dispatch; check your assembly code?"); }
+#define DISPATCH() goto *opcode_table[GET_OP(cache[pc])];
 
 #define _brh pc++; goto *opcodeStart;
 #define _brh_NOINCREMENT goto *opcodeStart;
@@ -150,7 +150,8 @@
         &&RETURNVAL,                     \
         &&ISTORE,                        \
         &&SMOVR_2,                        \
-        &&ISTOREL                        \
+        &&ISTOREL,                        \
+        &&POPL                           \
     };
 
 enum Opcode {
@@ -254,7 +255,8 @@ enum Opcode {
     op_RETURNVAL           =0x61,
     op_ISTORE              =0x62,
     op_SMOVR_2             =0x63,
-    op_ISTOREL             =0x64
+    op_ISTOREL             =0x64,
+    op_POPL                =0x65
 };
 
 #endif //SHARP_OPCODE_H

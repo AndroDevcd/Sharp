@@ -12,6 +12,7 @@
 #include "../runtime/register.h"
 #include "Asm.h"
 #include "../runtime/Exe.h"
+#include "Optimizer.h"
 
 using namespace std;
 
@@ -1202,8 +1203,8 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
         scope->locals.add(KeyPair<int, Field>(scope->blocks, f));
         Expression fieldExpr = fieldToExpression(pAst, f);
 
-        if(f.isObjectInMemory())
-            block.code.__asm64.push_back(SET_Di(i64, op_MOVL, f.address));
+//        if(f.isObjectInMemory())
+//            block.code.__asm64.push_back(SET_Di(i64, op_MOVL, f.address));
 
         if(pAst->hasSubAst(ast_value)) {
             Expression expression = parseValue(pAst->getSubAst(ast_value)), out;
@@ -8357,14 +8358,18 @@ void RuntimeEngine::generate() {
         }
     }
 
-//    if(c_options.optimize) {
-//        Optimizer optimizer; // ToDo: make struct OptimizerStat { } to create a total view of how many instructions optimized out in total
-//        for(unsigned int i = 0; i < allMethods.size(); i++)
-//        {
-//            Method* method = allMethods.get(i);
-//            optimizer.optimize(method);
-//        }
-//    }
+    if(c_options.optimize) {
+        long optimized = 0;
+        Optimizer optimizer; // ToDo: make struct OptimizerStat { } to create a total view of how many instructions optimized out in total
+        for(unsigned int i = 0; i < allMethods.size(); i++)
+        {
+            Method* method = allMethods.get(i);
+            optimizer.optimize(method);
+            optimized += optimizer.getOptimizedOpcodes();
+        }
+
+        cout << "Total instructions optimized out: " << optimized << endl;
+    }
 
     _ostream << generate_string_section();
     _ostream << generate_text_section();
@@ -8740,6 +8745,12 @@ void RuntimeEngine::createDumpFile() {
                 case op_MOVL:
                 {
                     ss<<"movl " << GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_POPL:
+                {
+                    ss<<"popl " << GET_Da(x64);
                     _ostream << ss.str();
                     break;
                 }

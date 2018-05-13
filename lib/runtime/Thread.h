@@ -96,6 +96,7 @@ public:
     bool daemon;
     bool terminated;
     unsigned int state;
+    unsigned int signal;
     bool suspended;
     bool exited;
     native_string name;
@@ -128,6 +129,8 @@ public:
     static void resumeAllThreads();
 
     void exec();
+
+    void interrupt();
 
 private:
 
