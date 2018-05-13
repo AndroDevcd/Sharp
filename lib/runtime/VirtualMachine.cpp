@@ -280,14 +280,14 @@ void VirtualMachine::executeMethod(int64_t address) {
     } else {
         int64_t spAddr = method->paramSize==0 ? (method->isStatic ? method->returnVal : 0)+registers[sp] : registers[sp]-method->paramSize;
         thread_self->callStack.add(
-                Frame(thread_self->current, thread_self->pc, spAddr, registers[fp]));
+                Frame(thread_self->current, thread_self->pc, spAddr, thread_self->fp));
     }
 
     thread_self->pc = 0;
     thread_self->current = method;
     thread_self->cache = method->bytecode;
     thread_self->cacheSize = method->cacheSize;
-    registers[fp] = thread_self->callStack.size()==1 ? registers[fp] :
+    thread_self->fp = thread_self->callStack.size()==1 ? thread_self->fp :
                     ((registers[sp] - method->paramSize) + (method->isStatic ? 1 : 0));
     registers[sp] += (method->stackSize - method->paramSize);
 }
@@ -307,7 +307,7 @@ int VirtualMachine::returnMethod() {
 
     thread_self->pc = frame.pc;
     registers[sp] = frame.sp;
-    registers[fp] = frame.fp;
+    thread_self->fp = frame.fp;
     thread_self->callStack.pop_back();
     return 0;
 }
@@ -375,7 +375,7 @@ bool VirtualMachine::TryThrow(Method *method, Object *exceptionObject) {
 
         if(tbl != NULL)
         {
-            Object* object = &thread_self->dataStack[(int64_t)registers[fp]+tbl->local].object;
+            Object* object = &thread_self->dataStack[thread_self->fp+tbl->local].object;
             *object = exceptionObject;
             thread_self->pc = tbl->handler_pc;
 
@@ -449,7 +449,7 @@ void VirtualMachine::fillStackTrace(native_string &str) {
 // fill message
     stringstream ss;
     Method* m = thread_self->current;
-    int64_t pc = thread_self->pc, _fp=(int64_t)registers[fp];
+    int64_t pc = thread_self->pc, _fp=thread_self->fp;
 
     unsigned int pos = thread_self->callStack.size() > EXCEPTION_PRINT_MAX ? thread_self->callStack.size()
                                                                              - EXCEPTION_PRINT_MAX : 0;

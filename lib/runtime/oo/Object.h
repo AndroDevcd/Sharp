@@ -12,7 +12,7 @@ struct ClassObject;
 
 struct SharpObject
 {
-    void init()
+    void init(unsigned long size)
     {
         HEAD=NULL;
         node=NULL;
@@ -23,10 +23,26 @@ struct SharpObject
 #ifdef POSIX_
         mutex = std::mutex();
 #endif
-        size=0;
-        refCount=0;
+        this->size=size;
+        refCount=1;
         generation = 0x000; /* generation young */
     }
+    void init(unsigned long size, ClassObject* k)
+    {
+        HEAD=NULL;
+        node=NULL;
+        this->k=k;
+#ifdef WIN32_
+        mutex.initalize();
+#endif
+#ifdef POSIX_
+        mutex = std::mutex();
+#endif
+        this->size=size;
+        refCount=1;
+        generation = 0x000; /* generation young */
+    }
+
     double *HEAD;        /* data */
     Object *node;        /* structured data */
 

@@ -6,6 +6,7 @@
 #include "../runtime/Opcode.h"
 
 void Optimizer::readjustAddresses(unsigned int stopAddr) {
+    // TODO: do line_table as well
     for(unsigned int i = 0; i < func->exceptions.size(); i++) {
         ExceptionTable &et = func->exceptions.get(i);
 

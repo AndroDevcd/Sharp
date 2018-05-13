@@ -178,7 +178,6 @@ int startApplication(string exe, List<native_string>& pArgs) {
 
 void init_main(List <native_string>& pArgs) {
     registers[sp] = -1;
-    registers[fp] = 0;
 
     Thread *main = Thread::threads.get(main_threadid);
     Object* object = &main->dataStack[(long)++registers[sp]].object;

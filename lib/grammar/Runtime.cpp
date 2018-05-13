@@ -6180,7 +6180,7 @@ Expression RuntimeEngine::fieldToExpression(Ast *pAst, Field& field) {
     if(field.isObjectInMemory()) {
         fieldExpr.code.push_i64(SET_Di(i64, op_MOVL, field.address));
     } else {
-        fieldExpr.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
+        //fieldExpr.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
         fieldExpr.code.push_i64(SET_Ci(i64, op_SMOV, ebx, 0, field.address));
     }
     return fieldExpr;
@@ -8360,7 +8360,7 @@ void RuntimeEngine::generate() {
 
     if(c_options.optimize) {
         long optimized = 0;
-        Optimizer optimizer; // ToDo: make struct OptimizerStat { } to create a total view of how many instructions optimized out in total
+        Optimizer optimizer;
         for(unsigned int i = 0; i < allMethods.size(); i++)
         {
             Method* method = allMethods.get(i);

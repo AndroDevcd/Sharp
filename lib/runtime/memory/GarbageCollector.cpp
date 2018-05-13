@@ -397,10 +397,8 @@ list<SharpObject *>::iterator GarbageCollector::sweep(SharpObject *object, bool 
 
 SharpObject *GarbageCollector::newObject(unsigned long size) {
     SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
+    object->init(size);
 
-    object->init();
-    object->size = size;
-    object->refCount=1;
     if(size > 0) {
         object->HEAD = (double*)__calloc(size, sizeof(double));
     }
@@ -417,14 +415,10 @@ SharpObject *GarbageCollector::newObject(unsigned long size) {
 SharpObject *GarbageCollector::newObject(ClassObject *k) {
     if(k != nullptr) {
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
-
-        object->init();
-        object->size = k->fieldCount;
-        object->refCount=1;
-        object->k = k;
+        object->init(k->fieldCount, k);
 
         if(k->fieldCount > 0) {
-            object->node = (Object*)__calloc(k->fieldCount, sizeof(Object));
+            object->node = (Object*)__malloc(sizeof(Object)*k->fieldCount);
             for(unsigned int i = 0; i < object->size; i++) {
                 /**
                  * We want to set the class variables and arrays
@@ -451,10 +445,8 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
 
 SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
     SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
+    object->init(size);
 
-    object->init();
-    object->size = size;
-    object->refCount=1;
     if(size > 0) {
         object->node = (Object*)__malloc(sizeof(Object)*size);
         for(unsigned int i = 0; i < object->size; i++)
@@ -473,11 +465,8 @@ SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
 SharpObject *GarbageCollector::newObjectArray(unsigned long size, ClassObject *k) {
     if(k != nullptr) {
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
+        object->init(size, k);
 
-        object->init();
-        object->size = size;
-        object->refCount=1;
-        object->k = k;
         if(size > 0) {
             object->node = (Object*)__malloc(sizeof(Object)*size);
             for(unsigned int i = 0; i < object->size; i++)

@@ -105,7 +105,7 @@ public:
     bool suspendPending;
     bool exceptionThrown;
 
-    uint64_t pc;
+    uint64_t pc, fp;
     Method *current;
     List<Frame> callStack;
     StackElement* dataStack;
