@@ -150,14 +150,14 @@ private:
      */
     list<SharpObject *>::iterator sweep(SharpObject *object, bool inv = true);
 
-    void markObject(SharpObject *object);
-
     CXX11_INLINE list<SharpObject *>::iterator invalidate(SharpObject *object) {
         for (auto it = heap.begin(); it != heap.end(); it++) {
             if(*it == object) {
                 return heap.erase(it);
             }
         }
+
+        return heap.end();
     }
 };
 
@@ -166,14 +166,8 @@ private:
 #define GC_COLLECT_OLD() ( (unsigned int)(((double)oObjs/(double)oldObjects)*100) >= 20 )
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))
 
-#define GENERATION_MASK 0x3
-#define IS_MARKED(g) ((g >> 2) & 0x001)
-#define MARK_FOR_DELETE(i, flg) (i= (i | (flg << 2)))
-#define GENERATION(g) (g & GENERATION_MASK)
-#define SET_GENERATION(g, gen) (g= (gen | ((IS_MARKED(g)) << 2)))
-
 #define UPDATE_GC(object) \
-    switch(GENERATION(object->_gcInfo)) { \
+    switch(object->generation) { \
         case gc_young: \
             youngObjects--; \
             break; \

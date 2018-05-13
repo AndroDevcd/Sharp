@@ -200,14 +200,11 @@ void createStringArray(Object *object, List<native_string> &args) {
     native_string str(ss.str());
 
     object->object = GarbageCollector::self->newObjectArray(size);
-    SET_GENERATION(object->object->_gcInfo, gc_perm);
+    object->object->generation = gc_perm;
 
     GarbageCollector::self->createStringArray(&object->object->node[iter++], manifest.application);
-    SET_GENERATION(object->object->_gcInfo, gc_perm);
     GarbageCollector::self->createStringArray(&object->object->node[iter++], manifest.version);
-    SET_GENERATION(object->object->_gcInfo, gc_perm);
     GarbageCollector::self->createStringArray(&object->object->node[iter++], str); /* target platform also the platform version */
-    SET_GENERATION(object->object->_gcInfo, gc_perm);
 
 #ifdef WIN32_
     str = "win";
@@ -216,7 +213,6 @@ void createStringArray(Object *object, List<native_string> &args) {
     str = "posix";
 #endif
     GarbageCollector::self->createStringArray(&object->object->node[iter++], str); /* operating system currently running on */
-    SET_GENERATION(object->object->_gcInfo, gc_perm);
 
     /*
      * Assign program args to be passed to main

@@ -25,7 +25,7 @@ struct SharpObject
 #endif
         size=0;
         refCount=0;
-        _gcInfo = 0x000; /* generation young */
+        generation = 0x000; /* generation young */
     }
     double *HEAD;        /* data */
     Object *node;        /* structured data */
@@ -40,15 +40,14 @@ struct SharpObject
 #ifdef POSIX_
     std::mutex mutex;
 #endif
-    unsigned int _gcInfo : 3; /* collection generation */
+    unsigned int generation : 3; /* collection generation */
 };
 
 #define FREE_OBJ \
     if(object != NULL) { \
-        std::lock_guard<recursive_mutex> guard(mutex); \
         object->refCount--; \
          \
-        switch(GENERATION(object->_gcInfo)) { \
+        switch(object->generation) { \
             case gc_young: \
                 GarbageCollector::self->yObjs++; \
                 break; \

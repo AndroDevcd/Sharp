@@ -139,7 +139,7 @@ int CreateVirtualMachine(std::string exe)
      */
 //    for(unsigned long i = 0; i < manifest.classes-AUX_CLASSES; i++) {
 //        env->globalHeap[i].object = GarbageCollector::self->newObject(&env->classes[i]);
-//        env->globalHeap[i].object->_gcInfo = gc_perm;
+//        env->globalHeap[i].object->generation = gc_perm;
 //    }
 
     return 0;

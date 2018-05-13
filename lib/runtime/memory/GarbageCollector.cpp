@@ -102,10 +102,9 @@ void GarbageCollector::initilize() {
 void GarbageCollector::freeObject(Object *object) {
     if(object != nullptr && object->object != nullptr)
     {
-        std::lock_guard<recursive_mutex> guard(object->object->mutex);
         object->object->refCount--;
 
-        switch(GENERATION(object->object->_gcInfo)) {
+        switch(object->object->generation) {
             case gc_young:
                 yObjs++;
                 break;
@@ -120,24 +119,6 @@ void GarbageCollector::freeObject(Object *object) {
     }
 }
 
-void GarbageCollector::markObject(SharpObject *object) {
-    if(object != nullptr) {
-        MARK_FOR_DELETE(object->_gcInfo, 1);
-        if(object->node != NULL) {
-            for(unsigned long i = 0; i < object->size; i++) {
-                SharpObject *o = object->node[i].object;
-                /**
-                 * If the object still has references we just drop it and move on
-                 */
-                if(o != nullptr && o->refCount <= 1) {
-                    markObject(o);
-                }
-            }
-        }
-
-    }
-}
-
 void GarbageCollector::shutdown() {
     if(self != nullptr) {
         managedBytes=0;
@@ -149,6 +130,7 @@ void GarbageCollector::shutdown() {
         cout << "Objects left over young: " << youngObjects << " adult: " << adultObjects
                                           << " old: " << oldObjects << endl;
         cout << "heap size: " << heap.size() << endl;
+        cout << std::flush << endl;
         for (auto it = heap.begin(); it != heap.end();) {
             if((*it)->refCount < 1)
                 it = sweep(*it);
@@ -227,15 +209,15 @@ void GarbageCollector::collectYoungObjects() {
             return;
         }
 
-        if(GENERATION(object->_gcInfo) == gc_young) {
+        if(object->generation == gc_young) {
 
-            // mark object
+            // free object
             if(object->refCount == 0) {
                 it = sweep(object);
             } else if(object->refCount > 0){
                 youngObjects--;
                 adultObjects++;
-                SET_GENERATION(object->_gcInfo, gc_adult);
+                object->generation=gc_adult;
                 it++;
             } else
                 it++;
@@ -250,7 +232,7 @@ void GarbageCollector::collectAdultObjects() {
     aObjs = 0;
 
     mutex.lock();
-    for (auto it = heap.begin(); it != heap.end(); it++) {
+    for (auto it = heap.begin(); it != heap.end();) {
         SharpObject *object = *it;
 
         if(thread_self->state == THREAD_KILLED) {
@@ -258,22 +240,21 @@ void GarbageCollector::collectAdultObjects() {
             return;
         }
 
-        if(GENERATION(object->_gcInfo) == gc_adult) {
+        if(object->generation == gc_adult) {
 
-            // mark object
-            if(!IS_MARKED(object->_gcInfo) && object->refCount == 0) {
-                markObject(object);
-                it = sweep(object);
-            } else if(IS_MARKED(object->_gcInfo)) {
+            // free object
+            if(object->refCount == 0) {
                 it = sweep(object);
             } else if(object->refCount > 0){
                 adultObjects--;
                 oldObjects++;
-                SET_GENERATION(object->_gcInfo, gc_old);
+                object->generation=gc_old;
+                it++;
             } else {
-                cout << "wtf\n";
+                it++;
             }
-        }
+        } else
+            it++;
     }
 
     mutex.unlock();
@@ -283,7 +264,7 @@ void GarbageCollector::collectOldObjects() {
     oObjs = 0;
 
     mutex.lock();
-    for (auto it = heap.begin(); it != heap.end(); it++) {
+    for (auto it = heap.begin(); it != heap.end();) {
         SharpObject *object = *it;
 
         if(thread_self->state == THREAD_KILLED) {
@@ -291,19 +272,16 @@ void GarbageCollector::collectOldObjects() {
             return;
         }
 
-        if(GENERATION(object->_gcInfo) == gc_old) {
+        if(object->generation == gc_old) {
 
-            // mark object
-            if(!IS_MARKED(object->_gcInfo) && object->refCount == 0) {
-                markObject(object);
-            } else if(IS_MARKED(object->_gcInfo)) {
+            // free object
+            if(object->refCount == 0) {
                 it = sweep(object);
-            } else if(object->refCount > 0){
-                /* We dont care */
             } else {
-                cout << "wtf\n";
+                it++;
             }
-        }
+        } else
+            it++;
     }
 
     mutex.unlock();
