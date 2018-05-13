@@ -3,4 +3,5 @@
 *.stackdump
 /cmake-build*
 .idea/
+bin/
 out
