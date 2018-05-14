@@ -84,9 +84,9 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
                 }
                 break;
             case op_MOVI:
-                if(unique_addr_lst.find(i)) {
+                if(unique_addr_lst.find(i+1)) {
                     addr=GET_Da(x64);
-                    unique_addr_lst.replace(unique_addr_lst.indexof(i), i);
+                    unique_addr_lst.replace(unique_addr_lst.indexof(i+1), i);
 
                     /*
                      * We only want to update data which is referencing data below us

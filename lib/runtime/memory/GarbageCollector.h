@@ -148,7 +148,7 @@ private:
      * @param object
      * @return
      */
-    list<SharpObject *>::iterator sweep(SharpObject *object, bool inv = true);
+    list<SharpObject *>::iterator sweep(SharpObject *object);
 
     CXX11_INLINE list<SharpObject *>::iterator invalidate(SharpObject *object) {
         for (auto it = heap.begin(); it != heap.end(); it++) {

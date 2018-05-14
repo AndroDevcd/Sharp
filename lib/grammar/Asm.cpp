@@ -82,8 +82,6 @@ void Asm::expect_register() {
         i2.high_bytes = bmr;
     } else if(current() == "egx") {
         i2.high_bytes = egx;
-    } else if(current() == "sp") {
-        i2.high_bytes = sp;
     } else {
         // error
         tk->getErrors()->createNewError(GENERIC, current(), "symbol `" + current().getToken() + "` is not a register");
@@ -1168,8 +1166,6 @@ string Asm::registrerToString(int64_t r) {
             return "bmr";
         case egx:
             return "egx";
-        case sp:
-            return "sp";
         default:
             return "?";
     }

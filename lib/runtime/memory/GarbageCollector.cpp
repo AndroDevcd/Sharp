@@ -185,13 +185,13 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         /**
          * This should only be called by the GC thread itsself
          */
-        if(GC_COLLECT_YOUNG()) {
+        if(GC_COLLECT_YOUNG()) {        /* 10% */
             collectYoungObjects();
         }
-        if(GC_COLLECT_ADULT()) {
+        if(GC_COLLECT_ADULT()) {        /* 40% */
             collectAdultObjects();
         }
-        if(GC_COLLECT_OLD()) {
+        if(GC_COLLECT_OLD()) {        /* 20% */
             collectOldObjects();
         }
     }
@@ -362,7 +362,7 @@ void GarbageCollector::sendMessage(CollectionPolicy message) {
     messageQueue.push_back(message);
 }
 
-list<SharpObject *>::iterator GarbageCollector::sweep(SharpObject *object, bool inv) {
+list<SharpObject *>::iterator GarbageCollector::sweep(SharpObject *object) {
     if(object != nullptr) {
 
         if(object->HEAD != nullptr) {
@@ -388,10 +388,7 @@ list<SharpObject *>::iterator GarbageCollector::sweep(SharpObject *object, bool 
 
         managedBytes -= sizeof(SharpObject)*1;
         std::free(object);
-        if(inv)
-            return invalidate(object);
-        else
-            return list<SharpObject *>::iterator();
+        return invalidate(object);
     }
 }
 
