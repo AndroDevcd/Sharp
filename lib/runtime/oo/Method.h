@@ -31,7 +31,7 @@ struct Method {
     int paramSize;
     long sourceFile;                /* Link to source file in code */
     int64_t cacheSize;              /* Size of the bytecode cache */
-    bool isStatic;
+    int isStatic;
     List<ExceptionTable> exceptions;
     List<FinallyTable> finallyBlocks;
     List<line_table> lineNumbers;
@@ -71,7 +71,7 @@ struct Method {
         bytecode = NULL;
         address = 0;
         cacheSize = 0;
-        isStatic = false;
+        isStatic = 0;
         returnVal = 0;
     }
 };
@@ -97,9 +97,6 @@ public:
     uint64_t sp;
     uint64_t fp;
 };
-
-#define returnFrame(x) \
-    if(startAddress==0) { if(thread_self->callStack.size()==1) return; else { x } }
 
 #pragma optimize( "", off )
 struct StackElement {

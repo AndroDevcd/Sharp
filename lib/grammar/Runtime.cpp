@@ -1925,7 +1925,7 @@ void RuntimeEngine::pushAuthenticExpressionToStackNoInject(Expression& expressio
             if(expression.newExpression) {
             } else {
                 if (expression.func) {
-                    out.code.push_i64(SET_Di(i64, op_INC, sp));
+                   // out.code.push_i64(SET_Di(i64, op_INC, sp));
                 } else
                     out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
             }
@@ -1960,21 +1960,17 @@ void RuntimeEngine::pushAuthenticExpressionToStackNoInject(Expression& expressio
             }
             break;
         case expression_string:
-            out.code.push_i64(SET_Di(i64, op_INC, sp));
-            out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
             out.code.push_i64(SET_Di(i64, op_NEWSTRING, expression.intValue));
             break;
         case expression_null:
-            out.code.push_i64(SET_Di(i64, op_INC, sp));
-            out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
-            out.code.push_i64(SET_Ei(i64, op_DEL));
+            out.code.push_i64(SET_Ei(i64, op_PUSHNIL));
             break;
         case expression_objectclass:
             if(expression.newExpression) {
             } else {
                 if(expression.func) {
                     /* I think we do nothing? */
-                    out.code.push_i64(SET_Di(i64, op_INC, sp));
+                   // out.code.push_i64(SET_Di(i64, op_INC, sp));
                 } else {
                     out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
                 }
@@ -2074,14 +2070,10 @@ void RuntimeEngine::pushExpressionToStack(Expression& expression, Expression& ou
             }
             break;
         case expression_string:
-            out.code.push_i64(SET_Di(i64, op_INC, sp));
-            out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
             out.code.push_i64(SET_Di(i64, op_NEWSTRING, expression.intValue));
             break;
         case expression_null:
-            out.code.push_i64(SET_Di(i64, op_INC, sp));
-            out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
-            out.code.push_i64(SET_Ei(i64, op_DEL));
+            out.code.push_i64(SET_Ei(i64, op_PUSHNIL));
             break;
         case expression_objectclass:
             if(expression.newExpression) {
@@ -2280,14 +2272,10 @@ void RuntimeEngine::pushExpressionToStackNoInject(Expression& expression, Expres
             }
             break;
         case expression_string:
-            out.code.push_i64(SET_Di(i64, op_INC, sp));
-            out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
             out.code.push_i64(SET_Di(i64, op_NEWSTRING, expression.intValue));
             break;
         case expression_null:
-            out.code.push_i64(SET_Di(i64, op_INC, sp));
-            out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
-            out.code.push_i64(SET_Ei(i64, op_DEL));
+            out.code.push_i64(SET_Ei(i64, op_PUSHNIL));
             break;
         case expression_objectclass:
             if(expression.newExpression) {
@@ -4595,10 +4583,10 @@ void RuntimeEngine::addClassChain(token_entity operand, ClassObject* klass, Expr
 
 
         if(left.func && left.type != expression_void) {
-            out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
-            out.code.push_i64(SET_Di(i64, op_DEC, sp));
-
-            out.code.push_i64(SET_Di(i64, op_PUSHOBJ, 0));
+//            out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+//            out.code.push_i64(SET_Di(i64, op_DEC, sp));
+//
+//            out.code.push_i64(SET_Di(i64, op_PUSHOBJ, 0));
         } else if(left.func) {
             errors->createNewError(GENERIC, pAst, "call to function `$operator" + operand.getToken() + "` returns void from previous operand");
         } else {
@@ -4721,8 +4709,6 @@ bool RuntimeEngine::constructNewString(Expression &stringExpr, Expression &right
             out.utype.klass = klass;
             out.utype.type=CLASS;
 
-            out.code.push_i64(SET_Di(i64, op_INC, sp));
-            out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
             out.code.push_i64(SET_Di(i64, op_NEWCLASS, klass->address));
 
             for(unsigned int i = 0; i < expressions.size(); i++) {

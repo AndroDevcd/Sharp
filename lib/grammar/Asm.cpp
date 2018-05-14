@@ -82,8 +82,6 @@ void Asm::expect_register() {
         i2.high_bytes = bmr;
     } else if(current() == "egx") {
         i2.high_bytes = egx;
-    } else if(current() == "fp") {
-        i2.high_bytes = fp;
     } else if(current() == "sp") {
         i2.high_bytes = sp;
     } else {
@@ -1172,8 +1170,6 @@ string Asm::registrerToString(int64_t r) {
             return "egx";
         case sp:
             return "sp";
-        case fp:
-            return "fp";
         default:
             return "?";
     }

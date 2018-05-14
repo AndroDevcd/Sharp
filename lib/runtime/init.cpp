@@ -177,10 +177,8 @@ int startApplication(string exe, List<native_string>& pArgs) {
 }
 
 void init_main(List <native_string>& pArgs) {
-    registers[sp] = -1;
-
     Thread *main = Thread::threads.get(main_threadid);
-    Object* object = &main->dataStack[(long)++registers[sp]].object;
+    Object* object = &main->dataStack[++main->sp].object;
 
     createStringArray(object, pArgs);
     for(unsigned int i = 0; i < pArgs.size(); i++) {

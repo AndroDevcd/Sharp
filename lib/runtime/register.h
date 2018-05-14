@@ -15,8 +15,7 @@ enum _register {
     edf=0x6,         // general register 2
     ehf=0x7,         // general register 3
     bmr=0x8,        // math register
-    egx=0x9,        // temporary storage register
-    sp=0xa
+    egx=0x9        // temporary storage register
 };
 
 #endif //SHARP_REGISTER_H

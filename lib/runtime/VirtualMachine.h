@@ -30,7 +30,7 @@ public:
 
     void sysInterrupt(int32_t i);
 
-    void executeMethod(int64_t address);
+    //void executeMethod(int64_t address);
     int returnMethod();
     bool TryThrow(Method* method, Object* exceptionObject);
     void Throw(Object *exceptionObject);
@@ -65,6 +65,27 @@ public:
 
     void fillMethodCall(Frame frame, stringstream &ss);
 };
+
+#define executeMethod(address) { \
+ \
+    Method* method = env->methods+address; \
+ \
+    if(thread_self->callStack.empty()) { \
+        thread_self->callStack.add( \
+                Frame(NULL, 0, 0, 0)); \
+    } else { \
+        int64_t spAddr = method->paramSize==0 ? (method->isStatic ? method->returnVal : 0)+thread_self->sp : thread_self->sp-method->paramSize; \
+        thread_self->callStack.add( \
+                Frame(thread_self->current, thread_self->pc, spAddr, thread_self->fp)); \
+    } \
+ \
+    thread_self->pc = 0; \
+    thread_self->current = method; \
+    thread_self->cache = method->bytecode; \
+    thread_self->fp = thread_self->callStack.size()==1 ? thread_self->fp : \
+                    ((thread_self->sp - method->paramSize) + method->isStatic); \
+    thread_self->sp += (method->stackSize - method->paramSize); \
+}
 
 extern VirtualMachine* vm;
 extern Environment* env;

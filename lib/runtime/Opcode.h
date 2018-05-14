@@ -41,8 +41,14 @@
 
 #define DISPATCH() goto *opcode_table[GET_OP(cache[pc])];
 
-#define _brh pc++; goto *opcodeStart;
-#define _brh_NOINCREMENT goto *opcodeStart;
+#define SAFTEY_CHECK \
+    if (suspendPending) \
+        suspendSelf(); \
+    if (state == THREAD_KILLED) \
+        return;
+
+#define _brh pc++; SAFTEY_CHECK if(!startAddress) DISPATCH() else goto *opcodeStart;
+#define _brh_NOINCREMENT SAFTEY_CHECK if(!startAddress) DISPATCH() else goto *opcodeStart;
 
 #define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
 #define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->size==0) { throw Exception(Environment::NullptrException, ""); } else { x }
@@ -151,7 +157,8 @@
         &&ISTORE,                        \
         &&SMOVR_2,                        \
         &&ISTOREL,                        \
-        &&POPL                           \
+        &&POPL,                           \
+        &&PUSHNIL                           \
     };
 
 enum Opcode {
@@ -256,7 +263,8 @@ enum Opcode {
     op_ISTORE              =0x62,
     op_SMOVR_2             =0x63,
     op_ISTOREL             =0x64,
-    op_POPL                =0x65
+    op_POPL                =0x65,
+    op_PUSHNIL             =0x66
 };
 
 #endif //SHARP_OPCODE_H

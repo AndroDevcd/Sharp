@@ -171,7 +171,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         /*
          * Call main method
          */
-        vm->executeMethod(thread_self->main->address);
+        executeMethod(thread_self->main->address)
 
         thread_self->exec();
         if(count != 0)
@@ -264,33 +264,6 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
     }
 }
 
-void VirtualMachine::executeMethod(int64_t address) {
-    if(address < 0 || address >= manifest.methods) {
-        stringstream ss;
-        ss << "could not call method @" << address << "; method not found.";
-        throw Exception(ss.str());
-    }
-
-    thread_self->dbg();
-    Method* method = env->methods+address;
-
-    if(thread_self->callStack.empty()) {
-        thread_self->callStack.add(
-                Frame(NULL, 0, 0, 0)); // for main method
-    } else {
-        int64_t spAddr = method->paramSize==0 ? (method->isStatic ? method->returnVal : 0)+registers[sp] : registers[sp]-method->paramSize;
-        thread_self->callStack.add(
-                Frame(thread_self->current, thread_self->pc, spAddr, thread_self->fp));
-    }
-
-    thread_self->pc = 0;
-    thread_self->current = method;
-    thread_self->cache = method->bytecode;
-    thread_self->cacheSize = method->cacheSize;
-    thread_self->fp = thread_self->callStack.size()==1 ? thread_self->fp :
-                    ((registers[sp] - method->paramSize) + (method->isStatic ? 1 : 0));
-    registers[sp] += (method->stackSize - method->paramSize);
-}
 
 int VirtualMachine::returnMethod() {
     if(thread_self->callStack.size() <= 1)
@@ -303,10 +276,9 @@ int VirtualMachine::returnMethod() {
 
     thread_self->current = frame.last;
     thread_self->cache = frame.last->bytecode;
-    thread_self->cacheSize=frame.last->cacheSize;
 
     thread_self->pc = frame.pc;
-    registers[sp] = frame.sp;
+    thread_self->sp = frame.sp;
     thread_self->fp = frame.fp;
     thread_self->callStack.pop_back();
     return 0;
@@ -458,7 +430,7 @@ void VirtualMachine::fillStackTrace(native_string &str) {
         fillMethodCall(thread_self->callStack.get(i), ss);
     }
 
-    Frame frame(thread_self->current, pc, registers[sp], _fp);
+    Frame frame(thread_self->current, pc, thread_self->sp, _fp);
     fillMethodCall(frame, ss);
 
     str = ss.str();

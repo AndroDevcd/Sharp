@@ -105,13 +105,12 @@ public:
     bool suspendPending;
     bool exceptionThrown;
 
-    uint64_t pc, fp;
+    int64_t pc, fp, sp;
     Method *current;
     List<Frame> callStack;
     StackElement* dataStack;
     unsigned long stack_lmt;
     Cache cache;
-    int64_t cacheSize;
     Throwable throwable;
 #ifdef WIN32_
     HANDLE thread;
@@ -121,7 +120,6 @@ public:
 #endif
 
 // @Remove
-    void dbg();
     void term();
 
     static void suspendAllThreads();
