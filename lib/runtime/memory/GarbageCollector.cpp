@@ -124,13 +124,13 @@ void GarbageCollector::shutdown() {
         managedBytes=0;
         isShutdown=true;
         /* Clear out all memory */
-        cout << "highest memory calculated: " << hbytes << endl;
-        cout << "Objects Collected " << self->x << endl;
-        cout << "Total managed bytes left " << self->managedBytes << endl;
-        cout << "Objects left over young: " << youngObjects << " adult: " << adultObjects
-                                          << " old: " << oldObjects << endl;
-        cout << "heap size: " << heap.size() << endl;
-        cout << std::flush << endl;
+//        cout << "highest memory calculated: " << hbytes << endl;
+//        cout << "Objects Collected " << self->x << endl;
+//        cout << "Total managed bytes left " << self->managedBytes << endl;
+//        cout << "Objects left over young: " << youngObjects << " adult: " << adultObjects
+//                                          << " old: " << oldObjects << endl;
+//        cout << "heap size: " << heap.size() << endl;
+//        cout << std::flush << endl;
         for (auto it = heap.begin(); it != heap.end();) {
             if((*it)->refCount < 1)
                 it = sweep(*it);

@@ -4500,7 +4500,6 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
 void RuntimeEngine::addNative(token_entity operand, FieldType type, Expression& out, Expression& left, Expression& right, Ast* pAst) {
     out.type = expression_var;
     right.type = expression_var;
-    right.func=false;
     right.literal = false;
     Expression expr;
 
@@ -8270,7 +8269,7 @@ std::string RuntimeEngine::generate_text_section() {
         text << i64_tostr(f->localVariables);
         text << i64_tostr(f->code.__asm64.size());
         text << (f->isStatic() ? 1 : 0) << ((char)nil);
-        text << (f->type==TYPEVOID ? 1 : 0) << ((char)nil);
+        text << (f->type!=TYPEVOID ? 1 : 0) << ((char)nil);
 
         text << f->line_table.size() << ((char)nil);
         for(unsigned int x = 0; x < f->line_table.size(); x++) {
@@ -9223,6 +9222,20 @@ void RuntimeEngine::createDumpFile() {
                     ss<<"istorel ";
                     ss<< method->code.__asm64.get(++x) << ", fp+";
                     ss<<GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_IPUSHL:
+                {
+                    ss<<"ipushl #";
+                    ss<< GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_PUSHL:
+                {
+                    ss<<"pushl ";
+                    ss<< GET_Da(x64);
                     _ostream << ss.str();
                     break;
                 }

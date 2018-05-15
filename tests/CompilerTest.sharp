@@ -1,0 +1,45 @@
+mod internal;
+
+/**
+ * Created by BraxtonN on 5/15/2018.
+ */
+class Runtime {
+
+    static def print(var[] message) {
+        asm("tests/print.asm");
+    }
+
+    static def printc(var char) {
+        asm("tests/printc.asm");
+    }
+
+    static def fact(var x) : var {
+        return (x == 1) ? x : x * fact(x - 1);
+    }
+
+    /**
+     * print a single character to the console
+     */
+    public static def __print_(var char, var isCharacter)
+    {
+        if(isCharacter) {
+            asm(
+                "  loadl ebx,0               // get local 'char'                                "
+                "  _putc ebx                                                                   "
+            );
+        } else {
+            asm(
+                "  loadl ebx,0               // get local 'char'                                "
+                "  put ebx                                                                     "
+            );
+        }
+    }
+
+    public static def __srt_init_(object[] args) : var {
+        var[] str = "factorial of 8 is ";
+
+        print(str);
+        __print_(fact(5), false);
+        return 0;
+    }
+}

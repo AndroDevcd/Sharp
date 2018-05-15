@@ -35,6 +35,10 @@ private:
     void readjustAddresses(unsigned int);
     void optimizeLocalPops();
     void optimizeRedundantMovICall();
+    void optimizeRedundantSelfInitilization();
+    void optimizeLocalPush();
+    void optimizeRedundantMovICall2();
+    void optimizeObjectPush();
 };
 
 

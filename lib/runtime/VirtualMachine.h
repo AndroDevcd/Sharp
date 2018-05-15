@@ -74,7 +74,7 @@ public:
         thread_self->callStack.add( \
                 Frame(NULL, 0, 0, 0)); \
     } else { \
-        int64_t spAddr = method->paramSize==0 ? (method->isStatic ? method->returnVal : 0)+thread_self->sp : thread_self->sp-method->paramSize; \
+        int64_t spAddr = method->paramSize==0 ? (method->isStatic ? method->returnVal : 0)+thread_self->sp : (method->isStatic ? method->returnVal : 0)+(thread_self->sp-method->paramSize); \
         thread_self->callStack.add( \
                 Frame(thread_self->current, thread_self->pc, spAddr, thread_self->fp)); \
     } \

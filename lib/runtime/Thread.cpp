@@ -1036,6 +1036,12 @@ void Thread::exec() {
             PUSHNIL:
                 GarbageCollector::self->freeObject(&dataStack[++sp].object);
                 _brh
+            IPUSHL:
+                dataStack[++sp].var = dataStack[fp+GET_Da(cache[pc])].var;
+                _brh
+            PUSHL:
+                dataStack[++sp].object = dataStack[fp+GET_Da(cache[pc])].object;
+                _brh
 
         }
     } catch (bad_alloc &e) {
