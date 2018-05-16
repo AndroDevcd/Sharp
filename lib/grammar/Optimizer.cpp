@@ -26,6 +26,13 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
             ft.end_pc--;
     }
 
+    for(unsigned int i = 0; i < func->line_table.size(); i++) {
+        KeyPair<int64_t, long> &lt = func->line_table.get(i);
+
+        if(stopAddr < lt.key && lt.key > 0)
+            lt.key--;
+    }
+
     int64_t x64, op, addr;
     for(unsigned int i = 0; i < stopAddr; i++) {
         x64 = assembler->__asm64.get(i);

@@ -8270,7 +8270,7 @@ std::string RuntimeEngine::generate_text_section() {
             ExceptionTable &et=f->exceptions.get(x);
             text << i64_tostr(f->exceptions.get(x).handler_pc);
             text << i64_tostr(f->exceptions.get(x).end_pc);
-            text << f->exceptions.get(x).className << ((char)nil);
+            text << f->exceptions.get(x).className.str() << ((char)nil);
             text << i64_tostr(f->exceptions.get(x).local);
             text << i64_tostr(f->exceptions.get(x).start_pc);
         }
