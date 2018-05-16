@@ -923,6 +923,8 @@ private:
     string find_class(int64_t id);
 
     bool isWholeNumber(double value);
+
+    string getString(long index);
 };
 
 

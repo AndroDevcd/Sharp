@@ -6253,7 +6253,7 @@ void RuntimeEngine::createNewWarning(error_type error, int line, int col, string
         if(c_options.werrors){
             errors->createNewError(error, line, col, xcmnts);
         } else {
-            errors->createNewError(error, line, col, xcmnts);
+            errors->createNewWarning(error, line, col, xcmnts);
         }
     }
 }
@@ -8030,6 +8030,23 @@ void RuntimeEngine::parseVarAccessModifiers(List<AccessModifier> &modifiers, Ast
     }
 }
 
+string RuntimeEngine::getString(long index) {
+    string str = stringMap.get(index);
+    stringstream ss;
+
+    if(str.size() <= 35) {
+        ss << "\"" << str << "\"";
+        return ss.str();
+    } else {
+        ss << "\"";
+        for(int i = 0; i < 35; i++) {
+            ss << str.at(i);
+        }
+        ss << "...\"";
+        return ss.str();
+    }
+}
+
 string copychars(char c, int t) {
     native_string s;
     int it = 0;
@@ -9020,7 +9037,8 @@ void RuntimeEngine::createDumpFile() {
                 }
                 case op_NEWSTRING:
                 {
-                    ss<<"newstr @" << GET_Da(x64);
+                    ss<<"newstr @" << GET_Da(x64) << " // ";
+                    ss << getString(GET_Da(x64));
                     _ostream << ss.str();
                     break;
                 }
