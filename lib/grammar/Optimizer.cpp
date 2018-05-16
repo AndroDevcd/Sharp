@@ -48,7 +48,7 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
             case op_MOVI:
                 if(unique_addr_lst.find(i)) {
                     addr=GET_Da(x64);
-                    unique_addr_lst.replace(unique_addr_lst.indexof(i), i-1);
+                    //unique_addr_lst.replace(unique_addr_lst.indexof(i), i-1);
 
                     /*
                      * We only want to update data which is referencing data below us
@@ -92,7 +92,7 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
                      * We only want to update data which is referencing data below us
                      */
                     if(addr <= stopAddr) {
-                        assembler->__asm64.replace(i, SET_Di(x64, op_MOVI, addr - 2));
+                        assembler->__asm64.replace(i, SET_Di(x64, op_MOVI, addr));
                     } else
                         assembler->__asm64.replace(i, SET_Di(x64, op_MOVI, addr-1));
                     i++;

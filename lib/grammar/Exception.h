@@ -8,6 +8,7 @@
 
 #include "../../stdimports.h"
 #include <stdexcept>
+#include "../runtime/oo/string.h"
 
 struct ExceptionTable{
     ExceptionTable()
@@ -22,13 +23,14 @@ struct ExceptionTable{
     void init() {
         start_pc=0;
         end_pc=0;
+        handler_pc=0;
         local=0;
-        className="";
+        className.init();
     }
 
     ~ExceptionTable()
     {
-        className.clear();
+        className.free();
     }
 
     void operator=(const ExceptionTable& e) {
@@ -42,7 +44,7 @@ struct ExceptionTable{
     uint64_t start_pc, end_pc;
     uint64_t handler_pc;
     int64_t local;
-    string className;
+    native_string className;
 };
 
 struct FinallyTable {

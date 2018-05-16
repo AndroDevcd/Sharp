@@ -61,7 +61,7 @@ enum ast_types
     /**
      * Encapsulated ast's to make processing expressions easier
      */
-            ast_literal_e,
+    ast_literal_e,
     ast_utype_class_e,
     ast_dot_not_e,
     ast_self_e,

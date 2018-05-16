@@ -1362,9 +1362,6 @@ void RuntimeEngine::resolveAllBranches(Block& block) {
     }
 
 
-    if(block.code.size() == 0 || GET_OP(block.code.__asm64.get(block.code.size() -1)) != op_RET) {
-        block.code.push_i64(SET_Ei(i64, op_RET));
-    }
     freeList(scope->branches);
 }
 
@@ -1512,9 +1509,6 @@ void RuntimeEngine::parseConstructorDecl(Ast* pAst) {
         }
 
         parseBlock(pAst->getSubAst(ast_block), fblock);
-
-        fblock.code.push_i64(SET_Di(i64, op_MOVL, 0));
-        fblock.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
 
         resolveAllBranches(fblock);
         reorderFinallyBlocks(method);
@@ -2167,7 +2161,7 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
 
 
     if(fn != NULL) {
-        if(scope->type == STATIC_BLOCK && !fn->isStatic()) {
+        if(!access && scope->type == STATIC_BLOCK && !fn->isStatic()) {
             errors->createNewError(GENERIC, valueLst->line, valueLst->col, " call to instance function `" + fn->getFullName() +  paramsToString(params) + "` inside static block");
         }
 
@@ -5422,15 +5416,9 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                     out.utype.klass=left.utype.field->klass;
                 }
 
-                if(c_options.optimize && right.utype.type == CLASSFIELD
-                   && right.utype.field->local) {
-                    out.inject(left);
-                    out.code.push_i64(SET_Di(i64, op_MULL, right.utype.field->address));
-                } else {
-                    pushExpressionToStack(right, out);
-                    out.inject(left);
-                    out.code.push_i64(SET_Ei(i64, op_POPOBJ));
-                }
+                pushExpressionToStack(right, out);
+                out.inject(left);
+                out.code.push_i64(SET_Ei(i64, op_POPOBJ));
             } else {
                 if(left.type == expression_lclass) {
                     addClass(operand, left.utype.klass, out, left, right, pAst);
@@ -8329,20 +8317,6 @@ void RuntimeEngine::generate() {
     _ostream << (char)sdata;
     _ostream << generate_data_section();
 
-    for(unsigned int i = 0; i < allMethods.size(); i++)
-    {
-        Method* method = allMethods.get(i);
-
-        if(method->code.size() == 0 || GET_OP(method->code.__asm64.last()) != op_RET) {
-            if(method->isConstructor) {
-                method->code.push_i64(SET_Di(i64, op_MOVL, 0));
-                method->code.push_i64(SET_Ei(i64, op_RETURNOBJ));
-            }
-
-            method->code.push_i64(SET_Ei(i64, op_RET));
-        }
-    }
-
     if(c_options.optimize) {
         long optimized = 0;
         Optimizer optimizer;
@@ -8354,6 +8328,33 @@ void RuntimeEngine::generate() {
         }
 
         cout << "Total instructions optimized out: " << optimized << endl;
+    }
+
+    for(unsigned int i = 0; i < allMethods.size(); i++)
+    {
+        Method* method = allMethods.get(i);
+
+        if(method->code.size() == 0 || GET_OP(method->code.__asm64.last()) != op_RET) {
+            if(method->isConstructor) {
+                method->code.push_i64(SET_Di(i64, op_MOVL, 0));
+                method->code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                method->code.push_i64(SET_Ei(i64, op_RET));
+            } else if(method->type == VAR) {
+                method->code.push_i64(SET_Di(i64, op_MOVL, 0));
+                method->code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                method->code.push_i64(SET_Ei(i64, op_RET));
+            } else if(method->type == TYPEVOID) {
+                method->code.push_i64(SET_Ei(i64, op_RET));
+            } else if(method->type == OBJECT || method->type == CLASS) {
+                method->code.push_i64(SET_Ei(i64, op_PUSHNIL));
+                method->code.push_i64(SET_Ei(i64, op_POPOBJ));
+                method->code.push_i64(SET_Ei(i64, op_RETURNOBJ)); // return null;
+                method->code.push_i64(SET_Ei(i64, op_RET));
+            } else {
+                method->code.push_i64(SET_Ei(i64, op_RET));
+            }
+
+        }
     }
 
     _ostream << generate_string_section();

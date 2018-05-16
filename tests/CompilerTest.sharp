@@ -40,6 +40,37 @@ class Runtime {
 
         print(str);
         __print_(fact(5), false);
-        return 0;
-    }
+        __print_(' ', true);
+
+        var[] arry = new var[10];
+        foreach(var x : arry) {
+            printc(fact(1));
+            asm("movi ' ',ebx" "_putc ebx");
+        }
+
+        for(var i = 0; i < 10; i++) {
+        }
+
+        var x = 5;
+        while((--x) > 0) {
+            printc(x);
+            asm("movi ' ',ebx" "_putc ebx");
+        }
+
+        print("done\n");
+
+        do {
+            x++;
+        }while(x < 10);
+        print("done loop\n");
+
+        try {
+            throw new Exception("Hello first error");
+        } catch(Exception e) {
+            print(e.getMessage());
+            asm("movi ' ',ebx" "_putc ebx");
+            print(e.getStackTrace());
+        }
+//        return 0;
+    } // TODO: enforce return statements
 }

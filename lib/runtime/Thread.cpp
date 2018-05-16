@@ -1055,7 +1055,7 @@ void Thread::exec() {
             vm->fillStackTrace(throwable.stackTrace);
             return;
         }
-        vm->Throw(&dataStack[(int64_t)registers[sp]].object);
+        vm->Throw(&dataStack[sp].object);
 
         DISPATCH();
     }
