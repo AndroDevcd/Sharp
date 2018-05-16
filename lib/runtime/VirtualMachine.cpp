@@ -301,7 +301,7 @@ void VirtualMachine::Throw(Object *exceptionObject) {
         return;
     }
 
-    while(thread_self->callStack.size() > 1) {
+    while(thread_self->callStack.size() >= 1) {
         Method *method = thread_self->current;
         executeFinally(thread_self->current);
 
@@ -313,7 +313,8 @@ void VirtualMachine::Throw(Object *exceptionObject) {
         if(method != thread_self->current)
             return;
 
-        returnMethod();
+        if(returnMethod())
+            break;
 
         if(TryThrow(thread_self->current, exceptionObject)) {
             thread_self->exceptionThrown = false;

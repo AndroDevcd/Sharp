@@ -104,7 +104,7 @@ struct StackElement {
     Object object;
 
     void modul(int64_t v) {
-        var = (int64_t)var&v;
+        var = (int64_t)var%v;
     }
 
     void andl(int64_t v) {

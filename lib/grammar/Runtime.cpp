@@ -552,6 +552,7 @@ void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix
 void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
     Scope* scope = currentScope();
     Expression cond, out;
+    scope->uniqueLabelSerial++;
     cond = parseExpression(pAst->getSubAst(ast_expression));
 
     string ifEndLabel;
@@ -1773,6 +1774,7 @@ Expression RuntimeEngine::psrseUtypeClass(Ast* pAst) {
         expression.code.push_i64(SET_Di(i64, op_MOVI, expression.utype.klass->address), ebx);
         expression.type = expression_var;
         expression.literal = true;
+        expression.intValue=expression.utype.klass->address;
     } else {
         errors->createNewError(GENERIC, pAst->getSubAst(ast_utype)->getSubAst(ast_type_identifier)->line,
                          pAst->getSubAst(ast_utype)->getSubAst(ast_type_identifier)->col, "expected class");
@@ -3512,6 +3514,7 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
                                     expression.code.free();
                                     expression.code.push_i64(
                                             SET_Ci(i64, op_IADDL, 1,0 , interm.utype.field->address));
+                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, interm.utype.field->address));
                                 } else {
                                     expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
                                     expression.code.push_i64(
@@ -3530,6 +3533,7 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
                                     expression.code.free();
                                     expression.code.push_i64(
                                             SET_Ci(i64, op_ISUBL, 1,0 , interm.utype.field->address));
+                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, interm.utype.field->address));
                                 } else {
                                     expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
                                     expression.code.push_i64(
@@ -4029,10 +4033,12 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
                             if(c_options.optimize) {
                                 expression.code.push_i64(
                                         SET_Ci(i64, op_IADDL, 1,0 , interm.utype.field->address));
+                                expression.code.push_i64(SET_Di(i64, op_INC, ebx));
                             } else {
                                 expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
                                 expression.code.push_i64(
                                         SET_Ci(i64, op_ADDL, ecx,0 , interm.utype.field->address));
+                                expression.code.push_i64(SET_Di(i64, op_INC, ebx));
                             }
                         }
                         else {
@@ -4046,10 +4052,12 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
                             if(c_options.optimize) {
                                 expression.code.push_i64(
                                         SET_Ci(i64, op_ISUBL, 1,0 , interm.utype.field->address));
+                                expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
                             } else {
                                 expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
                                 expression.code.push_i64(
                                         SET_Ci(i64, op_SUBL, ecx, 0, interm.utype.field->address));
+                                expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
                             }
                         }
                         else {
@@ -5266,7 +5274,7 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
                 // add var
                 if(right.type == expression_var) {
                     if(left.utype.field->isVar()) {
-                        return left.utype.array==right.utype.array;
+                        return left.utype.field->isArray==right.utype.array;
                     }
                 } else if(right.type == expression_objectclass) {
                     if(left.utype.field->dynamicObject()) {
@@ -8033,18 +8041,50 @@ void RuntimeEngine::parseVarAccessModifiers(List<AccessModifier> &modifiers, Ast
 string RuntimeEngine::getString(long index) {
     string str = stringMap.get(index);
     stringstream ss;
+    int size;
 
     if(str.size() <= 35) {
-        ss << "\"" << str << "\"";
-        return ss.str();
-    } else {
-        ss << "\"";
-        for(int i = 0; i < 35; i++) {
-            ss << str.at(i);
+        size = str.size();
+    } else
+        size = 35;
+
+    ss << "\"";
+    char c;
+    for(int i = 0; i < size; i++) {
+        c = str.at(i);
+
+        switch (c) {
+            case '\n':
+                ss << "\\n";
+                break;
+            case '\t':
+                ss << "\\t";
+                break;
+            case '\b':
+                ss << "\\b";
+                break;
+            case '\v':
+                ss << "\\v";
+                break;
+            case '\r':
+                ss << "\\r";
+                break;
+            case '\f':
+                ss << "\\f";
+                break;
+            case '\\':
+                ss << "\\";
+                break;
+            default:
+                ss << c;
+                break;
         }
-        ss << "...\"";
-        return ss.str();
     }
+    if(str.size() > 35)
+        ss << "...\"";
+    else
+        ss << "\"";
+    return ss.str();
 }
 
 string copychars(char c, int t) {

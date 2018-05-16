@@ -47,7 +47,7 @@ public:
 
         for(unsigned int i = 0; i < method->finallyBlocks.size(); i++) {
             FinallyTable &ft = method->finallyBlocks.get(i);
-            if(ft.try_start_pc >= oldpc && ft.try_end_pc < oldpc) {
+            if((ft.try_start_pc >= oldpc && ft.try_end_pc < oldpc) || ft.start_pc > oldpc) {
                 finallyTable = ft;
                 startAddress = 1;
                 thread_self->pc = ft.start_pc;

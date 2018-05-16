@@ -24,6 +24,13 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
             ft.start_pc--;
         if(stopAddr <= ft.end_pc)
             ft.end_pc--;
+
+        if(stopAddr >= ft.try_start_pc && stopAddr <= ft.try_end_pc)
+            ft.try_end_pc--;
+        if(stopAddr <= ft.try_start_pc) {
+            ft.try_start_pc--;
+            ft.try_end_pc--;
+        }
     }
 
     for(unsigned int i = 0; i < func->line_table.size(); i++) {

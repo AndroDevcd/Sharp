@@ -4,6 +4,9 @@ mod internal;
  * Created by BraxtonN on 5/15/2018.
  */
 class Runtime {
+    var x;
+    var[] iarry;
+
 
     static def print(var[] message) {
         asm("tests/print.asm");
@@ -39,7 +42,7 @@ class Runtime {
         var[] str = "factorial of 8 is ";
 
         print(str);
-        __print_(fact(5), false);
+        __print_(fact(500), false);
         __print_(' ', true);
 
         var[] arry = new var[10];
@@ -64,23 +67,76 @@ class Runtime {
         }while(x < 10);
         print("done loop\n");
 
-        try {
-            throw new Exception("Hello first error");
-        } catch(Exception e) {
-            print(e.getMessage());
-            asm("movi ' ',ebx" "_putc ebx");
-            print(e.getStackTrace());
+//        This was tested and passed
+//        try {
+//            try {
+//                throw new Exception("Hello first error");
+//            } catch(Exception e) {
+//                print(e.getMessage());
+//                asm("movi ' ',ebx" "_putc ebx");
+//                print(e.getStackTrace());
+//
+//                try {
+//                    throw new Exception("Genericcc!!!");
+//                } catch(Exception e2) {
+//                    print("caught FIRSTTTT!! error ");
+//                    print(e2.getMessage());
+//                    throw new Exception("Genericcc 3!!!");
+//                }
+//            } finally {
+//                print("finally!!");
+//                throw new Exception("Genericcc 2!!!");
+//            }
+//        } finally {
+//            print("finally!! yet again");
+//        }
 
-            try {
-                throw new Exception("Genericcc!!!");
-            } catch(Exception e) {
-                print("caught FIRSTTTT!! error ");
-                print(e.getMessage());
-                throw new Exception("Genericcc 3!!!");
-            }
-        } finally {
-            print("finally!!");
+        print("doing if statements\n");
+        x = 1;
+        asm("nop nop");
+        if(x == 6) {
+            print("x == 6");
+        } else if(x == 10) {
+            print("x == 10");
+        } else if(arry == null) {
+            print("arry == null");
+        } else if(arry != null) {
+            print("arry != null");
+        } else {
+            print("im not sure what x is?");
         }
-//        return 0;
+
+        x = 9;
+        while(x-- > 0) {
+            printc(x);
+            asm("movi ' ',ebx" "_putc ebx");
+        }
+
+        asm("nop nop");
+        asm("nop nop");
+        x = 10;
+        print("x is: ");
+        x %= 9;
+        printc(x);
+        asm("movi ' ',ebx" "_putc ebx");
+
+
+        print("\nthis class id is: ");
+        //x = Exception.class;
+        printc(Runtime.class);
+
+        Runtime run = new Runtime();
+        run.x = 99;
+        print("\nRuntime.x is: ");
+        //x = Exception.class;
+        printc(run.x);
+
+        run.iarry = new var[10];
+        run.iarry[0] = 2;
+        print("\nRuntime.x[0] is: ");
+        //x = Exception.class;
+        printc(run.iarry[0]);
+
+        return 0;
     } // TODO: enforce return statements
 }
