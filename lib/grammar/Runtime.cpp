@@ -4359,6 +4359,22 @@ Opcode RuntimeEngine::operandToOp(token_entity operand)
         return op_MOD;
 }
 
+Opcode RuntimeEngine::assignOperandToOp(token_entity operand)
+{
+    if(operand == "+=")
+        return op_ADD;
+    else if(operand == "-=")
+        return op_SUB;
+    else if(operand == "*=")
+        return op_MUL;
+    else if(operand == "/=")
+        return op_DIV;
+    else if(operand == "%=")
+        return op_MOD;
+    else
+        return op_MOD;
+}
+
 bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
 
     if(left.type == expression_native) {
@@ -5514,19 +5530,38 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
             Expression e;
             pushExpressionToRegister(right, out, ebx);
             out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
-            for(unsigned int i = 0; i < left.code.size(); i++)
-            {
-                if(GET_OP(left.code.__asm64.get(i)) == op_IALOAD_2) {
-                    left.code.__asm64.remove(i);
-                    unsigned  int pos = i;
 
-                    left.code.__asm64.insert(i+1, SET_Ci(i64, op_SMOV, ebx,0, -1));
-                    //left.code.__asm64.insert(pos+2, SET_Ci(i64, op_RMOV, ebx,0, egx)); we dont need this right?
-                    break;
+            if(operand == "=") {
+                for(unsigned int i = 0; i < left.code.size(); i++)
+                {
+                    if(GET_OP(left.code.__asm64.get(i)) == op_IALOAD_2) {
+                        left.code.__asm64.remove(i);
+                        unsigned  int pos = i+1;
+
+                        left.code.__asm64.insert(pos++, SET_Di(i64, op_LOADVAL, egx));
+                        left.code.__asm64.insert(pos, SET_Ci(i64, op_RMOV, ebx,0, egx));
+                        break;
+                    }
+                }
+            } else if(operand == "+=" || operand == "-=" || operand == "*="
+                      || operand == "/=" || operand == "%=") {
+                for(unsigned int i = 0; i < left.code.size(); i++)
+                {
+                    if(GET_OP(left.code.__asm64.get(i)) == op_IALOAD_2) {
+                        unsigned  int pos = i+2;
+
+                        left.code.__asm64.insert(i, SET_Ci(i64, op_MOVR, adx, 0, ebx));
+
+                        left.code.__asm64.push_back(SET_Di(i64, op_LOADVAL, egx) );
+                        left.code.push_i64(SET_Ci(i64, assignOperandToOp(operand), ebx,0, egx), egx);
+                        left.code.push_i64(SET_Ci(i64, op_RMOV, adx,0, egx));
+//                        left.code.__asm64.insert(pos, SET_Ci(i64, op_RMOV, ebx,0, egx));
+                        break;
+                    }
                 }
             }
+
             out.inject(left);
-            out.code.push_i64(SET_Ei(i64, op_POP));
         }
     } else if(left.type == expression_objectclass) {
         if(operand == "=" && right.type == expression_null) {
@@ -5966,7 +6001,10 @@ Expression RuntimeEngine::parseAssignExpression(Ast* pAst) {
                 errors->createNewError(GENERIC, pAst->line, pAst->col, "expression is not assignable");
             } else {
                 if(right.type == expression_var) {
-                    assignNative(operand, out, left, right, pAst);
+                    if(left.arrayElement)
+                        assignValue(operand, out, left, right, pAst);
+                    else
+                        assignNative(operand, out, left, right, pAst);
                 }
                 else if(right.type == expression_field) {
                     if(right.utype.field->isVar()) {

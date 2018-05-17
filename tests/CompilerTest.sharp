@@ -7,12 +7,15 @@ class Runtime {
     var x;
     var[] iarry;
 
+    def printX() {
+        __print_(self->x, false);
+    }
 
     static def print(var[] message) {
         asm("tests/print.asm");
     }
 
-    static def printc(var char) {
+    static def print(var char) {
         asm("tests/printc.asm");
     }
 
@@ -39,33 +42,33 @@ class Runtime {
     }
 
     public static def __srt_init_(object[] args) : var {
-        var[] str = "factorial of 8 is ";
-
-        print(str);
-        __print_(fact(500), false);
-        __print_(' ', true);
-
-        var[] arry = new var[10];
-        foreach(var x : arry) {
-            printc(fact(1));
-            asm("movi ' ',ebx" "_putc ebx");
-        }
-
-        for(var i = 0; i < 10; i++) {
-        }
-
-        var x = 5;
-        while((--x) > 0) {
-            printc(x);
-            asm("movi ' ',ebx" "_putc ebx");
-        }
-
-        print("done\n");
-
-        do {
-            x++;
-        }while(x < 10);
-        print("done loop\n");
+//        var[] str = "factorial of 8 is ";
+//
+//        print(str);
+//        __print_(fact(500), false);
+//        __print_(' ', true);
+//
+//        var[] arry = new var[10];
+//        foreach(var x : arry) {
+//            printc(fact(1));
+//            asm("movi ' ',ebx" "_putc ebx");
+//        }
+//
+//        for(var i = 0; i < 10; i++) {
+//        }
+//
+//        var x = 5;
+//        while((--x) > 0) {
+//            printc(x);
+//            asm("movi ' ',ebx" "_putc ebx");
+//        }
+//
+//        print("done\n");
+//
+//        do {
+//            x++;
+//        }while(x < 10);
+//        print("done loop\n");
 
 //        This was tested and passed
 //        try {
@@ -91,51 +94,66 @@ class Runtime {
 //            print("finally!! yet again");
 //        }
 
-        print("doing if statements\n");
-        x = 1;
-        asm("nop nop");
-        if(x == 6) {
-            print("x == 6");
-        } else if(x == 10) {
-            print("x == 10");
-        } else if(arry == null) {
-            print("arry == null");
-        } else if(arry != null) {
-            print("arry != null");
-        } else {
-            print("im not sure what x is?");
-        }
-
-        x = 9;
-        while(x-- > 0) {
-            printc(x);
-            asm("movi ' ',ebx" "_putc ebx");
-        }
-
-        asm("nop nop");
-        asm("nop nop");
-        x = 10;
-        print("x is: ");
-        x %= 9;
-        printc(x);
-        asm("movi ' ',ebx" "_putc ebx");
-
-
-        print("\nthis class id is: ");
-        //x = Exception.class;
-        printc(Runtime.class);
+//        print("doing if statements\n");
+//        x = 1;
+//        asm("nop nop");
+//        if(x == 6) {
+//            print("x == 6");
+//        } else if(x == 10) {
+//            print("x == 10");
+//        } else if(arry == null) {
+//            print("arry == null");
+//        } else if(arry != null) {
+//            print("arry != null");
+//        } else {
+//            print("im not sure what x is?");
+//        }
+//
+//        x = 9;
+//        while(x-- > 0) {
+//            printc(x);
+//            asm("movi ' ',ebx" "_putc ebx");
+//        }
+//
+//        asm("nop nop");
+//        asm("nop nop");
+//        x = 10;
+//        print("x is: ");
+//        x %= 9;
+//        printc(x);
+//        asm("movi ' ',ebx" "_putc ebx");
+//
+//
+//        print("\nthis class id is: ");
+//        //x = Exception.class;
+//        printc(Runtime.class);
 
         Runtime run = new Runtime();
         run.x = 99;
         print("\nRuntime.x is: ");
         //x = Exception.class;
-        printc(run.x);
+        print(run.x);
 
         run.iarry = new var[10];
-        run.iarry[0] = 2;
+        //run.iarry[0] = 2;
+        run.iarry[0] += 2;
+        run.iarry[0] -= 2;
         print("\nRuntime.x[0] is: ");
         //x = Exception.class;
-        printc(run.iarry[0]);
+        print(run.iarry[0]);
+
+        print("\nRuntime.x is: ");
+        run.printX();
+
+        print("\nsizeof Runtime.x[] is: ");
+        __print_(sizeof(run.iarry), false);
+
+        var v = 2;
+        asm("nop nop");
+        asm("nop nop");
+        run.x = (v == 2) ? 1 : 0;
+        print("\nx is: ");
+        print(run.x);
 
         return 0;
     } // TODO: enforce return statements

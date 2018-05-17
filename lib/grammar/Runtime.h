@@ -925,6 +925,8 @@ private:
     bool isWholeNumber(double value);
 
     string getString(long index);
+
+    Opcode assignOperandToOp(token_entity operand);
 };
 
 
@@ -945,7 +947,7 @@ private:
 #define unique_label_id(x) "$$L" << (x)
 
 #define progname "bootstrap"
-#define progvers "0.2.59"
+#define progvers "0.2.192"
 
 struct options {
     ~options()
