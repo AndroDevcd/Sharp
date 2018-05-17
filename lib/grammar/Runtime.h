@@ -106,6 +106,7 @@ struct Expression {
             dot(false),
             link(NULL),
             newExpression(false),
+            ifExpression(false),
             func(false),
             intValue(0),
             value(""),
@@ -123,6 +124,7 @@ struct Expression {
             dot(false),
             link(pAst),
             newExpression(false),
+            ifExpression(false),
             func(false),
             intValue(0),
             value(""),
@@ -139,7 +141,7 @@ struct Expression {
     ResolvedReference utype;
     Assembler code;
     Ast* link;
-    bool dot, newExpression, func, literal, arrayElement, inCmtRegister;
+    bool dot, newExpression, func, literal, arrayElement, inCmtRegister, ifExpression;
     string value;
     double intValue;
     List<long> boolExpressions;
@@ -231,7 +233,7 @@ public:
             ss << module << "#";
         for(int i = 0; i < classHeiarchy.size(); i++)
             ss << classHeiarchy.at(i) << ".";
-        ss << referenceName << endl;
+        ss << referenceName;
         return ss.str();
     }
 };
@@ -745,7 +747,7 @@ private:
 
     Expression parseCastExpression(Ast *pAst);
 
-    void parseNativeCast(Expression &utype, Expression &arg, Expression &out);
+    void parseNativeCast(Expression &utype, Expression &expression, Expression &out);
 
     void parseClassCast(Expression &utype, Expression &arg, Expression &out);
 
@@ -927,6 +929,8 @@ private:
     string getString(long index);
 
     Opcode assignOperandToOp(token_entity operand);
+
+    bool equalsVectorArray(Expression &left, Expression &right);
 };
 
 
@@ -947,7 +951,7 @@ private:
 #define unique_label_id(x) "$$L" << (x)
 
 #define progname "bootstrap"
-#define progvers "0.2.192"
+#define progvers "0.2.194"
 
 struct options {
     ~options()

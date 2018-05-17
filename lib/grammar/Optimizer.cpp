@@ -53,7 +53,7 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
                 /*
                  * We only want to update data which is referencing data below us
                  */
-                if(addr > stopAddr)
+                if(addr >= stopAddr)
                 {
                     // update address
                     assembler->__asm64.replace(i, SET_Di(x64, op, --addr));

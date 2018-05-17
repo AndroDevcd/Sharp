@@ -1,0 +1,27 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 5/17/2018.
+ */
+class Array {
+
+    def copyOf(var[] data, var len) : var[] {
+        var[] newArry = new var[len];
+
+        for(var i = 0; i < len; i++) {
+            newArry[i] = data[i];
+        }
+
+        return newArry;
+    }
+
+    def copyOf(object[] data, var len) : object[] {
+        object[] newArry = new object[len];
+
+        for(var i = 0; i < len; i++) {
+            newArry[i] = data[i];
+        }
+
+        return newArry;
+    }
+}

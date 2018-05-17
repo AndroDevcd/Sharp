@@ -1,0 +1,12 @@
+mod application;
+
+/**
+ * Created by BraxtonN on 5/17/2018.
+ */
+class Start {
+
+    public static def main(string[] args) : var
+    {
+
+    }
+}

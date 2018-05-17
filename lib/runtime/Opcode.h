@@ -51,7 +51,8 @@
 #define _brh pc++; _brh_NOINCREMENT
 
 #define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
-#define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->size==0) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_NULL2(x) if(o2==NULL|o2->object == NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->node==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
 #define CHECK_INULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->HEAD==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
 
 #define _initOpcodeTable \

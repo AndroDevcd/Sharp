@@ -1,0 +1,31 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 5/17/2018.
+ *
+ * Class to be used as the baseline of throwing errors
+ */
+class Throwable {
+    var[] message;
+    var[] stackTrace;
+   
+    Throwable(var[] message) {
+        self->message = message;
+    }
+   
+    Throwable(string message) {
+        self->message = message.toArray();
+    }
+   
+    def getStackTrace() : string {
+        if(stackTrace == null) {
+            stackTrace = "";
+        }
+   
+        return new string(stackTrace);
+    }
+   
+    def getMessage() : string {
+        return string(message);
+    }
+}

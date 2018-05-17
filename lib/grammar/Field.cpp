@@ -12,6 +12,10 @@ bool Field::operator==(Field& f)
             return f.nullType || (klass != NULL && klass->match(f.klass));
         else
             return true;
+    } else if(f.nullType && !isArray){
+        return type == CLASS || type==OBJECT;
+    } else if(f.nullType && isArray){
+        return type == CLASS || type==OBJECT || type == VAR;
     }
     return false;
 }

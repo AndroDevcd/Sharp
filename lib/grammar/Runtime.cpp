@@ -1495,20 +1495,6 @@ void RuntimeEngine::parseConstructorDecl(Ast* pAst) {
 
         Block fblock;
 
-        for(unsigned int i = 0; i < currentScope()->klass->fieldCount(); i++) {
-            Field* field = currentScope()->klass->getField(i);
-
-            /*
-             * We want to initalize all the integer values in the constructors
-             */
-            if(field->isVar() && !field->isArray) {
-                fblock.code.push_i64(SET_Di(i64, op_MOVL, 0));
-                fblock.code.push_i64(SET_Di(i64, op_MOVN, field->address));
-                fblock.code.push_i64(SET_Di(i64, op_MOVI, 1), ebx);
-                fblock.code.push_i64(SET_Di(i64, op_NEWARRAY, ebx));
-            }
-        }
-
         parseBlock(pAst->getSubAst(ast_block), fblock);
 
         resolveAllBranches(fblock);
@@ -3068,8 +3054,10 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
             errors->createNewError(GENERIC, utype->line, utype->col, "call to instance function in static context");
         }
 
-        if(!fn->isStatic())
+        if(!fn->isStatic()) {
+            out.code.push_i64(SET_Di(i64, op_MOVL, 0));
             out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+        }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
             pushExpressionToStack(expressions.get(i), out);
@@ -3093,7 +3081,7 @@ Expression RuntimeEngine::parseBaseDotNotationCall(Ast* pAst) {
 
     if(pAst->hasSubAst(ast_dot_fn_e)) {
         pAst2 = pAst->getSubAst(ast_dot_fn_e);
-        fn = resolveBaseMethodUtype(pAst2->getSubAst(ast_utype), pAst2->getSubAst(ast_value_list), expression);
+        fn = resolveBaseMethodUtype(pAst2, pAst2, expression);
         if(fn != NULL) {
             expression.type = methodReturntypeToExpressionType(fn);
             if(expression.type == expression_lclass) {
@@ -3107,7 +3095,7 @@ Expression RuntimeEngine::parseBaseDotNotationCall(Ast* pAst) {
 
     } else {
         scope->base = true;
-        expression = parseUtype(pAst->getSubAst(ast_utype));
+        expression = parseUtype(pAst);
         scope->base = false;
     }
 
@@ -3155,12 +3143,16 @@ List<Expression> RuntimeEngine::parseVectorArray(Ast* pAst) {
 
 void RuntimeEngine::checkVectorArray(Expression& utype, List<Expression>& vecArry) {
     if(utype.utype.type == UNDEFINED) return;
+    Expression right;
 
     for(unsigned int i = 0; i < vecArry.size(); i++) {
         if(vecArry.get(i).type != expression_unresolved) {
             switch(vecArry.get(i).type) {
                 case expression_native:
                     errors->createNewError(UNEXPECTED_SYMBOL, vecArry.get(i).link->line, vecArry.get(i).link->col, " `" + ResolvedReference::typeToString(utype.utype.type) + "`");
+                    break;
+                case expression_field:
+                    equalsVectorArray(utype, vecArry.get(i));
                     break;
                 case expression_lclass:
                     if(utype.utype.type == CLASS) {
@@ -3793,24 +3785,59 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
 }
 
 // TODO: add native support for casting
-void RuntimeEngine::parseNativeCast(Expression& utype, Expression& arg, Expression& out) {
+void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, Expression& out) {
     Scope* scope = currentScope();
-    if(arg.type != expression_unresolved) {
-        if(arg.utype.array != utype.utype.array) {
-            errors->createNewError(INCOMPATIBLE_TYPES, utype.link->line, utype.link->col, "; cannot cast `" + arg.typeToString() + "` to `" + utype.typeToString() + "`");
-            out.type = expression_unresolved;
-            return;
-        }
+
+    if(expression.utype.array != utype.utype.array) {
+        errors->createNewError(INCOMPATIBLE_TYPES, utype.link->line, utype.link->col, "; cannot cast `" + expression.typeToString() + "` to `" + utype.typeToString() + "`");
+        out.type = expression_unresolved;
+        return;
     }
 
-    if(arg.utype.type != CLASSFIELD && utype.utype.type == arg.utype.type)
-        createNewWarning(GENERIC, utype.link->line, utype.link->col, "redundant cast of type `" + arg.typeToString() + "` to `" + utype.typeToString() + "`");
-    else if(arg.utype.type == CLASSFIELD && utype.utype.type == CLASSFIELD)
-        createNewWarning(GENERIC, utype.link->line, utype.link->col, "redundant cast of type `" + arg.typeToString() + "` to `" + utype.typeToString() + "`");
+    if(expression.utype.type != UNDEFINED && utype.utype.type == expression.utype.type)
+        createNewWarning(GENERIC, utype.link->line, utype.link->col, "redundant cast of type `" + expression.typeToString() + "` to `" + utype.typeToString() + "`");
+
+    if(Parser::isspecial_native_type(utype.utype.referenceName)) {
+        utype.utype.type = VAR;
+    }
 
     out.type = expression_var;
     out.utype = utype.utype;
-    switch(utype.utype.type) {
+
+    if(utype.utype.referenceName == "_int8") {
+        pushExpressionToRegisterNoInject(expression, out, ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOV8, ebx, 0, ebx));
+        return;
+    } else if(utype.utype.referenceName == "_int16") {
+        pushExpressionToRegisterNoInject(expression, out, ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOV16, ebx, 0, ebx));
+        return;
+    } else if(utype.utype.referenceName == "_int32") {
+        pushExpressionToRegisterNoInject(expression, out, ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOV16, ebx, 0, ebx));
+        return;
+    } else if(utype.utype.referenceName == "_int64") {
+        pushExpressionToRegisterNoInject(expression, out, ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOV16, ebx, 0, ebx));
+        return;
+    } else if(utype.utype.referenceName == "_uint8") {
+        pushExpressionToRegisterNoInject(expression, out, ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOVU8, ebx, 0, ebx));
+        return;
+    } else if(utype.utype.referenceName == "_uint16") {
+        pushExpressionToRegisterNoInject(expression, out, ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOVU16, ebx, 0, ebx));
+        return;
+    } else if(utype.utype.referenceName == "_uint32") {
+        pushExpressionToRegisterNoInject(expression, out, ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOVU16, ebx, 0, ebx));
+        return;
+    } else if(utype.utype.referenceName == "_uint64") {
+        pushExpressionToRegisterNoInject(expression, out, ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOVU16, ebx, 0, ebx));
+        return;
+    }
+//    switch(utype.utype.type) {
 //        case fi8:
 //            if(arg.type == expression_var) {
 //                out.code.push_i64(SET_Ci(i64, op_MOV8, ebx,0, ebx));
@@ -3907,24 +3934,24 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& arg, Expressi
 //                return;
 //            }
 //            break;
-        case VAR:
-            if(arg.type == expression_var || arg.type==expression_field) {
-                return;
-            } // TODO: do we even have to do anything here?
-            break;
-        case TYPEVOID:
-            errors->createNewError(GENERIC, utype.link->line, utype.link->col, "type `void` cannot be used as a cast");
-            return;
-        case OBJECT:
-            out.type = expression_objectclass;
-            if(arg.type == expression_lclass) {
-                return;
-            }
-            break;
-    }
+//        case VAR:
+//            if(expression.type == expression_var || expression.type==expression_field) {
+//                return;
+//            } // TODO: do we even have to do anything here?
+//            break;
+//        case TYPEVOID:
+//            errors->createNewError(GENERIC, utype.link->line, utype.link->col, "type `void` cannot be used as a cast");
+//            return;
+//        case OBJECT:
+//            out.type = expression_objectclass;
+//            if(expression.type == expression_lclass) {
+//                return;
+//            }
+//            break;
+//    }
 
-    if(arg.type != expression_unresolved)
-        errors->createNewError(INCOMPATIBLE_TYPES, utype.link->line, utype.link->col, "; cannot cast `" + arg.utype.typeToString() + "` to `" + utype.utype.typeToString() + "`");
+    if(expression.type != expression_unresolved)
+        errors->createNewError(INCOMPATIBLE_TYPES, utype.link->line, utype.link->col, "; cannot cast `" + expression.utype.typeToString() + "` to `" + utype.utype.typeToString() + "`");
     return;
 }
 
@@ -4373,6 +4400,145 @@ Opcode RuntimeEngine::assignOperandToOp(token_entity operand)
         return op_MOD;
     else
         return op_MOD;
+}
+
+bool RuntimeEngine::equalsVectorArray(Expression& left, Expression& right) {
+
+    if(right.type == expression_native) {
+        errors->createNewError(UNEXPECTED_SYMBOL, right.link->line, right.link->col, " `" + right.typeToString() + "`");
+        return false;
+    }
+
+    switch(left.type) {
+        case expression_native:
+            return left.utype.type==right.utype.type;
+            break;
+        case expression_var:
+            if(right.type == expression_var) {
+                // add 2 vars
+                return true;
+            }
+            else if(right.type == expression_field) {
+                if(right.utype.field->isVar()) {
+                    return true;
+                }
+            }
+            break;
+        case expression_null:
+            if(right.type == expression_lclass || right.type == expression_objectclass) {
+                return true;
+            } else if(right.type == expression_class) {
+                errors->createNewError(GENERIC, right.link->line,  right.link->col, "Class `" + right.typeToString() + "` must be lvalue");
+                return false;
+            }
+            break;
+        case expression_field:
+            if(left.utype.field->isNative()) {
+                // add var
+                if(right.type == expression_var) {
+                    if(left.utype.field->isVar()) {
+                        return true;
+                    }
+                } else if(right.type == expression_objectclass) {
+                    if(left.utype.field->dynamicObject()) {
+                        return true;
+                    }
+                } else if(right.type == expression_field) {
+                    if(right.utype.field->isVar()) {
+                        return left.utype.field->isVar();
+                    }
+                    else if(right.utype.field->dynamicObject()) {
+                        return left.utype.field->dynamicObject();
+                    }
+                } else if(right.type == expression_string) {
+                    return left.utype.field->isArray;
+                } else if(right.type == expression_lclass) {
+                    return left.utype.field->dynamicObject();
+                }
+            } else if(left.utype.field->type == CLASS) {
+                if(right.type == expression_lclass) {
+                    if(left.utype.field->klass->match(right.utype.klass)) {
+                        return true;
+                    }
+                } else if(right.type == expression_class) {
+                    if(left.utype.field->klass->match(right.utype.klass)) {
+                        errors->createNewError(GENERIC, right.link->line,  right.link->col, "Class `" + right.typeToString() + "` must be lvalue");
+                        return false;
+                    }
+                } else if(right.type == expression_field && right.utype.field->type == CLASS) {
+                    if(right.utype.field->klass->match(left.utype.field->klass)) {
+                        return true;
+                    }
+                } else {
+                    List<Param> params;
+                    List<Expression> exprs;
+                    exprs.push_back(right);
+
+                    expressionListToParams(params, exprs);
+                    return left.utype.field->klass->getOverload(oper_EQUALS, params) != NULL;
+                }
+            } else {
+                // do nothing field unresolved
+            }
+            break;
+        case expression_lclass:
+            if(right.type == expression_lclass) {
+                if(left.utype.klass->match(right.utype.klass)) {
+                    return true;
+                }
+            } else if(right.type == expression_field) {
+                if(left.utype.klass->match(right.utype.field->klass)) {
+                    return true;
+                }
+            } else if(right.type == expression_class) {
+                if(left.utype.klass->match(right.utype.klass)) {
+                    errors->createNewError(GENERIC, right.link->line,  right.link->col, "Class `" + right.typeToString() + "` must be lvalue");
+                    return false;
+                }
+            }
+            break;
+        case expression_class:
+            if(right.type == expression_class) {
+                if(left.utype.klass->match(right.utype.klass)) {
+                    return true;
+                }
+            }
+            break;
+        case expression_void:
+            if(right.type == expression_void) {
+                return true;
+            }
+            break;
+        case expression_objectclass:
+            if(right.type == expression_objectclass || right.type == expression_lclass) {
+                return true;
+            } else if(right.type == expression_field) {
+                if(right.utype.field->type == OBJECT || right.utype.field->type == CLASS) {
+                    return true;
+                }
+            }
+            break;
+        case expression_string:
+            if(right.type == expression_field) {
+                if(right.utype.field->isVar() && right.utype.field->isArray) {
+                    return true;
+                }
+            }
+            else if(right.type == expression_var) {
+                if(right.utype.array) {
+                    return true;
+                }
+            }
+            else if(right.type == expression_string) {
+                return true;
+            }
+            break;
+        default:
+            break;
+    }
+
+    errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `" + left.typeToString() + "` and `" + right.typeToString() + "` are not compatible");
+    return false;
 }
 
 bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
@@ -5492,6 +5658,9 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 }
 
             } else {
+                /* we need this to prevent the optimizer from screwing us */
+                right.code.push_i64(SET_Ei(i64, op_NOP));
+
                 pushExpressionToStack(right, out);
                 if(operand == "=")
                     out.inject(left);
@@ -5505,19 +5674,19 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 if(operand == "=") {
                     out.code.push_i64(SET_Ci(i64, op_RMOV, adx,0, ecx));
                 } else if(operand == "+=") {
-                    out.code.push_i64(SET_Ci(i64, op_ADD, ebx,0, ecx));
+                    out.code.push_i64(SET_Ci(i64, op_ADD, ebx,0, ecx), ecx);
                     out.code.push_i64(SET_Ci(i64, op_RMOV, adx,0, ecx));
                 } else if(operand == "-=") {
-                    out.code.push_i64(SET_Ci(i64, op_SUB, ebx,0, ecx));
+                    out.code.push_i64(SET_Ci(i64, op_SUB, ebx,0, ecx), ecx);
                     out.code.push_i64(SET_Ci(i64, op_RMOV, adx,0, ecx));
                 } else if(operand == "*=") {
-                    out.code.push_i64(SET_Ci(i64, op_MUL, ebx,0, ecx));
+                    out.code.push_i64(SET_Ci(i64, op_MUL, ebx,0, ecx), ecx);
                     out.code.push_i64(SET_Ci(i64, op_RMOV, adx,0, ecx));
                 } else if(operand == "/=") {
-                    out.code.push_i64(SET_Ci(i64, op_DIV, ebx,0, ecx));
+                    out.code.push_i64(SET_Ci(i64, op_DIV, ebx,0, ecx), ecx);
                     out.code.push_i64(SET_Ci(i64, op_RMOV, adx,0, ecx));
                 } else if(operand == "%=") {
-                    out.code.push_i64(SET_Ci(i64, op_MOD, ebx,0, ecx));
+                    out.code.push_i64(SET_Ci(i64, op_MOD, ebx,0, ecx), ecx);
                     out.code.push_i64(SET_Ci(i64, op_RMOV, adx,0, ecx));
                 }
             }
@@ -6112,6 +6281,7 @@ Expression RuntimeEngine::parseQuesExpression(Ast* pAst) {
         }
     }
 
+    expression.ifExpression = true;
     return expression;
 }
 
@@ -6674,6 +6844,7 @@ void Expression::operator=(Expression expression) {
     this->arrayElement = expression.arrayElement;
     this->boolExpressions.addAll(expression.boolExpressions);
     this->inCmtRegister=expression.inCmtRegister;
+    this->ifExpression=expression.ifExpression;
 }
 
 void Expression::inject(Expression &expression) {
@@ -7005,6 +7176,9 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                 expression.utype.type = CLASSFIELD;
                 expression.utype.field = ref.field;
                 expression.type = expression_field;
+
+                expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                expression.code.push_i64(SET_Di(i64, op_MOVN, expression.utype.field->address));
             } else {
                 if(scope->type == STATIC_BLOCK) {
                     errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, "cannot get object `" + ref.klass->getName()
@@ -7630,7 +7804,7 @@ void RuntimeEngine::resolveOperatorDecl(Ast* ast) {
     Expression utype;
     OperatorOverload operatorOverload = OperatorOverload(note, scope->klass, params, modifiers, NULL, stringToOp(op), sourceFiles.indexof(activeParser->sourcefile), op);
     if(ast->hasSubAst(ast_method_return_type)) {
-        utype = parseUtype(ast->getSubAst(ast_method_return_type)->getSubAst(ast_utype));
+        utype = parseUtype(ast->getSubAst(ast_method_return_type));
         parseMethodReturnType(utype, operatorOverload);
     } else
         operatorOverload.type = TYPEVOID;
@@ -8422,7 +8596,8 @@ void RuntimeEngine::generate() {
             optimized += optimizer.getOptimizedOpcodes();
         }
 
-        cout << "Total instructions optimized out: " << optimized << endl;
+        if(c_options.debugMode)
+            cout << "Total instructions optimized out: " << optimized << endl;
     }
 
     for(unsigned int i = 0; i < allMethods.size(); i++)
@@ -9333,6 +9508,12 @@ void RuntimeEngine::createDumpFile() {
                 {
                     ss<<"pushl ";
                     ss<< GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_PUSHNIL:
+                {
+                    ss<<"pushnil ";
                     _ostream << ss.str();
                     break;
                 }

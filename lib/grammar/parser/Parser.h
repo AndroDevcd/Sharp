@@ -49,6 +49,7 @@ public:
 
     static bool isnative_type(string type);
     static bool isassign_exprsymbol(string token);
+    static bool isspecial_native_type(string type);
 
     /**
      * This is a special flag that denotes that the compiler has detected too many errors
@@ -57,6 +58,7 @@ public:
     bool panic;
 
     static bool iskeyword(string key);
+
 
 private:
     void parse();
@@ -219,6 +221,7 @@ private:
     bool parse_utype_naked(Ast *pAst);
 
     bool parse_array_expression(Ast *pAst);
+
 };
 
 #define _SHARP_CERROR_LIMIT c_options.error_limit

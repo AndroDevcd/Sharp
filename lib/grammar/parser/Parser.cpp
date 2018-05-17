@@ -205,7 +205,18 @@ bool Parser::isconstructor_decl() {
 }
 
 bool Parser::isnative_type(string type) {
-    return type == "var" || type == "object";
+    return type == "var" || type == "object"
+           || type == "_int8" || type == "_int16"
+           || type == "_int32" || type == "_int64"
+           || type == "_uint8" || type == "_uint16"
+           || type == "_uint32" || type == "_uint64";
+}
+
+bool Parser::isspecial_native_type(string type) {
+    return type == "_int8" || type == "_int16"
+           || type == "_int32" || type == "_int64"
+            || type == "_uint8" || type == "_uint16"
+               || type == "_uint32" || type == "_uint64";
 }
 
 bool Parser::isaccess_decl(token_entity token) {
@@ -1741,7 +1752,9 @@ bool Parser::iskeyword(string key) {
            || key == "finally" || key == "throw" || key == "continue"
            || key == "goto" || key == "break" || key == "else"
            || key == "object" || key == "asm" || key == "for" || key == "foreach"
-           || key == "var" || key == "sizeof";
+           || key == "var" || key == "sizeof"|| key == "_int8" || key == "_int16"
+           || key == "_int32" || key == "_int64" || key == "_uint8"
+           || key == "_uint16"|| key == "_uint32" || key == "_uint64";
 }
 
 bool Parser::parse_type_identifier(Ast *pAst) {

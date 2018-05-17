@@ -835,7 +835,7 @@ void Thread::exec() {
                 registers[bmr]=GET_Da(cache[pc]) + exponent(cache[pc + 1]); pc++;
                 _brh
             SIZEOF:
-                CHECK_NULLOBJ(registers[GET_Da(cache[pc])]=o2->object->size;)
+                CHECK_NULL2(registers[GET_Da(cache[pc])]=o2->object->size;)
                 _brh
             PUT:
                 cout << registers[GET_Da(cache[pc])];
@@ -844,7 +844,7 @@ void Thread::exec() {
                 printf("%c", (char)registers[GET_Da(cache[pc])]);
                 _brh
             CHECKLEN:
-            CHECK_NULLOBJ(
+            CHECK_NULL2(
                     if(registers[GET_Da(cache[pc])]<o2->object->size) { _brh }
                     else {
                         stringstream ss;
@@ -1014,7 +1014,7 @@ void Thread::exec() {
                 dataStack[fp+GET_Cb(cache[pc])].notl(registers[GET_Ca(cache[pc])]);
                 _brh
             RMOV:
-                CHECK_NULLOBJ(
+                CHECK_INULLOBJ(
                     o2->object->HEAD[(int64_t)registers[GET_Ca(cache[pc])]]=registers[GET_Cb(cache[pc])];
                 )
                 _brh

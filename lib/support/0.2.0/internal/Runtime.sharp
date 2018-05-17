@@ -1,0 +1,11 @@
+mod internal;
+
+/**
+ * Created by BraxtonN on 5/17/2018.
+ */
+class Runtime {
+
+    public static def __srt_init_(object[] args) : var {
+        application#Start.main(null);
+    }
+}

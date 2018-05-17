@@ -1,0 +1,153 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 5/17/2018.
+ */
+class string {
+    /*this will hold our string */
+        private var[] data;
+
+        string( var[] immstr )
+        {
+            if(immstr == null) {
+                data = null;
+            }
+
+            append(immstr);
+        }
+
+        def replace( var pos, var replaceChar ) : string
+        {
+            if(pos >= sizeof(data)) {
+                throw new RuntimeErr("Index out of bounds exception");
+            }
+
+            data[pos] = replaceChar;
+            return self;
+         }
+
+        def append(var[] immstr) : string
+        {
+            var[] newStr = new var[sizeof(data) + sizeof(immstr)];
+
+            var iter=0;
+            for(var i = 0; i < sizeof(data); i++) {
+                newStr[iter++] = data[i];
+            }
+
+            for(var i = 0; i < sizeof(immstr); i++)
+            {
+                newStr[iter++] = immstr[i];
+            }
+
+            data = newStr;
+            return self;
+        }
+
+        def at( var pos ) : var
+        {
+            if(pos >= sizeof(data)) {
+                throw new RuntimeErr("Index out of bounds Array: " + string.parse(sizeof(data))
+                       + " at index pos " + string.parse(pos));
+            }
+
+            return data[pos];
+        }
+
+        def operator+( var[] immstr ) : string
+        {
+            string s = new string(data);
+            return s.append(immstr);
+        }
+
+        def operator+( string str ) : string
+        {
+            string s = new string(data);
+            return s.append(str.toArray());
+        }
+
+        def operator==( string str ) : var
+        {
+            var iter;
+            foreach(var char : data) {
+                if(char != str.at(iter++)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        def operator==( var[] str ) : var
+        {
+            var iter;
+            foreach( var char : data ) {
+                if(char != str[iter++]) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        def operator=( var[] immstr )
+        {
+            data = Array.copyOf(immstr, sizeof(immstr));
+        }
+
+        def operator+( var char ) : string
+        {
+            var[] arry = new var[] { char };
+
+            string s = new string(data);
+            s.append(arry);
+
+            return s;
+        }
+
+        def operator+=( var char ) : string
+        {
+            var[] arry = new var[] { char };
+
+            return append(arry);
+        }
+
+        def operator+=( var[] immstr ) : string
+        {
+            return append(immstr);
+        }
+
+        def operator+=( string str ) : string
+        {
+            return append(str.toArray());
+        }
+
+        def toArray() : var[]
+        {
+            return data;
+        }
+
+        static def parse( var number ) : string
+        {
+            if (number == 0) {
+                return new string("0");
+            }
+
+            string temp = new string("");
+            string returnvalue= new string("");
+            while (((_int64)number)>0) {
+                temp+=(number%10)+48;
+                number/=10;
+            }
+
+            for (var i=sizeof(temp.toArray())-1; i >= 0; i--) {
+                returnvalue+=temp.at(i);
+            }
+            return returnvalue;
+        }
+        
+        def size() : var 
+        {
+            return sizeof(data);
+        }
+}
