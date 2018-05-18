@@ -1080,7 +1080,7 @@ void RuntimeEngine::parseThrowStatement(Block& block, Ast* pAst) {
     currentScope()->last_statement=ast_throw_statement;
 
     if(clause.type == expression_lclass) {
-        ClassObject* throwable = getClass("std.err", "Throwable");
+        ClassObject* throwable = getClass("std", "Throwable");
 
         if(throwable != NULL) {
             if(clause.utype.klass->hasBaseClass(throwable)) {

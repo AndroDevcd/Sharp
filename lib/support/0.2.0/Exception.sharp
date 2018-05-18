@@ -1,4 +1,4 @@
-mod std.err;
+mod std;
 
 /**
  * Created by braxtonn on 3/2/2018.
@@ -16,9 +16,4 @@ class Exception base Throwable {
     public def getStackTrace() : var[] {
         return stackTrace;
     }
-}
-
-class Throwable {
-    var[] message;
-    var[] stackTrace;
 }

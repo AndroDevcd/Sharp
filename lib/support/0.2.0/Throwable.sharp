@@ -26,6 +26,6 @@ class Throwable {
     }
    
     def getMessage() : string {
-        return string(message);
+        return new string(message);
     }
 }

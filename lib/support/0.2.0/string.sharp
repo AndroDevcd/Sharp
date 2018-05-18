@@ -11,9 +11,10 @@ class string {
         {
             if(immstr == null) {
                 data = null;
+            } else {
+                append(immstr);
             }
 
-            append(immstr);
         }
 
         def replace( var pos, var replaceChar ) : string
