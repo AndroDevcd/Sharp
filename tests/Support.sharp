@@ -7,6 +7,6 @@ class Start {
 
     public static def main(string[] args) : var
     {
-
+        string s = new string("hello");
     }
 }

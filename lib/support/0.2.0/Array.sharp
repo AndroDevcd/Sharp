@@ -5,7 +5,8 @@ mod std;
  */
 class Array {
 
-    def copyOf(var[] data, var len) : var[] {
+    // TODO: check for static calls to functions
+    static def copyOf(var[] data, var len) : var[] {
         var[] newArry = new var[len];
 
         for(var i = 0; i < len; i++) {
@@ -15,7 +16,7 @@ class Array {
         return newArry;
     }
 
-    def copyOf(object[] data, var len) : object[] {
+    static def copyOf(object[] data, var len) : object[] {
         object[] newArry = new object[len];
 
         for(var i = 0; i < len; i++) {

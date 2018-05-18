@@ -1499,7 +1499,7 @@ void RuntimeEngine::parseConstructorDecl(Ast* pAst) {
 
         resolveAllBranches(fblock);
         reorderFinallyBlocks(method);
-        method->code.__asm64.addAll(fblock.code.__asm64);
+        method->code.__asm64.appendAll(fblock.code.__asm64);
         removeScope();
     }
 }
@@ -3504,9 +3504,9 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
                             if(expression.utype.field->local) {
                                 if(c_options.optimize) {
                                     expression.code.free();
+                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, interm.utype.field->address));
                                     expression.code.push_i64(
                                             SET_Ci(i64, op_IADDL, 1,0 , interm.utype.field->address));
-                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, interm.utype.field->address));
                                 } else {
                                     expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
                                     expression.code.push_i64(
@@ -3523,9 +3523,9 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
                             if(expression.utype.field->local) {
                                 if(c_options.optimize) {
                                     expression.code.free();
+                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, interm.utype.field->address));
                                     expression.code.push_i64(
                                             SET_Ci(i64, op_ISUBL, 1,0 , interm.utype.field->address));
-                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, interm.utype.field->address));
                                 } else {
                                     expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
                                     expression.code.push_i64(
@@ -5763,17 +5763,11 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                                                               + "` cannot be applied to expression of type `" + left.typeToString() + "` and `" + right.typeToString() + "`");
         }
 
-        if(equalsNoErr(left, right)) {
+        if(equalsNoErr(left, right) && operand == "=") {
             out.type=expression_objectclass;
-            if(c_options.optimize && right.utype.type == CLASSFIELD
-               && right.utype.field->local) {
-                out.inject(left);
-                out.code.push_i64(SET_Di(i64, op_MULL, right.utype.field->address));
-            } else {
-                pushExpressionToStack(right, out);
-                out.inject(left);
-                out.code.push_i64(SET_Ei(i64, op_POPOBJ));
-            }
+            pushExpressionToStack(right, out);
+            out.inject(left);
+            out.code.push_i64(SET_Ei(i64, op_POPOBJ));
         } else {
             errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `" + operand.getToken()
                                                               + "` cannot be applied to expression of type `" + left.typeToString() + "` and `" + right.typeToString() + "`");
@@ -6392,6 +6386,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
 
     parseAccessDecl(ast, modifiers, startpos);
 
+    parse_var:
     string name =  ast->getEntity(startpos).getToken();
     Field* field = scope->klass->getField(name);
 
@@ -6400,24 +6395,22 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
         Expression fieldExpr = fieldToExpression(ast, *field);
         fieldExpr.code.free();
         equals(fieldExpr, expression);
-        operand=ast->getEntity(ast->getSubAstCount()-1);
+        operand=ast->getEntity(ast->getEntityCount()-1);
 
         if(field->isStatic() && field->isVar() && !field->isArray && expression.literal) {
             // inline local static variables
             inline_map.add(KeyPair<string, double>(field->fullName, expression.intValue));
         } else {
-            fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVL, 0));
-            fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, field->address));
+            if(field->isStatic()) {
+                fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVG, field->owner->address));
+                fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, field->address));
+            } else {
+                fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVL, 0));
+                fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, field->address));
+            }
 
             if(field->isObjectInMemory()) {
                 if(operand == "=") {
-                    if(field->type == CLASS && !expression.newExpression) {
-                        initalizeNewClass(field->klass, out);
-                        out.code.__asm64.push_back(SET_Di(i64, op_MOVL, 0));
-                        out.code.push_i64(SET_Di(i64, op_MOVN, field->address));
-                        out.code.push_i64(SET_Ei(i64, op_POPOBJ));
-                    }
-
                     assignValue(operand, out, fieldExpr, expression, ast);
                 } else {
                     errors->createNewError(GENERIC, ast, " explicit call to operator `" + operand.getToken() + "` without initilization");
@@ -6427,10 +6420,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
             }
 
             if(field->isStatic()) {
-                Method* main = getMainMethod(activeParser);
-                if(main != NULL) {
-                    main->code.inject(0, out.code); // inilize static variable at runtime start in main method
-                }
+                staticMainInserts.inject(0, out.code);
             } else {
                 /*
                  * We want to inject the value into all constructors
@@ -6441,6 +6431,12 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
                 }
             }
 
+        }
+
+        if(ast->hasSubAst(ast_var_decl)) {
+            ast = ast->getSubAst(ast_var_decl);
+            startpos= 0;
+            goto parse_var;
         }
     }
 
@@ -6499,6 +6495,7 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
                 errors->createNewError(GENERIC, 1, 0, "main method '" + mainMethod + "(object[])' must be public");
             }
 
+            main->code.inject(0, staticMainInserts);
             RuntimeEngine::main = main;
         }
         return main;
@@ -7534,6 +7531,8 @@ void RuntimeEngine::resolveVarDecl(Ast* ast) {
     int startpos=0;
 
     parseAccessDecl(ast, modifiers, startpos);
+
+    parse_var:
     string name =  ast->getEntity(startpos).getToken();
     Field* field = scope->klass->getField(name);
     Expression expression = parseUtype(ast);
@@ -7548,6 +7547,12 @@ void RuntimeEngine::resolveVarDecl(Ast* ast) {
 
     field->isArray = expression.utype.array;
     field->address = scope->klass->getFieldIndex(name);
+
+    if(ast->hasSubAst(ast_var_decl)) {
+        startpos = 0;
+        ast = ast->getSubAst(ast_var_decl);
+        goto parse_var;
+    }
 }
 
 int RuntimeEngine::parseMethodAccessSpecifiers(List<AccessModifier> &modifiers) {
@@ -8183,6 +8188,7 @@ void RuntimeEngine::parseVarDecl(Ast *ast)
         modifiers.add(PUBLIC);
     }
 
+    parse_var:
     string name =  ast->getEntity(startpos).getToken();
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
@@ -8191,6 +8197,12 @@ void RuntimeEngine::parseVarDecl(Ast *ast)
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                "field `" + name + "` is already defined in the scope");
         printNote(note, "field `" + name + "` previously defined here");
+    }
+
+    if(ast->hasSubAst(ast_var_decl)) {
+        startpos = 0;
+        ast = ast->getSubAst(ast_var_decl);
+        goto parse_var;
     }
 }
 

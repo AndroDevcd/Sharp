@@ -1,0 +1,42 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 5/18/2018.
+ *
+ * The System class contains several useful class fields
+ * and methods. This class should not be instantiated.
+ *
+ * Among the facilities provided by the System class
+ * are standard input, standard output, and error output streams;
+ *
+ */
+class System {
+
+    ConsoleHandler cHandler;
+
+    public static def print(var[] data) {
+        Libcore.os.printData(data);
+    }
+    
+    public static def print(string str) {
+        Libcore.os.printData(str.value());
+    }
+    
+    public static def println(var[] data) {
+        Libcore.os.printData(data);
+        printChar('\n');
+    }
+    
+    public static def println(string str) {
+        Libcore.os.printData(str.value());
+        printChar('\n');
+    }
+    
+    public static def print(var data) {
+        Libcore.os.__print_(data, false);
+    }
+    
+    public static def printChar(var data) {
+        Libcore.os.__print_(data, true);
+    }
+}

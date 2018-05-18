@@ -683,7 +683,7 @@ void Thread::exec() {
 
             interp:
             //count++;
-            //cout << count << endl;
+            cout << count << endl;
 
             DISPATCH();
             _NOP:
@@ -835,7 +835,10 @@ void Thread::exec() {
                 registers[bmr]=GET_Da(cache[pc]) + exponent(cache[pc + 1]); pc++;
                 _brh
             SIZEOF:
-                CHECK_NULL2(registers[GET_Da(cache[pc])]=o2->object->size;)
+                if(o2==NULL || o2->object == NULL)
+                    registers[GET_Da(cache[pc])] = 0;
+                else
+                    registers[GET_Da(cache[pc])]=o2->object->size;
                 _brh
             PUT:
                 cout << registers[GET_Da(cache[pc])];

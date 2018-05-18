@@ -42,6 +42,9 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
 
     int64_t x64, op, addr;
     for(unsigned int i = 0; i < stopAddr; i++) {
+        if(i >= assembler->__asm64.size())
+            break;
+
         x64 = assembler->__asm64.get(i);
 
         switch (op=GET_OP(x64)) {

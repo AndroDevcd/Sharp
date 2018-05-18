@@ -445,7 +445,8 @@ public:
             main(NULL),
             stringMap(),
             panic(false),
-            allMethods()
+            allMethods(),
+            staticMainInserts()
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
@@ -523,6 +524,7 @@ private:
     RuntimeNote lastNote;
     string lastNoteMsg;
     List<string> noteMessages;
+    Assembler staticMainInserts;
     int64_t i64;
 
     void compile();

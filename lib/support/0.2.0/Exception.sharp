@@ -9,11 +9,15 @@ class Exception base Throwable {
         base->Throwable(msg);
     }
 
-    public def getMessage() : var[] {
-        return message;
+    Exception(string msg) {
+        base->Throwable(msg);
     }
 
-    public def getStackTrace() : var[] {
-        return stackTrace;
-    }
+//    public def getMessage() : var[] {
+//        return message;
+//    }
+//
+//    public def getStackTrace() : var[] {
+//        return stackTrace;
+//    }
 }
