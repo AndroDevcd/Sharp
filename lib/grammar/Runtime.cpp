@@ -6434,9 +6434,9 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
         }
 
         if(ast->hasSubAst(ast_var_decl)) {
-            ast = ast->getSubAst(ast_var_decl);
-            startpos= 0;
-            goto parse_var;
+//            ast = ast->getSubAst(ast_var_decl);
+//            startpos= 0;
+//            goto parse_var;
         }
     }
 
@@ -6496,6 +6496,7 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
             }
 
             main->code.inject(0, staticMainInserts);
+            staticMainInserts.free();
             RuntimeEngine::main = main;
         }
         return main;
@@ -6933,8 +6934,10 @@ void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& r
     Field* field = NULL;
     ClassObject* k;
     bool lastRefrence = false;
+    long refrenceTrys = 0;
 
     for(unsigned int i = 1; i < refrence.classHeiarchy.size()+1; i++) {
+        refrenceTrys++;
         if(i >= refrence.classHeiarchy.size()) {
             // field? if not then class?
             lastRefrence = true;
@@ -6953,6 +6956,12 @@ void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& r
                     errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, "static access on instance field `" + object_name + "`");
                 }
 
+                if(refrenceTrys <= 1) {
+                    if(field->isStatic())
+                        expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                    else
+                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                }
                 // for now we are just generating code for x.x.f not Main.x...thats static access
                 expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
 
@@ -7051,7 +7060,10 @@ void RuntimeEngine::resolveSelfUtype(Scope* scope, ReferencePointer& reference, 
                 if(isFieldInlined(field)) {
                     inlineVariableValue(expression, field);
                 } else {
-                    expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                    if(field->isStatic())
+                        expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                    else
+                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
                     expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
                 }
             } else {
@@ -7106,7 +7118,10 @@ void RuntimeEngine::resolveSelfUtype(Scope* scope, ReferencePointer& reference, 
             } else {
 
                 if((field = scope->klass->getField(starter_name)) != NULL) {
-                    expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                    if(field->isStatic())
+                        expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                    else
+                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
                     expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
 
                     resolveFieldHeiarchy(field, reference, expression, ast);
@@ -7174,7 +7189,10 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                 expression.utype.field = ref.field;
                 expression.type = expression_field;
 
-                expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                if(expression.utype.field->isStatic())
+                    expression.code.push_i64(SET_Di(i64, op_MOVG, expression.utype.field->owner->address));
+                else
+                    expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
                 expression.code.push_i64(SET_Di(i64, op_MOVN, expression.utype.field->address));
             } else {
                 if(scope->type == STATIC_BLOCK) {
@@ -7247,7 +7265,6 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                 // first must be class
                 if((klass = getClass(reference.module, starter_name)) != NULL) {
                     if(scope->klass->hasBaseClass(klass)) {
-                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
                         resolveClassHeiarchy(klass, reference, expression, ast);
                     } else {
                         // klass provided is not a base
@@ -7270,19 +7287,21 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                 ref = getBaseClassOrField(starter_name, klass);
                 if(ref.type != UNDEFINED) {
                     if(ref.type == CLASSFIELD) {
-                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+
+                        if(ref.field->isStatic())
+                            expression.code.push_i64(SET_Di(i64, op_MOVG, ref.field->owner->address));
+                        else
+                            expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
                         expression.code.push_i64(SET_Di(i64, op_MOVN, ref.field->address)); // gain access to field in object
 
                         resolveFieldHeiarchy(ref.field, reference, expression, ast);
                     } else {
-                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
 
                         resolveClassHeiarchy(ref.klass, reference, expression, ast);
                     }
                 } else {
                     if((klass = getClass(reference.module, starter_name)) != NULL) {
                         if(scope->klass->hasBaseClass(klass)) {
-                            expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
 
                             resolveClassHeiarchy(klass, reference, expression, ast);
                         } else {
@@ -7362,7 +7381,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                 }
                 else if((field = scope->klass->getField(refrence.referenceName, true)) != NULL) {
                     // field?
-                    if(scope->type == STATIC_BLOCK) {
+                    if(scope->type == STATIC_BLOCK && !field->isStatic()) {
                         errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col,
                                          "cannot get object `" + refrence.referenceName + "` from self in static context");
                     }
@@ -7374,7 +7393,10 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     if(isFieldInlined(field)) {
                         inlineVariableValue(expression, field);
                     } else {
-                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                        if(field->isStatic())
+                            expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                        else
+                            expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
                         expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
                     }
                 } else {
@@ -7472,7 +7494,10 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                                                "cannot get object `" + starter_name + "` from self in static context");
                     }
 
-                    expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                    if(field->isStatic())
+                        expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                    else
+                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
                     expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
                     resolveFieldHeiarchy(field, refrence, expression, pAst);
                     return;

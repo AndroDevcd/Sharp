@@ -26,7 +26,8 @@ public:
             super(NULL),
             head(NULL),
             note(),
-            fullName("")
+            fullName(""),
+            address(-1)
     {
         functions.init();
         constructors.init();
@@ -44,7 +45,8 @@ public:
             super(NULL),
             head(NULL),
             note(note),
-            fullName("")
+            fullName(""),
+            address(-1)
     {
         functions.init();
         constructors.init();
@@ -64,7 +66,8 @@ public:
             head(NULL),
             super(parent),
             note(note),
-            fullName("")
+            fullName(""),
+            address(-1)
     {
         functions.init();
         constructors.init();

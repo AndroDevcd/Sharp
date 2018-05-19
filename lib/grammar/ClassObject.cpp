@@ -17,7 +17,7 @@ bool ClassObject::addChildClass(ClassObject klass) {
         return false;
     }
 
-    klass.address = RuntimeEngine::uniqueSerialId++;
+    //klass.address = RuntimeEngine::uniqueSerialId++;
     childClasses.push_back(klass);
     return true;
 }

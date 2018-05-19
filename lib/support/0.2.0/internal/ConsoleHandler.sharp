@@ -1,0 +1,48 @@
+mod std.internal;
+
+/**
+ * Created by BraxtonN on 5/18/2018.
+ */
+class ConsoleHandler {
+    public def printData(var[] data)
+    {
+        __print_(data);
+    }
+
+    /**
+     * Classic print function to print an array of data to
+     * the console
+     */
+     private def __print_(var[] message)
+     {
+         if(message != null) {
+             foreach(var char : message) {
+                 __print_stdout_(char, true);
+             }
+         } else {
+             __print_stdout_('n', true);
+             __print_stdout_('u', true);
+             __print_stdout_('l', true);
+             __print_stdout_('l', true);
+         }
+     }
+
+     /**
+     * print a single character to the console
+     */
+     public def __print_stdout_(var char, var isCharacter)
+     {
+         if(isCharacter) {
+             asm(
+                 "  loadl ebx,0               // get local 'char'  "
+                 "  _putc ebx                                      "
+             );
+         } else {
+             asm(
+                 "  loadl ebx,0               // get local 'char'  "
+                 "  put ebx                                        "
+             );
+         }
+     }
+
+}

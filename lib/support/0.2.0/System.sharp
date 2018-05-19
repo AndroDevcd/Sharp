@@ -1,5 +1,7 @@
 mod std;
 
+import std.internal;
+
 /**
  * Created by BraxtonN on 5/18/2018.
  *
@@ -12,31 +14,31 @@ mod std;
  */
 class System {
 
-    ConsoleHandler cHandler;
+    static ConsoleHandler cHandler = new ConsoleHandler();
 
     public static def print(var[] data) {
-        Libcore.os.printData(data);
+        cHandler.printData(data);
     }
     
     public static def print(string str) {
-        Libcore.os.printData(str.value());
+        cHandler.printData(str.toArray());
     }
     
     public static def println(var[] data) {
-        Libcore.os.printData(data);
+        cHandler.printData(data);
         printChar('\n');
     }
     
     public static def println(string str) {
-        Libcore.os.printData(str.value());
+        cHandler.printData(str.toArray());
         printChar('\n');
     }
     
     public static def print(var data) {
-        Libcore.os.__print_(data, false);
+        cHandler.__print_stdout_(data, false);
     }
     
     public static def printChar(var data) {
-        Libcore.os.__print_(data, true);
+        ConsoleHandler.__print_stdout_(data, true);
     }
 }

@@ -29,7 +29,7 @@ public:
             sourceFileLink(0),
             localVariables(0),
             isConstructor(false),
-            address(0)
+            address(-1)
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -54,7 +54,7 @@ public:
             sourceFileLink(sourceFile),
             localVariables(0),
             isConstructor(false),
-            address(0)
+            address(-1)
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -81,7 +81,7 @@ public:
             sourceFileLink(sourceFile),
             localVariables(0),
             isConstructor(false),
-            address(0)
+            address(-1)
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
