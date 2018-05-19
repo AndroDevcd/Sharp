@@ -7,7 +7,7 @@ class Start {
 
     public static def main(string[] args) : var
     {
-        //string message = new string("hello");
-        System.println("hello");
+        string message = new string("hello");
+        System.println(message);
     }
 }
