@@ -70,11 +70,11 @@ public:
  \
     Method* method = env->methods+address; \
  \
+    int64_t spAddr = thread_self->sp-method->stackEqulizer; \
     if(thread_self->callStack.empty()) { \
         thread_self->callStack.add( \
                 Frame(NULL, 0, 0, 0)); \
     } else { \
-        int64_t spAddr = method->paramSize==0 ? (method->isStatic ? method->returnVal : 0)+thread_self->sp : (method->isStatic ? method->returnVal : 0)+(thread_self->sp-method->paramSize); \
         thread_self->callStack.add( \
                 Frame(thread_self->current, thread_self->pc, spAddr, thread_self->fp)); \
     } \
@@ -83,7 +83,7 @@ public:
     thread_self->current = method; \
     thread_self->cache = method->bytecode; \
     thread_self->fp = thread_self->callStack.size()==1 ? thread_self->fp : \
-                    ((thread_self->sp - method->paramSize) + method->isStatic); \
+                    (thread_self->sp - method->paramSize); \
     thread_self->sp += (method->stackSize - method->paramSize); \
 }
 

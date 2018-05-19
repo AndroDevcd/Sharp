@@ -515,7 +515,7 @@ void Thread::exit() {
 
     if(this->exceptionThrown) {
         this->exitVal = -800;
-        cout << "Unhandled exception on thread " << name.str() << " (most recent call last):\n";
+        cout << name.str() << "\n";
                 cout << throwable.stackTrace.str();
         cout << endl << throwable.throwable->name.str() << " "
            << throwable.message.str() << "\n";
@@ -666,6 +666,7 @@ void Thread::exec() {
     int64_t val;
     SharpObject* o;
     Object* o2;
+    Method* method;
     void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
     Method* finnallyMethod;
 
@@ -683,7 +684,6 @@ void Thread::exec() {
 
             interp:
             //count++;
-            cout << count << endl;
 
             DISPATCH();
             _NOP:
@@ -868,7 +868,24 @@ void Thread::exec() {
                 GarbageCollector::self->freeObject(o2);
                 _brh
             CALL:
-                executeMethod(GET_Da(cache[pc]))
+               // executeMethod(GET_Da(cache[pc]))
+            method = env->methods+GET_Da(cache[pc]);
+
+            int64_t spAddr = thread_self->sp-method->stackEqulizer;
+            if(thread_self->callStack.empty()) {
+                thread_self->callStack.add(
+                        Frame(NULL, 0, 0, 0));
+            } else {
+                thread_self->callStack.add(
+                        Frame(thread_self->current, thread_self->pc, spAddr, thread_self->fp));
+            }
+
+            thread_self->pc = 0;
+            thread_self->current = method;
+            thread_self->cache = method->bytecode;
+            thread_self->fp = thread_self->callStack.size()==1 ? thread_self->fp :
+                            ((method->returnVal) ? spAddr : (spAddr+1));
+            thread_self->sp += (method->stackSize - method->paramSize);
                 _brh_NOINCREMENT
             NEWCLASS:
                 dataStack[++sp].object =

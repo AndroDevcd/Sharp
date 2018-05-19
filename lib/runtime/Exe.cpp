@@ -309,6 +309,7 @@ int Process_Exe(std::string exe)
                     method->cacheSize = geti64(buffer);
                     method->isStatic = getlong(buffer);
                     method->returnVal = getlong(buffer);
+                    method->stackEqulizer = geti64(buffer);
 
                     long len = getlong(buffer);
                     line_table lt;

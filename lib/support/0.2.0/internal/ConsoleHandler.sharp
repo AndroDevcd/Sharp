@@ -34,13 +34,13 @@ class ConsoleHandler {
      {
          if(isCharacter) {
              asm(
-                 "  loadl ebx,0               // get local 'char'  "
-                 "  _putc ebx                                      "
+                 "  loadl %ebx,1               // get local 'char'  "
+                 "  _putc %ebx                                      "
              );
          } else {
              asm(
-                 "  loadl ebx,0               // get local 'char'  "
-                 "  put ebx                                        "
+                 "  loadl %ebx,1               // get local 'char'  "
+                 "  put %ebx                                        "
              );
          }
      }

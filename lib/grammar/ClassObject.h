@@ -168,6 +168,7 @@ public:
     long getTotalFieldCount();
 
     long getTotalFunctionCount();
+    long getFieldAddress(Field* field);
 
     long long address;
 private:

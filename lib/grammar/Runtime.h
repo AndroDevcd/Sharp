@@ -604,7 +604,7 @@ private:
     bool isDClassNumberEncodable(double var);
 
     void resolveClassHeiarchy(ClassObject *klass, ReferencePointer &refrence, Expression &expression, Ast *pAst,
-                              bool requireStatic = true);
+                              bool requreMovg = true, bool requireStatic = true);
 
     void resolveFieldHeiarchy(Field *field, ReferencePointer &refrence, Expression &expression, Ast *pAst);
 

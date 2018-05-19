@@ -7,8 +7,8 @@
 
 #include "../../../stdimports.h"
 #include "string.h"
+#include "Field.h"
 
-class Field;
 class Object;
 class Method;
 

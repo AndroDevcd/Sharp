@@ -124,7 +124,6 @@ bool ClassObject::addField(Field field) {
     if(getField(field.name) != NULL)
         return false;
 
-    field.address = this->getTotalFieldCount()==0?0:this->getTotalFieldCount()-1;
     field.fullName = this->fullName + "." + name;
     fields.push_back(field);
     return true;
@@ -334,6 +333,22 @@ long ClassObject::getTotalFieldCount() {
 
         if(k == NULL)
             return fields;
+
+        fields+=k->fieldCount();
+        _klass = k;
+    }
+}
+
+long ClassObject::getFieldAddress(Field* field) {
+    if(base == NULL) return getFieldIndex(field->name);
+    ClassObject* k, *_klass = this;
+    long fields=0;
+
+    for(;;) {
+        k = _klass->getBaseClass();
+
+        if(k == NULL)
+            return fields+getFieldIndex(field->name);
 
         fields+=k->fieldCount();
         _klass = k;

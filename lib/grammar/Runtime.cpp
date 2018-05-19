@@ -326,9 +326,9 @@ void RuntimeEngine::compile()
                 Parser* p = parsers.get(i);
                 bool found = false;
 
-                for(unsigned int i = 0; i < importMap.size(); i++) {
-                    if(importMap.get(i).key == p->sourcefile) {
-                        importMap.get(i).value.addAll(modules);
+                for(unsigned int c = 0; c < importMap.size(); c++) {
+                    if(importMap.get(c).key == p->sourcefile) {
+                        importMap.get(c).value.addAll(modules);
                         found = true;
                         break;
                     }
@@ -352,8 +352,8 @@ void RuntimeEngine::compile()
 
             Ast* ast;
             addScope(Scope(GLOBAL_SCOPE, NULL));
-            for(size_t i = 0; i < p->treesize(); i++) {
-                ast = p->ast_at(i);
+            for(size_t c = 0; c < p->treesize(); c++) {
+                ast = p->ast_at(c);
                 SEMTEX_CHECK_ERRORS
 
                 switch(ast->getType()) {
@@ -1418,7 +1418,7 @@ void RuntimeEngine::parseMethodDecl(Ast* pAst) {
 
         resolveAllBranches(fblock);
         reorderFinallyBlocks(method);
-        method->code.__asm64.addAll(fblock.code.__asm64);
+        method->code.__asm64.appendAll(fblock.code.__asm64);
         method->assembly_table.addAll(fblock.assembly_table);
         removeScope();
     }
@@ -6598,11 +6598,11 @@ void RuntimeEngine::resolveAllFields() {
         currentModule = "$unknown";
 
         addScope(Scope(GLOBAL_SCOPE, NULL));
-        for(int i = 0; i < activeParser->treesize(); i++) {
-            Ast* ast = activeParser->ast_at(i);
+        for(int x = 0; x < activeParser->treesize(); x++) {
+            Ast* ast = activeParser->ast_at(x);
             SEMTEX_CHECK_ERRORS
 
-            if(i==0) {
+            if(x==0) {
                 if(ast->getType() == ast_module_decl) {
                     add_module(currentModule = parseModuleName(ast));
                     continue;
@@ -6928,7 +6928,7 @@ void RuntimeEngine::inlineVariableValue(Expression &expression, Field *field) {
 
 bool RuntimeEngine::isDClassNumberEncodable(double var) { return ((int64_t )var > DA_MAX || (int64_t )var < DA_MIN) == false; }
 
-void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& refrence, Expression& expression, Ast* pAst, bool requireStatic) {
+void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& refrence, Expression& expression, Ast* pAst, bool requreMovg, bool requireStatic) {
     int64_t i64;
     string object_name = "";
     Field* field = NULL;
@@ -6956,7 +6956,7 @@ void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& r
                     errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, "static access on instance field `" + object_name + "`");
                 }
 
-                if(refrenceTrys <= 1) {
+                if(requreMovg && refrenceTrys <= 1) {
                     if(field->isStatic())
                         expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
                     else
@@ -7026,7 +7026,7 @@ void RuntimeEngine::resolveFieldHeiarchy(Field* field, ReferencePointer& refrenc
             expression.utype.type = VAR;
             return;
         case CLASS:
-            resolveClassHeiarchy(field->klass, refrence, expression, pAst, false);
+            resolveClassHeiarchy(field->klass, refrence, expression, pAst, false, false);
             return;
     }
 }
@@ -7571,7 +7571,8 @@ void RuntimeEngine::resolveVarDecl(Ast* ast) {
     }
 
     field->isArray = expression.utype.array;
-    field->address = scope->klass->getFieldIndex(name);
+    field->owner = scope->klass;
+    field->address = field->owner->getFieldAddress(field);
 
     if(ast->hasSubAst(ast_var_decl)) {
         startpos = 0;
@@ -8218,7 +8219,7 @@ void RuntimeEngine::parseVarDecl(Ast *ast)
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
 
-    if(!scope->klass->addField(Field(NULL, uniqueSerialId++, name, scope->klass, modifiers, note))) {
+    if(!scope->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note))) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                "field `" + name + "` is already defined in the scope");
         printNote(note, "field `" + name + "` previously defined here");
@@ -8417,10 +8418,6 @@ std::string RuntimeEngine::class_to_stream(ClassObject& klass) {
     kstream << klass.getTotalFieldCount() << ((char)nil);
     kstream << klass.getTotalFunctionCount() << ((char)nil);
 
-    for(long long i = 0; i < klass.fieldCount(); i++) {
-        kstream << field_to_stream(*klass.getField(i));
-    }
-
     ClassObject* base = klass.getBaseClass();
     while(base != NULL) {
         for(long long i = 0; i < base->fieldCount(); i++) {
@@ -8428,6 +8425,10 @@ std::string RuntimeEngine::class_to_stream(ClassObject& klass) {
         }
 
         base = base->getBaseClass();
+    }
+
+    for(long long i = 0; i < klass.fieldCount(); i++) {
+        kstream << field_to_stream(*klass.getField(i));
     }
 
     /* Constructors */
@@ -8563,7 +8564,41 @@ std::string RuntimeEngine::generate_text_section() {
         text << i64_tostr(f->localVariables);
         text << i64_tostr(f->code.__asm64.size());
         text << (f->isStatic() ? 1 : 0) << ((char)nil);
-        text << (f->type!=TYPEVOID ? 1 : 0) << ((char)nil);
+        text << (f->type!=TYPEVOID || f->isConstructor ? 1 : 0) << ((char)nil);
+
+        int returnAddress;
+
+        if(f->isStatic()) {
+            if(f->paramCount() != 0) {
+                if(f->type!=TYPEVOID) {
+                    returnAddress=(f->paramCount()-1);
+                } else {
+                    returnAddress = f->paramCount();
+                }
+            } else {
+                if(f->type!=TYPEVOID) {
+                    returnAddress = -1;
+                } else {
+                    returnAddress = 0;
+                }
+            }
+        } else {
+            if(f->paramCount() != 0) {
+                if(f->type!=TYPEVOID || f->isConstructor) {
+                    returnAddress=f->paramCount();
+                } else {
+                    returnAddress=f->paramCount()+1;
+                }
+            } else {
+                if(f->type!=TYPEVOID || f->isConstructor) {
+                    returnAddress = 0;
+                } else {
+                    returnAddress = 1;
+                }
+            }
+        }
+
+        text << i64_tostr(returnAddress);
 
         text << f->line_table.size() << ((char)nil);
         for(unsigned int x = 0; x < f->line_table.size(); x++) {
@@ -8890,6 +8925,17 @@ void RuntimeEngine::createDumpFile() {
                 case op_DIV:
                 {
                     ss<<"div ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
+                    ss<< " -> ";
+                    ss<< Asm::registrerToString(method->code.__asm64.get(++x));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_MOD:
+                {
+                    ss<<"mod ";
                     ss<< Asm::registrerToString(GET_Ca(x64));
                     ss<< ", ";
                     ss<< Asm::registrerToString(GET_Cb(x64));

@@ -1,4 +1,4 @@
-mod internal;
+mod application;
 
 class k {
     var[] tt;
@@ -11,11 +11,11 @@ class k {
 /**
  * Created by BraxtonN on 5/15/2018.
  */
-class Runtime base k {
+class Start base k {
     var x;
     var[] iarry;
 
-    Runtime() {
+    Start() {
         base->k(null);
         base->tt = null;
     }
@@ -54,11 +54,11 @@ class Runtime base k {
         }
     }
 
-    public static def __srt_init_(object[] args) : var {
+    public static def main(object[] args) : var {
         var[] str = "factorial of 8 is ";
 
         print(str);
-        __print_(fact(500), false);
+        __print_(fact(2), false);
         __print_(' ', true);
 
         var[] arry = new var[10];
@@ -137,9 +137,9 @@ class Runtime base k {
 
         print("\nthis class id is: ");
         //x = Exception.class;
-        print(Runtime.class);
+        print(Start.class);
 
-        Runtime run = new Runtime();
+        Start run = new Start();
         run.x = 99;
         print("\nRuntime.x is: ");
         //x = Exception.class;
