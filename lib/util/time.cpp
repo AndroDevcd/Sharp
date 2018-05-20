@@ -37,7 +37,7 @@ int Clock::__os_time(int ty) {
 * The total ammount of time in nano seconds
 * since Jan 1, 1970 (UTC Format)
 */
-unsigned long long Clock::realTimeInNSecs()
+int64_t Clock::realTimeInNSecs()
 {
     return std::chrono::duration_cast<std::chrono::nanoseconds>
             (std::chrono::system_clock::now().time_since_epoch()).count();

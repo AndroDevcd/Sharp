@@ -16,6 +16,7 @@
 
 VirtualMachine* vm;
 Environment* env;
+bool masterShutdown = false;
 
 int CreateVirtualMachine(std::string exe)
 {
@@ -187,7 +188,16 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     /*
      * Check for uncaught exception in thread before exit
      */
-    thread_self->exit();
+    if(!masterShutdown)
+        thread_self->exit();
+    else {
+#ifdef WIN32_
+        return 0;
+#endif
+#ifdef POSIX_
+        return NULL;
+#endif
+    }
 
     if (thread_self->id == main_threadid)
     {
@@ -211,8 +221,12 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 }
 
 void VirtualMachine::shutdown() {
-    destroy();
-    env->shutdown();
+    if(!masterShutdown) {
+        destroy();
+        env->shutdown();
+
+        masterShutdown = true;
+    }
 }
 
 void VirtualMachine::sysInterrupt(int32_t signal) {
@@ -257,6 +271,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             return;
         case 0xa8:
             registers[cmt]=Thread::Create((int32_t )registers[adx], (unsigned long)registers[egx]);
+            return;
+        case 0xa9:
+            vm->shutdown();
             return;
         default:
             // unsupported

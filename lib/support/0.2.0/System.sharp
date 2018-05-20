@@ -43,11 +43,15 @@ class System {
         ConsoleHandler.__print_stdout_(data, true);
     }
 
-    public static def getUtcTime() : var {
+    public static def getUtcTimeInMills() : var {
         return Time.millsTime();
     }
 
     public static def getNanoTime() : var {
         return Time.nanoTime();
+    }
+
+    public static def exit() {
+        Runtime.nativeExit();
     }
 }

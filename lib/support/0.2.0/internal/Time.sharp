@@ -22,7 +22,7 @@ class Time {
     }
 
     public static def timeToMills(var nano) : var {
-        return nano/1000000000;
+        return timeToMicro(nano)/1000;
     }
 
     public static def timeToSecs(var nano) : var {

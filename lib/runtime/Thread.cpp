@@ -483,7 +483,7 @@ int Thread::interrupt(Thread *thread) {
             * regardless of what they are doing, we
             * stop them.
             */
-            env->shutdown();
+            vm->shutdown();
         }
         else
         {
@@ -690,6 +690,7 @@ void Thread::exec() {
                 _brh
             _INT:
                 vm->sysInterrupt(GET_Da(cache[pc]));
+                if(masterShutdown) return;
                 _brh
             _MOVI:
                 registers[cache[pc+1]]=GET_Da(cache[pc]); pc++;

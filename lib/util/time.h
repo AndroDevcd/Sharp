@@ -6,9 +6,11 @@
 #define SHARP_TIME_H
 
 
+#include <cstdint>
+
 class Clock {
 public:
-    static unsigned long long realTimeInNSecs();
+    static int64_t realTimeInNSecs();
     static int __os_time(int ty);
 
 

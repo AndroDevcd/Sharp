@@ -47,8 +47,8 @@
     if (state == THREAD_KILLED) \
         return;
 
-#define _brh_NOINCREMENT SAFTEY_CHECK /*if(!startAddress) DISPATCH() else*/ goto *opcodeStart;
-#define _brh pc++; _brh_NOINCREMENT
+#define _brh_NOINCREMENT SAFTEY_CHECK if(!startAddress) DISPATCH() else goto *opcodeStart;
+#define _brh  pc++; _brh_NOINCREMENT
 
 #define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
 #define CHECK_NULL2(x) if(o2==NULL|o2->object == NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
