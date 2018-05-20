@@ -1,6 +1,7 @@
 mod std;
 
 import std.internal;
+import std.internal.vm;
 
 /**
  * Created by BraxtonN on 5/18/2018.
@@ -40,5 +41,13 @@ class System {
     
     public static def printChar(var data) {
         ConsoleHandler.__print_stdout_(data, true);
+    }
+
+    public static def getUtcTime() : var {
+        Time.millsTime();
+    }
+
+    public static def getNanoTime() : var {
+        Time.nanoTime();
     }
 }

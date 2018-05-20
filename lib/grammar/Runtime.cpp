@@ -6470,7 +6470,7 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
     string starter_classname = "Runtime";
     string mainMethod = "__srt_init_";
 
-    ClassObject* StarterClass = getClass("internal", starter_classname);
+    ClassObject* StarterClass = getClass("std.internal", starter_classname);
     if(StarterClass != NULL) {
         List<Param> params;
         List<AccessModifier> modifiers;

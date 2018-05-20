@@ -22,6 +22,8 @@ class Start {
             System.println(t.getMessage());
         }
 
+1526844079
+1526844057664
         message = "hello";
         System.println(message);
         System.println(str);
@@ -32,5 +34,8 @@ class Start {
         }
 
         System.println("tt" + message);
+
+        System.println("Current time in Mills: " + string.parse(System.getUtcTime()));
+        System.println("Current time in Nanos: " + string.parse(System.getNanoTime()));
     }
 }

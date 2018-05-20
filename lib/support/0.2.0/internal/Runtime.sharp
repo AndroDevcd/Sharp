@@ -1,4 +1,4 @@
-mod internal;
+mod std.internal;
 
 /**
  * Created by BraxtonN on 5/17/2018.
@@ -6,6 +6,9 @@ mod internal;
 class Runtime {
 
     public static def __srt_init_(object[] args) : var {
-        application#Start.main(null);
+        var ret = application#Start.main(null);
+
+        System.print("Program finished with exit code " + string.parse(ret));
+        return ret;
     }
 }
