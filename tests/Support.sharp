@@ -31,9 +31,11 @@ class Start {
             System.println("not equal");
         }
 
+        //System.exit();
+
         System.println("tt" + message);
 
-        System.println("Current time in Mills: " + string.parse(System.getUtcTime()));
+        System.println("Current time in Mills: " + string.parse(System.getUtcTimeInMills()));
         System.println("Current time in Nanos: " + string.parse(System.getNanoTime()));
     }
 }

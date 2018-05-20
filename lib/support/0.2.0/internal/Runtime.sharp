@@ -11,4 +11,10 @@ class Runtime {
         System.print("Program finished with exit code " + string.parse(ret));
         return ret;
     }
+
+    public static def nativeExit() {
+        asm(
+            "int 0xa9         // interrupt the entire system and initiate shutdown "
+            "                                                                      " );
+    }
 }

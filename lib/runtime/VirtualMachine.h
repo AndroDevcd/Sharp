@@ -89,6 +89,7 @@ public:
 
 extern VirtualMachine* vm;
 extern Environment* env;
+extern bool masterShutdown;
 
 int CreateVirtualMachine(std::string);
 
