@@ -48,7 +48,7 @@ class string {
         def at( var pos ) : var
         {
             if(pos >= sizeof(data)) {
-                throw new RuntimeErr("Index out of bounds Array: " + string.parse(sizeof(data))
+                throw new RuntimeErr("Index out of bounds Array: size " + string.parse(sizeof(data))
                        + " at index pos " + string.parse(pos));
             }
 
@@ -69,6 +69,10 @@ class string {
 
         def operator==( string str ) : var
         {
+            if(sizeof(str) != sizeof(data)) {
+                return false;
+            }
+
             var iter;
             foreach(var char : data) {
                 if(char != str.at(iter++)) {
@@ -81,6 +85,10 @@ class string {
 
         def operator==( var[] str ) : var
         {
+            if(sizeof(str) != sizeof(data)) {
+                return false;
+            }
+
             var iter;
             foreach( var char : data ) {
                 if(char != str[iter++]) {

@@ -478,7 +478,7 @@ void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix
                     }
                 } else if(value.utype.field->dynamicObject() || value.utype.field->type == CLASS) {
                     if(value.utype.field->local) {
-                        block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
+                        block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
                     } else {
                         block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
                     }
@@ -1213,15 +1213,13 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
 
             if(f.isObjectInMemory()) {
                 if(operand == "=") {
-                    if(f.type==CLASS && !expression.newExpression) {
-                        initalizeNewClass(f.klass, out);
-                        block.code.inject(block.code.__asm64.size(), out.code);
-                        block.code.push_i64(SET_Di(i64, op_MOVL, f.address));
-                        block.code.push_i64(SET_Ei(i64, op_POPOBJ));
-                        out.free();
-                    }
 
-                    assignValue(operand, out, fieldExpr, expression, pAst);
+                    if(f.type==CLASS && f.klass->getModuleName() == "std" && f.klass->getName() == "string"
+                        && expression.type == expression_string) {
+                        constructNewString(expression, out);
+                        out.code.push_i64(SET_Di(i64, op_POPL, f.address));
+                    } else
+                        assignValue(operand, out, fieldExpr, expression, pAst);
                     block.code.inject(block.code.__asm64.size(), out.code);
                 } else {
                     errors->createNewError(GENERIC, pAst, " explicit call to operator `" + operand.getToken() + "` without initilization");
@@ -3814,11 +3812,11 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
         return;
     } else if(utype.utype.referenceName == "_int32") {
         pushExpressionToRegisterNoInject(expression, out, ebx);
-        out.code.push_i64(SET_Ci(i64, op_MOV16, ebx, 0, ebx));
+        out.code.push_i64(SET_Ci(i64, op_MOV32, ebx, 0, ebx));
         return;
     } else if(utype.utype.referenceName == "_int64") {
         pushExpressionToRegisterNoInject(expression, out, ebx);
-        out.code.push_i64(SET_Ci(i64, op_MOV16, ebx, 0, ebx));
+        out.code.push_i64(SET_Ci(i64, op_MOV64, ebx, 0, ebx));
         return;
     } else if(utype.utype.referenceName == "_uint8") {
         pushExpressionToRegisterNoInject(expression, out, ebx);
@@ -3830,11 +3828,11 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
         return;
     } else if(utype.utype.referenceName == "_uint32") {
         pushExpressionToRegisterNoInject(expression, out, ebx);
-        out.code.push_i64(SET_Ci(i64, op_MOVU16, ebx, 0, ebx));
+        out.code.push_i64(SET_Ci(i64, op_MOVU32, ebx, 0, ebx));
         return;
     } else if(utype.utype.referenceName == "_uint64") {
         pushExpressionToRegisterNoInject(expression, out, ebx);
-        out.code.push_i64(SET_Ci(i64, op_MOVU16, ebx, 0, ebx));
+        out.code.push_i64(SET_Ci(i64, op_MOVU64, ebx, 0, ebx));
         return;
     }
 //    switch(utype.utype.type) {
@@ -4851,18 +4849,16 @@ void RuntimeEngine::constructNewString(Expression &stringExpr, Expression& out) 
     expressions.add(stringExpr);
     expressionListToParams(params, expressions);
 
-    if((klass = getClass("std", "String")) != NULL) {
+    if((klass = getClass("std", "string")) != NULL) {
         if((fn=klass->getConstructor(params)) != NULL) {
             out.type = expression_lclass;
             out.utype.klass = klass;
             out.utype.type=CLASS;
 
             out.code.push_i64(SET_Di(i64, op_NEWCLASS, klass->address));
-            if(!fn->isStatic())
-                out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
             for(unsigned int i = 0; i < expressions.size(); i++) {
-                pushExpressionToStack(expressions.get(i), stringExpr);
+                pushExpressionToStack(expressions.get(i), out);
             }
             out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
         } else
@@ -4883,7 +4879,7 @@ bool RuntimeEngine::constructNewString(Expression &stringExpr, Expression &right
     expressions.add(stringExpr);
     expressionListToParams(params, expressions);
 
-    if((klass = getClass("std", "String")) != NULL) {
+    if((klass = getClass("std", "string")) != NULL) {
         if((fn=klass->getConstructor(params)) != NULL) {
             stringExpr.type = expression_lclass;
             stringExpr.utype.klass = klass;

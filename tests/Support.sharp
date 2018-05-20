@@ -7,7 +7,30 @@ class Start {
 
     public static def main(string[] args) : var
     {
+        string str = "hello2e235456756";
         string message = new string("hello");
+        message += "2";
         System.println(message);
+        System.println(string.parse(129));
+        System.println(message + "tt");
+        System.print(2*6+9);
+
+        try {
+            message.at(99);
+        } catch(Throwable t) {
+            System.println("exception caught");
+            System.println(t.getMessage());
+        }
+
+        message = "hello";
+        System.println(message);
+        System.println(str);
+        if(message==str) {
+            System.println("equal");
+        } else {
+            System.println("not equal");
+        }
+
+        System.println("tt" + message);
     }
 }

@@ -91,13 +91,14 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
             case op_GOTO:
                 addr=GET_Da(x64);
 
+               // cout << " address " << addr << " stop addr " << stopAddr << " in " << func->getFullName() << endl;
                 /*
                  * We only want to update data which is referencing data below us
                  */
-                if(addr > stopAddr)
+                if(addr >= stopAddr)
                 {
                     // update address
-                    assembler->__asm64.replace(i, SET_Di(x64, op, addr-1));
+                    assembler->__asm64.replace(i, SET_Di(x64, op, --addr));
                 }
                 break;
             case op_MOVI:
