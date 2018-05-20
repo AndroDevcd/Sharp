@@ -22,8 +22,6 @@ class Start {
             System.println(t.getMessage());
         }
 
-1526844079
-1526844057664
         message = "hello";
         System.println(message);
         System.println(str);

@@ -44,10 +44,10 @@ class System {
     }
 
     public static def getUtcTime() : var {
-        Time.millsTime();
+        return Time.millsTime();
     }
 
     public static def getNanoTime() : var {
-        Time.nanoTime();
+        return Time.nanoTime();
     }
 }
