@@ -7,7 +7,7 @@ class Time {
 
         asm
         (
-            "int 0xa3           // get current nanotime"
+            "int 0xa3           // get current time in nanoseconds "
             "smovr_2 bmr,0      // set now to current nanotime "
         );
         return now;

@@ -840,7 +840,8 @@ bool Parser::parse_expression(Ast *pAst) {
             }
 
             pAst->encapsulate(ast_paren_e);
-            return true;
+            if(!isexprsymbol(peek(1).getToken()))
+                return true;
         } else
             pAst->encapsulate(ast_paren_e);
     }
@@ -954,11 +955,11 @@ bool Parser::parse_expression(Ast *pAst) {
             }
 
             pAst->encapsulate(ast_arry_e);
+
             return true;
         }
         pAst->encapsulate(ast_arry_e);
     }
-
 
 
     /* ++ or -- after the expression */

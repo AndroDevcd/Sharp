@@ -2,6 +2,8 @@ mod std.internal;
 
 /**
  * Created by BraxtonN on 5/18/2018.
+ *
+ * A helper class to allow simple interfacing with the console
  */
 class ConsoleHandler {
     public def printData(var[] data)

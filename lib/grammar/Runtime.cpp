@@ -3746,7 +3746,8 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
         case expression_objectclass:
             // TODO: put runtime code to evaluate at runtime
             pushExpressionToPtr(arg, out);
-            out.code.push_i64(SET_Di(i64, op_CAST, utype.utype.klass->address));
+            out.code.push_i64(SET_Di(i64, op_MOVI, utype.utype.klass->address), cmt);
+            out.code.push_i64(SET_Di(i64, op_CAST, cmt));
             out.type = utype.type;
             out.utype = utype.utype;
             return;
@@ -3760,7 +3761,8 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
                 }
             } else if(arg.utype.field->type == OBJECT) {
                 pushExpressionToPtr(arg, out);
-                out.code.push_i64(SET_Di(i64, op_CAST, utype.utype.klass->address));
+                out.code.push_i64(SET_Di(i64, op_MOVI, utype.utype.klass->address), cmt);
+                out.code.push_i64(SET_Di(i64, op_CAST, cmt));
                 out.type = expression_lclass;
                 out.utype = utype.utype;
                 return;
@@ -3786,7 +3788,7 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
 void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, Expression& out) {
     Scope* scope = currentScope();
 
-    if(expression.utype.array != utype.utype.array) {
+    if(expression.utype.array != utype.utype.array && expression.trueType() != OBJECT) {
         errors->createNewError(INCOMPATIBLE_TYPES, utype.link->line, utype.link->col, "; cannot cast `" + expression.typeToString() + "` to `" + utype.typeToString() + "`");
         out.type = expression_unresolved;
         return;
@@ -3834,6 +3836,10 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
         pushExpressionToRegisterNoInject(expression, out, ebx);
         out.code.push_i64(SET_Ci(i64, op_MOVU64, ebx, 0, ebx));
         return;
+    } else if(utype.utype.array && utype.utype.type == VAR) {
+        if(expression.trueType() == OBJECT) {
+            return;
+        }
     }
 //    switch(utype.utype.type) {
 //        case fi8:

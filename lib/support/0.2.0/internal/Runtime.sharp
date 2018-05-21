@@ -2,9 +2,17 @@ mod std.internal;
 
 /**
  * Created by BraxtonN on 5/17/2018.
+ *
+ * Low level utility class to interface with the Sharp
+ * Virtual Machine. Classic function calls consist of
+ * garbage collector requests and the entrypoint to
+ * your application
  */
 class Runtime {
 
+    /**
+    * This is the entry point of your application
+    */
     public static def __srt_init_(object[] args) : var {
         var ret = application#Start.main(null);
 

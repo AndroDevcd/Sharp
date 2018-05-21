@@ -152,7 +152,7 @@ int ErrorManager::createNewError(error_type err, token_entity token, string xcmt
     ParseError e(kp, token, xcmts);
     ParseError lastError = cm ? lastCheckedError : lastError;
 
-    if(shouldReport(&token, lastError, e))
+    if(shouldReport(&token, lastError, e) || (aggressive && asis))
     {
         if(asis) {
             printError(e);
@@ -215,7 +215,7 @@ void ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
     ParseError e(kp, l,c, xcmts);
     ParseError last_err = cm ? lastCheckedError : lastError;
 
-    if(shouldReport(NULL, last_err, e))
+    if(shouldReport(NULL, last_err, e) || (aggressive && asis))
     {
         if(asis) {
             printError(e);
@@ -354,7 +354,7 @@ int ErrorManager::createNewError(error_type err, Ast *pAst, string xcmts) {
     ParseError e(kp, pAst->line, pAst->col, xcmts);
     ParseError last_err = cm ? lastCheckedError : lastError;
 
-    if(shouldReport(NULL, last_err, e))
+    if(shouldReport(NULL, last_err, e) || (aggressive && asis))
     {
         if(asis) {
             printError(e);

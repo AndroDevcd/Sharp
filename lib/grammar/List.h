@@ -244,7 +244,7 @@ private:
     CXX11_INLINE
     void __shrink(){
         try {
-            if(len-1 <=0) {
+            if(len==0) {
                 free();
                 return;
             }

@@ -154,6 +154,14 @@ struct Expression {
                 return utype.array;
         }
     }
+    int trueType() {
+        switch(type) {
+            case expression_field:
+                return utype.field->type;
+            default:
+                return utype.type;
+        }
+    }
     string typeToString();
     void free() {
         utype.free();

@@ -515,8 +515,7 @@ void Thread::exit() {
 
     if(this->exceptionThrown) {
         this->exitVal = -800;
-        cout << name.str() << "\n";
-                cout << throwable.stackTrace.str();
+        cout << throwable.stackTrace.str();
         cout << endl << throwable.throwable->name.str() << " "
            << throwable.message.str() << "\n";
     } else {
@@ -720,7 +719,7 @@ void Thread::exec() {
                         GarbageCollector::self->newObject(registers[GET_Da(cache[pc])]);
                 _brh
             CAST:
-                o2->castObject(registers[GET_Da(cache[pc])]);
+                CHECK_NULL(o2->castObject(registers[GET_Da(cache[pc])]);)
                 _brh
             MOV8:
                 registers[GET_Ca(cache[pc])]=(int8_t)registers[GET_Cb(cache[pc])];

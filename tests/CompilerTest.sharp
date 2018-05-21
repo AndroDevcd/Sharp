@@ -172,6 +172,9 @@ class Start base k {
 
         var vv = (_int8)v;
 
+        object o = new Start();
+        ((Start)o).x = 9;
+
         return 0;
     } // TODO: enforce return statements
 }

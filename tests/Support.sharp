@@ -67,7 +67,7 @@ class Start {
         System.println("Free memory after allocation: "
                            + string.parse(memory2));
 
-        System.println("Memeory used by allocation: " +
+        System.println("Memory used by allocation: " +
                                     string.parse((memory1 - memory2)));
 
         // discard integers
@@ -78,7 +78,7 @@ class Start {
         System.gc();
 
         memory2 = System.freeMemory();
-        System.println("Free memeory after  "
-            + "collecting discarded Integers: " + string.parse(memory2));
+        System.println("Free memory after  "
+            + "collecting discarded strings: " + string.parse(memory2));
     }
 }

@@ -124,7 +124,7 @@ expression '[' expression ']' [<dot-notation-call-expr>]
     | expression ('++' | '--')
     | ('+' | '-' | '++' | '--') expression
     | '!' expression
-    | '(' expression ')' [<dot-notation-call-expr>]
+    | '(' expression ')' [<dot-notation-call-expr>] expression
     | <VectorArray> // allowed for processing purposes only language does not allow random arrays
     | expression ('*'|'/'|'%') expression
     | expression ('+'|'-') expression

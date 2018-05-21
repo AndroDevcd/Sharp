@@ -15,7 +15,7 @@ void Object::castObject(uint64_t classPtr) {
         throw Exception(Environment::ClassCastException, "invalid cast on non-class object");
 
     ClassObject* k = env->findClassBySerial(classPtr);
-    if(!k->hasBaseClass(this->object->k)) {
+    if(k->serial!= this->object->k->serial && !k->hasBaseClass(this->object->k)) {
         stringstream ss;
         ss << "illegal cast of class '" << this->object->k->name.str() << "' and '";
         ss << k->name.str() << "'";

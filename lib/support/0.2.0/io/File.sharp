@@ -1,0 +1,5 @@
+mod std.io;
+
+class File {
+
+}

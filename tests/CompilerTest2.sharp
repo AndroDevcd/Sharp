@@ -1,0 +1,28 @@
+mod application;
+
+class k {
+    var[] tt;
+}
+
+/**
+ * Created by BraxtonN on 5/15/2018.
+ */
+class Start base k {
+    var x;
+    var[] iarry;
+
+    public Start() {
+        iarry = new var[] { 'h', 'i' };
+    }
+
+    public static def main(object[] args) : var {
+
+        object o = new Start();
+        ((Start)o).x = 9;
+
+        o = ((Start)o).iarry;
+        System.print((var[])o);
+
+        return 0;
+    } // TODO: enforce return statements
+}
