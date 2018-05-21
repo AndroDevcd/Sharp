@@ -282,7 +282,10 @@ private:
     void __shrink(){
         try {
             len--;
-            _Data=(T*)__realloc(_Data, sizeof(T)*len);
+            if(len==0)
+                free();
+            else
+                _Data=(T*)__realloc(_Data, sizeof(T)*len);
         } catch(Exception &e) {
             len++;
             throw e;

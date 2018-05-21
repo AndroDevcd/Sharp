@@ -37,5 +37,48 @@ class Start {
 
         System.println("Current time in Mills: " + string.parse(System.getUtcTimeInMills()));
         System.println("Current time in Nanos: " + string.parse(System.getNanoTime()));
+
+        string[] data = new string[1000];
+        var memory1;
+        var memory2;
+
+        System.println("Total memory is: "
+                           + string.parse(System.getMaxMemory()));
+
+        // checking free memory
+        memory1 = System.freeMemory();
+        System.println("Initial free memory: "
+                                      + string.parse(memory1));
+
+        // calling the garbage collector on demand
+        System.gc();
+
+        memory1 = System.freeMemory();
+
+        System.println("Free memory after garbage "
+                           + "collection: " + string.parse(memory1));
+
+        // allocating integers
+        for (var i = 0; i < 1000; i++) {
+            data[i] = new string("string");
+        }
+
+        memory2 = System.freeMemory();
+        System.println("Free memory after allocation: "
+                           + string.parse(memory2));
+
+        System.println("Memeory used by allocation: " +
+                                    string.parse((memory1 - memory2)));
+
+        // discard integers
+        for (var i = 0; i < 1000; i++) {
+            data[i] = null;
+        }
+
+        System.gc();
+
+        memory2 = System.freeMemory();
+        System.println("Free memeory after  "
+            + "collecting discarded Integers: " + string.parse(memory2));
     }
 }

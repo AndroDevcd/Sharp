@@ -492,3 +492,11 @@ void GarbageCollector::createStringArray(Object *object, native_string& s) {
         }
     }
 }
+
+unsigned long GarbageCollector::getMemoryLimit() {
+    return memoryLimit;
+}
+
+unsigned long GarbageCollector::getManagedMemory() {
+    return managedBytes;
+}

@@ -99,6 +99,9 @@ public:
         return (bytes+managedBytes) < memoryLimit;
     }
 
+    unsigned long getMemoryLimit();
+    unsigned long getManagedMemory();
+
     /**
      * This will keep track of our different generations and the
      * objects that are living in them.

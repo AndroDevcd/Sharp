@@ -275,6 +275,12 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xa9:
             vm->shutdown();
             return;
+        case 0xaa:
+            registers[cmt]=GarbageCollector::self->getMemoryLimit();
+            return;
+        case 0xab:
+            registers[cmt]=GarbageCollector::self->getManagedMemory();
+            return;
         default:
             // unsupported
             break;

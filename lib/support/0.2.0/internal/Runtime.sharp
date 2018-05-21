@@ -17,4 +17,32 @@ class Runtime {
             "int 0xa9         // interrupt the entire system and initiate shutdown "
             "                                                                      " );
     }
+
+    public static def gc() {
+        asm(
+            "int 0xa1         // send request to gc to collect data                "
+            "                                                                      " );
+    }
+
+    public static def memoryLimit() : var {
+        var limit; //0xaa
+
+        asm(
+            "int 0xaa         // send request to get total max memory given to the garbage collector  "
+            "smovr_2 cmt,0    // set limit to value                                                   " );
+        return limit;
+    }
+
+    public static def managedMemory() : var {
+        var limit; //0xaa
+
+        asm(
+            "int 0xab         // send request to get total memory currently under management          "
+            "smovr_2 cmt,0    // set limit to value                                                   " );
+        return limit;
+    }
+
+    public static def freeMemory() : var {
+        return memoryLimit()-managedMemory();
+    }
 }
