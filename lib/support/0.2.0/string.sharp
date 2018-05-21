@@ -133,7 +133,7 @@ class string {
 
         def toArray() : var[]
         {
-            return data;
+            return Array.copyOf(data, sizeof(data));
         }
 
         static def parse( var number ) : string

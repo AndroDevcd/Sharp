@@ -306,14 +306,15 @@ void ErrorManager::fail() {
             }
         }
 
+        lastCheckedError = ParseError();
+        removePossibleErrorList();
+
         if(teCursor <= 0) {
             lastError = lastCheckedError;
             _err = true;
         }
     }
 
-    lastCheckedError = ParseError();
-    removePossibleErrorList();
 }
 
 void ErrorManager::pass() {

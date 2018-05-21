@@ -47,7 +47,7 @@
     if (state == THREAD_KILLED) \
         return;
 
-#define _brh_NOINCREMENT SAFTEY_CHECK if(!startAddress) DISPATCH() else goto *opcodeStart;
+#define _brh_NOINCREMENT SAFTEY_CHECK /*if(!startAddress) DISPATCH() else*/ goto *opcodeStart;
 #define _brh  pc++; _brh_NOINCREMENT
 
 #define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
@@ -161,7 +161,8 @@
         &&POPL,                           \
         &&PUSHNIL,                           \
         &&IPUSHL,                           \
-        &&PUSHL                           \
+        &&PUSHL,                           \
+        &&ITEST                           \
     };
 
 enum Opcode {
@@ -269,7 +270,8 @@ enum Opcode {
     op_POPL                =0x65,
     op_PUSHNIL             =0x66,
     op_IPUSHL              =0x67,
-    op_PUSHL               =0x68
+    op_PUSHL               =0x68,
+    op_ITEST               =0x69
 };
 
 #endif //SHARP_OPCODE_H

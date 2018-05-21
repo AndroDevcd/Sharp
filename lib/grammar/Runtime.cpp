@@ -555,30 +555,31 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
     scope->uniqueLabelSerial++;
     cond = parseExpression(pAst->getSubAst(ast_expression));
 
-    string ifEndLabel;
+    string ifEndLabel, ifBlockEnd;
     stringstream ss;
     ss << generic_label_id << scope->uniqueLabelSerial;
-    ifEndLabel=ss.str();
+    ifEndLabel=ss.str(); ss.str("");
 
     pushExpressionToRegister(cond, out, cmt);
     block.code.inject(block.code.size(), out.code);
 
     if(pAst->getSubAstCount() > 2) {
-        int64_t insertAddr, difference;
-        block.code.push_i64(SET_Di(i64, op_LOADPC, adx));
-        insertAddr=block.code.size();
-        block.code.push_i64(0);
-        block.code.push_i64(0);
+        ss << generic_label_id << ++scope->uniqueLabelSerial;
+        ifBlockEnd = ss.str(); ss.str("");
+
+        scope->addStore(ifBlockEnd, adx, 2, block.code,
+                        pAst->getSubAst(ast_expression)->line, pAst->getSubAst(ast_expression)->col);
+        block.code.push_i64(SET_Ei(i64, op_IFNE));
+
         parseBlock(pAst->getSubAst(ast_block), block);
-        difference = block.code.size()-insertAddr;
 
         if(!scope->reachable && (scope->last_statement==ast_return_stmnt
                                  || scope->last_statement == ast_throw_statement)) {
             scope->reachable=true;
         }
 
-        block.code.__asm64.replace(insertAddr++, SET_Ci(i64, op_IADD, adx,0, (difference+2)));
-        block.code.__asm64.replace(insertAddr, SET_Ei(i64, op_IFNE));
+        scope->label_map.add(KeyPair<string,int64_t>(ifBlockEnd, __init_label_address(block.code)));
+
 
         scope->addBranch(ifEndLabel, 1, block.code, pAst->getSubAst(ast_expression)->line,
                          pAst->getSubAst(ast_expression)->col);
@@ -594,20 +595,22 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
                     pushExpressionToRegister(cond, out, cmt);
                     block.code.inject(block.code.size(), out.code);
 
-                    block.code.push_i64(SET_Di(i64, op_LOADPC, adx));
-                    insertAddr=block.code.size();
-                    block.code.push_i64(0);
-                    block.code.push_i64(0);
+                    ss << generic_label_id << ++scope->uniqueLabelSerial;
+                    ifBlockEnd = ss.str(); ss.str("");
+
+                    scope->addStore(ifBlockEnd, adx, 1, block.code,
+                                    ast->getSubAst(ast_expression)->line, ast->getSubAst(ast_expression)->col);
+                    block.code.push_i64(SET_Ei(i64, op_IFNE));
+
+
                     parseBlock(ast->getSubAst(ast_block), block);
-                    difference = block.code.size()-insertAddr;
+
+                    scope->label_map.add(KeyPair<string,int64_t>(ifBlockEnd, __init_label_address(block.code)));
 
                     if(!scope->reachable && (scope->last_statement==ast_return_stmnt
                                              || scope->last_statement == ast_throw_statement)) {
                         scope->reachable=true;
                     }
-
-                    block.code.__asm64.replace(insertAddr++, SET_Ci(i64, op_IADD, adx,0, (difference+2)));
-                    block.code.__asm64.replace(insertAddr, SET_Ei(i64, op_IFNE));
 
                     scope->addBranch(ifEndLabel, 1, block.code, ast->getSubAst(ast_expression)->line,
                                      ast->getSubAst(ast_expression)->col);
@@ -1236,6 +1239,7 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
             if(!f.isObjectInMemory()) {
                 block.code.push_i64(SET_Di(i64, op_ISTOREL, f.address), 0);
             } else {
+                block.code.__asm64.push_back(SET_Di(i64, op_MOVL, f.address));
                 block.code.push_i64(SET_Ei(i64, op_DEL));
             }
         }
@@ -2019,8 +2023,12 @@ void RuntimeEngine::pushExpressionToStack(Expression& expression, Expression& ou
                 out.code.inject(out.code.__asm64.size(), expression.code);
             } else {
                 if (expression.func) {
-                } else
-                    out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+                } else {
+                    if(expression.utype.array)
+                        out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+                    else
+                        out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+                }
             }
             break;
         case expression_field:
@@ -2163,7 +2171,16 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
-            pushExpressionToStack(expressions.get(i), out);
+            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
+                pushExpressionToRegister(expressions.get(i), out, ebx);
+
+                out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
+                out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+                out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+                out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+            } else
+                pushExpressionToStack(expressions.get(i), out);
         }
         out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
     }
@@ -2350,7 +2367,16 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
 
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
-            pushExpressionToStack(expressions.get(i), out);
+            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
+                pushExpressionToRegister(expressions.get(i), out, ebx);
+
+                out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
+                out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+                out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+                out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+            } else
+                pushExpressionToStack(expressions.get(i), out);
         }
         out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
     }
@@ -2489,11 +2515,16 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
                     }
                 } else {
                     out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                    out.code.push_i64(SET_Di(i64, op_CHECKLEN, adx));
                     out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
                 }
             } else if(expr.utype.field->isVar() && expr.utype.field->isArray) {
                 errors->createNewError(GENERIC, expr.link, "cannot get integer value from " + expr.utype.field->name + "[] expression");
-            } else if(expr.utype.field->dynamicObject() || expr.utype.field->type == CLASS) {
+            } else if(expr.utype.field->dynamicObject() && !expr.utype.field->isArray) {
+                out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                out.code.push_i64(SET_Di(i64, op_CHECKLEN, adx));
+                out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
+            }else if(expr.utype.field->type == CLASS || expr.utype.field->dynamicObject()) {
                 errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `object`");
             }
             break;
@@ -2881,7 +2912,16 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
-            pushExpressionToStack(expressions.get(i), out);
+            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
+                pushExpressionToRegister(expressions.get(i), out, ebx);
+
+                out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
+                out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+                out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+                out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+            } else
+                pushExpressionToStack(expressions.get(i), out);
         }
         out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
     }
@@ -3058,7 +3098,16 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
-            pushExpressionToStack(expressions.get(i), out);
+            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
+                pushExpressionToRegister(expressions.get(i), out, ebx);
+
+                out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
+                out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+                out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+                out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+            } else
+                pushExpressionToStack(expressions.get(i), out);
         }
         out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
     }
@@ -3314,7 +3363,16 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                 expression.code.push_i64(SET_Di(i64, op_NEWCLASS, utype.utype.klass->address));
 
                 for(unsigned int i = 0; i < expressions.size(); i++) {
-                    pushExpressionToStack(expressions.get(i), expression);
+                    if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
+                        pushExpressionToRegister(expressions.get(i), expression, ebx);
+
+                        expression.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
+                        expression.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                        expression.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+                        expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+                        expression.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                    } else
+                        pushExpressionToStack(expressions.get(i), expression);
                 }
                 expression.code.push_i64(SET_Di(i64, op_CALL, fn->address));
             }
@@ -3377,6 +3435,7 @@ Expression RuntimeEngine::parseSizeOfExpression(Ast* pAst) {
 Expression RuntimeEngine::parseIntermExpression(Ast* pAst) {
     Expression expression;
 
+    if(pAst==NULL) return expression;
     switch(pAst->getType()) {
         case ast_primary_expr:
             return parsePrimaryExpression(pAst);
@@ -3838,6 +3897,11 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
         return;
     } else if(utype.utype.array && utype.utype.type == VAR) {
         if(expression.trueType() == OBJECT) {
+            return;
+        }
+    } else if(!utype.utype.array && utype.utype.type == VAR) {
+        if(expression.trueType() == OBJECT) {
+            pushExpressionToRegisterNoInject(expression, out, ebx);
             return;
         }
     }
@@ -4745,7 +4809,7 @@ void RuntimeEngine::addClass(token_entity operand, ClassObject* klass, Expressio
         out.func=true;
         out.code.push_i64(SET_Di(i64, op_CALL, overload->address));
     } else {
-        errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `" + operand.getToken() + "` cannot be applied to expression of type `"
+        errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `$operator" + operand.getToken() + "` was not found and cannot be applied to expression of type `"
                                                           + left.typeToString() + "` and `" + right.typeToString() + "`");
     }
 
@@ -4864,7 +4928,16 @@ void RuntimeEngine::constructNewString(Expression &stringExpr, Expression& out) 
             out.code.push_i64(SET_Di(i64, op_NEWCLASS, klass->address));
 
             for(unsigned int i = 0; i < expressions.size(); i++) {
-                pushExpressionToStack(expressions.get(i), out);
+                if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
+                    pushExpressionToRegister(expressions.get(i), out, ebx);
+
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                    out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+                    out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+                    out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                } else
+                    pushExpressionToStack(expressions.get(i), out);
             }
             out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
         } else
@@ -4897,7 +4970,16 @@ bool RuntimeEngine::constructNewString(Expression &stringExpr, Expression &right
             out.code.push_i64(SET_Di(i64, op_NEWCLASS, klass->address));
 
             for(unsigned int i = 0; i < expressions.size(); i++) {
-                pushExpressionToStack(expressions.get(i), out);
+                if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
+                    pushExpressionToRegister(expressions.get(i), out, ebx);
+
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                    out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+                    out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+                    out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                } else
+                    pushExpressionToStack(expressions.get(i), out);
             }
             out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
 
@@ -5466,7 +5548,7 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
                     }
                 } else if(right.type == expression_field) {
                     if(right.utype.field->isVar()) {
-                        return left.utype.field->isVar() && left.utype.field->isArray==right.utype.field->isArray;
+                        return left.utype.field->type == OBJECT ||  (left.utype.field->isVar() && left.utype.field->isArray==right.utype.field->isArray);
                     }
                     else if(right.utype.field->dynamicObject()) {
                         return left.utype.field->dynamicObject();
@@ -5586,6 +5668,15 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 out.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, cmt));
                 out.inCmtRegister = true;
                 return;
+            } else if(operand == "==" && (right.trueType() == OBJECT
+                                          || (right.utype.field != NULL && right.utype.field->isObjectInMemory()))) {
+
+                pushExpressionToStack(right, out);
+                pushExpressionToStack(left, out);
+
+                out.code.push_i64(SET_Di(i64, op_ITEST, ebx));
+                out.inCmtRegister = true;
+                return;
             } else if(operand == "!=" && right.type == expression_null) {
                 pushExpressionToPtr(left, out);
 
@@ -5594,7 +5685,19 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 out.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, cmt));
                 out.inCmtRegister = true;
                 return;
-            } else if(right.type == expression_null) {
+            } else if(operand == "=" && right.type == expression_var && left.utype.field->type == OBJECT) {
+                pushExpressionToStack(right, out);
+                out.inject(left);
+
+                out.utype = left.utype;
+                out.code.push_i64(SET_Di(i64, op_MOVI, 1), ebx);
+                out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                out.code.push_i64(SET_Di(i64, op_NEWARRAY, ebx));
+                out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+                out.code.push_i64(SET_Di(i64, op_LOADVAL, ebx));
+                out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                return;
+            }else if(right.type == expression_null) {
                 errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `" + operand.getToken()
                                                                   + "` cannot be applied to expression of type `" + left.typeToString() + "` and `" + right.typeToString() + "`");
             }
@@ -5877,6 +5980,13 @@ Expression RuntimeEngine::parseEqualExpression(Ast* pAst) {
                 }
             } else if(left.utype.field->type == CLASS) {
                 if(right.type == expression_null || operand.getTokenType() == ASSIGN) {
+                    assignValue(operand, out, left, right, pAst);
+                } else {
+                    addClass(operand, left.utype.field->klass, out, left, right, pAst);
+                }
+            }  else if(left.utype.field->type == OBJECT) {
+                if(right.type == expression_null || operand.getTokenType() == ASSIGN
+                   || operand.getTokenType() == EQEQ) {
                     assignValue(operand, out, left, right, pAst);
                 } else {
                     addClass(operand, left.utype.field->klass, out, left, right, pAst);
@@ -6283,6 +6393,7 @@ Expression RuntimeEngine::parseQuesExpression(Ast* pAst) {
 
 Expression RuntimeEngine::parseExpression(Ast *ast) {
     Expression expression;
+    if(ast==NULL||ast->getSubAst(0) == NULL) return expression;
     Ast *encap = ast->getSubAst(0);
 
     switch (encap->getType()) {
@@ -9599,6 +9710,13 @@ void RuntimeEngine::createDumpFile() {
                 case op_PUSHNIL:
                 {
                     ss<<"pushnil ";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_ITEST:
+                {
+                    ss<<"itest ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
                     _ostream << ss.str();
                     break;
                 }

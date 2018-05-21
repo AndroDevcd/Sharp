@@ -744,6 +744,13 @@ bool Parser::parse_array_expression(Ast* pAst) {
         if (peek(2).getTokenType() == LEFTCURLY) {
             pushback();
             return false;
+        } else {
+            expect(RIGHTBRACE, pAst, "`]`");
+            errors->createNewError(GENERIC, pAst, "expected expression after '['");
+
+            this->dumpstate();
+            errors->fail();
+            return false;
         }
     }
 

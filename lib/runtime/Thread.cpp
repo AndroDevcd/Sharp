@@ -1062,6 +1062,10 @@ void Thread::exec() {
             PUSHL:
                 dataStack[++sp].object = dataStack[fp+GET_Da(cache[pc])].object;
                 _brh
+            ITEST:
+                o2 = &dataStack[sp--].object;
+                registers[GET_Da(cache[pc])] = o2->object == dataStack[sp--].object.object;
+                _brh
 
         }
     } catch (bad_alloc &e) {

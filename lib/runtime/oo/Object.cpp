@@ -9,12 +9,16 @@
 #include "../Thread.h"
 
 void Object::castObject(uint64_t classPtr) {
+    ClassObject* k = env->findClassBySerial(classPtr);
+
+    stringstream nonclass;
+    nonclass << "attempt to perform invalid cast to [" << k->name.str() << "] on non-class object ";
+
     if(this->object == NULL)
         throw Exception(Environment::ClassCastException, "invalid cast on null object");
     if(this->object->k == NULL)
-        throw Exception(Environment::ClassCastException, "invalid cast on non-class object");
+        throw Exception(Environment::ClassCastException, nonclass.str());
 
-    ClassObject* k = env->findClassBySerial(classPtr);
     if(k->serial!= this->object->k->serial && !k->hasBaseClass(this->object->k)) {
         stringstream ss;
         ss << "illegal cast of class '" << this->object->k->name.str() << "' and '";

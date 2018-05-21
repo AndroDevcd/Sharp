@@ -22,10 +22,7 @@ class ConsoleHandler {
                  __print_stdout_(char, true);
              }
          } else {
-             __print_stdout_('n', true);
-             __print_stdout_('u', true);
-             __print_stdout_('l', true);
-             __print_stdout_('l', true);
+             __print_("null");
          }
      }
 
@@ -38,11 +35,13 @@ class ConsoleHandler {
              asm(
                  "  loadl %ebx,1               // get local 'char'  "
                  "  _putc %ebx                                      "
+                 "  ret                                             "
              );
          } else {
              asm(
                  "  loadl %ebx,1               // get local 'char'  "
                  "  put %ebx                                        "
+                 "  ret                                             "
              );
          }
      }

@@ -16,7 +16,7 @@ class Runtime {
     public static def __srt_init_(object[] args) : var {
         var ret = application#Start.main(null);
 
-        System.print("Program finished with exit code " + string.parse(ret));
+        System.print("\nProgram finished with exit code " + string.parse(ret));
         return ret;
     }
 

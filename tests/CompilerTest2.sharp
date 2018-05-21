@@ -15,6 +15,10 @@ class Start base k {
         iarry = new var[] { 'h', 'i' };
     }
 
+    public static def foo(object o) {
+
+    }
+
     public static def main(object[] args) : var {
 
         object o = new Start();
@@ -23,6 +27,27 @@ class Start base k {
         o = ((Start)o).iarry;
         System.print((var[])o);
 
+        o = 9;
+        asm("nop");
+        System.print((var)o);
+
+        o = new Start();
+        Start oref;
+        oref = (Start)o;
+        System.print(oref.iarry);
+
+        object[] arry = new Start[1];
+        arry[0] = new Start();
+
+        if(o == o) {
+            System.println("they are the same");
+        }
+
+        asm("nop");
+        asm("nop");
+        asm("nop");
+        foo(((Start)o).iarry);
+        foo(9);
         return 0;
     } // TODO: enforce return statements
 }
