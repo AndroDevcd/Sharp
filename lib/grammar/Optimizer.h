@@ -39,6 +39,7 @@ private:
     void optimizeLocalPush();
     void optimizeRedundantMovICall2();
     void optimizeObjectPush();
+    void optimizeRedundantObjectTest();
 };
 
 

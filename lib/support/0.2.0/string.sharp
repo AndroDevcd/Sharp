@@ -27,6 +27,12 @@ class string {
             return self;
          }
 
+        def append(var char) : string
+        {
+            var[] str = new var[] { char };
+            return append(str);
+        }
+
         def append(var[] immstr) : string
         {
             var[] newStr = new var[sizeof(data) + sizeof(immstr)];
@@ -48,8 +54,8 @@ class string {
         def at( var pos ) : var
         {
             if(pos >= sizeof(data)) {
-                throw new RuntimeErr("Index out of bounds Array: size " + string.parse(sizeof(data))
-                       + " at index pos " + string.parse(pos));
+                throw new RuntimeErr("Index out of bounds Array: size " + sizeof(data)
+                       + " at index pos " + pos);
             }
 
             return data[pos];
@@ -104,21 +110,17 @@ class string {
             data = Array.copyOf(immstr, sizeof(immstr));
         }
 
-        def operator+( var char ) : string
+        def operator+( var num ) : string
         {
-            var[] arry = new var[] { char };
-
             string s = new string(data);
-            s.append(arry);
+            s.append(parse(num).toArray());
 
             return s;
         }
 
-        def operator+=( var char ) : string
+        def operator+=( var num ) : string
         {
-            var[] arry = new var[] { char };
-
-            return append(arry);
+            return append(parse(num).toArray());
         }
 
         def operator+=( var[] immstr ) : string
@@ -145,12 +147,12 @@ class string {
             string temp = new string("");
             string returnvalue= new string("");
             while (((_int64)number)>0) {
-                temp+=(number%10)+48;
+                temp.append((number%10)+48);
                 number/=10;
             }
 
             for (var i=sizeof(temp.toArray())-1; i >= 0; i--) {
-                returnvalue+=temp.at(i);
+                returnvalue.append(temp.at(i));
             }
             return returnvalue;
         }

@@ -155,7 +155,7 @@ Ast *Ast::getNextSubAst(ast_types at) {
 void Ast::encapsulate(ast_types at) {
 
     addAst(Ast(this, at, this->line, this->col));
-    Ast* encap = getSubAst(getSubAstCount()-1);
+    Ast* encap = getLastSubAst();
 
     for(unsigned int i = 0; i < sub_asts.size(); i++) {
         if(sub_asts.get(i).type != at)

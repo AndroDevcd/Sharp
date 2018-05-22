@@ -80,6 +80,13 @@ public:
     Field* field;
     Method* method;
     OperatorOverload* oo;
+
+    bool isArray() {
+        if(field != NULL)
+            return field->isArray;
+
+        return array;
+    }
 };
 
 enum expression_type {
@@ -158,6 +165,8 @@ struct Expression {
         switch(type) {
             case expression_field:
                 return utype.field->type;
+            case expression_objectclass:
+                return OBJECT;
             default:
                 return utype.type;
         }

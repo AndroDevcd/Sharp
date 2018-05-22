@@ -45,7 +45,9 @@
     if (suspendPending) \
         suspendSelf(); \
     if (state == THREAD_KILLED) \
-        return;
+        return; \
+
+#define STACK_CHECK  if((sp+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
 
 #define _brh_NOINCREMENT SAFTEY_CHECK /*if(!startAddress) DISPATCH() else*/ goto *opcodeStart;
 #define _brh  pc++; _brh_NOINCREMENT

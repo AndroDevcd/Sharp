@@ -40,7 +40,7 @@ class Start base k {
         arry[0] = new Start();
 
         if(o == o) {
-            System.println("they are the same");
+            System.println("they are the same" + (_int8)9);
         }
 
         asm("nop");

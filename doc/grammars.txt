@@ -107,9 +107,9 @@ expression '[' expression ']' [<dot-notation-call-expr>]
 [.] <utype-naked> [<value-list> [<dot-notation-call-expr> | <array-expression>]]  i.e. x.buildtask(405).execute()[4];
 
 <primary-expr>:
-<literal>                       // ast_literal_e
-    | [.] <uType> '.' class     // ast_utype_class_e    Main.class
-    |  <dot-notation-call-expr> // ast_dot_not_e
+<literal>                                  // ast_literal_e
+    | [.] <uType> '.' class                // ast_utype_class_e    Main.class
+    |  <dot-notation-call-expr>  // ast_dot_not_e
 
 <expression>:
 <primary-expr>

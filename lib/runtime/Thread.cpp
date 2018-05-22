@@ -661,11 +661,11 @@ long count = 0;
 
 void Thread::exec() {
 
-    uint64_t tmp;
-    int64_t val;
-    SharpObject* o;
-    Object* o2;
-    Method* method;
+    uint64_t tmp=0;
+    int64_t val=0;
+    SharpObject* o=NULL;
+    Object* o2=NULL;
+    Method* method=NULL;
     void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
     Method* finnallyMethod;
 
@@ -717,7 +717,7 @@ void Thread::exec() {
             NEWARRAY:
                 dataStack[++sp].object =
                         GarbageCollector::self->newObject(registers[GET_Da(cache[pc])]);
-                _brh
+                STACK_CHECK _brh
             CAST:
                 CHECK_NULL(o2->castObject(registers[GET_Da(cache[pc])]);)
                 _brh
@@ -747,7 +747,7 @@ void Thread::exec() {
                 _brh
             RSTORE:
                 dataStack[++sp].var = registers[GET_Da(cache[pc])];
-                _brh
+                STACK_CHECK _brh
             ADD:
                 registers[cache[pc+1]]=registers[GET_Ca(cache[pc])]+registers[GET_Cb(cache[pc])]; pc++;
                 _brh
@@ -863,7 +863,7 @@ void Thread::exec() {
                 _brh
             PUSHOBJ:
                 dataStack[++sp].object = o2;
-                _brh
+                STACK_CHECK _brh
             DEL:
                 GarbageCollector::self->freeObject(o2);
                 _brh
@@ -890,7 +890,7 @@ void Thread::exec() {
             NEWCLASS:
                 dataStack[++sp].object =
                                    GarbageCollector::self->newObject(&env->classes[GET_Da(cache[pc])]);
-                _brh
+                STACK_CHECK _brh
             MOVN: // TODO: check to see if we really need this instruction
                 CHECK_NULLOBJ(o2 = &o2->object->node[GET_Da(cache[pc])];)
                 _brh
@@ -920,7 +920,7 @@ void Thread::exec() {
                 _brh
             NEWOBJARRAY:
                 CHECK_NULLOBJ(dataStack[++sp].object = GarbageCollector::self->newObjectArray(registers[GET_Da(cache[pc])]);)
-                _brh
+                STACK_CHECK _brh
             NOT:
                 registers[GET_Ca(cache[pc])]=!registers[GET_Cb(cache[pc])];
                 _brh
@@ -970,10 +970,10 @@ void Thread::exec() {
                         dataStack[++sp].object = GarbageCollector::self->newObjectArray(registers[GET_Ca(cache[pc])],
                                                                            env->findClassBySerial(GET_Cb(cache[pc])));
                 )
-                _brh
+                STACK_CHECK _brh
             NEWSTRING:
                 GarbageCollector::self->createStringArray(&dataStack[++sp].object, env->getStringById(GET_Da(cache[pc])));
-                _brh
+                STACK_CHECK _brh
             ADDL:
                 dataStack[fp+GET_Cb(cache[pc])].var+=registers[GET_Ca(cache[pc])];
                 _brh
@@ -1049,19 +1049,19 @@ void Thread::exec() {
                 _brh
             ISTORE:
                 dataStack[++sp].var = GET_Da(cache[pc]);
-                _brh
+                STACK_CHECK _brh
             ISTOREL:
                 dataStack[fp+GET_Da(cache[pc])].var=cache[pc+1]; pc++;
                 _brh
             PUSHNIL:
                 GarbageCollector::self->freeObject(&dataStack[++sp].object);
-                _brh
+                STACK_CHECK _brh
             IPUSHL:
                 dataStack[++sp].var = dataStack[fp+GET_Da(cache[pc])].var;
-                _brh
+                STACK_CHECK _brh
             PUSHL:
                 dataStack[++sp].object = dataStack[fp+GET_Da(cache[pc])].object;
-                _brh
+                STACK_CHECK _brh
             ITEST:
                 o2 = &dataStack[sp--].object;
                 registers[GET_Da(cache[pc])] = o2->object == dataStack[sp--].object.object;

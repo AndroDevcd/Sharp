@@ -10,13 +10,34 @@ mod std.internal;
  */
 class Runtime {
 
+    private static var MINIMUM_ARGS = 4;
+
     /**
     * This is the entry point of your application
     */
     public static def __srt_init_(object[] args) : var {
-        var ret = application#Start.main(null);
 
-        System.print("\nProgram finished with exit code " + string.parse(ret));
+        var[] application = (var[])args[0];
+        var[] vers = (var[])args[1];
+        var[] platformVersion = (var[])args[2];
+        var[] os = (var[])args[3];
+        string[] argv = new string[sizeof(args) - MINIMUM_ARGS];
+
+        System.println("application " + application);
+        System.println("version " + vers);
+        System.println("platform " + platformVersion);
+        System.println("os " + os);
+
+        var iter;
+        for(var i = MINIMUM_ARGS; i < sizeof(args); i++) {
+            argv[iter++] = new string((var[])args[i]);
+            asm("nop nop nop nop");
+            System.println("arg " + i + ":" + argv[iter - 1]);
+        }
+
+        var ret = application#Start.main(argv);
+
+        System.print("\nProgram finished with exit code " + ret);
         return ret;
     }
 

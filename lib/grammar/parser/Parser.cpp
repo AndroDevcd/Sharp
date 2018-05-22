@@ -687,7 +687,11 @@ bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
                 advance();
                 pAst->addEntity(current());
 
+                int oldAndExprs=nestedAndExprs;
+                parenExprs++;
                 parse_expression(pAst);
+                nestedAddExprs=oldAndExprs;
+                parenExprs--;
                 expect(RIGHTBRACE, pAst, "`]`");
 
                 errors->enableErrorCheckMode();
@@ -745,11 +749,10 @@ bool Parser::parse_array_expression(Ast* pAst) {
             pushback();
             return false;
         } else {
-            expect(RIGHTBRACE, pAst, "`]`");
-            errors->createNewError(GENERIC, pAst, "expected expression after '['");
-
             this->dumpstate();
             errors->fail();
+
+            errors->createNewError(GENERIC, pAst, "expected expression after '['");
             return false;
         }
     }
@@ -941,10 +944,13 @@ bool Parser::parse_expression(Ast *pAst) {
 
     if(peek(1).getTokenType() == LEFTBRACE)
     {
-        advance();
-        pAst->addEntity(current());
+        expect(LEFTBRACE, pAst, "`[`");
 
+        int oldAndExprs=nestedAndExprs;
+        parenExprs++;
         parse_expression(pAst);
+        nestedAddExprs=oldAndExprs;
+        parenExprs--;
         expect(RIGHTBRACE, pAst, "`]`");
 
 
@@ -993,7 +999,7 @@ bool Parser::parse_expression(Ast *pAst) {
             parenExprs--;
         } else {
             nestedAddExprs++;
-            parse_expression(nestedAddExprs == 1 ? pAst : pAst->getParent());
+            parse_expression(nestedAddExprs == 1 ? pAst : pAst=pAst->getParent());
             if(nestedAddExprs == 1)
                 pAst->encapsulate(ast_add_e);
             nestedAddExprs--;

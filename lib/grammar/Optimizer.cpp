@@ -166,6 +166,7 @@ void Optimizer::optimize(Method *method) {
     optimizeLocalPush();
     optimizeRedundantMovICall2();
     optimizeObjectPush();
+    optimizeRedundantObjectTest();
 }
 
 /**
@@ -344,6 +345,43 @@ void Optimizer::optimizeObjectPush() {
                     optimizedOpcodes++;
 
                     goto readjust;
+                }
+                break;
+        }
+    }
+}
+
+
+/**
+ * [0x55] 85: itest ebx
+ * [0x56] 86: movr cmt, ebx
+ *
+ * to -> [0x3] 3: itest cmt
+*/
+void Optimizer::optimizeRedundantObjectTest() {
+    int64_t x64, reg1, reg2, reg3;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_ITEST:
+                reg1 = GET_Da(x64);
+
+                if(GET_OP(assembler->__asm64.get(++i)) == op_MOVR) {
+                    reg2 = GET_Cb(assembler->__asm64.get(i));
+                    reg3 = GET_Ca(assembler->__asm64.get(i));
+
+                    if(reg1 == reg2) {
+                        assembler->__asm64.remove(i);
+                        readjustAddresses(i);
+
+                        assembler->__asm64.replace(--i, SET_Di(x64, op_ITEST,
+                                                               reg3)); // remember registers are left outside the instruction
+                        optimizedOpcodes++;
+
+                        goto readjust;
+                    }
                 }
                 break;
         }

@@ -393,12 +393,13 @@ list<SharpObject *>::iterator GarbageCollector::sweep(SharpObject *object) {
 }
 
 SharpObject *GarbageCollector::newObject(unsigned long size) {
+    if(size==0)
+        return nullptr;
+    
     SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
     object->init(size);
 
-    if(size > 0) {
-        object->HEAD = (double*)__calloc(size, sizeof(double));
-    }
+    object->HEAD = (double*)__calloc(size, sizeof(double));
 
     /* track the allocation amount */
     std::lock_guard<recursive_mutex> gd(mutex);
@@ -441,15 +442,16 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
 }
 
 SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
+    if(size==0)
+        return nullptr;
+    
     SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
     object->init(size);
 
-    if(size > 0) {
-        object->node = (Object*)__malloc(sizeof(Object)*size);
-        for(unsigned int i = 0; i < object->size; i++)
-            object->node[i].object = nullptr;
-    }
-
+    object->node = (Object*)__malloc(sizeof(Object)*size);
+    for(unsigned int i = 0; i < object->size; i++)
+        object->node[i].object = nullptr;
+    
     /* track the allocation amount */
     std::lock_guard<recursive_mutex> gd(mutex);
     managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
@@ -461,6 +463,9 @@ SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
 
 SharpObject *GarbageCollector::newObjectArray(unsigned long size, ClassObject *k) {
     if(k != nullptr) {
+        if(size==0)
+            return nullptr;
+        
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
         object->init(size, k);
 

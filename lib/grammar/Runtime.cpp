@@ -3847,7 +3847,7 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
 void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, Expression& out) {
     Scope* scope = currentScope();
 
-    if(expression.utype.array != utype.utype.array && expression.trueType() != OBJECT) {
+    if(expression.utype.isArray() != utype.utype.isArray() && expression.trueType() != OBJECT) {
         errors->createNewError(INCOMPATIBLE_TYPES, utype.link->line, utype.link->col, "; cannot cast `" + expression.typeToString() + "` to `" + utype.typeToString() + "`");
         out.type = expression_unresolved;
         return;
@@ -3895,11 +3895,11 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
         pushExpressionToRegisterNoInject(expression, out, ebx);
         out.code.push_i64(SET_Ci(i64, op_MOVU64, ebx, 0, ebx));
         return;
-    } else if(utype.utype.array && utype.utype.type == VAR) {
+    } else if(utype.utype.isArray() && utype.utype.type == VAR) {
         if(expression.trueType() == OBJECT) {
             return;
         }
-    } else if(!utype.utype.array && utype.utype.type == VAR) {
+    } else if(!utype.utype.isArray() && utype.utype.type == VAR) {
         if(expression.trueType() == OBJECT) {
             pushExpressionToRegisterNoInject(expression, out, ebx);
             return;
@@ -5134,6 +5134,7 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
             case expression_string:
 
                 constructNewString(leftExpr, rightExpr, operand, out, leftExpr.link);
+                leftExpr=out;
                 break;
             default:
                 break;
