@@ -124,7 +124,9 @@ bool ClassObject::addField(Field field) {
     if(getField(field.name) != NULL)
         return false;
 
-    field.fullName = this->fullName + "." + name;
+    stringstream ss;
+    ss << this->fullName << "." << field.name;
+    field.fullName = ss .str();
     fields.push_back(field);
     return true;
 }

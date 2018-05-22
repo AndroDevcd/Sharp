@@ -11,31 +11,32 @@ mod std.internal;
 class Runtime {
 
     private static var MINIMUM_ARGS = 4;
+    private static string[] userArgs = null;
 
     /**
     * This is the entry point of your application
     */
     public static def __srt_init_(object[] args) : var {
 
-        var[] application = (var[])args[0];
-        var[] vers = (var[])args[1];
-        var[] platformVersion = (var[])args[2];
-        var[] os = (var[])args[3];
-        string[] argv = new string[sizeof(args) - MINIMUM_ARGS];
+        BuildConfig.applicationName = "" + (var[])args[0];
+        BuildConfig.version = "" + (var[])args[1];
+        BuildConfig.platform = "" + (var[])args[2];
+        BuildConfig.OS = "" + (var[])args[3];
+        userArgs = new string[sizeof(args) - MINIMUM_ARGS];
 
-        System.println("application " + application);
-        System.println("version " + vers);
-        System.println("platform " + platformVersion);
-        System.println("os " + os);
+//        System.println("application " + application);
+//        System.println("version " + vers);
+//        System.println("platform " + platformVersion);
+//        System.println("os " + os);
 
+        // set user args to be passed
         var iter;
         for(var i = MINIMUM_ARGS; i < sizeof(args); i++) {
-            argv[iter++] = new string((var[])args[i]);
-            asm("nop nop nop nop");
-            System.println("arg " + i + ":" + argv[iter - 1]);
+            userArgs[iter++] = new string((var[])args[i]);
         }
 
-        var ret = application#Start.main(argv);
+        // user defined main
+        var ret = application#Start.main(userArgs);
 
         System.print("\nProgram finished with exit code " + ret);
         return ret;

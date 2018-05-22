@@ -379,6 +379,15 @@ void RuntimeEngine::compile()
                 getMainMethod(p);
             }
 
+            if((i+1) >= parsers.size()) {
+                Method *main = getMainMethod(p);
+
+                if(main != NULL) {
+                    main->code.inject(0, staticMainInserts);
+                    readjustAddresses(main, staticMainInserts.size());
+                    staticMainInserts.free();
+                }
+            }
             if(errors->hasErrors()){
                 report:
 
@@ -5813,8 +5822,8 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                         left.code.__asm64.remove(i);
                         unsigned  int pos = i+1;
 
-                        left.code.__asm64.insert(pos++, SET_Di(i64, op_LOADVAL, egx));
-                        left.code.__asm64.insert(pos, SET_Ci(i64, op_RMOV, ebx,0, egx));
+                        left.code.push_i64(SET_Di(i64, op_LOADVAL, egx));
+                        left.code.push_i64(SET_Ci(i64, op_RMOV, ebx,0, egx));
                         break;
                     }
                 }
@@ -6584,6 +6593,58 @@ void RuntimeEngine::createNewWarning(error_type error, int line, int col, string
     }
 }
 
+void RuntimeEngine::readjustAddresses(Method *func, unsigned int _offset) {
+    if(_offset == 0) return;
+
+    // TODO: do line_table as well
+    for(unsigned int i = 0; i < func->exceptions.size(); i++) {
+        ExceptionTable &et = func->exceptions.get(i);
+
+        et.start_pc+=_offset;
+        et.end_pc+=_offset;
+        et.handler_pc+=_offset;
+    }
+    for(unsigned int i = 0; i < func->finallyBlocks.size(); i++) {
+        FinallyTable &ft = func->finallyBlocks.get(i);
+
+        ft.start_pc+=_offset;
+        ft.end_pc+=_offset;
+        ft.try_start_pc+=_offset;
+        ft.try_end_pc+=_offset;
+    }
+
+    for(unsigned int i = 0; i < func->line_table.size(); i++) {
+        KeyPair<int64_t, long> &lt = func->line_table.get(i);
+
+        lt.key+=_offset;
+    }
+
+    int64_t x64, op, addr;
+    for(unsigned int i = 0; i < func->code.size(); i++) {
+
+        x64 = func->code.__asm64.get(i);
+
+        switch (op=GET_OP(x64)) {
+            case op_GOTO:
+                addr=GET_Da(x64);
+
+                /*
+                 * We only want to update data which is referencing data below us
+                 */
+                func->code.__asm64.replace(i, SET_Di(x64, op_GOTO, (addr+_offset)));
+                break;
+            case op_MOVI:
+                if(func->unique_address_table.find(i-_offset)) {
+                    addr=GET_Da(x64);
+                    func->unique_address_table.replace(func->unique_address_table.indexof(i-_offset), i+_offset);
+                    func->code.__asm64.replace(i, SET_Di(x64, op_MOVI, addr+_offset));
+
+                }
+                break;
+        }
+    }
+}
+
 Method *RuntimeEngine::getMainMethod(Parser *p) {
     string starter_classname = "Runtime";
     string mainMethod = "__srt_init_";
@@ -6609,8 +6670,6 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
                 errors->createNewError(GENERIC, 1, 0, "main method '" + mainMethod + "(object[])' must be public");
             }
 
-            main->code.inject(0, staticMainInserts);
-            staticMainInserts.free();
             RuntimeEngine::main = main;
         }
         return main;
@@ -8040,11 +8099,9 @@ void RuntimeEngine::resolveClassDecl(Ast* ast) {
 
     if(scope->type == GLOBAL_SCOPE) {
         klass = getClass(currentModule, name);
-        klass->setFullName(currentModule + "#" + name);
     }
     else {
         klass = scope->klass->getChildClass(name);
-        klass->setFullName(scope->klass->getFullName() + "." + name);
     }
 
     if(resolvedFields)
@@ -8281,11 +8338,20 @@ void RuntimeEngine::parseClassDecl(Ast *ast)
 
     string className =  ast->getEntity(startPosition).getToken();
 
-    if(scope->klass == NULL)
+    if(scope->klass == NULL) {
         currentClass = addGlobalClassObject(className, modifiers, ast);
-    else
+
+        stringstream ss;
+        ss << currentModule << "#" << currentClass->getName();
+        currentClass->setFullName(ss.str());
+    }
+    else {
         currentClass = addChildClassObject(className, modifiers, ast, scope->klass);
 
+        stringstream ss;
+        ss << scope->klass->getFullName() << "." << currentClass->getName();
+        currentClass->setFullName(ss.str());
+    }
 
     addScope(Scope(CLASS_SCOPE, currentClass));
     for(long i = 0; i < block->getSubAstCount(); i++) {

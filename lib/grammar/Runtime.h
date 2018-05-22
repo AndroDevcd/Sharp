@@ -950,6 +950,8 @@ private:
     Opcode assignOperandToOp(token_entity operand);
 
     bool equalsVectorArray(Expression &left, Expression &right);
+
+    void readjustAddresses(Method *func, unsigned int);
 };
 
 

@@ -1,0 +1,16 @@
+mod std.internal;
+
+class BuildConfig {
+    public static string OS;
+    public static string applicationName;
+    public static string platform;
+    public static string version;
+
+    public static def isWindows() : var {
+        return OS == "win"
+    }
+
+    public static def isLinux() : var {
+        return OS == "posix"
+    }
+}

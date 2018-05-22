@@ -687,11 +687,10 @@ bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
                 advance();
                 pAst->addEntity(current());
 
-                int oldAndExprs=nestedAndExprs;
-                parenExprs++;
+                int oldNestedExprs=nestedAddExprs;
+                nestedAddExprs=0;
                 parse_expression(pAst);
-                nestedAddExprs=oldAndExprs;
-                parenExprs--;
+                nestedAddExprs=oldNestedExprs;
                 expect(RIGHTBRACE, pAst, "`]`");
 
                 errors->enableErrorCheckMode();
@@ -946,11 +945,10 @@ bool Parser::parse_expression(Ast *pAst) {
     {
         expect(LEFTBRACE, pAst, "`[`");
 
-        int oldAndExprs=nestedAndExprs;
-        parenExprs++;
+        int oldNestedExprs=nestedAddExprs;
+        nestedAddExprs=0;
         parse_expression(pAst);
-        nestedAddExprs=oldAndExprs;
-        parenExprs--;
+        nestedAddExprs=oldNestedExprs;
         expect(RIGHTBRACE, pAst, "`]`");
 
 
@@ -968,11 +966,11 @@ bool Parser::parse_expression(Ast *pAst) {
             }
 
             pAst->encapsulate(ast_arry_e);
-
             return true;
         }
         pAst->encapsulate(ast_arry_e);
     }
+
 
 
     /* ++ or -- after the expression */
@@ -1111,10 +1109,10 @@ bool Parser::parse_expression(Ast *pAst) {
         advance();
         pAst->addEntity(current());
 
-        int oldAndExprs=nestedAndExprs;
-        parenExprs++;
+        int oldNestedExprs=nestedAddExprs;
+        nestedAddExprs=0;
         parse_expression(pAst);
-        nestedAddExprs=oldAndExprs;
+        nestedAddExprs=oldNestedExprs;
         pAst->encapsulate(ast_assign_e);
         return true;
     }
