@@ -588,7 +588,7 @@ private:
 
     void resolveAllFields();
 
-    void resolveClassDecl(Ast *ast);
+    void resolveClassDecl(Ast *ast, bool in);
 
     ReferencePointer parseReferencePtr(Ast *ast);
 
@@ -602,7 +602,7 @@ private:
 
     ClassObject *parseBaseClass(Ast *ast, int startpos);
 
-    void resolveVarDecl(Ast *ast);
+    void resolveVarDecl(Ast *ast,bool);
 
     Expression parseUtype(Ast *ast);
 
@@ -952,6 +952,8 @@ private:
     bool equalsVectorArray(Expression &left, Expression &right);
 
     void readjustAddresses(Method *func, unsigned int);
+
+    void inlineFields();
 };
 
 

@@ -317,6 +317,7 @@ void RuntimeEngine::compile()
     if(preprocess()) {
         resolveAllFields();
         resolveAllMethods();
+        inlineFields();
 
         if(c_options.magic) {
             List<string> lst;
@@ -375,19 +376,10 @@ void RuntimeEngine::compile()
 
             }
 
-            if(errors->getErrorCount() == 0 && errors->getUnfilteredErrorCount() == 0) {
+            if((i+1) >= parsers.size() && errors->getErrorCount() == 0 && errors->getUnfilteredErrorCount() == 0) {
                 getMainMethod(p);
             }
 
-            if((i+1) >= parsers.size()) {
-                Method *main = getMainMethod(p);
-
-                if(main != NULL) {
-                    main->code.inject(0, staticMainInserts);
-                    readjustAddresses(main, staticMainInserts.size());
-                    staticMainInserts.free();
-                }
-            }
             if(errors->hasErrors()){
                 report:
 
@@ -6520,10 +6512,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
         equals(fieldExpr, expression);
         operand=ast->getEntity(ast->getEntityCount()-1);
 
-        if(field->isStatic() && field->isVar() && !field->isArray && expression.literal) {
-            // inline local static variables
-            inline_map.add(KeyPair<string, double>(field->fullName, expression.intValue));
-        } else {
+        if(!isFieldInlined(field)) {
             if(field->isStatic()) {
                 fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVG, field->owner->address));
                 fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, field->address));
@@ -6648,6 +6637,7 @@ void RuntimeEngine::readjustAddresses(Method *func, unsigned int _offset) {
 Method *RuntimeEngine::getMainMethod(Parser *p) {
     string starter_classname = "Runtime";
     string mainMethod = "__srt_init_";
+    string setupMethod = "setupClasses";
 
     ClassObject* StarterClass = getClass("std.internal", starter_classname);
     if(StarterClass != NULL) {
@@ -6669,6 +6659,26 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
             if(!main->hasModifier(PUBLIC)) {
                 errors->createNewError(GENERIC, 1, 0, "main method '" + mainMethod + "(object[])' must be public");
             }
+
+            List<Param> empty;
+            Method *setupClasses = StarterClass->getFunction(setupMethod, empty);
+
+            if(setupClasses == NULL) {
+                errors->createNewError(GENERIC, 1, 0, "could not locate setup method '" + setupMethod + "()' in starter class");
+            } else {
+                if(!setupClasses->isStatic()) {
+                    errors->createNewError(GENERIC, 1, 0, "setup method '" + mainMethod + "()' must be static");
+                }
+
+                if(!setupClasses->hasModifier(PRIVATE)) {
+                    errors->createNewError(GENERIC, 1, 0, "setup method '" + mainMethod + "()' must be private");
+                }
+
+                setupClasses->code.inject(0, staticMainInserts);
+//                readjustAddresses(setupClasses, staticMainInserts.size());
+                staticMainInserts.free();
+            }
+
 
             RuntimeEngine::main = main;
         }
@@ -6784,7 +6794,54 @@ void RuntimeEngine::resolveAllFields() {
 
             switch(ast->getType()) {
                 case ast_class_decl:
-                    resolveClassDecl(ast);
+                    resolveClassDecl(ast, false);
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+        }
+
+        if(errors->hasErrors()){
+            report:
+
+            errorCount+= errors->getErrorCount();
+            unfilteredErrorCount+= errors->getUnfilteredErrorCount();
+
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        } else {
+            succeededParsers.addif(activeParser->sourcefile);
+            failedParsers.removefirst(activeParser->sourcefile);
+        }
+
+        errors->free();
+        delete (errors); this->errors = NULL;
+        removeScope();
+    }
+}
+
+void RuntimeEngine::inlineFields() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        activeParser = parsers.get(i);
+        errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
+        currentModule = "$unknown";
+
+        addScope(Scope(GLOBAL_SCOPE, NULL));
+        for(int x = 0; x < activeParser->treesize(); x++) {
+            Ast* ast = activeParser->ast_at(x);
+            SEMTEX_CHECK_ERRORS
+
+            if(x==0) {
+                if(ast->getType() == ast_module_decl) {
+                    add_module(currentModule = parseModuleName(ast));
+                    continue;
+                }
+            }
+
+            switch(ast->getType()) {
+                case ast_class_decl:
+                    resolveClassDecl(ast, true);
                     break;
                 default:
                     /* ignore */
@@ -7136,7 +7193,10 @@ void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& r
                         expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
                 }
                 // for now we are just generating code for x.x.f not Main.x...thats static access
-                expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+                if(isFieldInlined(field)) {
+                    inlineVariableValue(expression, field);
+                } else
+                    expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
 
                 if(lastRefrence) {
                     expression.utype.type = CLASSFIELD;
@@ -7178,7 +7238,7 @@ void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& r
                 field = NULL;
                 errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " ecpected class or module before `" + object_name + "` ");
             }
-            expression.code.push_i64(SET_Di(i64, op_MOVG, klass->address));
+            expression.code.push_i64(SET_Di(i64, op_MOVG, k->address));
             klass = k;
 
             if(lastRefrence) {
@@ -7678,6 +7738,9 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     if((klass = getClass(refrence.module, starter_name)) != NULL) {
                         resolveClassHeiarchy(klass, refrence, expression, pAst);
                         return;
+                    } else if((klass = scope->klass->getChildClass(starter_name)) != NULL) {
+                        resolveClassHeiarchy(klass, refrence, expression, pAst);
+                        return;
                     } else {
                         errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + starter_name + "` " +
                                 (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
@@ -7723,7 +7786,7 @@ Expression RuntimeEngine::parseUtype(Ast* ast) {
     return expression;
 }
 
-void RuntimeEngine::resolveVarDecl(Ast* ast) {
+void RuntimeEngine::resolveVarDecl(Ast* ast, bool inlineField) {
     Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=0;
@@ -7746,6 +7809,15 @@ void RuntimeEngine::resolveVarDecl(Ast* ast) {
     field->isArray = expression.utype.array;
     field->owner = scope->klass;
     field->address = field->owner->getFieldAddress(field);
+
+    if(inlineField && ast->hasSubAst(ast_value)) {
+        Expression expr = parseValue(ast->getSubAst(ast_value)), out;
+
+        if (field->isStatic() && field->isVar() && !field->isArray && expr.literal) {
+            // inline local static variables
+            inline_map.add(KeyPair<string, double>(field->fullName, expr.intValue));
+        }
+    }
 
     if(ast->hasSubAst(ast_var_decl)) {
         startpos = 0;
@@ -8087,7 +8159,7 @@ void RuntimeEngine::addDefaultConstructor(ClassObject* klass, Ast* ast) {
     }
 }
 
-void RuntimeEngine::resolveClassDecl(Ast* ast) {
+void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
     Scope* scope = currentScope();
     Ast* block = ast->getSubAst(ast_block), *trunk;
     List<AccessModifier> modifiers;
@@ -8104,33 +8176,34 @@ void RuntimeEngine::resolveClassDecl(Ast* ast) {
         klass = scope->klass->getChildClass(name);
     }
 
-    if(resolvedFields)
+    if(!inlineField && resolvedFields)
         klass->address = classSize++;
 
     addScope(Scope(CLASS_SCOPE, klass));
-    klass->setBaseClass(parseBaseClass(ast, ++startpos));
+    if(!inlineField)
+        klass->setBaseClass(parseBaseClass(ast, ++startpos));
     for(long i = 0; i < block->getSubAstCount(); i++) {
         trunk = block->getSubAst(i);
         CHECK_ERRORS
 
         switch(trunk->getType()) {
             case ast_class_decl:
-                resolveClassDecl(trunk);
+                resolveClassDecl(trunk, inlineField);
                 break;
             case ast_var_decl:
-                if(!resolvedFields)
-                    resolveVarDecl(trunk);
+                if(!resolvedFields || inlineField)
+                    resolveVarDecl(trunk, inlineField);
                 break;
             case ast_method_decl:
-                if(resolvedFields)
+                if(!inlineField && resolvedFields)
                     resolveMethodDecl(trunk);
                 break;
             case ast_operator_decl:
-                if(resolvedFields)
+                if(!inlineField && resolvedFields)
                     resolveOperatorDecl(trunk);
                 break;
             case ast_construct_decl:
-                if(resolvedFields)
+                if(!inlineField && resolvedFields)
                     resolveConstructorDecl(trunk);
                 break;
             default:
@@ -8141,7 +8214,7 @@ void RuntimeEngine::resolveClassDecl(Ast* ast) {
         }
     }
 
-    if(resolvedFields)
+    if(!inlineField && resolvedFields)
         addDefaultConstructor(klass, ast);
     removeScope();
 }
@@ -8931,6 +9004,22 @@ void RuntimeEngine::createDumpFile() {
     _ostream.begin();
 
     _ostream << "Object Dump file:\n" << "################################\n\n";
+    for(int64_t i = 0; i < classes.size(); i++) {
+        stringstream ss;
+        ClassObject &k = classes.get(i);
+        ss << "\n@" << k.address << " " << classes.get(i).getFullName();
+        _ostream << ss.str();
+
+        for(int64_t x = 0; x < k.childClassCount(); x++) {
+            stringstream s;
+            ClassObject *klass = k.getChildClass(x);
+            s << "\n@" << klass->address << " " << klass->getFullName();
+            _ostream << s.str();
+
+        }
+    }
+
+    _ostream << "\n\n";
     for(unsigned int i =0; i < allMethods.size(); i++) {
         Method* method = allMethods.get(i);
 

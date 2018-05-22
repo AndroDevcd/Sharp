@@ -5,7 +5,7 @@ mod std.internal;
  *
  * Low level utility class to interface with the Sharp
  * Virtual Machine. Classic function calls consist of
- * garbage collector requests and the entrypoint to
+ * garbage collector requests and the entry-point to
  * your application
  */
 class Runtime {
@@ -14,9 +14,19 @@ class Runtime {
     private static string[] userArgs = null;
 
     /**
+    * This is necessary to setup all our static data for our classes
+    * DO NOT remove this call or it will result in crashes.
+    *
+    * NO code should be placed inside this function
+    */
+    private static def setupClasses() {
+    }
+
+    /**
     * This is the entry point of your application
     */
     public static def __srt_init_(object[] args) : var {
+        setupClasses();
 
         BuildConfig.applicationName = "" + (var[])args[0];
         BuildConfig.version = "" + (var[])args[1];

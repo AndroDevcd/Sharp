@@ -281,6 +281,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xab:
             registers[cmt]=GarbageCollector::self->getManagedMemory();
             return;
+        case 0xac:
+            __os_sleep((int64_t) registers[ebx]);
+            return;
         default:
             // unsupported
             break;

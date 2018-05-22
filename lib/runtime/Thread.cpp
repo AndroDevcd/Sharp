@@ -891,7 +891,7 @@ void Thread::exec() {
                 dataStack[++sp].object =
                                    GarbageCollector::self->newObject(&env->classes[GET_Da(cache[pc])]);
                 STACK_CHECK _brh
-            MOVN: // TODO: check to see if we really need this instruction
+            MOVN:
                 CHECK_NULLOBJ(o2 = &o2->object->node[GET_Da(cache[pc])];)
                 _brh
             SLEEP:

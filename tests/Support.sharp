@@ -34,6 +34,7 @@ class Start {
         //System.exit();
 
         System.println("tt" + message);
+        Time.sleep(Time.TimeUnit.SECONDS, 3);
 
         System.println("Current time in Mills: " + string.parse(System.getUtcTimeInMills()));
         System.println("Current time in Nanos: " + string.parse(System.getNanoTime()));
@@ -80,5 +81,7 @@ class Start {
         memory2 = System.freeMemory();
         System.println("Free memory after  "
             + "collecting discarded strings: " + string.parse(memory2));
+
+        return 0;
     }
 }

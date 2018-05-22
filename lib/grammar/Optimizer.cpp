@@ -59,7 +59,7 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
                 if(addr >= stopAddr)
                 {
                     // update address
-                    assembler->__asm64.replace(i, SET_Di(x64, op, --addr));
+                    assembler->__asm64.replace(i, SET_Di(x64, op, addr-1));
                 }
                 break;
             case op_MOVI:
@@ -76,8 +76,8 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
                         assembler->__asm64.replace(i, SET_Di(x64, op_MOVI, addr-1));
                     }
 
-                    i++;
                 }
+                i++;
                 break;
         }
     }
@@ -113,8 +113,8 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
                         assembler->__asm64.replace(i, SET_Di(x64, op_MOVI, addr));
                     } else
                         assembler->__asm64.replace(i, SET_Di(x64, op_MOVI, addr-1));
-                    i++;
                 }
+                i++;
                 break;
         }
     }

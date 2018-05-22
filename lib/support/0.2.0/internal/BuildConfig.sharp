@@ -7,10 +7,10 @@ class BuildConfig {
     public static string version;
 
     public static def isWindows() : var {
-        return OS == "win"
+        return OS == "win";
     }
 
     public static def isLinux() : var {
-        return OS == "posix"
+        return OS == "posix";
     }
 }
