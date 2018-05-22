@@ -1,0 +1,5 @@
+compiler:
+tests/CompilerTest2.sharp lib/support/0.2.0/string.sharp lib/support/0.2.0/RuntimeErr.sharp lib/support/0.2.0/Throwable.sharp lib/support/0.2.0/Array.sharp lib/support/0.2.0/internal/Time.sharp lib/support/0.2.0/internal/ConsoleHandler.sharp lib/support/0.2.0/System.sharp lib/support/0.2.0/internal/BuildConfig.sharp lib/support/0.2.0/internal/Runtime.sharp lib/support/0.2.0/Exception.sharp -unsafe -o bin/CompilerTest2 -a -objdmp
+
+vm:
+bin/CompilerTest2 hh
