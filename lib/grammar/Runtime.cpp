@@ -2193,7 +2193,7 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
 
         if(fn->delegatePost) {
             if(fn->isStatic()) {
-                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()));
+                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()), fn->klass->address);
             } else
                 out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, fn->address, 0, expressions.size()));
         } else
@@ -2396,7 +2396,7 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
 
         if(fn->delegatePost) {
             if(fn->isStatic()) {
-                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()));
+                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()), fn->klass->address);
             } else
                 out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, fn->address, 0, expressions.size()));
         } else
@@ -2948,7 +2948,7 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
 
         if(fn->delegatePost) {
             if(fn->isStatic()) {
-                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()));
+                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()), fn->klass->address);
             } else
                 out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, fn->address, 0, expressions.size()));
         } else
@@ -3141,7 +3141,7 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
 
         if(fn->delegatePost) {
             if(fn->isStatic()) {
-                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()));
+                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()), fn->klass->address);
             } else
                 out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, fn->address, 0, expressions.size()));
         } else

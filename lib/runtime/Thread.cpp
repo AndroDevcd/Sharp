@@ -1069,6 +1069,24 @@ void Thread::exec() {
                 )
                 _brh
             INVOKE_DELEGATE_STATIC:
+                int64_t delegate= GET_Ca(cache[pc]);
+                int64_t args= GET_Cb(cache[pc]);
+
+                o2 = &env->globalHeap[(long)cache[++pc]];
+
+                CHECK_NULL2(
+                        if(o2->object->k!= NULL) {
+                            for(long i = 0; i < o2->object->k->methodCount; i++) {
+                                if(env->methods[o2->object->k->methods[i]].delegateAddress == delegate) {
+                                    executeMethod(env->methods[o2->object->k->methods[i]].address)
+                                    _brh_NOINCREMENT
+                                }
+                            }
+                            throw Exception(Environment::RuntimeErr, "delegate function not found");
+                        } else {
+                            throw Exception(Environment::RuntimeErr, "attempt to call delegate function on non class object");
+                        }
+                )
                 _brh
 
             executeMethod(GET_Da(cache[pc]))
