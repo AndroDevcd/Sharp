@@ -158,8 +158,10 @@ void Ast::encapsulate(ast_types at) {
     Ast* encap = getLastSubAst();
 
     for(unsigned int i = 0; i < sub_asts.size(); i++) {
-        if(sub_asts.get(i).type != at)
+        if(sub_asts.get(i).type != at) {
+            sub_asts.get(i).parent = encap;
             encap->addAst(sub_asts.get(i));
+        }
     }
 
     for(unsigned int i = 0; i < entities.size(); i++) {

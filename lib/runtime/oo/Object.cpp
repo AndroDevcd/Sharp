@@ -20,6 +20,13 @@ void Object::castObject(uint64_t classPtr) {
         throw Exception(Environment::ClassCastException, nonclass.str());
 
     if(k->serial!= this->object->k->serial && !this->object->k->hasBaseClass(k)) {
+        // validate we have all our interfaces checked
+        for(int i = 0; i < this->object->k->interfaceCount; i++) {
+            ClassObject* _interface = env->findClassBySerial(this->object->k->interfaces[i]);
+            if(_interface->serial==k->serial || _interface->hasBaseClass(k))
+                return;
+        }
+
         stringstream ss;
         ss << "illegal cast of class '" << this->object->k->name.str() << "' to '";
         ss << k->name.str() << "'";

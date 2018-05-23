@@ -663,6 +663,9 @@ void Thread::exec() {
 
     int64_t tmp=0;
     int64_t val=0;
+    int64_t delegate=0;
+    int64_t args=0;
+    ClassObject *klass;
     SharpObject* o=NULL;
     Object* o2=NULL;
     void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
@@ -1049,18 +1052,25 @@ void Thread::exec() {
                 registers[GET_Da(cache[pc])] = o2->object == dataStack[sp--].object.object;
                 _brh
             INVOKE_DELEGATE:
-                int64_t delegate= GET_Ca(cache[pc]);
-                int64_t args= GET_Cb(cache[pc]);
+                delegate= GET_Ca(cache[pc]);
+                args= GET_Cb(cache[pc]);
 
                 o2 = &dataStack[sp-args].object;
+                klass = o2->object->k;
 
                 CHECK_NULL2(
-                        if(o2->object->k!= NULL) {
-                            for(long i = 0; i < o2->object->k->methodCount; i++) {
-                                if(env->methods[o2->object->k->methods[i]].delegateAddress == delegate) {
-                                    executeMethod(env->methods[o2->object->k->methods[i]].address)
+                        if(klass!= NULL) {
+                            search:
+                            for(long i = 0; i < klass->methodCount; i++) {
+                                if(env->methods[klass->methods[i]].delegateAddress == delegate) {
+                                    executeMethod(env->methods[klass->methods[i]].address)
                                     _brh_NOINCREMENT
                                 }
+                            }
+
+                            if(klass->base != NULL) {
+                                klass = klass->base;
+                                goto search;
                             }
                             throw Exception(Environment::RuntimeErr, "delegate function not found");
                         } else {
@@ -1069,18 +1079,24 @@ void Thread::exec() {
                 )
                 _brh
             INVOKE_DELEGATE_STATIC:
-                int64_t delegate= GET_Ca(cache[pc]);
-                int64_t args= GET_Cb(cache[pc]);
+                delegate= GET_Ca(cache[pc]);
+                args= GET_Cb(cache[pc]);
 
                 o2 = &env->globalHeap[(long)cache[++pc]];
+                klass = o2->object->k;
 
                 CHECK_NULL2(
-                        if(o2->object->k!= NULL) {
-                            for(long i = 0; i < o2->object->k->methodCount; i++) {
-                                if(env->methods[o2->object->k->methods[i]].delegateAddress == delegate) {
-                                    executeMethod(env->methods[o2->object->k->methods[i]].address)
+                        if(klass!= NULL) {
+                            for(long i = 0; i < klass->methodCount; i++) {
+                                if(env->methods[klass->methods[i]].delegateAddress == delegate) {
+                                    executeMethod(env->methods[klass->methods[i]].address)
                                     _brh_NOINCREMENT
                                 }
+                            }
+
+                            if(klass->base != NULL) {
+                                klass = klass->base;
+                                goto search;
                             }
                             throw Exception(Environment::RuntimeErr, "delegate function not found");
                         } else {

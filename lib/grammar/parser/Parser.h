@@ -223,6 +223,14 @@ private:
     bool parse_array_expression(Ast *pAst);
 
     void parse_delegatedecl(Ast *pAst);
+
+    bool isinterface_decl(token_entity entity);
+
+    void parse_interfacedecl(Ast *_ast);
+
+    void parse_interfaceblock(Ast *pAst);
+
+    void parse_reference_identifier_list(Ast *ast);
 };
 
 #define _SHARP_CERROR_LIMIT c_options.error_limit

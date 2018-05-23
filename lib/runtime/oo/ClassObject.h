@@ -53,9 +53,9 @@ public:
 
     native_string name;
     Field* fields;
-    unsigned long *methods;
+    unsigned long *methods, *interfaces;
     ClassObject* super, *base;
-    unsigned long serial, fieldCount, methodCount;
+    unsigned long serial, fieldCount, methodCount, interfaceCount;
 
     void free();
 

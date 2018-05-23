@@ -45,6 +45,9 @@ A refrence ptr is a specific pointer to any given variable, function, or class w
 <refrence-identifier>:
 A reference identifier is an identifier that may be an <identifier> or <refrence-pointer>
 
+<refrence-identifier-list>:
+<refrence-identifier> [,<refrence-identifier>...]
+
 <typeidentifier>:
 An <nativetype> or <refrence-identifier>
 
@@ -155,7 +158,10 @@ Import Declaration:
 import <modulename> ;
 
 Class Declaration:
-`[<accesstype>] class <identifier = name> [base <refrence-identifier> ] {}`
+`[<accesstype>] class <identifier = name> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
+
+interface Declaration:
+`[<accesstype>] interface <identifier = name> [base <refrence-identifier> ] {}`
 
 <block>:
 { <statements>* }

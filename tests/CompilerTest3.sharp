@@ -5,6 +5,8 @@ class Start {
     public static def main(string[] args) : var {
         object klass = new Callee();
         ((Callback)klass).work();
+        object event = new Callee();
+        ((Event)event).event();
     }
 }
 
@@ -18,6 +20,10 @@ interface Event {
 }
 
 class Callee base Callback : Event {
+
+    public def delegate::event() {
+        System.print("Event Called!");
+    }
 
     public def delegate::work() {
         System.print("success I am Called!");

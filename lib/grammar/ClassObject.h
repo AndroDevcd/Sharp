@@ -27,7 +27,8 @@ public:
             head(NULL),
             note(),
             fullName(""),
-            address(-1)
+            address(-1),
+            _interface(false)
     {
         functions.init();
         constructors.init();
@@ -46,7 +47,8 @@ public:
             head(NULL),
             note(note),
             fullName(""),
-            address(-1)
+            address(-1),
+            _interface(false)
     {
         functions.init();
         constructors.init();
@@ -67,7 +69,8 @@ public:
             super(parent),
             note(note),
             fullName(""),
-            address(-1)
+            address(-1),
+            _interface(false)
     {
         functions.init();
         constructors.init();
@@ -118,6 +121,7 @@ public:
         this->super = klass.super;
         this->serial = klass.serial;
         this->address = klass.address;
+        this->_interface=klass._interface;
     }
 
     size_t constructorCount();
@@ -153,6 +157,20 @@ public:
     bool addChildClass(ClassObject constr);
     void free();
 
+    bool isInterface() { return _interface; }
+    void setIsInterface(bool _interface) { this->_interface=_interface; }
+    size_t interfaceCount() { return interfaces.size(); }
+    ClassObject* getInterface(size_t p) { return interfaces.get(p); }
+    bool duplicateInterface(ClassObject *intf) {
+        int copys = 0;
+        for(long i = 0; i < interfaces.size(); i++) {
+            if(interfaces.get(i)==intf)
+                copys++;
+        }
+        return copys > 1;
+    }
+    void setInterfaces(List<ClassObject*> interfaces) { this->interfaces.addAll(interfaces); }
+
     RuntimeNote note;
 
     bool isCurcular(ClassObject *pObject);
@@ -180,6 +198,7 @@ private:
     AccessModifier modifier;
     long serial;
     string name;
+    bool _interface;
     string fullName;
     string module_name;
     List<Method> constructors;
@@ -187,6 +206,7 @@ private:
     List<OperatorOverload> overloads;
     List<Field> fields;
     List<ClassObject> childClasses;
+    List<ClassObject*> interfaces;
     ClassObject *super, *base, *head;
 };
 

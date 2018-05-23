@@ -169,6 +169,7 @@ int Process_Exe(std::string exe)
                     klass->name = getstring(buffer);
                     klass->fieldCount = getlong(buffer);
                     klass->methodCount = getlong(buffer);
+                    klass->interfaceCount = getlong(buffer);
 
                     if(klass->fieldCount != 0) {
                         klass->fields = (Field*)malloc(sizeof(Field)*klass->fieldCount);
@@ -178,6 +179,10 @@ int Process_Exe(std::string exe)
                         klass->methods = (unsigned long*)malloc(sizeof(unsigned long)*klass->methodCount);
                     } else
                         klass->methods = NULL;
+                    if(klass->interfaceCount != 0) {
+                        klass->interfaces = (unsigned long*)malloc(sizeof(unsigned long)*klass->interfaceCount);
+                    } else
+                        klass->interfaces = NULL;
                     klass->super = NULL;
                     klass->base = NULL;
 
@@ -211,6 +216,24 @@ int Process_Exe(std::string exe)
 
                         if(functionPtr != klass->methodCount) {
                             throw std::runtime_error("invalid method size");
+                        }
+                    }
+
+                    functionPtr = 0;
+                    if(klass->interfaceCount != 0) {
+                        for( ;; ) {
+                            if(buffer.at(n) == data_interface) {
+                                n++;
+                                klass->interfaces[functionPtr++] = geti64(buffer);
+                                n++;
+                            } else if(buffer.at(n) == 0x0a || buffer.at(n) == 0x0d){
+                                n++;
+                            } else
+                                break;
+                        }
+
+                        if(functionPtr != klass->interfaceCount) {
+                            throw std::runtime_error("invalid interface size");
                         }
                     }
                     break;

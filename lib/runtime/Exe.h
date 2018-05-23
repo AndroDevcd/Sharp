@@ -33,6 +33,7 @@ struct i64_t {
 #define stext 0x0e
 #define smeta 0x06
 #define data_class 0x2f
+#define data_interface 0x2e
 #define data_file 0x2c
 #define data_method 0x4c
 #define data_field 0x22

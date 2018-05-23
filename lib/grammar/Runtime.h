@@ -556,7 +556,7 @@ private:
 
     string parseModuleName(Ast *ast);
 
-    void parseClassDecl(Ast *ast);
+    void parseClassDecl(Ast *ast, bool isInterface= false);
 
     Scope* addScope(Scope scope);
 
@@ -592,7 +592,7 @@ private:
 
     void resolveClassDecl(Ast *ast, bool in);
 
-    ReferencePointer parseReferencePtr(Ast *ast);
+    ReferencePointer parseReferencePtr(Ast *ast, bool getAst=true);
 
     ResolvedReference resolveReferencePointer(ReferencePointer &ptr);
 
@@ -964,6 +964,14 @@ private:
     void resolveAllDelegates();
 
     void resolveClassDeclDelegates(Ast *ast);
+
+    void resolveAllInterfaces();
+
+    void resolveInterfaceDecl(Ast *ast);
+
+    List<ClassObject *> parseRefrenceIdentifierList(Ast *ast);
+
+    void validateDelegates(ClassObject *host, ClassObject *klass, Ast*, bool useBase);
 };
 
 

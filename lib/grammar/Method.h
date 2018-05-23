@@ -13,6 +13,8 @@
 
 class ClassObject;
 
+#define DELEGATE_ADDRESS_DEFAULT -1
+
 class Method {
 
 public:
@@ -32,7 +34,7 @@ public:
             address(-1),
             delegate(false),
             delegatePost(false),
-            delegateAddress(-1)
+            delegateAddress(DELEGATE_ADDRESS_DEFAULT)
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -60,7 +62,7 @@ public:
             address(-1),
             delegate(delegate),
             delegatePost(delegatePost),
-            delegateAddress(-1)
+            delegateAddress(DELEGATE_ADDRESS_DEFAULT)
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -90,7 +92,7 @@ public:
             address(-1),
             delegate(delegate),
             delegatePost(delegatePost),
-            delegateAddress(-1)
+            delegateAddress(DELEGATE_ADDRESS_DEFAULT)
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -143,7 +145,6 @@ private:
     string module;
     List<Param> params;
 };
-
 
 
 #endif //SHARP_METHOD_H

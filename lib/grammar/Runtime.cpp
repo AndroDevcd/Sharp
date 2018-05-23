@@ -319,6 +319,7 @@ void RuntimeEngine::compile()
         resolveAllFields();
         resolveAllMethods();
         inlineFields();
+        resolveAllInterfaces();
         resolveAllDelegates();
 
         if(c_options.magic) {
@@ -368,6 +369,8 @@ void RuntimeEngine::compile()
                         break;
                     case ast_class_decl:
                         analyzeClassDecl(ast);
+                        break;
+                    case ast_interface_decl: /* ignore */
                         break;
                     default:
                         stringstream err;
@@ -1779,6 +1782,24 @@ Expression RuntimeEngine::psrseUtypeClass(Ast* pAst) {
     return expression;
 }
 
+List<ClassObject*> RuntimeEngine::parseRefrenceIdentifierList(Ast *ast) {
+    List<ClassObject*> classes;
+
+    ClassObject *klass;
+    Ast* vAst;
+    for(unsigned int i = 0; i < ast->getSubAstCount(); i++) {
+        vAst = ast->getSubAst(i);
+
+        ReferencePointer ptr = parseReferencePtr(vAst, false);
+        klass = resolveClassRefrence(vAst, ptr);
+
+        if(klass != NULL)
+            classes.push_back(klass);
+    }
+
+    return classes;
+}
+
 List<Expression> RuntimeEngine::parseValueList(Ast* pAst) {
     List<Expression> expressions;
 
@@ -2380,6 +2401,10 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
             createNewWarning(GENERIC, pAst->line, pAst->col, "instance access to static function");
         }
 
+
+        if(!fn->isStatic()) {
+            pushAuthenticExpressionToStackNoInject(contextExpression, out);
+        }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
             if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
@@ -6776,6 +6801,9 @@ bool RuntimeEngine::preprocess()
                 case ast_module_decl: /* fail-safe */
                     errors->createNewError(GENERIC, ast->line, ast->col, "file module cannot be declared more than once");
                     break;
+                case ast_interface_decl:
+                    parseClassDecl(ast, true);
+                    break;
                 default:
                     stringstream err;
                     err << ": unknown ast type: " << ast->getType();
@@ -6808,6 +6836,53 @@ bool RuntimeEngine::preprocess()
 
 
     return success;
+}
+
+void RuntimeEngine::resolveAllInterfaces() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        activeParser = parsers.get(i);
+        errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
+        currentModule = "$unknown";
+
+        addScope(Scope(GLOBAL_SCOPE, NULL));
+        for(int x = 0; x < activeParser->treesize(); x++) {
+            Ast* ast = activeParser->ast_at(x);
+            SEMTEX_CHECK_ERRORS
+
+            if(x==0) {
+                if(ast->getType() == ast_module_decl) {
+                    add_module(currentModule = parseModuleName(ast));
+                    continue;
+                }
+            }
+
+            switch(ast->getType()) {
+                case ast_interface_decl:
+                    resolveInterfaceDecl(ast);
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+        }
+
+        if(errors->hasErrors()){
+            report:
+
+            errorCount+= errors->getErrorCount();
+            unfilteredErrorCount+= errors->getUnfilteredErrorCount();
+
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        } else {
+            succeededParsers.addif(activeParser->sourcefile);
+            failedParsers.removefirst(activeParser->sourcefile);
+        }
+
+        errors->free();
+        delete (errors); this->errors = NULL;
+        removeScope();
+    }
 }
 
 void RuntimeEngine::resolveAllDelegates() {
@@ -6877,6 +6952,9 @@ void RuntimeEngine::resolveAllFields() {
 
             switch(ast->getType()) {
                 case ast_class_decl:
+                    resolveClassDecl(ast, false);
+                    break;
+                case ast_interface_decl:
                     resolveClassDecl(ast, false);
                     break;
                 default:
@@ -6951,8 +7029,9 @@ void RuntimeEngine::inlineFields() {
     }
 }
 
-ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast) {
-    ast = ast->getSubAst(ast_refrence_pointer);
+ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
+    if(getAst)
+        ast = ast->getSubAst(ast_refrence_pointer);
     bool hashfound = false, last, hash = ast->hasEntity(HASH);
     string id="";
     ReferencePointer ptr;
@@ -8310,6 +8389,116 @@ void RuntimeEngine::addDefaultConstructor(ClassObject* klass, Ast* ast) {
     }
 }
 
+void RuntimeEngine::resolveInterfaceDecl(Ast* ast) {
+    Scope* scope = currentScope();
+    Ast* block = ast->getSubAst(ast_block), *trunk;
+    List<AccessModifier> modifiers;
+    ClassObject* klass;
+    int startpos=1;
+
+    parseAccessDecl(ast, modifiers, startpos);
+    string name =  ast->getEntity(startpos).getToken();
+
+    if(scope->type == GLOBAL_SCOPE) {
+        klass = getClass(currentModule, name);
+    }
+    else {
+        klass = scope->klass->getChildClass(name);
+    }
+
+    ClassObject *base = klass->getBaseClass();
+    if(base != NULL) {
+        // verify that base is an interface
+        if(!base->isInterface()) {
+            stringstream err;
+            err << "interface '" << klass->getName() << "' must inherit another interface class";
+            errors->createNewError(GENERIC, ast->line, ast->col, err.str()); err.str("");
+        }
+    }
+
+    stringstream err;
+    addScope(Scope(CLASS_SCOPE, klass));
+    for(long i = 0; i < block->getSubAstCount(); i++) {
+        trunk = block->getSubAst(i);
+        CHECK_ERRORS
+
+        switch(trunk->getType()) {
+            case ast_class_decl: /* ignore */
+                break;
+            case ast_var_decl: /* ignore */
+                break;
+            case ast_method_decl: /* ignore */
+                break;
+            case ast_operator_decl: /* ignore */
+                break;
+            case ast_construct_decl: /* ignore */
+                break;
+            case ast_delegate_post_decl: /* ignore */
+                break;
+            case ast_delegate_decl:
+                err << "interfaces do not allow delegate implementations";
+                errors->createNewError(GENERIC, trunk->line, trunk->col, err.str()); err.str("");
+                break;
+            case ast_interface_decl:
+                resolveInterfaceDecl(trunk);
+                break;
+            default:
+                err << ": unknown ast type: " << trunk->getType();
+                errors->createNewError(INTERNAL_ERROR, trunk->line, trunk->col, err.str()); err.str("");
+                break;
+        }
+    }
+    removeScope();
+}
+
+void RuntimeEngine::validateDelegates(ClassObject *host, ClassObject *klass, Ast *ast, bool useBase) {
+    List<Method*> delegatesPosts = klass->getDelegatePosts(false);
+    List<Method*> delegates = host->getDelegates();
+
+    // enforce rule to have delegates in class
+    if(delegatesPosts.size() > 0) {
+        Method *func;
+        stringstream err;
+        for(int i = 0; i < delegatesPosts.size(); i++) {
+            if((func=host->getFunction(delegatesPosts.get(i)->getName(), delegatesPosts.get(i)->getParams())) == NULL) {
+
+                error:
+                err << "class '" << host->getName() << "' must implement delegate method 'delegate::"
+                    << delegatesPosts.get(i)->getName() << paramsToString(delegatesPosts.get(i)->getParams())
+                    << "'";
+                errors->createNewError(GENERIC, ast->line, ast->col, err.str()); err.str("");
+            } else {
+                if(!func->delegate) {
+                    goto error;
+                }
+            }
+        }
+    }
+
+    // verify that all delegates are legitimate
+    if(delegates.size() > 0) {
+        Method *func;
+        for(int i = 0; i < delegates.size(); i++) {
+            if((func = klass->getFunction(delegates.get(i)->getName(), delegates.get(i)->getParams(), true, true)) != NULL) {
+                if(func->delegatePost) {
+                    // were good
+                    delegates.get(i)->delegateAddress = func->address;
+                } else {
+                    // not a delegate
+                    if(useBase && klass->getBaseClass() != NULL)
+                        continue;
+
+                    stringstream err;
+                    err << "class(s) inherited by class '" << host->getName() << "' has no prototype of delegate method 'delegate::"
+                        << delegates.get(i)->getName() << paramsToString(delegates.get(i)->getParams())
+                        << "'";
+                    errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+                }
+            }
+        }
+    }
+}
+
 void RuntimeEngine::resolveClassDeclDelegates(Ast* ast) {
     Scope* scope = currentScope();
     Ast* block = ast->getSubAst(ast_block), *trunk;
@@ -8329,52 +8518,33 @@ void RuntimeEngine::resolveClassDeclDelegates(Ast* ast) {
 
     ClassObject *base = klass->getBaseClass();
     if(base != NULL) {
-        List<Method*> delegatesPosts = base->getDelegatePosts(false);
-        List<Method*> delegates = klass->getDelegates();
+        validateDelegates(klass, base, ast, false);
+    }
 
-        // enforce rule to have delegates in class
-        if(delegatesPosts.size() > 0) {
-            Method *func;
-            stringstream err;
-            for(int i = 0; i < delegatesPosts.size(); i++) {
-                if((func=klass->getFunction(delegatesPosts.get(i)->getName(), delegatesPosts.get(i)->getParams())) == NULL) {
+    for(long i = 0; i < klass->interfaceCount(); i++) {
+        ClassObject *intf = klass->getInterface(i);
 
-                    error:
-                    err << "class '" << klass->getName() << "' must implement delegate method '"
-                        << delegatesPosts.get(i)->getName() << paramsToString(delegatesPosts.get(i)->getParams())
-                        << "'";
-                    errors->createNewError(GENERIC, ast->line, ast->col, err.str()); err.str("");
-                } else {
-                    if(!func->delegate) {
-                        goto error;
-                    }
-                }
+        validateDelegates(klass, intf, ast, intf->getBaseClass() != NULL);
+        if(intf->getBaseClass() != NULL) {
+            for(;;) {
+
+                intf = intf->getBaseClass();
+                validateDelegates(klass, intf, ast, intf->getBaseClass() != NULL);
+
+                if(intf->getBaseClass() == NULL)
+                    break;
             }
         }
+    }
 
-        // verify that all delegates are legitimate
-        if(delegates.size() > 0) {
-            Method *func;
-            for(int i = 0; i < delegates.size(); i++) {
-                if((func = base->getFunction(delegates.get(i)->getName(), delegates.get(i)->getParams(), true, true)) != NULL) {
-                    if(func->delegatePost) {
-                        // were good
-                        delegates.get(i)->delegateAddress = func->address;
-                    } else {
-                        // not a delegate
-                        stringstream err;
-                        err << "base class(s) inherited by class '" << klass->getName() << "' has no implementation of delegate method '"
-                            << delegates.get(i)->getName() << paramsToString(delegates.get(i)->getParams())
-                            << "'";
-                        errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-                    }
-                } else {
-                    stringstream err;
-                    err << "base class '" << base->getFullName() << "' inherited by class '" << klass->getName() << "' has no implementation of delegate method '"
-                        << delegates.get(i)->getName() << paramsToString(delegates.get(i)->getParams())
-                        << "'";
-                    errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-                }
+    if(klass->interfaceCount() > 0) {
+
+        // look for duplicates
+        for(long i = 0; i < klass->interfaceCount(); i++) {
+            if(klass->duplicateInterface(klass->getInterface(i))) {
+                stringstream err;
+                err << "duplicate class '" << klass->getInterface(i)->getName() << "'";
+                errors->createNewError(GENERIC, ast->line, ast->col, err.str());
             }
         }
     }
@@ -8399,6 +8569,8 @@ void RuntimeEngine::resolveClassDeclDelegates(Ast* ast) {
             case ast_delegate_post_decl: /* ignore */
                 break;
             case ast_delegate_decl: /* ignore */
+                break;
+            case ast_interface_decl: /* ignore */
                 break;
             default:
                 stringstream err;
@@ -8431,8 +8603,20 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
         klass->address = classSize++;
 
     addScope(Scope(CLASS_SCOPE, klass));
-    if(!inlineField)
-        klass->setBaseClass(parseBaseClass(ast, ++startpos));
+    if(inlineField) {
+        ClassObject *base = parseBaseClass(ast, ++startpos);
+
+        if(!klass->isInterface() && base != NULL && base->isInterface()) {
+            stringstream err;
+            err << "classes can only inherit other classes, do 'class Dog base Animal : Traits {} ' instead";
+            errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+        } else
+            klass->setBaseClass(base);
+
+        if(ast->hasSubAst(ast_reference_identifier_list)) {
+            klass->setInterfaces(parseRefrenceIdentifierList(ast->getSubAst(ast_reference_identifier_list)));
+        }
+    }
     for(long i = 0; i < block->getSubAstCount(); i++) {
         trunk = block->getSubAst(i);
         CHECK_ERRORS
@@ -8464,6 +8648,9 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
             case ast_delegate_decl:
                 if(!inlineField && resolvedFields)
                     resolveDelegateDecl(trunk);
+                break;
+            case ast_interface_decl:
+                resolveClassDecl(trunk, inlineField);
                 break;
             default:
                 stringstream err;
@@ -8654,7 +8841,7 @@ void RuntimeEngine::removeScope() {
     scopeMap.pop_back();
 }
 
-void RuntimeEngine::parseClassDecl(Ast *ast)
+void RuntimeEngine::parseClassDecl(Ast *ast, bool isInterface)
 {
     Scope* scope = currentScope();
     Ast* block = ast->getLastSubAst();
@@ -8685,6 +8872,7 @@ void RuntimeEngine::parseClassDecl(Ast *ast)
         currentClass->setFullName(ss.str());
     }
 
+    currentClass->setIsInterface(isInterface);
     addScope(Scope(CLASS_SCOPE, currentClass));
     for(long i = 0; i < block->getSubAstCount(); i++) {
         ast = block->getSubAst(i);
@@ -8706,6 +8894,9 @@ void RuntimeEngine::parseClassDecl(Ast *ast)
             case ast_delegate_post_decl: /* Will be parsed later */
                 break;
             case ast_delegate_decl: /* Will be parsed later */
+                break;
+            case ast_interface_decl:
+                parseClassDecl(ast, true);
                 break;
             default:
                 stringstream err;
@@ -8934,6 +9125,7 @@ std::string RuntimeEngine::class_to_stream(ClassObject& klass) {
     kstream << klass.getFullName() << ((char)nil);
     kstream << klass.getTotalFieldCount() << ((char)nil);
     kstream << klass.getTotalFunctionCount() << ((char)nil);
+    kstream << klass.interfaceCount() << ((char)nil);
     int funcs = klass.getTotalFunctionCount();
 
     ClassObject* base = klass.getBaseClass();
@@ -9002,6 +9194,12 @@ std::string RuntimeEngine::class_to_stream(ClassObject& klass) {
         }
 
         base = base->getBaseClass();
+    }
+
+    /* Interfaces */
+    for(long long i = 0; i < klass.interfaceCount(); i++) {
+        kstream << (char)data_interface;
+        kstream << i64_tostr(klass.getInterface(i)->address) << ((char)nil);
     }
 
     for(long long i = 0; i < klass.childClassCount(); i++) {

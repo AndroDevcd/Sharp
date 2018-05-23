@@ -54,6 +54,10 @@ void Parser::parse()
         {
             parse_classdecl(NULL);
         }
+        else if(isinterface_decl(current()))
+        {
+            parse_interfacedecl(NULL);
+        }
         else if(isimport_decl(current()))
         {
             if(access_types.size() > 0)
@@ -87,6 +91,28 @@ bool Parser::isend() {
     return current().getTokenType() == _EOF;
 }
 
+void Parser::parse_interfacedecl(Ast* _ast) { // 1
+    _ast = get_ast(_ast, ast_interface_decl);
+
+    for(int i = 0; i < access_types.size(); i++) {
+        _ast->addEntity(access_types.get(i));
+    }
+    _ast->addEntity(current());
+
+
+    expectidentifier(_ast);
+
+    if(peek(1).getToken() == "base")
+    {
+        advance();
+        expect_token(_ast, "base", "");
+
+        parse_reference_pointer(_ast);
+    }
+
+    parse_interfaceblock(_ast);
+}
+
 void Parser::parse_classdecl(Ast* _ast) { // 1
     _ast = get_ast(_ast, ast_class_decl);
 
@@ -104,6 +130,13 @@ void Parser::parse_classdecl(Ast* _ast) { // 1
         expect_token(_ast, "base", "");
 
         parse_reference_pointer(_ast);
+    }
+
+    if(peek(1).getToken() == ":")
+    {
+        expect(COLON, "`:`");
+
+        parse_reference_identifier_list(_ast);
     }
 
     parse_classblock(_ast);
@@ -156,6 +189,10 @@ bool Parser::ismodule_decl(token_entity entity) {
 
 bool Parser::isclass_decl(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "class";
+}
+
+bool Parser::isinterface_decl(token_entity entity) {
+    return entity.getId() == IDENTIFIER && entity.getToken() == "interface";
 }
 
 bool Parser::isimport_decl(token_entity entity) {
@@ -294,6 +331,143 @@ bool Parser::expect(token_type type, const char *expectedstr) {
     return false;
 }
 
+void Parser::parse_interfaceblock(Ast *pAst) {
+    expect(LEFTCURLY, "`{` after interface declaration");
+    pAst = get_ast(pAst, ast_block);
+
+    int brackets = 1;
+
+    while(!isend() && brackets > 0)
+    {
+        CHECK_ERRORS
+
+        advance();
+        if(isaccess_decl(current()))
+        {
+            parse_accesstypes();
+        }
+
+        if(ismodule_decl(current()))
+        {
+            if(access_types.size() > 0)
+            {
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+            }
+            errors->createNewError(GENERIC, current(), "unexpected module declaration");
+            parse_moduledecl(pAst);
+        }
+        else if(isinterface_decl(current()))
+        {
+            parse_interfacedecl(pAst);
+        }
+        else if(isimport_decl(current()))
+        {
+            if(access_types.size() > 0)
+            {
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+            }
+            errors->createNewError(GENERIC, current(), "unexpected import declaration");
+            parse_importdecl(pAst);
+        }
+        else if(isvariable_decl(current()))
+        {
+            if(access_types.size() > 0)
+            {
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+            }
+            errors->createNewError(GENERIC, current(), "unexpected variable declaration");
+            parse_variabledecl(pAst);
+        }
+        else if(ismethod_decl(current()))
+        {
+            if(peek(1).getToken() == "operator") {
+                if(access_types.size() > 0)
+                {
+                    errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+                }
+                errors->createNewError(GENERIC, current(), "unexpected operator declaration");
+                parse_operatordecl(pAst);
+            }
+            else if(peek(1).getToken() == "delegate") {
+                parse_delegatedecl(pAst);
+            }
+            else {
+                if(access_types.size() > 0)
+                {
+                    errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+                }
+                errors->createNewError(GENERIC, current(), "unexpected method declaration");
+                parse_methoddecl(pAst);
+            }
+        }
+        else if(isconstructor_decl())
+        {
+            if(access_types.size() > 0)
+            {
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+            }
+            errors->createNewError(GENERIC, current(), "unexpected constructor declaration");
+            parse_constructor(pAst);
+        }
+        else if(current().getTokenType() == _EOF)
+        {
+            errors->createNewError(UNEXPECTED_EOF, current());
+            break;
+        }
+        else if (current().getTokenType() == RIGHTCURLY)
+        {
+            if((brackets-1) < 0)
+            {
+                errors->createNewError(ILLEGAL_BRACKET_MISMATCH, current());
+            }
+            else
+            {
+                brackets--;
+
+                // end of class block
+                if(brackets == 0)
+                {
+                    pushback();
+                    break;
+                }
+            }
+        }
+        else if(current().getTokenType() == LEFTCURLY)
+            brackets++;
+        else {
+            // save parser state
+            this->retainstate(pAst);
+            pushback();
+
+            /*
+             * variable decl?
+             */
+            if(parse_utype(pAst))
+            {
+                if(peek(1).getId() == IDENTIFIER)
+                {
+                    // Variable decliration
+                    pAst = this->rollbacklast();
+                    parse_variabledecl(pAst);
+                    remove_accesstypes();
+                    continue;
+                }
+            }
+
+            pAst = this->rollback();
+            errors->createNewError(GENERIC, current(), "expected delegate prototype declaration");
+            parse_all(pAst);
+        }
+
+        remove_accesstypes();
+    }
+
+    if(brackets != 0)
+        errors->createNewError(MISSING_BRACKET, current(), " expected `}` at end of interface declaration");
+
+    expect(RIGHTCURLY, "`}` at end of interface declaration");
+}
+
 void Parser::parse_classblock(Ast *pAst) {
     expect(LEFTCURLY, "`{` after class declaration");
     pAst = get_ast(pAst, ast_block);
@@ -322,6 +496,10 @@ void Parser::parse_classblock(Ast *pAst) {
         else if(isclass_decl(current()))
         {
             parse_classdecl(pAst);
+        }
+        else if(isinterface_decl(current()))
+        {
+            parse_interfacedecl(NULL);
         }
         else if(isimport_decl(current()))
         {
@@ -1621,6 +1799,11 @@ void Parser::parse_statement(Ast* pAst) {
         errors->createNewError(GENERIC, current(), "unexpected class declaration");
         parse_classdecl(pAst);
     }
+    else if(isinterface_decl(current()))
+    {
+        errors->createNewError(GENERIC, current(), "unexpected interface declaration");
+        parse_interfacedecl(NULL);
+    }
     else if(isimport_decl(current()))
     {
         errors->createNewError(GENERIC, current(), "import declaration not allowed here (why are you putting this here lol?)");
@@ -1765,6 +1948,10 @@ void Parser::parse_all(Ast *pAst) {
     {
         parse_classdecl(pAst);
     }
+    else if(isinterface_decl(current()))
+    {
+        parse_interfacedecl(NULL);
+    }
     else if(isimport_decl(current()))
     {
         if(access_types.size() > 0)
@@ -1796,7 +1983,7 @@ bool Parser::iskeyword(string key) {
            || key == "var" || key == "sizeof"|| key == "_int8" || key == "_int16"
            || key == "_int32" || key == "_int64" || key == "_uint8"
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
-           || key == "delegate";
+           || key == "delegate" || key == "interface";
 }
 
 bool Parser::parse_type_identifier(Ast *pAst) {
@@ -1822,6 +2009,19 @@ bool Parser::parse_type_identifier(Ast *pAst) {
     }
 
     return false;
+}
+
+void Parser::parse_reference_identifier_list(Ast *ast) {
+    ast = get_ast(ast, ast_reference_identifier_list);
+
+    parse_reference_pointer(ast);
+    pRefPtr:
+    if(peek(1).getTokenType() == COMMA)
+    {
+        expect(COMMA, ast, "`,`");
+        parse_reference_pointer(ast);
+        goto pRefPtr;
+    }
 }
 
 bool Parser::parse_reference_pointer(Ast *pAst) {

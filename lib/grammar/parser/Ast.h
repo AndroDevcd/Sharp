@@ -12,6 +12,7 @@
 enum ast_types
 {
     ast_class_decl,
+    ast_interface_decl,
     ast_import_decl,
     ast_module_decl,
     ast_method_decl,
@@ -25,6 +26,7 @@ enum ast_types
     ast_value_list,
     ast_utype_arg_list,
     ast_utype_arg_list_opt,
+    ast_reference_identifier_list,
     ast_vector_array,
     ast_utype_arg,
     ast_utype_arg_opt,
