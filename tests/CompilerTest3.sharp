@@ -13,7 +13,11 @@ class Callback {
     public def delegate::work();
 }
 
-class Callee base Callback {
+interface Event {
+    public def delegate::event();
+}
+
+class Callee base Callback : Event {
 
     public def delegate::work() {
         System.print("success I am Called!");
