@@ -46,18 +46,30 @@ bool ClassObject::addConstructor(Method constr) {
     return true;
 }
 
-size_t ClassObject::functionCount() {
-    return functions.size();
+size_t ClassObject::functionCount(bool ignore) {
+    size_t count = 0;
+    for(unsigned int i = 0; i < functions.size(); i++) {
+        Method& function = functions.get(i);
+        if(ignore || !function.delegatePost) {
+            count++;
+        }
+    }
+    return count;
 }
 
 Method* ClassObject::getFunction(int p) {
     return &functions.get(p);
 }
 
-Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase) {
+Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase, bool skipdelegates) {
     for(unsigned long i = 0; i < functions.size(); i++) {
-        if(Param::match(functions.get(i).getParams(), params) && name == functions.get(i).getName())
-            return &functions.get(i);
+        if(Param::match(functions.get(i).getParams(), params) && name == functions.get(i).getName()) {
+            if(skipdelegates && !functions.get(i).delegate)
+                return &functions.get(i);
+            else
+                return &functions.get(i);
+
+        }
     }
 
     if(useBase && base != NULL)
@@ -371,4 +383,42 @@ long ClassObject::getTotalFunctionCount() {
         total+=totalFucntionCount(k);
         _klass = k;
     }
+}
+
+List<Method *> ClassObject::getDelegatePosts(bool ubase) {
+    List<Method*> delegatePosts, tmp;
+    ClassObject* k, *_klass = this;
+
+    for(int i = 0; i < functions.size(); i++) {
+        Method *func = getFunction(i);
+        if(func->delegatePost)
+            delegatePosts.add(func);
+    }
+
+    if(ubase) {
+        for(;;) {
+            k = _klass->getBaseClass();
+
+            if(k == NULL)
+                return delegatePosts;
+
+            _klass = k;
+            tmp = k->getDelegatePosts(ubase);
+            delegatePosts.appendAll(tmp);
+        }
+    }
+
+    return delegatePosts;
+}
+
+List<Method *> ClassObject::getDelegates() {
+    List<Method*> delegates;
+
+    for(int i = 0; i < functions.size(); i++) {
+        Method *func = getFunction(i);
+        if(func->delegate)
+            delegates.add(func);
+    }
+
+    return delegates;
 }

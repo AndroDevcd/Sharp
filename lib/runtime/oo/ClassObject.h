@@ -35,7 +35,8 @@ public:
             super(super),
             serial(id),
             fieldCount(fieldCount),
-            methodCount(0)
+            methodCount(0),
+            base(NULL)
     {
     }
 
@@ -45,6 +46,7 @@ public:
         methods = klass.methods;
         super = klass.super;
         serial = klass.serial;
+        base = klass.base;
         fieldCount = klass.fieldCount;
         methodCount = klass.methodCount;
     }
@@ -52,7 +54,7 @@ public:
     native_string name;
     Field* fields;
     unsigned long *methods;
-    ClassObject* super;
+    ClassObject* super, *base;
     unsigned long serial, fieldCount, methodCount;
 
     void free();

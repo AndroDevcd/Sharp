@@ -125,7 +125,8 @@ int Process_Exe(std::string exe)
             throw std::runtime_error("file `" + exe + "` may be corrupt");
 
         /* Data section */
-        List<KeyPair<int64_t, ClassObject*>> mClasses;
+        List<KeyPair<int64_t, ClassObject*>> mSuperClasses;
+        List<KeyPair<int64_t, ClassObject*>> mBaseClasses;
         List<KeyPair<int64_t, Field*>> mFields;
         int64_t classRefptr=0, macroRefptr=0, fileRefptr=0;
 
@@ -160,7 +161,8 @@ int Process_Exe(std::string exe)
                 case data_class: {
                     int64_t fieldPtr=0, functionPtr=0;
                     ClassObject* klass = &env->classes[classRefptr++];
-                    mClasses.add(KeyPair<int64_t, ClassObject*>(getlong(buffer), klass));
+                    mSuperClasses.add(KeyPair<int64_t, ClassObject*>(getlong(buffer), klass));
+                    mBaseClasses.add(KeyPair<int64_t, ClassObject*>(getlong(buffer), klass));
 
                     klass->serial = geti64(buffer);
                     klass->name.init();
@@ -177,6 +179,7 @@ int Process_Exe(std::string exe)
                     } else
                         klass->methods = NULL;
                     klass->super = NULL;
+                    klass->base = NULL;
 
                     if(klass->fieldCount != 0) {
                         for( ;; ) {
@@ -230,12 +233,21 @@ int Process_Exe(std::string exe)
         }
 
         /* Resolve classes */
-        for(unsigned long i = 0; i < mClasses.size(); i++) {
+        for(unsigned long i = 0; i < mSuperClasses.size(); i++) {
             KeyPair<int64_t, ClassObject*> &klass =
-                    mClasses.get(i);
+                    mSuperClasses.get(i);
             if(klass.key != -1)
                 klass.value->super = findClass(klass.key);
         }
+        mSuperClasses.free();
+
+        for(unsigned long i = 0; i < mBaseClasses.size(); i++) {
+            KeyPair<int64_t, ClassObject*> &klass =
+                    mBaseClasses.get(i);
+            if(klass.key != -1)
+                klass.value->base = findClass(klass.key);
+        }
+        mBaseClasses.free();
 
         for(unsigned long i = 0; i < mFields.size(); i++) {
             KeyPair<int64_t, Field*> &field =
@@ -309,6 +321,7 @@ int Process_Exe(std::string exe)
                     method->cacheSize = geti64(buffer);
                     method->isStatic = getlong(buffer);
                     method->returnVal = getlong(buffer);
+                    method->delegateAddress = geti64(buffer);
                     method->stackEqulizer = geti64(buffer);
 
                     long len = getlong(buffer);

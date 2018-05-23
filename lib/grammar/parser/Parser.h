@@ -28,7 +28,7 @@ public:
            !tokenizer->getErrors()->hasErrors())
         {
             data = tokenizer->getData();
-            access_types = new list<token_entity>();
+            access_types.init();
             tree = new list<Ast>();
             state = new list<ParserState>();
             lines.init();
@@ -73,7 +73,7 @@ private:
     unsigned long ast_cursor;
     tokenizer *toks;
     std::string data;
-    list<token_entity> *access_types;
+    List<token_entity> access_types;
     ErrorManager *errors;
 
     bool ismodule_decl(token_entity entity);
@@ -222,6 +222,7 @@ private:
 
     bool parse_array_expression(Ast *pAst);
 
+    void parse_delegatedecl(Ast *pAst);
 };
 
 #define _SHARP_CERROR_LIMIT c_options.error_limit

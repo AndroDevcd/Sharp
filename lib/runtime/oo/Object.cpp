@@ -19,9 +19,9 @@ void Object::castObject(uint64_t classPtr) {
     if(this->object->k == NULL)
         throw Exception(Environment::ClassCastException, nonclass.str());
 
-    if(k->serial!= this->object->k->serial && !k->hasBaseClass(this->object->k)) {
+    if(k->serial!= this->object->k->serial && !this->object->k->hasBaseClass(k)) {
         stringstream ss;
-        ss << "illegal cast of class '" << this->object->k->name.str() << "' and '";
+        ss << "illegal cast of class '" << this->object->k->name.str() << "' to '";
         ss << k->name.str() << "'";
         throw Exception(Environment::ClassCastException, ss.str());
     }

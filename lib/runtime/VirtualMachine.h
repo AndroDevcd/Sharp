@@ -68,7 +68,7 @@ public:
 
 #define executeMethod(address) { \
  \
-    Method* method = env->methods+address; \
+    Method *method = env->methods+address; \
  \
     int64_t spAddr = thread_self->sp-method->stackEqulizer; \
     if(thread_self->callStack.empty()) { \
@@ -78,12 +78,12 @@ public:
         thread_self->callStack.add( \
                 Frame(thread_self->current, thread_self->pc, spAddr, thread_self->fp)); \
     } \
- \
+     \
     thread_self->pc = 0; \
     thread_self->current = method; \
     thread_self->cache = method->bytecode; \
     thread_self->fp = thread_self->callStack.size()==1 ? thread_self->fp : \
-                    (thread_self->sp - method->paramSize); \
+                      ((method->returnVal) ? spAddr : (spAddr+1)); \
     thread_self->sp += (method->stackSize - method->paramSize); \
 }
 

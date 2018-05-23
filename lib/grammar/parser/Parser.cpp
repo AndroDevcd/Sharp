@@ -44,7 +44,7 @@ void Parser::parse()
         }
         else if(ismodule_decl(current()))
         {
-            if(access_types->size() > 0)
+            if(access_types.size() > 0)
             {
                 errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
             }
@@ -56,7 +56,7 @@ void Parser::parse()
         }
         else if(isimport_decl(current()))
         {
-            if(access_types->size() > 0)
+            if(access_types.size() > 0)
             {
                 errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
             }
@@ -90,9 +90,8 @@ bool Parser::isend() {
 void Parser::parse_classdecl(Ast* _ast) { // 1
     _ast = get_ast(_ast, ast_class_decl);
 
-    for(token_entity &entity : *access_types)
-    {
-        _ast->addEntity(entity);
+    for(int i = 0; i < access_types.size(); i++) {
+        _ast->addEntity(access_types.get(i));
     }
     _ast->addEntity(current());
 
@@ -234,14 +233,13 @@ void Parser::parse_accesstypes() {
 
     while(isaccess_decl(current()))
     {
-        access_types->push_back(current());
+        access_types.push_back(current());
         advance();
     }
 }
 
 void Parser::remove_accesstypes() {
-    if(access_types->size() > 0)
-        access_types->clear();
+    access_types.free();
 }
 
 void Parser::expect(token_type ty, Ast* pAst, const char *expectedstr) {
@@ -314,7 +312,7 @@ void Parser::parse_classblock(Ast *pAst) {
 
         if(ismodule_decl(current()))
         {
-            if(access_types->size() > 0)
+            if(access_types.size() > 0)
             {
                 errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
             }
@@ -327,7 +325,7 @@ void Parser::parse_classblock(Ast *pAst) {
         }
         else if(isimport_decl(current()))
         {
-            if(access_types->size() > 0)
+            if(access_types.size() > 0)
             {
                 errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
             }
@@ -342,6 +340,8 @@ void Parser::parse_classblock(Ast *pAst) {
         {
             if(peek(1).getToken() == "operator")
                 parse_operatordecl(pAst);
+            else if(peek(1).getToken() == "delegate")
+                parse_delegatedecl(pAst);
             else
                 parse_methoddecl(pAst);
         }
@@ -441,9 +441,9 @@ void Parser::parse_variabledecl(Ast *pAst) {
     pAst = get_ast(pAst, ast_var_decl);
 
     if(partialdecl ==0) {
-        for(token_entity &entity : *access_types)
-        {
-            pAst->addEntity(entity);
+
+        for(int i = 0; i < access_types.size(); i++) {
+            pAst->addEntity(access_types.get(i));
         }
         pushback();
         if(!parse_utype(pAst))
@@ -1251,9 +1251,9 @@ void Parser::parse_block(Ast* pAst) {
 void Parser::parse_operatordecl(Ast *pAst) {
     pAst = get_ast(pAst, ast_operator_decl);
 
-    for(token_entity &entity : *access_types)
-    {
-        pAst->addEntity(entity);
+
+    for(int i = 0; i < access_types.size(); i++) {
+        pAst->addEntity(access_types.get(i));
     }
     pAst->addEntity(current());
 
@@ -1273,12 +1273,40 @@ void Parser::parse_operatordecl(Ast *pAst) {
     parse_block(pAst);
 }
 
+void Parser::parse_delegatedecl(Ast *pAst) {
+    pAst = get_ast(pAst, ast_delegate_decl);
+
+
+    for(int i = 0; i < access_types.size(); i++) {
+        pAst->addEntity(access_types.get(i));
+    }
+    pAst->addEntity(current());
+
+    advance();
+    expect_token(
+            pAst, "delegate", "`delegate`");
+
+    expect(COLON, pAst, "`:`");
+    expect(COLON, pAst, "`:`");
+    expectidentifier(pAst);
+
+    parse_utypearg_list(pAst);
+
+    parse_methodreturn_type(pAst); // assign-expr operators must return void
+    if(peek(1).getTokenType() == LEFTCURLY)
+    {
+        parse_block(pAst);
+    } else {
+        expect(SEMICOLON, pAst, "`;`");
+        pAst->setAstType(ast_delegate_post_decl);
+    }
+}
+
 void Parser::parse_constructor(Ast *pAst) {
     pAst = get_ast(pAst, ast_construct_decl);
 
-    for(token_entity &entity : *access_types)
-    {
-        pAst->addEntity(entity);
+    for(int i = 0; i < access_types.size(); i++) {
+        pAst->addEntity(access_types.get(i));
     }
     pushback();
 
@@ -1291,9 +1319,8 @@ void Parser::parse_constructor(Ast *pAst) {
 void Parser::parse_methoddecl(Ast *pAst) {
     pAst = get_ast(pAst, ast_method_decl);
 
-    for(token_entity &entity : *access_types)
-    {
-        pAst->addEntity(entity);
+    for(int i = 0; i < access_types.size(); i++) {
+        pAst->addEntity(access_types.get(i));
     }
     pAst->addEntity(current());
 
@@ -1721,12 +1748,14 @@ void Parser::parse_all(Ast *pAst) {
     {
         if(peek(1).getToken() == "operator")
             parse_operatordecl(pAst);
+        else if(peek(1).getToken() == "delegate")
+            parse_delegatedecl(pAst);
         else
             parse_methoddecl(pAst);
     }
     else if(ismodule_decl(current()))
     {
-        if(access_types->size() > 0)
+        if(access_types.size() > 0)
         {
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
         }
@@ -1738,7 +1767,7 @@ void Parser::parse_all(Ast *pAst) {
     }
     else if(isimport_decl(current()))
     {
-        if(access_types->size() > 0)
+        if(access_types.size() > 0)
         {
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
         }
@@ -1766,7 +1795,8 @@ bool Parser::iskeyword(string key) {
            || key == "object" || key == "asm" || key == "for" || key == "foreach"
            || key == "var" || key == "sizeof"|| key == "_int8" || key == "_int16"
            || key == "_int32" || key == "_int64" || key == "_uint8"
-           || key == "_uint16"|| key == "_uint32" || key == "_uint64";
+           || key == "_uint16"|| key == "_uint32" || key == "_uint64"
+           || key == "delegate";
 }
 
 bool Parser::parse_type_identifier(Ast *pAst) {
@@ -1876,7 +1906,7 @@ void Parser::free() {
         this->state->clear();
         delete (this->tree); this->tree = NULL;
         delete (this->state); this->state = NULL;
-        delete (this->access_types); this->access_types = NULL;
+        access_types.free();
         errors->free();
         delete (errors); this->errors = NULL;
     }

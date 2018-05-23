@@ -125,9 +125,9 @@ public:
     Method* getConstructor(List<Param>& params, bool useBase =false);
     bool addConstructor(Method constr);
 
-    size_t functionCount();
+    size_t functionCount(bool ignore=false);
     Method* getFunction(int p);
-    Method* getFunction(string name, List<Param>& params, bool useBase =false);
+    Method* getFunction(string name, List<Param>& params, bool useBase =false, bool skipdelegates=false);
     Method* getFunction(string name, int64_t _offset);
     bool addFunction(Method function);
 
@@ -171,6 +171,11 @@ public:
     long getFieldAddress(Field* field);
 
     long long address;
+
+    List<Method *> getDelegatePosts(bool ubase);
+
+    List<Method *> getDelegates();
+
 private:
     AccessModifier modifier;
     long serial;

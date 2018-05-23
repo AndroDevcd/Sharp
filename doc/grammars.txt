@@ -166,6 +166,9 @@ Class Constructor Declaration:
 Method Declaration:
 `[<accesstype>] def <identifier = name> <uTypeArg-list> [: <uType>] <block>
 
+Delegate Method Declaration:
+`[<accesstype>] def delegate::<identifier = name> <uTypeArg-list> [: <uType>]
+
 Operator Declaration:
 `[<accesstype>] def operator <override-operator> <uTypeArg-list> [: <uType>] <block>
 

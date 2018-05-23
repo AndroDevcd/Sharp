@@ -32,6 +32,7 @@ struct Method {
     long sourceFile;                /* Link to source file in code */
     int64_t cacheSize;              /* Size of the bytecode cache */
     int isStatic;
+    long delegateAddress;
     int stackEqulizer;
     List<ExceptionTable> exceptions;
     List<FinallyTable> finallyBlocks;
@@ -75,6 +76,7 @@ struct Method {
         isStatic = 0;
         returnVal = 0;
         stackEqulizer = 0;
+        delegateAddress = -1;
     }
 };
 

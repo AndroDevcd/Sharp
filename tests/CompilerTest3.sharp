@@ -1,0 +1,21 @@
+mod application;
+
+class Start {
+
+    public static def main(string[] args) : var {
+        object klass = new Callee();
+        ((Callback)klass).work();
+    }
+}
+
+class Callback {
+
+    public def delegate::work();
+}
+
+class Callee base Callback {
+
+    public def delegate::work() {
+        System.print("success I am Called!");
+    }
+}

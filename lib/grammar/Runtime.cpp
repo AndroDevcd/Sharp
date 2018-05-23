@@ -17,6 +17,7 @@
 using namespace std;
 
 unsigned long RuntimeEngine::uniqueSerialId = 0;
+unsigned long RuntimeEngine::uniqueDelegateId = 0;
 options c_options;
 
 void help();
@@ -318,6 +319,7 @@ void RuntimeEngine::compile()
         resolveAllFields();
         resolveAllMethods();
         inlineFields();
+        resolveAllDelegates();
 
         if(c_options.magic) {
             List<string> lst;
@@ -1384,7 +1386,7 @@ void RuntimeEngine::reorderFinallyBlocks(Method* method) {
     reorderedList.clear();
 }
 
-void RuntimeEngine::parseMethodDecl(Ast* pAst) {
+void RuntimeEngine::parseMethodDecl(Ast* pAst, bool delegate) {
     Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=1;
@@ -1392,7 +1394,7 @@ void RuntimeEngine::parseMethodDecl(Ast* pAst) {
     parseAccessDecl(pAst, modifiers, startpos);
 
     List<Param> params;
-    string name =  pAst->getEntity(startpos).getToken();
+    string name =  pAst->getEntity(startpos+(delegate ? 3 : 0)).getToken();
     parseMethodParams(params, parseUtypeArgList(pAst->getSubAst(ast_utype_arg_list)), pAst->getSubAst(ast_utype_arg_list));
 
     Method* method = scope->klass->getFunction(name, params);
@@ -1549,6 +1551,11 @@ void RuntimeEngine::analyzeClassDecl(Ast *ast) {
                 break;
             case ast_construct_decl:
                 parseConstructorDecl(ast);
+                break;
+            case ast_delegate_post_decl: /* ignore */
+                break;
+            case ast_delegate_decl:
+                parseMethodDecl(ast, true);
                 break;
             default: {
                 stringstream err;
@@ -2183,7 +2190,14 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
             } else
                 pushExpressionToStack(expressions.get(i), out);
         }
-        out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
+
+        if(fn->delegatePost) {
+            if(fn->isStatic()) {
+                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()));
+            } else
+                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, fn->address, 0, expressions.size()));
+        } else
+            out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
     }
 
     freeList(params);
@@ -2379,6 +2393,13 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
             } else
                 pushExpressionToStack(expressions.get(i), out);
         }
+
+        if(fn->delegatePost) {
+            if(fn->isStatic()) {
+                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()));
+            } else
+                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, fn->address, 0, expressions.size()));
+        } else
         out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
     }
 
@@ -2924,6 +2945,13 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
             } else
                 pushExpressionToStack(expressions.get(i), out);
         }
+
+        if(fn->delegatePost) {
+            if(fn->isStatic()) {
+                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()));
+            } else
+                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, fn->address, 0, expressions.size()));
+        } else
         out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
     }
 
@@ -3110,6 +3138,13 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
             } else
                 pushExpressionToStack(expressions.get(i), out);
         }
+
+        if(fn->delegatePost) {
+            if(fn->isStatic()) {
+                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()));
+            } else
+                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, fn->address, 0, expressions.size()));
+        } else
         out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
     }
 
@@ -3375,6 +3410,7 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                     } else
                         pushExpressionToStack(expressions.get(i), expression);
                 }
+
                 expression.code.push_i64(SET_Di(i64, op_CALL, fn->address));
             }
         } else if(utype.type == expression_native) {
@@ -6774,6 +6810,53 @@ bool RuntimeEngine::preprocess()
     return success;
 }
 
+void RuntimeEngine::resolveAllDelegates() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        activeParser = parsers.get(i);
+        errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
+        currentModule = "$unknown";
+
+        addScope(Scope(GLOBAL_SCOPE, NULL));
+        for(int x = 0; x < activeParser->treesize(); x++) {
+            Ast* ast = activeParser->ast_at(x);
+            SEMTEX_CHECK_ERRORS
+
+            if(x==0) {
+                if(ast->getType() == ast_module_decl) {
+                    add_module(currentModule = parseModuleName(ast));
+                    continue;
+                }
+            }
+
+            switch(ast->getType()) {
+                case ast_class_decl:
+                    resolveClassDeclDelegates(ast);
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+        }
+
+        if(errors->hasErrors()){
+            report:
+
+            errorCount+= errors->getErrorCount();
+            unfilteredErrorCount+= errors->getUnfilteredErrorCount();
+
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        } else {
+            succeededParsers.addif(activeParser->sourcefile);
+            failedParsers.removefirst(activeParser->sourcefile);
+        }
+
+        errors->free();
+        delete (errors); this->errors = NULL;
+        removeScope();
+    }
+}
+
 void RuntimeEngine::resolveAllFields() {
     for(unsigned long i = 0; i < parsers.size(); i++) {
         activeParser = parsers.get(i);
@@ -7992,7 +8075,7 @@ void RuntimeEngine::resolveMethodDecl(Ast* ast) {
                                    ast->line, ast->col);
 
     Expression utype;
-    Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile));
+    Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
     if(ast->hasSubAst(ast_method_return_type)) {
         utype = parseUtype(ast->getSubAst(ast_method_return_type));
         parseMethodReturnType(utype, method);
@@ -8003,6 +8086,74 @@ void RuntimeEngine::resolveMethodDecl(Ast* ast) {
     if(!scope->klass->addFunction(method)) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                "function `" + name + "` is already defined in the scope");
+        printNote(scope->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
+    }
+}
+
+void RuntimeEngine::resolveDelegateDecl(Ast* ast) {
+    Scope* scope = currentScope();
+    List<AccessModifier> modifiers;
+    int startpos=1;
+
+    if(parseAccessDecl(ast, modifiers, startpos)){
+        parseMethodAccessModifiers(modifiers, ast);
+    } else {
+        modifiers.add(PUBLIC);
+    }
+
+    List<Param> params;
+    string name =  ast->getEntity(startpos+3).getToken();
+    parseMethodParams(params, parseUtypeArgList(ast->getSubAst(ast_utype_arg_list)), ast->getSubAst(ast_utype_arg_list));
+
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
+                                   ast->line, ast->col);
+
+    Expression utype;
+    Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), true, false);
+    if(ast->hasSubAst(ast_method_return_type)) {
+        utype = parseUtype(ast->getSubAst(ast_method_return_type));
+        parseMethodReturnType(utype, method);
+    } else
+        method.type = TYPEVOID;
+
+    method.address = methods++;
+    if(!scope->klass->addFunction(method)) {
+        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                                     "function `" + name + "` is already defined in the scope");
+        printNote(scope->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
+    }
+}
+
+void RuntimeEngine::resolveDelegatePostDecl(Ast* ast) {
+    Scope* scope = currentScope();
+    List<AccessModifier> modifiers;
+    int startpos=1;
+
+    if(parseAccessDecl(ast, modifiers, startpos)){
+        parseMethodAccessModifiers(modifiers, ast);
+    } else {
+        modifiers.add(PUBLIC);
+    }
+
+    List<Param> params;
+    string name =  ast->getEntity(startpos+3).getToken();
+    parseMethodParams(params, parseUtypeArgList(ast->getSubAst(ast_utype_arg_list)), ast->getSubAst(ast_utype_arg_list));
+
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
+                                   ast->line, ast->col);
+
+    Expression utype;
+    Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, true);
+    if(ast->hasSubAst(ast_method_return_type)) {
+        utype = parseUtype(ast->getSubAst(ast_method_return_type));
+        parseMethodReturnType(utype, method);
+    } else
+        method.type = TYPEVOID;
+
+    method.address = uniqueDelegateId++;
+    if(!scope->klass->addFunction(method)) {
+        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                                     "function `" + name + "` is already defined in the scope");
         printNote(scope->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
     }
 }
@@ -8126,7 +8277,7 @@ void RuntimeEngine::resolveConstructorDecl(Ast* ast) {
         RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                        ast->line, ast->col);
 
-        Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile));
+        Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
         method.type = TYPEVOID;
         method.isConstructor=true;
 
@@ -8151,12 +8302,112 @@ void RuntimeEngine::addDefaultConstructor(ClassObject* klass, Ast* ast) {
                                    ast->line, ast->col);
 
     if(klass->getConstructor(emptyParams, false) == NULL) {
-        Method method = Method(klass->getName(), currentModule, scope->klass, emptyParams, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile));
+        Method method = Method(klass->getName(), currentModule, scope->klass, emptyParams, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
 
         method.isConstructor=true;
         method.address = methods++;
         klass->addConstructor(method);
     }
+}
+
+void RuntimeEngine::resolveClassDeclDelegates(Ast* ast) {
+    Scope* scope = currentScope();
+    Ast* block = ast->getSubAst(ast_block), *trunk;
+    List<AccessModifier> modifiers;
+    ClassObject* klass;
+    int startpos=1;
+
+    parseAccessDecl(ast, modifiers, startpos);
+    string name =  ast->getEntity(startpos).getToken();
+
+    if(scope->type == GLOBAL_SCOPE) {
+        klass = getClass(currentModule, name);
+    }
+    else {
+        klass = scope->klass->getChildClass(name);
+    }
+
+    ClassObject *base = klass->getBaseClass();
+    if(base != NULL) {
+        List<Method*> delegatesPosts = base->getDelegatePosts(false);
+        List<Method*> delegates = klass->getDelegates();
+
+        // enforce rule to have delegates in class
+        if(delegatesPosts.size() > 0) {
+            Method *func;
+            stringstream err;
+            for(int i = 0; i < delegatesPosts.size(); i++) {
+                if((func=klass->getFunction(delegatesPosts.get(i)->getName(), delegatesPosts.get(i)->getParams())) == NULL) {
+
+                    error:
+                    err << "class '" << klass->getName() << "' must implement delegate method '"
+                        << delegatesPosts.get(i)->getName() << paramsToString(delegatesPosts.get(i)->getParams())
+                        << "'";
+                    errors->createNewError(GENERIC, ast->line, ast->col, err.str()); err.str("");
+                } else {
+                    if(!func->delegate) {
+                        goto error;
+                    }
+                }
+            }
+        }
+
+        // verify that all delegates are legitimate
+        if(delegates.size() > 0) {
+            Method *func;
+            for(int i = 0; i < delegates.size(); i++) {
+                if((func = base->getFunction(delegates.get(i)->getName(), delegates.get(i)->getParams(), true, true)) != NULL) {
+                    if(func->delegatePost) {
+                        // were good
+                        delegates.get(i)->delegateAddress = func->address;
+                    } else {
+                        // not a delegate
+                        stringstream err;
+                        err << "base class(s) inherited by class '" << klass->getName() << "' has no implementation of delegate method '"
+                            << delegates.get(i)->getName() << paramsToString(delegates.get(i)->getParams())
+                            << "'";
+                        errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+                    }
+                } else {
+                    stringstream err;
+                    err << "base class '" << base->getFullName() << "' inherited by class '" << klass->getName() << "' has no implementation of delegate method '"
+                        << delegates.get(i)->getName() << paramsToString(delegates.get(i)->getParams())
+                        << "'";
+                    errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+                }
+            }
+        }
+    }
+
+    addScope(Scope(CLASS_SCOPE, klass));
+    for(long i = 0; i < block->getSubAstCount(); i++) {
+        trunk = block->getSubAst(i);
+        CHECK_ERRORS
+
+        switch(trunk->getType()) {
+            case ast_class_decl:
+                resolveClassDeclDelegates(trunk);
+                break;
+            case ast_var_decl: /* ignore */
+                break;
+            case ast_method_decl: /* ignore */
+                break;
+            case ast_operator_decl: /* ignore */
+                break;
+            case ast_construct_decl: /* ignore */
+                break;
+            case ast_delegate_post_decl: /* ignore */
+                break;
+            case ast_delegate_decl: /* ignore */
+                break;
+            default:
+                stringstream err;
+                err << ": unknown ast type: " << trunk->getType();
+                errors->createNewError(INTERNAL_ERROR, trunk->line, trunk->col, err.str());
+                break;
+        }
+    }
+    removeScope();
 }
 
 void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
@@ -8205,6 +8456,14 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
             case ast_construct_decl:
                 if(!inlineField && resolvedFields)
                     resolveConstructorDecl(trunk);
+                break;
+            case ast_delegate_post_decl:
+                if(!inlineField && resolvedFields)
+                    resolveDelegatePostDecl(trunk);
+                break;
+            case ast_delegate_decl:
+                if(!inlineField && resolvedFields)
+                    resolveDelegateDecl(trunk);
                 break;
             default:
                 stringstream err;
@@ -8444,6 +8703,10 @@ void RuntimeEngine::parseClassDecl(Ast *ast)
                 break;
             case ast_construct_decl: /* Will be parsed later */
                 break;
+            case ast_delegate_post_decl: /* Will be parsed later */
+                break;
+            case ast_delegate_decl: /* Will be parsed later */
+                break;
             default:
                 stringstream err;
                 err << ": unknown ast type: " << ast->getType();
@@ -8666,10 +8929,12 @@ std::string RuntimeEngine::class_to_stream(ClassObject& klass) {
 
     kstream << (char)data_class;
     kstream << (klass.getSuperClass() == NULL ? -1 : klass.getSuperClass()->address) << ((char)nil);
+    kstream << (klass.getBaseClass() == NULL ? -1 : klass.getBaseClass()->address) << ((char)nil);
     kstream << i64_tostr(klass.address);
     kstream << klass.getFullName() << ((char)nil);
     kstream << klass.getTotalFieldCount() << ((char)nil);
     kstream << klass.getTotalFunctionCount() << ((char)nil);
+    int funcs = klass.getTotalFunctionCount();
 
     ClassObject* base = klass.getBaseClass();
     while(base != NULL) {
@@ -8702,17 +8967,21 @@ std::string RuntimeEngine::class_to_stream(ClassObject& klass) {
     }
 
     /* Methods */
-    for(long long i = 0; i < klass.functionCount(); i++) {
-        kstream << (char)data_method;
-        kstream << i64_tostr(klass.getFunction(i)->address) << ((char)nil);
-        allMethods.add(klass.getFunction(i));
+    for(long long i = 0; i < klass.functionCount(true); i++) {
+        if(!klass.getFunction(i)->delegatePost) {
+            kstream << (char)data_method;
+            kstream << i64_tostr(klass.getFunction(i)->address) << ((char)nil);
+            allMethods.add(klass.getFunction(i));
+        }
     }
 
     base = klass.getBaseClass();
     while(base != NULL) {
-        for(long long i = 0; i < base->functionCount(); i++) {
-            kstream << (char)data_method;
-            kstream << i64_tostr(base->getFunction(i)->address) << ((char)nil);
+        for(long long i = 0; i < base->functionCount(true); i++) {
+            if(!base->getFunction(i)->delegatePost) {
+                kstream << (char) data_method;
+                kstream << i64_tostr(base->getFunction(i)->address) << ((char) nil);
+            }
         }
 
         base = base->getBaseClass();
@@ -8818,6 +9087,7 @@ std::string RuntimeEngine::generate_text_section() {
         text << i64_tostr(f->code.__asm64.size());
         text << (f->isStatic() ? 1 : 0) << ((char)nil);
         text << (f->type!=TYPEVOID || f->isConstructor ? 1 : 0) << ((char)nil);
+        text << i64_tostr(f->delegateAddress);
 
         int returnAddress;
 
@@ -9873,6 +10143,24 @@ void RuntimeEngine::createDumpFile() {
                 {
                     ss<<"itest ";
                     ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_INVOKE_DELEGATE:
+                {
+                    ss<<"invoke_delegate ";
+                    ss<< GET_Ca(x64);
+                    ss<< ", ";
+                    ss<< GET_Cb(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_INVOKE_DELEGATE_STATIC:
+                {
+                    ss<<"invoke_delegate_static ";
+                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< ", ";
+                    ss<< Asm::registrerToString(GET_Cb(x64));
                     _ostream << ss.str();
                     break;
                 }

@@ -15,6 +15,8 @@ enum ast_types
     ast_import_decl,
     ast_module_decl,
     ast_method_decl,
+    ast_delegate_post_decl,
+    ast_delegate_decl,
     ast_construct_decl,
     ast_label_decl,
     ast_operator_decl,

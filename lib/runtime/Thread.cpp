@@ -661,11 +661,10 @@ long count = 0;
 
 void Thread::exec() {
 
-    uint64_t tmp=0;
+    int64_t tmp=0;
     int64_t val=0;
     SharpObject* o=NULL;
     Object* o2=NULL;
-    Method* method=NULL;
     void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
     Method* finnallyMethod;
 
@@ -868,24 +867,7 @@ void Thread::exec() {
                 GarbageCollector::self->freeObject(o2);
                 _brh
             CALL:
-               // executeMethod(GET_Da(cache[pc]))
-            method = env->methods+GET_Da(cache[pc]);
-
-            int64_t spAddr = thread_self->sp-method->stackEqulizer;
-            if(thread_self->callStack.empty()) {
-                thread_self->callStack.add(
-                        Frame(NULL, 0, 0, 0));
-            } else {
-                thread_self->callStack.add(
-                        Frame(thread_self->current, thread_self->pc, spAddr, thread_self->fp));
-            }
-
-            thread_self->pc = 0;
-            thread_self->current = method;
-            thread_self->cache = method->bytecode;
-            thread_self->fp = thread_self->callStack.size()==1 ? thread_self->fp :
-                            ((method->returnVal) ? spAddr : (spAddr+1));
-            thread_self->sp += (method->stackSize - method->paramSize);
+               executeMethod(GET_Da(cache[pc]))
                 _brh_NOINCREMENT
             NEWCLASS:
                 dataStack[++sp].object =
@@ -1066,6 +1048,30 @@ void Thread::exec() {
                 o2 = &dataStack[sp--].object;
                 registers[GET_Da(cache[pc])] = o2->object == dataStack[sp--].object.object;
                 _brh
+            INVOKE_DELEGATE:
+                int64_t delegate= GET_Ca(cache[pc]);
+                int64_t args= GET_Cb(cache[pc]);
+
+                o2 = &dataStack[sp-args].object;
+
+                CHECK_NULL2(
+                        if(o2->object->k!= NULL) {
+                            for(long i = 0; i < o2->object->k->methodCount; i++) {
+                                if(env->methods[o2->object->k->methods[i]].delegateAddress == delegate) {
+                                    executeMethod(env->methods[o2->object->k->methods[i]].address)
+                                    _brh_NOINCREMENT
+                                }
+                            }
+                            throw Exception(Environment::RuntimeErr, "delegate function not found");
+                        } else {
+                            throw Exception(Environment::RuntimeErr, "attempt to call delegate function on non class object");
+                        }
+                )
+                _brh
+            INVOKE_DELEGATE_STATIC:
+                _brh
+
+            executeMethod(GET_Da(cache[pc]))
 
         }
     } catch (bad_alloc &e) {

@@ -42,12 +42,12 @@ public:
     OperatorOverload(RuntimeNote note, ClassObject *klass, List<Param> &params,
                      List<AccessModifier> &modifiers, FieldType rtype, Operator op, long long sourceFile
             , string oper) : Method("$operator"+oper, "",klass, params, modifiers,
-                                    rtype, note, sourceFile) {
+                                    rtype, note, sourceFile, false, false) {
         this->op = op;
     }
 
     OperatorOverload(RuntimeNote note, ClassObject* klass, List<Param> &params, List<AccessModifier> &modifiers,
-                     ClassObject* rtype, Operator op, long long sourceFile, string oper) : Method("$operator"+oper, "", klass, params, modifiers, rtype, note, sourceFile) {
+                     ClassObject* rtype, Operator op, long long sourceFile, string oper) : Method("$operator"+oper, "", klass, params, modifiers, rtype, note, sourceFile, false, false) {
         this->op = op;
     }
 

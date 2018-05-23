@@ -52,5 +52,5 @@ bool ClassObject::hasBaseClass(ClassObject *pObject) {
     if(this->serial==pObject->serial)
         return true;
 
-    return super == NULL ? false : super->hasBaseClass(pObject);
+    return base == NULL ? false : base->hasBaseClass(pObject);
 }

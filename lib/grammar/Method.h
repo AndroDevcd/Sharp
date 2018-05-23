@@ -29,7 +29,10 @@ public:
             sourceFileLink(0),
             localVariables(0),
             isConstructor(false),
-            address(-1)
+            address(-1),
+            delegate(false),
+            delegatePost(false),
+            delegateAddress(-1)
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -41,7 +44,7 @@ public:
     }
 
     Method(string name, string module, ClassObject* klass, List<Param>& params, List<AccessModifier>& modifiers,
-           ClassObject* rtype, RuntimeNote note, long long sourceFile)
+           ClassObject* rtype, RuntimeNote note, long long sourceFile, bool delegate, bool delegatePost)
             :
             name(name),
             owner(klass),
@@ -54,7 +57,10 @@ public:
             sourceFileLink(sourceFile),
             localVariables(0),
             isConstructor(false),
-            address(-1)
+            address(-1),
+            delegate(delegate),
+            delegatePost(delegatePost),
+            delegateAddress(-1)
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -68,7 +74,7 @@ public:
     }
 
     Method(string name, string module, ClassObject* klass, List<Param>& params, List<AccessModifier>& modifiers,
-           FieldType rtype, RuntimeNote note, long long sourceFile)
+           FieldType rtype, RuntimeNote note, long long sourceFile, bool delegate, bool delegatePost)
             :
             name(name),
             owner(klass),
@@ -81,7 +87,10 @@ public:
             sourceFileLink(sourceFile),
             localVariables(0),
             isConstructor(false),
-            address(-1)
+            address(-1),
+            delegate(delegate),
+            delegatePost(delegatePost),
+            delegateAddress(-1)
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -114,13 +123,14 @@ public:
     }
 
     RuntimeNote note;
-    int64_t address;
+    int64_t address, delegateAddress;
     ClassObject* klass;
     FieldType type;
     Assembler code;
     ClassObject* owner;
     long long sourceFileLink;
     bool array, isConstructor;
+    bool delegate, delegatePost;
     int64_t localVariables;
     List<KeyPair<int64_t, long>> line_table;
     List<KeyPair<int64_t, int64_t>> assembly_table;

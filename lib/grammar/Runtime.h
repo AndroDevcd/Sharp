@@ -467,6 +467,7 @@ public:
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
+        uniqueDelegateId = 0;
 
         for(int i = 0; i < parsers.size(); i++)
         {
@@ -502,6 +503,7 @@ public:
     List<string> failedParsers;
     List<string> succeededParsers;
     static unsigned long uniqueSerialId;
+    static unsigned long uniqueDelegateId;
     long errorCount, unfilteredErrorCount;
     bool panic;
 
@@ -853,7 +855,7 @@ private:
 
     void initalizeNewClass(ClassObject *klass, Expression &out);
 
-    void parseMethodDecl(Ast *pAst);
+    void parseMethodDecl(Ast *pAst, bool delegate=false);
 
     void parseBlock(Ast *pAst, Block &block);
 
@@ -954,6 +956,14 @@ private:
     void readjustAddresses(Method *func, unsigned int);
 
     void inlineFields();
+
+    void resolveDelegatePostDecl(Ast *ast);
+
+    void resolveDelegateDecl(Ast *ast);
+
+    void resolveAllDelegates();
+
+    void resolveClassDeclDelegates(Ast *ast);
 };
 
 
