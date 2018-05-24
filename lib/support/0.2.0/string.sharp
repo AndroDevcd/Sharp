@@ -140,6 +140,7 @@ class string {
 
         static def parse( var number ) : string
         {
+            number = (_int64)number;
             if (number == 0) {
                 return new string("0");
             }
@@ -158,7 +159,7 @@ class string {
         }
 
         def substring(var startIndex) : string {
-            if(startIndex >= size() || startIndex < 0)
+            if((startIndex >= size()) || (startIndex < 0))
                 return new string("");
 
 
@@ -170,8 +171,49 @@ class string {
             return s;
         }
 
-        static def stringToInt(string s) : var {
+        public static def parseInt(string s) : var {
+            var i = 0;
+            var number = 0;
+            var isNegative = false;
+            var len = s.size();
+            if( s.at(0) == '-' ){
+                isNegative = true;
+                i = 1;
+            }
+            while( i < len ){
+//                if(!isDigit(s.at(i))) {
+//                    throw new IllegalArgumentException(
+//                        "invalid char in string: " + (new var[] { s.at(i) }));
+//                }
 
+                number *= 10;
+                number += ( s.at(i++) - '0' );
+            }
+            if( isNegative )
+                number = -number;
+            return number;
+        }
+
+        public static def toString(var n) : string {
+            if (n == 0) return new string("0");
+            string sb = new string();
+
+            if(((_int8)n) < 0) {
+                sb += "-";
+                n *= -1;
+            }
+            while (((_int8)n) > 0) {
+                var curr = n % 10;
+                n /= 10;
+                sb += curr;
+            }
+
+            return sb.substring(0);
+        }
+
+        private static def isDigit(var c) : var {
+            if ((c>='0') && (c<='9')) return 1;
+            return 0;
         }
         
         def size() : var 

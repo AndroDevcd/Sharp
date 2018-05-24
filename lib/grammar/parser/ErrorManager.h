@@ -149,6 +149,7 @@ public:
     void enableErrorCheckMode();
     void fail();
     void pass();
+    void enableAggressive() { aggressive = true; }
 
     void free();
     string getLine(int line);

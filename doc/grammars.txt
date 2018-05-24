@@ -104,7 +104,7 @@ A value consists of an <expression>
     | '=='
 
 <array-expression>:
-expression '[' expression ']' [<dot-notation-call-expr>]
+expression '[' expression ']' [<dot-notation-call-expr>] expression
 
 <dot-notation-call-expr>:
 [.] <utype-naked> [<value-list> [<dot-notation-call-expr> | <array-expression>]]  i.e. x.buildtask(405).execute()[4];

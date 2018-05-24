@@ -6,7 +6,6 @@ mod std;
  8 this class will be used to throw all runtime exceptions
  */
 class RuntimeErr base Exception {
-      static Exception e = new Exception("l");
 
       RuntimeErr(var[] message) {
         base->Exception(message);

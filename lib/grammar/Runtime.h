@@ -167,6 +167,11 @@ struct Expression {
                 return utype.field->type;
             case expression_objectclass:
                 return OBJECT;
+            case expression_var:
+                if(func)
+                    return VAR;
+                else
+                    return utype.type;
             default:
                 return utype.type;
         }
@@ -399,6 +404,20 @@ struct Scope {
         branches.push_back(bt);
     }
 
+    void addStore(string label, int _register, long offset, Assembler& assembler, Expression expr, int line, int col) {
+        BranchTable bt;
+        bt.branch_pc=assembler.__asm64.size()+expr.code.size();
+        assembler.__asm64.add(0);               // add empty instruction for storing later
+        assembler.__asm64.add(0);
+        bt.line=line;
+        bt.col=col;
+        bt.labelName = label;
+        bt.store=true;
+        bt._offset = offset;
+        bt.registerWatchdog=_register;
+        branches.push_back(bt);
+    }
+
     ScopeType type;
     ClassObject* klass;
     Method* currentFunction;
@@ -538,6 +557,7 @@ private:
     unsigned long classSize;
     Method* main;
     List<Method*> allMethods;
+    Block *currentBlock;
 
     /* One off variables */
     RuntimeNote lastNote;

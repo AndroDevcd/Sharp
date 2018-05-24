@@ -2,6 +2,7 @@
 // Created by BraxtonN on 2/11/2018.
 //
 
+#include <random>
 #include "GarbageCollector.h"
 #include "../oo/Object.h"
 #include "../Thread.h"
@@ -288,8 +289,11 @@ void GarbageCollector::collectOldObjects() {
 }
 
 void GarbageCollector::run() {
+//    std::random_device rd;
+//    std::mt19937 mt(rd());
+//    std::uniform_real_distribution<double> dist(1, 10000);
 
-    int maxSpins = 1000;
+    int maxSpins = 10000;
     int spins = 0;
 
     for(;;) {
@@ -315,7 +319,10 @@ void GarbageCollector::run() {
 
         if(++spins >= maxSpins) {
             spins = 0;
-            __os_sleep(1);
+            do {
+                __os_sleep(10);
+            } while(!GC_COLLECT_YOUNG() && !GC_COLLECT_ADULT()
+                    && !GC_COLLECT_OLD());
         }
 
         /**

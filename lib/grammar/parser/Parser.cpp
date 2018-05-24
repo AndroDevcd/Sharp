@@ -603,7 +603,7 @@ Ast * Parser::get_ast(Ast *pAst, ast_types typ) {
     else {
         pAst->addAst(Ast(pAst, typ, peek(1).getLine(), peek(1).getColumn()));
 
-        return pAst->getSubAst(pAst->getSubAstCount() - 1);
+        return pAst->getLastSubAst();
     }
 }
 
@@ -1144,11 +1144,14 @@ bool Parser::parse_expression(Ast *pAst) {
             }
 
             pAst->encapsulate(ast_arry_e);
-            return true;
+            if(!isexprsymbol(peek(1).getToken()))
+                return true;
+            else
+                goto next;
         }
         pAst->encapsulate(ast_arry_e);
     }
-
+    next:
 
 
     /* ++ or -- after the expression */
@@ -1226,8 +1229,18 @@ bool Parser::parse_expression(Ast *pAst) {
         advance();
         pAst->addEntity(current());
 
-        parse_expression(pAst);
-        pAst->encapsulate(ast_less_e);
+        if(parenExprs > 0) {
+
+            parse_expression(pAst);
+            pAst->encapsulate(ast_less_e);
+            parenExprs--;
+        } else {
+            nestedAndExprs++;
+            parse_expression(nestedAndExprs == 1 ? pAst : pAst->getParent());
+            if(nestedAndExprs == 1)
+                pAst->encapsulate(ast_less_e);
+            nestedAndExprs--;
+        }
         return true;
     }
 
@@ -1408,6 +1421,8 @@ void Parser::parse_block(Ast* pAst) {
         advance();
         if (current().getTokenType() == RIGHTCURLY)
         {
+            if(!curly)
+                errors->createNewError(GENERIC, current(), "expected '{'");
             pushback();
             break;
         }

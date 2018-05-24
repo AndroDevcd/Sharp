@@ -1,12 +1,15 @@
 mod application;
 
 class Start {
+        var a=8, b, c;
 
     public static def main(string[] args) : var {
         object klass = new Callee();
         ((Callback)klass).work();
         object event = new Callee();
         ((Event)event).event();
+        string.parseInt(new string("55"));
+        string.toString(55);
     }
 }
 

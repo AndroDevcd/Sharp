@@ -29,6 +29,11 @@ class System {
         cHandler.printData(data);
         printChar('\n');
     }
+
+    public static def println(var data) {
+        print(data);
+        printChar('\n');
+    }
     
     public static def println(string str) {
         cHandler.printData(str.toArray());

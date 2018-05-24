@@ -580,6 +580,12 @@ void printRegs() {
     cout << "egx = " << registers[egx] << endl;
     cout << "sp -> " << thread_self->sp << endl;
     cout << "fp -> " << thread_self->fp << endl;
+    cout << "pc -> " << thread_self->pc << endl;
+    cout << "current -> " << thread_self->current->name.str() << endl;
+    native_string stackTrace;
+
+    vm->fillStackTrace(stackTrace);
+    cout << "stacktrace ->\n\n " << stackTrace.str() << endl;
     cout << endl;
 }
 #endif
@@ -657,7 +663,7 @@ short int startAddress = 0;
  * We need this to keep track of which finally block we are executing
  */
 FinallyTable finallyTable;
-long count = 0;
+long double count = 0;
 
 void Thread::exec() {
 

@@ -138,7 +138,7 @@ string ErrorManager::getErrors(list<ParseError>* errors)
 void ErrorManager::printErrors() {
     if(!asis) {
         if(_err) {
-            if(aggressive) // print aggressive errors
+            if(aggressive || (errors->size() == 0 && unfilteredErrors->size() > 0)) // print aggressive errors
                 cout << getErrors(unfilteredErrors);
             else // print optimized errors
                 cout << getErrors(errors);

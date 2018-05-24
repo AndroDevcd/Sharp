@@ -256,7 +256,7 @@ void exec_runtime(List<string>& files)
             {
                 p->getErrors()->printErrors();
 
-                errors+= p->getErrors()->getErrorCount();
+                errors+= p->getErrors()->getErrorCount() == 0 ? p->getErrors()->getUnfilteredErrorCount() : p->getErrors()->getErrorCount();
                 unfilteredErrors+= p->getErrors()->getUnfilteredErrorCount();
                 failed++;
 
@@ -383,6 +383,11 @@ void RuntimeEngine::compile()
 
             if((i+1) >= parsers.size() && errors->getErrorCount() == 0 && errors->getUnfilteredErrorCount() == 0) {
                 getMainMethod(p);
+
+                if(errors->getErrorCount() == 0 && errors->getUnfilteredErrorCount() > 0) {
+                    errors->enableAggressive();
+                    errors->printErrors();
+                }
             }
 
             if(errors->hasErrors()){
@@ -561,13 +566,18 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
     scope->uniqueLabelSerial++;
     cond = parseExpression(pAst->getSubAst(ast_expression));
 
-    string ifEndLabel, ifBlockEnd;
+    string ifEndLabel, ifBlockEnd, ifCondEnd;
     stringstream ss;
     ss << generic_label_id << scope->uniqueLabelSerial;
     ifEndLabel=ss.str(); ss.str("");
 
     pushExpressionToRegister(cond, out, cmt);
     block.code.inject(block.code.size(), out.code);
+
+    ss << generic_label_id << "condition" << ++scope->uniqueLabelSerial;
+    ifCondEnd=ss.str(); ss.str("");
+    scope->label_map.add(KeyPair<string,int64_t>(ifCondEnd, __init_label_address(block.code)));
+
 
     if(pAst->getSubAstCount() > 2) {
         ss << generic_label_id << ++scope->uniqueLabelSerial;
@@ -600,6 +610,10 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
                     out.free();
                     pushExpressionToRegister(cond, out, cmt);
                     block.code.inject(block.code.size(), out.code);
+                    ss << generic_label_id << "condition" << ++scope->uniqueLabelSerial;
+                    ifCondEnd=ss.str(); ss.str("");
+                    scope->label_map.add(KeyPair<string,int64_t>(ifCondEnd, __init_label_address(block.code)));
+
 
                     ss << generic_label_id << ++scope->uniqueLabelSerial;
                     ifBlockEnd = ss.str(); ss.str("");
@@ -1184,12 +1198,15 @@ void RuntimeEngine::parseLabelDecl(Block& block, Ast* pAst) {
 void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
     Scope* scope = currentScope();
     List<AccessModifier> modifiers;
-    int startpos=0;
-    token_entity operand = pAst->getEntity(pAst->getEntityCount()-1);
+    int startpos=0, index = 1;
 
     parseAccessDecl(pAst, modifiers, startpos);
 
-    string name =  pAst->getEntity(startpos).getToken();
+    // we need this before for multiple definition of same type
+    Expression utype = parseUtype(pAst);
+    parse_var:
+    token_entity operand = pAst->getEntity(pAst->getEntityCount()-1);
+    string name =  pAst->getEntity(pAst->getEntityCount()-(pAst->hasSubAst(ast_value) ? 2 : 1)).getToken();
 
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
                                    pAst->line, pAst->col);
@@ -1197,7 +1214,6 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
 
     f.address = scope->currentFunction->localVariables++;
     f.local=true;
-    Expression utype = parseUtype(pAst);
     f.type = utype.utype.type;
     if(utype.utype.type == CLASS) {
         f.klass = utype.utype.klass;
@@ -1249,6 +1265,11 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
                 block.code.push_i64(SET_Ei(i64, op_DEL));
             }
         }
+    }
+
+    if(pAst->hasSubAst(ast_var_decl)) {
+        pAst = pAst->getSubAst(ast_var_decl);
+        goto parse_var;
     }
 
 }
@@ -1328,6 +1349,7 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
 void RuntimeEngine::parseBlock(Ast* pAst, Block& block) {
     Scope* scope = currentScope();
     scope->blocks++;
+    currentBlock = &block;
 
     Ast* ast;
     for(unsigned int i = 0; i < pAst->getSubAstCount(); i++) {
@@ -3280,7 +3302,7 @@ void RuntimeEngine::checkVectorArray(Expression& utype, List<Expression>& vecArr
                         errors->createNewError(INCOMPATIBLE_TYPES, vecArry.get(i).link->line, vecArry.get(i).link->col, ": type `" + utype.utype.typeToString() + "` is not compatible with type `"
                                                                                                                 + vecArry.get(i).utype.typeToString() + "`");
                     }else {
-                        if(utype.utype.isVar() && vecArry.get(i).utype.isVar()) {}
+                        if(utype.utype.isVar() && vecArry.get(i).trueType() == VAR) {}
                         else if(utype.utype.isVar() && vecArry.get(i).literal && vecArry.get(i).type == expression_var) {}
                         else if(utype.utype.dynamicObject() && vecArry.get(i).utype.dynamicObject()) {}
                         else {
@@ -4705,7 +4727,7 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
         case expression_field:
             if(left.utype.field->isNative()) {
                 // add var
-                if(right.type == expression_var) {
+                if(right.type == expression_var || (right.type == expression_field && left.utype.field->type != CLASS)) {
                     if(left.utype.field->isVar()) {
                         return true;
                     }
@@ -5122,14 +5144,14 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
                     if(rightExpr.utype.field->isNative()) {
                         // add var
                         leftEval:
-                        if(leftExpr.literal && (i-1) >= 0) {
-                            peekExpr = pAst->getSubAst(i-1)->getType() == ast_expression ?
-                                       parseExpression(pAst->getSubAst(i-1)) : parseIntermExpression(pAst->getSubAst(i-1));
+                        if(leftExpr.literal && (i+1) < pAst->getSubAstCount()) {
+                            peekExpr = pAst->getSubAst(i+1)->getType() == ast_expression ?
+                                       parseExpression(pAst->getSubAst(i+1)) : parseIntermExpression(pAst->getSubAst(i+1));
                             Expression outtmp;
 
                             if(peekExpr.literal) {
                                 if(addExpressions(outtmp, peekExpr, leftExpr, operand, &var)) {
-                                    i--;
+                                    i++;
                                     leftExpr=outtmp;
                                     leftExpr.type=expression_var;
                                     goto leftEval;
@@ -6157,43 +6179,21 @@ void RuntimeEngine::parseAndExpressionChain(Expression& out, Ast* pAst) {
                         } else {
                             // is left leftexpr a literal?
                             if(operand == "&&") {
-                                pushExpressionToRegister(leftExpr, out, ebx);
-
-                                if(andExprs==1) {
-                                    out.code.push_i64(SET_Di(i64, op_SKNE, 8));
-                                    out.boolExpressions.add(out.code.size()-1);
-                                    out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
-                                } else {
-                                    out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
-                                }
-
+                                pushExpressionToRegister(leftExpr, out, cmt);
+                                out.code.push_i64(SET_Di(i64, op_SKNE, rightExpr.code.size()));
+                                out.code.push_i64(SET_Di(i64, op_ISTORE, 1));
                                 pushExpressionToRegister(rightExpr, out, ebx);
                                 out.code.push_i64(SET_Di(i64, op_LOADVAL, ecx));
-                                out.code.push_i64(SET_Ci(i64, op_AND, ebx,0, ecx)); // the oder in which we eval each side dosent freakn matter!
-
-                                if(andExprs==1) {
-                                    out.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, cmt));
-
-                                    if((i-1) >= 0) {
-                                        out.code.push_i64(SET_Di(i64, op_SKNE, 8));
-                                        out.boolExpressions.add(out.code.size()-1);
-                                    }
-                                } else {
-                                    out.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, cmt));
-                                }
+                                out.code.push_i64(SET_Ci(i64, op_AND, ecx,0, ebx));
                             } else if(operand == "||") {
-                                pushExpressionToRegister(leftExpr, out, ebx);
+                                pushExpressionToRegister(leftExpr, out, cmt);
 
                                 if(andExprs==1) {
-                                    out.code.push_i64(SET_Di(i64, op_SKNE, 8));
-                                    out.boolExpressions.add(out.code.size()-1);
+                                    out.code.push_i64(SET_Di(i64, op_SKPE, rightExpr.code.size()));
+                                    pushExpressionToRegister(rightExpr, out, cmt);
                                 } else {
                                     out.code.push_i64(SET_Di(i64, op_SKPE, rightExpr.code.size()));
                                     pushExpressionToRegister(rightExpr, out, ebx);
-                                    if(andExprs==1) {
-                                        out.code.push_i64(SET_Di(i64, op_SKNE, 8));
-                                        out.boolExpressions.add(out.code.size()-1);
-                                    }
                                 }
                             } else if(operand == "|") {
                                 pushExpressionToRegister(leftExpr, out, ebx);
@@ -7955,10 +7955,10 @@ void RuntimeEngine::resolveVarDecl(Ast* ast, bool inlineField) {
 
     parseAccessDecl(ast, modifiers, startpos);
 
+    Expression expression = parseUtype(ast);
     parse_var:
     string name =  ast->getEntity(startpos).getToken();
     Field* field = scope->klass->getField(name);
-    Expression expression = parseUtype(ast);
     if(expression.utype.type == CLASS) {
         field->klass = expression.utype.klass;
         field->type = CLASS;
@@ -9403,8 +9403,8 @@ void RuntimeEngine::generate() {
                 method->code.push_i64(SET_Ei(i64, op_RETURNOBJ));
                 method->code.push_i64(SET_Ei(i64, op_RET));
             } else if(method->type == VAR) {
-                method->code.push_i64(SET_Di(i64, op_MOVL, 0));
-                method->code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                method->code.push_i64(SET_Di(i64, op_MOVI, 0), ebx);
+                method->code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
                 method->code.push_i64(SET_Ei(i64, op_RET));
             } else if(method->type == TYPEVOID) {
                 method->code.push_i64(SET_Ei(i64, op_RET));
@@ -10381,6 +10381,7 @@ void RuntimeEngine::createDumpFile() {
 }
 
 void RuntimeEngine::cleanup() {
+
     for(unsigned long i = 0; i < parsers.size(); i++) {
         parsers.get(i)->free();
     }
