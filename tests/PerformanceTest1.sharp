@@ -1,0 +1,9 @@
+mod application;
+
+class Start {
+
+
+    public static def main(string[] args) : var {
+        System.print(" 15 converted is " + string.stringToInt(new string("15")));
+    }
+}

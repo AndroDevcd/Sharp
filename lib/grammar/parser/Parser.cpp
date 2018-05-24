@@ -1394,7 +1394,11 @@ void Parser::parse_utypearg_list(Ast* pAst) {
 }
 
 void Parser::parse_block(Ast* pAst) {
-    expect(LEFTCURLY, "`{`");
+    bool curly = false;
+    if(peek(1).getToken() == "{") {
+        expect(LEFTCURLY, "`{`");
+        curly = true;
+    }
     pAst = get_ast(pAst, ast_block);
 
     while(!isend())
@@ -1417,13 +1421,21 @@ void Parser::parse_block(Ast* pAst) {
             errors->createNewError(UNEXPECTED_EOF, current());
             break;
         }
-        else
+        else {
             parse_statement(pAst);
+
+            if(!curly) {
+
+                remove_accesstypes();
+                break;
+            }
+        }
 
         remove_accesstypes();
     }
 
-    expect(RIGHTCURLY, "`}`");
+    if(curly)
+        expect(RIGHTCURLY, "`}`");
 }
 
 void Parser::parse_operatordecl(Ast *pAst) {

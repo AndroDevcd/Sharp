@@ -2137,7 +2137,7 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
 
             if((fn = klass->getFunction(methodName, params, true)) != NULL){}
             else if((fn = klass->getOverload(stringToOp(methodName), params, true)) != NULL){}
-            else if((fn = klass->getConstructor(params)) != NULL) {}
+            else if(methodName == klass->getName() && (fn = klass->getConstructor(params)) != NULL) {}
             else if(klass->getField(methodName, true) != NULL) {
                 errors->createNewError(GENERIC, valueLst->line, valueLst->col, " symbol `" + methodName + "` is a field");
             }

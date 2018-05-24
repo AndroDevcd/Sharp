@@ -156,6 +156,23 @@ class string {
             }
             return returnvalue;
         }
+
+        def substring(var startIndex) : string {
+            if(startIndex >= size() || startIndex < 0)
+                return new string("");
+
+
+            string s = "";
+            for(var i = startIndex; i < size(); i++) {
+                s.append(at(i));
+            }
+
+            return s;
+        }
+
+        static def stringToInt(string s) : var {
+
+        }
         
         def size() : var 
         {
