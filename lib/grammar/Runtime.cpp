@@ -571,7 +571,10 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
     ss << generic_label_id << scope->uniqueLabelSerial;
     ifEndLabel=ss.str(); ss.str("");
 
-    pushExpressionToRegister(cond, out, cmt);
+    if(!cond.inCmtRegister)
+        pushExpressionToRegister(cond, out, cmt);
+    else
+        out.inject(cond);
     block.code.inject(block.code.size(), out.code);
 
     ss << generic_label_id << "condition" << ++scope->uniqueLabelSerial;
@@ -6180,19 +6183,21 @@ void RuntimeEngine::parseAndExpressionChain(Expression& out, Ast* pAst) {
                             // is left leftexpr a literal?
                             if(operand == "&&") {
                                 pushExpressionToRegister(leftExpr, out, cmt);
-                                out.code.push_i64(SET_Di(i64, op_SKNE, rightExpr.code.size()));
+                                out.code.push_i64(SET_Di(i64, op_SKNE, rightExpr.code.size()+4));
                                 out.code.push_i64(SET_Di(i64, op_ISTORE, 1));
                                 pushExpressionToRegister(rightExpr, out, ebx);
                                 out.code.push_i64(SET_Di(i64, op_LOADVAL, ecx));
                                 out.code.push_i64(SET_Ci(i64, op_AND, ecx,0, ebx));
+                                out.inCmtRegister = true;
                             } else if(operand == "||") {
+                                out.inCmtRegister = true;
                                 pushExpressionToRegister(leftExpr, out, cmt);
 
                                 if(andExprs==1) {
-                                    out.code.push_i64(SET_Di(i64, op_SKPE, rightExpr.code.size()));
+                                    out.code.push_i64(SET_Di(i64, op_SKPE, rightExpr.code.size()+1));
                                     pushExpressionToRegister(rightExpr, out, cmt);
                                 } else {
-                                    out.code.push_i64(SET_Di(i64, op_SKPE, rightExpr.code.size()));
+                                    out.code.push_i64(SET_Di(i64, op_SKPE, rightExpr.code.size()+1));
                                     pushExpressionToRegister(rightExpr, out, ebx);
                                 }
                             } else if(operand == "|") {
@@ -6292,14 +6297,14 @@ void RuntimeEngine::parseAndExpressionChain(Expression& out, Ast* pAst) {
      */
     out.func=rightExpr.func;
     out.literal=rightExpr.literal=false;
-    if(--andExprs == 0) {
-        for(unsigned int i = 0; i < out.boolExpressions.size(); i++) {
-            long index=out.boolExpressions.get(i);
-            int op = GET_OP(out.code.__asm64.get(index));
-
-            out.code.__asm64.replace(index, SET_Di(i64, op, ((out.code.size()-1)-index)-1));
-        }
-    }
+//    if(--andExprs == 0) {
+//        for(unsigned int i = 0; i < out.boolExpressions.size(); i++) {
+//            long index=out.boolExpressions.get(i);
+//            int op = GET_OP(out.code.__asm64.get(index));
+//
+//            out.code.__asm64.replace(index, SET_Di(i64, op, ((out.code.size()-1)-index)-1));
+//        }
+//    }
 }
 
 Expression RuntimeEngine::parseAndExpression(Ast* pAst) {

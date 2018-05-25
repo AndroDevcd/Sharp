@@ -834,7 +834,7 @@ bool Parser::isoverride_operator(string token) {
             ;
 }
 
-int nestedAddExprs = 0, parenExprs=0, nestedAndExprs=0;
+int nestedAddExprs = 0, parenExprs=0, nestedAndExprs=0, nestedLessExprs=0;
 bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
     pAst = get_ast(pAst, ast_dotnotation_call_expr);
 
@@ -1235,11 +1235,11 @@ bool Parser::parse_expression(Ast *pAst) {
             pAst->encapsulate(ast_less_e);
             parenExprs--;
         } else {
-            nestedAndExprs++;
-            parse_expression(nestedAndExprs == 1 ? pAst : pAst->getParent());
-            if(nestedAndExprs == 1)
+            nestedLessExprs++;
+            parse_expression(nestedLessExprs == 1 ? pAst : pAst->getParent());
+            if(nestedLessExprs == 1)
                 pAst->encapsulate(ast_less_e);
-            nestedAndExprs--;
+            nestedLessExprs--;
         }
         return true;
     }
@@ -1271,7 +1271,7 @@ bool Parser::parse_expression(Ast *pAst) {
             parenExprs--;
         } else {
             nestedAndExprs++;
-            parse_expression(nestedAndExprs == 1 ? pAst : pAst->getParent());
+            parse_expression(nestedAndExprs == 1 ? pAst : pAst=pAst->getParent());
             if(nestedAndExprs == 1)
                 pAst->encapsulate(ast_and_e);
             nestedAndExprs--;

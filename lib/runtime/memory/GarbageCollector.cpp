@@ -322,12 +322,13 @@ void GarbageCollector::run() {
             do {
                 __os_sleep(10);
             } while(!GC_COLLECT_YOUNG() && !GC_COLLECT_ADULT()
-                    && !GC_COLLECT_OLD());
+                    && !GC_COLLECT_OLD() && !thread_self->suspendPending
+                       && thread_self->state == THREAD_RUNNING);
         }
 
         /**
          * Attempt to collect objects based on the appropriate
-         * conditions. This call does not garuntee that any collections
+         * conditions. This call does not guaruntee that any collections
          * will happen
          */
         collect(GC_CONCURRENT);
