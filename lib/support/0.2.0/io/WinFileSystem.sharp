@@ -1,0 +1,69 @@
+mod std.io;
+
+/**
+ * Created by BraxtonN on 5/25/2018.
+ */
+class WinFileSystem base FileSystem {
+    private const var slash;
+
+    /* Constants for file attributes */
+    public static const var FILE_COMPRESSED    = 2048;
+    public static const var FILE_ARCHIVE       = 32;
+    public static const var FILE_DIRECTORY     = 16;
+    public static const var FILE_ENCRYPTED     = 16384;
+    public static const var FILE_HIDDEN        = 2;
+    public static const var FILE_NORMAL        = 128;
+    public static const var FILE_READONLY      = 1;
+    public static const var FILE_SYSTEM        = 4;
+    public static const var FILE_TEMP          = 256;
+
+    WinFileSystem() {
+        slash = '\\';
+    }
+
+    public def delegate::getPathSeparator() : var {
+        return slash;
+    }
+
+    /**
+    * Make sure we know that our path has the correct
+    * path seperators to be accessed
+    */
+    public def delegate::normalize(string path) : string {
+        var n = pathname.size();
+        string normalized;
+        var index = 0;
+        for (var i = 0; i < n; i++) {
+            var current = normalized[i];
+            // Remove duplicate slashes.
+            if (!(current == '/')) {
+                normalized += new var[] {'\\', '\\'};
+            } else {
+                normalized += new var[] {current};
+            }
+        }
+
+
+        return normalized;
+    }
+
+     /**
+      * Return the simple boolean attributes for the file or directory denoted
+      * by the given abstract pathname, or zero if it does not exist or some
+      * other I/O error occurs.
+      */
+     public def delegate::getFileAttributes(File f) : var {
+        // native code here
+     }
+
+
+     /**
+      * Check whether the file or directory denoted by the given abstract
+      * pathname may be accessed by this process.  The second argument specifies
+      * which access, ACCESS_READ, ACCESS_WRITE or ACCESS_EXECUTE, to check.
+      * Return false if access is denied or an I/O error occurs
+      */
+     public def delegate::checkAccess(File f, var access) : var {
+
+     }
+}

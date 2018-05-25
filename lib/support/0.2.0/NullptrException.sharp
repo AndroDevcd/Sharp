@@ -1,0 +1,16 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 5/25/2018.
+ */
+class NullptrException base Exception {
+
+      NullptrException(var[] message) {
+        base->Exception(message);
+      }
+
+      NullptrException(string message) {
+        base->Exception(message);
+      }
+}
+

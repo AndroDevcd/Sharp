@@ -11,7 +11,7 @@ set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-static")
 set(CMAKE_C_FLAGS_DEBUG  "-Werror -lstdc++ ${CMAKE_C_FLAGS_DEBUG}")
 set(CMAKE_C_FLAGS_MINSIZEREL  "-Werror -lstdc++ -s -O3 -Ofast ${CMAKE_C_FLAGS_MINSIZEREL}")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO  "-Werror -lstdc++ -O3 -Ofast ${CMAKE_C_FLAGS_MINSIZEREL}")
-set(SHARPC "build")
+#set(SHARPC "build")
 
 # Linux compiler console: g++ *.cpp ../../main.cpp ../util/*.cpp parser/*.cpp parser/*/*.cpp -lstdc++ -s -O3 -Ofast -o bootstrap -std=c++11
 
@@ -24,7 +24,7 @@ if (SHARPC)
 else()
     #virtual machine
     add_definitions(-DDEBUGGING)
-    set(SOURCE_FILES main.cpp lib/runtime/init.cpp lib/runtime/oo/string.h lib/runtime/List.h lib/runtime/memory/GarbageCollector.cpp lib/runtime/memory/GarbageCollector.h lib/runtime/oo/Object.h lib/runtime/oo/Exception.cpp lib/runtime/oo/Exception.h lib/runtime/oo/Field.h lib/runtime/oo/ClassObject.cpp lib/runtime/oo/ClassObject.h lib/runtime/register.h lib/runtime/oo/Method.h lib/runtime/Thread.cpp lib/runtime/Thread.h lib/runtime/oo/Object.cpp lib/runtime/Manifest.h lib/runtime/Manifest.cpp lib/runtime/Exe.h lib/runtime/Exe.cpp lib/runtime/Environment.cpp lib/runtime/Environment.h lib/runtime/VirtualMachine.cpp lib/runtime/VirtualMachine.h lib/runtime/init.h lib/util/File.cpp lib/util/File.h lib/util/time.cpp lib/util/time.h lib/util/KeyPair.h stdimports.h lib/runtime/Opcode.h lib/util/mingw.mutex.h lib/grammar/Optimizer.cpp lib/grammar/Optimizer.h)
+    set(SOURCE_FILES main.cpp lib/runtime/init.cpp lib/runtime/oo/string.h lib/runtime/List.h lib/runtime/memory/GarbageCollector.cpp lib/runtime/memory/GarbageCollector.h lib/runtime/oo/Object.h lib/runtime/oo/Exception.cpp lib/runtime/oo/Exception.h lib/runtime/oo/Field.h lib/runtime/oo/ClassObject.cpp lib/runtime/oo/ClassObject.h lib/runtime/register.h lib/runtime/oo/Method.h lib/runtime/Thread.cpp lib/runtime/Thread.h lib/runtime/oo/Object.cpp lib/runtime/Manifest.h lib/runtime/Manifest.cpp lib/runtime/Exe.h lib/runtime/Exe.cpp lib/runtime/Environment.cpp lib/runtime/Environment.h lib/runtime/VirtualMachine.cpp lib/runtime/VirtualMachine.h lib/runtime/init.h lib/util/File.cpp lib/util/File.h lib/util/time.cpp lib/util/time.h lib/util/KeyPair.h stdimports.h lib/runtime/Opcode.h lib/util/mingw.mutex.h lib/grammar/Optimizer.cpp lib/grammar/Optimizer.h lib/Modules/std.io/fileio.cpp)
 
     add_executable(Sharp ${SOURCE_FILES})
 endif ()

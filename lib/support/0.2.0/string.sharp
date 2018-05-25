@@ -39,12 +39,12 @@ class string {
 
             var iter=0;
             for(var i = 0; i < sizeof(data); i++) {
-                newStr[iter++] = data[i];
+                newStr[iter++] = (_int8)data[i];
             }
 
             for(var i = 0; i < sizeof(immstr); i++)
             {
-                newStr[iter++] = immstr[i];
+                newStr[iter++] = (_int8)immstr[i];
             }
 
             data = newStr;

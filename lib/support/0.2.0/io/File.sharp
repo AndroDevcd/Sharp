@@ -1,5 +1,276 @@
 mod std.io;
 
 class File {
+    private static const FileSystem fs = getFileSystem();
 
+    private const string path;
+    public static const var separatorChar = fs.getPathSeparator();
+    public static const string separator = "" + (new var[] {separatorChar});
+
+    public File(string path) {
+        if(path == null)
+            throw new NullptrException("file path cannot be null");
+        self->path = fs.normalize(path);
+    }
+
+    public def getName() : string {
+        if(path == null || path.size()==0)
+            return new string("");
+
+        string name;
+
+        for(var i = path.size()-1; i > 0; i--) {
+            if(path.at(i) == seperatorChar) {
+                name += path.at(i);
+            } else
+                break;
+        }
+
+        return name;
+    }
+
+    public def getPath() : string {
+        return path;
+    }
+
+     /**
+      * Returns the absolute path of this file. An absolute path is a path that starts at a root
+      * of the file system. On Android, there is only one root: {/}.
+      *
+      * <p>A common use for absolute paths is when passing paths to a  as
+      * command-line arguments, to remove the requirement implied by relative paths, that the
+      * child must have the same working directory as its parent.
+      *
+      * @return  The absolute pathname string denoting the same file or
+      *          directory as this abstract pathname
+      *
+      * @see     java.io.File#isAbsolute()
+      */
+    public def getAbsolutePath() : string {
+        return fs.resolve(self);
+    }
+
+    /**
+     * Tests whether the application can read the file denoted by this
+     * abstract pathname.
+     *
+     */
+    public def isReadable() : var {
+        return fs.checkAccess(self, FileSystem.ACCESS_READ);
+    }
+
+    /**
+     * Tests whether the application can modify the file denoted by this
+     * abstract pathname.
+     *
+     */
+    public def isWriteable() : var {
+        return fs.checkAccess(self, FileSystem.ACCESS_WRITE);
+    }
+
+    /**
+     * Tests whether the file or directory denoted by this abstract pathname
+     * exists.
+     *
+     */
+    public def exists() : var {
+        return fs.checkAccess(this, FileSystem.ACCESS_OK);
+    }
+
+    /**
+     * Tests whether the file denoted by this abstract pathname is a
+     * directory.
+     *
+     */
+    public def isDirectory() : var {
+        return ((fs.getFileAttributes(self) & FileSystem.FILE_DIRECTORY)
+                != 0);
+    }
+
+    /**
+     * Tests whether the file denoted by this abstract pathname is a normal
+     * file.  A file is normal if it is not a directory and, in
+     * addition, satisfies other system-dependent criteria.
+     *
+     */
+    public def isFile() : var {
+        return ((fs.getFileAttributes(self) & FileSystem.FILE_REGULAR) != 0);
+    }
+
+    /**
+     * Tests whether the file named by this abstract pathname is a hidden
+     * file.  The exact definition of hidden is system-dependent.  On
+     * UNIX systems, a file is considered to be hidden if its name begins with
+     * a period character ('.').  On Microsoft Windows systems, a file is
+     * considered to be hidden if it has been marked as such in the filesystem.
+     *
+     */
+    public def isHidden() : var {
+        return ((fs.getFileAttributes(self) & FileSystem.FILE_HIDDEN) != 0);
+    }
+
+    /**
+     * Returns the time that the file denoted by this abstract pathname was
+     * last modified.
+     *
+     */
+    public def lastModified() : var {
+        return fs.getLastModifiedTime(self);
+    }
+
+    /**
+     * Returns the length of the file denoted by this abstract pathname.
+     * The return value is unspecified if this pathname denotes a directory.
+     *
+     */
+    public def length() : var {
+        return fs.getLength(self);
+    }
+
+
+    /* -- File operations -- */
+
+    /**
+     * Atomically creates a new, empty file named by this abstract pathname if
+     * and only if a file with this name does not yet exist.  The check for the
+     * existence of the file and the creation of the file if it does not exist
+     * are a single operation that is atomic with respect to all other
+     * filesystem activities that might affect the file.
+     *
+     */
+    public def createNewFile() : var {
+        return fs.createFile(path);
+    }
+
+    /**
+     * Deletes the file or directory denoted by this abstract pathname.  If
+     * this pathname denotes a directory, then the directory must be empty in
+     * order to be deleted.
+     *
+     */
+    public def delete() : var {
+        return fs.delete(self);
+    }
+
+    /**
+     * Returns an array of strings naming the files and directories in the
+     * directory denoted by this abstract pathname.
+     *
+     * If this abstract pathname does not denote a directory, then this
+     * method returns {null}.  Otherwise an array of strings is
+     * returned, one for each file or directory in the directory.  Names
+     * denoting the directory itself and the directory's parent directory are
+     * not included in the result.  Each string is a file name rather than a
+     * complete path.
+     *
+     */
+    public def list() : string[] {
+        return fs.list(self);
+    }
+
+    /**
+     * Creates the directory named by this abstract pathname.
+     *
+     */
+    public def mkdir() : var {
+        return fs.createDirectory(self);
+    }
+
+    /**
+     * Renames the file denoted by this abstract pathname.
+     *
+     * Many failures are possible. Some of the more likely failures include:
+     * 
+     * Write permission is required on the directories containing both the source and
+     * destination paths.
+     * Search permission is required for all parents of both paths.
+     * Both paths be on the same mount point. On Android, applications are most likely to hit
+     * this restriction when attempting to copy between internal storage and an SD card.
+     * 
+     *
+     * The return value should always be checked to make sure
+     * that the rename operation was successful.
+     */
+    public def renameTo(File dest) : var {
+        if (dest == null) {
+            throw new NullPointerException();
+        }
+        return fs.rename(self, dest);
+    }
+
+    /**
+     * Sets the last-modified time of the file or directory named by this
+     * abstract pathname.
+     *
+     * All platforms support file-modification times to the nearest second,
+     * but some provide more precision.  The argument will be truncated to fit
+     * the supported precision.  If the operation succeeds and no intervening
+     * operations on the file take place, then the next invocation of the
+     * lastModified method will return the (possibly
+     * truncated) time argument that was passed to this method.
+     *
+     */
+    public def setLastModified(var time) : var {
+        if ((_int64)time < 0) throw new IllegalArgumentException("Negative time");
+        return fs.setLastModifiedTime(self, time);
+    }
+
+    /**
+     * Marks the file or directory named by this abstract pathname so that
+     * only read operations are allowed. After invoking this method the file
+     * or directory will not change until it is either deleted or marked
+     * to allow write access. Whether or not a read-only file or
+     * directory may be deleted depends upon the underlying system.
+     *
+     */
+    public def setReadOnly() : var {
+        return fs.setReadOnly(self);
+    }
+
+    // Android-changed. Removed javadoc comment about special privileges
+    // that doesn't make sense on android
+    /**
+     * Sets the owner's or everybody's write permission for this abstract
+     * pathname.
+     *
+     */
+    public def setWritable(var writable, var ownerOnly) : var {
+        return fs.setPermission(self, FileSystem.ACCESS_WRITE, writable, ownerOnly);
+    }
+
+    /**
+     * A convenience method to set the owner's write permission for this abstract
+     * pathname.
+     *
+     */
+    public def setWritable(var writable) : var {
+        return setWritable(writable, true);
+    }
+
+    /**
+     * Sets the owner's or everybody's read permission for this abstract
+     * pathname.
+     *
+     */
+    public def setReadable(var readable, var ownerOnly) ; var {
+        return fs.setPermission(this, FileSystem.ACCESS_READ, readable, ownerOnly);
+    }
+
+    /**
+     * A convenience method to set the owner's read permission for this abstract
+     * pathname.
+     *
+     */
+    public def setReadable(var readable) : var {
+        return setReadable(readable, true);
+    }
+
+
+    private static def getFileSystem() : FileSystem {
+        if(BuildConfig.isWindows()) {
+            return new WinFileSystem();
+        } else {
+            return null; // we currently don't support linux (Yet)
+        }
+    }
 }

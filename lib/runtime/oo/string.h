@@ -107,6 +107,10 @@ public:
         return string(chars,len);
     }
 
+    const char* c_str() {
+        return str().c_str();
+    }
+
     void free() {
         if(len != 0) {
             std:: free(chars); chars = NULL;

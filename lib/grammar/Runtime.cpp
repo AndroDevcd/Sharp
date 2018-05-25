@@ -6748,8 +6748,8 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
                     errors->createNewError(GENERIC, 1, 0, "setup method '" + mainMethod + "()' must be private");
                 }
 
-                setupClasses->code.inject(0, staticMainInserts);
-//                readjustAddresses(setupClasses, staticMainInserts.size());
+                setupClasses->code.inject(setupClasses->code.size()==0 ? 0 : setupClasses->code.size()-1, staticMainInserts);
+                readjustAddresses(setupClasses, staticMainInserts.size());
                 staticMainInserts.free();
             }
 
