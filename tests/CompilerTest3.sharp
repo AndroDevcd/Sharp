@@ -10,6 +10,9 @@ class Start {
         ((Event)event).event();
         string.parseInt(new string("55"));
         string.toString(55);
+        Callback cb = new Callee();
+        Event e = new Callee();
+        e.event();
     }
 }
 

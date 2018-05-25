@@ -89,6 +89,13 @@ public:
     bool match(ClassObject* klass) {
         return klass != NULL && klass->serial == serial;
     }
+
+    bool assignable(ClassObject *klass) {
+        if(klass != NULL) {
+            return klass->serial == serial || klass->hasBaseClass(this) || klass->hasInterface(this);
+        }
+        return false;
+    }
     void setBaseClass(ClassObject* base) {
         this->base = base;
     }
@@ -168,6 +175,13 @@ public:
                 copys++;
         }
         return copys > 1;
+    }
+    bool hasInterface(ClassObject *intf) {
+        for(long i = 0; i < interfaces.size(); i++) {
+            if(interfaces.get(i)==intf)
+                return true;
+        }
+        return false;
     }
     void setInterfaces(List<ClassObject*> interfaces) { this->interfaces.addAll(interfaces); }
 

@@ -2,7 +2,10 @@ mod application;
 
 class Start {
 
-
+    /**
+    * Cost per million performance improvements
+    * #1: 40.782s
+    */
     public static def main(string[] args) : var {
         var n = string.parseInt(args[0]);
 

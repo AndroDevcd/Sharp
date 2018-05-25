@@ -181,10 +181,10 @@ class string {
                 i = 1;
             }
             while( i < len ){
-//                if(!isDigit(s.at(i))) {
-//                    throw new IllegalArgumentException(
-//                        "invalid char in string: " + (new var[] { s.at(i) }));
-//                }
+                if(!isDigit(s.at(i))) {
+                    throw new IllegalArgumentException(
+                        "invalid char in string: " + (new var[] { s.at(i) }));
+                }
 
                 number *= 10;
                 number += ( s.at(i++) - '0' );
@@ -212,8 +212,7 @@ class string {
         }
 
         private static def isDigit(var c) : var {
-            if ((c>='0') && (c<='9')) return 1;
-            return 0;
+            return (c>='0') && (c<='9');
         }
         
         def size() : var 

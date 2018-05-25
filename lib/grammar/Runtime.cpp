@@ -4331,6 +4331,7 @@ Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
     Expression expression;
 
     expression = parseExpression(pAst->getSubAst(ast_expression));
+    expression.inCmtRegister = false;
     switch(expression.type) {
         case expression_var:
             // negate value
@@ -4386,6 +4387,7 @@ Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
 
     }
 
+    expression.func = false;
     return expression;
 }
 
@@ -4752,16 +4754,16 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                 }
             } else if(left.utype.field->type == CLASS) {
                 if(right.type == expression_lclass) {
-                    if(left.utype.field->klass->match(right.utype.klass)) {
+                    if(left.utype.field->klass->assignable(right.utype.klass)) {
                         return true;
                     }
                 } else if(right.type == expression_class) {
-                    if(left.utype.field->klass->match(right.utype.klass)) {
+                    if(left.utype.field->klass->assignable(right.utype.klass)) {
                         errors->createNewError(GENERIC, right.link->line,  right.link->col, "Class `" + right.typeToString() + "` must be lvalue" + msg);
                         return false;
                     }
                 } else if(right.type == expression_field && right.utype.field->type == CLASS) {
-                    if(right.utype.field->klass->match(left.utype.field->klass)) {
+                    if(right.utype.field->klass->assignable(left.utype.field->klass)) {
                         return true;
                     }
                 } else {
@@ -4778,15 +4780,15 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
             break;
         case expression_lclass:
             if(right.type == expression_lclass) {
-                if(left.utype.klass->match(right.utype.klass)) {
+                if(left.utype.klass->assignable(right.utype.klass)) {
                     return true;
                 }
             } else if(right.type == expression_field) {
-                if(left.utype.klass->match(right.utype.field->klass)) {
+                if(left.utype.klass->assignable(right.utype.field->klass)) {
                     return true;
                 }
             } else if(right.type == expression_class) {
-                if(left.utype.klass->match(right.utype.klass)) {
+                if(left.utype.klass->assignable(right.utype.klass)) {
                     errors->createNewError(GENERIC, right.link->line,  right.link->col, "Class `" + right.typeToString() + "` must be lvalue" + msg);
                     return false;
                 }
@@ -4794,7 +4796,7 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
             break;
         case expression_class:
             if(right.type == expression_class) {
-                if(left.utype.klass->match(right.utype.klass)) {
+                if(left.utype.klass->assignable(right.utype.klass)) {
                     return true;
                 }
             }
@@ -4832,7 +4834,10 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
             break;
     }
 
-    errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `" + left.typeToString() + "` and `" + right.typeToString() + "` are not compatible" + msg);
+    if(left.trueType() == CLASS && right.trueType() == CLASS) {
+        errors->createNewError(GENERIC, right.link->line,  right.link->col, "classes in expression are not compatible");
+    } else
+        errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `" + left.typeToString() + "` and `" + right.typeToString() + "` are not compatible" + msg);
     return false;
 }
 
@@ -5648,15 +5653,15 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
                 }
             } else if(left.utype.field->type == CLASS) {
                 if(right.type == expression_lclass) {
-                    if(left.utype.field->klass->match(right.utype.klass)) {
+                    if(left.utype.field->klass->assignable(right.utype.klass)) {
                         return true;
                     }
                 } else if(right.type == expression_class) {
-                    if(left.utype.field->klass->match(right.utype.klass)) {
+                    if(left.utype.field->klass->assignable(right.utype.klass)) {
                         return false;
                     }
                 } else if(right.type == expression_field && right.utype.field->type == CLASS) {
-                    if(right.utype.field->klass->match(left.utype.field->klass)) {
+                    if(right.utype.field->klass->assignable(left.utype.field->klass)) {
                         return true;
                     }
                 }
@@ -5666,22 +5671,22 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
             break;
         case expression_lclass:
             if(right.type == expression_lclass) {
-                if(left.utype.klass->match(right.utype.klass)) {
+                if(left.utype.klass->assignable(right.utype.klass)) {
                     return true;
                 }
             } else if(right.type == expression_field) {
-                if(left.utype.klass->match(right.utype.field->klass)) {
+                if(left.utype.klass->assignable(right.utype.field->klass)) {
                     return true;
                 }
             } else if(right.type == expression_class) {
-                if(left.utype.klass->match(right.utype.klass)) {
+                if(left.utype.klass->assignable(right.utype.klass)) {
                     return false;
                 }
             }
             break;
         case expression_class:
             if(right.type == expression_class) {
-                if(left.utype.klass->match(right.utype.klass)) {
+                if(left.utype.klass->assignable(right.utype.klass)) {
                     return true;
                 }
             }
@@ -5808,7 +5813,10 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 } else if(left.utype.type == CLASSFIELD && left.utype.field->type == CLASS) {
                     addClass(operand, left.utype.field->klass, out, left, right, pAst);
                 } else {
-                    errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `" + operand.getToken()
+                    if(left.trueType() == CLASS && right.trueType() == CLASS) {
+                        errors->createNewError(GENERIC, right.link->line,  right.link->col, "classes in expression are not compatible");
+                    } else
+                        errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `" + operand.getToken()
                                                                       + "` cannot be applied to expression of type `" + left.typeToString() + "` and `" + right.typeToString() + "`");
                 }
             }
@@ -8411,18 +8419,19 @@ void RuntimeEngine::resolveInterfaceDecl(Ast* ast) {
         klass = scope->klass->getChildClass(name);
     }
 
-    ClassObject *base = klass->getBaseClass();
+    addScope(Scope(CLASS_SCOPE, klass));
+    ClassObject *base = parseBaseClass(ast, ++startpos);
     if(base != NULL) {
         // verify that base is an interface
         if(!base->isInterface()) {
             stringstream err;
             err << "interface '" << klass->getName() << "' must inherit another interface class";
             errors->createNewError(GENERIC, ast->line, ast->col, err.str()); err.str("");
-        }
+        } else
+            klass->setBaseClass(base->getSerial() == klass->getSerial() ? NULL : base);
     }
 
     stringstream err;
-    addScope(Scope(CLASS_SCOPE, klass));
     for(long i = 0; i < block->getSubAstCount(); i++) {
         trunk = block->getSubAst(i);
         CHECK_ERRORS
@@ -8615,8 +8624,10 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
             stringstream err;
             err << "classes can only inherit other classes, do 'class Dog base Animal : Traits {} ' instead";
             errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-        } else
-            klass->setBaseClass(base);
+        } else {
+            if(base != NULL)
+                klass->setBaseClass(base->getSerial() == klass->getSerial() ? NULL : base);
+        }
 
         if(ast->hasSubAst(ast_reference_identifier_list)) {
             klass->setInterfaces(parseRefrenceIdentifierList(ast->getSubAst(ast_reference_identifier_list)));

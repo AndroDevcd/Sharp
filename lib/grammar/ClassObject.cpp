@@ -241,7 +241,7 @@ bool ClassObject::matchBase(ClassObject *pObject) {
            && base->match(pObject->base);
 }
 bool ClassObject::hasBaseClass(ClassObject *pObject) {
-    if(base == NULL) return true;
+    if(base == NULL) return false;
     ClassObject* k, *_klass = this;
 
     for(;;) {

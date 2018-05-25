@@ -59,7 +59,7 @@ struct SharpObject
     unsigned int generation : 3; /* collection generation */
 };
 
-#define FREE_OBJ \
+#define DEC_REF \
     if(object != NULL) { \
         object->refCount--; \
          \
@@ -87,7 +87,7 @@ struct Object {
 
     CXX11_INLINE void operator=(Object &o) {
         if(&o == this) return;
-        FREE_OBJ
+        DEC_REF
 
         if(o.object != NULL) {
             this->object = o.object;
@@ -97,7 +97,7 @@ struct Object {
     }
     CXX11_INLINE void operator=(Object *o) {
         if(o == this) return;
-        FREE_OBJ
+        DEC_REF
 
         if(o->object != NULL)
         {
@@ -107,7 +107,7 @@ struct Object {
     }
     CXX11_INLINE void operator=(SharpObject *o) {
         if(o == this->object) return;
-        FREE_OBJ
+        DEC_REF
 
         this->object = o;
     }

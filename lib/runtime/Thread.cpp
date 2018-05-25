@@ -1005,9 +1005,9 @@ void Thread::exec() {
                 )
                 _brh
             POPOBJ:
-            CHECK_NULL(
-                    *o2 = dataStack[sp--].object;
-            )
+                CHECK_NULL(
+                        *o2 = dataStack[sp--].object;
+                )
                 _brh
             SMOVR:
                 dataStack[sp+GET_Cb(cache[pc])].var=registers[GET_Ca(cache[pc])];

@@ -167,6 +167,8 @@ struct Expression {
                 return utype.field->type;
             case expression_objectclass:
                 return OBJECT;
+            case expression_lclass:
+                return CLASS;
             case expression_var:
                 if(func)
                     return VAR;
