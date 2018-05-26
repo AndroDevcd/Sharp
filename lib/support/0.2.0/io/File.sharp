@@ -7,20 +7,25 @@ class File {
     public static const var separatorChar = fs.getPathSeparator();
     public static const string separator = "" + (new var[] {separatorChar});
 
-    public File(string path) {
-        if(path == null)
+    public File(string pathname) {
+        if(pathname == null)
             throw new NullptrException("file path cannot be null");
-        self->path = fs.normalize(path);
+        self->path = fs.normalize(pathname);
     }
 
     public def getName() : string {
-        if(path == null || path.size()==0)
+        if(path == null || path.size()==0) {
+
+
+
+
             return new string("");
+        }
 
         string name;
 
         for(var i = path.size()-1; i > 0; i--) {
-            if(path.at(i) == seperatorChar) {
+            if(path.at(i) == separatorChar) {
                 name += path.at(i);
             } else
                 break;
@@ -74,7 +79,7 @@ class File {
      *
      */
     public def exists() : var {
-        return fs.checkAccess(this, FileSystem.ACCESS_OK);
+        return fs.checkAccess(self, FileSystem.ACCESS_OK);
     }
 
     /**
@@ -193,7 +198,7 @@ class File {
      */
     public def renameTo(File dest) : var {
         if (dest == null) {
-            throw new NullPointerException();
+            throw new NullptrException();
         }
         return fs.rename(self, dest);
     }
@@ -252,8 +257,8 @@ class File {
      * pathname.
      *
      */
-    public def setReadable(var readable, var ownerOnly) ; var {
-        return fs.setPermission(this, FileSystem.ACCESS_READ, readable, ownerOnly);
+    public def setReadable(var readable, var ownerOnly) : var {
+        return fs.setPermission(self, FileSystem.ACCESS_READ, readable, ownerOnly);
     }
 
     /**
@@ -263,6 +268,140 @@ class File {
      */
     public def setReadable(var readable) : var {
         return setReadable(readable, true);
+    }
+
+    /**
+     * Sets the owner's or everybody's execute permission for this abstract
+     * pathname.
+     *
+     */
+    public def setExecutable(var executable, var ownerOnly) : var {
+        return fs.setPermission(self, FileSystem.ACCESS_EXECUTE, executable, ownerOnly);
+    }
+
+    /**
+     * A convenience method to set the owner's execute permission for this abstract
+     * pathname.
+     *
+     */
+    public def setExecutable(var executable) : var {
+        return setExecutable(executable, true);
+    }
+
+    /**
+     * Tests whether the application can execute the file denoted by this
+     * abstract pathname.
+     *
+     */
+    public def canExecute() : var {
+        return fs.checkAccess(self, FileSystem.ACCESS_EXECUTE);
+    }
+
+    /* -- Disk usage -- */
+
+    /**
+     * Returns the size of the partition <a href="#partName">named</a> by this
+     * abstract pathname.
+     *
+     * @since  1.6
+     */
+    public def getTotalSpace() : var {
+        return fs.getSpace(self, FileSystem.SPACE_TOTAL);
+    }
+
+    /**
+     * Returns the number of unallocated bytes in the partition 
+     * named by this abstract path name.
+     *
+     */
+    public def getFreeSpace() : var {
+        return fs.getSpace(self, FileSystem.SPACE_FREE);
+    }
+
+    /**
+     * Returns the number of bytes available to this virtual machine on the
+     * partition <a href="#partName">named</a> by this abstract pathname.  When
+     * possible, this method checks for write permissions and other operating
+     * system restrictions and will therefore usually provide a more accurate
+     * estimate of how much new data can actually be written than {@link
+     * #getFreeSpace}.
+     *
+     * <p> The returned number of available bytes is a hint, but not a
+     * guarantee, that it is possible to use most or any of these bytes.  The
+     * number of unallocated bytes is most likely to be accurate immediately
+     * after this call.  It is likely to be made inaccurate by any external
+     * I/O operations including those made on the system outside of this
+     * virtual machine.  This method makes no guarantee that write operations
+     * to this file system will succeed.
+     *
+     *
+     * @since  1.6
+     */
+    public def getUsableSpace() : var {
+        return fs.getSpace(self, FileSystem.SPACE_USABLE);
+    }
+
+    /* -- Temporary files -- */
+
+    // file name generation
+    private static def generateTempFile(string prefix, string suffix, File dir) : File
+    {
+//        int n = Math.randomIntInternal();
+//        if (n == Integer.MIN_VALUE) {
+//            n = 0;      // corner case
+//        } else {
+//            n = Math.abs(n);
+//        }
+//        string name = prefix + Integer.tostring(n) + suffix;
+//        File f = new File(name);
+//        if (!name.equals(f.getName()))
+//            throw new IOException("Unable to create temporary file");
+        return null;
+    }
+
+    /**
+     * Creates a new empty file in the specified directory, using the
+     * given prefix and suffix strings to generate its name.  If this method
+     * returns successfully then it is guaranteed that:
+     *
+     */
+    public static def createTempFile(string prefix, string suffix,
+                                      File directory) : File
+    {
+//        if (prefix.length() < 3)
+//            throw new IllegalArgumentException("Prefix string too short");
+//        if (suffix == null)
+//            suffix = ".tmp";
+//
+//        File tmpdir = (directory != null) ? directory
+//                                          : new File(System.getProperty("java.io.tmpdir", "."));
+//        File f;
+//        try {
+//            do {
+//                f = generateTempFile(prefix, suffix, tmpdir);
+//            } while (f.exists());
+//            if (!f.createNewFile())
+//                throw new IOException("Unable to create temporary file");
+//        } catch (SecurityException se) {
+//            // don't reveal temporary directory location
+//            if (directory == null)
+//                throw new SecurityException("Unable to create temporary file");
+//            throw se;
+//        }
+        return null;
+    }
+
+    /**
+     * Creates an empty file in the default temporary-file directory, using
+     * the given prefix and suffix to generate its name. Invoking this method
+     * is equivalent to invoking <code>{@link #createTempFile(java.lang.string,
+     * java.lang.string, java.io.File)
+     * createTempFile(prefix,&nbsp;suffix,&nbsp;null)}</code>.
+     *
+     */
+    public static def createTempFile(string prefix, string suffix) : File
+    {
+        return createTempFile(prefix, suffix, null);
     }
 
 

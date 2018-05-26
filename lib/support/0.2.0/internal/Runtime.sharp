@@ -26,13 +26,18 @@ class Runtime {
     * This is the entry point of your application
     */
     public static def __srt_init_(object[] args) : var {
-        setupClasses();
 
         BuildConfig.applicationName = "" + (var[])args[0];
         BuildConfig.version = "" + (var[])args[1];
         BuildConfig.platform = "" + (var[])args[2];
         BuildConfig.OS = "" + (var[])args[3];
+
+        /**
+        * Build config must be setup first before we do anything
+        */
+        setupClasses();
         userArgs = new string[sizeof(args) - MINIMUM_ARGS];
+
 
 //        System.println("application " + application);
 //        System.println("version " + vers);

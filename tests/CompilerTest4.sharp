@@ -1,0 +1,35 @@
+mod application;
+
+class Start {
+        var a=8, b, c;
+
+    public static def main(string[] args) : var {
+        File file = new File(new string("README.md"));
+
+        if(file.exists()) {
+            System.println("file exists");
+        } else {
+            System.print("file dosent exist!");
+        }
+    }
+}
+
+class Callback {
+
+    public def delegate::work();
+}
+
+interface Event {
+    public def delegate::event();
+}
+
+class Callee base Callback : Event {
+
+    public def delegate::event() {
+        System.print("Event Called!");
+    }
+
+    public def delegate::work() {
+        System.print("success I am Called!");
+    }
+}

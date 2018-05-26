@@ -1253,7 +1253,9 @@ bool Parser::parse_expression(Ast *pAst) {
 
         parse_expression(pAst);
         pAst->encapsulate(ast_equal_e);
-        return true;
+
+        if(!isexprsymbol(peek(1).getToken()))
+            return true;
     }
 
     /* expression ('&' | '^' | '|' | '&&' | '||') expression */

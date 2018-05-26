@@ -29,12 +29,12 @@ class WinFileSystem base FileSystem {
     * Make sure we know that our path has the correct
     * path seperators to be accessed
     */
-    public def delegate::normalize(string path) : string {
+    public def delegate::normalize(string pathname) : string {
         var n = pathname.size();
-        string normalized;
+        string normalized = "";
         var index = 0;
         for (var i = 0; i < n; i++) {
-            var current = normalized[i];
+            var current = pathname.at(i);
             // Remove duplicate slashes.
             if (!(current == '/')) {
                 normalized += new var[] {'\\', '\\'};

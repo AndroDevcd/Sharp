@@ -178,6 +178,13 @@ struct Expression {
                 return utype.type;
         }
     }
+
+    bool isArray() {
+        if(arrayElement)
+            return false;
+        else
+            return utype.isArray();
+    }
     string typeToString();
     void free() {
         utype.free();

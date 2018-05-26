@@ -1062,9 +1062,10 @@ void Thread::exec() {
                 args= GET_Cb(cache[pc]);
 
                 o2 = &dataStack[sp-args].object;
-                klass = o2->object->k;
+                
 
                 CHECK_NULL2(
+                        klass = o2->object->k;
                         if(klass!= NULL) {
                             search:
                             for(long i = 0; i < klass->methodCount; i++) {
@@ -1089,9 +1090,9 @@ void Thread::exec() {
                 args= GET_Cb(cache[pc]);
 
                 o2 = &env->globalHeap[(long)cache[++pc]];
-                klass = o2->object->k;
 
                 CHECK_NULL2(
+                        klass = o2->object->k;
                         if(klass!= NULL) {
                             for(long i = 0; i < klass->methodCount; i++) {
                                 if(env->methods[klass->methods[i]].delegateAddress == delegate) {

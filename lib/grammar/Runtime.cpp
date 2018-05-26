@@ -311,6 +311,7 @@ void exec_runtime(List<string>& files)
     cout << endl << "==========================================================\n" ;
     cout << "Errors: " << (c_options.aggressive_errors ? unfilteredErrors : errors) << " Succeeded: "
          << succeeded << " Failed: " << failed << " Total: " << files.size() << endl;
+    cout << std::flush << std::flush;
 }
 
 void RuntimeEngine::compile()
@@ -820,6 +821,14 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
     }
 
     block.code.push_i64(SET_Di(i64, op_GOTO, (get_label(forBeginLabel)+1)));
+    scope->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
+
+    /**
+     * This is for break statements
+     */
+    ss.str("");
+    ss << for_label_end_id << scope->loops;
+    forEndLabel=ss.str();
     scope->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
     scope->removeLocals(scope->blocks);
     scope->blocks--;
@@ -2612,6 +2621,8 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
         case expression_objectclass:
             errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `dynamic_object`");
             break;
+        case expression_unresolved:
+            break;
         default:
             errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer expression");
             break;
@@ -3934,7 +3945,7 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
 void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, Expression& out) {
     Scope* scope = currentScope();
 
-    if(expression.utype.isArray() != utype.utype.isArray() && expression.trueType() != OBJECT) {
+    if(expression.isArray() != utype.isArray() && expression.trueType() != OBJECT) {
         errors->createNewError(INCOMPATIBLE_TYPES, utype.link->line, utype.link->col, "; cannot cast `" + expression.typeToString() + "` to `" + utype.typeToString() + "`");
         out.type = expression_unresolved;
         return;
@@ -4792,6 +4803,8 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                     errors->createNewError(GENERIC, right.link->line,  right.link->col, "Class `" + right.typeToString() + "` must be lvalue" + msg);
                     return false;
                 }
+            } else if(right.type == expression_null) {
+                return true;
             }
             break;
         case expression_class:
@@ -6606,7 +6619,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
             }
 
             if(field->isStatic()) {
-                staticMainInserts.inject(0, out.code);
+                staticMainInserts.inject(staticMainInserts.size()==0? 0 : staticMainInserts.size()-1, out.code);
             } else {
                 /*
                  * We want to inject the value into all constructors
