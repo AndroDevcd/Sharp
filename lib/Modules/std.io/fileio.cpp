@@ -23,6 +23,12 @@ native_string resolve_path(native_string& path) {
 
     GetFullPathName(path.str().c_str(), MAX_PATH, full_path, NULL);
 
+    for(int i = 0; i < MAX_PATH; i++) {
+        if(full_path[i] != 0x0)
+            fullPath += full_path[i];
+        else
+            break;
+    }
     return fullPath;
 }
 
@@ -35,24 +41,8 @@ long get_file_attrs(native_string& path) {
  * @param path
  * @param access_flg
  * @return
- *
- * windows
- * 00	Existence only
- * 02	Write-only
- * 04	Read-only
- * 06	Read and write
- *
- * EACCES
- * Access denied: the file's permission setting does not allow specified access.
- *
- * ENOENT
- * File name or path not found.
- *
- * EINVAL
- * Invalid parameter.
  */
 int check_access(native_string& path, int access_flg) {
-    int i = EACCES;
     return _access( path.c_str(), access_flg );
 }
 

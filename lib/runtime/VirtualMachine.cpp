@@ -13,6 +13,7 @@
 #include "../grammar/FieldType.h"
 #include "oo/Field.h"
 #include "Manifest.h"
+#include "../Modules/std.io/fileio.h"
 
 VirtualMachine* vm;
 Environment* env;
@@ -284,6 +285,35 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xac:
             __os_sleep((int64_t) registers[ebx]);
             return;
+        case 0xb0: {
+            Object *arry = &thread_self->dataStack[thread_self->sp].object;
+            SharpObject *o = arry->object;
+
+            if(o != NULL && o->HEAD!=NULL) {
+                native_string path, absolute;
+                for(long i = 0; i < o->size; i++) {
+                    path += o->HEAD[i];
+                }
+                absolute = resolve_path(path);
+                GarbageCollector::self->createStringArray(arry, absolute);
+            } else
+                throw Exception(Environment::NullptrException, "");
+            return;
+        }
+        case 0xb1: {
+            Object *arry = &thread_self->dataStack[thread_self->sp--].object;
+            SharpObject *o = arry->object;
+
+            if(o != NULL && o->HEAD!=NULL) {
+                native_string path, absolute;
+                for(long i = 0; i < o->size; i++) {
+                    path += o->HEAD[i];
+                }
+                registers[ebx] = check_access(path, (int)registers[ebx]);
+            } else
+                throw Exception(Environment::NullptrException, "");
+            return;
+        }
         default:
             // unsupported
             break;

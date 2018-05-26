@@ -744,7 +744,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalFieldIndex(local)) == -1)  {
+                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -1038,7 +1038,17 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_register();
                 itmp = i2;
                 expect(",");
-                expect_int();
+                if(current() == "<") {
+                    npos++;
+                    string local = expect_identifier();
+
+                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                        tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
+                    }
+                    expect(">");
+                } else {
+                    expect_int();
+                }
 
                 assembler.push_i64(SET_Ci(i64, op_LOADL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
             } else if(instruction_is("iaload_2")) {
@@ -1054,7 +1064,17 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_register();
                 itmp = i2;
                 expect(",");
-                expect_int();
+                if(current() == "<") {
+                    npos++;
+                    string local = expect_identifier();
+
+                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                        tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
+                    }
+                    expect(">");
+                } else {
+                    expect_int();
+                }
 
                 assembler.push_i64(SET_Ci(i64, op_SMOVR_2, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
             } else if(instruction_is("andl")) {
@@ -1107,8 +1127,66 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_int();
 
                 assembler.push_i64(SET_Di(i64, op_ISTORE, itmp.high_bytes), i2.high_bytes);
+            } else if(instruction_is("pushnil")) {
+                assembler.push_i64(SET_Ei(i64, op_PUSHNIL));
+            } else if(instruction_is("ipushl")) {
+                if(current() == "<") {
+                    npos++;
+                    string local = expect_identifier();
+
+                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                        tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
+                    }
+                    expect(">");
+                } else {
+                    expect_int();
+                }
+
+                assembler.push_i64(SET_Di(i64, op_IPUSHL, i2.high_bytes));
+            } else if(instruction_is("pushl")) {
+                if(current() == "<") {
+                    npos++;
+                    string local = expect_identifier();
+
+                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                        tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
+                    }
+                    expect(">");
+                } else {
+                    expect_int();
+                }
+
+                assembler.push_i64(SET_Di(i64, op_PUSHL, i2.high_bytes));
+            } else if(instruction_is("popl")) {
+                if(current() == "<") {
+                    npos++;
+                    string local = expect_identifier();
+
+                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                        tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
+                    }
+                    expect(">");
+                } else {
+                    expect_int();
+                }
+
+                assembler.push_i64(SET_Di(i64, op_POPL, i2.high_bytes));
+            } else if(instruction_is("itest")) {
+                expect_int();
+
+                assembler.push_i64(SET_Di(i64, op_ITEST, i2.high_bytes));
             } else {
-                npos++;
+                if(current() == "<") {
+                    npos++;
+                    string local = expect_identifier();
+
+                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                        tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
+                    }
+                    expect(">");
+                } else
+                    npos++;
+
                 tk->getErrors()->createNewError(GENERIC, current(), "expected instruction");
             }
         }

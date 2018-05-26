@@ -433,9 +433,9 @@ void tokenizer::parse()
                 else if (escaped)
                 {
 
-                    if(!isletter((char) tolower(current)))
+                    if(!isletter((char) tolower(current)) && ('\\' != current))
                     {
-                        errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", text preceding `\\` must be alpha only");
+                        errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", text preceding `\\` must be alpha or '\\' only");
                         goto start;
                     }
 

@@ -1112,8 +1112,6 @@ void Thread::exec() {
                 )
                 _brh
 
-            executeMethod(GET_Da(cache[pc]))
-
         }
     } catch (bad_alloc &e) {
         cout << "std::bad_alloc\n";

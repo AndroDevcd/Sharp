@@ -1744,7 +1744,7 @@ void RuntimeEngine::parseStringLiteral(token_entity token, Expression& expressio
                     parsed_string += '\\';
                     break;
                 default:
-                    parsed_string += c;
+                    parsed_string += '\\';
                     break;
             }
         }
@@ -9067,7 +9067,7 @@ string RuntimeEngine::getString(long index) {
                 ss << "\\";
                 break;
             default:
-                ss << c;
+                ss << '\\' << c;
                 break;
         }
     }

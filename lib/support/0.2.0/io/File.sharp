@@ -24,6 +24,7 @@ class File {
         for(var i = path.size()-1; i > 0; i--) {
             if(path.at(i) == separatorChar) {
                 startPos=i+1;
+                break;
             }
         }
         for(var i = startPos; i < path.size(); i++) {
@@ -61,7 +62,7 @@ class File {
      *
      */
     public def isReadable() : var {
-        return fs.checkAccess(self, FileSystem.ACCESS_READ);
+        return fs.checkAccess(self, FileSystem.ACCESS_READ)==0;
     }
 
     /**
@@ -70,7 +71,7 @@ class File {
      *
      */
     public def isWriteable() : var {
-        return fs.checkAccess(self, FileSystem.ACCESS_WRITE);
+        return fs.checkAccess(self, FileSystem.ACCESS_WRITE)==0;
     }
 
     /**
@@ -79,7 +80,7 @@ class File {
      *
      */
     public def exists() : var {
-        return fs.checkAccess(self, FileSystem.ACCESS_OK);
+        return fs.checkAccess(self, FileSystem.ACCESS_OK)==0;
     }
 
     /**

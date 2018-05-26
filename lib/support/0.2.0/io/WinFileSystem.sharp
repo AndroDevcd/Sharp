@@ -64,6 +64,23 @@ class WinFileSystem base FileSystem {
       * Return false if access is denied or an I/O error occurs
       */
      public def delegate::checkAccess(File f, var access) : var {
+        var[] path = f.getAbsolutePath().toArray();
+        var result;
 
+        // unsupported on windows
+        if(access == FileSystem.ACCESS_EXECUTE)
+            return -1;
+        /*
+        * This will perform the os call to request the
+        * file access stats of the given abstract pathname
+        */
+        asm(
+            "pushl <path>           "
+            "loadl %ebx,<access>    "
+            "int 0xb1               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
      }
 }

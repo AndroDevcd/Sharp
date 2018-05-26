@@ -70,7 +70,10 @@ class string {
         def operator+( string str ) : string
         {
             string s = new string(data);
-            return s.append(str.toArray());
+            if(str != null)
+                return s.append(str.toArray());
+            else
+                return s.append("null");
         }
 
         def operator==( string str ) : var
@@ -147,6 +150,11 @@ class string {
 
             string temp = new string("");
             string returnvalue= new string("");
+            if(((_int64)number)<0) {
+                temp.append("-");
+                number *= -1;
+            }
+
             while (((_int64)number)>0) {
                 temp.append((number%10)+48);
                 number/=10;

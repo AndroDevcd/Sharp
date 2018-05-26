@@ -21,10 +21,23 @@ class FileSystem {
 
      /**
       * Resolve the given abstract pathname into absolute form.  Invoked by the
-      * getAbsolutePath and getCanonicalPath methods in the File class.
+      * getAbsolutePath method in the File class.
       */
      public def resolve(File f) : string {
-        /* native code here */
+        /* native code */
+        var[] path = f.getPath().toArray();
+
+        /*
+        * This will perform the os call to request the
+        * full path of the given abstract pathname
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb0               "
+            "popl <path>            "
+        );
+
+        return "" + path;
      }
 
 
@@ -45,7 +58,7 @@ class FileSystem {
      public static const var ACCESS_READ    = 0x04;
      public static const var ACCESS_WRITE   = 0x02;
      public static const var ACCESS_EXECUTE = 0x01;
-     public static const var ACCESS_OK      = 0x08;
+     public static const var ACCESS_OK      = 0x00;
 
      /**
       * Check whether the file or directory denoted by the given abstract
