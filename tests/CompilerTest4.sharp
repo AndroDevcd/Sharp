@@ -7,9 +7,9 @@ class Start {
         File file = new File(new string("README.md"));
 
         if(file.exists()) {
-            System.println("file exists");
+            System.println("file " + file.getName() + " exists");
         } else {
-            System.print("file dosent exist!");
+            System.print("file " + file.getName() + " dosent exist!");
         }
     }
 }

@@ -7,28 +7,28 @@ class File {
     public static const var separatorChar = fs.getPathSeparator();
     public static const string separator = "" + (new var[] {separatorChar});
 
-    public File(string pathname) {
-        if(pathname == null)
+    public File(string path) {
+        if(path == null)
             throw new NullptrException("file path cannot be null");
-        self->path = fs.normalize(pathname);
+        self->path = fs.normalize(path);
     }
 
     public def getName() : string {
         if(path == null || path.size()==0) {
-
-
-
-
             return new string("");
         }
 
-        string name;
+        string name ="";
+        var startPos=0;
 
         for(var i = path.size()-1; i > 0; i--) {
             if(path.at(i) == separatorChar) {
-                name += path.at(i);
-            } else
-                break;
+                startPos=i+1;
+            }
+        }
+        for(var i = startPos; i < path.size(); i++) {
+                var [] x = new var[] { path.at(i) };
+                name += x;
         }
 
         return name;

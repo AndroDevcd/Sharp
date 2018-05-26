@@ -3404,9 +3404,14 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
 
             switch(expression.type) {
                 case expression_var:
-                    expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+                    if(!currentRefrenceAffected(right))
+                        expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
 
                     pushExpressionToRegister(right, expression, ebx);
+
+                    if(currentRefrenceAffected(right)) {
+                        expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+                    }
                     expression.code.push_i64(SET_Di(i64, op_MOVI, i), adx);
                     expression.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
                     break;
