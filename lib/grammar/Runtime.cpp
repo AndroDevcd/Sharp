@@ -1718,42 +1718,11 @@ void RuntimeEngine::parseStringLiteral(token_entity token, Expression& expressio
 
     string parsed_string = "";
     bool slash = false;
+    long i = 0;
     for(char c : token.getToken()) {
-        if(slash) {
-            slash = false;
-            switch(c) {
-                case 'n':
-                    parsed_string += '\n';
-                    break;
-                case 't':
-                    parsed_string += '\t';
-                    break;
-                case 'b':
-                    parsed_string += '\b';
-                    break;
-                case 'v':
-                    parsed_string += '\v';
-                    break;
-                case 'r':
-                    parsed_string += '\r';
-                    break;
-                case 'f':
-                    parsed_string += '\f';
-                    break;
-                case '\\':
-                    parsed_string += '\\';
-                    break;
-                default:
-                    parsed_string += '\\';
-                    break;
-            }
-        }
+        parsed_string += c;
 
-        if(c == '\\') {
-            slash = true;
-        } else {
-            parsed_string += c;
-        }
+        i++;
     }
 
     expression.value = parsed_string;
@@ -6624,7 +6593,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
             }
 
             if(field->isStatic()) {
-                staticMainInserts.inject(staticMainInserts.size()==0? 0 : staticMainInserts.size()-1, out.code);
+                staticMainInserts.__asm64.appendAll(out.code.__asm64);
             } else {
                 /*
                  * We want to inject the value into all constructors
@@ -6767,7 +6736,7 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
                 }
 
                 setupClasses->code.inject(setupClasses->code.size()==0 ? 0 : setupClasses->code.size()-1, staticMainInserts);
-                readjustAddresses(setupClasses, staticMainInserts.size());
+//                readjustAddresses(setupClasses, staticMainInserts.size());
                 staticMainInserts.free();
             }
 
@@ -9067,7 +9036,7 @@ string RuntimeEngine::getString(long index) {
                 ss << "\\";
                 break;
             default:
-                ss << '\\' << c;
+                ss << c;
                 break;
         }
     }
@@ -9279,6 +9248,7 @@ std::string RuntimeEngine::generate_string_section() {
     stringstream strings;
 
     for(int64_t i = 0; i < stringMap.size(); i++) {
+        string s = stringMap.get(i);
         strings << (char)data_string;
         strings << i64_tostr(i) << ((char)nil) << stringMap.get(i) << ((char)nil);
     }
@@ -9519,6 +9489,14 @@ void RuntimeEngine::createDumpFile() {
             _ostream << s.str();
 
         }
+    }
+
+    _ostream << "\n\n";
+    for(int64_t i = 0; i < stringMap.size(); i++) {
+        stringstream ss;
+        ss << getString(i);
+        ss << "\n";
+        _ostream << ss.str();
     }
 
     _ostream << "\n\n";

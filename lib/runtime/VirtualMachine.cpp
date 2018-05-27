@@ -300,7 +300,15 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 throw Exception(Environment::NullptrException, "");
             return;
         }
-        case 0xb1: {
+        case 0xb1:
+        case 0xb2:
+        case 0xb3:
+        case 0xb4:
+        case 0xb5:
+        case 0xb6:
+        case 0xb7:
+        case 0xb8:
+        case 0xb9:{
             Object *arry = &thread_self->dataStack[thread_self->sp--].object;
             SharpObject *o = arry->object;
 
@@ -309,9 +317,57 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 for(long i = 0; i < o->size; i++) {
                     path += o->HEAD[i];
                 }
-                registers[ebx] = check_access(path, (int)registers[ebx]);
+                if(signal==0xb1)
+                    registers[ebx] = check_access(path, (int)registers[ebx]);
+                else if(signal==0xb2)
+                    registers[ebx] = get_file_attrs(path);
+                else if(signal==0xb3)
+                    registers[ebx] = last_update(path);
+                else if(signal==0xb4)
+                    registers[ebx] = file_size(path);
+                else if(signal==0xb5)
+                    create_file(path);
+                else if(signal==0xb6)
+                    registers[ebx] = delete_file(path);
+                else if(signal==0xb7) {
+                    List<native_string> files = get_file_list(path);
+
+                    thread_self->sp++;
+                    if(files.size()>0) {
+                        *arry = GarbageCollector::self->newObjectArray(files.size());
+                        o = arry->object;
+
+                        for(long i = 0; i < files.size(); i++) {
+                            GarbageCollector::self->createStringArray(&o->node[i], files.get(i));
+                        }
+                    } else {
+                        GarbageCollector::self->freeObject(arry);
+                    }
+                }
+                else if(signal==0xb8)
+                    registers[ebx] = make_dir(path);
+                else if(signal==0xb9)
+                    registers[ebx] = delete_dir(path);
             } else
                 throw Exception(Environment::NullptrException, "");
+            return;
+        }
+        case 0xba: {
+            SharpObject *o = thread_self->dataStack[thread_self->sp--].object.object;
+            SharpObject *o2 = thread_self->dataStack[thread_self->sp--].object.object;
+
+            if (o != NULL && o->HEAD != NULL && o2 != NULL && o2->HEAD != NULL) {
+                native_string path, rename;
+                for (long i = 0; i < o->size; i++) {
+                    path += o->HEAD[i];
+                }
+                for (long i = 0; i < o2->size; i++) {
+                    rename += o2->HEAD[i];
+                }
+
+                registers[ebx] = rename_file(path, rename);
+            }
+
             return;
         }
         default:

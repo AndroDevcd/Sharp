@@ -108,7 +108,7 @@ public:
     }
 
     const char* c_str() {
-        return str().c_str();
+        return chars;
     }
 
     void free() {

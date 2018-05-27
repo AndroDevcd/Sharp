@@ -53,7 +53,20 @@ class WinFileSystem base FileSystem {
       * other I/O error occurs.
       */
      public def delegate::getFileAttributes(File f) : var {
-        // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        var attrs;
+
+        /*
+        * This will perform the os call to request the
+        * file attributes of the given abstract pathname
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb2               "
+            "smovr_2 %ebx,<attrs>   "
+        );
+
+        return attrs;
      }
 
 

@@ -35,6 +35,28 @@ class File {
         return name;
     }
 
+    public def getParentFile() : File {
+        if(path == null || path.size()==0) {
+            return null;
+        }
+
+        string parentPath ="";
+        var stopPos=0;
+
+        for(var i = path.size()-1; i > 0; i--) {
+            if(path.at(i) == separatorChar) {
+                stopPos=i;
+                break;
+            }
+        }
+        for(var i = 0; i < stopPos; i++) {
+                var [] x = new var[] { path.at(i) };
+                parentPath += x;
+        }
+
+        return new File(parentPath);
+    }
+
     public def getPath() : string {
         return path;
     }
@@ -144,8 +166,8 @@ class File {
      * filesystem activities that might affect the file.
      *
      */
-    public def createNewFile() : var {
-        return fs.createFile(path);
+    public def createNewFile() {
+        fs.createFile(path);
     }
 
     /**
@@ -155,7 +177,7 @@ class File {
      *
      */
     public def delete() : var {
-        return fs.delete(self);
+        return fs.delete(self)==0;
     }
 
     /**
@@ -179,7 +201,7 @@ class File {
      *
      */
     public def mkdir() : var {
-        return fs.createDirectory(self);
+        return fs.createDirectory(self)==0;
     }
 
     /**

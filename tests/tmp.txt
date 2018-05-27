@@ -1,0 +1,40 @@
+new_class @12 // std.internal#ConsoleHandler
+[0x1] 1:	call @59 // <std.internal#ConsoleHandler.ConsoleHandler()>
+[0x2] 2:	movg @13 // @std#System
+[0x3] 3:	movn #0
+[0x4] 4:	popobj
+[0x5] 5:	movg @15 // @std.internal#Runtime
+[0x6] 6:	movn #1
+[0x7] 7:	del
+[0x8] 8:	call @119 // <std.io#File.getFileSystem()>
+[0x9] 9:	movg @16 // @std.io#File
+[0xa] 10:	movn #0
+[0xb] 11:	popobj
+[0xc] 12:	movg @16 // @std.io#File
+[0xd] 13:	movn #0
+[0xe] 14:	pushobj
+[0xf] 15:	invoke_delegate 2, 0
+[0x10] 16:	nop
+[0x11] 17:	movg @16 // @std.io#File
+[0x12] 18:	movn #2
+[0x13] 19:	movi #0, adx
+[0x15] 21:	loadval ecx
+[0x16] 22:	rmov adx, ecx
+[0x17] 23:	new_class @4 // std#string
+[0x18] 24:	newstr @0 // ""
+[0x19] 25:	call @7 // <std#string.string(var[])>
+[0x1a] 26:	movi #1, ebx
+[0x1c] 28:	newarry ebx
+[0x1d] 29:	movg @16 // @std.io#File
+[0x1e] 30:	movn #2
+[0x1f] 31:	movi #0, adx
+[0x21] 33:	chklen adx
+[0x22] 34:	iaload_2 ebx, adx
+[0x23] 35:	movsl #0
+[0x24] 36:	movi #0, adx
+[0x26] 38:	rmov adx, ebx
+[0x27] 39:	call @12 // <std#string.$operator+(var[])>
+[0x28] 40:	movg @16 // @std.io#File
+[0x29] 41:	movn #3
+[0x2a] 42:	popobj
+[0x2b] 43:	ret

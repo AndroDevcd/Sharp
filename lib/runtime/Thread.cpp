@@ -690,7 +690,7 @@ void Thread::exec() {
                 return;
 
             interp:
-            //count++;
+           // count++;
 
             DISPATCH();
             _NOP:

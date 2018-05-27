@@ -9,7 +9,7 @@ class FileSystem {
     * Get current path seperator based on os
     *
     * linux /
-    * windows //
+    * windows \\
     */
     public def delegate::getPathSeparator() : string;
 
@@ -83,7 +83,21 @@ class FileSystem {
       * some other I/O error occurs.
       */
      public def getLastModifiedTime(File f) : var {
-        // native code here
+        // native code
+        var[] path = f.getAbsolutePath().toArray();
+        var time;
+
+        /*
+        * This will perform the os call to request the
+        * file attributes of the given abstract pathname
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb3               "
+            "smovr_2 %ebx,<time>    "
+        );
+
+        return time;
      }
 
      /**
@@ -93,6 +107,20 @@ class FileSystem {
       */
      public def getLength(File f) : var {
         // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        var size;
+
+        /*
+        * This will perform the os call to request the
+        * file attributes of the given abstract pathname
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb4               "
+            "smovr_2 %ebx,<size>    "
+        );
+
+        return size;
      }
 
 
@@ -102,8 +130,40 @@ class FileSystem {
      * file or directory with the given pathname already exists.  Throw an
      * IOErr if an I/O error occurs.
      */
-    public def createFile(string pathname) : var {
+    public def createFile(string pathname) {
         // native code here
+        var[] path = pathname.toArray();
+
+        /*
+        * This will perform the os call to request the
+        * file to be created
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb5               "
+        );
+    }
+
+    /**
+     * Delete the file or directory denoted by the given abstract pathname,
+     * returning true if and only if the operation succeeds.
+     */
+    private def deleteDirectory(File f) : var {
+        // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb9               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
     }
 
     /**
@@ -112,6 +172,23 @@ class FileSystem {
      */
     public def delete(File f) : var {
         // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        var result;
+
+        if(f.isDirectory())
+            return deleteDirectory(f);
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb6               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
     }
 
     /**
@@ -121,6 +198,32 @@ class FileSystem {
      */
     public def list(File f) : string[] {
         // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        object[] out;
+        string[] files;
+
+        if(!f.isDirectory())
+            return null;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <path>           "
+            "int 183               "
+            "popl <out>             "
+        );
+
+        if(out != null) {
+            files = new string[sizeof(out)];
+            var iter = 0;
+            foreach(object file : out) {
+                files[iter++] = new string((var[])file);
+            }
+        }
+
+        return files;
     }
 
     /**
@@ -129,6 +232,20 @@ class FileSystem {
      */
     public def createDirectory(File f) : var {
         // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb8               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
     }
 
     /**
@@ -138,6 +255,22 @@ class FileSystem {
      */
     public def rename(File f1, File f2) : var {
         // native code here
+        var[] path = f1.getAbsolutePath().toArray();
+        var[] rename = f2.getName().toArray();
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <rename>         "
+            "pushl <path>           "
+            "int 0xba               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
     }
 
     /**
