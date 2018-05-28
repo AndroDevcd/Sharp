@@ -75,6 +75,23 @@ class FileSystem {
       */
      public def setPermission(File f, var access, var enable, var owneronly) : var {
         // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file attributes of the given abstract pathname
+        */
+        asm(
+            "pushl <path>           "
+            "loadl %ebx,<access>    "
+            "loadl %egx,<enable>    "
+            "loadl %ecx,<owneronly> "
+            "int 0xbc               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
      }
 
      /**
@@ -280,6 +297,21 @@ class FileSystem {
      */
     public def setLastModifiedTime(File f, var time) : var {
         // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <path>           "
+            "loadl %ebx,<time>      "
+            "int 0xbb               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
     }
 
     /**
@@ -288,7 +320,8 @@ class FileSystem {
      * succeeds.
      */
     public def setReadOnly(File f) : var {
-
+        setPermission(f, ACCESS_WRITE, false, true);
+        return setPermission(f, ACCESS_READ, true, true);
     }
 
     /* -- Disk usage -- */
@@ -296,7 +329,20 @@ class FileSystem {
     public static const var SPACE_FREE   = 1;
     public static const var SPACE_USABLE = 2;
 
-    public def getSpace(File f, var t) : var {
+    public def getSpace(File f, var request) : var {
         // native code here
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "loadl %ebx,<request>   "
+            "int 0xbe               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
     }
 }

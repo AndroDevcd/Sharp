@@ -30,4 +30,10 @@ long delete_dir(native_string &path);
 
 long rename_file(native_string &path, native_string &newName);
 
+time_t update_time(native_string &path, time_t time);
+
+int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly);
+
+long long disk_space(long request);
+
 #endif //SHARP_FILEIO_H

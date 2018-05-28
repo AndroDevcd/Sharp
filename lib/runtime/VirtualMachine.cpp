@@ -308,7 +308,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xb6:
         case 0xb7:
         case 0xb8:
-        case 0xb9:{
+        case 0xb9:
+        case 0xbb:
+        case 0xbc: {
             Object *arry = &thread_self->dataStack[thread_self->sp--].object;
             SharpObject *o = arry->object;
 
@@ -348,6 +350,10 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     registers[ebx] = make_dir(path);
                 else if(signal==0xb9)
                     registers[ebx] = delete_dir(path);
+                else if(signal==0xbb)
+                    registers[ebx] = update_time(path, (time_t)registers[ebx]);
+                else if(signal==0xbc)
+                    registers[ebx] = __chmod(path, (mode_t)registers[ebx], (bool)registers[egx], (bool)registers[ecx]);
             } else
                 throw Exception(Environment::NullptrException, "");
             return;
@@ -370,6 +376,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
 
             return;
         }
+        case 0xbe:
+            registers[ebx]=disk_space((int32_t )registers[ebx]);
+            return;
         default:
             // unsupported
             break;

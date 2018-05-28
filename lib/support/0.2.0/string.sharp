@@ -150,9 +150,10 @@ class string {
 
             string temp = new string("");
             string returnvalue= new string("");
+            var negative = false;
             if(((_int64)number)<0) {
-                temp.append("-");
                 number *= -1;
+                negative = true;
             }
 
             while (((_int64)number)>0) {
@@ -160,6 +161,7 @@ class string {
                 number/=10;
             }
 
+            if(negative) returnvalue.append("-");
             for (var i=sizeof(temp.toArray())-1; i >= 0; i--) {
                 returnvalue.append(temp.at(i));
             }

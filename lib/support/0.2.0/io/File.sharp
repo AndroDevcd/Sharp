@@ -223,7 +223,11 @@ class File {
         if (dest == null) {
             throw new NullptrException();
         }
-        return fs.rename(self, dest);
+        var result = fs.rename(self, dest);
+        if(result==0) {
+            self.path = dest.getPath();
+        }
+        return result==0;
     }
 
     /**
@@ -239,7 +243,7 @@ class File {
      *
      */
     public def setLastModified(var time) : var {
-        if ((_int64)time < 0) throw new IllegalArgumentException("Negative time");
+        if ((_int32)time < 0) throw new IllegalArgumentException("Negative time");
         return fs.setLastModifiedTime(self, time);
     }
 

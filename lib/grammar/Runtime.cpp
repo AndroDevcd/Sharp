@@ -5725,7 +5725,6 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
         errors->createNewError(GENERIC, pAst->line, pAst->col, "expression is not assignable, expression must be of lvalue");
     } else if(left.type == expression_field) {
         if(left.utype.field->isObjectInMemory()) {
-            memassign:
             if(left.utype.field->isArray && operand != "=" && right.type != expression_null) {
                 errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `" + operand.getToken()
                                                                   + "` cannot be applied to expression of type `" + left.typeToString() + "` and `" + right.typeToString() + "`");
@@ -5791,6 +5790,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                     out.utype.klass=left.utype.field->klass;
                 }
 
+                memassign:
                 pushExpressionToStack(right, out);
                 out.inject(left);
                 out.code.push_i64(SET_Ei(i64, op_POPOBJ));
@@ -5880,6 +5880,56 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
             }
         }
     } else if(left.type == expression_lclass) {
+        if(operand == "=" && right.type == expression_null) {
+            out.code.inject(out.code.__asm64.size(), left.code);
+            out.code.push_i64(SET_Ei(i64, op_DEL));
+            return;
+        } else if(equalsNoErr(left, right) && right.type == expression_string) {
+            pushExpressionToStack(right, out);
+            out.code.inject(out.code.__asm64.size(), left.code);
+
+            out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+            return;
+        } else if(operand == "==" && right.type == expression_null) {
+            pushExpressionToPtr(left, out);
+
+            out.code.push_i64(SET_Ei(i64, op_CHECKNULL));
+            out.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, cmt));
+            out.inCmtRegister = true;
+            return;
+        } else if(operand == "==" && (right.trueType() == OBJECT
+                                      || (right.utype.field != NULL && right.utype.field->isObjectInMemory()))) {
+
+            pushExpressionToStack(right, out);
+            pushExpressionToStack(left, out);
+
+            out.code.push_i64(SET_Di(i64, op_ITEST, ebx));
+            out.inCmtRegister = true;
+            return;
+        } else if(operand == "!=" && right.type == expression_null) {
+            pushExpressionToPtr(left, out);
+
+            out.code.push_i64(SET_Ei(i64, op_CHECKNULL));
+            out.code.push_i64(SET_Ci(i64, op_NOT, cmt,0, cmt));
+            out.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, cmt));
+            out.inCmtRegister = true;
+            return;
+        } else if(equalsNoErr(left, right) && operand == "=" && right.type == expression_var) {
+            pushExpressionToStack(right, out);
+            out.inject(left);
+
+            out.utype = left.utype;
+            out.code.push_i64(SET_Di(i64, op_MOVI, 1), ebx);
+            out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+            out.code.push_i64(SET_Di(i64, op_NEWARRAY, ebx));
+            out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+            out.code.push_i64(SET_Di(i64, op_LOADVAL, ebx));
+            out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+            return;
+        }
+
+        out.type=expression_lclass;
+        out.utype=left.utype;
         goto memassign;
     } else if(left.type == expression_var) {
         // this must be an array element

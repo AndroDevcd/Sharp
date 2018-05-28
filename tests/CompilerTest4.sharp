@@ -11,22 +11,28 @@ class Start {
 
         System.println("file " + file.getName() + " being created  ");
         file.createNewFile();
+        System.println("file " + file.getName() + " rename " + file.renameTo(new File(new string("poop.md"))));
+        System.println("file " + file.getName() + " read only " + file.setReadOnly());
         System.println("file " + file.getName() + " absolute path is " + file.getAbsolutePath());
         System.println("file " + file.getName() + " has read access " + file.isReadable());
         System.println("file " + file.getName() + " has write access " + file.isWriteable());
+       // System.println("file " + file.getName() + " setting writeable " + file.setWritable(true));
         if(file.exists()) {
             System.println("file " + file.getName() + " exists");
         } else {
             System.println("file " + file.getName() + " dosent exist!");
         }
 
+        file.setWritable(true);
+//
         System.println("file " + file.getName() + " is a directory " + file.isDirectory());
         System.println("file " + file.getName() + " is a file " + file.isFile());
         System.println("file " + file.getName() + " is a hidden " + file.isHidden());
         System.println("file " + file.getName() + " last modified time " + file.lastModified());
         System.println("file " + file.getName() + " size is  " + file.length());
         System.println("file " + file.getName() + " being deleted  ");
-        //file.delete();
+        System.println("file " + file.getName() + " setting time to " + file.setLastModified(Time.timeToSecs(Time.nanoTime())));
+        file.delete();
 
         File dir = new File(new string("tests\\tmp"));
         dir.mkdir();
@@ -40,8 +46,12 @@ class Start {
             //tmp.delete();
         }
         System.println("folder is being deleted  ");
-        file.renameTo(new File(new string("poop.md")));
-        //dir.delete();
+        System.println("file " + file.getName() + " size is  " + file.length());
+
+        System.println("file " + file.getName() + " total disk space  " + file.getTotalSpace());
+        System.println("file " + file.getName() + " total free disk space  " + file.getFreeSpace());
+        System.println("file " + file.getName() + " total usable disk space  " + file.getUsableSpace());
+//        dir.delete();
     }
 }
 
