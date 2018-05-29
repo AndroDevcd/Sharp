@@ -1228,6 +1228,7 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
     f.address = scope->currentFunction->localVariables++;
     f.local=true;
     f.type = utype.utype.type;
+    f.owner = scope->klass;
     if(utype.utype.type == CLASS) {
         f.klass = utype.utype.klass;
     }
@@ -6186,7 +6187,7 @@ Expression RuntimeEngine::parseEqualExpression(Ast* pAst) {
 long long andExprs=0;
 void RuntimeEngine::parseAndExpressionChain(Expression& out, Ast* pAst) {
     Expression leftExpr(pAst), rightExpr(pAst), peekExpr(pAst);
-    int operandPtr = 0;
+    long operandPtr = 0;
     bool firstEval=true;
     token_entity operand;
     List<token_entity> operands;
@@ -8038,7 +8039,7 @@ void RuntimeEngine::resolveVarDecl(Ast* ast, bool inlineField) {
     parse_var:
     string name =  ast->getEntity(startpos).getToken();
     Field* field = scope->klass->getField(name);
-    if(expression.utype.type == CLASS) {
+    if(expression.utype.type == CLASS || expression.utype.type==CLASSFIELD) {
         field->klass = expression.utype.klass;
         field->type = CLASS;
     } else if(expression.utype.type == VAR) {
@@ -8543,6 +8544,11 @@ void RuntimeEngine::validateDelegates(ClassObject *host, ClassObject *klass, Ast
             } else {
                 if(!func->delegate) {
                     goto error;
+                } else if(!func->sameModifiers(delegatesPosts.get(i))) {
+                    err << "class '" << host->getName() << "' must implement delegate method 'delegate::"
+                        << delegatesPosts.get(i)->getName() << paramsToString(delegatesPosts.get(i)->getParams())
+                        << "' with the same access modifiers as the prototype";
+                    errors->createNewError(GENERIC, ast->line, ast->col, err.str()); err.str("");
                 }
             }
         }

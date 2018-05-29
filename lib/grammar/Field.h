@@ -61,7 +61,8 @@ public:
             note("","",0,0),
             isArray(false),
             nullType(false),
-            local(false)
+            local(false),
+            owner(NULL)
     {
     }
 

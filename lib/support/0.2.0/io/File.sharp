@@ -434,6 +434,13 @@ public class File {
         return createTempFile(prefix, suffix, null);
     }
 
+    public static def readAllText(File file, StreamBuffer io) {
+        fs.read(file, io);
+    }
+
+    public static def write(File file, StreamBuffer io) {
+        fs.write(file, io);
+    }
 
     private static def getFileSystem() : FileSystem {
         if(BuildConfig.isWindows()) {

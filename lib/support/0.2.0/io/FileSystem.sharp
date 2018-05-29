@@ -292,6 +292,31 @@ public class FileSystem {
         return result;
     }
 
+
+    public static def read(File file, StreamBuffer io) {
+
+    }
+
+
+    public static def write(File file, StreamBuffer io) : var {
+        var[] path = file.getAbsolutePath().toArray();
+        var[] raw = io.toString().toArray();
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <raw>            "
+            "pushl <path>           "
+            "int 0xbd               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
+    }
+
     /**
      * Set the last-modified time of the file or directory denoted by the
      * given abstract pathname, returning true if and only if the

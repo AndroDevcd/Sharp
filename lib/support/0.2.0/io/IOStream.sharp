@@ -1,0 +1,82 @@
+mod std.io;
+
+import std;
+
+public class IOStream {
+    private StreamBuffer iobuf;
+    private File file;
+    private var direction;
+    IOStream.StreamReader reader;
+
+    public static var IN = 1;
+    public static var OUT = 0;
+
+
+    class StreamReader {
+        private var pos;
+        private StreamBuffer iobuf;
+
+        public def next() : var {
+            if(pos >= iobuf.size())
+                return -1;
+            return iobuf.at(pos++);
+        }
+    }
+
+    private IOStream() {} // to prevent user from calling this
+
+    public IOStream(File file, var direction) {
+        self->file = file;
+        self->direction = direction;
+        iobuf = new StreamBuffer();
+
+        if(direction==IN) {
+            reader = new IOStream.StreamReader();
+            File.readAllText(file, iobuf);
+        }
+    }
+
+    public def close() {
+        if(direction==OUT) {
+            System.println("writing " + iobuf.toString());
+            File.write(file, iobuf);
+        }
+        iobuf.end();
+    }
+
+    public def nextChar() : var {
+        if(direction == IN)
+            return reader.next();
+        else
+            throw new IllegalStateException("illegal read on IOStream");
+    }
+
+    public def size() : var {
+        return iobuf.size();
+    }
+
+    public def write(string data) {
+        if(direction == IN)
+            throw new IllegalStateException("illegal write on IOStream");
+        iobuf = data;
+    }
+
+    public def write(var[] data) {
+        if(direction == IN)
+            throw new IllegalStateException("illegal write on IOStream");
+        iobuf = "" + data;
+    }
+
+    public def append(string data) {
+        if(direction == IN)
+            throw new IllegalStateException("illegal write on IOStream");
+        iobuf + data;
+    }
+
+    public def append(var[] data) {
+        if(direction == IN)
+            throw new IllegalStateException("illegal write on IOStream");
+        iobuf + ("" + data);
+    }
+
+}

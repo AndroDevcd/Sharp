@@ -115,6 +115,18 @@ public:
     Param& getParam(int p) { return params.get(p); }
     bool hasModifier(AccessModifier m) { return modifiers.find(m); }
     bool isStatic() { return modifiers.find(STATIC); }
+    bool sameModifiers(Method *func) {
+        if(func->modifiers.size() != modifiers.size())
+            return false;
+
+        for(int i = 0; i < modifiers.size(); i++) {
+            if(!func->hasModifier(modifiers.get(i))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
     void free() {
         modifiers.free();
 

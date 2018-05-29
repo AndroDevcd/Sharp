@@ -910,7 +910,7 @@ void Thread::exec() {
                 CHECK_NULLOBJ(o2 = &o2->object->node[(int64_t)registers[GET_Da(cache[pc])]];)
                 _brh
             NEWOBJARRAY:
-                CHECK_NULLOBJ(dataStack[++sp].object = GarbageCollector::self->newObjectArray(registers[GET_Da(cache[pc])]);)
+                dataStack[++sp].object = GarbageCollector::self->newObjectArray(registers[GET_Da(cache[pc])]);
                 STACK_CHECK _brh
             NOT:
                 registers[GET_Ca(cache[pc])]=!registers[GET_Cb(cache[pc])];

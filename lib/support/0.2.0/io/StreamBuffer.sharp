@@ -1,0 +1,115 @@
+mod std.io;
+
+import std;
+
+/**
+* StreamBuffer is a utility class that is used for storing buffered data
+*
+* When data is added to the stream the class allocated data in blocks or "chunks"
+* of data the size of 128. This is to prevent constant allocation to the runtime system
+* to minimize memory request lags.
+*
+* StreamBuffer is a class that is used by IOStream to read and write a stream of data to a file
+*/
+class StreamBuffer {
+
+    private static var STREAM_BASE  = 0x200;
+    private static var STREAM_CHUNK = 128;
+
+    private var[] data;
+    private var size;
+    private var dp;
+
+    public StreamBuffer(string data) {
+        begin();
+
+        self + data;
+    }
+
+    public StreamBuffer() {
+        begin();
+    }
+
+    public def end() {
+        data = null;
+        size = 0;
+        dp = 0;
+    }
+
+    /**
+    * The data will be converted to a unicode UTF-16 encoded string
+    */
+    public def toString() : string {
+        string str = "";
+        for(var i=0; i < dp; i++) {
+            str += data[i];
+        }
+        return str;
+    }
+
+    public def at(var pos) : var {
+        if( (pos >= dp) || (pos < 0) ) {
+            throw new IndexOutOfBoundsException("Access to buffer at: " + pos + "  size: " + dp);
+        }
+        return data[pos];
+    }
+
+    public def size() : var {
+        return dp;
+    }
+
+    public def isEmpty() : var {
+        return dp==0;
+    }
+
+    public def operator+(var data) : StreamBuffer {
+        pushBack((_int16)data);
+        return self;
+    }
+
+    public def operator+(string data) : StreamBuffer {
+        var[] raw = data.toArray();
+        foreach(var _char : raw)
+            pushBack((_int16)_char);
+        return self;
+    }
+
+    public def operator=(StreamBuffer buf) : StreamBuffer {
+        begin();
+
+        foreach(var _char : buf.data)
+            pushBack((_int16)_char);
+        return self;
+    }
+
+    public def operator=(string data) : StreamBuffer {
+        begin();
+
+        var[] raw = data.toArray();
+        foreach(var _char : raw)
+            pushBack((_int16)_char);
+        return self;
+    }
+
+    public def begin() {
+        data = new var[STREAM_BASE];
+        size = STREAM_BASE;
+        dp = 0;
+    }
+
+    public def pushBack(var _char) {
+        if(data==null)
+            begin();
+
+        if(dp >= size) {
+            size += STREAM_CHUNK;
+            data = Array.expand(data, size);
+        }
+
+        System.println("assign " + _char);
+        System.println("dp " + dp);
+        data[dp++] = _char;
+        System.println("dp222 " + dp);
+    }
+
+}

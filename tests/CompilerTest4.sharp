@@ -32,6 +32,9 @@ public class Start {
         }
 
         file.setWritable(true);
+        IOStream stream = new IOStream(file, IOStream.OUT);
+        stream.write("Hello, World!");
+        stream.close();
 //
         System.println("file " + file.getName() + " is a directory " + file.isDirectory());
         System.println("file " + file.getName() + " is a file " + file.isFile());

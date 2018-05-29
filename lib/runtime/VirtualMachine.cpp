@@ -14,6 +14,7 @@
 #include "oo/Field.h"
 #include "Manifest.h"
 #include "../Modules/std.io/fileio.h"
+#include "../util/File.h"
 
 VirtualMachine* vm;
 Environment* env;
@@ -358,7 +359,8 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 throw Exception(Environment::NullptrException, "");
             return;
         }
-        case 0xba: {
+        case 0xba:
+        case 0xbd:  {
             SharpObject *o = thread_self->dataStack[thread_self->sp--].object.object;
             SharpObject *o2 = thread_self->dataStack[thread_self->sp--].object.object;
 
@@ -371,7 +373,13 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     rename += o2->HEAD[i];
                 }
 
-                registers[ebx] = rename_file(path, rename);
+                if(signal==0xba)
+                    registers[ebx] = rename_file(path, rename);
+                else if(signal==0xbd) {
+                    File::buffer buf;
+                    buf.operator<<(rename.str()); // rename will contain our actual unicode data
+                    registers[ebx] = File::write(path.str().c_str(), buf);
+                }
             }
 
             return;

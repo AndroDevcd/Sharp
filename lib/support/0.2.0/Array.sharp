@@ -24,4 +24,14 @@ public class Array {
 
         return newArry;
     }
+
+    public static def expand(var[] data, var len) : var[] {
+        var[] newArry = new var[len];
+
+        for(var i = 0; i < sizeof(data); i++) {
+            newArry[i] = data[i];
+        }
+
+        return newArry;
+    }
 }
