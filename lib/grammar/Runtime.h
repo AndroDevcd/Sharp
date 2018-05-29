@@ -740,7 +740,7 @@ private:
 
     void pushAuthenticExpressionToStackNoInject(Expression &expression, Expression &out);
 
-    void pushExpressionToPtr(Expression &expression, Expression &out);
+    void pushExpressionToPtr(Expression &expression, Expression &out, bool check = false);
 
     void pushExpressionToStack(Expression &expression, Expression &out);
 
@@ -1011,6 +1011,10 @@ private:
     void verifyMethodAccess(Method *fn, Ast* pAst);
 
     void verifyFieldAccess(Field *field, Ast *pAst);
+
+    void parseLockStatement(Block &block, Ast *pAst);
+
+    void isMemoryObject(Expression &expression, Ast *pAst);
 };
 
 

@@ -215,6 +215,10 @@ bool Parser::isfor_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "for";
 }
 
+bool Parser::islock_stmnt(token_entity entity) {
+    return entity.getId() == IDENTIFIER && entity.getToken() == "lock";
+}
+
 bool Parser::isforeach_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "foreach";
 }
@@ -1167,28 +1171,7 @@ bool Parser::parse_expression(Ast *pAst) {
             return true;
     }
 
-    /* expression ('+'|'-') expression */
-    if(peek(1).getTokenType() == PLUS || peek(1).getTokenType() == MINUS)
-    {
-        advance();
-        pAst->addEntity(current());
 
-        if(parenExprs > 0) {
-
-            parse_expression(pAst);
-            pAst->encapsulate(ast_add_e);
-            parenExprs--;
-        } else {
-            nestedAddExprs++;
-            parse_expression(nestedAddExprs == 1 ? pAst : pAst=pAst->getParent());
-            if(nestedAddExprs == 1)
-                pAst->encapsulate(ast_add_e);
-            nestedAddExprs--;
-        }
-
-
-        return true;
-    }
 
     /* expression ('*'|'/'|'%') expression */
     if(peek(1).getTokenType() == MULT || peek(1).getTokenType() == _DIV ||
@@ -1215,6 +1198,28 @@ bool Parser::parse_expression(Ast *pAst) {
         return true;
     }
 
+    /* expression ('+'|'-') expression */
+    if(peek(1).getTokenType() == PLUS || peek(1).getTokenType() == MINUS)
+    {
+        advance();
+        pAst->addEntity(current());
+
+        if(parenExprs > 0) {
+
+            parse_expression(pAst);
+            pAst->encapsulate(ast_add_e);
+            parenExprs--;
+        } else {
+            nestedAddExprs++;
+            parse_expression(nestedAddExprs == 1 ? pAst : pAst=pAst->getParent());
+            if(nestedAddExprs == 1)
+                pAst->encapsulate(ast_add_e);
+            nestedAddExprs--;
+        }
+
+
+        return true;
+    }
 
     /* expression ('<<'|'>>') expression */
     if(peek(1).getTokenType() == SHL || peek(1).getTokenType() == SHR)
@@ -1651,6 +1656,18 @@ void Parser::parse_whilestmnt(Ast *pAst) {
     parse_block(pAst);
 }
 
+void Parser::parse_lockstmnt(Ast *pAst) {
+    pAst = get_ast(pAst, ast_lock_statement);
+
+    expect_token(pAst, "lock", "`lock`");
+
+    expect(LEFTPAREN, pAst, "`(`");
+    parse_expression(pAst);
+    expect(RIGHTPAREN, pAst, "`)`");
+
+    parse_block(pAst);
+}
+
 void Parser::parse_dowhilestmnt(Ast *pAst) {
     pAst = get_ast(pAst, ast_do_while_statement);
 
@@ -1788,6 +1805,10 @@ void Parser::parse_statement(Ast* pAst) {
     else if(isfor_stmnt(current()))
     {
         parse_forstmnt(pAst );
+    }
+    else if(islock_stmnt(current()))
+    {
+        parse_lockstmnt(pAst );
     }
     else if(isforeach_stmnt(current()))
     {
@@ -2033,7 +2054,7 @@ bool Parser::iskeyword(string key) {
            || key == "var" || key == "sizeof"|| key == "_int8" || key == "_int16"
            || key == "_int32" || key == "_int64" || key == "_uint8"
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
-           || key == "delegate" || key == "interface";
+           || key == "delegate" || key == "interface" || key == "lock";
 }
 
 bool Parser::parse_type_identifier(Ast *pAst) {

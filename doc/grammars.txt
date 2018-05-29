@@ -192,6 +192,9 @@ if (<expression>) <block> [else [if] block]*
 While statement:
 while (<expression>) <block>
 
+Lock statement:
+lock (<expression>) <block>
+
 Do While statement:
 do  <block> while(<expression>) ;
 
@@ -225,6 +228,7 @@ asm ( <string-literal>+ ) ;
      | <if-statement>
      | <while-statement>
      | <dowhile-statement>
+     | <lock-statement>
      | <trycatch-statement>
      | <throw-statement>
      | continue ;

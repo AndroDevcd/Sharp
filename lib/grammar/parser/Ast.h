@@ -45,6 +45,7 @@ enum ast_types
     ast_if_statement,
     ast_elseif_statement,
     ast_else_statement,
+    ast_lock_statement,
     ast_trycatch_statement,
     ast_throw_statement,
     ast_continue_statement,

@@ -31,19 +31,21 @@ public class Start {
             System.println("file " + file.getName() + " dosent exist!");
         }
 
-        file.setWritable(true);
-        IOStream ostream = new IOStream(file, IOStream.OUT);
-        ostream.write("Hello, World!");
-        ostream.close();
+        lock (file) {
+            file.setWritable(true);
+            IOStream ostream = new IOStream(file, IOStream.OUT);
+            ostream.write("Hello, World!");
+            ostream.close();
 
-        IOStream istream = new IOStream(file, IOStream.IN);
-        var _char;
+            IOStream istream = new IOStream(file, IOStream.IN);
+            var _char;
 
-        while((_char = istream.nextChar()) != -1) {
-            System.printChar(_char);
+            while((_char = istream.nextChar()) != -1) {
+                System.printChar(_char);
+            }
+
+            istream.close();
         }
-
-        istream.close();
 //
         System.println("file " + file.getName() + " is a directory " + file.isDirectory());
         System.println("file " + file.getName() + " is a file " + file.isFile());

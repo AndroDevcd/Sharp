@@ -231,6 +231,10 @@ private:
     void parse_interfaceblock(Ast *pAst);
 
     void parse_reference_identifier_list(Ast *ast);
+
+    bool islock_stmnt(token_entity entity);
+
+    void parse_lockstmnt(Ast *pAst);
 };
 
 #define _SHARP_CERROR_LIMIT c_options.error_limit

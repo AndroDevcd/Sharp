@@ -663,7 +663,7 @@ short int startAddress = 0;
  * We need this to keep track of which finally block we are executing
  */
 FinallyTable finallyTable;
-long double count = 0;
+unsigned long long count = 0;
 
 void Thread::exec() {
 
@@ -690,7 +690,7 @@ void Thread::exec() {
                 return;
 
             interp:
-           // count++;
+//            count++;
 
             DISPATCH();
             _NOP:

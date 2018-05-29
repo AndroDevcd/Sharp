@@ -902,7 +902,7 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
     block.code.push_i64(SET_Di(i64, op_MOVI, 0), ebx);
     block.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
-    if(!arryExpression.arrayObject()) {
+    if(!arryExpression.isArray()) {
         errors->createNewError(GENERIC, pAst->getSubAst(ast_expression), "expression must evaluate to type array");
     }
 
@@ -947,6 +947,7 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
 
 void RuntimeEngine::parseWhileStatement(Block& block, Ast* pAst) {
     Scope* scope = currentScope();
+    scope->loops++;
     string whileBeginLabel, whileEndLabel;
 
     Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out(pAst);
@@ -973,9 +974,38 @@ void RuntimeEngine::parseWhileStatement(Block& block, Ast* pAst) {
     scope->label_map.add(KeyPair<std::string, int64_t>(whileEndLabel,__init_label_address(block.code)));
 }
 
+void RuntimeEngine::parseLockStatement(Block& block, Ast* pAst) {
+    Scope* scope = currentScope();
+    string lockBeginLabel, lockEndLabel;
+
+    Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out(pAst);
+
+    stringstream ss;
+    ss << generic_label_id << ++scope->uniqueLabelSerial;
+    lockBeginLabel=ss.str();
+
+    ss.str("");
+    ss << generic_label_id << ++scope->uniqueLabelSerial;
+    lockEndLabel=ss.str();
+
+    scope->label_map.add(KeyPair<std::string, int64_t>(lockBeginLabel,__init_label_address(block.code)));
+    pushExpressionToPtr(cond, out, true);
+    block.code.inject(block.code.size(), out.code);
+
+
+    block.code.push_i64(SET_Ei(i64, op_LOCK));
+    parseBlock(pAst->getSubAst(ast_block), block);
+
+    block.code.inject(block.code.size(), out.code);
+    block.code.push_i64(SET_Ei(i64, op_ULOCK));
+    scope->label_map.add(KeyPair<std::string, int64_t>(lockBeginLabel,__init_label_address(block.code)));
+}
+
 void RuntimeEngine::parseDoWhileStatement(Block& block, Ast* pAst) {
     Scope* scope = currentScope();
     string whileBeginLabel;
+    scope->blocks++;
+    scope->loops++;
 
     stringstream ss;
     ss << generic_label_id << ++scope->uniqueLabelSerial;
@@ -1331,6 +1361,9 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
             break;
         case ast_while_statement:
             parseWhileStatement(block, pAst); // done
+            break;
+        case ast_lock_statement:
+            parseLockStatement(block, pAst); // done
             break;
         case ast_do_while_statement:
             parseDoWhileStatement(block, pAst); // done
@@ -2002,9 +2035,12 @@ void RuntimeEngine::pushAuthenticExpressionToStackNoInject(Expression& expressio
     }
 }
 
-void RuntimeEngine::pushExpressionToPtr(Expression& expression, Expression& out) {
+void RuntimeEngine::pushExpressionToPtr(Expression& expression, Expression& out, bool check) {
     if(!expression.newExpression)
         out.code.inject(out.code.__asm64.size(), expression.code);
+
+    if(check)
+        isMemoryObject(expression, expression.link);
 
     switch(expression.type) {
         case expression_var:
@@ -2652,7 +2688,7 @@ Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
             errors->createNewError(GENERIC, indexExpr.link->line, indexExpr.link->col, "expression of type `" + interm.typeToString() + "` must evaluate to array");
             break;
         case expression_var:
-            if(!interm.arrayObject()) {
+            if(!interm.isArray()) {
                 // error not an array
                 errors->createNewError(GENERIC, indexExpr.link->line, indexExpr.link->col, "expression of type `" + interm.typeToString() + "` must evaluate to array");
             }
@@ -4424,7 +4460,7 @@ Expression RuntimeEngine::parseUnary(token_entity operand, Expression& right, As
                     expression.code.push_i64(SET_Di(i64, op_MOVI, var), ebx);
                 }
             } else {
-                expression.code.inject(expression.code.size(), right.code);
+                pushExpressionToRegister(right, expression, ebx);
 
                 if(operand == "+")
                     expression.code.push_i64(SET_Ci(i64, op_IMUL, ebx,0, 1));
@@ -4440,7 +4476,7 @@ Expression RuntimeEngine::parseUnary(token_entity operand, Expression& right, As
             if(right.utype.field->isNative()) {
                 // add var
                 if(right.utype.field->isVar()) {
-                    expression.code.inject(expression.code.size(), right.code); // ToDO: shouldnt we be pushing this to ebx register???
+                    pushExpressionToRegister(right, expression, ebx);
 
                     if(operand == "+") {
                         expression.code.push_i64(SET_Ci(i64, op_IMUL, ebx,0, 1));
@@ -10041,7 +10077,6 @@ void RuntimeEngine::createDumpFile() {
                 case op_LOCK:
                 {
                     ss<<"_lck ";
-                    ss<< Asm::registrerToString(GET_Da(x64));
                     _ostream << ss.str();
                     break;
                 }
@@ -10570,5 +10605,13 @@ void RuntimeEngine::verifyFieldAccess(Field *field, Ast* pAst) {
         }
     } else {
         // access granted
+    }
+}
+
+void RuntimeEngine::isMemoryObject(Expression &expression, Ast *pAst) {
+    if(expression.newExpression || expression.isArray() || expression.trueType() == OBJECT
+       || expression.trueType() == CLASS) {
+    } else {
+        errors->createNewError(GENERIC, pAst, "expression must evaluate to an object");
     }
 }

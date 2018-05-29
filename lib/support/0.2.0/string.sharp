@@ -204,22 +204,26 @@ public class string {
             return number;
         }
 
-        public static def toString(var n) : string {
-            if (n == 0) return new string("0");
-            string sb = new string();
-
-            if(((_int8)n) < 0) {
-                sb += "-";
-                n *= -1;
-            }
-            while (((_int8)n) > 0) {
-                var curr = n % 10;
-                n /= 10;
-                sb += curr;
-            }
-
-            return sb.substring(0);
-        }
+        /**
+          * Tests if the substring of this string beginning at the
+          * specified index starts with the specified prefix.
+          *
+          */
+         public def startsWith(string prefix, var toffset) : var {
+             var to = toffset;
+             var po = 0;
+             var pc = prefix.size();
+             // Note: toffset might be near -1>>>1.
+             if ((toffset < 0) || (toffset > size() - pc)) {
+                 return false;
+             }
+             while (--pc >= 0) {
+                 if (at(to++) != prefix.at(po++)) {
+                     return false;
+                 }
+             }
+             return true;
+         }
 
         private static def isDigit(var c) : var {
             return (c>='0') && (c<='9');

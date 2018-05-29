@@ -34,6 +34,14 @@ public class System {
         print(data);
         printChar('\n');
     }
+
+    public static def readLine() : string {
+        return null; // unsupported for now
+    }
+
+    public static def readChar() : var {
+        return 0; // unsupported for now
+    }
     
     public static def println(string str) {
         cHandler.printData(str.toArray());
