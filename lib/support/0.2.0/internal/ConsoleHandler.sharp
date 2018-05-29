@@ -5,7 +5,7 @@ mod std.internal;
  *
  * A helper class to allow simple interfacing with the console
  */
-class ConsoleHandler {
+public class ConsoleHandler {
     public def printData(var[] data)
     {
         __print_(data);

@@ -5,13 +5,13 @@ mod std;
  *
  8 this class will be used to throw all runtime exceptions
  */
-class RuntimeErr base Exception {
+public class RuntimeErr base Exception {
 
-      RuntimeErr(var[] message) {
+      public RuntimeErr(var[] message) {
         base->Exception(message);
       }
 
-      RuntimeErr(string message) {
+      public RuntimeErr(string message) {
         base->Exception(message);
       }
 }

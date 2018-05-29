@@ -1,5 +1,7 @@
 mod std.internal;
 
+import std;
+
 /**
  * Created by BraxtonN on 5/17/2018.
  *
@@ -8,7 +10,7 @@ mod std.internal;
  * garbage collector requests and the entry-point to
  * your application
  */
-class Runtime {
+public class Runtime {
 
     private static var MINIMUM_ARGS = 4;
     private static string[] userArgs = null;

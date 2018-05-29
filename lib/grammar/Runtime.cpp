@@ -347,7 +347,7 @@ void RuntimeEngine::compile()
             lst.free();
         }
 
-
+        // TODO: inforce const on variables
         for(unsigned long i = 0; i < parsers.size(); i++) {
             Parser *p = parsers.get(i);
             activeParser = p;
@@ -381,6 +381,7 @@ void RuntimeEngine::compile()
                 }
 
             }
+
 
             if((i+1) >= parsers.size() && errors->getErrorCount() == 0 && errors->getUnfilteredErrorCount() == 0) {
                 getMainMethod(p);
@@ -435,7 +436,7 @@ void RuntimeEngine::addLine(Block& block, Ast *pAst) {
 
 void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix return sign of new
     Scope* scope = currentScope();
-    Expression returnVal, value;
+    Expression returnVal(pAst), value(pAst);
     scope->reachable=false;
     scope->last_statement=ast_return_stmnt;
 
@@ -453,17 +454,17 @@ void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix
                 } else {
                     if (value.func) {
                         // TODO: pull value from function
-                        if(value.utype.array) {
+                        if(value.isArray()) {
                             block.code.push_i64(SET_Di(i64, op_MOVSL, 0));
                             block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
                         } else {
-                            Expression out;
+                            Expression out(pAst);
                             pushExpressionToRegisterNoInject(value, out, ebx);
                             block.code.inject(block.code.__asm64.size(), out.code);
                             block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
                         }
                     } else {
-                        Expression out;
+                        Expression out(pAst);
                         pushExpressionToRegisterNoInject(value, out, ebx);
                         block.code.inject(block.code.__asm64.size(), out.code);
                         block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
@@ -473,7 +474,7 @@ void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix
             case expression_field:
                 if(value.utype.field->isVar() && !value.utype.field->isArray) {
                     if(value.utype.field->local) {
-                        Expression out;
+                        Expression out(pAst);
                         pushExpressionToRegisterNoInject(value, out, ebx);
                         block.code.inject(block.code.__asm64.size(), out.code);
                         block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
@@ -563,7 +564,7 @@ void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix
 
 void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
     Scope* scope = currentScope();
-    Expression cond, out;
+    Expression cond(pAst), out(pAst);
     scope->uniqueLabelSerial++;
     cond = parseExpression(pAst->getSubAst(ast_expression));
 
@@ -728,7 +729,7 @@ Field RuntimeEngine::utypeArgToField(KeyPair<string, ResolvedReference> arg) {
 void RuntimeEngine::parseUtypeArg(Ast *pAst, Scope *scope, Block &block, Expression* comparator) {
     if(pAst->hasSubAst(ast_utype_arg)) {
         KeyPair<string, ResolvedReference> utypeArg = parseUtypeArg(pAst->getSubAst(ast_utype_arg));
-        Expression value, out;
+        Expression value(pAst), out(pAst);
 
         if(pAst->hasSubAst(ast_value)) {
             if(comparator != NULL)
@@ -771,7 +772,7 @@ int64_t RuntimeEngine::get_label(string label) {
 
 void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
     Scope* scope = currentScope();
-    Expression cond, iter;
+    Expression cond(pAst), iter(pAst);
     scope->blocks++;
     scope->loops++;
     scope->uniqueLabelSerial++;
@@ -790,7 +791,7 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
     forEndLabel=ss.str();
 
     if(pAst->hasSubAst(ast_for_expresion_cond)) {
-        Expression out;
+        Expression out(pAst);
         cond = parseExpression(pAst->getSubAst(ast_for_expresion_cond));
 
         // This prevents stupid things like reverse copying that can just be avoided
@@ -867,7 +868,7 @@ void RuntimeEngine::getArrayValueOfExpression(Expression& expr, Expression& out)
 void RuntimeEngine::assignUtypeForeach(Ast *pAst, Scope *scope, Block &block, Expression& assignExpr) {
     if(pAst->hasSubAst(ast_utype_arg)) {
         KeyPair<string, ResolvedReference> utypeArg = parseUtypeArg(pAst->getSubAst(ast_utype_arg));
-        Expression out;
+        Expression out(pAst);
 
         KeyPair<int, Field>* local = scope->getLocalField(utypeArg.key);
         Expression fieldExpr = fieldToExpression(pAst, local->value);
@@ -885,7 +886,7 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
     scope->uniqueLabelSerial++;
     string forBeginLabel, forEndLabel;
 
-    Expression arryExpression(parseExpression(pAst->getSubAst(ast_expression))), out;
+    Expression arryExpression(parseExpression(pAst->getSubAst(ast_expression))), out(pAst);
     parseUtypeArg(pAst, scope, block, &arryExpression);
 
     /*
@@ -943,7 +944,7 @@ void RuntimeEngine::parseWhileStatement(Block& block, Ast* pAst) {
     Scope* scope = currentScope();
     string whileBeginLabel, whileEndLabel;
 
-    Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out;
+    Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out(pAst);
 
     stringstream ss;
     ss << generic_label_id << ++scope->uniqueLabelSerial;
@@ -978,7 +979,7 @@ void RuntimeEngine::parseDoWhileStatement(Block& block, Ast* pAst) {
 
     parseBlock(pAst->getSubAst(ast_block), block);
 
-    Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out;
+    Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out(pAst);
     pushExpressionToRegister(cond, out, cmt);
     block.code.inject(block.code.size(), out.code);
 
@@ -1110,7 +1111,7 @@ void RuntimeEngine::parseTryCatchStatement(Block& block, Ast* pAst) {
 }
 
 void RuntimeEngine::parseThrowStatement(Block& block, Ast* pAst) {
-    Expression clause = parseExpression(pAst->getSubAst(ast_expression)), out;
+    Expression clause = parseExpression(pAst->getSubAst(ast_expression)), out(pAst);
     currentScope()->reachable=false;
     currentScope()->last_statement=ast_throw_statement;
 
@@ -1245,14 +1246,14 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
 //            block.code.__asm64.push_back(SET_Di(i64, op_MOVL, f.address));
 
         if(pAst->hasSubAst(ast_value)) {
-            Expression expression = parseValue(pAst->getSubAst(ast_value)), out;
+            Expression expression = parseValue(pAst->getSubAst(ast_value)), out(pAst);
             equals(fieldExpr, expression);
 
             if(f.isObjectInMemory()) {
                 if(operand == "=") {
 
                     if(f.type==CLASS && f.klass->getModuleName() == "std" && f.klass->getName() == "string"
-                        && expression.type == expression_string) {
+                        && expression.type == expression_string && !f.isArray) {
                         constructNewString(expression, out);
                         out.code.push_i64(SET_Di(i64, op_POPL, f.address));
                     } else
@@ -1304,7 +1305,7 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
             parseIfStatement(block, pAst); // done
             break;
         case ast_expression: {
-            Expression expr;
+            Expression expr(pAst);
             expr = parseExpression(pAst);
             if(expr.func && expr.type != expression_void) {
                 expr.code.push_i64(SET_Ei(i64, op_POP));
@@ -1739,7 +1740,7 @@ void RuntimeEngine::parseBoolLiteral(token_entity token, Expression& expression)
 }
 
 Expression RuntimeEngine::parseLiteral(Ast* pAst) {
-    Expression expression;
+    Expression expression(pAst);
 
     switch(pAst->getEntity(0).getId()) {
         case CHAR_LITERAL:
@@ -1846,7 +1847,7 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
         } else if(expression->type == expression_lclass) {
             field = Field(expression->utype.klass, 0, "", NULL, mods, note);
             field.type = CLASS;
-            field.isArray = expression->utype.array;
+            field.isArray = expression->isArray();
 
             params.add(Param(field));
         } else if(expression->type == expression_field) {
@@ -1857,7 +1858,7 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
                     expression->utype.referenceName + "`");
         } else if(expression->type == expression_objectclass) {
             field = Field(OBJECT, 0, "", NULL, mods, note);
-            field.isArray = expression->utype.array;
+            field.isArray = expression->isArray();
 
             params.add(field);
         } else if(expression->type == expression_void) {
@@ -2056,7 +2057,7 @@ void RuntimeEngine::pushExpressionToStack(Expression& expression, Expression& ou
             } else {
                 if (expression.func) {
                 } else {
-                    if(expression.utype.array)
+                    if(expression.isArray())
                         out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
                     else
                         out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
@@ -2120,7 +2121,7 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
     string methodName;
     List<Param> params;
     List<Expression> expressions = parseValueList(valueLst);
-    Expression expression;
+    Expression expression(utype);
     bool access = false;
 
     expressionListToParams(params, expressions);
@@ -2191,6 +2192,7 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
             errors->createNewError(GENERIC, valueLst->line, valueLst->col, " call to instance function `" + fn->getFullName() +  paramsToString(params) + "` inside static block");
         }
 
+        verifyMethodAccess(fn, valueLst);
         if(!fn->isStatic()) {
             if(access && scope->last_statement == ast_return_stmnt) {
                 out.inject(expression);
@@ -2336,7 +2338,7 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
     string methodName = "";
     List<Param> params;
     List<Expression> expressions = parseValueList(pAst2);
-    Expression expression;
+    Expression expression(pAst);
 
     expressionListToParams(params, expressions);
     ptr = parseTypeIdentifier(pAst);
@@ -2403,7 +2405,7 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
         if(fn->isStatic()) {
             createNewWarning(GENERIC, pAst->line, pAst->col, "instance access to static function");
         }
-
+        verifyMethodAccess(fn, pAst);
 
         if(!fn->isStatic()) {
             pushAuthenticExpressionToStackNoInject(contextExpression, out);
@@ -2439,7 +2441,7 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
 
 Expression RuntimeEngine::parseUtypeContext(ClassObject* classContext, Ast* pAst) {
     ReferencePointer ptr=parseTypeIdentifier(pAst);
-    Expression expression;
+    Expression expression(pAst);
 
     if(ptr.singleRefrence() && Parser::isnative_type(ptr.referenceName)) {
         errors->createNewError(UNEXPECTED_SYMBOL, pAst->line, pAst->col, " `" + ptr.referenceName + "`");
@@ -2464,7 +2466,7 @@ Expression RuntimeEngine::parseUtypeContext(ClassObject* classContext, Ast* pAst
 
 Expression RuntimeEngine::parseDotNotationCallContext(Expression& contextExpression, Ast* pAst) {
     string method_name="";
-    Expression expression, interm;
+    Expression expression(pAst), interm(pAst);
     Method* fn;
 
     if(contextExpression.type == expression_objectclass) {
@@ -2547,7 +2549,7 @@ void RuntimeEngine::pushExpressionToRegister(Expression& expr, Expression& out, 
 void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expression& out, int reg) {
     switch(expr.type) {
         case expression_var:
-            if(expr.utype.array) {
+            if(expr.isArray()) {
                 errors->createNewError(GENERIC, expr.link, "cannot get integer value from var[] expression");
             }
 
@@ -2579,7 +2581,7 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
             }
             break;
         case expression_lclass:
-            errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `" + expr.utype.klass->getFullName() +"`");
+            errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `" + expr.utype.typeToString() +"`");
             break;
         case expression_string:
             errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `var[]`");
@@ -2599,7 +2601,7 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
 }
 
 Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
-    Expression expression(interm), indexExpr;
+    Expression expression(interm), indexExpr(pAst);
 
     indexExpr = parseExpression(pAst->getSubAst(ast_expression));
 
@@ -2673,7 +2675,7 @@ Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
             }
             break;
         case expression_lclass:
-            if(!interm.utype.array) {
+            if(!interm.isArray()) {
                 // error not an array
                 errors->createNewError(GENERIC, indexExpr.link->line, indexExpr.link->col, "expression of type `" + interm.typeToString() + "` must evaluate to array");
             }
@@ -2691,7 +2693,7 @@ Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
             errors->createNewError(GENERIC, indexExpr.link->line, indexExpr.link->col, "null cannot be used as an array");
             break;
         case expression_objectclass:
-            if(!interm.utype.array) {
+            if(!interm.isArray()) {
                 // error not an array
                 errors->createNewError(GENERIC, indexExpr.link->line, indexExpr.link->col, "expression of type `" + interm.typeToString() + "` must evaluate to array");
             }
@@ -2739,13 +2741,13 @@ Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
 Expression &RuntimeEngine::parseDotNotationChain(Ast *pAst, Expression &expression, unsigned int startpos) {
 
     Ast* utype;
-    Expression rightExpr;
+    Expression rightExpr(pAst);
     rightExpr =expression;
     rightExpr.code.free();
     for(unsigned int i = startpos; i < pAst->getSubAstCount(); i++) {
         utype = pAst->getSubAst(i);
 
-        if(rightExpr.utype.array && utype->getType() != ast_expression) {
+        if(rightExpr.isArray() && utype->getType() != ast_expression) {
             errors->createNewError(GENERIC, utype->line, utype->col, "expected array index `[]`");
         }
 
@@ -2766,7 +2768,7 @@ Expression &RuntimeEngine::parseDotNotationChain(Ast *pAst, Expression &expressi
         expression.inject(rightExpr);
         expression.type = rightExpr.type;
         expression.utype = rightExpr.utype;
-        expression.utype.array = rightExpr.utype.array;
+        expression.utype.array = rightExpr.isArray();
         expression.func=rightExpr.func;
         rightExpr.code.free();
     }
@@ -2775,7 +2777,7 @@ Expression &RuntimeEngine::parseDotNotationChain(Ast *pAst, Expression &expressi
 
 Expression RuntimeEngine::parseDotNotationCall(Ast* pAst) {
     string method_name="";
-    Expression expression, interm;
+    Expression expression(pAst), interm(pAst);
     Method* fn;
     Ast* pAst2;
 
@@ -2819,6 +2821,7 @@ Expression RuntimeEngine::parseDotNotationCall(Ast* pAst) {
                         case CLASS:
                             if((overload = fn->klass->getOverload(stringToOp(entity.getToken()), emptyParams)) != NULL) {
                                 // add code to call overload
+                                verifyMethodAccess(overload, pAst);
                                 expression.type = methodReturntypeToExpressionType(overload);
                                 if(expression.type == expression_lclass) {
                                     expression.utype.klass = overload->klass;
@@ -2890,7 +2893,7 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
     string methodName = "";
     List<Param> params;
     List<Expression> expressions = parseValueList(valueList);
-    Expression expression;
+    Expression expression(utype);
 
     expressionListToParams(params, expressions);
     ptr = parseTypeIdentifier(utype);
@@ -2958,6 +2961,7 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
             errors->createNewError(GENERIC, utype->line, utype->col, "call to instance function in static context");
         }
 
+        verifyMethodAccess(fn, utype);
         if(!fn->isStatic()) {
             out.code.push_i64(SET_Di(i64, op_MOVL, 0));
             out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
@@ -2994,7 +2998,7 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
 Expression RuntimeEngine::parseSelfDotNotationCall(Ast* pAst) {
     Scope* scope = currentScope();
     string method_name="";
-    Expression expression;
+    Expression expression(pAst);
     Method* fn;
     Ast* pAst2;
 
@@ -3034,7 +3038,7 @@ Expression RuntimeEngine::parseSelfDotNotationCall(Ast* pAst) {
 
 Expression RuntimeEngine::parseSelfExpression(Ast* pAst) {
     Scope* scope = currentScope();
-    Expression expression;
+    Expression expression(pAst);
 
     if(pAst->hasEntity(PTR)) {
         // self-><expression>
@@ -3067,7 +3071,7 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
     string methodName = "";
     List<Param> params;
     List<Expression> expressions = parseValueList(valueList);
-    Expression expression;
+    Expression expression(utype);
 
     expressionListToParams(params, expressions);
     ptr = parseTypeIdentifier(utype);
@@ -3151,6 +3155,7 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
             errors->createNewError(GENERIC, utype->line, utype->col, "call to instance function in static context");
         }
 
+        verifyMethodAccess(fn, utype);
         if(!fn->isStatic()) {
             out.code.push_i64(SET_Di(i64, op_MOVL, 0));
             out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
@@ -3187,7 +3192,7 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
 Expression RuntimeEngine::parseBaseDotNotationCall(Ast* pAst) {
     Scope* scope = currentScope();
     pAst = pAst->getSubAst(ast_dotnotation_call_expr);
-    Expression expression;
+    Expression expression(pAst);
     string method_name="";
     Method* fn;
     Ast* pAst2;
@@ -3227,7 +3232,7 @@ Expression RuntimeEngine::parseBaseDotNotationCall(Ast* pAst) {
 
 Expression RuntimeEngine::parseBaseExpression(Ast* pAst) {
     Scope* scope = currentScope();
-    Expression expression;
+    Expression expression(pAst);
 
     expression = parseBaseDotNotationCall(pAst);
 
@@ -3256,7 +3261,7 @@ List<Expression> RuntimeEngine::parseVectorArray(Ast* pAst) {
 
 void RuntimeEngine::checkVectorArray(Expression& utype, List<Expression>& vecArry) {
     if(utype.utype.type == UNDEFINED) return;
-    Expression right;
+    Expression right(utype.link);
 
     for(unsigned int i = 0; i < vecArry.size(); i++) {
         if(vecArry.get(i).type != expression_unresolved) {
@@ -3331,7 +3336,7 @@ void RuntimeEngine::parseNewArrayExpression(Expression& out, Expression& utype, 
 
 Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
     Scope* scope = currentScope();
-    Expression expression, utype;
+    Expression expression(pAst), utype(pAst);
     List<Expression> expressions;
     List<Param> params;
 
@@ -3431,6 +3436,7 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
 
             if(fn!= NULL) {
 
+                verifyMethodAccess(fn, pAst);
                 expression.code.push_i64(SET_Di(i64, op_NEWCLASS, utype.utype.klass->address));
 
                 for(unsigned int i = 0; i < expressions.size(); i++) {
@@ -3469,7 +3475,7 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseSizeOfExpression(Ast* pAst) {
-    Expression expression = parseExpression(pAst->getSubAst(ast_expression)), out;
+    Expression expression = parseExpression(pAst->getSubAst(ast_expression)), out(pAst);
     switch(expression.type) {
         case expression_void:
         case expression_unknown:
@@ -3505,7 +3511,7 @@ Expression RuntimeEngine::parseSizeOfExpression(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseIntermExpression(Ast* pAst) {
-    Expression expression;
+    Expression expression(pAst);
 
     if(pAst==NULL) return expression;
     switch(pAst->getType()) {
@@ -3565,6 +3571,7 @@ void RuntimeEngine::postIncClass(Expression& out, token_entity op, ClassObject* 
     if(overload != NULL) {
         // add code to call overload
 
+        verifyMethodAccess(overload, out.link);
         out.code.push_i64(SET_Di(i64, op_MOVI, 1), ebx);
         out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
@@ -3591,13 +3598,13 @@ void RuntimeEngine::postIncClass(Expression& out, token_entity op, ClassObject* 
 }
 
 Expression RuntimeEngine::parsePostInc(Ast* pAst) {
-    Expression interm;
+    Expression interm(pAst);
     token_entity entity = pAst->hasEntity(_INC) ? pAst->getEntity(_INC) : pAst->getEntity(_DEC);
 
     interm = parseIntermExpression(pAst->getSubAst(0));
     Expression expression(interm);
 
-    if(interm.utype.array){
+    if(interm.isArray()){
         errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "expression must evaluate to an int to use `" + entity.getToken() + "` operator");
     } else {
         switch(interm.type) {
@@ -3706,7 +3713,7 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
-    Expression expression, interm, indexExpr;
+    Expression expression(pAst), interm(pAst), indexExpr(pAst);
     Field* field;
 
     interm = parseIntermExpression(pAst->getSubAst(0));
@@ -3761,7 +3768,7 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
             errors->createNewError(GENERIC, pAst->getSubAst(0)->line, pAst->getSubAst(0)->col, "expression of type `" + interm.typeToString() + "` must evaluate to array");
             break;
         case expression_var:
-            if(!interm.utype.array) {
+            if(!interm.isArray()) {
                 // error not an array
                 errors->createNewError(GENERIC, pAst->getSubAst(0)->line, pAst->getSubAst(0)->col, "expression of type `" + interm.typeToString() + "` must evaluate to array");
             }
@@ -3777,7 +3784,7 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
 
             break;
         case expression_lclass:
-            if(!interm.utype.array) {
+            if(!interm.isArray()) {
                 // error not an array
                 errors->createNewError(GENERIC, pAst->getSubAst(0)->line, pAst->getSubAst(0)->col, "expression of type `" + interm.typeToString() + "` must evaluate to array");
             }
@@ -3809,7 +3816,7 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
             errors->createNewError(GENERIC, pAst->getSubAst(0)->line, pAst->getSubAst(0)->col, "null cannot be used as an array");
             break;
         case expression_objectclass:
-            if(!interm.utype.array) {
+            if(!interm.isArray()) {
                 // error not an array
                 errors->createNewError(GENERIC, pAst->getSubAst(0)->line, pAst->getSubAst(0)->col, "expression of type `" + interm.typeToString() + "` must evaluate to array");
             }
@@ -3854,7 +3861,7 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
 
 void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expression& out) {
     if(arg.type != expression_unresolved) {
-        if(arg.utype.array != utype.utype.array) {
+        if(arg.utype.isArray() != utype.utype.isArray()) {
             errors->createNewError(INCOMPATIBLE_TYPES, utype.link->line, utype.link->col, "; cannot cast `" +
                     arg.utype.typeToString() + "` to `" + utype.utype.typeToString() + "`");
             out.type = expression_unresolved;
@@ -4096,7 +4103,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 }
 
 Expression RuntimeEngine::parseCastExpression(Ast* pAst) {
-    Expression expression, utype, arg;
+    Expression expression(pAst), utype(pAst), arg(pAst);
 
     utype = parseUtype(pAst);
     arg = parseExpression(pAst->getSubAst(ast_expression));
@@ -4138,6 +4145,7 @@ void RuntimeEngine::preIncClass(Expression& out, token_entity op, ClassObject* k
     if(overload != NULL) {
         // add code to call overload
 
+        verifyMethodAccess(overload, out.link);
         out.code.push_i64(SET_Di(i64, op_MOVI, 0), ebx);
         out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
@@ -4162,13 +4170,13 @@ void RuntimeEngine::preIncClass(Expression& out, token_entity op, ClassObject* k
 }
 
 Expression RuntimeEngine::parsePreInc(Ast* pAst) {
-    Expression interm;
+    Expression interm(pAst);
     token_entity entity = pAst->hasEntity(_INC) ? pAst->getEntity(_INC) : pAst->getEntity(_DEC);
 
     interm = parseExpression(pAst->getSubAst(0));
     Expression expression(interm);
 
-    if(expression.utype.array){
+    if(expression.isArray()){
         errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "expression must evaluate to an int to use `" + entity.getToken() + "` operator");
     } else {
         switch(expression.type) {
@@ -4276,7 +4284,7 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseParenExpression(Ast* pAst) {
-    Expression expression;
+    Expression expression(pAst);
 
     expression = parseExpression(pAst->getSubAst(ast_expression));
 
@@ -4293,6 +4301,7 @@ void RuntimeEngine::notClass(Expression& out, ClassObject* klass, Ast* pAst) {
     if((overload = klass->getOverload(oper_NOT, emptyParams)) != NULL) {
         // call overload operator
 
+        verifyMethodAccess(overload, pAst);
         if(!overload->isStatic())
             out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
@@ -4313,7 +4322,7 @@ void RuntimeEngine::notClass(Expression& out, ClassObject* klass, Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
-    Expression expression;
+    Expression expression(pAst);
 
     expression = parseExpression(pAst->getSubAst(ast_expression));
     expression.inCmtRegister = false;
@@ -4377,7 +4386,7 @@ Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseUnary(token_entity operand, Expression& right, Ast* pAst) {
-    Expression expression;
+    Expression expression(pAst);
 
     switch(right.type) {
         case expression_var:
@@ -4667,7 +4676,7 @@ bool RuntimeEngine::equalsVectorArray(Expression& left, Expression& right) {
                 }
             }
             else if(right.type == expression_var) {
-                if(right.utype.array) {
+                if(right.isArray()) {
                     return true;
                 }
             }
@@ -4809,7 +4818,7 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                 }
             }
             else if(right.type == expression_var) {
-                if(right.utype.array) {
+                if(right.isArray()) {
                     return true;
                 }
             }
@@ -4832,7 +4841,7 @@ void RuntimeEngine::addNative(token_entity operand, FieldType type, Expression& 
     out.type = expression_var;
     right.type = expression_var;
     right.literal = false;
-    Expression expr;
+    Expression expr(pAst);
 
     if(left.type == expression_var) {
         equals(left, right);
@@ -4874,6 +4883,7 @@ void RuntimeEngine::addClass(token_entity operand, ClassObject* klass, Expressio
 
         pushExpressionToStack(right, out);
 
+        verifyMethodAccess(overload, pAst);
         out.type = methodReturntypeToExpressionType(overload);
         right.free();
         right.type=out.type;
@@ -4923,6 +4933,7 @@ void RuntimeEngine::addClassChain(token_entity operand, ClassObject* klass, Expr
             out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
         }
 
+        verifyMethodAccess(overload, pAst);
         pushExpressionToStack(right, out);
 
         out.type = methodReturntypeToExpressionType(overload);
@@ -4953,7 +4964,7 @@ void RuntimeEngine::addStringConstruct(token_entity operand, ClassObject* klass,
     eList.push_back(right);
     OperatorOverload* overload;
     right.literal = false;
-    Expression newOut;
+    Expression newOut(pAst);
 
     expressionListToParams(params, eList);
 
@@ -4964,6 +4975,7 @@ void RuntimeEngine::addStringConstruct(token_entity operand, ClassObject* klass,
 
         pushExpressionToStack(right, newOut);
 
+        verifyMethodAccess(overload, pAst);
         out.type = methodReturntypeToExpressionType(overload);
         left.free();
         left.type=out.type;
@@ -5004,6 +5016,7 @@ void RuntimeEngine::constructNewString(Expression &stringExpr, Expression& out) 
             out.utype.klass = klass;
             out.utype.type=CLASS;
 
+            verifyMethodAccess(fn, out.link);
             out.code.push_i64(SET_Di(i64, op_NEWCLASS, klass->address));
 
             for(unsigned int i = 0; i < expressions.size(); i++) {
@@ -5046,6 +5059,7 @@ bool RuntimeEngine::constructNewString(Expression &stringExpr, Expression &right
             out.utype.klass = klass;
             out.utype.type=CLASS;
 
+            verifyMethodAccess(fn, pAst);
             out.code.push_i64(SET_Di(i64, op_NEWCLASS, klass->address));
 
             for(unsigned int i = 0; i < expressions.size(); i++) {
@@ -5086,7 +5100,7 @@ bool RuntimeEngine::isMathOp(token_entity entity)
 }
 
 void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
-    Expression leftExpr, rightExpr, peekExpr;
+    Expression leftExpr(pAst), rightExpr(pAst), peekExpr(pAst);
     int operandPtr = 0;
     double value=0;
     bool firstEval=true;
@@ -5142,7 +5156,7 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
                         if(leftExpr.literal && (i+1) < pAst->getSubAstCount()) {
                             peekExpr = pAst->getSubAst(i+1)->getType() == ast_expression ?
                                        parseExpression(pAst->getSubAst(i+1)) : parseIntermExpression(pAst->getSubAst(i+1));
-                            Expression outtmp;
+                            Expression outtmp(pAst);
 
                             if(peekExpr.literal) {
                                 if(addExpressions(outtmp, peekExpr, leftExpr, operand, &var)) {
@@ -5228,7 +5242,7 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
 }
 
 Expression RuntimeEngine::parseAddExpression(Ast* pAst) {
-    Expression expression, right;
+    Expression expression(pAst), right(pAst);
     token_entity operand = pAst->hasEntity(PLUS) ? pAst->getEntity(PLUS) : pAst->getEntity(MINUS);
 
     if(operand.getTokenType() == PLUS && pAst->getSubAstCount() == 1) {
@@ -5248,7 +5262,7 @@ Expression RuntimeEngine::parseAddExpression(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseMultExpression(Ast* pAst) {
-    Expression expression, left, right;
+    Expression expression(pAst), left(pAst), right(pAst);
     token_entity operand = pAst->getEntity(0);
 
     if(pAst->getSubAstCount() == 1) {
@@ -5332,7 +5346,7 @@ void RuntimeEngine::shiftNative(token_entity operand, Expression& out, Expressio
 }
 
 Expression RuntimeEngine::parseShiftExpression(Ast* pAst) {
-    Expression out, left, right;
+    Expression out(pAst), left(pAst), right(pAst);
     token_entity operand = pAst->getEntity(0);
 
     if(pAst->getSubAstCount() == 1) {
@@ -5496,7 +5510,7 @@ void RuntimeEngine::lessThanNative(token_entity operand, Expression& out, Expres
 }
 
 Expression RuntimeEngine::parseLessExpression(Ast* pAst) {
-    Expression out, left, right;
+    Expression out(pAst), left(pAst), right(pAst);
     token_entity operand = pAst->getEntity(0);
 
     if(pAst->getSubAstCount() == 1) {
@@ -5603,7 +5617,7 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
             else if(right.type == expression_field) {
                 if(right.utype.field->isNative()) {
                     if(right.utype.field->isVar()) {
-                        return right.utype.field->isArray==left.utype.array;
+                        return right.utype.field->isArray==left.isArray();
                     }
                 }
             }
@@ -5620,7 +5634,7 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
                 // add var
                 if(right.type == expression_var) {
                     if(left.utype.field->isVar()) {
-                        return left.utype.field->isArray==right.utype.array;
+                        return left.utype.field->isArray==right.isArray();
                     }
                 } else if(right.type == expression_objectclass) {
                     if(left.utype.field->dynamicObject()) {
@@ -5699,7 +5713,7 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
                 }
             }
             else if(right.type == expression_var) {
-                if(right.utype.array) {
+                if(right.isArray()) {
                     return true;
                 }
             }
@@ -5934,7 +5948,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
     } else if(left.type == expression_var) {
         // this must be an array element
         if(left.arrayElement) {
-            Expression e;
+            Expression e(pAst);
             pushExpressionToRegister(right, out, ebx);
             out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
@@ -6062,7 +6076,7 @@ void RuntimeEngine::assignNative(token_entity operand, Expression& out, Expressi
 
 
 Expression RuntimeEngine::parseEqualExpression(Ast* pAst) {
-     Expression out, left, right;
+     Expression out(pAst), left(pAst), right(pAst);
     token_entity operand = pAst->getEntity(0);
 
     if(pAst->getSubAstCount() == 1) {
@@ -6171,7 +6185,7 @@ Expression RuntimeEngine::parseEqualExpression(Ast* pAst) {
 
 long long andExprs=0;
 void RuntimeEngine::parseAndExpressionChain(Expression& out, Ast* pAst) {
-    Expression leftExpr, rightExpr, peekExpr;
+    Expression leftExpr(pAst), rightExpr(pAst), peekExpr(pAst);
     int operandPtr = 0;
     bool firstEval=true;
     token_entity operand;
@@ -6353,7 +6367,7 @@ void RuntimeEngine::parseAndExpressionChain(Expression& out, Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseAndExpression(Ast* pAst) {
-    Expression out, left, right;
+    Expression out(pAst), left(pAst), right(pAst);
     token_entity operand = pAst->getEntity(0);
     andExprs++;
 
@@ -6370,7 +6384,7 @@ Expression RuntimeEngine::parseAndExpression(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseAssignExpression(Ast* pAst) {
-    Expression out, left, right;
+    Expression out(pAst), left(pAst), right(pAst);
     token_entity operand = pAst->getEntity(0);
 
     if(pAst->getSubAstCount() == 1) {
@@ -6475,7 +6489,7 @@ Expression RuntimeEngine::parseBinaryExpression(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseQuesExpression(Ast* pAst) {
-    Expression condition,condIfTrue, condIfFalse, expression;
+    Expression condition(pAst),condIfTrue(pAst), condIfFalse(pAst), expression(pAst);
 
     condition = parseIntermExpression(pAst->getSubAst(0));
     condIfTrue = parseExpression(pAst->getSubAst(1));
@@ -6505,7 +6519,7 @@ Expression RuntimeEngine::parseQuesExpression(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseExpression(Ast *ast) {
-    Expression expression;
+    Expression expression(ast);
     if(ast==NULL||ast->getSubAst(0) == NULL) return expression;
     Ast *encap = ast->getSubAst(0);
 
@@ -6599,6 +6613,7 @@ void RuntimeEngine::initalizeNewClass(ClassObject* klass, Expression& out) {
     List<Param> emptyParams;
     Method* fn = klass->getConstructor(emptyParams);
 
+    verifyMethodAccess(fn, out.link);
     out.code.push_i64(SET_Di(i64, op_NEWCLASS, klass->address));
 
     out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
@@ -6617,7 +6632,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
     Field* field = scope->klass->getField(name);
 
     if(ast->hasSubAst(ast_value)) {
-        Expression expression = parseValue(ast->getSubAst(ast_value)), out;
+        Expression expression = parseValue(ast->getSubAst(ast_value)), out(ast);
         Expression fieldExpr = fieldToExpression(ast, *field);
         fieldExpr.code.free();
         equals(fieldExpr, expression);
@@ -6679,6 +6694,11 @@ void RuntimeEngine::analyzeImportDecl(Ast *pAst) {
         if(!modules.find(import)) {
             errors->createNewError(COULD_NOT_RESOLVE, pAst->line, pAst->col,
                              " `" + import + "` ");
+        } else {
+            List<string> imports;
+            imports.push_back(import);
+            KeyPair<string, List<string>> resolveMap(activeParser->sourcefile, imports);
+            importMap.push_back(resolveMap);
         }
     }
 }
@@ -7112,32 +7132,36 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
     return ptr;
 }
 
-ClassObject* RuntimeEngine::tryClassResolve(string moduleName, string name) {
+ClassObject* RuntimeEngine::tryClassResolve(string moduleName, string name, Ast* pAst) {
     ClassObject* klass = NULL;
+    if(!moduleName.empty() && (klass = getClass(moduleName, name)) != NULL) {
+        verifyClassAccess(klass, pAst);
+        return klass;
+    } else {
+        for (unsigned int i = 0; i < importMap.size(); i++) {
+            if (importMap.get(i).key == activeParser->sourcefile) {
 
-    if((klass = getClass(moduleName, name)) == NULL) {
-        for(unsigned int i = 0; i < importMap.size(); i++) {
-            if(importMap.get(i).key == activeParser->sourcefile) {
-
-                List<string>& lst = importMap.get(i).value;
-                for(unsigned int x = 0; x < lst.size(); x++) {
-                    if((klass = getClass(lst.get(i), name)) != NULL)
+                List<string> &lst = importMap.get(i).value;
+                for (unsigned int x = 0; x < lst.size(); x++) {
+                    if ((klass = getClass(lst.get(x), name)) != NULL) {
+                        verifyClassAccess(klass, pAst);
                         return klass;
+                    }
                 }
 
                 break;
             }
         }
-    }
 
-    return klass;
+        return klass;
+    }
 }
 
-ResolvedReference RuntimeEngine::resolveReferencePointer(ReferencePointer &ptr) {
+ResolvedReference RuntimeEngine::resolveReferencePointer(ReferencePointer &ptr, Ast* pAst) {
     ResolvedReference reference;
 
     if(ptr.classHeiarchy.size() == 0) {
-        ClassObject* klass = tryClassResolve(ptr.module, ptr.referenceName);
+        ClassObject* klass = tryClassResolve(ptr.module, ptr.referenceName, pAst);
         if(klass == NULL) {
             reference.type = UNDEFINED;
             reference.referenceName = ptr.referenceName;
@@ -7147,7 +7171,7 @@ ResolvedReference RuntimeEngine::resolveReferencePointer(ReferencePointer &ptr) 
             reference.resolved = true;
         }
     } else {
-        ClassObject* klass = tryClassResolve(ptr.module, ptr.classHeiarchy.get(0));
+        ClassObject* klass = tryClassResolve(ptr.module, ptr.classHeiarchy.get(0), pAst);
         if(klass == NULL) {
             reference.type = UNDEFINED;
             reference.referenceName = ptr.classHeiarchy.get(0);
@@ -7202,7 +7226,7 @@ bool RuntimeEngine::expectReferenceType(ResolvedReference refrence, FieldType ex
 }
 
 ClassObject* RuntimeEngine::resolveClassRefrence(Ast *ast, ReferencePointer &ptr) {
-    ResolvedReference resolvedRefrence = resolveReferencePointer(ptr);
+    ResolvedReference resolvedRefrence = resolveReferencePointer(ptr, ast);
     ast = ast->getSubAst(ast_refrence_pointer);
 
     if(!resolvedRefrence.resolved) {
@@ -7249,19 +7273,19 @@ string Expression::typeToString() {
         case expression_var:
             return string("var") + (utype.array ? "[]" : "");
         case expression_lclass:
-            return utype.typeToString();
+            return utype.typeToString() + (utype.array ? "[]" : "");
         case expression_native:
-            return utype.typeToString();
+            return utype.typeToString() + (utype.array ? "[]" : "");
         case expression_unknown:
             return "?";
         case expression_class:
-            return utype.typeToString();
+            return utype.typeToString() + (utype.array ? "[]" : "");
         case expression_void:
             return "void";
         case expression_objectclass:
             return "object";
         case expression_field:
-            return utype.typeToString();
+            return utype.typeToString() + (utype.array || utype.field->isArray ? "[]" : "");
         case expression_null:
             return "null";
     }
@@ -7398,6 +7422,7 @@ void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& r
                     errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, "static access on instance field `" + object_name + "`");
                 }
 
+                verifyFieldAccess(field, pAst);
                 if(requreMovg && refrenceTrys <= 1) {
                     if(field->isStatic())
                         expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
@@ -7471,6 +7496,7 @@ void RuntimeEngine::resolveFieldHeiarchy(Field* field, ReferencePointer& refrenc
             expression.utype.type = VAR;
             return;
         case CLASS:
+            verifyFieldAccess(field, pAst);
             resolveClassHeiarchy(field->klass, refrence, expression, pAst, false, false);
             return;
     }
@@ -7584,7 +7610,7 @@ void RuntimeEngine::resolveSelfUtype(Scope* scope, ReferencePointer& reference, 
     }
 }
 
-ResolvedReference RuntimeEngine::getBaseClassOrField(string name, ClassObject* start) {
+ResolvedReference RuntimeEngine::getBaseClassOrField(string name, ClassObject* start, Ast *pAst) {
     ClassObject* base;
     Field* field;
     ResolvedReference reference;
@@ -7603,6 +7629,7 @@ ResolvedReference RuntimeEngine::getBaseClassOrField(string name, ClassObject* s
             return reference;
             // base class
         } else if((field = base->getField(name))) {
+            verifyFieldAccess(field, pAst);
             reference.field = field;
             reference.type = CLASSFIELD;
             return reference;
@@ -7626,7 +7653,7 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
     }
 
     if(reference.singleRefrence()) {
-        ref = getBaseClassOrField(reference.referenceName, klass);
+        ref = getBaseClassOrField(reference.referenceName, klass, ast);
         if(ref.type != UNDEFINED) {
             if(ref.type == CLASSFIELD) {
                 // field!
@@ -7670,7 +7697,7 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
             expression.type = expression_unresolved;
         }
     } else if(reference.singleRefrenceModule()) {
-        base = getClass(reference.module, reference.referenceName);
+        base = tryClassResolve(reference.module, reference.referenceName, ast);
 
         if(base != NULL) {
             if(scope->klass->hasBaseClass(base)) {
@@ -7708,7 +7735,7 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
 
             if(reference.module != "") {
                 // first must be class
-                if((klass = getClass(reference.module, starter_name)) != NULL) {
+                if((klass = tryClassResolve(reference.module, starter_name, ast)) != NULL) {
                     if(scope->klass->hasBaseClass(klass)) {
                         resolveClassHeiarchy(klass, reference, expression, ast);
                     } else {
@@ -7729,7 +7756,7 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                     expression.type = expression_unresolved;
                 }
             } else {
-                ref = getBaseClassOrField(starter_name, klass);
+                ref = getBaseClassOrField(starter_name, klass, ast);
                 if(ref.type != UNDEFINED) {
                     if(ref.type == CLASSFIELD) {
 
@@ -7792,7 +7819,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
 
             if(scope->type == GLOBAL_SCOPE) {
 
-                if((klass = getClass(refrence.module, refrence.referenceName)) != NULL) {
+                if((klass = tryClassResolve(refrence.module, refrence.referenceName, pAst)) != NULL) {
                     expression.utype.type = CLASS;
                     expression.utype.klass = klass;
                     expression.type = expression_class;
@@ -7831,6 +7858,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                                          "cannot get object `" + refrence.referenceName + "` from self in static context");
                     }
 
+                    verifyFieldAccess(field, pAst);
                     expression.utype.type = CLASSFIELD;
                     expression.utype.field = field;
                     expression.type = expression_field;
@@ -7845,7 +7873,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                         expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
                     }
                 } else {
-                    if((klass = getClass(refrence.module, refrence.referenceName)) != NULL) {
+                    if((klass = tryClassResolve(refrence.module, refrence.referenceName, pAst)) != NULL) {
                         // global class ?
                         expression.utype.type = CLASS;
                         expression.utype.klass = klass;
@@ -7866,7 +7894,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
             ClassObject* klass=NULL;
 
             // in this case we ignore scope
-            if((klass = getClass(refrence.module, refrence.referenceName)) != NULL) {
+            if((klass = tryClassResolve(refrence.module, refrence.referenceName, pAst)) != NULL) {
                 expression.utype.type = CLASS;
                 expression.utype.klass = klass;
                 expression.type = expression_class;
@@ -7888,7 +7916,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
             if(scope->type == GLOBAL_SCOPE) {
 
                 // class?
-                if((klass = getClass(refrence.module, starter_name)) != NULL) {
+                if((klass = tryClassResolve(refrence.module, starter_name, pAst)) != NULL) {
                     resolveClassHeiarchy(klass, refrence, expression, pAst);
                     return;
                 } else {
@@ -7904,7 +7932,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
 
                 // scope_class? | scope_instance_block? | scope_static_block?
                 if(refrence.module != "") {
-                    if((klass = getClass(refrence.module, starter_name)) != NULL) {
+                    if((klass = tryClassResolve(refrence.module, starter_name, pAst)) != NULL) {
                         resolveClassHeiarchy(klass, refrence, expression, pAst);
                         return;
                     } else {
@@ -7939,6 +7967,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                                                "cannot get object `" + starter_name + "` from self in static context");
                     }
 
+                    verifyFieldAccess(field, pAst);
                     if(field->isStatic())
                         expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
                     else
@@ -7947,7 +7976,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     resolveFieldHeiarchy(field, refrence, expression, pAst);
                     return;
                 } else {
-                    if((klass = getClass(refrence.module, starter_name)) != NULL) {
+                    if((klass = tryClassResolve(refrence.module, starter_name, pAst)) != NULL) {
                         resolveClassHeiarchy(klass, refrence, expression, pAst);
                         return;
                     } else if((klass = scope->klass->getChildClass(starter_name)) != NULL) {
@@ -7970,7 +7999,7 @@ Expression RuntimeEngine::parseUtype(Ast* ast) {
     ast = ast->getSubAst(ast_utype);
 
     ReferencePointer ptr=parseTypeIdentifier(ast);
-    Expression expression;
+    Expression expression(ast);
 
     if(ptr.singleRefrence() && Parser::isnative_type(ptr.referenceName)) {
         expression.utype.type = tokenToNativeField(ptr.referenceName);
@@ -8023,7 +8052,7 @@ void RuntimeEngine::resolveVarDecl(Ast* ast, bool inlineField) {
     field->address = field->owner->getFieldAddress(field);
 
     if(inlineField && ast->hasSubAst(ast_value)) {
-        Expression expr = parseValue(ast->getSubAst(ast_value)), out;
+        Expression expr = parseValue(ast->getSubAst(ast_value)), out(ast);
 
         if (field->isStatic() && field->isVar() && !field->isArray && expr.literal) {
             // inline local static variables
@@ -8046,27 +8075,15 @@ int RuntimeEngine::parseMethodAccessSpecifiers(List<AccessModifier> &modifiers) 
     }
 
     if(modifiers.get(0) <= PROTECTED) {
-        if(modifiers.size() > 3)
+        if(modifiers.size() >= 3)
             return (int)(modifiers.size() - 1);
         else if(modifiers.size() == 2) {
-            if(modifiers.get(1) != STATIC && modifiers.get(1) != OVERRIDE)
-                return 1;
-        }
-        else if(modifiers.size() == 3) {
             if(modifiers.get(1) != STATIC)
                 return 1;
-            if(modifiers.get(2) != OVERRIDE)
-                return 2;
         }
     }
     else if(modifiers.get(0) == STATIC) {
-        if(modifiers.size() > 2)
-            return (int)(modifiers.size() - 1);
-        else if(modifiers.size() == 2 && modifiers.get(1) != OVERRIDE)
-            return 1;
-    }
-    else if(modifiers.get(0) == OVERRIDE) {
-        if(modifiers.size() != 1)
+        if(modifiers.size() >= 2)
             return (int)(modifiers.size() - 1);
     }
     return -1;
@@ -8088,8 +8105,8 @@ void RuntimeEngine::parseMethodAccessModifiers(List<AccessModifier> &modifiers, 
     }
 
     if(!modifiers.find(PUBLIC) && !modifiers.find(PRIVATE)
-       && modifiers.find(PROTECTED)) {
-        modifiers.add(PUBLIC);
+       && !modifiers.find(PROTECTED)) {
+        modifiers.add(PRIVATE);
     }
 }
 
@@ -8193,7 +8210,7 @@ void RuntimeEngine::resolveMethodDecl(Ast* ast) {
     if(parseAccessDecl(ast, modifiers, startpos)){
         parseMethodAccessModifiers(modifiers, ast);
     } else {
-        modifiers.add(PUBLIC);
+        modifiers.add(PRIVATE);
     }
 
     List<Param> params;
@@ -8203,7 +8220,7 @@ void RuntimeEngine::resolveMethodDecl(Ast* ast) {
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
 
-    Expression utype;
+    Expression utype(ast);
     Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
     if(ast->hasSubAst(ast_method_return_type)) {
         utype = parseUtype(ast->getSubAst(ast_method_return_type));
@@ -8237,7 +8254,7 @@ void RuntimeEngine::resolveDelegateDecl(Ast* ast) {
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
 
-    Expression utype;
+    Expression utype(ast);
     Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), true, false);
     if(ast->hasSubAst(ast_method_return_type)) {
         utype = parseUtype(ast->getSubAst(ast_method_return_type));
@@ -8271,7 +8288,7 @@ void RuntimeEngine::resolveDelegatePostDecl(Ast* ast) {
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
 
-    Expression utype;
+    Expression utype(ast);
     Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, true);
     if(ast->hasSubAst(ast_method_return_type)) {
         utype = parseUtype(ast->getSubAst(ast_method_return_type));
@@ -8347,7 +8364,7 @@ void RuntimeEngine::resolveOperatorDecl(Ast* ast) {
     if(parseAccessDecl(ast, modifiers, startpos)){
         parseMethodAccessModifiers(modifiers, ast);
     } else {
-        modifiers.add(PUBLIC);
+        modifiers.add(PRIVATE);
     }
 
     List<Param> params;
@@ -8357,7 +8374,7 @@ void RuntimeEngine::resolveOperatorDecl(Ast* ast) {
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
 
-    Expression utype;
+    Expression utype(ast);
     OperatorOverload operatorOverload = OperatorOverload(note, scope->klass, params, modifiers, NULL, stringToOp(op), sourceFiles.indexof(activeParser->sourcefile), op);
     if(ast->hasSubAst(ast_method_return_type)) {
         utype = parseUtype(ast->getSubAst(ast_method_return_type));
@@ -8395,7 +8412,7 @@ void RuntimeEngine::resolveConstructorDecl(Ast* ast) {
     if(parseAccessDecl(ast, modifiers, startpos)){
         parsConstructorAccessModifiers(modifiers, ast);
     } else {
-        modifiers.add(PUBLIC);
+        modifiers.add(PRIVATE);
     }
 
     List<Param> params;
@@ -8446,7 +8463,12 @@ void RuntimeEngine::resolveInterfaceDecl(Ast* ast) {
     ClassObject* klass;
     int startpos=1;
 
-    parseAccessDecl(ast, modifiers, startpos);
+    if(parseAccessDecl(ast, modifiers, startpos)){
+        parseClassAccessModifiers(modifiers, ast);
+    } else {
+        modifiers.add(PROTECTED);
+    }
+
     string name =  ast->getEntity(startpos).getToken();
 
     if(scope->type == GLOBAL_SCOPE) {
@@ -8770,8 +8792,6 @@ AccessModifier RuntimeEngine::entityToModifier(token_entity entity) {
         return mCONST;
     else if(entity.getToken() == "static")
         return STATIC;
-    else if(entity.getToken() == "override")
-        return OVERRIDE;
     return mUNDEFINED;
 }
 
@@ -8971,7 +8991,7 @@ void RuntimeEngine::parseVarDecl(Ast *ast)
     if(parseAccessDecl(ast, modifiers, startpos)){
         parseVarAccessModifiers(modifiers, ast);
     } else {
-        modifiers.add(PUBLIC);
+        modifiers.add(PRIVATE);
     }
 
     parse_var:
@@ -9044,7 +9064,7 @@ void RuntimeEngine::parseVarAccessModifiers(List<AccessModifier> &modifiers, Ast
 
     if(!modifiers.find(PUBLIC) && !modifiers.find(PRIVATE)
        && !modifiers.find(PROTECTED)) {
-        modifiers.add(PUBLIC);
+        modifiers.add(PRIVATE);
     }
 }
 
@@ -10480,4 +10500,61 @@ bool RuntimeEngine::isWholeNumber(double value) {
         return true;
     else
         return false;
+}
+
+void RuntimeEngine::verifyClassAccess(ClassObject *klass, Ast* pAst) {
+    if(klass->getAccessModifier() == PRIVATE) {
+        Scope *scope = currentScope();
+        if(scope->klass->hasBaseClass(klass) || klass == scope->klass || klass == scope->klass->getSuperClass()) {
+        } else {
+            errors->createNewError(GENERIC, pAst, " invalid access to private class `" + klass->getFullName() + "`");
+        }
+    } else if(klass->getAccessModifier() == PROTECTED) {
+        Scope *scope = currentScope();
+        if(scope->klass->hasBaseClass(klass) || klass == scope->klass || klass == scope->klass->getSuperClass()
+                || scope->klass->getModuleName() == klass->getModuleName()) {
+        } else {
+            errors->createNewError(GENERIC, pAst, " invalid access to protected class `" + klass->getFullName() + "`");
+        }
+    } else {
+        // access granted
+    }
+}
+
+void RuntimeEngine::verifyMethodAccess(Method *fn, Ast* pAst) {
+    if(fn->hasModifier(PRIVATE)) {
+        Scope *scope = currentScope();
+        if(fn->getParentClass() == scope->klass || fn->getParentClass() == scope->klass->getSuperClass()) {
+        } else {
+            errors->createNewError(GENERIC, pAst, " invalid access to private method `" + fn->getFullName() + paramsToString(fn->getParams()) + "`");
+        }
+    } else if(fn->hasModifier(PROTECTED)) {
+        Scope *scope = currentScope();
+        if(scope->klass->hasBaseClass(fn->getParentClass()) || fn->getParentClass() == scope->klass || fn->getParentClass() == scope->klass->getSuperClass()
+                || scope->klass->getModuleName() == fn->getParentClass()->getModuleName()) {
+        } else {
+            errors->createNewError(GENERIC, pAst, " invalid access to protected method `" + fn->getFullName() + paramsToString(fn->getParams()) + "`");
+        }
+    } else {
+        // access granted
+    }
+}
+
+void RuntimeEngine::verifyFieldAccess(Field *field, Ast* pAst) {
+    if(field->modifiers.find(PRIVATE)) {
+        Scope *scope = currentScope();
+        if(field->owner == scope->klass || field->owner == scope->klass->getSuperClass()) {
+        } else {
+            errors->createNewError(GENERIC, pAst, " invalid access to private field `" + field->fullName + "`");
+        }
+    } else if(field->modifiers.find(PROTECTED)) {
+        Scope *scope = currentScope();
+        if(scope->klass->hasBaseClass(field->owner) || field->owner == scope->klass || field->owner == scope->klass->getSuperClass()
+           || scope->klass->getModuleName() == field->owner->getModuleName()) {
+        } else {
+            errors->createNewError(GENERIC, pAst, " invalid access to protected method `" + field->fullName + "`");
+        }
+    } else {
+        // access granted
+    }
 }

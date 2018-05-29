@@ -5,19 +5,19 @@ mod std;
  *
  * Class to be used as the baseline of throwing errors
  */
-class Throwable {
+public class Throwable {
     var[] message;
     var[] stackTrace;
    
-    Throwable(var[] message) {
+    public Throwable(var[] message) {
         self->message = message;
     }
    
-    Throwable(string message) {
+    public Throwable(string message) {
         self->message = message.toArray();
     }
    
-    def getStackTrace() : string {
+    public def getStackTrace() : string {
         if(stackTrace == null) {
             stackTrace = "";
         }
@@ -25,7 +25,7 @@ class Throwable {
         return new string(stackTrace);
     }
    
-    def getMessage() : string {
+    public def getMessage() : string {
         return new string(message);
     }
 }

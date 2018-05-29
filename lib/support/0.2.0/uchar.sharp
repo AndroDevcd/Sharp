@@ -1,0 +1,73 @@
+mod std;
+
+public class char {
+    var value;
+
+    public int(var num) {
+        value = (_uint8)num;
+    }
+
+    public operator+(var num) : var {
+        return (_uint8)(value+num);
+    }
+
+    public operator-(var num) : var {
+        return (_uint8)(value-num);
+    }
+
+    public operator*(var num) : var {
+        return (_uint8)(value*num);
+    }
+
+    public operator/(var num) : var {
+        return (_uint8)(value/num);
+    }
+
+    public operator=(var num) : var {
+        return (value=(_uint8)num);
+    }
+
+    public operator==(var num) : var {
+        return (value==num);
+    }
+
+    public operator<(var num) : var {
+        return (value<num);
+    }
+
+    public operator>(var num) : var {
+        return (value>num);
+    }
+
+    public operator<=(var num) : var {
+        return (value<=num);
+    }
+
+    public operator>=(var num) : var {
+        return (value>=num);
+    }
+
+    public operator++(var num) : var { // post inc i++
+        var before = value;
+        value=(_uint8)value+1;
+        return before;
+    }
+
+    public operator++() : var { // pre inc ++i
+        return (value=(_uint8)value+1);
+    }
+
+    public operator--(var num) : var {
+        var before = value;
+        value=(_uint8)value-1;
+        return before;
+    }
+
+    public operator--() : var {
+        return (value=(_uint8)value-1);
+    }
+
+    public value() : var {
+        return (value);
+    }
+};

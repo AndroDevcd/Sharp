@@ -1,0 +1,73 @@
+mod std;
+
+public class long {
+    var value;
+
+    public int(var num) {
+        value = (_int64)num;
+    }
+
+    public operator+(var num) : var {
+        return (_int64)(value+num);
+    }
+
+    public operator-(var num) : var {
+        return (_int64)(value-num);
+    }
+
+    public operator*(var num) : var {
+        return (_int64)(value*num);
+    }
+
+    public operator/(var num) : var {
+        return (_int64)(value/num);
+    }
+
+    public operator=(var num) : var {
+        return (value=(_int64)num);
+    }
+    
+    public operator==(var num) : var {
+        return (value==num);
+    }
+    
+    public operator<(var num) : var {
+        return (value<num);
+    }
+    
+    public operator>(var num) : var {
+        return (value>num);
+    }
+    
+    public operator<=(var num) : var {
+        return (value<=num);
+    }
+    
+    public operator>=(var num) : var {
+        return (value>=num);
+    }
+
+    public operator++(var num) : var { // post inc i++
+        var before = value;
+        value=(_int64)value+1;
+        return before;
+    }
+
+    public operator++() : var { // pre inc ++i
+        return (value=(_int64)value+1);
+    }
+    
+    public operator--(var num) : var {
+        var before = value;
+        value=(_int64)value-1;
+        return before;
+    }
+
+    public operator--() : var {
+        return (value=(_int64)value-1);
+    }
+
+    public value() : var { 
+        return (value);
+    }
+};

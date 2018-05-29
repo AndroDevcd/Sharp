@@ -51,7 +51,7 @@ public:
         if(isMethod)
             return "method";
         else if(type==CLASS)
-            return "class";
+            return field != NULL ? field->klass->getFullName() : (klass==NULL ? "?" : klass->getFullName());
         else if(type==OBJECT)
             return "object";
         else if(type==VAR)
@@ -60,8 +60,12 @@ public:
             return "void";
         else if(type==UNDEFINED)
             return "undefined";
-        else if(type==CLASSFIELD)
-            return typeToString(field->type);
+        else if(type==CLASSFIELD) {
+            if(field->type==CLASS)
+                return field->klass->getFullName();
+            else
+                return typeToString(field->type);
+        }
         else
             return "unresolved";
     }
@@ -190,7 +194,7 @@ struct Expression {
         utype.free();
         boolExpressions.free();
         code.free();
-        *this=(Expression());
+        *this=(Expression(link));
     }
 
     void operator=(Expression e);
@@ -623,9 +627,9 @@ private:
 
     ReferencePointer parseReferencePtr(Ast *ast, bool getAst=true);
 
-    ResolvedReference resolveReferencePointer(ReferencePointer &ptr);
+    ResolvedReference resolveReferencePointer(ReferencePointer &ptr, Ast* pAst);
 
-    ClassObject *tryClassResolve(string moduleName, string name);
+    ClassObject *tryClassResolve(string moduleName, string name, Ast* pAst);
 
     ClassObject *resolveClassRefrence(Ast *ast, ReferencePointer &ptr);
 
@@ -686,7 +690,7 @@ private:
 
     void resolveBaseUtype(Scope *scope, ReferencePointer &reference, Expression &expression, Ast *ast);
 
-    ResolvedReference getBaseClassOrField(string name, ClassObject *start);
+    ResolvedReference getBaseClassOrField(string name, ClassObject *start, Ast *pAst);
 
     void resolveAllMethods();
 
@@ -1001,6 +1005,12 @@ private:
     List<ClassObject *> parseRefrenceIdentifierList(Ast *ast);
 
     void validateDelegates(ClassObject *host, ClassObject *klass, Ast*, bool useBase);
+
+    void verifyClassAccess(ClassObject *klass, Ast* pAst);
+
+    void verifyMethodAccess(Method *fn, Ast* pAst);
+
+    void verifyFieldAccess(Field *field, Ast *pAst);
 };
 
 

@@ -1,9 +1,11 @@
 mod std.io;
 
+import std;
+
 /**
  * Created by BraxtonN on 5/25/2018.
  */
-class FileSystem {
+public class FileSystem {
 
     /**
     * Get current path seperator based on os

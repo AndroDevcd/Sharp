@@ -8,7 +8,7 @@
 enum AccessModifier
 {
     /*
-     * Class and Field access modifiers
+     * Class, Interface, Field, and Method access modifiers
      */
     PUBLIC=0,
     PRIVATE=1,
@@ -19,11 +19,6 @@ enum AccessModifier
      */
     mCONST=3,
     STATIC=4, /* Methods can use this modifier */
-
-    /*
-     * Function access modifiers
-     */
-    OVERRIDE=5,
 
     mUNDEFINED=6
 };

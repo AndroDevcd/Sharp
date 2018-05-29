@@ -3,21 +3,13 @@ mod std;
 /**
  * Created by braxtonn on 3/2/2018.
  */
-class Exception base Throwable {
+public class Exception base Throwable {
 
-    Exception(var[] msg) {
+    public Exception(var[] msg) {
         base->Throwable(msg);
     }
 
-    Exception(string msg) {
+    public Exception(string msg) {
         base->Throwable(msg);
     }
-
-//    public def getMessage() : var[] {
-//        return message;
-//    }
-//
-//    public def getStackTrace() : var[] {
-//        return stackTrace;
-//    }
 }

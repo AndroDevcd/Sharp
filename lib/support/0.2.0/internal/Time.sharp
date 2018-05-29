@@ -1,6 +1,8 @@
 mod std.internal.vm;
 
-class Time {
+import std.internal;
+
+public class Time {
 
     class TimeUnit {
         public static var SECONDS = 0;

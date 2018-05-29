@@ -1,6 +1,9 @@
 mod std.io;
 
-class File {
+import std;
+import std.internal;
+
+public class File {
     private static const FileSystem fs = getFileSystem();
 
     private const string path;

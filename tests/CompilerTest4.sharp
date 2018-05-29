@@ -1,11 +1,18 @@
 mod application;
 
-class Start {
+import std;
+import std.io;
+import std.internal.vm;
+
+public class Start {
         var a=8, b, c;
 
-    // TODO: fix System.println("file " + file.getName() + " has write access " + (file.isWriteable()==1? "yes" : "no"));
-    // TODO: fix string[] files="";
-    // TODO: fix public def list(File f) : string[] { object[] out; return out; }
+    def foo() : string[] {
+        object[] arry = new object[5];
+
+        return (string[])arry;
+    }
+
     public static def main(string[] args) : var {
         File file = new File(new string("README1.md"));
 
@@ -16,6 +23,7 @@ class Start {
         System.println("file " + file.getName() + " absolute path is " + file.getAbsolutePath());
         System.println("file " + file.getName() + " has read access " + file.isReadable());
         System.println("file " + file.getName() + " has write access " + file.isWriteable());
+        System.println("file " + file.getName() + " has write access " + (file.isWriteable()==1? "yes" : "no"));
        // System.println("file " + file.getName() + " setting writeable " + file.setWritable(true));
         if(file.exists()) {
             System.println("file " + file.getName() + " exists");

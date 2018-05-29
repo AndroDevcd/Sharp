@@ -144,7 +144,6 @@ For a class, the access types consist of: `protected (only accessable inside the
 FOr variables, the access types consist of: `private (only accessable inside the class)`,
 `public (accessible anywhere)`
 `static (accessable from a class without an instance)`,
-`override (overriding a functions previous implementation in superclass)`,
 or `const (a variable that cannot be changed)`
 
 <singleline-comment>:

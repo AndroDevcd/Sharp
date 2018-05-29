@@ -1,9 +1,11 @@
 mod std.io;
 
+import std;
+
 /**
  * Created by BraxtonN on 5/25/2018.
  */
-class WinFileSystem base FileSystem {
+public class WinFileSystem base FileSystem {
     private const var slash;
 
     /* Constants for file attributes */
@@ -17,7 +19,7 @@ class WinFileSystem base FileSystem {
     public static const var FILE_SYSTEM        = 4;
     public static const var FILE_TEMP          = 256;
 
-    WinFileSystem() {
+    public WinFileSystem() {
         slash = '\\';
     }
 

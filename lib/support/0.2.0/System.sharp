@@ -13,7 +13,7 @@ import std.internal.vm;
  * are standard input, standard output, and error output streams;
  *
  */
-class System {
+public class System {
 
     static ConsoleHandler cHandler = new ConsoleHandler();
 

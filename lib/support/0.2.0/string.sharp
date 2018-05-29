@@ -3,11 +3,11 @@ mod std;
 /**
  * Created by BraxtonN on 5/17/2018.
  */
-class string {
+public class string {
     /*this will hold our string */
         private var[] data;
 
-        string( var[] immstr )
+        public string( var[] immstr )
         {
             if(immstr == null) {
                 data = null;
@@ -17,7 +17,7 @@ class string {
 
         }
 
-        def replace( var pos, var replaceChar ) : string
+        public def replace( var pos, var replaceChar ) : string
         {
             if(pos >= sizeof(data)) {
                 throw new RuntimeErr("Index out of bounds exception");
@@ -39,19 +39,19 @@ class string {
 
             var iter=0;
             for(var i = 0; i < sizeof(data); i++) {
-                newStr[iter++] = (_int8)data[i];
+                newStr[iter++] = (_int16)data[i];
             }
 
             for(var i = 0; i < sizeof(immstr); i++)
             {
-                newStr[iter++] = (_int8)immstr[i];
+                newStr[iter++] = (_int16)immstr[i];
             }
 
             data = newStr;
             return self;
         }
 
-        def at( var pos ) : var
+        public def at( var pos ) : var
         {
             if(pos >= sizeof(data)) {
                 throw new RuntimeErr("Index out of bounds Array: size " + sizeof(data)
@@ -61,13 +61,13 @@ class string {
             return data[pos];
         }
 
-        def operator+( var[] immstr ) : string
+        public def operator+( var[] immstr ) : string
         {
             string s = new string(data);
             return s.append(immstr);
         }
 
-        def operator+( string str ) : string
+        public def operator+( string str ) : string
         {
             string s = new string(data);
             if(str != null)
@@ -76,7 +76,7 @@ class string {
                 return s.append("null");
         }
 
-        def operator==( string str ) : var
+        public def operator==( string str ) : var
         {
             if(sizeof(str) != sizeof(data)) {
                 return false;
@@ -92,7 +92,7 @@ class string {
             return true;
         }
 
-        def operator==( var[] str ) : var
+        public def operator==( var[] str ) : var
         {
             if(sizeof(str) != sizeof(data)) {
                 return false;
@@ -108,12 +108,12 @@ class string {
             return true;
         }
 
-        def operator=( var[] immstr )
+        public def operator=( var[] immstr )
         {
             data = Array.copyOf(immstr, sizeof(immstr));
         }
 
-        def operator+( var num ) : string
+        public def operator+( var num ) : string
         {
             string s = new string(data);
             s.append(parse(num).toArray());
@@ -121,27 +121,27 @@ class string {
             return s;
         }
 
-        def operator+=( var num ) : string
+        public def operator+=( var num ) : string
         {
             return append(parse(num).toArray());
         }
 
-        def operator+=( var[] immstr ) : string
+        public def operator+=( var[] immstr ) : string
         {
             return append(immstr);
         }
 
-        def operator+=( string str ) : string
+        public def operator+=( string str ) : string
         {
             return append(str.toArray());
         }
 
-        def toArray() : var[]
+        public def toArray() : var[]
         {
             return Array.copyOf(data, sizeof(data));
         }
 
-        static def parse( var number ) : string
+        public static def parse( var number ) : string
         {
             number = (_int64)number;
             if (number == 0) {
@@ -168,7 +168,7 @@ class string {
             return returnvalue;
         }
 
-        def substring(var startIndex) : string {
+        public def substring(var startIndex) : string {
             if((startIndex >= size()) || (startIndex < 0))
                 return new string("");
 
@@ -225,7 +225,7 @@ class string {
             return (c>='0') && (c<='9');
         }
         
-        def size() : var 
+        public def size() : var
         {
             return sizeof(data);
         }

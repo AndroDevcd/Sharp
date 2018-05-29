@@ -289,7 +289,7 @@ OperatorOverload *ClassObject::getPostIncOverload() {
     for(unsigned int i = 0; i < overloads.size(); i++) {
         OperatorOverload& oper = overloads.get(i);
         if(oper_INC == oper.getOperator()) {
-            if(oper.getParams().size() == 1 && oper.getParams().last().field.isVar()) {
+            if(oper.getParams().size() == 1 && oper.getParams().last().field.isVar() && !oper.getParams().last().field.isArray) {
                 return &oper;
             }
         }
@@ -302,7 +302,7 @@ OperatorOverload *ClassObject::getPostDecOverload() {
     for(unsigned int i = 0; i < overloads.size(); i++) {
         OperatorOverload& oper = overloads.get(i);
         if(oper_DEC == oper.getOperator()) {
-            if(oper.getParams().size() == 1 && oper.getParams().last().field.isVar()) {
+            if(oper.getParams().size() == 1 && oper.getParams().last().field.isVar() && !oper.getParams().last().field.isArray) {
                 return &oper;
             }
         }

@@ -1,0 +1,73 @@
+mod std;
+
+public class bool {
+    var value;
+
+    public int(var num) {
+        value = num ? 1 : 0;
+    }
+
+    public operator+(var num) : var {
+        return (value+num);
+    }
+
+    public operator-(var num) : var {
+        return (value-num);
+    }
+
+    public operator*(var num) : var {
+        return (value*num);
+    }
+
+    public operator/(var num) : var {
+        return (value/num);
+    }
+
+    public operator=(var num) : var {
+        return (value=num ? 1 : 0);
+    }
+
+    public operator==(var num) : var {
+        return (value==num);
+    }
+
+    public operator<(var num) : var {
+        return (value<num);
+    }
+
+    public operator>(var num) : var {
+        return (value>num);
+    }
+
+    public operator<=(var num) : var {
+        return (value<=num);
+    }
+
+    public operator>=(var num) : var {
+        return (value>=num);
+    }
+
+    public operator++(var num) : var { // post inc i++
+        var before = value;
+        value=1;
+        return before;
+    }
+
+    public operator++() : var { // pre inc ++i
+        return (value=1);
+    }
+
+    public operator--(var num) : var {
+        var before = value;
+        value=0;
+        return before;
+    }
+
+    public operator--() : var {
+        return (value=0);
+    }
+
+    public value() : var {
+        return (value);
+    }
+};

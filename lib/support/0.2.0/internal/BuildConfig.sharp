@@ -1,6 +1,8 @@
 mod std.internal;
 
-class BuildConfig {
+import std;
+
+public class BuildConfig {
     public static string OS;
     public static string applicationName;
     public static string platform;

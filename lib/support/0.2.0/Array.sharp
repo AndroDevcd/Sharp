@@ -3,10 +3,9 @@ mod std;
 /**
  * Created by BraxtonN on 5/17/2018.
  */
-class Array {
+public class Array {
 
-    // TODO: check for static calls to functions
-    static def copyOf(var[] data, var len) : var[] {
+    public static def copyOf(var[] data, var len) : var[] {
         var[] newArry = new var[len];
 
         for(var i = 0; i < len; i++) {
@@ -16,7 +15,7 @@ class Array {
         return newArry;
     }
 
-    static def copyOf(object[] data, var len) : object[] {
+    public static def copyOf(object[] data, var len) : object[] {
         object[] newArry = new object[len];
 
         for(var i = 0; i < len; i++) {

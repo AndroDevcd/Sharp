@@ -11,7 +11,7 @@ set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-static")
 set(CMAKE_C_FLAGS_DEBUG  "-Werror -lstdc++ ${CMAKE_C_FLAGS_DEBUG}")
 set(CMAKE_C_FLAGS_MINSIZEREL  "-Werror -lstdc++ -s -O3 -Ofast ${CMAKE_C_FLAGS_MINSIZEREL}")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO  "-Werror -lstdc++ -O3 -Ofast ${CMAKE_C_FLAGS_MINSIZEREL}")
-#set(SHARPC "build")
+set(SHARPC "build")
 
 # Linux compiler console: g++ *.cpp ../../main.cpp ../util/*.cpp parser/*.cpp parser/*/*.cpp -lstdc++ -s -O3 -Ofast -o bootstrap -std=c++11
 

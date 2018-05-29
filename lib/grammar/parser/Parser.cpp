@@ -261,7 +261,6 @@ bool Parser::isaccess_decl(token_entity token) {
             token.getId() == IDENTIFIER && token.getToken() == "private" ||
             token.getId() == IDENTIFIER && token.getToken() == "static" ||
             token.getId() == IDENTIFIER && token.getToken() == "const" ||
-            token.getId() == IDENTIFIER && token.getToken() == "override" ||
             token.getId() == IDENTIFIER && token.getToken() == "public";
 }
 
@@ -834,7 +833,7 @@ bool Parser::isoverride_operator(string token) {
             ;
 }
 
-int nestedAddExprs = 0, parenExprs=0, nestedAndExprs=0, nestedLessExprs=0;
+int nestedAddExprs = 0, parenExprs=0, nestedAndExprs=0, nestedLessExprs=0, quesBlock = 0;
 bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
     pAst = get_ast(pAst, ast_dotnotation_call_expr);
 
@@ -1045,6 +1044,9 @@ bool Parser::parse_expression(Ast *pAst) {
         this->dumpstate();
         if(!isexprsymbol(peek(1).getToken()))
             return true;
+
+        if(peek(1).getToken() == "?" && quesBlock > 0)
+            return true;
     }
     else {
         this->rollbacklast();
@@ -1196,13 +1198,16 @@ bool Parser::parse_expression(Ast *pAst) {
         pAst->addEntity(current());
 
         if(parenExprs > 0) {
-
+            quesBlock++;
             parse_expression(pAst);
+            quesBlock--;
             pAst->encapsulate(ast_mult_e);
             parenExprs--;
         } else {
             nestedAddExprs++;
+            quesBlock++;
             parse_expression(nestedAddExprs == 1 ? pAst : pAst->getParent());
+            quesBlock--;
             if(nestedAddExprs == 1)
                 pAst->encapsulate(ast_mult_e);
             nestedAddExprs--;
@@ -1217,7 +1222,9 @@ bool Parser::parse_expression(Ast *pAst) {
         advance();
         pAst->addEntity(current());
 
+        quesBlock++;
         parse_expression(pAst);
+        quesBlock--;
         pAst->encapsulate(ast_shift_e);
         return true;
     }
@@ -1231,12 +1238,16 @@ bool Parser::parse_expression(Ast *pAst) {
 
         if(parenExprs > 0) {
 
+            quesBlock++;
             parse_expression(pAst);
+            quesBlock--;
             pAst->encapsulate(ast_less_e);
             parenExprs--;
         } else {
             nestedLessExprs++;
+            quesBlock++;
             parse_expression(nestedLessExprs == 1 ? pAst : pAst->getParent());
+            quesBlock--;
             if(nestedLessExprs == 1)
                 pAst->encapsulate(ast_less_e);
             nestedLessExprs--;
@@ -1251,7 +1262,9 @@ bool Parser::parse_expression(Ast *pAst) {
         advance();
         pAst->addEntity(current());
 
+        quesBlock++;
         parse_expression(pAst);
+        quesBlock--;
         pAst->encapsulate(ast_equal_e);
 
         if(!isexprsymbol(peek(1).getToken()))
@@ -1268,31 +1281,20 @@ bool Parser::parse_expression(Ast *pAst) {
 
         if(parenExprs > 0) {
 
+            quesBlock++;
             parse_expression(pAst);
+            quesBlock--;
             pAst->encapsulate(ast_and_e);
             parenExprs--;
         } else {
             nestedAndExprs++;
+            quesBlock++;
             parse_expression(nestedAndExprs == 1 ? pAst : pAst=pAst->getParent());
+            quesBlock--;
             if(nestedAndExprs == 1)
                 pAst->encapsulate(ast_and_e);
             nestedAndExprs--;
         }
-        return true;
-    }
-
-    /* expression '?' expression ':' expression */
-    if(peek(1).getTokenType() == QUESMK)
-    {
-        advance();
-        pAst->addEntity(current());
-
-        parse_expression(pAst);
-
-        expect(COLON, pAst, "`:`");
-
-        parse_expression(pAst);
-        pAst->encapsulate(ast_ques_e);
         return true;
     }
 
@@ -1304,9 +1306,28 @@ bool Parser::parse_expression(Ast *pAst) {
 
         int oldNestedExprs=nestedAddExprs;
         nestedAddExprs=0;
+        quesBlock++;
         parse_expression(pAst);
+        quesBlock--;
         nestedAddExprs=oldNestedExprs;
         pAst->encapsulate(ast_assign_e);
+
+        if(!isexprsymbol(peek(1).getToken()))
+            return true;
+    }
+
+    /* expression '?' expression ':' expression */
+    if(peek(1).getTokenType() == QUESMK && quesBlock==0)
+    {
+        advance();
+        pAst->addEntity(current());
+
+        parse_expression(pAst);
+
+        expect(COLON, pAst, "`:`");
+
+        parse_expression(pAst);
+        pAst->encapsulate(ast_ques_e);
         return true;
     }
 
@@ -2002,7 +2023,7 @@ bool Parser::iskeyword(string key) {
            || key == "private" || key == "def"
            || key == "import" || key == "return"
            || key == "self" || key == "const"
-           || key == "override" || key == "public" || key == "new"
+           || key == "public" || key == "new"
            || key == "null" || key == "operator"
            || key == "base" || key == "if" || key == "while" || key == "do"
            || key == "try" || key == "catch"
