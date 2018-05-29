@@ -1,6 +1,8 @@
 mod application;
 
-class Start {
+import std;
+
+public class Start {
         var a=8, b, c;
 
     public static def main(string[] args) : var {

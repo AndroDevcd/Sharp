@@ -311,12 +311,13 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xb8:
         case 0xb9:
         case 0xbb:
-        case 0xbc: {
+        case 0xbc:
+        case 0xbf: {
             Object *arry = &thread_self->dataStack[thread_self->sp--].object;
             SharpObject *o = arry->object;
 
             if(o != NULL && o->HEAD!=NULL) {
-                native_string path, absolute;
+                native_string path;
                 for(long i = 0; i < o->size; i++) {
                     path += o->HEAD[i];
                 }
@@ -355,6 +356,22 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     registers[ebx] = update_time(path, (time_t)registers[ebx]);
                 else if(signal==0xbc)
                     registers[ebx] = __chmod(path, (mode_t)registers[ebx], (bool)registers[egx], (bool)registers[ecx]);
+                else if(signal==0xbf) {
+                    File::buffer buf;
+                    File::read_alltext(path.str().c_str(), buf);
+                    native_string str;
+
+                    for(long long i = 0; i < buf.size(); i++) {
+                        str += buf.at(i);
+                    }
+
+                    thread_self->sp++;
+                    if(str.len > 0) {
+                        GarbageCollector::self->createStringArray(arry, str);
+                    } else {
+                        GarbageCollector::self->freeObject(arry);
+                    }
+                }
             } else
                 throw Exception(Environment::NullptrException, "");
             return;

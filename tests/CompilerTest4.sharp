@@ -18,7 +18,7 @@ public class Start {
 
         System.println("file " + file.getName() + " being created  ");
         file.createNewFile();
-        System.println("file " + file.getName() + " rename " + file.renameTo(new File(new string("poop.md"))));
+        //System.println("file " + file.getName() + " rename " + file.renameTo(new File(new string("poop.md"))));
         System.println("file " + file.getName() + " read only " + file.setReadOnly());
         System.println("file " + file.getName() + " absolute path is " + file.getAbsolutePath());
         System.println("file " + file.getName() + " has read access " + file.isReadable());
@@ -32,9 +32,18 @@ public class Start {
         }
 
         file.setWritable(true);
-        IOStream stream = new IOStream(file, IOStream.OUT);
-        stream.write("Hello, World!");
-        stream.close();
+        IOStream ostream = new IOStream(file, IOStream.OUT);
+        ostream.write("Hello, World!");
+        ostream.close();
+
+        IOStream istream = new IOStream(file, IOStream.IN);
+        var _char;
+
+        while((_char = istream.nextChar()) != -1) {
+            System.printChar(_char);
+        }
+
+        istream.close();
 //
         System.println("file " + file.getName() + " is a directory " + file.isDirectory());
         System.println("file " + file.getName() + " is a file " + file.isFile());

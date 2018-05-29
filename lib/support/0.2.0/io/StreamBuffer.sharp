@@ -42,7 +42,7 @@ class StreamBuffer {
     public def toString() : string {
         string str = "";
         for(var i=0; i < dp; i++) {
-            str += data[i];
+            str += new var[] {data[i]};
         }
         return str;
     }
@@ -106,10 +106,7 @@ class StreamBuffer {
             data = Array.expand(data, size);
         }
 
-        System.println("assign " + _char);
-        System.println("dp " + dp);
         data[dp++] = _char;
-        System.println("dp222 " + dp);
     }
 
 }

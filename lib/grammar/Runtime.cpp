@@ -154,7 +154,7 @@ int _bootstrap(int argc, const char* argv[])
         if(!File::exists(file.c_str())){
             rt_error("file `" + file + "` doesnt exist!");
         }
-        if(!File::endswith(".sharp", file)){
+        if(!File::endswith(".sharp", file) && !File::endswith(".sh", file)){
             rt_error("file `" + file + "` is not a sharp file!");
         }
     }
@@ -354,6 +354,11 @@ void RuntimeEngine::compile()
             currentModule = "$unknown";
 
             errors = new ErrorManager(p->lines, p->sourcefile, true, c_options.aggressive_errors);
+
+            List<string> imports;
+            imports.add("std"); // automatically import the standard lib module
+            KeyPair<string, List<string>> resolveMap(activeParser->sourcefile, imports);
+            importMap.push_back(resolveMap);
 
             Ast* ast;
             addScope(Scope(GLOBAL_SCOPE, NULL));
@@ -4742,7 +4747,7 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                     else if(right.utype.field->dynamicObject()) {
                         return left.utype.field->dynamicObject();
                     }
-                } else if(right.type == expression_string) {
+                } else if(right.type == expression_string || right.type == expression_null) {
                     return left.utype.field->isArray;
                 } else if(right.type == expression_lclass) {
                     return left.utype.field->dynamicObject();
@@ -5478,9 +5483,8 @@ Opcode RuntimeEngine::operandToLessOp(token_entity operand)
 
 void RuntimeEngine::lessThanNative(token_entity operand, Expression& out, Expression &left, Expression &right, Ast* pAst) {
     out.type = expression_var;
-    right.type = expression_var;
-    right.func=false;
-    right.literal = false;
+//    right.func=false;
+//    right.literal = false;
 
     if(left.type == expression_var) {
         equals(left, right);
@@ -5954,7 +5958,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
             out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
             if(operand == "=") {
-                for(unsigned int i = 0; i < left.code.size(); i++)
+                for(unsigned int i = left.code.size()-1; i > 0 ; i--)
                 {
                     if(GET_OP(left.code.__asm64.get(i)) == op_IALOAD_2) {
                         left.code.__asm64.remove(i);
@@ -5967,7 +5971,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 }
             } else if(operand == "+=" || operand == "-=" || operand == "*="
                       || operand == "/=" || operand == "%=") {
-                for(unsigned int i = 0; i < left.code.size(); i++)
+                for(unsigned int i = left.code.size()-1; i  > 0; i++)
                 {
                     if(GET_OP(left.code.__asm64.get(i)) == op_IALOAD_2) {
                         unsigned  int pos = i+2;
@@ -9556,12 +9560,16 @@ void RuntimeEngine::createDumpFile() {
         stringstream ss;
         ClassObject &k = classes.get(i);
         ss << "\n@" << k.address << " " << classes.get(i).getFullName();
+        ss << " fields: " << classes.get(i).fieldCount() << " methods: "
+           << classes.get(i).functionCount();
         _ostream << ss.str();
 
         for(int64_t x = 0; x < k.childClassCount(); x++) {
             stringstream s;
             ClassObject *klass = k.getChildClass(x);
             s << "\n@" << klass->address << " " << klass->getFullName();
+            s << " fields: " << classes.get(i).fieldCount() << " methods: "
+               << classes.get(i).functionCount();
             _ostream << s.str();
 
         }
