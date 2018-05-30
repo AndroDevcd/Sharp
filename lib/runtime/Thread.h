@@ -43,7 +43,7 @@ public:
             mutex.initalize();
     #endif
     #ifdef POSIX_
-            mutex = std::mutex();
+        new (&mutex) std::mutex();
     #endif
 
 #ifdef WIN32_
@@ -87,7 +87,7 @@ public:
     recursive_mutex mutex;
 #endif
 #ifdef POSIX_
-    std::mutex threadsMonitor;
+    static std::mutex threadsMonitor;
     std::mutex mutex;
 #endif
     static bool isAllThreadsSuspended;

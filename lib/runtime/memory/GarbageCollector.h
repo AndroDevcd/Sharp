@@ -5,6 +5,10 @@
 #ifndef SHARP_GARBAGECOLLECTOR_H
 #define SHARP_GARBAGECOLLECTOR_H
 
+#ifndef WIN32_
+#include <mutex>
+#endif
+
 #include "../List.h"
 
 enum CollectionPolicy

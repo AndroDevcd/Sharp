@@ -5,6 +5,10 @@
 #ifndef SHARP_OBJECT_H
 #define SHARP_OBJECT_H
 
+#ifndef WIN32_
+#include <mutex>
+#endif
+
 #include "../memory/GarbageCollector.h"
 
 struct Object;
@@ -21,7 +25,7 @@ struct SharpObject
         mutex.initalize();
 #endif
 #ifdef POSIX_
-        mutex = std::mutex();
+        new (&mutex) std::mutex();
 #endif
         this->size=size;
         refCount=1;
@@ -36,7 +40,7 @@ struct SharpObject
         mutex.initalize();
 #endif
 #ifdef POSIX_
-        mutex = std::mutex();
+        new (&mutex) std::mutex();
 #endif
         this->size=size;
         refCount=1;

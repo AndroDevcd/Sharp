@@ -1,8 +1,9 @@
 //
 // Created by BraxtonN on 2/12/2018.
 //
-
-#include <conio.h>
+#ifdef WIN32_
+    #include <conio.h>
+#endif
 #include "Thread.h"
 #include "memory/GarbageCollector.h"
 #include "Exe.h"
@@ -56,7 +57,7 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     thread->mutex.initalize();
 #endif
 #ifdef POSIX_
-    thread->mutex = std::mutex();
+    new (&thread->mutex) std::mutex();
 #endif
     thread->name.init();
     thread->main = method;
@@ -90,7 +91,7 @@ void Thread::Create(string name) {
     this->mutex.initalize();
 #endif
 #ifdef POSIX_
-    this->mutex = std::mutex();
+    new (&this->mutex) std::mutex();
 #endif
     this->name.init();
 
@@ -124,7 +125,7 @@ void Thread::CreateDaemon(string name) {
     this->mutex.initalize();
 #endif
 #ifdef POSIX_
-    this->mutex = std::mutex();
+    new (&this->mutex) std::mutex();
 #endif
     this->name.init();
 
@@ -150,12 +151,12 @@ void Thread::CreateDaemon(string name) {
 }
 
 void Thread::pushThread(Thread *thread) {
-    std::lock_guard<recursive_mutex> guard(threadsMonitor);
+    std::lock_guard<std::mutex> guard(threadsMonitor);
     threads.push_back(thread);
 }
 
 void Thread::popThread(Thread *thread) {
-    std::lock_guard<recursive_mutex> guard(threadsMonitor);
+    std::lock_guard<std::mutex> guard(threadsMonitor);
     threads.removefirst(thread);
 }
 
@@ -404,7 +405,7 @@ void Thread::suspendThread(Thread *thread) {
     if(thread->id == thread_self->id)
         suspendSelf();
     else {
-        std::lock_guard<recursive_mutex> gd(thread->mutex);
+        std::lock_guard<std::mutex> gd(thread->mutex);
         thread->suspendPending = true;
         thread->signal = 1;
     }
@@ -488,7 +489,7 @@ int Thread::interrupt(Thread *thread) {
         }
         else
         {
-            std::lock_guard<recursive_mutex> gd(thread->mutex);
+            std::lock_guard<std::mutex> gd(thread->mutex);
             thread->state = THREAD_KILLED; // terminate thread
             thread->signal = 1;
             return 0;
@@ -857,7 +858,7 @@ void Thread::exec() {
                 printf("%c", (char)registers[GET_Da(cache[pc])]);
                 _brh
             GET:
-                c = getche();
+                c = 10; //getche();
                 registers[GET_Da(cache[pc])] = c;
                 _brh
             CHECKLEN:
@@ -1137,7 +1138,7 @@ void Thread::exec() {
 }
 
 void Thread::interrupt() {
-    std::lock_guard<recursive_mutex> gd(mutex);
+    std::lock_guard<std::mutex> gd(mutex);
 
     if (suspendPending)
         suspendSelf();

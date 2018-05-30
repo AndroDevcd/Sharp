@@ -5,7 +5,7 @@
 #ifndef SHARP_PARSERSTATE_H
 #define SHARP_PARSERSTATE_H
 
-#include "ast.h"
+#include "Ast.h"
 
 class ParserState {
 public:

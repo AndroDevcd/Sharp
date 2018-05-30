@@ -4,7 +4,7 @@
 
 #include "ClassObject.h"
 #include "Param.h"
-#include "runtime.h"
+#include "Runtime.h"
 
 size_t ClassObject::constructorCount() {
     return constructors.size();

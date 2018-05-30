@@ -3,7 +3,7 @@
 //
 
 #include "Ast.h"
-#include "../runtime.h"
+#include "../Runtime.h"
 
 
 ast_types Ast::getType()

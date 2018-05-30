@@ -84,7 +84,7 @@ void GarbageCollector::initilize() {
     self->mutex.initalize();
 #endif
 #ifdef POSIX_
-    self->mutex
+    new (&self->mutex) std::mutex();
 #endif
     self->_Mheap = new std::list<SharpObject*>();
     self->managedBytes=0;

@@ -3,7 +3,7 @@
 //
 
 #include "tokenizer.h"
-#include "../../runtime.h"
+#include "../../Runtime.h"
 
 #define iswhitespace(c) \
     ((' '  == c) || ('\n' == c) || \

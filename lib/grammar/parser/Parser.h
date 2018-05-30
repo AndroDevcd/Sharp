@@ -8,8 +8,8 @@
 #include "../../../stdimports.h"
 #include "ErrorManager.h"
 #include "tokenizer/tokenizer.h"
-#include "parserstate.h"
-#include "ast.h"
+#include "ParserState.h"
+#include "Ast.h"
 
 class Parser {
 public:
