@@ -10427,7 +10427,7 @@ void RuntimeEngine::createDumpFile() {
                 }
                 case op_RETURNVAL:
                 {
-                    ss<<"returnval ";
+                    ss<<"return_val ";
                     ss<< Asm::registrerToString(GET_Da(x64));
                     _ostream << ss.str();
                     break;
@@ -10464,6 +10464,13 @@ void RuntimeEngine::createDumpFile() {
                 case op_PUSHNIL:
                 {
                     ss<<"pushnil ";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_GET:
+                {
+                    ss<<"get ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
                     _ostream << ss.str();
                     break;
                 }

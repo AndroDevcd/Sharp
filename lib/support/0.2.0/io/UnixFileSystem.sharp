@@ -40,6 +40,8 @@ public class UnixFileSystem base FileSystem {
             index--;
         }
 
+        System.println("normalized path " + normalized);
+        System.println("index " + index + " path " + new string(normalized, 0, index));
         return (index != n) ? new string(normalized, 0, index) : pathname;
     }
 
