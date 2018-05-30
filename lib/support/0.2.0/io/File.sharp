@@ -446,7 +446,7 @@ public class File {
         if(BuildConfig.isWindows()) {
             return new WinFileSystem();
         } else {
-            return null; // we currently don't support linux (Yet)
+            return new UnixFileSystem();
         }
     }
 }

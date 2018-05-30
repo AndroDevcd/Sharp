@@ -17,6 +17,21 @@ public class string {
 
         }
 
+        public string( var[] immstr, var offset, var length )
+        {
+            if(immstr == null) {
+                data = null;
+            } else {
+                for(var i = offset; i < sizeof(immstr); i++) {
+                    if(len-- >= 0) {
+                        append(immstr[i]);
+                    } else
+                        break;
+                }
+            }
+
+        }
+
         public def replace( var pos, var replaceChar ) : string
         {
             if(pos >= sizeof(data)) {

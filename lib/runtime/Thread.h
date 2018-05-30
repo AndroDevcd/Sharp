@@ -40,7 +40,7 @@ public:
 
     {
     #ifdef WIN32_
-            mutex.initalize();
+        new (&mutex) std::mutex();
     #endif
     #ifdef POSIX_
         new (&mutex) std::mutex();
@@ -83,8 +83,8 @@ public:
     static int32_t tid;
     static List<Thread*> threads;
 #ifdef WIN32_
-    static recursive_mutex threadsMonitor;
-    recursive_mutex mutex;
+    static std::mutex threadsMonitor;
+    std::mutex mutex;
 #endif
 #ifdef POSIX_
     static std::mutex threadsMonitor;

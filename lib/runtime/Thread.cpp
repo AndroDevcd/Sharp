@@ -19,7 +19,7 @@ thread_local Thread* thread_self = NULL;
 List<Thread*> Thread::threads;
 
 #ifdef WIN32_
-    recursive_mutex Thread::threadsMonitor;
+    std::mutex Thread::threadsMonitor;
 #endif
 #ifdef POSIX_
     std::mutex Thread::threadsMonitor;
@@ -54,7 +54,7 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
             sizeof(Thread)*1);
 
 #ifdef WIN32_
-    thread->mutex.initalize();
+    new (&thread->mutex) std::mutex();
 #endif
 #ifdef POSIX_
     new (&thread->mutex) std::mutex();
@@ -88,7 +88,7 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
 
 void Thread::Create(string name) {
 #ifdef WIN32_
-    this->mutex.initalize();
+    new (&mutex) std::mutex();
 #endif
 #ifdef POSIX_
     new (&this->mutex) std::mutex();
@@ -122,7 +122,7 @@ void Thread::Create(string name) {
 
 void Thread::CreateDaemon(string name) {
 #ifdef WIN32_
-    this->mutex.initalize();
+    new (&mutex) std::mutex();
 #endif
 #ifdef POSIX_
     new (&this->mutex) std::mutex();

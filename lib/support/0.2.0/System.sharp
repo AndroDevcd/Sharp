@@ -44,11 +44,11 @@ public class System {
             message += new var[] { _char };
             _char = readChar();
         }
-        return message; // unsupported for now
+        return message;
     }
 
     public static def readChar() : var {
-        return cHandler.read(); // unsupported for now
+        return cHandler.read();
     }
     
     public static def println(string str) {

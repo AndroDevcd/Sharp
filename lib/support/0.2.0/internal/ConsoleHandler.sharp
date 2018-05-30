@@ -31,7 +31,7 @@ public class ConsoleHandler {
         var result;
         asm(
             "  get %ebx                                        "
-            "  return_val %ebx                                  "
+            "  return_val %ebx                                 "
             "  ret                                             "
         );
      }
