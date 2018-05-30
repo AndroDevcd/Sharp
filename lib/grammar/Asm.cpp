@@ -781,6 +781,10 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_register();
 
                 assembler.push_i64(SET_Di(i64, op_PUTC, i2.high_bytes));
+            } else if(instruction_is("get")) {
+                expect_register();
+
+                assembler.push_i64(SET_Di(i64, op_GET, i2.high_bytes));
             } else if(instruction_is("checklen")) {
                 expect_register();
 

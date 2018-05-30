@@ -47,6 +47,9 @@ public class Start {
             istream.close();
         }
 //
+        System.println(" what is your name ?");
+        string name = System.readLine();
+        System.println(" hello " + name);
         System.println("file " + file.getName() + " is a directory " + file.isDirectory());
         System.println("file " + file.getName() + " is a file " + file.isFile());
         System.println("file " + file.getName() + " is a hidden " + file.isHidden());

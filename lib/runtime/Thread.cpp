@@ -2,6 +2,7 @@
 // Created by BraxtonN on 2/12/2018.
 //
 
+#include <conio.h>
 #include "Thread.h"
 #include "memory/GarbageCollector.h"
 #include "Exe.h"
@@ -673,6 +674,7 @@ void Thread::exec() {
     int64_t args=0;
     ClassObject *klass;
     SharpObject* o=NULL;
+    int c;
     Object* o2=NULL;
     void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
     Method* finnallyMethod;
@@ -853,6 +855,10 @@ void Thread::exec() {
                 _brh
             PUTC:
                 printf("%c", (char)registers[GET_Da(cache[pc])]);
+                _brh
+            GET:
+                c = getche();
+                registers[GET_Da(cache[pc])] = c;
                 _brh
             CHECKLEN:
             CHECK_NULL2(

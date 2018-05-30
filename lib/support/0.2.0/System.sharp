@@ -36,11 +36,19 @@ public class System {
     }
 
     public static def readLine() : string {
-        return null; // unsupported for now
+        var _char;
+        string message = "";
+
+        _char = readChar();
+        while((_char != 13) && (_char != 10)) { // \r\n
+            message += new var[] { _char };
+            _char = readChar();
+        }
+        return message; // unsupported for now
     }
 
     public static def readChar() : var {
-        return 0; // unsupported for now
+        return cHandler.read(); // unsupported for now
     }
     
     public static def println(string str) {

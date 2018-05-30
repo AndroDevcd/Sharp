@@ -334,7 +334,8 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 else if(signal==0xb6)
                     registers[ebx] = delete_file(path);
                 else if(signal==0xb7) {
-                    List<native_string> files = get_file_list(path);
+                   List<native_string> files;
+                    get_file_list(path, files);
 
                     thread_self->sp++;
                     if(files.size()>0) {
@@ -343,10 +344,13 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
 
                         for(long i = 0; i < files.size(); i++) {
                             GarbageCollector::self->createStringArray(&o->node[i], files.get(i));
+                            files.get(i).free();
                         }
                     } else {
                         GarbageCollector::self->freeObject(arry);
                     }
+
+                    files.free();
                 }
                 else if(signal==0xb8)
                     registers[ebx] = make_dir(path);

@@ -1,5 +1,4 @@
 *.zip
-*.exe
 *.stackdump
 /cmake-build*
 .idea/

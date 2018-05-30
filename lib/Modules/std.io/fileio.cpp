@@ -11,6 +11,7 @@
 #include <fstream>
 #include <dirent.h>
 #include <utime.h>
+#include <iomanip>
 
 #ifndef WIN32
 #include <unistd.h>
@@ -102,9 +103,8 @@ long delete_file(native_string &path)
     return remove(path.str().c_str());
 }
 
-List<native_string> get_file_list(native_string &path) {
+void get_file_list(native_string &path, List<native_string> &files) {
     DIR *dir;
-    List<native_string> files;
     struct dirent *ent;
     if ((dir = opendir (path.str().c_str())) != NULL) {
         /* print all the files and directories within directory */
@@ -113,12 +113,13 @@ List<native_string> get_file_list(native_string &path) {
             for(long i = 0; i < ent->d_namlen; i++) {
                 file += ent->d_name[i];
             }
-            files.push_back(file);
+            files.push_back();
+            files.last().init();
+            files.last() = file;
         }
         closedir (dir);
     } else {
         /* could not open directory */
-        return files;
     }
 }
 
@@ -253,5 +254,4 @@ long long disk_space(long request) {
             return 0;
     }
 }
-
 

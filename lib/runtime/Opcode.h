@@ -166,7 +166,8 @@
         &&PUSHL,                           \
         &&ITEST,                           \
         &&INVOKE_DELEGATE,                  \
-        &&INVOKE_DELEGATE_STATIC            \
+        &&INVOKE_DELEGATE_STATIC,            \
+        &&GET                                 \
     };
 
 enum Opcode {
@@ -277,7 +278,8 @@ enum Opcode {
     op_PUSHL                    =0x68,
     op_ITEST                    =0x69,
     op_INVOKE_DELEGATE          =0x6a,
-    op_INVOKE_DELEGATE_STATIC   =0x6b
+    op_INVOKE_DELEGATE_STATIC   =0x6b,
+    op_GET                      =0x6c
 };
 
 #endif //SHARP_OPCODE_H
