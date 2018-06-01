@@ -1,0 +1,65 @@
+mod application;
+
+/**
+ * Created by BraxtonN on 6/1/2018.
+ */
+class gpio {
+    private gpio.pin[] pins;
+    private int numPins;
+
+    public static const var PIN_UNAVAILABLE = 0x001;
+    public static const var PIN_FAIL  = 0x001;
+    public static const var PIN_OK  = 0x001;
+
+    class pin
+    {
+    	var dir;
+    	var addr;
+    	var value;
+    };
+
+    def inialize() {
+
+    }
+
+    public def get(var i) : gpio.pin {
+        return pins[i];
+    }
+
+    public def register(var pin, var dir) : var {
+        if(isAvailable(pin)) {
+
+            pins = (var[])Array.expand((object[])pins, sizeof(pins)+1);
+            pins[sizeof(pins)-1].dir = dir;
+            return true;
+        }
+
+        return false;
+    }
+
+    public def unregister(var pin) : var {
+
+    }
+
+    public def chdir(var pin, var dir) : var {
+
+    }
+
+    public def read(var pin) : var {
+
+    }
+
+    public def write(var pin) : var {
+
+    }
+
+    private def isAvailable(var pin) : var {
+        for(pin io : pins)
+        {
+        	if(io.addr == pin)
+        		return true;
+        }
+
+        return false;
+    }
+}
