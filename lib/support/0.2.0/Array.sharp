@@ -22,6 +22,7 @@ public class Array {
             newArry[i] = data[i];
         }
 
+
         return newArry;
     }
 

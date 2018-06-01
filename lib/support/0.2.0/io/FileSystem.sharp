@@ -39,6 +39,10 @@ public class FileSystem {
             "popl <path>            "
         );
 
+        if(path == null) {
+            throw new IOException("file could not be resolved: " + f.getPath());
+        }
+
         return "" + path;
      }
 

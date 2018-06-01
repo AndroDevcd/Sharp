@@ -259,11 +259,9 @@ public class File {
      *
      */
     public def setReadOnly() : var {
-        return fs.setReadOnly(self);
+        return fs.setReadOnly(self)==0;
     }
 
-    // Android-changed. Removed javadoc comment about special privileges
-    // that doesn't make sense on android
     /**
      * Sets the owner's or everybody's write permission for this abstract
      * pathname.

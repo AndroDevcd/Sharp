@@ -2,6 +2,10 @@
 // Created by bknun on 9/12/2017.
 //
 
+#include "../../stdimports.h"
+#ifdef POSIX_
+#include <cmath>
+#endif
 #include "Runtime.h"
 #include "parser/ErrorManager.h"
 #include "List.h"
@@ -488,11 +492,7 @@ void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix
                         block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
                     }
                 } else if(value.utype.field->isVar() && value.utype.field->isArray) {
-                    if(value.utype.field->local) {
-                        block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
-                    } else {
-                        block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
-                    }
+                    block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
                 } else if(value.utype.field->dynamicObject() || value.utype.field->type == CLASS) {
                     if(value.utype.field->local) {
                         block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
@@ -2783,6 +2783,7 @@ Expression &RuntimeEngine::parseDotNotationChain(Ast *pAst, Expression &expressi
 
     Ast* utype;
     Expression rightExpr(pAst);
+    Expression result(pAst);
     rightExpr =expression;
     rightExpr.code.free();
     for(unsigned int i = startpos; i < pAst->getSubAstCount(); i++) {
@@ -2793,13 +2794,16 @@ Expression &RuntimeEngine::parseDotNotationChain(Ast *pAst, Expression &expressi
         }
 
         if(utype->getType() == ast_dotnotation_call_expr) {
-            rightExpr = parseDotNotationChain(utype, rightExpr, 0);
+            result = parseDotNotationChain(utype, rightExpr, 0);
+            rightExpr = result;
         }
         else if(utype->getType() == ast_expression){ /* array expression */
-            rightExpr = parseArrayExpression(rightExpr, utype);
+            result = parseArrayExpression(rightExpr, utype);
+            rightExpr = result;
         }
         else {
-            rightExpr = parseDotNotationCallContext(rightExpr, utype);
+            result = parseDotNotationCallContext(rightExpr, utype);
+            rightExpr = result;
         }
 
         rightExpr.link = utype;
@@ -6529,7 +6533,7 @@ Expression RuntimeEngine::parseBinaryExpression(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseQuesExpression(Ast* pAst) {
-    Expression condition(pAst),condIfTrue(pAst), condIfFalse(pAst), expression(pAst);
+    Expression condition(pAst),condIfTrue(pAst), condIfFalse(pAst), expression(pAst), tmp(pAst);
 
     condition = parseIntermExpression(pAst->getSubAst(0));
     condIfTrue = parseExpression(pAst->getSubAst(1));
@@ -6539,12 +6543,14 @@ Expression RuntimeEngine::parseQuesExpression(Ast* pAst) {
     expression.code.__asm64.free();
     pushExpressionToRegister(condition, expression, cmt);
 
-    expression.code.push_i64(SET_Ci(i64, op_LOADPC_2, adx,0, (condIfTrue.code.size() + 3)));
+    pushExpressionToStack(condIfTrue, tmp); // so we can get accurate size
+    expression.code.push_i64(SET_Ci(i64, op_LOADPC_2, adx,0, (tmp.code.size() + 3)));
     expression.code.push_i64(SET_Ei(i64, op_IFNE));
 
-    expression.code.inject(expression.code.size(), condIfTrue.code);
-    expression.code.push_i64(SET_Di(i64, op_SKIP, condIfFalse.code.size()));
-    expression.code.inject(expression.code.size(), condIfFalse.code);
+    expression.inject(tmp); tmp.free();
+    pushExpressionToStack(condIfFalse, tmp); // so we can get accurate size
+    expression.code.push_i64(SET_Di(i64, op_SKIP, tmp.code.size()));
+    expression.inject(tmp);
 
 
     if(equals(condIfTrue, condIfFalse)) {
@@ -6554,7 +6560,14 @@ Expression RuntimeEngine::parseQuesExpression(Ast* pAst) {
         }
     }
 
+    if(condIfFalse.type == expression_string) {
+        expression.type = expression_var;
+        expression.utype.array = true;
+    }
+
     expression.ifExpression = true;
+    expression.newExpression = false;
+    expression.func = true;
     return expression;
 }
 

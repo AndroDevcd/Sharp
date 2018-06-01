@@ -43,7 +43,7 @@ native_string resolve_path(native_string& path) {
     
 #ifdef POSIX_
     char full_path[PATH_MAX];
-        if(realpath("foo.dat", full_path) != 0) {
+        if(realpath(path.str().c_str(), full_path) != 0) {
             for(int i = 0; i < PATH_MAX; i++) {
             if(full_path[i] != '\000')
                 fullPath += full_path[i];
@@ -121,7 +121,7 @@ int check_access(native_string& path, int access_flg) {
             return -1;
     }
     
-    access( path.str().c_str(), access_flg );
+    return access( path.str().c_str(), access_flg );
 #endif
 }
 
@@ -281,15 +281,18 @@ int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly)
             if(enable)
                 mode |= S_IRUSR;
             else
-                mode ^= S_IRUSR;
+                mode &= ~S_IRUSR;
         }
 
         if (set_mode & ACCESS_WRITE) {
 
             if(enable)
                 mode |= S_IWUSR;
-            else
-                mode ^= S_IWUSR;
+            else {
+                mode &= ~S_IWUSR;
+                mode &= ~S_IWGRP;
+                mode &= ~S_IWOTH;
+            }
         }
         
         if (set_mode & ACCESS_EXECUTE) {
@@ -297,7 +300,7 @@ int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly)
             if(enable)
                 mode |= S_IXUSR;
             else
-                mode ^= S_IXUSR;
+                mode &= ~S_IXUSR;
         }
 
         int result = chmod(path.str().c_str(), mode);
