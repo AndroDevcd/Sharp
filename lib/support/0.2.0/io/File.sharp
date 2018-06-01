@@ -442,7 +442,7 @@ public class File {
 
     private static def getFileSystem() : FileSystem {
         if(BuildConfig.isWindows()) {
-            return new UnixFileSystem();
+            return new WinFileSystem();
         } else {
             return new UnixFileSystem();
         }
