@@ -106,7 +106,6 @@ class gpio {
 
             IOStream istream;
             string value = "";
-            var val;
             try {
                 File fd = new File("/sys/class/gpio/gpio" + pin + "/value");
                 if(!fd.exists()) {
@@ -130,9 +129,7 @@ class gpio {
                 }
             }
 
-
-            val = string.parseInt(value);
-            return val;
+            return string.parseInt(value);
         }
 
         return -1;
