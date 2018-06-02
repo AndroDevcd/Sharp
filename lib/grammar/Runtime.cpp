@@ -4020,7 +4020,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
         out.code.push_i64(SET_Ci(i64, op_MOVU64, ebx, 0, ebx));
         return;
     } else if(utype.utype.isArray() && utype.utype.type == VAR) {
-        if(expression.trueType() == OBJECT) {
+        if(expression.trueType() == OBJECT || expression.trueType() == VAR) {
             return;
         }
     } else if(!utype.utype.isArray() && utype.utype.type == VAR) {

@@ -16,6 +16,12 @@ public class File {
         self->path = fs.normalize(path);
     }
 
+    public File(var[] path) {
+        if(path == null)
+            throw new NullptrException("file path cannot be null");
+        self->path = fs.normalize("" + path);
+    }
+
     public def getName() : string {
         if(path == null || path.size()==0) {
             return new string("");

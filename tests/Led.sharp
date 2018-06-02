@@ -1,0 +1,19 @@
+mod application;
+
+/**
+ * Created by braxtonn on 3/4/2018.
+ */
+public class Start {
+
+    public static def main(object[] args) : var {
+        gpio pinManager = new gpio();
+
+        pinManager.register(17);
+        pinManager.chdir(17, 1); // set for out
+        pinManager.write(17, 1); // turn led on for 1 second
+        Time.sleep(Time.TimeUnit.SECONDS, 1);
+        pinManager.write(17, 0); // turn led on off
+        pinManager.unregister(17); // unregister pin
+        return 0;
+    }
+}
