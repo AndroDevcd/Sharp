@@ -70,20 +70,19 @@ public:
  \
     Method *method = env->methods+address; \
  \
-    int64_t spAddr = thread_self->sp-method->stackEqulizer; \
     if(thread_self->callStack.empty()) { \
         thread_self->callStack.add( \
                 Frame(NULL, 0, 0, 0)); \
     } else { \
         thread_self->callStack.add( \
-                Frame(thread_self->current, thread_self->pc, spAddr, thread_self->fp)); \
+                Frame(thread_self->current, thread_self->pc, thread_self->sp-method->stackEqulizer, thread_self->fp)); \
     } \
      \
     thread_self->pc = 0; \
     thread_self->current = method; \
     thread_self->cache = method->bytecode; \
     thread_self->fp = thread_self->callStack.size()==1 ? thread_self->fp : \
-                      ((method->returnVal) ? spAddr : (spAddr+1)); \
+                      ((method->returnVal) ? thread_self->sp-method->stackEqulizer : (thread_self->sp-method->stackEqulizer+1)); \
     thread_self->sp += (method->stackSize - method->paramSize); \
 }
 

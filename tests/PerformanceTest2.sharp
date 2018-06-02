@@ -1,0 +1,37 @@
+mod application;
+
+import std;
+
+public class Start {
+
+    private static def addUpTo(var dest) : var {
+        var sum = 0;
+        for(var i = 0; i <= dest; i++) {
+            sum += i;
+        }
+
+        return sum;
+    }
+
+    private static def rollAverage(var dest) : var {
+        var avg = 0;
+        for(var i = 0; i < dest; i++) {
+            avg = (avg + addUpTo(i)) / 2.0;
+        }
+
+        return avg;
+    }
+
+    /**
+    * Cost per million performance improvements
+    * #1: 40.782s
+    */
+    public static def main(string[] args) : var {
+        var n = string.parseInt(args[0]);
+        var end = string.parseInt(args[1]);
+
+        for(var i = n; i < end; i++) {
+            System.println("rollAvg(" + i + ") = " + rollAverage(i));
+        }
+    }
+}
