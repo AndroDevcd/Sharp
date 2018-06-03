@@ -8,8 +8,8 @@ class gpio {
 
 
     public static const var PIN_UNAVAILABLE = 0x001;
-    public static const var PIN_FAIL  = 0x001;
-    public static const var PIN_OK  = 0x001;
+    public static const var PIN_FAIL  = 0x002;
+    public static const var PIN_OK  = 0x000;
 
     public def register(var pin) : var {
         if(isAvailable(pin)) {
