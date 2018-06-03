@@ -5,12 +5,7 @@ import std;
 public class Start {
 
     private static def addUpTo(var dest) : var {
-        var sum = 0;
-        for(var i = 0; i <= dest; i++) {
-            sum += i;
-        }
-
-        return sum;
+        return (_uint64)((dest * (dest+1)) >> 1);
     }
 
     private static def rollAverage(var dest) : var {

@@ -16,10 +16,10 @@ class gpio {
 
             IOStream ostream;
             try {
-                File fd = new File("/sys/class/gpio/export");
-                if(!fd.exists()) {
-                    return PIN_FAIL;
-                }
+                File fd = new File("README1.md");
+                //if(!fd.exists()) {
+                //    return PIN_FAIL;
+                //}
 
                 ostream = new IOStream(fd, IOStream.OUT);
                 ostream.write("" + pin);
@@ -47,10 +47,10 @@ class gpio {
 
             IOStream ostream;
             try {
-                File fd = new File("/sys/class/gpio/unexport");
-                if(!fd.exists()) {
-                    return PIN_FAIL;
-                }
+                File fd = new File("README1.md");
+                //if(!fd.exists()) {
+                //    return PIN_FAIL;
+                //}
 
                 ostream = new IOStream(fd, IOStream.OUT);
                 ostream.write("" + pin);
@@ -75,10 +75,10 @@ class gpio {
 
             IOStream ostream;
             try {
-                File fd = new File("/sys/class/gpio/gpio" + pin + "/direction");
-                if(!fd.exists()) {
-                    return PIN_FAIL;
-                }
+                File fd = new File("README1.md");
+                //if(!fd.exists()) {
+                //    return PIN_FAIL;
+                //}
 
                 ostream = new IOStream(fd, IOStream.OUT);
                 if(dir = 1)
@@ -107,10 +107,10 @@ class gpio {
             IOStream istream;
             string value = "";
             try {
-                File fd = new File("/sys/class/gpio/gpio" + pin + "/value");
-                if(!fd.exists()) {
-                    return -1;
-                }
+                File fd = new File("README1.md");
+                //if(!fd.exists()) {
+                //    return -1;
+                //}
 
                 istream = new IOStream(fd, IOStream.IN);
                 var _char;
@@ -140,10 +140,10 @@ class gpio {
 
             IOStream ostream;
             try {
-                File fd = new File("/sys/class/gpio/gpio" + pin + "/value");
-                if(!fd.exists()) {
-                    return -1;
-                }
+                File fd = new File("README1.md");
+                //if(!fd.exists()) {
+                //    return -1;
+                //}
 
                 ostream = new IOStream(fd, IOStream.OUT);
                 ostream.write("" + (value ? 1 : 0));

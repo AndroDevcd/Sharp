@@ -39,7 +39,7 @@
 #define CA_MAX 134217727
 #define CA_MIN -134217727
 
-#define DISPATCH() if(GET_OP(cache[pc])> op_GET) throw Exception("op"); else goto *opcode_table[GET_OP(cache[pc])];
+#define DISPATCH() /*if(GET_OP(cache[pc])> op_GET) throw Exception("op"); else*/ goto *opcode_table[GET_OP(cache[pc])];
 
 #define SAFTEY_CHECK \
     if (suspendPending) \
@@ -49,7 +49,7 @@
 
 #define STACK_CHECK  if((sp+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
 
-#define _brh_NOINCREMENT SAFTEY_CHECK count++; /*if(!startAddress) DISPATCH() else*/ goto *opcodeStart;
+#define _brh_NOINCREMENT SAFTEY_CHECK count++; if(!startAddress) DISPATCH() else goto *opcodeStart;
 #define _brh  pc++; _brh_NOINCREMENT
 
 #define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
