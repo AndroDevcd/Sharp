@@ -1,6 +1,8 @@
 mod application;
 
-class Start {
+import std;
+
+public class Start {
 
     /**
     * Cost per million performance improvements
@@ -114,7 +116,7 @@ class Body {
 
    public Body(){}
 
-   static def jupiter() : Body {
+   public static def jupiter() : Body {
       Body p = new Body();
       p.x = 4.84143144246472090e+00;
       p.y = -1.16032004402742839e+00;
@@ -126,7 +128,7 @@ class Body {
       return p;
    }
 
-   static def saturn() : Body {
+   public static def saturn() : Body {
       Body p = new Body();
       p.x = 8.34336671824457987e+00;
       p.y = 4.12479856412430479e+00;
@@ -138,7 +140,7 @@ class Body {
       return p;
    }
 
-   static def uranus() : Body {
+   public static def uranus() : Body {
       Body p = new Body();
       p.x = 1.28943695621391310e+01;
       p.y = -1.51111514016986312e+01;
@@ -150,7 +152,7 @@ class Body {
       return p;
    }
 
-   static def neptune() : Body {
+   public static def neptune() : Body {
       Body p = new Body();
       p.x = 1.53796971148509165e+01;
       p.y = -2.59193146099879641e+01;
@@ -162,13 +164,13 @@ class Body {
       return p;
    }
 
-   static def sun() : Body {
+   public static def sun() : Body {
       Body p = new Body();
       p.mass = SOLAR_MASS;
       return p;
    }
 
-   def offsetMomentum(var px, var py, var pz) : Body {
+   public def offsetMomentum(var px, var py, var pz) : Body {
       vx = -px / SOLAR_MASS;
       vy = -py / SOLAR_MASS;
       vz = -pz / SOLAR_MASS;
