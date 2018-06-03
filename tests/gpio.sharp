@@ -43,7 +43,7 @@ class gpio {
     }
 
     public def unregister(var pin) : var {
-        if(isAvailable(pin)) {
+        if(!isAvailable(pin)) {
 
             IOStream ostream;
             try {
@@ -71,7 +71,7 @@ class gpio {
     }
 
     public def chdir(var pin, var dir) : var {
-        if(isAvailable(pin)) {
+        if(!isAvailable(pin)) {
 
             IOStream ostream;
             try {
@@ -102,7 +102,7 @@ class gpio {
     }
 
     public def read(var pin) : var {
-        if(isAvailable(pin)) {
+        if(!isAvailable(pin)) {
 
             IOStream istream;
             string value = "";
@@ -136,7 +136,7 @@ class gpio {
     }
 
     public def write(var pin,  var value) : var {
-        if(isAvailable(pin)) {
+        if(!isAvailable(pin)) {
 
             IOStream ostream;
             try {
