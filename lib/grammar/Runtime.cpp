@@ -2472,6 +2472,7 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
                 out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, fn->address, 0, expressions.size()));
         } else
         out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
+        cout << " out " << GET_OP(out.code.__asm64.last()) << " arg " << GET_Da(out.code.__asm64.last());
     }
 
     freeList(params);
