@@ -179,6 +179,7 @@ void Optimizer::optimize(Method *method) {
     optimizeUnusedEbxAssign();
     optimizeRedundantReturn();
     optimizeRedundantMovr();
+    optimizeLoadLocal_3();
 }
 
 /**
@@ -790,6 +791,38 @@ void Optimizer::optimizeRedundantMovr() {
 
                     optimizedOpcodes++;
                     assembler->__asm64.replace(i, SET_Di(x64, op_RSTORE, reg2));
+                    goto readjust;
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0x9] 9:	loadl ebx, fp+1
+ * [0xa] 10:	iaddl 1, @1
+ * [0xb] 11:	goto @2
+ *
+ * to -> [0xa] 10:	iaddl 1, @1
+ *       [0xb] 11:	goto @2
+*/
+void Optimizer::optimizeLoadLocal_3() {
+    int64_t x64, reg1;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_LOADL:
+                reg1 = GET_Ca(x64);
+
+                if(reg1 == ebx && GET_OP(assembler->__asm64.get(i+1)) == op_IADDL
+                   && GET_OP(assembler->__asm64.get(i+2)) == op_GOTO) {
+
+                    assembler->__asm64.remove(i); // remove loadl
+                    readjustAddresses(i);
+
+                    optimizedOpcodes++;
                     goto readjust;
                 }
                 break;

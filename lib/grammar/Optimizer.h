@@ -51,6 +51,7 @@ private:
     void optimizeUnusedEbxAssign();
     void optimizeRedundantReturn();
     void optimizeRedundantMovr();
+    void optimizeLoadLocal_3();
 };
 
 
