@@ -4,6 +4,8 @@
 #ifdef WIN32_
     #include <conio.h>
 #endif
+
+#include <cmath>
 #include "Thread.h"
 #include "memory/GarbageCollector.h"
 #include "Exe.h"
@@ -769,6 +771,7 @@ void Thread::exec() {
                 registers[cache[pc+1]]=registers[GET_Ca(cache[pc])]*registers[GET_Cb(cache[pc])]; pc++;
                 _brh
             DIV:
+                if(registers[GET_Ca(cache[pc])]==0 && registers[GET_Cb(cache[pc])]==0) throw Exception("divide by 0");
                 registers[cache[pc+1]]=registers[GET_Ca(cache[pc])]/registers[GET_Cb(cache[pc])]; pc++;
                 _brh
             MOD:
@@ -784,6 +787,7 @@ void Thread::exec() {
                 registers[GET_Ca(cache[pc])]*=GET_Cb(cache[pc]);
                 _brh
             IDIV:
+                if(registers[GET_Ca(cache[pc])]==0 && registers[GET_Cb(cache[pc])]==0) throw Exception("divide by 0");
                 registers[GET_Ca(cache[pc])]/=GET_Cb(cache[pc]);
                 _brh
             IMOD:

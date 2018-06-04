@@ -58,7 +58,7 @@ class NBodySystem {
             var dz = iz - jBody.z;
 
             var dSquared = dx * dx + dy * dy + dz * dz;
-            var distance = (dSquared/50)*100;
+            var distance = (dSquared/50)/100;
             var mag = dt / (dSquared * distance);
 
             var jMass = jBody.mass;
@@ -98,7 +98,7 @@ class NBodySystem {
             dy = iBody.y - jBody.y;
             dz = iBody.z - jBody.z;
 
-            distance = (dx*dx + dy*dy + dz*dz)/100;
+            distance = 0.5;//(dx*dx + dy*dy + dz*dz);
             e -= (iBody.mass * jBody.mass) / distance;
          }
       }

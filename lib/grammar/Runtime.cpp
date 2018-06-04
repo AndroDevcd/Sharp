@@ -4453,7 +4453,8 @@ Expression RuntimeEngine::parseUnary(token_entity operand, Expression& right, As
                 else
                     var = -right.intValue;
 
-                if((((int64_t)abs(right.intValue)) - abs(right.intValue)) > 0) {
+                double intpart;
+                if( modf( right.intValue, &intpart) != 0 ) {
                     // movbi
                     if((int64_t )var > DA_MAX || (int64_t )var < DA_MIN) {
                         stringstream ss;
@@ -4551,13 +4552,17 @@ bool RuntimeEngine::addExpressions(Expression &out, Expression &leftExpr, Expres
     if(!isDClassNumberEncodable(*varout)) {
         return false;
     } else {
-        if(out.code.size() >= 2 && (GET_OP(out.code.__asm64.get(out.code.size()-2)) == op_MOVI
-                                    || GET_OP(out.code.__asm64.get(out.code.size()-2)) == op_MOVBI)){
+        if(out.code.size() >= 2 && (GET_OP(out.code.__asm64.get(0)) == op_MOVI
+                                    || GET_OP(out.code.__asm64.get(0)) == op_MOVBI)){
+            if(GET_OP(out.code.__asm64.get(0)) == op_MOVBI)
+                out.code.__asm64.pop_back();
             out.code.__asm64.pop_back();
             out.code.__asm64.pop_back();
         }
 
-        if((((int64_t)abs(*varout)) - abs(*varout)) > 0) {
+        double intpart;
+
+        if( modf( *varout, &intpart) != 0 ) {
             // movbi
             out.code.push_i64(SET_Di(i64, op_MOVBI, ((int64_t)*varout)), abs(get_low_bytes(*varout)));
             out.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, bmr));
@@ -5292,7 +5297,6 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
      * So we dont missinterpret the value returned from the expr :)
      */
     out.func=leftExpr.func;
-    out.literal=leftExpr.literal=false;
 }
 
 Expression RuntimeEngine::parseAddExpression(Ast* pAst) {
@@ -5342,7 +5346,8 @@ bool RuntimeEngine::shiftLiteralExpressions(Expression &out, Expression &leftExp
     if(isDClassNumberEncodable(var)) {
         return false;
     } else {
-        if((((int64_t)abs(var)) - abs(var)) > 0) {
+        double intpart;
+        if( modf( var, &intpart) != 0 ) {
             // movbi
             out.code.push_i64(SET_Di(i64, op_MOVBI, ((int64_t)var)), abs(get_low_bytes(var)));
             out.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, bmr));
