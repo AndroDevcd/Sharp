@@ -110,9 +110,9 @@ expression '[' expression ']' [<dot-notation-call-expr>] expression
 [.] <utype-naked> [<value-list> [<dot-notation-call-expr> | <array-expression>]]  i.e. x.buildtask(405).execute()[4];
 
 <primary-expr>:
-<literal>                                  // ast_literal_e
-    | [.] <uType> '.' class                // ast_utype_class_e    Main.class
-    |  <dot-notation-call-expr>  // ast_dot_not_e
+<literal>                                       // ast_literal_e
+    | [.] <uType> '.' class                     // ast_utype_class_e    Main.class
+    |  <dot-notation-call-expr>                 // ast_dot_not_e
 
 <expression>:
 <primary-expr>
@@ -155,6 +155,9 @@ mod <modulename> ;
 
 Import Declaration:
 import <modulename> ;
+
+Prototype Declaration:
+func <identifier = name> <uTypeArg-list-naked> [: <uType>] ;
 
 Class Declaration:
 `[<accesstype>] class <identifier = name> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
@@ -236,5 +239,6 @@ asm ( <string-literal>+ ) ;
      | goto identifier ;
      | identifier ':' <statement>
      | <variable-declaration>
+     | <prototype-declaration>
      | <expression>
      | <asm-decl>

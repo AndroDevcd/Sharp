@@ -59,6 +59,7 @@ enum ast_types
     ast_for_expresion_iter,
     ast_foreach_statement,
     ast_type_identifier,
+    ast_func_prototype,
     ast_refrence_pointer,
     ast_modulename,
     ast_literal,

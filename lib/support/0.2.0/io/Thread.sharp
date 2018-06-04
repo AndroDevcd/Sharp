@@ -1,0 +1,11 @@
+mod std.io;
+
+/**
+ * Created by BraxtonN on 6/4/2018.
+ */
+class Thread {
+
+    public Thread(string name) {
+
+    }
+}

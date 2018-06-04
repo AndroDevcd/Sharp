@@ -174,6 +174,10 @@ bool Parser::isvariable_decl(token_entity token) {
     return isnative_type(token.getToken());
 }
 
+bool Parser::isprototype_decl(token_entity token) {
+    return token.getId() == IDENTIFIER && token.getToken() == "func";
+}
+
 bool Parser::ismethod_decl(token_entity token) {
     return token.getId() == IDENTIFIER && token.getToken() == "def";
 }
@@ -381,6 +385,15 @@ void Parser::parse_interfaceblock(Ast *pAst) {
             errors->createNewError(GENERIC, current(), "unexpected variable declaration");
             parse_variabledecl(pAst);
         }
+        else if(isprototype_decl(current()))
+        {
+            if(access_types.size() > 0)
+            {
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+            }
+            errors->createNewError(GENERIC, current(), "unexpected protype declaration");
+            parse_prototypedecl(pAst);
+        }
         else if(ismethod_decl(current()))
         {
             if(peek(1).getToken() == "operator") {
@@ -517,6 +530,10 @@ void Parser::parse_classblock(Ast *pAst) {
         {
             parse_variabledecl(pAst);
         }
+        else if(isprototype_decl(current()))
+        {
+            parse_prototypedecl(pAst);
+        }
         else if(ismethod_decl(current()))
         {
             if(peek(1).getToken() == "operator")
@@ -646,10 +663,49 @@ void Parser::parse_variabledecl(Ast *pAst) {
         expect(SEMICOLON, "`;`");
 }
 
+void Parser::parse_prototypedecl(Ast *pAst) {
+    pAst = get_ast(pAst, ast_func_prototype);
+
+    if(partialdecl ==0) {
+
+        for(int i = 0; i < access_types.size(); i++) {
+            pAst->addEntity(access_types.get(i));
+        }
+        pushback();
+    } else {
+        partialdecl--;
+    }
+
+    advance();
+    expect_token(
+            pAst, "func", "`func`");
+
+    expectidentifier(pAst);
+
+    parse_utypearg_list_opt(pAst);
+    parse_methodreturn_type(pAst); // assign-expr operators must return void
+    parse_prototype_valueassignment(pAst);
+    expect(SEMICOLON, "`;`");
+}
+
 void Parser::parse_valueassignment(Ast *pAst) {
     advance();
     if(isassign_exprsymbol(current().getToken()))
     {
+        pAst->addEntity(current());
+        parse_value(pAst);
+    }
+    else
+        pushback();
+}
+
+void Parser::parse_prototype_valueassignment(Ast *pAst) {
+    advance();
+    if(isassign_exprsymbol(current().getToken()))
+    {
+        if(current().getToken() != "=") {
+            errors->createNewError(GENERIC, current(), "expected assign operator `=`");
+        }
         pAst->addEntity(current());
         parse_value(pAst);
     }
@@ -1858,6 +1914,10 @@ void Parser::parse_statement(Ast* pAst) {
     else if(isvariable_decl(current()))
     {
         parse_variabledecl(pAst);
+    }
+    else if(isprototype_decl(current()))
+    {
+        parse_prototypedecl(pAst);
     }
         /* these are just in case there is a missed bracket anywhere */
     else if(ismodule_decl(current()))

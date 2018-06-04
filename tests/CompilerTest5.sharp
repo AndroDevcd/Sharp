@@ -1,0 +1,16 @@
+mod application;
+
+/**
+ * Created by BraxtonN on 6/4/2018.
+ */
+public class Start {
+
+    func proto ();
+
+    def foo() {}
+
+    public static def main(object[] args) : var {
+        func proto2 ();
+        proto2 = foo;
+    }
+}

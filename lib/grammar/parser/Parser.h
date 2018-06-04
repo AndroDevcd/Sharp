@@ -235,6 +235,12 @@ private:
     bool islock_stmnt(token_entity entity);
 
     void parse_lockstmnt(Ast *pAst);
+
+    bool isprototype_decl(token_entity token);
+
+    void parse_prototypedecl(Ast *pAst);
+
+    void parse_prototype_valueassignment(Ast *pAst);
 };
 
 #define _SHARP_CERROR_LIMIT c_options.error_limit
