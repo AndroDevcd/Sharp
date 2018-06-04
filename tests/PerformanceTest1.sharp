@@ -98,7 +98,7 @@ class NBodySystem {
             dy = iBody.y - jBody.y;
             dz = iBody.z - jBody.z;
 
-            distance = (dx*dx + dy*dy + dz*dz)*100;
+            distance = (dx*dx + dy*dy + dz*dz)/100;
             e -= (iBody.mass * jBody.mass) / distance;
          }
       }

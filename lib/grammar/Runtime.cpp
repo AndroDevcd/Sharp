@@ -2552,6 +2552,9 @@ Expression RuntimeEngine::parseDotNotationCallContext(Expression& contextExpress
 
         if(contextExpression.func)
             expression.code.injecti64(0, SET_Di(i64, op_MOVSL, 0));
+        if(expression.trueType() == VAR && !expression.isArray()) {
+            pushExpressionToRegisterNoInject(expression, expression, ebx);
+        }
     }
 
     if(pAst->hasEntity(DOT)) {
@@ -3764,8 +3767,7 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
     interm = parseIntermExpression(pAst->getSubAst(0));
     indexExpr = parseExpression(pAst->getSubAst(1));
 
-    if(!interm.newExpression)
-        expression.code.inject(expression.code.__asm64.size(), interm.code);
+    pushExpressionToPtr(interm, expression);
     expression.type = interm.type;
     expression.utype = interm.utype;
     expression.utype.array = false;
@@ -3782,11 +3784,13 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
                 errors->createNewError(GENERIC, pAst->getSubAst(0)->line, pAst->getSubAst(0)->col, "expression of type `" + interm.typeToString() + "` must evaluate to array");
             }
 
-            expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            if(referenceAffected)
+                expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
             pushExpressionToRegister(indexExpr, expression, ebx);
 
-            expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+            if(referenceAffected)
+                expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
             expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
 
 
@@ -3806,7 +3810,8 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
                 expression.type = expression_unknown;
             }
 
-            expression.code.push_i64(SET_Ei(i64, op_POP));
+            if(referenceAffected)
+                expression.code.push_i64(SET_Ei(i64, op_POP));
             
             break;
         case expression_string:
@@ -3818,11 +3823,13 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
                 errors->createNewError(GENERIC, pAst->getSubAst(0)->line, pAst->getSubAst(0)->col, "expression of type `" + interm.typeToString() + "` must evaluate to array");
             }
 
-            expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            if(referenceAffected)
+                expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
             pushExpressionToRegister(indexExpr, expression, ebx);
 
-            expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+            if(referenceAffected)
+                expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
 
             expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
             expression.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, ebx));
@@ -3839,21 +3846,21 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
                 expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
             }
 
-            if(!interm.newExpression) {
+            if(!interm.newExpression && referenceAffected) {
                 expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
             }
 
 
             pushExpressionToRegister(indexExpr, expression, ebx);
 
-            if(!interm.newExpression) {
+            if(!interm.newExpression && referenceAffected) {
                 expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
             }
 
             expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
             expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
 
-            if(interm.newExpression) {
+            if(interm.newExpression && referenceAffected) {
                 expression.code.push_i64(SET_Ei(i64, op_POP));
             }
             break;
@@ -3866,11 +3873,14 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
                 errors->createNewError(GENERIC, pAst->getSubAst(0)->line, pAst->getSubAst(0)->col, "expression of type `" + interm.typeToString() + "` must evaluate to array");
             }
 
-            expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            if(referenceAffected)
+                expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
             pushExpressionToRegister(indexExpr, expression, ebx);
 
-            expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+            if(referenceAffected)
+                expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+
             expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
             expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
             break;
@@ -4884,7 +4894,6 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
 
 void RuntimeEngine::addNative(token_entity operand, FieldType type, Expression& out, Expression& left, Expression& right, Ast* pAst) {
     out.type = expression_var;
-    right.type = expression_var;
     right.literal = false;
     Expression expr(pAst);
 

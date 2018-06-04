@@ -40,6 +40,8 @@ private:
     void optimizeRedundantMovICall2();
     void optimizeObjectPush();
     void optimizeRedundantObjectTest();
+    void optimizeLoadLocal();
+    void optimizeLoadLocal_2();
 };
 
 

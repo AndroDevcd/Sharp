@@ -167,6 +167,8 @@ void Optimizer::optimize(Method *method) {
     optimizeRedundantMovICall2();
     optimizeObjectPush();
     optimizeRedundantObjectTest();
+    optimizeLoadLocal();
+    optimizeLoadLocal_2();
 }
 
 /**
@@ -382,6 +384,82 @@ void Optimizer::optimizeRedundantObjectTest() {
 
                         goto readjust;
                     }
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0x13] 19:	loadl ebx, fp+1
+ * [0x14] 20:	movr egx, ebx
+ *
+ * to -> [0x3] 3: loadl egx, fp+1
+*/
+void Optimizer::optimizeLoadLocal() {
+    int64_t x64, reg1, reg2, reg3, local;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_LOADL:
+                reg1 = GET_Ca(x64);
+                local = GET_Cb(x64);
+
+                if(GET_OP(assembler->__asm64.get(++i)) == op_MOVR) {
+                    reg2 = GET_Cb(assembler->__asm64.get(i));
+                    reg3 = GET_Ca(assembler->__asm64.get(i));
+
+                    if(reg1 == reg2) {
+                        assembler->__asm64.remove(i); // remove movr
+                        readjustAddresses(i);
+                        i--;
+
+                        assembler->__asm64.replace(i, SET_Ci(x64, op_LOADL, reg3, 0, local));
+                        optimizedOpcodes++;
+
+                        goto readjust;
+                    }
+
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0x36] 54:	iaload_2 ebx, adx
+ * [0x37] 55:	movr egx, ebx
+ *
+ * to -> [0x3] 3: iaload_2 egx, adx
+*/
+void Optimizer::optimizeLoadLocal_2() { // TODO: check to see of the register is affected for *+/- binary operations
+    int64_t x64, reg1, reg2, reg3, reg4;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_IALOAD_2:
+                reg1 = GET_Ca(x64);
+                reg2 = GET_Cb(x64);
+
+                if(GET_OP(assembler->__asm64.get(++i)) == op_MOVR) {
+                    reg3 = GET_Ca(assembler->__asm64.get(i));
+                    reg4 = GET_Cb(assembler->__asm64.get(i));
+
+                    if(reg1 == reg4) {
+                        assembler->__asm64.remove(i); // remove movr
+                        readjustAddresses(i);
+                        i--;
+
+                        assembler->__asm64.replace(i, SET_Ci(x64, op_IALOAD_2, reg3, 0, reg2));
+                        optimizedOpcodes++;
+
+                        goto readjust;
+                    }
+
                 }
                 break;
         }
