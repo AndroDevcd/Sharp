@@ -168,7 +168,9 @@
         &&INVOKE_DELEGATE,                  \
         &&INVOKE_DELEGATE_STATIC,            \
         &&GET,                                 \
-        &&ISADD                                 \
+        &&ISADD,                                 \
+        &&JE,                                 \
+        &&JNE                                 \
     };
 
 enum Opcode {
@@ -204,8 +206,8 @@ enum Opcode {
     op_MOVR                     =0x1d,
     op_IALOAD                   =0x1e,
     op_BRH                      =0x1f,
-    op_IFE                      =0x20,
-    op_IFNE                     =0x21,
+    op_IFE                      =0x20, // legacy instruction
+    op_IFNE                     =0x21, // legacy instruction
     op_LT                       =0x22,
     op_GT                       =0x23,
     op_LTE                      =0x24,
@@ -281,7 +283,9 @@ enum Opcode {
     op_INVOKE_DELEGATE          =0x6a,
     op_INVOKE_DELEGATE_STATIC   =0x6b,
     op_GET                      =0x6c,
-    op_ISADD                    =0x6d
+    op_ISADD                    =0x6d,
+    op_JE                       =0x6e,
+    op_JNE                      =0x6f
 };
 
 #endif //SHARP_OPCODE_H

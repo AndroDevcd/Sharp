@@ -1125,6 +1125,14 @@ void Thread::exec() {
             ISADD:
                 dataStack[sp+GET_Cb(cache[pc])].var+=GET_Ca(cache[pc]);
                 _brh
+            JE:
+                if(registers[cmt]) {
+                    pc=GET_Da(cache[pc]); _brh_NOINCREMENT
+                } else  _brh
+            JNE:
+                if(registers[cmt]==0) {
+                    pc=GET_Da(cache[pc]); _brh_NOINCREMENT
+                } else  _brh
 
         }
     } catch (bad_alloc &e) {

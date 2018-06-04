@@ -67,6 +67,7 @@ int _bootstrap(int argc, const char* argv[])
         }
         else if(opt("-s")){
             c_options.strip = true;
+            c_options.debug = false;
         }
         else if(opt("-magic")){
             c_options.magic = true;
@@ -9570,7 +9571,7 @@ void RuntimeEngine::generate() {
     _ostream << generate_string_section();
     _ostream << generate_text_section();
 
-    if(c_options.debug && !c_options.strip) {
+    if(c_options.debug) {
         _ostream << generate_meta_section();
     }
 
@@ -9938,6 +9939,18 @@ void RuntimeEngine::createDumpFile() {
                 case op_IFNE:
                 {
                     ss<<"ifne";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_JE:
+                {
+                    ss<<"je " << GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_JNE:
+                {
+                    ss<<"jne " << GET_Da(x64);
                     _ostream << ss.str();
                     break;
                 }

@@ -52,6 +52,7 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
             case op_SKPE:
             case op_SKNE:
             case op_GOTO:
+            case op_JNE:
                 addr=GET_Da(x64);
 
                 /*
@@ -90,6 +91,7 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
             case op_SKPE:
             case op_SKNE:
             case op_GOTO:
+            case op_JNE:
                 addr=GET_Da(x64);
 
                // cout << " address " << addr << " stop addr " << stopAddr << " in " << func->getFullName() << endl;
@@ -180,6 +182,12 @@ void Optimizer::optimize(Method *method) {
     optimizeRedundantReturn();
     optimizeRedundantMovr();
     optimizeLoadLocal_3();
+
+    /**
+     * must be last or the entire program will be rendered unstable
+     * and will most likely fatally crash with (SEGV) signal
+     */
+    optimizeJumpBranches();
 }
 
 /**
@@ -823,6 +831,44 @@ void Optimizer::optimizeLoadLocal_3() {
                     readjustAddresses(i);
 
                     optimizedOpcodes++;
+                    goto readjust;
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0x14] 20:	movi #31, adx
+ * [0x16] 22:	ifne
+ *
+ * to -> [0xa] 10:	jne #31
+*/
+void Optimizer::optimizeJumpBranches() {
+    int64_t x64, val, reg1;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_MOVI:
+                val = GET_Da(x64);
+                reg1 = assembler->__asm64.get(++i);
+
+                if(reg1 == adx && GET_OP(assembler->__asm64.get(i+1)) == op_IFNE) {
+
+                    assembler->__asm64.remove(i); // remove movi
+                    readjustAddresses(i);
+                    i--;
+
+                    assembler->__asm64.remove(i); // remove register
+                    readjustAddresses(i);
+
+                    optimizedOpcodes+=2;
+
+                    if(val >= i) // we have to re-allign the addresses ourselves
+                        val-=2;
+                    assembler->__asm64.replace(i, SET_Di(x64, op_JNE, val));
                     goto readjust;
                 }
                 break;

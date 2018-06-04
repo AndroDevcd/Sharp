@@ -52,6 +52,7 @@ private:
     void optimizeRedundantReturn();
     void optimizeRedundantMovr();
     void optimizeLoadLocal_3();
+    void optimizeJumpBranches();
 };
 
 
