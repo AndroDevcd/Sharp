@@ -2,6 +2,8 @@
 // Created by bknun on 9/12/2017.
 //
 
+#include <dirent.h>
+#include <sys/stat.h>
 #include "../../stdimports.h"
 #ifdef POSIX_
 #include <cmath>
@@ -24,6 +26,7 @@ unsigned long RuntimeEngine::uniqueDelegateId = 0;
 options c_options;
 
 void help();
+void get_full_file_list(native_string &path, List<native_string> &files);
 
 int _bootstrap(int argc, const char* argv[])
 {
@@ -151,6 +154,20 @@ int _bootstrap(int argc, const char* argv[])
         help();
         return 1;
     }
+#ifdef WIN32_
+    native_string path("C:/Sharp/include");
+#endif
+#ifdef POSIX_
+    native_string path("/usr/include/sharp/");
+#endif
+
+    List<native_string> includes;
+    get_full_file_list(path, includes);
+
+#ifdef WIN32_
+    for(long i = 0; i < includes.size(); i++)
+        files.add(includes.get(i).str());
+#endif
 
     for(unsigned int i = 0; i < files.size(); i++) {
         string& file = files.get(i);
@@ -165,6 +182,39 @@ int _bootstrap(int argc, const char* argv[])
 
     exec_runtime(files);
     return 0;
+}
+
+inline bool ends_with(std::string const & value, std::string const & ending)
+{
+    if (ending.size() > value.size()) return false;
+    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
+void get_full_file_list(native_string &path, List<native_string> &files) {
+    DIR *dir;
+    struct dirent *ent;
+    if ((dir = opendir (path.str().c_str())) != NULL) {
+        /* print all the files and directories within directory */
+        while ((ent = readdir (dir)) != NULL) {
+            if (!ent->d_name || ent->d_name[0] == '.') continue;
+            native_string file;
+            file = path.str() + "/" + string(ent->d_name);
+
+            if(ent-> d_type == DT_DIR) {
+                native_string folder(file.str() + "/");
+                get_full_file_list(folder, files);
+            }
+
+            if(ends_with(file.str(), ".sharp")) {
+                files.push_back();
+                files.last().init();
+                files.last() = file;
+            }
+        }
+        closedir (dir);
+    } else {
+        /* could not open directory */
+    }
 }
 
 void help() {

@@ -3,71 +3,71 @@ mod std;
 public class char {
     var value;
 
-    public int(var num) {
+    public char(var num) {
         value = (_int8)num;
     }
 
-    public operator+(var num) : var {
+    public def operator+(var num) : var {
         return (_int8)(value+num);
     }
 
-    public operator-(var num) : var {
+    public def operator-(var num) : var {
         return (_int8)(value-num);
     }
 
-    public operator*(var num) : var {
+    public def operator*(var num) : var {
         return (_int8)(value*num);
     }
 
-    public operator/(var num) : var {
+    public def operator/(var num) : var {
         return (_int8)(value/num);
     }
 
-    public operator=(var num) : var {
+    public def operator=(var num) : var {
         return (value=(_int8)num);
     }
 
-    public operator==(var num) : var {
+    public def operator==(var num) : var {
         return (value==num);
     }
 
-    public operator<(var num) : var {
+    public def operator<(var num) : var {
         return (value<num);
     }
 
-    public operator>(var num) : var {
+    public def operator>(var num) : var {
         return (value>num);
     }
 
-    public operator<=(var num) : var {
+    public def operator<=(var num) : var {
         return (value<=num);
     }
 
-    public operator>=(var num) : var {
+    public def operator>=(var num) : var {
         return (value>=num);
     }
 
-    public operator++(var num) : var { // post inc i++
+    public def operator++(var num) : var { // post inc i++
         var before = value;
         value=(_int8)value+1;
         return before;
     }
 
-    public operator++() : var { // pre inc ++i
+    public def operator++() : var { // pre inc ++i
         return (value=(_int8)value+1);
     }
 
-    public operator--(var num) : var {
+    public def operator--(var num) : var {
         var before = value;
         value=(_int8)value-1;
         return before;
     }
 
-    public operator--() : var {
+    public def operator--() : var {
         return (value=(_int8)value-1);
     }
 
-    public value() : var {
+    public def value() : var {
         return (value);
     }
-};
+}

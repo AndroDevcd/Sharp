@@ -5,12 +5,12 @@ mod application;
  */
 public class Start {
 
-    func proto ();
+   // func proto ();
 
-    def foo() {}
+   // def foo() {}
 
     public static def main(object[] args) : var {
-        func proto2 ();
-        proto2 = foo;
+      //  func proto2 ();
+      //  proto2 = foo;
     }
 }

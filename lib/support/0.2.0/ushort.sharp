@@ -1,73 +1,73 @@
 mod std;
 
-public class short {
+public class ushort {
     var value;
 
-    public int(var num) {
+    public ushort(var num) {
         value = (_uint16)num;
     }
 
-    public operator+(var num) : var {
+    public def operator+(var num) : var {
         return (_uint16)(value+num);
     }
 
-    public operator-(var num) : var {
+    public def operator-(var num) : var {
         return (_uint16)(value-num);
     }
 
-    public operator*(var num) : var {
+    public def operator*(var num) : var {
         return (_uint16)(value*num);
     }
 
-    public operator/(var num) : var {
+    public def operator/(var num) : var {
         return (_uint16)(value/num);
     }
 
-    public operator=(var num) : var {
+    public def operator=(var num) : var {
         return (value=(_uint16)num);
     }
 
-    public operator==(var num) : var {
+    public def operator==(var num) : var {
         return (value==num);
     }
 
-    public operator<(var num) : var {
+    public def operator<(var num) : var {
         return (value<num);
     }
 
-    public operator>(var num) : var {
+    public def operator>(var num) : var {
         return (value>num);
     }
 
-    public operator<=(var num) : var {
+    public def operator<=(var num) : var {
         return (value<=num);
     }
 
-    public operator>=(var num) : var {
+    public def operator>=(var num) : var {
         return (value>=num);
     }
 
-    public operator++(var num) : var { // post inc i++
+    public def operator++(var num) : var { // post inc i++
         var before = value;
         value=(_uint16)value+1;
         return before;
     }
 
-    public operator++() : var { // pre inc ++i
+    public def operator++() : var { // pre inc ++i
         return (value=(_uint16)value+1);
     }
 
-    public operator--(var num) : var {
+    public def operator--(var num) : var {
         var before = value;
         value=(_uint16)value-1;
         return before;
     }
 
-    public operator--() : var {
+    public def operator--() : var {
         return (value=(_uint16)value-1);
     }
 
-    public value() : var {
+    public def value() : var {
         return (value);
     }
-};
+}

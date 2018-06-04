@@ -1,5 +1,7 @@
 mod std.io;
 
+import std;
+
 /**
  * Created by BraxtonN on 6/4/2018.
  */
