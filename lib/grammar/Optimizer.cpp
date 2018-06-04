@@ -170,7 +170,6 @@ void Optimizer::optimize(Method *method) {
     optimizeRedundantObjectTest();
     optimizeLoadLocal();
     optimizeLoadLocal_2();
-
     optimizeValueLoad();
     optimizeSizeof();
     optimizeBmrHendles();
