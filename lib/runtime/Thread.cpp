@@ -1122,6 +1122,9 @@ void Thread::exec() {
                         }
                 )
                 _brh
+            ISADD:
+                dataStack[sp+GET_Cb(cache[pc])].var+=GET_Ca(cache[pc]);
+                _brh
 
         }
     } catch (bad_alloc &e) {

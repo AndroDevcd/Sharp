@@ -4,6 +4,7 @@
 
 #include "Optimizer.h"
 #include "../runtime/Opcode.h"
+#include "../runtime/register.h"
 
 void Optimizer::readjustAddresses(unsigned int stopAddr) {
     // TODO: do line_table as well
@@ -169,6 +170,16 @@ void Optimizer::optimize(Method *method) {
     optimizeRedundantObjectTest();
     optimizeLoadLocal();
     optimizeLoadLocal_2();
+
+    optimizeValueLoad();
+    optimizeSizeof();
+    optimizeBmrHendles();
+    optimizeBmrHendles2();
+    optimizeRedundantIncrement();
+    optimizeStackInc();
+    optimizeUnusedEbxAssign();
+    optimizeRedundantReturn();
+    optimizeRedundantMovr();
 }
 
 /**
@@ -460,6 +471,327 @@ void Optimizer::optimizeLoadLocal_2() { // TODO: check to see of the register is
                         goto readjust;
                     }
 
+                }
+                break;
+        }
+    }
+}
+/**
+ * [0x33] 51:	movi #0, adx
+ * [0x35] 53:	chklen adx
+ * [0x36] 54:	iaload_2 egx, adx
+ *
+ * to -> [0x33] 51:	movi #0, adx
+ *       [0x36] 54:	iaload_2 egx, adx
+*/
+void Optimizer::optimizeValueLoad() {
+    int64_t x64, val, reg1, reg3, reg4;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_MOVI:
+                val = GET_Da(x64);
+                reg1 = assembler->__asm64.get(++i);
+
+                if(reg1 == adx && val == 0 && GET_OP(assembler->__asm64.get(++i)) == op_CHECKLEN
+                   && GET_OP(assembler->__asm64.get(i+1)) == op_IALOAD_2) {
+                    assembler->__asm64.remove(i); // remove movr
+                    readjustAddresses(i);
+                    optimizedOpcodes++;
+                    goto readjust;
+
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0x72] 114:	sizeof ebx
+ * [0x73] 115:	movr egx, ebx
+ *
+ * to -> [0x3] 3: sizeof egx
+*/
+void Optimizer::optimizeSizeof() {
+    int64_t x64, reg1, reg2, reg3;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_SIZEOF:
+                reg1 = GET_Da(x64);
+
+                if(GET_OP(assembler->__asm64.get(++i)) == op_MOVR) {
+                    reg2 = GET_Ca(assembler->__asm64.get(i));
+                    reg3 = GET_Cb(assembler->__asm64.get(i));
+
+                    if(reg1 == reg3) {
+                        assembler->__asm64.remove(i); // remove movr
+                        readjustAddresses(i);
+                        i--;
+
+                        assembler->__asm64.replace(i, SET_Di(x64, op_SIZEOF, reg2));
+                        optimizedOpcodes++;
+
+                        goto readjust;
+                    }
+
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0x3] 3:	movbi #4, #841431442464721
+ * [0x5] 5:	movr ebx, bmr
+ * [0x6] 6:	nop
+ * [0x7] 7:	rstore ebx
+ *
+ * to -> [0x3] 3:	movbi #4, #841431442464721
+ *       [0x7] 7:	rstore bmr
+*/
+void Optimizer::optimizeBmrHendles() {
+    int64_t x64, reg1, reg2;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_MOVBI:
+                i++; // we dont care about the values because they go to %bmr
+
+                if(GET_OP(assembler->__asm64.get(++i)) == op_MOVR) {
+                    reg1 = GET_Ca(assembler->__asm64.get(i));
+                    reg2 = GET_Cb(assembler->__asm64.get(i));
+
+                    if(reg2 == bmr && GET_OP(assembler->__asm64.get(i+1)) == op_NOP
+                       && GET_OP(assembler->__asm64.get(i+2)) == op_RSTORE
+                       && GET_Da(assembler->__asm64.get(i+2)) == reg1) {
+                        assembler->__asm64.remove(i); // remove movr
+                        readjustAddresses(i);
+                        assembler->__asm64.remove(i); // remove nop
+                        readjustAddresses(i);
+
+                        assembler->__asm64.replace(i, SET_Di(x64, op_RSTORE, bmr));
+                        optimizedOpcodes+=2;
+
+                        goto readjust;
+                    }
+
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0x18] 24:	movbi #0, #1
+ * [0x1a] 26:	movr ebx, bmr
+ * [0x1b] 27:	rstore ebx
+ *
+ * to -> [0x3] 3:	movbi #0, #1
+ *       [0x7] 7:	rstore bmr
+*/
+void Optimizer::optimizeBmrHendles2() {
+    int64_t x64, reg1, reg2;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_MOVBI:
+                i++; // we dont care about the values because they go to %bmr
+
+                if(GET_OP(assembler->__asm64.get(++i)) == op_MOVR) {
+                    reg1 = GET_Ca(assembler->__asm64.get(i));
+                    reg2 = GET_Cb(assembler->__asm64.get(i));
+
+                    double a1 = assembler->__asm64.get(i+1);
+                    double a2 = assembler->__asm64.get(i+2);
+                    if(reg2 == bmr && GET_OP(assembler->__asm64.get(i+1)) == op_RSTORE
+                       && GET_Da(assembler->__asm64.get(i+1)) == reg1) {
+                        assembler->__asm64.remove(i); // remove movr
+                        readjustAddresses(i);
+
+                        assembler->__asm64.replace(i, SET_Di(x64, op_RSTORE, bmr));
+                        optimizedOpcodes++;
+
+                        goto readjust;
+                    }
+
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0x107] 263:	inc ebx
+ * [0x108] 264:	goto @49
+ *
+ * to -> [0x3] 3: goto @49
+*/
+void Optimizer::optimizeRedundantIncrement() {
+    int64_t x64, reg1;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_INC:
+                reg1 = GET_Da(x64);
+
+                if(GET_OP(assembler->__asm64.get(i+1)) == op_GOTO) {
+
+                    if(reg1 == ebx) {
+                        assembler->__asm64.remove(i); // remove inc ebx
+                        readjustAddresses(i);
+                        optimizedOpcodes++;
+                        goto readjust;
+                    }
+
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0x2e] 46:	smov ebx, sp+0
+ * [0x2f] 47:	inc ebx
+ * [0x30] 48:	smovr ebx, sp+0
+ *
+ * to -> [0x3] 3: isadd #1, sp+0
+*/
+void Optimizer::optimizeStackInc() {
+    int64_t x64, reg1;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_SMOV:
+                reg1 = GET_Ca(x64);
+
+                if(GET_OP(assembler->__asm64.get(++i)) == op_INC
+                   && GET_Da(assembler->__asm64.get(i)) == reg1
+                   && GET_OP(assembler->__asm64.get(i+1)) == op_SMOVR
+                   && GET_Ca(assembler->__asm64.get(i+1)) == reg1) {
+
+                    assembler->__asm64.remove(i); // remove smovr ebx, sp+0
+                    readjustAddresses(i);
+                    assembler->__asm64.remove(i); // inc ebx
+                    readjustAddresses(i);
+                    i--;
+
+                    optimizedOpcodes+=2;
+                    assembler->__asm64.replace(i, SET_Ci(x64, op_ISADD, 1, 0, 0));
+                    goto readjust;
+
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0x26] 38:	movr ebx, cmt
+ * [0x27] 39:	movi #46, adx
+ * [0x29] 41:	ifne
+ *
+ * to -> [0x27] 39:	movi #46, adx
+ *       [0x29] 41:	ifne
+*/
+void Optimizer::optimizeUnusedEbxAssign() {
+    int64_t x64, reg1, reg2;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_MOVR:
+                reg1 = GET_Ca(x64);
+                reg2 = GET_Cb(x64);
+
+                if(reg2 == cmt && GET_OP(assembler->__asm64.get(i+1)) == op_MOVI
+                   && assembler->__asm64.get(i+2) == adx
+                   && (GET_OP(assembler->__asm64.get(i+3)) == op_IFNE
+                   || GET_OP(assembler->__asm64.get(i+3)) == op_IFE)) {
+
+                    assembler->__asm64.remove(i); // remove movr ebx, cmt
+                    readjustAddresses(i);
+                    i--;
+
+                    optimizedOpcodes++;
+                    goto readjust;
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0xa] 10:	movr ebx, cmt
+ * [0xb] 11:	return_val ebx
+ *
+ * to -> [0xb] 11:	return_val cmt
+*/
+void Optimizer::optimizeRedundantReturn() {
+    int64_t x64, reg1, reg2;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_MOVR:
+                reg1 = GET_Ca(x64);
+                reg2 = GET_Cb(x64);
+
+                if(GET_OP(assembler->__asm64.get(i+1)) == op_RETURNVAL
+                   && GET_Da(assembler->__asm64.get(i+1)) == reg1) {
+
+                    assembler->__asm64.remove(i); // remove movr ebx, cmt
+                    readjustAddresses(i);
+
+                    optimizedOpcodes++;
+                    assembler->__asm64.replace(i, SET_Di(x64, op_RETURNVAL, reg2));
+                    goto readjust;
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0xb] 11:	movr ebx, cmt
+ * [0xc] 12:	rstore ebx
+ *
+ * to -> [0x3] 3: rstore cmt
+*/
+void Optimizer::optimizeRedundantMovr() {
+    int64_t x64, reg1, reg2;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_MOVR:
+                reg1 = GET_Ca(x64);
+                reg2 = GET_Cb(x64);
+
+                if(GET_OP(assembler->__asm64.get(i+1)) == op_RSTORE
+                   && GET_Da(assembler->__asm64.get(i+1)) == reg1) {
+
+                    assembler->__asm64.remove(i); // remove movr ebx, cmt
+                    readjustAddresses(i);
+
+                    optimizedOpcodes++;
+                    assembler->__asm64.replace(i, SET_Di(x64, op_RSTORE, reg2));
+                    goto readjust;
                 }
                 break;
         }

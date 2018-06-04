@@ -232,7 +232,7 @@ public class string {
              if ((toffset < 0) || (toffset > size() - pc)) {
                  return false;
              }
-             while (--pc >= 0) {
+             while ((--pc) >= 0) {
                  if (at(to++) != prefix.at(po++)) {
                      return false;
                  }

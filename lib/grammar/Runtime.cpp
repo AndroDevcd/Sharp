@@ -10527,6 +10527,16 @@ void RuntimeEngine::createDumpFile() {
                     _ostream << ss.str();
                     break;
                 }
+                case op_ISADD:
+                {
+                    ss<<"isadd ";
+                    ss<< GET_Ca(x64) << ", sp+";
+                    if(GET_Cb(x64)<0) ss<<"[";
+                    ss<<GET_Cb(x64);
+                    if(GET_Cb(x64)<0) ss<<"]";
+                    _ostream << ss.str();
+                    break;
+                }
                 default:
                     ss << "? (" << GET_OP(x64) << ")";
                     _ostream << ss.str();

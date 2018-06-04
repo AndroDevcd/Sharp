@@ -167,7 +167,8 @@
         &&ITEST,                           \
         &&INVOKE_DELEGATE,                  \
         &&INVOKE_DELEGATE_STATIC,            \
-        &&GET                                 \
+        &&GET,                                 \
+        &&ISADD                                 \
     };
 
 enum Opcode {
@@ -279,7 +280,8 @@ enum Opcode {
     op_ITEST                    =0x69,
     op_INVOKE_DELEGATE          =0x6a,
     op_INVOKE_DELEGATE_STATIC   =0x6b,
-    op_GET                      =0x6c
+    op_GET                      =0x6c,
+    op_ISADD                    =0x6d
 };
 
 #endif //SHARP_OPCODE_H

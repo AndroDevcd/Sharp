@@ -42,6 +42,15 @@ private:
     void optimizeRedundantObjectTest();
     void optimizeLoadLocal();
     void optimizeLoadLocal_2();
+    void optimizeValueLoad();
+    void optimizeSizeof();
+    void optimizeBmrHendles();
+    void optimizeBmrHendles2();
+    void optimizeRedundantIncrement();
+    void optimizeStackInc();
+    void optimizeUnusedEbxAssign();
+    void optimizeRedundantReturn();
+    void optimizeRedundantMovr();
 };
 
 
