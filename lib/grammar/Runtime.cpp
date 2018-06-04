@@ -214,6 +214,7 @@ void get_full_file_list(native_string &path, List<native_string> &files) {
         closedir (dir);
     } else {
         /* could not open directory */
+                cout << "warning: could not find support library files, do you have them installed?" << endl;
     }
 }
 
