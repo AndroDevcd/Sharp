@@ -18,6 +18,8 @@
 #include "Asm.h"
 #include "../runtime/Exe.h"
 #include "Optimizer.h"
+#include "../util/zip/zlib.h"
+#include "../util/time.h"
 
 using namespace std;
 
@@ -124,7 +126,7 @@ int _bootstrap(int argc, const char* argv[])
 
                 if(c_options.error_limit > 100000) {
                     rt_error("cannot set the max errors allowed higher than (100,000) - " + lmt);
-                } else if(c_options.error_limit == 0) {
+                } else if(c_options.error_limit <= 0) {
                     rt_error("cannot have an error limit of 0 ");
                 }
             }
@@ -9570,9 +9572,12 @@ std::string RuntimeEngine::generate_meta_section() {
     return meta.str();
 }
 
+Zlib zlib;
+
 void RuntimeEngine::generate() {
-    File::buffer _ostream;
+    File::buffer _ostream, txt_scz;
     _ostream.begin();
+    txt_scz.begin();
 
     _ostream << generate_header() ;
     _ostream << (char)sdata;
@@ -9620,7 +9625,21 @@ void RuntimeEngine::generate() {
     }
 
     _ostream << generate_string_section();
-    _ostream << generate_text_section();
+
+    txt_scz << generate_text_section();
+    if(txt_scz.size() >= data_compress_threshold) {
+        _ostream << (char)data_compress;
+        stringstream __outbuf__;
+
+        Zlib::AUTO_CLEAN=(true);
+        zlib.Compress_Buffer2Buffer(txt_scz.to_str(), __outbuf__, ZLIB_LAST_SEGMENT);
+
+        string buf = __outbuf__.str(); __outbuf__.str("");
+        _ostream << i64_tostr(buf.size());
+        _ostream << buf; buf = "";
+    } else
+        _ostream << txt_scz;
+    txt_scz.end();
 
     if(c_options.debug) {
         _ostream << generate_meta_section();

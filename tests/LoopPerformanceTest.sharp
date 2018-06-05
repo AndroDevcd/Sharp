@@ -1,4 +1,4 @@
-mod internal;
+mod application;
 
 import std;
 

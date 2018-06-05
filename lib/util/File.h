@@ -71,6 +71,14 @@ public:
             return *this;
         }
 
+        buffer& operator<<(buffer& buf)
+        {
+            for(stream_t i=0; i < buf.size(); i++) {
+                _push_back(buf._Data[i]);
+            }
+            return *this;
+        }
+
         buffer& operator<<(const long long& _X)
         {
             operator<<((char)_X);

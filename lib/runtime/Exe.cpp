@@ -12,6 +12,7 @@
 #include "oo/Field.h"
 #include "oo/ClassObject.h"
 #include "oo/Object.h"
+#include "../util/zip/zlib.h"
 
 Manifest manifest;
 Meta metaData;
@@ -36,8 +37,8 @@ void parse_source_file(List<native_string> &list, native_string str);
 
 int Process_Exe(std::string exe)
 {
-    File::buffer buffer;
-    int __bitFlag, hdr_cnt=0;
+    File::buffer buffer, reserve;
+    int __bitFlag, hdr_cnt=0, compressed = 0;
 
     if(!File::exists(exe.c_str())){
         std::runtime_error("file `" + exe + "` doesnt exist!");
@@ -313,6 +314,30 @@ int Process_Exe(std::string exe)
             }
         }
 
+        if(buffer.at(n) == data_compress) {
+            n++;
+            compressed=1;
+            // restructure buffer
+            int len = geti64(buffer);
+            stringstream buf, __outbuf__;
+
+            for(long long i = n+len; i < buffer.size(); i++) {
+                reserve << buffer.at(i);
+            }
+
+            for(long long i = n; i < buffer.size(); i++) {
+                __outbuf__ << buffer.at(i);
+            }
+
+            Zlib zlib;
+            Zlib::AUTO_CLEAN=(true);
+            zlib.Decompress_Buffer2Buffer(__outbuf__.str(), buf);
+
+            buffer.end();
+            buffer << buf.str(); buf.str("");
+            n = 0;
+        }
+
         if(buffer.at(n++) != stext)
             throw std::runtime_error("file `" + exe + "` may be corrupt");
 
@@ -440,6 +465,13 @@ int Process_Exe(std::string exe)
             if(__bitFlag == eos) {
                 break;
             }
+        }
+
+        if(compressed) {
+            buffer.end();
+            buffer << reserve;
+            reserve.end();
+            n = 0;
         }
 
         if(manifest.debug) {

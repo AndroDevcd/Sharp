@@ -36,11 +36,14 @@ struct i64_t {
 #define data_interface 0x2e
 #define data_file 0x2c
 #define data_method 0x4c
+#define data_compress 0x5b
 #define data_field 0x22
 #define data_string 0x1e
 #define data_byte 0x05
 #define I64_BYTES 8
 #define file_vers 2
+
+#define data_compress_threshold 0x1388f
 
 #define SET_i32A(mi, i) mi.A=(i >> 32)
 
