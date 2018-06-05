@@ -241,6 +241,8 @@ private:
     void parse_prototypedecl(Ast *pAst);
 
     void parse_prototype_valueassignment(Ast *pAst);
+
+    void parse_identifier_list(Ast *pAst);
 };
 
 #define _SHARP_CERROR_LIMIT c_options.error_limit

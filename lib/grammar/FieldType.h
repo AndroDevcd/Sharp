@@ -12,6 +12,7 @@ enum FieldType
     CLASS,
     TYPEVOID,
     CLASSFIELD,
+    TYPEGENERIC,
     UNDEFINED
 };
 

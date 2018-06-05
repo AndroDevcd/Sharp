@@ -1,17 +1,28 @@
 mod application;
 
-/**
- * Created by BraxtonN on 6/4/2018.
- */
-public class Start<T> {
-    T value;
+import std;
 
-   // func proto ();
+public class Start {
 
-   // def foo() {}
-
-    public static def main(object[] args) : var {
-      //  func proto2 ();
-      //  proto2 = foo;
+    public static def main(string[] args) : var {
+        List<var> intArry;
     }
+}
+
+class List<T> {
+    T[] data;
+
+    public List() {
+        T data = new T[8];
+    }
+
+    public def add(T data) {
+
+    }
+
+    public def delegate::work(T data) {
+
+    }
+
+    public def delegate::work2(T data);
 }

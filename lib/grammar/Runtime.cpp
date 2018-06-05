@@ -438,6 +438,8 @@ void RuntimeEngine::compile()
                         break;
                     case ast_interface_decl: /* ignore */
                         break;
+                    case ast_generic_class_decl: /* ignore */
+                        break;
                     default:
                         stringstream err;
                         err << ": unknown ast type: " << ast->getType();
@@ -1207,7 +1209,7 @@ void RuntimeEngine::parseThrowStatement(Block& block, Ast* pAst) {
     currentScope()->last_statement=ast_throw_statement;
 
     if(clause.type == expression_lclass) {
-        ClassObject* throwable = getClass("std", "Throwable");
+        ClassObject* throwable = getClass("std", "Throwable", classes);
 
         if(throwable != NULL) {
             if(clause.utype.klass->hasBaseClass(throwable)) {
@@ -1653,7 +1655,7 @@ void RuntimeEngine::analyzeClassDecl(Ast *ast) {
     string className =  ast->getEntity(startpos).getToken();
 
     if(scope->type == GLOBAL_SCOPE) {
-        klass = getClass(currentModule, className);
+        klass = getClass(currentModule, className, classes);
 
         setHeadClass(klass);
     }
@@ -5126,7 +5128,7 @@ void RuntimeEngine::constructNewString(Expression &stringExpr, Expression& out) 
     expressions.add(stringExpr);
     expressionListToParams(params, expressions);
 
-    if((klass = getClass("std", "string")) != NULL) {
+    if((klass = getClass("std", "string", classes)) != NULL) {
         if((fn=klass->getConstructor(params)) != NULL) {
             out.type = expression_lclass;
             out.utype.klass = klass;
@@ -5166,7 +5168,7 @@ bool RuntimeEngine::constructNewString(Expression &stringExpr, Expression &right
     expressions.add(stringExpr);
     expressionListToParams(params, expressions);
 
-    if((klass = getClass("std", "string")) != NULL) {
+    if((klass = getClass("std", "string", classes)) != NULL) {
         if((fn=klass->getConstructor(params)) != NULL) {
             stringExpr.type = expression_lclass;
             stringExpr.utype.klass = klass;
@@ -6895,7 +6897,7 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
     string mainMethod = "__srt_init_";
     string setupMethod = "setupClasses";
 
-    ClassObject* StarterClass = getClass("std.internal", starter_classname);
+    ClassObject* StarterClass = getClass("std.internal", starter_classname, classes);
     if(StarterClass != NULL) {
         List<Param> params;
         List<AccessModifier> modifiers;
@@ -6999,6 +7001,9 @@ bool RuntimeEngine::preprocess()
                 case ast_interface_decl:
                     parseClassDecl(ast, true);
                     break;
+                case ast_generic_class_decl:
+                    parseGenericClassDecl(ast);
+                    break;
                 default:
                     stringstream err;
                     err << ": unknown ast type: " << ast->getType();
@@ -7054,7 +7059,7 @@ void RuntimeEngine::resolveAllInterfaces() {
             switch(ast->getType()) {
                 case ast_interface_decl:
                     resolveInterfaceDecl(ast);
-                    break;
+                    break; // TODO: proccess interfaces inside of classes
                 default:
                     /* ignore */
                     break;
@@ -7152,6 +7157,9 @@ void RuntimeEngine::resolveAllFields() {
                 case ast_interface_decl:
                     resolveClassDecl(ast, false);
                     break;
+                case ast_generic_class_decl:
+                    resolveGenericClassDecl(ast, false);
+                    break;
                 default:
                     /* ignore */
                     break;
@@ -7198,6 +7206,9 @@ void RuntimeEngine::inlineFields() {
             switch(ast->getType()) {
                 case ast_class_decl:
                     resolveClassDecl(ast, true);
+                    break;
+                case ast_generic_class_decl:
+                    resolveGenericClassDecl(ast, true);
                     break;
                 default:
                     /* ignore */
@@ -7259,7 +7270,7 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
 
 ClassObject* RuntimeEngine::tryClassResolve(string moduleName, string name, Ast* pAst) {
     ClassObject* klass = NULL;
-    if(!moduleName.empty() && (klass = getClass(moduleName, name)) != NULL) {
+    if(!moduleName.empty() && (klass = getClass(moduleName, name, classes)) != NULL) {
         verifyClassAccess(klass, pAst);
         return klass;
     } else {
@@ -7268,7 +7279,7 @@ ClassObject* RuntimeEngine::tryClassResolve(string moduleName, string name, Ast*
 
                 List<string> &lst = importMap.get(i).value;
                 for (unsigned int x = 0; x < lst.size(); x++) {
-                    if ((klass = getClass(lst.get(x), name)) != NULL) {
+                    if ((klass = getClass(lst.get(x), name, classes)) != NULL) {
                         verifyClassAccess(klass, pAst);
                         return klass;
                     }
@@ -7897,7 +7908,7 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                         resolveClassHeiarchy(ref.klass, reference, expression, ast);
                     }
                 } else {
-                    if((klass = getClass(reference.module, starter_name)) != NULL) {
+                    if((klass = getClass(reference.module, starter_name, classes)) != NULL) {
                         if(scope->klass->hasBaseClass(klass)) {
 
                             resolveClassHeiarchy(klass, reference, expression, ast);
@@ -8138,6 +8149,17 @@ Expression RuntimeEngine::parseUtype(Ast* ast) {
         expression.link = ast;
         ptr.free();
         return expression;
+    } else if(ptr.singleRefrence() && currentScope()->klass->isGeneric() && currentScope()->klass->hasGenericKey(ptr.referenceName)) {
+        expression.type = expression_generic;
+        expression.utype.referenceName = ptr.toString();
+
+        if(ast->hasEntity(LEFTBRACE) && ast->hasEntity(RIGHTBRACE)) {
+            expression.utype.array = true;
+        }
+
+        expression.link = ast;
+        ptr.free();
+        return expression;
     }
 
     resolveUtype(ptr, expression, ast);
@@ -8319,6 +8341,8 @@ void RuntimeEngine::parseMethodReturnType(Expression& expression, Method& method
     if(expression.type == expression_class) {
         method.type = CLASS;
         method.klass = expression.utype.klass;
+    } else if(expression.type == expression_generic) {
+        method.type = TYPEGENERIC;
     } else if(expression.type == expression_native) {
         method.type = expression.utype.type;
     } else {
@@ -8597,7 +8621,7 @@ void RuntimeEngine::resolveInterfaceDecl(Ast* ast) {
     string name =  ast->getEntity(startpos).getToken();
 
     if(scope->type == GLOBAL_SCOPE) {
-        klass = getClass(currentModule, name);
+        klass = getClass(currentModule, name, classes);
     }
     else {
         klass = scope->klass->getChildClass(name);
@@ -8713,7 +8737,7 @@ void RuntimeEngine::resolveClassDeclDelegates(Ast* ast) {
     string name =  ast->getEntity(startpos).getToken();
 
     if(scope->type == GLOBAL_SCOPE) {
-        klass = getClass(currentModule, name);
+        klass = getClass(currentModule, name, classes);
     }
     else {
         klass = scope->klass->getChildClass(name);
@@ -8796,7 +8820,7 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
     string name =  ast->getEntity(startpos).getToken();
 
     if(scope->type == GLOBAL_SCOPE) {
-        klass = getClass(currentModule, name);
+        klass = getClass(currentModule, name, classes);
     }
     else {
         klass = scope->klass->getChildClass(name);
@@ -8810,6 +8834,94 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
         ClassObject *base = parseBaseClass(ast, ++startpos);
 
         if(!klass->isInterface() && base != NULL && base->isInterface()) {
+            stringstream err;
+            err << "classes can only inherit other classes, do 'class Dog base Animal : Traits {} ' instead";
+            errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+        } else {
+            if(base != NULL)
+                klass->setBaseClass(base->getSerial() == klass->getSerial() ? NULL : base);
+        }
+
+        if(ast->hasSubAst(ast_reference_identifier_list)) {
+            klass->setInterfaces(parseRefrenceIdentifierList(ast->getSubAst(ast_reference_identifier_list)));
+        }
+    }
+    for(long i = 0; i < block->getSubAstCount(); i++) {
+        trunk = block->getSubAst(i);
+        CHECK_ERRORS
+
+        switch(trunk->getType()) {
+            case ast_class_decl:
+                resolveClassDecl(trunk, inlineField);
+                break;
+            case ast_var_decl:
+                if(!resolvedFields || inlineField)
+                    resolveVarDecl(trunk, inlineField);
+                break;
+            case ast_method_decl:
+                if(!inlineField && resolvedFields)
+                    resolveMethodDecl(trunk);
+                break;
+            case ast_operator_decl:
+                if(!inlineField && resolvedFields)
+                    resolveOperatorDecl(trunk);
+                break;
+            case ast_construct_decl:
+                if(!inlineField && resolvedFields)
+                    resolveConstructorDecl(trunk);
+                break;
+            case ast_delegate_post_decl:
+                if(!inlineField && resolvedFields)
+                    resolveDelegatePostDecl(trunk);
+                break;
+            case ast_delegate_decl:
+                if(!inlineField && resolvedFields)
+                    resolveDelegateDecl(trunk);
+                break;
+            case ast_interface_decl:
+                resolveClassDecl(trunk, inlineField);
+                break;
+            case ast_generic_class_decl:
+                resolveGenericClassDecl(ast, false);
+                break;
+            default:
+                stringstream err;
+                err << ": unknown ast type: " << trunk->getType();
+                errors->createNewError(INTERNAL_ERROR, trunk->line, trunk->col, err.str());
+                break;
+        }
+    }
+
+    if(!inlineField && resolvedFields)
+        addDefaultConstructor(klass, ast);
+    removeScope();
+}
+
+void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField) {
+    Scope* scope = currentScope();
+    Ast* block = ast->getSubAst(ast_block), *trunk;
+    List<AccessModifier> modifiers;
+    ClassObject* klass;
+    int startpos=1;
+
+    parseAccessDecl(ast, modifiers, startpos);
+    string name =  ast->getEntity(startpos).getToken();
+
+    if(scope->type == GLOBAL_SCOPE) {
+        klass = getClass(currentModule, name, generics);
+    }
+    else {
+        klass = scope->klass->getChildClass(name);
+    }
+
+    if(!inlineField && resolvedFields)
+        klass->address = classSize++;
+
+    addScope(Scope(CLASS_SCOPE, klass));
+    if(inlineField) {
+        ClassObject *base = parseBaseClass(ast, ++startpos);
+
+        if(base != NULL && base->isInterface()) {
             stringstream err;
             err << "classes can only inherit other classes, do 'class Dog base Animal : Traits {} ' instead";
             errors->createNewError(GENERIC, ast->line, ast->col, err.str());
@@ -8962,7 +9074,7 @@ void RuntimeEngine::parseClassAccessModifiers(List<AccessModifier> &modifiers, A
     }
 }
 
-bool RuntimeEngine::classExists(string module, string name) {
+bool RuntimeEngine::classExists(string module, string name, List<ClassObject> &classes) {
     ClassObject* klass = NULL;
     for(unsigned int i = 0; i < classes.size(); i++) {
         klass = &classes.get(i);
@@ -8977,8 +9089,16 @@ bool RuntimeEngine::classExists(string module, string name) {
 }
 
 bool RuntimeEngine::addClass(ClassObject klass) {
-    if(!classExists(klass.getModuleName(), klass.getName())) {
+    if(!classExists(klass.getModuleName(), klass.getName(), classes)) {
         classes.add(klass);
+        return true;
+    }
+    return false;
+}
+
+bool RuntimeEngine::addGeericClass(ClassObject klass) {
+    if(!classExists(klass.getModuleName(), klass.getName(), generics)) {
+        generics.add(klass);
         return true;
     }
     return false;
@@ -8994,7 +9114,7 @@ void RuntimeEngine::printNote(RuntimeNote& note, string msg) {
     }
 }
 
-ClassObject *RuntimeEngine::getClass(string module, string name) {
+ClassObject *RuntimeEngine::getClass(string module, string name, List<ClassObject> &classes) {
     ClassObject* klass = NULL;
     for(unsigned int i = 0; i < classes.size(); i++) {
         klass = &classes.get(i);
@@ -9018,10 +9138,25 @@ ClassObject *RuntimeEngine::addGlobalClassObject(string name, List<AccessModifie
         this->errors->createNewError(PREVIOUSLY_DEFINED, pAst->line, pAst->col, "class `" + name +
                                                                           "` is already defined in module {" + currentModule + "}");
 
-        printNote(this->getClass(currentModule, name)->note, "class `" + name + "` previously defined here");
-        return getClass(currentModule, name);
+        printNote(this->getClass(currentModule, name, classes)->note, "class `" + name + "` previously defined here");
+        return getClass(currentModule, name, classes);
     } else
-        return getClass(currentModule, name);
+        return getClass(currentModule, name, classes);
+}
+
+ClassObject *RuntimeEngine::addGlobalGenericClassObject(string name, List<AccessModifier>& modifiers, Ast *pAst) {
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
+                                   pAst->line, pAst->col);
+
+    if(!this->addGeericClass(ClassObject(name, currentModule, this->uniqueSerialId++,modifiers.get(0), note))){
+
+        this->errors->createNewError(PREVIOUSLY_DEFINED, pAst->line, pAst->col, "class `" + name +
+                                                                                "` is already defined in module {" + currentModule + "}");
+
+        printNote(this->getClass(currentModule, name, generics)->note, "class `" + name + "` previously defined here");
+        return getClass(currentModule, name, generics);
+    } else
+        return getClass(currentModule, name, generics);
 }
 
 ClassObject *RuntimeEngine::addChildClassObject(string name, List<AccessModifier>& modifiers, Ast *ast, ClassObject* super) {
@@ -9100,6 +9235,82 @@ void RuntimeEngine::parseClassDecl(Ast *ast, bool isInterface)
                 break;
             case ast_interface_decl:
                 parseClassDecl(ast, true);
+                break;
+            default:
+                stringstream err;
+                err << ": unknown ast type: " << ast->getType();
+                errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
+                break;
+        }
+    }
+    removeScope();
+}
+
+void RuntimeEngine::parseGenericClassDecl(Ast *ast)
+{
+    Scope* scope = currentScope();
+    Ast* block = ast->getLastSubAst();
+    List<AccessModifier> modifiers;
+    ClassObject* currentClass;
+    int startPosition=1;
+
+    if(parseAccessDecl(ast, modifiers, startPosition)){
+        parseClassAccessModifiers(modifiers, ast);
+    } else {
+        modifiers.add(PROTECTED);
+    }
+
+    string className =  ast->getEntity(startPosition).getToken();
+    List<string> identifierList;
+    parseIdentifierList(ast, identifierList);
+
+    if(scope->klass == NULL) {
+        currentClass = addGlobalGenericClassObject(className, modifiers, ast);
+
+        stringstream ss;
+        ss << currentModule << "#" << currentClass->getName();
+        currentClass->setFullName(ss.str());
+    }
+    else {
+        currentClass = addChildClassObject(className, modifiers, ast, scope->klass);
+
+        stringstream ss;
+        ss << scope->klass->getFullName() << "." << currentClass->getName();
+        currentClass->setFullName(ss.str());
+    }
+
+    for(long i = 0; i < identifierList.size(); i++) {
+        currentClass->addGenericKey(identifierList.get(i));
+    }
+
+    currentClass->setIsGeneric(true);
+    addScope(Scope(CLASS_SCOPE, currentClass));
+    for(long i = 0; i < block->getSubAstCount(); i++) {
+        ast = block->getSubAst(i);
+        CHECK_ERRORS
+
+        switch(ast->getType()) {
+            case ast_class_decl:
+                parseClassDecl(ast);
+                break;
+            case ast_var_decl:
+                parseVarDecl(ast);
+                break;
+            case ast_method_decl: /* Will be parsed later */
+                break;
+            case ast_operator_decl: /* Will be parsed later */
+                break;
+            case ast_construct_decl: /* Will be parsed later */
+                break;
+            case ast_delegate_post_decl: /* Will be parsed later */
+                break;
+            case ast_delegate_decl: /* Will be parsed later */
+                break;
+            case ast_interface_decl:
+                parseClassDecl(ast, true);
+                break;
+            case ast_generic_class_decl:
+                parseGenericClassDecl(ast);
                 break;
             default:
                 stringstream err;
@@ -10743,5 +10954,16 @@ void RuntimeEngine::isMemoryObject(Expression &expression, Ast *pAst) {
        || expression.trueType() == CLASS) {
     } else {
         errors->createNewError(GENERIC, pAst, "expression must evaluate to an object");
+    }
+}
+
+void RuntimeEngine::parseIdentifierList(Ast *pAst, List<string> &idList) {
+    pAst = pAst->getSubAst(ast_identifier_list);
+
+    for(long i = 0; i < pAst->getEntityCount(); i++) {
+        string Key = pAst->getEntity(i).getToken();
+        if(Key != ",") {
+            idList.push_back(Key);
+        }
     }
 }

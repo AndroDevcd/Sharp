@@ -28,13 +28,15 @@ public:
             note(),
             fullName(""),
             address(-1),
-            _interface(false)
+            _interface(false),
+            _generic(false)
     {
         functions.init();
         constructors.init();
         overloads.init();
         fields.init();
         childClasses.init();
+        genericKeys.init();
     }
     ClassObject(string name, string pmodule, long uid, AccessModifier modifier, RuntimeNote note)
             :
@@ -48,13 +50,15 @@ public:
             note(note),
             fullName(""),
             address(-1),
-            _interface(false)
+            _interface(false),
+            _generic(false)
     {
         functions.init();
         constructors.init();
         overloads.init();
         fields.init();
         childClasses.init();
+        genericKeys.init();
     }
 
     ClassObject(string name, string pmodule, long uid, AccessModifier modifier, RuntimeNote note,
@@ -70,13 +74,15 @@ public:
             note(note),
             fullName(""),
             address(-1),
-            _interface(false)
+            _interface(false),
+            _generic(false)
     {
         functions.init();
         constructors.init();
         overloads.init();
         fields.init();
         childClasses.init();
+        genericKeys.init();
     }
 
     AccessModifier getAccessModifier() { return modifier; }
@@ -129,6 +135,8 @@ public:
         this->serial = klass.serial;
         this->address = klass.address;
         this->_interface=klass._interface;
+        this->_generic=klass._generic;
+        this->genericKeys = klass.genericKeys;
     }
 
     size_t constructorCount();
@@ -166,6 +174,10 @@ public:
 
     bool isInterface() { return _interface; }
     void setIsInterface(bool _interface) { this->_interface=_interface; }
+    bool isGeneric() { return _generic; }
+    void setIsGeneric(bool _generic) { this->_generic=_generic; }
+    void addGenericKey(string key) { this->genericKeys.push_back(key); }
+    bool hasGenericKey(string key) { return this->genericKeys.find(key); }
     size_t interfaceCount() { return interfaces.size(); }
     ClassObject* getInterface(size_t p) { return interfaces.get(p); }
     bool duplicateInterface(ClassObject *intf) {
@@ -212,9 +224,10 @@ private:
     AccessModifier modifier;
     long serial;
     string name;
-    bool _interface;
+    bool _interface, _generic;
     string fullName;
     string module_name;
+    List<string> genericKeys;
     List<Method> constructors;
     List<Method> functions;
     List<OperatorOverload> overloads;

@@ -105,6 +105,7 @@ enum expression_type {
     expression_void=12,
     expression_unresolved=13,
     expression_null=14,
+    expression_generic=15, // special case for generic utypes
     expression_unknown=0x900f
 };
 
@@ -548,17 +549,18 @@ public:
 
     static string invalidateUnderscores(string basic_string);
 
-    ClassObject *getClass(string module, string name);
+    ClassObject *getClass(string module, string name, List<ClassObject> &classes);
 
     static int64_t get_low_bytes(double var);
 
     static Operator stringToOp(string op);
 
+    List<ClassObject> classes;
 private:
     List<Parser*> parsers;
     List<string> modules;
     List<string> sourceFiles;
-    List<ClassObject> classes;
+    List<ClassObject> generics;
     List<KeyPair<string, List<string>>>  importMap;
     List<KeyPair<string, double>>  inline_map;
     List<string> stringMap;
@@ -607,7 +609,7 @@ private:
 
     bool addClass(ClassObject klass);
 
-    bool classExists(string module, string name);
+    bool classExists(string module, string name, List<ClassObject> &classes);
 
     void printNote(RuntimeNote &note, string msg);
 
@@ -1015,6 +1017,16 @@ private:
     void parseLockStatement(Block &block, Ast *pAst);
 
     void isMemoryObject(Expression &expression, Ast *pAst);
+
+    void parseGenericClassDecl(Ast *ast);
+
+    void parseIdentifierList(Ast *pAst, List<string> &idList);
+
+    ClassObject *addGlobalGenericClassObject(string name, List<AccessModifier> &modifiers, Ast *pAst);
+
+    bool addGeericClass(ClassObject klass);
+
+    void resolveGenericClassDecl(Ast *ast, bool inlineField);
 };
 
 

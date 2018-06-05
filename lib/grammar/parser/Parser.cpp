@@ -124,6 +124,14 @@ void Parser::parse_classdecl(Ast* _ast) { // 1
 
     expectidentifier(_ast);
 
+    if(peek(1).getToken() == "<") {
+        _ast->setAstType(ast_generic_class_decl);
+
+        expect(LESSTHAN, "`<`");
+        parse_identifier_list(_ast);
+        expect(GREATERTHAN, "`>`");
+    }
+
     if(peek(1).getToken() == "base")
     {
         advance();
@@ -2187,6 +2195,12 @@ bool Parser::parse_reference_pointer(Ast *pAst) {
         if(expectidentifier(pAst))
             advance();
 
+        if(peek(1).getTokenType() == LESSTHAN) {
+            expect(LESSTHAN, pAst, "`<`");
+            parse_reference_identifier_list(pAst);
+            expect(GREATERTHAN, pAst, "`>`");
+        }
+
         while(current().getTokenType() == DOT ) {
             if(isexprkeyword(peek(1).getToken()))
                 break;
@@ -2202,6 +2216,12 @@ bool Parser::parse_reference_pointer(Ast *pAst) {
                 }
             } else {
                 if(!expectidentifier(pAst)) break;
+
+                if(peek(1).getTokenType() == LESSTHAN) {
+                    expect(LESSTHAN, pAst, "`<`");
+                    parse_reference_identifier_list(pAst);
+                    expect(GREATERTHAN, pAst, "`>`");
+                }
             }
             advance();
         }
@@ -2311,4 +2331,17 @@ tokenizer *Parser::getTokenizer() const {
 
 const string &Parser::getData() const {
     return data;
+}
+
+void Parser::parse_identifier_list(Ast *pAst) {
+    pAst = get_ast(pAst, ast_identifier_list);
+
+    expectidentifier(pAst);
+    pRefPtr:
+    if(peek(1).getTokenType() == COMMA)
+    {
+        expect(COMMA, pAst, "`,`");
+        expectidentifier(pAst);
+        goto pRefPtr;
+    }
 }

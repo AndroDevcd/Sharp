@@ -326,7 +326,7 @@ void Asm::expect_function() {
             return;
         }
     } else {
-        ClassObject* klass = instance->getClass(module_name, module.get(0));
+        ClassObject* klass = instance->getClass(module_name, module.get(0), instance->classes);
 
         if(klass != NULL) {
             for(unsigned int i = 1; i < module.size() - 1; i++) {
@@ -387,7 +387,7 @@ void Asm::expect_class() {
 
     ClassObject* klass;
     if(module_name == "" && module.size() == 1) {
-        if((klass = instance->getClass(module_name, module.get(0))) != NULL){
+        if((klass = instance->getClass(module_name, module.get(0), instance->classes)) != NULL){
             i2.high_bytes = klass->address;
         } else {
 
@@ -407,7 +407,7 @@ void Asm::expect_class() {
             }
         }
     } else {
-        ClassObject* klass = instance->getClass(module_name, module.at(0));
+        ClassObject* klass = instance->getClass(module_name, module.at(0), instance->classes);
 
         if(klass != NULL) {
             for(unsigned int i = 1; i < module.size(); i++) {
