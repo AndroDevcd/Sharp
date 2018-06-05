@@ -1055,6 +1055,11 @@ struct options {
     bool compile = false;
 
     /*
+     * Only compile support files
+     */
+    bool compileBootstrap = false;
+
+    /*
      * Output file to write to
      */
     string out = "out";

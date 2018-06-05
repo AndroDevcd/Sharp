@@ -1,0 +1,36 @@
+mod application;
+
+/**                          
+* Created by bknun on 6/5/2018            
+* Description:                             
+*/
+public class Runtime {
+
+    public static def bootstrap(string[] args) : var {
+        if(sizeof(args) < 2) {
+            help();
+            return 1;
+        }
+    }
+
+    private static def help() {
+        System.println("Usage: bootstrap" << "{OPTIONS} SOURCE FILE(S)");
+        System.println("Source file must have a .sharp extion to be compiled.\n");
+        System.println("[-options]\n\n    -V                print compiler version and exit");
+        System.println(              "    -showversion      print compiler version and continue"               );
+        System.println(              "    -o<file>          set the output object file"                        );
+        System.println(              "    -c                compile only and do not generate exe"              );
+        System.println(              "    -a                enable aggressive error reporting"                 );
+        System.println(              "    -s                string debugging info"                             );
+        System.println(              "    -O                optimize executable"                               );
+        System.println(              "    -w                disable all warnings"                              );
+        System.println(              "    -errlmt<count>    set max errors the compiler allows before quitting");
+        System.println(              "    -v<version>       set the application version"                       );
+        System.println(              "    -unsafe -u        allow unsafe code"                                 );
+        System.println(              "    -objdmp           create dump file for generated assembly"           );
+        System.println(              "    -target           target the specified platform of sharp to run on"  );
+        System.println(              "    -target           target the specified platform of sharp to run on"  );
+        System.println(              "    -release -r       generate a release build exe"                      );
+        System.println(              "    --h -?            display this help message"                         );
+    }
+};

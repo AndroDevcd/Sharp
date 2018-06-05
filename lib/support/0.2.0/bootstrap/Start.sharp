@@ -1,0 +1,14 @@
+mod application;
+
+import std;
+
+/**                          
+* Created by bknun on 6/5/2018            
+* Description:                             
+*/
+public class Start {
+
+    public static def main(string[] args) {
+        application#Runtime.bootstrap(args);
+    }
+};
