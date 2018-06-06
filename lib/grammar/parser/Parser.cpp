@@ -154,7 +154,11 @@ void Parser::parse_importdecl(Ast* _ast) {
     _ast = get_ast(_ast, ast_import_decl);
     _ast->addEntity(current());
 
-    parse_modulename(_ast);
+    bool tmp;
+    parse_modulename(_ast, tmp);
+
+    if(tmp)
+        errors->createNewError(GENERIC, current(), "module-name does not allow for generic typing ");
 
     expect(SEMICOLON, "`;`");
 }
@@ -163,7 +167,10 @@ void Parser::parse_moduledecl(Ast* _ast) {
     _ast = get_ast(_ast, ast_module_decl);
     _ast->addEntity(current());
 
-    parse_modulename(_ast);
+    bool tmp;
+    parse_modulename(_ast, tmp);
+    if(tmp)
+        errors->createNewError(GENERIC, current(), "module-name does not allow for generic typing ");
 
     if(!expect(SEMICOLON, "`;`"))
         return;
@@ -2010,7 +2017,7 @@ void Parser::parse_statement(Ast* pAst) {
     }
 }
 
-void Parser::parse_modulename(Ast* pAst)
+void Parser::parse_modulename(Ast* pAst, bool &parsedGeneric)
 {
     pAst = get_ast(pAst, ast_modulename);
 
@@ -2023,6 +2030,7 @@ void Parser::parse_modulename(Ast* pAst)
         }
     } else {
         expectidentifier(pAst);
+        if(parse_template_decl(pAst)) parsedGeneric = true;
     }
 
     advance();
@@ -2041,7 +2049,10 @@ void Parser::parse_modulename(Ast* pAst)
                 break;
             }
         } else {
-            if(!expectidentifier(pAst));
+            if(expectidentifier(pAst)){
+                if(parse_template_decl(pAst))
+                    parsedGeneric = true;
+            }
         }
         advance();
     }
@@ -2150,6 +2161,35 @@ bool Parser::parse_type_identifier(Ast *pAst) {
     return false;
 }
 
+bool Parser::parse_template_decl(Ast *pAst) {
+    if(peek(1).getTokenType() == LESSTHAN) {
+        advance();
+        Ast tmp(pAst->getParent(), pAst);
+        unsigned long tmpCursor = cursor;
+        if(parse_utype(pAst) && (peek(1).getTokenType() == GREATERTHAN || peek(1).getTokenType() == COMMA))
+        {
+            cursor = tmpCursor;
+            pAst->copy(&tmp);
+            errors->pass();
+            parse_utype_list(pAst);
+            if(peek(1).getTokenType() == GREATERTHAN) {
+                expect(GREATERTHAN, pAst, "`>`");
+                pAst->freeLastEntity();
+            } else
+                expect(GREATERTHAN, pAst, "`>`");
+            tmp.free();
+            return true;
+        } else
+            pAst->copy(&tmp);
+        cursor = tmpCursor;
+        tmp.free();
+        errors->pass();
+        pushback();
+    }
+
+    return false;
+}
+
 void Parser::parse_reference_identifier_list(Ast *ast) {
     ast = get_ast(ast, ast_reference_identifier_list);
 
@@ -2159,6 +2199,19 @@ void Parser::parse_reference_identifier_list(Ast *ast) {
     {
         expect(COMMA, ast, "`,`");
         parse_reference_pointer(ast);
+        goto pRefPtr;
+    }
+}
+
+void Parser::parse_utype_list(Ast *ast) {
+    ast = get_ast(ast, ast_utype_list);
+
+    parse_utype(ast);
+    pRefPtr:
+    if(peek(1).getTokenType() == COMMA)
+    {
+        expect(COMMA, ast, "`,`");
+        parse_utype(ast);
         goto pRefPtr;
     }
 }
@@ -2175,7 +2228,8 @@ bool Parser::parse_reference_pointer(Ast *pAst) {
     }
     else
         pushback();
-    parse_modulename(pAst);
+    bool parsedGeneric;
+    parse_modulename(pAst, parsedGeneric);
 
     /*
      * We want the full name to be on the ast
@@ -2186,19 +2240,21 @@ bool Parser::parse_reference_pointer(Ast *pAst) {
         pAst->addEntity(pAst->getSubAst(0)->getEntity(i));
     }
 
-    pAst->freeSubAsts();
+    if(pAst->getSubAst(0)->hasSubAst(ast_utype_list)) {
+        Ast tmp(pAst, pAst->getSubAst(0)->getSubAst(ast_utype_list));
+        pAst->freeSubAsts();
+        pAst->addAst(tmp);
+    }
 
     advance();
     if(current().getTokenType() == HASH) {
+        if(parsedGeneric)
+            errors->createNewError(GENERIC, current(), "module-name does not allow for generic typing ");
         pAst->addEntity(current());
 
-        if(expectidentifier(pAst))
+        if(expectidentifier(pAst)) {
+            parse_template_decl(pAst);
             advance();
-
-        if(peek(1).getTokenType() == LESSTHAN) {
-            expect(LESSTHAN, pAst, "`<`");
-            parse_reference_identifier_list(pAst);
-            expect(GREATERTHAN, pAst, "`>`");
         }
 
         while(current().getTokenType() == DOT ) {
@@ -2217,11 +2273,7 @@ bool Parser::parse_reference_pointer(Ast *pAst) {
             } else {
                 if(!expectidentifier(pAst)) break;
 
-                if(peek(1).getTokenType() == LESSTHAN) {
-                    expect(LESSTHAN, pAst, "`<`");
-                    parse_reference_identifier_list(pAst);
-                    expect(GREATERTHAN, pAst, "`>`");
-                }
+                parse_template_decl(pAst);
             }
             advance();
         }
@@ -2293,6 +2345,23 @@ Ast* Parser::rollbacklast() {
         else {
             pAst->freeLastSub();
         }
+        state->pop_back();
+        rStateCursor--;
+        return pAst;
+    }
+
+    return NULL;
+}
+
+Ast* Parser::popBacklast() {
+    if(rStateCursor >= 0)
+    {
+        ParserState* ps = &(*std::next(state->begin(),
+                                       rStateCursor));
+        Ast* pAst = ps->ast;
+        ast_cursor = ps->astCursor;
+        cursor = ps->cursor-1;
+
         state->pop_back();
         rStateCursor--;
         return pAst;

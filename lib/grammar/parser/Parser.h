@@ -130,7 +130,7 @@ private:
 
     void parse_statement(Ast *pAst);
 
-    void parse_modulename(Ast *pAst);
+    void parse_modulename(Ast *pAst, bool &parsedGeneric);
 
     void parse_valueassignment(Ast *pAst);
 
@@ -243,6 +243,12 @@ private:
     void parse_prototype_valueassignment(Ast *pAst);
 
     void parse_identifier_list(Ast *pAst);
+
+    void parse_utype_list(Ast *ast);
+
+    bool parse_template_decl(Ast *pAst);
+
+    Ast *popBacklast();
 };
 
 #define _SHARP_CERROR_LIMIT c_options.error_limit

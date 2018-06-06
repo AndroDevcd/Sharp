@@ -136,6 +136,31 @@ public:
         params.free();
     }
 
+    void operator=(Method func) {
+        this->note = func.note;
+        this->address=func.address;
+        this->delegateAddress=func.delegateAddress;
+        this->klass=func.klass;
+        this->type=func.type;
+        this->code.inject(code.size(), func.code);
+        this->owner=func.owner;
+        this->sourceFileLink=func.sourceFileLink;
+        this->array=func.array;
+        this->isConstructor=func.isConstructor;
+        this->delegate=func.delegate;
+        this->delegatePost=func.delegatePost;
+        this->localVariables=func.localVariables;
+        this->line_table.addAll(func.line_table);
+        this->assembly_table.addAll(func.assembly_table);
+        this->exceptions.addAll(func.exceptions);
+        this->finallyBlocks.addAll(func.finallyBlocks);
+        this->unique_address_table.addAll(func.unique_address_table);
+        this->modifiers.addAll(func.modifiers);
+        this->name=func.name;
+        this->module=func.module;
+        this->params.addAll(func.params);
+    }
+
     RuntimeNote note;
     int64_t address, delegateAddress;
     ClassObject* klass;

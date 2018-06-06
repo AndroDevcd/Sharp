@@ -1027,6 +1027,11 @@ private:
     bool addGeericClass(ClassObject klass);
 
     void resolveGenericClassDecl(Ast *ast, bool inlineField);
+
+    void parseUtypeList(Ast *pAst, List<Expression> &list);
+
+    void
+    findAndCreateGenericClass(std::string module, string &klass, List<Expression> &utypes, ClassObject* parent, Ast *pAst);
 };
 
 

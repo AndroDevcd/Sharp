@@ -1,11 +1,11 @@
 mod application;
 
-import std;
+//import std;
 
 public class Start {
 
-    public static def main(string[] args) : var {
-        List<var> intArry;
+    public static def main(object[] args) : var {
+        List<var> intArry; // TODO: empty modifiers after methods classes etc. before block call
     }
 }
 

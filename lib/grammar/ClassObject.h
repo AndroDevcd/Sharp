@@ -114,29 +114,32 @@ public:
     void setFullName(const string fullName) {
         this->fullName = fullName;
     }
+    void setName(const string name) {
+        this->name = name;
+    }
     string getFullName() {
         return fullName;
     }
 
     void operator=(ClassObject& klass) {
         this->base = klass.base;
-        this->childClasses = klass.childClasses;
-        this->constructors = klass.constructors;
-        this->fields = klass.fields;
+        this->childClasses.addAll(klass.childClasses);
+        this->constructors.addAll(klass.constructors);
+        this->fields.addAll(klass.fields);
         this->fullName = klass.fullName;
-        this->functions = klass.functions;
+        this->functions.addAll(klass.functions);
         this->head = klass.head;
         this->modifier = klass.modifier;
         this->module_name = klass.module_name;
         this->name = klass.name;
         this->note = klass.note;
-        this->overloads = klass.overloads;
+        this->overloads.addAll(klass.overloads);
         this->super = klass.super;
         this->serial = klass.serial;
         this->address = klass.address;
         this->_interface=klass._interface;
         this->_generic=klass._generic;
-        this->genericKeys = klass.genericKeys;
+        this->genericKeys.addAll(klass.genericKeys);
     }
 
     size_t constructorCount();
@@ -178,6 +181,7 @@ public:
     void setIsGeneric(bool _generic) { this->_generic=_generic; }
     void addGenericKey(string key) { this->genericKeys.push_back(key); }
     bool hasGenericKey(string key) { return this->genericKeys.find(key); }
+    long genericKeySize() { return this->genericKeys.size(); }
     size_t interfaceCount() { return interfaces.size(); }
     ClassObject* getInterface(size_t p) { return interfaces.get(p); }
     bool duplicateInterface(ClassObject *intf) {

@@ -28,6 +28,7 @@ enum ast_types
     ast_utype_arg_list,
     ast_utype_arg_list_opt,
     ast_reference_identifier_list,
+    ast_utype_list,
     ast_identifier_list,
     ast_vector_array,
     ast_utype_arg,
@@ -125,6 +126,20 @@ public:
         entities.init();
     }
 
+    Ast(Ast* parent, Ast *cpy)
+            :
+            type(ast_none),
+            parent(parent),
+            line(0),
+            col(0),
+            numEntities(0),
+            numAsts(0)
+    {
+        sub_asts.init();
+        entities.init();
+        copy(cpy);
+    }
+
     void encapsulate(ast_types at);
 
     ast_types getType();
@@ -143,6 +158,7 @@ public:
 
     void addEntity(token_entity entity);
     void addAst(Ast _ast);
+    void copy(Ast *ast);
     void free();
 
     void freeEntities();

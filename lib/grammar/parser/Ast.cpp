@@ -193,3 +193,21 @@ Ast *Ast::getLastSubAst() {
     }
     return &sub_asts.last();
 }
+
+void Ast::copy(Ast *ast) {
+    free();
+    if(ast != NULL) {
+        this->line=ast->line;
+        this->col=ast->col;
+        this->type=ast->type;
+
+        for(long i = 0; i < ast->sub_asts.size(); i++) {
+            Ast pAst(this, &ast->sub_asts.get(i));
+            addAst(pAst);
+        }
+
+        for(long i = 0; i < ast->entities.size(); i++) {
+            addEntity(ast->entities.get(i));
+        }
+    }
+}

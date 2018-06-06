@@ -169,10 +169,8 @@ int _bootstrap(int argc, const char* argv[])
     List<native_string> includes;
     get_full_file_list(path, includes);
 
-#ifdef WIN32_
-    for(long i = 0; i < includes.size(); i++)
-        files.add(includes.get(i).str());
-#endif
+//    for(long i = 0; i < includes.size(); i++)
+//        files.add(includes.get(i).str());
 
     for(unsigned int i = 0; i < files.size(); i++) {
         string& file = files.get(i);
@@ -7262,6 +7260,12 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
             ptr.classHeiarchy.push_back(id);
         } else {
             ptr.referenceName = id;
+
+            if(ast->hasSubAst(ast_utype_list)){
+                List<Expression> utypes;
+                parseUtypeList(ast, utypes);
+                findAndCreateGenericClass(ptr.module, ptr.referenceName, utypes, NULL, ast);
+            }
         }
     }
 
@@ -8132,7 +8136,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
 }
 
 Expression RuntimeEngine::parseUtype(Ast* ast) {
-    ast = ast->getSubAst(ast_utype);
+    ast = ast->getType() == ast_utype ? ast : ast->getSubAst(ast_utype);
 
     ReferencePointer ptr=parseTypeIdentifier(ast);
     Expression expression(ast);
@@ -10965,5 +10969,57 @@ void RuntimeEngine::parseIdentifierList(Ast *pAst, List<string> &idList) {
         if(Key != ",") {
             idList.push_back(Key);
         }
+    }
+}
+
+void RuntimeEngine::parseUtypeList(Ast *pAst, List<Expression> &list) {
+    pAst = pAst->getSubAst(ast_utype_list);
+
+    for(long i = 0; i < pAst->getSubAstCount(); i++) {
+        Expression utype = parseUtype(pAst->getSubAst(i));
+        list.push_back(utype);
+    }
+}
+
+void RuntimeEngine::findAndCreateGenericClass(std::string module, string &klass, List<Expression> &utypes,
+                                              ClassObject* parent, Ast *pAst) {
+    for(long i = 0; i < utypes.size(); i++) {
+        if(utypes.get(i).type == expression_unresolved || utypes.get(i).utype.type == UNDEFINED) {
+            return;
+        }
+    }
+
+    if(parent == NULL) {
+        ClassObject *generic = getClass(module, klass, generics);
+
+        if(generic != NULL) {
+            if(utypes.size() == generic->genericKeySize()) {
+                stringstream name;
+
+                // build unique class name
+                name << "<";
+                for(long i = 0; i < utypes.size(); i++) {
+                    name << utypes.get(i).typeToString();
+
+                    if((i+1) < utypes.size()) {
+                        name << ",";
+                    }
+                }
+                name << ">";
+                generic->setFullName(generic->getFullName() + name.str());
+                generic->setName(generic->getName() + name.str());
+                klass = generic->getName();
+
+                if(getClass(module, klass, classes) == NULL) {
+                    List<AccessModifier> modifiers;
+                    modifiers.add(generic->getAccessModifier());
+                    ClassObject *newClass = addGlobalClassObject(klass, modifiers, pAst);
+
+                    // traverse class
+                    *newClass = *generic;
+                    // set all generic data to proper values
+                }
+            } // parseUtype() will handle unresolved error
+        } // parseUtype() will handle unresolved error
     }
 }
