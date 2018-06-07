@@ -1329,9 +1329,7 @@ bool Parser::parse_expression(Ast *pAst) {
             parenExprs--;
         } else {
             nestedLessExprs++;
-            quesBlock++;
-            parse_expression(nestedLessExprs == 1 ? pAst : pAst->getParent());
-            quesBlock--;
+            parse_expression(nestedLessExprs == 1 ? pAst : pAst);
             if(nestedLessExprs == 1)
                 pAst->encapsulate(ast_less_e);
             nestedLessExprs--;
@@ -1360,6 +1358,10 @@ bool Parser::parse_expression(Ast *pAst) {
        peek(1).getTokenType() == ANDAND || peek(1).getTokenType() == OROR ||
        peek(1).getTokenType() == XOR)
     {
+        if(nestedLessExprs > 1) {
+            pAst->getParent()->freeLastSub();
+            return false;
+        }
         advance();
         pAst->addEntity(current());
 
@@ -1403,6 +1405,11 @@ bool Parser::parse_expression(Ast *pAst) {
     /* expression '?' expression ':' expression */
     if(peek(1).getTokenType() == QUESMK && quesBlock==0)
     {
+        if(nestedLessExprs > 1) {
+            pAst->getParent()->freeLastSub();
+            return false;
+        }
+
         advance();
         pAst->addEntity(current());
 
@@ -2195,6 +2202,7 @@ bool Parser::parse_template_decl(Ast *pAst) {
         pushback();
     }
 
+    get_ast(pAst, ast_none); // filler so we dont process it
     return false;
 }
 
@@ -2248,10 +2256,10 @@ bool Parser::parse_reference_pointer(Ast *pAst) {
         pAst->addEntity(pAst->getSubAst(0)->getEntity(i));
     }
 
-    if(pAst->getSubAst(0)->hasSubAst(ast_utype_list)) {
-        Ast tmp(pAst, pAst->getSubAst(0)->getSubAst(ast_utype_list));
-        pAst->freeSubAsts();
-        pAst->addAst(tmp);
+    // for generics
+    for(int64_t i = 0; i <  pAst->getSubAst(0)->getSubAstCount(); i++)
+    {
+        pAst->addAst(Ast(pAst, pAst->getSubAst(0)->getSubAst(i)));
     }
 
     advance();

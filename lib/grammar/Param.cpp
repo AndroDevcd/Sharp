@@ -3,9 +3,9 @@
 //
 
 #include "Param.h"
+#include "ClassObject.h"
 
 bool Param::match(Param &param) {
-
     return field == param.field;
 }
 

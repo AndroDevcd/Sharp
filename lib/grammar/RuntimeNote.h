@@ -46,6 +46,7 @@ public:
 
     int getLine() { return line; }
     int getCol() { return col; }
+    string getFile() { return file; }
 
 private:
     string file;

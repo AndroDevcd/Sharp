@@ -838,10 +838,12 @@ void Thread::exec() {
                 o2 = &dataStack[fp+GET_Da(cache[pc])].object;
                 _brh
             POPL:
-                CHECK_NULL(
-                        dataStack[fp+GET_Da(cache[pc])].object
-                                = dataStack[sp--].object;
-                )
+                dataStack[fp+GET_Da(cache[pc])].object
+                        = dataStack[sp--].object;
+                _brh
+            IPOPL:
+                dataStack[fp+GET_Da(cache[pc])].var
+                        = dataStack[sp--].var;
                 _brh
             MOVSL:
                 o2 = &(dataStack[sp+GET_Da(cache[pc])].object);

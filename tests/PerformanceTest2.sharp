@@ -15,7 +15,7 @@ public class Start {
     private static def rollAverage(var dest) : var {
         var avg = 0;
         for(var i = 0; i < dest; i++) {
-            avg = (avg + addUpTo(i)) / 2.0;
+            avg = (avg + addUpTo(i)) / 2;
         }
 
         return avg;

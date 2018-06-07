@@ -15,21 +15,24 @@ public class Array {
         return newArry;
     }
 
-    public static def copyOf(object[] data, var len) : object[] {
-        object[] newArry = new object[len];
+    class Tmpl<T> {
+        public static def copyOf(T[] data, var len) : T[] {
+            T[] newArry = new T[len];
 
-        for(var i = 0; i < len; i++) {
-            newArry[i] = data[i];
+            for(var i = 0; i < len; i++) {
+                newArry[i] = data[i];
+            }
+
+            return newArry;
         }
-
-
-        return newArry;
     }
+
 
     public static def expand(var[] data, var len) : var[] {
         var[] newArry = new var[len];
 
-        for(var i = 0; i < sizeof(data); i++) {
+        var max = len <= sizeof(data) ? len : sizeof(data);
+        for(var i = 0; i < max; i++) {
             newArry[i] = data[i];
         }
 
@@ -39,7 +42,8 @@ public class Array {
     public static def expand(object[] data, var len) : object[] {
         object[] newArry = new object[len];
 
-        for(var i = 0; i < sizeof(data); i++) {
+        var max = len <= sizeof(data) ? len : sizeof(data);
+        for(var i = 0; i < max; i++) {
             newArry[i] = data[i];
         }
 

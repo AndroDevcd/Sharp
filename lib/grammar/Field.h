@@ -12,6 +12,7 @@
 #include "List.h"
 
 class ClassObject;
+class Ast;
 
 class Field {
 public:
@@ -28,7 +29,8 @@ public:
             isArray(false),
             nullType(false),
             local(false),
-            key("")
+            key(""),
+            ast(NULL)
     {
         this->modifiers.init();
         this->modifiers.addAll(modifiers);
@@ -47,7 +49,8 @@ public:
             isArray(false),
             nullType(false),
             local(false),
-            key("")
+            key(""),
+            ast(NULL)
     {
         this->modifiers.init();
         this->modifiers.addAll(modifiers);
@@ -65,7 +68,9 @@ public:
             nullType(false),
             local(false),
             owner(NULL),
-            key("")
+            key(""),
+            klass(NULL),
+            ast(NULL)
     {
     }
 
@@ -87,6 +92,7 @@ public:
         address=f.address;
         local=f.local;
         key=f.key;
+        ast=f.ast;
     }
 
     void free(){
@@ -133,6 +139,7 @@ public:
     RuntimeNote note;
     FieldType type;
     ClassObject* klass;
+    Ast *ast; // for parsing a generic field later
     int64_t serial, address;
     string name, fullName;
     ClassObject* owner;

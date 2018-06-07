@@ -4,29 +4,15 @@ mod std;
 * Created by bknun on 6/7/2018            
 * Description:                             
 */
-class ArrayList<T> {
+public class ArrayList<T> {
     private T[] data;
-
-    /**
-     * Constructs an empty list with the specified initial capacity.
-     *
-     * @param  initialCapacity  the initial capacity of the list
-     * @throws IllegalArgumentException if the specified initial capacity
-     *         is negative
-     */
-    public ArrayList(int initialCapacity) {
-        super();
-        if (initialCapacity < 0)
-            throw new IllegalArgumentException("Illegal Capacity: "+
-                                               initialCapacity);
-        data = new T[initialCapacity];
-    }
 
     /**
      * Constructs an empty list.
      */
     public ArrayList() {
         /* data will remain null */
+        data = new T[0]; // empty list but initalized
     }
 
     /**
@@ -49,13 +35,10 @@ class ArrayList<T> {
      * Returns an array containing all of the elements in this list
      * in proper sequence (from first to last element).
      *
-     * The returned array will be "safe" in that no references to it are
-     * maintained by this list.  (In other words, this method must allocate
-     * a new array).  The caller is thus free to modify the returned array.
-     *
      */
-    public def toArray() : object[] {
-        return Array.copyOf(data, sizeof(data));
+    public def toArray() : T[] {
+        if(data == null) return null;
+        return ((T[]) Array.Tmpl<T>.copyOf(data, sizeof(data)));
     }
 
     /**
@@ -75,7 +58,7 @@ class ArrayList<T> {
      *
      */
     public def set(var index, T element) : T {
-        if (index >= size)
+        if (index >= sizeof(data))
             throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
 
         T oldValue = data[index];
@@ -91,6 +74,13 @@ class ArrayList<T> {
     }
 
     /**
+     * Shrink the list to hold more data
+     */
+    private def shrink() {
+        data = (T[]) Array.expand(data, sizeof(data)-1);
+    }
+
+    /**
       * Appends the specified element to the end of this list.
       *
       * @param e element to be appended to this list
@@ -100,4 +90,79 @@ class ArrayList<T> {
          expand();
          data[sizeof(data)-1] = e;
      }
+
+    /**
+     * Inserts the specified element at the specified position in this
+     * list. Shifts the element currently at that position (if any) and
+     * any subsequent elements to the right (adds one to their indices).
+     *
+     */
+     public def insert(var pos, T value) {
+         if(pos>sizeof(data) || pos < 0)
+            throw new IndexOutOfBoundsException(outOfBoundsMsg(pos));
+
+         if(sizeof(data) == 0) {
+             add(value);
+         } else {
+             T[] result = new T[sizeof(data)+1];
+             var newLen=sizeof(data)+1;
+             for(var i = 0; i < pos; i++)
+                 result[i] = data[i];
+             result[pos] = value;
+             for(var i = pos + 1; i < newLen; i++)
+                 result[i] = data[i - 1];
+             data=result;
+         }
+
+     }
+
+    /**
+     * Removes the element at the specified position in this list.
+     * Shifts any subsequent elements to the left (subtracts one from their
+     * indices).
+     *
+     */
+     public def remove(var pos) {
+         if(pos>sizeof(data) || pos < 0)
+            throw new IndexOutOfBoundsException(outOfBoundsMsg(pos));
+
+         if(sizeof(data)==1){
+             data = null;
+         }
+         else if(sizeof(data)==2) {
+             if(pos==0) {
+                 data[0]=data[1];
+             }
+             shrink();
+         } else {
+             var newLen=sizeof(data)-1,iter=1;
+             for(var i = 0; i < newLen; i++) {
+                 if(iter == pos)
+                     iter++;
+
+                 data[i] = data[iter];
+             }
+
+             shrink();
+         }
+     }
+
+     /**
+      * Removes all of the elements from this list.  The list will
+      * be empty after this call returns.
+      */
+     public def clear() {
+         // clear to let GC do its work
+         data = null;
+     }
+
+
+    /**
+     * Constructs an IndexOutOfBoundsException detail message.
+     * Of the many possible refactorings of the error handling code,
+     * this "outlining" performs best with both server and client VMs.
+     */
+    private def outOfBoundsMsg(var index) : string {
+        return "Index: " + index + ", size: " + sizeof(data);
+    }
 }

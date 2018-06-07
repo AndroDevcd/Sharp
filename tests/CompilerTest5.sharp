@@ -5,25 +5,49 @@ import std;
 public class Start {
 
     public static def main(string[] args) : var {
-        List<var> intArry = new List<var>(); // TODO: empty modifiers after methods classes etc. before block call
+        ArrayList<var> intArry = new ArrayList<var>(); // TODO: empty modifiers after methods classes etc. before block call
         intArry.add(9);
+
+        try {
+            System.println(" intArry[0] = " + intArry.get(99));
+        } catch(Exception e) {
+            // we know why
+        }
+
+        System.println("int array size " +  intArry.size());
+        System.println("int isEmpty " +  intArry.empty());
+
+        var[] tmp = intArry.toArray();
+        foreach(var v : tmp) {
+            System.println("int  " +  v);
+        }
+
+        intArry.set(0, 15);
+        System.println("intArry[0] = " + intArry.get(0));
+
+        intArry.insert(0, 16);
+        System.println("intArry[0] = " + intArry.get(0));
+        System.println("int array size " +  intArry.size());
+
+        intArry.remove(1);
+        System.println("intArry[0] = " + intArry.get(0));
+        System.println("int array size " +  intArry.size());
+
+        intArry.clear();
+        System.println("int array size " +  intArry.size());
+
+        Dictionary<string, var> dict = new Dictionary<string, var>();
+
+        dict.put("Dave" +"", 2);
+        dict.put("Steve" +"", 3);
+
+        System.println("dictionary size " +  dict.size());
+        System.println("dave = " +  dict.get("Dave" +""));
+        System.println("steve = " +  dict.get("Steve" +""));
+
+        dict.remove("Steve" +"");
+        System.println("dictionary size " +  dict.size());
+        System.println("dave = " +  dict.get("Dave" +""));
+        System.println("steve = " +  dict.get("Steve" +""));
     }
-}
-
-class List<T> : X {
-    T[] data;
-
-    public List() {
-        data = new T[8];
-    }
-
-    public def add(T data) {
-
-    }
-
-    public def delegate::work(T data) {
-
-    }
-
-    public def delegate::work2(T data);
 }

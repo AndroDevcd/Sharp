@@ -170,7 +170,8 @@
         &&GET,                                 \
         &&ISADD,                                 \
         &&JE,                                 \
-        &&JNE                                 \
+        &&JNE,                                 \
+        &&IPOPL                                 \
     };
 
 enum Opcode {
@@ -285,7 +286,8 @@ enum Opcode {
     op_GET                      =0x6c,
     op_ISADD                    =0x6d,
     op_JE                       =0x6e,
-    op_JNE                      =0x6f
+    op_JNE                      =0x6f,
+    op_IPOPL                    =0x70
 };
 
 #endif //SHARP_OPCODE_H

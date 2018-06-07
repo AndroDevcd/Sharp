@@ -154,13 +154,14 @@ public:
     void free();
     string getLine(int line);
 
+    string filname;
+    List<string> lines;
 private:
     KeyPair<error_type, string> getErrorById(error_type);
     list<ParseError>* getPossibleErrorList();
     void addPossibleErrorList();
     void removePossibleErrorList();
 
-    List<string> lines;
     list<ParseError>* errors, *unfilteredErrors, *warnings;
     list<std::list<ParseError>*>* possibleErrors;
     int64_t  teCursor;
@@ -168,7 +169,6 @@ private:
     ParseError lastCheckedError;
     bool _err, cm;
     bool asis, aggressive;
-    string filname;
 
     bool shouldReport(token_entity *token, const ParseError &last_err, const ParseError &e) const;
 

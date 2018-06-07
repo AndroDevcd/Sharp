@@ -532,10 +532,14 @@ void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix
                             block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
                         }
                     } else {
-                        Expression out(pAst);
-                        pushExpressionToRegisterNoInject(value, out, ebx);
-                        block.code.inject(block.code.__asm64.size(), out.code);
-                        block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
+                        if(value.isArray()) {
+                            block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
+                        } else {
+                            Expression out(pAst);
+                            pushExpressionToRegisterNoInject(value, out, ebx);
+                            block.code.inject(block.code.__asm64.size(), out.code);
+                            block.code.push_i64(SET_Di(i64, op_RETURNVAL, ebx));
+                        }
                     }
                 }
                 break;
@@ -1314,6 +1318,7 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
     } else if(utype.utype.type == TYPEVOID) {
         f.key = utype.utype.referenceName;
     }
+
 
     f.isArray = utype.utype.array;
 
@@ -4062,6 +4067,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
         return;
     } else if(utype.utype.isArray() && utype.utype.type == VAR) {
         if(expression.trueType() == OBJECT || expression.trueType() == VAR) {
+            out.func=expression.func;
             return;
         }
     } else if(!utype.utype.isArray() && utype.utype.type == VAR) {
@@ -4796,14 +4802,12 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
 
     switch(left.type) {
         case expression_var:
-            if(right.type == expression_var) {
+            if(right.trueType() == VAR) {
                 // add 2 vars
                 return true;
             }
-            else if(right.type == expression_field) {
-                if(right.utype.field->isVar()) {
-                    return true;
-                }
+            else if(right.type == expression_null) {
+                return left.isArray();
             }
             break;
         case expression_null:
@@ -4894,12 +4898,8 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
             }
             break;
         case expression_objectclass:
-            if(right.type == expression_objectclass || right.type == expression_lclass) {
-                return true;
-            } else if(right.type == expression_field) {
-                if(right.utype.field->type == OBJECT || right.utype.field->type == CLASS) {
-                    return true;
-                }
+            if(right.trueType() == OBJECT || right.trueType() == CLASS || right.trueType() == VAR) {
+                return left.isArray() == right.isArray();
             }
             break;
         case expression_string:
@@ -7207,6 +7207,10 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
     bool hashfound = false, last, hash = ast->hasEntity(HASH);
     string id="";
     ReferencePointer ptr;
+    bool resolveParents = ast->hasSubAst(ast_utype_list);
+    long idx = 0;
+    ClassObject *parent = NULL;
+
 
     for(long i = 0; i < ast->getEntityCount(); i++) {
         id = ast->getEntity(i).getToken();
@@ -7226,14 +7230,16 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
                 ptr.module += "." + id;
         } else if(!last) {
             ptr.classHeiarchy.push_back(id);
+
+            if(resolveParents) parent = tryClassResolve(ptr.module, id, ast);
         } else {
             ptr.referenceName = id;
+        }
 
-            if(ast->hasSubAst(ast_utype_list)){
-                List<Expression> utypes;
-                parseUtypeList(ast, utypes);
-                findAndCreateGenericClass(ptr.module, ptr.referenceName, utypes, NULL, ast);
-            }
+        if(ast->hasSubAst(ast_utype_list) && ast->getSubAst(idx++)->getType() == ast_utype_list){
+            List<Expression> utypes;
+            parseUtypeList(ast->getSubAst(idx-1), utypes);
+            findAndCreateGenericClass(ptr.module, ptr.referenceName, utypes, parent, ast);
         }
     }
 
@@ -7985,6 +7991,28 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                         expression.utype.klass = klass;
                         expression.type = expression_class;
                     } else {
+                        if(currentScope()->klass->isGeneric() && !currentScope()->klass->isProcessed()) {
+                            if((klass = getClass(refrence.module, refrence.referenceName, generics)) != NULL) {
+                                expression.utype.type = TYPEGENERIC;
+                                expression.utype.klass = klass;
+                                expression.type = expression_generic;
+                                return;
+                            }
+                        }
+
+                        if((klass = getClass(refrence.module, refrence.referenceName, generics)) != NULL) {
+                            expression.utype.type = UNDEFINED;
+                            expression.utype.referenceName = refrence.referenceName;
+                            expression.type = expression_unresolved;
+
+                            stringstream helpfulMessage;
+                            helpfulMessage << "have you forgotten your type parameters? Were you possibly looking for class `"
+                                              << klass->getFullName() << "` it requires " << klass->genericKeySize() << " generic types.";
+                            errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + refrence.referenceName + "` " +
+                                                                                                                                                             (refrence.module == "" ? "" : "in module {" + refrence.module + "} ")
+                                                                                                                                                             + helpfulMessage.str());
+                            return;
+                        }
                         /* Un resolvable */
                         errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + refrence.referenceName + "` " +
                                                                                   (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
@@ -8184,6 +8212,8 @@ void RuntimeEngine::resolveVarDecl(Ast* ast, bool inlineField) {
     } else if(expression.utype.type == TYPEGENERIC) {
         field->type = TYPEGENERIC;
         field->key = expression.utype.referenceName;
+        field->klass = expression.utype.klass;
+        field->ast = ast;
     } else if(expression.utype.type == OBJECT) {
         field->type = OBJECT;
     } else {
@@ -8799,6 +8829,8 @@ void RuntimeEngine::resolveClassDeclDelegates(Ast* ast) {
                 break;
             case ast_interface_decl: /* ignore */
                 break;
+            case ast_generic_class_decl: /* ignore */
+                break;
             default:
                 stringstream err;
                 err << ": unknown ast type: " << trunk->getType();
@@ -8890,7 +8922,7 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
                 resolveClassDecl(trunk, inlineField);
                 break;
             case ast_generic_class_decl:
-                resolveGenericClassDecl(ast, false);
+                resolveGenericClassDecl(trunk, inlineField);
                 break;
             default:
                 stringstream err;
@@ -8971,6 +9003,9 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField) {
                 break;
             case ast_interface_decl:
                 resolveClassDecl(trunk, inlineField);
+                break;
+            case ast_generic_class_decl:
+                resolveGenericClassDecl(ast, inlineField);
                 break;
             default:
                 stringstream err;
@@ -9238,6 +9273,9 @@ void RuntimeEngine::parseClassDecl(Ast *ast, bool isInterface)
                 break;
             case ast_interface_decl:
                 parseClassDecl(ast, true);
+                break;
+            case ast_generic_class_decl:
+                parseGenericClassDecl(ast);
                 break;
             default:
                 stringstream err;
@@ -9810,6 +9848,7 @@ void RuntimeEngine::generate() {
             optimized += optimizer.getOptimizedOpcodes();
         }
 
+        optimizationResult = optimized;
         if(c_options.debugMode)
             cout << "Total instructions optimized out: " << optimized << endl;
     }
@@ -9907,8 +9946,10 @@ void RuntimeEngine::createDumpFile() {
     _ostream.begin();
 
     _ostream << "Object Dump file:\n" << "################################\n\n";
-    _ostream << "Optimizer: Did optimize " << c_options.optimize << " result -> "
-             << optimizationResult << endl << endl;
+    stringstream ss;
+    ss << "Optimizer: Did optimize " << (int)c_options.optimize << " result -> "
+             << optimizationResult << '\n' << '\n';
+    _ostream << ss.str();
 
     for(int64_t i = 0; i < classes.size(); i++) {
         stringstream ss;
@@ -10972,7 +11013,6 @@ void RuntimeEngine::parseIdentifierList(Ast *pAst, List<string> &idList) {
 }
 
 void RuntimeEngine::parseUtypeList(Ast *pAst, List<Expression> &list) {
-    pAst = pAst->getSubAst(ast_utype_list);
 
     for(long i = 0; i < pAst->getSubAstCount(); i++) {
         Expression utype = parseUtype(pAst->getSubAst(i));
@@ -10983,7 +11023,8 @@ void RuntimeEngine::parseUtypeList(Ast *pAst, List<Expression> &list) {
 void RuntimeEngine::findAndCreateGenericClass(std::string module, string &klass, List<Expression> &utypes,
                                               ClassObject* parent, Ast *pAst) {
     for(long i = 0; i < utypes.size(); i++) {
-        if(utypes.get(i).type == expression_unresolved || utypes.get(i).utype.type == UNDEFINED) {
+        if(utypes.get(i).type == expression_unresolved || utypes.get(i).utype.type == UNDEFINED
+            || utypes.get(i).utype.type == TYPEGENERIC) {
             return;
         }
     }
@@ -11014,15 +11055,43 @@ void RuntimeEngine::findAndCreateGenericClass(std::string module, string &klass,
                     ClassObject *newClass = addGlobalClassObject(klass, modifiers, pAst);
 
                     // traverse class
+                    RuntimeNote note = newClass->note;
+
+                    // set up error system for temporary convinent error reporting
+                    string file = errors->filname;
+                    List<string> oldLines;
+                    oldLines.addAll(errors->lines);
+
+                    for(long i = 0; i < parsers.size(); i++) {
+                        if(parsers.get(i)->sourcefile == generic->note.getFile()) {
+                            errors->lines.addAll(parsers.get(i)->lines);
+                        }
+                    }
+
                     *newClass = *generic;
+
+                    errors->filname = newClass->note.getFile();
+                    newClass->note = note;
                     newClass->setFullName(newClass->getFullName() + name.str());
                     newClass->setName(klass);
                     newClass->setIsProcessed(true);
+
+                    long long currErrors = errors->getUnfilteredErrorCount() ,newErrors;
+
+                    addScope(Scope(CLASS_SCOPE, newClass));
                     traverseGenericClass(newClass, utypes, pAst);
+                    removeScope();
+
                     analyzeGenericClass(newClass);
-                    // create analyzeGenericClass to take the generic class we are processing
-                    // and go through the ast's as normal
-                    // it should just work
+
+                    errors->lines.addAll(oldLines);
+                    errors->filname = file;
+                    newErrors = errors->getUnfilteredErrorCount()-currErrors;
+
+                    if(newErrors > 0) {
+                        // this helps the user find where they went wrong
+                        printNote(newClass->note, "in generic `" + newClass->getName() + "`");
+                    }
                 }
             } // parseUtype() will handle unresolved error
         } // parseUtype() will handle unresolved error
@@ -11076,7 +11145,17 @@ void RuntimeEngine::traverseMethod(ClassObject *klass, Method *func, Ast* pAst) 
         if(utype == NULL)
             errors->createNewError(GENERIC, pAst, "I screwed up traversing your generic class please let me know!!");
         else {
+            bool arry = func->array;
             parseMethodReturnType(*utype, *func);
+
+            if(arry && !utype->utype.array) {
+                func->array = true;
+                // we are fine field will just stay an array
+            } else if(arry && utype->utype.array) {
+                // error
+                errors->createNewError(GENERIC, pAst, "Array-arrays are not supported.");
+            } else if(!arry) {
+            }
         }
     }
 
@@ -11092,10 +11171,22 @@ void RuntimeEngine::traverseField(ClassObject *klass, Field *field, Ast* pAst) {
     field->owner=klass;
 
     Expression* utype = klass->getGenericType(field->key);
+    Expression expr(NULL);
+
+    if(field->klass != NULL) {
+        List<Expression> utypes;
+        expr = parseUtype(field->ast);
+        utype = &expr;
+
+        utypes.push_back(*utype);
+        string typeName = expr.utype.klass->getName();
+        findAndCreateGenericClass(field->klass->getModuleName(), typeName, utypes, NULL, pAst);
+    }
 
     if(utype == NULL)
         errors->createNewError(GENERIC, pAst, "I screwed up traversing your generic class please let me know!!");
     else {
+
         field->type = utype->utype.type;
         if(utype->utype.type == CLASS) {
             field->klass = utype->utype.klass;
