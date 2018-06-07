@@ -27,7 +27,8 @@ public:
             note(note),
             isArray(false),
             nullType(false),
-            local(false)
+            local(false),
+            key("")
     {
         this->modifiers.init();
         this->modifiers.addAll(modifiers);
@@ -45,7 +46,8 @@ public:
             note(note),
             isArray(false),
             nullType(false),
-            local(false)
+            local(false),
+            key("")
     {
         this->modifiers.init();
         this->modifiers.addAll(modifiers);
@@ -62,7 +64,8 @@ public:
             isArray(false),
             nullType(false),
             local(false),
-            owner(NULL)
+            owner(NULL),
+            key("")
     {
     }
 
@@ -83,6 +86,7 @@ public:
         nullType = f.nullType;
         address=f.address;
         local=f.local;
+        key=f.key;
     }
 
     void free(){
@@ -92,6 +96,7 @@ public:
         name.clear();
         fullName.clear();
         modifiers.free();
+        key.clear();
     }
 
 //    bool isField() {
@@ -131,6 +136,7 @@ public:
     int64_t serial, address;
     string name, fullName;
     ClassObject* owner;
+    string key; // generic identifier
     List<AccessModifier> modifiers; // 3 max modifiers
 };
 

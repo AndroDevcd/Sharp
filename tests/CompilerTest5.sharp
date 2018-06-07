@@ -6,6 +6,7 @@ public class Start {
 
     public static def main(object[] args) : var {
         List<var> intArry; // TODO: empty modifiers after methods classes etc. before block call
+        List<object> objArry; // TODO: empty modifiers after methods classes etc. before block call
     }
 }
 
@@ -13,7 +14,7 @@ class List<T> {
     T[] data;
 
     public List() {
-        T data = new T[8];
+        data = new T[8];
     }
 
     public def add(T data) {

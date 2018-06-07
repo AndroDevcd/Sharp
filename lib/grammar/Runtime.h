@@ -496,7 +496,8 @@ public:
             stringMap(),
             panic(false),
             allMethods(),
-            staticMainInserts()
+            staticMainInserts(),
+            preprocessed(false)
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
@@ -519,6 +520,16 @@ public:
         for(unsigned int i = 0; i < lst.size(); i++)
         {
             lst.get(i).free();
+        }
+        lst.free();
+    }
+
+    template<class T>
+    static void freeListPtr(List<T> &lst)
+    {
+        for(unsigned int i = 0; i < lst.size(); i++)
+        {
+            lst.get(i)->free();
         }
         lst.free();
     }
@@ -549,18 +560,19 @@ public:
 
     static string invalidateUnderscores(string basic_string);
 
-    ClassObject *getClass(string module, string name, List<ClassObject> &classes);
+    ClassObject *getClass(string module, string name, List<ClassObject*> &classes);
 
     static int64_t get_low_bytes(double var);
 
     static Operator stringToOp(string op);
 
-    List<ClassObject> classes;
+    List<ClassObject*> classes;
 private:
+    bool preprocessed;
     List<Parser*> parsers;
     List<string> modules;
     List<string> sourceFiles;
-    List<ClassObject> generics;
+    List<ClassObject*> generics;
     List<KeyPair<string, List<string>>>  importMap;
     List<KeyPair<string, double>>  inline_map;
     List<string> stringMap;
@@ -607,9 +619,9 @@ private:
 
     ClassObject *addGlobalClassObject(string name, List<AccessModifier> &modifiers, Ast *pAst);
 
-    bool addClass(ClassObject klass);
+    bool addClass(ClassObject* klass);
 
-    bool classExists(string module, string name, List<ClassObject> &classes);
+    bool classExists(string module, string name, List<ClassObject*> &classes);
 
     void printNote(RuntimeNote &note, string msg);
 
@@ -1024,7 +1036,7 @@ private:
 
     ClassObject *addGlobalGenericClassObject(string name, List<AccessModifier> &modifiers, Ast *pAst);
 
-    bool addGeericClass(ClassObject klass);
+    bool addGeericClass(ClassObject* klass);
 
     void resolveGenericClassDecl(Ast *ast, bool inlineField);
 
@@ -1032,6 +1044,14 @@ private:
 
     void
     findAndCreateGenericClass(std::string module, string &klass, List<Expression> &utypes, ClassObject* parent, Ast *pAst);
+
+    void traverseGenericClass(ClassObject *klass, List<Expression> &utypes, Ast* pAst);
+
+    void traverseMethod(ClassObject *klass, Method *func, Ast* pAst);
+
+    void traverseField(ClassObject *klass, Field *field, Ast* pAst);
+
+    void analyzeGenericClass(ClassObject *generic);
 };
 
 

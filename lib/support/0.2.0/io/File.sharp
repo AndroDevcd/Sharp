@@ -234,7 +234,7 @@ public class File {
         }
         var result = fs.rename(self, dest);
         if(result==0) {
-            self.path = dest.getPath();
+            self->path = dest.getPath();
         }
         return result==0;
     }

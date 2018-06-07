@@ -34,7 +34,8 @@ public:
             address(-1),
             delegate(false),
             delegatePost(false),
-            delegateAddress(DELEGATE_ADDRESS_DEFAULT)
+            delegateAddress(DELEGATE_ADDRESS_DEFAULT),
+            key("")
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -62,7 +63,8 @@ public:
             address(-1),
             delegate(delegate),
             delegatePost(delegatePost),
-            delegateAddress(DELEGATE_ADDRESS_DEFAULT)
+            delegateAddress(DELEGATE_ADDRESS_DEFAULT),
+            key("")
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -92,7 +94,8 @@ public:
             address(-1),
             delegate(delegate),
             delegatePost(delegatePost),
-            delegateAddress(DELEGATE_ADDRESS_DEFAULT)
+            delegateAddress(DELEGATE_ADDRESS_DEFAULT),
+            key("")
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -129,6 +132,9 @@ public:
     }
     void free() {
         modifiers.free();
+        name.clear();
+        key.clear();
+        module.clear();
 
         for(unsigned int i = 0; i < params.size(); i++) {
             params.get(i).free();
@@ -159,12 +165,14 @@ public:
         this->name=func.name;
         this->module=func.module;
         this->params.addAll(func.params);
+        this->key=func.key;
     }
 
     RuntimeNote note;
     int64_t address, delegateAddress;
     ClassObject* klass;
     FieldType type;
+    string key; // generic identifier
     Assembler code;
     ClassObject* owner;
     long long sourceFileLink;

@@ -33,4 +33,4 @@ public class Runtime {
         System.println(              "    -release -r       generate a release build exe"                      );
         System.println(              "    --h -?            display this help message"                         );
     }
-};
+}

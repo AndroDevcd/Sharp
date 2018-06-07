@@ -13,6 +13,9 @@
 #include "OperatorOverload.h"
 #include "../util/KeyPair.h"
 
+class Expression;
+class Ast;
+
 class ClassObject {
 
 public:
@@ -29,7 +32,8 @@ public:
             fullName(""),
             address(-1),
             _interface(false),
-            _generic(false)
+            _generic(false),
+            processed(false)
     {
         functions.init();
         constructors.init();
@@ -51,7 +55,8 @@ public:
             fullName(""),
             address(-1),
             _interface(false),
-            _generic(false)
+            _generic(false),
+            processed(false)
     {
         functions.init();
         constructors.init();
@@ -75,7 +80,8 @@ public:
             fullName(""),
             address(-1),
             _interface(false),
-            _generic(false)
+            _generic(false),
+            processed(false)
     {
         functions.init();
         constructors.init();
@@ -87,6 +93,7 @@ public:
 
     AccessModifier getAccessModifier() { return modifier; }
     long getSerial() { return serial; }
+    void setAddress(long addr) { this->address=addr; }
     string getName() { return name; }
     string getModuleName() { return module_name; }
     ClassObject* getSuperClass() { return super; }
@@ -140,6 +147,8 @@ public:
         this->_interface=klass._interface;
         this->_generic=klass._generic;
         this->genericKeys.addAll(klass.genericKeys);
+        this->processed=klass.processed;
+        this->start = klass.start;
     }
 
     size_t constructorCount();
@@ -172,13 +181,19 @@ public:
     size_t childClassCount();
     ClassObject* getChildClass(int p);
     ClassObject* getChildClass(string name);
-    bool addChildClass(ClassObject constr);
+    bool addChildClass(ClassObject *constr);
     void free();
 
     bool isInterface() { return _interface; }
     void setIsInterface(bool _interface) { this->_interface=_interface; }
     bool isGeneric() { return _generic; }
+    bool isProcessed() { return processed; }
+    bool addGenericType(Expression* utype);
+    Expression* getGenericType(string &key);
+    void setIsProcessed(bool proccessed) { this->processed = proccessed; };
     void setIsGeneric(bool _generic) { this->_generic=_generic; }
+    void setAst(Ast* start) { this->start=start; }
+    Ast* getAst() { return start; }
     void addGenericKey(string key) { this->genericKeys.push_back(key); }
     bool hasGenericKey(string key) { return this->genericKeys.find(key); }
     long genericKeySize() { return this->genericKeys.size(); }
@@ -227,16 +242,19 @@ public:
 private:
     AccessModifier modifier;
     long serial;
+    Ast* start; // for parsing our generic class later
     string name;
     bool _interface, _generic;
     string fullName;
     string module_name;
+    bool processed;
     List<string> genericKeys;
+    List<Expression> genericMap;
     List<Method> constructors;
     List<Method> functions;
     List<OperatorOverload> overloads;
     List<Field> fields;
-    List<ClassObject> childClasses;
+    List<ClassObject*> childClasses;
     List<ClassObject*> interfaces;
     ClassObject *super, *base, *head;
 };

@@ -169,8 +169,8 @@ int _bootstrap(int argc, const char* argv[])
     List<native_string> includes;
     get_full_file_list(path, includes);
 
-//    for(long i = 0; i < includes.size(); i++)
-//        files.add(includes.get(i).str());
+    for(long i = 0; i < includes.size(); i++)
+        files.add(includes.get(i).str());
 
     for(unsigned int i = 0; i < files.size(); i++) {
         string& file = files.get(i);
@@ -406,6 +406,7 @@ void RuntimeEngine::compile()
         }
 
         // TODO: inforce const on variables
+        preprocessed = true;
         for(unsigned long i = 0; i < parsers.size(); i++) {
             Parser *p = parsers.get(i);
             activeParser = p;
@@ -493,17 +494,14 @@ void RuntimeEngine::setHeadClass(ClassObject *klass) {
 }
 
 void RuntimeEngine::addLine(Block& block, Ast *pAst) {
-    Scope* scope = currentScope();
 
-
-    scope->currentFunction->line_table.add(KeyPair<int64_t, long>(block.code.__asm64.size(), pAst->line));
+    currentScope()->currentFunction->line_table.add(KeyPair<int64_t, long>(block.code.__asm64.size(), pAst->line));
 }
 
 void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix return sign of new
-    Scope* scope = currentScope();
     Expression returnVal(pAst), value(pAst);
-    scope->reachable=false;
-    scope->last_statement=ast_return_stmnt;
+    currentScope()->reachable=false;
+    currentScope()->last_statement=ast_return_stmnt;
 
     if(pAst->hasSubAst(ast_value)) {
         value = parseValue(pAst->getSubAst(ast_value));
@@ -606,7 +604,7 @@ void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix
         }
     } else {
         value.type = expression_void;
-        if(scope->currentFunction->isConstructor) {
+        if(currentScope()->currentFunction->isConstructor) {
             block.code.push_i64(SET_Di(i64, op_MOVSL, 0));
             block.code.push_i64(SET_Ei(i64, op_RETURNOBJ));
         }
@@ -614,24 +612,23 @@ void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix
 
 
     block.code.push_i64(SET_Ei(i64, op_RET));
-    returnVal.type = methodReturntypeToExpressionType(scope->currentFunction);
+    returnVal.type = methodReturntypeToExpressionType(currentScope()->currentFunction);
     if(returnVal.type == expression_lclass) {
-        returnVal.utype.klass = scope->currentFunction->klass;
+        returnVal.utype.klass = currentScope()->currentFunction->klass;
         returnVal.utype.type = CLASS;
     }
-    returnVal.utype.array = scope->currentFunction->array;
+    returnVal.utype.array = currentScope()->currentFunction->array;
     equals(returnVal, value, ": Returning `" + value.typeToString() + "` from a function returning `" + returnVal.typeToString() + "`");
 }
 
 void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
-    Scope* scope = currentScope();
     Expression cond(pAst), out(pAst);
-    scope->uniqueLabelSerial++;
+    currentScope()->uniqueLabelSerial++;
     cond = parseExpression(pAst->getSubAst(ast_expression));
 
     string ifEndLabel, ifBlockEnd, ifCondEnd;
     stringstream ss;
-    ss << generic_label_id << scope->uniqueLabelSerial;
+    ss << generic_label_id << currentScope()->uniqueLabelSerial;
     ifEndLabel=ss.str(); ss.str("");
 
     if(!cond.inCmtRegister)
@@ -640,30 +637,30 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
         out.inject(cond);
     block.code.inject(block.code.size(), out.code);
 
-    ss << generic_label_id << "condition" << ++scope->uniqueLabelSerial;
+    ss << generic_label_id << "condition" << ++currentScope()->uniqueLabelSerial;
     ifCondEnd=ss.str(); ss.str("");
-    scope->label_map.add(KeyPair<string,int64_t>(ifCondEnd, __init_label_address(block.code)));
+    currentScope()->label_map.add(KeyPair<string,int64_t>(ifCondEnd, __init_label_address(block.code)));
 
 
     if(pAst->getSubAstCount() > 2) {
-        ss << generic_label_id << ++scope->uniqueLabelSerial;
+        ss << generic_label_id << ++currentScope()->uniqueLabelSerial;
         ifBlockEnd = ss.str(); ss.str("");
 
-        scope->addStore(ifBlockEnd, adx, 2, block.code,
+        currentScope()->addStore(ifBlockEnd, adx, 2, block.code,
                         pAst->getSubAst(ast_expression)->line, pAst->getSubAst(ast_expression)->col);
         block.code.push_i64(SET_Ei(i64, op_IFNE));
 
         parseBlock(pAst->getSubAst(ast_block), block);
 
-        if(!scope->reachable && (scope->last_statement==ast_return_stmnt
-                                 || scope->last_statement == ast_throw_statement)) {
-            scope->reachable=true;
+        if(!currentScope()->reachable && (currentScope()->last_statement==ast_return_stmnt
+                                 || currentScope()->last_statement == ast_throw_statement)) {
+            currentScope()->reachable=true;
         }
 
-        scope->label_map.add(KeyPair<string,int64_t>(ifBlockEnd, __init_label_address(block.code)));
+        currentScope()->label_map.add(KeyPair<string,int64_t>(ifBlockEnd, __init_label_address(block.code)));
 
 
-        scope->addBranch(ifEndLabel, 1, block.code, pAst->getSubAst(ast_expression)->line,
+        currentScope()->addBranch(ifEndLabel, 1, block.code, pAst->getSubAst(ast_expression)->line,
                          pAst->getSubAst(ast_expression)->col);
 
         Ast* ast;
@@ -676,29 +673,29 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
                     out.free();
                     pushExpressionToRegister(cond, out, cmt);
                     block.code.inject(block.code.size(), out.code);
-                    ss << generic_label_id << "condition" << ++scope->uniqueLabelSerial;
+                    ss << generic_label_id << "condition" << ++currentScope()->uniqueLabelSerial;
                     ifCondEnd=ss.str(); ss.str("");
-                    scope->label_map.add(KeyPair<string,int64_t>(ifCondEnd, __init_label_address(block.code)));
+                    currentScope()->label_map.add(KeyPair<string,int64_t>(ifCondEnd, __init_label_address(block.code)));
 
 
-                    ss << generic_label_id << ++scope->uniqueLabelSerial;
+                    ss << generic_label_id << ++currentScope()->uniqueLabelSerial;
                     ifBlockEnd = ss.str(); ss.str("");
 
-                    scope->addStore(ifBlockEnd, adx, 1, block.code,
+                    currentScope()->addStore(ifBlockEnd, adx, 1, block.code,
                                     ast->getSubAst(ast_expression)->line, ast->getSubAst(ast_expression)->col);
                     block.code.push_i64(SET_Ei(i64, op_IFNE));
 
 
                     parseBlock(ast->getSubAst(ast_block), block);
 
-                    scope->label_map.add(KeyPair<string,int64_t>(ifBlockEnd, __init_label_address(block.code)));
+                    currentScope()->label_map.add(KeyPair<string,int64_t>(ifBlockEnd, __init_label_address(block.code)));
 
-                    if(!scope->reachable && (scope->last_statement==ast_return_stmnt
-                                             || scope->last_statement == ast_throw_statement)) {
-                        scope->reachable=true;
+                    if(!currentScope()->reachable && (currentScope()->last_statement==ast_return_stmnt
+                                             || currentScope()->last_statement == ast_throw_statement)) {
+                        currentScope()->reachable=true;
                     }
 
-                    scope->addBranch(ifEndLabel, 1, block.code, ast->getSubAst(ast_expression)->line,
+                    currentScope()->addBranch(ifEndLabel, 1, block.code, ast->getSubAst(ast_expression)->line,
                                      ast->getSubAst(ast_expression)->col);
                     break;
                 case ast_else_statement:
@@ -707,19 +704,19 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
             }
         }
     } else {
-        scope->addStore(ifEndLabel, adx, 1, block.code, pAst->getSubAst(ast_expression)->line,
+        currentScope()->addStore(ifEndLabel, adx, 1, block.code, pAst->getSubAst(ast_expression)->line,
                         pAst->getSubAst(ast_expression)->col);
         block.code.push_i64(SET_Ei(i64, op_IFNE));
         parseBlock(pAst->getSubAst(ast_block), block);
 
-        if(!scope->reachable && (scope->last_statement==ast_return_stmnt
-                                 || scope->last_statement == ast_throw_statement)) {
-            scope->reachable=true;
+        if(!currentScope()->reachable && (currentScope()->last_statement==ast_return_stmnt
+                                 || currentScope()->last_statement == ast_throw_statement)) {
+            currentScope()->reachable=true;
         }
     }
 
 
-    scope->label_map.add(KeyPair<string,int64_t>(ifEndLabel, __init_label_address(block.code)));
+    currentScope()->label_map.add(KeyPair<string,int64_t>(ifEndLabel, __init_label_address(block.code)));
 }
 
 void RuntimeEngine::parseAssemblyBlock(Block& block, Ast* pAst) {
@@ -758,11 +755,10 @@ void RuntimeEngine::parseAssemblyStatement(Block& block, Ast* pAst) {
 }
 
 bool RuntimeEngine::validateLocalField(std::string name, Ast* pAst) {
-    Scope* scope = currentScope();
     KeyPair<int, Field>* field;
 
-    if((field = scope->getLocalField(name)) != NULL) {
-        if(scope->blocks == field->key) {
+    if((field = currentScope()->getLocalField(name)) != NULL) {
+        if(currentScope()->blocks == field->key) {
             // err redefinition of parameter
             errors->createNewError(DUPlICATE_DECLIRATION, pAst, " local variable `" + field->value.name + "`");
             return false;
@@ -804,10 +800,10 @@ void RuntimeEngine::parseUtypeArg(Ast *pAst, Scope *scope, Block &block, Express
             }
 
             KeyPair<int, Field> local;
-            local.set(scope->blocks, utypeArgToField(utypeArg));
-            local.value.address = scope->currentFunction->localVariables++;;
+            local.set(currentScope()->blocks, utypeArgToField(utypeArg));
+            local.value.address = currentScope()->currentFunction->localVariables++;;
             local.value.local=true;
-            scope->locals.push_back(local);
+            currentScope()->locals.push_back(local);
 
             Expression fieldExpr = fieldToExpression(pAst, local.value);
 
@@ -832,23 +828,22 @@ int64_t RuntimeEngine::get_label(string label) {
 }
 
 void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
-    Scope* scope = currentScope();
     Expression cond(pAst), iter(pAst);
-    scope->blocks++;
-    scope->loops++;
-    scope->uniqueLabelSerial++;
+    currentScope()->blocks++;
+    currentScope()->loops++;
+    currentScope()->uniqueLabelSerial++;
     stringstream ss;
     string forEndLabel, forBeginLabel;
 
-    parseUtypeArg(pAst, scope, block);
+    parseUtypeArg(pAst, currentScope(), block);
 
     ss.str("");
-    ss << for_label_begin_id << scope->uniqueLabelSerial;
+    ss << for_label_begin_id << currentScope()->uniqueLabelSerial;
     forBeginLabel=ss.str();
-    scope->label_map.add(KeyPair<std::string, int64_t>(forBeginLabel,__init_label_address(block.code)));
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(forBeginLabel,__init_label_address(block.code)));
 
     ss.str("");
-    ss << for_label_end_id << scope->uniqueLabelSerial;
+    ss << for_label_end_id << currentScope()->uniqueLabelSerial;
     forEndLabel=ss.str();
 
     if(pAst->hasSubAst(ast_for_expresion_cond)) {
@@ -867,14 +862,14 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
 
         block.code.inject(block.code.size(), out.code);
 
-        scope->addStore(forEndLabel, adx, 1, block.code, pAst->line, pAst->col);
+        currentScope()->addStore(forEndLabel, adx, 1, block.code, pAst->line, pAst->col);
         block.code.push_i64(SET_Ei(i64, op_IFNE));
     }
 
     parseBlock(pAst->getSubAst(ast_block), block);
 
-    if(!scope->reachable && scope->last_statement==ast_return_stmnt) {
-        scope->reachable=true;
+    if(!currentScope()->reachable && currentScope()->last_statement==ast_return_stmnt) {
+        currentScope()->reachable=true;
     }
 
     if(pAst->hasSubAst(ast_for_expresion_iter)) {
@@ -883,18 +878,18 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
     }
 
     block.code.push_i64(SET_Di(i64, op_GOTO, (get_label(forBeginLabel)+1)));
-    scope->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
 
     /**
      * This is for break statements
      */
     ss.str("");
-    ss << for_label_end_id << scope->loops;
+    ss << for_label_end_id << currentScope()->loops;
     forEndLabel=ss.str();
-    scope->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
-    scope->removeLocals(scope->blocks);
-    scope->blocks--;
-    scope->loops--;
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
+    currentScope()->removeLocals(currentScope()->blocks);
+    currentScope()->blocks--;
+    currentScope()->loops--;
 }
 
 void RuntimeEngine::getArrayValueOfExpression(Expression& expr, Expression& out) {
@@ -931,7 +926,7 @@ void RuntimeEngine::assignUtypeForeach(Ast *pAst, Scope *scope, Block &block, Ex
         KeyPair<string, ResolvedReference> utypeArg = parseUtypeArg(pAst->getSubAst(ast_utype_arg));
         Expression out(pAst);
 
-        KeyPair<int, Field>* local = scope->getLocalField(utypeArg.key);
+        KeyPair<int, Field>* local = currentScope()->getLocalField(utypeArg.key);
         Expression fieldExpr = fieldToExpression(pAst, local->value);
 
         token_entity operand("=", SINGLE, 0,0, ASSIGN);
@@ -941,14 +936,13 @@ void RuntimeEngine::assignUtypeForeach(Ast *pAst, Scope *scope, Block &block, Ex
 }
 
 void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
-    Scope* scope = currentScope();
-    scope->blocks++;
-    scope->loops++;
-    scope->uniqueLabelSerial++;
+    currentScope()->blocks++;
+    currentScope()->loops++;
+    currentScope()->uniqueLabelSerial++;
     string forBeginLabel, forEndLabel;
 
     Expression arryExpression(parseExpression(pAst->getSubAst(ast_expression))), out(pAst);
-    parseUtypeArg(pAst, scope, block, &arryExpression);
+    parseUtypeArg(pAst, currentScope(), block, &arryExpression);
 
     /*
      * This is stupid but we do this so we dont mess up the refrence with out local array expression variable
@@ -963,88 +957,86 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
     }
 
     stringstream ss;
-    ss << for_label_begin_id << scope->uniqueLabelSerial;
+    ss << for_label_begin_id << currentScope()->uniqueLabelSerial;
     forBeginLabel=ss.str();
 
     ss.str("");
-    ss << for_label_end_id << scope->uniqueLabelSerial;
+    ss << for_label_end_id << currentScope()->uniqueLabelSerial;
     forEndLabel=ss.str();
 
-    scope->label_map.add(KeyPair<std::string, int64_t>(forBeginLabel,__init_label_address(block.code)));
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(forBeginLabel,__init_label_address(block.code)));
 
     block.code.inject(block.code.size(), arryExpression.code);
 
     block.code.push_i64(SET_Ci(i64, op_SMOV, ebx,0, 0));
     block.code.push_i64(SET_Di(i64, op_SIZEOF, egx));
     block.code.push_i64(SET_Ci(i64, op_LT, ebx,0, egx));
-    scope->addStore(forEndLabel, adx, 1, block.code,
+    currentScope()->addStore(forEndLabel, adx, 1, block.code,
                     pAst->getSubAst(ast_block)->line, pAst->getSubAst(ast_block)->col);
     block.code.push_i64(SET_Ei(i64, op_IFNE));
     getArrayValueOfExpression(arryExpression, out);
-    assignUtypeForeach(pAst, scope, block, out);
+    assignUtypeForeach(pAst, currentScope(), block, out);
 
     parseBlock(pAst->getSubAst(ast_block), block);
 
-    if(!scope->reachable && scope->last_statement==ast_return_stmnt) {
-        scope->reachable=true;
+    if(!currentScope()->reachable && currentScope()->last_statement==ast_return_stmnt) {
+        currentScope()->reachable=true;
     }
 
     block.code.push_i64(SET_Ci(i64, op_SMOV, ebx,0, 0));
     block.code.push_i64(SET_Di(i64, op_INC, ebx));
     block.code.push_i64(SET_Ci(i64, op_SMOVR, ebx,0, 0));
     block.code.push_i64(SET_Di(i64, op_GOTO, (get_label(forBeginLabel)+1)));
-    scope->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
     block.code.push_i64(SET_Ei(i64, op_POP));
 
-    scope->removeLocals(scope->blocks);
-    scope->loops--;
-    scope->blocks--;
+    currentScope()->removeLocals(currentScope()->blocks);
+    currentScope()->loops--;
+    currentScope()->blocks--;
 }
 
 void RuntimeEngine::parseWhileStatement(Block& block, Ast* pAst) {
-    Scope* scope = currentScope();
-    scope->loops++;
+    currentScope()->loops++;
     string whileBeginLabel, whileEndLabel;
 
     Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out(pAst);
 
     stringstream ss;
-    ss << generic_label_id << ++scope->uniqueLabelSerial;
+    ss << generic_label_id << ++currentScope()->uniqueLabelSerial;
     whileBeginLabel=ss.str();
 
     ss.str("");
-    ss << generic_label_id << ++scope->uniqueLabelSerial;
+    ss << generic_label_id << ++currentScope()->uniqueLabelSerial;
     whileEndLabel=ss.str();
 
-    scope->label_map.add(KeyPair<std::string, int64_t>(whileBeginLabel,__init_label_address(block.code)));
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(whileBeginLabel,__init_label_address(block.code)));
     pushExpressionToRegister(cond, out, cmt);
     block.code.inject(block.code.size(), out.code);
 
-    scope->addStore(whileEndLabel, adx, 1, block.code,
+    currentScope()->addStore(whileEndLabel, adx, 1, block.code,
                     pAst->getSubAst(ast_expression)->line, pAst->getSubAst(ast_expression)->col);
     block.code.push_i64(SET_Ei(i64, op_IFNE));
 
     parseBlock(pAst->getSubAst(ast_block), block);
 
     block.code.push_i64(SET_Di(i64, op_GOTO, (get_label(whileBeginLabel)+1)));
-    scope->label_map.add(KeyPair<std::string, int64_t>(whileEndLabel,__init_label_address(block.code)));
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(whileEndLabel,__init_label_address(block.code)));
 }
 
 void RuntimeEngine::parseLockStatement(Block& block, Ast* pAst) {
-    Scope* scope = currentScope();
     string lockBeginLabel, lockEndLabel;
 
     Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out(pAst);
 
     stringstream ss;
-    ss << generic_label_id << ++scope->uniqueLabelSerial;
+    ss << generic_label_id << ++currentScope()->uniqueLabelSerial;
     lockBeginLabel=ss.str();
 
     ss.str("");
-    ss << generic_label_id << ++scope->uniqueLabelSerial;
+    ss << generic_label_id << ++currentScope()->uniqueLabelSerial;
     lockEndLabel=ss.str();
 
-    scope->label_map.add(KeyPair<std::string, int64_t>(lockBeginLabel,__init_label_address(block.code)));
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(lockBeginLabel,__init_label_address(block.code)));
     pushExpressionToPtr(cond, out, true);
     block.code.inject(block.code.size(), out.code);
 
@@ -1054,19 +1046,18 @@ void RuntimeEngine::parseLockStatement(Block& block, Ast* pAst) {
 
     block.code.inject(block.code.size(), out.code);
     block.code.push_i64(SET_Ei(i64, op_ULOCK));
-    scope->label_map.add(KeyPair<std::string, int64_t>(lockBeginLabel,__init_label_address(block.code)));
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(lockBeginLabel,__init_label_address(block.code)));
 }
 
 void RuntimeEngine::parseDoWhileStatement(Block& block, Ast* pAst) {
-    Scope* scope = currentScope();
     string whileBeginLabel;
-    scope->blocks++;
-    scope->loops++;
+    currentScope()->blocks++;
+    currentScope()->loops++;
 
     stringstream ss;
-    ss << generic_label_id << ++scope->uniqueLabelSerial;
+    ss << generic_label_id << ++currentScope()->uniqueLabelSerial;
     whileBeginLabel=ss.str();
-    scope->label_map.add(KeyPair<std::string, int64_t>(whileBeginLabel,__init_label_address(block.code)));
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(whileBeginLabel,__init_label_address(block.code)));
 
     parseBlock(pAst->getSubAst(ast_block), block);
 
@@ -1075,13 +1066,12 @@ void RuntimeEngine::parseDoWhileStatement(Block& block, Ast* pAst) {
     block.code.inject(block.code.size(), out.code);
 
 
-    scope->addStore(whileBeginLabel, adx, 1, block.code,
+    currentScope()->addStore(whileBeginLabel, adx, 1, block.code,
                     pAst->getSubAst(ast_expression)->line, pAst->getSubAst(ast_expression)->col);
     block.code.push_i64(SET_Ei(i64, op_IFE));
 }
 
 ClassObject* RuntimeEngine::parseCatchClause(Block &block, Ast *pAst, ExceptionTable et) {
-    Scope* scope = currentScope();
     ClassObject* klass = NULL;
 
     KeyPair<string, ResolvedReference> catcher = parseUtypeArg(pAst->getSubAst(ast_utype_arg_opt));
@@ -1093,11 +1083,11 @@ ClassObject* RuntimeEngine::parseCatchClause(Block &block, Ast *pAst, ExceptionT
 
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
                                    pAst->line, pAst->col);
-    Field f = Field(NULL, uniqueSerialId++, name, scope->klass, modCompat, note);
+    Field f = Field(NULL, uniqueSerialId++, name, currentScope()->klass, modCompat, note);
 
-    f.address = scope->currentFunction->localVariables;
+    f.address = currentScope()->currentFunction->localVariables;
     f.local=true;
-    scope->currentFunction->localVariables++;
+    currentScope()->currentFunction->localVariables++;
     if(catcher.value.type == CLASS) {
         f.klass = catcher.value.klass;
         f.type = CLASS;
@@ -1115,13 +1105,13 @@ ClassObject* RuntimeEngine::parseCatchClause(Block &block, Ast *pAst, ExceptionT
             errors->createNewError(COULD_NOT_RESOLVE, pAst, " `" + catcher.value.field->name + "`");
         }
 
-        scope->locals.add(KeyPair<int, Field>(scope->blocks, f));
-        field = scope->getLocalField(name);
+        currentScope()->locals.add(KeyPair<int, Field>(currentScope()->blocks, f));
+        field = currentScope()->getLocalField(name);
         et.local = f.address;
         et.className = f.klass == NULL ? "" : f.klass->getFullName();
         klass=f.klass;
         et.handler_pc = __init_label_address(block.code)+1;
-        scope->currentFunction->exceptions.push_back(et);
+        currentScope()->currentFunction->exceptions.push_back(et);
     }
 
     // TODO: add goto to finally block
@@ -1135,9 +1125,8 @@ void RuntimeEngine::parseFinallyBlock(Block& block, Ast* pAst) {
 }
 
 void RuntimeEngine::parseTryCatchStatement(Block& block, Ast* pAst) {
-    Scope* scope = currentScope();
     ExceptionTable et;
-    scope->trys++;
+    currentScope()->trys++;
     string catchEndLabel;
     List<ClassObject*> klasses;
     ClassObject* klass;
@@ -1148,13 +1137,13 @@ void RuntimeEngine::parseTryCatchStatement(Block& block, Ast* pAst) {
 
 
     if(pAst->hasSubAst(ast_catch_clause))
-        scope->reachable=true;
+        currentScope()->reachable=true;
 
     stringstream ss;
-    ss << try_label_end_id << ++scope->uniqueLabelSerial;
+    ss << try_label_end_id << ++currentScope()->uniqueLabelSerial;
     catchEndLabel = ss.str();
 
-    scope->addBranch(catchEndLabel, 1, block.code, pAst->getSubAst(ast_block)->line, pAst->getSubAst(ast_block)->col);
+    currentScope()->addBranch(catchEndLabel, 1, block.code, pAst->getSubAst(ast_block)->line, pAst->getSubAst(ast_block)->col);
 
     Ast* sub;
     for(unsigned int i = 1; i < pAst->getSubAstCount(); i++) {
@@ -1162,9 +1151,9 @@ void RuntimeEngine::parseTryCatchStatement(Block& block, Ast* pAst) {
 
         switch(sub->getType()) {
             case ast_catch_clause:
-                scope->blocks++;
+                currentScope()->blocks++;
                 klass = parseCatchClause(block, sub, et);
-                scope->addBranch(catchEndLabel, 1, block.code, sub->line, sub->col);
+                currentScope()->addBranch(catchEndLabel, 1, block.code, sub->line, sub->col);
 
                 if(klass != NULL) {
                     if(klasses.find(klass)) {
@@ -1173,8 +1162,8 @@ void RuntimeEngine::parseTryCatchStatement(Block& block, Ast* pAst) {
                         klasses.add(klass);
                 }
 
-                scope->removeLocals(scope->blocks);
-                scope->blocks--;
+                currentScope()->removeLocals(currentScope()->blocks);
+                currentScope()->blocks--;
                 break;
             case ast_finally_block:
                 break;
@@ -1185,7 +1174,7 @@ void RuntimeEngine::parseTryCatchStatement(Block& block, Ast* pAst) {
     block.code.push_i64(SET_Ei(i64, op_NOP));
 
     klasses.free();
-    scope->label_map.add(KeyPair<string,int64_t>(catchEndLabel, __init_label_address(block.code)));
+    currentScope()->label_map.add(KeyPair<string,int64_t>(catchEndLabel, __init_label_address(block.code)));
 
     if(pAst->hasSubAst(ast_finally_block)) {
         FinallyTable ft;
@@ -1195,10 +1184,10 @@ void RuntimeEngine::parseTryCatchStatement(Block& block, Ast* pAst) {
         parseFinallyBlock(block, pAst->getSubAst(ast_finally_block));
         ft.end_pc=__init_label_address(block.code);
 
-        scope->currentFunction->finallyBlocks.push_back(ft);
+        currentScope()->currentFunction->finallyBlocks.push_back(ft);
 
     }
-    scope->trys--;
+    currentScope()->trys--;
 }
 
 void RuntimeEngine::parseThrowStatement(Block& block, Ast* pAst) {
@@ -1241,12 +1230,11 @@ void RuntimeEngine::parseThrowStatement(Block& block, Ast* pAst) {
 // TODO: allow to be used with do while and while loops and foreach
 // also make statements after this unreachable
 void RuntimeEngine::parseContinueStatement(Block& block, Ast* pAst) {
-    Scope* scope = currentScope();
 
-    if(scope->loops > 0) {
+    if(currentScope()->loops > 0) {
         stringstream name;
-        name << for_label_begin_id << scope->loops;
-        scope->addBranch(name.str(), 0, block.code, pAst->line, pAst->col);
+        name << for_label_begin_id << currentScope()->loops;
+        currentScope()->addBranch(name.str(), 0, block.code, pAst->line, pAst->col);
     } else {
         // error not in loop
         errors->createNewError(GENERIC, pAst, "continue statement outside of loop");
@@ -1254,12 +1242,11 @@ void RuntimeEngine::parseContinueStatement(Block& block, Ast* pAst) {
 }
 
 void RuntimeEngine::parseBreakStatement(Block& block, Ast* pAst) {
-    Scope* scope = currentScope();
 
-    if(scope->loops > 0) {
+    if(currentScope()->loops > 0) {
         stringstream name;
-        name << for_label_end_id << scope->loops;
-        scope->addBranch(name.str(), 1, block.code, pAst->line, pAst->col);
+        name << for_label_end_id << currentScope()->loops;
+        currentScope()->addBranch(name.str(), 1, block.code, pAst->line, pAst->col);
     } else {
         // error not in loop
         errors->createNewError(GENERIC, pAst, "break statement outside of loop");
@@ -1267,10 +1254,9 @@ void RuntimeEngine::parseBreakStatement(Block& block, Ast* pAst) {
 }
 
 void RuntimeEngine::parseGotoStatement(Block& block, Ast* pAst) {
-    Scope* scope = currentScope();
     string label = pAst->getEntity(1).getToken();
 
-    scope->addBranch(label, 1, block.code, pAst->line, pAst->col);
+    currentScope()->addBranch(label, 1, block.code, pAst->line, pAst->col);
 }
 
 bool RuntimeEngine::label_exists(string label) {
@@ -1283,12 +1269,11 @@ bool RuntimeEngine::label_exists(string label) {
 }
 
 void RuntimeEngine::createLabel(string name, Assembler& code, int line, int col) {
-    Scope* scope = currentScope();
 
     if(label_exists(name)) {
         errors->createNewError(GENERIC, line, col, "redefinition of label `" + name + "`");
     } else {
-        scope->label_map.add(KeyPair<string, int64_t>(name, __init_label_address(code)));
+        currentScope()->label_map.add(KeyPair<string, int64_t>(name, __init_label_address(code)));
     }
 }
 
@@ -1300,7 +1285,6 @@ void RuntimeEngine::parseLabelDecl(Block& block, Ast* pAst) {
 }
 
 void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
-    Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=0, index = 1;
 
@@ -1314,14 +1298,16 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
 
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
                                    pAst->line, pAst->col);
-    Field f = Field(NULL, uniqueSerialId++, name, scope->klass, modifiers, note);
+    Field f = Field(NULL, uniqueSerialId++, name, currentScope()->klass, modifiers, note);
 
-    f.address = scope->currentFunction->localVariables++;
+    f.address = currentScope()->currentFunction->localVariables++;
     f.local=true;
     f.type = utype.utype.type;
-    f.owner = scope->klass;
+    f.owner = currentScope()->klass;
     if(utype.utype.type == CLASS) {
         f.klass = utype.utype.klass;
+    } else if(utype.utype.type == TYPEVOID) {
+        f.key = utype.utype.referenceName;
     }
 
     f.isArray = utype.utype.array;
@@ -1331,7 +1317,7 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
             errors->createNewError(COULD_NOT_RESOLVE, pAst, " `" + utype.utype.field->name + "`");
         }
 
-        scope->locals.add(KeyPair<int, Field>(scope->blocks, f));
+        currentScope()->locals.add(KeyPair<int, Field>(currentScope()->blocks, f));
         Expression fieldExpr = fieldToExpression(pAst, f);
 
 //        if(f.isObjectInMemory())
@@ -1455,8 +1441,7 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
 }
 
 void RuntimeEngine::parseBlock(Ast* pAst, Block& block) {
-    Scope* scope = currentScope();
-    scope->blocks++;
+    currentScope()->blocks++;
     currentBlock = &block;
 
     Ast* ast;
@@ -1472,24 +1457,23 @@ void RuntimeEngine::parseBlock(Ast* pAst, Block& block) {
         }
     }
 
-    scope->removeLocals(scope->blocks);
+    currentScope()->removeLocals(currentScope()->blocks);
 
-    scope->blocks--;
+    currentScope()->blocks--;
 }
 
 void RuntimeEngine::resolveAllBranches(Block& block) {
-    Scope *scope = currentScope();
 
     int64_t address, i64;
     BranchTable* bt;
-    for(unsigned int i = 0; i < scope->branches.size(); i++)
+    for(unsigned int i = 0; i < currentScope()->branches.size(); i++)
     {
-        bt = &scope->branches.get(i);
+        bt = &currentScope()->branches.get(i);
 
-        if((address = scope->getLabel(bt->labelName)) != -1) {
+        if((address = currentScope()->getLabel(bt->labelName)) != -1) {
 
             if(bt->store) {
-                scope->currentFunction->unique_address_table.add(bt->branch_pc); // add indirect address store for optimizer
+                currentScope()->currentFunction->unique_address_table.add(bt->branch_pc); // add indirect address store for optimizer
 
                 block.code.__asm64.replace(bt->branch_pc, SET_Di(i64, op_MOVI, (bt->_offset+address)));
                 block.code.__asm64.replace(bt->branch_pc+1, bt->registerWatchdog);
@@ -1501,7 +1485,7 @@ void RuntimeEngine::resolveAllBranches(Block& block) {
     }
 
 
-    freeList(scope->branches);
+    freeList(currentScope()->branches);
 }
 
 void RuntimeEngine::reorderFinallyBlocks(Method* method) {
@@ -1520,7 +1504,6 @@ void RuntimeEngine::reorderFinallyBlocks(Method* method) {
 }
 
 void RuntimeEngine::parseMethodDecl(Ast* pAst, bool delegate) {
-    Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=1;
 
@@ -1530,25 +1513,24 @@ void RuntimeEngine::parseMethodDecl(Ast* pAst, bool delegate) {
     string name =  pAst->getEntity(startpos+(delegate ? 3 : 0)).getToken();
     parseMethodParams(params, parseUtypeArgList(pAst->getSubAst(ast_utype_arg_list)), pAst->getSubAst(ast_utype_arg_list));
 
-    Method* method = scope->klass->getFunction(name, params);
+    Method* method = currentScope()->klass->getFunction(name, params);
 
     if(method != NULL) {
 
         if(method->isStatic()) {
-            addScope(Scope(STATIC_BLOCK, scope->klass, method));
+            addScope(Scope(STATIC_BLOCK, currentScope()->klass, method));
         } else {
-            addScope(Scope(INSTANCE_BLOCK, scope->klass, method));
+            addScope(Scope(INSTANCE_BLOCK, currentScope()->klass, method));
             method->localVariables++; // for reference to self
         }
 
         KeyPair<int, Field> local;
-        Scope* curr = currentScope();
         for(unsigned int i = 0; i < params.size(); i++) {
 
             params.get(i).field.address=method->localVariables++;
             params.get(i).field.local=true;
-            local.set(curr->blocks, params.get(i).field);
-            curr->locals.add(local);
+            local.set(currentScope()->blocks, params.get(i).field);
+            currentScope()->locals.add(local);
         }
 
         Block fblock;
@@ -1563,7 +1545,6 @@ void RuntimeEngine::parseMethodDecl(Ast* pAst, bool delegate) {
 }
 
 void RuntimeEngine::parseOperatorDecl(Ast* pAst) {
-    Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=1;
 
@@ -1573,25 +1554,24 @@ void RuntimeEngine::parseOperatorDecl(Ast* pAst) {
     string name =  pAst->getEntity(pAst->getEntityCount()-1).getToken();
     parseMethodParams(params, parseUtypeArgList(pAst->getSubAst(ast_utype_arg_list)), pAst->getSubAst(ast_utype_arg_list));
 
-    Method* method = scope->klass->getOverload(stringToOp(name), params);
+    Method* method = currentScope()->klass->getOverload(stringToOp(name), params);
 
     if(method != NULL) {
 
         if(method->isStatic()) {
-            addScope(Scope(STATIC_BLOCK, scope->klass, method));
+            addScope(Scope(STATIC_BLOCK, currentScope()->klass, method));
         } else {
-            addScope(Scope(INSTANCE_BLOCK, scope->klass, method));
+            addScope(Scope(INSTANCE_BLOCK, currentScope()->klass, method));
             method->localVariables++;
         }
 
         KeyPair<int, Field> local;
-        Scope* curr = currentScope();
         for(unsigned int i = 0; i < params.size(); i++) {
 
             params.get(i).field.address=method->localVariables++;
             params.get(i).field.local=true;
-            local.set(curr->blocks, params.get(i).field);
-            curr->locals.add(local);
+            local.set(currentScope()->blocks, params.get(i).field);
+            currentScope()->locals.add(local);
         }
 
         Block fblock;
@@ -1605,7 +1585,6 @@ void RuntimeEngine::parseOperatorDecl(Ast* pAst) {
 }
 
 void RuntimeEngine::parseConstructorDecl(Ast* pAst) {
-    Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=1;
 
@@ -1614,21 +1593,20 @@ void RuntimeEngine::parseConstructorDecl(Ast* pAst) {
     List<Param> params;
     parseMethodParams(params, parseUtypeArgList(pAst->getSubAst(ast_utype_arg_list)), pAst->getSubAst(ast_utype_arg_list));
 
-    Method* method = scope->klass->getConstructor(params);
+    Method* method = currentScope()->klass->getConstructor(params);
 
     if(method != NULL) {
-        addScope(Scope(INSTANCE_BLOCK, scope->klass, method));
+        addScope(Scope(INSTANCE_BLOCK, currentScope()->klass, method));
         method->localVariables++;
 
         KeyPair<int, Field> local;
-        Scope* curr = currentScope();
         for(unsigned int i = 0; i < params.size(); i++) {
 
             params.get(i).field.address=method->localVariables++;
             params.get(i).field.local=true;
 
-            local.set(curr->blocks, params.get(i).field);
-            curr->locals.add(local);
+            local.set(currentScope()->blocks, params.get(i).field);
+            currentScope()->locals.add(local);
         }
 
         Block fblock;
@@ -1643,7 +1621,6 @@ void RuntimeEngine::parseConstructorDecl(Ast* pAst) {
 }
 
 void RuntimeEngine::analyzeClassDecl(Ast *ast) {
-    Scope* scope = currentScope();
     Ast* block = ast->getSubAst(ast_block);
     List<AccessModifier> modifiers;
     ClassObject* klass;
@@ -1652,15 +1629,15 @@ void RuntimeEngine::analyzeClassDecl(Ast *ast) {
     parseAccessDecl(ast, modifiers, startpos);
     string className =  ast->getEntity(startpos).getToken();
 
-    if(scope->type == GLOBAL_SCOPE) {
+    if(currentScope()->type == GLOBAL_SCOPE) {
         klass = getClass(currentModule, className, classes);
 
         setHeadClass(klass);
     }
     else {
-        klass = scope->klass->getChildClass(className);
+        klass = currentScope()->klass->getChildClass(className);
 
-        klass->setSuperClass(scope->klass);
+        klass->setSuperClass(currentScope()->klass);
         setHeadClass(klass);
     }
 
@@ -1689,6 +1666,8 @@ void RuntimeEngine::analyzeClassDecl(Ast *ast) {
                 break;
             case ast_delegate_decl:
                 parseMethodDecl(ast, true);
+                break;
+            case ast_generic_class_decl: /* ignore */
                 break;
             default: {
                 stringstream err;
@@ -2209,7 +2188,6 @@ void RuntimeEngine::pushExpressionToStack(Expression& expression, Expression& ou
 }
 
 Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression &out) {
-    Scope* scope = currentScope();
     Method* fn = NULL;
     utype = utype->getSubAst(ast_utype);
     valueLst = valueLst->getSubAst(ast_value_list);
@@ -2259,14 +2237,14 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
     } else {
         // method or global macros
         if(ptr.singleRefrence()) {
-            if(scope->type == GLOBAL_SCOPE) {
+            if(currentScope()->type == GLOBAL_SCOPE) {
                 errors->createNewError(COULD_NOT_RESOLVE, valueLst->line, valueLst->col, " `" + ptr.referenceName +  paramsToString(params) + "`");
             } else {
                 
-                if((fn = scope->klass->getFunction(ptr.referenceName, params, true)) != NULL){}
-                else if((fn = scope->klass->getOverload(stringToOp(ptr.referenceName), params, true)) != NULL){}
-                else if(ptr.referenceName == scope->klass->getName() && (fn = scope->klass->getConstructor(params)) != NULL) {}
-                else if(scope->klass->getField(methodName, true) != NULL) {
+                if((fn = currentScope()->klass->getFunction(ptr.referenceName, params, true)) != NULL){}
+                else if((fn = currentScope()->klass->getOverload(stringToOp(ptr.referenceName), params, true)) != NULL){}
+                else if(ptr.referenceName == currentScope()->klass->getName() && (fn = currentScope()->klass->getConstructor(params)) != NULL) {}
+                else if(currentScope()->klass->getField(methodName, true) != NULL) {
                     errors->createNewError(GENERIC, valueLst->line, valueLst->col, " symbol `" + methodName + "` is a field");
                 }
                 else {
@@ -2286,13 +2264,13 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
 
 
     if(fn != NULL) {
-        if(!access && scope->type == STATIC_BLOCK && !fn->isStatic()) {
+        if(!access && currentScope()->type == STATIC_BLOCK && !fn->isStatic()) {
             errors->createNewError(GENERIC, valueLst->line, valueLst->col, " call to instance function `" + fn->getFullName() +  paramsToString(params) + "` inside static block");
         }
 
         verifyMethodAccess(fn, valueLst);
         if(!fn->isStatic()) {
-            if(access && scope->last_statement == ast_return_stmnt) {
+            if(access && currentScope()->last_statement == ast_return_stmnt) {
                 out.inject(expression);
                 pushAuthenticExpressionToStackNoInject(expression, out);
             } else {
@@ -2428,7 +2406,6 @@ void RuntimeEngine::pushExpressionToStackNoInject(Expression& expression, Expres
 
 
 Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast* pAst, Ast* pAst2, Expression& out, Expression& contextExpression) {
-    Scope* scope = currentScope();
     Method* fn = NULL;
 
     /* This is a naked utype so we dont haave to worry about brackets */
@@ -2988,7 +2965,6 @@ Expression RuntimeEngine::parsePrimaryExpression(Ast* ast) {
 }
 
 Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expression& out) {
-    Scope* scope = currentScope();
     Method* fn = NULL;
     utype = valueList->getSubAst(ast_utype);
     valueList = valueList->getSubAst(ast_value_list);
@@ -3005,15 +2981,15 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
 
     if(splitMethodUtype(methodName, ptr)) {
         // accessor
-        if(scope->type == GLOBAL_SCOPE) {
+        if(currentScope()->type == GLOBAL_SCOPE) {
 
             errors->createNewError(GENERIC, valueList->line, valueList->col,
                              "cannot get object `" + methodName + paramsToString(params) + "` from self at global scope");
         }
 
-        scope->self = true;
+        currentScope()->self = true;
         resolveUtype(ptr, expression, utype);
-        scope->self = false;
+        currentScope()->self = false;
         if(expression.type == expression_class || (expression.type == expression_field && expression.utype.field->type == CLASS)) {
             ClassObject* klass;
             if(expression.type == expression_class) {
@@ -3038,15 +3014,15 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
     } else {
         // method or macros
         if(ptr.singleRefrence()) {
-            if(scope->type == GLOBAL_SCOPE) {
+            if(currentScope()->type == GLOBAL_SCOPE) {
                 // must be macros
                 errors->createNewError(GENERIC, valueList->line, valueList->col,
                                  "cannot get object `" + ptr.referenceName + paramsToString(params) + "` from self at global scope");
             } else {
 
-                if((fn = scope->klass->getFunction(ptr.referenceName, params, true)) != NULL){}
-                else if((fn = scope->klass->getOverload(stringToOp(ptr.referenceName), params, true)) != NULL){}
-                else if(ptr.referenceName == scope->klass->getName() && (fn = scope->klass->getConstructor(params)) != NULL) {}
+                if((fn = currentScope()->klass->getFunction(ptr.referenceName, params, true)) != NULL){}
+                else if((fn = currentScope()->klass->getOverload(stringToOp(ptr.referenceName), params, true)) != NULL){}
+                else if(ptr.referenceName == currentScope()->klass->getName() && (fn = currentScope()->klass->getConstructor(params)) != NULL) {}
                 else {
                     if(stringToOp(methodName) != oper_UNDEFINED) methodName = "operator" + ptr.referenceName;
                     else methodName = ptr.referenceName;
@@ -3062,7 +3038,7 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
     }
 
     if(fn != NULL) {
-        if(!fn->isStatic() && scope->type == STATIC_BLOCK) {
+        if(!fn->isStatic() && currentScope()->type == STATIC_BLOCK) {
             errors->createNewError(GENERIC, utype->line, utype->col, "call to instance function in static context");
         }
 
@@ -3101,7 +3077,6 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
 }
 
 Expression RuntimeEngine::parseSelfDotNotationCall(Ast* pAst) {
-    Scope* scope = currentScope();
     string method_name="";
     Expression expression(pAst);
     Method* fn;
@@ -3122,9 +3097,9 @@ Expression RuntimeEngine::parseSelfDotNotationCall(Ast* pAst) {
             expression.type = expression_unresolved;
 
     } else {
-        scope->self = true;
+        currentScope()->self = true;
         expression = parseUtype(pAst);
-        scope->self = false;
+        currentScope()->self = false;
     }
 
     if(pAst->hasEntity(DOT)) {
@@ -3142,7 +3117,6 @@ Expression RuntimeEngine::parseSelfDotNotationCall(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseSelfExpression(Ast* pAst) {
-    Scope* scope = currentScope();
     Expression expression(pAst);
 
     if(pAst->hasEntity(PTR)) {
@@ -3152,11 +3126,11 @@ Expression RuntimeEngine::parseSelfExpression(Ast* pAst) {
         // self
         expression.type = expression_lclass;
         expression.utype.type = CLASS;
-        expression.utype.klass = scope->klass;
+        expression.utype.klass = currentScope()->klass;
         expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
     }
 
-    if(scope->type == GLOBAL_SCOPE || scope->type == STATIC_BLOCK) {
+    if(currentScope()->type == GLOBAL_SCOPE || currentScope()->type == STATIC_BLOCK) {
         errors->createNewError(GENERIC, pAst->line, pAst->col, "illegal reference to self in static context");
         expression.type = expression_unknown;
     }
@@ -3166,7 +3140,6 @@ Expression RuntimeEngine::parseSelfExpression(Ast* pAst) {
 }
 
 Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expression& out) {
-    Scope* scope = currentScope();
     Method* fn = NULL;
     utype = valueList->getSubAst(ast_utype);
     valueList = valueList->getSubAst(ast_value_list);
@@ -3182,14 +3155,14 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
     ptr = parseTypeIdentifier(utype);
     
     if(splitMethodUtype(methodName, ptr)) {
-        if(scope->type == GLOBAL_SCOPE) {
+        if(currentScope()->type == GLOBAL_SCOPE) {
             errors->createNewError(GENERIC, valueList->line, valueList->col,
                              "cannot get object `" + methodName + paramsToString(params) + "` from self at global scope");
         }
 
-        scope->base = true;
+        currentScope()->base = true;
         resolveUtype(ptr, expression, utype);
-        scope->base = false;
+        currentScope()->base = false;
         if(expression.type == expression_class || (expression.type == expression_field && expression.utype.field->type == CLASS)) {
             ClassObject* klass;
             if(expression.type == expression_class) {
@@ -3214,15 +3187,15 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
     } else {
         // method or macros
         if(ptr.singleRefrence()) {
-            if(scope->type == GLOBAL_SCOPE) {
+            if(currentScope()->type == GLOBAL_SCOPE) {
                 // must be macros
                 errors->createNewError(GENERIC, valueList->line, valueList->col,
                                  "cannot get object `" + ptr.referenceName + paramsToString(params) + "` from self at global scope");
             } else {
-                ClassObject* base, *start = scope->klass->getBaseClass();
+                ClassObject* base, *start = currentScope()->klass->getBaseClass();
 
                 if(start == NULL) {
-                    errors->createNewError(GENERIC, utype->getSubAst(ast_type_identifier)->line, utype->getSubAst(ast_type_identifier)->col, "class `" + scope->klass->getFullName() + "` does not inherit a base class");
+                    errors->createNewError(GENERIC, utype->getSubAst(ast_type_identifier)->line, utype->getSubAst(ast_type_identifier)->col, "class `" + currentScope()->klass->getFullName() + "` does not inherit a base class");
                     return NULL;
                 }
 
@@ -3256,7 +3229,7 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
 
 
     if(fn != NULL) {
-        if(!fn->isStatic() && scope->type == STATIC_BLOCK) {
+        if(!fn->isStatic() && currentScope()->type == STATIC_BLOCK) {
             errors->createNewError(GENERIC, utype->line, utype->col, "call to instance function in static context");
         }
 
@@ -3295,7 +3268,6 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
 }
 
 Expression RuntimeEngine::parseBaseDotNotationCall(Ast* pAst) {
-    Scope* scope = currentScope();
     pAst = pAst->getSubAst(ast_dotnotation_call_expr);
     Expression expression(pAst);
     string method_name="";
@@ -3317,9 +3289,9 @@ Expression RuntimeEngine::parseBaseDotNotationCall(Ast* pAst) {
             expression.type = expression_unresolved;
 
     } else {
-        scope->base = true;
+        currentScope()->base = true;
         expression = parseUtype(pAst);
-        scope->base = false;
+        currentScope()->base = false;
     }
 
     if(pAst->hasEntity(DOT)) {
@@ -3336,7 +3308,6 @@ Expression RuntimeEngine::parseBaseDotNotationCall(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parseBaseExpression(Ast* pAst) {
-    Scope* scope = currentScope();
     Expression expression(pAst);
 
     expression = parseBaseDotNotationCall(pAst);
@@ -3440,7 +3411,6 @@ void RuntimeEngine::parseNewArrayExpression(Expression& out, Expression& utype, 
 }
 
 Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
-    Scope* scope = currentScope();
     Expression expression(pAst), utype(pAst);
     List<Expression> expressions;
     List<Param> params;
@@ -4036,7 +4006,6 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
 
 // TODO: add native support for casting
 void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, Expression& out) {
-    Scope* scope = currentScope();
 
     if(expression.isArray() != utype.isArray() && expression.trueType() != OBJECT) {
         errors->createNewError(INCOMPATIBLE_TYPES, utype.link->line, utype.link->col, "; cannot cast `" + expression.typeToString() + "` to `" + utype.typeToString() + "`");
@@ -6701,11 +6670,10 @@ Expression RuntimeEngine::parseValue(Ast *ast) {
 }
 
 Expression RuntimeEngine::fieldToExpression(Ast *pAst, string name) {
-    Scope* scope=currentScope();
     Expression fieldExpr(pAst);
     KeyPair<int, Field>* field;
 
-    if((field =scope->getLocalField(name)) == NULL)
+    if((field =currentScope()->getLocalField(name)) == NULL)
         return fieldExpr;
 
     fieldExpr.type = expression_field;
@@ -6716,7 +6684,6 @@ Expression RuntimeEngine::fieldToExpression(Ast *pAst, string name) {
 }
 
 Expression RuntimeEngine::fieldToExpression(Ast *pAst, Field& field) {
-    Scope* scope=currentScope();
     Expression fieldExpr(pAst);
 
     fieldExpr.type = expression_field;
@@ -6745,7 +6712,6 @@ void RuntimeEngine::initalizeNewClass(ClassObject* klass, Expression& out) {
 }
 
 void RuntimeEngine::analyzeVarDecl(Ast *ast) {
-    Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=0;
     token_entity operand;
@@ -6754,7 +6720,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
 
     parse_var:
     string name =  ast->getEntity(startpos).getToken();
-    Field* field = scope->klass->getField(name);
+    Field* field = currentScope()->klass->getField(name);
 
     if(ast->hasSubAst(ast_value)) {
         Expression expression = parseValue(ast->getSubAst(ast_value)), out(ast);
@@ -6788,8 +6754,8 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
                 /*
                  * We want to inject the value into all constructors
                  */
-                for(unsigned int i = 0; i < scope->klass->constructorCount(); i++) {
-                    Method* method = scope->klass->getConstructor(i);
+                for(unsigned int i = 0; i < currentScope()->klass->constructorCount(); i++) {
+                    Method* method = currentScope()->klass->getConstructor(i);
                     method->code.inject(method->code.size(), out.code);
                 }
             }
@@ -7383,7 +7349,6 @@ ClassObject* RuntimeEngine::resolveClassRefrence(Ast *ast, ReferencePointer &ptr
 }
 
 ClassObject *RuntimeEngine::parseBaseClass(Ast *ast, int startpos) {
-    Scope* scope = currentScope();
     ClassObject* klass=NULL;
 
     if(startpos >= ast->getEntityCount()) {
@@ -7393,10 +7358,10 @@ ClassObject *RuntimeEngine::parseBaseClass(Ast *ast, int startpos) {
         klass = resolveClassRefrence(ast, ptr);
 
         if(klass != NULL) {
-            if((scope->klass->getHeadClass() != NULL && scope->klass->getHeadClass()->isCurcular(klass)) ||
-               scope->klass->match(klass) || klass->match(scope->klass->getHeadClass())) {
+            if((currentScope()->klass->getHeadClass() != NULL && currentScope()->klass->getHeadClass()->isCurcular(klass)) ||
+               currentScope()->klass->match(klass) || klass->match(currentScope()->klass->getHeadClass())) {
                 errors->createNewError(GENERIC, ast->getSubAst(0)->line, ast->getSubAst(0)->col,
-                                 "cyclic dependency of class `" + ptr.referenceName + "` in parent class `" + scope->klass->getName() + "`");
+                                 "cyclic dependency of class `" + ptr.referenceName + "` in parent class `" + currentScope()->klass->getName() + "`");
             }
         }
     }
@@ -7647,7 +7612,7 @@ void RuntimeEngine::resolveSelfUtype(Scope* scope, ReferencePointer& reference, 
         ClassObject* klass=NULL;
         Field* field=NULL;
 
-        if(scope->type == GLOBAL_SCOPE) {
+        if(currentScope()->type == GLOBAL_SCOPE) {
             /* cannot get self from global refrence */
             errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line,
                              ast->getSubAst(ast_type_identifier)->col,
@@ -7657,12 +7622,12 @@ void RuntimeEngine::resolveSelfUtype(Scope* scope, ReferencePointer& reference, 
             expression.utype.referenceName = reference.referenceName;
             expression.type = expression_unresolved;
         } else {
-            if(scope->type == STATIC_BLOCK) {
+            if(currentScope()->type == STATIC_BLOCK) {
                 errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, "cannot get object `"
                                                 + reference.referenceName + "` from self in static context");
             }
 
-            if((field = scope->klass->getField(reference.referenceName)) != NULL) {
+            if((field = currentScope()->klass->getField(reference.referenceName)) != NULL) {
                 // field?
                 expression.utype.type = CLASSFIELD;
                 expression.utype.field = field;
@@ -7701,7 +7666,7 @@ void RuntimeEngine::resolveSelfUtype(Scope* scope, ReferencePointer& reference, 
         Field* field=NULL;
         string starter_name = reference.classHeiarchy.at(0);
 
-        if(scope->type == GLOBAL_SCOPE) {
+        if(currentScope()->type == GLOBAL_SCOPE) {
             /* cannot get self from global refrence */
             errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, "cannot get object `"
                                             + starter_name + "` from instance at global scope");
@@ -7720,7 +7685,7 @@ void RuntimeEngine::resolveSelfUtype(Scope* scope, ReferencePointer& reference, 
                 return;
             }
 
-            if(scope->type == STATIC_BLOCK) {
+            if(currentScope()->type == STATIC_BLOCK) {
                 errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, "cannot get object `" + starter_name + "` from self in static context");
 
                 expression.utype.type = UNDEFINED;
@@ -7728,7 +7693,7 @@ void RuntimeEngine::resolveSelfUtype(Scope* scope, ReferencePointer& reference, 
                 expression.type = expression_unresolved;
             } else {
 
-                if((field = scope->klass->getField(starter_name)) != NULL) {
+                if((field = currentScope()->klass->getField(starter_name)) != NULL) {
                     if(field->isStatic())
                         expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
                     else
@@ -7780,12 +7745,12 @@ ResolvedReference RuntimeEngine::getBaseClassOrField(string name, ClassObject* s
 }
 
 void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, Expression& expression, Ast* ast) {
-    ClassObject* klass = scope->klass, *base;
+    ClassObject* klass = currentScope()->klass, *base;
     Field* field;
     ResolvedReference ref;
 
-    if(scope->klass->getBaseClass() == NULL) {
-        errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, "class `" + scope->klass->getFullName() + "` does not inherit a base class");
+    if(currentScope()->klass->getBaseClass() == NULL) {
+        errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, "class `" + currentScope()->klass->getFullName() + "` does not inherit a base class");
         expression.utype.type = UNDEFINED;
         expression.utype.referenceName = reference.toString();
         expression.type = expression_unresolved;
@@ -7807,12 +7772,12 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                     expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
                 expression.code.push_i64(SET_Di(i64, op_MOVN, expression.utype.field->address));
             } else {
-                if(scope->type == STATIC_BLOCK) {
+                if(currentScope()->type == STATIC_BLOCK) {
                     errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, "cannot get object `" + ref.klass->getName()
                                                                                                                                          + "` from instance in static context");
                 }
 
-                if(scope->klass->hasBaseClass(ref.klass)) {
+                if(currentScope()->klass->hasBaseClass(ref.klass)) {
                     // base class
                     expression.utype.type = CLASS;
                     expression.utype.klass = ref.klass;
@@ -7823,7 +7788,7 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                     // klass provided is not a base
                     errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, "class `" + reference.referenceName + "`" +
                                                                                                                                      (reference.module == "" ? "" : " in module {" + reference.module + "}")
-                                                                                                                                     + " is not a base class of class " + scope->klass->getName());
+                                                                                                                                     + " is not a base class of class " + currentScope()->klass->getName());
                     expression.utype.type = UNDEFINED;
                     expression.utype.referenceName = reference.toString();
                     expression.type = expression_unresolved;
@@ -7840,7 +7805,7 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
         base = tryClassResolve(reference.module, reference.referenceName, ast);
 
         if(base != NULL) {
-            if(scope->klass->hasBaseClass(base)) {
+            if(currentScope()->klass->hasBaseClass(base)) {
                 // base class
 
                 expression.utype.type = CLASS;
@@ -7852,7 +7817,7 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                 // klass provided is not a base
                 errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, "class `" + reference.referenceName + "`" +
                                                                                                                                  (reference.module == "" ? "" : " in module {" + reference.module + "}")
-                                                                                                                                 + " is not a base class of class " + scope->klass->getName());
+                                                                                                                                 + " is not a base class of class " + currentScope()->klass->getName());
                 expression.utype.type = UNDEFINED;
                 expression.utype.referenceName = reference.toString();
                 expression.type = expression_unresolved;
@@ -7876,13 +7841,13 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
             if(reference.module != "") {
                 // first must be class
                 if((klass = tryClassResolve(reference.module, starter_name, ast)) != NULL) {
-                    if(scope->klass->hasBaseClass(klass)) {
+                    if(currentScope()->klass->hasBaseClass(klass)) {
                         resolveClassHeiarchy(klass, reference, expression, ast);
                     } else {
                         // klass provided is not a base
                         errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, "class `" + starter_name + "`" +
                                                                                                                                          (reference.module == "" ? "" : " in module {" + reference.module + "}")
-                                                                                                                                         + " is not a base class of class " + scope->klass->getName());
+                                                                                                                                         + " is not a base class of class " + currentScope()->klass->getName());
                         expression.utype.type = UNDEFINED;
                         expression.utype.referenceName = reference.toString();
                         expression.type = expression_unresolved;
@@ -7913,13 +7878,13 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                     }
                 } else {
                     if((klass = getClass(reference.module, starter_name, classes)) != NULL) {
-                        if(scope->klass->hasBaseClass(klass)) {
+                        if(currentScope()->klass->hasBaseClass(klass)) {
 
                             resolveClassHeiarchy(klass, reference, expression, ast);
                         } else {
                             errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, "class `" + starter_name + "`" +
                                                                                                                                              (reference.module == "" ? "" : " in module {" + reference.module + "}")
-                                                                                                                                             + " is not a base class of class " + scope->klass->getName());
+                                                                                                                                             + " is not a base class of class " + currentScope()->klass->getName());
                             expression.utype.type = UNDEFINED;
                             expression.utype.referenceName = reference.toString();
                             expression.type = expression_unresolved;
@@ -7944,20 +7909,19 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
 }
 
 void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& expression, Ast* pAst) {
-    Scope* scope = currentScope();
     int64_t i64;
 
     expression.link = pAst;
-    if(scope->self) {
-        resolveSelfUtype(scope, refrence, expression, pAst);
-    } else if(scope->base) {
-        resolveBaseUtype(scope, refrence, expression, pAst);
+    if(currentScope()->self) {
+        resolveSelfUtype(currentScope(), refrence, expression, pAst);
+    } else if(currentScope()->base) {
+        resolveBaseUtype(currentScope(), refrence, expression, pAst);
     } else {
         if(refrence.singleRefrence()) {
             ClassObject* klass=NULL;
             Field* field=NULL;
 
-            if(scope->type == GLOBAL_SCOPE) {
+            if(currentScope()->type == GLOBAL_SCOPE) {
 
                 if((klass = tryClassResolve(refrence.module, refrence.referenceName, pAst)) != NULL) {
                     expression.utype.type = CLASS;
@@ -7976,8 +7940,8 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
             } else {
 
                 // scope_class? | scope_instance_block? | scope_static_block?
-                if(scope->type != CLASS_SCOPE && scope->getLocalField(refrence.referenceName) != NULL) {
-                    field = &scope->getLocalField(refrence.referenceName)->value;
+                if(currentScope()->type != CLASS_SCOPE && currentScope()->getLocalField(refrence.referenceName) != NULL) {
+                    field = &currentScope()->getLocalField(refrence.referenceName)->value;
                     expression.utype.type = CLASSFIELD;
                     expression.utype.field = field;
                     expression.type = expression_field;
@@ -7991,9 +7955,9 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     else
                         expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
                 }
-                else if((field = scope->klass->getField(refrence.referenceName, true)) != NULL) {
+                else if((field = currentScope()->klass->getField(refrence.referenceName, true)) != NULL) {
                     // field?
-                    if(scope->type == STATIC_BLOCK && !field->isStatic()) {
+                    if(currentScope()->type == STATIC_BLOCK && !field->isStatic()) {
                         errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col,
                                          "cannot get object `" + refrence.referenceName + "` from self in static context");
                     }
@@ -8053,7 +8017,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
             Field* field=NULL;
             string starter_name = refrence.classHeiarchy.at(0);
 
-            if(scope->type == GLOBAL_SCOPE) {
+            if(currentScope()->type == GLOBAL_SCOPE) {
 
                 // class?
                 if((klass = tryClassResolve(refrence.module, starter_name, pAst)) != NULL) {
@@ -8085,8 +8049,8 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     }
                 }
 
-                if(scope->type != CLASS_SCOPE && scope->getLocalField(starter_name) != NULL) {
-                    field = &scope->getLocalField(starter_name)->value;
+                if(currentScope()->type != CLASS_SCOPE && currentScope()->getLocalField(starter_name) != NULL) {
+                    field = &currentScope()->getLocalField(starter_name)->value;
 
                     /**
                      * You cannot access a var in this manner because it
@@ -8101,8 +8065,8 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     resolveFieldHeiarchy(field, refrence, expression, pAst);
                     return;
                 }
-                else if((field = scope->klass->getField(starter_name, true)) != NULL) {
-                    if(scope->type == STATIC_BLOCK) {
+                else if((field = currentScope()->klass->getField(starter_name, true)) != NULL) {
+                    if(currentScope()->type == STATIC_BLOCK) {
                         errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col,
                                                "cannot get object `" + starter_name + "` from self in static context");
                     }
@@ -8119,7 +8083,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     if((klass = tryClassResolve(refrence.module, starter_name, pAst)) != NULL) {
                         resolveClassHeiarchy(klass, refrence, expression, pAst);
                         return;
-                    } else if((klass = scope->klass->getChildClass(starter_name)) != NULL) {
+                    } else if((klass = currentScope()->klass->getChildClass(starter_name)) != NULL) {
                         resolveClassHeiarchy(klass, refrence, expression, pAst);
                         return;
                     } else {
@@ -8154,7 +8118,29 @@ Expression RuntimeEngine::parseUtype(Ast* ast) {
         ptr.free();
         return expression;
     } else if(ptr.singleRefrence() && currentScope()->klass->isGeneric() && currentScope()->klass->hasGenericKey(ptr.referenceName)) {
+        if(currentScope()->klass->isProcessed()) {
+            expression = *currentScope()->klass->getGenericType(ptr.referenceName);
+            bool isArray = false;
+            if(ast->hasEntity(LEFTBRACE) && ast->hasEntity(RIGHTBRACE)) {
+                isArray = true;
+            }
+
+            if(expression.isArray() && !isArray) {
+                // we are fine field will just stay an array
+            } else if(expression.isArray() && isArray) {
+                // error
+                errors->createNewError(GENERIC, ast, "Array-arrays are not supported.");
+            } else if(isArray) {
+                expression.utype.array = true;
+            }
+
+            expression.link = ast;
+            ptr.free();
+            return expression;
+        }
+
         expression.type = expression_generic;
+        expression.utype.type = TYPEGENERIC;
         expression.utype.referenceName = ptr.toString();
 
         if(ast->hasEntity(LEFTBRACE) && ast->hasEntity(RIGHTBRACE)) {
@@ -8179,7 +8165,6 @@ Expression RuntimeEngine::parseUtype(Ast* ast) {
 }
 
 void RuntimeEngine::resolveVarDecl(Ast* ast, bool inlineField) {
-    Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=0;
 
@@ -8188,18 +8173,23 @@ void RuntimeEngine::resolveVarDecl(Ast* ast, bool inlineField) {
     Expression expression = parseUtype(ast);
     parse_var:
     string name =  ast->getEntity(startpos).getToken();
-    Field* field = scope->klass->getField(name);
+    Field* field = currentScope()->klass->getField(name);
     if(expression.utype.type == CLASS || expression.utype.type==CLASSFIELD) {
         field->klass = expression.utype.klass;
         field->type = CLASS;
     } else if(expression.utype.type == VAR) {
         field->type = VAR;
+    } else if(expression.utype.type == TYPEGENERIC) {
+        field->type = TYPEGENERIC;
+        field->key = expression.utype.referenceName;
+    } else if(expression.utype.type == OBJECT) {
+        field->type = OBJECT;
     } else {
         field->type = UNDEFINED;
     }
 
     field->isArray = expression.utype.array;
-    field->owner = scope->klass;
+    field->owner = currentScope()->klass;
     field->address = field->owner->getFieldAddress(field);
 
     if(inlineField && ast->hasSubAst(ast_value)) {
@@ -8288,6 +8278,10 @@ Field RuntimeEngine::fieldMapToField(string param_name, ResolvedReference& utype
     } else if(utype.type == OBJECT) {
         field.type = OBJECT;
         field.modifiers.add(PUBLIC);
+    } else if(utype.type == TYPEGENERIC) {
+        field.type = TYPEGENERIC;
+        field.key = utype.referenceName;
+        field.modifiers.add(PUBLIC);
     }
     else {
         field.type = UNDEFINED;
@@ -8347,6 +8341,7 @@ void RuntimeEngine::parseMethodReturnType(Expression& expression, Method& method
         method.klass = expression.utype.klass;
     } else if(expression.type == expression_generic) {
         method.type = TYPEGENERIC;
+        method.key = expression.utype.referenceName;
     } else if(expression.type == expression_native) {
         method.type = expression.utype.type;
     } else {
@@ -8356,7 +8351,6 @@ void RuntimeEngine::parseMethodReturnType(Expression& expression, Method& method
 }
 
 void RuntimeEngine::resolveMethodDecl(Ast* ast) {
-    Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=1;
 
@@ -8374,23 +8368,23 @@ void RuntimeEngine::resolveMethodDecl(Ast* ast) {
                                    ast->line, ast->col);
 
     Expression utype(ast);
-    Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
+    Method method = Method(name, currentModule, currentScope()->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
     if(ast->hasSubAst(ast_method_return_type)) {
         utype = parseUtype(ast->getSubAst(ast_method_return_type));
         parseMethodReturnType(utype, method);
     } else
         method.type = TYPEVOID;
 
-    method.address = methods++;
-    if(!scope->klass->addFunction(method)) {
+    if(!currentScope()->klass->isGeneric())
+        method.address = methods++;
+    if(!currentScope()->klass->addFunction(method)) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                "function `" + name + "` is already defined in the scope");
-        printNote(scope->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
+        printNote(currentScope()->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
     }
 }
 
 void RuntimeEngine::resolveDelegateDecl(Ast* ast) {
-    Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=1;
 
@@ -8408,23 +8402,23 @@ void RuntimeEngine::resolveDelegateDecl(Ast* ast) {
                                    ast->line, ast->col);
 
     Expression utype(ast);
-    Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), true, false);
+    Method method = Method(name, currentModule, currentScope()->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), true, false);
     if(ast->hasSubAst(ast_method_return_type)) {
         utype = parseUtype(ast->getSubAst(ast_method_return_type));
         parseMethodReturnType(utype, method);
     } else
         method.type = TYPEVOID;
 
-    method.address = methods++;
-    if(!scope->klass->addFunction(method)) {
+    if(!currentScope()->klass->isGeneric())
+        method.address = methods++;
+    if(!currentScope()->klass->addFunction(method)) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                      "function `" + name + "` is already defined in the scope");
-        printNote(scope->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
+        printNote(currentScope()->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
     }
 }
 
 void RuntimeEngine::resolveDelegatePostDecl(Ast* ast) {
-    Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=1;
 
@@ -8442,18 +8436,19 @@ void RuntimeEngine::resolveDelegatePostDecl(Ast* ast) {
                                    ast->line, ast->col);
 
     Expression utype(ast);
-    Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, true);
+    Method method = Method(name, currentModule, currentScope()->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, true);
     if(ast->hasSubAst(ast_method_return_type)) {
         utype = parseUtype(ast->getSubAst(ast_method_return_type));
         parseMethodReturnType(utype, method);
     } else
         method.type = TYPEVOID;
 
-    method.address = uniqueDelegateId++;
-    if(!scope->klass->addFunction(method)) {
+    if(!currentScope()->klass->isGeneric())
+        method.address = uniqueDelegateId++;
+    if(!currentScope()->klass->addFunction(method)) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                      "function `" + name + "` is already defined in the scope");
-        printNote(scope->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
+        printNote(currentScope()->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
     }
 }
 
@@ -8510,7 +8505,6 @@ Operator RuntimeEngine::stringToOp(string op) {
 }
 
 void RuntimeEngine::resolveOperatorDecl(Ast* ast) {
-    Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=2;
 
@@ -8528,19 +8522,20 @@ void RuntimeEngine::resolveOperatorDecl(Ast* ast) {
                                    ast->line, ast->col);
 
     Expression utype(ast);
-    OperatorOverload operatorOverload = OperatorOverload(note, scope->klass, params, modifiers, NULL, stringToOp(op), sourceFiles.indexof(activeParser->sourcefile), op);
+    OperatorOverload operatorOverload = OperatorOverload(note, currentScope()->klass, params, modifiers, NULL, stringToOp(op), sourceFiles.indexof(activeParser->sourcefile), op);
     if(ast->hasSubAst(ast_method_return_type)) {
         utype = parseUtype(ast->getSubAst(ast_method_return_type));
         parseMethodReturnType(utype, operatorOverload);
     } else
         operatorOverload.type = TYPEVOID;
 
-    operatorOverload.address = methods++;
+    if(!currentScope()->klass->isGeneric())
+        operatorOverload.address = methods++;
 
-    if(!scope->klass->addOperatorOverload(operatorOverload)) {
+    if(!currentScope()->klass->addOperatorOverload(operatorOverload)) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                "function `" + op + "` is already defined in the scope");
-        printNote(scope->klass->getOverload(stringToOp(op), params)->note, "function `" + op + "` previously defined here");
+        printNote(currentScope()->klass->getOverload(stringToOp(op), params)->note, "function `" + op + "` previously defined here");
     }
 }
 
@@ -8557,7 +8552,6 @@ void RuntimeEngine::parsConstructorAccessModifiers(List<AccessModifier> &modifie
 }
 
 void RuntimeEngine::resolveConstructorDecl(Ast* ast) {
-    Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=0;
 
@@ -8571,20 +8565,22 @@ void RuntimeEngine::resolveConstructorDecl(Ast* ast) {
     List<Param> params;
     string name = ast->getEntity(startpos).getToken();
 
-    if(name == scope->klass->getName()) {
+    if(name == currentScope()->klass->getName()) {
         parseMethodParams(params, parseUtypeArgList(ast->getSubAst(ast_utype_arg_list)), ast->getSubAst(ast_utype_arg_list));
         RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                        ast->line, ast->col);
 
-        Method method = Method(name, currentModule, scope->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
-        method.type = TYPEVOID;
+        Method method = Method(name, currentModule, currentScope()->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
+        method.type = CLASS;
+        method.klass = currentScope()->klass;
         method.isConstructor=true;
 
-        method.address = methods++;
-        if(!scope->klass->addConstructor(method)) {
+        if(!currentScope()->klass->isGeneric())
+            method.address = methods++;
+        if(!currentScope()->klass->addConstructor(method)) {
             this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                    "constructor `" + name + "` is already defined in the scope");
-            printNote(scope->klass->getConstructor(params)->note, "constructor `" + name + "` previously defined here");
+            printNote(currentScope()->klass->getConstructor(params)->note, "constructor `" + name + "` previously defined here");
         }
     } else
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
@@ -8593,7 +8589,6 @@ void RuntimeEngine::resolveConstructorDecl(Ast* ast) {
 
 void RuntimeEngine::addDefaultConstructor(ClassObject* klass, Ast* ast) {
     List<Param> emptyParams;
-    Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     modifiers.add(PUBLIC);
 
@@ -8601,7 +8596,7 @@ void RuntimeEngine::addDefaultConstructor(ClassObject* klass, Ast* ast) {
                                    ast->line, ast->col);
 
     if(klass->getConstructor(emptyParams, false) == NULL) {
-        Method method = Method(klass->getName(), currentModule, scope->klass, emptyParams, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
+        Method method = Method(klass->getName(), currentModule, currentScope()->klass, emptyParams, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
 
         method.isConstructor=true;
         method.address = methods++;
@@ -8610,7 +8605,6 @@ void RuntimeEngine::addDefaultConstructor(ClassObject* klass, Ast* ast) {
 }
 
 void RuntimeEngine::resolveInterfaceDecl(Ast* ast) {
-    Scope* scope = currentScope();
     Ast* block = ast->getSubAst(ast_block), *trunk;
     List<AccessModifier> modifiers;
     ClassObject* klass;
@@ -8624,11 +8618,11 @@ void RuntimeEngine::resolveInterfaceDecl(Ast* ast) {
 
     string name =  ast->getEntity(startpos).getToken();
 
-    if(scope->type == GLOBAL_SCOPE) {
+    if(currentScope()->type == GLOBAL_SCOPE) {
         klass = getClass(currentModule, name, classes);
     }
     else {
-        klass = scope->klass->getChildClass(name);
+        klass = currentScope()->klass->getChildClass(name);
     }
 
     addScope(Scope(CLASS_SCOPE, klass));
@@ -8731,7 +8725,6 @@ void RuntimeEngine::validateDelegates(ClassObject *host, ClassObject *klass, Ast
 }
 
 void RuntimeEngine::resolveClassDeclDelegates(Ast* ast) {
-    Scope* scope = currentScope();
     Ast* block = ast->getSubAst(ast_block), *trunk;
     List<AccessModifier> modifiers;
     ClassObject* klass;
@@ -8740,11 +8733,11 @@ void RuntimeEngine::resolveClassDeclDelegates(Ast* ast) {
     parseAccessDecl(ast, modifiers, startpos);
     string name =  ast->getEntity(startpos).getToken();
 
-    if(scope->type == GLOBAL_SCOPE) {
+    if(currentScope()->type == GLOBAL_SCOPE) {
         klass = getClass(currentModule, name, classes);
     }
     else {
-        klass = scope->klass->getChildClass(name);
+        klass = currentScope()->klass->getChildClass(name);
     }
 
     ClassObject *base = klass->getBaseClass();
@@ -8814,7 +8807,6 @@ void RuntimeEngine::resolveClassDeclDelegates(Ast* ast) {
 }
 
 void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
-    Scope* scope = currentScope();
     Ast* block = ast->getSubAst(ast_block), *trunk;
     List<AccessModifier> modifiers;
     ClassObject* klass;
@@ -8823,11 +8815,11 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
     parseAccessDecl(ast, modifiers, startpos);
     string name =  ast->getEntity(startpos).getToken();
 
-    if(scope->type == GLOBAL_SCOPE) {
+    if(currentScope()->type == GLOBAL_SCOPE) {
         klass = getClass(currentModule, name, classes);
     }
     else {
-        klass = scope->klass->getChildClass(name);
+        klass = currentScope()->klass->getChildClass(name);
     }
 
     if(!inlineField && resolvedFields)
@@ -8847,7 +8839,16 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
         }
 
         if(ast->hasSubAst(ast_reference_identifier_list)) {
-            klass->setInterfaces(parseRefrenceIdentifierList(ast->getSubAst(ast_reference_identifier_list)));
+            List<ClassObject*> interfaces = parseRefrenceIdentifierList(ast->getSubAst(ast_reference_identifier_list));
+
+            for(long i = 0; i < interfaces.size(); i++) {
+                if(interfaces.get(i) != NULL && !interfaces.get(i)->isInterface()) {
+                    stringstream err;
+                    err << "class `" + interfaces.get(i)->getName() + "` is not an interface";
+                    errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+                }
+            }
+            klass->setInterfaces(interfaces);
         }
     }
     for(long i = 0; i < block->getSubAstCount(); i++) {
@@ -8902,7 +8903,6 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
 }
 
 void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField) {
-    Scope* scope = currentScope();
     Ast* block = ast->getSubAst(ast_block), *trunk;
     List<AccessModifier> modifiers;
     ClassObject* klass;
@@ -8911,15 +8911,12 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField) {
     parseAccessDecl(ast, modifiers, startpos);
     string name =  ast->getEntity(startpos).getToken();
 
-    if(scope->type == GLOBAL_SCOPE) {
+    if(currentScope()->type == GLOBAL_SCOPE) {
         klass = getClass(currentModule, name, generics);
     }
     else {
-        klass = scope->klass->getChildClass(name);
+        klass = currentScope()->klass->getChildClass(name);
     }
-
-    if(!inlineField && resolvedFields)
-        klass->address = classSize++;
 
     addScope(Scope(CLASS_SCOPE, klass));
     if(inlineField) {
@@ -8935,7 +8932,16 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField) {
         }
 
         if(ast->hasSubAst(ast_reference_identifier_list)) {
-            klass->setInterfaces(parseRefrenceIdentifierList(ast->getSubAst(ast_reference_identifier_list)));
+            List<ClassObject*> interfaces = parseRefrenceIdentifierList(ast->getSubAst(ast_reference_identifier_list));
+
+            for(long i = 0; i < interfaces.size(); i++) {
+                if(interfaces.get(i) != NULL && !interfaces.get(i)->isInterface()) {
+                    stringstream err;
+                    err << "class `" + interfaces.get(i)->getName() + "` is not an interface";
+                    errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+                }
+            }
+            klass->setInterfaces(interfaces);
         }
     }
     for(long i = 0; i < block->getSubAstCount(); i++) {
@@ -9078,10 +9084,10 @@ void RuntimeEngine::parseClassAccessModifiers(List<AccessModifier> &modifiers, A
     }
 }
 
-bool RuntimeEngine::classExists(string module, string name, List<ClassObject> &classes) {
+bool RuntimeEngine::classExists(string module, string name, List<ClassObject*> &classes) {
     ClassObject* klass = NULL;
     for(unsigned int i = 0; i < classes.size(); i++) {
-        klass = &classes.get(i);
+        klass = classes.get(i);
         if(klass->getName() == name) {
             if(module != "")
                 return klass->getModuleName() == module;
@@ -9092,16 +9098,17 @@ bool RuntimeEngine::classExists(string module, string name, List<ClassObject> &c
     return false;
 }
 
-bool RuntimeEngine::addClass(ClassObject klass) {
-    if(!classExists(klass.getModuleName(), klass.getName(), classes)) {
+bool RuntimeEngine::addClass(ClassObject* klass) {
+    if(!classExists(klass->getModuleName(), klass->getName(), classes)) {
         classes.add(klass);
         return true;
     }
+    delete klass;
     return false;
 }
 
-bool RuntimeEngine::addGeericClass(ClassObject klass) {
-    if(!classExists(klass.getModuleName(), klass.getName(), generics)) {
+bool RuntimeEngine::addGeericClass(ClassObject* klass) {
+    if(!classExists(klass->getModuleName(), klass->getName(), generics)) {
         generics.add(klass);
         return true;
     }
@@ -9118,10 +9125,10 @@ void RuntimeEngine::printNote(RuntimeNote& note, string msg) {
     }
 }
 
-ClassObject *RuntimeEngine::getClass(string module, string name, List<ClassObject> &classes) {
+ClassObject *RuntimeEngine::getClass(string module, string name, List<ClassObject*> &classes) {
     ClassObject* klass = NULL;
     for(unsigned int i = 0; i < classes.size(); i++) {
-        klass = &classes.get(i);
+        klass = classes.get(i);
         if(klass->getName() == name) {
             if(module != "" && klass->getModuleName() == module)
                 return klass;
@@ -9137,7 +9144,7 @@ ClassObject *RuntimeEngine::addGlobalClassObject(string name, List<AccessModifie
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
                                    pAst->line, pAst->col);
 
-    if(!this->addClass(ClassObject(name, currentModule, this->uniqueSerialId++,modifiers.get(0), note))){
+    if(!this->addClass(new ClassObject(name, currentModule, this->uniqueSerialId++,modifiers.get(0), note))){
 
         this->errors->createNewError(PREVIOUSLY_DEFINED, pAst->line, pAst->col, "class `" + name +
                                                                           "` is already defined in module {" + currentModule + "}");
@@ -9152,7 +9159,7 @@ ClassObject *RuntimeEngine::addGlobalGenericClassObject(string name, List<Access
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
                                    pAst->line, pAst->col);
 
-    if(!this->addGeericClass(ClassObject(name, currentModule, this->uniqueSerialId++,modifiers.get(0), note))){
+    if(!this->addGeericClass(new ClassObject(name, currentModule, this->uniqueSerialId++,modifiers.get(0), note))){
 
         this->errors->createNewError(PREVIOUSLY_DEFINED, pAst->line, pAst->col, "class `" + name +
                                                                                 "` is already defined in module {" + currentModule + "}");
@@ -9167,7 +9174,7 @@ ClassObject *RuntimeEngine::addChildClassObject(string name, List<AccessModifier
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
 
-    if(!super->addChildClass(ClassObject(name,
+    if(!super->addChildClass(new ClassObject(name,
                                          currentModule, this->uniqueSerialId++, modifiers.get(0),
                                          note, super))) {
         this->errors->createNewError(DUPLICATE_CLASS, ast->line, ast->col, " '" + name + "'");
@@ -9185,7 +9192,6 @@ void RuntimeEngine::removeScope() {
 
 void RuntimeEngine::parseClassDecl(Ast *ast, bool isInterface)
 {
-    Scope* scope = currentScope();
     Ast* block = ast->getLastSubAst();
     List<AccessModifier> modifiers;
     ClassObject* currentClass;
@@ -9199,7 +9205,7 @@ void RuntimeEngine::parseClassDecl(Ast *ast, bool isInterface)
 
     string className =  ast->getEntity(startPosition).getToken();
 
-    if(scope->klass == NULL) {
+    if(currentScope()->klass == NULL) {
         currentClass = addGlobalClassObject(className, modifiers, ast);
 
         stringstream ss;
@@ -9207,10 +9213,10 @@ void RuntimeEngine::parseClassDecl(Ast *ast, bool isInterface)
         currentClass->setFullName(ss.str());
     }
     else {
-        currentClass = addChildClassObject(className, modifiers, ast, scope->klass);
+        currentClass = addChildClassObject(className, modifiers, ast, currentScope()->klass);
 
         stringstream ss;
-        ss << scope->klass->getFullName() << "." << currentClass->getName();
+        ss << currentScope()->klass->getFullName() << "." << currentClass->getName();
         currentClass->setFullName(ss.str());
     }
 
@@ -9252,7 +9258,6 @@ void RuntimeEngine::parseClassDecl(Ast *ast, bool isInterface)
 
 void RuntimeEngine::parseGenericClassDecl(Ast *ast)
 {
-    Scope* scope = currentScope();
     Ast* block = ast->getLastSubAst();
     List<AccessModifier> modifiers;
     ClassObject* currentClass;
@@ -9268,7 +9273,7 @@ void RuntimeEngine::parseGenericClassDecl(Ast *ast)
     List<string> identifierList;
     parseIdentifierList(ast, identifierList);
 
-    if(scope->klass == NULL) {
+    if(currentScope()->klass == NULL) {
         currentClass = addGlobalGenericClassObject(className, modifiers, ast);
 
         stringstream ss;
@@ -9276,10 +9281,10 @@ void RuntimeEngine::parseGenericClassDecl(Ast *ast)
         currentClass->setFullName(ss.str());
     }
     else {
-        currentClass = addChildClassObject(className, modifiers, ast, scope->klass);
+        currentClass = addChildClassObject(className, modifiers, ast, currentScope()->klass);
 
         stringstream ss;
-        ss << scope->klass->getFullName() << "." << currentClass->getName();
+        ss << currentScope()->klass->getFullName() << "." << currentClass->getName();
         currentClass->setFullName(ss.str());
     }
 
@@ -9288,6 +9293,7 @@ void RuntimeEngine::parseGenericClassDecl(Ast *ast)
     }
 
     currentClass->setIsGeneric(true);
+    currentClass->setAst(ast);
     addScope(Scope(CLASS_SCOPE, currentClass));
     for(long i = 0; i < block->getSubAstCount(); i++) {
         ast = block->getSubAst(i);
@@ -9328,7 +9334,6 @@ void RuntimeEngine::parseGenericClassDecl(Ast *ast)
 
 void RuntimeEngine::parseVarDecl(Ast *ast)
 {
-    Scope* scope = currentScope();
     List<AccessModifier> modifiers;
     int startpos=0;
 
@@ -9344,7 +9349,7 @@ void RuntimeEngine::parseVarDecl(Ast *ast)
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
 
-    if(!scope->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note))) {
+    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note))) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                "field `" + name + "` is already defined in the scope");
         printNote(note, "field `" + name + "` previously defined here");
@@ -9630,7 +9635,7 @@ std::string RuntimeEngine::class_to_stream(ClassObject& klass) {
 std::string RuntimeEngine::generate_data_section() {
     stringstream data_sec;
     for(int64_t i = 0; i < classes.size(); i++) {
-        data_sec << class_to_stream(classes.get(i)) << endl;
+        data_sec << class_to_stream(*classes.get(i)) << endl;
     }
 
     for(int64_t i = 0; i < sourceFiles.size(); i++) {
@@ -9890,10 +9895,10 @@ string RuntimeEngine::find_method(int64_t id) {
 
 string RuntimeEngine::find_class(int64_t id) {
     for(unsigned int i = 0; i < classes.size(); i++) {
-        if(classes.get(i).address == id)
-            return classes.get(i).getFullName();
+        if(classes.get(i)->address == id)
+            return classes.get(i)->getFullName();
         else {
-            ClassObject &klass = classes.get(i);
+            ClassObject &klass = *classes.get(i);
             for(unsigned int x = 0; x < klass.childClassCount(); x++) {
                 if(klass.getChildClass(x)->address == id)
                     return klass.getChildClass(x)->getFullName();
@@ -9910,18 +9915,18 @@ void RuntimeEngine::createDumpFile() {
     _ostream << "Object Dump file:\n" << "################################\n\n";
     for(int64_t i = 0; i < classes.size(); i++) {
         stringstream ss;
-        ClassObject &k = classes.get(i);
-        ss << "\n@" << k.address << " " << classes.get(i).getFullName();
-        ss << " fields: " << classes.get(i).fieldCount() << " methods: "
-           << classes.get(i).functionCount();
+        ClassObject &k = *classes.get(i);
+        ss << "\n@" << k.address << " " << classes.get(i)->getFullName();
+        ss << " fields: " << classes.get(i)->fieldCount() << " methods: "
+           << classes.get(i)->functionCount();
         _ostream << ss.str();
 
         for(int64_t x = 0; x < k.childClassCount(); x++) {
             stringstream s;
             ClassObject *klass = k.getChildClass(x);
             s << "\n@" << klass->address << " " << klass->getFullName();
-            s << " fields: " << classes.get(i).fieldCount() << " methods: "
-               << classes.get(i).functionCount();
+            s << " fields: " << classes.get(i)->fieldCount() << " methods: "
+               << classes.get(i)->functionCount();
             _ostream << s.str();
 
         }
@@ -10879,7 +10884,8 @@ void RuntimeEngine::cleanup() {
     }
 
     importMap.free();
-    freeList(classes);
+    freeListPtr(classes);
+    freeListPtr(generics);
     freeList(scopeMap);
     sourceFiles.free();
     lastNoteMsg.clear();
@@ -10917,15 +10923,13 @@ void RuntimeEngine::verifyClassAccess(ClassObject *klass, Ast* pAst) {
 
 void RuntimeEngine::verifyMethodAccess(Method *fn, Ast* pAst) {
     if(fn->hasModifier(PRIVATE)) {
-        Scope *scope = currentScope();
-        if(fn->getParentClass() == scope->klass || fn->getParentClass() == scope->klass->getSuperClass()) {
+        if(fn->getParentClass() == currentScope()->klass || fn->getParentClass() == currentScope()->klass->getSuperClass()) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to private method `" + fn->getFullName() + paramsToString(fn->getParams()) + "`");
         }
     } else if(fn->hasModifier(PROTECTED)) {
-        Scope *scope = currentScope();
-        if(scope->klass->hasBaseClass(fn->getParentClass()) || fn->getParentClass() == scope->klass || fn->getParentClass() == scope->klass->getSuperClass()
-                || scope->klass->getModuleName() == fn->getParentClass()->getModuleName()) {
+        if(currentScope()->klass->hasBaseClass(fn->getParentClass()) || fn->getParentClass() == currentScope()->klass || fn->getParentClass() == currentScope()->klass->getSuperClass()
+                || currentScope()->klass->getModuleName() == fn->getParentClass()->getModuleName()) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to protected method `" + fn->getFullName() + paramsToString(fn->getParams()) + "`");
         }
@@ -10936,15 +10940,13 @@ void RuntimeEngine::verifyMethodAccess(Method *fn, Ast* pAst) {
 
 void RuntimeEngine::verifyFieldAccess(Field *field, Ast* pAst) {
     if(field->modifiers.find(PRIVATE)) {
-        Scope *scope = currentScope();
-        if(field->owner == scope->klass || field->owner == scope->klass->getSuperClass()) {
+        if(field->owner == currentScope()->klass || field->owner == currentScope()->klass->getSuperClass()) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to private field `" + field->fullName + "`");
         }
     } else if(field->modifiers.find(PROTECTED)) {
-        Scope *scope = currentScope();
-        if(scope->klass->hasBaseClass(field->owner) || field->owner == scope->klass || field->owner == scope->klass->getSuperClass()
-           || scope->klass->getModuleName() == field->owner->getModuleName()) {
+        if(currentScope()->klass->hasBaseClass(field->owner) || field->owner == currentScope()->klass || field->owner == currentScope()->klass->getSuperClass()
+           || currentScope()->klass->getModuleName() == field->owner->getModuleName()) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to protected method `" + field->fullName + "`");
         }
@@ -11006,20 +11008,178 @@ void RuntimeEngine::findAndCreateGenericClass(std::string module, string &klass,
                     }
                 }
                 name << ">";
-                generic->setFullName(generic->getFullName() + name.str());
-                generic->setName(generic->getName() + name.str());
-                klass = generic->getName();
+                klass = generic->getName() + name.str();
 
                 if(getClass(module, klass, classes) == NULL) {
+                    List<KeyPair<string, string>> classMap;
+                    List<bool> isChild;
+                    for(long i = 0; i < scopeMap.size(); i++) {
+                        if(scopeMap.get(i).klass != NULL) {
+                            KeyPair<string, string> map(scopeMap.get(i).klass->getModuleName(), scopeMap.get(i).klass->getName());
+                            classMap.push_back(map);
+                            isChild.add(scopeMap.get(i).klass->getSuperClass() != NULL);
+                        }
+                    }
+
                     List<AccessModifier> modifiers;
                     modifiers.add(generic->getAccessModifier());
                     ClassObject *newClass = addGlobalClassObject(klass, modifiers, pAst);
 
+                    long iter = 0;
+                    for(long i = 0; i < scopeMap.size(); i++) {
+                        if(scopeMap.get(i).klass != NULL) {
+                            if(!isChild.get(iter))
+                                scopeMap.get(i).klass = getClass(classMap.get(iter).key, classMap.get(iter).value, classes);
+
+                            iter++;
+                        }
+
+                    }
+
+                    isChild.free();
+                    classMap.free();
                     // traverse class
                     *newClass = *generic;
-                    // set all generic data to proper values
+                    newClass->setFullName(newClass->getFullName() + name.str());
+                    newClass->setName(klass);
+                    newClass->setIsProcessed(true);
+                    traverseGenericClass(newClass, utypes, pAst);
+                    analyzeGenericClass(newClass);
+                    // create analyzeGenericClass to take the generic class we are processing
+                    // and go through the ast's as normal
+                    // it should just work
                 }
             } // parseUtype() will handle unresolved error
         } // parseUtype() will handle unresolved error
     }
+}
+
+void RuntimeEngine::traverseGenericClass(ClassObject *klass, List<Expression> &utypes, Ast* pAst) {
+    klass->setAddress(this->classSize++);
+    for(long i = 0; i < utypes.size(); i++) {
+        klass->addGenericType(&utypes.get(i));
+    }
+
+    for(long i = 0; i < klass->constructorCount(); i++) {
+        Method *constr = klass->getConstructor(i);
+        traverseMethod(klass, constr, pAst);
+    }
+
+    for(long i = 0; i < klass->functionCount(); i++) {
+        Method *func = klass->getFunction(i);
+        traverseMethod(klass, func, pAst);
+    }
+
+    for(long i = 0; i < klass->overloadCount(); i++) {
+        Method *func = klass->getOverload(i);
+        traverseMethod(klass, func, pAst);
+    }
+
+    for(long i = 0; i < klass->fieldCount(); i++) {
+        Field *field = klass->getField(i);
+        traverseField(klass, field, pAst);
+    }
+
+    for(long i = 0; i < klass->childClassCount(); i++) {
+        ClassObject *child = klass->getChildClass(i);
+        traverseGenericClass(child, utypes, pAst);
+    }
+
+    for(long i = 0; i < klass->interfaceCount(); i++) {
+        ClassObject *child = klass->getInterface(i);
+        traverseGenericClass(child, utypes, pAst);
+    }
+}
+
+void RuntimeEngine::traverseMethod(ClassObject *klass, Method *func, Ast* pAst) {
+    func->address = methods++;
+    func->owner=klass;
+
+    if(func->type == TYPEGENERIC) {
+        Expression* utype = klass->getGenericType(func->key);
+
+        if(utype == NULL)
+            errors->createNewError(GENERIC, pAst, "I screwed up traversing your generic class please let me know!!");
+        else {
+            parseMethodReturnType(*utype, *func);
+        }
+    }
+
+    List<Param> *params = &func->getParams();
+    for(long i = 0; i < params->size(); i++) {
+        Field *field = &params->get(i).field;
+        traverseField(klass, field, pAst);
+    }
+}
+
+void RuntimeEngine::traverseField(ClassObject *klass, Field *field, Ast* pAst) {
+    if(field->type != TYPEGENERIC) return;
+    field->owner=klass;
+
+    Expression* utype = klass->getGenericType(field->key);
+
+    if(utype == NULL)
+        errors->createNewError(GENERIC, pAst, "I screwed up traversing your generic class please let me know!!");
+    else {
+        field->type = utype->utype.type;
+        if(utype->utype.type == CLASS) {
+            field->klass = utype->utype.klass;
+        } else if(utype->utype.type == TYPEVOID) {
+            field->key = utype->utype.referenceName;
+        }
+
+        if(field->isArray && !utype->utype.array) {
+            // we are fine field will just stay an array
+        } else if(field->isArray && utype->utype.array) {
+            // error
+            errors->createNewError(GENERIC, pAst, "Array-arrays are not supported.");
+        } else if(!field->isArray) {
+            field->isArray = utype->utype.array;
+        }
+    }
+}
+
+void RuntimeEngine::analyzeGenericClass(ClassObject *generic)
+{
+    Ast *ast = generic->getAst();
+    Ast* block = ast->getLastSubAst();
+
+    addScope(Scope(CLASS_SCOPE, generic));
+    for(long i = 0; i < block->getSubAstCount(); i++) {
+        ast = block->getSubAst(i);
+        CHECK_ERRORS
+
+        switch(ast->getType()) {
+            case ast_class_decl:
+                analyzeClassDecl(ast);
+                break;
+            case ast_var_decl:
+                analyzeVarDecl(ast);
+                break;
+            case ast_method_decl:
+                parseMethodDecl(ast);
+                break;
+            case ast_operator_decl:
+                parseOperatorDecl(ast);
+                break;
+            case ast_construct_decl:
+                parseConstructorDecl(ast);
+                break;
+            case ast_delegate_post_decl: /* ignore */
+                break;
+            case ast_delegate_decl:
+                parseMethodDecl(ast, true);
+                break;
+            case ast_generic_class_decl: /* ignore */
+                break;
+            default: {
+                stringstream err;
+                err << ": unknown ast type: " << ast->getType();
+                errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
+                break;
+            }
+        }
+    }
+    removeScope();
+
 }

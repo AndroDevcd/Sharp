@@ -10,10 +10,13 @@ size_t ClassObject::constructorCount() {
     return constructors.size();
 }
 
-bool ClassObject::addChildClass(ClassObject klass) {
-    if(getChildClass(klass.name) != NULL) {
-        if(this->getChildClass(klass.name) || this->name == klass.name)
+bool ClassObject::addChildClass(ClassObject *klass) {
+    if(getChildClass(klass->name) != NULL) {
+        if(this->getChildClass(klass->name) || this->name == klass->name) {
+            delete klass;
             return false;
+        }
+        delete klass;
         return false;
     }
 
@@ -148,13 +151,13 @@ size_t ClassObject::childClassCount() {
 }
 
 ClassObject* ClassObject::getChildClass(int p) {
-    return &childClasses.get(p);
+    return childClasses.get(p);
 }
 
 ClassObject* ClassObject::getChildClass(string name) {
     for(unsigned long i = 0; i < childClasses.size(); i++) {
-        if(childClasses.get(i).name == name)
-            return &childClasses.get(i);
+        if(childClasses.get(i)->name == name)
+            return childClasses.get(i);
     }
 
     return NULL;
@@ -168,7 +171,8 @@ void ClassObject::free() {
     RuntimeEngine::freeList(functions);
     RuntimeEngine::freeList(overloads);
     RuntimeEngine::freeList(fields);
-    RuntimeEngine::freeList(childClasses);
+    RuntimeEngine::freeListPtr(childClasses);
+    RuntimeEngine::freeListPtr(interfaces);
 }
 
 size_t ClassObject::overloadCount() {
@@ -226,7 +230,7 @@ bool ClassObject::isCurcular(ClassObject *pObject) {
     }
 
     for(unsigned long i = 0; i < childClasses.size(); i++) {
-        if(childClasses.get(i).match(pObject) || childClasses.get(i).isCurcular(pObject)) {
+        if(childClasses.get(i)->match(pObject) || childClasses.get(i)->isCurcular(pObject)) {
             cSuper = 0;
             return true;
         }
@@ -421,4 +425,17 @@ List<Method *> ClassObject::getDelegates() {
     }
 
     return delegates;
+}
+
+bool ClassObject::addGenericType(Expression *utype) {
+    genericMap.push_back(*utype);
+    return false;
+}
+
+Expression *ClassObject::getGenericType(string &key) {
+    if(genericKeys.find(key)) {
+        return &genericMap.get(genericKeys.indexof(key));
+    }
+
+    return nullptr;
 }
