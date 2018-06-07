@@ -667,7 +667,7 @@ short int startAddress = 0;
  * We need this to keep track of which finally block we are executing
  */
 FinallyTable finallyTable;
-unsigned long long count = 0;
+double count = 0;
 
 void Thread::exec() {
 

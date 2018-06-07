@@ -25,6 +25,11 @@ using namespace std;
 
 unsigned long RuntimeEngine::uniqueSerialId = 0;
 unsigned long RuntimeEngine::uniqueDelegateId = 0;
+
+/*
+ * How many instructions we optimized out
+ */
+unsigned long long optimizationResult = 0;
 options c_options;
 
 void help();
@@ -7330,7 +7335,7 @@ bool RuntimeEngine::expectReferenceType(ResolvedReference refrence, FieldType ex
 
 ClassObject* RuntimeEngine::resolveClassRefrence(Ast *ast, ReferencePointer &ptr) {
     ResolvedReference resolvedRefrence = resolveReferencePointer(ptr, ast);
-    ast = ast->getSubAst(ast_refrence_pointer);
+    ast = ast->getType() == ast_refrence_pointer ? ast : ast->getSubAst(ast_refrence_pointer);
 
     if(!resolvedRefrence.resolved) {
         errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col, " `" + resolvedRefrence.referenceName + "` " +
@@ -9902,6 +9907,9 @@ void RuntimeEngine::createDumpFile() {
     _ostream.begin();
 
     _ostream << "Object Dump file:\n" << "################################\n\n";
+    _ostream << "Optimizer: Did optimize " << c_options.optimize << " result -> "
+             << optimizationResult << endl << endl;
+
     for(int64_t i = 0; i < classes.size(); i++) {
         stringstream ss;
         ClassObject &k = *classes.get(i);

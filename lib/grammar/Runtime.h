@@ -1171,6 +1171,7 @@ void printVersion();
 std::string to_lower(string s);
 bool all_integers(string int_string);
 void exec_runtime(List<string>& files);
+extern unsigned long long optimizationResult;
 
 extern options c_options;
 #define opt(v) strcmp(argv[i], v) == 0

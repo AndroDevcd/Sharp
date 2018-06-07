@@ -1,23 +1,20 @@
 mod application;
 
-//import std;
+import std;
 
 public class Start {
 
-    public static def main(object[] args) : var {
-        List<var> intArry; // TODO: empty modifiers after methods classes etc. before block call
-        List<object> objArry;
+    public static def main(string[] args) : var {
+        List<var> intArry = new List<var>(); // TODO: empty modifiers after methods classes etc. before block call
+        intArry.add(9);
     }
 }
 
-class X<T> {}
-
-class List<T> base X<T> {
+class List<T> : X {
     T[] data;
 
     public List() {
         data = new T[8];
-        data[9] = 9;
     }
 
     public def add(T data) {

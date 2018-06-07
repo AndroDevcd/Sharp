@@ -1,0 +1,15 @@
+mod std;
+
+/**                          
+* Created by bknun on 6/7/2018            
+* Description:                             
+*/
+public class Dictionary<TKey, TValue> {
+    ArrayList<TKey> keys;
+    ArrayList<TValue> values;
+
+    public Dictionary() {
+        keys = new ArrayList<TKey>();
+        values = new ArrayList<TValue>();
+    }
+}

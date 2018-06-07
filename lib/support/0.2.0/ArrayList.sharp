@@ -1,0 +1,103 @@
+mod std;
+
+/**                          
+* Created by bknun on 6/7/2018            
+* Description:                             
+*/
+class ArrayList<T> {
+    private T[] data;
+
+    /**
+     * Constructs an empty list with the specified initial capacity.
+     *
+     * @param  initialCapacity  the initial capacity of the list
+     * @throws IllegalArgumentException if the specified initial capacity
+     *         is negative
+     */
+    public ArrayList(int initialCapacity) {
+        super();
+        if (initialCapacity < 0)
+            throw new IllegalArgumentException("Illegal Capacity: "+
+                                               initialCapacity);
+        data = new T[initialCapacity];
+    }
+
+    /**
+     * Constructs an empty list.
+     */
+    public ArrayList() {
+        /* data will remain null */
+    }
+
+    /**
+     * Returns the number of elements in this list.
+     *
+     */
+    public def size() : var {
+        return sizeof(data);
+    }
+
+    /**
+     * Returns true if this list contains no elements.
+     *
+     */
+    public def empty() : var {
+        return sizeof(data) == 0;
+    }
+
+    /**
+     * Returns an array containing all of the elements in this list
+     * in proper sequence (from first to last element).
+     *
+     * The returned array will be "safe" in that no references to it are
+     * maintained by this list.  (In other words, this method must allocate
+     * a new array).  The caller is thus free to modify the returned array.
+     *
+     */
+    public def toArray() : object[] {
+        return Array.copyOf(data, sizeof(data));
+    }
+
+    /**
+     * Returns the element at the specified position in this list.
+     *
+     */
+    public def get(var index) : T {
+        if (index >= sizeof(data))
+            throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
+
+        return data[index];
+    }
+
+    /**
+     * Replaces the element at the specified position in this list with
+     * the specified element.
+     *
+     */
+    public def set(var index, T element) : T {
+        if (index >= size)
+            throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
+
+        T oldValue = data[index];
+        data[index] = element;
+        return oldValue;
+    }
+
+    /**
+     * Expand the list to hold more data
+     */
+    private def expand() {
+        data = (T[]) Array.expand(data, sizeof(data)+1);
+    }
+
+    /**
+      * Appends the specified element to the end of this list.
+      *
+      * @param e element to be appended to this list
+      * @return <tt>true</tt> (as specified by {@link Collection#add})
+      */
+     public def add(T e) {
+         expand();
+         data[sizeof(data)-1] = e;
+     }
+}

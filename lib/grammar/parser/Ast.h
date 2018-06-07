@@ -13,6 +13,7 @@ enum ast_types
 {
     ast_class_decl,
     ast_generic_class_decl,
+    ast_generic_interface_decl,
     ast_interface_decl,
     ast_import_decl,
     ast_module_decl,

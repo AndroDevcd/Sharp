@@ -102,6 +102,14 @@ void Parser::parse_interfacedecl(Ast* _ast) { // 1
 
     expectidentifier(_ast);
 
+    if(peek(1).getToken() == "<") {
+        _ast->setAstType(ast_generic_interface_decl);
+
+        expect(LESSTHAN, "`<`");
+        parse_identifier_list(_ast);
+        expect(GREATERTHAN, "`>`");
+    }
+
     if(peek(1).getToken() == "base")
     {
         advance();
