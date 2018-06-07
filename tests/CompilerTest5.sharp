@@ -10,7 +10,9 @@ public class Start {
     }
 }
 
-class List<T> {
+class X<T> {}
+
+class List<T> base X<T> {
     T[] data;
 
     public List() {

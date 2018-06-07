@@ -8599,7 +8599,8 @@ void RuntimeEngine::addDefaultConstructor(ClassObject* klass, Ast* ast) {
         Method method = Method(klass->getName(), currentModule, currentScope()->klass, emptyParams, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
 
         method.isConstructor=true;
-        method.address = methods++;
+        if(!currentScope()->klass->isGeneric())
+            method.address = methods++;
         klass->addConstructor(method);
     }
 }
@@ -8920,16 +8921,6 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField) {
 
     addScope(Scope(CLASS_SCOPE, klass));
     if(inlineField) {
-        ClassObject *base = parseBaseClass(ast, ++startpos);
-
-        if(base != NULL && base->isInterface()) {
-            stringstream err;
-            err << "classes can only inherit other classes, do 'class Dog base Animal : Traits {} ' instead";
-            errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-        } else {
-            if(base != NULL)
-                klass->setBaseClass(base->getSerial() == klass->getSerial() ? NULL : base);
-        }
 
         if(ast->hasSubAst(ast_reference_identifier_list)) {
             List<ClassObject*> interfaces = parseRefrenceIdentifierList(ast->getSubAst(ast_reference_identifier_list));
@@ -9650,9 +9641,10 @@ std::string RuntimeEngine::generate_data_section() {
 
     readjust:
     for(int64_t i = 0; i < allMethods.size(); i++) {
-        if(allMethods.get(i)->address == iter) {
+        Method *func = allMethods.get(i);
+        if(func->address == iter) {
             iter++;
-            reorderedList.add(allMethods.get(i));
+            reorderedList.add(func);
             if(iter < allMethods.size())
                 goto readjust;
         }
@@ -11011,33 +11003,11 @@ void RuntimeEngine::findAndCreateGenericClass(std::string module, string &klass,
                 klass = generic->getName() + name.str();
 
                 if(getClass(module, klass, classes) == NULL) {
-                    List<KeyPair<string, string>> classMap;
-                    List<bool> isChild;
-                    for(long i = 0; i < scopeMap.size(); i++) {
-                        if(scopeMap.get(i).klass != NULL) {
-                            KeyPair<string, string> map(scopeMap.get(i).klass->getModuleName(), scopeMap.get(i).klass->getName());
-                            classMap.push_back(map);
-                            isChild.add(scopeMap.get(i).klass->getSuperClass() != NULL);
-                        }
-                    }
 
                     List<AccessModifier> modifiers;
                     modifiers.add(generic->getAccessModifier());
                     ClassObject *newClass = addGlobalClassObject(klass, modifiers, pAst);
 
-                    long iter = 0;
-                    for(long i = 0; i < scopeMap.size(); i++) {
-                        if(scopeMap.get(i).klass != NULL) {
-                            if(!isChild.get(iter))
-                                scopeMap.get(i).klass = getClass(classMap.get(iter).key, classMap.get(iter).value, classes);
-
-                            iter++;
-                        }
-
-                    }
-
-                    isChild.free();
-                    classMap.free();
                     // traverse class
                     *newClass = *generic;
                     newClass->setFullName(newClass->getFullName() + name.str());
@@ -11143,8 +11113,22 @@ void RuntimeEngine::analyzeGenericClass(ClassObject *generic)
 {
     Ast *ast = generic->getAst();
     Ast* block = ast->getLastSubAst();
+    int startpos = 1;
+    List<AccessModifier> modifiers;
 
     addScope(Scope(CLASS_SCOPE, generic));
+    parseAccessDecl(generic->getAst(), modifiers, startpos);
+    ClassObject *base = parseBaseClass(ast, ++startpos);
+
+    if(base != NULL && base->isInterface()) {
+        stringstream err;
+        err << "classes can only inherit other classes, do 'class Dog base Animal : Traits {} ' instead";
+        errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+    } else {
+        if(base != NULL)
+            generic->setBaseClass(base->getSerial() == generic->getSerial() ? NULL : base);
+    }
+
     for(long i = 0; i < block->getSubAstCount(); i++) {
         ast = block->getSubAst(i);
         CHECK_ERRORS
