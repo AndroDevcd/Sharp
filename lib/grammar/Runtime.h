@@ -175,7 +175,7 @@ struct Expression {
             case expression_lclass:
                 return CLASS;
             case expression_var:
-                if(func || arrayElement)
+                if(func || arrayElement || literal)
                     return VAR;
                 else
                     return utype.type;

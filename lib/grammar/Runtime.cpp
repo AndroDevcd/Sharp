@@ -5782,12 +5782,9 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
             }
             break;
         case expression_objectclass:
-            if(right.type == expression_objectclass || right.type == expression_lclass) {
+            if(right.trueType() == OBJECT || right.trueType() == CLASS
+               || right.trueType() == VAR) {
                 return true;
-            } else if(right.type == expression_field) {
-                if(right.utype.field->type == OBJECT || right.utype.field->type == CLASS) {
-                    return true;
-                }
             }
             break;
         case expression_string:
@@ -6243,8 +6240,8 @@ Expression RuntimeEngine::parseEqualExpression(Ast* pAst) {
             errors->createNewError(GENERIC, pAst->line, pAst->col, "expression is not assignable/comparable");
             break;
         case expression_objectclass:
-            if(right.type==expression_objectclass || right.type==expression_lclass
-               || right.type==expression_field) {
+            if(right.trueType()==OBJECT || right.trueType()==CLASS
+               || right.trueType()==VAR) {
                 assignValue(operand, out, left, right, pAst);
             } else
                 errors->createNewError(GENERIC, pAst->line, pAst->col, "expression is not assignable/comparable. Did you forget to apply a cast? "
