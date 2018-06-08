@@ -7,7 +7,7 @@ public class File {
     private static const FileSystem fs = getFileSystem();
 
     private const string path;
-    public static const var separatorChar = fs.getPathSeparator();
+    public static const var separatorChar = fs.getPathSeparator().at(0);
     public static const string separator = "" + (new var[] {separatorChar});
 
     public File(string path) {

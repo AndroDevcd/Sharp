@@ -913,9 +913,12 @@ void RuntimeEngine::getArrayValueOfExpression(Expression& expr, Expression& out)
             out.code.push_i64(SET_Di(i64, op_MOVND, ebx));
             break;
         case expression_field:
-            if(expr.utype.field->isVar()) {
+            if(expr.trueType() == VAR) {
                 out.type=expression_var;
                 out.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, ebx));
+            } else if(expr.trueType() == OBJECT) {
+                out.type=expression_objectclass;
+                out.utype.type=OBJECT;
             }
             else {
                 out.type=expression_lclass;
@@ -2160,9 +2163,8 @@ void RuntimeEngine::pushExpressionToStack(Expression& expression, Expression& ou
                     out.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, adx));
                     out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
                 }
-            } else if(expression.utype.field->isVar() && expression.utype.field->isArray) {
-                out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
-            } else if(expression.utype.field->dynamicObject() || expression.utype.field->type == CLASS) {
+            } else if((expression.trueType() == VAR && expression.isArray()) ||
+                    expression.trueType() == OBJECT || expression.trueType() == CLASS) {
                 out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
             }
             break;
@@ -4662,14 +4664,9 @@ bool RuntimeEngine::equalsVectorArray(Expression& left, Expression& right) {
             return left.utype.type==right.utype.type;
             break;
         case expression_var:
-            if(right.type == expression_var) {
+            if(right.trueType() == VAR) {
                 // add 2 vars
                 return true;
-            }
-            else if(right.type == expression_field) {
-                if(right.utype.field->isVar()) {
-                    return true;
-                }
             }
             break;
         case expression_null:
@@ -4683,25 +4680,16 @@ bool RuntimeEngine::equalsVectorArray(Expression& left, Expression& right) {
         case expression_field:
             if(left.utype.field->isNative()) {
                 // add var
-                if(right.type == expression_var) {
-                    if(left.utype.field->isVar()) {
+                if(right.trueType() == OBJECT) {
+                    if(left.trueType() == OBJECT) {
                         return true;
                     }
-                } else if(right.type == expression_objectclass) {
-                    if(left.utype.field->dynamicObject()) {
-                        return true;
-                    }
-                } else if(right.type == expression_field) {
-                    if(right.utype.field->isVar()) {
-                        return left.utype.field->isVar();
-                    }
-                    else if(right.utype.field->dynamicObject()) {
-                        return left.utype.field->dynamicObject();
-                    }
-                } else if(right.type == expression_string) {
+                } else if(right.type == expression_string || right.type == expression_null) {
                     return left.utype.field->isArray;
-                } else if(right.type == expression_lclass) {
-                    return left.utype.field->dynamicObject();
+                } else if(right.trueType() == VAR || (right.trueType() != CLASS)) {
+                    if(left.trueType() == VAR) {
+                        return left.isArray() == right.isArray();
+                    }
                 }
             } else if(left.utype.field->type == CLASS) {
                 if(right.type == expression_lclass) {
@@ -4758,21 +4746,12 @@ bool RuntimeEngine::equalsVectorArray(Expression& left, Expression& right) {
             }
             break;
         case expression_objectclass:
-            if(right.type == expression_objectclass || right.type == expression_lclass) {
+            if(right.trueType() == OBJECT || right.trueType() == CLASS) {
                 return true;
-            } else if(right.type == expression_field) {
-                if(right.utype.field->type == OBJECT || right.utype.field->type == CLASS) {
-                    return true;
-                }
             }
             break;
         case expression_string:
-            if(right.type == expression_field) {
-                if(right.utype.field->isVar() && right.utype.field->isArray) {
-                    return true;
-                }
-            }
-            else if(right.type == expression_var) {
+            if(right.trueType() == VAR) {
                 if(right.isArray()) {
                     return true;
                 }
@@ -4811,7 +4790,7 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
             }
             break;
         case expression_null:
-            if(right.type == expression_lclass || right.type == expression_objectclass) {
+            if(right.trueType() == OBJECT || (right.trueType() == CLASS && right.type == expression_class)) {
                 return true;
             } else if(right.type == expression_class) {
                 errors->createNewError(GENERIC, right.link->line,  right.link->col, "Class `" + right.typeToString() + "` must be lvalue" + msg);
@@ -4821,25 +4800,16 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
         case expression_field:
             if(left.utype.field->isNative()) {
                 // add var
-                if(right.type == expression_var || (right.type == expression_field && left.utype.field->type != CLASS)) {
-                    if(left.utype.field->isVar()) {
+                if(right.trueType() == OBJECT) {
+                    if(left.trueType() == OBJECT) {
                         return true;
-                    }
-                } else if(right.type == expression_objectclass) {
-                    if(left.utype.field->dynamicObject()) {
-                        return true;
-                    }
-                } else if(right.type == expression_field) {
-                    if(right.utype.field->isVar()) {
-                        return left.utype.field->isVar();
-                    }
-                    else if(right.utype.field->dynamicObject()) {
-                        return left.utype.field->dynamicObject();
                     }
                 } else if(right.type == expression_string || right.type == expression_null) {
                     return left.utype.field->isArray;
-                } else if(right.type == expression_lclass) {
-                    return left.utype.field->dynamicObject();
+                } else if(right.trueType() == VAR || (right.trueType() != CLASS)) {
+                    if(left.trueType() == VAR) {
+                        return left.isArray() == right.isArray();
+                    }
                 }
             } else if(left.utype.field->type == CLASS) {
                 if(right.type == expression_lclass) {
@@ -4903,12 +4873,7 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
             }
             break;
         case expression_string:
-            if(right.type == expression_field) {
-                if(right.utype.field->isVar() && right.utype.field->isArray) {
-                    return true;
-                }
-            }
-            else if(right.type == expression_var) {
+            if(right.trueType() == VAR) {
                 if(right.isArray()) {
                     return true;
                 }
@@ -5721,25 +5686,16 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
         case expression_field:
             if(left.utype.field->isNative()) {
                 // add var
-                if(right.type == expression_var) {
-                    if(left.utype.field->isVar()) {
-                        return left.utype.field->isArray==right.isArray();
-                    }
-                } else if(right.type == expression_objectclass) {
-                    if(left.utype.field->dynamicObject()) {
+                if(right.trueType() == OBJECT) {
+                    if(left.trueType() == OBJECT) {
                         return true;
                     }
-                } else if(right.type == expression_field) {
-                    if(right.utype.field->isVar()) {
-                        return left.utype.field->type == OBJECT ||  (left.utype.field->isVar() && left.utype.field->isArray==right.utype.field->isArray);
+                } else if(right.type == expression_string || right.type == expression_null) {
+                    return left.utype.field->isArray;
+                } else if(right.trueType() == VAR || (right.trueType() != CLASS)) {
+                    if(left.trueType() == VAR) {
+                        return left.isArray() == right.isArray();
                     }
-                    else if(right.utype.field->dynamicObject()) {
-                        return left.utype.field->dynamicObject();
-                    }
-                } else if(right.type == expression_string) {
-                    return left.utype.field->isVar() && left.utype.field->isArray;
-                } else if(right.type == expression_lclass) {
-                    return left.utype.field->dynamicObject();
                 }
             } else if(left.utype.field->type == CLASS) {
                 if(right.type == expression_lclass) {
@@ -5793,12 +5749,7 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
             }
             break;
         case expression_string:
-            if(right.type == expression_field) {
-                if(right.utype.field->isVar() && right.utype.field->isArray) {
-                    return true;
-                }
-            }
-            else if(right.type == expression_var) {
+            if(right.trueType() == VAR) {
                 if(right.isArray()) {
                     return true;
                 }
