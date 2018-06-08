@@ -1327,7 +1327,7 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
 
     if(validateLocalField(name, pAst)) {
         if(utype.utype.type == CLASSFIELD) {
-            errors->createNewError(COULD_NOT_RESOLVE, pAst, " `" + utype.utype.field->name + "`");
+            errors->createNewError(COULD_NOT_RESOLVE, pAst, " `" + f.name + "`");
         }
 
         currentScope()->locals.add(KeyPair<int, Field>(currentScope()->blocks, f));
@@ -6271,9 +6271,15 @@ void RuntimeEngine::parseAndExpressionChain(Expression& out, Ast* pAst) {
                         evaluate:
                         if((leftExpr.literal || rightExpr.literal) && operand == "||") {
                             if(leftExpr.literal) {
-                                out.code.push_i64(SET_Di(i64, op_MOVI, leftExpr.intValue==0), ebx);
+                                out.code.push_i64(SET_Di(i64, op_MOVI, leftExpr.intValue!=0), cmt);
+                                out.code.push_i64(SET_Di(i64, op_SKNE, rightExpr.code.size()+3));
+                                pushExpressionToRegister(rightExpr, out, cmt);
+                                out.inCmtRegister = true;
                             } else {
-                                out.code.push_i64(SET_Di(i64, op_MOVI, rightExpr.intValue==0), ebx);
+                                pushExpressionToRegister(leftExpr, out, cmt);
+                                out.code.push_i64(SET_Di(i64, op_SKNE, 2));
+                                out.code.push_i64(SET_Di(i64, op_MOVI, rightExpr.intValue!=0), cmt);
+                                out.inCmtRegister = true;
                             }
                         } else {
                             // is left leftexpr a literal?
@@ -7158,7 +7164,7 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
     bool hashfound = false, last, hash = ast->hasEntity(HASH);
     string id="";
     ReferencePointer ptr;
-    bool resolveParents = ast->hasSubAst(ast_utype_list);
+    bool resolveParents = ast->hasSubAst(ast_utype_list), failed = false;
     long idx = 0;
     ClassObject *parent = NULL;
 
@@ -7174,7 +7180,7 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
             continue;
         }
 
-        if(ast->hasSubAst(ast_utype_list) && ast->getSubAst(idx++)->getType() == ast_utype_list){
+        if(!failed && ast->hasSubAst(ast_utype_list) && ast->getSubAst(idx++)->getType() == ast_utype_list){
             List<Expression> utypes;
             parseUtypeList(ast->getSubAst(idx-1), utypes);
             findAndCreateGenericClass(ptr.module, id, utypes, parent, ast);
@@ -7188,7 +7194,14 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
         } else if(!last) {
             ptr.classHeiarchy.push_back(id);
 
-            if(resolveParents) parent = tryClassResolve(ptr.module, id, ast);
+            if(resolveParents) {
+                if(parent == NULL)
+                    parent = tryClassResolve(ptr.module, id, ast);
+                else {
+                    parent = parent->getChildClass(id);
+                    failed = parent == NULL;
+                }
+            }
         } else {
             ptr.referenceName = id;
         }
@@ -7543,7 +7556,7 @@ void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& r
             klass = k;
 
             if(lastRefrence) {
-                expression.utype.type = CLASSFIELD;
+                expression.utype.type = CLASS;
                 expression.utype.klass = klass;
                 expression.type = expression_class;
             }
@@ -7937,6 +7950,11 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     }
                 } else {
                     if((klass = tryClassResolve(refrence.module, refrence.referenceName, pAst)) != NULL) {
+                        // global class ?
+                        expression.utype.type = CLASS;
+                        expression.utype.klass = klass;
+                        expression.type = expression_class;
+                    } else if((klass = currentScope()->klass->getChildClass(refrence.referenceName)) != NULL) {
                         // global class ?
                         expression.utype.type = CLASS;
                         expression.utype.klass = klass;
@@ -11009,8 +11027,9 @@ void RuntimeEngine::findAndCreateGenericClass(std::string module, string &klass,
             }
             name << ">";
             klass = generic->getName() + name.str();
+            ClassObject *klassLocation = parent != NULL ? parent->getChildClass(klass) : getClass(module, klass, classes);
 
-            if(getClass(module, klass, classes) == NULL) {
+            if(klassLocation == NULL) {
 
                 List<AccessModifier> modifiers;
                 modifiers.add(generic->getAccessModifier());

@@ -49,5 +49,13 @@ public class Start {
         System.println("dictionary size " +  dict.size());
         System.println("dave = " +  dict.get("Dave" +""));
         System.println("steve = " +  dict.get("Steve" +""));
+
+        Tmpl<int> t = new Tmpl<int>();
+    }
+
+    class Tmpl<T> {
+        def foo(T v) {
+
+        }
     }
 }
