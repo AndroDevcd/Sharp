@@ -53,6 +53,9 @@ private:
     void optimizeRedundantMovr();
     void optimizeLoadLocal_3();
     void optimizeJumpBranches();
+    void optimizeSmovr();
+    void optimizeCheckLen();
+    void optimizeRegister(int reg);
 };
 
 

@@ -725,7 +725,7 @@ void Thread::exec() {
                 thread_self->callStack.pop_back();
                 _brh
             HLT:
-                state=THREAD_KILLED; signal = 1;
+                state=THREAD_KILLED;
                 _brh
             NEWARRAY:
                 dataStack[++sp].object =

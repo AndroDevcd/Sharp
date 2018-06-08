@@ -53,6 +53,7 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
             case op_SKNE:
             case op_GOTO:
             case op_JNE:
+            case op_JE:
                 addr=GET_Da(x64);
 
                 /*
@@ -92,6 +93,7 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
             case op_SKNE:
             case op_GOTO:
             case op_JNE:
+            case op_JE:
                 addr=GET_Da(x64);
 
                // cout << " address " << addr << " stop addr " << stopAddr << " in " << func->getFullName() << endl;
@@ -182,6 +184,12 @@ void Optimizer::optimize(Method *method) {
     optimizeRedundantReturn();
     optimizeRedundantMovr();
     optimizeLoadLocal_3();
+
+    optimizeSmovr();
+    optimizeCheckLen();
+    optimizeRegister(adx);
+    optimizeRegister(ebx);
+    optimizeRegister(egx);
 
     /**
      * must be last or the entire program will be rendered unstable
@@ -378,7 +386,7 @@ void Optimizer::optimizeObjectPush() {
  * [0x56] 86: movr cmt, ebx
  *
  * to -> [0x3] 3: itest cmt
-*/
+ */
 void Optimizer::optimizeRedundantObjectTest() {
     int64_t x64, reg1, reg2, reg3;
     readjust:
@@ -414,7 +422,7 @@ void Optimizer::optimizeRedundantObjectTest() {
  * [0x14] 20:	movr egx, ebx
  *
  * to -> [0x3] 3: loadl egx, fp+1
-*/
+ */
 void Optimizer::optimizeLoadLocal() {
     int64_t x64, reg1, reg2, reg3, local;
     readjust:
@@ -452,7 +460,7 @@ void Optimizer::optimizeLoadLocal() {
  * [0x37] 55:	movr egx, ebx
  *
  * to -> [0x3] 3: iaload_2 egx, adx
-*/
+ */
 void Optimizer::optimizeLoadLocal_2() { // TODO: check to see of the register is affected for *+/- binary operations
     int64_t x64, reg1, reg2, reg3, reg4;
     readjust:
@@ -491,7 +499,7 @@ void Optimizer::optimizeLoadLocal_2() { // TODO: check to see of the register is
  *
  * to -> [0x33] 51:	movi #0, adx
  *       [0x36] 54:	iaload_2 egx, adx
-*/
+ */
 void Optimizer::optimizeValueLoad() {
     int64_t x64, val, reg1, reg3, reg4;
     readjust:
@@ -521,7 +529,7 @@ void Optimizer::optimizeValueLoad() {
  * [0x73] 115:	movr egx, ebx
  *
  * to -> [0x3] 3: sizeof egx
-*/
+ */
 void Optimizer::optimizeSizeof() {
     int64_t x64, reg1, reg2, reg3;
     readjust:
@@ -561,7 +569,7 @@ void Optimizer::optimizeSizeof() {
  *
  * to -> [0x3] 3:	movbi #4, #841431442464721
  *       [0x7] 7:	rstore bmr
-*/
+ */
 void Optimizer::optimizeBmrHendles() {
     int64_t x64, reg1, reg2;
     readjust:
@@ -603,7 +611,7 @@ void Optimizer::optimizeBmrHendles() {
  *
  * to -> [0x3] 3:	movbi #0, #1
  *       [0x7] 7:	rstore bmr
-*/
+ */
 void Optimizer::optimizeBmrHendles2() {
     int64_t x64, reg1, reg2;
     readjust:
@@ -642,7 +650,7 @@ void Optimizer::optimizeBmrHendles2() {
  * [0x108] 264:	goto @49
  *
  * to -> [0x3] 3: goto @49
-*/
+ */
 void Optimizer::optimizeRedundantIncrement() {
     int64_t x64, reg1;
     readjust:
@@ -674,7 +682,7 @@ void Optimizer::optimizeRedundantIncrement() {
  * [0x30] 48:	smovr ebx, sp+0
  *
  * to -> [0x3] 3: isadd #1, sp+0
-*/
+ */
 void Optimizer::optimizeStackInc() {
     int64_t x64, reg1;
     readjust:
@@ -713,7 +721,7 @@ void Optimizer::optimizeStackInc() {
  *
  * to -> [0x27] 39:	movi #46, adx
  *       [0x29] 41:	ifne
-*/
+ */
 void Optimizer::optimizeUnusedEbxAssign() {
     int64_t x64, reg1, reg2;
     readjust:
@@ -747,7 +755,7 @@ void Optimizer::optimizeUnusedEbxAssign() {
  * [0xb] 11:	return_val ebx
  *
  * to -> [0xb] 11:	return_val cmt
-*/
+ */
 void Optimizer::optimizeRedundantReturn() {
     int64_t x64, reg1, reg2;
     readjust:
@@ -779,7 +787,7 @@ void Optimizer::optimizeRedundantReturn() {
  * [0xc] 12:	rstore ebx
  *
  * to -> [0x3] 3: rstore cmt
-*/
+ */
 void Optimizer::optimizeRedundantMovr() {
     int64_t x64, reg1, reg2;
     readjust:
@@ -813,7 +821,7 @@ void Optimizer::optimizeRedundantMovr() {
  *
  * to -> [0xa] 10:	iaddl 1, @1
  *       [0xb] 11:	goto @2
-*/
+ */
 void Optimizer::optimizeLoadLocal_3() {
     int64_t x64, reg1;
     readjust:
@@ -843,7 +851,7 @@ void Optimizer::optimizeLoadLocal_3() {
  * [0x16] 22:	ifne
  *
  * to -> [0xa] 10:	jne #31
-*/
+ */
 void Optimizer::optimizeJumpBranches() {
     int64_t x64, val, reg1;
     readjust:
@@ -872,6 +880,174 @@ void Optimizer::optimizeJumpBranches() {
                     goto readjust;
                 }
                 break;
+        }
+    }
+}
+
+/**
+ * [0x7] 7:	loadval ebx
+ * [0x8] 8:	smovr_2 ebx, fp+1
+ *
+ * to -> [0x7] 7:	ipopl 1
+ */
+void Optimizer::optimizeSmovr() {
+    int64_t x64, reg1, reg2, addr;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_LOADVAL:
+                reg1 = GET_Da(x64);
+
+                if(GET_OP(assembler->__asm64.get(i+1)) == op_SMOVR_2
+                   && GET_Ca(assembler->__asm64.get(i+1)) == reg1) {
+                    addr = GET_Cb(assembler->__asm64.get(i+1));
+
+                    assembler->__asm64.remove(i); // remove loadval
+                    readjustAddresses(i);
+
+                    optimizedOpcodes++;
+                    assembler->__asm64.replace(i, SET_Di(x64, op_IPOPL, addr));
+                    goto readjust;
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0x7c] 124:	movi #0, ebx
+ * [0x7e] 126:	chklen ebx
+ * [0x7f] 127:	movnd ebx
+ *
+ * to -> [0x7c] 124:	movi #0, ebx
+         [0x7f] 127:	movnd ebx
+ */
+void Optimizer::optimizeCheckLen() {
+    int64_t x64, reg1;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_MOVI:
+                reg1 = assembler->__asm64.get(++i);
+
+                if(GET_OP(assembler->__asm64.get(i+1)) == op_CHECKLEN
+                   && GET_Da(assembler->__asm64.get(i+1)) == reg1
+                   && GET_OP(assembler->__asm64.get(i+2)) == op_MOVND
+                      && GET_Da(assembler->__asm64.get(i+2)) == reg1) {
+                    i++;
+
+                    assembler->__asm64.remove(i); // remove checklen
+                    readjustAddresses(i);
+
+                    optimizedOpcodes++;
+                    goto readjust;
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0x7c] 124:	movi #0, adx
+ *
+ * to -> (removed) - where nessicary
+ */
+void Optimizer::optimizeRegister(int reg) {
+    int64_t x64, reg1, val, regValue = -1; // regValue = 0 for remove and -1 for keep
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_ISTOREL:
+            case op_MOVBI: // skip these to prevent undefined behavior
+                i++;
+                break;
+
+            case op_SKPE:
+            case op_SKNE:
+            case op_GOTO:
+            case op_CALL:
+            case op_JE:
+            case op_JNE:
+            case op_RET:
+            case op_THROW:
+            case op_INVOKE_DELEGATE:
+            case op_INVOKE_DELEGATE_STATIC:
+                regValue = -1;
+                break;
+
+            case op_MOV8:
+            case op_MOV16:
+            case op_MOV32:
+            case op_MOV64:
+            case op_MOVU8:
+            case op_MOVU16:
+            case op_MOVU32:
+            case op_MOVU64:
+            case op_INC:
+            case op_DEC:
+            case op_SIZEOF:
+            case op_GET:
+            case op_LOADPC:
+            case op_LOADVAL:
+            case op_ITEST:
+                reg1 = GET_Da(x64);
+                if(reg1 == reg) regValue = -1;
+                break;
+
+            case op_ADD:
+            case op_SUB:
+            case op_MUL:
+            case op_DIV:
+            case op_MOD:
+            case op_SHL:
+            case op_SHR:
+                reg1 = assembler->__asm64.get(++i);
+                if(reg1 == reg) regValue = -1;
+                break;
+
+            case op_IADD:
+            case op_ISUB:
+            case op_IMUL:
+            case op_IDIV:
+            case op_IMOD:
+            case op_MOVR:
+            case op_NOT:
+            case op_LOADL:
+            case op_IALOAD:
+            case op_LOADPC_2:
+            case op_SMOV:
+            case op_IALOAD_2:
+                reg1 = GET_Ca(x64);
+                if(reg1 == reg) regValue = -1;
+                break;
+
+            case op_MOVI:
+                val = GET_Da(x64);
+                reg1 = assembler->__asm64.get(++i);
+
+                if(val==0 && reg1 == reg && regValue==0) {
+
+                    assembler->__asm64.remove(i); // remove movi
+                    readjustAddresses(i);
+                    i--;
+
+                    assembler->__asm64.remove(i); // remove register
+                    readjustAddresses(i);
+
+                    optimizedOpcodes+=2;
+                    goto readjust;
+                } else if(val==0 && reg1 == reg) {
+                    regValue = 0;
+                }
+                break;
+            default:
+                break; /* ignore */
         }
     }
 }

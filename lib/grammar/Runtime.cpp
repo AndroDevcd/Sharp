@@ -10862,6 +10862,13 @@ void RuntimeEngine::createDumpFile() {
                     _ostream << ss.str();
                     break;
                 }
+                case op_IPOPL:
+                {
+                    ss<<"ipopl ";
+                    ss<< GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
                 default:
                     ss << "? (" << GET_OP(x64) << ")";
                     _ostream << ss.str();
