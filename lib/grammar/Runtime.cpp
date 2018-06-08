@@ -8679,6 +8679,16 @@ void RuntimeEngine::validateDelegates(ClassObject *host, ClassObject *klass, Ast
                         << delegatesPosts.get(i)->getName() << paramsToString(delegatesPosts.get(i)->getParams())
                         << "' with the same access modifiers as the prototype";
                     errors->createNewError(GENERIC, ast->line, ast->col, err.str()); err.str("");
+                } else if(func->type != delegatesPosts.get(i)->type ||
+                        (delegatesPosts.get(i)->type == CLASS && !delegatesPosts.get(i)->klass->assignable(func->klass))
+                        || func->array != delegatesPosts.get(i)->array) {
+                    err << "class '" << host->getName() << "' must implement delegate method 'delegate::"
+                        << delegatesPosts.get(i)->getName() << paramsToString(delegatesPosts.get(i)->getParams())
+                        << "' with the same return value '" <<
+                                (delegatesPosts.get(i)->type == CLASS ? delegatesPosts.get(i)->klass->getFullName()
+                                                                      : ResolvedReference::typeToString(delegatesPosts.get(i)->type))
+                        << (delegatesPosts.get(i)->array ? "[]" : "")  << "' as the prototype";
+                    errors->createNewError(GENERIC, ast->line, ast->col, err.str()); err.str("");
                 }
             }
         }

@@ -13,7 +13,7 @@ public class FileSystem {
     * linux /
     * windows \\
     */
-    public def delegate::getPathSeparator() : string;
+    public def delegate::getPathSeparator() : var;
 
     /**
     * Make sure we know that our path has the correct
