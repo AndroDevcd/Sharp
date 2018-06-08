@@ -1,0 +1,8 @@
+mod application;
+
+/**
+ * Created by BraxtonN on 6/8/2018.
+ */
+class ErrorManager {
+
+}

@@ -156,8 +156,16 @@ void get_file_list(native_string &path, List<native_string> &files) {
     if ((dir = opendir (path.str().c_str())) != NULL) {
         /* print all the files and directories within directory */
         while ((ent = readdir (dir)) != NULL) {
+            if (!ent->d_name || ent->d_name[0] == '.') continue;
             native_string file;
-            file = string(ent->d_name);
+            file = path.str() + "/" + string(ent->d_name);
+
+            if(ent-> d_type == DT_DIR) {
+                native_string folder(file.str() + "/");
+                get_file_list(folder, files);
+                continue;
+            }
+
             files.push_back();
             files.last().init();
             files.last() = file;

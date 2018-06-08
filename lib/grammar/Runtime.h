@@ -1163,6 +1163,11 @@ struct options {
      * Machine platform target to run on
      */
     int target = versions.ALPHA;
+
+    /*
+     * List of user defined library paths
+     */
+    List<string> libraries;
 };
 
 int _bootstrap(int argc, const char* argv[]);

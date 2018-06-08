@@ -158,6 +158,49 @@ void Parser::parse_classdecl(Ast* _ast) { // 1
     parse_classblock(_ast);
 }
 
+void Parser::parse_enumblock(Ast *_ast) {
+    _ast = get_ast(_ast, ast_enum_identifier_list);
+
+    expect(LEFTCURLY, "`{`");
+
+    parse_enumidentifier(_ast);
+    pRefPtr:
+    if(peek(1).getTokenType() == COMMA)
+    {
+        expect(COMMA, _ast, "`,`");
+        parse_enumidentifier(_ast);
+        goto pRefPtr;
+    }
+
+    expect(RIGHTCURLY, "`}`");
+    expect(SEMICOLON, "`;`");
+}
+
+void Parser::parse_enumidentifier(Ast *_ast) {
+    _ast = get_ast(_ast, ast_enum_identifier);
+
+    expectidentifier(_ast);
+
+    if(peek(1).getTokenType() == ASSIGN) {
+        expect(ASSIGN, "`=`");
+
+        parse_expression(_ast);
+    }
+}
+
+void Parser::parse_enumdecl(Ast* _ast) { // 1
+    _ast = get_ast(_ast, ast_enum_decl);
+
+    for(int i = 0; i < access_types.size(); i++) {
+        _ast->addEntity(access_types.get(i));
+    }
+    _ast->addEntity(current());
+
+
+    expectidentifier(_ast);
+    parse_enumblock(_ast);
+}
+
 void Parser::parse_importdecl(Ast* _ast) {
     _ast = get_ast(_ast, ast_import_decl);
     _ast->addEntity(current());
@@ -203,6 +246,10 @@ bool Parser::isprototype_decl(token_entity token) {
 
 bool Parser::ismethod_decl(token_entity token) {
     return token.getId() == IDENTIFIER && token.getToken() == "def";
+}
+
+bool Parser::isenum_decl(token_entity token) {
+    return token.getId() == IDENTIFIER && token.getToken() == "enum";
 }
 
 Ast* Parser::ast_at(long p)
@@ -556,6 +603,10 @@ void Parser::parse_classblock(Ast *pAst) {
         else if(isprototype_decl(current()))
         {
             parse_prototypedecl(pAst);
+        }
+        else if(isenum_decl(current()))
+        {
+            parse_enumdecl(pAst);
         }
         else if(ismethod_decl(current()))
         {
@@ -2148,7 +2199,7 @@ bool Parser::iskeyword(string key) {
            || key == "var" || key == "sizeof"|| key == "_int8" || key == "_int16"
            || key == "_int32" || key == "_int64" || key == "_uint8"
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
-           || key == "delegate" || key == "interface" || key == "lock";
+           || key == "delegate" || key == "interface" || key == "lock" || key == "enum";
 }
 
 bool Parser::parse_type_identifier(Ast *pAst) {

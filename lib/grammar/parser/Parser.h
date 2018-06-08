@@ -249,6 +249,14 @@ private:
     bool parse_template_decl(Ast *pAst);
 
     Ast *popBacklast();
+
+    bool isenum_decl(token_entity token);
+
+    void parse_enumdecl(Ast *_ast);
+
+    void parse_enumblock(Ast *pAst);
+
+    void parse_enumidentifier(Ast *_ast);
 };
 
 #define _SHARP_CERROR_LIMIT c_options.error_limit

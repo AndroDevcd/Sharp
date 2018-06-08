@@ -14,7 +14,7 @@ public class Runtime {
     }
 
     private static def help() {
-        System.println("Usage: bootstrap" << "{OPTIONS} SOURCE FILE(S)");
+        System.println("Usage: sharpc " + "{OPTIONS} SOURCE FILE(S)");
         System.println("Source file must have a .sharp extion to be compiled.\n");
         System.println("[-options]\n\n    -V                print compiler version and exit");
         System.println(              "    -showversion      print compiler version and continue"               );
@@ -23,6 +23,7 @@ public class Runtime {
         System.println(              "    -a                enable aggressive error reporting"                 );
         System.println(              "    -s                string debugging info"                             );
         System.println(              "    -O                optimize executable"                               );
+        System.println(              "    -L<path>          library directory path"                            );
         System.println(              "    -w                disable all warnings"                              );
         System.println(              "    -errlmt<count>    set max errors the compiler allows before quitting");
         System.println(              "    -v<version>       set the application version"                       );

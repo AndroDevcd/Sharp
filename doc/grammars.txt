@@ -48,6 +48,12 @@ A reference identifier is an identifier that may be an <identifier> or <refrence
 <refrence-identifier-list>:
 <refrence-identifier> [,<refrence-identifier>...]
 
+<enum-identifier>:
+<identifier> [= <expression>]
+
+<enum-identifier-list>:
+<enum-identifier> [, <enum-identifier>...]
+
 <Utype-list>:
 <uType> [,<uType>...]
 
@@ -172,7 +178,10 @@ Generic Class Declaration:
 `[<accesstype>] class <identifier = name> < <identifier-list> > [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
 
 interface Declaration:
-`[<accesstype>] interface <identifier = name> [base <refrence-identifier> ] {}`
+`[<accesstype>] interface <identifier = name> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
+
+enum Declaration:
+`[<accesstype>] enum <identifier = name>  { [<enum-identifier-list>] }`
 
 <block>:
 { <statements>* }

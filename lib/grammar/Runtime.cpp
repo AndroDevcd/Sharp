@@ -62,6 +62,12 @@ int _bootstrap(int argc, const char* argv[])
             else
                 c_options.out = string(argv[++i]);
         }
+        else if(opt("-L")){
+            if(i+1 >= argc)
+                rt_error("library directory required after option `-L`");
+            else
+                c_options.libraries.add(string(argv[++i]));
+        }
         else if(opt("-V")){
             printVersion();
             exit(0);
@@ -160,10 +166,10 @@ int _bootstrap(int argc, const char* argv[])
         }
     }
 
-    if(!c_options.compileBootstrap && files.size() == 0){
-        help();
-        return 1;
-    }
+//    if(!c_options.compileBootstrap && files.size() == 0){
+//        help();
+//        return 1;
+//    }
 #ifdef WIN32_
     native_string path("C:/Sharp/include");
 #endif
@@ -173,6 +179,11 @@ int _bootstrap(int argc, const char* argv[])
 
     List<native_string> includes;
     get_full_file_list(path, includes);
+
+    for(long i = 0; i < c_options.libraries.size(); i++) {
+        path = c_options.libraries.get(i);
+        get_full_file_list(path, includes);
+    }
 
     for(long i = 0; i < includes.size(); i++)
         files.add(includes.get(i).str());
@@ -211,6 +222,7 @@ void get_full_file_list(native_string &path, List<native_string> &files) {
             if(ent-> d_type == DT_DIR) {
                 native_string folder(file.str() + "/");
                 get_full_file_list(folder, files);
+                continue;
             }
 
             if(ends_with(file.str(), ".sharp")) {
@@ -222,12 +234,12 @@ void get_full_file_list(native_string &path, List<native_string> &files) {
         closedir (dir);
     } else {
         /* could not open directory */
-                cout << "warning: could not find support library files, do you have them installed?" << endl;
+                cout << "warning: could not find support library files in path `" << path.str() << "`, do you have them installed?" << endl;
     }
 }
 
 void help() {
-    cout << "Usage: bootstrap" << "{OPTIONS} SOURCE FILE(S)" << std::endl;
+    cout << "Usage: sharpc " << "{OPTIONS} SOURCE FILE(S)" << std::endl;
     cout << "Source file must have a .sharp extion to be compiled.\n" << endl;
     cout << "[-options]\n\n    -V                print compiler version and exit"                       << endl;
     cout <<               "    -showversion      print compiler version and continue"                   << endl;
@@ -236,6 +248,7 @@ void help() {
     cout <<               "    -a                enable aggressive error reporting"                     << endl;
     cout <<               "    -s                string debugging info"                                 << endl;
     cout <<               "    -O                optimize executable"                                   << endl;
+    cout <<               "    -L<path>          library directory path"                                << endl;
     cout <<               "    -w                disable all warnings"                                  << endl;
     cout <<               "    -errlmt<count>    set max errors the compiler allows before quitting"    << endl;
     cout <<               "    -v<version>       set the application version"                           << endl;
@@ -380,12 +393,6 @@ void exec_runtime(List<string>& files)
 void RuntimeEngine::compile()
 {
     if(preprocess()) {
-        resolveAllFields();
-        resolveAllMethods();
-        inlineFields();
-        resolveAllInterfaces();
-        resolveAllDelegates();
-
         if(c_options.magic) {
             List<string> lst;
             lst.addAll(modules);
@@ -410,6 +417,12 @@ void RuntimeEngine::compile()
             lst.free();
         }
 
+        resolveAllFields();
+        resolveAllMethods();
+        inlineFields();
+        resolveAllInterfaces();
+        resolveAllDelegates();
+
         // TODO: inforce const on variables
         preprocessed = true;
         for(unsigned long i = 0; i < parsers.size(); i++) {
@@ -418,11 +431,6 @@ void RuntimeEngine::compile()
             currentModule = "$unknown";
 
             errors = new ErrorManager(p->lines, p->sourcefile, true, c_options.aggressive_errors);
-
-            List<string> imports;
-            imports.add("std"); // automatically import the standard lib module
-            KeyPair<string, List<string>> resolveMap(activeParser->sourcefile, imports);
-            importMap.push_back(resolveMap);
 
             Ast* ast;
             addScope(Scope(GLOBAL_SCOPE, NULL));

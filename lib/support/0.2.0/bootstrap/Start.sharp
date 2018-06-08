@@ -8,7 +8,7 @@ import std;
 */
 public class Start {
 
-    public static def main(string[] args) {
-        application#Runtime.bootstrap(args);
+    public static def main(string[] args) : var {
+        return application#Runtime.bootstrap(args);
     }
-};
+}

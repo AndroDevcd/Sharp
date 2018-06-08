@@ -1,0 +1,16 @@
+mod application;
+
+import std;
+
+public class Start {
+
+    enum Enums {
+        APPLE,
+        CHERRY,
+        PEACH
+    };
+
+    public static def main(string[] args) : var {
+
+    }
+}
