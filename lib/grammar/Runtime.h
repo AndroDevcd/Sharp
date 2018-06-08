@@ -1030,7 +1030,7 @@ private:
 
     void isMemoryObject(Expression &expression, Ast *pAst);
 
-    void parseGenericClassDecl(Ast *ast);
+    void parseGenericClassDecl(Ast *ast, bool isInterface);
 
     void parseIdentifierList(Ast *pAst, List<string> &idList);
 

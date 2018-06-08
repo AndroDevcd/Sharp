@@ -184,11 +184,10 @@ void Optimizer::optimize(Method *method) {
     optimizeRedundantReturn();
     optimizeRedundantMovr();
     optimizeLoadLocal_3();
-
     optimizeSmovr();
     optimizeCheckLen();
     optimizeRegister(adx);
-    optimizeRegister(ebx);
+    optimizeRegister(ebx); /* most commonly used register in the language */
     optimizeRegister(egx);
 
     /**

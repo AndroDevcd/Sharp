@@ -50,12 +50,19 @@ public class Start {
         System.println("dave = " +  dict.get("Dave" +""));
         System.println("steve = " +  dict.get("Steve" +""));
 
+        asm(" nop nop nop nop nop");
         Tmpl<int> t = new Tmpl<int>();
+
+        IFace<int> ifc = new IFace<int>();
     }
 
     class Tmpl<T> {
         def foo(T v) {
 
         }
+    }
+
+    interface IFace<T> {
+
     }
 }

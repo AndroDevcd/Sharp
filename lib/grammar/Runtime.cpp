@@ -444,6 +444,8 @@ void RuntimeEngine::compile()
                         break;
                     case ast_generic_class_decl: /* ignore */
                         break;
+                    case ast_generic_interface_decl: /* ignore */
+                        break;
                     default:
                         stringstream err;
                         err << ": unknown ast type: " << ast->getType();
@@ -6925,7 +6927,10 @@ bool RuntimeEngine::preprocess()
                     parseClassDecl(ast, true);
                     break;
                 case ast_generic_class_decl:
-                    parseGenericClassDecl(ast);
+                    parseGenericClassDecl(ast, false);
+                    break;
+                case ast_generic_interface_decl:
+                    parseGenericClassDecl(ast, true);
                     break;
                 default:
                     stringstream err;
@@ -7081,6 +7086,7 @@ void RuntimeEngine::resolveAllFields() {
                     resolveClassDecl(ast, false);
                     break;
                 case ast_generic_class_decl:
+                case ast_generic_interface_decl:
                     resolveGenericClassDecl(ast, false);
                     break;
                 default:
@@ -7954,7 +7960,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                         expression.utype.type = CLASS;
                         expression.utype.klass = klass;
                         expression.type = expression_class;
-                    } else if((klass = currentScope()->klass->getChildClass(refrence.referenceName)) != NULL) {
+                    } else if((klass = currentScope()->klass->getChildClass(refrence.referenceName)) != NULL && !klass->isGeneric()) {
                         // global class ?
                         expression.utype.type = CLASS;
                         expression.utype.klass = klass;
@@ -8933,21 +8939,6 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField) {
     }
 
     addScope(Scope(CLASS_SCOPE, klass));
-    if(inlineField) {
-
-        if(ast->hasSubAst(ast_reference_identifier_list)) {
-            List<ClassObject*> interfaces = parseRefrenceIdentifierList(ast->getSubAst(ast_reference_identifier_list));
-
-            for(long i = 0; i < interfaces.size(); i++) {
-                if(interfaces.get(i) != NULL && !interfaces.get(i)->isInterface()) {
-                    stringstream err;
-                    err << "class `" + interfaces.get(i)->getName() + "` is not an interface";
-                    errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-                }
-            }
-            klass->setInterfaces(interfaces);
-        }
-    }
     for(long i = 0; i < block->getSubAstCount(); i++) {
         trunk = block->getSubAst(i);
         CHECK_ERRORS
@@ -9254,7 +9245,10 @@ void RuntimeEngine::parseClassDecl(Ast *ast, bool isInterface)
                 parseClassDecl(ast, true);
                 break;
             case ast_generic_class_decl:
-                parseGenericClassDecl(ast);
+                parseGenericClassDecl(ast, false);
+                break;
+            case ast_generic_interface_decl:
+                parseGenericClassDecl(ast, true);
                 break;
             default:
                 stringstream err;
@@ -9266,7 +9260,7 @@ void RuntimeEngine::parseClassDecl(Ast *ast, bool isInterface)
     removeScope();
 }
 
-void RuntimeEngine::parseGenericClassDecl(Ast *ast)
+void RuntimeEngine::parseGenericClassDecl(Ast *ast, bool isInterface)
 {
     Ast* block = ast->getLastSubAst();
     List<AccessModifier> modifiers;
@@ -9302,6 +9296,7 @@ void RuntimeEngine::parseGenericClassDecl(Ast *ast)
         currentClass->addGenericKey(identifierList.get(i));
     }
 
+    currentClass->setIsInterface(isInterface);
     currentClass->setIsGeneric(true);
     currentClass->setAst(ast);
     addScope(Scope(CLASS_SCOPE, currentClass));
@@ -9330,7 +9325,10 @@ void RuntimeEngine::parseGenericClassDecl(Ast *ast)
                 parseClassDecl(ast, true);
                 break;
             case ast_generic_class_decl:
-                parseGenericClassDecl(ast);
+                parseGenericClassDecl(ast, false);
+                break;
+            case ast_generic_interface_decl:
+                parseGenericClassDecl(ast, true);
                 break;
             default:
                 stringstream err;
@@ -11008,6 +11006,7 @@ void RuntimeEngine::parseUtypeList(Ast *pAst, List<Expression> &list) {
     }
 }
 
+int recursion = 0;
 void RuntimeEngine::findAndCreateGenericClass(std::string module, string &klass, List<Expression> &utypes,
                                               ClassObject* parent, Ast *pAst) {
     for(long i = 0; i < utypes.size(); i++) {
@@ -11017,7 +11016,11 @@ void RuntimeEngine::findAndCreateGenericClass(std::string module, string &klass,
         }
     }
 
+    recursion++;
     ClassObject *generic = parent != NULL ? parent->getChildClass(klass) : getClass(module, klass, generics);
+    if(generic == NULL && parent == NULL) {
+        generic = currentScope()->klass->getChildClass(klass);
+    }
 
     if(generic != NULL) {
         if(utypes.size() == generic->genericKeySize()) {
@@ -11096,6 +11099,8 @@ void RuntimeEngine::findAndCreateGenericClass(std::string module, string &klass,
             }
         } // parseUtype() will handle unresolved error
     } // parseUtype() will handle unresolved error
+
+    recursion--;
 }
 
 void RuntimeEngine::traverseGenericClass(ClassObject *klass, List<Expression> &utypes, Ast* pAst) {
@@ -11216,13 +11221,26 @@ void RuntimeEngine::analyzeGenericClass(ClassObject *generic)
     parseAccessDecl(generic->getAst(), modifiers, startpos);
     ClassObject *base = parseBaseClass(ast, ++startpos);
 
-    if(base != NULL && base->isInterface()) {
+    if(base != NULL && base->isInterface() && !generic->isInterface()) {
         stringstream err;
         err << "classes can only inherit other classes, do 'class Dog base Animal : Traits {} ' instead";
         errors->createNewError(GENERIC, ast->line, ast->col, err.str());
     } else {
         if(base != NULL)
             generic->setBaseClass(base->getSerial() == generic->getSerial() ? NULL : base);
+    }
+
+    if(ast->hasSubAst(ast_reference_identifier_list)) {
+        List<ClassObject*> interfaces = parseRefrenceIdentifierList(ast->getSubAst(ast_reference_identifier_list));
+
+        for(long i = 0; i < interfaces.size(); i++) {
+            if(interfaces.get(i) != NULL && !interfaces.get(i)->isInterface()) {
+                stringstream err;
+                err << "class `" + interfaces.get(i)->getName() + "` is not an interface";
+                errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+            }
+        }
+        generic->setInterfaces(interfaces);
     }
 
     for(long i = 0; i < block->getSubAstCount(); i++) {
