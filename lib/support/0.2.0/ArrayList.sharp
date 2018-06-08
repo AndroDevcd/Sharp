@@ -38,7 +38,7 @@ public class ArrayList<T> {
      */
     public def toArray() : T[] {
         if(data == null) return null;
-        return ((T[]) Array.Tmpl<T>.copyOf(data, sizeof(data)));
+        return ((T[]) Array<T>.copyOf(data, sizeof(data)));
     }
 
     /**
@@ -70,14 +70,14 @@ public class ArrayList<T> {
      * Expand the list to hold more data
      */
     private def expand() {
-        data = (T[]) Array.expand(data, sizeof(data)+1);
+        data = (T[]) Array<T>.expand(data, sizeof(data)+1);
     }
 
     /**
      * Shrink the list to hold more data
      */
     private def shrink() {
-        data = (T[]) Array.expand(data, sizeof(data)-1);
+        data = (T[]) Array<T>.expand(data, sizeof(data)-1);
     }
 
     /**

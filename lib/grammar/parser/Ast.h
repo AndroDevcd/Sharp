@@ -171,10 +171,10 @@ public:
 
     void setAstType(ast_types types);
 
+    List<Ast> sub_asts;
 private:
     ast_types type;
     Ast *parent;
-    List<Ast> sub_asts;
     List<token_entity> entities;
 };
 

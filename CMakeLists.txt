@@ -22,14 +22,14 @@ else()
     set(CMAKE_CXX_FLAGS_RELEASE   "-Werror -lstdc++ -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
 endif ()
 
-set(SHARPC "build")
+#set(SHARPC "build")
 
 # Linux compiler console: g++ *.cpp ../../main.cpp ../util/*.cpp parser/*.cpp parser/*/*.cpp -lstdc++ -s -O3 -Ofast -o bootstrap -std=c++11
 
 # compiler
 if (SHARPC)
     add_definitions(-DMAKE_COMPILER)
-    set(SOURCE_FILES main.cpp lib/grammar/Runtime.cpp lib/grammar/Runtime.h lib/grammar/parser/tokenizer/tokenentity.cpp lib/grammar/parser/tokenizer/tokenentity.h lib/grammar/parser/tokenizer/tokentype.h lib/grammar/parser/tokenizer/tokenizer.cpp lib/grammar/parser/tokenizer/tokenizer.h lib/grammar/List.h lib/grammar/parser/ErrorManager.cpp lib/grammar/parser/ErrorManager.h lib/util/KeyPair.h lib/grammar/parser/Ast.cpp lib/grammar/parser/Ast.h lib/grammar/parser/Parser.cpp lib/grammar/parser/Parser.h lib/grammar/parser/ParserState.h lib/util/zip/zcompress.cpp lib/util/zip/zcompress.h lib/util/zip/zcore.cpp lib/util/zip/zcore.h lib/util/zip/zdecompress.cpp lib/util/zip/zdecompress.h lib/util/zip/zinclude.h lib/util/zip/zlib.cpp lib/util/zip/zlib.h lib/util/zip/zstream.cpp lib/util/zip/zstream.h lib/util/File.cpp lib/util/File.h lib/util/time.cpp lib/util/time.h lib/grammar/ClassObject.cpp lib/grammar/ClassObject.h lib/grammar/Field.cpp lib/grammar/Field.h lib/grammar/FieldType.h lib/grammar/AccessModifier.h lib/grammar/RuntimeNote.h lib/grammar/Param.cpp lib/grammar/Param.h lib/grammar/Method.h lib/grammar/Assembler.h lib/grammar/Method.cpp lib/grammar/Exception.h lib/grammar/OperatorOverload.h stdimports.h lib/runtime/Opcode.h lib/runtime/register.h lib/grammar/Asm.h lib/grammar/Asm.cpp lib/runtime/oo/string.h lib/runtime/Exe.h lib/grammar/Optimizer.cpp lib/grammar/Optimizer.h )
+    set(SOURCE_FILES main.cpp lib/grammar/Runtime.cpp lib/grammar/Runtime.h lib/grammar/parser/tokenizer/tokenentity.cpp lib/grammar/parser/tokenizer/tokenentity.h lib/grammar/parser/tokenizer/tokentype.h lib/grammar/parser/tokenizer/tokenizer.cpp lib/grammar/parser/tokenizer/tokenizer.h lib/grammar/List.h lib/grammar/parser/ErrorManager.cpp lib/grammar/parser/ErrorManager.h lib/util/KeyPair.h lib/grammar/parser/Ast.cpp lib/grammar/parser/Ast.h lib/grammar/parser/Parser.cpp lib/grammar/parser/Parser.h lib/grammar/parser/ParserState.h lib/util/zip/zcompress.cpp lib/util/zip/zcompress.h lib/util/zip/zcore.cpp lib/util/zip/zcore.h lib/util/zip/zdecompress.cpp lib/util/zip/zdecompress.h lib/util/zip/zinclude.h lib/util/zip/zlib.h lib/util/zip/zlib.cpp lib/util/zip/zstream.cpp lib/util/zip/zstream.h lib/util/File.cpp lib/util/File.h lib/util/time.cpp lib/util/time.h lib/grammar/ClassObject.cpp lib/grammar/ClassObject.h lib/grammar/Field.cpp lib/grammar/Field.h lib/grammar/FieldType.h lib/grammar/AccessModifier.h lib/grammar/RuntimeNote.h lib/grammar/Param.cpp lib/grammar/Param.h lib/grammar/Method.h lib/grammar/Assembler.h lib/grammar/Method.cpp lib/grammar/Exception.h lib/grammar/OperatorOverload.h stdimports.h lib/runtime/Opcode.h lib/runtime/register.h lib/grammar/Asm.h lib/grammar/Asm.cpp lib/runtime/oo/string.h lib/runtime/Exe.h lib/grammar/Optimizer.cpp lib/grammar/Optimizer.h )
 
     add_executable(Sharpc ${SOURCE_FILES})
 else()

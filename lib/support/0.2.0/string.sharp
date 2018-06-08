@@ -93,7 +93,7 @@ public class string {
 
         public def operator==( string str ) : var
         {
-            if(sizeof(str) != sizeof(data)) {
+            if(str.size() != sizeof(data)) {
                 return false;
             }
 
@@ -125,7 +125,7 @@ public class string {
 
         public def operator=( var[] immstr )
         {
-            data = Array.copyOf(immstr, sizeof(immstr));
+            data = Array<var>.copyOf(immstr, sizeof(immstr));
         }
 
         public def operator+( var num ) : string
@@ -153,7 +153,7 @@ public class string {
 
         public def toArray() : var[]
         {
-            return Array.copyOf(data, sizeof(data));
+            return Array<var>.copyOf(data, sizeof(data));
         }
 
         public static def parse( var number ) : string

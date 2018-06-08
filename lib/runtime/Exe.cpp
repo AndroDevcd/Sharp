@@ -129,7 +129,7 @@ int Process_Exe(std::string exe)
         List<KeyPair<int64_t, ClassObject*>> mSuperClasses;
         List<KeyPair<int64_t, ClassObject*>> mBaseClasses;
         List<KeyPair<int64_t, Field*>> mFields;
-        int64_t classRefptr=0, macroRefptr=0, fileRefptr=0;
+        int64_t fileRefptr=0;
 
         manifest.classes += AUX_CLASSES;
         env->classes =(ClassObject*)malloc(sizeof(ClassObject)*manifest.classes);
@@ -161,11 +161,14 @@ int Process_Exe(std::string exe)
 
                 case data_class: {
                     int64_t fieldPtr=0, functionPtr=0;
-                    ClassObject* klass = &env->classes[classRefptr++];
-                    mSuperClasses.add(KeyPair<int64_t, ClassObject*>(getlong(buffer), klass));
-                    mBaseClasses.add(KeyPair<int64_t, ClassObject*>(getlong(buffer), klass));
+                    long l1 = getlong(buffer);
+                    long l2 = getlong(buffer);
+                    long serial = geti64(buffer);
+                    ClassObject* klass = &env->classes[serial];
+                    mSuperClasses.add(KeyPair<int64_t, ClassObject*>(l1, klass));
+                    mBaseClasses.add(KeyPair<int64_t, ClassObject*>(l2, klass));
 
-                    klass->serial = geti64(buffer);
+                    klass->serial = serial;
                     klass->name.init();
                     klass->name = getstring(buffer);
                     klass->fieldCount = getlong(buffer);

@@ -114,6 +114,7 @@ public class Dictionary<TKey, TValue> {
         if((index = indexof(key)) != -1) {
             TValue oldValue = values.get(index);
             values.remove(index);
+            keys.remove(index);
             return oldValue;
         }
 

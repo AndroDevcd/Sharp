@@ -162,7 +162,7 @@ void Parser::parse_importdecl(Ast* _ast) {
     _ast = get_ast(_ast, ast_import_decl);
     _ast->addEntity(current());
 
-    bool tmp;
+    bool tmp = false;
     parse_modulename(_ast, tmp);
 
     if(tmp)
@@ -175,7 +175,7 @@ void Parser::parse_moduledecl(Ast* _ast) {
     _ast = get_ast(_ast, ast_module_decl);
     _ast->addEntity(current());
 
-    bool tmp;
+    bool tmp = false;
     parse_modulename(_ast, tmp);
     if(tmp)
         errors->createNewError(GENERIC, current(), "module-name does not allow for generic typing ");
@@ -2244,7 +2244,7 @@ bool Parser::parse_reference_pointer(Ast *pAst) {
     }
     else
         pushback();
-    bool parsedGeneric;
+    bool parsedGeneric = false;
     parse_modulename(pAst, parsedGeneric);
 
     /*
@@ -2262,6 +2262,7 @@ bool Parser::parse_reference_pointer(Ast *pAst) {
         pAst->addAst(Ast(pAst, pAst->getSubAst(0)->getSubAst(i)));
     }
 
+    pAst->sub_asts.remove(0);
     advance();
     if(current().getTokenType() == HASH) {
         if(parsedGeneric)

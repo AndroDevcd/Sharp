@@ -3,10 +3,10 @@ mod std;
 /**
  * Created by BraxtonN on 5/17/2018.
  */
-public class Array {
+public class Array<T> {
 
-    public static def copyOf(var[] data, var len) : var[] {
-        var[] newArry = new var[len];
+    public static def copyOf(T[] data, var len) : T[] {
+        T[] newArry = new T[len];
 
         for(var i = 0; i < len; i++) {
             newArry[i] = data[i];
@@ -15,32 +15,8 @@ public class Array {
         return newArry;
     }
 
-    class Tmpl<T> {
-        public static def copyOf(T[] data, var len) : T[] {
-            T[] newArry = new T[len];
-
-            for(var i = 0; i < len; i++) {
-                newArry[i] = data[i];
-            }
-
-            return newArry;
-        }
-    }
-
-
-    public static def expand(var[] data, var len) : var[] {
-        var[] newArry = new var[len];
-
-        var max = len <= sizeof(data) ? len : sizeof(data);
-        for(var i = 0; i < max; i++) {
-            newArry[i] = data[i];
-        }
-
-        return newArry;
-    }
-
-    public static def expand(object[] data, var len) : object[] {
-        object[] newArry = new object[len];
+    public static def expand(T[] data, var len) : T[] {
+        T[] newArry = new T[len];
 
         var max = len <= sizeof(data) ? len : sizeof(data);
         for(var i = 0; i < max; i++) {

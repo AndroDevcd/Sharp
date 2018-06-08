@@ -3966,7 +3966,7 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
 
     switch(arg.type) {
         case expression_lclass:
-            if(utype.utype.klass->hasBaseClass(arg.utype.klass)) {
+            if(utype.utype.klass->assignable(arg.utype.klass)) {
                 out.inject(arg);
                 out.utype = utype.utype;
                 out.type = expression_lclass;
@@ -3983,7 +3983,7 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
             return;
         case expression_field:
             if(arg.utype.field->type == CLASS) {
-                if(utype.utype.klass->match(arg.utype.klass)) {
+                if(utype.utype.klass->assignable(arg.utype.klass)) {
                     out.inject(arg);
                     out.type = expression_lclass;
                     out.utype = utype.utype;
@@ -7223,6 +7223,12 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
             continue;
         }
 
+        if(ast->hasSubAst(ast_utype_list) && ast->getSubAst(idx++)->getType() == ast_utype_list){
+            List<Expression> utypes;
+            parseUtypeList(ast->getSubAst(idx-1), utypes);
+            findAndCreateGenericClass(ptr.module, id, utypes, parent, ast);
+        }
+
         if(hash && !hashfound && !last) {
             if(ptr.module == "")
                 ptr.module =id;
@@ -7234,12 +7240,6 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
             if(resolveParents) parent = tryClassResolve(ptr.module, id, ast);
         } else {
             ptr.referenceName = id;
-        }
-
-        if(ast->hasSubAst(ast_utype_list) && ast->getSubAst(idx++)->getType() == ast_utype_list){
-            List<Expression> utypes;
-            parseUtypeList(ast->getSubAst(idx-1), utypes);
-            findAndCreateGenericClass(ptr.module, ptr.referenceName, utypes, parent, ast);
         }
     }
 
@@ -9657,6 +9657,7 @@ std::string RuntimeEngine::class_to_stream(ClassObject& klass) {
     }
 
     for(long long i = 0; i < klass.childClassCount(); i++) {
+        if(klass.getChildClass(i)->isGeneric()) continue;
         kstream << class_to_stream(*klass.getChildClass(i)) << endl;
     }
 
@@ -9962,6 +9963,7 @@ void RuntimeEngine::createDumpFile() {
         for(int64_t x = 0; x < k.childClassCount(); x++) {
             stringstream s;
             ClassObject *klass = k.getChildClass(x);
+            if(klass->isGeneric()) continue;
             s << "\n@" << klass->address << " " << klass->getFullName();
             s << " fields: " << classes.get(i)->fieldCount() << " methods: "
                << classes.get(i)->functionCount();
@@ -11029,73 +11031,84 @@ void RuntimeEngine::findAndCreateGenericClass(std::string module, string &klass,
         }
     }
 
-    if(parent == NULL) {
-        ClassObject *generic = getClass(module, klass, generics);
+    ClassObject *generic = parent != NULL ? parent->getChildClass(klass) : getClass(module, klass, generics);
 
-        if(generic != NULL) {
-            if(utypes.size() == generic->genericKeySize()) {
-                stringstream name;
+    if(generic != NULL) {
+        if(utypes.size() == generic->genericKeySize()) {
+            stringstream name;
 
-                // build unique class name
-                name << "<";
-                for(long i = 0; i < utypes.size(); i++) {
-                    name << utypes.get(i).typeToString();
+            // build unique class name
+            name << "<";
+            for(long i = 0; i < utypes.size(); i++) {
+                name << utypes.get(i).typeToString();
 
-                    if((i+1) < utypes.size()) {
-                        name << ",";
+                if((i+1) < utypes.size()) {
+                    name << ",";
+                }
+            }
+            name << ">";
+            klass = generic->getName() + name.str();
+
+            if(getClass(module, klass, classes) == NULL) {
+
+                List<AccessModifier> modifiers;
+                modifiers.add(generic->getAccessModifier());
+                ClassObject *newClass = NULL;
+
+                if(parent == NULL)
+                    newClass = addGlobalClassObject(klass, modifiers, pAst);
+                else {
+                    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
+                                                   pAst->line, pAst->col);
+
+                    newClass = new ClassObject(klass, currentModule, this->uniqueSerialId++,modifiers.get(0), note);
+                    if(!parent->addChildClass(newClass)) {
+                        return;
                     }
                 }
-                name << ">";
-                klass = generic->getName() + name.str();
 
-                if(getClass(module, klass, classes) == NULL) {
+                // traverse class
+                RuntimeNote note = newClass->note;
 
-                    List<AccessModifier> modifiers;
-                    modifiers.add(generic->getAccessModifier());
-                    ClassObject *newClass = addGlobalClassObject(klass, modifiers, pAst);
+                // set up error system for temporary convinent error reporting
+                string file = errors->filname;
+                List<string> oldLines;
+                oldLines.addAll(errors->lines);
 
-                    // traverse class
-                    RuntimeNote note = newClass->note;
-
-                    // set up error system for temporary convinent error reporting
-                    string file = errors->filname;
-                    List<string> oldLines;
-                    oldLines.addAll(errors->lines);
-
-                    for(long i = 0; i < parsers.size(); i++) {
-                        if(parsers.get(i)->sourcefile == generic->note.getFile()) {
-                            errors->lines.addAll(parsers.get(i)->lines);
-                        }
-                    }
-
-                    *newClass = *generic;
-
-                    errors->filname = newClass->note.getFile();
-                    newClass->note = note;
-                    newClass->setFullName(newClass->getFullName() + name.str());
-                    newClass->setName(klass);
-                    newClass->setIsProcessed(true);
-
-                    long long currErrors = errors->getUnfilteredErrorCount() ,newErrors;
-
-                    addScope(Scope(CLASS_SCOPE, newClass));
-                    traverseGenericClass(newClass, utypes, pAst);
-                    removeScope();
-
-                    analyzeGenericClass(newClass);
-
-                    errors->lines.addAll(oldLines);
-                    errors->filname = file;
-                    newErrors = errors->getUnfilteredErrorCount()-currErrors;
-
-                    if(newErrors > 0) {
-                        // this helps the user find where they went wrong
-                        printNote(newClass->note, "in generic `" + newClass->getName() + "`");
+                for(long i = 0; i < parsers.size(); i++) {
+                    if(parsers.get(i)->sourcefile == generic->note.getFile()) {
+                        errors->lines.addAll(parsers.get(i)->lines);
                     }
                 }
-            } // parseUtype() will handle unresolved error
+
+                *newClass = *generic;
+
+                errors->filname = newClass->note.getFile();
+                newClass->note = note;
+                newClass->setFullName(newClass->getFullName() + name.str());
+                newClass->setName(klass);
+                newClass->setIsProcessed(true);
+
+                long long currErrors = errors->getUnfilteredErrorCount() ,newErrors;
+
+                addScope(Scope(CLASS_SCOPE, newClass));
+                traverseGenericClass(newClass, utypes, pAst);
+                removeScope();
+
+                analyzeGenericClass(newClass);
+
+                newClass->setIsGeneric(false);
+                errors->lines.addAll(oldLines);
+                errors->filname = file;
+                newErrors = errors->getUnfilteredErrorCount()-currErrors;
+
+                if(newErrors > 0) {
+                    // this helps the user find where they went wrong
+                    printNote(newClass->note, "in generic `" + newClass->getName() + "`");
+                }
+            }
         } // parseUtype() will handle unresolved error
-    }
+    } // parseUtype() will handle unresolved error
 }
 
 void RuntimeEngine::traverseGenericClass(ClassObject *klass, List<Expression> &utypes, Ast* pAst) {
