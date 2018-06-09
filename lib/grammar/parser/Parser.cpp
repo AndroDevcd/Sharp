@@ -184,7 +184,7 @@ void Parser::parse_enumidentifier(Ast *_ast) {
     if(peek(1).getTokenType() == ASSIGN) {
         expect(ASSIGN, "`=`");
 
-        parse_expression(_ast);
+        parse_value(_ast);
     }
 }
 

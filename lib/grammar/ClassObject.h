@@ -33,7 +33,8 @@ public:
             address(-1),
             _interface(false),
             _generic(false),
-            processed(false)
+            processed(false),
+            enumValue(0)
     {
         functions.init();
         constructors.init();
@@ -56,7 +57,8 @@ public:
             address(-1),
             _interface(false),
             _generic(false),
-            processed(false)
+            processed(false),
+            enumValue(0)
     {
         functions.init();
         constructors.init();
@@ -81,7 +83,8 @@ public:
             address(-1),
             _interface(false),
             _generic(false),
-            processed(false)
+            processed(false),
+            enumValue(0)
     {
         functions.init();
         constructors.init();
@@ -149,6 +152,7 @@ public:
         this->genericKeys.addAll(klass.genericKeys);
         this->processed=klass.processed;
         this->start = klass.start;
+        this->enumValue=klass.enumValue;
     }
 
     size_t constructorCount();
@@ -234,6 +238,7 @@ public:
     long getFieldAddress(Field* field);
 
     long long address;
+    long enumValue;
 
     List<Method *> getDelegatePosts(bool ubase);
 

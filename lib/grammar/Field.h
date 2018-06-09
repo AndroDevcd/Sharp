@@ -30,7 +30,8 @@ public:
             nullType(false),
             local(false),
             key(""),
-            ast(NULL)
+            ast(NULL),
+            isEnum(false)
     {
         this->modifiers.init();
         this->modifiers.addAll(modifiers);
@@ -50,7 +51,8 @@ public:
             nullType(false),
             local(false),
             key(""),
-            ast(NULL)
+            ast(NULL),
+            isEnum(false)
     {
         this->modifiers.init();
         this->modifiers.addAll(modifiers);
@@ -70,7 +72,8 @@ public:
             owner(NULL),
             key(""),
             klass(NULL),
-            ast(NULL)
+            ast(NULL),
+            isEnum(false)
     {
     }
 
@@ -93,6 +96,7 @@ public:
         local=f.local;
         key=f.key;
         ast=f.ast;
+        isEnum=f.isEnum;
     }
 
     void free(){
@@ -134,7 +138,7 @@ public:
         return type == OBJECT;
     }
 
-    bool isArray, nullType, local;
+    bool isArray, nullType, local, isEnum;
     bool resolved;
     RuntimeNote note;
     FieldType type;

@@ -1,0 +1,28 @@
+mod std;
+
+/**                          
+* Created by bknun on 6/8/2018            
+* Basic support for enums
+*/
+public class Enum {
+    public var[] name;
+    public var value;
+
+    public Enum(var val) {
+        value = val;
+    }
+
+    public Enum(Enum e) {
+        value = e.value;
+    }
+
+    public def operator=(var newVal) : var {
+        value = newVal;
+        return newVal;
+    }
+
+    public def operator=(Enum newVal) : var {
+        value = newVal.value;
+        return newVal.value;
+    }
+}

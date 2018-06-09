@@ -637,7 +637,7 @@ private:
 
     void resolveAllFields();
 
-    void resolveClassDecl(Ast *ast, bool in);
+    void resolveClassDecl(Ast *ast, bool in, bool forEnum = false);
 
     ReferencePointer parseReferencePtr(Ast *ast, bool getAst=true);
 
@@ -1038,7 +1038,7 @@ private:
 
     bool addGeericClass(ClassObject* klass);
 
-    void resolveGenericClassDecl(Ast *ast, bool inlineField);
+    void resolveGenericClassDecl(Ast *ast, bool inlineField, bool forEnum = false);
 
     void parseUtypeList(Ast *pAst, List<Expression> &list);
 
@@ -1052,6 +1052,20 @@ private:
     void traverseField(ClassObject *klass, Field *field, Ast* pAst);
 
     void analyzeGenericClass(ClassObject *generic);
+
+    void parseEnumDecl(Ast *ast);
+
+    void parseEnumVar(Ast *ast);
+
+    void resolveEnumDecl(Ast *ast);
+
+    void resolveAllEnums();
+
+    void resolveEnumVarDecl(Ast *ast);
+
+    void assignEnumValue(Ast *ast, Field *field, Expression &expr, Expression &out);
+
+    void assignEnumName(Ast *ast, Field *field,  Expression &out);
 };
 
 

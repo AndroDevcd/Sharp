@@ -422,7 +422,9 @@ void RuntimeEngine::compile()
         inlineFields();
         resolveAllInterfaces();
         resolveAllDelegates();
+        resolveAllEnums();
 
+        // TODO: make checkSupportClasses() to check on vital support classes to make sure things are as they should be
         // TODO: inforce const on variables
         preprocessed = true;
         for(unsigned long i = 0; i < parsers.size(); i++) {
@@ -453,6 +455,8 @@ void RuntimeEngine::compile()
                     case ast_generic_class_decl: /* ignore */
                         break;
                     case ast_generic_interface_decl: /* ignore */
+                        break;
+                    case ast_enum_decl:
                         break;
                     default:
                         stringstream err;
@@ -1692,6 +1696,8 @@ void RuntimeEngine::analyzeClassDecl(Ast *ast) {
                 break;
             case ast_generic_class_decl: /* ignore */
                 break;
+            case ast_enum_decl:
+                break;
             default: {
                 stringstream err;
                 err << ": unknown ast type: " << ast->getType();
@@ -2270,12 +2276,24 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                     errors->createNewError(GENERIC, valueLst->line, valueLst->col, " symbol `" + methodName + "` is a field");
                 }
                 else {
+                    if(currentScope()->klass->hasBaseClass(getClass("std", "Enum", classes))) {
+                        Scope *scope = &scopeMap.get(scopeMap.size()-2);
+                        if((fn = scope->klass->getFunction(ptr.referenceName, params, true)) != NULL){}
+                        else if((fn = scope->klass->getOverload(stringToOp(ptr.referenceName), params, true)) != NULL){}
+                        else if(ptr.referenceName == scope->klass->getName() && (fn = scope->klass->getConstructor(params)) != NULL) {}
+                        else if(scope->klass->getField(methodName, true) != NULL) {
+                            errors->createNewError(GENERIC, valueLst->line, valueLst->col, " symbol `" + methodName + "` is a field");
+                        }
+
+                        if(fn != NULL) goto funcFound;
+                    }
                     if(stringToOp(methodName) != oper_UNDEFINED) methodName = "operator" + ptr.referenceName;
                     else methodName = ptr.referenceName;
                     errors->createNewError(COULD_NOT_RESOLVE, valueLst->line, valueLst->col, " `" + ptr.referenceName +  paramsToString(params) + "`");
                 }
             }
 
+            funcFound:
             if(fn != NULL && !fn->isStatic()) {
                 expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
             }
@@ -6940,6 +6958,9 @@ bool RuntimeEngine::preprocess()
                 case ast_generic_interface_decl:
                     parseGenericClassDecl(ast, true);
                     break;
+                case ast_enum_decl:
+                    parseEnumDecl(ast);
+                    break;
                 default:
                     stringstream err;
                     err << ": unknown ast type: " << ast->getType();
@@ -7096,6 +7117,8 @@ void RuntimeEngine::resolveAllFields() {
                 case ast_generic_class_decl:
                 case ast_generic_interface_decl:
                     resolveGenericClassDecl(ast, false);
+                    break;
+                case ast_enum_decl: /* ignore */
                     break;
                 default:
                     /* ignore */
@@ -8223,6 +8246,92 @@ void RuntimeEngine::resolveVarDecl(Ast* ast, bool inlineField) {
     }
 }
 
+void RuntimeEngine::resolveEnumVarDecl(Ast* ast) {
+    List<AccessModifier> modifiers;
+    int startpos=0;
+
+    parseAccessDecl(ast, modifiers, startpos);
+
+    string name =  ast->getEntity(startpos).getToken();
+    Field* field = currentScope()->klass->getField(name);
+
+    field->klass = currentScope()->klass;
+    field->type = CLASS;
+
+    field->isEnum = true;
+    field->owner = currentScope()->klass;
+    field->address = field->owner->getFieldAddress(field);
+
+    if(ast->hasSubAst(ast_value)) {
+        Expression expr = parseValue(ast->getSubAst(ast_value)), out(ast);
+
+        if (expr.literal) {
+            // inline local static variables
+            inline_map.add(KeyPair<string, double>(field->fullName, expr.intValue));
+            currentScope()->klass->enumValue = (long)expr.intValue+1;
+
+            assignEnumValue(ast, field, expr, out);
+            assignEnumName(ast, field, out);
+        } else {
+            assignEnumValue(ast, field, expr, out);
+            assignEnumName(ast, field, out);
+        }
+    } else {
+        Expression expr(ast), out(ast);
+        expr.type = expression_var;
+        expr.literal = true;
+        expr.intValue = currentScope()->klass->enumValue;
+        expr.code.push_i64(SET_Di(i64, op_MOVI, expr.intValue), ebx);
+
+        inline_map.add(KeyPair<string, double>(field->fullName, currentScope()->klass->enumValue++));
+
+        assignEnumValue(ast, field, expr, out);
+        assignEnumName(ast, field, out);
+    }
+}
+
+void RuntimeEngine::assignEnumValue(Ast *ast, Field *field, Expression &expr, Expression &out) {
+    Field *valueField = field->klass->getField("value", true);
+    if(valueField != NULL) {
+        Expression valueExpr = fieldToExpression(ast, *valueField);
+        valueExpr.code.free();
+
+        List<Param> empty;
+        token_entity operand("=", SINGLE, 0,0, ASSIGN);
+
+        valueExpr.code.__asm64.push_back(SET_Di(i64, op_NEWCLASS, field->owner->address)); // create Enum class
+
+        Method* constr = field->owner->getConstructor(empty, true);
+        valueExpr.code.__asm64.push_back(SET_Di(i64, op_CALL, constr->address)); // call Enum()
+        valueExpr.code.__asm64.push_back(SET_Di(i64, op_MOVG, field->owner->address));
+        valueExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, field->address)); // get local
+        valueExpr.code.__asm64.push_back(SET_Ei(i64, op_POPOBJ)); // call Enum()
+        valueExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, valueField->address));
+        assignValue(operand, out, valueExpr, expr, ast);
+        staticMainInserts.inject(0, out.code);
+    }
+}
+
+void RuntimeEngine::assignEnumName(Ast *ast, Field *field, Expression &out) {
+    Field *valueField = field->klass->getField("name", true);
+    if(valueField != NULL) {
+
+        List<Param> empty;
+        stringMap.addif(field->name);
+        out.code.__asm64.push_back(SET_Di(i64, op_NEWSTRING, stringMap.indexof(field->name))); // create Enum class
+        out.code.__asm64.push_back(SET_Di(i64, op_NEWCLASS, field->owner->address)); // create Enum class
+
+        Method* constr = field->owner->getConstructor(empty, true);
+        out.code.__asm64.push_back(SET_Di(i64, op_CALL, constr->address)); // call Enum()
+        out.code.__asm64.push_back(SET_Di(i64, op_MOVG, field->owner->address));
+        out.code.__asm64.push_back(SET_Di(i64, op_MOVN, field->address)); // get local
+        out.code.__asm64.push_back(SET_Ei(i64, op_POPOBJ)); // call Enum()
+        out.code.__asm64.push_back(SET_Di(i64, op_MOVN, valueField->address));
+        out.code.__asm64.push_back(SET_Ei(i64, op_POPOBJ));
+        staticMainInserts.inject(0, out.code);
+    }
+}
+
 int RuntimeEngine::parseMethodAccessSpecifiers(List<AccessModifier> &modifiers) {
     for(long i = 0; i < modifiers.size(); i++) {
         AccessModifier modifier = modifiers.get(i);
@@ -8824,6 +8933,8 @@ void RuntimeEngine::resolveClassDeclDelegates(Ast* ast) {
                 break;
             case ast_generic_class_decl: /* ignore */
                 break;
+            case ast_enum_decl: /* ignore */
+                break;
             default:
                 stringstream err;
                 err << ": unknown ast type: " << trunk->getType();
@@ -8834,7 +8945,7 @@ void RuntimeEngine::resolveClassDeclDelegates(Ast* ast) {
     removeScope();
 }
 
-void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
+void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
     Ast* block = ast->getSubAst(ast_block), *trunk;
     List<AccessModifier> modifiers;
     ClassObject* klass;
@@ -8850,11 +8961,11 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
         klass = currentScope()->klass->getChildClass(name);
     }
 
-    if(!inlineField && resolvedFields)
+    if(!inlineField && resolvedFields && !forEnum)
         klass->address = classSize++;
 
     addScope(Scope(CLASS_SCOPE, klass));
-    if(inlineField) {
+    if(!forEnum && inlineField) {
         ClassObject *base = parseBaseClass(ast, ++startpos);
 
         if(!klass->isInterface() && base != NULL && base->isInterface()) {
@@ -8885,37 +8996,41 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
 
         switch(trunk->getType()) {
             case ast_class_decl:
-                resolveClassDecl(trunk, inlineField);
+                resolveClassDecl(trunk, inlineField, forEnum);
                 break;
             case ast_var_decl:
-                if(!resolvedFields || inlineField)
+                if(!forEnum && !resolvedFields || inlineField)
                     resolveVarDecl(trunk, inlineField);
                 break;
             case ast_method_decl:
-                if(!inlineField && resolvedFields)
+                if(!forEnum && !inlineField && resolvedFields)
                     resolveMethodDecl(trunk);
                 break;
             case ast_operator_decl:
-                if(!inlineField && resolvedFields)
+                if(!forEnum && !inlineField && resolvedFields)
                     resolveOperatorDecl(trunk);
                 break;
             case ast_construct_decl:
-                if(!inlineField && resolvedFields)
+                if(!forEnum && !inlineField && resolvedFields)
                     resolveConstructorDecl(trunk);
                 break;
             case ast_delegate_post_decl:
-                if(!inlineField && resolvedFields)
+                if(!forEnum && !inlineField && resolvedFields)
                     resolveDelegatePostDecl(trunk);
                 break;
             case ast_delegate_decl:
-                if(!inlineField && resolvedFields)
+                if(!forEnum && !inlineField && resolvedFields)
                     resolveDelegateDecl(trunk);
                 break;
             case ast_interface_decl:
                 resolveClassDecl(trunk, inlineField);
                 break;
             case ast_generic_class_decl:
-                resolveGenericClassDecl(trunk, inlineField);
+                resolveGenericClassDecl(trunk, inlineField, forEnum);
+                break;
+            case ast_enum_decl: /* ignore */
+                if(forEnum)
+                    resolveEnumDecl(trunk);
                 break;
             default:
                 stringstream err;
@@ -8930,7 +9045,80 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField) {
     removeScope();
 }
 
-void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField) {
+void RuntimeEngine::resolveEnumDecl(Ast* ast) {
+    Ast* block = ast->getSubAst(ast_enum_identifier_list), *trunk;
+    List<AccessModifier> modifiers;
+    ClassObject* klass;
+    int startpos=1;
+
+    parseAccessDecl(ast, modifiers, startpos);
+    string name =  ast->getEntity(startpos).getToken();
+
+    if(currentScope()->type == GLOBAL_SCOPE) {
+        klass = getClass(currentModule, name, classes);
+    }
+    else {
+        klass = currentScope()->klass->getChildClass(name);
+    }
+
+    klass->address = classSize++;
+    ClassObject *base = tryClassResolve("std", "Enum", ast);
+
+    if(base != NULL && base->isInterface()) {
+        stringstream err;
+        err << "support class for enums found to b an interface";
+        errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+    } else {
+        if(base != NULL)
+            klass->setBaseClass(base->getSerial() == klass->getSerial() ? NULL : base);
+        else {
+            stringstream err;
+            err << "support class for enums not found";
+            errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+        }
+    }
+    addScope(Scope(CLASS_SCOPE, klass));
+    for(long i = 0; i < block->getSubAstCount(); i++) {
+        trunk = block->getSubAst(i);
+        CHECK_ERRORS
+
+        switch(trunk->getType()) {
+            case ast_class_decl: /* ignore */
+                break;
+            case ast_var_decl: /* ignore */
+                break;
+            case ast_method_decl: /* ignore */
+                break;
+            case ast_operator_decl: /* ignore */
+                break;
+            case ast_construct_decl: /* ignore */
+                break;
+            case ast_delegate_post_decl: /* ignore */
+                break;
+            case ast_delegate_decl: /* ignore */
+                break;
+            case ast_interface_decl: /* ignore */
+                break;
+            case ast_generic_class_decl: /* ignore */
+                break;
+            case ast_enum_decl: /* ignore */
+                break;
+            case ast_enum_identifier:
+                resolveEnumVarDecl(trunk);
+                break;
+            default:
+                stringstream err;
+                err << ": unknown ast type: " << trunk->getType();
+                errors->createNewError(INTERNAL_ERROR, trunk->line, trunk->col, err.str());
+                break;
+        }
+    }
+
+    addDefaultConstructor(klass, ast);
+    removeScope();
+}
+
+void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField, bool forEnum) {
     Ast* block = ast->getSubAst(ast_block), *trunk;
     List<AccessModifier> modifiers;
     ClassObject* klass;
@@ -8953,37 +9141,41 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField) {
 
         switch(trunk->getType()) {
             case ast_class_decl:
-                resolveClassDecl(trunk, inlineField);
+                resolveClassDecl(trunk, inlineField, forEnum);
                 break;
             case ast_var_decl:
-                if(!resolvedFields || inlineField)
+                if(!forEnum && !resolvedFields || inlineField)
                     resolveVarDecl(trunk, inlineField);
                 break;
             case ast_method_decl:
-                if(!inlineField && resolvedFields)
+                if(!forEnum && !inlineField && resolvedFields)
                     resolveMethodDecl(trunk);
                 break;
             case ast_operator_decl:
-                if(!inlineField && resolvedFields)
+                if(!forEnum && !inlineField && resolvedFields)
                     resolveOperatorDecl(trunk);
                 break;
             case ast_construct_decl:
-                if(!inlineField && resolvedFields)
+                if(!forEnum && !inlineField && resolvedFields)
                     resolveConstructorDecl(trunk);
                 break;
             case ast_delegate_post_decl:
-                if(!inlineField && resolvedFields)
+                if(!forEnum && !inlineField && resolvedFields)
                     resolveDelegatePostDecl(trunk);
                 break;
             case ast_delegate_decl:
-                if(!inlineField && resolvedFields)
+                if(!forEnum && !inlineField && resolvedFields)
                     resolveDelegateDecl(trunk);
                 break;
             case ast_interface_decl:
                 resolveClassDecl(trunk, inlineField);
                 break;
             case ast_generic_class_decl:
-                resolveGenericClassDecl(ast, inlineField);
+                resolveGenericClassDecl(ast, inlineField, forEnum);
+                break;
+            case ast_enum_decl: /* ignore */
+                if(forEnum)
+                    resolveEnumDecl(ast);
                 break;
             default:
                 stringstream err;
@@ -9258,6 +9450,78 @@ void RuntimeEngine::parseClassDecl(Ast *ast, bool isInterface)
             case ast_generic_interface_decl:
                 parseGenericClassDecl(ast, true);
                 break;
+            case ast_enum_decl:
+                parseEnumDecl(ast);
+                break;
+            default:
+                stringstream err;
+                err << ": unknown ast type: " << ast->getType();
+                errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
+                break;
+        }
+    }
+    removeScope();
+}
+
+void RuntimeEngine::parseEnumDecl(Ast *ast)
+{
+    Ast* block = ast->getSubAst(ast_enum_identifier_list);
+    List<AccessModifier> modifiers;
+    ClassObject* currentClass;
+    int startPosition=1;
+
+    if(parseAccessDecl(ast, modifiers, startPosition)){
+        parseClassAccessModifiers(modifiers, ast);
+    } else {
+        modifiers.add(PROTECTED);
+    }
+
+    string className =  ast->getEntity(startPosition).getToken();
+
+    if(currentScope()->klass == NULL) {
+        currentClass = addGlobalClassObject(className, modifiers, ast);
+
+        stringstream ss;
+        ss << currentModule << "#" << currentClass->getName();
+        currentClass->setFullName(ss.str());
+    }
+    else {
+        currentClass = addChildClassObject(className, modifiers, ast, currentScope()->klass);
+
+        stringstream ss;
+        ss << currentScope()->klass->getFullName() << "." << currentClass->getName();
+        currentClass->setFullName(ss.str());
+    }
+
+    addScope(Scope(CLASS_SCOPE, currentClass));
+    for(long i = 0; i < block->getSubAstCount(); i++) {
+        ast = block->getSubAst(i);
+        CHECK_ERRORS
+
+        switch(ast->getType()) {
+            case ast_class_decl: /* invalid */
+                break;
+            case ast_var_decl: /* invalid */
+                break;
+            case ast_method_decl: /* invalid */
+                break;
+            case ast_operator_decl: /* invalid */
+                break;
+            case ast_construct_decl: /* invalid */
+                break;
+            case ast_delegate_post_decl: /* invalid */
+                break;
+            case ast_delegate_decl: /* invalid */
+                break;
+            case ast_interface_decl: /* invalid */
+                break;
+            case ast_generic_class_decl: /* invalid */
+                break;
+            case ast_generic_interface_decl: /* invalid */
+                break;
+            case ast_enum_identifier:
+                parseEnumVar(ast);
+                break;
             default:
                 stringstream err;
                 err << ": unknown ast type: " << ast->getType();
@@ -9375,6 +9639,24 @@ void RuntimeEngine::parseVarDecl(Ast *ast)
         startpos = 0;
         ast = ast->getSubAst(ast_var_decl);
         goto parse_var;
+    }
+}
+
+void RuntimeEngine::parseEnumVar(Ast *ast)
+{
+    List<AccessModifier> modifiers;
+    modifiers.add(PUBLIC);
+    modifiers.add(STATIC);
+    modifiers.add(mCONST);
+
+    string name =  ast->getEntity(0).getToken();
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
+                                   ast->line, ast->col);
+
+    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note))) {
+        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                               "enum `" + name + "` is already defined in the scope");
+        printNote(note, "field `" + name + "` previously defined here");
     }
 }
 
@@ -11288,4 +11570,61 @@ void RuntimeEngine::analyzeGenericClass(ClassObject *generic)
     }
     removeScope();
 
+}
+
+void RuntimeEngine::resolveAllEnums() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        activeParser = parsers.get(i);
+        errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
+        currentModule = "$unknown";
+
+        addScope(Scope(GLOBAL_SCOPE, NULL));
+        for(int x = 0; x < activeParser->treesize(); x++) {
+            Ast* ast = activeParser->ast_at(x);
+            SEMTEX_CHECK_ERRORS
+
+            if(x==0) {
+                if(ast->getType() == ast_module_decl) {
+                    add_module(currentModule = parseModuleName(ast));
+                    continue;
+                }
+            }
+
+            switch(ast->getType()) {
+                case ast_enum_decl:
+                    resolveEnumDecl(ast);
+                    break;
+                case ast_class_decl:
+                    resolveClassDecl(ast, false, true);
+                    break;
+                case ast_interface_decl:
+                    resolveClassDecl(ast, false, true);
+                    break;
+                case ast_generic_class_decl:
+                case ast_generic_interface_decl:
+                    resolveGenericClassDecl(ast, false, true);
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+        }
+
+        if(errors->hasErrors()){
+            report:
+
+            errorCount+= errors->getErrorCount();
+            unfilteredErrorCount+= errors->getUnfilteredErrorCount();
+
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        } else {
+            succeededParsers.addif(activeParser->sourcefile);
+            failedParsers.removefirst(activeParser->sourcefile);
+        }
+
+        errors->free();
+        delete (errors); this->errors = NULL;
+        removeScope();
+    }
 }

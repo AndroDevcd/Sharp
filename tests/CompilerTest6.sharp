@@ -5,10 +5,14 @@ import std;
 public class Start {
 
     enum Enums {
-        APPLE,
-        CHERRY,
+        APPLE = 90999,
+        CHERRY = foo(),
         PEACH
     };
+
+    public static def foo() : var {
+        return 22;
+    }
 
     public static def main(string[] args) : var {
 
