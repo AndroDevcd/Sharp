@@ -4,10 +4,10 @@ import std;
 import std.internal;
 
 public class File {
-    private static const FileSystem fs = getFileSystem();
+    private static FileSystem fs = getFileSystem();
 
-    private const string path;
-    public static const var separatorChar = fs.getPathSeparator();
+    private string path;
+    public static var separatorChar = fs.getPathSeparator();
     public static const string separator = "" + (new var[] {separatorChar});
 
     public File(string path) {

@@ -1633,10 +1633,16 @@ void Parser::parse_switch_declarator(Ast* pAst) {
 
     if(pAst->getEntity(0).getToken() == "case")
         parse_expression(pAst);
+    else {
+        int i = 0;
+    }
     expect(COLON, "`:`");
 
+    retry:
+    if(isswitch_declarator(peek(1)) || peek(1).getTokenType() == RIGHTCURLY) return;
     if(peek(1).getTokenType() == LEFTCURLY) {
         parse_block(pAst);
+        goto retry;
     } else {
         advance();
         errors->enableErrorCheckMode();
@@ -1649,6 +1655,7 @@ void Parser::parse_switch_declarator(Ast* pAst) {
         } else {
             errors->fail();
             this->dumpstate();
+            goto retry;
         }
     }
 }
@@ -1999,63 +2006,105 @@ bool Parser::parse_statement(Ast* pAst) {
     pAst = get_ast(pAst, ast_statement);
     CHECK_ERRORS_RETURN(false)
 
+    remove_accesstypes();
+    if(isaccess_decl(current()))
+    {
+        parse_accesstypes();
+    }
+
     if(isreturn_stmnt(current()))
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         parse_returnstmnt(pAst);
         return true;
     }
     else if(isif_stmnt(current()))
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         parse_ifstmnt(pAst);
         return true;
     }
     else if(isswitch_stmnt(current()))
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         parse_switchstmnt(pAst);
         return true;
     }
     else if(isassembly_stmnt(current()))
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         parse_assemblystmnt(pAst );
         return true;
     }
     else if(isfor_stmnt(current()))
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         parse_forstmnt(pAst );
         return true;
     }
     else if(islock_stmnt(current()))
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         parse_lockstmnt(pAst );
         return true;
     }
     else if(isforeach_stmnt(current()))
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         parse_foreachstmnt(pAst );
         return true;
     }
     else if(iswhile_stmnt(current()))
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         parse_whilestmnt(pAst );
         return true;
     }
     else if(isdowhile_stmnt(current()))
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         parse_dowhilestmnt(pAst);
         return true;
     }
     else if(istrycatch_stmnt(current()))
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         parse_trycatch(pAst);
         return true;
     }
     else if(isthrow_stmnt(current()))
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         parse_throwstmnt(pAst);
         return true;
     }
     else if(current().getToken() == "continue")
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         Ast* pAst2 = get_ast(pAst, ast_continue_statement);
 
         expect_token(pAst2, "continue", "`continue`");
@@ -2065,6 +2114,9 @@ bool Parser::parse_statement(Ast* pAst) {
     }
     else if(current().getToken() == "break")
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         Ast* pAst2 = get_ast(pAst, ast_break_statement);
 
         expect_token(pAst2, "break", "`break`");
@@ -2073,6 +2125,9 @@ bool Parser::parse_statement(Ast* pAst) {
     }
     else if(current().getToken() == "goto")
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         Ast* pAst2 = get_ast(pAst, ast_goto_statement);
 
         expect_token(pAst2, "goto", "`goto`");
@@ -2089,6 +2144,9 @@ bool Parser::parse_statement(Ast* pAst) {
     }
     else if(isprototype_decl(current()))
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         parse_prototypedecl(pAst);
         return true;
     }
@@ -2115,6 +2173,8 @@ bool Parser::parse_statement(Ast* pAst) {
     }
     else if(current().getTokenType() == SEMICOLON)
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
 
         /* we don't care about empty statements but we allow them */
         if(commas > 1) {
@@ -2139,6 +2199,9 @@ bool Parser::parse_statement(Ast* pAst) {
             errors->pass();
             if(peek(1).getTokenType() == COLON)
             {
+                if(access_types.size() > 0)
+                    errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
                 pAst = this->rollback();
                 parse_labeldecl(pAst);
                 return true;
@@ -2165,6 +2228,9 @@ bool Parser::parse_statement(Ast* pAst) {
             errors->createNewError(GENERIC, current(), "not a statement");
             return false;
         } else {
+            if(access_types.size() > 0)
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
             errors->fail();
             this->dumpstate();
 
@@ -2545,8 +2611,8 @@ Ast* Parser::rollback() {
         cursor = ps->cursor-1;
         advance();
 
-        ps->ast->freeSubAsts();
-        ps->ast->freeEntities();
+        pAst->copy(&ps->copy);
+        ps->copy.free();
         state->pop_back();
         rStateCursor--;
         return pAst;

@@ -4,9 +4,10 @@ import std;
 
 public class Start {
 
+
     enum Enums {
         APPLE = 90999,
-        CHERRY = foo(),
+        CHERRY = 17,
         PEACH
     };
 
@@ -15,15 +16,25 @@ public class Start {
     }
 
     public static def main(string[] args) : var {
-         var data = (var)Enums.APPLE;
+         var data = (var)7;
+        asm(" nop nop nop nop nop nop");
         switch(data) {
             case Enums.APPLE:
+                System.print("apple");
                 break;
             case Enums.CHERRY:
+                System.print("cherry");
                 break;
             case Enums.PEACH:
+                System.print("peach");
+                break;
+            case 7:
+                System.print("7");
+                break;
+            case 4.3: // TODO: enforce it to be an integer
                 break;
             default:
+                System.print("default");
                 break;
         }
     }

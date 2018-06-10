@@ -7,7 +7,7 @@ mod std;
 public class Enum {
     private static Enum[] enums;
     private var[] name;
-    private var value;
+    private var value; // this value should never be reset or changed switch statements will never find your enum!!
 
     public Enum(var val) {
         value = val;
@@ -16,16 +16,6 @@ public class Enum {
     public Enum(Enum e) {
         value = e.value;
         name = Array<var>.copyOf(e.name, sizeof(e.name));
-    }
-
-    public def operator=(var newVal) : var {
-        value = newVal;
-        return newVal;
-    }
-
-    public def operator=(Enum newVal) : var {
-        value = newVal.value;
-        return newVal.value;
     }
 
     public def getName() : string {

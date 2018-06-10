@@ -13,6 +13,25 @@
 
 struct line_table;
 
+struct SwitchTable { // for every value there will be a corresponding address
+    List<int64_t> values;
+    List<int64_t> addresses;
+
+    int64_t defaultAddress; // -1 if not present
+
+    void init() {
+        values.init();
+        addresses.init();
+        defaultAddress = -1;
+    }
+
+    SwitchTable()
+    {
+        init();
+    }
+};
+
+
 /**
  * This is the representation of a method in its barest form
  * it will contain all the information to run correctly in the system
@@ -37,6 +56,7 @@ struct Method {
     List<ExceptionTable> exceptions;
     List<FinallyTable> finallyBlocks;
     List<line_table> lineNumbers;
+    List<SwitchTable> switchTable;
 
 
     void free() {
@@ -45,6 +65,13 @@ struct Method {
         exceptions.free();
         lineNumbers.free();
         finallyBlocks.free();
+        for(long i = 0; i < switchTable.size(); i++) {
+            SwitchTable &st = switchTable.get(i);
+            st.values.free();
+            st.addresses.free();
+        }
+
+        switchTable.free();
 
         if(paramSize != 0) {
             if(arrayFlag != NULL)
@@ -65,6 +92,7 @@ struct Method {
         exceptions.init();
         lineNumbers.init();
         finallyBlocks.init();
+        switchTable.init();
         params = NULL;
         arrayFlag = NULL;
         paramSize = 0;

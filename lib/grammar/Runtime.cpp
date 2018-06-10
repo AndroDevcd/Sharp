@@ -20,6 +20,7 @@
 #include "Optimizer.h"
 #include "../util/zip/zlib.h"
 #include "../util/time.h"
+#include "Method.h"
 
 using namespace std;
 
@@ -855,6 +856,7 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
     currentScope()->blocks++;
     currentScope()->loops++;
     currentScope()->uniqueLabelSerial++;
+    currentScope()->brahchHelper.add(SCOPE_LOOP);
     stringstream ss;
     string forEndLabel, forBeginLabel;
 
@@ -913,6 +915,7 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
     currentScope()->removeLocals(currentScope()->blocks);
     currentScope()->blocks--;
     currentScope()->loops--;
+    currentScope()->brahchHelper.pop_back();
 }
 
 void RuntimeEngine::getArrayValueOfExpression(Expression& expr, Expression& out) {
@@ -965,6 +968,7 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
     currentScope()->blocks++;
     currentScope()->loops++;
     currentScope()->uniqueLabelSerial++;
+    currentScope()->brahchHelper.add(SCOPE_LOOP);
     string forBeginLabel, forEndLabel;
 
     Expression arryExpression(parseExpression(pAst->getSubAst(ast_expression))), out(pAst);
@@ -1019,6 +1023,7 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
     currentScope()->removeLocals(currentScope()->blocks);
     currentScope()->loops--;
     currentScope()->blocks--;
+    currentScope()->brahchHelper.pop_back();
 }
 
 void RuntimeEngine::parseWhileStatement(Block& block, Ast* pAst) {
@@ -1047,6 +1052,68 @@ void RuntimeEngine::parseWhileStatement(Block& block, Ast* pAst) {
 
     block.code.push_i64(SET_Di(i64, op_GOTO, (get_label(whileBeginLabel)+1)));
     currentScope()->label_map.add(KeyPair<std::string, int64_t>(whileEndLabel,__init_label_address(block.code)));
+}
+
+void RuntimeEngine::parseSwitchStatement(Block& block, Ast* pAst) {
+    string switchEndLabel;
+    currentScope()->switches++;
+    currentScope()->brahchHelper.add(SCOPE_SWITCH);
+
+    Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out(pAst);
+
+    stringstream ss;
+    ss << switch_label_end_id << ++currentScope()->switches;
+    switchEndLabel=ss.str();
+
+    pushExpressionToRegister(cond, out, ebx);
+    block.code.inject(block.code.size(), out.code);
+    block.code.push_i64(SET_Di(i64, op_SWITCH, currentScope()->currentFunction->switchTable.size()));
+
+    SwitchTable st;
+
+    Ast *blck = pAst->getSubAst(ast_switch_block), *ast, *sub;
+    for(long i = 0; i < blck->getSubAstCount(); i++) { // get All values processed
+        ast = blck->getSubAst(i);
+        switch(ast->getType()) {
+            case ast_switch_declarator:
+                string decl = ast->getEntity(0).getToken();
+                if(decl == "case") {
+                    Expression constExpr = parseExpression(ast->getSubAst(ast_expression));
+                    if(!constExpr.isEnum() && !constExpr.isConstExpr()) {
+                        errors->createNewError(GENERIC, ast, "a constant value is expected");
+                    }
+                    if(st.values.find(constantExpressionToValue(ast, constExpr))) {
+                        stringstream s;
+                        s << constantExpressionToValue(ast, constExpr);
+                        errors->createNewError(GENERIC, ast, "switch statement contains multiple cases with value `" + s.str() + "`");
+                    }
+
+                    st.values.add(constantExpressionToValue(ast, constExpr));
+                    st.addresses.add(block.code.size()); // start Address for case statement
+                } else {
+                    if(st.defaultAddress != -1)  {
+                        errors->createNewError(GENERIC, ast, "switch statement contains multiple cases with value `default`");
+                    }
+                    st.defaultAddress = block.code.size(); // start Address for case statement
+                }
+
+                for(long x = decl == "case" ? 1 : 0; x < ast->getSubAstCount(); x++) {
+                    sub = ast->getSubAst(x);
+
+                    if(sub->getType() == ast_block) {
+                        parseBlock(sub, block);
+                    } else {
+                        parseStatement(block, sub->getSubAst(0));
+                    }
+                }
+                break;
+        }
+    }
+
+    currentScope()->currentFunction->switchTable.push_back(st);
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(switchEndLabel,__init_label_address(block.code)));
+    currentScope()->brahchHelper.pop_back();
+    currentScope()->switches--;
 }
 
 void RuntimeEngine::parseLockStatement(Block& block, Ast* pAst) {
@@ -1269,9 +1336,13 @@ void RuntimeEngine::parseContinueStatement(Block& block, Ast* pAst) {
 
 void RuntimeEngine::parseBreakStatement(Block& block, Ast* pAst) {
 
-    if(currentScope()->loops > 0) {
+    if(currentScope()->brahchHelper.size() > 0 && currentScope()->brahchHelper.last() == SCOPE_LOOP) {
         stringstream name;
         name << for_label_end_id << currentScope()->loops;
+        currentScope()->addBranch(name.str(), 1, block.code, pAst->line, pAst->col);
+    } else if(currentScope()->brahchHelper.size() > 0 && currentScope()->brahchHelper.last() == SCOPE_SWITCH) {
+        stringstream name;
+        name << switch_label_end_id << currentScope()->switches;
         currentScope()->addBranch(name.str(), 1, block.code, pAst->line, pAst->col);
     } else {
         // error not in loop
@@ -1354,6 +1425,17 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
             Expression expression = parseValue(pAst->getSubAst(ast_value)), out(pAst);
             equals(fieldExpr, expression);
 
+            if(f.isConst()) {
+                if(expression.literal == true || expression.isConstExpr()
+                   || expression.isEnum() || f.type == CLASS) {
+                    /* good to go */
+                    Field *local = &currentScope()->getLocalField(f.name)->value;
+                    local->constant_value = constantExpressionToValue(pAst, expression);
+                } else {
+                    errors->createNewError(GENERIC, pAst, "constant field cannot be assigned to non-constant expression of type `" + expression.typeToString() + "`");
+                }
+            }
+
             if(f.isObjectInMemory()) {
                 if(operand == "=") {
 
@@ -1376,6 +1458,10 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
                 block.code.inject(block.code.__asm64.size(), out.code);
             }
         } else {
+            if(f.isConst()) {
+                errors->createNewError(GENERIC, pAst, "constant field requires a value to be provided");
+            }
+
             if(!f.isObjectInMemory()) {
                 block.code.push_i64(SET_Di(i64, op_ISTOREL, f.address), 0);
             } else {
@@ -1430,6 +1516,9 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
             break;
         case ast_while_statement:
             parseWhileStatement(block, pAst); // done
+            break;
+        case ast_switch_statement:
+            parseSwitchStatement(block, pAst); // done
             break;
         case ast_lock_statement:
             parseLockStatement(block, pAst); // done
@@ -4074,38 +4163,56 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 
     out.type = expression_var;
     out.utype = utype.utype;
+    out.literal = expression.literal;
+    out.intValue = expression.intValue;
 
     if(utype.utype.referenceName == "_int8") {
         pushExpressionToRegisterNoInject(expression, out, ebx);
         out.code.push_i64(SET_Ci(i64, op_MOV8, ebx, 0, ebx));
+        if(expression.literal)
+            out.intValue = (int8_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_int16") {
         pushExpressionToRegisterNoInject(expression, out, ebx);
         out.code.push_i64(SET_Ci(i64, op_MOV16, ebx, 0, ebx));
+        if(expression.literal)
+            out.intValue = (int16_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_int32") {
         pushExpressionToRegisterNoInject(expression, out, ebx);
         out.code.push_i64(SET_Ci(i64, op_MOV32, ebx, 0, ebx));
+        if(expression.literal)
+            out.intValue = (int32_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_int64") {
         pushExpressionToRegisterNoInject(expression, out, ebx);
         out.code.push_i64(SET_Ci(i64, op_MOV64, ebx, 0, ebx));
+        if(expression.literal)
+            out.intValue = (int64_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_uint8") {
         pushExpressionToRegisterNoInject(expression, out, ebx);
         out.code.push_i64(SET_Ci(i64, op_MOVU8, ebx, 0, ebx));
+        if(expression.literal)
+            out.intValue = (uint8_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_uint16") {
         pushExpressionToRegisterNoInject(expression, out, ebx);
         out.code.push_i64(SET_Ci(i64, op_MOVU16, ebx, 0, ebx));
+        if(expression.literal)
+            out.intValue = (uint16_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_uint32") {
         pushExpressionToRegisterNoInject(expression, out, ebx);
         out.code.push_i64(SET_Ci(i64, op_MOVU32, ebx, 0, ebx));
+        if(expression.literal)
+            out.intValue = (uint32_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_uint64") {
         pushExpressionToRegisterNoInject(expression, out, ebx);
         out.code.push_i64(SET_Ci(i64, op_MOVU64, ebx, 0, ebx));
+        if(expression.literal)
+            out.intValue = (uint64_t )expression.intValue;
         return;
     } else if(utype.utype.isArray() && utype.utype.type == VAR) {
         if(expression.trueType() == OBJECT || expression.trueType() == VAR) {
@@ -4118,6 +4225,9 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
             return;
         } else if(expression.utype.field != NULL && expression.utype.field->isEnum) {
             pushExpressionToRegisterNoInject(expression, out, ebx);
+            return;
+        } else if(expression.trueType() == VAR) {
+            createNewWarning(GENERIC, utype.link->line, utype.link->col, "redundant cast of type `var` to `var`");
             return;
         }
     }
@@ -6740,6 +6850,15 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
                 fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, field->address));
             }
 
+            if(field->isConst()) {
+                if(expression.literal == true || (expression.type == expression_field && expression.utype.field->isConst())
+                        || expression.isEnum() || field->type == CLASS) {
+                    /* good to go */
+                } else {
+                    errors->createNewError(GENERIC, ast, "constant field cannot be assigned to non-constant expression of type `" + expression.typeToString() + "`");
+                }
+            }
+
             if(field->isObjectInMemory()) {
                 if(operand == "=") {
                     assignValue(operand, out, fieldExpr, expression, ast);
@@ -6765,9 +6884,14 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
         }
 
         if(ast->hasSubAst(ast_var_decl)) {
-//            ast = ast->getSubAst(ast_var_decl);
-//            startpos= 0;
-//            goto parse_var;
+            ast = ast->getSubAst(ast_var_decl);
+            startpos= 0;
+            goto parse_var;
+        }
+    } else {
+
+        if(field->isConst()) {
+            errors->createNewError(GENERIC, ast, "constant field requires a value to be provided");
         }
     }
 
@@ -7474,7 +7598,7 @@ double RuntimeEngine::getInlinedFieldValue(Field* field) {
 
 
 bool RuntimeEngine::isFieldInlined(Field* field) {
-    if(!field->isStatic())
+    if(field == NULL || !field->isStatic())
         return false;
 
     for(unsigned int i = 0; i < inline_map.size(); i++) {
@@ -8249,7 +8373,7 @@ void RuntimeEngine::resolveVarDecl(Ast* ast, bool inlineField) {
     if(inlineField && ast->hasSubAst(ast_value)) {
         Expression expr = parseValue(ast->getSubAst(ast_value)), out(ast);
 
-        if (field->isStatic() && field->isVar() && !field->isArray && expr.literal) {
+        if ((field->isStatic() || field->isConst())&& field->isVar() && !field->isArray && expr.literal) {
             // inline local static variables
             inline_map.add(KeyPair<string, double>(field->fullName, expr.intValue));
         }
@@ -8289,6 +8413,13 @@ void RuntimeEngine::resolveEnumVarDecl(Ast* ast) {
             assignEnumName(ast, field, out);
             assignEnumValue(ast, field, expr, out);
         } else {
+            if(!expr.isConstExpr()) {
+                errors->createNewError(GENERIC, ast, "the expression being assigned to enum `" + field->fullName + "` ust be constant");
+            }
+            if(isFieldInlined(expr.utype.field)) {
+                inline_map.add(KeyPair<string, double>(field->fullName, getInlinedFieldValue(expr.utype.field)));
+            }
+
             assignEnumName(ast, field, out);
             assignEnumValue(ast, field, expr, out);
         }
@@ -10089,6 +10220,22 @@ std::string RuntimeEngine::generate_text_section() {
             text << i64_tostr(f->line_table.get(x).value);
         }
 
+        text << f->switchTable.size() << ((char)nil);
+        for(unsigned int x = 0; x < f->switchTable.size(); x++) {
+            SwitchTable &st = f->switchTable.get(x);
+
+            text << st.addresses.size() << ((char)nil);
+            for(long z = 0; z < st.addresses.size(); z++) {
+                text << i64_tostr(st.addresses.get(z));
+            }
+
+            text << st.values.size() << ((char)nil);
+            for(long z = 0; z < st.values.size(); z++) {
+                text << i64_tostr(st.values.get(z));
+            }
+            text << i64_tostr(st.defaultAddress);
+        }
+
         text << f->exceptions.size() << ((char)nil);
         for(unsigned int x = 0; x < f->exceptions.size(); x++) {
             ExceptionTable &et=f->exceptions.get(x);
@@ -11195,6 +11342,13 @@ void RuntimeEngine::createDumpFile() {
                     _ostream << ss.str();
                     break;
                 }
+                case op_SWITCH:
+                {
+                    ss<<"switch ";
+                    ss<< GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
                 default:
                     ss << "? (" << GET_OP(x64) << ")";
                     _ostream << ss.str();
@@ -11665,4 +11819,17 @@ void RuntimeEngine::resolveAllEnums() {
         delete (errors); this->errors = NULL;
         removeScope();
     }
+}
+
+double RuntimeEngine::constantExpressionToValue(Ast *pAst, Expression &constExpr) {
+    if(constExpr.literal) {
+        return constExpr.intValue;
+    } else if(constExpr.isEnum()) {
+        return getInlinedFieldValue(constExpr.utype.field);
+    } else if(constExpr.isConstExpr()) {
+        return constExpr.utype.field->constant_value;
+    } else {
+        errors->createNewError(INTERNAL_ERROR, pAst, "could not get the immutable value from expression of type `" + constExpr.typeToString() + "`");
+    }
+    return 0;
 }

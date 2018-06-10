@@ -6,7 +6,7 @@ import std;
  * Created by BraxtonN on 5/25/2018.
  */
 public class UnixFileSystem base FileSystem {
-    private const var slash;
+    private var slash;
 
     public UnixFileSystem() {
         slash = '/';

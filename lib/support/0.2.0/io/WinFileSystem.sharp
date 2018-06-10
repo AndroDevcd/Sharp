@@ -6,7 +6,7 @@ import std;
  * Created by BraxtonN on 5/25/2018.
  */
 public class WinFileSystem base FileSystem {
-    private const var slash;
+    private var slash;
 
     /* Constants for file attributes */
     public static const var FILE_COMPRESSED    = 2048;

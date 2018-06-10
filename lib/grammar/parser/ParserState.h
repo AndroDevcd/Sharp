@@ -19,13 +19,14 @@ public:
 
     ParserState(Ast* pAst, int64_t cursor, int64_t astCursor)
     :
+    copy(pAst->getParent(), pAst),
     ast(pAst),
     cursor(cursor),
     astCursor(astCursor)
     {
     }
 
-    Ast* ast;
+    Ast *ast, copy;
     int64_t  cursor;
     int64_t astCursor;
 };

@@ -76,6 +76,7 @@ public:
 
     bool isVar() { return type==VAR; }
     bool dynamicObject() { return type==OBJECT; }
+    bool isEnum() { return field != NULL && field->isEnum; }
 
     string referenceName;
     bool array, isMethod, resolved;
@@ -182,6 +183,13 @@ struct Expression {
             default:
                 return utype.type;
         }
+    }
+    bool isEnum() {
+        return utype.isEnum();
+    }
+
+    bool isConstExpr() {
+        return literal || (type==expression_field && utype.field->isConst());
     }
 
     bool isArray() {
@@ -307,6 +315,11 @@ enum ScopeType {
     STATIC_BLOCK
 };
 
+enum BranchHelper {
+    SCOPE_LOOP,
+    SCOPE_SWITCH
+};
+
 struct Scope {
     Scope()
             :
@@ -320,11 +333,13 @@ struct Scope {
             trys(0),
             uniqueLabelSerial(0),
             reachable(true),
-            last_statement(0)
+            last_statement(0),
+            switches(0)
     {
         locals.init();
         label_map.init();
         branches.init();
+        brahchHelper.init();
     }
 
     Scope(ScopeType type, ClassObject* klass)
@@ -339,11 +354,13 @@ struct Scope {
             trys(0),
             uniqueLabelSerial(0),
             reachable(true),
-            last_statement(0)
+            last_statement(0),
+            switches(0)
     {
         locals.init();
         label_map.init();
         branches.init();
+        brahchHelper.init();
     }
 
     Scope(ScopeType type, ClassObject* klass, Method* func)
@@ -358,11 +375,13 @@ struct Scope {
             trys(0),
             uniqueLabelSerial(0),
             reachable(true),
-            last_statement(0)
+            last_statement(0),
+            switches(0)
     {
         locals.init();
         label_map.init();
         branches.init();
+        brahchHelper.init();
     }
 
     KeyPair<int, Field>* getLocalField(string field_name) {
@@ -435,11 +454,12 @@ struct Scope {
     ScopeType type;
     ClassObject* klass;
     Method* currentFunction;
+    List<BranchHelper> brahchHelper;
     List<KeyPair<int, Field>> locals;
     List<KeyPair<std::string, int64_t>> label_map;
     List<BranchTable> branches;
     int blocks;
-    long loops, trys, uniqueLabelSerial, last_statement;
+    long loops, trys, switches, uniqueLabelSerial, last_statement;
     bool self, base, reachable;
 
     void free() {
@@ -1068,6 +1088,10 @@ private:
     void assignEnumName(Ast *ast, Field *field,  Expression &out);
 
     void assignEnumArray(Ast *ast, ClassObject *klass, Expression &out);
+
+    void parseSwitchStatement(Block &block, Ast *pAst);
+
+    double constantExpressionToValue(Ast *pAst, Expression &constExpr);
 };
 
 
@@ -1078,6 +1102,8 @@ private:
 #define for_label_begin_id "$$for_start"
 
 #define for_label_end_id "$$for_end"
+
+#define switch_label_end_id "$$switch_end"
 
 #define try_label_end_id "$$try_end"
 

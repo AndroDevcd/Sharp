@@ -12,8 +12,24 @@
 #include "Exception.h"
 
 class ClassObject;
+struct SwitchTable;
 
 #define DELEGATE_ADDRESS_DEFAULT -1
+
+struct SwitchTable { // for every value there will be a corresponding address
+    List<int64_t> values;
+    List<int64_t> addresses;
+
+    int64_t defaultAddress; // -1 if not present
+
+    SwitchTable()
+            :
+            defaultAddress(-1)
+    {
+        values.init();
+        addresses.init();
+    }
+};
 
 class Method {
 
@@ -135,6 +151,13 @@ public:
         name.clear();
         key.clear();
         module.clear();
+        for(long i = 0; i < switchTable.size(); i++) {
+            SwitchTable *st = &switchTable.get(i);
+            st->values.free();
+            st->addresses.free();
+        }
+
+        switchTable.free();
 
         for(unsigned int i = 0; i < params.size(); i++) {
             params.get(i).free();
@@ -182,6 +205,7 @@ public:
     List<KeyPair<int64_t, long>> line_table;
     List<KeyPair<int64_t, int64_t>> assembly_table;
     List<ExceptionTable> exceptions;
+    List<SwitchTable> switchTable;
     List<FinallyTable> finallyBlocks;
     List<long> unique_address_table;
 private:

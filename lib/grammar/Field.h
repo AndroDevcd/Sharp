@@ -31,7 +31,8 @@ public:
             local(false),
             key(""),
             ast(NULL),
-            isEnum(false)
+            isEnum(false),
+            constant_value(0)
     {
         this->modifiers.init();
         this->modifiers.addAll(modifiers);
@@ -52,7 +53,8 @@ public:
             local(false),
             key(""),
             ast(NULL),
-            isEnum(false)
+            isEnum(false),
+            constant_value(0)
     {
         this->modifiers.init();
         this->modifiers.addAll(modifiers);
@@ -73,7 +75,8 @@ public:
             key(""),
             klass(NULL),
             ast(NULL),
-            isEnum(false)
+            isEnum(false),
+            constant_value(0)
     {
     }
 
@@ -97,6 +100,7 @@ public:
         key=f.key;
         ast=f.ast;
         isEnum=f.isEnum;
+        constant_value=f.constant_value;
     }
 
     void free(){
@@ -121,6 +125,14 @@ public:
         return false;
     }
 
+    bool isConst() {
+        for(unsigned int i = 0; i < modifiers.size(); i++) {
+            if(modifiers.at(i) == mCONST)
+                return true;
+        }
+        return false;
+    }
+
 
     bool isVar() {
         return type == VAR;
@@ -140,6 +152,7 @@ public:
 
     bool isArray, nullType, local, isEnum;
     bool resolved;
+    double constant_value;
     RuntimeNote note;
     FieldType type;
     ClassObject* klass;

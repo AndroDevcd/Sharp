@@ -384,6 +384,27 @@ int Process_Exe(std::string exe)
                     }
 
                     len = getlong(buffer);
+                    long addressLen, valuesLen;
+                    for(long i = 0; i < len; i++) {
+                        method->switchTable.push_back();
+                        method->switchTable.last().init();
+                        SwitchTable &st = method->switchTable.last();
+
+                        addressLen = getlong(buffer);
+                        for(long x = 0; x < addressLen; x++) {
+                            st.addresses.add(geti64(buffer));
+                        }
+
+                        valuesLen = getlong(buffer);
+                        for(long x = 0; x < valuesLen; x++) {
+                            st.values.add(geti64(buffer));
+                        }
+
+                        st.defaultAddress = geti64(buffer);
+                    }
+
+
+                    len = getlong(buffer);
                     ExceptionTable et;
 
                     for(long i = 0; i < len; i++) {

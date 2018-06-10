@@ -1135,6 +1135,16 @@ void Thread::exec() {
                 if(registers[cmt]==0) {
                     pc=GET_Da(cache[pc]); _brh_NOINCREMENT
                 } else  _brh
+            SWITCH: {
+                if((val = current->switchTable.get(GET_Da(cache[pc])).values.indexof(registers[ebx])) != -1 ) {
+                    pc=current->switchTable.get(GET_Da(cache[pc])).addresses.get(val);
+                    _brh_NOINCREMENT
+                } else {
+                    pc=current->switchTable.get(GET_Da(cache[pc])).defaultAddress;
+                    _brh_NOINCREMENT
+                }
+            }
+
 
         }
     } catch (bad_alloc &e) {
