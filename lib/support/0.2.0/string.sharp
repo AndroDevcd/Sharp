@@ -136,9 +136,22 @@ public class string {
             return s;
         }
 
+        public def operator+( Enum e ) : string
+        {
+            string s = new string(data);
+            s.append(parse(e.getValue()).toArray());
+
+            return s;
+        }
+
         public def operator+=( var num ) : string
         {
             return append(parse(num).toArray());
+        }
+
+        public def operator+=( Enum e ) : string
+        {
+            return append(parse(e.getValue()).toArray());
         }
 
         public def operator+=( var[] immstr ) : string

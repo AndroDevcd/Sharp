@@ -35,6 +35,11 @@ public class System {
         printChar('\n');
     }
 
+    public static def println(Enum e) {
+        print(e.getName());
+        printChar('\n');
+    }
+
     public static def readLine() : string {
         var _char;
         string message = "";
@@ -58,6 +63,10 @@ public class System {
     
     public static def print(var data) {
         cHandler.__print_stdout_(data, false);
+    }
+
+    public static def print(Enum e) {
+        print(e.getName());
     }
     
     public static def printChar(var data) {

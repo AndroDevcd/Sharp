@@ -15,6 +15,13 @@ public class Start {
     }
 
     public static def main(string[] args) : var {
-
+        Enums e = new Enums(Enums.APPLE);
+        System.println("" + e.getName() + " = " + e.getValue());
+        System.println("" + Enums.APPLE.getName() + " = " + Enums.APPLE.getValue());
+        asm("nop nop nop nop nop");
+        System.println(" apple = " + Enums.APPLE);
+        System.println(Enums.APPLE);
+        System.print(Enums.APPLE);
+        System.print((var)Enums.APPLE);
     }
 }

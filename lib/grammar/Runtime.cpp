@@ -2695,7 +2695,19 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
                 out.code.push_i64(SET_Di(i64, op_CHECKLEN, adx));
                 out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
             }else if(expr.utype.field->type == CLASS || expr.utype.field->dynamicObject()) {
-                errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `object`");
+                if(expr.utype.field->isEnum) {
+                    Field *valueField = expr.utype.field->klass->getField("value", true);
+                    if(valueField != NULL) {
+                        if(isFieldInlined(expr.utype.field)) {
+                            inlineVariableValue(out, expr.utype.field);
+                        } else {
+                            out.code.push_i64(SET_Di(i64, op_MOVN, valueField->address));
+                            out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                            out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
+                        }
+                    }
+                } else
+                    errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `object`");
             }
             break;
         case expression_lclass:
@@ -3541,7 +3553,7 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                 errors->createNewError(GENERIC, utype.link->line, utype.link->col, "expected '()' after class " + utype.utype.klass->getName());
             } else {
                 expressionListToParams(params, expressions);
-                if((fn=utype.utype.klass->getConstructor(params))==NULL) {
+                if((fn=utype.utype.klass->getConstructor(params, true))==NULL) {
                     errors->createNewError(GENERIC, utype.link->line, utype.link->col, "class `" + utype.utype.klass->getFullName() +
                                                                                "` does not contain constructor `" + utype.utype.klass->getName() + paramsToString(params) + "`");
                 }
@@ -4102,6 +4114,9 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
         }
     } else if(!utype.utype.isArray() && utype.utype.type == VAR) {
         if(expression.trueType() == OBJECT) {
+            pushExpressionToRegisterNoInject(expression, out, ebx);
+            return;
+        } else if(expression.utype.field != NULL && expression.utype.field->isEnum) {
             pushExpressionToRegisterNoInject(expression, out, ebx);
             return;
         }
@@ -7544,7 +7559,7 @@ void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& r
                         expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
                 }
                 // for now we are just generating code for x.x.f not Main.x...thats static access
-                if(isFieldInlined(field)) {
+                if(isFieldInlined(field) && !field->isEnum) {
                     inlineVariableValue(expression, field);
                 } else
                     expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
@@ -7574,6 +7589,7 @@ void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& r
                         break;
                     case CLASS:
                         klass = field->klass;
+                        requireStatic = false;
                         break;
                 }
             } else {
@@ -8270,11 +8286,11 @@ void RuntimeEngine::resolveEnumVarDecl(Ast* ast) {
             inline_map.add(KeyPair<string, double>(field->fullName, expr.intValue));
             currentScope()->klass->enumValue = (long)expr.intValue+1;
 
-            assignEnumValue(ast, field, expr, out);
             assignEnumName(ast, field, out);
+            assignEnumValue(ast, field, expr, out);
         } else {
-            assignEnumValue(ast, field, expr, out);
             assignEnumName(ast, field, out);
+            assignEnumValue(ast, field, expr, out);
         }
     } else {
         Expression expr(ast), out(ast);
@@ -8285,8 +8301,8 @@ void RuntimeEngine::resolveEnumVarDecl(Ast* ast) {
 
         inline_map.add(KeyPair<string, double>(field->fullName, currentScope()->klass->enumValue++));
 
-        assignEnumValue(ast, field, expr, out);
         assignEnumName(ast, field, out);
+        assignEnumValue(ast, field, expr, out);
     }
 }
 
@@ -8308,7 +8324,7 @@ void RuntimeEngine::assignEnumValue(Ast *ast, Field *field, Expression &expr, Ex
         valueExpr.code.__asm64.push_back(SET_Ei(i64, op_POPOBJ)); // call Enum()
         valueExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, valueField->address));
         assignValue(operand, out, valueExpr, expr, ast);
-        staticMainInserts.inject(0, out.code);
+        staticMainInserts.inject(0, out.code); out.code.free();
     }
 }
 
@@ -8316,19 +8332,39 @@ void RuntimeEngine::assignEnumName(Ast *ast, Field *field, Expression &out) {
     Field *valueField = field->klass->getField("name", true);
     if(valueField != NULL) {
 
-        List<Param> empty;
         stringMap.addif(field->name);
         out.code.__asm64.push_back(SET_Di(i64, op_NEWSTRING, stringMap.indexof(field->name))); // create Enum class
-        out.code.__asm64.push_back(SET_Di(i64, op_NEWCLASS, field->owner->address)); // create Enum class
 
-        Method* constr = field->owner->getConstructor(empty, true);
-        out.code.__asm64.push_back(SET_Di(i64, op_CALL, constr->address)); // call Enum()
         out.code.__asm64.push_back(SET_Di(i64, op_MOVG, field->owner->address));
         out.code.__asm64.push_back(SET_Di(i64, op_MOVN, field->address)); // get local
-        out.code.__asm64.push_back(SET_Ei(i64, op_POPOBJ)); // call Enum()
         out.code.__asm64.push_back(SET_Di(i64, op_MOVN, valueField->address));
         out.code.__asm64.push_back(SET_Ei(i64, op_POPOBJ));
-        staticMainInserts.inject(0, out.code);
+        staticMainInserts.inject(0, out.code); out.code.free();
+    }
+}
+
+void RuntimeEngine::assignEnumArray(Ast *ast, ClassObject *klass, Expression &out) {
+    Field *enums = klass->getField("enums", true);
+    if(enums != NULL) {
+
+        out.code.push_i64(SET_Di(i64, op_MOVI, klass->fieldCount()), ebx); // call Enum()
+        out.code.__asm64.push_back(SET_Ci(i64, op_NEWCLASSARRAY, ebx, 0, klass->address)); // create Enum class
+
+        for(long i = 0; i < klass->fieldCount(); i++) {
+
+            out.code.__asm64.push_back(SET_Di(i64, op_MOVG, klass->address));
+            out.code.__asm64.push_back(SET_Di(i64, op_MOVN, klass->getField(i)->address)); // get enum field
+            out.code.push_i64(SET_Ei(i64, op_PUSHOBJ)); // push object
+
+            out.code.push_i64(SET_Di(i64, op_MOVSL, -1)); // get our array object
+            out.code.push_i64(SET_Di(i64, op_MOVN, i)); // select array element
+            out.code.push_i64(SET_Ei(i64, op_POPOBJ)); // set object
+        }
+
+        out.code.__asm64.push_back(SET_Di(i64, op_MOVG, klass->address));
+        out.code.__asm64.push_back(SET_Di(i64, op_MOVN, enums->address)); // get enums[]
+        out.code.__asm64.push_back(SET_Ei(i64, op_POPOBJ));
+        staticMainInserts.inject(staticMainInserts.size(), out.code);
     }
 }
 
@@ -9114,6 +9150,8 @@ void RuntimeEngine::resolveEnumDecl(Ast* ast) {
         }
     }
 
+    Expression out(block);
+    assignEnumArray(block, klass, out);
     addDefaultConstructor(klass, ast);
     removeScope();
 }

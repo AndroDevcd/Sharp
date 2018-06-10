@@ -15,8 +15,11 @@ bool Param::match(List<Param>& p1, List<Param>& p2) {
 
     size_t iter = 0;
     for(unsigned int i = 0; i < p1.size(); i++) {
-        if(!p1.get(i).match(p2.get(iter++)))
-            return false;
+        if(!p1.get(i).match(p2.get(iter++))) {
+            return p1.get(i).field.type == CLASS
+                   && p2.get(iter-1).field.type == CLASS
+                   && p1.get(i).field.klass->assignable(p2.get(iter-1).field.klass);
+        }
     }
 
     return true;

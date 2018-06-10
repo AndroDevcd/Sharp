@@ -5,8 +5,9 @@ mod std;
 * Basic support for enums
 */
 public class Enum {
-    public var[] name;
-    public var value;
+    private static Enum[] enums;
+    private var[] name;
+    private var value;
 
     public Enum(var val) {
         value = val;
@@ -14,6 +15,7 @@ public class Enum {
 
     public Enum(Enum e) {
         value = e.value;
+        name = Array<var>.copyOf(e.name, sizeof(e.name));
     }
 
     public def operator=(var newVal) : var {
@@ -24,5 +26,13 @@ public class Enum {
     public def operator=(Enum newVal) : var {
         value = newVal.value;
         return newVal.value;
+    }
+
+    public def getName() : string {
+        return "" + name;
+    }
+
+    public def getValue() : var {
+        return value;
     }
 }

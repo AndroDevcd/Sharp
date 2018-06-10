@@ -6,6 +6,8 @@ mod std;
 public class Array<T> {
 
     public static def copyOf(T[] data, var len) : T[] {
+        if(data == null) return null;
+
         T[] newArry = new T[len];
 
         for(var i = 0; i < len; i++) {

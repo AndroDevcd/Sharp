@@ -1066,6 +1066,8 @@ private:
     void assignEnumValue(Ast *ast, Field *field, Expression &expr, Expression &out);
 
     void assignEnumName(Ast *ast, Field *field,  Expression &out);
+
+    void assignEnumArray(Ast *ast, ClassObject *klass, Expression &out);
 };
 
 
