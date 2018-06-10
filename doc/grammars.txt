@@ -186,6 +186,18 @@ enum Declaration:
 <block>:
 { <statements>* }
 
+<switch-block>:
+ { <switch-declarator>* }
+
+ <switch-declarator>:
+ <case-declarator> | <default-declarator>
+
+ <case-declarator>:
+ case <expression>: (<statement> | <block>)*
+
+ <default-declarator>:
+ default <expression>: (<statement> | <block>)*
+
 Class Constructor Declaration:
 `[<accesstype>] <identifier = name> <uTypeArg-list> <block>
 
@@ -219,6 +231,9 @@ lock (<expression>) <block>
 Do While statement:
 do  <block> while(<expression>) ;
 
+Switch statement:
+switch (<expression>) <switch-block>
+
 For loop statement:
 for ( [<uTypeArg>]; [<expression>]; <expression>) block
 
@@ -249,6 +264,7 @@ asm ( <string-literal>+ ) ;
      | <if-statement>
      | <while-statement>
      | <dowhile-statement>
+     | <switch-statement>
      | <lock-statement>
      | <trycatch-statement>
      | <throw-statement>

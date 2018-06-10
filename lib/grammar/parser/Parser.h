@@ -128,7 +128,7 @@ private:
 
     bool parse_reference_pointer(Ast *pAst);
 
-    void parse_statement(Ast *pAst);
+    bool parse_statement(Ast *pAst);
 
     void parse_modulename(Ast *pAst, bool &parsedGeneric);
 
@@ -257,6 +257,16 @@ private:
     void parse_enumblock(Ast *pAst);
 
     void parse_enumidentifier(Ast *_ast);
+
+    bool isswitch_stmnt(token_entity entity);
+
+    void parse_switchstmnt(Ast *pAst);
+
+    void parse_switchblock(Ast *pAst);
+
+    bool isswitch_declarator(token_entity entity);
+
+    void parse_switch_declarator(Ast *pAst);
 };
 
 #define _SHARP_CERROR_LIMIT c_options.error_limit

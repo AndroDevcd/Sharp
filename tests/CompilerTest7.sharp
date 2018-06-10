@@ -1,0 +1,30 @@
+mod application;
+
+import std;
+
+public class Start {
+
+    enum Enums {
+        APPLE = 90999,
+        CHERRY = foo(),
+        PEACH
+    };
+
+    public static def foo() : var {
+        return 22;
+    }
+
+    public static def main(string[] args) : var {
+         var data = (var)Enums.APPLE;
+        switch(data) {
+            case Enums.APPLE:
+                break;
+            case Enums.CHERRY:
+                break;
+            case Enums.PEACH:
+                break;
+            default:
+                break;
+        }
+    }
+}

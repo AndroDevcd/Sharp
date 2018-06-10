@@ -277,6 +277,10 @@ bool Parser::isreturn_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "return";
 }
 
+bool Parser::isswitch_stmnt(token_entity entity) {
+    return entity.getId() == IDENTIFIER && entity.getToken() == "switch";
+}
+
 bool Parser::isif_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "if";
 }
@@ -311,6 +315,10 @@ bool Parser::istrycatch_stmnt(token_entity entity) {
 
 bool Parser::isthrow_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "throw";
+}
+
+bool Parser::isswitch_declarator(token_entity entity) {
+    return entity.getId() == IDENTIFIER && (entity.getToken() == "case" || entity.getToken() == "default");
 }
 
 bool Parser::isconstructor_decl() {
@@ -1618,6 +1626,52 @@ void Parser::parse_block(Ast* pAst) {
         expect(RIGHTCURLY, "`}`");
 }
 
+void Parser::parse_switch_declarator(Ast* pAst) {
+    pAst = get_ast(pAst, ast_switch_declarator);
+    advance();
+    pAst->addEntity(current()); // case | default
+
+    if(pAst->getEntity(0).getToken() == "case")
+        parse_expression(pAst);
+    expect(COLON, "`:`");
+
+    if(peek(1).getTokenType() == LEFTCURLY) {
+        parse_block(pAst);
+    } else {
+        advance();
+        errors->enableErrorCheckMode();
+        this->retainstate(pAst);
+        if(!parse_statement(pAst))
+        {
+            errors->pass();
+            this->rollbacklast();
+            return;
+        } else {
+            errors->fail();
+            this->dumpstate();
+        }
+    }
+}
+
+void Parser::parse_switchblock(Ast* pAst) {
+    pAst = get_ast(pAst, ast_switch_block);
+
+    expect(LEFTCURLY, "`{`");
+
+    if(isswitch_declarator(peek(1)))
+    {
+        parse_switch_declarator(pAst);
+        _pSwitchDecl:
+        if(isswitch_declarator(peek(1)))
+        {
+            parse_switch_declarator(pAst);
+            goto _pSwitchDecl;
+        }
+    }
+
+    expect(RIGHTCURLY, "`}`");
+}
+
 void Parser::parse_operatordecl(Ast *pAst) {
     pAst = get_ast(pAst, ast_operator_decl);
 
@@ -1640,6 +1694,9 @@ void Parser::parse_operatordecl(Ast *pAst) {
     parse_utypearg_list(pAst);
 
     parse_methodreturn_type(pAst); // assign-expr operators must return void
+
+
+    remove_accesstypes();
     parse_block(pAst);
 }
 
@@ -1665,6 +1722,7 @@ void Parser::parse_delegatedecl(Ast *pAst) {
     parse_methodreturn_type(pAst); // assign-expr operators must return void
     if(peek(1).getTokenType() == LEFTCURLY)
     {
+        remove_accesstypes();
         parse_block(pAst);
     } else {
         expect(SEMICOLON, pAst, "`;`");
@@ -1699,6 +1757,8 @@ void Parser::parse_methoddecl(Ast *pAst) {
     parse_utypearg_list(pAst);
 
     parse_methodreturn_type(pAst);
+
+    remove_accesstypes();
     parse_block(pAst);
 
 }
@@ -1866,6 +1926,18 @@ void Parser::parse_ifstmnt(Ast *pAst) {
     }
 }
 
+void Parser::parse_switchstmnt(Ast *pAst) {
+    pAst = get_ast(pAst, ast_switch_statement);
+
+    expect_token(pAst, "switch", "`switch`");
+
+    expect(LEFTPAREN, pAst, "`(`");
+    parse_expression(pAst);
+    expect(RIGHTPAREN, pAst, "`)`");
+
+    parse_switchblock(pAst);
+}
+
 void Parser::parse_catchclause(Ast *pAst) {
     pAst = get_ast(pAst, ast_catch_clause);
 
@@ -1923,49 +1995,64 @@ void Parser::parse_labeldecl(Ast *pAst) {
 }
 
 int commas=0;
-void Parser::parse_statement(Ast* pAst) {
+bool Parser::parse_statement(Ast* pAst) {
     pAst = get_ast(pAst, ast_statement);
-    CHECK_ERRORS
+    CHECK_ERRORS_RETURN(false)
 
     if(isreturn_stmnt(current()))
     {
         parse_returnstmnt(pAst);
+        return true;
     }
     else if(isif_stmnt(current()))
     {
         parse_ifstmnt(pAst);
+        return true;
+    }
+    else if(isswitch_stmnt(current()))
+    {
+        parse_switchstmnt(pAst);
+        return true;
     }
     else if(isassembly_stmnt(current()))
     {
         parse_assemblystmnt(pAst );
+        return true;
     }
     else if(isfor_stmnt(current()))
     {
         parse_forstmnt(pAst );
+        return true;
     }
     else if(islock_stmnt(current()))
     {
         parse_lockstmnt(pAst );
+        return true;
     }
     else if(isforeach_stmnt(current()))
     {
         parse_foreachstmnt(pAst );
+        return true;
     }
     else if(iswhile_stmnt(current()))
     {
         parse_whilestmnt(pAst );
+        return true;
     }
     else if(isdowhile_stmnt(current()))
     {
         parse_dowhilestmnt(pAst);
+        return true;
     }
     else if(istrycatch_stmnt(current()))
     {
         parse_trycatch(pAst);
+        return true;
     }
     else if(isthrow_stmnt(current()))
     {
         parse_throwstmnt(pAst);
+        return true;
     }
     else if(current().getToken() == "continue")
     {
@@ -1974,6 +2061,7 @@ void Parser::parse_statement(Ast* pAst) {
         expect_token(pAst2, "continue", "`continue`");
 
         expect(SEMICOLON, pAst, "`;`");
+        return true;
     }
     else if(current().getToken() == "break")
     {
@@ -1981,6 +2069,7 @@ void Parser::parse_statement(Ast* pAst) {
 
         expect_token(pAst2, "break", "`break`");
         expect(SEMICOLON, pAst2, "`;`");
+        return true;
     }
     else if(current().getToken() == "goto")
     {
@@ -1991,14 +2080,17 @@ void Parser::parse_statement(Ast* pAst) {
         expectidentifier(pAst2);
         // TODO: add support for calling goto labels[9];
         expect(SEMICOLON, pAst2, "`;`");
+        return true;
     }
     else if(isvariable_decl(current()))
     {
         parse_variabledecl(pAst);
+        return true;
     }
     else if(isprototype_decl(current()))
     {
         parse_prototypedecl(pAst);
+        return true;
     }
         /* these are just in case there is a missed bracket anywhere */
     else if(ismodule_decl(current()))
@@ -2030,6 +2122,7 @@ void Parser::parse_statement(Ast* pAst) {
             errors->createNewWarning(GENERIC, current().getLine(), current().getColumn(), "unnecessary semicolon ';'");
         } else
             commas++;
+        return true;
     }
     else
     {
@@ -2048,14 +2141,14 @@ void Parser::parse_statement(Ast* pAst) {
             {
                 pAst = this->rollback();
                 parse_labeldecl(pAst);
-                return;
+                return true;
             }
             else if(peek(1).getId() == IDENTIFIER)
             {
                 // Variable decliration
                 pAst = this->rollback();
                 parse_variabledecl(pAst);
-                return;
+                return true;
             }
         } else
             errors->pass();
@@ -2070,7 +2163,7 @@ void Parser::parse_statement(Ast* pAst) {
             errors->pass();
             advance();
             errors->createNewError(GENERIC, current(), "not a statement");
-            return;
+            return false;
         } else {
             errors->fail();
             this->dumpstate();
@@ -2079,8 +2172,11 @@ void Parser::parse_statement(Ast* pAst) {
                 errors->createNewError(GENERIC, current(), "expected `;`");
             else
                 expect(SEMICOLON, pAst, "`;`");
+            return true;
         }
     }
+
+    return false;
 }
 
 void Parser::parse_modulename(Ast* pAst, bool &parsedGeneric)
@@ -2199,7 +2295,8 @@ bool Parser::iskeyword(string key) {
            || key == "var" || key == "sizeof"|| key == "_int8" || key == "_int16"
            || key == "_int32" || key == "_int64" || key == "_uint8"
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
-           || key == "delegate" || key == "interface" || key == "lock" || key == "enum";
+           || key == "delegate" || key == "interface" || key == "lock" || key == "enum"
+           || key == "switch" || key == "default";
 }
 
 bool Parser::parse_type_identifier(Ast *pAst) {
