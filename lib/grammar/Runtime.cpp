@@ -1087,6 +1087,9 @@ void RuntimeEngine::parseSwitchStatement(Block& block, Ast* pAst) {
                         s << constantExpressionToValue(ast, constExpr);
                         errors->createNewError(GENERIC, ast, "switch statement contains multiple cases with value `" + s.str() + "`");
                     }
+                    if(!isWholeNumber(constantExpressionToValue(ast, constExpr))) {
+                        errors->createNewError(GENERIC, ast, "switch statement value must evaluate to an integer, are you missing a cast?");
+                    }
 
                     st.values.add(constantExpressionToValue(ast, constExpr));
                     st.addresses.add(block.code.size()); // start Address for case statement
@@ -1108,6 +1111,10 @@ void RuntimeEngine::parseSwitchStatement(Block& block, Ast* pAst) {
                 }
                 break;
         }
+    }
+
+    if(st.defaultAddress == -1)  {
+        st.defaultAddress = block.code.size(); // start Address for case statement
     }
 
     currentScope()->currentFunction->switchTable.push_back(st);
@@ -8404,6 +8411,10 @@ void RuntimeEngine::resolveEnumVarDecl(Ast* ast) {
 
     if(ast->hasSubAst(ast_value)) {
         Expression expr = parseValue(ast->getSubAst(ast_value)), out(ast);
+
+        if(!isWholeNumber(constantExpressionToValue(ast, expr))) {
+            errors->createNewError(GENERIC, ast, "enum value must evaluate to an integer, are you missing a cast?");
+        }
 
         if (expr.literal) {
             // inline local static variables

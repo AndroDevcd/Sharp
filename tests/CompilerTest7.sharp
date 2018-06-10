@@ -16,7 +16,7 @@ public class Start {
     }
 
     public static def main(string[] args) : var {
-         var data = (var)7;
+         var data = (var)Enums.CHERRY;
         asm(" nop nop nop nop nop nop");
         switch(data) {
             case Enums.APPLE:
@@ -31,7 +31,7 @@ public class Start {
             case 7:
                 System.print("7");
                 break;
-            case 4.3: // TODO: enforce it to be an integer
+            case (_int16)4.3:
                 break;
             default:
                 System.print("default");
