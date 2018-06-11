@@ -11,12 +11,20 @@ public class int {
         return (_int32)(value+num);
     }
 
+    public def operator+(int num) : int {
+        return new int(operator+(num.value()));
+    }
+
     public def operator-(var num) : var {
         return (_int32)(value-num);
     }
 
     public def operator*(var num) : var {
         return (_int32)(value*num);
+    }
+
+    public def operator*(int num) : int {
+        return new int(operator*(num.value()));
     }
 
     public def operator/(var num) : var {
@@ -45,6 +53,10 @@ public class int {
 
     public def operator>=(var num) : var {
         return (value>=num);
+    }
+
+    public def operator>=(int num) : var {
+        return operator>=(num.value());
     }
 
     public def operator++(var num) : var { // post inc i++

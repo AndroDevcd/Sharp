@@ -1448,7 +1448,16 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
 
                     if(f.type==CLASS && f.klass->getModuleName() == "std" && f.klass->getName() == "string"
                         && expression.type == expression_string && !f.isArray) {
-                        constructNewString(expression, out);
+                        constructNewNativeClass("string", "std", expression, out);
+                        out.code.push_i64(SET_Di(i64, op_POPL, f.address));
+                    } else if(f.type==CLASS && f.klass->getModuleName() == "std" &&
+                              (f.klass->getName() == "int" || f.klass->getName() == "bool"
+                              || f.klass->getName() == "char" || f.klass->getName() == "long"
+                              || f.klass->getName() == "short" || f.klass->getName() == "string"
+                              || f.klass->getName() == "uchar" || f.klass->getName() == "ulong"
+                              || f.klass->getName() == "ushort")
+                         && expression.type == expression_var && !f.isArray) {
+                        constructNewNativeClass(f.klass->getName(), "std", expression, out);
                         out.code.push_i64(SET_Di(i64, op_POPL, f.address));
                     } else
                         assignValue(operand, out, fieldExpr, expression, pAst);
@@ -5216,16 +5225,16 @@ void RuntimeEngine::addStringConstruct(token_entity operand, ClassObject* klass,
     freeList(eList);
 }
 
-void RuntimeEngine::constructNewString(Expression &stringExpr, Expression& out) {
+void RuntimeEngine::constructNewNativeClass(string k, string module, Expression &expr, Expression& out) {
     List<Expression> expressions;
     List<Param> params;
     ClassObject* klass;
     Method* fn=NULL;
 
-    expressions.add(stringExpr);
+    expressions.add(expr);
     expressionListToParams(params, expressions);
 
-    if((klass = getClass("std", "string", classes)) != NULL) {
+    if((klass = getClass(module, k, classes)) != NULL) {
         if((fn=klass->getConstructor(params)) != NULL) {
             out.type = expression_lclass;
             out.utype.klass = klass;
@@ -5248,9 +5257,9 @@ void RuntimeEngine::constructNewString(Expression &stringExpr, Expression& out) 
             }
             out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
         } else
-            out = stringExpr;
+            out = expr;
     } else
-        out = stringExpr;
+        out = expr;
 
     freeList(params);
     freeList(expressions);
@@ -11371,6 +11380,7 @@ void RuntimeEngine::createDumpFile() {
                 {
                     ss<<"switch ";
                     ss<< GET_Da(x64);
+                    ss<< " // " << getSwitchTable(method, GET_Da(x64));
                     _ostream << ss.str();
                     break;
                 }
@@ -11854,7 +11864,7 @@ double RuntimeEngine::constantExpressionToValue(Ast *pAst, Expression &constExpr
     } else if(constExpr.isConstExpr()) {
         return constExpr.utype.field->constant_value;
     } else {
-        errors->createNewError(INTERNAL_ERROR, pAst, "could not get the immutable value from expression of type `" + constExpr.typeToString() + "`");
+        errors->createNewError(GENERIC, pAst, "could not get the immutable value from expression of type `" + constExpr.typeToString() + "`");
     }
     return 0;
 }

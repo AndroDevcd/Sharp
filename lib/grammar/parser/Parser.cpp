@@ -1319,10 +1319,12 @@ bool Parser::parse_expression(Ast *pAst) {
 
         if(parenExprs > 0) {
             quesBlock++;
+            parenExprs--;
+            nestedMulExprs++;
             parse_expression(pAst);
+            nestedMulExprs--;
             quesBlock--;
             pAst->encapsulate(ast_mult_e);
-            parenExprs--;
         } else {
             nestedMulExprs++;
             quesBlock++;
@@ -1343,15 +1345,16 @@ bool Parser::parse_expression(Ast *pAst) {
     if(peek(1).getTokenType() == PLUS || peek(1).getTokenType() == MINUS)
     {
         add:
-        if(nestedMulExprs== 1) return true;
+        if(nestedMulExprs>= 1) return true;
         advance();
         pAst->addEntity(current());
 
         if(parenExprs > 0) {
-
-            parse_expression(pAst);
-            pAst->encapsulate(ast_add_e);
             parenExprs--;
+            nestedAddExprs++;
+            parse_expression(pAst);
+            nestedAddExprs--;
+            pAst->encapsulate(ast_add_e);
         } else {
             nestedAddExprs++;
             parse_expression(nestedAddExprs == 1 ? pAst : pAst=pAst->getParent());

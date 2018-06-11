@@ -873,7 +873,7 @@ private:
 
     bool constructNewString(Expression &stringExpr, Expression &right, token_entity operand, Expression &out, Ast *pAst);
 
-    void constructNewString(Expression &stringExpr, Expression &out);
+    void constructNewNativeClass(string k, string module, Expression &expr, Expression &out);
 
     void addStringConstruct(token_entity operand, ClassObject *klass, Expression &out, Expression &left, Expression &right,
                             Ast *pAst);
@@ -1092,6 +1092,8 @@ private:
     void parseSwitchStatement(Block &block, Ast *pAst);
 
     double constantExpressionToValue(Ast *pAst, Expression &constExpr);
+
+    string getSwitchTable(Method *func, long addr);
 };
 
 

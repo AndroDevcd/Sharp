@@ -6,7 +6,7 @@ public class Application {
 
     enum Enums {
         APPLE = 90999,
-        CHERRY = foo(),
+        CHERRY = 17,
         PEACH
     };
 

@@ -41,6 +41,20 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
             lt.key--;
     }
 
+
+    for(unsigned int i = 0; i < func->switchTable.size(); i++) {
+        SwitchTable &st = func->switchTable.get(i);
+
+        if(stopAddr < st.defaultAddress)
+            st.defaultAddress--;
+
+        for(long x = 0; x < st.addresses.size(); x++) {
+            if(stopAddr < st.addresses.get(x)) {
+                st.addresses.get(x)--;
+            }
+        }
+    }
+
     int64_t x64, op, addr;
     for(unsigned int i = 0; i < stopAddr; i++) {
         if(i >= assembler->__asm64.size())
