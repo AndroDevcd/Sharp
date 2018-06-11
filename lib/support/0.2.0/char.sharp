@@ -1,50 +1,94 @@
 mod std;
 
-public class char {
+public class char base integer {
     var value;
 
     public char(var num) {
         value = (_int8)num;
     }
 
+    public char(integer num) {
+        base->integer((_int8)num.value);
+    }
+    
     public def operator+(var num) : var {
         return (_int8)(value+num);
     }
-
+    
+    public def operator+(integer num) : char {
+        return new char(operator+(num.value));
+    }
+    
     public def operator-(var num) : var {
         return (_int8)(value-num);
     }
-
+    
+    public def operator-(integer num) : char {
+        return new char(operator-(num.value));
+    }
+    
     public def operator*(var num) : var {
         return (_int8)(value*num);
     }
-
+    
+    public def operator*(integer num) : char {
+        return new char(operator*(num.value));
+    }
+    
     public def operator/(var num) : var {
         return (_int8)(value/num);
     }
-
+    
+    public def operator/(integer num) : char {
+        return new char(operator/(num.value));
+    }
+    
     public def operator=(var num) : var {
         return (value=(_int8)num);
     }
-
+    
+    public def operator=(integer num) : char {
+        return new char(operator=(num.value));
+    }
+    
     public def operator==(var num) : var {
         return (value==num);
     }
-
+    
+    public def operator==(integer num) : var {
+        return (value==num.value);
+    }
+    
     public def operator<(var num) : var {
         return (value<num);
     }
-
+    
+    public def operator<(integer num) : var {
+        return (value<num.value);
+    }
+    
     public def operator>(var num) : var {
         return (value>num);
     }
-
+    
+    public def operator>(integer num) : var {
+        return (value>num.value);
+    }
+    
     public def operator<=(var num) : var {
         return (value<=num);
     }
-
+    
+    public def operator<=(integer num) : var {
+        return (value<=num.value);
+    }
+    
     public def operator>=(var num) : var {
         return (value>=num);
+    }
+    
+    public def operator>=(integer num) : var {
+        return (value>=num.value);
     }
 
     public def operator++(var num) : var { // post inc i++

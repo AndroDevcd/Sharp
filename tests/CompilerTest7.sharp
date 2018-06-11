@@ -17,7 +17,6 @@ public class Application {
 
     public static def main(string[] args) : var {
          var data = (var)Enums.CHERRY;
-         var[] x = new var[] { 'h', 'i' };
         asm(" nop nop nop nop nop nop");
         switch(data) {
             case Enums.APPLE:
@@ -44,6 +43,6 @@ public class Application {
         int c = 3;
 
         // 1 + 2 * 3 +1*2 + 1
-        System.println((a + b * c + a * b + a).value());
+        System.println((a + b * c + a * b + a).getValue());
     }
 }

@@ -57,7 +57,7 @@ public:
     threadStart(void *);
     void run();
 
-    static void setMemoryLimit(unsigned long limit) {
+    static void setMemoryLimit(unsigned long long limit) {
         if(self != NULL) {
             self->memoryLimit = limit;
         }
@@ -99,12 +99,12 @@ public:
      */
      void freeObject(Object* object);
 
-    CXX11_INLINE bool spaceAvailable(size_t bytes) {
+    CXX11_INLINE bool spaceAvailable(unsigned long long bytes) {
         return (bytes+managedBytes) < memoryLimit;
     }
 
-    unsigned long getMemoryLimit();
-    unsigned long getManagedMemory();
+    unsigned long long getMemoryLimit();
+    unsigned long long getManagedMemory();
 
     /**
      * This will keep track of our different generations and the
@@ -121,8 +121,8 @@ public:
     unsigned long aObjs;
     unsigned long oObjs;
 private:
-    unsigned long managedBytes;
-    unsigned long memoryLimit;
+    unsigned long long managedBytes;
+    unsigned long long memoryLimit;
     bool isShutdown;
 
     /**
@@ -189,9 +189,9 @@ private:
 /**
  * Bytes are used via the JEDEC Standard 100B.01
  */
-#define KB_TO_BYTES(bytes) (((unsigned long)bytes)*1024)
-#define MB_TO_BYTES(bytes) (((unsigned long)bytes)*1048576)
-#define GB_TO_BYTES(bytes) (((unsigned long)bytes)*1073741824)
+#define KB_TO_BYTES(bytes) (((unsigned long long)bytes)*1024)
+#define MB_TO_BYTES(bytes) (((unsigned long long)bytes)*1048576)
+#define GB_TO_BYTES(bytes) (((unsigned long long)(bytes))*1073741824)
 
 
 #endif //SHARP_GARBAGECOLLECTOR_H

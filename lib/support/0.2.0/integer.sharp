@@ -1,0 +1,20 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 6/11/2018.
+ */
+class integer {
+    protected var value;
+
+    public integer(var num) {
+        value = num;
+    }
+
+    public integer(integer num) {
+        value = num.value;
+    }
+
+    public def getValue() : var {
+        return (value);
+    }
+}

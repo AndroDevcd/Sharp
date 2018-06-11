@@ -2579,9 +2579,9 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
                 klass = expression.utype.field->klass;
             }
 
-            if((fn = klass->getFunction(methodName, params)) != NULL){}
-            else if((fn = klass->getOverload(stringToOp(methodName), params)) != NULL){}
-            else if(classContext->getField(methodName) != NULL) {
+            if((fn = klass->getFunction(methodName, params, true)) != NULL){}
+            else if((fn = klass->getOverload(stringToOp(methodName), params, true)) != NULL){}
+            else if(classContext->getField(methodName, true) != NULL) {
                 errors->createNewError(GENERIC, pAst2->line, pAst2->col, " symbol `" + classContext->getFullName() + methodName + "` is a field");
             }
             else {
@@ -2603,9 +2603,9 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
     } else {
         // method or global macros
         if(ptr.singleRefrence()) {
-            if((fn = classContext->getFunction(ptr.referenceName, params)) != NULL){}
-            else if((fn = classContext->getOverload(stringToOp(ptr.referenceName), params)) != NULL){}
-            else if(classContext->getField(ptr.referenceName) != NULL) {
+            if((fn = classContext->getFunction(ptr.referenceName, params, true)) != NULL){}
+            else if((fn = classContext->getOverload(stringToOp(ptr.referenceName), params, true)) != NULL){}
+            else if(classContext->getField(ptr.referenceName, true) != NULL) {
                 errors->createNewError(GENERIC, pAst2->line, pAst2->col, " symbol `" + ptr.referenceName + "` is a field");
             }
             else {

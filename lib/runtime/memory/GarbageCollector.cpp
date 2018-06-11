@@ -38,7 +38,7 @@ void* __calloc(size_t n, size_t bytes)
     void* ptr =nullptr;
     bool gc=false;
     alloc_bytes:
-    if(!GarbageCollector::self->spaceAvailable(bytes))
+    if(!GarbageCollector::self->spaceAvailable(n*bytes))
         goto lowmem;
     ptr=calloc(n, bytes);
 
@@ -506,10 +506,10 @@ void GarbageCollector::createStringArray(Object *object, native_string& s) {
     }
 }
 
-unsigned long GarbageCollector::getMemoryLimit() {
+unsigned long long GarbageCollector::getMemoryLimit() {
     return memoryLimit;
 }
 
-unsigned long GarbageCollector::getManagedMemory() {
+unsigned long long GarbageCollector::getManagedMemory() {
     return managedBytes;
 }
