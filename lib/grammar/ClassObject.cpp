@@ -29,9 +29,9 @@ Method* ClassObject::getConstructor(int p) {
     return &constructors.get(p);
 }
 
-Method *ClassObject::getConstructor(List<Param>& params, bool useBase) {
+Method *ClassObject::getConstructor(List<Param>& params, bool useBase, bool nativeSupport) {
     for(unsigned long i = 0; i < constructors.size(); i++) {
-        if(Param::match(constructors.get(i).getParams(), params))
+        if(Param::match(constructors.get(i).getParams(), params, nativeSupport))
             return &constructors.get(i);
     }
 
@@ -64,9 +64,12 @@ Method* ClassObject::getFunction(int p) {
     return &functions.get(p);
 }
 
-Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase, bool skipdelegates) {
+Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase, bool nativeSupport, bool skipdelegates) {
+    if(name == "put") {
+        int i = 0;
+    }
     for(unsigned long i = 0; i < functions.size(); i++) {
-        if(Param::match(functions.get(i).getParams(), params) && name == functions.get(i).getName()) {
+        if(Param::match(functions.get(i).getParams(), params, nativeSupport) && name == functions.get(i).getName()) {
             if(skipdelegates && !functions.get(i).delegate)
                 return &functions.get(i);
             else
@@ -183,9 +186,9 @@ OperatorOverload *ClassObject::getOverload(size_t p) {
     return &overloads.get(p);
 }
 
-OperatorOverload *ClassObject::getOverload(Operator op, List<Param> &params, bool useBase) {
+OperatorOverload *ClassObject::getOverload(Operator op, List<Param> &params, bool useBase, bool nativeSupport) {
     for(unsigned long i = 0; i < overloads.size(); i++) {
-        if(Param::match(overloads.get(i).getParams(), params) && op == overloads.get(i).getOperator())
+        if(Param::match(overloads.get(i).getParams(), params, nativeSupport) && op == overloads.get(i).getOperator())
             return &overloads.get(i);
     }
 

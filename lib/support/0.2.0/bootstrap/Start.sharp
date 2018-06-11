@@ -6,7 +6,7 @@ import std;
 * Created by bknun on 6/5/2018            
 * Description:                             
 */
-public class Start {
+public class Application {
 
     public static def main(string[] args) : var {
         return application#Runtime.bootstrap(args);

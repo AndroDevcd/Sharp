@@ -58,6 +58,10 @@ void Parser::parse()
         {
             parse_interfacedecl(NULL);
         }
+        else if(isenum_decl(current()))
+        {
+            parse_enumdecl(NULL);
+        }
         else if(isimport_decl(current()))
         {
             if(access_types.size() > 0)
@@ -69,7 +73,7 @@ void Parser::parse()
         else
         {
             // "expected class, or import declaration"
-            errors->createNewError(UNEXPECTED_SYMBOL, current(), " `" + current().getToken() + "`; expected class, or import declaration");
+            errors->createNewError(UNEXPECTED_SYMBOL, current(), " `" + current().getToken() + "`; expected class, enum, or import declaration");
             parse_all(NULL);
         }
 
@@ -2168,6 +2172,11 @@ bool Parser::parse_statement(Ast* pAst) {
         errors->createNewError(GENERIC, current(), "unexpected class declaration");
         parse_classdecl(pAst);
     }
+    else if(isenum_decl(current()))
+    {
+        errors->createNewError(GENERIC, current(), "enum declaration cannot be local");
+        parse_enumdecl(pAst);
+    }
     else if(isinterface_decl(current()))
     {
         errors->createNewError(GENERIC, current(), "unexpected interface declaration");
@@ -2332,6 +2341,10 @@ void Parser::parse_all(Ast *pAst) {
     else if(isclass_decl(current()))
     {
         parse_classdecl(pAst);
+    }
+    else if(isenum_decl(current()))
+    {
+        parse_enumdecl(pAst);
     }
     else if(isinterface_decl(current()))
     {

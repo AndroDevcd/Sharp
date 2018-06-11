@@ -11,6 +11,8 @@ public class Runtime {
             help();
             return 1;
         }
+
+        ErrorManager.initErrors();
     }
 
     private static def help() {

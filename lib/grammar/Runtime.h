@@ -517,7 +517,8 @@ public:
             panic(false),
             allMethods(),
             staticMainInserts(),
-            preprocessed(false)
+            preprocessed(false),
+            resolvedGenerics(false)
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
@@ -599,7 +600,7 @@ private:
     string exportFile;
     ErrorManager* errors;
     string currentModule;
-    bool resolvedFields;
+    bool resolvedFields, resolvedGenerics;
     unsigned long methods;
     unsigned long classSize;
     Method* main;
@@ -873,7 +874,7 @@ private:
 
     bool constructNewString(Expression &stringExpr, Expression &right, token_entity operand, Expression &out, Ast *pAst);
 
-    void constructNewNativeClass(string k, string module, Expression &expr, Expression &out);
+    void constructNewNativeClass(string k, string module, Expression &expr, Expression &out, bool updateOutExpr);
 
     void addStringConstruct(token_entity operand, ClassObject *klass, Expression &out, Expression &left, Expression &right,
                             Ast *pAst);
@@ -1094,6 +1095,10 @@ private:
     double constantExpressionToValue(Ast *pAst, Expression &constExpr);
 
     string getSwitchTable(Method *func, long addr);
+
+    void resolveAllGenerics();
+
+    bool isExpressionConvertableToNativeClass(Field *field, Expression &exp);
 };
 
 

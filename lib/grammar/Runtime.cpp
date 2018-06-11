@@ -418,12 +418,17 @@ void RuntimeEngine::compile()
             lst.free();
         }
 
-        resolveAllFields();
+        resolveAllGenerics();
         resolveAllMethods();
+
+        resolvedFields = false;
+        resolveAllFields(); // very nasty but because of generics we need to process methods first before trying fields
+        resolvedFields = true;
+
+        resolveAllEnums();
         inlineFields();
         resolveAllInterfaces();
         resolveAllDelegates();
-        resolveAllEnums();
 
         // TODO: make checkSupportClasses() to check on vital support classes to make sure things are as they should be
         // TODO: inforce const on variables
@@ -1448,7 +1453,7 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
 
                     if(f.type==CLASS && f.klass->getModuleName() == "std" && f.klass->getName() == "string"
                         && expression.type == expression_string && !f.isArray) {
-                        constructNewNativeClass("string", "std", expression, out);
+                        constructNewNativeClass("string", "std", expression, out, true);
                         out.code.push_i64(SET_Di(i64, op_POPL, f.address));
                     } else if(f.type==CLASS && f.klass->getModuleName() == "std" &&
                               (f.klass->getName() == "int" || f.klass->getName() == "bool"
@@ -1457,7 +1462,7 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
                               || f.klass->getName() == "uchar" || f.klass->getName() == "ulong"
                               || f.klass->getName() == "ushort")
                          && expression.type == expression_var && !f.isArray) {
-                        constructNewNativeClass(f.klass->getName(), "std", expression, out);
+                        constructNewNativeClass(f.klass->getName(), "std", expression, out, true);
                         out.code.push_i64(SET_Di(i64, op_POPL, f.address));
                     } else
                         assignValue(operand, out, fieldExpr, expression, pAst);
@@ -2348,9 +2353,9 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                 klass = expression.utype.field->klass;
             }
 
-            if((fn = klass->getFunction(methodName, params, true)) != NULL){}
-            else if((fn = klass->getOverload(stringToOp(methodName), params, true)) != NULL){}
-            else if(methodName == klass->getName() && (fn = klass->getConstructor(params)) != NULL) {}
+            if((fn = klass->getFunction(methodName, params, true, true)) != NULL){}
+            else if((fn = klass->getOverload(stringToOp(methodName), params, true, true)) != NULL){}
+            else if(methodName == klass->getName() && (fn = klass->getConstructor(params, false, true)) != NULL) {}
             else if(klass->getField(methodName, true) != NULL) {
                 errors->createNewError(GENERIC, valueLst->line, valueLst->col, " symbol `" + methodName + "` is a field");
             }
@@ -2374,8 +2379,8 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                 errors->createNewError(COULD_NOT_RESOLVE, valueLst->line, valueLst->col, " `" + ptr.referenceName +  paramsToString(params) + "`");
             } else {
                 
-                if((fn = currentScope()->klass->getFunction(ptr.referenceName, params, true)) != NULL){}
-                else if((fn = currentScope()->klass->getOverload(stringToOp(ptr.referenceName), params, true)) != NULL){}
+                if((fn = currentScope()->klass->getFunction(ptr.referenceName, params, true, true)) != NULL){}
+                else if((fn = currentScope()->klass->getOverload(stringToOp(ptr.referenceName), params, true, true)) != NULL){}
                 else if(ptr.referenceName == currentScope()->klass->getName() && (fn = currentScope()->klass->getConstructor(params)) != NULL) {}
                 else if(currentScope()->klass->getField(methodName, true) != NULL) {
                     errors->createNewError(GENERIC, valueLst->line, valueLst->col, " symbol `" + methodName + "` is a field");
@@ -2383,9 +2388,9 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                 else {
                     if(currentScope()->klass->hasBaseClass(getClass("std", "Enum", classes))) {
                         Scope *scope = &scopeMap.get(scopeMap.size()-2);
-                        if((fn = scope->klass->getFunction(ptr.referenceName, params, true)) != NULL){}
-                        else if((fn = scope->klass->getOverload(stringToOp(ptr.referenceName), params, true)) != NULL){}
-                        else if(ptr.referenceName == scope->klass->getName() && (fn = scope->klass->getConstructor(params)) != NULL) {}
+                        if((fn = scope->klass->getFunction(ptr.referenceName, params, true, true)) != NULL){}
+                        else if((fn = scope->klass->getOverload(stringToOp(ptr.referenceName), params, true, true)) != NULL){}
+                        else if(ptr.referenceName == scope->klass->getName() && (fn = scope->klass->getConstructor(params, false, true)) != NULL) {}
                         else if(scope->klass->getField(methodName, true) != NULL) {
                             errors->createNewError(GENERIC, valueLst->line, valueLst->col, " symbol `" + methodName + "` is a field");
                         }
@@ -2434,7 +2439,12 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                 out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
                 out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
                 out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
-            } else
+            } else if(isExpressionConvertableToNativeClass(&fn->getParam(i).field, expressions.get(i))) {
+                ClassObject *k = fn->getParam(i).field.klass;
+                Expression fExpr = fieldToExpression(utype, fn->getParam(i).field);
+                constructNewNativeClass(k->getName(), k->getModuleName(), expressions.get(i), out, false);
+            }
+            else
                 pushExpressionToStack(expressions.get(i), out);
         }
 
@@ -2579,8 +2589,8 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
                 klass = expression.utype.field->klass;
             }
 
-            if((fn = klass->getFunction(methodName, params, true)) != NULL){}
-            else if((fn = klass->getOverload(stringToOp(methodName), params, true)) != NULL){}
+            if((fn = klass->getFunction(methodName, params, true, true)) != NULL){}
+            else if((fn = klass->getOverload(stringToOp(methodName), params, true, true)) != NULL){}
             else if(classContext->getField(methodName, true) != NULL) {
                 errors->createNewError(GENERIC, pAst2->line, pAst2->col, " symbol `" + classContext->getFullName() + methodName + "` is a field");
             }
@@ -2603,8 +2613,8 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
     } else {
         // method or global macros
         if(ptr.singleRefrence()) {
-            if((fn = classContext->getFunction(ptr.referenceName, params, true)) != NULL){}
-            else if((fn = classContext->getOverload(stringToOp(ptr.referenceName), params, true)) != NULL){}
+            if((fn = classContext->getFunction(ptr.referenceName, params, true, true)) != NULL){}
+            else if((fn = classContext->getOverload(stringToOp(ptr.referenceName), params, true, true)) != NULL){}
             else if(classContext->getField(ptr.referenceName, true) != NULL) {
                 errors->createNewError(GENERIC, pAst2->line, pAst2->col, " symbol `" + ptr.referenceName + "` is a field");
             }
@@ -2640,6 +2650,10 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
                 out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
                 out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
                 out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+            } else if(isExpressionConvertableToNativeClass(&fn->getParam(i).field, expressions.get(i))) {
+                ClassObject *k = fn->getParam(i).field.klass;
+                Expression fExpr = fieldToExpression(pAst, fn->getParam(i).field);
+                constructNewNativeClass(k->getName(), k->getModuleName(), expressions.get(i), out, false);
             } else
                 pushExpressionToStack(expressions.get(i), out);
         }
@@ -3155,9 +3169,9 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
                 klass = expression.utype.field->klass;
             }
 
-            if((fn = klass->getFunction(methodName, params, true)) != NULL){}
-            else if((fn = klass->getOverload(stringToOp(methodName), params, true)) != NULL){}
-            else if(methodName == klass->getName() && (fn = klass->getConstructor(params)) != NULL) {}
+            if((fn = klass->getFunction(methodName, params, true, true)) != NULL){}
+            else if((fn = klass->getOverload(stringToOp(methodName), params, true, true)) != NULL){}
+            else if(methodName == klass->getName() && (fn = klass->getConstructor(params, false, true)) != NULL) {}
             else {
                 if(stringToOp(methodName) != oper_UNDEFINED) methodName = "operator" + methodName;
 
@@ -3177,9 +3191,9 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
                                  "cannot get object `" + ptr.referenceName + paramsToString(params) + "` from self at global scope");
             } else {
 
-                if((fn = currentScope()->klass->getFunction(ptr.referenceName, params, true)) != NULL){}
-                else if((fn = currentScope()->klass->getOverload(stringToOp(ptr.referenceName), params, true)) != NULL){}
-                else if(ptr.referenceName == currentScope()->klass->getName() && (fn = currentScope()->klass->getConstructor(params)) != NULL) {}
+                if((fn = currentScope()->klass->getFunction(ptr.referenceName, params, true, true)) != NULL){}
+                else if((fn = currentScope()->klass->getOverload(stringToOp(ptr.referenceName), params, true, true)) != NULL){}
+                else if(ptr.referenceName == currentScope()->klass->getName() && (fn = currentScope()->klass->getConstructor(params, false, true)) != NULL) {}
                 else {
                     if(stringToOp(methodName) != oper_UNDEFINED) methodName = "operator" + ptr.referenceName;
                     else methodName = ptr.referenceName;
@@ -3214,6 +3228,10 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
                 out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
                 out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
                 out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+            } else if(isExpressionConvertableToNativeClass(&fn->getParam(i).field, expressions.get(i))) {
+                ClassObject *k = fn->getParam(i).field.klass;
+                Expression fExpr = fieldToExpression(utype, fn->getParam(i).field);
+                constructNewNativeClass(k->getName(), k->getModuleName(), expressions.get(i), out, false);
             } else
                 pushExpressionToStack(expressions.get(i), out);
         }
@@ -3328,9 +3346,9 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
                 klass = expression.utype.field->klass;
             }
 
-            if((fn = klass->getFunction(methodName, params)) != NULL){}
-            else if((fn = klass->getOverload(stringToOp(methodName), params)) != NULL){}
-            else if(methodName == klass->getName() && (fn = klass->getConstructor(params)) != NULL) {}
+            if((fn = klass->getFunction(methodName, params, false, true)) != NULL){}
+            else if((fn = klass->getOverload(stringToOp(methodName), params, false, true)) != NULL){}
+            else if(methodName == klass->getName() && (fn = klass->getConstructor(params, false, true)) != NULL) {}
             else {
                 if(stringToOp(methodName) != oper_UNDEFINED) methodName = "operator" + methodName;
 
@@ -3369,9 +3387,9 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
                         return NULL;
                     }
 
-                    if((fn = base->getFunction(ptr.referenceName, params)) != NULL){ break; }
-                    else if((fn = base->getOverload(stringToOp(ptr.referenceName), params)) != NULL){ break; }
-                    else if(ptr.referenceName == base->getName() && (fn = base->getConstructor(params)) != NULL) { break; }
+                    if((fn = base->getFunction(ptr.referenceName, params, false, true)) != NULL){ break; }
+                    else if((fn = base->getOverload(stringToOp(ptr.referenceName), params, false, true)) != NULL){ break; }
+                    else if(ptr.referenceName == base->getName() && (fn = base->getConstructor(params, false, true)) != NULL) { break; }
                     else {
                         start = base->getBaseClass(); // recursivley assign klass to new base
                     }
@@ -3405,6 +3423,10 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
                 out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
                 out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
                 out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+            } else if(isExpressionConvertableToNativeClass(&fn->getParam(i).field, expressions.get(i))) {
+                ClassObject *k = fn->getParam(i).field.klass;
+                Expression fExpr = fieldToExpression(utype, fn->getParam(i).field);
+                constructNewNativeClass(k->getName(), k->getModuleName(), expressions.get(i), out, false);
             } else
                 pushExpressionToStack(expressions.get(i), out);
         }
@@ -3680,6 +3702,10 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                         expression.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
                         expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
                         expression.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                    } else if(isExpressionConvertableToNativeClass(&fn->getParam(i).field, expressions.get(i))) {
+                        ClassObject *k = fn->getParam(i).field.klass;
+                        Expression fExpr = fieldToExpression(pAst, fn->getParam(i).field);
+                        constructNewNativeClass(k->getName(), k->getModuleName(), expressions.get(i), expression, false);
                     } else
                         pushExpressionToStack(expressions.get(i), expression);
                 }
@@ -5100,7 +5126,7 @@ void RuntimeEngine::addClass(token_entity operand, ClassObject* klass, Expressio
 
     expressionListToParams(params, eList);
 
-    if((overload = klass->getOverload(stringToOp(operand.getToken()), params)) != NULL) {
+    if((overload = klass->getOverload(stringToOp(operand.getToken()), params, true)) != NULL) {
         // call operand
         if(!overload->isStatic())
             pushExpressionToStack(left, out);
@@ -5139,7 +5165,7 @@ void RuntimeEngine::addClassChain(token_entity operand, ClassObject* klass, Expr
 
     expressionListToParams(params, eList);
 
-    if((overload = klass->getOverload(stringToOp(operand.getToken()), params)) != NULL) {
+    if((overload = klass->getOverload(stringToOp(operand.getToken()), params, true)) != NULL) {
         // call operand
         if(overload->isStatic()) {
             errors->createNewError(GENERIC, pAst, "call to function `$operator" + operand.getToken() + "` is static");
@@ -5225,7 +5251,7 @@ void RuntimeEngine::addStringConstruct(token_entity operand, ClassObject* klass,
     freeList(eList);
 }
 
-void RuntimeEngine::constructNewNativeClass(string k, string module, Expression &expr, Expression& out) {
+void RuntimeEngine::constructNewNativeClass(string k, string module, Expression &expr, Expression& out, bool update) {
     List<Expression> expressions;
     List<Param> params;
     ClassObject* klass;
@@ -5235,10 +5261,12 @@ void RuntimeEngine::constructNewNativeClass(string k, string module, Expression 
     expressionListToParams(params, expressions);
 
     if((klass = getClass(module, k, classes)) != NULL) {
-        if((fn=klass->getConstructor(params)) != NULL) {
-            out.type = expression_lclass;
-            out.utype.klass = klass;
-            out.utype.type=CLASS;
+        if((fn=klass->getConstructor(params, true)) != NULL) {
+            if(update) {
+                out.type = expression_lclass;
+                out.utype.klass = klass;
+                out.utype.type=CLASS;
+            }
 
             verifyMethodAccess(fn, out.link);
             out.code.push_i64(SET_Di(i64, op_NEWCLASS, klass->address));
@@ -5256,10 +5284,14 @@ void RuntimeEngine::constructNewNativeClass(string k, string module, Expression 
                     pushExpressionToStack(expressions.get(i), out);
             }
             out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
-        } else
+        } else {
+            if(update)
+                out = expr;
+        }
+    } else {
+        if(update)
             out = expr;
-    } else
-        out = expr;
+    }
 
     freeList(params);
     freeList(expressions);
@@ -7285,6 +7317,60 @@ void RuntimeEngine::resolveAllFields() {
                     break;
                 case ast_generic_class_decl:
                 case ast_generic_interface_decl:
+                    break;
+                case ast_enum_decl: /* ignore */
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+        }
+
+        if(errors->hasErrors()){
+            report:
+
+            errorCount+= errors->getErrorCount();
+            unfilteredErrorCount+= errors->getUnfilteredErrorCount();
+
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        } else {
+            succeededParsers.addif(activeParser->sourcefile);
+            failedParsers.removefirst(activeParser->sourcefile);
+        }
+
+        errors->free();
+        delete (errors); this->errors = NULL;
+        removeScope();
+    }
+}
+
+void RuntimeEngine::resolveAllGenerics() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        activeParser = parsers.get(i);
+        errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
+        currentModule = "$unknown";
+
+        addScope(Scope(GLOBAL_SCOPE, NULL));
+        for(int x = 0; x < activeParser->treesize(); x++) {
+            Ast* ast = activeParser->ast_at(x);
+            SEMTEX_CHECK_ERRORS
+
+            if(x==0) {
+                if(ast->getType() == ast_module_decl) {
+                    add_module(currentModule = parseModuleName(ast));
+                    continue;
+                }
+            }
+
+            switch(ast->getType()) {
+                case ast_class_decl:
+                    resolveClassDecl(ast, false);
+                    break;
+                case ast_interface_decl:
+                    break;
+                case ast_generic_class_decl:
+                case ast_generic_interface_decl:
                     resolveGenericClassDecl(ast, false);
                     break;
                 case ast_enum_decl: /* ignore */
@@ -7312,6 +7398,8 @@ void RuntimeEngine::resolveAllFields() {
         delete (errors); this->errors = NULL;
         removeScope();
     }
+
+    resolvedGenerics = true;
 }
 
 void RuntimeEngine::inlineFields() {
@@ -8376,7 +8464,10 @@ void RuntimeEngine::resolveVarDecl(Ast* ast, bool inlineField) {
 
     parseAccessDecl(ast, modifiers, startpos);
 
-    Expression expression = parseUtype(ast);
+    Expression expression;
+
+    if(inlineField)
+        expression = parseUtype(ast);
     parse_var:
     string name =  ast->getEntity(startpos).getToken();
     Field* field = currentScope()->klass->getField(name);
@@ -9166,7 +9257,7 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
         klass->address = classSize++;
 
     addScope(Scope(CLASS_SCOPE, klass));
-    if(!forEnum && inlineField) {
+    if(!forEnum && resolvedFields && resolvedGenerics) {
         ClassObject *base = parseBaseClass(ast, ++startpos);
 
         if(!klass->isInterface() && base != NULL && base->isInterface()) {
@@ -9200,34 +9291,36 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
                 resolveClassDecl(trunk, inlineField, forEnum);
                 break;
             case ast_var_decl:
-                if(!forEnum && !resolvedFields || inlineField)
+                if(!forEnum && resolvedGenerics && !resolvedFields || inlineField)
                     resolveVarDecl(trunk, inlineField);
                 break;
             case ast_method_decl:
-                if(!forEnum && !inlineField && resolvedFields)
+                if(!forEnum && resolvedGenerics && !inlineField && resolvedFields)
                     resolveMethodDecl(trunk);
                 break;
             case ast_operator_decl:
-                if(!forEnum && !inlineField && resolvedFields)
+                if(!forEnum && resolvedGenerics && !inlineField && resolvedFields)
                     resolveOperatorDecl(trunk);
                 break;
             case ast_construct_decl:
-                if(!forEnum && !inlineField && resolvedFields)
+                if(!forEnum  && resolvedGenerics&& !inlineField && resolvedFields)
                     resolveConstructorDecl(trunk);
                 break;
             case ast_delegate_post_decl:
-                if(!forEnum && !inlineField && resolvedFields)
+                if(!forEnum && resolvedGenerics && !inlineField && resolvedFields)
                     resolveDelegatePostDecl(trunk);
                 break;
             case ast_delegate_decl:
-                if(!forEnum && !inlineField && resolvedFields)
+                if(!forEnum && resolvedGenerics && !inlineField && resolvedFields)
                     resolveDelegateDecl(trunk);
                 break;
             case ast_interface_decl:
-                resolveClassDecl(trunk, inlineField);
+                if(resolvedGenerics)
+                    resolveClassDecl(trunk, inlineField);
                 break;
             case ast_generic_class_decl:
-                resolveGenericClassDecl(trunk, inlineField, forEnum);
+                if(!resolvedGenerics)
+                    resolveGenericClassDecl(trunk, inlineField, forEnum);
                 break;
             case ast_enum_decl: /* ignore */
                 if(forEnum)
@@ -9351,27 +9444,28 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField, bool for
                     resolveVarDecl(trunk, inlineField);
                 break;
             case ast_method_decl:
-                if(!forEnum && !inlineField && resolvedFields)
+                if(!forEnum && !inlineField)
                     resolveMethodDecl(trunk);
                 break;
             case ast_operator_decl:
-                if(!forEnum && !inlineField && resolvedFields)
+                if(!forEnum && !inlineField)
                     resolveOperatorDecl(trunk);
                 break;
             case ast_construct_decl:
-                if(!forEnum && !inlineField && resolvedFields)
+                if(!forEnum && !inlineField)
                     resolveConstructorDecl(trunk);
                 break;
             case ast_delegate_post_decl:
-                if(!forEnum && !inlineField && resolvedFields)
+                if(!forEnum && !inlineField)
                     resolveDelegatePostDecl(trunk);
                 break;
             case ast_delegate_decl:
-                if(!forEnum && !inlineField && resolvedFields)
+                if(!forEnum && !inlineField)
                     resolveDelegateDecl(trunk);
                 break;
             case ast_interface_decl:
-                resolveClassDecl(trunk, inlineField);
+                if(resolvedGenerics)
+                    resolveClassDecl(trunk, inlineField);
                 break;
             case ast_generic_class_decl:
                 resolveGenericClassDecl(ast, inlineField, forEnum);
@@ -11867,4 +11961,20 @@ double RuntimeEngine::constantExpressionToValue(Ast *pAst, Expression &constExpr
         errors->createNewError(GENERIC, pAst, "could not get the immutable value from expression of type `" + constExpr.typeToString() + "`");
     }
     return 0;
+}
+
+bool RuntimeEngine::isExpressionConvertableToNativeClass(Field *f, Expression &exp) {
+    if(f->type==CLASS && f->klass->getModuleName() == "std" &&
+           (f->klass->getName() == "int" || f->klass->getName() == "bool"
+            || f->klass->getName() == "char" || f->klass->getName() == "long"
+            || f->klass->getName() == "short" || f->klass->getName() == "string"
+            || f->klass->getName() == "uchar" || f->klass->getName() == "ulong"
+            || f->klass->getName() == "ushort")) {
+        if(f->klass->getName() == "string") {
+            return exp.type == expression_string;
+        } else {
+            return exp.trueType() == VAR && !exp.isArray();
+        }
+    }
+    return false;
 }

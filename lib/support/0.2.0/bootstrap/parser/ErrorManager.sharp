@@ -4,5 +4,96 @@ mod application;
  * Created by BraxtonN on 6/8/2018.
  */
 class ErrorManager {
+    private static Dictionary<CompilerError, string> predefinedErrors;
 
+    public static def initErrors() {
+        predefinedErrors.put(CompilerError.UNEXPECTED_SYMBOL, "unexpected symbol");
+
+        predefinedErrors.put(ILLEGAL_NUMBER_FORMAT, "illegal number format mismatch");
+
+        predefinedErrors.put(UNEXPECTED_EOF, "unexpected end of file");
+
+        predefinedErrors.put(EXPECTED_STRING_LITERAL_EOF, "expected string literal before end of file");
+
+        predefinedErrors.put(ILLEGAL_STRING_FORMAT, "illegal string format");
+
+        predefinedErrors.put(EXPECTED_CHAR_LITERAL_EOF, "expected character literal before end of file");
+
+        predefinedErrors.put(ILLEGAL_CHAR_LITERAL_FORMAT, "illegal character literal format");
+
+        predefinedErrors.put(GENERIC, "");
+
+        predefinedErrors.put(ILLEGAL_ACCESS_DECLARATION, "illegal specification of access specifier(s)");
+
+        predefinedErrors.put(ILLEGAL_BRACKET_MISMATCH, "illegal symbol mismatch, unexpected bracket");
+
+        predefinedErrors.put(MISSING_BRACKET, "missing bracket");
+
+        predefinedErrors.put(INVALID_ACCESS_SPECIFIER, "invalid access specifier");
+
+        predefinedErrors.put(MULTIPLE_DEFINITION, "multiple definition of");
+
+        predefinedErrors.put(PREVIOUSLY_DEFINED, "");
+
+        predefinedErrors.put(DUPLICATE_CLASS, "duplicate class:");
+
+        predefinedErrors.put(REDUNDANT_TOKEN, "redundant token");
+
+        predefinedErrors.put(INTERNAL_ERROR, "internal runtime error");
+
+        predefinedErrors.put(COULD_NOT_RESOLVE, "could not resolve symbol");
+
+        predefinedErrors.put(EXPECTED_REFRENCE_OF_TYPE, "expected refrence of type");
+
+        predefinedErrors.put(INVALID_CAST, "invalid cAst of type");
+
+        predefinedErrors.put(REDUNDANT_CAST, "redundant cAst of type");
+
+        predefinedErrors.put(REDUNDANT_IMPORT, "redundant self import of module");
+
+        predefinedErrors.put(UNEXPECTED_TOKEN, "unexpected token");
+
+        predefinedErrors.put(INVALID_ACCESS, "invalid access of");
+
+        predefinedErrors.put(SYMBOL_ALREADY_DEFINED, "");
+
+        predefinedErrors.put(INVALID_PARAM, "invalid param of type");
+
+        predefinedErrors.put(INCOMPATIBLE_TYPES, "incompatible types");
+
+        predefinedErrors.put(DUPlICATE_DECLIRATION, "duplicate declaration of");
+    }
 }
+
+enum CompilerError {
+    UNEXPECTED_SYMBOL = 0,
+    ILLEGAL_NUMBER_FORMAT = 1,
+    UNEXPECTED_EOF = 2,
+    EXPECTED_STRING_LITERAL_EOF = 3,
+    ILLEGAL_STRING_FORMAT = 4,
+    EXPECTED_CHAR_LITERAL_EOF = 5,
+    ILLEGAL_CHAR_LITERAL_FORMAT = 6,
+    GENERIC = 7,
+    ILLEGAL_ACCESS_DECLARATION = 8,
+    ILLEGAL_BRACKET_MISMATCH = 9,
+    MISSING_BRACKET = 10,
+    INVALID_ACCESS_SPECIFIER = 11,
+    MULTIPLE_DEFINITION = 12,
+    PREVIOUSLY_DEFINED = 13,
+    DUPLICATE_CLASS = 14,
+    REDUNDANT_TOKEN = 15,
+    INTERNAL_ERROR = 16,
+    COULD_NOT_RESOLVE = 17,
+    EXPECTED_REFRENCE_OF_TYPE = 18,
+    INVALID_CAST = 19,
+    REDUNDANT_CAST = 20,
+    REDUNDANT_IMPORT = 21,
+    UNEXPECTED_TOKEN = 22,
+    INVALID_ACCESS = 23,
+    SYMBOL_ALREADY_DEFINED = 24,
+    INVALID_PARAM = 25,
+    INCOMPATIBLE_TYPES = 26,
+    DUPlICATE_DECLIRATION = 27,
+
+    NO_ERR = 999
+};
