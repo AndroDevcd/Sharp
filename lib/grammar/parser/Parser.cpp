@@ -975,7 +975,7 @@ bool Parser::isoverride_operator(string token) {
             ;
 }
 
-int nestedAddExprs = 0, parenExprs=0, nestedAndExprs=0, nestedLessExprs=0, quesBlock = 0;
+int nestedAddExprs = 0, nestedMulExprs = 0,  parenExprs=0, nestedAndExprs=0, nestedLessExprs=0, quesBlock = 0;
 bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
     pAst = get_ast(pAst, ast_dotnotation_call_expr);
 
@@ -1125,7 +1125,7 @@ bool Parser::parse_expression(Ast *pAst) {
                 }
             }else {
                 errors->pass();
-                this->rollback();
+                this->rollbacklast();
             }
         }
 
@@ -1149,10 +1149,9 @@ bool Parser::parse_expression(Ast *pAst) {
         advance();
         pAst->addEntity(current());
 
-        int oldNestedExprs=nestedAddExprs;
-        nestedAddExprs=0;
+        int old=parenExprs++;
         parse_expression(pAst);
-        nestedAddExprs=oldNestedExprs;
+        parenExprs=old;
 
         expect(RIGHTPAREN, pAst, "`)`");
 
@@ -1325,20 +1324,26 @@ bool Parser::parse_expression(Ast *pAst) {
             pAst->encapsulate(ast_mult_e);
             parenExprs--;
         } else {
-            nestedAddExprs++;
+            nestedMulExprs++;
             quesBlock++;
-            parse_expression(nestedAddExprs == 1 ? pAst : pAst->getParent());
+            parse_expression(nestedMulExprs == 1 ? pAst : pAst=pAst->getParent());
+
             quesBlock--;
-            if(nestedAddExprs == 1)
+            if(nestedMulExprs == 1)
                 pAst->encapsulate(ast_mult_e);
-            nestedAddExprs--;
+            nestedMulExprs--;
         }
+
+        if(peek(1).getTokenType() == PLUS || peek(1).getTokenType() == MINUS)
+            goto add;
         return true;
     }
 
     /* expression ('+'|'-') expression */
     if(peek(1).getTokenType() == PLUS || peek(1).getTokenType() == MINUS)
     {
+        add:
+        if(nestedMulExprs== 1) return true;
         advance();
         pAst->addEntity(current());
 
@@ -1354,7 +1359,6 @@ bool Parser::parse_expression(Ast *pAst) {
                 pAst->encapsulate(ast_add_e);
             nestedAddExprs--;
         }
-
 
         return true;
     }

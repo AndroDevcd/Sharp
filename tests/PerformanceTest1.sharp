@@ -61,7 +61,9 @@ class NBodySystem {
             var dy = iy - jBody.y;
             var dz = iz - jBody.z;
 
+            asm("nop nop nop nop nop nop");
             var dSquared = dx * dx + dy * dy + dz * dz;
+            asm("nop nop nop nop nop nop");
             var distance = (dSquared/50)/100;
             var mag = dt / (dSquared * distance);
 

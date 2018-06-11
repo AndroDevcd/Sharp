@@ -2,7 +2,7 @@ mod application;
 
 import std;
 
-public class Start {
+public class Application {
 
 
     enum Enums {
@@ -37,5 +37,11 @@ public class Start {
                 System.print("default");
                 break;
         }
+        var a = 1;
+        var b = 2;
+        var c = 3;
+
+        // 1 + 2 * 3 +1*2 + 1
+        System.println(a + b * c + a * b + a);
     }
 }

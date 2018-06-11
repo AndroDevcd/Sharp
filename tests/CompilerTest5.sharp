@@ -2,7 +2,7 @@ mod application;
 
 import std;
 
-public class Start {
+public class Application {
 
     public static def main(string[] args) : var {
         ArrayList<var> intArry = new ArrayList<var>(); // TODO: empty modifiers after methods classes etc. before block call

@@ -5356,8 +5356,10 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
                         pushExpressionToRegister(leftExpr, out, ebx);
                         out.code.push_i64(SET_Di(i64, op_LOADVAL, ecx));
                         out.code.push_i64(SET_Ci(i64, operandToOp(operand), ebx,0, ecx), ebx);
+                        out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
-                        leftExpr.func=false;
+                        leftExpr.type=expression_var;
+                        leftExpr.func=true;
                         leftExpr.literal = false;
                         leftExpr.code.free();
                         var=0;
@@ -5384,6 +5386,12 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
                         }
 
                         addNative(operand, rightExpr.utype.field->type, out, leftExpr, rightExpr, pAst);
+                        out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+
+                        leftExpr.type=expression_var;
+                        leftExpr.func=true;
+                        leftExpr.literal = false;
+                        leftExpr.code.free();
                     } else if(rightExpr.utype.field->type == CLASS) {
                         errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `" + operand.getToken() +
                                                                           "` cannot be applied to expression of type `" + leftExpr.typeToString() + "` and `" + rightExpr.typeToString() + "`");
@@ -5403,6 +5411,12 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
                 if(leftExpr.utype.field->isNative()) {
                     // add var
                     addNative(operand, leftExpr.utype.field->type, out, leftExpr, rightExpr, pAst);
+                    out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+
+                    leftExpr.type=expression_var;
+                    leftExpr.func=true;
+                    leftExpr.literal = false;
+                    leftExpr.code.free();
                 } else if(leftExpr.utype.field->type == CLASS) {
                     if(i <= 1) {
                         addClass(operand, leftExpr.utype.field->klass, out, leftExpr, rightExpr, pAst);

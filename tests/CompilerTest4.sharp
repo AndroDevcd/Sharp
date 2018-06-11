@@ -4,7 +4,7 @@ import std;
 import std.io;
 import std.internal.vm;
 
-public class Start {
+public class Application {
         var a=8, b, c;
 
     def foo() : string[] {
