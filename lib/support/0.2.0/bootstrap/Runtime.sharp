@@ -8,6 +8,9 @@ import std;
 */
 public class Runtime {
 
+    private static string programName = "sharpc";
+    private static string programVers = "0.2.202";
+
     public static def bootstrap(string[] args) : var {
         if(args == null) {
             help();
@@ -15,6 +18,164 @@ public class Runtime {
         }
 
         ErrorManager.initErrors();
+        ArrayList<string> files = new ArrayList<string>();
+        for(var i = 0; i < sizeof(args); i++) {
+            string arg = args[i];
+
+            System.println("check arg " + arg);
+            System.println("wrong arg " + (arg.at(0) == '-'));
+            parseArg:
+            if(arg == "-a"){
+                Options.aggressiveErrors = true;
+            }
+            else if(arg == "-c"){
+                Options.compile = true;
+            }
+            else if(arg == "-o"){
+                if(i+1 >= sizeof(args))
+                    error("output file required after option `-o`");
+                else
+                    Options.out = args[++i];
+            }
+            else if(arg == "-L"){
+                if(i+1 >= sizeof(args))
+                    error("library directory required after option `-L`");
+                else
+                    Options.libraries.add(args[++i]);
+            }
+            else if(arg == "-V"){
+                printVersion();
+                System.exit();
+            }
+            else if(arg == "-O"){
+                Options.optimize = true;
+                asm("nop nop nop nop nop nop nop nop nop nop nop nop");
+                asm("nop nop nop nop nop nop nop nop nop nop nop nop");
+                asm("nop nop nop nop nop nop nop nop nop nop nop nop");
+                asm("nop nop nop nop nop nop nop nop nop nop nop nop");
+            }
+            else if(arg == "-h" || arg == "-?"){
+                help();
+                System.exit();
+            }
+            else if(arg == "-R" || arg == "-release"){
+                Options.optimize = true;
+                Options.debug = false;
+                Options.strip = true;
+            }
+            else if(arg == "-s"){
+                Options.strip = true;
+                Options.debug = false;
+            }
+            else if(arg == "-magic"){
+                Options.magic = true;
+            }
+            else if(arg == "-debug") {
+                Options.debugMode = true;
+            }
+            else if(arg == "-showversion"){
+                printVersion();
+                System.println();
+            }
+            else if(arg == "-target"){
+                if(i+1 >= sizeof(args))
+                    error("file version required after option `-target`");
+                else {
+                    string target = args[++i];
+                    if(integerString(target))
+                        Options.target = string.parseInt(target);
+                    else {
+                        if(toLower(target) == "base") {
+                            Options.target = Platform.BASE;
+                        } else if(toLower(target) == "alpha") {
+                            Options.target = Platform.ALPHA;
+                        }
+                        else {
+                            error("unknown target " + target);
+                        }
+                    }
+                }
+            }
+            else if(arg == "-w"){
+                Options.warnings = false;
+            }
+            else if(arg == "-v"){
+                if(i+1 >= sizeof(args))
+                    error("file version required after option `-v`");
+                else
+                    Options.version = args[++i];
+            }
+            else if(arg == "-u" || arg == "-unsafe"){
+                Options.unsafe = true;
+            }
+            else if(arg == "-werror"){
+                Options.werrors = true;
+                Options.warnings = true;
+            }
+            else if(arg == "-errlmt") {
+                string lmt = args[++i];
+
+                if(integerString(lmt)) {
+                    Options.maxErrors = string.parseInt(lmt);
+            
+                    if(Options.maxErrors > 100000) {
+                        error("cannot set the max errors allowed higher than (100,000) - " + lmt);
+                    } else if(Options.maxErrors <= 0) {
+                        error("cannot have an error limit of 0 ");
+                    }
+                }
+                else {
+                    error("invalid error limit set " + lmt);
+                }
+            }
+            else if(arg == "-objdmp"){
+                Options.objDump = true;
+            }
+            else if(arg.at(0) == '-'){
+                error("invalid option `" + arg + "`, try bootstrap -h");
+            }
+            else {
+                // add the source files
+                do {
+                    if(args[i].at(0) == '-')
+                        goto parseArg;
+
+                    if(!files.contains(args[i]))
+                        files.add(args[i++]);
+                    else i++;
+                }while(i<sizeof(args));
+                break;
+            }
+        }
+    }
+
+
+    private static def integerString(string str) : var {
+        var[] chs = str.toArray();
+        foreach(var c : chs) {
+            if(!char.isDigit(c))
+                return false;
+        }
+        return true;
+    }
+
+
+    private static def toLower(string s) : string {
+        string newstr = "";
+        var[] chs = s.toArray();
+        foreach(var c : chs) {
+            newstr += char.toLower(c);
+        }
+        return newstr;
+    }
+
+    private static def error(string message) {
+        System.println("bootstrap:  error: " + message);
+        System.exit();
+    }
+
+    private static def printVersion() {
+        System.print(programName + " " + programVers);
     }
 
     private static def help() {

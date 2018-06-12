@@ -979,7 +979,7 @@ bool Parser::isoverride_operator(string token) {
             ;
 }
 
-int nestedAddExprs = 0, nestedMulExprs = 0,  parenExprs=0, nestedAndExprs=0, nestedLessExprs=0, quesBlock = 0;
+int nestedAddExprs = 0, nestedMulExprs = 0,  parenExprs=0, nestedAndExprs=0, nestedLessExprs=0, nestedOrExprs = 0, quesBlock = 0;
 bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
     pAst = get_ast(pAst, ast_dotnotation_call_expr);
 
@@ -1342,7 +1342,8 @@ bool Parser::parse_expression(Ast *pAst) {
 
         if(peek(1).getTokenType() == PLUS || peek(1).getTokenType() == MINUS)
             goto add;
-        return true;
+        if(!isexprsymbol(peek(1).getToken()))
+            return true;
     }
 
     /* expression ('+'|'-') expression */
@@ -1354,20 +1355,25 @@ bool Parser::parse_expression(Ast *pAst) {
         pAst->addEntity(current());
 
         if(parenExprs > 0) {
+            quesBlock++;
             parenExprs--;
             nestedAddExprs++;
             parse_expression(pAst);
             nestedAddExprs--;
+            quesBlock--;
             pAst->encapsulate(ast_add_e);
         } else {
             nestedAddExprs++;
+            quesBlock++;
             parse_expression(nestedAddExprs == 1 ? pAst : pAst=pAst->getParent());
             if(nestedAddExprs == 1)
                 pAst->encapsulate(ast_add_e);
             nestedAddExprs--;
+            quesBlock--;
         }
 
-        return true;
+        if(!isexprsymbol(peek(1).getToken()))
+            return true;
     }
 
     /* expression ('<<'|'>>') expression */
@@ -1380,13 +1386,19 @@ bool Parser::parse_expression(Ast *pAst) {
         parse_expression(pAst);
         quesBlock--;
         pAst->encapsulate(ast_shift_e);
-        return true;
+        if(!isexprsymbol(peek(1).getToken()))
+            return true;
     }
 
     /* expression ('<=' | '>=' | '>' | '<') expression */
     if(peek(1).getTokenType() == LESSTHAN || peek(1).getTokenType() == GREATERTHAN ||
        peek(1).getTokenType() == _GTE || peek(1).getTokenType() == _LTE)
     {
+        if(nestedAddExprs >= 1) {
+            if(pAst->getSubAstCount() == 0)
+                pAst->getParent()->freeLastSub();
+            return false;
+        }
         advance();
         pAst->addEntity(current());
 
@@ -1399,12 +1411,15 @@ bool Parser::parse_expression(Ast *pAst) {
             parenExprs--;
         } else {
             nestedLessExprs++;
-            parse_expression(nestedLessExprs == 1 ? pAst : pAst);
+            quesBlock++;
+            parse_expression(nestedLessExprs == 1 ? pAst : pAst=pAst->getParent());
             if(nestedLessExprs == 1)
                 pAst->encapsulate(ast_less_e);
             nestedLessExprs--;
+            quesBlock--;
         }
-        return true;
+        if(!isexprsymbol(peek(1).getToken()))
+            return true;
     }
 
     /* expression ('!=' | '==' | '=') expression */
@@ -1415,7 +1430,9 @@ bool Parser::parse_expression(Ast *pAst) {
         pAst->addEntity(current());
 
         quesBlock++;
+        nestedOrExprs++;
         parse_expression(pAst);
+        nestedOrExprs--;
         quesBlock--;
         pAst->encapsulate(ast_equal_e);
 
@@ -1428,8 +1445,9 @@ bool Parser::parse_expression(Ast *pAst) {
        peek(1).getTokenType() == ANDAND || peek(1).getTokenType() == OROR ||
        peek(1).getTokenType() == XOR)
     {
-        if(nestedLessExprs > 1) {
-            pAst->getParent()->freeLastSub();
+        if(nestedLessExprs >= 1 || nestedOrExprs >= 1) {
+            if(pAst->getSubAstCount() == 0)
+                pAst->getParent()->freeLastSub();
             return false;
         }
         advance();
@@ -1451,7 +1469,8 @@ bool Parser::parse_expression(Ast *pAst) {
                 pAst->encapsulate(ast_and_e);
             nestedAndExprs--;
         }
-        return true;
+        if(!isexprsymbol(peek(1).getToken()))
+            return true;
     }
 
     /* expression <assign-expr> expression */
@@ -1475,8 +1494,9 @@ bool Parser::parse_expression(Ast *pAst) {
     /* expression '?' expression ':' expression */
     if(peek(1).getTokenType() == QUESMK && quesBlock==0)
     {
-        if(nestedLessExprs > 1) {
-            pAst->getParent()->freeLastSub();
+        if(nestedLessExprs >= 1) {
+            if(pAst->getSubAstCount() == 0)
+                pAst->getParent()->freeLastSub();
             return false;
         }
 
@@ -1490,7 +1510,8 @@ bool Parser::parse_expression(Ast *pAst) {
         parse_expression(pAst);
         pAst->encapsulate(ast_ques_e);
         return true;
-    }
+    } else if(peek(1).getTokenType() == QUESMK)
+        return true;
 
     errors->createNewError(GENERIC, current(), "expected expression");
     return false;

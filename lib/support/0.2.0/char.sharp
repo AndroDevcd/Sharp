@@ -114,4 +114,22 @@ public class char base integer {
     public def value() : var {
         return (value);
     }
+
+    public static def isDigit(var ch) : var {
+        return ch >= '0' && ch <= '9';
+    }
+
+    public static def toLower(var ch) : var {
+        if('A' <= ch && ch <= 'Z')
+            return 'a' + (ch - 'A');
+        else
+            return ch;
+    }
+
+    public static def toUpper(var ch) : var {
+        if('a' <= ch && ch <= 'z')
+            return 'A' + (ch - 'a');
+        else
+            return ch;
+    }
 }

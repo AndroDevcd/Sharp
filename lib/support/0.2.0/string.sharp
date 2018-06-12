@@ -143,7 +143,7 @@ public class string {
         {
             string s = new string(data);
             if(e != null)
-                s.append(parse(e.getValue()).toArray());
+                s.append(e.getName().toArray());
             else
                 s.append("null");
 
@@ -157,7 +157,7 @@ public class string {
 
         public def operator+=( Enum e ) : string
         {
-            return append(parse(e.getValue()).toArray());
+            return append(e.getName().toArray());
         }
 
         public def operator+=( var[] immstr ) : string
@@ -225,7 +225,7 @@ public class string {
                 i = 1;
             }
             while( i < len ){
-                if(!isDigit(s.at(i))) {
+                if(!char.isDigit(s.at(i))) {
                     throw new IllegalArgumentException(
                         "invalid char in string: " + (new var[] { s.at(i) }));
                 }
@@ -239,28 +239,24 @@ public class string {
         }
 
         /**
-          * Tests if the substring of this string beginning at the
-          * specified index starts with the specified prefix.
-          *
-          */
-         public def startsWith(string prefix, var toffset) : var {
-             var to = toffset;
-             var po = 0;
-             var pc = prefix.size();
-             // Note: toffset might be near -1>>>1.
-             if ((toffset < 0) || (toffset > size() - pc)) {
-                 return false;
-             }
-             while ((--pc) >= 0) {
-                 if (at(to++) != prefix.at(po++)) {
-                     return false;
-                 }
-             }
-             return true;
-         }
-
-        private static def isDigit(var c) : var {
-            return (c>='0') && (c<='9');
+         * Tests if the substring of this string beginning at the
+         * specified index starts with the specified prefix.
+         *
+         */
+        public def startsWith(string prefix, var toffset) : var {
+            var to = toffset;
+            var po = 0;
+            var pc = prefix.size();
+            // Note: toffset might be near -1>>>1.
+            if ((toffset < 0) || (toffset > size() - pc)) {
+                return false;
+            }
+            while ((--pc) >= 0) {
+                if (at(to++) != prefix.at(po++)) {
+                    return false;
+                }
+            }
+            return true;
         }
         
         public def size() : var

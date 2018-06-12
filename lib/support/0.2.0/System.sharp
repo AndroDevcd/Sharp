@@ -35,6 +35,10 @@ public class System {
         printChar('\n');
     }
 
+    public static def println() {
+        printChar('\n');
+    }
+
     public static def println(Enum e) {
         print(e.getName());
         printChar('\n');

@@ -6412,7 +6412,7 @@ Expression RuntimeEngine::parseEqualExpression(Ast* pAst) {
             if(right.type == expression_null || operand.getTokenType() == ASSIGN) {
                 assignValue(operand, out, left, right, pAst);
             } else {
-                addClass(operand, left.utype.field->klass, out, left, right, pAst);
+                addClass(operand, left.utype.klass, out, left, right, pAst);
             }
             break;
         case expression_class:
@@ -6510,7 +6510,8 @@ void RuntimeEngine::parseAndExpressionChain(Expression& out, Ast* pAst) {
                         } else {
                             // is left leftexpr a literal?
                             if(operand == "&&") {
-                                pushExpressionToRegister(leftExpr, out, cmt);
+                                pushExpressionToRegister(leftExpr, out, ebx);
+                                out.code.push_i64(SET_Ci(i64, op_MOVR, cmt,0, ebx));
                                 out.code.push_i64(SET_Di(i64, op_SKNE, rightExpr.code.size()+4));
                                 out.code.push_i64(SET_Di(i64, op_ISTORE, 1));
                                 pushExpressionToRegister(rightExpr, out, ebx);
@@ -6519,15 +6520,12 @@ void RuntimeEngine::parseAndExpressionChain(Expression& out, Ast* pAst) {
                                 out.inCmtRegister = true;
                             } else if(operand == "||") {
                                 out.inCmtRegister = true;
-                                pushExpressionToRegister(leftExpr, out, cmt);
+                                pushExpressionToRegister(leftExpr, out, ebx);
+                                out.code.push_i64(SET_Ci(i64, op_MOVR, cmt,0, ebx));
 
-                                if(andExprs==1) {
-                                    out.code.push_i64(SET_Di(i64, op_SKPE, rightExpr.code.size()+1));
-                                    pushExpressionToRegister(rightExpr, out, cmt);
-                                } else {
-                                    out.code.push_i64(SET_Di(i64, op_SKPE, rightExpr.code.size()+1));
-                                    pushExpressionToRegister(rightExpr, out, ebx);
-                                }
+                                out.code.push_i64(SET_Di(i64, op_SKPE, rightExpr.code.size()+1));
+                                pushExpressionToRegister(rightExpr, out, ebx);
+                                out.code.push_i64(SET_Ci(i64, op_MOVR, cmt,0, ebx));
                             } else if(operand == "|") {
                                 pushExpressionToRegister(leftExpr, out, ebx);
                                 out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
@@ -6934,7 +6932,21 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
 
             if(field->isObjectInMemory()) {
                 if(operand == "=") {
-                    assignValue(operand, out, fieldExpr, expression, ast);
+                    if(field->type==CLASS && field->klass->getModuleName() == "std" && field->klass->getName() == "string"
+                       && expression.type == expression_string && !field->isArray) {
+                        constructNewNativeClass("string", "std", expression, out, true);
+                        out.code.push_i64(SET_Di(i64, op_POPL, field->address));
+                    } else if(field->type==CLASS && field->klass->getModuleName() == "std" &&
+                              (field->klass->getName() == "int" || field->klass->getName() == "bool"
+                               || field->klass->getName() == "char" || field->klass->getName() == "long"
+                               || field->klass->getName() == "short" || field->klass->getName() == "string"
+                               || field->klass->getName() == "uchar" || field->klass->getName() == "ulong"
+                               || field->klass->getName() == "ushort")
+                              && expression.type == expression_var && !field->isArray) {
+                        constructNewNativeClass(field->klass->getName(), "std", expression, out, true);
+                        out.code.push_i64(SET_Di(i64, op_POPL, field->address));
+                    } else
+                        assignValue(operand, out, fieldExpr, expression, ast);
                 } else {
                     errors->createNewError(GENERIC, ast, " explicit call to operator `" + operand.getToken() + "` without initilization");
                 }
@@ -8505,7 +8517,7 @@ void RuntimeEngine::resolveVarDecl(Ast* ast, bool inlineField) {
     if(inlineField && ast->hasSubAst(ast_value)) {
         Expression expr = parseValue(ast->getSubAst(ast_value)), out(ast);
 
-        if ((field->isStatic() || field->isConst())&& field->isVar() && !field->isArray && expr.literal) {
+        if (field->isConst() && field->isVar() && !field->isArray && expr.literal) {
             // inline local static variables
             inline_map.add(KeyPair<string, double>(field->fullName, expr.intValue));
         }

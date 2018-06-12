@@ -12,7 +12,6 @@ public class ArrayList<T> {
      */
     public ArrayList() {
         /* data will remain null */
-        data = new T[0]; // empty list but initalized
     }
 
     /**
@@ -114,6 +113,20 @@ public class ArrayList<T> {
              data=result;
          }
 
+     }
+
+     /**
+      * Attempts to find the presence of similar data in the list. This method returns false
+      * if there was no match found.
+      *
+      */
+     public def contains(T tData) : var {
+        foreach(T t : data) {
+            if(t == tData)
+                return true;
+        }
+
+        return false;
      }
 
     /**
