@@ -5287,10 +5287,15 @@ void RuntimeEngine::constructNewNativeClass(string k, string module, Expression 
         } else {
             if(update)
                 out = expr;
+            errors->createNewError(GENERIC, expr.link->line,  expr.link->col, "Support class `" + k + "` does not have constructor for type `"
+                                                                    + expr.typeToString() + "`");
         }
     } else {
         if(update)
             out = expr;
+
+        errors->createNewError(GENERIC, expr.link->line,  expr.link->col, "Support class `" + k + "` does not have constructor for type `"
+                                                                          + expr.typeToString() + "`");
     }
 
     freeList(params);
@@ -5338,10 +5343,16 @@ bool RuntimeEngine::constructNewString(Expression &stringExpr, Expression &right
             freeList(params);
             freeList(expressions);
             return true;
-        } else
+        } else {
             out = stringExpr;
-    } else
+            errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `$operator" + operand.getToken() + "` was not found and cannot be applied to expression of type `"
+                                                                    + stringExpr.typeToString() + "` and `" + right.typeToString() + "`");
+        }
+    } else {
         out = stringExpr;
+        errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `$operator" + operand.getToken() + "` was not found and cannot be applied to expression of type `"
+                                                                + stringExpr.typeToString() + "` and `" + right.typeToString() + "`");
+    }
 
     freeList(params);
     freeList(expressions);
@@ -9482,7 +9493,7 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField, bool for
         }
     }
 
-    if(!inlineField && resolvedFields)
+    if(!inlineField && !resolvedGenerics)
         addDefaultConstructor(klass, ast);
     removeScope();
 }

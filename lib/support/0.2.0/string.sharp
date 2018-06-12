@@ -79,7 +79,10 @@ public class string {
         public def operator+( var[] immstr ) : string
         {
             string s = new string(data);
-            return s.append(immstr);
+            if(immstr != null)
+                return s.append(immstr);
+            else
+                return s.append("null");
         }
 
         public def operator+( string str ) : string
@@ -139,7 +142,10 @@ public class string {
         public def operator+( Enum e ) : string
         {
             string s = new string(data);
-            s.append(parse(e.getValue()).toArray());
+            if(e != null)
+                s.append(parse(e.getValue()).toArray());
+            else
+                s.append("null");
 
             return s;
         }

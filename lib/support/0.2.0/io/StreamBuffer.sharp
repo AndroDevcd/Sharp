@@ -103,7 +103,7 @@ class StreamBuffer {
 
         if(dp >= size) {
             size += STREAM_CHUNK;
-            data = Array<var>.expand(data, size);
+            data = Array<var>.copyOf(data, sizeof(data), size);
         }
 
         data[dp++] = _char;

@@ -1,5 +1,7 @@
 mod application;
 
+import std;
+
 /**                          
 * Created by bknun on 6/5/2018            
 * Description:                             
@@ -7,7 +9,7 @@ mod application;
 public class Runtime {
 
     public static def bootstrap(string[] args) : var {
-        if(sizeof(args) < 2) {
+        if(args == null) {
             help();
             return 1;
         }

@@ -16,7 +16,7 @@ public class Application {
     }
 
     public static def main(string[] args) : var {
-         var data = (var)Enums.CHERRY;
+         var data = 7;
         asm(" nop nop nop nop nop nop");
         switch(data) {
             case Enums.APPLE:

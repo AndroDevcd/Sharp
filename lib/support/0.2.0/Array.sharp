@@ -17,11 +17,10 @@ public class Array<T> {
         return newArry;
     }
 
-    public static def expand(T[] data, var len) : T[] {
-        T[] newArry = new T[len];
+    public static def copyOf(T[] data, var indexLen, var newLen) : T[] {
+        T[] newArry = new T[newLen];
 
-        var max = len <= sizeof(data) ? len : sizeof(data);
-        for(var i = 0; i < max; i++) {
+        for(var i = 0; i < indexLen; i++) {
             newArry[i] = data[i];
         }
 

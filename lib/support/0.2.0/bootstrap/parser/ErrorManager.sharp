@@ -1,67 +1,69 @@
 mod application;
 
+import std;
+
 /**
  * Created by BraxtonN on 6/8/2018.
  */
 class ErrorManager {
-    private static Dictionary<CompilerError, string> predefinedErrors;
+    private static Dictionary<CompilerError, string> predefinedErrors = new Dictionary<CompilerError, string>();
 
     public static def initErrors() {
         predefinedErrors.put(CompilerError.UNEXPECTED_SYMBOL, "unexpected symbol");
 
-        predefinedErrors.put(ILLEGAL_NUMBER_FORMAT, "illegal number format mismatch");
+        predefinedErrors.put(CompilerError.ILLEGAL_NUMBER_FORMAT, "illegal number format mismatch");
 
-        predefinedErrors.put(UNEXPECTED_EOF, "unexpected end of file");
+        predefinedErrors.put(CompilerError.UNEXPECTED_EOF, "unexpected end of file");
 
-        predefinedErrors.put(EXPECTED_STRING_LITERAL_EOF, "expected string literal before end of file");
+        predefinedErrors.put(CompilerError.EXPECTED_STRING_LITERAL_EOF, "expected string literal before end of file");
 
-        predefinedErrors.put(ILLEGAL_STRING_FORMAT, "illegal string format");
+        predefinedErrors.put(CompilerError.ILLEGAL_STRING_FORMAT, "illegal string format");
 
-        predefinedErrors.put(EXPECTED_CHAR_LITERAL_EOF, "expected character literal before end of file");
+        predefinedErrors.put(CompilerError.EXPECTED_CHAR_LITERAL_EOF, "expected character literal before end of file");
 
-        predefinedErrors.put(ILLEGAL_CHAR_LITERAL_FORMAT, "illegal character literal format");
+        predefinedErrors.put(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, "illegal character literal format");
 
-        predefinedErrors.put(GENERIC, "");
+        predefinedErrors.put(CompilerError.GENERIC, "");
 
-        predefinedErrors.put(ILLEGAL_ACCESS_DECLARATION, "illegal specification of access specifier(s)");
+        predefinedErrors.put(CompilerError.ILLEGAL_ACCESS_DECLARATION, "illegal specification of access specifier(s)");
 
-        predefinedErrors.put(ILLEGAL_BRACKET_MISMATCH, "illegal symbol mismatch, unexpected bracket");
+        predefinedErrors.put(CompilerError.ILLEGAL_BRACKET_MISMATCH, "illegal symbol mismatch, unexpected bracket");
 
-        predefinedErrors.put(MISSING_BRACKET, "missing bracket");
+        predefinedErrors.put(CompilerError.MISSING_BRACKET, "missing bracket");
 
-        predefinedErrors.put(INVALID_ACCESS_SPECIFIER, "invalid access specifier");
+        predefinedErrors.put(CompilerError.INVALID_ACCESS_SPECIFIER, "invalid access specifier");
 
-        predefinedErrors.put(MULTIPLE_DEFINITION, "multiple definition of");
+        predefinedErrors.put(CompilerError.MULTIPLE_DEFINITION, "multiple definition of");
 
-        predefinedErrors.put(PREVIOUSLY_DEFINED, "");
+        predefinedErrors.put(CompilerError.PREVIOUSLY_DEFINED, "");
 
-        predefinedErrors.put(DUPLICATE_CLASS, "duplicate class:");
+        predefinedErrors.put(CompilerError.DUPLICATE_CLASS, "duplicate class:");
 
-        predefinedErrors.put(REDUNDANT_TOKEN, "redundant token");
+        predefinedErrors.put(CompilerError.REDUNDANT_TOKEN, "redundant token");
 
-        predefinedErrors.put(INTERNAL_ERROR, "internal runtime error");
+        predefinedErrors.put(CompilerError.INTERNAL_ERROR, "internal runtime error");
 
-        predefinedErrors.put(COULD_NOT_RESOLVE, "could not resolve symbol");
+        predefinedErrors.put(CompilerError.COULD_NOT_RESOLVE, "could not resolve symbol");
 
-        predefinedErrors.put(EXPECTED_REFRENCE_OF_TYPE, "expected refrence of type");
+        predefinedErrors.put(CompilerError.EXPECTED_REFRENCE_OF_TYPE, "expected refrence of type");
 
-        predefinedErrors.put(INVALID_CAST, "invalid cAst of type");
+        predefinedErrors.put(CompilerError.INVALID_CAST, "invalid cAst of type");
 
-        predefinedErrors.put(REDUNDANT_CAST, "redundant cAst of type");
+        predefinedErrors.put(CompilerError.REDUNDANT_CAST, "redundant cAst of type");
 
-        predefinedErrors.put(REDUNDANT_IMPORT, "redundant self import of module");
+        predefinedErrors.put(CompilerError.REDUNDANT_IMPORT, "redundant self import of module");
 
-        predefinedErrors.put(UNEXPECTED_TOKEN, "unexpected token");
+        predefinedErrors.put(CompilerError.UNEXPECTED_TOKEN, "unexpected token");
 
-        predefinedErrors.put(INVALID_ACCESS, "invalid access of");
+        predefinedErrors.put(CompilerError.INVALID_ACCESS, "invalid access of");
 
-        predefinedErrors.put(SYMBOL_ALREADY_DEFINED, "");
+        predefinedErrors.put(CompilerError.SYMBOL_ALREADY_DEFINED, "");
 
-        predefinedErrors.put(INVALID_PARAM, "invalid param of type");
+        predefinedErrors.put(CompilerError.INVALID_PARAM, "invalid param of type");
 
-        predefinedErrors.put(INCOMPATIBLE_TYPES, "incompatible types");
+        predefinedErrors.put(CompilerError.INCOMPATIBLE_TYPES, "incompatible types");
 
-        predefinedErrors.put(DUPlICATE_DECLIRATION, "duplicate declaration of");
+        predefinedErrors.put(CompilerError.DUPlICATE_DECLIRATION, "duplicate declaration of");
     }
 }
 
