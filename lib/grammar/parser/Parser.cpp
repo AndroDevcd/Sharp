@@ -866,60 +866,6 @@ bool Parser::parse_utype_naked(Ast *pAst) {
     return false;
 }
 
-bool Parser::parse_primaryexpr(Ast *pAst) {
-    pAst = get_ast(pAst, ast_primary_expr);
-
-
-    errors->enableErrorCheckMode();
-    if(parse_literal(pAst))
-    {
-        errors->fail();
-        pAst->encapsulate(ast_literal_e);
-        return true;
-    }
-    errors->pass();
-
-    errors->enableErrorCheckMode();
-    if(peek(1).getTokenType() == DOT) {
-        advance();
-        pAst->addEntity(current());
-    }
-
-    this->retainstate(pAst);
-    if(parse_utype(pAst))
-    {
-        if(peek(1).getTokenType() == DOT)
-        {
-            expect(DOT, pAst->getSubAst(0), "`.`");
-            advance();
-
-            expect_token(pAst->getSubAst(0), "class", "`class` after primary expression");
-
-            this->dumpstate();
-            errors->fail();
-            pAst->encapsulate(ast_utype_class_e);
-            return true;
-        }else
-            pAst = this->rollback();
-    } else
-        pAst = this->rollback();
-    errors->pass();
-
-    this->retainstate(pAst);
-    errors->enableErrorCheckMode();
-    if(parse_dot_notation_call_expr(pAst)) {
-        this->dumpstate();
-        errors->fail();
-        pAst->encapsulate(ast_dot_not_e);
-        return true;
-    } else {
-        errors->pass();
-        pAst = this->rollback();
-    }
-
-    return false;
-}
-
 void Parser::parse_valuelist(Ast *pAst) {
     pAst = get_ast(pAst, ast_value_list);
 
@@ -980,6 +926,7 @@ bool Parser::isoverride_operator(string token) {
 }
 
 int nestedAddExprs = 0, nestedMulExprs = 0,  parenExprs=0, nestedAndExprs=0, nestedLessExprs=0, nestedOrExprs = 0, quesBlock = 0;
+int binaryExpr = 0;
 bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
     pAst = get_ast(pAst, ast_dotnotation_call_expr);
 
@@ -1085,11 +1032,307 @@ bool Parser::parse_array_expression(Ast* pAst) {
 
 }
 
+bool Parser::match(int num_args, ...) {
+    va_list ap;
+    bool found = false;
+
+    va_start(ap,num_args);
+    for(size_t loop=0;loop<num_args;++loop) {
+        if(peek(1).getTokenType() == va_arg(ap,int)) {
+            found = true;
+            break;
+        }
+    }
+
+    va_end(ap);
+    return found;
+}
+
+void Parser::equality(Ast *pAst) {
+    binary(pAst);
+
+    while(match(2, EQEQ, NOTEQ)) {
+        advance();
+        pAst->addEntity(current());
+        binary(pAst);
+        pAst = pAst->encapsulate(ast_equal_e);
+    }
+}
+
+void Parser::binary(Ast *pAst) {
+    comparason(pAst);
+
+    while(match(5, AND, XOR, OR, ANDAND, OROR)) {
+        advance();
+        pAst->addEntity(current());
+        comparason(pAst);
+        pAst = pAst->encapsulate(ast_and_e);
+    }
+}
+
+void Parser::comparason(Ast *pAst) {
+    addition(pAst);
+
+    while(match(4, GREATERTHAN, _GTE, LESSTHAN, _LTE)) {
+        advance();
+        pAst->addEntity(current());
+        addition(pAst);
+        pAst = pAst->encapsulate(ast_less_e);
+    }
+}
+
+void Parser::addition(Ast *pAst) {
+    multiplication(pAst);
+
+    while(match(2, MINUS, PLUS)) {
+        advance();
+        pAst->addEntity(current());
+        multiplication(pAst);
+        pAst = pAst->encapsulate(ast_add_e);
+    }
+}
+
+void Parser::multiplication(Ast *pAst) {
+    unary(pAst);
+
+    while(match(3, _DIV, _MOD, MULT)) {
+        advance();
+        pAst->addEntity(current());
+        unary(pAst);
+        pAst = pAst->encapsulate(ast_mult_e);
+    }
+}
+
+void Parser::unary(Ast *pAst) {
+    if(match(2, PLUS, MINUS)) {
+        advance();
+        pAst->addEntity(current());
+        unary(pAst);
+        pAst = pAst->encapsulate(ast_add_e);
+    } else if(match(1, NOT)) {
+        advance();
+        pAst->addEntity(current());
+        unary(pAst);
+        pAst = pAst->encapsulate(ast_not_e);
+    }
+
+    this->retainstate(pAst);
+    errors->enableErrorCheckMode();
+    if(!parse_primaryexpr(pAst))
+    {
+        errors->pass();
+        this->rollbacklast();
+    } else
+    {
+        this->dumpstate();
+        errors->fail();
+    }
+}
+
+
+bool Parser::parse_primaryexpr(Ast *pAst) {
+    pAst = get_ast(pAst, ast_primary_expr);
+
+
+    errors->enableErrorCheckMode();
+    this->retainstate(pAst);
+    if(parse_literal(pAst))
+    {
+        this->dumpstate();
+        errors->fail();
+        pAst->encapsulate(ast_literal_e);
+        return true;
+    }
+    pAst = this->rollback();
+    errors->pass();
+
+    errors->enableErrorCheckMode();
+    if(peek(1).getTokenType() == DOT) {
+        advance();
+        pAst->addEntity(current());
+    }
+
+    this->retainstate(pAst);
+    if(parse_utype(pAst))
+    {
+        if(peek(1).getTokenType() == DOT)
+        {
+            expect(DOT, pAst->getSubAst(0), "`.`");
+            advance();
+
+            expect_token(pAst->getSubAst(0), "class", "`class` after primary expression");
+
+            this->dumpstate();
+            errors->fail();
+            pAst->encapsulate(ast_utype_class_e);
+            return true;
+        }else
+            pAst = this->rollback();
+    } else
+        pAst = this->rollback();
+    errors->pass();
+
+
+    if(peek(1).getToken() == "self")
+    {
+        advance();
+        expect_token(pAst, "self", "");
+
+        if(peek(1).getTokenType() == PTR) {
+            expect(PTR, pAst, "`->` after self");
+            parse_dot_notation_call_expr(pAst);
+        }
+
+        pAst->encapsulate(ast_self_e);
+        return true;
+    }
+
+    if(peek(1).getToken() == "base")
+    {
+        advance();
+        expect_token(pAst, "base", "");
+        expect(PTR, pAst, "`->` after base");
+        parse_dot_notation_call_expr(pAst);
+
+        pAst->encapsulate(ast_base_e);
+        return true;
+    }
+
+    this->retainstate(pAst);
+    errors->enableErrorCheckMode();
+    if(parse_dot_notation_call_expr(pAst)) {
+        this->dumpstate();
+        errors->fail();
+        pAst->encapsulate(ast_dot_not_e);
+        if(peek(1).getTokenType() != LEFTBRACE)
+            return true;
+    } else {
+        errors->pass();
+        pAst = this->rollback();
+    }
+
+    if(peek(1).getToken() == "new")
+    {
+        advance();
+        expect_token(pAst, "new", "");
+        parse_utype_naked(pAst);
+
+        if(peek(1).getTokenType() == LEFTBRACE && parse_array_expression(pAst)){}
+        else if(peek(1).getTokenType() == LEFTBRACE) {
+            expect(LEFTBRACE, pAst, "`[`");
+            expect(RIGHTBRACE, pAst, "`]`");
+            parse_vectorarray(pAst);
+        }
+        else if(peek(1).getTokenType() == LEFTPAREN)
+            parse_valuelist(pAst);
+
+        pAst = pAst->encapsulate(ast_new_e);
+        if(peek(1).getTokenType() != LEFTBRACE)
+            return true;
+    }
+
+    if(peek(1).getToken() == "sizeof")
+    {
+        advance();
+        expect_token(pAst, "sizeof", "");
+
+        expect(LEFTPAREN, pAst, "`(`");
+        parse_expression(pAst);
+        expect(RIGHTPAREN, pAst, "`)`");
+
+        pAst->encapsulate(ast_sizeof_e);
+        return true;
+    }
+
+    if(peek(1).getTokenType() == LEFTPAREN)
+    {
+        advance();
+        pAst->addEntity(current());
+
+        int old=parenExprs++;
+        parse_expression(pAst);
+        parenExprs=old;
+
+        expect(RIGHTPAREN, pAst, "`)`");
+
+        if(!isexprsymbol(peek(1).getToken())) {
+            this->retainstate(pAst);
+            errors->enableErrorCheckMode();
+            if(parse_dot_notation_call_expr(pAst)) {
+                this->dumpstate();
+                errors->fail();
+            } else {
+                errors->pass();
+                pAst = this->rollbacklast();
+            }
+
+            pAst->encapsulate(ast_paren_e);
+            return true;
+        } else
+            pAst = pAst->encapsulate(ast_paren_e);
+
+        if(peek(1).getTokenType() != LEFTBRACE)
+            return true;
+    }
+
+    if(peek(1).getToken() == "null")
+    {
+        advance();
+        expect_token(pAst, "null", "");
+        pAst->encapsulate(ast_null_e);
+        return true;
+    }
+
+    if(peek(1).getTokenType() == LEFTBRACE)
+    {
+        expect(LEFTBRACE, pAst, "`[`");
+
+        int oldNestedExprs=nestedAddExprs;
+        nestedAddExprs=0;
+        parse_expression(pAst);
+        nestedAddExprs=oldNestedExprs;
+        expect(RIGHTBRACE, pAst, "`]`");
+
+
+
+        if(!isexprsymbol(peek(1).getToken())){
+            errors->enableErrorCheckMode();
+            this->retainstate(pAst);
+            if(!parse_dot_notation_call_expr(pAst)) {
+                this->rollbacklast();
+                errors->pass();
+            }
+            else {
+                errors->fail();
+                this->dumpstate();
+            }
+
+            pAst->encapsulate(ast_arry_e);
+            return true;
+        }
+        pAst = pAst->encapsulate(ast_arry_e);
+
+        if(!match(2, _INC, _DEC))
+            return true;
+    }
+
+    /* ++ or -- after the expression */
+    if(peek(1).getTokenType() == _INC || peek(1).getTokenType() == _DEC)
+    {
+        advance();
+        pAst->addEntity(current());
+        pAst->encapsulate(ast_post_inc_e);
+        return true;
+    }
+
+    return false;
+}
+
 bool Parser::parse_expression(Ast *pAst) {
     pAst = get_ast(pAst, ast_expression);
     CHECK_ERRORS_RETURN(false)
 
-    /* ++ or -- before the expression */
+    /* ++ or -- after the expression */
     if(peek(1).getTokenType() == _INC || peek(1).getTokenType() == _DEC)
     {
         advance();
@@ -1098,7 +1341,6 @@ bool Parser::parse_expression(Ast *pAst) {
         pAst->encapsulate(ast_pre_inc_e);
         return true;
     }
-
 
     if(peek(1).getTokenType() == LEFTPAREN)
     {
@@ -1135,48 +1377,6 @@ bool Parser::parse_expression(Ast *pAst) {
 
     }
 
-
-    if(peek(1).getTokenType() == NOT)
-    {
-        advance();
-        pAst->addEntity(current());
-
-        parse_expression(pAst);
-
-        pAst->encapsulate(ast_not_e);
-        if(!isexprsymbol(peek(1).getToken()))
-            return true;
-    }
-
-    if(peek(1).getTokenType() == LEFTPAREN)
-    {
-        advance();
-        pAst->addEntity(current());
-
-        int old=parenExprs++;
-        parse_expression(pAst);
-        parenExprs=old;
-
-        expect(RIGHTPAREN, pAst, "`)`");
-
-        if(!isexprsymbol(peek(1).getToken())) {
-            this->retainstate(pAst);
-            errors->enableErrorCheckMode();
-            if(parse_dot_notation_call_expr(pAst)) {
-                this->dumpstate();
-                errors->fail();
-            } else {
-                errors->pass();
-                pAst = this->rollbacklast();
-            }
-
-            pAst->encapsulate(ast_paren_e);
-            if(!isexprsymbol(peek(1).getToken()))
-                return true;
-        } else
-            pAst->encapsulate(ast_paren_e);
-    }
-
     if(peek(1).getTokenType() == LEFTCURLY)
     {
         parse_vectorarray(pAst);
@@ -1189,288 +1389,9 @@ bool Parser::parse_expression(Ast *pAst) {
         this->dumpstate();
         if(!isexprsymbol(peek(1).getToken()))
             return true;
-
-        if(peek(1).getToken() == "?" && quesBlock > 0)
-            return true;
     }
     else {
         this->rollbacklast();
-    }
-
-    if(peek(1).getToken() == "self")
-    {
-        advance();
-        expect_token(pAst, "self", "");
-
-        if(peek(1).getTokenType() == PTR) {
-            expect(PTR, pAst, "`->` after self");
-            parse_dot_notation_call_expr(pAst);
-        }
-
-        pAst->encapsulate(ast_self_e);
-        if(!isexprsymbol(peek(1).getToken()))
-            return true;
-    }
-
-    if(peek(1).getToken() == "base")
-    {
-        advance();
-        expect_token(pAst, "base", "");
-        expect(PTR, pAst, "`->` after base");
-        parse_dot_notation_call_expr(pAst);
-
-        pAst->encapsulate(ast_base_e);
-        if(!isexprsymbol(peek(1).getToken()))
-            return true;
-    }
-
-    if(peek(1).getToken() == "null")
-    {
-        advance();
-        expect_token(pAst, "null", "");
-        pAst->encapsulate(ast_null_e);
-        return true;
-    }
-
-    if(peek(1).getToken() == "new")
-    {
-        advance();
-        expect_token(pAst, "new", "");
-        parse_utype_naked(pAst);
-
-        if(peek(1).getTokenType() == LEFTBRACE && parse_array_expression(pAst)){}
-        else if(peek(1).getTokenType() == LEFTBRACE) {
-            expect(LEFTBRACE, pAst, "`[`");
-            expect(RIGHTBRACE, pAst, "`]`");
-            parse_vectorarray(pAst);
-        }
-        else if(peek(1).getTokenType() == LEFTPAREN)
-            parse_valuelist(pAst);
-
-        pAst->encapsulate(ast_new_e);
-        if(peek(1).getTokenType() != LEFTBRACE && !isexprsymbol(peek(1).getToken()))
-            return true;
-    }
-
-    if(peek(1).getToken() == "sizeof")
-    {
-        advance();
-        expect_token(pAst, "sizeof", "");
-
-        expect(LEFTPAREN, pAst, "`(`");
-        parse_expression(pAst);
-        expect(RIGHTPAREN, pAst, "`)`");
-
-        pAst->encapsulate(ast_sizeof_e);
-        if(!isexprsymbol(peek(1).getToken()))
-            return true;
-    }
-
-    if(peek(1).getTokenType() == LEFTBRACE)
-    {
-        expect(LEFTBRACE, pAst, "`[`");
-
-        int oldNestedExprs=nestedAddExprs;
-        nestedAddExprs=0;
-        parse_expression(pAst);
-        nestedAddExprs=oldNestedExprs;
-        expect(RIGHTBRACE, pAst, "`]`");
-
-
-
-        if(!isexprsymbol(peek(1).getToken())){
-            errors->enableErrorCheckMode();
-            this->retainstate(pAst);
-            if(!parse_dot_notation_call_expr(pAst)) {
-                this->rollbacklast();
-                errors->pass();
-            }
-            else {
-                errors->fail();
-                this->dumpstate();
-            }
-
-            pAst->encapsulate(ast_arry_e);
-            if(!isexprsymbol(peek(1).getToken()))
-                return true;
-            else
-                goto next;
-        }
-        pAst->encapsulate(ast_arry_e);
-    }
-    next:
-
-
-    /* ++ or -- after the expression */
-    if(peek(1).getTokenType() == _INC || peek(1).getTokenType() == _DEC)
-    {
-        advance();
-        pAst->addEntity(current());
-
-        pAst->encapsulate(ast_post_inc_e);
-        if(!isexprsymbol(peek(1).getToken()))
-            return true;
-    }
-
-
-
-    /* expression ('*'|'/'|'%') expression */
-    if(peek(1).getTokenType() == MULT || peek(1).getTokenType() == _DIV ||
-       peek(1).getTokenType() == _MOD)
-    {
-        advance();
-        pAst->addEntity(current());
-
-        if(parenExprs > 0) {
-            quesBlock++;
-            parenExprs--;
-            nestedMulExprs++;
-            parse_expression(pAst);
-            nestedMulExprs--;
-            quesBlock--;
-            pAst->encapsulate(ast_mult_e);
-        } else {
-            nestedMulExprs++;
-            quesBlock++;
-            parse_expression(nestedMulExprs == 1 ? pAst : pAst=pAst->getParent());
-
-            quesBlock--;
-            if(nestedMulExprs == 1)
-                pAst->encapsulate(ast_mult_e);
-            nestedMulExprs--;
-        }
-
-        if(peek(1).getTokenType() == PLUS || peek(1).getTokenType() == MINUS)
-            goto add;
-        if(!isexprsymbol(peek(1).getToken()))
-            return true;
-    }
-
-    /* expression ('+'|'-') expression */
-    if(peek(1).getTokenType() == PLUS || peek(1).getTokenType() == MINUS)
-    {
-        add:
-        if(nestedMulExprs>= 1) return true;
-        advance();
-        pAst->addEntity(current());
-
-        if(parenExprs > 0) {
-            quesBlock++;
-            parenExprs--;
-            nestedAddExprs++;
-            parse_expression(pAst);
-            nestedAddExprs--;
-            quesBlock--;
-            pAst->encapsulate(ast_add_e);
-        } else {
-            nestedAddExprs++;
-            quesBlock++;
-            parse_expression(nestedAddExprs == 1 ? pAst : pAst=pAst->getParent());
-            if(nestedAddExprs == 1)
-                pAst->encapsulate(ast_add_e);
-            nestedAddExprs--;
-            quesBlock--;
-        }
-
-        if(!isexprsymbol(peek(1).getToken()))
-            return true;
-    }
-
-    /* expression ('<<'|'>>') expression */
-    if(peek(1).getTokenType() == SHL || peek(1).getTokenType() == SHR)
-    {
-        advance();
-        pAst->addEntity(current());
-
-        quesBlock++;
-        parse_expression(pAst);
-        quesBlock--;
-        pAst->encapsulate(ast_shift_e);
-        if(!isexprsymbol(peek(1).getToken()))
-            return true;
-    }
-
-    /* expression ('<=' | '>=' | '>' | '<') expression */
-    if(peek(1).getTokenType() == LESSTHAN || peek(1).getTokenType() == GREATERTHAN ||
-       peek(1).getTokenType() == _GTE || peek(1).getTokenType() == _LTE)
-    {
-        if(nestedAddExprs >= 1) {
-            if(pAst->getSubAstCount() == 0)
-                pAst->getParent()->freeLastSub();
-            return false;
-        }
-        advance();
-        pAst->addEntity(current());
-
-        if(parenExprs > 0) {
-
-            quesBlock++;
-            parse_expression(pAst);
-            quesBlock--;
-            pAst->encapsulate(ast_less_e);
-            parenExprs--;
-        } else {
-            nestedLessExprs++;
-            quesBlock++;
-            parse_expression(nestedLessExprs == 1 ? pAst : pAst=pAst->getParent());
-            if(nestedLessExprs == 1)
-                pAst->encapsulate(ast_less_e);
-            nestedLessExprs--;
-            quesBlock--;
-        }
-        if(!isexprsymbol(peek(1).getToken()))
-            return true;
-    }
-
-    /* expression ('!=' | '==' | '=') expression */
-    if(peek(1).getTokenType() == EQEQ || peek(1).getTokenType() == NOTEQ ||
-       peek(1).getTokenType() == ASSIGN)
-    {
-        advance();
-        pAst->addEntity(current());
-
-        quesBlock++;
-        nestedOrExprs++;
-        parse_expression(pAst);
-        nestedOrExprs--;
-        quesBlock--;
-        pAst->encapsulate(ast_equal_e);
-
-        if(!isexprsymbol(peek(1).getToken()))
-            return true;
-    }
-
-    /* expression ('&' | '^' | '|' | '&&' | '||') expression */
-    if(peek(1).getTokenType() == AND || peek(1).getTokenType() == OR ||
-       peek(1).getTokenType() == ANDAND || peek(1).getTokenType() == OROR ||
-       peek(1).getTokenType() == XOR)
-    {
-        if(nestedLessExprs >= 1 || nestedOrExprs >= 1) {
-            if(pAst->getSubAstCount() == 0)
-                pAst->getParent()->freeLastSub();
-            return false;
-        }
-        advance();
-        pAst->addEntity(current());
-
-        if(parenExprs > 0) {
-
-            quesBlock++;
-            parse_expression(pAst);
-            quesBlock--;
-            pAst->encapsulate(ast_and_e);
-            parenExprs--;
-        } else {
-            nestedAndExprs++;
-            quesBlock++;
-            parse_expression(nestedAndExprs == 1 ? pAst : pAst=pAst->getParent());
-            quesBlock--;
-            if(nestedAndExprs == 1)
-                pAst->encapsulate(ast_and_e);
-            nestedAndExprs--;
-        }
-        if(!isexprsymbol(peek(1).getToken()))
-            return true;
     }
 
     /* expression <assign-expr> expression */
@@ -1491,15 +1412,12 @@ bool Parser::parse_expression(Ast *pAst) {
             return true;
     }
 
+    equality(pAst);
+
+
     /* expression '?' expression ':' expression */
     if(peek(1).getTokenType() == QUESMK && quesBlock==0)
     {
-        if(nestedLessExprs >= 1) {
-            if(pAst->getSubAstCount() == 0)
-                pAst->getParent()->freeLastSub();
-            return false;
-        }
-
         advance();
         pAst->addEntity(current());
 
@@ -1513,8 +1431,8 @@ bool Parser::parse_expression(Ast *pAst) {
     } else if(peek(1).getTokenType() == QUESMK)
         return true;
 
-    errors->createNewError(GENERIC, current(), "expected expression");
-    return false;
+    //errors->createNewError(GENERIC, current(), "expected expression");
+    return true;
 }
 
 bool Parser::parse_value(Ast *pAst) {
@@ -2262,17 +2180,17 @@ bool Parser::parse_statement(Ast* pAst) {
         {
             errors->pass();
             advance();
-            errors->createNewError(GENERIC, current(), "not a statement");
+            errors->createNewError(GENERIC, pAst, "not a statement");
             return false;
         } else {
             if(access_types.size() > 0)
-                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, pAst);
 
             errors->fail();
             this->dumpstate();
 
             if(peek(1).getTokenType() != SEMICOLON)
-                errors->createNewError(GENERIC, current(), "expected `;`");
+                errors->createNewError(GENERIC, pAst, "expected `;`");
             else
                 expect(SEMICOLON, pAst, "`;`");
             return true;
@@ -2282,9 +2200,10 @@ bool Parser::parse_statement(Ast* pAst) {
     return false;
 }
 
-void Parser::parse_modulename(Ast* pAst, bool &parsedGeneric)
+void Parser::parse_modulename(Ast* pAst, bool &parsedGeneric, bool keepLocal)
 {
-    pAst = get_ast(pAst, ast_modulename);
+    if(!keepLocal)
+        pAst = get_ast(pAst, ast_modulename);
 
     if(peek(1).getToken() == "operator") {
         if(isoverride_operator(peek(2).getToken())) {
@@ -2500,24 +2419,8 @@ bool Parser::parse_reference_pointer(Ast *pAst) {
     else
         pushback();
     bool parsedGeneric = false;
-    parse_modulename(pAst, parsedGeneric);
+    parse_modulename(pAst, parsedGeneric, true);
 
-    /*
-     * We want the full name to be on the ast
-     */
-    token_entity e;
-    for(int64_t i = 0; i <  pAst->getSubAst(0)->getEntityCount(); i++)
-    {
-        pAst->addEntity(pAst->getSubAst(0)->getEntity(i));
-    }
-
-    // for generics
-    for(int64_t i = 0; i <  pAst->getSubAst(0)->getSubAstCount(); i++)
-    {
-        pAst->addAst(Ast(pAst, pAst->getSubAst(0)->getSubAst(i)));
-    }
-
-    pAst->sub_asts.remove(0);
     advance();
     if(current().getTokenType() == HASH) {
         if(parsedGeneric)
@@ -2578,9 +2481,8 @@ void Parser::free() {
         ast_cursor = 0;
         remove_accesstypes();
         this->tree->clear();
-        this->state->clear();
+        this->state.free();
         delete (this->tree); this->tree = NULL;
-        delete (this->state); this->state = NULL;
         access_types.free();
         errors->free();
         delete (errors); this->errors = NULL;
@@ -2588,14 +2490,14 @@ void Parser::free() {
 }
 
 void Parser::retainstate(Ast* pAst) {
-    state->push_back(ParserState(pAst, cursor, ast_cursor));
+    state.add(ParserState(pAst, cursor, ast_cursor));
     rStateCursor++;
 }
 
 void Parser::dumpstate() {
     if(rStateCursor >= 0)
     {
-        state->pop_back();
+        state.pop_back();
         rStateCursor--;
     }
 }
@@ -2603,8 +2505,7 @@ void Parser::dumpstate() {
 Ast* Parser::rollbacklast() {
     if(rStateCursor >= 0)
     {
-        ParserState* ps = &(*std::next(state->begin(),
-                                        rStateCursor));
+        ParserState* ps = &state.last();
         Ast* pAst = ps->ast;
         ast_cursor = ps->astCursor;
         cursor = ps->cursor-1;
@@ -2617,7 +2518,7 @@ Ast* Parser::rollbacklast() {
         else {
             pAst->freeLastSub();
         }
-        state->pop_back();
+        state.pop_back();
         rStateCursor--;
         return pAst;
     }
@@ -2628,13 +2529,12 @@ Ast* Parser::rollbacklast() {
 Ast* Parser::popBacklast() {
     if(rStateCursor >= 0)
     {
-        ParserState* ps = &(*std::next(state->begin(),
-                                       rStateCursor));
+        ParserState* ps = &state.last();
         Ast* pAst = ps->ast;
         ast_cursor = ps->astCursor;
         cursor = ps->cursor-1;
 
-        state->pop_back();
+        state.pop_back();
         rStateCursor--;
         return pAst;
     }
@@ -2645,16 +2545,15 @@ Ast* Parser::popBacklast() {
 Ast* Parser::rollback() {
     if(rStateCursor >= 0)
     {
-        ParserState* ps = &(*std::next(state->begin(),
-                                        rStateCursor));
+        ParserState* ps = &state.last();
         Ast* pAst = ps->ast;
         ast_cursor = ps->astCursor;
         cursor = ps->cursor-1;
         advance();
 
+        pAst->free();
         pAst->copy(&ps->copy);
-        ps->copy.free();
-        state->pop_back();
+        state.pop_back();
         rStateCursor--;
         return pAst;
     }

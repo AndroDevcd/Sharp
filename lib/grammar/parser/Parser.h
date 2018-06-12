@@ -30,7 +30,7 @@ public:
             data = tokenizer->getData();
             access_types.init();
             tree = new list<Ast>();
-            state = new list<ParserState>();
+            state.init();
             lines.init();
             parse();
         }
@@ -67,7 +67,7 @@ private:
 
     unsigned long cursor;
     list<Ast> *tree;
-    list<ParserState>* state;
+    List<ParserState> state;
     int64_t rStateCursor;
     token_entity* _current;
     unsigned long ast_cursor;
@@ -130,7 +130,7 @@ private:
 
     bool parse_statement(Ast *pAst);
 
-    void parse_modulename(Ast *pAst, bool &parsedGeneric);
+    void parse_modulename(Ast *pAst, bool &parsedGeneric, bool keepLocal = false);
 
     void parse_valueassignment(Ast *pAst);
 
@@ -267,6 +267,20 @@ private:
     bool isswitch_declarator(token_entity entity);
 
     void parse_switch_declarator(Ast *pAst);
+
+    bool match(int num_args, ...);
+
+    void equality(Ast *pAst);
+
+    void comparason(Ast *pAst);
+
+    void multiplication(Ast *pAst);
+
+    void addition(Ast *pAst);
+
+    void unary(Ast *pAst);
+
+    void binary(Ast *pAst);
 };
 
 #define _SHARP_CERROR_LIMIT c_options.error_limit

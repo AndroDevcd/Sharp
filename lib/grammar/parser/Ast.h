@@ -147,7 +147,7 @@ public:
         copy(cpy);
     }
 
-    void encapsulate(ast_types at);
+    Ast* encapsulate(ast_types at);
 
     ast_types getType();
     Ast*  getParent();
@@ -170,6 +170,7 @@ public:
 
     void freeEntities();
     void freeLastSub();
+    void freeAst(ast_types type);
     void freeLastEntity();
 
     int line, col;

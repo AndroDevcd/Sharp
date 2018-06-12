@@ -3127,6 +3127,22 @@ Expression RuntimeEngine::parsePrimaryExpression(Ast* ast) {
             return psrseUtypeClass(ast);
         case ast_dot_not_e:
             return parseDotNotationCall(ast->getSubAst(ast_dotnotation_call_expr));
+        case ast_self_e:
+            return parseSelfExpression(ast);
+        case ast_base_e:
+            return parseBaseExpression(ast);
+        case ast_null_e:
+            return parseNullExpression(ast);
+        case ast_new_e:
+            return parseNewExpression(ast);
+        case ast_sizeof_e:
+            return parseSizeOfExpression(ast);
+        case ast_paren_e:
+            return parseParenExpression(ast);
+        case ast_arry_e:
+            return parseArrayExpression(ast);
+        case ast_post_inc_e:
+            return parsePostInc(ast);
         default:
             stringstream err;
             err << ": unknown ast type: " << ast->getType();
@@ -6803,26 +6819,10 @@ Expression RuntimeEngine::parseExpression(Ast *ast) {
     switch (encap->getType()) {
         case ast_primary_expr:
             return parsePrimaryExpression(encap);
-        case ast_self_e:
-            return parseSelfExpression(encap);
-        case ast_base_e:
-            return parseBaseExpression(encap);
-        case ast_null_e:
-            return parseNullExpression(encap);
-        case ast_new_e:
-            return parseNewExpression(encap);
-        case ast_sizeof_e:
-            return parseSizeOfExpression(encap);
-        case ast_post_inc_e:
-            return parsePostInc(encap);
-        case ast_arry_e:
-            return parseArrayExpression(encap);
         case ast_cast_e:
             return parseCastExpression(encap);
         case ast_pre_inc_e:
             return parsePreInc(encap);
-        case ast_paren_e:
-            return parseParenExpression(encap);
         case ast_not_e:
             return parseNotExpression(encap);
         case ast_vect_e:

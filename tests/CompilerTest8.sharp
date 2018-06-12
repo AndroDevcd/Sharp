@@ -1,0 +1,17 @@
+mod application;
+
+import std;
+
+public class Application {
+
+    public static def main(string[] args) : var {
+        var a = 9, b = 2;
+        if(a+1 < sizeof(args)) {
+            System.println("a+1");
+        } else if(a == 7 || b == 2) {
+            System.println("a==7 || b==2");
+        } else if(a+1 == 9 && b > 1) {
+            System.println("a+1 == 9 && b > 1");
+        }
+    }
+}

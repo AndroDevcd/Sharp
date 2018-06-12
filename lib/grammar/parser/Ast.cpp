@@ -23,7 +23,7 @@ long Ast::getSubAstCount()
 
 Ast* Ast::getSubAst(long at)
 {
-    if(numAsts == 0 || at >= numAsts) {
+    if(sub_asts.size() == 0 || at >= sub_asts.size()) {
         stringstream ss;
         ss << "internal error, ast not found at index " << at;
         throw runtime_error(ss.str());
@@ -51,7 +51,8 @@ void Ast::addEntity(token_entity entity)
 void Ast::addAst(Ast _ast)
 {
     numAsts++;
-    sub_asts.add(_ast);
+    sub_asts.push_back();
+    sub_asts.last().copy(&_ast);
 }
 
 void Ast::free() {
@@ -88,6 +89,17 @@ void Ast::freeLastSub() {
     pAst->free();
     numAsts--;
     this->sub_asts.pop_back();
+}
+
+void Ast::freeAst(ast_types type) {
+    for(unsigned int i = 0; i < sub_asts.size(); i++) {
+        if(sub_asts.get(i).getType() == type) {
+            sub_asts.get(i).free();
+            numAsts--;
+            this->sub_asts.pop_back();
+            return;
+        }
+    }
 }
 
 void Ast::freeEntities() {
@@ -152,7 +164,7 @@ Ast *Ast::getNextSubAst(ast_types at) {
 }
 
 // tODO: add param bool override (default true) to override the encapsulation
-void Ast::encapsulate(ast_types at) {
+Ast* Ast::encapsulate(ast_types at) {
 
     addAst(Ast(this, at, this->line, this->col));
     Ast* encap = getLastSubAst();
@@ -171,6 +183,7 @@ void Ast::encapsulate(ast_types at) {
     readjust:
     for(unsigned int i = 0; i < sub_asts.size(); i++) {
         if(sub_asts.get(i).type != at) {
+            sub_asts.get(i).free();
             sub_asts.remove(i);
             goto readjust;
         }
@@ -179,6 +192,8 @@ void Ast::encapsulate(ast_types at) {
     numAsts = 1;
     numEntities = 0;
     entities.free();
+    getLastSubAst()->parent = this;
+    return getLastSubAst();
 }
 
 void Ast::setAstType(ast_types t) {
@@ -186,7 +201,7 @@ void Ast::setAstType(ast_types t) {
 }
 
 Ast *Ast::getLastSubAst() {
-    if(numAsts == 0) {
+    if(sub_asts.size() == 0) {
         stringstream ss;
         ss << "internal error, ast not found at index 0";
         throw runtime_error(ss.str());
@@ -200,10 +215,11 @@ void Ast::copy(Ast *ast) {
         this->line=ast->line;
         this->col=ast->col;
         this->type=ast->type;
+        this->parent = this;
 
         for(long i = 0; i < ast->sub_asts.size(); i++) {
-            Ast pAst(this, &ast->sub_asts.get(i));
-            addAst(pAst);
+            sub_asts.push_back();
+            sub_asts.last().copy(&ast->sub_asts.get(i));
         }
 
         for(long i = 0; i < ast->entities.size(); i++) {
