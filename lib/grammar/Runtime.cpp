@@ -6073,6 +6073,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 pushExpressionToStack(left, out);
 
                 out.code.push_i64(SET_Di(i64, op_ITEST, ebx));
+                out.code.push_i64(SET_Ci(i64, op_MOVR, cmt,0, ebx));
                 out.inCmtRegister = true;
                 return;
             } else if(operand == "!=" && right.type == expression_null) {
@@ -6223,6 +6224,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
             pushExpressionToStack(left, out);
 
             out.code.push_i64(SET_Di(i64, op_ITEST, ebx));
+            out.code.push_i64(SET_Ci(i64, op_MOVR, cmt,0, ebx));
             out.inCmtRegister = true;
             return;
         } else if(operand == "!=" && right.type == expression_null) {
