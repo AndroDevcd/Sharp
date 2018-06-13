@@ -1101,6 +1101,8 @@ private:
     bool isExpressionConvertableToNativeClass(Field *field, Expression &exp);
 
     bool hasOverload(token_entity operand, Expression &right, ClassObject *klass, Ast *pAst);
+
+    bool isNativeIntegerClass(ClassObject *klass);
 };
 
 

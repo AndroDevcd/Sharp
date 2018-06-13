@@ -929,8 +929,6 @@ bool Parser::isoverride_operator(string token) {
             ;
 }
 
-int nestedAddExprs = 0, nestedMulExprs = 0,  parenExprs=0, nestedAndExprs=0, nestedLessExprs=0, nestedOrExprs = 0, quesBlock = 0;
-int binaryExpr = 0;
 bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
     pAst = get_ast(pAst, ast_dotnotation_call_expr);
 
@@ -942,10 +940,7 @@ bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
 
     if(parse_utype_naked(pAst)) {
         if(peek(1).getTokenType() == LEFTPAREN) {
-            int nestedAdds=nestedAddExprs;
-            nestedAddExprs=0;
             parse_valuelist(pAst);
-            nestedAddExprs=nestedAdds;
 
             pAst->encapsulate(ast_dot_fn_e);
             /* func()++ or func()--
@@ -961,10 +956,7 @@ bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
                 advance();
                 pAst->addEntity(current());
 
-                int oldNestedExprs=nestedAddExprs;
-                nestedAddExprs=0;
                 parse_expression(pAst);
-                nestedAddExprs=oldNestedExprs;
                 expect(RIGHTBRACE, pAst, "`]`");
 
                 errors->enableErrorCheckMode();

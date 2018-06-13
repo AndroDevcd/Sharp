@@ -15,5 +15,11 @@ public class Application {
         } else if(a+1 == 9 && b > 1) {
             System.println("a+1 == 9 && b > 1");
         }
+
+        asm("nop nop nop nop");
+        int num = 9;
+        var x = (var)num;
+        x = num;
+        System.println("x = " + x);
     }
 }

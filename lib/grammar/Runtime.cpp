@@ -2826,6 +2826,10 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
                             out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
                         }
                     }
+                } else if(isNativeIntegerClass(expr.utype.field->klass)) {
+                    out.code.push_i64(SET_Di(i64, op_MOVN, 0));
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                    out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
                 } else
                     errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `object`");
             }
@@ -4288,7 +4292,14 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
         } else if(expression.utype.field != NULL && expression.utype.field->isEnum) {
             pushExpressionToRegisterNoInject(expression, out, ebx);
             return;
-        } else if(expression.trueType() == VAR) {
+        } else if(expression.trueType() == CLASS && expression.utype.field != NULL) {
+            ClassObject *klass = expression.utype.field->klass;
+            if(isNativeIntegerClass(klass)) {
+                pushExpressionToRegisterNoInject(expression, out, ebx);
+                return;
+            }
+        }
+        else if(expression.trueType() == VAR) {
             createNewWarning(GENERIC, utype.link->line, utype.link->col, "redundant cast of type `var` to `var`");
             return;
         }
@@ -12037,4 +12048,13 @@ bool RuntimeEngine::isExpressionConvertableToNativeClass(Field *f, Expression &e
         }
     }
     return false;
+}
+
+bool RuntimeEngine::isNativeIntegerClass(ClassObject *klass) {
+    return (klass->getModuleName() == "std" && 
+            (klass->getName() == "int" || klass->getName() == "short"    ||
+             klass->getName() == "bool" || klass->getName() == "long"    ||
+             klass->getName() == "char" || klass->getName() == "uint"    || 
+             klass->getName() == "ushort" || klass->getName() == "ubool" || 
+             klass->getName() == "ulong" || klass->getName() == "uchar"));
 }
