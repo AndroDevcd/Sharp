@@ -6,6 +6,10 @@
 #include "../Runtime.h"
 #include <sstream>
 
+#ifdef POSIX_
+#include <stdarg.h>
+#endif
+
 #define advance() \
     if((cursor+1)<toks->getEntityCount()) \
         _current = &toks->getEntities().get(++cursor); \

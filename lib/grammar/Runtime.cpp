@@ -5576,6 +5576,14 @@ Expression RuntimeEngine::parseAddExpression(Ast* pAst) {
 
 Expression RuntimeEngine::parseMultExpression(Ast* pAst) {
     Expression expression(pAst), left(pAst), right(pAst);
+    retry:
+    if(pAst->getSubAst(ast_mult_e)) {
+        for(;;) { // very silly, is there a better way?
+            pAst = pAst->getSubAst(ast_mult_e);
+            goto retry;
+        }
+    }
+
     token_entity operand = pAst->getEntity(0);
 
     if(pAst->getSubAstCount() == 1) {
@@ -5584,13 +5592,7 @@ Expression RuntimeEngine::parseMultExpression(Ast* pAst) {
         return Expression(pAst);
     }
 
-    retry:
-    if(pAst->getSubAst(ast_mult_e)) {
-        for(;;) { // very silly, is there a better way?
-            pAst = pAst->getSubAst(ast_mult_e);
-            goto retry;
-        }
-    }
+
     parseAddExpressionChain(expression, pAst);
 
     expression.link = pAst;

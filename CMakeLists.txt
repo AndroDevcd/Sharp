@@ -3,7 +3,7 @@ project(Sharp)
 
 set(CMAKE_CXX_STANDARD 11)
 
-#set(POSIX "os")
+set(POSIX "os")
 if (POSIX)
 
     set(BUILD_SHARED_LIBS OFF)

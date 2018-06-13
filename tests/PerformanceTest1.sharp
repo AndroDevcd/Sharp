@@ -2,7 +2,7 @@ mod application;
 
 import std;
 
-public class Start {
+public class Application {
 
     /**
     * Cost per million performance improvements
