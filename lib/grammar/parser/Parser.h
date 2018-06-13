@@ -270,17 +270,17 @@ private:
 
     bool match(int num_args, ...);
 
-    void equality(Ast *pAst);
+    bool equality(Ast *pAst);
 
-    void comparason(Ast *pAst);
+    bool comparason(Ast *pAst);
 
-    void multiplication(Ast *pAst);
+    bool multiplication(Ast *pAst);
 
-    void addition(Ast *pAst);
+    bool addition(Ast *pAst);
 
-    void unary(Ast *pAst);
+    bool unary(Ast *pAst);
 
-    void binary(Ast *pAst);
+    bool binary(Ast *pAst);
 };
 
 #define _SHARP_CERROR_LIMIT c_options.error_limit

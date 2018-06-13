@@ -1048,72 +1048,110 @@ bool Parser::match(int num_args, ...) {
     return found;
 }
 
-void Parser::equality(Ast *pAst) {
-    binary(pAst);
-
-    while(match(2, EQEQ, NOTEQ)) {
-        advance();
-        pAst->addEntity(current());
-        binary(pAst);
-        pAst = pAst->encapsulate(ast_equal_e);
-    }
-}
-
-void Parser::binary(Ast *pAst) {
-    comparason(pAst);
+bool Parser::binary(Ast *pAst) {
+    bool parsed = equality(pAst);
 
     while(match(5, AND, XOR, OR, ANDAND, OROR)) {
         advance();
         pAst->addEntity(current());
-        comparason(pAst);
+
+        Ast right(pAst, pAst->getType(), pAst->line, pAst->col);
+        equality(&right);
+        pAst->addAst(right);
         pAst = pAst->encapsulate(ast_and_e);
+        parsed = true;
     }
+
+    return parsed;
 }
 
-void Parser::comparason(Ast *pAst) {
-    addition(pAst);
+bool Parser::equality(Ast *pAst) {
+    bool parsed = comparason(pAst);
+
+    while(match(2, EQEQ, NOTEQ)) {
+        advance();
+        pAst->addEntity(current());
+
+        Ast right(pAst, pAst->getType(), pAst->line, pAst->col);
+        comparason(&right);
+        pAst->addAst(right);
+        pAst = pAst->encapsulate(ast_equal_e);
+        parsed = true;
+    }
+
+    return parsed;
+}
+
+bool Parser::comparason(Ast *pAst) {
+    bool parsed = addition(pAst);
 
     while(match(4, GREATERTHAN, _GTE, LESSTHAN, _LTE)) {
         advance();
         pAst->addEntity(current());
-        addition(pAst);
+
+        Ast right(pAst, pAst->getType(), pAst->line, pAst->col);
+        addition(&right);
+        pAst->addAst(right);
         pAst = pAst->encapsulate(ast_less_e);
+        parsed = true;
     }
+
+    return parsed;
 }
 
-void Parser::addition(Ast *pAst) {
-    multiplication(pAst);
+bool Parser::addition(Ast *pAst) {
+    bool parsed = multiplication(pAst);
 
     while(match(2, MINUS, PLUS)) {
         advance();
         pAst->addEntity(current());
-        multiplication(pAst);
+
+        Ast right(pAst, ast_expression, pAst->line, pAst->col);
+        multiplication(&right);
+        pAst->addAst(right);
         pAst = pAst->encapsulate(ast_add_e);
+        parsed = true;
     }
+
+    return parsed;
 }
 
-void Parser::multiplication(Ast *pAst) {
-    unary(pAst);
+bool Parser::multiplication(Ast *pAst) {
+    bool parsed = unary(pAst);
 
     while(match(3, _DIV, _MOD, MULT)) {
         advance();
         pAst->addEntity(current());
-        unary(pAst);
+
+        Ast right(pAst, ast_expression, pAst->line, pAst->col);
+        unary(&right);
+        pAst->addAst(right);
         pAst = pAst->encapsulate(ast_mult_e);
+        parsed = true;
     }
+
+    return parsed;
 }
 
-void Parser::unary(Ast *pAst) {
-    if(match(2, PLUS, MINUS)) {
+bool Parser::unary(Ast *pAst) {
+    if(match(2, MINUS)) {
         advance();
         pAst->addEntity(current());
-        unary(pAst);
+
+        Ast right(pAst, pAst->getType(), pAst->line, pAst->col);
+        bool parsed = unary(&right);
+        pAst->addAst(right);
         pAst = pAst->encapsulate(ast_add_e);
+        return parsed;
     } else if(match(1, NOT)) {
         advance();
         pAst->addEntity(current());
-        unary(pAst);
+
+        Ast right(pAst, pAst->getType(), pAst->line, pAst->col);
+        bool parsed = unary(&right);
+        pAst->addAst(right);
         pAst = pAst->encapsulate(ast_not_e);
+        return parsed;
     }
 
     this->retainstate(pAst);
@@ -1122,10 +1160,12 @@ void Parser::unary(Ast *pAst) {
     {
         errors->pass();
         this->rollbacklast();
+        return false;
     } else
     {
         this->dumpstate();
         errors->fail();
+        return true;
     }
 }
 
@@ -1204,7 +1244,7 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
         this->dumpstate();
         errors->fail();
         pAst->encapsulate(ast_dot_not_e);
-        if(peek(1).getTokenType() != LEFTBRACE)
+        if(!match(3, LEFTBRACE, _INC, _DEC))
             return true;
     } else {
         errors->pass();
@@ -1246,12 +1286,45 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
 
     if(peek(1).getTokenType() == LEFTPAREN)
     {
+        this->retainstate(pAst);
+        errors->enableErrorCheckMode();
+
         advance();
         pAst->addEntity(current());
 
-        int old=parenExprs++;
+        if(!parse_utype(pAst))
+        {
+            errors->pass();
+            this->rollback();
+        } else {
+            if(peek(1).getTokenType() == RIGHTPAREN)
+            {
+                expect(RIGHTPAREN, pAst, "`)`");
+                if(!parse_expression(pAst))
+                {
+                    errors->pass();
+                    this->rollback();
+                } else
+                {
+                    this->dumpstate();
+                    errors->fail();
+                    pAst->encapsulate(ast_cast_e);
+                    return true;
+                }
+            }else {
+                errors->pass();
+                this->rollbacklast();
+            }
+        }
+
+    }
+
+    if(peek(1).getTokenType() == LEFTPAREN)
+    {
+        advance();
+        pAst->addEntity(current());
+
         parse_expression(pAst);
-        parenExprs=old;
 
         expect(RIGHTPAREN, pAst, "`)`");
 
@@ -1286,11 +1359,7 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
     if(peek(1).getTokenType() == LEFTBRACE)
     {
         expect(LEFTBRACE, pAst, "`[`");
-
-        int oldNestedExprs=nestedAddExprs;
-        nestedAddExprs=0;
         parse_expression(pAst);
-        nestedAddExprs=oldNestedExprs;
         expect(RIGHTBRACE, pAst, "`]`");
 
 
@@ -1342,41 +1411,6 @@ bool Parser::parse_expression(Ast *pAst) {
         return true;
     }
 
-    if(peek(1).getTokenType() == LEFTPAREN)
-    {
-        this->retainstate(pAst);
-        errors->enableErrorCheckMode();
-
-        advance();
-        pAst->addEntity(current());
-
-        if(!parse_utype(pAst))
-        {
-            errors->pass();
-            this->rollback();
-        } else {
-            if(peek(1).getTokenType() == RIGHTPAREN)
-            {
-                expect(RIGHTPAREN, pAst, "`)`");
-                if(!parse_expression(pAst))
-                {
-                    errors->pass();
-                    this->rollback();
-                } else
-                {
-                    this->dumpstate();
-                    errors->fail();
-                    pAst->encapsulate(ast_cast_e);
-                    return true;
-                }
-            }else {
-                errors->pass();
-                this->rollbacklast();
-            }
-        }
-
-    }
-
     if(peek(1).getTokenType() == LEFTCURLY)
     {
         parse_vectorarray(pAst);
@@ -1400,23 +1434,20 @@ bool Parser::parse_expression(Ast *pAst) {
         advance();
         pAst->addEntity(current());
 
-        int oldNestedExprs=nestedAddExprs;
-        nestedAddExprs=0;
-        quesBlock++;
-        parse_expression(pAst);
-        quesBlock--;
-        nestedAddExprs=oldNestedExprs;
+        Ast right(pAst, pAst->getType(), pAst->line, pAst->col);
+        parse_expression(&right);
+        pAst->addAst(*right.getLastSubAst());
         pAst->encapsulate(ast_assign_e);
 
         if(!isexprsymbol(peek(1).getToken()))
             return true;
     }
 
-    equality(pAst);
+    bool parsed = binary(pAst);
 
 
     /* expression '?' expression ':' expression */
-    if(peek(1).getTokenType() == QUESMK && quesBlock==0)
+    if(peek(1).getTokenType() == QUESMK)
     {
         advance();
         pAst->addEntity(current());
@@ -1428,11 +1459,10 @@ bool Parser::parse_expression(Ast *pAst) {
         parse_expression(pAst);
         pAst->encapsulate(ast_ques_e);
         return true;
-    } else if(peek(1).getTokenType() == QUESMK)
-        return true;
+    }
 
     //errors->createNewError(GENERIC, current(), "expected expression");
-    return true;
+    return parsed;
 }
 
 bool Parser::parse_value(Ast *pAst) {

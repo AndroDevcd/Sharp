@@ -43,6 +43,7 @@ public class Application {
         int c = 3;
 
         // 1 + 2 * 3 +1*2 + 1
+        System.print("");
         System.println((a + b * c + a * b + a).getValue());
     }
 }

@@ -33,12 +33,11 @@ Ast* Ast::getSubAst(long at)
 
 long Ast::getEntityCount()
 {
-    return numEntities;
+    return entities.size();
 }
 
 token_entity Ast::getEntity(long at)
 {
-    if(numEntities == 0) return token_entity();
     return entities.get(at);
 }
 

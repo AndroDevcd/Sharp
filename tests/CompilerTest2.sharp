@@ -1,5 +1,7 @@
 mod application;
 
+import std;
+
 class k {
     var[] tt;
 }
@@ -7,11 +9,11 @@ class k {
 /**
  * Created by BraxtonN on 5/15/2018.
  */
-class Start base k {
+public class Application base k {
     var x;
     var[] iarry;
 
-    public Start() {
+    public Application() {
         iarry = new var[] { 'h', 'i' };
     }
 
@@ -21,23 +23,23 @@ class Start base k {
 
     public static def main(object[] args) : var {
 
-        object o = new Start();
-        ((Start)o).x = 9;
+        object o = new Application();
+        ((Application)o).x = 9;
 
-        o = ((Start)o).iarry;
+        o = ((Application)o).iarry;
         System.print((var[])o);
 
         o = 9;
         asm("nop");
         System.print((var)o);
 
-        o = new Start();
-        Start oref;
-        oref = (Start)o;
+        o = new Application();
+        Application oref;
+        oref = (Application)o;
         System.print(oref.iarry);
 
-        object[] arry = new Start[1];
-        arry[0] = new Start();
+        object[] arry = new Application[1];
+        arry[0] = new Application();
 
         if(o == o) {
             System.println("they are the same" + (_int8)9);
@@ -46,7 +48,7 @@ class Start base k {
         asm("nop");
         asm("nop");
         asm("nop");
-        foo(((Start)o).iarry);
+        foo(((Application)o).iarry);
         foo(9);
         return 0;
     } // TODO: enforce return statements

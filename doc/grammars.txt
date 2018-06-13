@@ -130,6 +130,7 @@ expression '[' expression ']' [<dot-notation-call-expr>] expression
     |  <dot-notation-call-expr>                 // ast_dot_not_e
     | new uType [([<value-list>] | [VectorArray>])] // TODO: add array creation
     | sizeof '(' expression ')'
+    | '(' uType ')' expression
     | '(' expression ')' [<dot-notation-call-expr>] expression
     | null
     | <array-expression>
@@ -137,7 +138,6 @@ expression '[' expression ']' [<dot-notation-call-expr>] expression
 
 <expression>:
 <primary-expr>
-    | '(' uType ')' expression
     | ('+' | '-' | '++' | '--') expression
     | '!' expression
     | <VectorArray> // allowed for processing purposes only language does not allow random arrays

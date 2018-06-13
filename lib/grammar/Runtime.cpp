@@ -710,7 +710,7 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
                     ss << generic_label_id << ++currentScope()->uniqueLabelSerial;
                     ifBlockEnd = ss.str(); ss.str("");
 
-                    currentScope()->addStore(ifBlockEnd, adx, 1, block.code,
+                    currentScope()->addStore(ifBlockEnd, adx, 2, block.code,
                                     ast->getSubAst(ast_expression)->line, ast->getSubAst(ast_expression)->col);
                     block.code.push_i64(SET_Ei(i64, op_IFNE));
 
@@ -941,6 +941,7 @@ void RuntimeEngine::getArrayValueOfExpression(Expression& expr, Expression& out)
             } else if(expr.trueType() == OBJECT) {
                 out.type=expression_objectclass;
                 out.utype.type=OBJECT;
+                out.code.push_i64(SET_Di(i64, op_MOVND, ebx));
             }
             else {
                 out.type=expression_lclass;
@@ -3118,7 +3119,8 @@ Expression RuntimeEngine::parseDotNotationCall(Ast* pAst) {
 }
 
 Expression RuntimeEngine::parsePrimaryExpression(Ast* ast) {
-    ast = ast->getSubAst(0);
+    if(ast->getType() == ast_primary_expr)
+        ast = ast->getSubAst(0);
 
     switch(ast->getType()) {
         case ast_literal_e:
@@ -3135,6 +3137,8 @@ Expression RuntimeEngine::parsePrimaryExpression(Ast* ast) {
             return parseNullExpression(ast);
         case ast_new_e:
             return parseNewExpression(ast);
+        case ast_cast_e:
+            return parseCastExpression(ast);
         case ast_sizeof_e:
             return parseSizeOfExpression(ast);
         case ast_paren_e:
@@ -3875,7 +3879,7 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
     Expression interm(pAst);
     token_entity entity = pAst->hasEntity(_INC) ? pAst->getEntity(_INC) : pAst->getEntity(_DEC);
 
-    interm = parseIntermExpression(pAst->getSubAst(0));
+    interm = parsePrimaryExpression(pAst->getSubAst(0));
     Expression expression(interm);
 
     if(interm.isArray()){
@@ -3990,7 +3994,7 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
     Expression expression(pAst), interm(pAst), indexExpr(pAst);
     Field* field;
 
-    interm = parseIntermExpression(pAst->getSubAst(0));
+    interm = parseDotNotationCall(pAst->getSubAst(0)->getSubAst(ast_dotnotation_call_expr));
     indexExpr = parseExpression(pAst->getSubAst(1));
 
     pushExpressionToPtr(interm, expression);
@@ -5011,7 +5015,7 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
         case expression_field:
             if(left.utype.field->isNative()) {
                 // add var
-                if(right.trueType() == OBJECT) {
+                if(right.trueType() == OBJECT || right.trueType() == CLASS) {
                     if(left.trueType() == OBJECT) {
                         return true;
                     }
@@ -5131,6 +5135,13 @@ void RuntimeEngine::addNative(token_entity operand, FieldType type, Expression& 
     } else {
         errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `" + operand.getToken() + "` cannot be applied to expression of type `" + left.typeToString() + "` and `" + right.typeToString() + "`");
     }
+}
+
+bool RuntimeEngine::hasOverload(token_entity operand, Expression &right, ClassObject* klass, Ast* pAst) {
+    List<Param> params;
+    List<Expression> eList;
+    eList.push_back(right);
+    return klass->getOverload(stringToOp(operand.getToken()), params, true) != NULL;
 }
 
 void RuntimeEngine::addClass(token_entity operand, ClassObject* klass, Expression& out, Expression& left, Expression &right, Ast* pAst) {
@@ -5389,10 +5400,9 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
     bool firstEval=true;
     token_entity operand;
     List<token_entity> operands;
-    operands.add(pAst->getEntity(0));
-    for(unsigned int i = 0; i < pAst->getSubAstCount(); i++) {
-        if(pAst->getSubAst(i)->getEntityCount() > 0 && isMathOp(pAst->getSubAst(i)->getEntity(0)))
-            operands.add(pAst->getSubAst(i)->getEntity(0));
+    for(unsigned int i = 0; i < pAst->getEntityCount(); i++) {
+        if(isMathOp(pAst->getEntity(i)))
+            operands.add(pAst->getEntity(i));
     }
 
     operandPtr=0;
@@ -5551,6 +5561,13 @@ Expression RuntimeEngine::parseAddExpression(Ast* pAst) {
         return parseUnary(operand, right, pAst);
     }
 
+    retry:
+    if(pAst->getSubAst(ast_add_e)) {
+        for(;;) { // very silly, is there a better way?
+            pAst = pAst->getSubAst(ast_add_e);
+            goto retry;
+        }
+    }
     parseAddExpressionChain(expression, pAst);
 
     expression.link = pAst;
@@ -5567,6 +5584,13 @@ Expression RuntimeEngine::parseMultExpression(Ast* pAst) {
         return Expression(pAst);
     }
 
+    retry:
+    if(pAst->getSubAst(ast_mult_e)) {
+        for(;;) { // very silly, is there a better way?
+            pAst = pAst->getSubAst(ast_mult_e);
+            goto retry;
+        }
+    }
     parseAddExpressionChain(expression, pAst);
 
     expression.link = pAst;
@@ -5928,7 +5952,7 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
         case expression_field:
             if(left.utype.field->isNative()) {
                 // add var
-                if(right.trueType() == OBJECT) {
+                if(right.trueType() == OBJECT || right.trueType() == CLASS) {
                     if(left.trueType() == OBJECT) {
                         return true;
                     }
@@ -5937,6 +5961,8 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
                 } else if(right.trueType() == VAR || (right.trueType() != CLASS)) {
                     if(left.trueType() == VAR) {
                         return left.isArray() == right.isArray();
+                    } else if(left.trueType() == OBJECT) {
+                        return true;
                     }
                 }
             } else if(left.utype.field->type == CLASS) {
@@ -6682,7 +6708,7 @@ Expression RuntimeEngine::parseAssignExpression(Ast* pAst) {
     out.type = expression_var;
     switch(left.type) {
         case expression_var:
-            if(operand.getTokenType() == ASSIGN) {
+            if(operand.getTokenType() == ASSIGN && !left.arrayElement) {
                 errors->createNewError(GENERIC, pAst->line, pAst->col, "expression is not assignable");
             } else {
                 if(right.type == expression_var) {
@@ -6712,11 +6738,14 @@ Expression RuntimeEngine::parseAssignExpression(Ast* pAst) {
             errors->createNewError(GENERIC, pAst->line, pAst->col, "expression is not assignable");
             break;
         case expression_field:
-            if(left.utype.field->isVar()) {
+            if(left.utype.field->isVar() || left.utype.field->dynamicObject()) {
                 // add var
                 assignValue(operand, out, left, right, pAst);
             } else if(left.utype.field->type == CLASS) {
-                addClass(operand, left.utype.field->klass, out, left, right, pAst);
+                if(left.arrayElement || !hasOverload(operand, right, left.utype.field->klass, pAst))
+                    assignValue(operand, out, left, right, pAst);
+                else
+                    addClass(operand, left.utype.field->klass, out, left, right, pAst);
             } else {
                 // do nothing field unresolved
             }
@@ -6725,7 +6754,10 @@ Expression RuntimeEngine::parseAssignExpression(Ast* pAst) {
             errors->createNewError(UNEXPECTED_SYMBOL, pAst->line, pAst->col, " `" + left.typeToString() + "`");
             break;
         case expression_lclass:
-            addClass(operand, left.utype.klass, out, left, right, pAst);
+            if(left.arrayElement)
+                assignValue(operand, out, left, right, pAst);
+            else
+                addClass(operand, left.utype.klass, out, left, right, pAst);
             break;
         case expression_class:
             errors->createNewError(UNEXPECTED_SYMBOL, pAst->line, pAst->col, " `" + left.typeToString() + "`");
@@ -6734,7 +6766,10 @@ Expression RuntimeEngine::parseAssignExpression(Ast* pAst) {
             errors->createNewError(GENERIC, pAst->line, pAst->col, "expression is not assignable");
             break;
         case expression_objectclass:
-            errors->createNewError(GENERIC, pAst->line, pAst->col, "expression is not assignable. Did you forget to apply a cast? "
+            if(left.arrayElement)
+                assignValue(operand, out, left, right, pAst);
+            else
+                errors->createNewError(GENERIC, pAst->line, pAst->col, "expression is not assignable. Did you forget to apply a cast? "
                                                                      "i.e ((SomeClass)dynamic_class) " + operand.getToken() + " <data>");
             break;
         case expression_string:
@@ -6819,8 +6854,6 @@ Expression RuntimeEngine::parseExpression(Ast *ast) {
     switch (encap->getType()) {
         case ast_primary_expr:
             return parsePrimaryExpression(encap);
-        case ast_cast_e:
-            return parseCastExpression(encap);
         case ast_pre_inc_e:
             return parsePreInc(encap);
         case ast_not_e:
