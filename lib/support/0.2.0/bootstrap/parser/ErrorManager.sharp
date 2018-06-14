@@ -7,8 +7,52 @@ import std;
  */
 class ErrorManager {
     private static Dictionary<CompilerError, string> predefinedErrors = new Dictionary<CompilerError, string>();
-    private ArrayList<CompilerError> errors, rawErrors, warnings;
-    private ArrayList<ArrayList<CompilerError> > possibleErrors;
+    private ArrayList<ParseError> errors, rawErrors, warnings;
+    private ArrayList<ArrayList<ParseError> > possibleErrors;
+    private CompilerError lastError, lastCheckedError;
+    private var errorsFound, protectedMode, directReport, aggressiveErrors;
+    private ArrayList<string> lines;
+    private string filename;
+
+    public ErrorManager(ArrayList<string> lines, string file, var asIs, var aggressive)
+    {
+        self->possibleErrors = new ArrayList<ArrayList<ParseError> >();
+        self->errors = new ArrayList<ParseError>();
+        self->rawErrors = new ArrayList<ParseError>();
+        self->warnings = new ArrayList<ParseError>();
+        self->lines = new ArrayList<string>();
+        self->directReport = asIs;
+        self->aggressiveErrors = aggressive;
+
+        lines.addAll(lines);
+        lastError = CompilerError.NO_ERR;
+        lastCheckedError = CompilerError.NO_ERR;
+    }
+
+    public def printErrors() {
+        if(!directReport) {
+            if(errorsFound) {
+                if(aggressiveErrors)
+                    System.println(getErrors(rawErrors));
+                else
+                    System.println(getErrors(errors));
+            }
+
+            System.println(getErrors(warnings));
+        }
+    }
+
+
+    def getErrors(ArrayList<ParseError> errors) : string {
+        string sb;
+
+        ParseError[] errs =  errors.toArray();
+        foreach(ParseError error : errs) {
+            if(error.warning)
+        }
+
+        return sb;
+    }
 
     public static def initErrors() {
         predefinedErrors.put(CompilerError.UNEXPECTED_SYMBOL, "unexpected symbol");
@@ -67,6 +111,15 @@ class ErrorManager {
 
         predefinedErrors.put(CompilerError.DUPlICATE_DECLIRATION, "duplicate declaration of");
     }
+}
+
+class ParseError {
+
+   public CompilerError id;
+   public string error;
+   public var line;
+   public var col;
+   public var warning;
 }
 
 enum CompilerError {

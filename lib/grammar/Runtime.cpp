@@ -421,6 +421,7 @@ void RuntimeEngine::compile()
         resolveAllGenerics();
         resolveAllFields();
         resolveAllMethods();
+        resolveAllGenericMethodsParams();
         resolveAllEnums();
         inlineFields();
         resolveAllInterfaces();
@@ -7190,6 +7191,7 @@ void RuntimeEngine::resolveAllMethods() {
      * All fields have been processed, so we are good to fully parse utypes for method params
      */
     resolveAllFields();
+    resolvedMethods = true;
 }
 
 /**
@@ -7561,7 +7563,7 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
             continue;
         }
 
-        if(!failed && resolvedGenerics && ast->hasSubAst(ast_utype_list) && ast->getSubAst(idx++)->getType() == ast_utype_list){
+        if(!failed && resolvedGenerics && resolvedMethods && ast->hasSubAst(ast_utype_list) && ast->getSubAst(idx++)->getType() == ast_utype_list){
             List<Expression> utypes;
             parseUtypeList(ast->getSubAst(idx-1), utypes);
             findAndCreateGenericClass(ptr.module, id, utypes, parent, ast);
@@ -8352,6 +8354,12 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                         }
 
                         if((klass = getClass(refrence.module, refrence.referenceName, generics)) != NULL) {
+                            if(!resolvedMethods) {
+                                expression.utype.type = TYPEGENERIC;
+                                expression.utype.klass = klass;
+                                expression.type = expression_generic;
+                                return;
+                            }
                             expression.utype.type = UNDEFINED;
                             expression.utype.referenceName = refrence.referenceName;
                             expression.type = expression_unresolved;
@@ -8881,12 +8889,22 @@ void RuntimeEngine::resolveMethodDecl(Ast* ast) {
     } else
         method.type = TYPEVOID;
 
-    if(!currentScope()->klass->isGeneric())
-        method.address = methods++;
-    if(!currentScope()->klass->addFunction(method)) {
-        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                               "function `" + name + "` is already defined in the scope");
-        printNote(currentScope()->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
+    if(!resolvedMethods) {
+        method.ast = ast;
+        if(!currentScope()->klass->isGeneric())
+            method.address = methods++;
+        if(!currentScope()->klass->addFunction(method)) {
+            this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                                         "function `" + name + "` is already defined in the scope");
+            printNote(currentScope()->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
+        }
+    } else {
+        for(long i = 0; i < currentScope()->klass->functionCount(); i++) {
+            if(currentScope()->klass->getFunction(i)->ast == ast) {
+                currentScope()->klass->getFunction(i)->getParams().addAll(params);
+                return;
+            }
+        }
     }
 }
 
@@ -8915,12 +8933,23 @@ void RuntimeEngine::resolveDelegateDecl(Ast* ast) {
     } else
         method.type = TYPEVOID;
 
-    if(!currentScope()->klass->isGeneric())
-        method.address = methods++;
-    if(!currentScope()->klass->addFunction(method)) {
-        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                                     "function `" + name + "` is already defined in the scope");
-        printNote(currentScope()->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
+    if(!resolvedMethods) {
+        method.ast = ast;
+        if (!currentScope()->klass->isGeneric())
+            method.address = methods++;
+        if (!currentScope()->klass->addFunction(method)) {
+            this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                                         "function `" + name + "` is already defined in the scope");
+            printNote(currentScope()->klass->getFunction(name, params)->note,
+                      "function `" + name + "` previously defined here");
+        }
+    } else {
+        for(long i = 0; i < currentScope()->klass->functionCount(); i++) {
+            if(currentScope()->klass->getFunction(i)->ast == ast) {
+                currentScope()->klass->getFunction(i)->getParams().addAll(params);
+                return;
+            }
+        }
     }
 }
 
@@ -8949,12 +8978,23 @@ void RuntimeEngine::resolveDelegatePostDecl(Ast* ast) {
     } else
         method.type = TYPEVOID;
 
-    if(!currentScope()->klass->isGeneric())
-        method.address = uniqueDelegateId++;
-    if(!currentScope()->klass->addFunction(method)) {
-        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                                     "function `" + name + "` is already defined in the scope");
-        printNote(currentScope()->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
+    if(!resolvedMethods) {
+        method.ast = ast;
+        if (!currentScope()->klass->isGeneric())
+            method.address = uniqueDelegateId++;
+        if (!currentScope()->klass->addFunction(method)) {
+            this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                                         "function `" + name + "` is already defined in the scope");
+            printNote(currentScope()->klass->getFunction(name, params)->note,
+                      "function `" + name + "` previously defined here");
+        }
+    } else {
+        for(long i = 0; i < currentScope()->klass->functionCount(); i++) {
+            if(currentScope()->klass->getFunction(i)->ast == ast) {
+                currentScope()->klass->getFunction(i)->getParams().addAll(params);
+                return;
+            }
+        }
     }
 }
 
@@ -9035,13 +9075,25 @@ void RuntimeEngine::resolveOperatorDecl(Ast* ast) {
     } else
         operatorOverload.type = TYPEVOID;
 
-    if(!currentScope()->klass->isGeneric())
-        operatorOverload.address = methods++;
 
-    if(!currentScope()->klass->addOperatorOverload(operatorOverload)) {
-        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                               "function `" + op + "` is already defined in the scope");
-        printNote(currentScope()->klass->getOverload(stringToOp(op), params)->note, "function `" + op + "` previously defined here");
+    if(!resolvedMethods) {
+        operatorOverload.ast = ast;
+        if (!currentScope()->klass->isGeneric())
+            operatorOverload.address = methods++;
+
+        if (!currentScope()->klass->addOperatorOverload(operatorOverload)) {
+            this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                                         "function `" + op + "` is already defined in the scope");
+            printNote(currentScope()->klass->getOverload(stringToOp(op), params)->note,
+                      "function `" + op + "` previously defined here");
+        }
+    } else {
+        for(long i = 0; i < currentScope()->klass->overloadCount(); i++) {
+            if(currentScope()->klass->getOverload(i)->ast == ast) {
+                currentScope()->klass->getOverload(i)->getParams().addAll(params);
+                return;
+            }
+        }
     }
 }
 
@@ -9081,12 +9133,23 @@ void RuntimeEngine::resolveConstructorDecl(Ast* ast) {
         method.klass = currentScope()->klass;
         method.isConstructor=true;
 
-        if(!currentScope()->klass->isGeneric())
-            method.address = methods++;
-        if(!currentScope()->klass->addConstructor(method)) {
-            this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                                   "constructor `" + name + "` is already defined in the scope");
-            printNote(currentScope()->klass->getConstructor(params)->note, "constructor `" + name + "` previously defined here");
+        if(!resolvedMethods) {
+            method.ast = ast;
+            if (!currentScope()->klass->isGeneric())
+                method.address = methods++;
+            if (!currentScope()->klass->addConstructor(method)) {
+                this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                                             "constructor `" + name + "` is already defined in the scope");
+                printNote(currentScope()->klass->getConstructor(params)->note,
+                          "constructor `" + name + "` previously defined here");
+            }
+        } else {
+            for(long i = 0; i < currentScope()->klass->constructorCount(); i++) {
+                if(currentScope()->klass->getConstructor(i)->ast == ast) {
+                    currentScope()->klass->getConstructor(i)->getParams().addAll(params);
+                    return;
+                }
+            }
         }
     } else
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
@@ -12078,4 +12141,60 @@ bool RuntimeEngine::isNativeIntegerClass(ClassObject *klass) {
              klass->getName() == "char" || klass->getName() == "uint"    ||
              klass->getName() == "ushort" || klass->getName() == "ubool" ||
              klass->getName() == "ulong" || klass->getName() == "uchar"));
+}
+
+void RuntimeEngine::resolveAllGenericMethodsParams() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        activeParser = parsers.get(i);
+        errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
+        currentModule = "$unknown";
+
+        addScope(Scope(GLOBAL_SCOPE, NULL));
+        for(int x = 0; x < activeParser->treesize(); x++) {
+            Ast* ast = activeParser->ast_at(x);
+            SEMTEX_CHECK_ERRORS
+
+            if(x==0) {
+                if(ast->getType() == ast_module_decl) {
+                    add_module(currentModule = parseModuleName(ast));
+                    continue;
+                }
+            }
+
+            switch(ast->getType()) {
+                case ast_class_decl:
+                    resolveClassDecl(ast, false);
+                    break;
+                case ast_interface_decl:
+                    resolveClassDecl(ast, false);
+                    break;
+                case ast_generic_class_decl:
+                case ast_generic_interface_decl:
+                    resolveGenericClassDecl(ast, true);
+                    break;
+                case ast_enum_decl: /* ignore */
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+        }
+
+        if(errors->hasErrors()){
+            report:
+
+            errorCount+= errors->getErrorCount();
+            unfilteredErrorCount+= errors->getUnfilteredErrorCount();
+
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        } else {
+            succeededParsers.addif(activeParser->sourcefile);
+            failedParsers.removefirst(activeParser->sourcefile);
+        }
+
+        errors->free();
+        delete (errors); this->errors = NULL;
+        removeScope();
+    }
 }

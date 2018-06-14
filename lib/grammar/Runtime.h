@@ -520,7 +520,8 @@ public:
             allMethods(),
             staticMainInserts(),
             preprocessed(false),
-            resolvedGenerics(false)
+            resolvedGenerics(false),
+            resolvedMethods(false)
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
@@ -602,7 +603,7 @@ private:
     string exportFile;
     ErrorManager* errors;
     string currentModule;
-    bool resolvedFields, resolvedGenerics;
+    bool resolvedFields, resolvedGenerics, resolvedMethods;
     unsigned long methods;
     unsigned long classSize;
     Method* main;
@@ -1107,6 +1108,8 @@ private:
     bool isNativeIntegerClass(ClassObject *klass);
 
     bool isNativeStringClass(ClassObject *klass);
+
+    void resolveAllGenericMethodsParams();
 };
 
 

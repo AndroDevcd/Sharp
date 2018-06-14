@@ -79,6 +79,20 @@ public class ArrayList<T> {
         mData = (T[]) Array<T>.copyOf(mData, sizeof(mData)-1, sizeof(mData)-1);
     }
 
+
+    /**
+      * Appends the specified elements inside the provided list to the end of this list.
+      *
+      * @param e elements to be appended to this list
+      * @return <tt>true</tt> (as specified by {@link Collection#add})
+      */
+     public def addAll(ArrayList<T> lst) {
+        T[] arry = lst.toArray();
+        foreach(T data : arry) {
+            add(data);
+        }
+     }
+
     /**
       * Appends the specified element to the end of this list.
       *
@@ -113,20 +127,6 @@ public class ArrayList<T> {
              mData=result;
          }
 
-     }
-
-     /**
-      * Attempts to find the presence of similar data in the list. This method returns false
-      * if there was no match found.
-      *
-      */
-     public def contains(T tData) : var {
-        foreach(T t : mData) {
-            if(t == tData)
-                return true;
-        }
-
-        return false;
      }
 
     /**
@@ -183,13 +183,6 @@ public class ArrayList<T> {
     * User must implement their own equals method
     */
     public def operator==(ArrayList<T> arry) : var {
-        return false;
-    }
-
-    /**
-    * User must implement their own equals method
-    */
-    public def operator==(T arry) : var {
         return false;
     }
 }

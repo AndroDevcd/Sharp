@@ -51,7 +51,8 @@ public:
             delegate(false),
             delegatePost(false),
             delegateAddress(DELEGATE_ADDRESS_DEFAULT),
-            key("")
+            key(""),
+            ast(NULL)
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -189,6 +190,7 @@ public:
         this->module=func.module;
         this->params.addAll(func.params);
         this->key=func.key;
+        this->ast = func.ast;
     }
 
     RuntimeNote note;
@@ -208,6 +210,7 @@ public:
     List<SwitchTable> switchTable;
     List<FinallyTable> finallyBlocks;
     List<long> unique_address_table;
+    Ast *ast;
 private:
     List<AccessModifier> modifiers; // 3 max modifiers
     string name;

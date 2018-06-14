@@ -136,7 +136,7 @@ public class Runtime {
                     if(args[i].at(0) == '-')
                         goto parseArg;
 
-                    if(!files.contains(args[i]))
+                    if(!contains(files, args[i]))
                         files.add(args[i++]);
                     else i++;
                 }while(i<sizeof(args));
@@ -181,6 +181,16 @@ public class Runtime {
         }
 
         exec_runtime(files);
+    }
+
+    static def contains(ArrayList<string> files, string file) : var {
+        string[] lst = files.toArray();
+        foreach(string f : lst) {
+            if(f == file)
+                return true;
+        }
+
+        return false;
     }
 
     static def exec_runtime(ArrayList<string> files) {
