@@ -22,7 +22,7 @@ class TokenEntity {
     }
 
     public def operator!=(TokenId id) : var {
-        return self->id == id;
+        return self->id != id;
     }
 
     public def operator==(string token) : var {
@@ -35,6 +35,10 @@ class TokenEntity {
 
     public def operator==(TokenEntity entity) : var {
         return id==entity.id && token == entity.token;
+    }
+
+    public def operator==(TokenId id) : var {
+        return self->id == id;
     }
 
     public def getId() : TokenId {
@@ -61,7 +65,7 @@ class TokenEntity {
     private var col;
     private TokenId id;
     private TokenType type;
-    private string token;
+    private string token = "";
 }
 
 enum TokenId

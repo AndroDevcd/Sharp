@@ -186,6 +186,14 @@ struct Expression {
                 return utype.type;
         }
     }
+    ClassObject* getClass() {
+        switch(type) {
+            case expression_field:
+                return utype.field->klass;
+            default:
+                return utype.klass;
+        }
+    }
     bool isEnum() {
         return utype.isEnum();
     }
@@ -589,6 +597,8 @@ public:
     static int64_t get_low_bytes(double var);
 
     static Operator stringToOp(string op);
+
+    static bool isNativeIntegerClass(ClassObject *klass);
 
     List<ClassObject*> classes;
 private:
@@ -1105,11 +1115,11 @@ private:
 
     bool hasOverload(token_entity operand, Expression &right, ClassObject *klass, Ast *pAst);
 
-    bool isNativeIntegerClass(ClassObject *klass);
-
     bool isNativeStringClass(ClassObject *klass);
 
     void resolveAllGenericMethodsParams();
+
+    bool isAndOp(token_entity entity);
 };
 
 

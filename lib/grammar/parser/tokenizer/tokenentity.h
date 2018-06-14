@@ -62,7 +62,7 @@ public:
 
     bool operator!=(const token_entity_id& id)
     {
-        return this->id == id;
+        return this->id != id;
     }
     void operator=(const token_entity& entity)
     {

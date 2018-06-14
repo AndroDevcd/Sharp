@@ -839,7 +839,22 @@ void RuntimeEngine::parseUtypeArg(Ast *pAst, Scope *scope, Block &block, Express
                 equals(fieldExpr, value);
 
                 token_entity operand("=", SINGLE, 0,0, ASSIGN);
-                assignValue(operand, out, fieldExpr, value, pAst);
+                Field *field = &currentScope()->getLocalField(utypeArg.key)->value;
+                if(field->type==CLASS && field->klass->getModuleName() == "std" && field->klass->getName() == "string"
+                   && value.type == expression_string && !field->isArray) {
+                    constructNewNativeClass("string", "std", value, out, true);
+                    out.code.push_i64(SET_Di(i64, op_POPL, field->address));
+                } else if(field->type==CLASS && field->klass->getModuleName() == "std" &&
+                          (field->klass->getName() == "int" || field->klass->getName() == "bool"
+                           || field->klass->getName() == "char" || field->klass->getName() == "long"
+                           || field->klass->getName() == "short" || field->klass->getName() == "string"
+                           || field->klass->getName() == "uchar" || field->klass->getName() == "ulong"
+                           || field->klass->getName() == "ushort")
+                          && value.type == expression_var && !field->isArray) {
+                    constructNewNativeClass(field->klass->getName(), "std", value, out, true);
+                    out.code.push_i64(SET_Di(i64, op_POPL, field->address));
+                } else
+                    assignValue(operand, out, fieldExpr, value, pAst);
                 block.code.inject(block.code.size(), out.code);
             }
         }
@@ -2839,7 +2854,20 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
             }
             break;
         case expression_lclass:
-            errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `" + expr.utype.typeToString() +"`");
+            if(isNativeIntegerClass(expr.getClass())) {
+                if(expr.func) {
+                    out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                    out.code.push_i64(SET_Di(i64, op_MOVND, adx));
+                } else {
+                    out.code.push_i64(SET_Di(i64, op_MOVN, 0));
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                }
+                out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
+                if(expr.func)
+                    out.code.push_i64(SET_Ei(i64, op_POP));
+            } else
+                errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `" + expr.utype.typeToString() +"`");
             break;
         case expression_string:
             errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `var[]`");
@@ -3174,11 +3202,13 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
     List<Param> params;
     List<Expression> expressions = parseValueList(valueList);
     Expression expression(utype);
+    bool single = true;
 
     expressionListToParams(params, expressions);
     ptr = parseTypeIdentifier(utype);
 
     if(splitMethodUtype(methodName, ptr)) {
+        single = false;
         // accessor
         if(currentScope()->type == GLOBAL_SCOPE) {
 
@@ -3243,8 +3273,13 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
 
         verifyMethodAccess(fn, utype);
         if(!fn->isStatic()) {
-            out.code.push_i64(SET_Di(i64, op_MOVL, 0));
-            out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            if(single) {
+                out.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            } else {
+                out.inject(expression);
+                out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            }
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
@@ -3271,6 +3306,7 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
                 out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, fn->address, 0, expressions.size()));
         } else
         out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
+        out.func = true;
     }
 
     freeList(params);
@@ -3356,8 +3392,10 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
 
     expressionListToParams(params, expressions);
     ptr = parseTypeIdentifier(utype);
+    bool single = true;
     
     if(splitMethodUtype(methodName, ptr)) {
+        single = true;
         if(currentScope()->type == GLOBAL_SCOPE) {
             errors->createNewError(GENERIC, valueList->line, valueList->col,
                              "cannot get object `" + methodName + paramsToString(params) + "` from self at global scope");
@@ -3438,8 +3476,13 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
 
         verifyMethodAccess(fn, utype);
         if(!fn->isStatic()) {
-            out.code.push_i64(SET_Di(i64, op_MOVL, 0));
-            out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            if(single) {
+                out.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            } else {
+                out.inject(expression);
+                out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            }
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
@@ -3466,6 +3509,7 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
                 out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, fn->address, 0, expressions.size()));
         } else
         out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
+        out.func = true;
     }
 
     freeList(params);
@@ -3562,6 +3606,8 @@ void RuntimeEngine::checkVectorArray(Expression& utype, List<Expression>& vecArr
                                                                                                                     utype.utype.klass->getName() + "` is not compatible with class `" + vecArry.get(i).utype.klass->getName() + "`");
                         }
                     } else if(utype.utype.type == OBJECT) {
+                        /* Do nothing */
+                    } else if(utype.trueType() == VAR) {
                         /* Do nothing */
                     } else {
                         errors->createNewError(INCOMPATIBLE_TYPES, vecArry.get(i).link->line, vecArry.get(i).link->col, ": type `" + utype.utype.typeToString() + "` is not compatible with type `"
@@ -3708,7 +3754,7 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                 errors->createNewError(GENERIC, utype.link->line, utype.link->col, "expected '()' after class " + utype.utype.klass->getName());
             } else {
                 expressionListToParams(params, expressions);
-                if((fn=utype.utype.klass->getConstructor(params, true))==NULL) {
+                if((fn=utype.utype.klass->getConstructor(params, true, true))==NULL) {
                     errors->createNewError(GENERIC, utype.link->line, utype.link->col, "class `" + utype.utype.klass->getFullName() +
                                                                                "` does not contain constructor `" + utype.utype.klass->getName() + paramsToString(params) + "`");
                 }
@@ -3868,12 +3914,13 @@ void RuntimeEngine::postIncClass(Expression& out, token_entity op, ClassObject* 
     if(overload != NULL) {
         // add code to call overload
 
+        if(!overload->isStatic())
+            out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+
         verifyMethodAccess(overload, out.link);
         out.code.push_i64(SET_Di(i64, op_MOVI, 1), ebx);
         out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
-        if(!overload->isStatic())
-            out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
         out.code.push_i64(SET_Di(i64, op_CALL, overload->address));
 
@@ -3921,8 +3968,6 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
                 break;
             case expression_field:
                 if(interm.utype.field->type == CLASS) {
-                    if(expression.utype.field->local)
-                        expression.code.push_i64(SET_Di(i64, op_MOVL, expression.utype.field->address));
                     postIncClass(expression, entity, interm.utype.field->klass);
                     return expression;
                 } else if(interm.utype.field->type == VAR || interm.utype.field->type == OBJECT) {
@@ -4309,10 +4354,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
             return;
         } else if(expression.trueType() == CLASS && expression.utype.field != NULL) {
             ClassObject *klass = expression.utype.field->klass;
-            if(isNativeIntegerClass(klass)) {
-                pushExpressionToRegisterNoInject(expression, out, ebx);
-                return;
-            } else if(klass->isEnum()) {
+            if(klass->isEnum()) {
                 pushExpressionToRegisterNoInject(expression, out, ebx);
                 return;
             }
@@ -4482,13 +4524,13 @@ void RuntimeEngine::preIncClass(Expression& out, token_entity op, ClassObject* k
 
     if(overload != NULL) {
         // add code to call overload
+        if(!overload->isStatic())
+            out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
         verifyMethodAccess(overload, out.link);
         out.code.push_i64(SET_Di(i64, op_MOVI, 0), ebx);
         out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
-        if(!overload->isStatic())
-            out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
         out.code.push_i64(SET_Di(i64, op_CALL, overload->address));
 
@@ -4534,9 +4576,6 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
                 break;
             case expression_field:
                 if(interm.utype.field->type == CLASS) {
-                    if(expression.utype.field->local)
-                        expression.code.push_i64(SET_Di(i64, op_MOVL, expression.utype.field->address));
-
                     preIncClass(expression, entity, expression.utype.field->klass);
                     return expression;
                 } else if(interm.utype.field->type == VAR) {
@@ -5047,6 +5086,9 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                 if(right.trueType() == OBJECT || right.trueType() == CLASS) {
                     if(left.trueType() == OBJECT) {
                         return true;
+                    } else if(isNativeIntegerClass(right.getClass())) {
+                        if(left.trueType() == VAR)
+                            return true;
                     }
                 } else if(right.type == expression_string || right.type == expression_null) {
                     return left.utype.field->isArray;
@@ -5420,6 +5462,13 @@ bool RuntimeEngine::isMathOp(token_entity entity)
     return entity == "+" || entity == "-"
            || entity == "*" || entity == "/"
            || entity == "%";
+}
+
+bool RuntimeEngine::isAndOp(token_entity entity)
+{
+    return entity == "&&" || entity == "||"
+           || entity == "|" || entity == "&"
+           || entity == "^";
 }
 
 void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
@@ -5986,6 +6035,9 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
                 if(right.trueType() == OBJECT || right.trueType() == CLASS) {
                     if(left.trueType() == OBJECT) {
                         return true;
+                    } else if(isNativeIntegerClass(right.getClass())) {
+                        if(left.trueType() == VAR)
+                            return true;
                     }
                 } else if(right.type == expression_string || right.type == expression_null) {
                     return left.utype.field->isArray;
@@ -6146,10 +6198,8 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 out.inject(left);
                 out.code.push_i64(SET_Ei(i64, op_POPOBJ));
             } else {
-                if(left.type == expression_lclass) {
-                    addClass(operand, left.utype.klass, out, left, right, pAst);
-                } else if(left.utype.type == CLASSFIELD && left.utype.field->type == CLASS) {
-                    addClass(operand, left.utype.field->klass, out, left, right, pAst);
+                if(left.trueType() == CLASS) {
+                    addClass(operand, left.getClass(), out, left, right, pAst);
                 } else {
                     if(left.trueType() == CLASS && right.trueType() == CLASS) {
                         errors->createNewError(GENERIC, right.link->line,  right.link->col, "classes in expression are not compatible");
@@ -6530,9 +6580,9 @@ void RuntimeEngine::parseAndExpressionChain(Expression& out, Ast* pAst) {
     List<token_entity> operands;
     operands.add(pAst->getEntity(0));
     bool value=0;
-    for(unsigned int i = 0; i < pAst->getSubAstCount(); i++) {
-        if(pAst->getSubAst(i)->getEntityCount() > 0 && isMathOp(pAst->getSubAst(i)->getEntity(0)))
-            operands.add(pAst->getSubAst(i)->getEntity(0));
+    for(unsigned int i = 0; i < pAst->getEntityCount(); i++) {
+        if(isAndOp(pAst->getEntity(i)))
+            operands.add(pAst->getEntity(i));
     }
 
     operandPtr=operands.size()-1;
@@ -6710,6 +6760,14 @@ void RuntimeEngine::parseAndExpressionChain(Expression& out, Ast* pAst) {
 
 Expression RuntimeEngine::parseAndExpression(Ast* pAst) {
     Expression out(pAst), left(pAst), right(pAst);
+    retry:
+    if(pAst->getSubAst(ast_and_e)) {
+        for(;;) { // very silly, is there a better way?
+            pAst = pAst->getSubAst(ast_and_e);
+            goto retry;
+        }
+    }
+
     token_entity operand = pAst->getEntity(0);
     andExprs++;
 
@@ -7028,7 +7086,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
                  */
                 for(unsigned int i = 0; i < currentScope()->klass->constructorCount(); i++) {
                     Method* method = currentScope()->klass->getConstructor(i);
-                    method->code.inject(method->code.size(), out.code);
+                    method->code.inject(0, out.code);
                 }
             }
 
@@ -9409,7 +9467,7 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
         klass = currentScope()->klass->getChildClass(name);
     }
 
-    if(!inlineField && resolvedFields && !forEnum)
+    if(!inlineField && resolvedFields && !forEnum && klass->address == -1)
         klass->address = classSize++;
 
     addScope(Scope(CLASS_SCOPE, klass));
@@ -12132,13 +12190,14 @@ bool RuntimeEngine::isExpressionConvertableToNativeClass(Field *f, Expression &e
         if(f->klass->getName() == "string") {
             return exp.type == expression_string;
         } else {
-            return exp.trueType() == VAR && !exp.isArray();
+            return (exp.trueType() == VAR || isNativeIntegerClass(exp.getClass())) && !exp.isArray();
         }
     }
     return false;
 }
 
 bool RuntimeEngine::isNativeIntegerClass(ClassObject *klass) {
+    if(klass == NULL) return false;
     return (klass->getModuleName() == "std" &&
             (klass->getName() == "int" || klass->getName() == "short"    ||
              klass->getName() == "bool" || klass->getName() == "long"    ||

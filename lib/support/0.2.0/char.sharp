@@ -1,10 +1,9 @@
 mod std;
 
 public class char base integer {
-    var value;
 
     public char(var num) {
-        value = (_int8)num;
+        base->integer((_int8)num);
     }
 
     public char(integer num) {
@@ -53,6 +52,9 @@ public class char base integer {
     
     public def operator==(var num) : var {
         return (value==num);
+    }
+    public def operator!=(char c) : var {
+        return (value==c);
     }
     
     public def operator==(integer num) : var {

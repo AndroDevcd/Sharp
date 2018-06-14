@@ -1,7 +1,6 @@
 mod std;
 
 public class short base integer {
-    var value;
 
     public short(var num) {
         value = (_int16)num;

@@ -150,7 +150,7 @@ void ErrorManager::printErrors() {
 int ErrorManager::createNewError(error_type err, token_entity token, string xcmts) {
     KeyPair<error_type, string> kp = getErrorById(err);
     ParseError e(kp, token, xcmts);
-    ParseError lastError = cm ? lastCheckedError : lastError;
+    ParseError lastError = cm ? lastCheckedError : this->lastError;
 
     if(shouldReport(&token, lastError, e) || (aggressive && asis))
     {
@@ -165,7 +165,7 @@ int ErrorManager::createNewError(error_type err, token_entity token, string xcmt
         _err = true;
         errors->push_back(e);
         unfilteredErrors->push_back(e);
-        lastError = e;
+        this->lastError = e;
         return 1;
     }
     else {

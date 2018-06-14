@@ -17,6 +17,22 @@ public class string {
 
         }
 
+        public string( char[] immstr )
+        {
+            if(immstr == null) {
+                data = null;
+            } else {
+                var[] chs = new var[sizeof(immstr)];
+                var iter;
+                foreach(var c : immstr) {
+                    chs[iter++] = c;
+                }
+
+                append(chs);
+            }
+
+        }
+
         public string(string str )
         {
             self->string(str.toArray());
@@ -50,6 +66,12 @@ public class string {
         def append(var char) : string
         {
             var[] str = new var[] { char };
+            return append(str);
+        }
+
+        def append(char c) : string
+        {
+            var[] str = new var[] { c };
             return append(str);
         }
 
@@ -152,6 +174,14 @@ public class string {
             return s;
         }
 
+        public def operator+( integer num ) : string
+        {
+            string s = new string(data);
+            s.append(parse(num.getValue()).toArray());
+
+            return s;
+        }
+
         public def operator+( Enum e ) : string
         {
             string s = new string(data);
@@ -166,6 +196,51 @@ public class string {
         public def operator+=( var num ) : string
         {
             return append(parse(num).toArray());
+        }
+
+        public def operator+=( int num ) : string
+        {
+            return operator+=(num.getValue());
+        }
+
+        public def operator+=( bool num ) : string
+        {
+            return operator+=(num.getValue() ? "true" : "false");
+        }
+
+        public def operator+=( long num ) : string
+        {
+            return operator+=(num.getValue());
+        }
+
+        public def operator+=( short num ) : string
+        {
+            return operator+=(num.getValue());
+        }
+
+        public def operator+=( uchar num ) : string
+        {
+            return operator+=(num.getValue());
+        }
+
+        public def operator+=( uint num ) : string
+        {
+            return operator+=(num.getValue());
+        }
+
+        public def operator+=( ulong num ) : string
+        {
+            return operator+=(num.getValue());
+        }
+
+        public def operator+=( ushort num ) : string
+        {
+            return operator+=(num.getValue());
+        }
+
+        public def operator+=( char num ) : string
+        {
+            return append(new var[] { num });
         }
 
         public def operator+=( Enum e ) : string
@@ -228,6 +303,24 @@ public class string {
             return s;
         }
 
+        public def substring(var startIndex, var stopindex) : string {
+            if((startIndex >= size()) || (startIndex < 0))
+                return new string("");
+            if(stopindex < startIndex)
+                throw new IllegalArgumentException(
+                    "stopIndex: " + stopindex + " cannot be less than startIndex: " + startIndex);
+
+
+            string s = "";
+            for(var i = startIndex; i < size(); i++) {
+                if(i == stopindex)
+                    break;
+                s.append(at(i));
+            }
+
+            return s;
+        }
+
         public static def parseInt(string s) : var {
             var i = 0;
             var number = 0;
@@ -272,6 +365,19 @@ public class string {
             return true;
         }
 
+        public def find(string str) : var {
+            if(str.size() > size()) {
+                return false;
+            }
+
+            for(var i = 0; i < size(); i++) {
+                if(substring(i, i+str.size()) == str)
+                    return true;
+            }
+
+            return false;
+        }
+
         public def endsWith(string postFix) : var {
             if(postFix.size() > size())
                 return false;
@@ -279,7 +385,7 @@ public class string {
             var ext = postFix.size();
             string extension = "";
             for(var i = size() - ext; i < size(); i++){
-                extension += new var[] {at(i)};
+                extension += new char(at(i));
             }
 
             return extension == postFix;

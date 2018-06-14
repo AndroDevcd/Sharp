@@ -13,6 +13,14 @@ public class Enum {
         value = val;
     }
 
+    public def operator!=(Enum e) : var {
+        return value!=e.value;
+    }
+
+    public def operator!=(var num) : var {
+        return value!=num;
+    }
+
     public def operator==(Enum e) : var {
         return value==e.value;
     }

@@ -9,6 +9,6 @@ import std;
 public class Application {
 
     public static def main(string[] args) : var {
-        return Runtime.bootstrap(args);
+        return app#Runtime.bootstrap(args);
     }
 }

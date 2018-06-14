@@ -52,6 +52,14 @@ public class ArrayList<T> {
     }
 
     /**
+     * Returns the last element in this list.
+     *
+     */
+    public def last() : T {
+        return get(size()-1);
+    }
+
+    /**
      * Replaces the element at the specified position in this list with
      * the specified element.
      *
@@ -76,7 +84,10 @@ public class ArrayList<T> {
      * Shrink the list to hold more data
      */
     private def shrink() {
-        mData = (T[]) Array<T>.copyOf(mData, sizeof(mData)-1, sizeof(mData)-1);
+        if(sizeof(mData) >= 1)
+            mData = (T[]) Array<T>.copyOf(mData, sizeof(mData)-1, sizeof(mData)-1);
+        else
+            mData = null;
     }
 
 
@@ -102,6 +113,17 @@ public class ArrayList<T> {
      public def add(T e) {
          expand();
          mData[sizeof(mData)-1] = e;
+     }
+
+
+    /**
+      * Shifts the list back 1 element
+      *
+      * @param e element to be appended to this list
+      * @return <tt>true</tt> (as specified by {@link Collection#add})
+      */
+     public def popBack() {
+         shrink();
      }
 
     /**

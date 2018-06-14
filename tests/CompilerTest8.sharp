@@ -11,12 +11,10 @@ public class Application {
             System.println("a+1");
         } else if(a == 7 || b == 2) {
             System.println("a==7 || b==2");
-            asm("nop nop nop nop nop nop nop");
         } else if(a+1 == 9 && b > 1) {
             System.println("a+1 == 9 && b > 1");
         }
 
-        asm("nop nop nop nop");
         int num = 9;
         var x = (var)num;
         x = num;

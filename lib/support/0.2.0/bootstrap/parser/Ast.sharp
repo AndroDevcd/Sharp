@@ -1,0 +1,9 @@
+mod app;
+
+/**
+ * Created by BraxtonN on 6/14/2018.
+ */
+class Ast {
+    public var line;
+    public var col;
+}

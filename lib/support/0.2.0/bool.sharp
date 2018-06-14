@@ -1,10 +1,12 @@
 mod std;
 
-public class bool {
-    var value;
-
+public class bool base integer {
     public bool(var num) {
         value = num ? 1 : 0;
+    }
+
+    public bool(integer num) {
+        value = num.value ? 1 : 0;
     }
 
     public def operator+(var num) : var {

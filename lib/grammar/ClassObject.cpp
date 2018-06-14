@@ -65,9 +65,6 @@ Method* ClassObject::getFunction(int p) {
 }
 
 Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase, bool nativeSupport, bool skipdelegates) {
-    if(name == "put") {
-        int i = 0;
-    }
     for(unsigned long i = 0; i < functions.size(); i++) {
         if(Param::match(functions.get(i).getParams(), params, nativeSupport) && name == functions.get(i).getName()) {
             if(skipdelegates && !functions.get(i).delegate)

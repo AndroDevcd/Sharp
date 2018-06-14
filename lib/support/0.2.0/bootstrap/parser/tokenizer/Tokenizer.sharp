@@ -25,11 +25,12 @@ class Tokenizer {
     }
 
     def parse() {
-        System.println("tokens: " + tokens);
         if(tokens.empty())
             return;
 
         addLines();
+        errors = new ErrorManager(lines, file, false, Options.aggressiveErrors);
+
     }
 
     def addLines() {
@@ -38,9 +39,9 @@ class Tokenizer {
         for(var i = 0; i < tokens.size(); i++) {
             if(tokens.at(i) == 13 || tokens.at(i) == 10) {
                 lines.add(line);
-                line = "";
+                line = new string("");
             } else
-                line += new var[] { tokens.at(i) };
+                line += tokens.at(i);
         }
 
         if(!line.empty())
