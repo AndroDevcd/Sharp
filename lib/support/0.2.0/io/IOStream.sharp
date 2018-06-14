@@ -8,8 +8,8 @@ public class IOStream {
     private var direction;
     private IOStream.StreamReader reader;
 
-    public static var IN = 1;
-    public static var OUT = 0;
+    public static var READ = 1;
+    public static var WRITE = 0;
 
 
     class StreamReader {
@@ -34,21 +34,21 @@ public class IOStream {
         self->direction = direction;
         iobuf = new StreamBuffer();
 
-        if(direction==IN) {
+        if(direction==READ) {
             reader = new IOStream.StreamReader(iobuf);
             File.readAllText(file, iobuf);
         }
     }
 
     public def close() {
-        if(direction==OUT) {
+        if(direction==WRITE) {
             File.write(file, iobuf);
         }
         iobuf.end();
     }
 
     public def nextChar() : var {
-        if(direction == IN)
+        if(direction == READ)
             return reader.next();
         else
             throw new IllegalStateException("illegal read on IOStream");
@@ -59,7 +59,7 @@ public class IOStream {
     }
 
     public def write(string data) {
-        if(direction == IN)
+        if(direction == READ)
             throw new IllegalStateException("illegal write on IOStream");
         iobuf + data;
     }
@@ -69,7 +69,7 @@ public class IOStream {
     }
 
     public def write(var[] data) {
-        if(direction == IN)
+        if(direction == READ)
             throw new IllegalStateException("illegal write on IOStream");
         iobuf + ("" + data);
     }

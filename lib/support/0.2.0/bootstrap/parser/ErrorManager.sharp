@@ -1,4 +1,4 @@
-mod application;
+mod app;
 
 import std;
 
@@ -7,6 +7,8 @@ import std;
  */
 class ErrorManager {
     private static Dictionary<CompilerError, string> predefinedErrors = new Dictionary<CompilerError, string>();
+    private ArrayList<CompilerError> errors, rawErrors, warnings;
+    private ArrayList<ArrayList<CompilerError> > possibleErrors;
 
     public static def initErrors() {
         predefinedErrors.put(CompilerError.UNEXPECTED_SYMBOL, "unexpected symbol");

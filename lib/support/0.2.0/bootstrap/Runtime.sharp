@@ -1,6 +1,8 @@
-mod application;
+mod app;
 
 import std;
+import std.io;
+import std.internal;
 
 /**                          
 * Created by bknun on 6/5/2018            
@@ -22,8 +24,6 @@ public class Runtime {
         for(var i = 0; i < sizeof(args); i++) {
             string arg = args[i];
 
-            System.println("check arg " + arg);
-            System.println("wrong arg " + (arg.at(0) == '-'));
             parseArg:
             if(arg == "-a"){
                 Options.aggressiveErrors = true;
@@ -49,10 +49,6 @@ public class Runtime {
             }
             else if(arg == "-O"){
                 Options.optimize = true;
-                asm("nop nop nop nop nop nop nop nop nop nop nop nop");
-                asm("nop nop nop nop nop nop nop nop nop nop nop nop");
-                asm("nop nop nop nop nop nop nop nop nop nop nop nop");
-                asm("nop nop nop nop nop nop nop nop nop nop nop nop");
             }
             else if(arg == "-h" || arg == "-?"){
                 help();
@@ -85,9 +81,9 @@ public class Runtime {
                     if(integerString(target))
                         Options.target = string.parseInt(target);
                     else {
-                        if(toLower(target) == "base") {
+                        if(string.toLower(target) == "base") {
                             Options.target = Platform.BASE;
-                        } else if(toLower(target) == "alpha") {
+                        } else if(string.toLower(target) == "alpha") {
                             Options.target = Platform.ALPHA;
                         }
                         else {
@@ -147,6 +143,58 @@ public class Runtime {
                 break;
             }
         }
+
+        if(files.size() == 0){
+            help();
+            return 1;
+        }
+
+        string path = "";
+        if(BuildConfig.isWindows()) {
+            path = "C:/Sharp/include";
+        } else {
+            path = "/usr/include/sharp/";
+        }
+
+        File includes = new File(path);
+        string[] supportFiles = includes.list();
+
+        foreach(string file : supportFiles) {
+            files.add(file);
+        }
+
+        for(var i = 0; i < Options.libraries.size(); i++) {
+            includes = new File(Options.libraries.get(i));
+            supportFiles = includes.list();
+
+            foreach(string file : supportFiles) {
+                files.add(file);
+            }
+        }
+
+        for(var i = 0; i < files.size(); i++) {
+            if(!(new File(files.get(i)).exists()))
+                error("file `" + files.get(i) + "` doesnt exist!");
+
+            if(!files.get(i).endsWith(".sharp"))
+                error("file `" + files.get(i) + "` is not a sharp file!");
+        }
+
+        exec_runtime(files);
+    }
+
+    static def exec_runtime(ArrayList<string> files) {
+        File testFile = new File(files.get(0));
+
+        IOStream istream = new IOStream(testFile, IOStream.READ);
+        var _char;
+        string tokens = new string("");
+        while((_char = istream.nextChar()) != -1) {
+            tokens += new var[] { _char };
+        }
+
+        istream.close();
+        Tokenizer tokenizer = new Tokenizer(tokens, files.get(0));
     }
 
 
@@ -157,16 +205,6 @@ public class Runtime {
                 return false;
         }
         return true;
-    }
-
-
-    private static def toLower(string s) : string {
-        string newstr = "";
-        var[] chs = s.toArray();
-        foreach(var c : chs) {
-            newstr += char.toLower(c);
-        }
-        return newstr;
     }
 
     private static def error(string message) {

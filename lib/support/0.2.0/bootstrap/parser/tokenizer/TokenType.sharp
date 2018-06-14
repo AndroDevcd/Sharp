@@ -1,0 +1,63 @@
+mod app;
+
+/**                          
+* Created by bknun on 6/13/2018            
+* Description:                             
+*/
+
+enum TokenType
+{
+    NUMBER,
+    LETTER,
+    UNDERSCORE,
+    LEFTPAREN,
+    RIGHTPAREN,
+    LEFTCURLY,
+    RIGHTCURLY,
+    HASH,               // #
+    DOT,                // .
+    PLUS,
+    MINUS,
+    MULT,
+    _DIV,               //
+    _MOD,               // %
+    COLON,              // :
+    SEMICOLON,
+    DUBQUOTE,           // "
+    SINGQUOTE,          // '
+    COMMA,
+    NEWLINE,
+    _LTE,               // <=
+    _GTE,               // >=
+    EQEQ,               // ==
+    PLUSEQ,
+    MINUSEQ,
+    MULTEQ,
+    DIVEQ,
+    ANDEQ,
+    OREQ,
+    XOREQ,
+    MODEQ,
+    NOTEQ,              // !=
+    SHL,                // <<
+    SHR,                // >>
+    LESSTHAN,
+    GREATERTHAN,
+    AND,
+    ANDAND,             // &&
+    OR,
+    OROR,               // ||
+    XOR,                // ^
+    NOT,                // !
+    ASSIGN,             // =
+    LEFTBRACE,          // [
+    RIGHTBRACE,         // ]
+    QUESMK,             // ?
+    PTR,                // ->
+    _INC,               // ++
+    _DEC,               // --
+    DOLLAR,             // $
+    _EOF = 9999,        // end of file
+
+    NONE                // not a type
+};

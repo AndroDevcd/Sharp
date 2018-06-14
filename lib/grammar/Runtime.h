@@ -28,7 +28,8 @@ public:
             referenceName(""),
             array(false),
             resolved(false),
-            isMethod(false)
+            isMethod(false),
+            uType(NULL)
     {
     }
 
@@ -85,6 +86,7 @@ public:
     Field* field;
     Method* method;
     OperatorOverload* oo;
+    Ast* uType;
 
     bool isArray() {
         if(field != NULL)
@@ -1103,6 +1105,8 @@ private:
     bool hasOverload(token_entity operand, Expression &right, ClassObject *klass, Ast *pAst);
 
     bool isNativeIntegerClass(ClassObject *klass);
+
+    bool isNativeStringClass(ClassObject *klass);
 };
 
 

@@ -1252,6 +1252,7 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
         advance();
         expect_token(pAst, "new", "");
         parse_utype_naked(pAst);
+        bool newClass = false;
 
         if(peek(1).getTokenType() == LEFTBRACE && parse_array_expression(pAst)){}
         else if(peek(1).getTokenType() == LEFTBRACE) {
@@ -1259,12 +1260,18 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
             expect(RIGHTBRACE, pAst, "`]`");
             parse_vectorarray(pAst);
         }
-        else if(peek(1).getTokenType() == LEFTPAREN)
+        else if(peek(1).getTokenType() == LEFTPAREN) {
             parse_valuelist(pAst);
+            newClass = true;
+        }
 
         pAst = pAst->encapsulate(ast_new_e);
-        if(peek(1).getTokenType() != LEFTBRACE)
-            return true;
+        if(peek(1).getTokenType() != LEFTBRACE) {
+            if(newClass && match(1, DOT)) {
+                parse_dot_notation_call_expr(pAst);
+            }
+                return true;
+        }
     }
 
     if(peek(1).getToken() == "sizeof")
@@ -2381,6 +2388,12 @@ bool Parser::parse_template_decl(Ast *pAst) {
         advance();
         Ast tmp(pAst->getParent(), pAst);
         unsigned long tmpCursor = cursor;
+        if(peek(1).getTokenType() == GREATERTHAN) {
+            errors->createNewError(GENERIC, current(), "expected identifier before `>`");
+            advance();
+            return true;
+        }
+
         if(parse_utype(pAst) && (peek(1).getTokenType() == GREATERTHAN || peek(1).getTokenType() == COMMA))
         {
             cursor = tmpCursor;

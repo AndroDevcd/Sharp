@@ -33,17 +33,17 @@ public class WinFileSystem base FileSystem {
     */
     public def delegate::normalize(string pathname) : string {
         var n = pathname.size();
-        string normalized = "";
-        var index = 0;
-        for (var i = 0; i < n; i++) {
-            var current = pathname.at(i);
-            // Remove duplicate slashes.
-            if ((current == '/')) {
-                normalized += new var[] {'\\', '\\'};
-            } else {
-                normalized += new var[] {current};
-            }
-        }
+        string normalized = pathname;
+//        var index = 0;
+//        for (var i = 0; i < n; i++) {
+//            var current = pathname.at(i);
+//            // Remove duplicate slashes.
+//            if ((current == '/')) {
+//                normalized += new var[] {'\\', '\\'};
+//            } else {
+//                normalized += new var[] {current};
+//            }
+//        }
 
 
         return normalized;

@@ -17,6 +17,11 @@ public class string {
 
         }
 
+        public string(string str )
+        {
+            self->string(str.toArray());
+        }
+
         public string( var[] immstr, var offset, var length )
         {
             if(immstr == null) {
@@ -110,6 +115,10 @@ public class string {
             return true;
         }
 
+        public def operator!=( string str ) : var {
+            return !operator==(str);
+        }
+
         public def operator==( var[] str ) : var
         {
             if(sizeof(str) != sizeof(data)) {
@@ -124,6 +133,10 @@ public class string {
             }
 
             return true;
+        }
+
+        public def operator!=( var[] str ) : var {
+            return !operator==(str);
         }
 
         public def operator=( var[] immstr )
@@ -257,6 +270,42 @@ public class string {
                 }
             }
             return true;
+        }
+
+        public def endsWith(string postFix) : var {
+            if(postFix.size() > size())
+                return false;
+
+            var ext = postFix.size();
+            string extension = "";
+            for(var i = size() - ext; i < size(); i++){
+                extension += new var[] {at(i)};
+            }
+
+            return extension == postFix;
+        }
+
+
+        public static def toLower(string s) : string {
+            string newstr = "";
+            var[] chs = s.toArray();
+            foreach(var c : chs) {
+                newstr += char.toLower(c);
+            }
+            return newstr;
+        }
+
+        public static def toUpper(string s) : string {
+            string newstr = "";
+            var[] chs = s.toArray();
+            foreach(var c : chs) {
+                newstr += char.toUpper(c);
+            }
+            return newstr;
+        }
+
+        public def empty() : var {
+            return sizeof(data) == 0;
         }
         
         public def size() : var

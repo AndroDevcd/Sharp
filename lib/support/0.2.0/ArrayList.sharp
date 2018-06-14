@@ -5,7 +5,7 @@ mod std;
 * Description:                             
 */
 public class ArrayList<T> {
-    private T[] data;
+    private T[] mData;
 
     /**
      * Constructs an empty list.
@@ -19,7 +19,7 @@ public class ArrayList<T> {
      *
      */
     public def size() : var {
-        return sizeof(data);
+        return sizeof(mData);
     }
 
     /**
@@ -27,7 +27,7 @@ public class ArrayList<T> {
      *
      */
     public def empty() : var {
-        return sizeof(data) == 0;
+        return sizeof(mData) == 0;
     }
 
     /**
@@ -36,8 +36,8 @@ public class ArrayList<T> {
      *
      */
     public def toArray() : T[] {
-        if(data == null) return null;
-        return ((T[]) Array<T>.copyOf(data, sizeof(data)));
+        if(mData == null) return null;
+        return ((T[]) Array<T>.copyOf(mData, sizeof(mData)));
     }
 
     /**
@@ -45,10 +45,10 @@ public class ArrayList<T> {
      *
      */
     public def get(var index) : T {
-        if (index >= sizeof(data))
+        if (index >= sizeof(mData))
             throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
 
-        return data[index];
+        return mData[index];
     }
 
     /**
@@ -57,11 +57,11 @@ public class ArrayList<T> {
      *
      */
     public def set(var index, T element) : T {
-        if (index >= sizeof(data))
+        if (index >= sizeof(mData))
             throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
 
-        T oldValue = data[index];
-        data[index] = element;
+        T oldValue = mData[index];
+        mData[index] = element;
         return oldValue;
     }
 
@@ -69,14 +69,14 @@ public class ArrayList<T> {
      * Expand the list to hold more data
      */
     private def expand() {
-        data = (T[]) Array<T>.copyOf(data, sizeof(data), sizeof(data)+1);
+        mData = (T[]) Array<T>.copyOf(mData, sizeof(mData), sizeof(mData)+1);
     }
 
     /**
      * Shrink the list to hold more data
      */
     private def shrink() {
-        data = (T[]) Array<T>.copyOf(data, sizeof(data)-1, sizeof(data)-1);
+        mData = (T[]) Array<T>.copyOf(mData, sizeof(mData)-1, sizeof(mData)-1);
     }
 
     /**
@@ -87,7 +87,7 @@ public class ArrayList<T> {
       */
      public def add(T e) {
          expand();
-         data[sizeof(data)-1] = e;
+         mData[sizeof(mData)-1] = e;
      }
 
     /**
@@ -97,20 +97,20 @@ public class ArrayList<T> {
      *
      */
      public def insert(var pos, T value) {
-         if(pos>sizeof(data) || pos < 0)
+         if(pos>sizeof(mData) || pos < 0)
             throw new IndexOutOfBoundsException(outOfBoundsMsg(pos));
 
-         if(sizeof(data) == 0) {
+         if(sizeof(mData) == 0) {
              add(value);
          } else {
-             T[] result = new T[sizeof(data)+1];
-             var newLen=sizeof(data)+1;
+             T[] result = new T[sizeof(mData)+1];
+             var newLen=sizeof(mData)+1;
              for(var i = 0; i < pos; i++)
-                 result[i] = data[i];
+                 result[i] = mData[i];
              result[pos] = value;
              for(var i = pos + 1; i < newLen; i++)
-                 result[i] = data[i - 1];
-             data=result;
+                 result[i] = mData[i - 1];
+             mData=result;
          }
 
      }
@@ -121,7 +121,7 @@ public class ArrayList<T> {
       *
       */
      public def contains(T tData) : var {
-        foreach(T t : data) {
+        foreach(T t : mData) {
             if(t == tData)
                 return true;
         }
@@ -136,24 +136,24 @@ public class ArrayList<T> {
      *
      */
      public def remove(var pos) {
-         if(pos>sizeof(data) || pos < 0)
+         if(pos>sizeof(mData) || pos < 0)
             throw new IndexOutOfBoundsException(outOfBoundsMsg(pos));
 
-         if(sizeof(data)==1){
-             data = null;
+         if(sizeof(mData)==1){
+             mData = null;
          }
-         else if(sizeof(data)==2) {
+         else if(sizeof(mData)==2) {
              if(pos==0) {
-                 data[0]=data[1];
+                 mData[0]=mData[1];
              }
              shrink();
          } else {
-             var newLen=sizeof(data)-1,iter=1;
+             var newLen=sizeof(mData)-1,iter=1;
              for(var i = 0; i < newLen; i++) {
                  if(iter == pos)
                      iter++;
 
-                 data[i] = data[iter];
+                 mData[i] = mData[iter];
              }
 
              shrink();
@@ -166,7 +166,7 @@ public class ArrayList<T> {
       */
      public def clear() {
          // clear to let GC do its work
-         data = null;
+         mData = null;
      }
 
 
@@ -176,6 +176,20 @@ public class ArrayList<T> {
      * this "outlining" performs best with both server and client VMs.
      */
     private def outOfBoundsMsg(var index) : string {
-        return "Index: " + index + ", size: " + sizeof(data);
+        return "Index: " + index + ", size: " + sizeof(mData);
+    }
+
+    /**
+    * User must implement their own equals method
+    */
+    public def operator==(ArrayList<T> arry) : var {
+        return false;
+    }
+
+    /**
+    * User must implement their own equals method
+    */
+    public def operator==(T arry) : var {
+        return false;
     }
 }

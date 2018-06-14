@@ -1,0 +1,58 @@
+mod app;
+
+import std;
+
+/**                          
+* Created by bknun on 6/13/2018            
+* Description:                             
+*/
+class Tokenizer {
+
+    public Tokenizer(string tokens, string file)
+    {
+        line = 1;
+        self->file = file;
+        entities = new ArrayList<TokenEntity>();
+        lines = new ArrayList<string>();
+
+        if(!tokens.empty())
+            self->tokens = tokens;
+        else {
+            line = 0;
+        }
+
+        parse();
+    }
+
+    def parse() {
+        System.println("tokens: " + tokens);
+        if(tokens.empty())
+            return;
+
+        addLines();
+    }
+
+    def addLines() {
+        string line = "";
+
+        for(var i = 0; i < tokens.size(); i++) {
+            if(tokens.at(i) == 13 || tokens.at(i) == 10) {
+                lines.add(line);
+                line = "";
+            } else
+                line += new var[] { tokens.at(i) };
+        }
+
+        if(!line.empty())
+            lines.add(line);
+    }
+
+    private ArrayList<TokenEntity> entities;
+    private ErrorManager errors;
+    private ArrayList<string> lines;
+    private string tokens = "";
+    private var cursor;
+    private var line;
+    private var col;
+    private string file = "";
+}

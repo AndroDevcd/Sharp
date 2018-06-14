@@ -195,7 +195,7 @@ int _bootstrap(int argc, const char* argv[])
         if(!File::exists(file.c_str())){
             rt_error("file `" + file + "` doesnt exist!");
         }
-        if(!File::endswith(".sharp", file) && !File::endswith(".sh", file)){
+        if(!File::endswith(".sharp", file)){
             rt_error("file `" + file + "` is not a sharp file!");
         }
     }
@@ -419,12 +419,8 @@ void RuntimeEngine::compile()
         }
 
         resolveAllGenerics();
+        resolveAllFields();
         resolveAllMethods();
-
-        resolvedFields = false;
-        resolveAllFields(); // very nasty but because of generics we need to process methods first before trying fields
-        resolvedFields = true;
-
         resolveAllEnums();
         inlineFields();
         resolveAllInterfaces();
@@ -689,7 +685,7 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
         currentScope()->label_map.add(KeyPair<string,int64_t>(ifBlockEnd, __init_label_address(block.code)));
 
 
-        currentScope()->addBranch(ifEndLabel, 1, block.code, pAst->getSubAst(ast_expression)->line,
+        currentScope()->addBranch(ifEndLabel, 2, block.code, pAst->getSubAst(ast_expression)->line,
                          pAst->getSubAst(ast_expression)->col);
 
         Ast* ast;
@@ -733,7 +729,7 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
             }
         }
     } else {
-        currentScope()->addStore(ifEndLabel, adx, 1, block.code, pAst->getSubAst(ast_expression)->line,
+        currentScope()->addStore(ifEndLabel, adx, 2, block.code, pAst->getSubAst(ast_expression)->line,
                         pAst->getSubAst(ast_expression)->col);
         block.code.push_i64(SET_Ei(i64, op_IFNE));
         parseBlock(pAst->getSubAst(ast_block), block);
@@ -745,7 +741,9 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
     }
 
 
+    block.code.push_i64(SET_Ei(i64, op_NOP));
     currentScope()->label_map.add(KeyPair<string,int64_t>(ifEndLabel, __init_label_address(block.code)));
+    block.code.push_i64(SET_Ei(i64, op_NOP));
 }
 
 void RuntimeEngine::parseAssemblyBlock(Block& block, Ast* pAst) {
@@ -896,16 +894,19 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
         block.code.push_i64(SET_Ei(i64, op_IFNE));
     }
 
+    if(pAst->hasSubAst(ast_for_expresion_iter)) {
+        iter = parseExpression(pAst->getSubAst(ast_for_expresion_iter));
+    }
+
+    currentScope()->blocks--;
     parseBlock(pAst->getSubAst(ast_block), block);
 
     if(!currentScope()->reachable && currentScope()->last_statement==ast_return_stmnt) {
         currentScope()->reachable=true;
     }
 
-    if(pAst->hasSubAst(ast_for_expresion_iter)) {
-        iter = parseExpression(pAst->getSubAst(ast_for_expresion_iter));
+    if(pAst->hasSubAst(ast_for_expresion_iter))
         block.code.inject(block.code.size(), iter.code);
-    }
 
     block.code.push_i64(SET_Di(i64, op_GOTO, (get_label(forBeginLabel)+1)));
     currentScope()->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
@@ -917,8 +918,6 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
     ss << for_label_end_id << currentScope()->loops;
     forEndLabel=ss.str();
     currentScope()->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
-    currentScope()->removeLocals(currentScope()->blocks);
-    currentScope()->blocks--;
     currentScope()->loops--;
     currentScope()->brahchHelper.pop_back();
 }
@@ -965,7 +964,11 @@ void RuntimeEngine::assignUtypeForeach(Ast *pAst, Scope *scope, Block &block, Ex
         Expression fieldExpr = fieldToExpression(pAst, local->value);
 
         token_entity operand("=", SINGLE, 0,0, ASSIGN);
-        assignValue(operand, out, fieldExpr, assignExpr, pAst);
+        if(assignExpr.trueType() == OBJECT && fieldExpr.trueType() == CLASS) {
+            out.code.push_i64(SET_Di(i64, op_MOVI, fieldExpr.utype.field->klass->address), cmt);
+            out.code.push_i64(SET_Di(i64, op_CAST, cmt));
+        } else
+            assignValue(operand, out, fieldExpr, assignExpr, pAst);
         block.code.inject(block.code.size(), out.code);
     }
 }
@@ -1013,6 +1016,7 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
     getArrayValueOfExpression(arryExpression, out);
     assignUtypeForeach(pAst, currentScope(), block, out);
 
+    currentScope()->blocks--;
     parseBlock(pAst->getSubAst(ast_block), block);
 
     if(!currentScope()->reachable && currentScope()->last_statement==ast_return_stmnt) {
@@ -1026,9 +1030,7 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
     currentScope()->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
     block.code.push_i64(SET_Ei(i64, op_POP));
 
-    currentScope()->removeLocals(currentScope()->blocks);
     currentScope()->loops--;
-    currentScope()->blocks--;
     currentScope()->brahchHelper.pop_back();
 }
 
@@ -1175,6 +1177,7 @@ void RuntimeEngine::parseDoWhileStatement(Block& block, Ast* pAst) {
     currentScope()->addStore(whileBeginLabel, adx, 1, block.code,
                     pAst->getSubAst(ast_expression)->line, pAst->getSubAst(ast_expression)->col);
     block.code.push_i64(SET_Ei(i64, op_IFE));
+    currentScope()->blocks--;
 }
 
 ClassObject* RuntimeEngine::parseCatchClause(Block &block, Ast *pAst, ExceptionTable et) {
@@ -3735,7 +3738,18 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                 }
 
                 expression.code.push_i64(SET_Di(i64, op_CALL, fn->address));
+
+
+                if(pAst->hasSubAst(ast_dotnotation_call_expr)) {
+                    Ast *context = pAst->getSubAst(ast_dotnotation_call_expr);
+                    Expression contextExpression = parseDotNotationCallContext(expression, context->getSubAst(0));
+                    Assembler code;
+                    code.inject(0, expression.code);
+                    expression = contextExpression;
+                    expression.code.inject(0, code);
+                }
             }
+
         } else if(utype.type == expression_native) {
             // native creation
             if(pAst->hasSubAst(ast_value_list)) {
@@ -7388,6 +7402,8 @@ void RuntimeEngine::resolveAllFields() {
                     break;
                 case ast_generic_class_decl:
                 case ast_generic_interface_decl:
+                    if(resolvedFields)
+                        resolveGenericClassDecl(ast, true);
                     break;
                 case ast_enum_decl: /* ignore */
                     break;
@@ -7545,7 +7561,7 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
             continue;
         }
 
-        if(!failed && ast->hasSubAst(ast_utype_list) && ast->getSubAst(idx++)->getType() == ast_utype_list){
+        if(!failed && resolvedGenerics && ast->hasSubAst(ast_utype_list) && ast->getSubAst(idx++)->getType() == ast_utype_list){
             List<Expression> utypes;
             parseUtypeList(ast->getSubAst(idx-1), utypes);
             findAndCreateGenericClass(ptr.module, id, utypes, parent, ast);
@@ -8537,7 +8553,7 @@ void RuntimeEngine::resolveVarDecl(Ast* ast, bool inlineField) {
 
     Expression expression;
 
-    if(inlineField)
+    if(resolvedFields)
         expression = parseUtype(ast);
     parse_var:
     string name =  ast->getEntity(startpos).getToken();
@@ -8767,6 +8783,8 @@ Field RuntimeEngine::fieldMapToField(string param_name, ResolvedReference& utype
         field.modifiers.add(PUBLIC);
     } else if(utype.type == TYPEGENERIC) {
         field.type = TYPEGENERIC;
+        field.klass = utype.klass;
+        field.ast = utype.uType;
         field.key = utype.referenceName;
         field.modifiers.add(PUBLIC);
     }
@@ -8798,6 +8816,7 @@ void RuntimeEngine::parseMethodParams(List<Param>& params, KeyPair<List<string>,
 KeyPair<string, ResolvedReference> RuntimeEngine::parseUtypeArg(Ast* ast) {
     KeyPair<string, ResolvedReference> utype_arg;
     utype_arg.value = parseUtype(ast).utype;
+    utype_arg.value.uType = ast->getSubAst(0);
     if(ast->getEntityCount() != 0)
         utype_arg.key = ast->getEntity(0).getToken();
     else
@@ -9390,8 +9409,7 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
                     resolveClassDecl(trunk, inlineField);
                 break;
             case ast_generic_class_decl:
-                if(!resolvedGenerics)
-                    resolveGenericClassDecl(trunk, inlineField, forEnum);
+                resolveGenericClassDecl(trunk, inlineField, forEnum);
                 break;
             case ast_enum_decl: /* ignore */
                 if(forEnum)
@@ -9511,7 +9529,7 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField, bool for
                 resolveClassDecl(trunk, inlineField, forEnum);
                 break;
             case ast_var_decl:
-                if(!forEnum && !resolvedFields || inlineField)
+                if(!forEnum && (!resolvedFields || inlineField))
                     resolveVarDecl(trunk, inlineField);
                 break;
             case ast_method_decl:
@@ -9539,7 +9557,8 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField, bool for
                     resolveClassDecl(trunk, inlineField);
                 break;
             case ast_generic_class_decl:
-                resolveGenericClassDecl(ast, inlineField, forEnum);
+                if(resolvedFields)
+                    resolveGenericClassDecl(ast, true, forEnum);
                 break;
             case ast_enum_decl: /* ignore */
                 if(forEnum)
@@ -11870,8 +11889,10 @@ void RuntimeEngine::traverseField(ClassObject *klass, Field *field, Ast* pAst) {
         findAndCreateGenericClass(field->klass->getModuleName(), typeName, utypes, NULL, pAst);
     }
 
-    if(utype == NULL)
+    if(utype == NULL) {
+       // field->type = utype->utype.type;
         errors->createNewError(GENERIC, pAst, "I screwed up traversing your generic class please let me know!!");
+    }
     else {
 
         field->type = utype->utype.type;
@@ -12051,10 +12072,10 @@ bool RuntimeEngine::isExpressionConvertableToNativeClass(Field *f, Expression &e
 }
 
 bool RuntimeEngine::isNativeIntegerClass(ClassObject *klass) {
-    return (klass->getModuleName() == "std" && 
+    return (klass->getModuleName() == "std" &&
             (klass->getName() == "int" || klass->getName() == "short"    ||
              klass->getName() == "bool" || klass->getName() == "long"    ||
-             klass->getName() == "char" || klass->getName() == "uint"    || 
-             klass->getName() == "ushort" || klass->getName() == "ubool" || 
+             klass->getName() == "char" || klass->getName() == "uint"    ||
+             klass->getName() == "ushort" || klass->getName() == "ubool" ||
              klass->getName() == "ulong" || klass->getName() == "uchar"));
 }
