@@ -34,7 +34,8 @@ public:
             _interface(false),
             _generic(false),
             processed(false),
-            enumValue(0)
+            enumValue(0),
+            _enum(false)
     {
         functions.init();
         constructors.init();
@@ -58,7 +59,8 @@ public:
             _interface(false),
             _generic(false),
             processed(false),
-            enumValue(0)
+            enumValue(0),
+            _enum(false)
     {
         functions.init();
         constructors.init();
@@ -84,7 +86,8 @@ public:
             _interface(false),
             _generic(false),
             processed(false),
-            enumValue(0)
+            enumValue(0),
+            _enum(false)
     {
         functions.init();
         constructors.init();
@@ -153,6 +156,7 @@ public:
         this->processed=klass.processed;
         this->start = klass.start;
         this->enumValue=klass.enumValue;
+        this->_enum=klass._enum;
     }
 
     size_t constructorCount();
@@ -191,11 +195,13 @@ public:
     bool isInterface() { return _interface; }
     void setIsInterface(bool _interface) { this->_interface=_interface; }
     bool isGeneric() { return _generic; }
+    bool isEnum() { return _enum; }
     bool isProcessed() { return processed; }
     bool addGenericType(Expression* utype);
     Expression* getGenericType(string &key);
     void setIsProcessed(bool proccessed) { this->processed = proccessed; };
     void setIsGeneric(bool _generic) { this->_generic=_generic; }
+    void setIsEnum(bool _enum) { this->_enum=_enum; }
     void setAst(Ast* start) { this->start=start; }
     Ast* getAst() { return start; }
     void addGenericKey(string key) { this->genericKeys.push_back(key); }
@@ -249,7 +255,7 @@ private:
     long serial;
     Ast* start; // for parsing our generic class later
     string name;
-    bool _interface, _generic;
+    bool _interface, _generic, _enum;
     string fullName;
     string module_name;
     bool processed;

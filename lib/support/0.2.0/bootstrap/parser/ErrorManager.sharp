@@ -44,14 +44,33 @@ class ErrorManager {
 
 
     def getErrors(ArrayList<ParseError> errors) : string {
-        string sb;
+        string sb = "";
 
         ParseError[] errs =  errors.toArray();
         foreach(ParseError error : errs) {
-            if(error.warning)
+            if(error.warning) {
+                sb += filename + ":" + error.line + ":" + error.col + ": warning S60" +
+                    ((var)error.id) + ":  " + error.error + "\n";
+            } else {
+                sb += filename + ":" + error.line + ":" + error.col + ": error S60" +
+                    ((var)error.id) + ":  " + error.error + "\n";
+            }
+
+            sb += "\t" + getLine(error.line) + "\n\t";
+
+            for(var i = 0; i < error.col-1; i++)
+                sb += " ";
+            sb += "^\n";
         }
 
         return sb;
+    }
+
+    def getLine(var line) : string {
+        if((line-1) >= lines.size())
+            return new string("End of File");
+        else
+            return lines.get(line-1);
     }
 
     public static def initErrors() {
@@ -115,8 +134,39 @@ class ErrorManager {
 
 class ParseError {
 
+   public ParseError() {
+      id = CompilerError.NO_ERR;
+   }
+
+   public ParseError(CompilerError err, string msg, var l, var c,
+            string additional) {
+      id = err;
+      error = msg + additional;
+      line = l;
+      col = c;
+      warning = false;
+   }
+
+   public ParseError(var warning, CompilerError err, string msg, var l, var c,
+            string additional) {
+      id = err;
+      error = msg + additional;
+      line = l;
+      col = c;
+      self->warning = warning;
+   }
+
+   public ParseError(var warning, CompilerError err, string msg, TokenEntity entity,
+            string additional) {
+      id = err;
+      error = msg + additional;
+      line = entity.getLine();
+      col = entity.getCol();
+      self->warning = warning;
+   }
+
    public CompilerError id;
-   public string error;
+   public string error = "";
    public var line;
    public var col;
    public var warning;

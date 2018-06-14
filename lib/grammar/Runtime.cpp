@@ -2819,7 +2819,7 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
                 out.code.push_i64(SET_Di(i64, op_CHECKLEN, adx));
                 out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
             }else if(expr.utype.field->type == CLASS || expr.utype.field->dynamicObject()) {
-                if(expr.utype.field->isEnum) {
+                if(expr.utype.field->isEnum || expr.utype.field->klass->isEnum()) {
                     Field *valueField = expr.utype.field->klass->getField("value", true);
                     if(valueField != NULL) {
                         if(isFieldInlined(expr.utype.field)) {
@@ -4310,6 +4310,9 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
         } else if(expression.trueType() == CLASS && expression.utype.field != NULL) {
             ClassObject *klass = expression.utype.field->klass;
             if(isNativeIntegerClass(klass)) {
+                pushExpressionToRegisterNoInject(expression, out, ebx);
+                return;
+            } else if(klass->isEnum()) {
                 pushExpressionToRegisterNoInject(expression, out, ebx);
                 return;
             }
@@ -9943,6 +9946,7 @@ void RuntimeEngine::parseEnumDecl(Ast *ast)
         currentClass->setFullName(ss.str());
     }
 
+    currentClass->setIsEnum(true);
     addScope(Scope(CLASS_SCOPE, currentClass));
     for(long i = 0; i < block->getSubAstCount(); i++) {
         ast = block->getSubAst(i);
