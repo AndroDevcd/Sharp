@@ -55,7 +55,7 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
         }
     }
 
-    int64_t x64, op, addr;
+    int64_t x64, op, addr, reg;
     for(unsigned int i = 0; i < stopAddr; i++) {
         if(i >= assembler->__asm64.size())
             break;
@@ -63,8 +63,6 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
         x64 = assembler->__asm64.get(i);
 
         switch (op=GET_OP(x64)) {
-            case op_SKPE:
-            case op_SKNE:
             case op_GOTO:
             case op_JNE:
             case op_JE:
@@ -77,6 +75,19 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
                 {
                     // update address
                     assembler->__asm64.replace(i, SET_Di(x64, op, addr-1));
+                }
+                break;
+            case op_LOADPC_2:
+                addr=GET_Cb(x64);
+                reg=GET_Ca(x64);
+
+                /*
+                 * We only want to update data which is referencing data below us
+                 */
+                if(stopAddr <= (i+addr))
+                {
+                    // update address
+                    assembler->__asm64.replace(i, SET_Ci(x64, op, reg, 0, addr-1));
                 }
                 break;
             case op_MOVI:
@@ -96,6 +107,19 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
                 }
                 i++;
                 break;
+            case op_SKPE:
+            case op_SKNE:
+                addr=GET_Da(x64);
+
+                /*
+                 * We only want to update data which is referencing data below us
+                 */
+                if((addr+i) >= stopAddr)
+                {
+                    // update address
+                    assembler->__asm64.replace(i, SET_Di(x64, op, addr-1));
+                }
+                break;
         }
     }
 
@@ -103,8 +127,6 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
         x64 = assembler->__asm64.get(i);
 
         switch (op=GET_OP(x64)) {
-            case op_SKPE:
-            case op_SKNE:
             case op_GOTO:
             case op_JNE:
             case op_JE:
@@ -134,6 +156,11 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
                         assembler->__asm64.replace(i, SET_Di(x64, op_MOVI, addr-1));
                 }
                 i++;
+                break;
+
+            case op_SKPE:
+            case op_SKNE:
+                // we should be fine
                 break;
         }
     }

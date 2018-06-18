@@ -54,6 +54,14 @@ public class uchar base integer {
     public def operator==(var num) : var {
         return (value==num);
     }
+
+    public def operator!=(var num) : var {
+        return (value!=num);
+    }
+
+    public def operator!=(integer num) : var {
+        return (value!=num.value);
+    }
     
     public def operator==(integer num) : var {
         return (value==num.value);

@@ -54,6 +54,12 @@ void Ast::addAst(Ast _ast)
     sub_asts.last().copy(&_ast);
 }
 
+void Ast::addAstFirst(Ast _ast)
+{
+    numAsts++;
+    sub_asts.insert(0, _ast);
+}
+
 void Ast::free() {
 
     Ast* pAst;
@@ -167,20 +173,18 @@ Ast* Ast::encapsulate(ast_types at) {
 
     addAst(Ast(this, at, this->line, this->col));
 
-    for(unsigned int i = 0; i < sub_asts.size(); i++) {
-        if(sub_asts.get(i).type != at) {
-            sub_asts.get(i).parent = getLastSubAst();
-            getLastSubAst()->addAst(sub_asts.get(i));
-        }
+    for(long int i = 0; i < sub_asts.size()-1; i++) {
+        sub_asts.get(i).parent = getLastSubAst();
+        getLastSubAst()->addAst(sub_asts.get(i));
     }
 
-    for(unsigned int i = 0; i < entities.size(); i++) {
+    for(long int i = 0; i < entities.size(); i++) {
         getLastSubAst()->addEntity(entities.get(i));
     }
 
     readjust:
-    for(unsigned int i = 0; i < sub_asts.size(); i++) {
-        if(sub_asts.get(i).type != at) {
+    for(long int i = 0; i < sub_asts.size(); i++) {
+        if(((i+1) < sub_asts.size())) {
             sub_asts.get(i).free();
             sub_asts.remove(i);
             goto readjust;

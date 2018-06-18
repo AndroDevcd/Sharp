@@ -33,3 +33,26 @@ void Object::castObject(uint64_t classPtr) {
         throw Exception(Environment::ClassCastException, ss.str());
     }
 }
+
+void SharpObject::print() {
+    cout << "Object @0x" << this << endl;
+    cout << "size " << size << endl;
+    cout << "refrences " << refCount << endl;
+    cout << "generation " << generation << endl;
+    if(k != NULL) cout << "class: " << k->name.str() << endl;
+
+    if(HEAD != NULL) {
+        cout << "HEAD[]" << endl;
+    } else if(node != NULL){
+        for(long i = 0; i < size; i++) {
+            cout << '\t' << this << " -> #" << i << " ";
+            if(node[i].object == NULL) {
+                cout << "NULL";
+            } else
+                node[i].object->print();
+            cout << endl;
+        }
+    } else {
+        cout << "both assets are Null!!" << endl;
+    }
+}

@@ -16,7 +16,7 @@ class Tokenizer {
         lines = new ArrayList<string>();
 
         if(!tokens.empty())
-            self->tokens = tokens;
+            self->tokens = tokens.toArray();
         else {
             line = 0;
         }
@@ -25,23 +25,260 @@ class Tokenizer {
     }
 
     def parse() {
-        if(tokens.empty())
+        if(sizeof(tokens) == 0)
             return;
 
         addLines();
-        errors = new ErrorManager(lines, file, false, Options.aggressiveErrors);
+        errors = new ErrorManager(lines, file, true, Options.aggressiveErrors);
+        current = cursor < sizeof(tokens)
+                              ? tokens[cursor] : tokens[sizeof(tokens)-1];
+        line = 1;
 
+        for(;;) {
+            invalidate_whitespace:
+            while(!isEnd() && isWhitespace(current)) {
+                if(char.isNewLine(current))
+                {
+                    newline();
+                }
+
+                advance();
+            }
+
+            int mode = 0;
+            if(isEnd() || peekEnd(1))
+                goto scan;
+            else if(!commentStart(current, peek(1), mode))
+                goto scan;
+
+            col += 2; cursor += 2;
+            while(!isEnd() && !commentEnd(current, peek(1), mode))
+            {
+                if(char.isNewLine(current)){
+                    newline();
+                }
+
+                advance();
+            }
+
+            if (!isEnd())
+            {
+                cursor += mode;
+                goto invalidate_whitespace;
+            }
+            else if(isEnd() && !commentEnd(current,peek(1),mode))
+            {
+                errors.createNewError(CompilerError.GENERIC, line, col, "expected closed comment before end of file");
+            }
+
+            scan:
+            if(isEnd())
+            {
+                goto end;
+            } else if(isSymbol(current))  // <, >, <<, etc.
+            {
+                if(!peekEnd(1))
+                {
+                    TokenType type = TokenType.NONE;
+
+                    var[] chs = new var[] { current, peek(1) };
+
+                    if ((chs[0] == '<') && (chs[1] == '=')) type = TokenType._LTE;
+                    else if ((chs[0] == '>') && (chs[1] == '=')) type = TokenType._GTE;
+                    else if ((chs[0] == '!') && (chs[1] == '=')) type = TokenType.NOTEQ;
+                    else if ((chs[0] == '=') && (chs[1] == '=')) type = TokenType.EQEQ;
+                    else if ((chs[0] == '<') && (chs[1] == '<')) type = TokenType.SHL;
+                    else if ((chs[0] == '>') && (chs[1] == '>')) type = TokenType.SHR;
+                    else if ((chs[0] == '&') && (chs[1] == '&')) type = TokenType.ANDAND;
+                    else if ((chs[0] == '|') && (chs[1] == '|')) type = TokenType.OROR;
+                    else if ((chs[0] == '-') && (chs[1] == '>')) type = TokenType.PTR;
+                    else if ((chs[0] == '+') && (chs[1] == '+')) type = TokenType._INC;
+                    else if ((chs[0] == '-') && (chs[1] == '-')) type = TokenType._DEC;
+                    else if ((chs[0] == '+') && (chs[1] == '=')) type = TokenType.PLUSEQ;
+                    else if ((chs[0] == '*') && (chs[1] == '=')) type = TokenType.MULTEQ;
+                    else if ((chs[0] == '-') && (chs[1] == '=')) type = TokenType.MINUSEQ;
+                    else if ((chs[0] == '/') && (chs[1] == '=')) type = TokenType.DIVEQ;
+                    else if ((chs[0] == '&') && (chs[1] == '=')) type = TokenType.ANDEQ;
+                    else if ((chs[0] == '|') && (chs[1] == '=')) type = TokenType.OREQ;
+                    else if ((chs[0] == '^') && (chs[1] == '=')) type = TokenType.XOREQ;
+                    else if ((chs[0] == '%') && (chs[1] == '=')) type = TokenType.MODEQ;
+
+                    if (TokenType.NONE != type)
+                    {
+                        string s = "" + chs;
+
+                        entities.add(new TokenEntity(s, TokenId.SINGLE, type, col, line));
+                        cursor += 2;
+                        goto invalidate_whitespace;
+                    }
+                }
+
+                string character = "" + new char(current);
+                if ('<' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.LESSTHAN, col, line));
+                else if ('>' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.GREATERTHAN, col, line));
+                else if (';' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.SEMICOLON, col, line));
+                else if (':' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.COLON, col, line));
+                else if ('+' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.PLUS, col, line));
+                else if ('-' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.MINUS, col, line));
+                else if ('*' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.MULT, col, line));
+                else if (',' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.COMMA, col, line));
+                else if ('=' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.ASSIGN, col, line));
+                else if ('#' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.HASH, col, line));
+                else if ('!' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.NOT, col, line));
+                else if ('/' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType._DIV, col, line));
+                else if ('%' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType._MOD, col, line));
+                else if ('(' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.LEFTPAREN, col, line));
+                else if (')' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.RIGHTPAREN, col, line));
+                else if ('{' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.LEFTCURLY, col, line));
+                else if ('}' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.RIGHTCURLY, col, line));
+                else if ('.' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.DOT, col, line));
+                else if ('[' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.LEFTBRACE, col, line));
+                else if (']' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.RIGHTBRACE, col, line));
+                else if ('&' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.AND, col, line));
+                else if ('|' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.OR, col, line));
+                else if ('^' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.XOR, col, line));
+                else if ('?' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.QUESMK, col, line));
+                else if ('$' == current)
+                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.DOLLAR, col, line));
+                else
+                {
+                    errors.createNewError(CompilerError.UNEXPECTED_SYMBOL, line, col, " `" + character + "`");
+                }
+
+                advance();
+                goto invalidate_whitespace;
+            } else if(char.isAlpha(current) || current == '_') // int, dave, etc.
+            {
+                string sb = "";
+                var hasletter = false;
+
+                while(!isEnd() && (char.isAlphaNum(current) || current == '_'))
+                {
+                    if(char.isAlpha(current))
+                        hasletter = true;
+
+                    sb += new char(current);
+                    advance();
+                }
+
+                if(!hasletter)
+                    errors.createNewError(CompilerError.GENERIC, line, col, " expected at least 1 letter in identifier `" + sb + "`");
+                else
+                    entities.add(new TokenEntity(sb, TokenId.IDENTIFIER, col, line));
+                goto invalidate_whitespace;
+            } else if(char.isDigit(current)) // 0xff2ea, 3.14159, 773_721_3376, etc
+            {
+                advance();
+            }else
+            {
+                errors.createNewError(CompilerError.UNEXPECTED_SYMBOL, line, col, " `" + new char(current) + "`");
+                advance();
+                goto invalidate_whitespace;
+            }
+        }
+
+        end:
+        entities.add(new TokenEntity("eof", TokenId.SINGLE, TokenType._EOF, 0, line));
+    }
+
+    def commentStart(var c0, var c1, int mode) : var
+    {
+        mode = 0;
+        if ('/' == c0)
+        {
+            if ('/' == c1) { mode = 1;}
+            else if ('*' == c1) { mode = 2;}
+        }
+        return (mode != 0);
+    }
+
+    def commentEnd(var c0, var c1, int mode) : var
+    {
+        return ((1 == mode) && char.isNewLine(c0)) ||
+               ((2 == mode) && ( '*' == c0) && ('/' == c1));
+    }
+
+    def isEnd() : var {
+        return (cursor>=sizeof(tokens));
+    }
+
+    def isWhitespace(var c) : var {
+        return ((' '  == c) || ('\n' == c) ||
+                ('\r' == c) || ('\t' == c) ||
+                ('\b' == c) || ('\v' == c) ||
+                ('\f' == c));
+    }
+
+    def newline() {
+        col = 0;
+        line++;
+    }
+
+    def advance() {
+        col++;
+        cursor++;
+        current = cursor < sizeof(tokens)
+                              ? tokens[cursor] : tokens[sizeof(tokens)-1];
+    }
+
+    def peekEnd(var chars) : var {
+        return (cursor+chars) >= sizeof(tokens);
+    }
+
+    def peek(var chars) : var {
+        return ((cursor+chars) >= sizeof(tokens) || (cursor+chars) < 0)
+            ? tokens[sizeof(tokens)-1] : tokens[cursor+chars];
+    }
+
+    def isSymbol(var c) : var {
+        return (('+' == c) || ('-' == c) ||
+                ('*' == c) || ('/' == c) ||
+                ('^' == c) || ('<' == c) ||
+                ('>' == c) || ('=' == c) ||
+                (',' == c) || ('!' == c) ||
+                ('(' == c) || (')' == c) ||
+                ('[' == c) || (']' == c) ||
+                ('{' == c) || ('}' == c) ||
+                ('%' == c) || (':' == c) ||
+                ('?' == c) || ('&' == c) ||
+                ('|' == c) || (';' == c) ||
+                ('!' == c) || ('.' == c) ||
+                ('#' == c) || ('$' == c));
     }
 
     def addLines() {
         string line = "";
 
-        for(var i = 0; i < tokens.size(); i++) {
-            if(tokens.at(i) == 13 || tokens.at(i) == 10) {
+        for(var i = 0; i < sizeof(tokens); i++) {
+            if(char.isNewLine(tokens[i])) {
                 lines.add(line);
                 line = new string("");
             } else
-                line += tokens.at(i);
+                line += new char(tokens[i]);
         }
 
         if(!line.empty())
@@ -51,8 +288,9 @@ class Tokenizer {
     private ArrayList<TokenEntity> entities;
     private ErrorManager errors;
     private ArrayList<string> lines;
-    private string tokens = "";
+    private var[] tokens = "";
     private var cursor;
+    private var current;
     private var line;
     private var col;
     private string file = "";

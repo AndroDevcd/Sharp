@@ -19,6 +19,7 @@ using namespace std;
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 #define WIN32_
+#include "lib/util/mingw.mutex.h"
 #else
 #define POSIX_
 #endif
@@ -26,7 +27,6 @@ using namespace std;
 #ifdef WIN32_
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "lib/util/mingw.mutex.h"
 
 #ifndef __wtypes_h__
 #include <wtypes.h>

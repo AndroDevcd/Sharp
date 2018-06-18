@@ -1045,9 +1045,8 @@ bool Parser::match(int num_args, ...) {
 }
 
 bool Parser::binary(Ast *pAst) {
-    bool parsed = equality(pAst);
+    bool parsed = equality(pAst), encapsulated = false;
 
-    bool andExpr = false;
     while(match(5, AND, XOR, OR, ANDAND, OROR)) {
         advance();
         pAst->addEntity(current());
@@ -1055,11 +1054,9 @@ bool Parser::binary(Ast *pAst) {
         Ast right(pAst, pAst->getType(), pAst->line, pAst->col);
         equality(&right);
         pAst->addAst(right);
-        parsed = true;
-        andExpr = true;
-    }
-    if(andExpr)
         pAst->encapsulate(ast_and_e);
+        parsed = true;
+    }
 
     return parsed;
 }

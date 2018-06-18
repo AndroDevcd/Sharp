@@ -71,7 +71,7 @@ public class string {
 
         def append(char c) : string
         {
-            var[] str = new var[] { c };
+            var[] str = new var[] { c.getValue() };
             return append(str);
         }
 
@@ -80,6 +80,7 @@ public class string {
             var[] newStr = new var[sizeof(data) + sizeof(immstr)];
 
             var iter=0;
+            asm("nop nop nop nop");
             for(var i = 0; i < sizeof(data); i++) {
                 newStr[iter++] = (_int16)data[i];
             }
@@ -174,10 +175,66 @@ public class string {
             return s;
         }
 
-        public def operator+( integer num ) : string
+        public def operator+( int num ) : string
         {
             string s = new string(data);
             s.append(parse(num.getValue()).toArray());
+
+            return s;
+        }
+
+        public def operator+( short num ) : string
+        {
+            string s = new string(data);
+            s.append(parse(num.getValue()).toArray());
+
+            return s;
+        }
+
+        public def operator+( long num ) : string
+        {
+            string s = new string(data);
+            s.append(parse(num.getValue()).toArray());
+
+            return s;
+        }
+
+        public def operator+( bool num ) : string
+        {
+            string s = new string(data);
+            s.append(parse(num.getValue()).toArray());
+
+            return s;
+        }
+
+        public def operator+( uint num ) : string
+        {
+            string s = new string(data);
+            s.append(parse(num.getValue()).toArray());
+
+            return s;
+        }
+
+        public def operator+( ushort num ) : string
+        {
+            string s = new string(data);
+            s.append(parse(num.getValue()).toArray());
+
+            return s;
+        }
+
+        public def operator+( ulong num ) : string
+        {
+            string s = new string(data);
+            s.append(parse(num.getValue()).toArray());
+
+            return s;
+        }
+
+        public def operator+( char c ) : string
+        {
+            string s = new string(data);
+            s.append(c);
 
             return s;
         }

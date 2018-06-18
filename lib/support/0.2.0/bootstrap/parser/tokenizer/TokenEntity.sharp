@@ -21,6 +21,15 @@ class TokenEntity {
         self->line = line;
     }
 
+
+    public TokenEntity(string tok, TokenId id, var col, var line) {
+        self->token = tok;
+        self->type = TokenType.NONE;
+        self->id = id;
+        self->col = col;
+        self->line = line;
+    }
+
     public def operator!=(TokenId id) : var {
         return self->id != id;
     }

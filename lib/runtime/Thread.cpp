@@ -696,7 +696,11 @@ void Thread::exec() {
 
             interp:
 //            count++;
-
+            if(pc==4&&current->address==28) {
+                CHECK_NULLOBJ(
+                //o2->object->print();
+                )
+            }
             DISPATCH();
             _NOP:
                 _brh
@@ -869,7 +873,7 @@ void Thread::exec() {
                 _brh
             CHECKLEN:
             CHECK_NULL2(
-                    if(registers[GET_Da(cache[pc])]<o2->object->size) { _brh }
+                    if(registers[GET_Da(cache[pc])]<o2->object->size &&!(registers[GET_Da(cache[pc])]<0)) { _brh }
                     else {
                         stringstream ss;
                         ss << "Access to Object at: " << registers[GET_Da(cache[pc])] << " size is " << o2->object->size;
@@ -948,6 +952,9 @@ void Thread::exec() {
                 if(registers[cmt]==0) {
                     pc+=GET_Da(cache[pc]); _brh_NOINCREMENT
                 } else _brh
+            CMP:
+                registers[cmt]=registers[GET_Ca(cache[pc])]==GET_Cb(cache[pc]);
+                _brh
             AND:
                 registers[cmt]=registers[GET_Ca(cache[pc])]&&registers[GET_Cb(cache[pc])];
                 _brh

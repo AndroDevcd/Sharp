@@ -172,7 +172,8 @@
         &&JE,                                 \
         &&JNE,                                 \
         &&IPOPL,                                 \
-        &&SWITCH                                 \
+        &&SWITCH,                                 \
+        &&CMP,                                 \
     };
 
 enum Opcode {
@@ -289,7 +290,8 @@ enum Opcode {
     op_JE                       =0x6e,
     op_JNE                      =0x6f,
     op_IPOPL                    =0x70,
-    op_SWITCH                   =0x71
+    op_SWITCH                   =0x71,
+    op_CMP                      =0x72
 };
 
 #endif //SHARP_OPCODE_H

@@ -1248,7 +1248,10 @@ string Asm::registrerToString(int64_t r) {
             return "bmr";
         case egx:
             return "egx";
-        default:
-            return "?";
+        default: {
+            stringstream ss;
+            ss << "? (" << r << ")";
+            return ss.str();
+        }
     }
 }

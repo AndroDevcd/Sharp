@@ -536,25 +536,35 @@ void VirtualMachine::fillStackTrace(Object *exceptionObject) {
     }
 }
 
-void VirtualMachine::fillMethodCall(Frame frame, stringstream &ss) {
+void VirtualMachine::fillMethodCall(Frame frame, stringstream &ss, Frame *prev) {
     if(frame.last == NULL) return;
 
     ss << "\tSource ";
-    if(frame.last->sourceFile != -1 && frame.last->sourceFile < manifest.sourceFiles) {
-        ss << "\""; ss << env->sourceFiles[frame.last->sourceFile].str() << "\"";
+    if(prev == NULL || prev->last==NULL) {
+        if(frame.last->sourceFile != -1 && frame.last->sourceFile < manifest.sourceFiles) {
+            ss << "\""; ss << env->sourceFiles[frame.last->sourceFile].str() << "\"";
+        }
+        else
+            ss << "\"Unknown File\"";
+    } else {
+        if(prev->last->sourceFile != -1 && prev->last->sourceFile < manifest.sourceFiles) {
+            ss << "\""; ss << env->sourceFiles[prev->last->sourceFile].str() << "\"";
+        }
+        else
+            ss << "\"Unknown File\"";
     }
-    else
-        ss << "\"Unknown File\"";
 
-    long long x, line=-1;
+    long long x, line=-1, ptr=-1;
     for(x = 0; x < frame.last->lineNumbers.size(); x++)
     {
-        if(frame.last->lineNumbers.get(x).pc >= thread_self->pc)
+        if(frame.pc >= frame.last->lineNumbers.get(x).pc) {
+            ptr = x;
             break;
+        }
     }
 
-    if(x > 0) {
-        ss << ", line " << (line = frame.last->lineNumbers.get(x - 1).line_number);
+    if(ptr != -1) {
+        ss << ", line " << (line = frame.last->lineNumbers.get(ptr).line_number);
     } else
         ss << ", line ?";
 
@@ -576,13 +586,16 @@ void VirtualMachine::fillStackTrace(native_string &str) {
 
     unsigned int pos = thread_self->callStack.size() > EXCEPTION_PRINT_MAX ? thread_self->callStack.size()
                                                                              - EXCEPTION_PRINT_MAX : 0;
+    Frame *prev = NULL;
     for(long i = pos; i < thread_self->callStack.size(); i++)
     {
-        fillMethodCall(thread_self->callStack.get(i), ss);
+        fillMethodCall(thread_self->callStack.get(i), ss, prev);
+        prev = &thread_self->callStack.get(i);
     }
 
+    prev = thread_self->callStack.size() == 1 ? NULL : &thread_self->callStack.get(thread_self->callStack.size()-1);
     Frame frame(thread_self->current, pc, thread_self->sp, _fp);
-    fillMethodCall(frame, ss);
+    fillMethodCall(frame, ss, prev);
 
     str = ss.str();
 }

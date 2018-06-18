@@ -29,6 +29,14 @@ public class short base integer {
     public def operator*(var num) : var {
         return (_int16)(value*num);
     }
+
+    public def operator!=(var num) : var {
+        return (value!=num);
+    }
+
+    public def operator!=(integer num) : var {
+        return (value!=num.value);
+    }
     
     public def operator*(integer num) : short {
         return new short(operator*(num.value));

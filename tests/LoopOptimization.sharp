@@ -1,9 +1,11 @@
-mod application;
+mod app;
+
+import std;
 
 /**
  * Created by BraxtonN on 6/4/2018.
  */
-public class Start {
+public class Application {
 
     private static def addVector(var dest) : var {
         var i = 0;
@@ -15,7 +17,7 @@ public class Start {
 
     public static def main(object[] args) : var {
         var i = 0;
-        for(; i < 10_000_000; i++) {
+        for(; i < 1_000_000_000; i++) {
             /* Do nothing */
         }
         System.print("Done");

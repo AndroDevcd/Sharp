@@ -165,6 +165,7 @@ public:
 
     void addEntity(token_entity entity);
     void addAst(Ast _ast);
+    void addAstFirst(Ast _ast);
     void copy(Ast *ast);
     void free();
 

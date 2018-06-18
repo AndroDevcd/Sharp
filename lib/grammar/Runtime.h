@@ -126,8 +126,7 @@ struct Expression {
             intValue(0),
             value(""),
             literal(false),
-            arrayElement(false),
-            boolExpressions()
+            arrayElement(false)
     {
     }
 
@@ -145,7 +144,6 @@ struct Expression {
             value(""),
             literal(false),
             arrayElement(false),
-            boolExpressions(),
             inCmtRegister(false)
     {
     }
@@ -159,7 +157,6 @@ struct Expression {
     bool dot, newExpression, func, literal, arrayElement, inCmtRegister, ifExpression;
     string value;
     double intValue;
-    List<long> boolExpressions;
 
     bool arrayObject() {
         switch(type) {
@@ -211,7 +208,6 @@ struct Expression {
     string typeToString();
     void free() {
         utype.free();
-        boolExpressions.free();
         code.free();
         *this=(Expression(link));
     }
@@ -924,8 +920,6 @@ private:
 
     Expression parseAndExpression(Ast *pAst);
 
-    void parseAndExpressionChain(Expression &out, Ast *pAst);
-
     Expression parseAssignExpression(Ast *pAst);
 
     Expression parseQuesExpression(Ast *pAst);
@@ -1239,6 +1233,9 @@ struct options {
      */
     List<string> libraries;
 };
+
+extern int recursiveAndExprssions;
+extern List<long> skipAddress;
 
 int _bootstrap(int argc, const char* argv[]);
 void rt_error(string message);

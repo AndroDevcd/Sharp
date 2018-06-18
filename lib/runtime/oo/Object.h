@@ -47,6 +47,8 @@ struct SharpObject
         generation = 0x000; /* generation young */
     }
 
+    void print();
+
     double *HEAD;        /* data */
     Object *node;        /* structured data */
 
@@ -63,11 +65,11 @@ struct SharpObject
     unsigned int generation : 3; /* collection generation */
 };
 
-#define DEC_REF \
-    if(object != NULL) { \
-        object->refCount--; \
+#define DEC_REF(object) \
+    if((object) != NULL) { \
+        (object)->refCount--; \
          \
-        switch(object->generation) { \
+        switch((object)->generation) { \
             case gc_young: \
                 GarbageCollector::self->yObjs++; \
                 break; \
@@ -81,7 +83,6 @@ struct SharpObject
         object = nullptr; \
     }
 
-
 /**
  * Loose representation of an object if this object drops its
  * reference the reference lives on until the gc kills it
@@ -91,7 +92,7 @@ struct Object {
 
     CXX11_INLINE void operator=(Object &o) {
         if(&o == this) return;
-        DEC_REF
+        DEC_REF(this->object)
 
         if(o.object != NULL) {
             this->object = o.object;
@@ -101,7 +102,7 @@ struct Object {
     }
     CXX11_INLINE void operator=(Object *o) {
         if(o == this) return;
-        DEC_REF
+        DEC_REF(this->object)
 
         if(o->object != NULL)
         {
@@ -111,7 +112,7 @@ struct Object {
     }
     CXX11_INLINE void operator=(SharpObject *o) {
         if(o == this->object) return;
-        DEC_REF
+        DEC_REF(this->object)
 
         this->object = o;
     }

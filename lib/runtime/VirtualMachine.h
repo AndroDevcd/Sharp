@@ -63,7 +63,7 @@ public:
 
     int exitVal;
 
-    void fillMethodCall(Frame frame, stringstream &ss);
+    void fillMethodCall(Frame frame, stringstream &ss, Frame *prev);
 };
 
 #define executeMethod(address) { \
