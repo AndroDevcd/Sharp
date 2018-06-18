@@ -80,7 +80,6 @@ public class string {
             var[] newStr = new var[sizeof(data) + sizeof(immstr)];
 
             var iter=0;
-            asm("nop nop nop nop");
             for(var i = 0; i < sizeof(data); i++) {
                 newStr[iter++] = (_int16)data[i];
             }

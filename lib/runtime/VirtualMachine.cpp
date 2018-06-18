@@ -158,7 +158,7 @@ void VirtualMachine::destroy() {
     GarbageCollector::self->shutdown();
 }
 
-extern long count;
+extern size_t count, overflow;
 
 #ifdef WIN32_
 DWORD WINAPI
@@ -178,7 +178,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 
         thread_self->exec();
         if(count != 0)
-            cout << "instructions executed " << count << endl;
+            cout << "instructions executed " << count << " overflowed " << overflow << endl;
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();

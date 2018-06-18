@@ -40,7 +40,6 @@ public class Runtime {
         setupClasses();
         userArgs = new string[sizeof(args) - MINIMUM_ARGS];
 
-
 //        System.println("application " + application);
 //        System.println("version " + vers);
 //        System.println("platform " + platformVersion);

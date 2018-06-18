@@ -879,7 +879,7 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
     currentScope()->blocks++;
     currentScope()->loops++;
     currentScope()->uniqueLabelSerial++;
-    currentScope()->brahchHelper.add(SCOPE_LOOP);
+    currentScope()->brahchHelper.add(SCOPE_FOR_LOOP);
     stringstream ss;
     string forEndLabel, forBeginLabel;
 
@@ -894,6 +894,8 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
     ss << for_label_end_id << currentScope()->uniqueLabelSerial;
     forEndLabel=ss.str();
 
+    KeyPair<string, string> loopMap(forBeginLabel, forEndLabel);
+    currentScope()->loopAddressTable.push_back(loopMap);
     if(pAst->hasSubAst(ast_for_expresion_cond)) {
         Expression out(pAst);
         cond = parseExpression(pAst->getSubAst(ast_for_expresion_cond));
@@ -931,15 +933,9 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
     block.code.push_i64(SET_Di(i64, op_GOTO, (get_label(forBeginLabel)+1)));
     currentScope()->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
 
-    /**
-     * This is for break statements
-     */
-    ss.str("");
-    ss << for_label_end_id << currentScope()->loops;
-    forEndLabel=ss.str();
-    currentScope()->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
     currentScope()->loops--;
     currentScope()->brahchHelper.pop_back();
+    currentScope()->loopAddressTable.pop_back();
 }
 
 void RuntimeEngine::getArrayValueOfExpression(Expression& expr, Expression& out) {
@@ -997,7 +993,7 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
     currentScope()->blocks++;
     currentScope()->loops++;
     currentScope()->uniqueLabelSerial++;
-    currentScope()->brahchHelper.add(SCOPE_LOOP);
+    currentScope()->brahchHelper.add(SCOPE_FOR_LOOP);
     string forBeginLabel, forEndLabel;
 
     Expression arryExpression(parseExpression(pAst->getSubAst(ast_expression))), out(pAst);
@@ -1023,6 +1019,8 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
     ss << for_label_end_id << currentScope()->uniqueLabelSerial;
     forEndLabel=ss.str();
 
+    KeyPair<string, string> loopMap(forBeginLabel, forEndLabel);
+    currentScope()->loopAddressTable.push_back(loopMap);
     currentScope()->label_map.add(KeyPair<std::string, int64_t>(forBeginLabel,__init_label_address(block.code)));
 
     block.code.inject(block.code.size(), arryExpression.code);
@@ -1052,22 +1050,27 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
 
     currentScope()->loops--;
     currentScope()->brahchHelper.pop_back();
+    currentScope()->loopAddressTable.pop_back();
 }
 
 void RuntimeEngine::parseWhileStatement(Block& block, Ast* pAst) {
     currentScope()->loops++;
+    currentScope()->uniqueLabelSerial++;
     string whileBeginLabel, whileEndLabel;
+    currentScope()->brahchHelper.add(SCOPE_WHILE_LOOP);
 
     Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out(pAst);
 
     stringstream ss;
-    ss << generic_label_id << ++currentScope()->uniqueLabelSerial;
+    ss << while_label_begin_id << currentScope()->uniqueLabelSerial;
     whileBeginLabel=ss.str();
 
     ss.str("");
-    ss << generic_label_id << ++currentScope()->uniqueLabelSerial;
+    ss << while_label_end_id << currentScope()->uniqueLabelSerial;
     whileEndLabel=ss.str();
 
+    KeyPair<string, string> loopMap(whileBeginLabel, whileEndLabel);
+    currentScope()->loopAddressTable.push_back(loopMap);
     currentScope()->label_map.add(KeyPair<std::string, int64_t>(whileBeginLabel,__init_label_address(block.code)));
     pushExpressionToRegister(cond, out, cmt);
     block.code.inject(block.code.size(), out.code);
@@ -1080,6 +1083,9 @@ void RuntimeEngine::parseWhileStatement(Block& block, Ast* pAst) {
 
     block.code.push_i64(SET_Di(i64, op_GOTO, (get_label(whileBeginLabel)+1)));
     currentScope()->label_map.add(KeyPair<std::string, int64_t>(whileEndLabel,__init_label_address(block.code)));
+    currentScope()->loops--;
+    currentScope()->brahchHelper.pop_back();
+    currentScope()->loopAddressTable.pop_back();
 }
 
 void RuntimeEngine::parseSwitchStatement(Block& block, Ast* pAst) {
@@ -1174,19 +1180,29 @@ void RuntimeEngine::parseLockStatement(Block& block, Ast* pAst) {
 
     block.code.inject(block.code.size(), out.code);
     block.code.push_i64(SET_Ei(i64, op_ULOCK));
-    currentScope()->label_map.add(KeyPair<std::string, int64_t>(lockBeginLabel,__init_label_address(block.code)));
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(lockEndLabel,__init_label_address(block.code)));
 }
 
 void RuntimeEngine::parseDoWhileStatement(Block& block, Ast* pAst) {
-    string whileBeginLabel;
+    string whileBeginLabel, whileEndLabel;
     currentScope()->blocks++;
     currentScope()->loops++;
+    currentScope()->uniqueLabelSerial++;
+    currentScope()->brahchHelper.add(SCOPE_WHILE_LOOP);
+    KeyPair<string, string> loopMap;
 
     stringstream ss;
-    ss << generic_label_id << ++currentScope()->uniqueLabelSerial;
+    ss << while_label_begin_id << currentScope()->uniqueLabelSerial;
     whileBeginLabel=ss.str();
     currentScope()->label_map.add(KeyPair<std::string, int64_t>(whileBeginLabel,__init_label_address(block.code)));
+    loopMap.key = whileBeginLabel;
 
+
+    ss.str("");
+    ss << while_label_end_id << currentScope()->uniqueLabelSerial;
+    whileEndLabel=ss.str();
+    loopMap.value = whileEndLabel;
+    currentScope()->loopAddressTable.push_back(loopMap);
     parseBlock(pAst->getSubAst(ast_block), block);
 
     Expression cond = parseExpression(pAst->getSubAst(ast_expression)), out(pAst);
@@ -1197,7 +1213,13 @@ void RuntimeEngine::parseDoWhileStatement(Block& block, Ast* pAst) {
     currentScope()->addStore(whileBeginLabel, adx, 1, block.code,
                     pAst->getSubAst(ast_expression)->line, pAst->getSubAst(ast_expression)->col);
     block.code.push_i64(SET_Ei(i64, op_IFE));
+
+
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(whileEndLabel,__init_label_address(block.code)));
     currentScope()->blocks--;
+    currentScope()->loops--;
+    currentScope()->brahchHelper.pop_back();
+    currentScope()->loopAddressTable.pop_back();
 }
 
 ClassObject* RuntimeEngine::parseCatchClause(Block &block, Ast *pAst, ExceptionTable et) {
@@ -1360,10 +1382,12 @@ void RuntimeEngine::parseThrowStatement(Block& block, Ast* pAst) {
 // also make statements after this unreachable
 void RuntimeEngine::parseContinueStatement(Block& block, Ast* pAst) {
 
-    if(currentScope()->loops > 0) {
-        stringstream name;
-        name << for_label_begin_id << currentScope()->loops;
-        currentScope()->addBranch(name.str(), 0, block.code, pAst->line, pAst->col);
+    if(currentScope()->brahchHelper.size() > 0 && currentScope()->brahchHelper.last() == SCOPE_FOR_LOOP) {
+        string name = currentScope()->loopAddressTable.last().key;
+        currentScope()->addBranch(name, 0, block.code, pAst->line, pAst->col);
+    } else if(currentScope()->brahchHelper.size() > 0 && currentScope()->brahchHelper.last() == SCOPE_WHILE_LOOP) {
+        string name = currentScope()->loopAddressTable.last().key;
+        currentScope()->addBranch(name, 0, block.code, pAst->line, pAst->col);
     } else {
         // error not in loop
         errors->createNewError(GENERIC, pAst, "continue statement outside of loop");
@@ -1372,10 +1396,10 @@ void RuntimeEngine::parseContinueStatement(Block& block, Ast* pAst) {
 
 void RuntimeEngine::parseBreakStatement(Block& block, Ast* pAst) {
 
-    if(currentScope()->brahchHelper.size() > 0 && currentScope()->brahchHelper.last() == SCOPE_LOOP) {
-        stringstream name;
-        name << for_label_end_id << currentScope()->loops;
-        currentScope()->addBranch(name.str(), 1, block.code, pAst->line, pAst->col);
+    if(currentScope()->brahchHelper.size() > 0 && (currentScope()->brahchHelper.last() == SCOPE_FOR_LOOP ||
+            currentScope()->brahchHelper.last() == SCOPE_WHILE_LOOP)) {
+        string name = currentScope()->loopAddressTable.last().value;
+        currentScope()->addBranch(name, 1, block.code, pAst->line, pAst->col);
     } else if(currentScope()->brahchHelper.size() > 0 && currentScope()->brahchHelper.last() == SCOPE_SWITCH) {
         stringstream name;
         name << switch_label_end_id << currentScope()->switches;

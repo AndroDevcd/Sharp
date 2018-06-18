@@ -198,7 +198,7 @@ public class Runtime {
 
         IOStream istream = new IOStream(testFile, IOStream.READ);
         var _char;
-        string tokens = new string("");
+        string tokens = "";
         while((_char = istream.nextChar()) != -1) {
             tokens += new var[] { _char };
         }

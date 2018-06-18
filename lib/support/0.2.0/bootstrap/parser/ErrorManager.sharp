@@ -77,7 +77,6 @@ class ErrorManager {
                 ((var)error.id) + ":  " + error.error + "\n");
         }
 
-        asm("nop nop nop nop nop nop nop ");
         System.print("\t" + getLine(error.line) + "\n\t");
 
         for(var i = 0; i < error.col-1; i++)
@@ -184,6 +183,10 @@ class ErrorManager {
         } else {
             rawErrors.add(newErr);
         }
+    }
+
+    public def createNewError(CompilerError err, var line, var col) {
+        createNewError(err, line, col, "");
     }
 
     public def createNewWarning(CompilerError err, var line, var col, string msg) {

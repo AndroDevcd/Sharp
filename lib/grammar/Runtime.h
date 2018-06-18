@@ -323,7 +323,8 @@ enum ScopeType {
 };
 
 enum BranchHelper {
-    SCOPE_LOOP,
+    SCOPE_FOR_LOOP,
+    SCOPE_WHILE_LOOP,
     SCOPE_SWITCH
 };
 
@@ -347,6 +348,7 @@ struct Scope {
         label_map.init();
         branches.init();
         brahchHelper.init();
+        loopAddressTable.init();
     }
 
     Scope(ScopeType type, ClassObject* klass)
@@ -368,6 +370,7 @@ struct Scope {
         label_map.init();
         branches.init();
         brahchHelper.init();
+        loopAddressTable.init();
     }
 
     Scope(ScopeType type, ClassObject* klass, Method* func)
@@ -389,6 +392,7 @@ struct Scope {
         label_map.init();
         branches.init();
         brahchHelper.init();
+        loopAddressTable.init();
     }
 
     KeyPair<int, Field>* getLocalField(string field_name) {
@@ -465,6 +469,7 @@ struct Scope {
     List<KeyPair<int, Field>> locals;
     List<KeyPair<std::string, int64_t>> label_map;
     List<BranchTable> branches;
+    List<KeyPair<std::string, std::string>> loopAddressTable;
     int blocks;
     long loops, trys, switches, uniqueLabelSerial, last_statement;
     bool self, base, reachable;
@@ -1125,6 +1130,10 @@ private:
 #define for_label_begin_id "$$for_start"
 
 #define for_label_end_id "$$for_end"
+
+#define while_label_begin_id "$$while_start"
+
+#define while_label_end_id "$$while_end"
 
 #define switch_label_end_id "$$switch_end"
 

@@ -192,8 +192,189 @@ class Tokenizer {
                 goto invalidate_whitespace;
             } else if(char.isDigit(current)) // 0xff2ea, 3.14159, 773_721_3376, etc
             {
+                if(current == '0' && peek(1) == 'x') {
+                    string number = "";
+                    var underscoreAllowed = false;
+
+                    number == "0x";
+                    col += 2; cursor += 2;
+                    while(!isEnd() && (isHexNum(current) || current == '_')) {
+                        if(isHexNum(current))
+                            underscoreAllowed = true;
+                        else {
+                            if(!underscoreAllowed) {
+                                System.println("illegal");
+                                errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
+                                break;
+                            }
+
+                            advance();
+                            continue;
+                        }
+
+                        number += new char(current);
+                        advance();
+                    }
+
+                    entities.add(new TokenEntity(number, TokenId.HEX_LITERAL, col, line));
+                    goto invalidate_whitespace;
+                } else {
+                    /*
+                        Attempt to match a valid numeric value in one of the following formats:
+                        1. 123456
+                        2. 123.456
+                        3. 1_23.456e3
+                        4. 123.456E3
+                        5. 123.456e+3
+                        6. 123.456E+3
+                        7. 123.456e-3
+                        8. 123.456E-3
+                        9. 12345e5
+                     */
+                     var dotFound          = false;
+                     var eFound            = false;
+                     var postESignFound    = false;
+                     var underscoreAllowed = false;
+                     string number = "";
+
+                    while(!isEnd())
+                    {
+                       if('_' == current) {
+                           if(!underscoreAllowed || peek(-1) == '.')
+                           {
+                               errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
+                               goto invalidate_whitespace;
+                           }
+                           advance();
+                       }
+                       else if ('.' == current)
+                       {
+                           number += current;
+                           if (dotFound)
+                           {
+                               errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", double decimal");
+                               goto invalidate_whitespace;
+                           }
+                           dotFound = true;
+                           advance();
+                           continue;
+                       }
+                       else if ('e' == char.toLower(current))
+                       {
+                           underscoreAllowed = false;
+                           number += current;
+                           var c = peek(1);
+                           if (peekEnd(1))
+                           {
+                               errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", missing exponent prefix");
+                               goto invalidate_whitespace;
+                           }
+                           else if (
+                                   ('+' != c) &&
+                                   ('-' != c) &&
+                                   !char.isDigit(c)
+                                   )
+                           {
+                               errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", expected `+`, `-`, or digit");
+                               goto invalidate_whitespace;
+                           }
+                           eFound = true;
+                           advance();
+                           continue;
+                       }
+                       else if (eFound && isSign(current))
+                       {
+                           number += current;
+                           if (postESignFound)
+                           {
+                               errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", duplicate exponent sign postfix");
+                               goto invalidate_whitespace;
+                           }
+                           postESignFound = true;
+                           advance();
+                           continue;
+                       }
+                       else if (('.' != current) && !char.isDigit(current))
+                           break;
+                       else
+                       {
+                           if(char.isDigit(current) && !eFound)
+                               underscoreAllowed = true;
+                           number += current;
+                           advance();
+                       }
+                    }
+
+                    entities.add(new TokenEntity(number, TokenId.INTEGER_LITERAL, col, line));
+                    goto invalidate_whitespace;
+                }
+            } else if('"' == current) { // "Hello, World", "Name: \n", etc.
+                string message = "";
+                if (tokensLeft() < 2)
+                {
+                    errors.createNewError(CompilerError.EXPECTED_STRING_LITERAL_EOF, line, col);
+                    advance();
+                    goto invalidate_whitespace;
+                }
                 advance();
-            }else
+
+                var escapedFound = false;
+                var escaped = false;
+
+                while (!isEnd())
+                {
+                    if(char.isNewLine(current))
+                    {
+                        errors.createNewError(CompilerError.ILLEGAL_STRING_FORMAT, line, col, ", expected `\"` before end of line");
+                        newline();
+                        goto invalidate_whitespace;
+                    }
+                    else if (!escaped && ('\\' == current))
+                    {
+                        message += current;
+                        escapedFound = true;
+                        escaped = true;
+                        advance();
+                        continue;
+                    }
+                    else if (!escaped)
+                    {
+                        if ('"' == current)
+                            break;
+
+                        message += current;
+                    }
+                    else if (escaped)
+                    {
+
+                        if(!char.isAlpha(current) && ('\\' != current)  && ('\"' != current) && ('\'' != current))
+                        {
+                            errors.createNewError(CompilerError.ILLEGAL_STRING_FORMAT, line, col, ", text preceding `\\` must be alpha, '\\', '\\'', or '\"' only");
+                            goto invalidate_whitespace;
+                        }
+
+                        message += current;
+                        escaped = false;
+                    }
+
+                    advance();
+                }
+
+                if (isEnd())
+                {
+                    errors.createNewError(CompilerError.UNEXPECTED_EOF, line, col);
+                    goto invalidate_whitespace;
+                }
+
+                if (!escapedFound)
+                    entities.add(new TokenEntity(message, TokenId.STRING_LITERAL, col, line));
+                else
+                    entities.add(new TokenEntity(getEscapedString(message), TokenId.STRING_LITERAL, col, line));
+
+                advance();
+                goto invalidate_whitespace;
+            }
+            else
             {
                 errors.createNewError(CompilerError.UNEXPECTED_SYMBOL, line, col, " `" + new char(current) + "`");
                 advance();
@@ -233,6 +414,48 @@ class Tokenizer {
                 ('\f' == c));
     }
 
+    def getEscapedString(string msg) : string {
+        string escapedMessage = "";
+        for(var i = 0; i < msg.size(); i++)
+        {
+            if(msg.at(i) == '\\')
+            {
+                switch(msg.at(i+1)) {
+                    case 'n':
+                        escapedMessage += '\n';
+                        break;
+                    case 't':
+                        escapedMessage += '\t';
+                        break;
+                    case 'b':
+                        escapedMessage += '\b';
+                        break;
+                    case 'v':
+                        escapedMessage += '\v';
+                        break;
+                    case 'r':
+                        escapedMessage += '\r';
+                        break;
+                    case 'f':
+                        escapedMessage += '\f';
+                        break;
+                    default:
+                        escapedMessage += msg.at(i+1);
+                        break;
+                }
+
+                i++;
+            }
+            else
+                escapedMessage += msg.at(i);
+        }
+        return escapedMessage;
+    }
+
+    def isSign(var c) : var {
+        return (('+'  == c) || ('-' == c));
+    }
+
     def newline() {
         col = 0;
         line++;
@@ -247,6 +470,10 @@ class Tokenizer {
 
     def peekEnd(var chars) : var {
         return (cursor+chars) >= sizeof(tokens);
+    }
+
+    def tokensLeft() : var {
+        return sizeof(tokens) - cursor;
     }
 
     def peek(var chars) : var {
@@ -283,6 +510,11 @@ class Tokenizer {
 
         if(!line.empty())
             lines.add(line);
+    }
+
+    def isHexNum(var c) : var {
+        return (char.isDigit(c) || ((c >= 65) && (c <= 72)) ||
+                       ((c >= 97) && (c <= 104)));
     }
 
     private ArrayList<TokenEntity> entities;

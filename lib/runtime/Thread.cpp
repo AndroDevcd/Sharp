@@ -667,7 +667,7 @@ short int startAddress = 0;
  * We need this to keep track of which finally block we are executing
  */
 FinallyTable finallyTable;
-double count = 0;
+size_t count = 0, overflow = 0;
 
 void Thread::exec() {
 
@@ -696,12 +696,12 @@ void Thread::exec() {
 
             interp:
 //            count++;
-            if(pc>=606&&current->address==78) {
-                int i = 0;
-//                CHECK_NULLOBJ(
-//                //o2->object->print();
-//                )
-            }
+//            if(pc>=606&&current->address==78) {
+//                int i = 0;
+////                CHECK_NULLOBJ(
+////                //o2->object->print();
+////                )
+//            }
             DISPATCH();
             _NOP:
                 _brh

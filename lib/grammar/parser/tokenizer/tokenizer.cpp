@@ -433,9 +433,9 @@ void tokenizer::parse()
                 else if (escaped)
                 {
 
-                    if(!isletter((char) tolower(current)) && ('\\' != current))
+                    if(!isletter((char) tolower(current)) && ('\\' != current) && ('\"' != current) && ('\'' != current))
                     {
-                        errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", text preceding `\\` must be alpha or '\\' only");
+                        errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", text preceding `\\` must be alpha, '\\', or '\"' only");
                         goto start;
                     }
 
@@ -508,9 +508,9 @@ void tokenizer::parse()
                 else if (escaped)
                 {
                     hascharacter = true;
-                    if(!isletter((char) tolower(current)) && current != '\\')
+                    if(!isletter((char) tolower(current)) && current != '\\' && current != '\"' && current != '\'')
                     {
-                        errors->createNewError(ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", text preceding `\\` must be alpha only");
+                        errors->createNewError(ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", text preceding `\\` must be alpha, '\"', or '\\'' only");
                         goto start;
                     }
                     character << current;
