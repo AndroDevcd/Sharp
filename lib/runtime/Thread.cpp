@@ -696,10 +696,11 @@ void Thread::exec() {
 
             interp:
 //            count++;
-            if(pc==4&&current->address==28) {
-                CHECK_NULLOBJ(
-                //o2->object->print();
-                )
+            if(pc>=606&&current->address==78) {
+                int i = 0;
+//                CHECK_NULLOBJ(
+//                //o2->object->print();
+//                )
             }
             DISPATCH();
             _NOP:

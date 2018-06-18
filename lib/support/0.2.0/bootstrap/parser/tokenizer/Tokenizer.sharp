@@ -36,6 +36,7 @@ class Tokenizer {
 
         for(;;) {
             invalidate_whitespace:
+            System.println("cursor " + cursor);
             while(!isEnd() && isWhitespace(current)) {
                 if(char.isNewLine(current))
                 {
