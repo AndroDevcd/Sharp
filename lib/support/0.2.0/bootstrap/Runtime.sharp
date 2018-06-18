@@ -22,11 +22,9 @@ public class Runtime {
         ErrorManager.initErrors();
         ArrayList<string> files = new ArrayList<string>();
         for(var i = 0; i < sizeof(args); i++) {
-            string arg = args[i];
 
             parseArg:
-            System.println("arg @" + i + " " + arg);
-            System.println("sizeof arg " + sizeof(args));
+            string arg = args[i];
             if(arg == "-a"){
                 Options.aggressiveErrors = true;
             }
@@ -134,7 +132,6 @@ public class Runtime {
             }
             else {
                 // add the source files
-                asm("nop nop nop nop nop nop nop nop nop nop nop nop nop nop ");
                 do {
                     if(args[i].at(0) == '-')
                         goto parseArg;

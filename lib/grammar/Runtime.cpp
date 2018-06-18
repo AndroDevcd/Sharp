@@ -7081,6 +7081,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
                  */
                 for(unsigned int i = 0; i < currentScope()->klass->constructorCount(); i++) {
                     Method* method = currentScope()->klass->getConstructor(i);
+                    readjustAddresses(method, out.code.size());
                     method->code.inject(0, out.code);
                 }
             }
@@ -7160,13 +7161,17 @@ void RuntimeEngine::readjustAddresses(Method *func, unsigned int _offset) {
         lt.key+=_offset;
     }
 
-    int64_t x64, op, addr;
+    int64_t x64, op, addr, reg;
     for(unsigned int i = 0; i < func->code.size(); i++) {
 
         x64 = func->code.__asm64.get(i);
 
         switch (op=GET_OP(x64)) {
+            case op_JNE:
+            case op_JE:
             case op_GOTO:
+            case op_SKPE:
+            case op_SKNE:
                 addr=GET_Da(x64);
 
                 /*
@@ -7175,12 +7180,18 @@ void RuntimeEngine::readjustAddresses(Method *func, unsigned int _offset) {
                 func->code.__asm64.replace(i, SET_Di(x64, op_GOTO, (addr+_offset)));
                 break;
             case op_MOVI:
-                if(func->unique_address_table.find(i-_offset)) {
+                if(func->unique_address_table.find(i)) {
                     addr=GET_Da(x64);
-                    func->unique_address_table.replace(func->unique_address_table.indexof(i-_offset), i+_offset);
+                    func->unique_address_table.replace(func->unique_address_table.indexof(i), i+_offset);
                     func->code.__asm64.replace(i, SET_Di(x64, op_MOVI, addr+_offset));
 
                 }
+                break;
+            case op_LOADPC_2:
+                addr=GET_Cb(x64);
+                reg=GET_Ca(x64);
+
+                func->code.__asm64.replace(i, SET_Ci(x64, op, reg, 0, addr+_offset));
                 break;
         }
     }

@@ -126,7 +126,8 @@ struct Expression {
             intValue(0),
             value(""),
             literal(false),
-            arrayElement(false)
+            arrayElement(false),
+            inCmtRegister(false)
     {
     }
 

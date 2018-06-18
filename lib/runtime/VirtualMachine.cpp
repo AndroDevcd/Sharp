@@ -540,19 +540,11 @@ void VirtualMachine::fillMethodCall(Frame frame, stringstream &ss, Frame *prev) 
     if(frame.last == NULL) return;
 
     ss << "\tSource ";
-    if(prev == NULL || prev->last==NULL) {
-        if(frame.last->sourceFile != -1 && frame.last->sourceFile < manifest.sourceFiles) {
-            ss << "\""; ss << env->sourceFiles[frame.last->sourceFile].str() << "\"";
-        }
-        else
-            ss << "\"Unknown File\"";
-    } else {
-        if(prev->last->sourceFile != -1 && prev->last->sourceFile < manifest.sourceFiles) {
-            ss << "\""; ss << env->sourceFiles[prev->last->sourceFile].str() << "\"";
-        }
-        else
-            ss << "\"Unknown File\"";
+    if(frame.last->sourceFile != -1 && frame.last->sourceFile < manifest.sourceFiles) {
+        ss << "\""; ss << env->sourceFiles[frame.last->sourceFile].str() << "\"";
     }
+    else
+        ss << "\"Unknown File\"";
 
     long long x, line=-1, ptr=-1;
     for(x = 0; x < frame.last->lineNumbers.size(); x++)
