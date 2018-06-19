@@ -164,7 +164,9 @@ public class string {
 
         public def operator=( var[] immstr )
         {
-            data = (var[])System.copyOf(immstr, sizeof(immstr));
+            if (immstr == null) data = null;
+            else
+                data = (var[])System.copyOf(immstr, sizeof(immstr));
         }
 
         public def operator+( var num ) : string
