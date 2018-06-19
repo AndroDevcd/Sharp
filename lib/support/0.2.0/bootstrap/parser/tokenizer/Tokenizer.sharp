@@ -32,7 +32,6 @@ class Tokenizer {
         errors = new ErrorManager(lines, file, true, Options.aggressiveErrors);
         current = cursor < sizeof(tokens)
                               ? tokens[cursor] : tokens[sizeof(tokens)-1];
-        line = 1;
 
         for(;;) {
             invalidate_whitespace:
@@ -51,7 +50,7 @@ class Tokenizer {
             else if(!commentStart(current, peek(1), mode))
                 goto scan;
 
-            col += 2; cursor += 2;
+            advance(); advance();
             while(!isEnd() && !commentEnd(current, peek(1), mode))
             {
                 if(char.isNewLine(current)){
@@ -203,7 +202,6 @@ class Tokenizer {
                             underscoreAllowed = true;
                         else {
                             if(!underscoreAllowed) {
-                                System.println("illegal");
                                 errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
                                 break;
                             }
@@ -237,6 +235,7 @@ class Tokenizer {
                     var underscoreAllowed = false;
                     string number = "";
 
+                    asm("nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop ");
                     while(!isEnd())
                     {
                        if('_' == current) {
@@ -257,6 +256,7 @@ class Tokenizer {
                            }
                            dotFound = true;
                            advance();
+                           asm("nop nop nop nop nop nop nop");
                            continue;
                        }
                        else if ('e' == char.toLower(current))
@@ -470,7 +470,7 @@ class Tokenizer {
         mode = 0;
         if ('/' == c0)
         {
-            if ('/' == c1) { mode = 1;}
+            if ('/' == c1) { mode = 1; }
             else if ('*' == c1) { mode = 2;}
         }
         return (mode != 0);

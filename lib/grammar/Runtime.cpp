@@ -1384,10 +1384,10 @@ void RuntimeEngine::parseContinueStatement(Block& block, Ast* pAst) {
 
     if(currentScope()->brahchHelper.size() > 0 && currentScope()->brahchHelper.last() == SCOPE_FOR_LOOP) {
         string name = currentScope()->loopAddressTable.last().key;
-        currentScope()->addBranch(name, 0, block.code, pAst->line, pAst->col);
+        currentScope()->addBranch(name, 1, block.code, pAst->line, pAst->col);
     } else if(currentScope()->brahchHelper.size() > 0 && currentScope()->brahchHelper.last() == SCOPE_WHILE_LOOP) {
         string name = currentScope()->loopAddressTable.last().key;
-        currentScope()->addBranch(name, 0, block.code, pAst->line, pAst->col);
+        currentScope()->addBranch(name, 1, block.code, pAst->line, pAst->col);
     } else {
         // error not in loop
         errors->createNewError(GENERIC, pAst, "continue statement outside of loop");
@@ -6529,12 +6529,12 @@ Expression RuntimeEngine::parseEqualExpression(Ast* pAst) {
                         // add var
                         assignNative(operand, out, left, right, pAst);
                     } else if(right.utype.field->type == CLASS) {
-                        addClass(operand, right.utype.field->klass, out, left, right, pAst);
+                        addClass(operand, right.utype.field->klass, out, right, left, pAst);
                     } else {
                         // do nothing field unresolved
                     }
                 } else if(right.type == expression_lclass) {
-                    addClass(operand, left.utype.klass, out, left, right, pAst);
+                    addClass(operand, left.utype.klass, out, right, left, pAst);
                 } else {
                     errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `" + operand.getToken() +
                                                                       "` cannot be applied to expression of type `" + left.typeToString() + "` and `" + right.typeToString() + "`");
@@ -12229,7 +12229,7 @@ bool RuntimeEngine::isExpressionConvertableToNativeClass(Field *f, Expression &e
         if(f->klass->getName() == "string") {
             return exp.type == expression_string;
         } else {
-            return (exp.trueType() == VAR || isNativeIntegerClass(exp.getClass())) && !exp.isArray();
+            return (exp.trueType() == VAR && !exp.isArray());
         }
     }
     return false;

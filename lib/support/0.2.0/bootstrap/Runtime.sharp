@@ -196,16 +196,12 @@ public class Runtime {
     static def exec_runtime(ArrayList<string> files) {
         File testFile = new File(files.get(0));
 
-        System.println("execute runtime ");
         IOStream istream = new IOStream(testFile, IOStream.READ);
         var _char, iter;
         string tokens = istream.toString();
 
-        System.println("file data retrieved ");
         istream.close();
-        System.println("tokenizing ");
         Tokenizer tokenizer = new Tokenizer(tokens, files.get(0));
-        System.println("done");
     }
 
 

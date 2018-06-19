@@ -43,7 +43,8 @@ public class int base integer {
     }
 
     public def operator=(var num) : var {
-        return (value=(_int32)num);
+        value=(_int32)num;
+        return (value);
     }
 
     public def operator=(integer num) : int {

@@ -695,7 +695,7 @@ void Thread::exec() {
                 return;
 
             interp:
-            count++;
+//            count++;
 //            if(pc>=606&&current->address==78) {
 //                int i = 0;
 ////                CHECK_NULLOBJ(

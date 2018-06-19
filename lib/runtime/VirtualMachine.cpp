@@ -177,8 +177,6 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         executeMethod(thread_self->main->address)
 
         thread_self->exec();
-        if(count != 0)
-            cout << "instructions executed " << count << " overflowed " << overflow << endl;
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();
@@ -186,6 +184,9 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         thread_self->throwable = e.getThrowable();
         thread_self->exceptionThrown = true;
     }
+
+    if(count != 0)
+        cout << "instructions executed " << count << " overflowed " << overflow << endl;
 
     /*
      * Check for uncaught exception in thread before exit
