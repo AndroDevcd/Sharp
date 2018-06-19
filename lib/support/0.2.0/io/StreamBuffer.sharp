@@ -40,10 +40,8 @@ class StreamBuffer {
     * The data will be converted to a unicode UTF-16 encoded string
     */
     public def toString() : string {
-        string str = "";
-        for(var i=0; i < dp; i++) {
-            str += new var[] {data[i]};
-        }
+        var[] raw = (var[])System.copyOf(data, dp);
+        string str = new string(raw);
         return str;
     }
 
@@ -69,16 +67,14 @@ class StreamBuffer {
 
     public def operator+(string data) : StreamBuffer {
         var[] raw = data.toArray();
-        foreach(var _char : raw)
-            pushBack((_int16)_char);
+        pushBack(raw);
         return self;
     }
 
     public def operator=(StreamBuffer buf) : StreamBuffer {
         begin();
 
-        foreach(var _char : buf.data)
-            pushBack((_int16)_char);
+        pushBack(buf.data);
         return self;
     }
 
@@ -86,8 +82,7 @@ class StreamBuffer {
         begin();
 
         var[] raw = data.toArray();
-        foreach(var _char : raw)
-            pushBack((_int16)_char);
+        pushBack(raw);
         return self;
     }
 
@@ -103,10 +98,23 @@ class StreamBuffer {
 
         if(dp >= size) {
             size += STREAM_CHUNK;
-            data = Array<var>.copyOf(data, sizeof(data), size);
+            data = (var[])System.copyOf(data, sizeof(data), size);
         }
 
         data[dp++] = _char;
+    }
+
+    public def pushBack(var[] raw) {
+        if(data==null)
+            begin();
+
+        if((dp+sizeof(raw)) >= size) {
+            size += sizeof(raw)+STREAM_CHUNK;
+            data = (var[])System.copyOf(data, sizeof(data), size);
+        }
+
+        foreach(var _char : raw)
+            data[dp++] = _char;
     }
 
 }

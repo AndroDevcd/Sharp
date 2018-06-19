@@ -37,7 +37,7 @@ public class ArrayList<T> {
      */
     public def toArray() : T[] {
         if(mData == null) return null;
-        return ((T[]) Array<T>.copyOf(mData, sizeof(mData)));
+        return ((T[]) System.copyOf(mData, sizeof(mData)));
     }
 
     /**
@@ -77,7 +77,9 @@ public class ArrayList<T> {
      * Expand the list to hold more data
      */
     private def expand() {
-        mData = (T[]) Array<T>.copyOf(mData, sizeof(mData), sizeof(mData)+1);
+        if(mData == null) mData = new T[1];
+        else
+            mData = (T[]) System.copyOf(mData, sizeof(mData), sizeof(mData)+1);
     }
 
     /**
@@ -85,7 +87,7 @@ public class ArrayList<T> {
      */
     private def shrink() {
         if(sizeof(mData) >= 1)
-            mData = (T[]) Array<T>.copyOf(mData, sizeof(mData)-1, sizeof(mData)-1);
+            mData = (T[]) System.copyOf(mData, sizeof(mData)-1, sizeof(mData)-1);
         else
             mData = null;
     }

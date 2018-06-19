@@ -77,12 +77,13 @@ public class string {
 
         def append(var[] immstr) : string
         {
-            var[] newStr = new var[sizeof(data) + sizeof(immstr)];
+            var iter=sizeof(data);
+            var[] newStr;
 
-            var iter=0;
-            for(var i = 0; i < sizeof(data); i++) {
-                newStr[iter++] = (_int16)data[i];
-            }
+            if(data == null)
+                newStr = new var[sizeof(immstr)];
+            else
+                newStr = (var[])System.copyOf(data, sizeof(data), sizeof(data) + sizeof(immstr));
 
             for(var i = 0; i < sizeof(immstr); i++)
             {
@@ -163,7 +164,7 @@ public class string {
 
         public def operator=( var[] immstr )
         {
-            data = Array<var>.copyOf(immstr, sizeof(immstr));
+            data = (var[])System.copyOf(immstr, sizeof(immstr));
         }
 
         public def operator+( var num ) : string
@@ -316,7 +317,8 @@ public class string {
 
         public def toArray() : var[]
         {
-            return Array<var>.copyOf(data, sizeof(data));
+            if(data == null) return null;
+            return (var[])System.copyOf(data, sizeof(data));
         }
 
         public static def parse( var number ) : string

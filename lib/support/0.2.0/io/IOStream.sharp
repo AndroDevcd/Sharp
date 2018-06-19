@@ -68,6 +68,10 @@ public class IOStream {
         iobuf.end();
     }
 
+    public def toString() : string {
+        return iobuf.toString();
+    }
+
     public def write(var[] data) {
         if(direction == READ)
             throw new IllegalStateException("illegal write on IOStream");

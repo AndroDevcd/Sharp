@@ -220,22 +220,22 @@ class Tokenizer {
                     goto invalidate_whitespace;
                 } else {
                     /*
-                        Attempt to match a valid numeric value in one of the following formats:
-                        1. 123456
-                        2. 123.456
-                        3. 1_23.456e3
-                        4. 123.456E3
-                        5. 123.456e+3
-                        6. 123.456E+3
-                        7. 123.456e-3
-                        8. 123.456E-3
-                        9. 12345e5
-                     */
-                     var dotFound          = false;
-                     var eFound            = false;
-                     var postESignFound    = false;
-                     var underscoreAllowed = false;
-                     string number = "";
+                       Attempt to match a valid numeric value in one of the following formats:
+                       1. 123456
+                       2. 123.456
+                       3. 1_23.456e3
+                       4. 123.456E3
+                       5. 123.456e+3
+                       6. 123.456E+3
+                       7. 123.456e-3
+                       8. 123.456E-3
+                       9. 12345e5
+                    */
+                    var dotFound          = false;
+                    var eFound            = false;
+                    var postESignFound    = false;
+                    var underscoreAllowed = false;
+                    string number = "";
 
                     while(!isEnd())
                     {
@@ -370,6 +370,85 @@ class Tokenizer {
                     entities.add(new TokenEntity(message, TokenId.STRING_LITERAL, col, line));
                 else
                     entities.add(new TokenEntity(getEscapedString(message), TokenId.STRING_LITERAL, col, line));
+
+                advance();
+                goto invalidate_whitespace;
+            } else if('\'' == current) // 'a', '\t', etc.
+            {
+                string character = "";
+                if (tokensLeft() < 2)
+                {
+                    errors.createNewError(CompilerError.EXPECTED_CHAR_LITERAL_EOF, line, col);
+                    advance();
+                    goto invalidate_whitespace;
+                }
+                advance();
+
+                var escapedFound  = false;
+                var escaped       = false;
+                var hasCharacter  = false;
+
+                while (!isEnd())
+                {
+                    if (!escaped && ('\\' == current))
+                    {
+                        if(hasCharacter)
+                        {
+                            errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", a chacacter literal cannot contain more than a single character; expected `'`");
+                            goto invalidate_whitespace;
+                        }
+
+                        character += current;
+                        escapedFound = true;
+                        escaped = true;
+                        advance();
+                        continue;
+                    }
+                    else if (!escaped)
+                    {
+                        if ('\'' == current)
+                            break;
+
+                        if(hasCharacter)
+                        {
+                            errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", a chacacter literal cannot contain more than a single character; expected `'`");
+                            goto invalidate_whitespace;
+                        }
+
+                        hasCharacter = true;
+                        character += current;
+                    }
+                    else if (escaped)
+                    {
+                        hasCharacter = true;
+                        if(!char.isAlpha(current) && current != '\\' && current != '\"' && current != '\'')
+                        {
+                            errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", text preceding `\\` must be alpha, '\"', or '\\'' only");
+                            goto invalidate_whitespace;
+                        }
+                        character += current;
+                        escaped = false;
+                    }
+                    advance();
+                }
+
+                if (isEnd())
+                {
+                    errors.createNewError(CompilerError.UNEXPECTED_EOF, line, col);
+                    goto invalidate_whitespace;
+                }
+
+                if (!escapedFound)
+                {
+                    if(character.empty()) {
+                        errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", character literals cannot be empty");
+                    } else
+                        entities.add(new TokenEntity(character, TokenId.CHAR_LITERAL, col, line));
+                }
+                else
+                {
+                    entities.add(new TokenEntity(getEscapedString(character), TokenId.CHAR_LITERAL, col, line));
+                }
 
                 advance();
                 goto invalidate_whitespace;

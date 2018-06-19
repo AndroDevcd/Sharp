@@ -7816,6 +7816,7 @@ ClassObject *RuntimeEngine::parseBaseClass(Ast *ast, int startpos) {
 }
 
 string Expression::typeToString() {
+    string s = "";
     switch(type) {
         case expression_string:
             return "var[]";
@@ -7834,7 +7835,7 @@ string Expression::typeToString() {
         case expression_void:
             return "void";
         case expression_objectclass:
-            return "object";
+            return s + "object" + (utype.array ? "[]" : "");
         case expression_field:
             return utype.typeToString() + (utype.array || utype.field->isArray ? "[]" : "");
         case expression_null:

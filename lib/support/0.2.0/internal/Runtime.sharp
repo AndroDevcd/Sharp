@@ -91,4 +91,27 @@ public class Runtime {
     public static def freeMemory() : var {
         return memoryLimit()-managedMemory();
     }
+
+    public static def copy(object[] data, var len) : object[] {
+        object[] result;
+
+        asm(
+            "pushl <data>                                                                             "
+            "ipushl <len>                                                                             "
+            "int 0xc0         // send request to natively copy object                                 "
+            "popl <result>                                                                            " );
+        return result;
+    }
+
+    public static def copy2(object[] data, var indexLen, var len) : object[] {
+        object[] result;
+
+        asm(
+            "pushl <data>                                                                             "
+            "ipushl <indexLen>                                                                        "
+            "ipushl <len>                                                                             "
+            "int 0xc1         // send request to natively copy object                                 "
+            "popl <result>                                                                            " );
+        return result;
+    }
 }

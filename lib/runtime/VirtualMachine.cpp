@@ -301,6 +301,91 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 throw Exception(Environment::NullptrException, "");
             return;
         }
+        case 0xc0: {
+            size_t len = thread_self->dataStack[thread_self->sp--].var;
+            Object *arry = &thread_self->dataStack[thread_self->sp].object;
+            SharpObject *o = arry->object, *data;
+
+            if(o != NULL) {
+                if(len > o->size || len < 0) {
+                    stringstream ss;
+                    ss << "invalid call to native System.copy() len: " << len
+                       << ", array size: " << o->size;
+                    throw Exception(ss.str());
+                }
+
+                if(o->k != NULL) { // class?
+                    data = GarbageCollector::self->newObjectArray(len, o->k);
+
+                    for(size_t i = 0; i < len; i++) {
+                        data->node[i] = o->node[i];
+                    }
+
+                    *arry = data;
+                } else if(o->HEAD != NULL) { // var[]
+                    data = GarbageCollector::self->newObject(len);
+
+                    for(size_t i = 0; i < len; i++) {
+                        data->HEAD[i] = o->HEAD[i];
+                    }
+
+                    *arry = data;
+                } else if(o->node != NULL) { // object? maybe...
+                    data = GarbageCollector::self->newObjectArray(len);
+
+                    for(size_t i = 0; i < len; i++) {
+                        data->node[i] = o->node[i];
+                    }
+
+                    *arry = data;
+                }
+            } else
+                throw Exception(Environment::NullptrException, "");
+            return;
+        }
+        case 0xc1: {
+            size_t len = thread_self->dataStack[thread_self->sp--].var;
+            size_t indexLen = thread_self->dataStack[thread_self->sp--].var;
+            Object *arry = &thread_self->dataStack[thread_self->sp].object;
+            SharpObject *o = arry->object, *data;
+
+            if(o != NULL) {
+                if(indexLen > o->size || len < 0 || indexLen < 0) {
+                    stringstream ss;
+                    ss << "invalid call to native System.copy2() index-len: " << len
+                       << ", array size: " << o->size;
+                    throw Exception(ss.str());
+                }
+
+                if(o->k != NULL) { // class?
+                    data = GarbageCollector::self->newObjectArray(len, o->k);
+
+                    for(size_t i = 0; i < indexLen; i++) {
+                        data->node[i] = o->node[i];
+                    }
+
+                    *arry = data;
+                } else if(o->HEAD != NULL) { // var[]
+                    data = GarbageCollector::self->newObject(len);
+
+                    for(size_t i = 0; i < indexLen; i++) {
+                        data->HEAD[i] = o->HEAD[i];
+                    }
+
+                    *arry = data;
+                } else if(o->node != NULL) { // object? maybe...
+                    data = GarbageCollector::self->newObjectArray(len);
+
+                    for(size_t i = 0; i < indexLen; i++) {
+                        data->node[i] = o->node[i];
+                    }
+
+                    *arry = data;
+                }
+            } else
+                throw Exception(Environment::NullptrException, "");
+            return;
+        }
         case 0xb1:
         case 0xb2:
         case 0xb3:

@@ -104,4 +104,12 @@ public class System {
     public static def getManagedMemory() : var {
         return Runtime.managedMemory();
     }
+
+    public static def copyOf(object[] data, var len) : object[] {
+        return Runtime.copy(data, len);
+    }
+
+    public static def copyOf(object[] data, var indexLen, var len) : object[] {
+        return Runtime.copy2(data, indexLen, len);
+    }
 }
