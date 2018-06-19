@@ -365,6 +365,7 @@ int Process_Exe(std::string exe)
 
                     method->address = geti64(buffer);
                     method->name = getstring(buffer);
+                    method->fullName = getstring(buffer);
                     method->sourceFile = getlong(buffer);
                     method->owner = findClass(geti64(buffer));
                     method->paramSize = geti64(buffer);
@@ -490,6 +491,7 @@ int Process_Exe(std::string exe)
                 break;
             }
         }
+
 
         if(compressed) {
             buffer.end();

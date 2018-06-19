@@ -7,6 +7,7 @@
 #include "../oo/Object.h"
 #include "../Thread.h"
 #include "../oo/Field.h"
+#include "../../util/time.h"
 
 long long hbytes;
 GarbageCollector *GarbageCollector::self = nullptr;

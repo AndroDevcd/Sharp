@@ -65,14 +65,18 @@ public class string {
 
         def append(var char) : string
         {
-            var[] str = new var[] { char };
-            return append(str);
+            if(data == null)
+                data = new var[1];
+            else
+                data = (var[])System.copyOf(data, sizeof(data), sizeof(data) + 1);
+
+            data[sizeof(data) - 1] = char;
+            return self;
         }
 
         def append(char c) : string
         {
-            var[] str = new var[] { c.getValue() };
-            return append(str);
+            return append(c.getValue());
         }
 
         def append(var[] immstr) : string
@@ -236,7 +240,7 @@ public class string {
         public def operator+( char c ) : string
         {
             string s = new string(data);
-            s.append(c);
+            s.append(c.getValue());
 
             return s;
         }

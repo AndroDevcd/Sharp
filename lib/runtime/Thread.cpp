@@ -62,6 +62,9 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     new (&thread->mutex) std::mutex();
 #endif
     thread->name.init();
+#ifdef SHARP_PROF_
+    thread->tprof.init();
+#endif
     thread->main = method;
     thread->id = Thread::tid++;
     thread->dataStack = NULL;
@@ -97,6 +100,9 @@ void Thread::Create(string name) {
 #endif
     this->name.init();
 
+#ifdef SHARP_PROF_
+    this->tprof.init();
+#endif
     this->name = name;
     this->id = Thread::tid++;
     this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*STACK_SIZE);
@@ -131,6 +137,9 @@ void Thread::CreateDaemon(string name) {
 #endif
     this->name.init();
 
+#ifdef SHARP_PROF_
+    this->tprof.init();
+#endif
     this->name = name;
     this->id = Thread::tid++;
     this->dataStack = NULL;
@@ -422,6 +431,10 @@ void Thread::term() {
         }
         std::free(dataStack); dataStack = NULL;
     }
+
+#ifdef SHARP_PROF_
+    tprof.free();
+#endif
     this->name.free();
 }
 
@@ -677,10 +690,23 @@ void Thread::exec() {
     int64_t args=0;
     ClassObject *klass;
     SharpObject* o=NULL;
+    Method* f;
     int c;
     Object* o2=NULL;
     void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
     Method* finnallyMethod;
+
+#ifdef SHARP_PROF_
+    for(size_t i = 0; i < manifest.methods; i++) {
+        tprof.functions.push_back();
+        tprof.functions.last().init();
+        tprof.functions.last() = funcProf(env->methods+i);
+    }
+#endif
+
+#ifdef SHARP_PROF_
+    tprof.hit(main);
+#endif
 
     _initOpcodeTable
     try {
@@ -713,6 +739,9 @@ void Thread::exec() {
                 registers[cache[pc+1]]=GET_Da(cache[pc]); pc++;
                 _brh
             RET:
+#ifdef SHARP_PROF_
+                tprof.profile();
+#endif
                 if(thread_self->callStack.size() <= 1)
                     return;
 
@@ -894,7 +923,10 @@ void Thread::exec() {
                 GarbageCollector::self->freeObject(o2);
                 _brh
             CALL:
-               executeMethod(GET_Da(cache[pc]))
+#ifdef SHARP_PROF_
+                tprof.hit(env->methods+GET_Da(cache[pc]));
+#endif
+                executeMethod(GET_Da(cache[pc]))
                 _brh_NOINCREMENT
             NEWCLASS:
                 dataStack[++sp].object =

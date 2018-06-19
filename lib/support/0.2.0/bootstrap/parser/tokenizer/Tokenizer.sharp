@@ -235,7 +235,6 @@ class Tokenizer {
                     var underscoreAllowed = false;
                     string number = "";
 
-                    asm("nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop nop ");
                     while(!isEnd())
                     {
                        if('_' == current) {
@@ -256,7 +255,6 @@ class Tokenizer {
                            }
                            dotFound = true;
                            advance();
-                           asm("nop nop nop nop nop nop nop");
                            continue;
                        }
                        else if ('e' == char.toLower(current))

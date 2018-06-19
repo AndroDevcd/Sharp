@@ -15,6 +15,7 @@
 #include "register.h"
 #include "memory/GarbageCollector.h"
 #include "Manifest.h"
+#include "Environment.h"
 
 options c_options;
 int startApplication(string e, List<native_string> &pArgs);
@@ -154,7 +155,6 @@ int runtimeStart(int argc, const char* argv[])
 
 int startApplication(string exe, List<native_string>& pArgs) {
     int result;
-
     if(CreateVirtualMachine(exe) != 0) {
         fprintf(stderr, "Sharp VM init failed (check log file)\n");
         goto bail;

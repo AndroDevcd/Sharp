@@ -9,6 +9,7 @@
 #include "oo/ClassObject.h"
 #include "oo/Exception.h"
 #include "oo/Method.h"
+#include "profiler.h"
 
 #define MAX_THREADS 0xffba
 
@@ -37,6 +38,9 @@ public:
             throwable(),
             callStack(),
             dataStack(NULL)
+#ifdef SHARP_PROF_
+            ,tprof()
+#endif
 
     {
     #ifdef WIN32_
@@ -91,6 +95,10 @@ public:
     std::mutex mutex;
 #endif
     static bool isAllThreadsSuspended;
+
+#ifdef SHARP_PROF_
+    Profiler tprof;
+#endif
 
     int32_t id;
     bool daemon;

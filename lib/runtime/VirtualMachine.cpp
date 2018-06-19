@@ -176,7 +176,11 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
          */
         executeMethod(thread_self->main->address)
 
+        double pst = Clock::realTimeInNSecs(), now;
         thread_self->exec();
+        now = Clock::realTimeInNSecs();
+        cout << "\n\nthread exec time " << NANO_TOMILL(now-pst);
+
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();
@@ -184,6 +188,11 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         thread_self->throwable = e.getThrowable();
         thread_self->exceptionThrown = true;
     }
+
+
+#ifdef SHARP_PROF_
+    thread_self->tprof.dump();
+#endif
 
     if(count != 0)
         cout << "instructions executed " << count << " overflowed " << overflow << endl;

@@ -10544,6 +10544,7 @@ std::string RuntimeEngine::generate_text_section() {
         text << (char)data_method;
         text << i64_tostr(f->address);
         text << f->getName() << ((char)nil);
+        text << f->getFullName() << ((char)nil);
         text << f->sourceFileLink << ((char)nil);
         text << i64_tostr(f->owner->address);
         text << i64_tostr(f->paramCount());
