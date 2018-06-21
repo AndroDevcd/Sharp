@@ -176,10 +176,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
          */
         executeMethod(thread_self->main->address)
 
-        double pst = Clock::realTimeInNSecs(), now;
         thread_self->exec();
-        now = Clock::realTimeInNSecs();
-        cout << "\n\nthread exec time " << NANO_TOMILL(now-pst);
 
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {

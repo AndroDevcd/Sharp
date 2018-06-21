@@ -236,6 +236,8 @@ void Optimizer::optimize(Method *method) {
      * and will most likely fatally crash with (SEGV) signal
      */
     optimizeJumpBranches();
+
+    //optimizeNops();
 }
 
 /**
@@ -1088,6 +1090,42 @@ void Optimizer::optimizeRegister(int reg) {
                 break;
             default:
                 break; /* ignore */
+        }
+    }
+}
+
+
+/**
+ * [0x7c] 124:	nop
+ *
+ * to -> (removed)
+ */
+void Optimizer::optimizeNops() {
+    int64_t x64;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_NOP:
+
+                assembler->__asm64.remove(i); // remove nop
+                readjustAddresses(i);
+
+                optimizedOpcodes++;
+                goto readjust;
+            case op_MOVI:
+            case op_ADD:
+            case op_SUB:
+            case op_MUL:
+            case op_DIV:
+            case op_MOD:
+            case op_SHL:
+            case op_SHR:
+            case op_ISTOREL:
+            case op_MOVBI: // skip these to prevent undefined behavior
+                i++;
+                break;
         }
     }
 }

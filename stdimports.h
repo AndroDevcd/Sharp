@@ -46,7 +46,7 @@ using namespace std;
     #define MUTEX pthread_mutex_t
 #endif
 
-//#define SHARP_PROF_
+#define SHARP_PROF_
 
 #ifndef DEBUGGING
 #define DEBUGGING

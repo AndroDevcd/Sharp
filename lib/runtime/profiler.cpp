@@ -14,15 +14,15 @@
 void Profiler::hit(Method *func) {
     lastHit = func->address;
     totalHits++;
-    starttm = Clock::realTimeInNSecs();
+    past = Clock::realTimeInNSecs();
     functions.get(lastHit).hits++;
 }
 
 void Profiler::profile() {
     if(lastHit != -1) {
-        endtm = Clock::realTimeInNSecs();
+        now = Clock::realTimeInNSecs();
         funcProf &prof = functions.get(lastHit);
-        prof.time += NANO_TOMILL(endtm-starttm);
+        prof.time += (now-past)/1000000L;
         prof.avgtm = prof.time/prof.hits;
         lastHit = -1;
     }
@@ -54,7 +54,6 @@ void Profiler::dump() {
         if(iter-- <= 0)
             break;
 
-        char buf [1048];
         funcProf &prof = functions.get(i);
 
         string source = env->sourceFiles[prof.func->sourceFile].str();
@@ -66,6 +65,7 @@ void Profiler::dump() {
     }
 
     cout << ss.str();
+    cout << "\n total time = " << NANO_TOMILL(endtm-starttm) << endl;
 }
 
 void Profiler::free() {

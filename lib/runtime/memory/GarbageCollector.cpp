@@ -126,13 +126,14 @@ void GarbageCollector::shutdown() {
         managedBytes=0;
         isShutdown=true;
         /* Clear out all memory */
-//        cout << "highest memory calculated: " << hbytes << endl;
-//        cout << "Objects Collected " << self->x << endl;
-//        cout << "Total managed bytes left " << self->managedBytes << endl;
-//        cout << "Objects left over young: " << youngObjects << " adult: " << adultObjects
-//                                          << " old: " << oldObjects << endl;
-//        cout << "heap size: " << heap.size() << endl;
-//        cout << std::flush << endl;
+        cout << "size of object: " << sizeof(SharpObject) << endl;
+        cout << "highest memory calculated: " << hbytes << endl;
+        cout << "Objects Collected " << self->x << endl;
+        cout << "Total managed bytes left " << self->managedBytes << endl;
+        cout << "Objects left over young: " << youngObjects << " adult: " << adultObjects
+                                          << " old: " << oldObjects << endl;
+        cout << "heap size: " << heap.size() << endl;
+        cout << std::flush << endl;
         for (auto it = heap.begin(); it != heap.end();) {
             if((*it)->refCount < 1)
                 it = sweep(*it);
@@ -321,7 +322,7 @@ void GarbageCollector::run() {
         if(++spins >= maxSpins) {
             spins = 0;
             do {
-                __os_sleep(10);
+                __os_sleep(1);
             } while(!GC_COLLECT_YOUNG() && !GC_COLLECT_ADULT()
                     && !GC_COLLECT_OLD() && !thread_self->suspendPending
                        && thread_self->state == THREAD_RUNNING);

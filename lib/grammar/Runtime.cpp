@@ -690,7 +690,7 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
         currentScope()->label_map.add(KeyPair<string,int64_t>(ifBlockEnd, __init_label_address(block.code)));
 
 
-        currentScope()->addBranch(ifEndLabel, 2, block.code, pAst->getSubAst(ast_expression)->line,
+        currentScope()->addBranch(ifEndLabel, 1, block.code, pAst->getSubAst(ast_expression)->line,
                          pAst->getSubAst(ast_expression)->col);
 
         Ast* ast;
@@ -725,7 +725,9 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
                         currentScope()->reachable=true;
                     }
 
-                    currentScope()->addBranch(ifEndLabel, 1, block.code, ast->getSubAst(ast_expression)->line,
+                    if(c_options.optimize && !((i+1) < pAst->getSubAstCount())) {}
+                    else
+                        currentScope()->addBranch(ifEndLabel, 1, block.code, ast->getSubAst(ast_expression)->line,
                                      ast->getSubAst(ast_expression)->col);
                     break;
                 case ast_else_statement:
@@ -734,7 +736,7 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
             }
         }
     } else {
-        currentScope()->addStore(ifEndLabel, adx, 2, block.code, pAst->getSubAst(ast_expression)->line,
+        currentScope()->addStore(ifEndLabel, adx, 1, block.code, pAst->getSubAst(ast_expression)->line,
                         pAst->getSubAst(ast_expression)->col);
         block.code.push_i64(SET_Ei(i64, op_IFNE));
         parseBlock(pAst->getSubAst(ast_block), block);
@@ -745,10 +747,8 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
         }
     }
 
-
     block.code.push_i64(SET_Ei(i64, op_NOP));
     currentScope()->label_map.add(KeyPair<string,int64_t>(ifEndLabel, __init_label_address(block.code)));
-    block.code.push_i64(SET_Ei(i64, op_NOP));
 }
 
 void RuntimeEngine::parseAssemblyBlock(Block& block, Ast* pAst) {

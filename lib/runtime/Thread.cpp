@@ -15,6 +15,7 @@
 #include "register.h"
 #include "Manifest.h"
 #include "oo/Object.h"
+#include "../util/time.h"
 
 int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
@@ -157,6 +158,7 @@ void Thread::CreateDaemon(string name) {
     this->stack_lmt=0;
     this->fp=0;
     this->sp=-1;
+    this->main=NULL;
 
     pushThread(this);
 }
@@ -697,6 +699,7 @@ void Thread::exec() {
     Method* finnallyMethod;
 
 #ifdef SHARP_PROF_
+    tprof.starttm=Clock::realTimeInNSecs();
     for(size_t i = 0; i < manifest.methods; i++) {
         tprof.functions.push_back();
         tprof.functions.last().init();
@@ -722,12 +725,12 @@ void Thread::exec() {
 
             interp:
 //            count++;
-//            if(pc>=606&&current->address==78) {
-//                int i = 0;
+            if(pc>=2&&current->address==191) {
+                int i = 0;
 ////                CHECK_NULLOBJ(
 ////                //o2->object->print();
 ////                )
-//            }
+            }
             DISPATCH();
             _NOP:
                 _brh
@@ -739,11 +742,13 @@ void Thread::exec() {
                 registers[cache[pc+1]]=GET_Da(cache[pc]); pc++;
                 _brh
             RET:
+                if(thread_self->callStack.size() <= 1) {
 #ifdef SHARP_PROF_
-                tprof.profile();
+                    tprof.endtm=Clock::realTimeInNSecs();
+                    tprof.profile();
 #endif
-                if(thread_self->callStack.size() <= 1)
                     return;
+                }
 
                 Frame frame = thread_self->callStack.last();
 
@@ -757,6 +762,10 @@ void Thread::exec() {
                 thread_self->sp = frame.sp;
                 thread_self->fp = frame.fp;
                 thread_self->callStack.pop_back();
+
+#ifdef SHARP_PROF_
+            tprof.profile();
+#endif
                 _brh
             HLT:
                 state=THREAD_KILLED;

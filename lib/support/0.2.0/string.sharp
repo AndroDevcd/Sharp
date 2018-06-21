@@ -303,7 +303,7 @@ public class string {
 
         public def operator+=( char num ) : string
         {
-            return append(new var[] { num });
+            return append(num.getValue());
         }
 
         public def operator+=( Enum e ) : string

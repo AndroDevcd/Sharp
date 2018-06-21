@@ -88,7 +88,7 @@ public:
 
     List<funcProf> functions;
     size_t totalHits; // total ammount of function calls
-    int64_t starttm, endtm;
+    int64_t starttm, endtm, past, now;
     size_t lastHit;
 
     void dump();

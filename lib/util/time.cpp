@@ -40,5 +40,5 @@ int Clock::__os_time(int ty) {
 int64_t Clock::realTimeInNSecs()
 {
     return std::chrono::duration_cast<std::chrono::nanoseconds>
-            (std::chrono::system_clock::now().time_since_epoch()).count();
+            (std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
