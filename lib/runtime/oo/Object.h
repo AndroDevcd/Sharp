@@ -132,8 +132,11 @@ struct Object {
         }
         DEC_REF(this->object)
 
-        this->object = o;
-        this->object->refCount++;
+        if(o != NULL)
+        {
+            this->object = o;
+            this->object->refCount++;
+        }
     }
     void castObject(uint64_t classPtr);
 
