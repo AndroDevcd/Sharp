@@ -162,6 +162,20 @@ void GarbageCollector::collect(CollectionPolicy policy) {
     if(isShutdown)
         return;
 
+    if(!messageQueue.empty()) {
+        mutex.lock();
+        CollectionPolicy policy = messageQueue.last();
+        messageQueue.pop_back();
+        mutex.unlock();
+
+        /**
+         * We only want to run a concurrent collection
+         * in the GC thread itsself
+         */
+        if(policy != GC_CONCURRENT)
+            collect(policy);
+    }
+
     if(policy == GC_LOW) {
         Thread::suspendAllThreads();
 
@@ -308,20 +322,6 @@ void GarbageCollector::run() {
             Thread::suspendSelf();
         if(tself->state == THREAD_KILLED) {
             return;
-        }
-
-        if(!messageQueue.empty()) {
-            mutex.lock();
-            CollectionPolicy policy = messageQueue.last();
-            messageQueue.pop_back();
-            mutex.unlock();
-
-            /**
-             * We only want to run a concurrent collection
-             * in the GC thread itsself
-             */
-            if(policy != GC_CONCURRENT)
-                collect(policy);
         }
 
         if(managedBytes > hbytes)

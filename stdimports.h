@@ -46,7 +46,7 @@ using namespace std;
     #define POSIX_USEC_INTERVAL 1000
 
     #define MUTEX pthread_mutex_t
-    #define __os_yield() pthread_yield();
+    #define __os_yield() sched_yield();
 #endif
 
 #define SHARP_PROF_
