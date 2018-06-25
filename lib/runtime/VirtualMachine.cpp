@@ -37,8 +37,8 @@ int CreateVirtualMachine(std::string exe)
      * Aux classes
      */
     Field* fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, &env->classes[manifest.classes]);
-    fields[1].init("stackTrace", 0, VAR, false, false, &env->classes[manifest.classes]);
+    fields[0].init("message", 0, VAR, false, true, &env->classes[manifest.classes]);
+    fields[1].init("stackTrace", 0, VAR, false, true, &env->classes[manifest.classes]);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -51,8 +51,8 @@ int CreateVirtualMachine(std::string exe)
     env->Throwable = &env->classes[manifest.classes++];
 
     fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, false, env->Throwable);
+    fields[0].init("message", 0, VAR, false, true, env->Throwable);
+    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -65,8 +65,8 @@ int CreateVirtualMachine(std::string exe)
     env->RuntimeErr = &env->classes[manifest.classes++];
 
     fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, false, env->Throwable);
+    fields[0].init("message", 0, VAR, false, true, env->Throwable);
+    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -79,8 +79,8 @@ int CreateVirtualMachine(std::string exe)
     env->StackOverflowErr = &env->classes[manifest.classes++];
 
     fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, false, env->Throwable);
+    fields[0].init("message", 0, VAR, false, true, env->Throwable);
+    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -93,8 +93,8 @@ int CreateVirtualMachine(std::string exe)
     env->ThreadStackException = &env->classes[manifest.classes++];
 
     fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, false, env->Throwable);
+    fields[0].init("message", 0, VAR, false, true, env->Throwable);
+    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -107,8 +107,8 @@ int CreateVirtualMachine(std::string exe)
     env->IndexOutOfBoundsException = &env->classes[manifest.classes++];
 
     fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, false, env->Throwable);
+    fields[0].init("message", 0, VAR, false, true, env->Throwable);
+    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -121,8 +121,8 @@ int CreateVirtualMachine(std::string exe)
     env->NullptrException = &env->classes[manifest.classes++];
 
     fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, false, env->Throwable);
+    fields[0].init("message", 0, VAR, false, true, env->Throwable);
+    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -188,7 +188,8 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 
 
 #ifdef SHARP_PROF_
-    thread_self->tprof.dump();
+    if(!masterShutdown)
+        thread_self->tprof.dump();
 #endif
 
     if(count != 0)

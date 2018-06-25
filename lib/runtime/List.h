@@ -96,15 +96,16 @@ public:
             }
             __shrink();
         } else {
-            long long newLen=len-1,iter=1;
-            for(long long i = 0; i < newLen; i++) {
-                if(iter == _X)
-                    iter++;
+            T* result = (T*)__malloc(sizeof(T)*(len-1));
+            long long newLen=len-1;
+            for(long long i = 0; i < _X; i++)
+                result[i] = _Data[i];
+            for(long long i = _X; i < newLen; i++)
+                result[i] = _Data[i + 1];
 
-                _Data[i] = _Data[iter];
-            }
-
-            __shrink();
+            free();
+            len=newLen;
+            _Data=result;
         }
 
 
@@ -252,9 +253,17 @@ public:
         return -1;
     }
 
+    long long del(T data) {
+        for(unsigned int i = 0; i < len; i++) {
+            if(data == _Data[i]){
+                remove(i);
+            }
+        }
+    }
+
     bool empty() { return len==0; }
 
-    T* _Data;
+    T* _Data, *ptr;
 private:
     CXX11_INLINE
     void __expand() {
@@ -268,10 +277,18 @@ private:
             }
 
             if(_Data==NULL){
-                _Data=(T*)__malloc(sizeof(T)*len);
+                ptr=(T*)__malloc(sizeof(T)*len);
             } else {
-                _Data=(T*)__realloc(_Data, sizeof(T)*len);
+                ptr=(T*)__realloc(_Data, sizeof(T)*len);
             }
+
+            if(ptr==NULL) {
+                len--;
+                stringstream ss;
+                ss << "null list::expand() size: " << len << endl;
+                throw Exception(ss.str());
+            } else
+                _Data=ptr;
         } catch(Exception &e){
             len--;
             throw e;

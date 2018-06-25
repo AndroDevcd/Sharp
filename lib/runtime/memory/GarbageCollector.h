@@ -5,11 +5,13 @@
 #ifndef SHARP_GARBAGECOLLECTOR_H
 #define SHARP_GARBAGECOLLECTOR_H
 
+#include "../../../stdimports.h"
+#include "../List.h"
+
 #ifndef WIN32_
 #include <mutex>
-#endif
 
-#include "../List.h"
+#endif
 
 enum CollectionPolicy
 {
@@ -36,7 +38,7 @@ struct Object;
 struct SharpObject;
 class ClassObject;
 
-#define heap (*_Mheap)
+#define heap (_Mheap)
 
 class GarbageCollector {
 public:
@@ -143,7 +145,7 @@ private:
     /* collect when 20% has been dropped */
     unsigned long oldObjects;
     unsigned long x;
-    std::list<SharpObject*>* _Mheap;
+    List<SharpObject*> _Mheap;
 
     void collectYoungObjects();
     void collectAdultObjects();
@@ -155,20 +157,10 @@ private:
      * @param object
      * @return
      */
-    list<SharpObject *>::iterator sweep(SharpObject *object);
-
-    CXX11_INLINE list<SharpObject *>::iterator invalidate(SharpObject *object) {
-        for (auto it = heap.begin(); it != heap.end(); it++) {
-            if(*it == object) {
-                return heap.erase(it);
-            }
-        }
-
-        return heap.end();
-    }
+    void sweep(SharpObject *object);
 };
 
-#define GC_COLLECT_YOUNG() ( (unsigned int)(((double)yObjs/(double)youngObjects)*100) >= 10 )
+#define GC_COLLECT_YOUNG() ( (unsigned int)(((double)yObjs/(double)youngObjects)*100) >= 4 )
 #define GC_COLLECT_ADULT() ( (unsigned int)(((double)aObjs/(double)adultObjects)*100) >= 40 )
 #define GC_COLLECT_OLD() ( (unsigned int)(((double)oObjs/(double)oldObjects)*100) >= 20 )
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))

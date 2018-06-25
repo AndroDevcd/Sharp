@@ -3,6 +3,7 @@ mod app;
 import std;
 import std.io;
 import std.internal;
+import std.internal.vm;
 
 /**                          
 * Created by bknun on 6/5/2018            

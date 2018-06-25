@@ -1,9 +1,9 @@
-mod internal;
+mod std.internal;
 
 /**
  * Created by braxtonn on 3/6/2018.
  */
-class Runtime {
+public class Runtime {
 
     var x;
     var y;
@@ -13,8 +13,10 @@ class Runtime {
         asm("tests/print.asm");
     }
 
+    private static def setupClasses() { }
+
     public static def __srt_init_(object[] args) : var {
-        for(var i = 0; i < 1000000; i++) {
+        for(var i = 0; i < 100000; i++) {
             /* Do nothing */
             Runtime run = new Runtime();
         }

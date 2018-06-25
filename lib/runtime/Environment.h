@@ -5,6 +5,7 @@
 #ifndef SHARP_ENVIRONMENT_H
 #define SHARP_ENVIRONMENT_H
 
+#include "List.h"
 #include "oo/string.h"
 #include "oo/ClassObject.h"
 #include "oo/Method.h"

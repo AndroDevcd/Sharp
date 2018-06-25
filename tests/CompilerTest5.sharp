@@ -1,4 +1,4 @@
-mod application;
+mod app;
 
 import std;
 
@@ -21,6 +21,7 @@ public class Application {
         foreach(var v : tmp) {
             System.println("int  " +  v);
         }
+        tmp = null;
 
         intArry.set(0, 15);
         System.println("intArry[0] = " + intArry.get(0));

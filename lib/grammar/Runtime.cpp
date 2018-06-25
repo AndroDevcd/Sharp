@@ -749,6 +749,7 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
 
     block.code.push_i64(SET_Ei(i64, op_NOP));
     currentScope()->label_map.add(KeyPair<string,int64_t>(ifEndLabel, __init_label_address(block.code)));
+    block.code.push_i64(SET_Ei(i64, op_NOP));
 }
 
 void RuntimeEngine::parseAssemblyBlock(Block& block, Ast* pAst) {
@@ -7254,11 +7255,11 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
                 errors->createNewError(GENERIC, 1, 0, "could not locate setup method '" + setupMethod + "()' in starter class");
             } else {
                 if(!setupClasses->isStatic()) {
-                    errors->createNewError(GENERIC, 1, 0, "setup method '" + mainMethod + "()' must be static");
+                    errors->createNewError(GENERIC, 1, 0, "setup method '" + setupMethod + "()' must be static");
                 }
 
                 if(!setupClasses->hasModifier(PRIVATE)) {
-                    errors->createNewError(GENERIC, 1, 0, "setup method '" + mainMethod + "()' must be private");
+                    errors->createNewError(GENERIC, 1, 0, "setup method '" + setupMethod + "()' must be private");
                 }
 
                 setupClasses->code.inject(setupClasses->code.size()==0 ? 0 : setupClasses->code.size()-1, staticMainInserts);
@@ -9563,7 +9564,8 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
                     resolveClassDecl(trunk, inlineField);
                 break;
             case ast_generic_class_decl:
-                resolveGenericClassDecl(trunk, inlineField, forEnum);
+                if(!resolvedGenerics)
+                    resolveGenericClassDecl(trunk, inlineField, forEnum);
                 break;
             case ast_enum_decl: /* ignore */
                 if(forEnum)
@@ -10782,8 +10784,8 @@ void RuntimeEngine::createDumpFile() {
         stringstream ss;
         ClassObject &k = *classes.get(i);
         ss << "\n@" << k.address << " " << classes.get(i)->getFullName();
-        ss << " fields: " << classes.get(i)->fieldCount() << " methods: "
-           << classes.get(i)->functionCount();
+        ss << " fields: " << classes.get(i)->getTotalFieldCount() << " methods: "
+           << classes.get(i)->getTotalFunctionCount();
         _ostream << ss.str();
 
         for(int64_t x = 0; x < k.childClassCount(); x++) {
@@ -10791,8 +10793,8 @@ void RuntimeEngine::createDumpFile() {
             ClassObject *klass = k.getChildClass(x);
             if(klass->isGeneric()) continue;
             s << "\n@" << klass->address << " " << klass->getFullName();
-            s << " fields: " << classes.get(i)->fieldCount() << " methods: "
-               << classes.get(i)->functionCount();
+            s << " fields: " << classes.get(i)->getTotalFieldCount() << " methods: "
+               << classes.get(i)->getTotalFunctionCount();
             _ostream << s.str();
 
         }
@@ -10809,6 +10811,7 @@ void RuntimeEngine::createDumpFile() {
     _ostream << "\n\n";
     for(unsigned int i =0; i < allMethods.size(); i++) {
         Method* method = allMethods.get(i);
+        int64_t  iter = 0, line = 0;
 
         stringstream tmp;
         tmp << "func:@" << method->address;
@@ -10819,7 +10822,18 @@ void RuntimeEngine::createDumpFile() {
         for(unsigned int x = 0; x < method->code.size(); x++) {
             stringstream ss;
             int64_t x64=method->code.__asm64.get(x);
-            ss <<std::hex << "[0x" << x << std::dec << "] " << x << ":" << '\t';
+            if(iter < method->line_table.size() && x >= method->line_table.get(iter).key) {
+                line = method->line_table.get(iter).value;
+                ss << "line: " <<  method->line_table.get(iter++).value << ' ';
+                ss <<std::hex << "[0x" << x << std::dec << "] " << x << ":" << '\t';
+            } else {
+                if(line <=9) ss << "        ";
+                else if(line <=99) ss << "         ";
+                else if(line <=999) ss << "          ";
+                else if(line <=9999) ss << "           ";
+                else if(line <=99999) ss << "            ";
+                ss <<std::hex << "[0x" << x << std::dec << "] " << x << ":" << '\t';
+            }
 
             switch(GET_OP(x64)) {
                 case op_NOP:

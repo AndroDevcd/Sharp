@@ -37,6 +37,7 @@ public:
         this->type = field.type;
         this->owner = field.owner;
         this->isStatic = field.isStatic;
+        this->isArray=field.isArray;
     }
 
     native_string name;

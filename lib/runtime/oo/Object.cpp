@@ -34,6 +34,10 @@ void Object::castObject(uint64_t classPtr) {
     }
 }
 
+void Object::free() {
+    DEC_REF(this->object);
+}
+
 void SharpObject::print() {
     cout << "Object @0x" << this << endl;
     cout << "size " << size << endl;

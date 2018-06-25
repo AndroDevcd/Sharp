@@ -63,9 +63,6 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     new (&thread->mutex) std::mutex();
 #endif
     thread->name.init();
-#ifdef SHARP_PROF_
-    thread->tprof.init();
-#endif
     thread->main = method;
     thread->id = Thread::tid++;
     thread->dataStack = NULL;
@@ -100,10 +97,6 @@ void Thread::Create(string name) {
     new (&this->mutex) std::mutex();
 #endif
     this->name.init();
-
-#ifdef SHARP_PROF_
-    this->tprof.init();
-#endif
     this->name = name;
     this->id = Thread::tid++;
     this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*STACK_SIZE);
@@ -137,10 +130,6 @@ void Thread::CreateDaemon(string name) {
     new (&this->mutex) std::mutex();
 #endif
     this->name.init();
-
-#ifdef SHARP_PROF_
-    this->tprof.init();
-#endif
     this->name = name;
     this->id = Thread::tid++;
     this->dataStack = NULL;
@@ -686,19 +675,20 @@ size_t count = 0, overflow = 0;
 
 void Thread::exec() {
 
-    int64_t tmp=0;
-    int64_t val=0;
-    int64_t delegate=0;
-    int64_t args=0;
+    register int64_t tmp=0;
+    register int64_t val=0;
+    register int64_t delegate=0;
+    register int64_t args=0;
     ClassObject *klass;
     SharpObject* o=NULL;
-    Method* f;
+    register Method* f;
     int c;
-    Object* o2=NULL;
+    register Object* o2=NULL, *o3;
     void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
     Method* finnallyMethod;
 
 #ifdef SHARP_PROF_
+    tprof.init();
     tprof.starttm=Clock::realTimeInNSecs();
     for(size_t i = 0; i < manifest.methods; i++) {
         tprof.functions.push_back();
@@ -725,16 +715,29 @@ void Thread::exec() {
 
             interp:
 //            count++;
-            if(pc>=2&&current->address==191) {
-                int i = 0;
+            if(pc>=7&&current->address==2) {
+                int64_t i = (int64_t)registers[ebx];
+                if(pc==5&&i>=10000) {
+                    int c = 0;
+                }
 ////                CHECK_NULLOBJ(
 ////                //o2->object->print();
 ////                )
             }
+
             DISPATCH();
             _NOP:
                 _brh
             _INT:
+
+#ifdef SHARP_PROF_
+                if(GET_Da(cache[pc]) == 0xa9) {
+                    tprof.endtm=Clock::realTimeInNSecs();
+                    tprof.profile();
+                    tprof.dump();
+                }
+
+#endif
                 vm->sysInterrupt(GET_Da(cache[pc]));
                 if(masterShutdown) return;
                 _brh
@@ -882,7 +885,7 @@ void Thread::exec() {
                 _brh
             POPL:
                 dataStack[fp+GET_Da(cache[pc])].object
-                        = dataStack[sp--].object;
+                        = dataStack[sp--].object.object;
                 _brh
             IPOPL:
                 dataStack[fp+GET_Da(cache[pc])].var
