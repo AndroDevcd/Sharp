@@ -42,6 +42,9 @@ void Thread::Startup() {
             sizeof(Thread)*1);
     main->main = &env->methods[manifest.entryMethod];
     main->Create("Main");
+#ifdef WIN32_
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+#endif
 }
 
 int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
@@ -235,8 +238,7 @@ int Thread::start(int32_t id) {
             0,                      // use default creation flags
             NULL);
     if(thread->thread == NULL) return 3; // thread was not started
-    else
-        return waitForThread(thread);
+    else return waitForThread(thread);
 #endif
 #ifdef POSIX_
     if(pthread_create( &thread->thread, NULL, vm->InterpreterThreadStart, (void*) thread))

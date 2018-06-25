@@ -312,7 +312,8 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xc0: {
             size_t len = thread_self->dataStack[thread_self->sp--].var;
             Object *arry = &thread_self->dataStack[thread_self->sp].object;
-            SharpObject *o = arry->object, *data;
+            SharpObject *o = arry->object;
+            Object data; data.object = NULL;
 
             if(o != NULL) {
                 if(len > o->size || len < 0) {
@@ -326,7 +327,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     data = GarbageCollector::self->newObjectArray(len, o->k);
 
                     for(size_t i = 0; i < len; i++) {
-                        data->node[i] = o->node[i];
+                        data.object->node[i] = o->node[i];
                     }
 
                     *arry = data;
@@ -334,7 +335,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     data = GarbageCollector::self->newObject(len);
 
                     for(size_t i = 0; i < len; i++) {
-                        data->HEAD[i] = o->HEAD[i];
+                        data.object->HEAD[i] = o->HEAD[i];
                     }
 
                     *arry = data;
@@ -342,11 +343,13 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     data = GarbageCollector::self->newObjectArray(len);
 
                     for(size_t i = 0; i < len; i++) {
-                        data->node[i] = o->node[i];
+                        data.object->node[i] = o->node[i];
                     }
 
                     *arry = data;
                 }
+                
+                data.free();
             } else
                 throw Exception(Environment::NullptrException, "");
             return;
@@ -355,7 +358,8 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             size_t len = thread_self->dataStack[thread_self->sp--].var;
             size_t indexLen = thread_self->dataStack[thread_self->sp--].var;
             Object *arry = &thread_self->dataStack[thread_self->sp].object;
-            SharpObject *o = arry->object, *data;
+            SharpObject *o = arry->object;
+            Object data; data.object = NULL;
 
             if(o != NULL) {
                 if(indexLen > o->size || len < 0 || indexLen < 0) {
@@ -369,7 +373,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     data = GarbageCollector::self->newObjectArray(len, o->k);
 
                     for(size_t i = 0; i < indexLen; i++) {
-                        data->node[i] = o->node[i];
+                        data.object->node[i] = o->node[i];
                     }
 
                     *arry = data;
@@ -377,7 +381,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     data = GarbageCollector::self->newObject(len);
 
                     for(size_t i = 0; i < indexLen; i++) {
-                        data->HEAD[i] = o->HEAD[i];
+                        data.object->HEAD[i] = o->HEAD[i];
                     }
 
                     *arry = data;
@@ -385,11 +389,13 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     data = GarbageCollector::self->newObjectArray(len);
 
                     for(size_t i = 0; i < indexLen; i++) {
-                        data->node[i] = o->node[i];
+                        data.object->node[i] = o->node[i];
                     }
 
                     *arry = data;
                 }
+                
+                data.free();
             } else
                 throw Exception(Environment::NullptrException, "");
             return;

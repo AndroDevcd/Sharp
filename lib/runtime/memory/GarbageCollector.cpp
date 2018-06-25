@@ -136,11 +136,11 @@ void GarbageCollector::shutdown() {
         cout << "heap size: " << heap.size() << endl;
         cout << std::flush << endl;
 
-        reset:
-        for (long long i = 0; i < heap.size(); i++) {
-            if(heap.get(i)->refCount < 1) {
-                sweep(heap.get(i));
-                goto reset;
+        uint64_t sz = heap.size();
+        for (long long i = 0; i < sz; i++) {
+            if(heap._Data[i]->refCount < 1) {
+                sweep(heap._Data[i]); sz = heap.size();
+                i = 0;
             }
         }
 
@@ -309,10 +309,6 @@ void GarbageCollector::run() {
 //    std::mt19937 mt(rd());
 //    std::uniform_real_distribution<double> dist(1, 10000);
 
-    int maxSpins = 10000;
-    int spins = 0;
-
-
 #ifdef SHARP_PROF_
     tself->tprof.init();
 #endif
@@ -335,7 +331,12 @@ void GarbageCollector::run() {
          if(GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD())
             collect(GC_CONCURRENT);
          else {
-             __os_yield();
+#ifdef WIN32_
+             Sleep(2);
+#endif
+#ifdef POSIX_
+             usleep(2*1000);
+#endif
          }
 
     }
