@@ -122,15 +122,6 @@ void GarbageCollector::freeObject(Object *object) {
     }
 }
 
-static long hasClass(UnmanagedList<KeyPair<ClassObject*, long long>> &klasses, ClassObject *k) {
-    for(long i = 0; i < klasses.size(); i++) {
-        if(klasses.get(i).key == k)
-            return i;
-    }
-
-    return -1;
-}
-
 void GarbageCollector::shutdown() {
     if(self != nullptr) {
         isShutdown=true;
@@ -216,8 +207,9 @@ void GarbageCollector::collectYoungObjects() {
     yObjs = 0;
 
     mutex.lock();
-    for (int64_t i = 0; i < heap.size(); i++) {
-        SharpObject *object = heap.get(i);
+    uint64_t sz = heap.size();
+    for (int64_t i = 0; i < sz; i++) {
+        SharpObject *object = heap._Data[i];
 
         if(thread_self->state == THREAD_KILLED) {
             break;
@@ -226,7 +218,7 @@ void GarbageCollector::collectYoungObjects() {
         if(object->generation == gc_young) {
             // free object
             if(object->mark && object->refCount == 0) {
-                sweep(object); i = 0;
+                sweep(object); sz = heap.size();
             } else if(object->mark && object->refCount > 0){
                 youngObjects--;
                 adultObjects++;
@@ -245,8 +237,9 @@ void GarbageCollector::collectAdultObjects() {
     aObjs = 0;
 
     mutex.lock();
-    for (long long i = 0; i < heap.size(); i++) {
-        SharpObject *object = heap.get(i);
+    uint64_t sz = heap.size();
+    for (long long i = 0; i < sz; i++) {
+        SharpObject *object = heap._Data[i];
 
         if(thread_self->state == THREAD_KILLED) {
             break;
@@ -256,7 +249,7 @@ void GarbageCollector::collectAdultObjects() {
 
             // free object
             if(object->mark && object->refCount == 0) {
-                sweep(object); i = 0;
+                sweep(object); sz = heap.size();
             } else if(object->mark && object->refCount > 0){
                 adultObjects--;
                 oldObjects++;
@@ -274,9 +267,9 @@ void GarbageCollector::collectOldObjects() {
     oObjs = 0;
 
     mutex.lock();
-    reset:
-    for (long long i = 0; i < heap.size(); i++) {
-        SharpObject *object = heap.get(i);
+    uint64_t sz = heap.size();
+    for (long long i = 0; i < sz; i++) {
+        SharpObject *object = heap._Data[i];
 
         if(thread_self->state == THREAD_KILLED) {
             break;
@@ -286,7 +279,7 @@ void GarbageCollector::collectOldObjects() {
 
             // free object
             if(object->mark && object->refCount == 0) {
-                sweep(object); i = 0;
+                sweep(object); sz = heap.size();
             } else
                 object->mark = 1;
         }
