@@ -254,9 +254,31 @@ public:
     }
 
     long long del(T data) {
+        unsigned long long _X = 0;
         for(unsigned int i = 0; i < len; i++) {
             if(data == _Data[i]){
-                remove(i);
+                _X = i;
+
+                if(len==1){
+                    free();
+                }
+                else if(len==2) {
+                    if(_X==0) {
+                        _Data[0]=_Data[1];
+                    }
+                    __shrink();
+                } else {
+                    T* result = (T*)__malloc(sizeof(T)*(len-1));
+                    long long newLen=len-1;
+                    for(long long i = 0; i < _X; i++)
+                        result[i] = _Data[i];
+                    for(long long i = _X; i < newLen; i++)
+                        result[i] = _Data[i + 1];
+
+                    free();
+                    len=newLen;
+                    _Data=result;
+                }
             }
         }
     }
@@ -282,13 +304,7 @@ private:
                 ptr=(T*)__realloc(_Data, sizeof(T)*len);
             }
 
-            if(ptr==NULL) {
-                len--;
-                stringstream ss;
-                ss << "null list::expand() size: " << len << endl;
-                throw Exception(ss.str());
-            } else
-                _Data=ptr;
+            _Data=ptr;
         } catch(Exception &e){
             len--;
             throw e;
