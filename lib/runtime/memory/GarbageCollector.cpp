@@ -335,7 +335,7 @@ void GarbageCollector::run() {
          if(GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD())
             collect(GC_CONCURRENT);
          else {
-             yield();
+             __os_yield();
          }
 
     }
