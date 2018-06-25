@@ -9,6 +9,7 @@
 #include "../oo/Field.h"
 #include "../../util/time.h"
 #include "../../util/KeyPair.h"
+#include <thread>
 
 long long hbytes;
 GarbageCollector *GarbageCollector::self = nullptr;
@@ -185,8 +186,6 @@ void GarbageCollector::collect(CollectionPolicy policy) {
             collectYoungObjects();
             collectAdultObjects();
     } else if(policy == GC_CONCURRENT) {
-        if(managedBytes > hbytes)
-            hbytes = managedBytes;
 
         /**
          * This should only be called by the GC thread itsself
@@ -204,9 +203,10 @@ void GarbageCollector::collect(CollectionPolicy policy) {
 }
 
 void GarbageCollector::collectYoungObjects() {
-    yObjs = 0;
 
     mutex.lock();
+    yObjs = 0;
+
     uint64_t sz = heap.size();
     for (int64_t i = 0; i < sz; i++) {
         SharpObject *object = heap._Data[i];
@@ -234,9 +234,10 @@ void GarbageCollector::collectYoungObjects() {
 }
 
 void GarbageCollector::collectAdultObjects() {
-    aObjs = 0;
 
     mutex.lock();
+    aObjs = 0;
+
     uint64_t sz = heap.size();
     for (long long i = 0; i < sz; i++) {
         SharpObject *object = heap._Data[i];
@@ -264,9 +265,10 @@ void GarbageCollector::collectAdultObjects() {
 }
 
 void GarbageCollector::collectOldObjects() {
-    oObjs = 0;
 
     mutex.lock();
+    oObjs = 0;
+
     uint64_t sz = heap.size();
     for (long long i = 0; i < sz; i++) {
         SharpObject *object = heap._Data[i];
@@ -322,21 +324,20 @@ void GarbageCollector::run() {
                 collect(policy);
         }
 
-        if(++spins >= maxSpins) {
-            spins = 0;
-            do {
-                __os_sleep(10);
-            } while(!GC_COLLECT_YOUNG() && !GC_COLLECT_ADULT()
-                    && !GC_COLLECT_OLD() && !thread_self->suspendPending
-                       && thread_self->state == THREAD_RUNNING);
-        }
+        if(managedBytes > hbytes)
+            hbytes = managedBytes;
 
         /**
          * Attempt to collect objects based on the appropriate
          * conditions. This call does not guaruntee that any collections
          * will happen
          */
-        collect(GC_CONCURRENT);
+         if(GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD())
+            collect(GC_CONCURRENT);
+         else {
+             yield();
+         }
+
     }
 }
 

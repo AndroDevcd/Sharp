@@ -25,6 +25,8 @@ using namespace std;
 #endif
 
 #ifdef WIN32_
+
+#define yield() _mm_pause
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -44,6 +46,7 @@ using namespace std;
     #define POSIX_USEC_INTERVAL 1000
 
     #define MUTEX pthread_mutex_t
+    #define yield() pthread_yield();
 #endif
 
 #define SHARP_PROF_
