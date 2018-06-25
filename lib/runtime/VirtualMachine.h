@@ -66,7 +66,7 @@ public:
     void fillMethodCall(Frame frame, stringstream &ss, Frame *prev);
 };
 
-#define executeMethod(address) { \
+#define executeMethod(address, thread_self) { \
  \
     Method *method = env->methods+address; \
  \

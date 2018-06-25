@@ -174,7 +174,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         /*
          * Call main method
          */
-        executeMethod(thread_self->main->address)
+        executeMethod(thread_self->main->address, thread_self)
 
         thread_self->exec();
 

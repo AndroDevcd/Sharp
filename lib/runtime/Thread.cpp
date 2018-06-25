@@ -938,7 +938,7 @@ void Thread::exec() {
 #ifdef SHARP_PROF_
                 tprof.hit(env->methods+GET_Da(cache[pc]));
 #endif
-                executeMethod(GET_Da(cache[pc]))
+                executeMethod(GET_Da(cache[pc]), this)
                 _brh_NOINCREMENT
             NEWCLASS:
                 dataStack[++sp].object =
@@ -1135,7 +1135,7 @@ void Thread::exec() {
                             search:
                             for(long i = 0; i < klass->methodCount; i++) {
                                 if(env->methods[klass->methods[i]].delegateAddress == delegate) {
-                                    executeMethod(env->methods[klass->methods[i]].address)
+                                    executeMethod(env->methods[klass->methods[i]].address, this)
                                     _brh_NOINCREMENT
                                 }
                             }
@@ -1161,7 +1161,7 @@ void Thread::exec() {
                         if(klass!= NULL) {
                             for(long i = 0; i < klass->methodCount; i++) {
                                 if(env->methods[klass->methods[i]].delegateAddress == delegate) {
-                                    executeMethod(env->methods[klass->methods[i]].address)
+                                    executeMethod(env->methods[klass->methods[i]].address, this)
                                     _brh_NOINCREMENT
                                 }
                             }

@@ -37,6 +37,7 @@ enum CollectionGeneration
 struct Object;
 struct SharpObject;
 class ClassObject;
+class Thread;
 
 #define heap (_Mheap)
 
@@ -44,6 +45,7 @@ class GarbageCollector {
 public:
     static GarbageCollector *self;
     recursive_mutex mutex;
+    Thread *tself;
     List<CollectionPolicy> messageQueue;
 
     static void initilize();

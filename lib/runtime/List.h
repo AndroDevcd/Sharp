@@ -275,7 +275,7 @@ public:
                     for(long long i = _X; i < newLen; i++)
                         result[i] = _Data[i + 1];
 
-                    free();
+                    std::free(_Data);
                     len=newLen;
                     _Data=result;
                 }

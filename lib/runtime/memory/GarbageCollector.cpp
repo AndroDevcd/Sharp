@@ -207,11 +207,11 @@ void GarbageCollector::collectYoungObjects() {
     mutex.lock();
     yObjs = 0;
 
-    uint64_t sz = heap.size();
+    register uint64_t sz = heap.size();
     for (int64_t i = 0; i < sz; i++) {
         SharpObject *object = heap._Data[i];
 
-        if(thread_self->state == THREAD_KILLED) {
+        if(tself->state == THREAD_KILLED) {
             break;
         }
 
@@ -238,11 +238,11 @@ void GarbageCollector::collectAdultObjects() {
     mutex.lock();
     aObjs = 0;
 
-    uint64_t sz = heap.size();
+    register uint64_t sz = heap.size();
     for (long long i = 0; i < sz; i++) {
         SharpObject *object = heap._Data[i];
 
-        if(thread_self->state == THREAD_KILLED) {
+        if(tself->state == THREAD_KILLED) {
             break;
         }
 
@@ -269,11 +269,11 @@ void GarbageCollector::collectOldObjects() {
     mutex.lock();
     oObjs = 0;
 
-    uint64_t sz = heap.size();
+    register uint64_t sz = heap.size();
     for (long long i = 0; i < sz; i++) {
         SharpObject *object = heap._Data[i];
 
-        if(thread_self->state == THREAD_KILLED) {
+        if(tself->state == THREAD_KILLED) {
             break;
         }
 
@@ -300,13 +300,13 @@ void GarbageCollector::run() {
 
 
 #ifdef SHARP_PROF_
-    thread_self->tprof.init();
+    tself->tprof.init();
 #endif
 
     for(;;) {
-        if(thread_self->suspendPending)
+        if(tself->suspendPending)
             Thread::suspendSelf();
-        if(thread_self->state == THREAD_KILLED) {
+        if(tself->state == THREAD_KILLED) {
             return;
         }
 
@@ -350,6 +350,7 @@ void*
 GarbageCollector::threadStart(void *pVoid) {
     thread_self =(Thread*)pVoid;
     thread_self->state = THREAD_RUNNING;
+    self->tself = thread_self;
 
     try {
         self->run();
