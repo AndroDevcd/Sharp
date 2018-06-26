@@ -205,13 +205,13 @@ public class string {
             return s;
         }
 
-//        public def operator+( bool num ) : string
-//        {
-//            string s = new string(data);
-//            s.append(parse(num.getValue()).toArray());
-//
-//            return s;
-//        }
+        public def operator+( bool num ) : string
+        {
+            string s = new string(data);
+            s.append(parse(num.getValue()).toArray());
+
+            return s;
+        }
 
         public def operator+( uint num ) : string
         {
@@ -266,10 +266,10 @@ public class string {
             return operator+=(num.getValue());
         }
 
-//        public def operator+=( bool num ) : string
-//        {
-//            return operator+=(num.getValue() ? "true" : "false");
-//        }
+        public def operator+=( bool num ) : string
+        {
+            return operator+=(num.getValue() ? "true" : "false");
+        }
 
         public def operator+=( long num ) : string
         {
@@ -397,7 +397,7 @@ public class string {
             while( i < len ){
                 if(!char.isDigit(s.at(i))) {
                     throw new IllegalArgumentException(
-                        "invalid char in string: " + (new var[] { s.at(i) }));
+                        "illegal char in string: " + new char(s.at(i)));
                 }
 
                 number *= 10;

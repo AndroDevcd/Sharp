@@ -44,6 +44,7 @@ void Thread::Startup() {
     main->Create("Main");
 #ifdef WIN32_
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+    SetPriorityClass(GetCurrentThread(), HIGH_PRIORITY_CLASS);
 #endif
 }
 

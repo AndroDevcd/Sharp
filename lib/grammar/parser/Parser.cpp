@@ -1045,16 +1045,33 @@ bool Parser::match(int num_args, ...) {
 }
 
 bool Parser::binary(Ast *pAst) {
-    bool parsed = equality(pAst), encapsulated = false;
+    bool parsed = shift(pAst);
 
     while(match(5, AND, XOR, OR, ANDAND, OROR)) {
         advance();
         pAst->addEntity(current());
 
         Ast right(pAst, pAst->getType(), pAst->line, pAst->col);
-        equality(&right);
+        shift(&right);
         pAst->addAst(right);
         pAst->encapsulate(ast_and_e);
+        parsed = true;
+    }
+
+    return parsed;
+}
+
+bool Parser::shift(Ast *pAst) {
+    bool parsed = equality(pAst);
+
+    while(match(2, SHL, SHR)) {
+        advance();
+        pAst->addEntity(current());
+
+        Ast right(pAst, pAst->getType(), pAst->line, pAst->col);
+        comparason(&right);
+        pAst->addAst(right);
+        pAst = pAst->encapsulate(ast_shift_e);
         parsed = true;
     }
 

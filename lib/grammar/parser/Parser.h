@@ -272,6 +272,8 @@ private:
 
     bool equality(Ast *pAst);
 
+    bool shift(Ast *pAst);
+
     bool comparason(Ast *pAst);
 
     bool multiplication(Ast *pAst);
