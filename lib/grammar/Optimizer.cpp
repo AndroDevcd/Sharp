@@ -230,6 +230,7 @@ void Optimizer::optimize(Method *method) {
     optimizeRegister(adx);
     optimizeRegister(ebx); /* most commonly used register in the language */
     optimizeRegister(egx);
+    //optimizeRedundantLoadStore();
 
     /**
      * must be last or the entire program will be rendered unstable
@@ -237,7 +238,7 @@ void Optimizer::optimize(Method *method) {
      */
     optimizeJumpBranches();
 
-    //optimizeNops();
+    //optimizeNops(); this is the devil! i don't ever think this will work smh
 }
 
 /**
@@ -1096,6 +1097,39 @@ void Optimizer::optimizeRegister(int reg) {
 
 
 /**
+ * [0x7] 7:	rstore ebx
+ * [0x8] 8:	loadval ebx
+ *
+ * to -> (removed)
+ */
+void Optimizer::optimizeRedundantLoadStore() {
+    int64_t x64, reg1;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_RSTORE:
+                reg1 = GET_Da(x64);
+
+                if(GET_OP(assembler->__asm64.get(i+1)) == op_LOADVAL
+                   && GET_Da(assembler->__asm64.get(i+1)) == reg1) {
+
+                    assembler->__asm64.remove(i); // remove rstore
+                    readjustAddresses(i);
+
+                    assembler->__asm64.remove(i); // remove loadval
+                    readjustAddresses(i);
+
+                    optimizedOpcodes+=2;
+                    goto readjust;
+                }
+                break;
+        }
+    }
+}
+
+/**
  * [0x7c] 124:	nop
  *
  * to -> (removed)
@@ -1108,6 +1142,8 @@ void Optimizer::optimizeNops() {
 
         switch (GET_OP(x64)) {
             case op_NOP:
+                if((i+1) < assembler->size() && assembler->__asm64.get(i+1) == op_NOP)
+                    continue;
 
                 assembler->__asm64.remove(i); // remove nop
                 readjustAddresses(i);

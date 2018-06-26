@@ -253,32 +253,32 @@ public:
         return -1;
     }
 
-    long long del(T data) {
-        unsigned long long _X = 0;
-        for(unsigned int i = 0; i < len; i++) {
-            if(data == _Data[i]){
-                _X = i;
+    void del(T data) {
+        for(unsigned long long c = 0; c < len; c++) {
+            if(data == _Data[c]){
 
                 if(len==1){
                     free();
                 }
                 else if(len==2) {
-                    if(_X==0) {
+                    if(c==0) {
                         _Data[0]=_Data[1];
                     }
                     __shrink();
                 } else {
                     T* result = (T*)__malloc(sizeof(T)*(len-1));
                     long long newLen=len-1;
-                    for(long long i = 0; i < _X; i++)
+                    for(long long i = 0; i < c; i++)
                         result[i] = _Data[i];
-                    for(long long i = _X; i < newLen; i++)
+                    for(long long i = c; i < newLen; i++)
                         result[i] = _Data[i + 1];
 
                     std::free(_Data);
                     len=newLen;
                     _Data=result;
                 }
+
+                return;
             }
         }
     }
@@ -325,8 +325,8 @@ private:
         }
     }
 
-    unsigned  long len;
-    unsigned  long max;
+    unsigned  long long len;
+    unsigned  long long max;
 };
 
 #endif //SHARP_LIST_H

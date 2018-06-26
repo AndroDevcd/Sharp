@@ -5,6 +5,7 @@
 #ifndef SHARP_GARBAGECOLLECTOR_H
 #define SHARP_GARBAGECOLLECTOR_H
 
+#include <vector>
 #include "../../../stdimports.h"
 #include "../List.h"
 
@@ -44,7 +45,7 @@ class Thread;
 class GarbageCollector {
 public:
     static GarbageCollector *self;
-    recursive_mutex mutex;
+    recursive_mutex mutex, dirtyMutex;
     Thread *tself;
     List<CollectionPolicy> messageQueue;
 
@@ -147,11 +148,17 @@ private:
     /* collect when 20% has been dropped */
     unsigned long oldObjects;
     unsigned long x;
-    List<SharpObject*> _Mheap;
+    std::vector<SharpObject*> _Mheap;
+    std::vector<SharpObject*> dirtyList;
 
     void collectYoungObjects();
     void collectAdultObjects();
     void collectOldObjects();
+
+    /**
+     * All objects are born dirty and need to be cleaned
+     */
+    void cleanDirtyObjects();
 
     /**
      * This function performs the actual collection of
@@ -159,7 +166,8 @@ private:
      * @param object
      * @return
      */
-    void sweep(SharpObject *object);
+    vector<SharpObject *, std::allocator<SharpObject *>>::iterator sweep(SharpObject *object);
+
 };
 
 #define GC_COLLECT_YOUNG() ( (unsigned int)(((double)yObjs/(double)youngObjects)*100) >= 10 )
@@ -167,8 +175,14 @@ private:
 #define GC_COLLECT_OLD() ( (unsigned int)(((double)oObjs/(double)oldObjects)*100) >= 20 )
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))
 
+// generation macros
+#define GENERATION_MASK 0x3
+#define GENERATION(g) (g & GENERATION_MASK)
+#define MARKED(g) ((g >> 2))
+#define MARK(g, enable) (g = (g | (enable << 2)))
+
 #define UPDATE_GC(object) \
-    switch(object->generation) { \
+    switch(GENERATION(object->generation)) { \
         case gc_young: \
             youngObjects--; \
             break; \

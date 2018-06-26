@@ -28,7 +28,6 @@ struct SharpObject
         new (&mutex) std::mutex();
 #endif
         this->size=size;
-        mark = 0;
         refCount=0;
         generation = 0x000; /* generation young */
     }
@@ -45,7 +44,6 @@ struct SharpObject
 #endif
         this->size=size;
         refCount=0;
-        mark = 0;
         generation = 0x000; /* generation young */
     }
 
@@ -58,21 +56,19 @@ struct SharpObject
     ClassObject* k;
     unsigned long size;
     long int refCount : 32;
-    unsigned int mark : 1;
 #ifdef WIN32_
     recursive_mutex mutex;
 #endif
 #ifdef POSIX_
     std::mutex mutex;
 #endif
-    unsigned int generation : 3; /* collection generation */
+    unsigned int generation : 3; /* collection generation 00 gen 0 mark */
 };
 
 #define DEC_REF(obj) \
     if(obj != NULL) { \
         obj->refCount--; \
-         \
-        switch((obj)->generation) { \
+        switch(GENERATION((obj)->generation)) { \
             case gc_young: \
                 GarbageCollector::self->yObjs++; \
                 break; \
