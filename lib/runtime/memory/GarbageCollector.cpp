@@ -167,7 +167,6 @@ void GarbageCollector::collect(CollectionPolicy policy) {
     if(isShutdown)
         return;
 
-    hbytes++;
     if(!messageQueue.empty()) {
         mutex.lock();
         CollectionPolicy policy = messageQueue.last();
@@ -324,8 +323,8 @@ void GarbageCollector::run() {
             return;
         }
 
-//        if(managedBytes > hbytes)
-//            hbytes = managedBytes;
+        if(managedBytes > hbytes)
+            hbytes = managedBytes;
 
         /**
          * Attempt to collect objects based on the appropriate
