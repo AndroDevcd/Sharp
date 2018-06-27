@@ -326,21 +326,22 @@ void GarbageCollector::run() {
         if(managedBytes > hbytes)
             hbytes = managedBytes;
 
+        while(!tself->suspendPending && !tself->state != THREAD_KILLED
+                && !(GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()))
+        {
+#ifdef WIN32_
+            Sleep(1);
+#endif
+#ifdef POSIX_
+            usleep(999);
+#endif
+        }
         /**
          * Attempt to collect objects based on the appropriate
          * conditions. This call does not guaruntee that any collections
          * will happen
          */
-         if((GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()))
-            collect(GC_CONCURRENT);
-         else {
-#ifdef WIN32_
-             Sleep(2);
-#endif
-#ifdef POSIX_
-             usleep(2*1000);
-#endif
-         }
+        collect(GC_CONCURRENT);
 
     }
 }
