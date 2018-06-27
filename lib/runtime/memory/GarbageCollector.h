@@ -170,9 +170,9 @@ private:
 
 };
 
-#define GC_COLLECT_YOUNG() ( (unsigned int)(((double)yObjs/(double)youngObjects)*100) >= 10 )
-#define GC_COLLECT_ADULT() ( (unsigned int)(((double)aObjs/(double)adultObjects)*100) >= 40 )
-#define GC_COLLECT_OLD() ( (unsigned int)(((double)oObjs/(double)oldObjects)*100) >= 20 )
+#define GC_COLLECT_YOUNG() ( yObjs >= 750 )
+#define GC_COLLECT_ADULT() ( aObjs >= 10 )
+#define GC_COLLECT_OLD() ( oObjs >= 10 )
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))
 
 // generation macros
