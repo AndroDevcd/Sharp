@@ -1871,6 +1871,7 @@ void RuntimeEngine::analyzeClassDecl(Ast *ast) {
 
 void RuntimeEngine::parseCharLiteral(token_entity token, Expression& expression) {
     expression.type = expression_var;
+    expression.charLiteral = true;
 
     int64_t  i64;
     if(token.getToken().size() > 1) {
@@ -5258,11 +5259,35 @@ bool RuntimeEngine::hasOverload(token_entity operand, Expression &right, ClassOb
 void RuntimeEngine::addClass(token_entity operand, ClassObject* klass, Expression& out, Expression& left, Expression &right, Ast* pAst) {
     List<Param> params;
     List<Expression> eList;
-    eList.push_back(right);
     OperatorOverload* overload;
     right.literal = false;
 
+    eList.push_back(right);
     expressionListToParams(params, eList);
+//    if(right.charLiteral && klass->getName() == "string" && klass->getModuleName() == "std") {
+//        ClassObject *charClass = getClass("std", "char", classes);
+//        Method *constr;
+//
+//        if(charClass != NULL) {
+//            constr = charClass->getConstructor(params, true);
+//
+//            if(constr != NULL) {
+//                freeList(eList);
+//                freeList(params);
+//
+//                right.type = expression_lclass;
+//                right.utype.klass = charClass;
+//                right.utype.type = CLASS;
+//                right.code.__asm64.insert(0, SET_Di(i64, op_NEWCLASS, charClass->address));
+//                right.code.push_i64(SET_Di(i64, op_CALL, constr->address));
+//                right.func = true;
+//
+//                eList.push_back(right);
+//                expressionListToParams(params, eList);
+//            }
+//        }
+//    }
+
 
     if((overload = klass->getOverload(stringToOp(operand.getToken()), params, true)) != NULL) {
         // call operand
@@ -7855,6 +7880,7 @@ void Expression::operator=(Expression expression) {
     this->func=expression.func;
     this->intValue=expression.intValue;
     this->literal=expression.literal;
+    this->charLiteral=expression.charLiteral;
     this->link = expression.link;
     this->utype  = expression.utype;
     this->value = expression.value;

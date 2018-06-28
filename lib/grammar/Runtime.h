@@ -126,6 +126,7 @@ struct Expression {
             intValue(0),
             value(""),
             literal(false),
+            charLiteral(false),
             arrayElement(false),
             inCmtRegister(false)
     {
@@ -144,6 +145,7 @@ struct Expression {
             intValue(0),
             value(""),
             literal(false),
+            charLiteral(false),
             arrayElement(false),
             inCmtRegister(false)
     {
@@ -155,7 +157,7 @@ struct Expression {
     ResolvedReference utype;
     Assembler code;
     Ast* link;
-    bool dot, newExpression, func, literal, arrayElement, inCmtRegister, ifExpression;
+    bool dot, newExpression, func, literal, charLiteral, arrayElement, inCmtRegister, ifExpression;
     string value;
     double intValue;
 
