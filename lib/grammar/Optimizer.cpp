@@ -197,6 +197,34 @@ void Optimizer::optimizeLocalPops() {
     }
 }
 
+/**
+ * [0x2] 2:	goto @3
+ * [0x4] 3:	popobj
+ *
+ * to -> [0x4] 3: popobj
+ */
+void Optimizer::optimizeRedundantGoto() {
+    int64_t x64, addr;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_GOTO:
+                addr = GET_Da(x64);
+
+                if(addr == (i+1)) {
+                    assembler->__asm64.remove(i);
+                    readjustAddresses(i);
+
+                    optimizedOpcodes++;
+                    goto readjust;
+                }
+                break;
+        }
+    }
+}
+
 void Optimizer::optimize(Method *method) {
     this->assembler = &method->code;
     this->unique_addr_lst.addAll(method->unique_address_table);
@@ -206,6 +234,7 @@ void Optimizer::optimize(Method *method) {
     if(method->code.size()==0)
         return;
 
+    optimizeRedundantGoto();
     optimizeLocalPops();
     optimizeRedundantMovICall();
     optimizeRedundantSelfInitilization();

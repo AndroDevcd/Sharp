@@ -659,7 +659,7 @@ void VirtualMachine::fillMethodCall(Frame frame, stringstream &ss, Frame *prev) 
     } else
         ss << ", line ?";
 
-    ss << ", in "; ss << frame.last->name.str() << "() [0x" << std::hex
+    ss << ", in "; ss << frame.last->fullName.str() << "() [0x" << std::hex
                       << frame.last->address << "] $0x" << frame.pc  << std::dec;
 
     if(line != -1 && metaData.sourceFiles.size() > 0) {

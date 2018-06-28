@@ -35,8 +35,8 @@ class Tokenizer {
 
         for(;;) {
             invalidate_whitespace:
-            while(!isEnd() && isWhitespace(current)) {
-                if(char.isNewLine(current))
+            while(!isEnd() && isWhitespace(current.getValue())) {
+                if(char.isNewLine(current.getValue()))
                 {
                     newline();
                 }
@@ -47,13 +47,13 @@ class Tokenizer {
             int mode = 0;
             if(isEnd() || peekEnd(1))
                 goto scan;
-            else if(!commentStart(current, peek(1), mode))
+            else if(!commentStart(current.getValue(), peek(1), mode))
                 goto scan;
 
             advance(); advance();
-            while(!isEnd() && !commentEnd(current, peek(1), mode))
+            while(!isEnd() && !commentEnd(current.getValue(), peek(1), mode))
             {
-                if(char.isNewLine(current)){
+                if(char.isNewLine(current.getValue())){
                     newline();
                 }
 
@@ -65,7 +65,7 @@ class Tokenizer {
                 cursor += mode;
                 goto invalidate_whitespace;
             }
-            else if(isEnd() && !commentEnd(current,peek(1),mode))
+            else if(isEnd() && !commentEnd(current.getValue(),peek(1),mode))
             {
                 errors.createNewError(CompilerError.GENERIC, line, col, "expected closed comment before end of file");
             }
@@ -74,13 +74,13 @@ class Tokenizer {
             if(isEnd())
             {
                 goto end;
-            } else if(isSymbol(current))  // <, >, <<, etc.
+            } else if(isSymbol(current.getValue()))  // <, >, <<, etc.
             {
                 if(!peekEnd(1))
                 {
                     TokenType type = TokenType.NONE;
 
-                    var[] chs = new var[] { current, peek(1) };
+                    var[] chs = new var[] { current.getValue(), peek(1) };
 
                     if ((chs[0] == '<') && (chs[1] == '=')) type = TokenType._LTE;
                     else if ((chs[0] == '>') && (chs[1] == '=')) type = TokenType._GTE;
@@ -112,7 +112,7 @@ class Tokenizer {
                     }
                 }
 
-                string character = "" + new char(current);
+                string character = "" + current;
                 if ('<' == current)
                     entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.LESSTHAN, col, line));
                 else if ('>' == current)
@@ -170,17 +170,17 @@ class Tokenizer {
 
                 advance();
                 goto invalidate_whitespace;
-            } else if(char.isAlpha(current) || current == '_') // int, dave, etc.
+            } else if(char.isAlpha(current.getValue()) || current == '_') // int, dave, etc.
             {
                 string sb = "";
                 var hasletter = false;
 
-                while(!isEnd() && (char.isAlphaNum(current) || current == '_'))
+                while(!isEnd() && (char.isAlphaNum(current.getValue()) || current == '_'))
                 {
-                    if(char.isAlpha(current))
+                    if(char.isAlpha(current.getValue()))
                         hasletter = true;
 
-                    sb += new char(current);
+                    sb += current;
                     advance();
                 }
 
@@ -189,7 +189,7 @@ class Tokenizer {
                 else
                     entities.add(new TokenEntity(sb, TokenId.IDENTIFIER, col, line));
                 goto invalidate_whitespace;
-            } else if(char.isDigit(current)) // 0xff2ea, 3.14159, 773_721_3376, etc
+            } else if(char.isDigit(current.getValue())) // 0xff2ea, 3.14159, 773_721_3376, etc
             {
                 if(current == '0' && peek(1) == 'x') {
                     string number = "";
@@ -197,8 +197,8 @@ class Tokenizer {
 
                     number == "0x";
                     col += 2; cursor += 2;
-                    while(!isEnd() && (isHexNum(current) || current == '_')) {
-                        if(isHexNum(current))
+                    while(!isEnd() && (isHexNum(current.getValue()) || current == '_')) {
+                        if(isHexNum(current.getValue()))
                             underscoreAllowed = true;
                         else {
                             if(!underscoreAllowed) {
@@ -210,7 +210,7 @@ class Tokenizer {
                             continue;
                         }
 
-                        number += new char(current);
+                        number += current;
                         advance();
                     }
 
@@ -257,7 +257,7 @@ class Tokenizer {
                            advance();
                            continue;
                        }
-                       else if ('e' == char.toLower(current))
+                       else if ('e' == char.toLower(current.getValue()))
                        {
                            underscoreAllowed = false;
                            number += current;
@@ -280,7 +280,7 @@ class Tokenizer {
                            advance();
                            continue;
                        }
-                       else if (eFound && isSign(current))
+                       else if (eFound && isSign(current.getValue()))
                        {
                            number += current;
                            if (postESignFound)
@@ -292,11 +292,11 @@ class Tokenizer {
                            advance();
                            continue;
                        }
-                       else if (('.' != current) && !char.isDigit(current))
+                       else if (('.' != current) && !char.isDigit(current.getValue()))
                            break;
                        else
                        {
-                           if(char.isDigit(current) && !eFound)
+                           if(char.isDigit(current.getValue()) && !eFound)
                                underscoreAllowed = true;
                            number += current;
                            advance();
@@ -321,7 +321,7 @@ class Tokenizer {
 
                 while (!isEnd())
                 {
-                    if(char.isNewLine(current))
+                    if(char.isNewLine(current.getValue()))
                     {
                         errors.createNewError(CompilerError.ILLEGAL_STRING_FORMAT, line, col, ", expected `\"` before end of line");
                         newline();
@@ -345,7 +345,7 @@ class Tokenizer {
                     else if (escaped)
                     {
 
-                        if(!char.isAlpha(current) && ('\\' != current)  && ('\"' != current) && ('\'' != current))
+                        if(!char.isAlpha(current.getValue()) && ('\\' != current)  && ('\"' != current) && ('\'' != current))
                         {
                             errors.createNewError(CompilerError.ILLEGAL_STRING_FORMAT, line, col, ", text preceding `\\` must be alpha, '\\', '\\'', or '\"' only");
                             goto invalidate_whitespace;
@@ -419,7 +419,7 @@ class Tokenizer {
                     else if (escaped)
                     {
                         hasCharacter = true;
-                        if(!char.isAlpha(current) && current != '\\' && current != '\"' && current != '\'')
+                        if(!char.isAlpha(current.getValue()) && current != '\\' && current != '\"' && current != '\'')
                         {
                             errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", text preceding `\\` must be alpha, '\"', or '\\'' only");
                             goto invalidate_whitespace;
@@ -599,7 +599,7 @@ class Tokenizer {
     private ArrayList<string> lines;
     private var[] tokens = "";
     private var cursor;
-    private var current;
+    private char current = new char();
     private var line;
     private var col;
     private string file = "";

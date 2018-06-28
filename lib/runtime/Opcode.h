@@ -49,7 +49,11 @@
 
 #define STACK_CHECK  if((sp+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
 
-#define _brh_NOINCREMENT SAFTEY_CHECK /*count++; if(count == 0) overflow++;*/ if(!startAddress) DISPATCH() else goto *opcodeStart;
+#ifndef SHARP_PROF_
+#define _brh_NOINCREMENT SAFTEY_CHECK if(!startAddress) DISPATCH() else goto *opcodeStart;
+#else
+#define _brh_NOINCREMENT SAFTEY_CHECK count++; if(count == 0) overflow++; goto *opcodeStart;
+#endif
 #define _brh  pc++; _brh_NOINCREMENT
 
 #define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }

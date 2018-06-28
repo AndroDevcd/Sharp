@@ -6932,9 +6932,9 @@ Expression RuntimeEngine::parseQuesExpression(Ast* pAst) {
 
     expression.inject(tmp); tmp.free();
     pushExpressionToStack(condIfFalse, tmp); // so we can get accurate size
-    expression.code.push_i64(SET_Di(i64, op_SKIP, tmp.code.size()));
+    expression.code.push_i64(SET_Di(i64, op_MOVI, 1), cmt);
+    expression.code.push_i64(SET_Di(i64, op_SKPE, tmp.code.size()+1));
     expression.inject(tmp);
-    expression.code.push_i64(SET_Ei(i64, op_NOP));
 
 
     if(equals(condIfTrue, condIfFalse)) {

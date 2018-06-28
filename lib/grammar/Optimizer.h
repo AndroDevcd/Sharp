@@ -59,6 +59,8 @@ private:
     void optimizeRedundantLoadStore();
 
     void optimizeNops();
+
+    void optimizeRedundantGoto();
 };
 
 
