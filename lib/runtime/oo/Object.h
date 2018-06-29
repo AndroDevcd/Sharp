@@ -68,7 +68,6 @@ struct SharpObject
 #define DEC_REF(obj) \
     if(obj != NULL) { \
         obj->refCount--; \
-    std::lock_guard<recursive_mutex> gd(GarbageCollector::self->mutex); \
         switch(GENERATION((obj)->generation)) { \
             case gc_young: \
                 GarbageCollector::self->yObjs++; \

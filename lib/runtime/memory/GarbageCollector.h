@@ -174,6 +174,7 @@ private:
 #define GC_COLLECT_YOUNG() ( yObjs >= 750 )
 #define GC_COLLECT_ADULT() ( aObjs >= 10 )
 #define GC_COLLECT_OLD() ( oObjs >= 10 )
+#define GC_COLLECT_MEM() ( managedBytes >= KB_TO_BYTES(64) )
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))
 
 // generation macros
@@ -197,7 +198,8 @@ private:
 
 #define PUSH(object) { \
     heapSize++; \
-    _Mheap = (SharpObject**)__realloc(heap, sizeof(SharpObject**)*heapSize); \
+    _Mheap = (SharpObject**)realloc(heap, sizeof(SharpObject**)*heapSize); \
+    if(_Mheap == NULL) throw Exception("out of memory"); \
     _Mheap[heapSize-1] = object; \
 }
 

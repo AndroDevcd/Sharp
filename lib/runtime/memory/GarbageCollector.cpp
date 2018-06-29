@@ -334,13 +334,13 @@ void GarbageCollector::run() {
         }
 
         while(!tself->suspendPending && !tself->state != THREAD_KILLED
-                && !(GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()))
+                && !(GC_COLLECT_MEM()))
         {
 #ifdef WIN32_
-            Sleep(2);
+            Sleep(1);
 #endif
 #ifdef POSIX_
-            usleep(2*999);
+            usleep(1*999);
 #endif
         }
         /**
