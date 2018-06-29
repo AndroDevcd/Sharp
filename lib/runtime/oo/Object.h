@@ -21,6 +21,9 @@ struct SharpObject
         HEAD=NULL;
         node=NULL;
         k=NULL;
+        next=NULL;
+        prev=NULL;
+        tail=NULL;
 #ifdef WIN32_
         mutex.initalize();
 #endif
@@ -28,13 +31,16 @@ struct SharpObject
         new (&mutex) std::mutex();
 #endif
         this->size=size;
-        refCount=0;
+        refCount=1;
         generation = 0x000; /* generation young */
     }
     void init(unsigned long size, ClassObject* k)
     {
         HEAD=NULL;
         node=NULL;
+        next=NULL;
+        prev=NULL;
+        tail=NULL;
         this->k=k;
 #ifdef WIN32_
         mutex.initalize();
@@ -43,7 +49,7 @@ struct SharpObject
         new (&mutex) std::mutex();
 #endif
         this->size=size;
-        refCount=0;
+        refCount=1;
         generation = 0x000; /* generation young */
     }
 
@@ -63,6 +69,7 @@ struct SharpObject
     std::mutex mutex;
 #endif
     short int generation : 3; /* collection generation 00 gen 0 mark */
+    SharpObject *next, *prev, *tail; /* pointers for gc to use */
 };
 
 #define DEC_REF(obj) \
@@ -128,11 +135,7 @@ struct Object {
         }
         DEC_REF(this->object)
 
-        if(o != NULL)
-        {
-            this->object = o;
-            this->object->refCount++;
-        }
+        this->object = o;
     }
     void castObject(uint64_t classPtr);
 

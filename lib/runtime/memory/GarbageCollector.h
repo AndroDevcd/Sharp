@@ -148,7 +148,7 @@ private:
     /* collect when 20% has been dropped */
     unsigned long oldObjects;
     unsigned long x;
-    SharpObject** _Mheap;
+    SharpObject* _Mheap;
     unsigned long long heapSize;
 
     void collectYoungObjects();
@@ -166,7 +166,7 @@ private:
      * @param object
      * @return
      */
-    void sweep(SharpObject *object);
+    SharpObject* sweep(SharpObject *object);
 
     void erase(SharpObject *pObject);
 };
@@ -198,9 +198,9 @@ private:
 
 #define PUSH(object) { \
     heapSize++; \
-    _Mheap = (SharpObject**)realloc(heap, sizeof(SharpObject**)*heapSize); \
-    if(_Mheap == NULL) throw Exception("out of memory"); \
-    _Mheap[heapSize-1] = object; \
+    _Mheap->tail->next = object; \
+    object->prev = _Mheap->tail; \
+    _Mheap->tail = object; \
 }
 
 /**
