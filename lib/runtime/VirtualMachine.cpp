@@ -155,7 +155,7 @@ void VirtualMachine::destroy() {
         exitVal = 1;
 
     Thread::shutdown();
-    GarbageCollector::self->shutdown();
+    GarbageCollector::shutdown();
 }
 
 extern size_t count, overflow;

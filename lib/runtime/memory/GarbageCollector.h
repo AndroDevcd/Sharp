@@ -51,7 +51,7 @@ public:
 
     static void initilize();
     static void startup();
-    void shutdown();
+    static void shutdown();
     static
 #ifdef WIN32_
     DWORD WINAPI
@@ -126,7 +126,7 @@ public:
     unsigned long aObjs;
     unsigned long oObjs;
 private:
-    unsigned long long managedBytes;
+     long long managedBytes;
     unsigned long long memoryLimit;
     bool isShutdown;
 
@@ -142,14 +142,14 @@ private:
      * its just an estimate
      */
     /* collect when 10% has been dropped */
-    unsigned long youngObjects;
+    long long youngObjects;
     /* collect when 40% has been dropped */
-    unsigned long adultObjects;
+    long long adultObjects;
     /* collect when 20% has been dropped */
     unsigned long oldObjects;
     unsigned long x;
-    std::vector<SharpObject*> _Mheap;
-    std::vector<SharpObject*> dirtyList;
+    SharpObject** _Mheap;
+    unsigned long long heapSize;
 
     void collectYoungObjects();
     void collectAdultObjects();
@@ -166,8 +166,9 @@ private:
      * @param object
      * @return
      */
-    vector<SharpObject *, std::allocator<SharpObject *>>::iterator sweep(SharpObject *object);
+    void sweep(SharpObject *object);
 
+    void erase(SharpObject *pObject);
 };
 
 #define GC_COLLECT_YOUNG() ( yObjs >= 750 )
@@ -193,6 +194,12 @@ private:
             oldObjects--; \
             break; \
     }
+
+#define PUSH(object) { \
+    heapSize++; \
+    _Mheap = (SharpObject**)__realloc(heap, sizeof(SharpObject**)*heapSize); \
+    _Mheap[heapSize-1] = object; \
+}
 
 /**
  * Bytes are used via the JEDEC Standard 100B.01

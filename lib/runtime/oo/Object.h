@@ -62,12 +62,13 @@ struct SharpObject
 #ifdef POSIX_
     std::mutex mutex;
 #endif
-    unsigned int generation : 3; /* collection generation 00 gen 0 mark */
+    short int generation : 3; /* collection generation 00 gen 0 mark */
 };
 
 #define DEC_REF(obj) \
     if(obj != NULL) { \
         obj->refCount--; \
+    std::lock_guard<recursive_mutex> gd(GarbageCollector::self->mutex); \
         switch(GENERATION((obj)->generation)) { \
             case gc_young: \
                 GarbageCollector::self->yObjs++; \
