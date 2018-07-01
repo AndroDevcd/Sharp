@@ -68,7 +68,7 @@ struct SharpObject
 #ifdef POSIX_
     std::mutex mutex;
 #endif
-    short int generation : 3; /* collection generation 00 gen 0 mark */
+    unsigned int generation : 4; /* collection generation 00 gen 0 mark */
     SharpObject *next, *prev, *tail; /* pointers for gc to use */
 };
 
@@ -103,10 +103,6 @@ struct Object {
 
     CXX11_INLINE void operator=(Object &o) {
         if(&o == this) return;
-        if(object!= NULL && object->size==1&&object->HEAD!= NULL) {
-            int i = 0;
-        }
-        if(object != NULL)
         DEC_REF(this->object)
 
         if(o.object != NULL) {
@@ -117,9 +113,6 @@ struct Object {
     }
     CXX11_INLINE void operator=(Object *o) {
         if(o == this) return;
-        if(object!= NULL && object->size==1&&object->HEAD!= NULL) {
-            int i = 0;
-        }
         DEC_REF(this->object)
 
         if(o->object != NULL)
@@ -130,9 +123,6 @@ struct Object {
     }
     CXX11_INLINE void operator=(SharpObject *o) {
         if(o == this->object) return;
-        if(object!= NULL && object->size==1&&object->HEAD!= NULL) {
-            int i = 0;
-        }
         DEC_REF(this->object)
 
         this->object = o;

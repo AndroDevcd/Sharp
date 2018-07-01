@@ -362,9 +362,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             Object data; data.object = NULL;
 
             if(o != NULL) {
-                if(indexLen > o->size || len < 0 || indexLen < 0) {
+                if(indexLen > o->size || len < 0 || indexLen < 0 ) {
                     stringstream ss;
-                    ss << "invalid call to native System.copy2() index-len: " << len
+                    ss << "invalid call to native System.copy2() index-len: " << indexLen
                        << ", array size: " << o->size;
                     throw Exception(ss.str());
                 }
@@ -661,6 +661,8 @@ void VirtualMachine::fillMethodCall(Frame frame, stringstream &ss, Frame *prev) 
 
     ss << ", in "; ss << frame.last->fullName.str() << "() [0x" << std::hex
                       << frame.last->address << "] $0x" << frame.pc  << std::dec;
+
+    ss << " fp; " << frame.fp << " sp: " << frame.sp;
 
     if(line != -1 && metaData.sourceFiles.size() > 0) {
         ss << getPrettyErrorLine(line, frame.last->sourceFile);

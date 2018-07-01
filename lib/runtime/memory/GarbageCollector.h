@@ -178,10 +178,10 @@ private:
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))
 
 // generation macros
-#define GENERATION_MASK 0x3
+#define GENERATION_MASK 0x7
 #define GENERATION(g) (g & GENERATION_MASK)
-#define MARKED(g) ((g >> 2))
-#define MARK(g, enable) (g = (g | (enable << 2)))
+#define MARKED(g) ((g >> 3))
+#define MARK(g, enable) (g ^= (-(unsigned long)enable ^ g) & (1UL << 3))
 
 #define UPDATE_GC(object) \
     switch(GENERATION(object->generation)) { \

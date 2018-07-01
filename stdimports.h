@@ -49,6 +49,12 @@ using namespace std;
     #define __os_yield() sched_yield();
 #endif
 
+//#define VISUAL_STUDIOS
+
+#ifdef VISUAL_STUDIOS
+#define MAKE_COMPILER
+#endif
+
 #define SHARP_PROF_
 
 #ifndef DEBUGGING
@@ -77,6 +83,7 @@ void* __malloc(size_t bytes);
 void* __calloc(size_t n, size_t bytes);
 void* __realloc(void *ptr, size_t bytes);
 void __os_sleep(int64_t);
+void setupSigHandler();
 
 #define CXX11_INLINE inline
 

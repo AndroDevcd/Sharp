@@ -46,6 +46,7 @@ void Thread::Startup() {
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
     SetPriorityClass(GetCurrentThread(), HIGH_PRIORITY_CLASS);
 #endif
+    setupSigHandler();
 }
 
 int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
@@ -684,9 +685,9 @@ void Thread::exec() {
     register int64_t args=0;
     ClassObject *klass;
     SharpObject* o=NULL;
-    register Method* f;
+    Method* f;
     int c;
-    register Object* o2=NULL, *o3;
+    Object* o2=NULL, *o3;
     void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
     Method* finnallyMethod;
 
@@ -718,11 +719,9 @@ void Thread::exec() {
 
             interp:
 //            count++;
-            if(pc>=7&&current->address==2) {
+            if(pc>=100&&current->address==191) {
                 int64_t i = (int64_t)registers[ebx];
-                if(pc==5&&i>=10000) {
-                    int c = 0;
-                }
+                int c = 0;
 ////                CHECK_NULLOBJ(
 ////                //o2->object->print();
 ////                )
@@ -918,7 +917,7 @@ void Thread::exec() {
                 _brh
             CHECKLEN:
             CHECK_NULL2(
-                    if(registers[GET_Da(cache[pc])]<o2->object->size &&!(registers[GET_Da(cache[pc])]<0)) { _brh }
+                    if((registers[GET_Da(cache[pc])]<o2->object->size) &&!(registers[GET_Da(cache[pc])]<0)) { _brh }
                     else {
                         stringstream ss;
                         ss << "Access to Object at: " << registers[GET_Da(cache[pc])] << " size is " << o2->object->size;
@@ -948,6 +947,7 @@ void Thread::exec() {
                                    GarbageCollector::self->newObject(&env->classes[GET_Da(cache[pc])]);
                 STACK_CHECK _brh
             MOVN:
+            if(o2 != NULL && o2->object != NULL) { if(o2->object->size <= GET_Da(cache[pc])) { throw Exception("movn"); } }
                 CHECK_NULLOBJ(o2 = &o2->object->node[GET_Da(cache[pc])];)
                 _brh
             SLEEP:
@@ -972,6 +972,11 @@ void Thread::exec() {
                 o2 = env->globalHeap+GET_Da(cache[pc]);
                 _brh
             MOVND:
+            if(o2 != NULL && o2->object != NULL) {
+                    if(o2->object->size <= registers[GET_Da(cache[pc])]) {
+                        throw Exception("movnd");
+                    }
+                }
                 CHECK_NULLOBJ(o2 = &o2->object->node[(int64_t)registers[GET_Da(cache[pc])]];)
                 _brh
             NEWOBJARRAY:
