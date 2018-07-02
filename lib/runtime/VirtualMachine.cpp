@@ -323,6 +323,10 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     throw Exception(ss.str());
                 }
 
+                if(arry->object->refCount-2<=0) {
+                    int i = 0;
+                }
+
                 if(o->k != NULL) { // class?
                     data = GarbageCollector::self->newObjectArray(len, o->k);
 
@@ -330,7 +334,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                         data.object->node[i] = o->node[i];
                     }
 
-                    *arry = data;
+                    *arry = data.object;
                 } else if(o->HEAD != NULL) { // var[]
                     data = GarbageCollector::self->newObject(len);
 
@@ -338,7 +342,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                         data.object->HEAD[i] = o->HEAD[i];
                     }
 
-                    *arry = data;
+                    *arry = data.object;
                 } else if(o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObjectArray(len);
 
@@ -346,10 +350,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                         data.object->node[i] = o->node[i];
                     }
 
-                    *arry = data;
+                    *arry = data.object;
                 }
-                
-                data.free();
+
             } else
                 throw Exception(Environment::NullptrException, "");
             return;
@@ -369,14 +372,19 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     throw Exception(ss.str());
                 }
 
+                if(arry->object->refCount-2<=0) {
+                    int i = 0;
+                }
                 if(o->k != NULL) { // class?
+                    if(o->node == NULL)
+                        throw Exception(Environment::NullptrException, "");
                     data = GarbageCollector::self->newObjectArray(len, o->k);
 
                     for(size_t i = 0; i < indexLen; i++) {
                         data.object->node[i] = o->node[i];
                     }
 
-                    *arry = data;
+                    *arry = data.object;
                 } else if(o->HEAD != NULL) { // var[]
                     data = GarbageCollector::self->newObject(len);
 
@@ -384,7 +392,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                         data.object->HEAD[i] = o->HEAD[i];
                     }
 
-                    *arry = data;
+                    *arry = data.object;
                 } else if(o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObjectArray(len);
 
@@ -392,10 +400,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                         data.object->node[i] = o->node[i];
                     }
 
-                    *arry = data;
+                    *arry = data.object;
                 }
-                
-                data.free();
+
             } else
                 throw Exception(Environment::NullptrException, "");
             return;

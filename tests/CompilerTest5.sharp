@@ -8,6 +8,9 @@ public class Application {
         ArrayList<var> intArry = new ArrayList<var>(); // TODO: empty modifiers after methods classes etc. before block call
         intArry.add(9);
 
+        Dictionary<ee, string> enumArry = new Dictionary<ee, string>(); // TODO: empty modifiers after methods classes etc. before block call
+        enumArry.put(ee.red, "hi");
+
         try {
             System.println(" intArry[0] = " + intArry.get(99));
         } catch(Exception e) {
@@ -66,4 +69,10 @@ public class Application {
     interface IFace<T> {
 
     }
+
+    enum ee {
+        red,
+        GREEN,
+        BLUE
+    };
 }

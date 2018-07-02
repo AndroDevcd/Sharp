@@ -78,7 +78,7 @@ long long get_file_attrs(native_string& path) {
         attrs |= FILE_EXISTS;
 
 #ifdef WIN32_
-        long attributes = GetFileAttributes(path.c_str());
+        long attributes = GetFileAttributes(path.str().c_str());
         if (attributes & FILE_ATTRIBUTE_HIDDEN)
             attrs |= FILE_HIDDEN;
 #endif

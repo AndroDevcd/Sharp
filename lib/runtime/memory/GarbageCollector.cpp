@@ -117,6 +117,9 @@ void GarbageCollector::freeObject(Object *object) {
     {
         object->object->refCount--;
 
+        if(object->object->refCount<=0) {
+            int i = 0;
+        }
         switch(GENERATION(object->object->generation)) {
             case gc_young:
                 yObjs++;
@@ -175,6 +178,7 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         return;
 
     if(policy == GC_LOW) {
+        cout << "low..." << endl;
         Thread::suspendAllThreads();
 
         /**
@@ -189,6 +193,7 @@ void GarbageCollector::collect(CollectionPolicy policy) {
 
         Thread::resumeAllThreads();
     } else if(policy == GC_EXPLICIT) {
+        cout << "low..." << endl;
         /**
          * Force collection of both generations
          * We only do the first 2 generations because we want
@@ -202,15 +207,15 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         /**
          * This should only be called by the GC thread itsself
          */
-        if(GC_COLLECT_YOUNG()) {        /* 10% */
-            collectYoungObjects();
-        }
-        if(GC_COLLECT_ADULT()) {        /* 40% */
-            collectAdultObjects();
-        }
-        if(GC_COLLECT_OLD()) {        /* 20% */
-            collectOldObjects();
-        }
+//        if(GC_COLLECT_YOUNG()) {        /* 10% */
+//            collectYoungObjects();
+//        }
+//        if(GC_COLLECT_ADULT()) {        /* 40% */
+//            collectAdultObjects();
+//        }
+//        if(GC_COLLECT_OLD()) {        /* 20% */
+//            collectOldObjects();
+//        }
     }
 }
 

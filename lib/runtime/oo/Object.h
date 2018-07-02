@@ -102,20 +102,25 @@ struct Object {
     SharpObject* object;
 
     CXX11_INLINE void operator=(Object &o) {
-        if(&o == this) return;
+        if(&o == this || o.object==object) return;
+        if(object != NULL && object->k != NULL && object->refCount<=0) {
+            int I = 0;
+        }
         DEC_REF(this->object)
 
         if(o.object != NULL) {
             this->object = o.object;
             this->object->refCount++;
         }
-
     }
     CXX11_INLINE void operator=(Object *o) {
-        if(o == this) return;
+        if(o == this || (o != NULL && o->object==object)) return;
+        if(object != NULL && object->k != NULL && object->refCount<=0) {
+            int I = 0;
+        }
         DEC_REF(this->object)
 
-        if(o->object != NULL)
+        if(o != NULL && o->object != NULL)
         {
             this->object = o->object;
             this->object->refCount++;
@@ -123,13 +128,15 @@ struct Object {
     }
     CXX11_INLINE void operator=(SharpObject *o) {
         if(o == this->object) return;
+        if(object != NULL && object->k != NULL && object->refCount<=0) {
+            int I = 0;
+        }
         DEC_REF(this->object)
 
         this->object = o;
+
     }
     void castObject(uint64_t classPtr);
-
-    void free();
 };
 
 

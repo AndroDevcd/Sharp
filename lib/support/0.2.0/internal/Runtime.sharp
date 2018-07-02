@@ -99,8 +99,8 @@ public class Runtime {
             "pushl <data>                                                                             "
             "ipushl <len>                                                                             "
             "int 0xc0         // send request to natively copy object                                 "
-            "popl <result>                                                                            " );
-        return result;
+            "popl <data>                                                                              "
+            "ret                                                                                      " );
     }
 
     public static def copy2(object[] data, var indexLen, var len) : object[] {
@@ -111,7 +111,7 @@ public class Runtime {
             "ipushl <indexLen>                                                                        "
             "ipushl <len>                                                                             "
             "int 0xc1         // send request to natively copy object                                 "
-            "popl <result>                                                                            " );
-        return result;
+            "popl <data>                                                                              "
+            "ret                                                                                      " );
     }
 }

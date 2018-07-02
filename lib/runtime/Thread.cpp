@@ -687,7 +687,7 @@ void Thread::exec() {
     SharpObject* o=NULL;
     Method* f;
     int c;
-    Object* o2=NULL, *o3;
+    Object* o2=NULL;
     void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
     Method* finnallyMethod;
 
@@ -719,14 +719,29 @@ void Thread::exec() {
 
             interp:
 //            count++;
-            if(pc>=100&&current->address==191) {
+            if(pc==49&&current->address==613) {
                 int64_t i = (int64_t)registers[ebx];
                 int c = 0;
 ////                CHECK_NULLOBJ(
 ////                //o2->object->print();
 ////                )
+            } else if(pc==38&&current->address==623) {
+                int c = 0;
             }
 
+            if((o2 != NULL && o2->object != NULL && o2->object->refCount <= 0) ) {
+                int i = 0;
+            }
+
+            if(env->globalHeap[4].object->node != NULL
+               && env->globalHeap[4].object->node[0].object != NULL
+               && env->globalHeap[4].object->node[0].object->node != NULL
+               && env->globalHeap[4].object->node[0].object->node[0].object != NULL
+               && env->globalHeap[4].object->node[0].object->node[0].object->node != NULL
+               && env->globalHeap[4].object->node[0].object->node[0].object->node[0].object != NULL
+               && env->globalHeap[4].object->node[0].object->node[0].object->node[0].object->refCount <= 0) {
+                long finallyBitch = 0;
+            }
             DISPATCH();
             _NOP:
                 _brh
@@ -947,7 +962,6 @@ void Thread::exec() {
                                    GarbageCollector::self->newObject(&env->classes[GET_Da(cache[pc])]);
                 STACK_CHECK _brh
             MOVN:
-            if(o2 != NULL && o2->object != NULL) { if(o2->object->size <= GET_Da(cache[pc])) { throw Exception("movn"); } }
                 CHECK_NULLOBJ(o2 = &o2->object->node[GET_Da(cache[pc])];)
                 _brh
             SLEEP:
