@@ -148,7 +148,7 @@ private:
     /* collect when 20% has been dropped */
     unsigned long oldObjects;
     unsigned long x;
-    SharpObject* _Mheap;
+    SharpObject* _Mheap, *tail;
     unsigned long long heapSize;
 
     void collectYoungObjects();
@@ -199,9 +199,9 @@ private:
 
 #define PUSH(object) { \
     heapSize++; \
-    _Mheap->tail->next = object; \
-    object->prev = _Mheap->tail; \
-    _Mheap->tail = object; \
+    tail->next = object; \
+    object->prev = tail; \
+    tail = object; \
 }
 
 /**

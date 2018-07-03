@@ -55,7 +55,7 @@ using namespace std;
 #define MAKE_COMPILER
 #endif
 
-#define SHARP_PROF_
+//#define SHARP_PROF_
 
 #ifndef DEBUGGING
 #define DEBUGGING

@@ -97,7 +97,7 @@ void GarbageCollector::initilize() {
     if(self->_Mheap==NULL)
         throw Exception("out of memory");
     self->_Mheap->init(0);
-    self->_Mheap->tail = self->_Mheap; // set tail to self for later use
+    self->tail = self->_Mheap; // set tail to self for later use
     self->heapSize = 0;
     self->managedBytes=0;
     self->memoryLimit = 0;
@@ -205,13 +205,13 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         /**
          * This should only be called by the GC thread itsself
          */
-        if(GC_COLLECT_YOUNG()) {        /* 10% */
+        if(GC_COLLECT_YOUNG()) {        /* 750 objects */
             collectYoungObjects();
         }
-        if(GC_COLLECT_ADULT()) {        /* 40% */
+        if(GC_COLLECT_ADULT()) {        /* 10 objects */
             collectAdultObjects();
         }
-        if(GC_COLLECT_OLD()) {        /* 20% */
+        if(GC_COLLECT_OLD()) {        /* 10 objects */
             collectOldObjects();
         }
     }
@@ -345,22 +345,22 @@ void GarbageCollector::run() {
                 collect(policy);
         }
 
-        while(!tself->suspendPending && !tself->state != THREAD_KILLED
-                && !(GC_COLLECT_MEM()))
-        {
+        do {
 #ifdef WIN32_
             Sleep(1);
 #endif
 #ifdef POSIX_
             usleep(1*999);
 #endif
-        }
+        } while(!GC_COLLECT_MEM() && !messageQueue.empty() && tself->suspendPending
+                && tself->state != THREAD_KILLED);
         /**
          * Attempt to collect objects based on the appropriate
          * conditions. This call does not guaruntee that any collections
          * will happen
          */
-        collect(GC_CONCURRENT);
+         if(GC_COLLECT_MEM())
+            collect(GC_CONCURRENT);
 
     }
 }
@@ -422,6 +422,9 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
             managedBytes -= sizeof(Object)*object->size;
             std::free(object->node); object->node = NULL;
         }
+
+        if(object->mutex != NULL)
+            std::free(object->mutex);
 
         UPDATE_GC(object)
         x++;
@@ -551,8 +554,8 @@ void GarbageCollector::erase(SharpObject *p) {
     heapSize--;
     p->prev->next = p->next;
 
-    if(p == heap->tail) {
-        heap->tail = p->prev;
-        heap->tail->next = NULL;
+    if(p == tail) {
+        tail = p->prev;
+        tail->next = NULL;
     } else if(p->next != NULL) p->next->prev = p->prev;
 }

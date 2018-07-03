@@ -23,13 +23,7 @@ struct SharpObject
         k=NULL;
         next=NULL;
         prev=NULL;
-        tail=NULL;
-#ifdef WIN32_
-        mutex.initalize();
-#endif
-#ifdef POSIX_
-        new (&mutex) std::mutex();
-#endif
+        mutex=NULL;
         this->size=size;
         refCount=0;
         generation = 0x000; /* generation young */
@@ -40,14 +34,8 @@ struct SharpObject
         node=NULL;
         next=NULL;
         prev=NULL;
-        tail=NULL;
         this->k=k;
-#ifdef WIN32_
-        mutex.initalize();
-#endif
-#ifdef POSIX_
-        new (&mutex) std::mutex();
-#endif
+        mutex=NULL;
         this->size=size;
         refCount=0;
         generation = 0x000; /* generation young */
@@ -61,15 +49,24 @@ struct SharpObject
     /* info */
     ClassObject* k;
     unsigned long size;
-    long int refCount : 32;
+    unsigned int refCount : 32;
 #ifdef WIN32_
-    recursive_mutex mutex;
+    recursive_mutex* mutex;
 #endif
 #ifdef POSIX_
-    std::mutex mutex;
+    std::mutex* mutex;
 #endif
-    unsigned int generation : 4; /* collection generation 00 gen 0 mark */
-    SharpObject *next, *prev, *tail; /* pointers for gc to use */
+    /**
+     * collection generation
+     *
+     * layout
+     * 0000 4 bits consisting of "gc mark' and 'generation'
+     *
+     * 0            000
+     * ^-- mark     ^-- generation
+     */
+    unsigned int generation : 4; /* gc stuff */
+    SharpObject *next, *prev; /* linked list pointers */
 };
 
 #define DEC_REF(obj) \
@@ -99,6 +96,27 @@ struct SharpObject
  */
 struct Object {
     SharpObject* object;
+
+    void monitorLock() {
+        if(object) {
+            if(object->mutex==NULL) {
+#ifdef WIN32_
+                object->mutex = new recursive_mutex();
+#endif
+#ifdef POSIX_
+                object->mutex = new std::mutex();
+#endif
+            }
+
+            object->mutex->lock();
+        }
+    }
+
+    void monitorUnLock() {
+        if(object && object->mutex) {
+            object->mutex->unlock();
+        }
+    }
 
     CXX11_INLINE void operator=(Object &o) {
         if(&o == this || o.object==object) return;

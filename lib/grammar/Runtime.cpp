@@ -5264,29 +5264,30 @@ void RuntimeEngine::addClass(token_entity operand, ClassObject* klass, Expressio
 
     eList.push_back(right);
     expressionListToParams(params, eList);
-//    if(right.charLiteral && klass->getName() == "string" && klass->getModuleName() == "std") {
-//        ClassObject *charClass = getClass("std", "char", classes);
-//        Method *constr;
-//
-//        if(charClass != NULL) {
-//            constr = charClass->getConstructor(params, true);
-//
-//            if(constr != NULL) {
-//                freeList(eList);
-//                freeList(params);
-//
-//                right.type = expression_lclass;
-//                right.utype.klass = charClass;
-//                right.utype.type = CLASS;
-//                right.code.__asm64.insert(0, SET_Di(i64, op_NEWCLASS, charClass->address));
-//                right.code.push_i64(SET_Di(i64, op_CALL, constr->address));
-//                right.func = true;
-//
-//                eList.push_back(right);
-//                expressionListToParams(params, eList);
-//            }
-//        }
-//    }
+    if(right.charLiteral && klass->getName() == "string" && klass->getModuleName() == "std") {
+        ClassObject *charClass = getClass("std", "char", classes);
+        Method *constr;
+
+        if(charClass != NULL) {
+            constr = charClass->getConstructor(params, true);
+
+            if(constr != NULL) {
+                freeList(eList);
+                freeList(params);
+
+                right.type = expression_lclass;
+                right.utype.klass = charClass;
+                right.utype.type = CLASS;
+                right.code.__asm64.insert(0, SET_Di(i64, op_NEWCLASS, charClass->address));
+                right.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+                right.code.push_i64(SET_Di(i64, op_CALL, constr->address));
+                right.func = true;
+
+                eList.push_back(right);
+                expressionListToParams(params, eList);
+            }
+        }
+    }
 
 
     if((overload = klass->getOverload(stringToOp(operand.getToken()), params, true)) != NULL) {
@@ -10576,7 +10577,7 @@ std::string RuntimeEngine::generate_text_section() {
         text << f->sourceFileLink << ((char)nil);
         text << i64_tostr(f->owner->address);
         text << i64_tostr(f->paramCount());
-        text << i64_tostr(f->localVariables);
+        text << i64_tostr(f->isStatic() ? f->localVariables : f->localVariables-1);
         text << i64_tostr(f->code.__asm64.size());
         text << (f->isStatic() ? 1 : 0) << ((char)nil);
         text << (f->type!=TYPEVOID || f->isConstructor ? 1 : 0) << ((char)nil);
