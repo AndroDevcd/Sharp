@@ -31,7 +31,7 @@ struct SharpObject
         new (&mutex) std::mutex();
 #endif
         this->size=size;
-        refCount=1;
+        refCount=0;
         generation = 0x000; /* generation young */
     }
     void init(unsigned long size, ClassObject* k)
@@ -49,7 +49,7 @@ struct SharpObject
         new (&mutex) std::mutex();
 #endif
         this->size=size;
-        refCount=1;
+        refCount=0;
         generation = 0x000; /* generation young */
     }
 
@@ -86,7 +86,6 @@ struct SharpObject
                 GarbageCollector::self->oObjs++; \
                 break; \
         } \
-        obj = nullptr; \
     }
 
 #define INC_REF(object) \
@@ -103,38 +102,31 @@ struct Object {
 
     CXX11_INLINE void operator=(Object &o) {
         if(&o == this || o.object==object) return;
-        if(object != NULL && object->k != NULL && object->refCount<=0) {
-            int I = 0;
-        }
-        DEC_REF(this->object)
+        DEC_REF(this->object);
 
         if(o.object != NULL) {
             this->object = o.object;
             this->object->refCount++;
-        }
+        } else object=NULL;
     }
     CXX11_INLINE void operator=(Object *o) {
         if(o == this || (o != NULL && o->object==object)) return;
-        if(object != NULL && object->k != NULL && object->refCount<=0) {
-            int I = 0;
-        }
-        DEC_REF(this->object)
+        DEC_REF(this->object);
 
         if(o != NULL && o->object != NULL)
         {
             this->object = o->object;
             this->object->refCount++;
-        }
+        } else object=NULL;
     }
     CXX11_INLINE void operator=(SharpObject *o) {
         if(o == this->object) return;
-        if(object != NULL && object->k != NULL && object->refCount<=0) {
-            int I = 0;
-        }
-        DEC_REF(this->object)
+        DEC_REF(this->object);
 
         this->object = o;
-
+        if(o != NULL) {
+            o->refCount++;
+        }
     }
     void castObject(uint64_t classPtr);
 };

@@ -328,6 +328,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 }
 
                 if(o->k != NULL) { // class?
+
+                    if(o->node == NULL)
+                        throw Exception(Environment::NullptrException, "");
                     data = GarbageCollector::self->newObjectArray(len, o->k);
 
                     for(size_t i = 0; i < len; i++) {
@@ -372,9 +375,6 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     throw Exception(ss.str());
                 }
 
-                if(arry->object->refCount-2<=0) {
-                    int i = 0;
-                }
                 if(o->k != NULL) { // class?
                     if(o->node == NULL)
                         throw Exception(Environment::NullptrException, "");
@@ -471,8 +471,8 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     File::read_alltext(path.str().c_str(), buf);
                     native_string str;
 
-                    for(long long i = 0; i < buf.size(); i++) {
-                        str += buf.at(i);
+                    if(str.injectBuff(buf)) {
+                        throw Exception("out of memory");
                     }
 
                     thread_self->sp++;

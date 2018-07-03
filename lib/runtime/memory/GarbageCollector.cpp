@@ -178,7 +178,6 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         return;
 
     if(policy == GC_LOW) {
-        cout << "low..." << endl;
         Thread::suspendAllThreads();
 
         /**
@@ -193,7 +192,6 @@ void GarbageCollector::collect(CollectionPolicy policy) {
 
         Thread::resumeAllThreads();
     } else if(policy == GC_EXPLICIT) {
-        cout << "low..." << endl;
         /**
          * Force collection of both generations
          * We only do the first 2 generations because we want
@@ -207,15 +205,15 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         /**
          * This should only be called by the GC thread itsself
          */
-//        if(GC_COLLECT_YOUNG()) {        /* 10% */
-//            collectYoungObjects();
-//        }
-//        if(GC_COLLECT_ADULT()) {        /* 40% */
-//            collectAdultObjects();
-//        }
-//        if(GC_COLLECT_OLD()) {        /* 20% */
-//            collectOldObjects();
-//        }
+        if(GC_COLLECT_YOUNG()) {        /* 10% */
+            collectYoungObjects();
+        }
+        if(GC_COLLECT_ADULT()) {        /* 40% */
+            collectAdultObjects();
+        }
+        if(GC_COLLECT_OLD()) {        /* 20% */
+            collectOldObjects();
+        }
     }
 }
 
@@ -224,7 +222,7 @@ void GarbageCollector::collectYoungObjects() {
     mutex.lock();
     yObjs = 0;
 
-    SharpObject *object = self->_Mheap->next, *nxt;
+    SharpObject *object = self->_Mheap->next;
     while(object != NULL) {
         if(tself->state == THREAD_KILLED) {
             break;
@@ -432,7 +430,7 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
 
         SharpObject* tmp = object->next;
         erase(object);
-        //std::free(object);
+        std::free(object);
         return tmp;
     }
 }
@@ -469,6 +467,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
                  */
                 if(k->fields[i].type == VAR && !k->fields[i].isArray) {
                     object->node[i].object = newObject(1);
+                    object->node[i].object->refCount++;
                 } else {
                     object->node[i].object = nullptr;
                 }

@@ -499,22 +499,22 @@ class Tokenizer {
             {
                 switch(msg.at(i+1)) {
                     case 'n':
-                        escapedMessage += new char('\n');
+                        escapedMessage += '\n';
                         break;
                     case 't':
-                        escapedMessage += new char('\t');
+                        escapedMessage += '\t';
                         break;
                     case 'b':
-                        escapedMessage += new char('\b');
+                        escapedMessage += '\b';
                         break;
                     case 'v':
-                        escapedMessage += new char('\v');
+                        escapedMessage += '\v';
                         break;
                     case 'r':
-                        escapedMessage += new char('\r');
+                        escapedMessage += '\r';
                         break;
                     case 'f':
-                        escapedMessage += new char('\f');
+                        escapedMessage += '\f';
                         break;
                     default:
                         escapedMessage += msg.at(i+1);

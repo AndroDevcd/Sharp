@@ -7,6 +7,7 @@
 
 #include <string>
 #include "../../../stdimports.h"
+#include "../../util/File.h"
 
 class native_string {
 public:
@@ -88,6 +89,21 @@ public:
             chars = (char*)malloc(sizeof(char)*_str.len);
             std::memcpy(chars, _str.chars, sizeof(char)*len);
         }
+    }
+
+    int injectBuff(File::buffer &buf) {
+
+        if(buf.size()>0) {
+            len = buf.size();
+            chars = (char*)malloc(sizeof(char)*buf.size());
+
+            if(chars==NULL)return 1;
+            std::memcpy(chars, buf.data(), sizeof(char)*len);
+        } else {
+            free();
+        }
+
+        return 0;
     }
 
     void operator+=(const char &c) {

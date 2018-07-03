@@ -169,6 +169,7 @@ private:
     SharpObject* sweep(SharpObject *object);
 
     void erase(SharpObject *pObject);
+
 };
 
 #define GC_COLLECT_YOUNG() ( yObjs >= 750 )

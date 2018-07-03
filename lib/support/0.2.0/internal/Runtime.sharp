@@ -93,8 +93,6 @@ public class Runtime {
     }
 
     public static def copy(object[] data, var len) : object[] {
-        object[] result;
-
         asm(
             "pushl <data>                                                                             "
             "ipushl <len>                                                                             "
@@ -104,8 +102,6 @@ public class Runtime {
     }
 
     public static def copy2(object[] data, var indexLen, var len) : object[] {
-        object[] result;
-
         asm(
             "pushl <data>                                                                             "
             "ipushl <indexLen>                                                                        "
