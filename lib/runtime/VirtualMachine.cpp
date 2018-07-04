@@ -585,21 +585,23 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
 
 
 int VirtualMachine::returnMethod() {
-    if(thread_self->callStack.size() <= 1)
+    if(thread_self->calls <= 1)
         return 1;
 
-    Frame frame = thread_self->callStack.last();
+    Frame *frame = thread_self->callStack;
 
     if(thread_self->current->finallyBlocks.size() > 0)
         executeFinally(thread_self->current);
 
-    thread_self->current = frame.last;
-    thread_self->cache = frame.last->bytecode;
+    thread_self->current = frame->last;
+    thread_self->cache = frame->last->bytecode;
 
-    thread_self->pc = frame.pc;
-    thread_self->sp = frame.sp;
-    thread_self->fp = frame.fp;
-    thread_self->callStack.pop_back();
+    thread_self->pc = frame->pc;
+    thread_self->sp = frame->sp;
+    thread_self->fp = frame->fp;
+    thread_self->callStack = frame->prev;
+    thread_self->calls--;
+    std::free(frame);
     return 0;
 }
 
@@ -610,7 +612,6 @@ void VirtualMachine::Throw(Object *exceptionObject) {
     }
 
     thread_self->throwable.throwable = exceptionObject->object->k;
-    int t = thread_self->callStack.size();
     fillStackTrace(exceptionObject);
 
     if(TryThrow(thread_self->current, exceptionObject)) {
@@ -620,7 +621,7 @@ void VirtualMachine::Throw(Object *exceptionObject) {
         return;
     }
 
-    while(thread_self->callStack.size() >= 1) {
+    while(thread_self->calls >= 1) {
         Method *method = thread_self->current;
         executeFinally(thread_self->current);
 
@@ -705,7 +706,7 @@ void VirtualMachine::fillStackTrace(Object *exceptionObject) {
     }
 }
 
-void VirtualMachine::fillMethodCall(Frame frame, stringstream &ss, Frame *prev) {
+void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss, Frame *prev) {
     if(frame.last == NULL) return;
 
     ss << "\tSource ";
@@ -747,16 +748,17 @@ void VirtualMachine::fillStackTrace(native_string &str) {
     Method* m = thread_self->current;
     int64_t pc = thread_self->pc, _fp=thread_self->fp;
 
-    unsigned int pos = thread_self->callStack.size() > EXCEPTION_PRINT_MAX ? thread_self->callStack.size()
+    unsigned int pos = thread_self->calls > EXCEPTION_PRINT_MAX ? thread_self->calls
                                                                              - EXCEPTION_PRINT_MAX : 0;
-    Frame *prev = NULL;
-    for(long i = pos; i < thread_self->callStack.size(); i++)
-    {
-        fillMethodCall(thread_self->callStack.get(i), ss, prev);
-        prev = &thread_self->callStack.get(i);
+    Frame *prev = NULL, *f = thread_self->callStack;
+    while(f != NULL) {
+
+        fillMethodCall(*f, ss, prev);
+        prev = f;
+        f = f->prev;
     }
 
-    prev = thread_self->callStack.size() == 1 ? NULL : &thread_self->callStack.get(thread_self->callStack.size()-1);
+    prev = thread_self->calls == 1 ? NULL : thread_self->callStack;
     Frame frame(thread_self->current, pc, thread_self->sp, _fp);
     fillMethodCall(frame, ss, prev);
 

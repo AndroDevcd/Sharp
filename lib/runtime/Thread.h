@@ -115,7 +115,8 @@ public:
 
     int64_t pc, fp, sp;
     Method *current;
-    List<Frame> callStack;
+    Frame *callStack;
+    unsigned long calls;
     StackElement* dataStack;
     unsigned long stack_lmt;
     Cache cache;

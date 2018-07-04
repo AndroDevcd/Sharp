@@ -71,7 +71,8 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     thread->main = method;
     thread->id = Thread::tid++;
     thread->dataStack = NULL;
-    thread->callStack.init();
+    thread->callStack = NULL;
+    thread->calls=0;
     thread->current = NULL;
     thread->suspendPending = false;
     thread->exceptionThrown = false;
@@ -115,7 +116,8 @@ void Thread::Create(string name) {
     this->state = THREAD_CREATED;
     this->exitVal = 0;
     this->stack_lmt = STACK_SIZE;
-    this->callStack.init();
+    this->callStack = NULL;
+    this->calls=0;
     this->fp=0;
     this->sp=-1;
 
@@ -138,7 +140,8 @@ void Thread::CreateDaemon(string name) {
     this->name = name;
     this->id = Thread::tid++;
     this->dataStack = NULL;
-    this->callStack.init();
+    this->callStack = NULL;
+    this->calls=0;
     this->current = NULL;
     this->suspendPending = false;
     this->exceptionThrown = false;
@@ -743,7 +746,7 @@ void Thread::exec() {
                 registers[cache[pc+1]]=GET_Da(cache[pc]); pc++;
                 _brh
             RET:
-                if(thread_self->callStack.size() <= 1) {
+                if(thread_self->calls <= 1) {
 #ifdef SHARP_PROF_
                     tprof.endtm=Clock::realTimeInNSecs();
                     tprof.profile();
@@ -751,18 +754,20 @@ void Thread::exec() {
                     return;
                 }
 
-                Frame frame = thread_self->callStack.last();
+                Frame *frame = callStack;
+                calls--;
 
-                if(thread_self->current->finallyBlocks.size() > 0)
+                if(current->finallyBlocks.size() > 0)
                     vm->executeFinally(thread_self->current);
 
-                thread_self->current = frame.last;
-                thread_self->cache = frame.last->bytecode;
+                current = frame->last;
+                cache = frame->last->bytecode;
 
-                thread_self->pc = frame.pc;
-                thread_self->sp = frame.sp;
-                thread_self->fp = frame.fp;
-                thread_self->callStack.pop_back();
+                pc = frame->pc;
+                sp = frame->sp;
+                fp = frame->fp;
+                callStack = frame->prev;
+                std::free(frame);
 
 #ifdef SHARP_PROF_
             tprof.profile();

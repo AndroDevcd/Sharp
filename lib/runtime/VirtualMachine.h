@@ -63,25 +63,28 @@ public:
 
     int exitVal;
 
-    void fillMethodCall(Frame frame, stringstream &ss, Frame *prev);
+    void fillMethodCall(Frame &frame, stringstream &ss, Frame *prev);
 };
 
 #define executeMethod(address, thread_self) { \
  \
     Method *method = env->methods+address; \
  \
-    if(thread_self->callStack.empty()) { \
-        thread_self->callStack.add( \
-                Frame(NULL, 0, 0, 0)); \
+    if(thread_self->calls==0) { \
+        thread_self->callStack = (Frame*)malloc(sizeof(Frame)); \
+        thread_self->callStack->init(NULL, 0,0,0); \
     } else { \
-        thread_self->callStack.add( \
-                Frame(thread_self->current, thread_self->pc, thread_self->sp-method->stackEqulizer, thread_self->fp)); \
-    } \
+        Frame *f = (Frame*)malloc(sizeof(Frame)); \
+        f->init(thread_self->current, thread_self->pc, thread_self->sp-method->stackEqulizer, thread_self->fp); \
+        f->prev = thread_self->callStack; \
+        thread_self->callStack = f;  \
+    }\
+    thread_self->calls++; \
      \
     thread_self->pc = 0; \
     thread_self->current = method; \
     thread_self->cache = method->bytecode; \
-    thread_self->fp = thread_self->callStack.size()==1 ? thread_self->fp : \
+    thread_self->fp = thread_self->calls==1 ? thread_self->fp : \
                       ((method->returnVal) ? thread_self->sp-method->stackEqulizer : (thread_self->sp-method->stackEqulizer+1)); \
     thread_self->sp += (method->stackSize - method->paramSize); \
 }
