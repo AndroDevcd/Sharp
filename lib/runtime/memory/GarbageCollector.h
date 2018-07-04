@@ -45,7 +45,7 @@ class Thread;
 class GarbageCollector {
 public:
     static GarbageCollector *self;
-    recursive_mutex mutex, dirtyMutex;
+    recursive_mutex mutex;
     Thread *tself;
     List<CollectionPolicy> messageQueue;
 
@@ -112,6 +112,13 @@ public:
     unsigned long long getManagedMemory();
 
     /**
+     * Retrieve the os level size of an object refrence
+     * @param object
+     * @return
+     */
+    static size_t _sizeof(SharpObject *object, bool recursive = true);
+
+    /**
      * This will keep track of our different generations and the
      * objects that are living in them.
      *
@@ -147,7 +154,9 @@ private:
     long long adultObjects;
     /* collect when 20% has been dropped */
     unsigned long oldObjects;
+#ifdef SHARP_PROF_
     unsigned long x;
+#endif
     SharpObject* _Mheap, *tail;
     unsigned long long heapSize;
 
@@ -169,7 +178,6 @@ private:
     SharpObject* sweep(SharpObject *object);
 
     void erase(SharpObject *pObject);
-
 };
 
 #define GC_COLLECT_YOUNG() ( yObjs >= 750 )
@@ -187,13 +195,13 @@ private:
 #define UPDATE_GC(object) \
     switch(GENERATION(object->generation)) { \
         case gc_young: \
-            youngObjects--; \
+            freedYoung++; \
             break; \
         case gc_adult: \
-            adultObjects--; \
+            freedAdult++; \
             break; \
         case gc_old: \
-            oldObjects--; \
+            freedOld++; \
             break; \
     }
 

@@ -12,7 +12,7 @@
 #include <thread>
 #include <algorithm>
 
-long long hbytes;
+long long hbytes = 0, freedBytes = 0, freedYoung = 0, freedAdult = 0, freedOld = 0;
 GarbageCollector *GarbageCollector::self = nullptr;
 
 void* __malloc(size_t bytes)
@@ -86,7 +86,6 @@ void GarbageCollector::initilize() {
     self=(GarbageCollector*)malloc(sizeof(GarbageCollector)*1);
 #ifdef WIN32_
     self->mutex.initalize();
-    self->dirtyMutex.initalize();
 #endif
 #ifdef POSIX_
     new (&self->mutex) std::mutex();
@@ -105,7 +104,10 @@ void GarbageCollector::initilize() {
     self->youngObjects=0;
     self->oldObjects=0;
     self->yObjs=0;
+
+#ifdef SHARP_PROF_
     self->x = 0;
+#endif
     self->aObjs=0;
     self->oObjs=0;
     self->isShutdown=false;
@@ -116,10 +118,6 @@ void GarbageCollector::freeObject(Object *object) {
     if(object != nullptr && object->object != nullptr)
     {
         object->object->refCount--;
-
-        if(object->object->refCount<=0) {
-            int i = 0;
-        }
         switch(GENERATION(object->object->generation)) {
             case gc_young:
                 yObjs++;
@@ -139,7 +137,9 @@ void GarbageCollector::shutdown() {
     if(self != nullptr) {
         self->isShutdown=true;
         /* Clear out all memory */
-        cout << "size of object: " << sizeof(SharpObject) << endl;
+
+#ifdef SHARP_PROF_
+        cout << "\nsize of object: " << sizeof(SharpObject) << endl;
         cout << "highest memory calculated: " << hbytes << endl;
         cout << "Objects Collected " << self->x << endl;
         cout << "Total managed bytes left " << self->managedBytes << endl;
@@ -147,6 +147,7 @@ void GarbageCollector::shutdown() {
                                           << " old: " << self->oldObjects << endl;
         cout << "heap size: " << self->heapSize << endl;
         cout << std::flush << endl;
+#endif
 
         SharpObject *p = self->_Mheap->next;
 
@@ -215,11 +216,21 @@ void GarbageCollector::collect(CollectionPolicy policy) {
             collectOldObjects();
         }
     }
+
+    mutex.lock();
+    managedBytes-= freedBytes;
+    youngObjects -= freedYoung;
+    adultObjects -= freedAdult;
+    oldObjects -= freedOld;
+    freedBytes = 0;
+    freedYoung = 0;
+    freedAdult = 0;
+    freedOld = 0;
+    mutex.unlock();
 }
 
 void GarbageCollector::collectYoungObjects() {
 
-    mutex.lock();
     yObjs = 0;
 
     SharpObject *object = self->_Mheap->next;
@@ -231,8 +242,6 @@ void GarbageCollector::collectYoungObjects() {
         if(GENERATION(object->generation) == gc_young) {
             // free object
             if(MARKED(object->generation) && object->refCount == 0) {
-//                object = object->next;
-//                continue;
                 object = sweep(object);
                 continue;
             } else if(MARKED(object->generation) && object->refCount > 0){
@@ -246,13 +255,9 @@ void GarbageCollector::collectYoungObjects() {
 
         object = object->next;
     }
-
-    mutex.unlock();
 }
 
 void GarbageCollector::collectAdultObjects() {
-
-    mutex.lock();
     aObjs = 0;
 
     SharpObject *object = self->_Mheap->next;
@@ -265,8 +270,6 @@ void GarbageCollector::collectAdultObjects() {
 
             // free object
             if(MARKED(object->generation) && object->refCount == 0) {
-//                object = object->next;
-//                continue;
                 object = sweep(object);
                 continue;
             } else if(MARKED(object->generation) && object->refCount > 0){
@@ -279,13 +282,9 @@ void GarbageCollector::collectAdultObjects() {
 
         object = object->next;
     }
-
-    mutex.unlock();
 }
 
 void GarbageCollector::collectOldObjects() {
-
-    mutex.lock();
     oObjs = 0;
 
     SharpObject *object = self->_Mheap->next, *nxt;
@@ -298,8 +297,6 @@ void GarbageCollector::collectOldObjects() {
 
             // free object
             if(MARKED(object->generation) && object->refCount == 0) {
-//                object = object->next;
-//                continue;
                 object = sweep(object);
                 continue;
             } else
@@ -308,8 +305,6 @@ void GarbageCollector::collectOldObjects() {
 
         object = object->next;
     }
-
-    mutex.unlock();
 }
 
 void GarbageCollector::run() {
@@ -328,8 +323,10 @@ void GarbageCollector::run() {
             return;
         }
 
+#ifdef SHARP_PROF_
         if(managedBytes > hbytes)
             hbytes = managedBytes;
+#endif
 
         if(!messageQueue.empty()) {
             mutex.lock();
@@ -359,8 +356,7 @@ void GarbageCollector::run() {
          * conditions. This call does not guaruntee that any collections
          * will happen
          */
-         if(GC_COLLECT_MEM())
-            collect(GC_CONCURRENT);
+         collect(GC_CONCURRENT);
 
     }
 }
@@ -401,11 +397,40 @@ void GarbageCollector::sendMessage(CollectionPolicy message) {
     messageQueue.push_back(message);
 }
 
+size_t GarbageCollector::_sizeof(SharpObject *object, bool recursive) {
+    size_t size =0;
+    if(object != nullptr) {
+
+        if(object->HEAD != nullptr) {
+            size += object->size;
+        } else if(object->node != nullptr) {
+            if(recursive) {
+                for(unsigned long i = 0; i < object->size; i++) {
+                    SharpObject *o = object->node[i].object;
+
+                    /**
+                     * If the object still has references we just drop it and move on
+                     */
+                    if(o != nullptr) {
+                        size += _sizeof(o);
+                    }
+                }
+            }
+
+            size += sizeof(Object)*object->size;
+        }
+
+        size += sizeof(SharpObject);
+    }
+
+    return size;
+}
+
 SharpObject* GarbageCollector::sweep(SharpObject *object) {
     if(object != nullptr) {
 
         if(object->HEAD != nullptr) {
-            managedBytes -= sizeof(double)*object->size;
+            freedBytes += sizeof(double)*object->size;
             std::free(object->HEAD); object->HEAD = NULL;
         } else if(object->node != nullptr) {
             for(unsigned long i = 0; i < object->size; i++) {
@@ -419,7 +444,7 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
                 }
             }
 
-            managedBytes -= sizeof(Object)*object->size;
+            freedBytes += sizeof(Object)*object->size;
             std::free(object->node); object->node = NULL;
         }
 
@@ -427,9 +452,12 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
             std::free(object->mutex);
 
         UPDATE_GC(object)
-        x++;
 
-        managedBytes -= sizeof(SharpObject);
+#ifdef SHARP_PROF_
+        x++;
+#endif
+
+        freedBytes += sizeof(SharpObject);
 
         SharpObject* tmp = object->next;
         erase(object);
@@ -555,7 +583,11 @@ void GarbageCollector::erase(SharpObject *p) {
     p->prev->next = p->next;
 
     if(p == tail) {
-        tail = p->prev;
-        tail->next = NULL;
+        mutex.lock();
+        if(p == tail) {
+            tail = p->prev;
+            tail->next = NULL;
+        } else  p->next->prev = p->prev;
+        mutex.unlock();
     } else if(p->next != NULL) p->next->prev = p->prev;
 }

@@ -338,6 +338,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     }
 
                     *arry = data.object;
+                    data.object->refCount = 1;
                 } else if(o->HEAD != NULL) { // var[]
                     data = GarbageCollector::self->newObject(len);
 
@@ -346,6 +347,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     }
 
                     *arry = data.object;
+                    data.object->refCount = 1;
                 } else if(o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObjectArray(len);
 
@@ -354,6 +356,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     }
 
                     *arry = data.object;
+                    data.object->refCount = 1;
                 }
 
             } else
@@ -385,6 +388,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     }
 
                     *arry = data.object;
+                    data.object->refCount = 1;
                 } else if(o->HEAD != NULL) { // var[]
                     data = GarbageCollector::self->newObject(len);
 
@@ -393,6 +397,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     }
 
                     *arry = data.object;
+                    data.object->refCount = 1;
                 } else if(o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObjectArray(len);
 
@@ -401,6 +406,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     }
 
                     *arry = data.object;
+                    data.object->refCount = 1;
                 }
 
             } else
@@ -513,6 +519,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         }
         case 0xbe:
             registers[ebx]=disk_space((int32_t )registers[ebx]);
+            return;
+        case 0xc2:
+            registers[ebx] = GarbageCollector::_sizeof(thread_self->dataStack[thread_self->sp--].object.object);
             return;
         default:
             // unsupported
