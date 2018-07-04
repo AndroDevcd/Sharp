@@ -6953,7 +6953,7 @@ Expression RuntimeEngine::parseQuesExpression(Ast* pAst) {
     pushExpressionToRegister(condition, expression, cmt);
 
     pushExpressionToStack(condIfTrue, tmp); // so we can get accurate size
-    expression.code.push_i64(SET_Ci(i64, op_LOADPC_2, adx,0, (tmp.code.size() + 3)));
+    expression.code.push_i64(SET_Ci(i64, op_LOADPC_2, adx,0, (tmp.code.size() + 5)));
     expression.code.push_i64(SET_Ei(i64, op_IFNE));
 
     expression.inject(tmp); tmp.free();
