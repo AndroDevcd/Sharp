@@ -89,7 +89,6 @@ void GarbageCollector::initilize() {
 #endif
 #ifdef POSIX_
     new (&self->mutex) std::mutex();
-    new (&self->dirtyMutex) std::mutex();
 #endif
     self->_Mheap = (SharpObject*)malloc(sizeof(SharpObject)); // HEAD
 
