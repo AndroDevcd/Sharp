@@ -412,6 +412,60 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             } else
                 throw Exception(Environment::NullptrException, "");
             return;
+        }case 0xc3: {
+            size_t endIndex = thread_self->dataStack[thread_self->sp--].var;
+            size_t startIndex = thread_self->dataStack[thread_self->sp--].var;
+            Object *arry = &thread_self->dataStack[thread_self->sp].object;
+            SharpObject *o = arry->object;
+            Object data; data.object = NULL;
+            size_t sz = endIndex-startIndex, idx=0;
+
+            if(o != NULL) {
+                if(startIndex > o->size || startIndex < 0 || endIndex < 0
+                   || endIndex > o->size || endIndex < startIndex) {
+                    stringstream ss;
+                    ss << "invalid call to native System.memcpy() startIndex: " << startIndex
+                       << " endIndex: " << endIndex << ", array size: " << o->size;
+                    throw Exception(ss.str());
+                }
+
+                if(o->k != NULL) { // class?
+                    if(o->node == NULL)
+                        throw Exception(Environment::NullptrException, "");
+                    data = GarbageCollector::self->newObjectArray(sz+1, o->k);
+
+                    for(size_t i = startIndex; i < o->size; i++) {
+                        data.object->node[idx++] = o->node[i];
+                        if(i==endIndex) break;
+                    }
+
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                } else if(o->HEAD != NULL) { // var[]
+                    data = GarbageCollector::self->newObject(sz+1);
+
+                    for(size_t i = startIndex; i < o->size; i++) {
+                        data.object->HEAD[idx++] = o->HEAD[i];
+                        if(i==endIndex) break;
+                    }
+
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                } else if(o->node != NULL) { // object? maybe...
+                    data = GarbageCollector::self->newObjectArray(sz+1);
+
+                    for(size_t i = startIndex; i < o->size; i++) {
+                        data.object->node[idx++] = o->node[i];
+                        if(i==endIndex) break;
+                    }
+
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                }
+
+            } else
+                throw Exception(Environment::NullptrException, "");
+            return;
         }
         case 0xb1:
         case 0xb2:

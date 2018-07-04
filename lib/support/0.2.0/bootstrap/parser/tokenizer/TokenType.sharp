@@ -10,10 +10,10 @@ enum TokenType
     NUMBER,
     LETTER,
     UNDERSCORE,
-    LEFTPAREN,
-    RIGHTPAREN,
-    LEFTCURLY,
-    RIGHTCURLY,
+    LEFT_PAREN,
+    RIGHT_PAREN,
+    LEFT_CURLY,
+    RIGHT_CURLY,
     HASH,               // #
     DOT,                // .
     PLUS,
@@ -23,8 +23,8 @@ enum TokenType
     _MOD,               // %
     COLON,              // :
     SEMICOLON,
-    DUBQUOTE,           // "
-    SINGQUOTE,          // '
+    DUB_QUOTE,           // "
+    SING_QUOTE,          // '
     COMMA,
     NEWLINE,
     _LTE,               // <=
@@ -50,8 +50,8 @@ enum TokenType
     XOR,                // ^
     NOT,                // !
     ASSIGN,             // =
-    LEFTBRACE,          // [
-    RIGHTBRACE,         // ]
+    LEFT_BRACE,          // [
+    RIGHT_BRACE,         // ]
     QUESMK,             // ?
     PTR,                // ->
     _INC,               // ++

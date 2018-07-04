@@ -112,4 +112,8 @@ public class System {
     public static def copyOf(object[] data, var indexLen, var len) : object[] {
         return Runtime.copy2(data, indexLen, len);
     }
+
+    public static def memcpy(object[] data, var startIndex, var endIndex) : object[] {
+        return Runtime.copy3(data, startIndex, endIndex);
+    }
 }

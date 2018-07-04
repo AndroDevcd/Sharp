@@ -360,28 +360,20 @@ public class string {
 
 
             string s = "";
-            for(var i = startIndex; i < size(); i++) {
-                s.append(at(i));
-            }
-
+            s.data = (var[])System.memcpy(data, startIndex, size()-1);
             return s;
         }
 
-        public def substring(var startIndex, var stopindex) : string {
+        public def substring(var startIndex, var stopIndex) : string {
             if((startIndex >= size()) || (startIndex < 0))
                 return new string("");
-            if(stopindex < startIndex)
+            if(stopIndex < startIndex)
                 throw new IllegalArgumentException(
-                    "stopIndex: " + stopindex + " cannot be less than startIndex: " + startIndex);
+                    "stopIndex: " + stopIndex + " cannot be less than startIndex: " + startIndex);
 
 
             string s = "";
-            for(var i = startIndex; i < size(); i++) {
-                if(i == stopindex)
-                    break;
-                s.append(at(i));
-            }
-
+            s.data = (var[])System.memcpy(data, startIndex, stopIndex);
             return s;
         }
 
@@ -434,8 +426,10 @@ public class string {
                 return false;
             }
 
+            var endIndex;
             for(var i = 0; i < size(); i++) {
-                if(substring(i, i+str.size()) == str)
+                endIndex = i+str.size();
+                if(substring(i, endIndex > size() ? size() : endIndex) == str)
                     return true;
             }
 
@@ -481,5 +475,9 @@ public class string {
         public def size() : var
         {
             return sizeof(data);
+        }
+
+        public def getData() : var[] {
+            return data;
         }
 }

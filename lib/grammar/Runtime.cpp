@@ -6973,6 +6973,20 @@ Expression RuntimeEngine::parseQuesExpression(Ast* pAst) {
     if(condIfFalse.type == expression_string) {
         expression.type = expression_var;
         expression.utype.array = true;
+    } else if(expression.type == expression_field) {
+        switch(expression.utype.field->type) {
+            case VAR:
+                expression.type=expression_var;
+                break;
+            case CLASS:
+                expression.type=expression_lclass;
+                expression.utype.klass=expression.utype.field->klass;
+                break;
+            case OBJECT:
+                expression.type=expression_objectclass;
+                break;
+        }
+        expression.utype.array = expression.utype.field->isArray;
     }
 
     expression.ifExpression = true;

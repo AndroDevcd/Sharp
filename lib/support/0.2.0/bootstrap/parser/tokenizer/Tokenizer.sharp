@@ -16,7 +16,7 @@ class Tokenizer {
         lines = new ArrayList<string>();
 
         if(!tokens.empty())
-            self->tokens = tokens.toArray();
+            self->tokens = tokens;
         else {
             line = 0;
         }
@@ -25,442 +25,410 @@ class Tokenizer {
     }
 
     def parse() {
-        if(sizeof(tokens) == 0)
+        if(tokens.empty())
             return;
 
         addLines();
         errors = new ErrorManager(lines, file, true, Options.aggressiveErrors);
-        current = cursor < sizeof(tokens)
-                              ? tokens[cursor] : tokens[sizeof(tokens)-1];
+        current = tokens.at(0);
 
-        for(;;) {
-            invalidate_whitespace:
-            while(!isEnd() && isWhitespace(current.getValue())) {
-                if(char.isNewLine(current.getValue()))
-                {
-                    newline();
-                }
-
-                advance();
-            }
-
-            int mode = 0;
-            if(isEnd() || peekEnd(1))
-                goto scan;
-            else if(!commentStart(current.getValue(), peek(1), mode))
-                goto scan;
-
-            advance(); advance();
-            while(!isEnd() && !commentEnd(current.getValue(), peek(1), mode))
-            {
-                if(char.isNewLine(current.getValue())){
-                    newline();
-                }
-
-                advance();
-            }
-
-            if (!isEnd())
-            {
-                cursor += mode;
-                goto invalidate_whitespace;
-            }
-            else if(isEnd() && !commentEnd(current.getValue(),peek(1),mode))
-            {
-                errors.createNewError(CompilerError.GENERIC, line, col, "expected closed comment before end of file");
-            }
-
-            scan:
-            if(isEnd())
-            {
-                goto end;
-            } else if(isSymbol(current.getValue()))  // <, >, <<, etc.
-            {
-                if(!peekEnd(1))
-                {
-                    TokenType type = TokenType.NONE;
-
-                    var[] chs = new var[] { current.getValue(), peek(1) };
-
-                    if ((chs[0] == '<') && (chs[1] == '=')) type = TokenType._LTE;
-                    else if ((chs[0] == '>') && (chs[1] == '=')) type = TokenType._GTE;
-                    else if ((chs[0] == '!') && (chs[1] == '=')) type = TokenType.NOTEQ;
-                    else if ((chs[0] == '=') && (chs[1] == '=')) type = TokenType.EQEQ;
-                    else if ((chs[0] == '<') && (chs[1] == '<')) type = TokenType.SHL;
-                    else if ((chs[0] == '>') && (chs[1] == '>')) type = TokenType.SHR;
-                    else if ((chs[0] == '&') && (chs[1] == '&')) type = TokenType.ANDAND;
-                    else if ((chs[0] == '|') && (chs[1] == '|')) type = TokenType.OROR;
-                    else if ((chs[0] == '-') && (chs[1] == '>')) type = TokenType.PTR;
-                    else if ((chs[0] == '+') && (chs[1] == '+')) type = TokenType._INC;
-                    else if ((chs[0] == '-') && (chs[1] == '-')) type = TokenType._DEC;
-                    else if ((chs[0] == '+') && (chs[1] == '=')) type = TokenType.PLUSEQ;
-                    else if ((chs[0] == '*') && (chs[1] == '=')) type = TokenType.MULTEQ;
-                    else if ((chs[0] == '-') && (chs[1] == '=')) type = TokenType.MINUSEQ;
-                    else if ((chs[0] == '/') && (chs[1] == '=')) type = TokenType.DIVEQ;
-                    else if ((chs[0] == '&') && (chs[1] == '=')) type = TokenType.ANDEQ;
-                    else if ((chs[0] == '|') && (chs[1] == '=')) type = TokenType.OREQ;
-                    else if ((chs[0] == '^') && (chs[1] == '=')) type = TokenType.XOREQ;
-                    else if ((chs[0] == '%') && (chs[1] == '=')) type = TokenType.MODEQ;
-
-                    if (TokenType.NONE != type)
-                    {
-                        string s = "" + chs;
-
-                        entities.add(new TokenEntity(s, TokenId.SINGLE, type, col, line));
-                        cursor += 2;
-                        goto invalidate_whitespace;
-                    }
-                }
-
-                string character = "" + current;
-                if ('<' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.LESSTHAN, col, line));
-                else if ('>' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.GREATERTHAN, col, line));
-                else if (';' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.SEMICOLON, col, line));
-                else if (':' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.COLON, col, line));
-                else if ('+' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.PLUS, col, line));
-                else if ('-' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.MINUS, col, line));
-                else if ('*' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.MULT, col, line));
-                else if (',' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.COMMA, col, line));
-                else if ('=' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.ASSIGN, col, line));
-                else if ('#' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.HASH, col, line));
-                else if ('!' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.NOT, col, line));
-                else if ('/' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType._DIV, col, line));
-                else if ('%' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType._MOD, col, line));
-                else if ('(' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.LEFTPAREN, col, line));
-                else if (')' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.RIGHTPAREN, col, line));
-                else if ('{' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.LEFTCURLY, col, line));
-                else if ('}' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.RIGHTCURLY, col, line));
-                else if ('.' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.DOT, col, line));
-                else if ('[' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.LEFTBRACE, col, line));
-                else if (']' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.RIGHTBRACE, col, line));
-                else if ('&' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.AND, col, line));
-                else if ('|' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.OR, col, line));
-                else if ('^' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.XOR, col, line));
-                else if ('?' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.QUESMK, col, line));
-                else if ('$' == current)
-                    entities.add(new TokenEntity(character, TokenId.SINGLE, TokenType.DOLLAR, col, line));
+        while(!isEnd()) {
+            start = cursor;
+            switch (current) {
+              case '(': addToken(TokenType.LEFT_PAREN); break;
+              case ')': addToken(TokenType.RIGHT_PAREN); break;
+              case '{': addToken(TokenType.LEFT_CURLY); break;
+              case '}': addToken(TokenType.RIGHT_CURLY); break;
+              case '[': addToken(TokenType.LEFT_BRACE); break;
+              case ']': addToken(TokenType.RIGHT_BRACE); break;
+              case ',': addToken(TokenType.COMMA); break;
+              case '.': addToken(TokenType.DOT); break;
+              case ';': addToken(TokenType.SEMICOLON); break;
+              case ':': addToken(TokenType.COLON); break;
+              case '#': addToken(TokenType.HASH); break;
+              case '?': addToken(TokenType.QUESMK); break;
+              case '$': addToken(TokenType.DOLLAR); break;
+              case '!': addToken(match('=') ? TokenType.NOTEQ : TokenType.NOT); break;
+              case '=': addToken(match('=') ? TokenType.EQEQ : TokenType.ASSIGN); break;
+              case '<':
+                if(match('<'))
+                    addToken(TokenType.SHL);
                 else
-                {
-                    errors.createNewError(CompilerError.UNEXPECTED_SYMBOL, line, col, " `" + character + "`");
-                }
-
-                advance();
-                goto invalidate_whitespace;
-            } else if(char.isAlpha(current.getValue()) || current == '_') // int, dave, etc.
-            {
-                string sb = "";
-                var hasletter = false;
-
-                while(!isEnd() && (char.isAlphaNum(current.getValue()) || current == '_'))
-                {
-                    if(char.isAlpha(current.getValue()))
-                        hasletter = true;
-
-                    sb += current;
-                    advance();
-                }
-
-                if(!hasletter)
-                    errors.createNewError(CompilerError.GENERIC, line, col, " expected at least 1 letter in identifier `" + sb + "`");
+                    addToken(match('=') ? TokenType._LTE : TokenType.LESSTHAN);
+                break;
+              case '>':
+                if(match('>'))
+                    addToken(TokenType.SHR);
                 else
-                    entities.add(new TokenEntity(sb, TokenId.IDENTIFIER, col, line));
-                goto invalidate_whitespace;
-            } else if(char.isDigit(current.getValue())) // 0xff2ea, 3.14159, 773_721_3376, etc
-            {
-                if(current == '0' && peek(1) == 'x') {
-                    string number = "";
-                    var underscoreAllowed = false;
+                    addToken(match('=') ? TokenType._GTE : TokenType.GREATERTHAN);
+                break;
 
-                    number == "0x";
-                    col += 2; cursor += 2;
-                    while(!isEnd() && (isHexNum(current.getValue()) || current == '_')) {
-                        if(isHexNum(current.getValue()))
-                            underscoreAllowed = true;
-                        else {
-                            if(!underscoreAllowed) {
-                                errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
-                                break;
-                            }
+              case '&':
+                if(match('='))
+                    addToken(TokenType.ANDEQ);
+                else
+                    addToken(match('&') ? TokenType.ANDAND : TokenType.AND);
+                break;
+              case '|':
+                if(match('='))
+                    addToken(TokenType.OREQ);
+                else
+                    addToken(match('|') ? TokenType.OROR : TokenType.OR);
+                break;
+              case '^': addToken(match('=') ? TokenType.XOREQ : TokenType.XOR); break;
+              case '%': addToken(match('=') ? TokenType.MODEQ : TokenType._MOD); break;
+              case '+':
+                if(match('='))
+                    addToken(TokenType.PLUSEQ);
+                else
+                    addToken(match('+') ? TokenType._INC : TokenType.PLUS);
+                break;
+              case '-':
+                if(match('='))
+                    addToken(TokenType.MINUSEQ);
+                else if(match('>'))
+                    addToken(TokenType.PTR);
+                else
+                    addToken(match('-') ? TokenType._DEC : TokenType.MINUS);
+                break;
+              case '*': addToken(peek(1)=='=' ? TokenType.MULTEQ : TokenType.MULT); break;
+              case ' ':
+              case '\t':
+                // Ignore whitespace.
+                break;
+              case '/':
+                if (match('/')) {
+                  // A comment goes until the end of the line.
+                  while (!char.isNewLine(peek(1)) && !isEnd()) advance();
+                  newline();  // is this right?
+                } else if(match('*')) {
+                  // A multiline comment goes until the [*/].
+                  while(!isEnd() && (current != '*' && peek(1) != '/'))
+                  {
+                      if(char.isNewLine(current)){
+                          newline();
+                      }
 
-                            advance();
-                            continue;
-                        }
-
-                        number += current;
-                        advance();
-                    }
-
-                    entities.add(new TokenEntity(number, TokenId.HEX_LITERAL, col, line));
-                    goto invalidate_whitespace;
+                      advance();
+                  }
                 } else {
-                    /*
-                       Attempt to match a valid numeric value in one of the following formats:
-                       1. 123456
-                       2. 123.456
-                       3. 1_23.456e3
-                       4. 123.456E3
-                       5. 123.456e+3
-                       6. 123.456E+3
-                       7. 123.456e-3
-                       8. 123.456E-3
-                       9. 12345e5
-                    */
-                    var dotFound          = false;
-                    var eFound            = false;
-                    var postESignFound    = false;
-                    var underscoreAllowed = false;
-                    string number = "";
-
-                    while(!isEnd())
-                    {
-                       if('_' == current) {
-                           if(!underscoreAllowed || peek(-1) == '.')
-                           {
-                               errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
-                               goto invalidate_whitespace;
-                           }
-                           advance();
-                       }
-                       else if ('.' == current)
-                       {
-                           number += current;
-                           if (dotFound)
-                           {
-                               errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", double decimal");
-                               goto invalidate_whitespace;
-                           }
-                           dotFound = true;
-                           advance();
-                           continue;
-                       }
-                       else if ('e' == char.toLower(current.getValue()))
-                       {
-                           underscoreAllowed = false;
-                           number += current;
-                           var c = peek(1);
-                           if (peekEnd(1))
-                           {
-                               errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", missing exponent prefix");
-                               goto invalidate_whitespace;
-                           }
-                           else if (
-                                   ('+' != c) &&
-                                   ('-' != c) &&
-                                   !char.isDigit(c)
-                                   )
-                           {
-                               errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", expected `+`, `-`, or digit");
-                               goto invalidate_whitespace;
-                           }
-                           eFound = true;
-                           advance();
-                           continue;
-                       }
-                       else if (eFound && isSign(current.getValue()))
-                       {
-                           number += current;
-                           if (postESignFound)
-                           {
-                               errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", duplicate exponent sign postfix");
-                               goto invalidate_whitespace;
-                           }
-                           postESignFound = true;
-                           advance();
-                           continue;
-                       }
-                       else if (('.' != current) && !char.isDigit(current.getValue()))
-                           break;
-                       else
-                       {
-                           if(char.isDigit(current.getValue()) && !eFound)
-                               underscoreAllowed = true;
-                           number += current;
-                           advance();
-                       }
-                    }
-
-                    entities.add(new TokenEntity(number, TokenId.INTEGER_LITERAL, col, line));
-                    goto invalidate_whitespace;
+                    if(match('='))
+                        addToken(TokenType.DIVEQ);
+                    else
+                        addToken(TokenType._DIV);
                 }
-            } else if('"' == current) { // "Hello, World", "Name: \n", etc.
-                string message = "";
-                if (tokensLeft() < 2)
-                {
-                    errors.createNewError(CompilerError.EXPECTED_STRING_LITERAL_EOF, line, col);
-                    advance();
-                    goto invalidate_whitespace;
-                }
-                advance();
+                break;
 
-                var escapedFound = false;
-                var escaped = false;
+              case '\r':
+              case '\n':
+                line++;
+                col = 0;
+                break;
 
-                while (!isEnd())
-                {
-                    if(char.isNewLine(current.getValue()))
-                    {
-                        errors.createNewError(CompilerError.ILLEGAL_STRING_FORMAT, line, col, ", expected `\"` before end of line");
-                        newline();
-                        goto invalidate_whitespace;
-                    }
-                    else if (!escaped && ('\\' == current))
-                    {
-                        message += current;
-                        escapedFound = true;
-                        escaped = true;
-                        advance();
-                        continue;
-                    }
-                    else if (!escaped)
-                    {
-                        if ('"' == current)
-                            break;
+              case '"':
+                parseString();
+                break;
 
-                        message += current;
-                    }
-                    else if (escaped)
-                    {
-
-                        if(!char.isAlpha(current.getValue()) && ('\\' != current)  && ('\"' != current) && ('\'' != current))
-                        {
-                            errors.createNewError(CompilerError.ILLEGAL_STRING_FORMAT, line, col, ", text preceding `\\` must be alpha, '\\', '\\'', or '\"' only");
-                            goto invalidate_whitespace;
-                        }
-
-                        message += current;
-                        escaped = false;
-                    }
-
-                    advance();
-                }
-
-                if (isEnd())
-                {
-                    errors.createNewError(CompilerError.UNEXPECTED_EOF, line, col);
-                    goto invalidate_whitespace;
-                }
-
-                if (!escapedFound)
-                    entities.add(new TokenEntity(message, TokenId.STRING_LITERAL, col, line));
-                else
-                    entities.add(new TokenEntity(getEscapedString(message), TokenId.STRING_LITERAL, col, line));
-
-                advance();
-                goto invalidate_whitespace;
-            } else if('\'' == current) // 'a', '\t', etc.
-            {
-                string character = "";
-                if (tokensLeft() < 2)
-                {
-                    errors.createNewError(CompilerError.EXPECTED_CHAR_LITERAL_EOF, line, col);
-                    advance();
-                    goto invalidate_whitespace;
-                }
-                advance();
-
-                var escapedFound  = false;
-                var escaped       = false;
-                var hasCharacter  = false;
-
-                while (!isEnd())
-                {
-                    if (!escaped && ('\\' == current))
-                    {
-                        if(hasCharacter)
-                        {
-                            errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", a chacacter literal cannot contain more than a single character; expected `'`");
-                            goto invalidate_whitespace;
-                        }
-
-                        character += current;
-                        escapedFound = true;
-                        escaped = true;
-                        advance();
-                        continue;
-                    }
-                    else if (!escaped)
-                    {
-                        if ('\'' == current)
-                            break;
-
-                        if(hasCharacter)
-                        {
-                            errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", a chacacter literal cannot contain more than a single character; expected `'`");
-                            goto invalidate_whitespace;
-                        }
-
-                        hasCharacter = true;
-                        character += current;
-                    }
-                    else if (escaped)
-                    {
-                        hasCharacter = true;
-                        if(!char.isAlpha(current.getValue()) && current != '\\' && current != '\"' && current != '\'')
-                        {
-                            errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", text preceding `\\` must be alpha, '\"', or '\\'' only");
-                            goto invalidate_whitespace;
-                        }
-                        character += current;
-                        escaped = false;
-                    }
-                    advance();
-                }
-
-                if (isEnd())
-                {
-                    errors.createNewError(CompilerError.UNEXPECTED_EOF, line, col);
-                    goto invalidate_whitespace;
-                }
-
-                if (!escapedFound)
-                {
-                    if(character.empty()) {
-                        errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", character literals cannot be empty");
-                    } else
-                        entities.add(new TokenEntity(character, TokenId.CHAR_LITERAL, col, line));
-                }
-                else
-                {
-                    entities.add(new TokenEntity(getEscapedString(character), TokenId.CHAR_LITERAL, col, line));
-                }
-
-                advance();
-                goto invalidate_whitespace;
+              default:
+                if(char.isDigit(current)) {
+                    parseNumber();
+                } else if (char.isAlpha(current) || current == '_') {
+                    parseIdentifier();
+                } else if(current == '\'') {
+                    parseChar();
+                } else
+                    errors.createNewError(CompilerError.UNEXPECTED_SYMBOL, line, col, " `" + new char(current) + "`");
+                break;
             }
-            else
-            {
-                errors.createNewError(CompilerError.UNEXPECTED_SYMBOL, line, col, " `" + new char(current) + "`");
-                advance();
-                goto invalidate_whitespace;
-            }
+
+            advance();
         }
 
         end:
         entities.add(new TokenEntity("eof", TokenId.SINGLE, TokenType._EOF, 0, line));
+    }
+
+    private def addToken(TokenId id) {
+      string text = tokens.substring(start, cursor);
+      entities.add(new TokenEntity(text, id, col, line));
+    }
+
+    private def addToken(TokenType type) {
+      string text = tokens.substring(start, cursor);
+      entities.add(new TokenEntity(text, TokenId.SINGLE, type, col, line));
+    }
+
+    private def match(var c) : var {
+        if(peek(1)==c) {
+            advance();
+            return true;
+        }
+
+        return false;
+    }
+
+    private def parseChar() {
+        if (tokensLeft() < 2)
+        {
+            errors.createNewError(CompilerError.EXPECTED_CHAR_LITERAL_EOF, line, col);
+            advance();
+            return;
+        }
+        advance();
+
+        start = cursor;
+        var escapedFound  = false;
+        var escaped       = false;
+        var hasCharacter  = false;
+
+        while (!isEnd())
+        {
+            if (!escaped && ('\\' == current))
+            {
+                if(hasCharacter)
+                {
+                    errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", a chacacter literal cannot contain more than a single character; expected `'`");
+                    return;
+                }
+
+                escapedFound = true;
+                escaped = true;
+                advance();
+                continue;
+            }
+            else if (!escaped)
+            {
+                if ('\'' == current)
+                    break;
+
+                if(hasCharacter)
+                {
+                    errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", a chacacter literal cannot contain more than a single character; expected `'`");
+                    return;
+                }
+
+                hasCharacter = true;
+            }
+            else if (escaped)
+            {
+                hasCharacter = true;
+                if(!char.isAlpha(current) && current != '\\' && current != '\"' && current != '\'')
+                {
+                    errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", text preceding `\\` must be alpha, '\"', or '\\'' only");
+                    return;
+                }
+                escaped = false;
+            }
+            advance();
+        }
+
+        if (isEnd())
+        {
+            errors.createNewError(CompilerError.UNEXPECTED_EOF, line, col);
+            return;
+        }
+
+        if (!escapedFound)
+        {
+            if(!hasCharacter) {
+                errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", character literals cannot be empty");
+            } else
+                addToken(TokenId.CHAR_LITERAL);
+        }
+        else
+        {
+            entities.add(new TokenEntity(getEscapedString(tokens.substring(start, cursor-1)), TokenId.CHAR_LITERAL, col, line));
+        }
+
+        advance();
+    }
+
+    private def parseIdentifier() {
+        var hasletter = false;
+
+        while(!isEnd() && (char.isAlphaNum(current) || current == '_'))
+        {
+            if(char.isAlpha(current))
+                hasletter = true;
+
+            advance();
+        }
+
+        if(!hasletter)
+            errors.createNewError(CompilerError.GENERIC, line, col, " expected at least 1 letter in identifier");
+        else
+            addToken(TokenId.IDENTIFIER);
+    }
+
+    private def parseNumber() {
+        if(current == '0' && peek(1) == 'x') {
+            var underscoreAllowed = false;
+
+            col += 2; cursor += 2;
+            while(!isEnd() && (isHexNum(current) || current == '_')) {
+                if(isHexNum(current))
+                    underscoreAllowed = true;
+                else {
+                    if(!underscoreAllowed) {
+                        errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
+                        break;
+                    }
+
+                    advance();
+                    continue;
+                }
+
+                advance();
+            }
+
+            addToken(TokenId.HEX_LITERAL);
+            return;
+        } else {
+            /*
+               Attempt to match a valid numeric value in one of the following formats:
+               1. 123456
+               2. 123.456
+               3. 1_23.456e3
+               4. 123.456E3
+               5. 123.456e+3
+               6. 123.456E+3
+               7. 123.456e-3
+               8. 123.456E-3
+               9. 12345e5
+            */
+            var dotFound          = false;
+            var eFound            = false;
+            var postESignFound    = false;
+            var underscoreAllowed = false;
+
+            while(!isEnd())
+            {
+               if('_' == current) {
+                   if(!underscoreAllowed || peek(-1) == '.')
+                   {
+                       errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
+                       return;
+                   }
+                   advance();
+               }
+               else if ('.' == current)
+               {
+                   if (dotFound)
+                   {
+                       errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", double decimal");
+                       return;
+                   }
+                   dotFound = true;
+                   advance();
+                   continue;
+               }
+               else if ('e' == char.toLower(current))
+               {
+                   underscoreAllowed = false;
+                   var c = peek(1);
+                   if (peekEnd(1))
+                   {
+                       errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", missing exponent prefix");
+                       return;
+                   }
+                   else if (
+                           ('+' != c) &&
+                           ('-' != c) &&
+                           !char.isDigit(c)
+                           )
+                   {
+                       errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", expected `+`, `-`, or digit");
+                       return;
+                   }
+                   eFound = true;
+                   advance();
+                   continue;
+               }
+               else if (eFound && isSign(current))
+               {
+                   if (postESignFound)
+                   {
+                       errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", duplicate exponent sign postfix");
+                       return;
+                   }
+                   postESignFound = true;
+                   advance();
+                   continue;
+               }
+               else if (('.' != current) && !char.isDigit(current))
+                   break;
+               else
+               {
+                   if(char.isDigit(current) && !eFound)
+                       underscoreAllowed = true;
+                   advance();
+               }
+            }
+
+            addToken(TokenId.INTEGER_LITERAL);
+        }
+    }
+
+    private def parseString() {
+        string message = "";
+        if (tokensLeft() < 2)
+        {
+            errors.createNewError(CompilerError.EXPECTED_STRING_LITERAL_EOF, line, col);
+            advance();
+            return;
+        }
+        advance();
+
+        start = cursor;
+        var escapedFound = false;
+        var escaped = false;
+
+        while (!isEnd())
+        {
+            if(char.isNewLine(current))
+            {
+                errors.createNewError(CompilerError.ILLEGAL_STRING_FORMAT, line, col, ", expected `\"` before end of line");
+                newline();
+                return;
+            }
+            else if (!escaped && ('\\' == current))
+            {
+                escapedFound = true;
+                escaped = true;
+                advance();
+                continue;
+            }
+            else if (!escaped)
+            {
+                if ('"' == current)
+                    break;
+            }
+            else if (escaped)
+            {
+                if(!char.isAlpha(current) && ('\\' != current)  && ('\"' != current) && ('\'' != current))
+                {
+                    errors.createNewError(CompilerError.ILLEGAL_STRING_FORMAT, line, col, ", text preceding `\\` must be alpha, '\\', '\\'', or '\"' only");
+                    return;
+                }
+
+                escaped = false;
+            }
+
+            advance();
+        }
+
+        if (isEnd())
+        {
+            errors.createNewError(CompilerError.UNEXPECTED_EOF, line, col);
+            return;
+        }
+
+        cursor--;
+        if (!escapedFound)
+            addToken(TokenId.STRING_LITERAL);
+        else
+            entities.add(new TokenEntity(getEscapedString(tokens.substring(start, cursor)), TokenId.STRING_LITERAL, col, line));
+        cursor++;
     }
 
     def commentStart(var c0, var c1, int mode) : var
@@ -481,7 +449,7 @@ class Tokenizer {
     }
 
     def isEnd() : var {
-        return (cursor>=sizeof(tokens));
+        return (cursor>=tokens.size());
     }
 
     def isWhitespace(var c) : var {
@@ -541,21 +509,22 @@ class Tokenizer {
     def advance() {
         col++;
         cursor++;
-        current = cursor < sizeof(tokens)
-                              ? tokens[cursor] : tokens[sizeof(tokens)-1];
+        try {
+            current = tokens.at(cursor);
+        } catch(Exception e) {}
     }
 
     def peekEnd(var chars) : var {
-        return (cursor+chars) >= sizeof(tokens);
+        return (cursor+chars) >= tokens.size();
     }
 
     def tokensLeft() : var {
-        return sizeof(tokens) - cursor;
+        return tokens.size() - cursor;
     }
 
     def peek(var chars) : var {
-        return ((cursor+chars) >= sizeof(tokens) || (cursor+chars) < 0)
-            ? tokens[sizeof(tokens)-1] : tokens[cursor+chars];
+        return ((cursor+chars) >= tokens.size() || (cursor+chars) < 0)
+            ? tokens.at(tokens.size()-1) : tokens.at(cursor+chars);
     }
 
     def isSymbol(var c) : var {
@@ -575,18 +544,18 @@ class Tokenizer {
     }
 
     def addLines() {
-        string line = "";
+        var[] raw = tokens.getData();
 
-        for(var i = 0; i < sizeof(tokens); i++) {
-            if(char.isNewLine(tokens[i])) {
-                lines.add(line);
-                line = new string("");
-            } else
-                line += new char(tokens[i]);
+        start = 0;
+        for(var i = 0; i < sizeof(raw); i++) {
+            if(char.isNewLine(raw[i])) {
+                lines.add(tokens.substring(start, i==0 || start==i ? i : i-1));
+                start = i+1;
+            }
         }
 
-        if(!line.empty())
-            lines.add(line);
+        if(start==0)
+            lines.add(new string(raw));
     }
 
     def isHexNum(var c) : var {
@@ -597,9 +566,9 @@ class Tokenizer {
     private ArrayList<TokenEntity> entities;
     private ErrorManager errors;
     private ArrayList<string> lines;
-    private var[] tokens = "";
-    private var cursor;
-    private char current = new char();
+    private string tokens = "";
+    private var cursor, start;
+    private var current;
     private var line;
     private var col;
     private string file = "";

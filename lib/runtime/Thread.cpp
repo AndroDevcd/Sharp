@@ -719,6 +719,9 @@ void Thread::exec() {
 
             interp:
 //            count++;
+            if(pc>=473&&current->address==66) {
+                int i = 0;
+            }
 
             DISPATCH();
             _NOP:
