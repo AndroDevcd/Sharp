@@ -204,6 +204,7 @@ public class Runtime {
 
         istream.close();
         Tokenizer tokenizer = new Tokenizer(tokens, files.get(0));
+        Parser parser = new Parser(tokenizer);
     }
 
 
@@ -233,7 +234,7 @@ public class Runtime {
         System.println(              "    -o<file>          set the output object file"                        );
         System.println(              "    -c                compile only and do not generate exe"              );
         System.println(              "    -a                enable aggressive error reporting"                 );
-        System.println(              "    -s                string debugging info"                             );
+        System.println(              "    -s                strip debugging info"                              );
         System.println(              "    -O                optimize executable"                               );
         System.println(              "    -L<path>          library directory path"                            );
         System.println(              "    -w                disable all warnings"                              );

@@ -550,6 +550,22 @@ class Tokenizer {
         return lines;
     }
 
+    public def getFile() : string {
+        return file;
+    }
+
+    public def get(var pos) : TokenEntity {
+        return entities.get(pos);
+    }
+
+    public def last() : TokenEntity {
+        return entities.last(); // EOF returned
+    }
+
+    public def size() : var {
+        return entities.size();
+    }
+
     def addLines() {
         var[] raw = tokens.getData();
 

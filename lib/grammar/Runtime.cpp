@@ -247,7 +247,7 @@ void help() {
     cout <<               "    -o<file>          set the output object file"                            << endl;
     cout <<               "    -c                compile only and do not generate exe"                  << endl;
     cout <<               "    -a                enable aggressive error reporting"                     << endl;
-    cout <<               "    -s                string debugging info"                                 << endl;
+    cout <<               "    -s                strip debugging info"                                 << endl;
     cout <<               "    -O                optimize executable"                                   << endl;
     cout <<               "    -L<path>          library directory path"                                << endl;
     cout <<               "    -w                disable all warnings"                                  << endl;
@@ -736,6 +736,11 @@ void RuntimeEngine::parseIfStatement(Block& block, Ast* pAst) {
                     parseBlock(ast->getSubAst(ast_block), block);
                     break;
             }
+        }
+
+        if(!currentScope()->reachable && (currentScope()->last_statement==ast_return_stmnt
+                                          || currentScope()->last_statement == ast_throw_statement)) {
+            currentScope()->reachable=true;
         }
     } else {
         currentScope()->addStore(ifEndLabel, adx, 1, block.code, pAst->getSubAst(ast_expression)->line,
@@ -7243,14 +7248,12 @@ void RuntimeEngine::readjustAddresses(Method *func, unsigned int _offset) {
             case op_JNE:
             case op_JE:
             case op_GOTO:
-            case op_SKPE:
-            case op_SKNE:
                 addr=GET_Da(x64);
 
                 /*
                  * We only want to update data which is referencing data below us
                  */
-                func->code.__asm64.replace(i, SET_Di(x64, op_GOTO, (addr+_offset)));
+                func->code.__asm64.replace(i, SET_Di(x64, op, (addr+_offset)));
                 break;
             case op_MOVI:
                 if(func->unique_address_table.find(i)) {
@@ -12505,7 +12508,7 @@ void RuntimeEngine::resolveAllGenericMethodsReturns(Ast *ast) {
 void RuntimeEngine::resolveGenericMethodsReturn(Ast *ast, long &operators, long &constructors, long &methods, method_type type) {
     List<AccessModifier> modifiers;
     int startpos;
-    
+
     switch(type) {
         case _method:
             startpos = 1;
@@ -12545,10 +12548,10 @@ void RuntimeEngine::resolveGenericMethodsReturn(Ast *ast, long &operators, long 
             method = currentScope()->klass->getConstructor(constructors++);
             break;
     }
-    
+
     if(method != NULL && method->type == TYPEGENERIC) {
         utype = parseUtype(ast->getSubAst(ast_method_return_type));
         parseMethodReturnType(utype, *method);
     }
-    
+
 }

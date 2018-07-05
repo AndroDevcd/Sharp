@@ -6,6 +6,12 @@ import std;
  * Created by BraxtonN on 6/14/2018.
  */
 class Ast {
+    public Ast()
+    {
+        self->tokens = new ArrayList<TokenEntity>();
+        self->children = new ArrayList<Ast>();
+    }
+
     public Ast(AstType type, var line, var col)
     {
         self->type = type;
@@ -59,6 +65,10 @@ class Ast {
         return children.get(pos);
     }
 
+    public def last() : Ast {
+        return children.last();
+    }
+
     public def encapsulate(AstType type) {
         Ast encap = new Ast(type, line, col);
         add(encap);
@@ -74,6 +84,29 @@ class Ast {
         children.clear();
         tokens.clear();
         children.add(encap);
+    }
+
+    public def copy(Ast ast) {
+        children.clear();
+        tokens.clear();
+
+        line = ast.line;
+        col = ast.col;
+        type = ast.type;
+
+        object[] arry = ast.children.toArray();
+        foreach(object child : arry) {
+            children.add((Ast)child);
+        }
+
+        arry = ast.tokens.toArray();
+        foreach(object token : arry) {
+            tokens.add((TokenEntity)token);
+        }
+    }
+
+    public def popToken() {
+        tokens.popBack();
     }
 
     public def getType() : AstType {
@@ -145,14 +178,14 @@ enum AstType {
     Do_While_Statement,
     Assembly_Statement,
     For_Statement,
-    For_Expresion_Cond,
-    For_Expresion_Iter,
+    For_Expression_Cond,
+    For_Expression_Iter,
     Foreach_Statement,
     Type_Identifier,
     Enum_Identifier,
     Func_Prototype,
-    Refrence_Pointer,
-    Modulename,
+    Reference_Pointer,
+    ModuleName,
     Literal,
 
     /**

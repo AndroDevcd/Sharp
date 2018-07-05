@@ -24,14 +24,390 @@ class Parser {
     }
 
     private def parse() {
+        sourceFile = tokenizer.getFile();
+        errors = new ErrorManager(lines, sourceFile, true, Options.aggressiveErrors);
+        current = tokenizer.get(cursor);
 
+
+        while (!isEnd())
+        {
+            if(panic)
+                break;
+
+            if(isAccessType(current))
+                parseAccessTypes();
+
+            if(quit()) break;
+
+            if(isEnd()) {
+                accessTypes.clear();
+                return;
+            } else if(isModuleDecl(current)) {
+                if(accessTypes.size() > 0)
+                    errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
+                parseModuleDecl(null);
+            }
+
+            advance();
+        }
     }
 
+    private def parseModuleDecl(Ast ast) {
+        ast = getAst(ast, AstType.Module_Decl);
+        ast.add(current);
+
+        bool generic = false;
+        parseModuleName(ast, generic);
+
+        if(generic.getValue())
+            errors.createNewError(CompilerError.GENERIC, current, "module-name does not allow for generic typing ");
+
+        expect(TokenType.SEMICOLON, ast, "`;`");
+    }
+
+    private def parseModuleName(Ast ast, bool generic) {
+        parseModuleName(ast, generic, false);
+    }
+
+
+    private def parseModuleName(Ast ast, bool generic, var local) {
+        if(!local)
+            ast = getAst(ast, AstType.ModuleName);
+
+        if(peek(1).getToken() == "operator") {
+            if(isOverrideOperator(peek(2).getToken())) {
+                advance(2);
+                ast.add(current);
+                return;
+            }
+        }else {
+            expectIdentifier(ast);
+            generic = parseTemplateDecl(ast);
+        }
+
+         advance();
+         while(current.getType() == TokenType.DOT) {
+             if(peek(1).getToken() == "class")
+                 break;
+
+             ast.add(current);
+
+             if(peek(1).getToken() == "operator") {
+                 if(isOverrideOperator(peek(2).getToken())) {
+                     advance(2);
+                     ast.add(current);
+                     advance();
+                     break;
+                 }
+             } else {
+                 if(expectIdentifier(ast)){
+                     if(parseTemplateDecl(ast))
+                         generic = true;
+                 }
+             }
+             advance();
+         }
+
+         pushBack();
+    }
+
+    private def parseTemplateDecl(Ast ast) : var {
+        if(peek(1).getType() == TokenType.LESSTHAN) {
+            advance();
+            Ast tmp = new Ast();
+            tmp.copy(ast);
+
+            if(peek(1).getType() == TokenType.GREATERTHAN) {
+                errors.createNewError(CompilerError.GENERIC, current, "expected identifier before `>`");
+                advance();
+                return true;
+            }
+
+            if(parseUtype(ast) && (peek(1).getType() == TokenType.GREATERTHAN || peek(1).getType() == TokenType.COMMA))
+            {
+                ast.copy(tmp);
+                errors.pass();
+                parseUtypeList(ast);
+                if(peek(1).getType() == TokenType.GREATERTHAN) {
+                    expect(TokenType.GREATERTHAN, ast, "`>`");
+                    ast.popToken();
+                } else
+                    expect(TokenType.GREATERTHAN, ast, "`>`");
+
+                return true;
+            } else
+                ast.copy(tmp);
+
+            errors.pass();
+            pushBack();
+        }
+
+        getAst(ast, AstType.None);
+        return false;
+    }
+
+    private def parseUtypeList(Ast ast) {
+        ast = getAst(ast, AstType.Utype_List);
+
+        parseUtype(ast);
+        pRefPtr:
+        if(peek(1).getType() == TokenType.COMMA)
+        {
+            expect(TokenType.COMMA, ast, "`,`");
+            parseUtype(ast);
+            goto pRefPtr;
+        }
+    }
+
+    private def parseUtype(Ast ast) : var {
+        ast = getAst(ast, AstType.Utype);
+
+        if(parseTypeIdentifier(ast))
+        {
+            if(peek(1).getType() == TokenType.LEFT_BRACE)
+            {
+                advance();
+                ast.add(current);
+
+                expect(TokenType.RIGHT_BRACE, ast, "`]`");
+            }
+
+            return true;
+        } else
+            errors.createNewError(CompilerError.GENERIC, current, "expected native type or reference pointer");
+
+        return false;
+    }
+
+    private def parseTypeIdentifier(Ast ast) : var {
+        ast = getAst(ast, AstType.Type_Identifier);
+        advance();
+
+        if(!isNativeType(current.getToken()))
+            pushBack();
+        else {
+            ast.add(current);
+            return true;
+        }
+
+        errors.enableProtectedMode();
+        if(!parseRefrencePointer(ast)) {
+            errors.pass();
+        } else {
+            errors.fail();
+            return true;
+        }
+
+        return false;
+    }
+
+    private def parseRefrencePointer(Ast ast) : var {
+        ast = getAst(ast, AstType.Reference_Pointer);
+
+        advance();
+        if(!(current.getId() == TokenId.IDENTIFIER && !isKeyword(current.getToken()))) {
+            if(current.getToken() != "operator")
+                return false;
+            else
+                pushBack();
+        } else
+            pushBack();
+
+        bool generic = false;
+        parseModuleName(ast, generic, true);
+
+        advance();
+        if(current.getType() == TokenType.HASH) {
+            if(generic)
+                errors.createNewError(CompilerError.GENERIC, current, "module-name does not allow for generic typing ");
+            ast.add(current);
+
+            if(expectIdentifier(ast)) {
+                parseTemplateDecl(ast);
+                advance();
+            }
+
+            while(current.getType() == TokenType.DOT ) {
+                if(peek(1).getToken() == "class")
+                    break;
+
+                ast.add(current);
+
+                if(peek(1).getToken() == "operator") {
+                    if(isOverrideOperator(peek(2).getToken())) {
+                        advance(2);
+                        ast.add(current);
+                        break;
+                    }
+                } else {
+                    if(!expectIdentifier(ast)) break;
+
+                    parseTemplateDecl(ast);
+                }
+                advance();
+            }
+
+            pushBack();
+        } else
+            pushBack();
+
+             return true;
+    }
+
+    private def isNativeType(string type) : var {
+        return type == "var" || type == "object"
+               || type == "_int8" || type == "_int16"
+               || type == "_int32" || type == "_int64"
+               || type == "_uint8" || type == "_uint16"
+               || type == "_uint32" || type == "_uint64";
+    }
+
+    public def expect(TokenType type, Ast ast, var[] msg) {
+        advance();
+
+        if(current.getType() == type) {
+            ast.add(current);
+        } else {
+            errors.createNewError(CompilerError.GENERIC, current, "expected " + new string(msg));
+        }
+    }
+
+    private def pushBack() {
+        if(cursor > 0) {
+            current = tokenizer.get(--cursor);
+        }
+    }
+
+    private def isAssignOperator(string token) : var {
+        return token == "+=" || token == "-="||
+               token == "*=" || token == "/="||
+               token == "&=" || token == "|="||
+               token == "^=" || token == "%="||
+               token == "=";
+    }
+
+    private def isOverrideOperator(string token) : var  {
+        return isAssignOperator(token) ||
+               token == "++" ||token == "--" ||
+               token == "*" || token == "/"  ||
+               token == "%" || token == "-"  ||
+               token == "+" || token == "==" ||
+               token == "&&" || token == "||" ||
+               token == ">>" || token == "<<" ||
+               token == "<"  || token == ">"  ||
+               token == "<=" || token == ">=" ||
+               token == "!=";
+    }
+
+    private def expectIdentifier(Ast ast) : var {
+        advance();
+
+        if(current.getId() == TokenId.IDENTIFIER && !isKeyword(current.getToken()))
+        {
+            ast.add(current);
+            return true;
+        } else {
+            errors.createNewError(CompilerError.GENERIC, current, "expected identifier");
+        }
+
+        return false;
+    }
+
+    private def isKeyword(string key) : var {
+        return key == "mod" || key == "true"
+               || key == "false" || key == "class"
+               || key == "static" || key == "protected"
+               || key == "private" || key == "def"
+               || key == "import" || key == "return"
+               || key == "self" || key == "const"
+               || key == "public" || key == "new"
+               || key == "null" || key == "operator"
+               || key == "base" || key == "if" || key == "while" || key == "do"
+               || key == "try" || key == "catch"
+               || key == "finally" || key == "throw" || key == "continue"
+               || key == "goto" || key == "break" || key == "else"
+               || key == "object" || key == "asm" || key == "for" || key == "foreach"
+               || key == "var" || key == "sizeof"|| key == "_int8" || key == "_int16"
+               || key == "_int32" || key == "_int64" || key == "_uint8"
+               || key == "_uint16"|| key == "_uint32" || key == "_uint64"
+               || key == "delegate" || key == "interface" || key == "lock" || key == "enum"
+               || key == "switch" || key == "default";
+    }
+
+    private def peek(var forward) : TokenEntity {
+        if((cursor+forward) >= tokenizer.size())
+            return tokenizer.last();
+        else
+            return tokenizer.get(cursor+forward);
+    }
+
+    private def getAst(Ast ast, AstType type) : Ast {
+        if(ast == null)
+        {
+            tree.add(new Ast(type, current.getLine(), current.getCol()));
+            return tree.last();
+        } else {
+            ast.add(new Ast(type, current.getLine(), current.getCol()));
+            return ast.last();
+        }
+    }
+
+    private def isModuleDecl(TokenEntity token) : var {
+        return token.getId() == TokenId.IDENTIFIER && token.getToken() == "mod";
+    }
+
+    private def quit() : var {
+        if(panic) return true;
+        else if(errors.getRawErrorCount() > Options.maxErrors) {
+            panic = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    private def parseAccessTypes() {
+        accessTypes.clear();
+
+        while(isAccessType(current))
+        {
+            accessTypes.add(current);
+            advance();
+        }
+    }
+
+    private def advance() {
+        if((cursor+1) < tokenizer.size())
+            current = tokenizer.get(++cursor);
+        else current = tokenizer.last();
+    }
+
+    private def advance(var forward) {
+        if((cursor+forward) < tokenizer.size()) {
+            cursor += forward;
+            current = tokenizer.get(cursor);
+        } else current = tokenizer.last();
+    }
+
+    private def isAccessType(TokenEntity token) : var {
+        return
+                    token.getId() == TokenId.IDENTIFIER && token.getToken() == "protected" ||
+                    token.getId() == TokenId.IDENTIFIER && token.getToken() == "private" ||
+                    token.getId() == TokenId.IDENTIFIER && token.getToken() == "static" ||
+                    token.getId() == TokenId.IDENTIFIER && token.getToken() == "const" ||
+                    token.getId() == TokenId.IDENTIFIER && token.getToken() == "public";
+    }
+
+    private def isEnd() : var {
+        return current.getType() == TokenType._EOF;
+    }
+
+    private string sourceFile = "";
+    private var panic;
     private var cursor;
     private ArrayList<Ast> tree;
     private ArrayList<string> lines;
     private TokenEntity current;
-    private var astCursor;
     private Tokenizer tokenizer;
     private string data = "";
     private ArrayList<TokenEntity> accessTypes;

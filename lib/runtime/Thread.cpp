@@ -722,13 +722,6 @@ void Thread::exec() {
                 return;
 
             interp:
-//            count++;
-            if(GET_OP(cache[pc]) == op_CALL && GET_Da(cache[pc]) == 421
-                 && current->address==68) {
-                fpOld=fp;
-                int i = 0;
-            }
-
             DISPATCH();
             _NOP:
                 _brh
@@ -953,7 +946,12 @@ void Thread::exec() {
                                    GarbageCollector::self->newObject(&env->classes[GET_Da(cache[pc])]);
                 STACK_CHECK _brh
             MOVN:
-                CHECK_NULLOBJ(o2 = &o2->object->node[GET_Da(cache[pc])];)
+                CHECK_NULLOBJ(
+//                        if(GET_Da(cache[pc]) >= o2->object->size)
+//                            throw Exception("movn");
+                        
+                        o2 = &o2->object->node[GET_Da(cache[pc])];
+                )
                 _brh
             SLEEP:
                 __os_sleep((int64_t)registers[GET_Da(cache[pc])]);
