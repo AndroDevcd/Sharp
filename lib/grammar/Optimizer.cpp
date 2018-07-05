@@ -256,10 +256,9 @@ void Optimizer::optimize(Method *method) {
     optimizeLoadLocal_3();
     optimizeSmovr();
     optimizeCheckLen();
-    optimizeRegister(adx);
     optimizeRegister(ebx); /* most commonly used register in the language */
     optimizeRegister(egx);
-    //optimizeRedundantLoadStore();
+    optimizeRedundantLoadStore();
 
     /**
      * must be last or the entire program will be rendered unstable

@@ -686,6 +686,7 @@ void Thread::exec() {
     register int64_t val=0;
     register int64_t delegate=0;
     register int64_t args=0;
+    size_t fpOld = fp;
     ClassObject *klass;
     SharpObject* o=NULL;
     Method* f;
@@ -722,7 +723,9 @@ void Thread::exec() {
 
             interp:
 //            count++;
-            if(pc>=473&&current->address==66) {
+            if(GET_OP(cache[pc]) == op_CALL && GET_Da(cache[pc]) == 421
+                 && current->address==68) {
+                fpOld=fp;
                 int i = 0;
             }
 
@@ -754,6 +757,7 @@ void Thread::exec() {
                     return;
                 }
 
+                fpOld=fp;
                 Frame *frame = callStack;
                 calls--;
 
@@ -941,6 +945,7 @@ void Thread::exec() {
 #ifdef SHARP_PROF_
                 tprof.hit(env->methods+GET_Da(cache[pc]));
 #endif
+                fpOld = fp;
                 executeMethod(GET_Da(cache[pc]), this)
                 _brh_NOINCREMENT
             NEWCLASS:

@@ -751,12 +751,18 @@ void VirtualMachine::fillStackTrace(native_string &str) {
     unsigned int pos = thread_self->calls > EXCEPTION_PRINT_MAX ? thread_self->calls
                                                                              - EXCEPTION_PRINT_MAX : 0;
     Frame *prev = NULL, *f = thread_self->callStack;
+    List<Frame*> frames;
     while(f != NULL) {
-
-        fillMethodCall(*f, ss, prev);
-        prev = f;
+        frames.add(f);
         f = f->prev;
     }
+
+    for(long i = frames.size()-1; i > 0 ; i--) {
+        f = frames.get(i);
+        fillMethodCall(*f, ss, prev);
+        prev = f;
+    }
+
 
     prev = thread_self->calls == 1 ? NULL : thread_self->callStack;
     Frame frame(thread_self->current, pc, thread_self->sp, _fp);
