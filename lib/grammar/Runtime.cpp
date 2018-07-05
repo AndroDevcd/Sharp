@@ -422,6 +422,7 @@ void RuntimeEngine::compile()
         resolveAllFields();
         resolveAllMethods();
         resolveAllGenericMethodsParams();
+        resolveAllGenericMethodsReturns();
         resolveAllEnums();
         inheritObjectClass();
         inlineFields();
@@ -12375,7 +12376,7 @@ void RuntimeEngine::inheritObjectClass() {
     if(objectClass != NULL) {
         for(size_t i = 0; i < classes.size(); i++) {
             if(classes.get(i)->getBaseClass() == NULL) {
-                if(classes.get(i)->getModuleName() == "std" 
+                if(classes.get(i)->getModuleName() == "std"
                    && classes.get(i)->getName() == "Object") {}
                 else {
                     classes.get(i)->setBaseClass(objectClass);
@@ -12383,4 +12384,171 @@ void RuntimeEngine::inheritObjectClass() {
             }
         }
     }
+}
+
+void RuntimeEngine::resolveAllGenericMethodsReturns() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        activeParser = parsers.get(i);
+        errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
+        currentModule = "$unknown";
+
+        addScope(Scope(GLOBAL_SCOPE, NULL));
+        for(int x = 0; x < activeParser->treesize(); x++) {
+            Ast* ast = activeParser->ast_at(x);
+            SEMTEX_CHECK_ERRORS
+
+            if(x==0) {
+                if(ast->getType() == ast_module_decl) {
+                    add_module(currentModule = parseModuleName(ast));
+                    continue;
+                }
+            }
+
+            switch(ast->getType()) {
+                case ast_class_decl:
+                    resolveAllGenericMethodsReturns(ast);
+                    break;
+                case ast_interface_decl:
+                    resolveAllGenericMethodsReturns(ast);
+                    break;
+                case ast_generic_class_decl:
+                case ast_generic_interface_decl:
+                    break;
+                case ast_enum_decl: /* ignore */
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+        }
+
+        if(errors->hasErrors()){
+            report:
+
+            errorCount+= errors->getErrorCount();
+            unfilteredErrorCount+= errors->getUnfilteredErrorCount();
+
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        } else {
+            succeededParsers.addif(activeParser->sourcefile);
+            failedParsers.removefirst(activeParser->sourcefile);
+        }
+
+        errors->free();
+        delete (errors); this->errors = NULL;
+        removeScope();
+    }
+}
+
+void RuntimeEngine::resolveAllGenericMethodsReturns(Ast *ast) {
+    Ast* block = ast->getSubAst(ast_block), *trunk;
+    List<AccessModifier> modifiers;
+    ClassObject* klass;
+    int startpos=1;
+
+    parseAccessDecl(ast, modifiers, startpos);
+    string name =  ast->getEntity(startpos).getToken();
+
+    if(currentScope()->type == GLOBAL_SCOPE) {
+        klass = getClass(currentModule, name, classes);
+    }
+    else {
+        klass = currentScope()->klass->getChildClass(name);
+    }
+
+    long operatorCount=0, constructorCount=0, methodCount=0;
+    addScope(Scope(CLASS_SCOPE, klass));
+    for(long i = 0; i < block->getSubAstCount(); i++) {
+        trunk = block->getSubAst(i);
+        CHECK_ERRORS
+
+        switch(trunk->getType()) {
+            case ast_class_decl:
+                resolveAllGenericMethodsReturns(trunk);
+                break;
+            case ast_var_decl: /* ignore */
+                break;
+            case ast_method_decl:
+                resolveGenericMethodsReturn(trunk, operatorCount, constructorCount, methodCount, _method);
+                break;
+            case ast_operator_decl:
+                resolveGenericMethodsReturn(trunk, operatorCount, constructorCount, methodCount, _operator);
+                break;
+            case ast_construct_decl:
+                resolveGenericMethodsReturn(trunk, operatorCount, constructorCount, methodCount, _constructor);
+                break;
+            case ast_delegate_post_decl:
+                resolveGenericMethodsReturn(trunk, operatorCount, constructorCount, methodCount, _method);
+                break;
+            case ast_delegate_decl:
+                resolveGenericMethodsReturn(trunk, operatorCount, constructorCount, methodCount, _method);
+                break;
+            case ast_interface_decl:
+                resolveAllGenericMethodsReturns(trunk);
+                break;
+            case ast_generic_class_decl: /* ignore */
+                break;
+            case ast_enum_decl: /* ignore */
+                break;
+            default:
+                stringstream err;
+                err << ": unknown ast type: " << trunk->getType();
+                errors->createNewError(INTERNAL_ERROR, trunk->line, trunk->col, err.str());
+                break;
+        }
+    }
+
+    removeScope();
+}
+
+void RuntimeEngine::resolveGenericMethodsReturn(Ast *ast, long &operators, long &constructors, long &methods, method_type type) {
+    List<AccessModifier> modifiers;
+    int startpos;
+    
+    switch(type) {
+        case _method:
+            startpos = 1;
+            break;
+        case _operator:
+            startpos=2;
+            break;
+        case _constructor:
+            startpos = 0;
+            break;
+    }
+
+    if(parseAccessDecl(ast, modifiers, startpos)){
+        parseMethodAccessModifiers(modifiers, ast);
+    } else {
+        modifiers.add(PRIVATE);
+    }
+
+    List<Param> params;
+    string name =  ast->getEntity(startpos).getToken();
+    parseMethodParams(params, parseUtypeArgList(ast->getSubAst(ast_utype_arg_list)), ast->getSubAst(ast_utype_arg_list));
+
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
+                                   ast->line, ast->col);
+
+    Expression utype(ast);
+    Method *method = NULL;
+
+    switch(type) {
+        case _method:
+            method = currentScope()->klass->getFunction(methods++);
+            break;
+        case _operator:
+            method = currentScope()->klass->getOverload(operators++);
+            break;
+        case _constructor:
+            method = currentScope()->klass->getConstructor(constructors++);
+            break;
+    }
+    
+    if(method != NULL && method->type == TYPEGENERIC) {
+        utype = parseUtype(ast->getSubAst(ast_method_return_type));
+        parseMethodReturnType(utype, *method);
+    }
+    
 }

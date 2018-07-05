@@ -1,0 +1,39 @@
+mod app;
+
+import std;
+
+/**                          
+* Created by bknun on 7/5/2018            
+* Description:                             
+*/
+class Parser {
+    public Parser(Tokenizer tokenizer)
+    {
+        self->tokenizer=tokenizer;
+
+        if(tokenizer != null && tokenizer.getErrors() != null
+            && !tokenizer.getErrors().hasErrors())
+        {
+            data = tokenizer.getData();
+            accessTypes = new ArrayList<TokenEntity>();
+            tree = new ArrayList<Ast>();
+            lines = tokenizer.getLines();
+
+            parse();
+        }
+    }
+
+    private def parse() {
+
+    }
+
+    private var cursor;
+    private ArrayList<Ast> tree;
+    private ArrayList<string> lines;
+    private TokenEntity current;
+    private var astCursor;
+    private Tokenizer tokenizer;
+    private string data = "";
+    private ArrayList<TokenEntity> accessTypes;
+    private ErrorManager errors;
+}

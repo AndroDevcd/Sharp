@@ -16,6 +16,13 @@ class ReferencePointer;
 class ResolvedReference;
 struct Expression;
 
+enum method_type
+{
+    _operator,
+    _method,
+    _constructor
+};
+
 class ResolvedReference {
 public:
     ResolvedReference()
@@ -1125,6 +1132,12 @@ private:
     bool isAndOp(token_entity entity);
 
     void inheritObjectClass();
+
+    void resolveAllGenericMethodsReturns();
+
+    void resolveAllGenericMethodsReturns(Ast *pAst);
+
+    void resolveGenericMethodsReturn(Ast *pAst, long &i, long &i1, long &i2, method_type type);
 };
 
 
@@ -1151,7 +1164,7 @@ private:
 #define unique_label_id(x) "$$L" << (x)
 
 #define progname "bootstrap"
-#define progvers "0.2.312"
+#define progvers "0.2.321"
 
 struct options {
     ~options()

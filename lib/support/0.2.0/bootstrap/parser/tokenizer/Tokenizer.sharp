@@ -442,23 +442,6 @@ class Tokenizer {
         cursor++;
     }
 
-    def commentStart(var c0, var c1, int mode) : var
-    {
-        mode = 0;
-        if ('/' == c0)
-        {
-            if ('/' == c1) { mode = 1; }
-            else if ('*' == c1) { mode = 2;}
-        }
-        return (mode != 0);
-    }
-
-    def commentEnd(var c0, var c1, int mode) : var
-    {
-        return ((1 == mode) && char.isNewLine(c0)) ||
-               ((2 == mode) && ( '*' == c0) && ('/' == c1));
-    }
-
     def isEnd() : var {
         return (cursor>=tokens.size());
     }
@@ -553,6 +536,18 @@ class Tokenizer {
                 ('|' == c) || (';' == c) ||
                 ('!' == c) || ('.' == c) ||
                 ('#' == c) || ('$' == c));
+    }
+
+    public def getErrors() : ErrorManager {
+        return errors;
+    }
+
+    public def getData() : string {
+        return tokens;
+    }
+
+    public def getLines() : ArrayList<string> {
+        return lines;
     }
 
     def addLines() {

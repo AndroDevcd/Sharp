@@ -11,15 +11,83 @@ class Ast {
         self->type = type;
         self->line = line;
         self->col = col;
-        self->entities = new ArrayList<TokenEntity>();
+        self->tokens = new ArrayList<TokenEntity>();
         self->children = new ArrayList<Ast>();
     }
 
+    public def add(Ast ast) {
+        children.add(ast);
+    }
+
+    public def add(TokenEntity token) {
+        tokens.add(token);
+    }
+
+    public def getToken(var pos) : TokenEntity {
+        return tokens.get(pos);
+    }
+
+    public def tokenSize() : var {
+        return tokens.size();
+    }
+
+    public def childrenSize() : var {
+        return children.size();
+    }
+
+    public def hasToken(TokenType type) : var {
+        TokenEntity[] arry = tokens.toArray();
+        foreach(TokenEntity token : arry) {
+            if(token.getType() == type)
+                return true;
+        }
+
+        return false;
+    }
+
+    public def hasChild(AstType type) : var {
+        Ast[] arry = children.toArray();
+        foreach(Ast ast : arry) {
+            if(ast.type == type)
+                return true;
+        }
+
+        return false;
+    }
+
+    public def getChild(var pos) : Ast {
+        return children.get(pos);
+    }
+
+    public def encapsulate(AstType type) {
+        Ast encap = new Ast(type, line, col);
+        add(encap);
+
+        for(var i = 0; i < children.size()-1; i++) {
+            encap.add(children.get(i));
+        }
+
+        for(var i = 0; i < tokens.size(); i++) {
+            encap.add(tokens.get(i));
+        }
+
+        children.clear();
+        tokens.clear();
+        children.add(encap);
+    }
+
+    public def getType() : AstType {
+        return type;
+    }
+
+    public def setType(AstType type) {
+        self->type = type;
+    }
 
     public var line;
     public var col;
     private AstType type;
-    private ArrayList<TokenEntity> entities;
+    private ArrayList<TokenEntity> tokens;
     private ArrayList<Ast> children;
 }
 
