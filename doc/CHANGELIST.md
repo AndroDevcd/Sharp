@@ -11,4 +11,4 @@ for basic operators used in std#Dictionary<>
     - Added various optimizations to the garbage collector that prevent the thread from slowing down your program by a factor of 10+ 
     - Calling function using linked list instead of expensive standard List
 * Major bug fixes to system causing silent (SEGV) Seg faults
-* Started writing compiler in Sharp
+* Compiler in Sharp began
