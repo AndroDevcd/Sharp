@@ -423,6 +423,7 @@ void RuntimeEngine::compile()
         resolveAllMethods();
         resolveAllGenericMethodsParams();
         resolveAllEnums();
+        inheritObjectClass();
         inlineFields();
         resolveAllInterfaces();
         resolveAllDelegates();
@@ -4397,6 +4398,12 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
         else if(expression.trueType() == VAR) {
             createNewWarning(GENERIC, utype.link->line, utype.link->col, "redundant cast of type `var` to `var`");
             return;
+        }
+    } else if(utype.trueType() == OBJECT) {
+        if(expression.trueType()== VAR || expression.trueType() == CLASS || expression.trueType() == OBJECT) {
+            if(utype.isArray() == expression.isArray()) {
+                return;
+            }
         }
     }
 //    switch(utype.utype.type) {
@@ -12104,6 +12111,8 @@ void RuntimeEngine::traverseField(ClassObject *klass, Field *field, Ast* pAst) {
         expr = parseUtype(field->ast);
         utype = &expr;
 
+        if(utype->type == expression_unresolved)
+            return;
         utypes.push_back(*utype);
         string typeName = expr.utype.klass->getName();
         findAndCreateGenericClass(field->klass->getModuleName(), typeName, utypes, NULL, pAst);
@@ -12151,6 +12160,9 @@ void RuntimeEngine::analyzeGenericClass(ClassObject *generic)
     } else {
         if(base != NULL)
             generic->setBaseClass(base->getSerial() == generic->getSerial() ? NULL : base);
+        else {
+            generic->setBaseClass(getClass("std", "Object", classes));
+        }
     }
 
     if(ast->hasSubAst(ast_reference_identifier_list)) {
@@ -12354,5 +12366,21 @@ void RuntimeEngine::resolveAllGenericMethodsParams() {
         errors->free();
         delete (errors); this->errors = NULL;
         removeScope();
+    }
+}
+
+void RuntimeEngine::inheritObjectClass() {
+    ClassObject *objectClass = getClass("std", "Object", classes);
+
+    if(objectClass != NULL) {
+        for(size_t i = 0; i < classes.size(); i++) {
+            if(classes.get(i)->getBaseClass() == NULL) {
+                if(classes.get(i)->getModuleName() == "std" 
+                   && classes.get(i)->getName() == "Object") {}
+                else {
+                    classes.get(i)->setBaseClass(objectClass);
+                }
+            }
+        }
     }
 }

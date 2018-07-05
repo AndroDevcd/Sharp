@@ -1123,6 +1123,8 @@ private:
     void resolveAllGenericMethodsParams();
 
     bool isAndOp(token_entity entity);
+
+    void inheritObjectClass();
 };
 
 

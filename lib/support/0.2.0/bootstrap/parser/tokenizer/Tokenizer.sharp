@@ -100,7 +100,6 @@ class Tokenizer {
                 if (match('/')) {
                   // A comment goes until the end of the line.
                   while (!char.isNewLine(peek(1)) && !isEnd()) advance();
-                  newline();  // is this right?
                 } else if(match('*')) {
                   // A multiline comment goes until the [*/].
                   while(!isEnd() && (current != '*' && peek(1) != '/'))
@@ -143,6 +142,13 @@ class Tokenizer {
 
             advance();
         }
+
+//        TokenEntity[] arry = entities.toArray();
+//        foreach(TokenEntity token : arry) {
+//            System.println(" token: " + token.getToken()
+//                + " - " + token.getId() + " line " + token.getLine()
+//                + " col " + token.getCol());
+//        }
 
         end:
         entities.add(new TokenEntity("eof", TokenId.SINGLE, TokenType._EOF, 0, line));
@@ -230,10 +236,12 @@ class Tokenizer {
 
         if (!escapedFound)
         {
+            cursor--;
             if(!hasCharacter) {
                 errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", character literals cannot be empty");
             } else
                 addToken(TokenId.CHAR_LITERAL);
+            cursor++;
         }
         else
         {
@@ -254,6 +262,7 @@ class Tokenizer {
             advance();
         }
 
+        cursor--;
         if(!hasletter)
             errors.createNewError(CompilerError.GENERIC, line, col, " expected at least 1 letter in identifier");
         else
@@ -281,6 +290,7 @@ class Tokenizer {
                 advance();
             }
 
+            cursor--;
             addToken(TokenId.HEX_LITERAL);
             return;
         } else {
@@ -365,6 +375,7 @@ class Tokenizer {
                }
             }
 
+            cursor--;
             addToken(TokenId.INTEGER_LITERAL);
         }
     }
@@ -461,6 +472,7 @@ class Tokenizer {
 
     def getEscapedString(string msg) : string {
         string escapedMessage = "";
+        char c = 0;
         for(var i = 0; i < msg.size(); i++)
         {
             if(msg.at(i) == '\\')
@@ -485,14 +497,14 @@ class Tokenizer {
                         escapedMessage += '\f';
                         break;
                     default:
-                        escapedMessage += msg.at(i+1);
+                        escapedMessage += c.char(msg.at(i+1));
                         break;
                 }
 
                 i++;
             }
             else
-                escapedMessage += msg.at(i);
+                escapedMessage += c.char(msg.at(i));
         }
         return escapedMessage;
     }
