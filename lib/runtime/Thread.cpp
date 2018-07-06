@@ -722,6 +722,9 @@ void Thread::exec() {
                 return;
 
             interp:
+            if(pc==8&&current->address==0) {
+                int i = 0;
+            }
             DISPATCH();
             _NOP:
                 _brh
@@ -949,7 +952,7 @@ void Thread::exec() {
                 CHECK_NULLOBJ(
 //                        if(GET_Da(cache[pc]) >= o2->object->size)
 //                            throw Exception("movn");
-                        
+
                         o2 = &o2->object->node[GET_Da(cache[pc])];
                 )
                 _brh

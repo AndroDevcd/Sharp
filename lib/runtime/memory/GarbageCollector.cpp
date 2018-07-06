@@ -205,7 +205,7 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         /**
          * This should only be called by the GC thread itsself
          */
-        if(GC_COLLECT_YOUNG()) {        /* 750 objects */
+        if(GC_COLLECT_YOUNG()) {        /* 250 objects */
             collectYoungObjects();
         }
         if(GC_COLLECT_ADULT()) {        /* 10 objects */
