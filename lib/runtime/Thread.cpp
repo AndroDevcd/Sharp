@@ -722,9 +722,6 @@ void Thread::exec() {
                 return;
 
             interp:
-            if(pc==8&&current->address==0) {
-                int i = 0;
-            }
             DISPATCH();
             _NOP:
                 _brh
