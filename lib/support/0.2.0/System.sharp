@@ -116,4 +116,8 @@ public class System {
     public static def memcpy(object[] data, var startIndex, var endIndex) : object[] {
         return Runtime.copy3(data, startIndex, endIndex);
     }
+
+    public static def reverse(object[] data, var startIndex, var endIndex) : object[] {
+        return Runtime.copy4(data, startIndex, endIndex);
+    }
 }

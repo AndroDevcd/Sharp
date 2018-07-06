@@ -120,4 +120,14 @@ public class Runtime {
             "popl <data>                                                                              "
             "ret                                                                                      " );
     }
+
+    public static def copy4(object[] data, var startIndex, var stopIndex) : object[] {
+        asm(
+            "pushl <data>                                                                             "
+            "ipushl <startIndex>                                                                        "
+            "ipushl <stopIndex>                                                                             "
+            "int 0xc4         // send request to natively copy object                                 "
+            "popl <data>                                                                              "
+            "ret                                                                                      " );
+    }
 }
