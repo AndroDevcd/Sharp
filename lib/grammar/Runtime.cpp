@@ -32,6 +32,7 @@ unsigned long RuntimeEngine::uniqueDelegateId = 0;
  */
 unsigned long long optimizationResult = 0;
 options c_options;
+List<string> origFiles;
 
 void help();
 void get_full_file_list(native_string &path, List<native_string> &files);
@@ -178,6 +179,7 @@ int _bootstrap(int argc, const char* argv[])
     native_string path("/usr/include/sharp/");
 #endif
 
+    origFiles.addAll(files);
     List<native_string> includes;
     get_full_file_list(path, includes);
 
@@ -785,7 +787,7 @@ void RuntimeEngine::parseAssemblyBlock(Block& block, Ast* pAst) {
 void RuntimeEngine::parseAssemblyStatement(Block& block, Ast* pAst) {
     KeyPair<int64_t, int64_t> assembly_section;
     assembly_section.key = block.code.size();
-    if(c_options.unsafe)
+    if(c_options.unsafe || !origFiles.find(activeParser->sourcefile))
         parseAssemblyBlock(block, pAst->getSubAst(ast_assembly_block));
     else
         errors->createNewError(GENERIC, pAst, "calling asm without unsafe mode enabled. try recompiling your code with [-unsafe]");
@@ -1753,9 +1755,14 @@ void RuntimeEngine::parseOperatorDecl(Ast* pAst) {
 
         if(method->isStatic()) {
             addScope(Scope(STATIC_BLOCK, currentScope()->klass, method));
+            errors->createNewError(GENERIC, pAst, "operator function `" + method->getName() + "` cannot be static");
         } else {
             addScope(Scope(INSTANCE_BLOCK, currentScope()->klass, method));
             method->localVariables++;
+        }
+
+        if(!method->hasModifier(PUBLIC)) {
+            createNewWarning(GENERIC, pAst->line, pAst->col, "operator function `" + method->getName() + "` cannot be static");
         }
 
         KeyPair<int, Field> local;

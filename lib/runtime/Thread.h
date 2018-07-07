@@ -155,6 +155,11 @@ private:
 extern thread_local Thread* thread_self;
 extern thread_local double registers[12];
 
+#define EBX registers[ebx]
+#define ADX registers[adx]
+#define ECX registers[ecx]
+#define EGX registers[egx]
+
 #define main_threadid 0x0
 
 extern FinallyTable finallyTable;

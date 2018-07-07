@@ -1155,7 +1155,7 @@ void Thread::exec() {
                                 klass = klass->base;
                                 goto search;
                             }
-                            throw Exception(Environment::RuntimeErr, "delegate function not found");
+                            throw Exception(Environment::RuntimeErr, "delegate function has no subscribers");
                         } else {
                             throw Exception(Environment::RuntimeErr, "attempt to call delegate function on non class object");
                         }
@@ -1181,7 +1181,7 @@ void Thread::exec() {
                                 klass = klass->base;
                                 goto search;
                             }
-                            throw Exception(Environment::RuntimeErr, "delegate function not found");
+                            throw Exception(Environment::RuntimeErr, "delegate function has no subscribers");
                         } else {
                             throw Exception(Environment::RuntimeErr, "attempt to call delegate function on non class object");
                         }

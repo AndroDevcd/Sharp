@@ -2,6 +2,8 @@
 // Created by BraxtonN on 2/15/2018.
 //
 
+#include <random>
+#include <cmath>
 #include "VirtualMachine.h"
 #include "Exe.h"
 #include "Thread.h"
@@ -521,6 +523,12 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 throw Exception(Environment::NullptrException, "");
             return;
         }
+        case 0xc5:
+//            std::random_device rd;
+//            std::mt19937 mt(rd());
+//            std::uniform_real_distribution<double> dist(ECX, EGX);
+//            EBX = dist(mt);
+            break;
         case 0xb1:
         case 0xb2:
         case 0xb3:
