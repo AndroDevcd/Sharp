@@ -49,7 +49,7 @@ struct SharpObject
     /* info */
     ClassObject* k;
     unsigned long size;
-    unsigned int refCount : 32;
+    long int refCount : 32;
 #ifdef WIN32_
     recursive_mutex* mutex;
 #endif

@@ -12,8 +12,9 @@ class Ast {
         self->children = new ArrayList<Ast>();
     }
 
-    public Ast(AstType type, var line, var col)
+    public Ast(Ast parent, AstType type, var line, var col)
     {
+        self->parent = parent;
         self->type = type;
         self->line = line;
         self->col = col;
@@ -70,7 +71,7 @@ class Ast {
     }
 
     public def encapsulate(AstType type) {
-        Ast encap = new Ast(type, line, col);
+        Ast encap = new Ast(self, type, line, col);
         add(encap);
 
         for(var i = 0; i < children.size()-1; i++) {
@@ -105,6 +106,10 @@ class Ast {
         }
     }
 
+    public def getParent() : Ast {
+        return parent;
+    }
+
     public def popToken() {
         tokens.popBack();
     }
@@ -119,6 +124,7 @@ class Ast {
 
     public var line;
     public var col;
+    public Ast parent;
     private AstType type;
     private ArrayList<TokenEntity> tokens;
     private ArrayList<Ast> children;

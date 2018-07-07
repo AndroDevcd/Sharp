@@ -7125,7 +7125,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
 
             if(field->isConst()) {
                 if(expression.literal == true || (expression.type == expression_field && expression.utype.field->isConst())
-                        || expression.isEnum() || field->type == CLASS) {
+                        || expression.isEnum() || field->type == CLASS || expression.type == expression_string) {
                     /* good to go */
                 } else {
                     errors->createNewError(GENERIC, ast, "constant field cannot be assigned to non-constant expression of type `" + expression.typeToString() + "`");

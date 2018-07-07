@@ -601,7 +601,7 @@ void Parser::parse_classblock(Ast *pAst) {
         }
         else if(isinterface_decl(current()))
         {
-            parse_interfacedecl(NULL);
+            parse_interfacedecl(pAst);
         }
         else if(isimport_decl(current()))
         {
