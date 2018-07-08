@@ -130,4 +130,12 @@ public class Runtime {
             "popl <data>                                                                              "
             "ret                                                                                      " );
     }
+
+    public static def realloc(object[] data, var size) {
+        asm(
+            "pushl <data>                                                                             "
+            "ipushl <size>                                                                            "
+            "int 0xc6         // send request to natively copy object                                 "
+            "ret                                                                                      " );
+    }
 }

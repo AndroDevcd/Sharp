@@ -43,13 +43,13 @@ public class ConsoleHandler {
      {
          if(isCharacter) {
              asm(
-                 "  loadl %ebx,1               // get local 'char'  "
+                 "  loadl %ebx,0               // get local 'char'  "
                  "  _putc %ebx                                      "
                  "  ret                                             "
              );
          } else {
              asm(
-                 "  loadl %ebx,1               // get local 'char'  "
+                 "  loadl %ebx,0               // get local 'char'  "
                  "  put %ebx                                        "
                  "  ret                                             "
              );

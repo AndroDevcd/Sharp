@@ -325,10 +325,6 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     throw Exception(ss.str());
                 }
 
-                if(arry->object->refCount-2<=0) {
-                    int i = 0;
-                }
-
                 if(o->k != NULL) { // class?
 
                     if(o->node == NULL)
@@ -509,6 +505,34 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
 
                     *arry = data.object;
                     data.object->refCount = 1;
+                }
+
+            } else
+                throw Exception(Environment::NullptrException, "");
+            return;
+        } case 0xc6: {
+            size_t len = thread_self->dataStack[thread_self->sp--].var;
+            Object *arry = &thread_self->dataStack[thread_self->sp].object;
+            SharpObject *o = arry->object;
+
+            if(o != NULL) {
+                if(len <= 0) {
+                    stringstream ss;
+                    ss << "invalid call to native System.realloc() len: " << len
+                       << ", array size: " << o->size;
+                    throw Exception(ss.str());
+                }
+
+                if(o->k != NULL) { // class?
+
+                    if(o->node == NULL)
+                        throw Exception(Environment::NullptrException, "");
+
+                    GarbageCollector::self->reallocObject(o, len);
+                } else if(o->HEAD != NULL) { // var[]
+                    GarbageCollector::self->realloc(o, len);
+                } else if(o->node != NULL) { // object? maybe...
+                    GarbageCollector::self->reallocObject(o, len);
                 }
 
             } else

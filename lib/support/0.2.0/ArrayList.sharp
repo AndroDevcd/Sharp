@@ -92,7 +92,7 @@ public class ArrayList<T> {
         if(size >= capacity) {
             // resize
             capacity += RESIZE_CAPACITY;
-            mData = (T[]) System.copyOf(mData, sizeof(mData), capacity);
+            System.realloc(mData, capacity);
         }
     }
 
@@ -103,7 +103,7 @@ public class ArrayList<T> {
         if(size <= capacity && size > 0) {
             size--;
             capacity--;
-            mData = (T[]) System.copyOf(mData, size, capacity);
+            System.realloc(mData, capacity);
         }
     }
 

@@ -99,6 +99,14 @@ public:
     void createStringArray(Object* object, native_string& s); /* Native string allocation */
 
     /**
+     * Reallocation methods for faster code
+     * @param o
+     * @param sz
+     */
+    void realloc(SharpObject *o, size_t sz);
+    void reallocObject(SharpObject *o, size_t sz);
+
+    /**
      * Function call by virtual machine
      * @param object
      */

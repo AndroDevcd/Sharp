@@ -592,3 +592,25 @@ void GarbageCollector::erase(SharpObject *p) {
         mutex.unlock();
     } else if(p->next != NULL) p->next->prev = p->prev;
 }
+
+void GarbageCollector::realloc(SharpObject *o, size_t sz) {
+    if(o != NULL && o->HEAD != NULL) {
+        o->HEAD = (double*)__realloc(o->HEAD, sizeof(double)*sz);
+        o->size = sz;
+    }
+}
+
+void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
+    if(o != NULL && o->node != NULL) {
+        if(sz < o->size) {
+            for(size_t i = sz; i < o->size; i++) {
+                if(o->node[i].object != nullptr) {
+                    DEC_REF(o->node[i].object)
+                }
+            }
+        }
+
+        o->node = (Object*)__realloc(o->node, sizeof(Object)*sz);
+        o->size = sz;
+    }
+}
