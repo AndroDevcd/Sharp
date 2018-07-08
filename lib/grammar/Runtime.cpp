@@ -12111,7 +12111,10 @@ void RuntimeEngine::traverseMethod(ClassObject *klass, Method *func, Ast* pAst) 
 }
 
 void RuntimeEngine::traverseField(ClassObject *klass, Field *field, Ast* pAst) {
-    if(field->type != TYPEGENERIC) return;
+    if(field->type != TYPEGENERIC) {
+        field->owner = klass;
+        return;
+    }
     field->owner=klass;
 
     Expression* utype = klass->getGenericType(field->key);
@@ -12135,6 +12138,7 @@ void RuntimeEngine::traverseField(ClassObject *klass, Field *field, Ast* pAst) {
     }
     else {
 
+        field->owner = klass;
         field->type = utype->utype.type;
         if(utype->utype.type == CLASS) {
             field->klass = utype->utype.klass;
