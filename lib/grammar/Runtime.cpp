@@ -10771,17 +10771,17 @@ void RuntimeEngine::generate() {
     _ostream << generate_string_section();
 
     txt_scz << generate_text_section();
-    if(txt_scz.size() >= data_compress_threshold) {
-        _ostream << (char)data_compress;
-        stringstream __outbuf__;
-
-        Zlib::AUTO_CLEAN=(true);
-        zlib.Compress_Buffer2Buffer(txt_scz.to_str(), __outbuf__, ZLIB_LAST_SEGMENT);
-
-        string buf = __outbuf__.str(); __outbuf__.str("");
-        _ostream << i64_tostr(buf.size());
-        _ostream << buf; buf = "";
-    } else
+//    if(txt_scz.size() >= data_compress_threshold) {
+//        _ostream << (char)data_compress;
+//        stringstream __outbuf__;
+//
+//        Zlib::AUTO_CLEAN=(true);
+//        zlib.Compress_Buffer2Buffer(txt_scz.to_str(), __outbuf__, ZLIB_LAST_SEGMENT);
+//
+//        string buf = __outbuf__.str(); __outbuf__.str("");
+//        _ostream << i64_tostr(buf.size());
+//        _ostream << buf; buf = "";
+//    } else
         _ostream << txt_scz;
     txt_scz.end();
 
