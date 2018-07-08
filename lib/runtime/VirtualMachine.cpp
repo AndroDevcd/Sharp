@@ -351,12 +351,8 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     *arry = data.object;
                     data.object->refCount = 1;
                 } else if(o->node != NULL) { // object? maybe...
-                    data = GarbageCollector::self->newObjectArray(len);
-
-                    for(size_t i = 0; i < len; i++) {
-                        data.object->node[i] = o->node[i];
-                    }
-
+                    data = GarbageCollector::self->newObject(len);
+                    std::memcpy(data.object->HEAD, o->HEAD, sizeof(double)*len);
                     *arry = data.object;
                     data.object->refCount = 1;
                 }
@@ -393,11 +389,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     data.object->refCount = 1;
                 } else if(o->HEAD != NULL) { // var[]
                     data = GarbageCollector::self->newObject(len);
-
-                    for(size_t i = 0; i < indexLen; i++) {
-                        data.object->HEAD[i] = o->HEAD[i];
-                    }
-
+                    std::memcpy(data.object->HEAD, o->HEAD, sizeof(double)*indexLen);
                     *arry = data.object;
                     data.object->refCount = 1;
                 } else if(o->node != NULL) { // object? maybe...

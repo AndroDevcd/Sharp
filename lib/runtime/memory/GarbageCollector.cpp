@@ -440,6 +440,8 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
                  */
                 if(o != nullptr && o->refCount <= 1) {
                     sweep(o);
+                } else if(o != nullptr){
+                    o->refCount--;
                 }
             }
 
