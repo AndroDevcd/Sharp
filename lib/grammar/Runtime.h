@@ -720,7 +720,7 @@ private:
 
     void resolveFieldHeiarchy(Field *field, ReferencePointer &refrence, Expression &expression, Ast *pAst);
 
-    void resolveMethodDecl(Ast *ast);
+    void resolveMethodDecl(Ast *ast, bool golbal = false);
 
     void parseMethodAccessModifiers(List<AccessModifier> &modifiers, Ast *pAst);
 
@@ -1138,6 +1138,8 @@ private:
     void resolveAllGenericMethodsReturns(Ast *pAst);
 
     void resolveGenericMethodsReturn(Ast *pAst, long &i, long &i1, long &i2, method_type type);
+
+    void createGlobalClass();
 };
 
 

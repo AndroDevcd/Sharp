@@ -26,6 +26,7 @@ using namespace std;
 
 unsigned long RuntimeEngine::uniqueSerialId = 0;
 unsigned long RuntimeEngine::uniqueDelegateId = 0;
+string globalClass = "__SRT_Global";
 
 /*
  * How many instructions we optimized out
@@ -464,6 +465,11 @@ void RuntimeEngine::compile()
                     case ast_generic_interface_decl: /* ignore */
                         break;
                     case ast_enum_decl:
+                        break;
+                    case ast_method_decl:
+                        addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
+                        parseMethodDecl(ast);
+                        removeScope();
                         break;
                     default:
                         stringstream err;
@@ -2461,6 +2467,11 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                         }
 
                         if(fn != NULL) goto funcFound;
+                    } else {
+                        ClassObject *global = getClass("global", globalClass, classes);
+                        if((fn = global->getFunction(ptr.referenceName, params)) != NULL) {
+                            goto funcFound;
+                        }
                     }
                     if(stringToOp(methodName) != oper_UNDEFINED) methodName = "operator" + ptr.referenceName;
                     else methodName = ptr.referenceName;
@@ -7357,6 +7368,8 @@ void RuntimeEngine::resolveAllMethods() {
 bool RuntimeEngine::preprocess()
 {
     bool success = true;
+    // add class for global methods
+    createGlobalClass();
 
     for(unsigned long i = 0; i < parsers.size(); i++)
     {
@@ -7404,6 +7417,8 @@ bool RuntimeEngine::preprocess()
                 case ast_enum_decl:
                     parseEnumDecl(ast);
                     break;
+                case ast_method_decl: /* ignore */
+                    break;
                 default:
                     stringstream err;
                     err << ": unknown ast type: " << ast->getType();
@@ -7436,6 +7451,19 @@ bool RuntimeEngine::preprocess()
 
 
     return success;
+}
+
+void RuntimeEngine::createGlobalClass() {
+    List<AccessModifier> modifiers;
+    modifiers.add(PUBLIC);
+    currentModule = "global";
+    activeParser = parsers.get(0);
+    ClassObject * global = addGlobalClassObject(globalClass, modifiers, NULL);
+    global->address = classSize++;
+    stringstream ss;
+    ss << currentModule << "#" << global->getName();
+    global->setFullName(ss.str());
+    modifiers.free();
 }
 
 void RuntimeEngine::resolveAllInterfaces() {
@@ -7564,6 +7592,13 @@ void RuntimeEngine::resolveAllFields() {
                     break;
                 case ast_enum_decl: /* ignore */
                     break;
+                case ast_method_decl:
+                    if(resolvedFields) {
+                        addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
+                        resolveMethodDecl(ast, true);
+                        removeScope();
+                    }
+                    break;
                 default:
                     /* ignore */
                     break;
@@ -7618,6 +7653,8 @@ void RuntimeEngine::resolveAllGenerics() {
                     resolveGenericClassDecl(ast, false);
                     break;
                 case ast_enum_decl: /* ignore */
+                    break;
+                case ast_method_decl: /* ignore */
                     break;
                 default:
                     /* ignore */
@@ -9020,14 +9057,25 @@ void RuntimeEngine::parseMethodReturnType(Expression& expression, Method& method
     }
 }
 
-void RuntimeEngine::resolveMethodDecl(Ast* ast) {
+void RuntimeEngine::resolveMethodDecl(Ast* ast, bool global) {
     List<AccessModifier> modifiers;
     int startpos=1;
 
     if(parseAccessDecl(ast, modifiers, startpos)){
+        if(global)
+            createNewWarning(GENERIC, ast->line, ast->col, "access modifiers ignored on global functions");
         parseMethodAccessModifiers(modifiers, ast);
+        if(global) {
+            modifiers.free();
+            modifiers.add(PUBLIC);
+            modifiers.add(STATIC);
+        }
     } else {
-        modifiers.add(PRIVATE);
+        if(global) {
+            modifiers.add(PUBLIC);
+            modifiers.add(STATIC);
+        } else
+            modifiers.add(PRIVATE);
     }
 
     List<Param> params;
@@ -9946,8 +9994,8 @@ ClassObject *RuntimeEngine::getClass(string module, string name, List<ClassObjec
 }
 
 ClassObject *RuntimeEngine::addGlobalClassObject(string name, List<AccessModifier>& modifiers, Ast *pAst) {
-    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
-                                   pAst->line, pAst->col);
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst==NULL ? 0 : pAst->line),
+                                   pAst==NULL ? 0 : pAst->line, pAst==NULL ? 0 : pAst->col);
 
     if(!this->addClass(new ClassObject(name, currentModule, this->uniqueSerialId++,modifiers.get(0), note))){
 

@@ -52,7 +52,7 @@ public class Runtime {
         }
 
         // user defined main
-        var ret = app#Application.main(userArgs);
+        var ret = global#__SRT_Global.main(userArgs);
 
         System.print("\nProgram finished with exit code " + ret);
         return ret;

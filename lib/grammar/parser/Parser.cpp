@@ -58,6 +58,10 @@ void Parser::parse()
         {
             parse_classdecl(NULL);
         }
+        else if(ismethod_decl(current()))
+        {
+            parse_methoddecl(NULL);
+        }
         else if(isinterface_decl(current()))
         {
             parse_interfacedecl(NULL);

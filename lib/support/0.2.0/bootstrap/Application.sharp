@@ -2,13 +2,11 @@ mod app;
 
 import std;
 
-/**                          
-* Created by bknun on 6/5/2018            
-* Description:                             
-*/
-public class Application {
+def foo(var v, params object[] objs) {
 
-    public static def main(string[] args) : var {
-        return app#Runtime.bootstrap(args);
-    }
+}
+
+def main(string[] args) : var {
+    foo(1, null, null null);
+    return app#Runtime.bootstrap(args);
 }
