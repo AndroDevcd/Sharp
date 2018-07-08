@@ -39,7 +39,7 @@ public class ConsoleHandler {
      /**
      * print a single character to the console
      */
-     public def __print_stdout_(var char, var isCharacter)
+     public static def __print_stdout_(var char, var isCharacter)
      {
          if(isCharacter) {
              asm(

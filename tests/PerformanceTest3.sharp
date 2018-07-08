@@ -4,7 +4,7 @@ import std;
 
 public class Application { // start of every program must be named Application
 
-    public def main(string[] args) : var {
+    public static def main(string[] args) : var {
         ArrayList<var> black_list = new ArrayList<var>();
 
         for(var i = 0; i < 100000; i++) {

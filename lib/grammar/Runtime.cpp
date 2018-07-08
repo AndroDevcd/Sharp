@@ -2400,7 +2400,7 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
     List<Param> params;
     List<Expression> expressions = parseValueList(valueLst);
     Expression expression(utype);
-    bool access = false;
+    bool access = false, staticCall = false;
 
     expressionListToParams(params, expressions);
     ptr = parseTypeIdentifier(utype);
@@ -2413,6 +2413,7 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
             ClassObject* klass;
             if(expression.type == expression_class) {
                 klass = expression.utype.klass;
+                staticCall = true;
             } else {
                 klass = expression.utype.field->klass;
             }
@@ -2480,6 +2481,10 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
     if(fn != NULL) {
         if(!access && currentScope()->type == STATIC_BLOCK && !fn->isStatic()) {
             errors->createNewError(GENERIC, valueLst->line, valueLst->col, " call to instance function `" + fn->getFullName() +  paramsToString(params) + "` inside static block");
+        }
+
+        if(staticCall && !fn->isStatic()) {
+            errors->createNewError(GENERIC, valueLst->line, valueLst->col, " call to instance function `" + fn->getFullName() +  paramsToString(params) + "` via static context");
         }
 
         verifyMethodAccess(fn, valueLst);
