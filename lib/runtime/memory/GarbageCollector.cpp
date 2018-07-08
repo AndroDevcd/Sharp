@@ -597,6 +597,12 @@ void GarbageCollector::realloc(SharpObject *o, size_t sz) {
     if(o != NULL && o->HEAD != NULL) {
         o->HEAD = (double*)__realloc(o->HEAD, sizeof(double)*sz);
 
+        std::lock_guard<recursive_mutex> gd(mutex);
+        if(sz < o->size)
+            managedBytes -= (sizeof(double)*(o->size-sz));
+        else
+            managedBytes += (sizeof(double)*(sz-o->size));
+
         if(sz > o->size) {
             size_t i = o->size;
             double* p = &o->HEAD[i];
@@ -621,6 +627,13 @@ void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
         }
 
         o->node = (Object*)__realloc(o->node, sizeof(Object)*sz);
+        std::lock_guard<recursive_mutex> gd(mutex);
+        if(sz < o->size)
+            managedBytes -= (sizeof(Object)*(o->size-sz));
+        else
+            managedBytes += (sizeof(Object)*(sz-o->size));
+
+
         if(sz > o->size) {
             size_t i = o->size;
             Object* p = &o->node[i];
