@@ -180,7 +180,7 @@ private:
     void erase(SharpObject *pObject);
 };
 
-#define GC_COLLECT_YOUNG() ( yObjs >= 10 )
+#define GC_COLLECT_YOUNG() ( yObjs >= 25 )
 #define GC_COLLECT_ADULT() ( aObjs >= 10 )
 #define GC_COLLECT_OLD() ( oObjs >= 10 )
 #define GC_COLLECT_MEM() ( managedBytes >= KB_TO_BYTES(64) )
