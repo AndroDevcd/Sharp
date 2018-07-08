@@ -596,6 +596,16 @@ void GarbageCollector::erase(SharpObject *p) {
 void GarbageCollector::realloc(SharpObject *o, size_t sz) {
     if(o != NULL && o->HEAD != NULL) {
         o->HEAD = (double*)__realloc(o->HEAD, sizeof(double)*sz);
+
+        if(sz > o->size) {
+            size_t i = o->size;
+            double* p = &o->HEAD[i];
+            while(i < sz) {
+                *p = 0;
+                p++;
+                i++;
+            }
+        }
         o->size = sz;
     }
 }
@@ -611,6 +621,15 @@ void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
         }
 
         o->node = (Object*)__realloc(o->node, sizeof(Object)*sz);
+        if(sz > o->size) {
+            size_t i = o->size;
+            Object* p = &o->node[i];
+            while(i < sz) {
+                p->object= nullptr;
+                p++;
+                i++;
+            }
+        }
         o->size = sz;
     }
 }

@@ -63,7 +63,7 @@ public class string {
             if(data == null)
                 data = new var[1];
             else
-                data = (var[])System.copyOf(data, sizeof(data), sizeof(data) + 1);
+                System.realloc(data, sizeof(data) + 1);
 
             data[sizeof(data) - 1] = char;
             return self;
@@ -77,19 +77,17 @@ public class string {
         def append(var[] immstr) : string
         {
             var iter=sizeof(data);
-            var[] newStr;
 
             if(data == null)
-                newStr = new var[sizeof(immstr)];
+                data = new var[sizeof(immstr)];
             else
-                newStr = (var[])System.copyOf(data, sizeof(data), sizeof(data) + sizeof(immstr));
+                System.realloc(data, sizeof(data) + sizeof(immstr));
 
             for(var i = 0; i < sizeof(immstr); i++)
             {
-                newStr[iter++] = (_int16)immstr[i];
+                data[iter++] = (_int16)immstr[i];
             }
 
-            data = newStr;
             return self;
         }
 
