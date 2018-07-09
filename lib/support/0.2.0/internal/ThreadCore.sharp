@@ -1,0 +1,29 @@
+mod std.internal.vm;
+
+import std.io;
+
+/**
+ * Created by BraxtonN on 7/9/2018.
+ */
+public class ThreadCore
+{
+
+    public static def __thread_create(Thread thread) : var
+    {
+        var main = __thread_init_run; // we need the address of our initial function
+        var stackSize = thread.getStackSize();
+
+        asm(
+            "loadl %adx, <main>         // load main method"
+            "loadl %egx, <stackSize>    // load stack size "
+            "int 0xa8                   // create thread   "
+            "return_val %cmt                               "
+            "ret                                           "
+        );
+    }
+
+    private static def __thread_init_run()
+    {
+        /* initial function to call for our dear thread */
+    }
+}

@@ -1,5 +1,18 @@
 mod app;
 
+import std;
+import std.io;
+
+def foo(object[] args) {
+    System.println("Thread created!");
+}
+
+def test() {
+    Thread thread = new Thread("foo", foo);
+    System.println("thread id " + thread.getId());
+}
+
 def main(string[] args) : var {
+    test();
     return app#Runtime.bootstrap(args);
 }

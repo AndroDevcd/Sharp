@@ -737,6 +737,7 @@ void Parser::parse_variabledecl(Ast *pAst) {
         for(int i = 0; i < access_types.size(); i++) {
             pAst->addEntity(access_types.get(i));
         }
+        remove_accesstypes();
         pushback();
         if(!parse_utype(pAst))
             errors->createNewError(GENERIC, current(), "expected native type or reference pointer");
@@ -763,11 +764,13 @@ void Parser::parse_prototypedecl(Ast *pAst, bool semicolon) {
     for(int i = 0; i < access_types.size(); i++) {
         pAst->addEntity(access_types.get(i));
     }
+    remove_accesstypes();
 
     if(pAst->getEntityCount()>0)
         pushback();
 
-    advance();
+    if(!isprototype_decl(current()))
+        advance();
     expect_token(
             pAst, "fn", "`fn`");
 
@@ -1703,6 +1706,7 @@ void Parser::parse_operatordecl(Ast *pAst) {
     for(int i = 0; i < access_types.size(); i++) {
         pAst->addEntity(access_types.get(i));
     }
+    remove_accesstypes();
     pAst->addEntity(current());
 
     advance();
@@ -1731,6 +1735,7 @@ void Parser::parse_delegatedecl(Ast *pAst) {
     for(int i = 0; i < access_types.size(); i++) {
         pAst->addEntity(access_types.get(i));
     }
+    remove_accesstypes();
     pAst->addEntity(current());
 
     advance();
@@ -1760,6 +1765,7 @@ void Parser::parse_constructor(Ast *pAst) {
     for(int i = 0; i < access_types.size(); i++) {
         pAst->addEntity(access_types.get(i));
     }
+    remove_accesstypes();
     pushback();
 
     expectidentifier(pAst);
@@ -1774,6 +1780,7 @@ void Parser::parse_methoddecl(Ast *pAst) {
     for(int i = 0; i < access_types.size(); i++) {
         pAst->addEntity(access_types.get(i));
     }
+    remove_accesstypes();
     pAst->addEntity(current());
 
     expectidentifier(pAst);

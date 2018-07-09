@@ -1,13 +1,50 @@
 mod std.io;
 
 import std;
+import std.internal.vm;
 
 /**
  * Created by BraxtonN on 6/4/2018.
  */
-class Thread {
+public class Thread {
 
-    public Thread(string name) {
-
+    public Thread(string name, fn main (object[])) {
+        self->main = main;
+        self->name = name;
+        self->stackSize = DEFAULT_STACK_SIZE;
+        self->id = ThreadCore.__thread_create(self);
     }
+
+    public Thread(string name, fn main (object[]), var stackSize) {
+        self->main = main;
+        self->name = name;
+        self->stackSize = stackSize;
+        self->id = ThreadCore.__thread_create(self);
+    }
+
+    static ArrayList<Thread> threads = new ArrayList<Thread>();
+    static var DEFAULT_STACK_SIZE = 0xcfba;
+
+    public def getArgs() : object[] { return args; }
+    public def getId() : var { return id; }
+    public def setArgs(object[] args) { self->args = args; }
+    public def getStackSize() : var { return stackSize; }
+
+
+    var id;
+    var daemon;
+    var terminated;
+    var exited;
+    string name;
+    var started;
+    var stackSize;
+    object[] args;
+    fn main (object[]);
 }
+
+enum ThreadState {
+    THREAD_CREATED      =0x000,
+    THREAD_RUNNING      =0x001,
+    THREAD_SUSPENDED    =0x002,
+    THREAD_KILLED       =0x003
+};

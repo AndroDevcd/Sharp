@@ -112,6 +112,7 @@ public:
     int exitVal;
     bool suspendPending;
     bool exceptionThrown;
+    Object currentThread;
 
     int64_t pc, fp, sp;
     Method *current;

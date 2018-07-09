@@ -55,7 +55,7 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     Method* method = &env->methods[methodAddress];
     if(method->paramSize>0)
         return -2;
-    if(stack_size < method->paramSize)
+    if(stack_size <= method->paramSize)
         return -3;
 
     Thread* thread = (Thread*)malloc(
@@ -384,7 +384,7 @@ void Thread::suspendAllThreads() {
         thread=threads.get(i);
 
         if(thread!=NULL &&
-           (thread->id != thread_self->id)){
+           (thread->id != thread_self->id) && thread->state == THREAD_RUNNING){
             suspendThread(thread);
             waitForThreadSuspend(thread);
         }
@@ -472,7 +472,8 @@ void Thread::killAll() {
     for(unsigned int i = 0; i < threads.size(); i++) {
         thread = threads.get(i);
 
-        if(thread != NULL && thread->id != thread_self->id) {
+        if(thread != NULL && thread->id != thread_self->id
+           && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
             if(thread->state == THREAD_RUNNING){
                 interrupt(thread);
             }

@@ -3118,7 +3118,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 if(left.isProtoType()) {
                     if(operand == "=") {
 
-                        if(right.type == expression_prototype) {
+                        if(right.isProtoType()) {
                             if(!prototypeEquals(left.utype.field, right.utype.getParams(), right.utype.getReturnType())) {
                                 errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `fn*" + paramsToString(left.utype.field->params) +
                                                        (left.utype.field->returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field->returnType))
@@ -5903,10 +5903,12 @@ KeyPair<List<string>, List<ResolvedReference>> RuntimeEngine::parseUtypeArgList(
             parseFuncPrototype(ast->getSubAst(i), &utype_arg.value.prototype);
             utype_arg.key=ast->getSubAst(i)->getEntity(1).getToken();
             utype_arg.value.isProtoType=true;
+            utype_arg.value.type=VAR;
         } else
             utype_arg = parseUtypeArg(ast->getSubAst(i));
         utype_argmap.key.push_back(utype_arg.key);
         utype_argmap.value.push_back(utype_arg.value);
+        utype_arg.value = ResolvedReference();
     }
 
     return utype_argmap;

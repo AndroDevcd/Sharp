@@ -1,0 +1,8 @@
+mod std.io;
+
+/**
+ * Created by BraxtonN on 7/9/2018.
+ */
+class ThreadLocal<T> {
+    
+}
