@@ -686,7 +686,6 @@ void Thread::exec() {
     register int64_t val=0;
     register int64_t delegate=0;
     register int64_t args=0;
-    size_t fpOld = fp;
     ClassObject *klass;
     SharpObject* o=NULL;
     Method* f;
@@ -750,7 +749,6 @@ void Thread::exec() {
                     return;
                 }
 
-                fpOld=fp;
                 Frame *frame = callStack;
                 calls--;
 
@@ -938,9 +936,19 @@ void Thread::exec() {
 #ifdef SHARP_PROF_
                 tprof.hit(env->methods+GET_Da(cache[pc]));
 #endif
-                fpOld = fp;
                 executeMethod(GET_Da(cache[pc]), this)
                 _brh_NOINCREMENT
+            CALLD:
+#ifdef SHARP_PROF_
+            tprof.hit(env->methods+GET_Da(cache[pc]));
+#endif
+            if((val = (int64_t )registers[GET_Da(cache[pc])]) <= 0) {
+                stringstream ss;
+                ss << "invalid call to pointer of " << val;
+                throw Exception(ss.str());
+            }
+            executeMethod(val, this)
+            _brh_NOINCREMENT
             NEWCLASS:
                 dataStack[++sp].object =
                                    GarbageCollector::self->newObject(&env->classes[GET_Da(cache[pc])]);

@@ -52,7 +52,8 @@ public:
             delegatePost(false),
             delegateAddress(DELEGATE_ADDRESS_DEFAULT),
             key(""),
-            ast(NULL)
+            ast(NULL),
+            dynamicPointer(false)
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -81,7 +82,8 @@ public:
             delegate(delegate),
             delegatePost(delegatePost),
             delegateAddress(DELEGATE_ADDRESS_DEFAULT),
-            key("")
+            key(""),
+            dynamicPointer(false)
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -112,7 +114,8 @@ public:
             delegate(delegate),
             delegatePost(delegatePost),
             delegateAddress(DELEGATE_ADDRESS_DEFAULT),
-            key("")
+            key(""),
+            dynamicPointer(false)
     {
         this->finallyBlocks.init();
         this->unique_address_table.init();
@@ -191,6 +194,7 @@ public:
         this->params.addAll(func.params);
         this->key=func.key;
         this->ast = func.ast;
+        this->dynamicPointer=func.dynamicPointer;
     }
 
     RuntimeNote note;
@@ -203,6 +207,7 @@ public:
     long long sourceFileLink;
     bool array, isConstructor;
     bool delegate, delegatePost;
+    bool dynamicPointer;
     int64_t localVariables;
     List<KeyPair<int64_t, long>> line_table;
     List<KeyPair<int64_t, int64_t>> assembly_table;

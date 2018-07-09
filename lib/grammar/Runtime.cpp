@@ -3869,7 +3869,7 @@ Expression RuntimeEngine::fieldToExpression(Ast *pAst, string name) {
 Expression RuntimeEngine::fieldToExpression(Ast *pAst, Field& field) {
     Expression fieldExpr(pAst);
 
-    size_t i64 = 0;
+    int64_t i64 = 0;
     fieldExpr.type = expression_field;
     fieldExpr.utype.field = &field;
     fieldExpr.utype.type = field.type;
@@ -3880,7 +3880,7 @@ Expression RuntimeEngine::fieldToExpression(Ast *pAst, Field& field) {
         fieldExpr.code.push_i64(SET_Di(i64, op_MOVL, field.address));
     } else {
         //fieldExpr.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-        fieldExpr.code.push_i64(SET_Ci(i64, op_SMOV, ebx, 0, field.address));
+        fieldExpr.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, field.address));
     }
     return fieldExpr;
 }
@@ -4246,6 +4246,7 @@ void RuntimeEngine::createGlobalClass() {
     stringstream ss;
     ss << currentModule << "#" << global->getName();
     global->setFullName(ss.str());
+    addDefaultConstructor(global, NULL);
     modifiers.free();
 }
 
@@ -5319,6 +5320,10 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     expression.utype.method = fn;
                     expression.utype.isMethod = true;
                     expression.type = expression_prototype;
+                    if(!fn->isStatic()) {
+                        errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " function pointer `" + refrence.referenceName + "` " +
+                                                        (refrence.module == "" ? "" : "in module {" + refrence.module + "} ") + " must be static");
+                    }
                     expression.code.push_i64(SET_Di(i64, op_MOVI, fn->address), ebx);
                 } else {
                     if((klass = tryClassResolve(refrence.module, refrence.referenceName, pAst)) != NULL) {
@@ -5431,6 +5436,10 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                             expression.utype.method = fn;
                             expression.utype.isMethod = true;
                             expression.type = expression_prototype;
+                            if(!fn->isStatic()) {
+                                errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " function pointer `" + refrence.referenceName + "` " +
+                                                                                                                                                       (refrence.module == "" ? "" : "in module {" + refrence.module + "} ") + " must be static");
+                            }
                             expression.code.push_i64(SET_Di(i64, op_MOVI, fn->address), ebx);
                             return;
                         }
@@ -6242,14 +6251,19 @@ void RuntimeEngine::addDefaultConstructor(ClassObject* klass, Ast* ast) {
     List<AccessModifier> modifiers;
     modifiers.add(PUBLIC);
 
-    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
-                                   ast->line, ast->col);
+    RuntimeNote note;
+
+    if(ast != NULL) {
+        note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
+                    ast->line, ast->col);
+    }
 
     if(klass->getConstructor(emptyParams, false) == NULL) {
-        Method method = Method(klass->getName(), currentModule, currentScope()->klass, emptyParams, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
+        Method method = Method(klass->getName(), currentModule, klass, emptyParams, modifiers, NULL, note,
+                sourceFiles.indexof(activeParser == NULL ? 0 : activeParser->sourcefile), false, false);
 
         method.isConstructor=true;
-        if(!currentScope()->klass->isGeneric())
+        if(!klass->isGeneric())
             method.address = methods++;
         klass->addConstructor(method);
     }
@@ -8244,6 +8258,13 @@ void RuntimeEngine::createDumpFile() {
                 {
                     ss<<"call @" << GET_Da(x64) << " // <";
                     ss << find_method(GET_Da(x64)) << ">";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_CALLD:
+                {
+                    ss<<"calld ";
+                    ss<< Asm::registrerToString(GET_Da(x64));
                     _ostream << ss.str();
                     break;
                 }

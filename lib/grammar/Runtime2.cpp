@@ -603,10 +603,29 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
             if((fn = klass->getFunction(methodName, params, true, true)) != NULL){}
             else if((fn = klass->getOverload(stringToOp(methodName), params, true, true)) != NULL){}
             else if(methodName == klass->getName() && (fn = klass->getConstructor(params, false, true)) != NULL) {}
-            else if(klass->getField(methodName, true) != NULL) {
+            else if(klass->getField(methodName, true) != NULL && !klass->getField(methodName, true)->prototype) {
                 errors->createNewError(GENERIC, valueLst->line, valueLst->col, " symbol `" + methodName + "` is a field");
             }
             else {
+                Field *f;
+                if((f = klass->getField(methodName, true)) != NULL) {
+                    if(f->prototype) {
+                        Expression e, tmp;
+
+                        if(staticCall || f->isStatic()) {
+                            e.code.push_i64(SET_Di(i64, op_MOVG, klass->address));
+                        } else {
+                            e.inject(expression);
+                        }
+                        e.code.push_i64(SET_Di(i64, op_MOVN, f->address));
+                        expression.code.free();
+
+                        tmp = fieldToExpression(NULL, *f); tmp.code.free();
+                        pushExpressionToRegister(tmp, e, ebx);
+                        fn = fieldToFunction(f, e);
+                        goto funcFound;
+                    }
+                }
                 if(stringToOp(methodName) != oper_UNDEFINED) methodName = "operator" + methodName;
 
                 errors->createNewError(COULD_NOT_RESOLVE, valueLst->line, valueLst->col, " `" + methodName + paramsToString(params) + "`");
@@ -629,7 +648,7 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                 if((fn = currentScope()->klass->getFunction(ptr.referenceName, params, true, true)) != NULL){}
                 else if((fn = currentScope()->klass->getOverload(stringToOp(ptr.referenceName), params, true, true)) != NULL){}
                 else if(ptr.referenceName == currentScope()->klass->getName() && (fn = currentScope()->klass->getConstructor(params)) != NULL) {}
-                else if(currentScope()->klass->getField(methodName, true) != NULL) {
+                else if(currentScope()->klass->getField(methodName, true) != NULL && !currentScope()->klass->getField(methodName, true)->prototype) {
                     errors->createNewError(GENERIC, valueLst->line, valueLst->col, " symbol `" + methodName + "` is a field");
                 }
                 else {
@@ -645,8 +664,26 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                         if(fn != NULL) goto funcFound;
                     } else {
                         ClassObject *global = getClass("global", globalClass, classes);
+                        KeyPair<int, Field> *field;
+                        Field *f;
                         if((fn = global->getFunction(ptr.referenceName, params)) != NULL) {
                             goto funcFound;
+                        } else if((field = currentScope()->getLocalField(ptr.referenceName)) != NULL) {
+                            f = &field->value;
+                            if(f->prototype) {
+                                Expression e = fieldToExpression(NULL, *f);
+                                fn = fieldToFunction(f, e);
+                                goto funcFound;
+                            }
+                        } else if((f = currentScope()->klass->getField(ptr.referenceName, true)) != NULL) {
+                            if(f->prototype) {
+                                Expression e, tmp;
+                                e.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                                tmp = fieldToExpression(NULL, *f); tmp.code.free();
+                                pushExpressionToRegister(tmp, e, ebx);
+                                fn = fieldToFunction(f, e);
+                                goto funcFound;
+                            }
                         }
                     }
                     if(stringToOp(methodName) != oper_UNDEFINED) methodName = "operator" + ptr.referenceName;
@@ -709,8 +746,16 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                 out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()), fn->klass->address);
             } else
                 out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, fn->address, 0, expressions.size()));
-        } else
-            out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
+        } else {
+            if(!fn->dynamicPointer)
+                out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
+            else {
+                out.code.inject(out.code.size(), fn->code);
+                out.code.push_i64(SET_Di(i64, op_CALLD, ebx));
+                fn->free();
+                free(fn);
+            }
+        }
     }
 
     freeList(params);
@@ -3312,4 +3357,16 @@ bool RuntimeEngine::prototypeEquals(Field *proto, List<Param> params, FieldType 
 
     }
     return false;
+}
+
+Method *RuntimeEngine::fieldToFunction(Field *field, Expression &code) {
+    List<AccessModifier> modifiers;
+    modifiers.add(PUBLIC);
+    modifiers.add(STATIC);
+    RuntimeNote note;
+    Method *fn = new Method("", "", NULL, field->params, modifiers,
+            field->returnType, note, 0, false, false);
+    fn->code.__asm64.appendAll(code.code.__asm64);
+    fn->dynamicPointer=true;
+    return fn;
 }

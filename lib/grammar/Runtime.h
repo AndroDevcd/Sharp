@@ -1178,6 +1178,8 @@ private:
     void parseFieldReturnType(Expression &expression, Field &field);
 
     void parseFuncPrototype(Ast *ast, Field *field);
+
+    Method *fieldToFunction(Field *field, Expression &code);
 };
 
 
