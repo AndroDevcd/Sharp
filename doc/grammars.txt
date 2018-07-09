@@ -169,7 +169,7 @@ Import Declaration:
 import <modulename> ;
 
 Prototype Declaration:
-func <identifier = name> <uTypeArg-list-naked> [: <uType>] ;
+fn <identifier = name> <uTypeArg-list-opt> [: <uType>] ;
 
 Class Declaration:
 `[<accesstype>] class <identifier = name> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`

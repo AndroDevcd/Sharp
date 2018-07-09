@@ -36,7 +36,9 @@ public:
             array(false),
             resolved(false),
             isMethod(false),
-            uType(NULL)
+            uType(NULL),
+            prototype(),
+            isProtoType(false)
     {
     }
 
@@ -62,8 +64,12 @@ public:
             return field != NULL ? field->klass->getFullName() : (klass==NULL ? "?" : klass->getFullName());
         else if(type==OBJECT)
             return "object";
-        else if(type==VAR)
-            return "var";
+        else if(type==VAR) {
+            if(isMethod)
+                return method->getFullName();
+            else
+                return "var";
+        }
         else if(type==TYPEVOID)
             return "void";
         else if(type==UNDEFINED)
@@ -85,12 +91,28 @@ public:
     bool isVar() { return type==VAR; }
     bool dynamicObject() { return type==OBJECT; }
     bool isEnum() { return field != NULL && field->isEnum; }
+    List<Param> getParams() {
+        if(method)
+            return method->getParams();
+        else if(field)
+            return field->getParams();
+        else return prototype.getParams();
+    }
+
+    FieldType getReturnType() {
+        if(method)
+            return method->type;
+        else if(field)
+            return field->returnType;
+        else return prototype.returnType;
+    }
 
     string referenceName;
     bool array, isMethod, resolved;
+    bool isProtoType;
     FieldType type;
     ClassObject* klass;
-    Field* field;
+    Field* field, prototype;
     Method* method;
     OperatorOverload* oo;
     Ast* uType;
@@ -116,6 +138,7 @@ enum expression_type {
     expression_unresolved=13,
     expression_null=14,
     expression_generic=15, // special case for generic utypes
+    expression_prototype=16,
     expression_unknown=0x900f
 };
 
@@ -208,6 +231,10 @@ struct Expression {
 
     bool isConstExpr() {
         return literal || (type==expression_field && utype.field->isConst());
+    }
+
+    bool isProtoType() {
+        return utype.field != NULL && utype.field->prototype;
     }
 
     bool isArray() {
@@ -613,6 +640,11 @@ public:
     static bool isNativeIntegerClass(ClassObject *klass);
 
     List<ClassObject*> classes;
+
+    static Expression fieldToExpression(Ast *pAst, Field &field);
+
+    static bool prototypeEquals(Field *proto, List<Param> params, FieldType rtype);
+
 private:
     bool preprocessed;
     List<Parser*> parsers;
@@ -940,8 +972,6 @@ private:
 
     Expression parseQuesExpression(Ast *pAst);
 
-    Expression fieldToExpression(Ast *pAst, Field &field);
-
     Expression fieldToExpression(Ast *pAst, string name);
 
     void initalizeNewClass(ClassObject *klass, Expression &out);
@@ -1140,6 +1170,14 @@ private:
     void resolveGenericMethodsReturn(Ast *pAst, long &i, long &i1, long &i2, method_type type);
 
     void createGlobalClass();
+
+    void resolvePrototypeDecl(Ast *ast);
+
+    void parseProtypeDecl(Ast *pAst);
+
+    void parseFieldReturnType(Expression &expression, Field &field);
+
+    void parseFuncPrototype(Ast *ast, Field *field);
 };
 
 

@@ -166,6 +166,7 @@ public:
 
     size_t functionCount(bool ignore=false);
     Method* getFunction(int p);
+    Method* getFunctionByName(string name, bool &ambiguous);
     Method* getFunction(string name, List<Param>& params, bool useBase =false, bool nativeSupport = false, bool skipdelegates=false);
     Method* getFunction(string name, int64_t _offset);
     bool addFunction(Method function);

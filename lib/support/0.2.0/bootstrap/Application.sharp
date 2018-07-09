@@ -2,11 +2,24 @@ mod app;
 
 import std;
 
-def foo(var v, params object[] objs) {
+public class Foo {
+    public static fn proto (var);
+    def foo2(var vv) {
+    }
+}
 
+def foo2(var vv) {
+}
+
+def foo(var c, fn poop(var)) {
+    poop = foo2;
+    //poop(9);
 }
 
 def main(string[] args) : var {
-    foo(1, null, null null);
+    Foo.proto = foo2;
+    foo2(Foo.foo2);
+    var x = Foo.foo2;
+    //var v = foo;
     return app#Runtime.bootstrap(args);
 }

@@ -13,6 +13,8 @@
 
 class ClassObject;
 class Ast;
+class Method;
+class Param;
 
 class Field {
 public:
@@ -31,10 +33,14 @@ public:
             local(false),
             key(""),
             ast(NULL),
+            proto(NULL),
             isEnum(false),
-            constant_value(0)
+            constant_value(0),
+            prototype(false),
+            returnType(TYPEVOID)
     {
         this->modifiers.init();
+        this->params.init();
         this->modifiers.addAll(modifiers);
     }
 
@@ -53,10 +59,14 @@ public:
             local(false),
             key(""),
             ast(NULL),
+            proto(NULL),
             isEnum(false),
-            constant_value(0)
+            constant_value(0),
+            prototype(false),
+            returnType(TYPEVOID)
     {
         this->modifiers.init();
+        this->params.init();
         this->modifiers.addAll(modifiers);
     }
 
@@ -75,8 +85,11 @@ public:
             key(""),
             klass(NULL),
             ast(NULL),
+            proto(NULL),
             isEnum(false),
-            constant_value(0)
+            constant_value(0),
+            prototype(false),
+            returnType(TYPEVOID)
     {
     }
 
@@ -99,6 +112,10 @@ public:
         local=f.local;
         key=f.key;
         ast=f.ast;
+        proto=f.proto;
+        prototype=f.prototype;
+        returnType=f.returnType;
+        params.addAll(f.params);
         isEnum=f.isEnum;
         constant_value=f.constant_value;
     }
@@ -111,6 +128,7 @@ public:
         fullName.clear();
         modifiers.free();
         key.clear();
+        params.free();
     }
 
 //    bool isField() {
@@ -150,12 +168,18 @@ public:
         return type == OBJECT;
     }
 
+    List<Param> getParams();
+
     bool isArray, nullType, local, isEnum;
     bool resolved;
+    bool prototype;
+    Method* proto;
+    FieldType returnType;
     double constant_value;
     RuntimeNote note;
     FieldType type;
     ClassObject* klass;
+    List<Param> params; // for prototypes
     Ast *ast; // for parsing a generic field later
     int64_t serial, address;
     string name, fullName;
