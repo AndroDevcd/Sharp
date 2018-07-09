@@ -5423,7 +5423,8 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     resolveUtype(p, expression, pAst);
 
                     if(expression.type == expression_class || (expression.type == expression_field && expression.utype.field->type == CLASS)) {
-                        if((fn = currentScope()->klass->getFunctionByName(refrence.referenceName, ambiguous)) != NULL) {
+                        klass = expression.type == expression_class ? expression.utype.klass : expression.utype.field->klass;
+                        if((fn = klass->getFunctionByName(refrence.referenceName, ambiguous)) != NULL) {
                             if(ambiguous)
                                 createNewWarning(GENERIC, pAst->line, pAst->col, "reference to function name is ambiguous");
                             expression.utype.type = VAR;
