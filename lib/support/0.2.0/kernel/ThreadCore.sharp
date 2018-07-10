@@ -110,7 +110,7 @@ public class ThreadCore
 
     private static def __thread_args() : object[]
     {
-        object[] args; // we want to do high level casting to preserve integrity
+        object[] args;
 
         asm(
             "int 0xe1                   // get current thread  "

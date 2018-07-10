@@ -107,7 +107,6 @@ public class ArrayList<T> {
         }
     }
 
-
     /**
       * Appends the specified elements inside the provided list to the end of this list.
       *
@@ -156,16 +155,10 @@ public class ArrayList<T> {
          if(size == 0) {
              add(value);
          } else {
-             T[] result = new T[sizeof(mData)+1];
-             capacity++;
-             size++;
-             var newLen=sizeof(mData)+1;
-             for(var i = 0; i < pos; i++)
-                 result[i] = mData[i];
-             result[pos] = value;
-             for(var i = pos + 1; i < newLen; i++)
-                 result[i] = mData[i - 1];
-             mData=result;
+            expand();
+             for(var i = sizeof(mData) - 1; i >= pos; i--)
+                mData[i+1] = mData[i];
+             mData[pos-1] = value;
          }
 
      }
@@ -189,13 +182,9 @@ public class ArrayList<T> {
              }
              shrink();
          } else {
-             var newLen=sizeof(mData)-1,iter=1;
-             for(var i = 0; i < newLen; i++) {
-                 if(iter == pos)
-                     iter++;
-
-                 mData[i] = mData[iter];
-             }
+             var newLen=sizeof(mData)-1;
+             for(var i = pos; i < newLen; i++)
+                 mData[i] = mData[i+1];
 
              shrink();
          }
@@ -210,7 +199,6 @@ public class ArrayList<T> {
          mData = null;
      }
 
-
     /**
      * Constructs an IndexOutOfBoundsException detail message.
      * Of the many possible refactorings of the error handling code,
@@ -220,10 +208,4 @@ public class ArrayList<T> {
         return "Index: " + index + ", size: " + sizeof(mData);
     }
 
-    /**
-    * User must implement their own equals method
-    */
-    public def operator==(ArrayList<T> arry) : var {
-        return false;
-    }
 }

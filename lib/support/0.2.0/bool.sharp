@@ -59,22 +59,22 @@ public class bool base integer {
 
     public def operator++(var num) : var { // post inc i++
         var before = value;
-        value=1;
+        value=!value;
         return before;
     }
 
     public def operator++() : var { // pre inc ++i
-        return (value=1);
+        return (value=!value);
     }
 
     public def operator--(var num) : var {
         var before = value;
-        value=0;
+        value=!value;
         return before;
     }
 
     public def operator--() : var {
-        return (value=0);
+        return (value=!value);
     }
 
     public def value() : var {

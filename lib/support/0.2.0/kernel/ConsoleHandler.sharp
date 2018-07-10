@@ -28,11 +28,10 @@ public class ConsoleHandler {
 
      public def read() : var
      {
-        var result;
         asm(
-            "  get %ebx                                        "
-            "  return_val %ebx                                 "
-            "  ret                                             "
+            "  get %ebx              // read single character from the console "
+            "  return_val %ebx                                                 "
+            "  ret                                                             "
         );
      }
 

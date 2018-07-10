@@ -13,6 +13,7 @@ public class Thread {
         self->name = name;
         self->stackSize = DEFAULT_STACK_SIZE;
         self->id = ThreadCore.__thread_create(self);
+
         addThread(self);
     }
 
@@ -21,6 +22,7 @@ public class Thread {
         self->name = name;
         self->stackSize = stackSize;
         self->id = ThreadCore.__thread_create(self);
+
         addThread(self);
     }
 
@@ -40,26 +42,26 @@ public class Thread {
         return ThreadCore.__thread_destroy(self);
     }
 
-    public static def getCurrentThread() : Thread {
+    public static def currentThread() : Thread {
         return ThreadCore.__thread_current();
     }
 
-    static ArrayList<Thread> threads = new ArrayList<Thread>();
+    static ArrayList<Thread> pool = new ArrayList<Thread>();
     static var DEFAULT_STACK_SIZE = 0xcfba;
 
     static def addThread(Thread thread) {
-        lock(threads) {
-            threads.add(thread);
+        lock(pool) {
+            pool.add(thread);
         }
     }
 
     static def popThread(Thread thread) {
-        lock(threads) {
-            Thread[] lst = threads.toArray();
+        lock(pool) {
+            Thread[] lst = pool.toArray();
             var iter;
             foreach(Thread t : lst) {
                 if(thread.id == t.id) {
-                    threads.remove(iter);
+                    pool.remove(iter);
                     break;
                 }
                 iter++;
@@ -78,7 +80,6 @@ public class Thread {
     public def setTerminated(var term) { self->terminated = term; }
     public def isTerminated() : var { return terminated; }
 
-
     public static def setupMainThread() {
         Thread main = new Thread();
         main.main = global#__SRT_Global.main;
@@ -93,6 +94,7 @@ public class Thread {
 
     public var exitCode;
 
+    //protected ThreadLocal<?>.ThreadLocalMap map;
     var id;
     var daemon; // not supported as of now
     var terminated;
