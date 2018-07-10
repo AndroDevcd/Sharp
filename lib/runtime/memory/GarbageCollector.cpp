@@ -450,7 +450,7 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
         }
 
         if(object->mutex != NULL)
-            std::free(object->mutex);
+            delete (object->mutex);
 
         UPDATE_GC(object)
 
