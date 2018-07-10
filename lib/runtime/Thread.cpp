@@ -481,6 +481,7 @@ int Thread::threadjoin(Thread *thread) {
 #ifdef POSIX_
         if(pthread_join(thread->thread, NULL))
             return 3;
+        else return 0;
 #endif
     }
 
