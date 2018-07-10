@@ -209,7 +209,7 @@ public:
     bool delegate, delegatePost;
     bool dynamicPointer;
     int64_t localVariables;
-    List<KeyPair<int64_t, long>> line_table;
+    List<KeyPair<long, int64_t>> line_table;
     List<KeyPair<int64_t, int64_t>> assembly_table;
     List<ExceptionTable> exceptions;
     List<SwitchTable> switchTable;

@@ -23,24 +23,25 @@ public class UnixFileSystem base FileSystem {
     public def delegate::normalize(string pathname) : string {
         var n = pathname.size();
         var[] normalized = pathname.toArray();
-        var index = 0;
-        var prevChar = 0;
-        for (var i = 0; i < n; i++) {
-            var current = normalized[i];
+        string name = "";
+        char current = 0, prevChar = 0;
+        for (var i = 0; i < pathname.size(); i++) {
+            current = normalized[i];
             // Remove duplicate slashes.
-            if (!(current == '/' && prevChar == '/')) {
-                normalized[index++] = current;
+            if (current == '/' && prevChar == '/')
+                continue;
+            else if(current == '\\')  {
+                if(prevChar != '\\')
+                    name += '/';
             }
+            else
+                name += current;
 
             prevChar = current;
         }
 
-        // Omit the trailing slash, except when pathname == "/".
-        if (prevChar == '/' && n > 1) {
-            index--;
-        }
-
-        return (index != n) ? new string(normalized, 0, index) : pathname;
+//        System.println("name " + name);
+        return name;
     }
 
      /**

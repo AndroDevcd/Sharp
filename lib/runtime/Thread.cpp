@@ -761,7 +761,7 @@ void Thread::exec() {
                 return;
 
             interp:
-            if(current->address==352 && pc >= 0) {
+            if(current->address==0x167 && pc >= 0) {
                 int i = 0;
             }
             DISPATCH();
@@ -894,7 +894,7 @@ void Thread::exec() {
                 _brh
             IALOAD:
                 o = (dataStack+sp)->object.object;
-                if(o != NULL) {
+                if(o != NULL && o->HEAD != NULL) {
                     registers[GET_Ca(cache[pc])] = o->HEAD[(uint64_t)registers[GET_Cb(cache[pc])]];
                 } else throw Exception(Environment::NullptrException, "");
                 _brh
@@ -1025,7 +1025,7 @@ void Thread::exec() {
                 o2 = env->globalHeap+GET_Da(cache[pc]);
                 _brh
             MOVND:
-            if(o2 != NULL && o2->object != NULL) {
+                if(o2 != NULL && o2->object != NULL) {
                     if(o2->object->size <= registers[GET_Da(cache[pc])]) {
                         throw Exception("movnd");
                     }

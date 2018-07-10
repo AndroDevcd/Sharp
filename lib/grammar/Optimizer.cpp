@@ -35,10 +35,10 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
     }
 
     for(unsigned int i = 0; i < func->line_table.size(); i++) {
-        KeyPair<int64_t, long> &lt = func->line_table.get(i);
+        KeyPair<long, int64_t> &lt = func->line_table.get(i);
 
-        if(stopAddr < lt.key && lt.key > 0)
-            lt.key--;
+        if(stopAddr < lt.value && lt.value > 0)
+            lt.value--;
     }
 
 

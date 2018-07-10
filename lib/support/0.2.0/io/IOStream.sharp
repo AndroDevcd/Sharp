@@ -14,7 +14,7 @@ public class IOStream {
 
     class StreamReader {
         private var pos;
-        private StreamBuffer iobuf;
+        private StreamBuffer iobuf = new StreamBuffer();
 
         protected StreamReader(StreamBuffer buf) {
             iobuf = buf;

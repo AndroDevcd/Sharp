@@ -38,14 +38,22 @@ public class string {
             self->string(str.toArray());
         }
 
-        public string( var[] immstr, var offset, var length )
+        public string( var[] immstr, var offset )
         {
             if(immstr == null) {
                 data = null;
             } else {
-                data = (var[])System.copyOf(immstr, sizeof(immstr));
+                data = (var[])System.memcpy(immstr, offset, sizeof(immstr));
             }
+        }
 
+        public string( var[] immstr, var offset, var endIndex )
+        {
+            if(immstr == null) {
+                data = null;
+            } else {
+                data = (var[])System.memcpy(immstr, offset, endIndex);
+            }
         }
 
         public def replace( var pos, var replaceChar ) : string

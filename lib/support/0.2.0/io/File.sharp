@@ -3,6 +3,9 @@ mod std.io;
 import std;
 import std.kernel;
 
+/**
+* F
+*/
 public class File {
     private static FileSystem fs = getFileSystem();
 

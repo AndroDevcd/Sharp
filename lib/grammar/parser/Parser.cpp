@@ -889,7 +889,9 @@ void Parser::parse_valuelist(Ast *pAst) {
         if(peek(1).getTokenType() == COMMA)
         {
             expect(COMMA, pAst, "`,`");
-            parse_value(pAst);
+            if(!parse_value(pAst)){
+                errors->createNewError(GENERIC, pAst->getLastSubAst(), "expected value");
+            }
             goto _pValue;
         }
     }

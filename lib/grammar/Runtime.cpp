@@ -527,7 +527,7 @@ void RuntimeEngine::setHeadClass(ClassObject *klass) {
 
 void RuntimeEngine::addLine(Block& block, Ast *pAst) {
 
-    currentScope()->currentFunction->line_table.add(KeyPair<int64_t, long>(block.code.__asm64.size(), pAst->line));
+    currentScope()->currentFunction->line_table.add(KeyPair<long, int64_t>(pAst->line, block.code.__asm64.size()));
 }
 
 void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix return sign of new
@@ -897,7 +897,7 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
     currentScope()->uniqueLabelSerial++;
     currentScope()->brahchHelper.add(SCOPE_FOR_LOOP);
     stringstream ss;
-    string forEndLabel, forBeginLabel;
+    string forEndLabel, forBeginLabel, forIterLabel;
 
     parseUtypeArg(pAst, currentScope(), block);
 
@@ -909,6 +909,10 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
     ss.str("");
     ss << for_label_end_id << currentScope()->uniqueLabelSerial;
     forEndLabel=ss.str();
+
+    ss.str("");
+    ss << for_label_iter_id << currentScope()->uniqueLabelSerial;
+    forIterLabel=ss.str();
 
     KeyPair<string, string> loopMap(forBeginLabel, forEndLabel);
     currentScope()->loopAddressTable.push_back(loopMap);
@@ -943,7 +947,10 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
         currentScope()->reachable=true;
     }
 
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(forIterLabel,__init_label_address(block.code)));
+
     if(pAst->hasSubAst(ast_for_expresion_iter)) {
+
         block.code.inject(block.code.size(), iter.code);
         if(iter.func && iter.type != expression_void) {
             block.code.push_i64(SET_Ei(i64, op_POP));
@@ -1014,7 +1021,7 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
     currentScope()->loops++;
     currentScope()->uniqueLabelSerial++;
     currentScope()->brahchHelper.add(SCOPE_FOR_LOOP);
-    string forBeginLabel, forEndLabel;
+    string forBeginLabel, forEndLabel, forIterLabel;
 
     Expression arryExpression(parseExpression(pAst->getSubAst(ast_expression))), out(pAst);
     parseUtypeArg(pAst, currentScope(), block, &arryExpression);
@@ -1039,6 +1046,10 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
     ss << for_label_end_id << currentScope()->uniqueLabelSerial;
     forEndLabel=ss.str();
 
+    ss.str("");
+    ss << for_label_iter_id << currentScope()->uniqueLabelSerial;
+    forIterLabel=ss.str();
+
     KeyPair<string, string> loopMap(forBeginLabel, forEndLabel);
     currentScope()->loopAddressTable.push_back(loopMap);
     currentScope()->label_map.add(KeyPair<std::string, int64_t>(forBeginLabel,__init_label_address(block.code)));
@@ -1061,6 +1072,7 @@ void RuntimeEngine::parseForEachStatement(Block& block, Ast* pAst) {
         currentScope()->reachable=true;
     }
 
+    currentScope()->label_map.add(KeyPair<std::string, int64_t>(forIterLabel,__init_label_address(block.code)));
     block.code.push_i64(SET_Ci(i64, op_SMOV, ebx,0, 0));
     block.code.push_i64(SET_Di(i64, op_INC, ebx));
     block.code.push_i64(SET_Ci(i64, op_SMOVR, ebx,0, 0));
@@ -1403,7 +1415,9 @@ void RuntimeEngine::parseThrowStatement(Block& block, Ast* pAst) {
 void RuntimeEngine::parseContinueStatement(Block& block, Ast* pAst) {
 
     if(currentScope()->brahchHelper.size() > 0 && currentScope()->brahchHelper.last() == SCOPE_FOR_LOOP) {
-        string name = currentScope()->loopAddressTable.last().key;
+        stringstream ss;
+        ss << for_label_iter_id << currentScope()->loopAddressTable.size();
+        string name = ss.str();
         currentScope()->addBranch(name, 1, block.code, pAst->line, pAst->col);
     } else if(currentScope()->brahchHelper.size() > 0 && currentScope()->brahchHelper.last() == SCOPE_WHILE_LOOP) {
         string name = currentScope()->loopAddressTable.last().key;
@@ -2056,7 +2070,8 @@ bool RuntimeEngine::hasOverload(token_entity operand, Expression &right, ClassOb
     List<Param> params;
     List<Expression> eList;
     eList.push_back(right);
-    return klass->getOverload(stringToOp(operand.getToken()), params, true) != NULL;
+    expressionListToParams(params, eList);
+    return klass->getOverload(stringToOp(operand.getToken()), params, true, true) != NULL;
 }
 
 void RuntimeEngine::addClass(token_entity operand, ClassObject* klass, Expression& out, Expression& left, Expression &right, Ast* pAst) {
@@ -3699,7 +3714,8 @@ Expression RuntimeEngine::parseAssignExpression(Ast* pAst) {
                 // add var
                 assignValue(operand, out, left, right, pAst);
             } else if(left.utype.field->type == CLASS) {
-                if(left.arrayElement || !hasOverload(operand, right, left.utype.field->klass, pAst))
+                if(left.arrayElement || !hasOverload(operand, right, left.utype.field->klass, pAst)
+                   || right.newExpression)
                     assignValue(operand, out, left, right, pAst);
                 else
                     addClass(operand, left.utype.field->klass, out, left, right, pAst);
@@ -4044,9 +4060,9 @@ void RuntimeEngine::readjustAddresses(Method *func, unsigned int _offset) {
     }
 
     for(unsigned int i = 0; i < func->line_table.size(); i++) {
-        KeyPair<int64_t, long> &lt = func->line_table.get(i);
+        KeyPair<long, int64_t> &lt = func->line_table.get(i);
 
-        lt.key+=_offset;
+        lt.value+=_offset;
     }
 
     int64_t x64, op, addr, reg;
@@ -7361,7 +7377,7 @@ std::string RuntimeEngine::generate_manifest() {
     manifest << (char)manif;
     manifest << ((char)0x02); manifest << c_options.out << ((char)nil);
     manifest << ((char)0x4); manifest << c_options.vers << ((char)nil);
-    manifest << ((char)0x5); manifest << c_options.debug ? ((char)1) : ((char)nil);
+    manifest << ((char)0x5); manifest << c_options.debug ? 1 : 0;
     manifest << ((char)0x6); manifest << i64_tostr(main->address) << ((char)nil);
     manifest << ((char)0x7); manifest << i64_tostr(methods) << ((char)nil);
     manifest << ((char)0x8); manifest << i64_tostr(classSize) << ((char)nil);
@@ -7840,8 +7856,8 @@ void RuntimeEngine::createDumpFile() {
         for(unsigned int x = 0; x < method->code.size(); x++) {
             stringstream ss;
             int64_t x64=method->code.__asm64.get(x);
-            if(iter < method->line_table.size() && x >= method->line_table.get(iter).key) {
-                line = method->line_table.get(iter).value;
+            if(iter < method->line_table.size() && x >= method->line_table.get(iter).value) {
+                line = method->line_table.get(iter).key;
                 ss << "line: " <<  method->line_table.get(iter++).value << ' ';
                 ss <<std::hex << "[0x" << x << std::dec << "] " << x << ":" << '\t';
             } else {

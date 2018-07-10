@@ -6,7 +6,7 @@ import std;
 * StreamBuffer is a utility class that is used for storing buffered data
 *
 * When data is added to the stream the class allocated data in blocks or "chunks"
-* of data the size of 128. This is to prevent constant allocation to the runtime system
+* of data the size of 128 bytes. This is to prevent constant allocation to the runtime system
 * to minimize memory request lags.
 *
 * StreamBuffer is a class that is used by IOStream to read and write a stream of data to a file
@@ -40,9 +40,7 @@ class StreamBuffer {
     * The data will be converted to a unicode UTF-16 encoded string
     */
     public def toString() : string {
-        var[] raw = (var[])System.copyOf(data, dp);
-        string str = new string(raw);
-        return str;
+        return new string(data, 0, dp - 1);
     }
 
     public def at(var pos) : var {
@@ -98,7 +96,7 @@ class StreamBuffer {
 
         if(dp >= size) {
             size += STREAM_CHUNK;
-            data = (var[])System.copyOf(data, sizeof(data), size);
+            System.realloc(data,  size);
         }
 
         data[dp++] = _char;
@@ -110,7 +108,7 @@ class StreamBuffer {
 
         if((dp+sizeof(raw)) >= size) {
             size += sizeof(raw)+STREAM_CHUNK;
-            data = (var[])System.copyOf(data, sizeof(data), size);
+            System.realloc(data,  size);
         }
 
         foreach(var _char : raw)

@@ -121,7 +121,7 @@ public class System {
         return Runtime.realloc(data, size);
     }
 
-    public static def reverse(object[] data, var startIndex, var endIndex) : object[] {
+    public static def invert(object[] data, var startIndex, var endIndex) : object[] {
         return Runtime.copy4(data, startIndex, endIndex);
     }
 }

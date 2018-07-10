@@ -1194,6 +1194,8 @@ private:
 
 #define for_label_end_id "$$for_end"
 
+#define for_label_iter_id "$$for_iter"
+
 #define while_label_begin_id "$$while_start"
 
 #define while_label_end_id "$$while_end"
