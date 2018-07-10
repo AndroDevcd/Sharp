@@ -309,7 +309,7 @@ int Thread::interrupt(int32_t id) {
         return 2;
 
     int result = interrupt(thread);
-    if(result==0)
+    if(result==0 && !masterShutdown)
         waitForThreadExit(thread);
     return result;
 }
