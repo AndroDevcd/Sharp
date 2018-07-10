@@ -1,7 +1,7 @@
 mod std.io;
 
 import std;
-import std.internal;
+import std.kernel;
 
 public class File {
     private static FileSystem fs = getFileSystem();

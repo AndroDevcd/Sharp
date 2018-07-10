@@ -2,14 +2,22 @@ mod app;
 
 import std;
 import std.io;
+import std.kernel.vm;
 
 def foo(object[] args) {
+//    Time.sleep(Time.TimeUnit.MILLISECONDS, 300);
     System.println("Thread created!");
 }
 
 def test() {
     Thread thread = new Thread("foo", foo);
     System.println("thread id " + thread.getId());
+
+    asm("nop nop nop nop");
+    thread.start(new object[] { 1 });
+    System.println("thread join " + thread.join());
+    System.println("thread start " + thread.start(null));
+    System.println("thread join " + thread.join());
 }
 
 def main(string[] args) : var {

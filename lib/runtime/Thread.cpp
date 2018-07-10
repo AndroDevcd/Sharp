@@ -49,6 +49,13 @@ void Thread::Startup() {
     setupSigHandler();
 }
 
+/**
+ * API level thread create called from Sharp
+ *
+ * @param methodAddress
+ * @param stack_size
+ * @return
+ */
 int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     if(methodAddress < 0 || methodAddress >= manifest.methods)
         return -1;
@@ -72,7 +79,10 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     thread->id = Thread::tid++;
     thread->dataStack = NULL;
     thread->callStack = NULL;
+    thread->currentThread.object=NULL;
+    thread->args.object=NULL;
     thread->calls=0;
+    thread->starting=0;
     thread->current = NULL;
     thread->suspendPending = false;
     thread->exceptionThrown = false;
@@ -103,7 +113,10 @@ void Thread::Create(string name) {
     new (&this->mutex) std::mutex();
 #endif
     this->name.init();
+    this->currentThread.object=NULL;
+    this->args.object=NULL;
     this->name = name;
+    this->starting = 0;
     this->id = Thread::tid++;
     this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*STACK_SIZE);
     this->suspendPending = false;
@@ -141,7 +154,10 @@ void Thread::CreateDaemon(string name) {
     this->id = Thread::tid++;
     this->dataStack = NULL;
     this->callStack = NULL;
+    this->currentThread.object=NULL;
+    this->args.object=NULL;
     this->calls=0;
+    this->starting=0;
     this->current = NULL;
     this->suspendPending = false;
     this->exceptionThrown = false;
@@ -223,7 +239,7 @@ void Thread::wait() {
 int Thread::start(int32_t id) {
     Thread *thread = getThread(id);
 
-    if (thread == NULL)
+    if (thread == NULL || thread->starting)
         return 1;
 
     if(thread->state == THREAD_RUNNING)
@@ -234,6 +250,7 @@ int Thread::start(int32_t id) {
 
     thread->exited = false;
     thread->state = THREAD_CREATED;
+    thread->starting = 1;
 #ifdef WIN32_
     thread->thread = CreateThread(
             NULL,                   // default security attributes
@@ -272,7 +289,7 @@ int Thread::destroy(int64_t id) {
         else
         {
             popThread(thread);
-            thread->term(); // terminate thread
+            thread->term();
             std::free (thread);
             return 0;
         }
@@ -291,7 +308,10 @@ int Thread::interrupt(int32_t id) {
     if(thread->terminated)
         return 2;
 
-    return interrupt(thread);
+    int result = interrupt(thread);
+    if(result==0)
+        waitForThreadExit(thread);
+    return result;
 }
 
 void Thread::waitForThreadSuspend(Thread *thread) {
@@ -350,18 +370,18 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
         }
 
         thread->state = THREAD_KILLED;
-        thread->signal = 1;
     }
 }
 
 int Thread::waitForThread(Thread *thread) {
-    const int sMaxRetries = 10000000;
+    const int sMaxRetries = 100000000;
     const int sMaxSpinCount = 25;
 
     int spinCount = 0;
     int retryCount = 0;
 
-    while (thread->state != THREAD_RUNNING)
+    while (thread->state == THREAD_CREATED
+           || thread->state == THREAD_SUSPENDED)
     {
         if (retryCount++ == sMaxRetries)
         {
@@ -369,8 +389,8 @@ int Thread::waitForThread(Thread *thread) {
             if(++spinCount >= sMaxSpinCount)
             {
                 return -255; // give up
-            } else if(thread->state != THREAD_RUNNING)
-                return 0;
+            }
+            __os_sleep(1);
         }
     }
     return 0;
@@ -416,7 +436,6 @@ void Thread::suspendThread(Thread *thread) {
     else {
         std::lock_guard<std::mutex> gd(thread->mutex);
         thread->suspendPending = true;
-        thread->signal = 1;
     }
 }
 
@@ -450,6 +469,9 @@ int Thread::join(int32_t id) {
 }
 
 int Thread::threadjoin(Thread *thread) {
+    if(thread->starting)
+        waitForThread(thread);
+
     if (thread->state == THREAD_RUNNING)
     {
 #ifdef WIN32_
@@ -505,7 +527,6 @@ int Thread::interrupt(Thread *thread) {
         {
             std::lock_guard<std::mutex> gd(thread->mutex);
             thread->state = THREAD_KILLED; // terminate thread
-            thread->signal = 1;
             return 0;
         }
     }
@@ -535,12 +556,25 @@ void Thread::exit() {
         cout << endl << throwable.throwable->name.str() << " "
            << throwable.message.str() << "\n";
     } else {
-        if(!daemon)
+        if(!daemon && dataStack)
             this->exitVal = (int)dataStack[0].var;
         else
             this->exitVal = 0;
     }
 
+    if(dataStack != NULL) {
+        StackElement *p = dataStack;
+        for(size_t i = 0; i < stack_lmt; i++)
+        {
+            if(p->object.object) {
+                DEC_REF(p->object.object);
+                p->object.object=NULL;
+            }
+            p++;
+        }
+    }
+
+    free(this->callStack);
     this->state = THREAD_KILLED;
     this->exited = true;
 }
@@ -1243,8 +1277,6 @@ void Thread::interrupt() {
         suspendSelf();
     if (state == THREAD_KILLED)
         return;
-
-    signal = 0;
 }
 
 void __os_sleep(int64_t INTERVAL) {

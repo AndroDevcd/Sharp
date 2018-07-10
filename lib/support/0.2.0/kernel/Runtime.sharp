@@ -1,4 +1,4 @@
-mod std.internal;
+mod std.kernel;
 
 import std;
 

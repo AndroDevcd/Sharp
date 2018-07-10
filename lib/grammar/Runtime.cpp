@@ -943,8 +943,12 @@ void RuntimeEngine::parseForStatement(Block& block, Ast* pAst) {
         currentScope()->reachable=true;
     }
 
-    if(pAst->hasSubAst(ast_for_expresion_iter))
+    if(pAst->hasSubAst(ast_for_expresion_iter)) {
         block.code.inject(block.code.size(), iter.code);
+        if(iter.func && iter.type != expression_void) {
+            block.code.push_i64(SET_Ei(i64, op_POP));
+        }
+    }
 
     block.code.push_i64(SET_Di(i64, op_GOTO, (get_label(forBeginLabel)+1)));
     currentScope()->label_map.add(KeyPair<std::string, int64_t>(forEndLabel,__init_label_address(block.code)));
@@ -4084,7 +4088,7 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
     string mainMethod = "__srt_init_";
     string setupMethod = "setupClasses";
 
-    ClassObject* StarterClass = getClass("std.internal", starter_classname, classes);
+    ClassObject* StarterClass = getClass("std.kernel", starter_classname, classes);
     if(StarterClass != NULL) {
         List<Param> params;
         List<AccessModifier> modifiers;

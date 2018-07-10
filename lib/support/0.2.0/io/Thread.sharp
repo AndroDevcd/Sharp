@@ -1,7 +1,7 @@
 mod std.io;
 
 import std;
-import std.internal.vm;
+import std.kernel.vm;
 
 /**
  * Created by BraxtonN on 6/4/2018.
@@ -22,12 +22,30 @@ public class Thread {
         self->id = ThreadCore.__thread_create(self);
     }
 
+    public def start(object[] args) : var {
+        return ThreadCore.__thread_start(self, args);
+    }
+
+    public def join() : var {
+        return ThreadCore.__thread_join(self);
+    }
+
+    public def interrupt() : var {
+        return ThreadCore.__thread_interrupt(self);
+    }
+
+    public def destroy() : var {
+        return ThreadCore.__thread_destroy(self);
+    }
+
+    public static def getCurrentThread() : Thread {
+        return ThreadCore.__thread_current();
+    }
+
     static ArrayList<Thread> threads = new ArrayList<Thread>();
     static var DEFAULT_STACK_SIZE = 0xcfba;
 
-    public def getArgs() : object[] { return args; }
     public def getId() : var { return id; }
-    public def setArgs(object[] args) { self->args = args; }
     public def getStackSize() : var { return stackSize; }
 
 
@@ -38,7 +56,6 @@ public class Thread {
     string name;
     var started;
     var stackSize;
-    object[] args;
     fn main (object[]);
 }
 

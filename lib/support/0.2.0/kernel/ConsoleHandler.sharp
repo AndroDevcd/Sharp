@@ -1,4 +1,4 @@
-mod std.internal;
+mod std.kernel;
 
 /**
  * Created by BraxtonN on 5/18/2018.

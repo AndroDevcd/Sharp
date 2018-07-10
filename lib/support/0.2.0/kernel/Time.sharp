@@ -1,6 +1,6 @@
-mod std.internal.vm;
+mod std.kernel.vm;
 
-import std.internal;
+import std.kernel;
 
 public class Time {
 

@@ -172,6 +172,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     thread_self = (Thread*)arg;
     thread_self->state = THREAD_RUNNING;
 
+    thread_self->setup();
     try {
         /*
          * Call main method
@@ -269,9 +270,16 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xa3:
             registers[bmr]= Clock::realTimeInNSecs();
             return;
-        case 0xa4:
+        case 0xa4: {
+            Thread *thread = Thread::getThread((int32_t )registers[adx]);
+
+            if(thread != NULL) {
+                thread->currentThread = thread_self->dataStack[thread_self->sp--].object;
+                thread->args = thread_self->dataStack[thread_self->sp--].object;
+            }
             registers[cmt]=Thread::start((int32_t )registers[adx]);
             return;
+        }
         case 0xa5:
             registers[cmt]=Thread::join((int32_t )registers[adx]);
             return;
@@ -280,6 +288,14 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             return;
         case 0xa7:
             registers[cmt]=Thread::destroy((int32_t )registers[adx]);
+            return;
+        case 0xe0: // native getCurrentThread()
+            THREAD_STACK_CHECK(thread_self);
+            thread_self->dataStack[++thread_self->sp].object = thread_self->currentThread;
+            return;
+        case 0xe1: // native getCurrentThreadArgs()
+            THREAD_STACK_CHECK(thread_self);
+            thread_self->dataStack[++thread_self->sp].object = thread_self->args;
             return;
         case 0xa8:
             registers[cmt]=Thread::Create((int32_t )registers[adx], (unsigned long)registers[egx]);

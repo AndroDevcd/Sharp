@@ -15,6 +15,8 @@
 
 #define STACK_SIZE 0xcfba
 
+#define main_threadid 0x0
+
 enum ThreadState {
     THREAD_CREATED      =0x000,
     THREAD_RUNNING      =0x001,
@@ -104,7 +106,7 @@ public:
     bool daemon;
     bool terminated;
     unsigned int state;
-    unsigned int signal;
+    unsigned int starting;
     bool suspended;
     bool exited;
     native_string name;
@@ -112,7 +114,7 @@ public:
     int exitVal;
     bool suspendPending;
     bool exceptionThrown;
-    Object currentThread;
+    Object currentThread, args;
 
     int64_t pc, fp, sp;
     Method *current;
@@ -140,6 +142,30 @@ public:
 
     void interrupt();
 
+    void setup() {
+        if(dataStack==NULL)
+            dataStack = (StackElement*)__malloc(sizeof(StackElement)*stack_lmt);
+        callStack = NULL;
+        calls=0;
+        current = NULL;
+        suspendPending = false;
+        exceptionThrown = false;
+        suspended = false;
+        exited = false;
+        terminated = false;
+        exitVal = 0;
+        starting = 0;
+
+        if(id != main_threadid){
+            fp=0;
+            sp=-1;
+
+            for(unsigned long i = 0; i < stack_lmt; i++) {
+                this->dataStack[i].object.object = NULL;
+                this->dataStack[i].var=0;
+            }
+        }
+    }
 private:
 
     void wait();
@@ -160,8 +186,6 @@ extern thread_local double registers[12];
 #define ADX registers[adx]
 #define ECX registers[ecx]
 #define EGX registers[egx]
-
-#define main_threadid 0x0
 
 extern FinallyTable finallyTable;
 extern short int startAddress;

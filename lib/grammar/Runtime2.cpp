@@ -1902,17 +1902,13 @@ void RuntimeEngine::checkVectorArray(Expression& utype, List<Expression>& vecArr
                     }
                     break;
                 case expression_var:
-                    if(utype.utype.type != VAR) {
+                    if(utype.utype.isVar() && vecArry.get(i).trueType() == VAR) {}
+                    else if(utype.utype.isVar() && vecArry.get(i).literal && vecArry.get(i).type == expression_var) {}
+                    else if(utype.utype.dynamicObject() && vecArry.get(i).utype.dynamicObject()) {}
+                    else if(utype.utype.dynamicObject() && vecArry.get(i).trueType() == VAR) {}
+                    else {
                         errors->createNewError(INCOMPATIBLE_TYPES, vecArry.get(i).link->line, vecArry.get(i).link->col, ": type `" + utype.utype.typeToString() + "` is not compatible with type `"
                                                                                                                         + vecArry.get(i).utype.typeToString() + "`");
-                    }else {
-                        if(utype.utype.isVar() && vecArry.get(i).trueType() == VAR) {}
-                        else if(utype.utype.isVar() && vecArry.get(i).literal && vecArry.get(i).type == expression_var) {}
-                        else if(utype.utype.dynamicObject() && vecArry.get(i).utype.dynamicObject()) {}
-                        else {
-                            errors->createNewError(INCOMPATIBLE_TYPES, vecArry.get(i).link->line, vecArry.get(i).link->col, ": type `" + utype.utype.typeToString() + "` is not compatible with type `"
-                                                                                                                            + vecArry.get(i).utype.typeToString() + "`");
-                        }
                     }
                     break;
                 case expression_null:
@@ -2007,7 +2003,10 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                 case expression_lclass:
                 case expression_objectclass:
                     if(right.type != expression_null) {
-                        pushExpressionToStack(right, expression);
+                        if(right.trueType() == VAR) {
+                            varToObject(right, expression);
+                        } else
+                            pushExpressionToStack(right, expression);
 
                         expression.code.push_i64(SET_Di(i64, op_MOVSL, -1)); // get our array object
                         expression.code.push_i64(SET_Di(i64, op_MOVN, i)); // select array element
@@ -2200,6 +2199,7 @@ void RuntimeEngine::postIncClass(Expression& out, token_entity op, ClassObject* 
 
     if(overload != NULL) {
         // add code to call overload
+        out.func = true;
 
         if(!overload->isStatic())
             out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
@@ -2653,6 +2653,10 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
     } else if(utype.trueType() == OBJECT) {
         if(expression.trueType()== VAR || expression.trueType() == CLASS || expression.trueType() == OBJECT) {
             if(utype.isArray() == expression.isArray()) {
+
+                if(expression.trueType()== VAR) {
+                    varToObject(expression, out);
+                }
                 return;
             }
         }
@@ -2775,6 +2779,19 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
     return;
 }
 
+void RuntimeEngine::varToObject(Expression &expression, Expression &out) {
+    if(expression.literal) {
+        out.code.push_i64(SET_Di(i64, op_MOVI, expression.intValue), ebx);
+    } else
+        pushExpressionToRegisterNoInject(expression, out, ebx);
+    out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
+    out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+    out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
+    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+    out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+    out.func = true;
+}
+
 Expression RuntimeEngine::parseCastExpression(Ast* pAst) {
     Expression expression(pAst), utype(pAst), arg(pAst);
 
@@ -2817,6 +2834,7 @@ void RuntimeEngine::preIncClass(Expression& out, token_entity op, ClassObject* k
 
     if(overload != NULL) {
         // add code to call overload
+        out.func = true;
         if(!overload->isStatic())
             out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
