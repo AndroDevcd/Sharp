@@ -8,18 +8,20 @@ import std.kernel.vm;
  */
 public class Thread {
 
-    public Thread(string name, fn main (object[])) {
+    public Thread(string name, fn main (object[]) : var) {
         self->main = main;
         self->name = name;
         self->stackSize = DEFAULT_STACK_SIZE;
         self->id = ThreadCore.__thread_create(self);
+        addThread(self);
     }
 
-    public Thread(string name, fn main (object[]), var stackSize) {
+    public Thread(string name, fn main (object[]) : var, var stackSize) {
         self->main = main;
         self->name = name;
         self->stackSize = stackSize;
         self->id = ThreadCore.__thread_create(self);
+        addThread(self);
     }
 
     public def start(object[] args) : var {
@@ -45,23 +47,55 @@ public class Thread {
     static ArrayList<Thread> threads = new ArrayList<Thread>();
     static var DEFAULT_STACK_SIZE = 0xcfba;
 
+    static def addThread(Thread thread) {
+        lock(threads) {
+            threads.add(thread);
+        }
+    }
+
+    static def popThread(Thread thread) {
+        lock(threads) {
+            Thread[] lst = threads.toArray();
+            var iter;
+            foreach(Thread t : lst) {
+                if(thread.id == t.id) {
+                    threads.remove(iter);
+                    break;
+                }
+                iter++;
+            }
+        }
+    }
+
     public def getId() : var { return id; }
     public def getStackSize() : var { return stackSize; }
+    public def setExited(var exited) { self->exited = exited; }
+    public def isExited() : var { return exited; }
+    public def isDaemon() : var { return daemon; }
+    public def setStarted(var started) { self->started = started; }
+    public def isStarted() : var { return started; }
+    public def setTerminated(var term) { self->terminated = term; }
+    public def isTerminated() : var { return terminated; }
 
+
+    public static def setupMainThread() {
+        Thread main = new Thread();
+        main.main = global#__SRT_Global.main;
+        main.id = 0;
+        main.name = "main";
+        main.started = true;
+        main.stackSize = DEFAULT_STACK_SIZE;
+
+        addThread(main);
+        ThreadCore.__thread_set_thread(main); // set current thread to main
+    }
 
     var id;
-    var daemon;
+    var daemon; // not supported as of now
     var terminated;
     var exited;
-    string name;
+    string name = "";
     var started;
     var stackSize;
-    fn main (object[]);
+    fn main (object[]) : var;
 }
-
-enum ThreadState {
-    THREAD_CREATED      =0x000,
-    THREAD_RUNNING      =0x001,
-    THREAD_SUSPENDED    =0x002,
-    THREAD_KILLED       =0x003
-};

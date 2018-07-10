@@ -239,7 +239,7 @@ void Thread::wait() {
 int Thread::start(int32_t id) {
     Thread *thread = getThread(id);
 
-    if (thread == NULL || thread->starting)
+    if (thread == NULL || thread->starting || id==main_threadid)
         return 1;
 
     if(thread->state == THREAD_RUNNING)
@@ -273,8 +273,8 @@ int Thread::start(int32_t id) {
 }
 
 int Thread::destroy(int64_t id) {
-    if(id == thread_self->id)
-        return 1; // cannot destroy thread_self
+    if(id == thread_self->id || id==main_threadid)
+        return 1; // cannot destroy thread_self or main
 
     Thread* thread = getThread(id);
     if(thread == NULL || thread->daemon)
@@ -456,7 +456,7 @@ void Thread::term() {
 }
 
 int Thread::join(int32_t id) {
-    if (id == thread_self->id)
+    if (id == thread_self->id || id==main_threadid)
         return 1;
 
     Thread* thread = getThread(id);
@@ -522,6 +522,7 @@ int Thread::interrupt(Thread *thread) {
             * stop them.
             */
             vm->shutdown();
+            masterShutdown = true;
         }
         else
         {
@@ -756,6 +757,9 @@ void Thread::exec() {
                 return;
 
             interp:
+            if(current->address==352 && pc >= 0) {
+                int i = 0;
+            }
             DISPATCH();
             _NOP:
                 _brh
@@ -990,8 +994,8 @@ void Thread::exec() {
                 STACK_CHECK _brh
             MOVN:
                 CHECK_NULLOBJ(
-//                        if(GET_Da(cache[pc]) >= o2->object->size)
-//                            throw Exception("movn");
+                        if(GET_Da(cache[pc]) >= o2->object->size)
+                            throw Exception("movn");
 
                         o2 = &o2->object->node[GET_Da(cache[pc])];
                 )

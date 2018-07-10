@@ -7568,7 +7568,7 @@ std::string RuntimeEngine::generate_text_section() {
         text << f->sourceFileLink << ((char)nil);
         text << i64_tostr(f->owner->address);
         text << i64_tostr(f->paramCount());
-        text << i64_tostr(f->isStatic() ? f->localVariables : f->localVariables-1);
+        text << i64_tostr(f->isStatic() ? f->localVariables : ((f->localVariables>0) ? f->localVariables-1 : 0));
         text << i64_tostr(f->code.__asm64.size());
         text << (f->isStatic() ? 1 : 0) << ((char)nil);
         text << (f->type!=TYPEVOID || f->isConstructor ? 1 : 0) << ((char)nil);

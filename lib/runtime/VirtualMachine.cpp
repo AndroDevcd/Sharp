@@ -297,6 +297,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             THREAD_STACK_CHECK(thread_self);
             thread_self->dataStack[++thread_self->sp].object = thread_self->args;
             return;
+        case 0xe2: // native setCurrentThread(Thread)
+            thread_self->currentThread = thread_self->dataStack[thread_self->sp--].object;
+            return;
         case 0xa8:
             registers[cmt]=Thread::Create((int32_t )registers[adx], (unsigned long)registers[egx]);
             return;
@@ -851,7 +854,7 @@ void VirtualMachine::fillStackTrace(native_string &str) {
         f = f->prev;
     }
 
-    for(long i = frames.size()-1; i > 0 ; i--) {
+    for(long i = frames.size()-1; i >= 0 ; i--) {
         f = frames.get(i);
         fillMethodCall(*f, ss, prev);
         prev = f;

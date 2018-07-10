@@ -234,7 +234,8 @@ struct Expression {
     }
 
     bool isProtoType() {
-        return utype.field != NULL && utype.field->prototype;
+        return type == expression_prototype ||
+               (utype.field != NULL && utype.field->prototype);
     }
 
     bool isArray() {

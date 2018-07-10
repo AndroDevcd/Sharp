@@ -4,7 +4,7 @@ import std;
 import std.io;
 import std.kernel.vm;
 
-def foo(object[] args) {
+def foo(object[] args) : var {
 //    Time.sleep(Time.TimeUnit.MILLISECONDS, 300);
     System.println("Thread created!");
 }

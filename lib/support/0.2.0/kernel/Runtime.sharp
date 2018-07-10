@@ -1,6 +1,7 @@
 mod std.kernel;
 
 import std;
+import std.io;
 
 /**
  * Created by BraxtonN on 5/17/2018.
@@ -38,6 +39,7 @@ public class Runtime {
         * Build config must be setup first before we do anything
         */
         setupClasses();
+        Thread.setupMainThread();
         userArgs = new string[sizeof(args) - MINIMUM_ARGS];
 
 //        System.println("application " + application);

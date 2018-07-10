@@ -8,7 +8,6 @@ import std.io;
  */
 public class ThreadCore
 {
-
     public static def __thread_create(Thread thread) : var
     {
         var main = __thread_init_run; // we need the address of our initial function
@@ -49,28 +48,51 @@ public class ThreadCore
         );
     }
 
-    public static def __thread_interrupt(Thread thread) : var
+    public static def __thread_set_thread(Thread thread)
     {
-        var id = thread.getId();
-
         asm(
-            "loadl %adx, <id>         // load main method  "
-            "int 0xa6                   // interrupt thread"
-            "return_val %cmt                               "
+            "movl 0                   // load main method  "
+            "pushobj                  // load main method  "
+            "int 0xe2                   // set thread      "
             "ret                                           "
         );
     }
 
+    public static def __thread_interrupt(Thread thread) : var
+    {
+        var id = thread.getId(), result;
+
+        asm(
+            "loadl %adx, <id>         // load main method  "
+            "int 0xa6                   // interrupt thread"
+            "int 0xa7                   // destroy thread  "
+            "smovr_2 %cmt,<result>                         "
+        );
+
+        if(result == 0) {
+            thread.setStarted(false);
+            thread.setExited(true);
+        }
+
+        return result;
+    }
+
     public static def __thread_destroy(Thread thread) : var
     {
-        var id = thread.getId();
+        var id = thread.getId(), result;
 
         asm(
             "loadl %adx, <id>         // load main method  "
             "int 0xa7                   // destroy thread  "
-            "return_val %cmt                               "
-            "ret                                           "
+            "smovr_2 %cmt,<result>                         "
         );
+
+        if(result == 0) {
+            thread.setTerminated(true);
+            thread.setExited(true);
+        }
+
+        return result;
     }
 
     public static def __thread_current() : Thread
@@ -99,9 +121,17 @@ public class ThreadCore
         return args;
     }
 
+    /**
+    * Inital call to all threads to call appropriate method
+    */
     private static def __thread_init_run()
     {
         Thread curr = __thread_current();
+        curr.setStarted(true);
+        curr.setExited(false);
+
         curr.main(__thread_args());
+        curr.setStarted(false);
+        curr.setExited(true);
     }
 }

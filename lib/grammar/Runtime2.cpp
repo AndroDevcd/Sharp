@@ -287,6 +287,7 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
         }  else if(expression->type == expression_prototype) {
             field = Field(VAR, 0, "", NULL, mods, note);
             field.prototype = true;
+            field.returnType = expression->utype.method->type;
             field.proto=expression->utype.method;
 
             /* Native string is a char array */
