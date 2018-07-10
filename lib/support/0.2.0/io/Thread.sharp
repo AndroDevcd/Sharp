@@ -69,6 +69,7 @@ public class Thread {
 
     public def getId() : var { return id; }
     public def getStackSize() : var { return stackSize; }
+    public def getName() : string { return name; }
     public def setExited(var exited) { self->exited = exited; }
     public def isExited() : var { return exited; }
     public def isDaemon() : var { return daemon; }
@@ -89,6 +90,8 @@ public class Thread {
         addThread(main);
         ThreadCore.__thread_set_thread(main); // set current thread to main
     }
+
+    public var exitCode;
 
     var id;
     var daemon; // not supported as of now

@@ -2,28 +2,17 @@ mod app;
 
 import std;
 
-public class Application {
+def main(string[] args) : var {
+    var n = string.parseInt(args[0]);
 
-    /**
-    * Cost per million performance improvements
-    * #1: 40.782s
-    * #2: 36.089s
-    * #3: 33.826s
-    * #4: 31.107s
-    * #5: 30.643s
-    */
-    public static def main(string[] args) : var {
-        var n = string.parseInt(args[0]);
-
-        NBodySystem bodies = new NBodySystem();
-        System.println(bodies.energy());
-        for (var i=0; i<n; ++i)
-           bodies.advance(0.01);
-        System.println(bodies.energy());
-    }
+    NBodySystem bodies = new NBodySystem();
+    System.println(bodies.energy());
+    for (var i=0; i<n; ++i)
+       bodies.advance(0.01);
+    System.println(bodies.energy());
 }
 
-class NBodySystem {
+public class NBodySystem {
    private static const var LENGTH = 5;
 
    private Body[] bodies;
@@ -111,7 +100,7 @@ class NBodySystem {
 
 }
 
-class Body {
+public class Body {
    static const var PI = 3.141592653589793;
    static const var SOLAR_MASS = 4 * PI * PI;
    static const var DAYS_PER_YEAR = 365.24;

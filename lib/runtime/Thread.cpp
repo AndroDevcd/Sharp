@@ -1,9 +1,6 @@
 //
 // Created by BraxtonN on 2/12/2018.
 //
-#ifdef WIN32_
-    #include <conio.h>
-#endif
 
 #include <cmath>
 #include "Thread.h"
@@ -16,6 +13,12 @@
 #include "Manifest.h"
 #include "oo/Object.h"
 #include "../util/time.h"
+
+#ifdef WIN32_
+#include <conio.h>
+#elif POSIX_
+#include "termios.h"
+#endif
 
 int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
@@ -948,8 +951,7 @@ void Thread::exec() {
                 printf("%c", (char)registers[GET_Da(cache[pc])]);
                 _brh
             GET:
-                c = 10; //getche();
-                registers[GET_Da(cache[pc])] = c;
+                registers[GET_Da(cache[pc])] = getche();
                 _brh
             CHECKLEN:
             CHECK_NULL2(

@@ -130,7 +130,7 @@ public class ThreadCore
         curr.setStarted(true);
         curr.setExited(false);
 
-        curr.main(__thread_args());
+        curr.exitCode = curr.main(__thread_args());
         curr.setStarted(false);
         curr.setExited(true);
     }
