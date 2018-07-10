@@ -5,6 +5,8 @@
 #ifndef SHARP_TERMIOS_H
 #define SHARP_TERMIOS_H
 
+#include "../../stdimports.h"
+
 #ifdef POSIX_
 extern char getch(void);
 

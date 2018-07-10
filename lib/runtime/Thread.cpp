@@ -16,7 +16,7 @@
 
 #ifdef WIN32_
 #include <conio.h>
-#elif POSIX_
+#elif defined(POSIX_)
 #include "termios.h"
 #endif
 
