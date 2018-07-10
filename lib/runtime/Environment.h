@@ -56,6 +56,8 @@ public:
     native_string& getStringById(int64_t ref);
 
     Object* findField(std::string name, SharpObject *object);
+
+    void createString(Object *o, native_string &str);
 };
 
 extern Environment* env;

@@ -142,30 +142,7 @@ public:
 
     void interrupt();
 
-    void setup() {
-        if(dataStack==NULL)
-            dataStack = (StackElement*)__malloc(sizeof(StackElement)*stack_lmt);
-        callStack = NULL;
-        calls=0;
-        current = NULL;
-        suspendPending = false;
-        exceptionThrown = false;
-        suspended = false;
-        exited = false;
-        terminated = false;
-        exitVal = 0;
-        starting = 0;
-
-        if(id != main_threadid){
-            fp=0;
-            sp=-1;
-
-            for(unsigned long i = 0; i < stack_lmt; i++) {
-                this->dataStack[i].object.object = NULL;
-                this->dataStack[i].var=0;
-            }
-        }
-    }
+    void setup();
 private:
 
     void wait();
