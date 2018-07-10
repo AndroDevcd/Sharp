@@ -6,20 +6,21 @@
 #include <termios.h>
 #include <stdio.h>
 
-static struct termios old, new;
+struct termios old;
+struct termios _new;
 
 /* Initialize new terminal i/o settings */
 void initTermios(int echo)
 {
     tcgetattr(0, &old); /* grab old terminal i/o settings */
-    new = old; /* make new settings same as old settings */
-    new.c_lflag &= ~ICANON; /* disable buffered i/o */
+    _new = old; /* make new settings same as old settings */
+    _new.c_lflag &= ~ICANON; /* disable buffered i/o */
     if (echo) {
-        new.c_lflag |= ECHO; /* set echo mode */
+        _new.c_lflag |= ECHO; /* set echo mode */
     } else {
-        new.c_lflag &= ~ECHO; /* set no echo mode */
+        _new.c_lflag &= ~ECHO; /* set no echo mode */
     }
-    tcsetattr(0, TCSANOW, &new); /* use these new terminal i/o settings now */
+    tcsetattr(0, TCSANOW, &_new); /* use these new terminal i/o settings now */
 }
 
 /* Restore old terminal i/o settings */
