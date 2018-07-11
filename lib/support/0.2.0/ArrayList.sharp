@@ -8,7 +8,7 @@ public class ArrayList<T> {
     private T[] mData;
 
     private static const var DEFAULT_CAPACITY = 10;
-    private static const var RESIZE_CAPACITY = 3;
+    private static const var RESIZE_CAPACITY = 20;
 
     /**
     * Size and capacity to keep allocations at a low
@@ -94,8 +94,7 @@ public class ArrayList<T> {
     private def expand() {
         if(size >= capacity) {
             // resize
-            capacity = (capacity << 1) + RESIZE_CAPACITY;
-//            System.println("capacity " + capacity);
+            capacity += (capacity >> 2) + RESIZE_CAPACITY;
             System.realloc(mData, capacity);
         }
     }
