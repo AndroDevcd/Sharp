@@ -24,6 +24,11 @@ struct KeyPair
         value = val;
     }
 
+    void operator=(KeyPair<K, T> kp) {
+        key = kp.key;
+        value = kp.value;
+    }
+
     K key;
     T value;
 };
