@@ -231,7 +231,9 @@ private:
     void __expand() {
         try{
             T* newbuf = new T[len+1];
-            std::copy_n(_Data, std::min(len, len+1), newbuf);
+            for(long i = 0; i < len; i++) {
+                newbuf[i] = _Data[i];
+            }
             delete[] _Data;
             _Data = newbuf;
             len++;
