@@ -348,8 +348,8 @@ void GarbageCollector::run() {
 #ifdef POSIX_
             usleep(1*999);
 #endif
-        } while(!GC_COLLECT_MEM() && !messageQueue.empty() && tself->suspendPending
-                && tself->state != THREAD_KILLED);
+        } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD())) && messageQueue.empty() && !tself->suspendPending
+                && tself->state == THREAD_RUNNING);
         /**
          * Attempt to collect objects based on the appropriate
          * conditions. This call does not guaruntee that any collections
