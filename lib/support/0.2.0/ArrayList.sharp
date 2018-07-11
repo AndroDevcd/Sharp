@@ -8,7 +8,7 @@ public class ArrayList<T> {
     private T[] mData;
 
     private static const var DEFAULT_CAPACITY = 10;
-    private static const var RESIZE_CAPACITY = 255;
+    private static const var RESIZE_CAPACITY = 3;
 
     /**
     * Size and capacity to keep allocations at a low
@@ -18,7 +18,7 @@ public class ArrayList<T> {
 
     /**
      * Constructs an empty list.
-     * with a default capacity of 10
+     * with a default capacity of 3
      */
     public ArrayList() {
         /* data will be set to default capacity */
@@ -87,11 +87,15 @@ public class ArrayList<T> {
 
     /**
      * Expand the list to hold more data
+     *
+     * The list is oversized to reduce the ammount of allocations
+     * required by the system
      */
     private def expand() {
         if(size >= capacity) {
             // resize
-            capacity += RESIZE_CAPACITY;
+            capacity = (capacity << 1) + RESIZE_CAPACITY;
+//            System.println("capacity " + capacity);
             System.realloc(mData, capacity);
         }
     }

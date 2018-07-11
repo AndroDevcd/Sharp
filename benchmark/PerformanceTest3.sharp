@@ -5,7 +5,7 @@ import std;
 public static def main(string[] args) : var {
     ArrayList<var> black_list = new ArrayList<var>();
 
-    for(var i = 0; i < 100000; i++) {
+    for(var i = 0; i < 5000000; i++) {
         black_list.add(i);
         // there
     }

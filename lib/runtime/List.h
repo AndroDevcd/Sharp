@@ -301,7 +301,7 @@ private:
             if(_Data==NULL){
                 ptr=(T*)__malloc(sizeof(T)*len);
             } else {
-                ptr=(T*)__realloc(_Data, sizeof(T)*len);
+                ptr=(T*)__realloc(_Data, sizeof(T)*len, sizeof(T)*(len-1));
             }
 
             _Data=ptr;
@@ -318,7 +318,7 @@ private:
             if(len==0)
                 free();
             else
-                _Data=(T*)__realloc(_Data, sizeof(T)*len);
+                _Data=(T*)__realloc(_Data, sizeof(T)*len, sizeof(T)*(len-1));
         } catch(Exception &e) {
             len++;
             throw e;

@@ -59,12 +59,12 @@ void* __calloc(size_t n, size_t bytes)
         return ptr;
     }
 }
-void* __realloc(void *ptr, size_t bytes)
+void* __realloc(void *ptr, size_t bytes, size_t old)
 {
     void* rmap =nullptr;
     bool gc=false;
     alloc_bytes:
-    if(GarbageCollector::self != nullptr && !GarbageCollector::self->spaceAvailable(bytes))
+    if(GarbageCollector::self != nullptr && !GarbageCollector::self->spaceAvailable(bytes-old))
         goto lowmem;
     rmap=realloc(ptr, bytes);
 
@@ -595,7 +595,7 @@ void GarbageCollector::erase(SharpObject *p) {
 
 void GarbageCollector::realloc(SharpObject *o, size_t sz) {
     if(o != NULL && o->HEAD != NULL) {
-        o->HEAD = (double*)__realloc(o->HEAD, sizeof(double)*sz);
+        o->HEAD = (double*)__realloc(o->HEAD, sizeof(double)*sz, sizeof(double)*o->size);
 
         std::lock_guard<recursive_mutex> gd(mutex);
         if(sz < o->size)
@@ -604,13 +604,14 @@ void GarbageCollector::realloc(SharpObject *o, size_t sz) {
             managedBytes += (sizeof(double)*(sz-o->size));
 
         if(sz > o->size) {
-            size_t i = o->size;
-            double* p = &o->HEAD[i];
-            while(i < sz) {
-                *p = 0;
-                p++;
-                i++;
-            }
+            std::memset(o->HEAD+o->size, 0, sizeof(double)*(sz-o->size));
+//            size_t i = o->size;
+//            double* p = &o->HEAD[i];
+//            while(i < sz) {
+//                *p = 0;
+//                p++;
+//                i++;
+//            }
         }
         o->size = sz;
     }
@@ -626,7 +627,7 @@ void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
             }
         }
 
-        o->node = (Object*)__realloc(o->node, sizeof(Object)*sz);
+        o->node = (Object*)__realloc(o->node, sizeof(Object)*sz, sizeof(Object)*o->size);
         std::lock_guard<recursive_mutex> gd(mutex);
         if(sz < o->size)
             managedBytes -= (sizeof(Object)*(o->size-sz));
