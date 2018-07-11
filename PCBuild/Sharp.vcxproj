@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{930441DF-F58E-420F-A463-A31B8CE80B6E}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\lib\grammar\Asm.cpp" />
+    <ClCompile Include="..\lib\grammar\ClassObject.cpp" />
+    <ClCompile Include="..\lib\grammar\Field.cpp" />
+    <ClCompile Include="..\lib\grammar\GenericType.cpp" />
+    <ClCompile Include="..\lib\grammar\Method.cpp" />
+    <ClCompile Include="..\lib\grammar\Optimizer.cpp" />
+    <ClCompile Include="..\lib\grammar\Param.cpp" />
+    <ClCompile Include="..\lib\grammar\parser\Ast.cpp" />
+    <ClCompile Include="..\lib\grammar\parser\ErrorManager.cpp" />
+    <ClCompile Include="..\lib\grammar\parser\Parser.cpp" />
+    <ClCompile Include="..\lib\grammar\parser\tokenizer\tokenentity.cpp" />
+    <ClCompile Include="..\lib\grammar\parser\tokenizer\tokenizer.cpp" />
+    <ClCompile Include="..\lib\grammar\Runtime.cpp" />
+    <ClCompile Include="..\lib\grammar\Runtime2.cpp" />
+    <ClCompile Include="..\lib\modules\std.io\fileio.cpp" />
+    <ClCompile Include="..\lib\modules\std.kernel\cmath.cpp" />
+    <ClCompile Include="..\lib\runtime\Environment.cpp" />
+    <ClCompile Include="..\lib\runtime\Exe.cpp" />
+    <ClCompile Include="..\lib\runtime\init.cpp" />
+    <ClCompile Include="..\lib\runtime\Manifest.cpp" />
+    <ClCompile Include="..\lib\runtime\memory\GarbageCollector.cpp" />
+    <ClCompile Include="..\lib\runtime\oo\ClassObject.cpp" />
+    <ClCompile Include="..\lib\runtime\oo\Exception.cpp" />
+    <ClCompile Include="..\lib\runtime\oo\Object.cpp" />
+    <ClCompile Include="..\lib\runtime\profiler.cpp" />
+    <ClCompile Include="..\lib\runtime\SignalHandler.cpp" />
+    <ClCompile Include="..\lib\runtime\termios.cpp" />
+    <ClCompile Include="..\lib\runtime\Thread.cpp" />
+    <ClCompile Include="..\lib\runtime\VirtualMachine.cpp" />
+    <ClCompile Include="..\lib\util\File.cpp" />
+    <ClCompile Include="..\lib\util\time.cpp" />
+    <ClCompile Include="..\lib\util\zip\zcompress.cpp" />
+    <ClCompile Include="..\lib\util\zip\zcore.cpp" />
+    <ClCompile Include="..\lib\util\zip\zdecompress.cpp" />
+    <ClCompile Include="..\lib\util\zip\zlib.cpp" />
+    <ClCompile Include="..\lib\util\zip\zstream.cpp" />
+    <ClCompile Include="..\main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\bin\out.asm" />
+    <None Include="..\cmake-build-debug\cmakefiles\3.9.6\CMakeDetermineCompilerABI_C.bin" />
+    <None Include="..\cmake-build-debug\cmakefiles\3.9.6\CMakeDetermineCompilerABI_CXX.bin" />
+    <None Include="..\cmake-build-debug\cmakefiles\feature_tests.bin" />
+    <None Include="..\cmake-build-minirelease\cmakefiles\3.9.6\CMakeDetermineCompilerABI_C.bin" />
+    <None Include="..\cmake-build-minirelease\cmakefiles\3.9.6\CMakeDetermineCompilerABI_CXX.bin" />
+    <None Include="..\cmake-build-minirelease\cmakefiles\feature_tests.bin" />
+    <None Include="..\cmake-build-release\cmakefiles\3.9.6\CMakeDetermineCompilerABI_C.bin" />
+    <None Include="..\cmake-build-release\cmakefiles\3.9.6\CMakeDetermineCompilerABI_CXX.bin" />
+    <None Include="..\cmake-build-release\cmakefiles\feature_tests.bin" />
+    <None Include="..\cmake-build-relwithdebinfo\cmakefiles\3.9.6\CMakeDetermineCompilerABI_C.bin" />
+    <None Include="..\cmake-build-relwithdebinfo\cmakefiles\3.9.6\CMakeDetermineCompilerABI_CXX.bin" />
+    <None Include="..\cmake-build-relwithdebinfo\cmakefiles\feature_tests.bin" />
+    <None Include="..\tests\print.asm" />
+    <None Include="..\tests\printc.asm" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\lib\grammar\AccessModifier.h" />
+    <ClInclude Include="..\lib\grammar\Asm.h" />
+    <ClInclude Include="..\lib\grammar\Assembler.h" />
+    <ClInclude Include="..\lib\grammar\ClassObject.h" />
+    <ClInclude Include="..\lib\grammar\Exception.h" />
+    <ClInclude Include="..\lib\grammar\Field.h" />
+    <ClInclude Include="..\lib\grammar\FieldType.h" />
+    <ClInclude Include="..\lib\grammar\GenericType.h" />
+    <ClInclude Include="..\lib\grammar\List.h" />
+    <ClInclude Include="..\lib\grammar\Method.h" />
+    <ClInclude Include="..\lib\grammar\OperatorOverload.h" />
+    <ClInclude Include="..\lib\grammar\Optimizer.h" />
+    <ClInclude Include="..\lib\grammar\Param.h" />
+    <ClInclude Include="..\lib\grammar\parser\Ast.h" />
+    <ClInclude Include="..\lib\grammar\parser\ErrorManager.h" />
+    <ClInclude Include="..\lib\grammar\parser\Parser.h" />
+    <ClInclude Include="..\lib\grammar\parser\ParserState.h" />
+    <ClInclude Include="..\lib\grammar\parser\tokenizer\tokenentity.h" />
+    <ClInclude Include="..\lib\grammar\parser\tokenizer\tokenizer.h" />
+    <ClInclude Include="..\lib\grammar\parser\tokenizer\tokentype.h" />
+    <ClInclude Include="..\lib\grammar\Runtime.h" />
+    <ClInclude Include="..\lib\grammar\RuntimeNote.h" />
+    <ClInclude Include="..\lib\modules\std.io\fileio.h" />
+    <ClInclude Include="..\lib\modules\std.kernel\cmath.h" />
+    <ClInclude Include="..\lib\runtime\Environment.h" />
+    <ClInclude Include="..\lib\runtime\Exe.h" />
+    <ClInclude Include="..\lib\runtime\init.h" />
+    <ClInclude Include="..\lib\runtime\List.h" />
+    <ClInclude Include="..\lib\runtime\Manifest.h" />
+    <ClInclude Include="..\lib\runtime\memory\GarbageCollector.h" />
+    <ClInclude Include="..\lib\runtime\oo\ClassObject.h" />
+    <ClInclude Include="..\lib\runtime\oo\Exception.h" />
+    <ClInclude Include="..\lib\runtime\oo\Field.h" />
+    <ClInclude Include="..\lib\runtime\oo\Method.h" />
+    <ClInclude Include="..\lib\runtime\oo\Object.h" />
+    <ClInclude Include="..\lib\runtime\oo\string.h" />
+    <ClInclude Include="..\lib\runtime\Opcode.h" />
+    <ClInclude Include="..\lib\runtime\profiler.h" />
+    <ClInclude Include="..\lib\runtime\register.h" />
+    <ClInclude Include="..\lib\runtime\termios.h" />
+    <ClInclude Include="..\lib\runtime\Thread.h" />
+    <ClInclude Include="..\lib\runtime\VirtualMachine.h" />
+    <ClInclude Include="..\lib\support\visual-studios\vc\include\dirent.h" />
+    <ClInclude Include="..\lib\util\File.h" />
+    <ClInclude Include="..\lib\util\KeyPair.h" />
+    <ClInclude Include="..\lib\util\mingw.mutex.h" />
+    <ClInclude Include="..\lib\util\time.h" />
+    <ClInclude Include="..\lib\util\zip\zcompress.h" />
+    <ClInclude Include="..\lib\util\zip\zcore.h" />
+    <ClInclude Include="..\lib\util\zip\zdecompress.h" />
+    <ClInclude Include="..\lib\util\zip\zinclude.h" />
+    <ClInclude Include="..\lib\util\zip\zlib.h" />
+    <ClInclude Include="..\lib\util\zip\zstream.h" />
+    <ClInclude Include="..\stdimports.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

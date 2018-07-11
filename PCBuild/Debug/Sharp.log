@@ -1,0 +1,1419 @@
+﻿C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\IDE\VC\VCTargets\Microsoft.CppBuild.targets(944,5): warning MSB8027: Two or more files with the name of ClassObject.cpp will produce outputs to the same location. This can lead to an incorrect build result.  The files involved are ..\lib\grammar\ClassObject.cpp, ..\lib\runtime\oo\ClassObject.cpp.
+  Asm.cpp
+c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(86): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(145): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(158): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(215): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(222): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(17): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(16): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(310): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(323): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(440): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(441): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(449): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(450): warning C4244: 'return': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(525): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(537): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(535): warning C4102: 'readjust': unreferenced label
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(578): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\asm.cpp(99): warning C4244: 'return': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\asm.cpp(104): warning C4244: 'return': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\asm.cpp(240): warning C4244: 'argument': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\asm.cpp(492): warning C4244: 'argument': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\asm.cpp(492): warning C4244: 'argument': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\asm.cpp(812): warning C4244: 'argument': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\asm.cpp(1226): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(85): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(66): note: while compiling class template member function 'void List<KeyPair<int,Field>>::remove(unsigned __int64)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(526): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::remove(unsigned __int64)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(507): note: see reference to class template instantiation 'List<KeyPair<int,Field>>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(91): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(56): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(36): note: while compiling class template member function 'void List<int64_t>::insert(__int64,T &)'
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(75): note: see reference to function template instantiation 'void List<int64_t>::insert(__int64,T &)' being compiled
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(59): note: see reference to class template instantiation 'List<int64_t>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(234): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(231): note: while compiling class template member function 'void List<BranchTable>::__expand(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(23): note: see reference to function template instantiation 'void List<BranchTable>::__expand(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(509): note: see reference to class template instantiation 'List<BranchTable>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(255): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(247): note: while compiling class template member function 'void List<KeyPair<int,Field>>::__shrink(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(81): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::__shrink(void)' being compiled
+  ClassObject.cpp
+c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(86): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(145): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(158): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(215): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(222): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(17): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(16): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(310): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(323): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(440): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(441): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(449): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(450): warning C4244: 'return': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(525): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(537): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(535): warning C4102: 'readjust': unreferenced label
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(578): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.cpp(396): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.cpp(421): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.cpp(437): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(85): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(66): note: while compiling class template member function 'void List<KeyPair<int,Field>>::remove(unsigned __int64)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(526): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::remove(unsigned __int64)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(507): note: see reference to class template instantiation 'List<KeyPair<int,Field>>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(91): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(56): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(36): note: while compiling class template member function 'void List<int64_t>::insert(__int64,T &)'
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(75): note: see reference to function template instantiation 'void List<int64_t>::insert(__int64,T &)' being compiled
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(59): note: see reference to class template instantiation 'List<int64_t>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(234): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(231): note: while compiling class template member function 'void List<BranchTable>::__expand(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(23): note: see reference to function template instantiation 'void List<BranchTable>::__expand(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(509): note: see reference to class template instantiation 'List<BranchTable>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(255): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(247): note: while compiling class template member function 'void List<KeyPair<int,Field>>::__shrink(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(81): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::__shrink(void)' being compiled
+  Field.cpp
+c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(86): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(145): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(158): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(215): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(222): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(17): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(16): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(310): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(323): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(440): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(441): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(449): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(450): warning C4244: 'return': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(525): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(537): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(535): warning C4102: 'readjust': unreferenced label
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(578): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(85): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(66): note: while compiling class template member function 'void List<KeyPair<int,Field>>::remove(unsigned __int64)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(526): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::remove(unsigned __int64)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(507): note: see reference to class template instantiation 'List<KeyPair<int,Field>>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(91): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(56): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(36): note: while compiling class template member function 'void List<int64_t>::insert(__int64,T &)'
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(75): note: see reference to function template instantiation 'void List<int64_t>::insert(__int64,T &)' being compiled
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(59): note: see reference to class template instantiation 'List<int64_t>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(234): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(231): note: while compiling class template member function 'void List<BranchTable>::__expand(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(23): note: see reference to function template instantiation 'void List<BranchTable>::__expand(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(509): note: see reference to class template instantiation 'List<BranchTable>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(255): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(247): note: while compiling class template member function 'void List<KeyPair<int,Field>>::__shrink(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(81): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::__shrink(void)' being compiled
+  GenericType.cpp
+  Method.cpp
+c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(86): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(145): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(158): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(215): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(222): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(85): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(66): note: while compiling class template member function 'void List<Assembler>::remove(unsigned __int64)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(108): note: see reference to function template instantiation 'void List<Assembler>::remove(unsigned __int64)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\util\keypair.h(33): note: see reference to class template instantiation 'List<Assembler>' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(60): note: see reference to class template instantiation 'KeyPair<List<std::string>,List<Assembler>>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(91): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(56): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(36): note: while compiling class template member function 'void List<int64_t>::insert(__int64,T &)'
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(75): note: see reference to function template instantiation 'void List<int64_t>::insert(__int64,T &)' being compiled
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(59): note: see reference to class template instantiation 'List<int64_t>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(255): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(247): note: while compiling class template member function 'void List<Assembler>::__shrink(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(81): note: see reference to function template instantiation 'void List<Assembler>::__shrink(void)' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(234): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(231): note: while compiling class template member function 'void List<Assembler>::__expand(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(33): note: see reference to function template instantiation 'void List<Assembler>::__expand(void)' being compiled
+  Optimizer.cpp
+c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(86): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(145): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(158): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(51): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(77): warning C4554: '<<': check operator precedence for possible error; use parentheses to clarify precedence
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(90): warning C4554: '<<': check operator precedence for possible error; use parentheses to clarify precedence
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(104): warning C4554: '<<': check operator precedence for possible error; use parentheses to clarify precedence
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(120): warning C4554: '<<': check operator precedence for possible error; use parentheses to clarify precedence
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(127): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(142): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(146): warning C4244: 'argument': conversion from '__int64' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(148): warning C4244: 'argument': conversion from '__int64' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(148): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(154): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(156): warning C4554: '<<': check operator precedence for possible error; use parentheses to clarify precedence
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(156): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(575): warning C4101: 'reg4': unreferenced local variable
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(575): warning C4101: 'reg3': unreferenced local variable
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(700): warning C4244: 'initializing': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(701): warning C4244: 'initializing': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\optimizer.cpp(965): warning C4101: 'reg2': unreferenced local variable
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(85): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(66): note: while compiling class template member function 'void List<Assembler>::remove(unsigned __int64)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(108): note: see reference to function template instantiation 'void List<Assembler>::remove(unsigned __int64)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\util\keypair.h(33): note: see reference to class template instantiation 'List<Assembler>' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(60): note: see reference to class template instantiation 'KeyPair<List<std::string>,List<Assembler>>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(91): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(56): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(36): note: while compiling class template member function 'void List<int64_t>::insert(__int64,T &)'
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(75): note: see reference to function template instantiation 'void List<int64_t>::insert(__int64,T &)' being compiled
+          with
+          [
+              T=int64_t
+          ]
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(255): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(247): note: while compiling class template member function 'void List<Assembler>::__shrink(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(81): note: see reference to function template instantiation 'void List<Assembler>::__shrink(void)' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(234): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(231): note: while compiling class template member function 'void List<Assembler>::__expand(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(33): note: see reference to function template instantiation 'void List<Assembler>::__expand(void)' being compiled
+  Param.cpp
+c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(86): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(145): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(158): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(215): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(222): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(17): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(16): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(310): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(323): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(440): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(441): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(449): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(450): warning C4244: 'return': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(525): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(537): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(535): warning C4102: 'readjust': unreferenced label
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(578): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(85): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(66): note: while compiling class template member function 'void List<KeyPair<int,Field>>::remove(unsigned __int64)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(526): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::remove(unsigned __int64)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(507): note: see reference to class template instantiation 'List<KeyPair<int,Field>>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(91): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(56): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(36): note: while compiling class template member function 'void List<int64_t>::insert(__int64,T &)'
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(75): note: see reference to function template instantiation 'void List<int64_t>::insert(__int64,T &)' being compiled
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(59): note: see reference to class template instantiation 'List<int64_t>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(234): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(231): note: while compiling class template member function 'void List<BranchTable>::__expand(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(23): note: see reference to function template instantiation 'void List<BranchTable>::__expand(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(509): note: see reference to class template instantiation 'List<BranchTable>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(255): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(247): note: while compiling class template member function 'void List<KeyPair<int,Field>>::__shrink(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(81): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::__shrink(void)' being compiled
+  Ast.cpp
+c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(86): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(145): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(158): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(215): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(222): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(17): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(16): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(310): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(323): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(440): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(441): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(449): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(450): warning C4244: 'return': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(525): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(537): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(535): warning C4102: 'readjust': unreferenced label
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(578): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\ast.cpp(26): warning C4018: '>=': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\ast.cpp(68): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\ast.cpp(84): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\ast.cpp(176): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\ast.cpp(181): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\ast.cpp(186): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\ast.cpp(187): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\ast.cpp(222): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\ast.cpp(227): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(85): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(66): note: while compiling class template member function 'void List<KeyPair<int,Field>>::remove(unsigned __int64)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(526): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::remove(unsigned __int64)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(507): note: see reference to class template instantiation 'List<KeyPair<int,Field>>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(91): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(56): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(36): note: while compiling class template member function 'void List<int64_t>::insert(__int64,T &)'
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(75): note: see reference to function template instantiation 'void List<int64_t>::insert(__int64,T &)' being compiled
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(59): note: see reference to class template instantiation 'List<int64_t>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(234): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(231): note: while compiling class template member function 'void List<BranchTable>::__expand(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(23): note: see reference to function template instantiation 'void List<BranchTable>::__expand(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(509): note: see reference to class template instantiation 'List<BranchTable>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(255): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(247): note: while compiling class template member function 'void List<KeyPair<int,Field>>::__shrink(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(81): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::__shrink(void)' being compiled
+  ErrorManager.cpp
+c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(86): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(145): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(158): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(215): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(222): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(17): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(16): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(310): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(323): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(440): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(441): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(449): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(450): warning C4244: 'return': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(525): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(537): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(535): warning C4102: 'readjust': unreferenced label
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(578): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\errormanager.cpp(257): warning C4018: '>=': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\errormanager.cpp(277): warning C4244: 'argument': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\errormanager.cpp(283): warning C4244: 'argument': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(85): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(66): note: while compiling class template member function 'void List<KeyPair<int,Field>>::remove(unsigned __int64)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(526): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::remove(unsigned __int64)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(507): note: see reference to class template instantiation 'List<KeyPair<int,Field>>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(91): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(56): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(36): note: while compiling class template member function 'void List<int64_t>::insert(__int64,T &)'
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(75): note: see reference to function template instantiation 'void List<int64_t>::insert(__int64,T &)' being compiled
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(59): note: see reference to class template instantiation 'List<int64_t>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(234): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(231): note: while compiling class template member function 'void List<BranchTable>::__expand(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(23): note: see reference to function template instantiation 'void List<BranchTable>::__expand(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(509): note: see reference to class template instantiation 'List<BranchTable>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(255): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(247): note: while compiling class template member function 'void List<KeyPair<int,Field>>::__shrink(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(81): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::__shrink(void)' being compiled
+  Parser.cpp
+c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(86): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(145): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(158): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(215): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(222): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(17): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(16): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(310): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(323): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(440): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(441): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(449): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(450): warning C4244: 'return': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(525): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(537): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(535): warning C4102: 'readjust': unreferenced label
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(578): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(109): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(139): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(206): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(737): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(764): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(1044): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(1708): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(1737): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(1767): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(1782): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(2559): warning C4244: 'argument': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(2592): warning C4244: '=': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(2593): warning C4244: '=': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(2616): warning C4244: '=': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(2617): warning C4244: '=': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(2632): warning C4244: '=': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\parser\parser.cpp(2633): warning C4244: '=': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(85): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(66): note: while compiling class template member function 'void List<KeyPair<int,Field>>::remove(unsigned __int64)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(526): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::remove(unsigned __int64)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(507): note: see reference to class template instantiation 'List<KeyPair<int,Field>>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(91): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(56): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(36): note: while compiling class template member function 'void List<int64_t>::insert(__int64,T &)'
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(75): note: see reference to function template instantiation 'void List<int64_t>::insert(__int64,T &)' being compiled
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(59): note: see reference to class template instantiation 'List<int64_t>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(234): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(231): note: while compiling class template member function 'void List<BranchTable>::__expand(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(23): note: see reference to function template instantiation 'void List<BranchTable>::__expand(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(509): note: see reference to class template instantiation 'List<BranchTable>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(255): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(247): note: while compiling class template member function 'void List<KeyPair<int,Field>>::__shrink(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(81): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::__shrink(void)' being compiled
+  tokenentity.cpp
+  tokenizer.cpp
+c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(86): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(145): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(158): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(215): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(222): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(17): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(16): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(310): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(323): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(440): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(441): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(449): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(450): warning C4244: 'return': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(525): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(537): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(535): warning C4102: 'readjust': unreferenced label
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(578): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(85): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(66): note: while compiling class template member function 'void List<KeyPair<int,Field>>::remove(unsigned __int64)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(526): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::remove(unsigned __int64)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(507): note: see reference to class template instantiation 'List<KeyPair<int,Field>>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(91): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(56): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(36): note: while compiling class template member function 'void List<int64_t>::insert(__int64,T &)'
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(75): note: see reference to function template instantiation 'void List<int64_t>::insert(__int64,T &)' being compiled
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(59): note: see reference to class template instantiation 'List<int64_t>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(234): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(231): note: while compiling class template member function 'void List<BranchTable>::__expand(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(23): note: see reference to function template instantiation 'void List<BranchTable>::__expand(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(509): note: see reference to class template instantiation 'List<BranchTable>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(255): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(247): note: while compiling class template member function 'void List<KeyPair<int,Field>>::__shrink(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(81): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::__shrink(void)' being compiled
+  Runtime.cpp
+c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(86): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(145): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(158): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(215): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(222): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(17): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(16): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(310): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(323): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(440): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(441): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(449): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(450): warning C4244: 'return': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(525): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(537): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(535): warning C4102: 'readjust': unreferenced label
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(578): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(192): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(197): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(329): warning C4244: '+=': conversion from 'uint64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(330): warning C4244: '+=': conversion from 'uint64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(344): warning C4244: '+=': conversion from 'uint64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(345): warning C4244: '+=': conversion from 'uint64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(501): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(502): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(712): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(743): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(789): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(1156): warning C4244: 'argument': conversion from 'double' to 'int64_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(1165): warning C4244: 'argument': conversion from 'double' to 'int64_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(1337): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(1672): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(1700): warning C4244: 'argument': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(1702): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(1703): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(1705): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(2370): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(2573): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(2575): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(2821): warning C4102: 'calculate': unreferenced label
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(3106): warning C4244: 'argument': conversion from 'double' to 'int64_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(3252): warning C4244: 'initializing': conversion from 'int64_t' to 'unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(3265): warning C4244: 'initializing': conversion from 'int64_t' to 'unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(3529): warning C4806: '|': unsafe operation: no value of type 'bool' promoted to type 'Opcode' can equal the given constant
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(3538): warning C4806: '|': unsafe operation: no value of type 'bool' promoted to type 'Opcode' can equal the given constant
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(3551): warning C4244: 'argument': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(3566): warning C4244: 'argument': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(3658): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(3660): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(3662): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(3805): warning C4554: '<<': check operator precedence for possible error; use parentheses to clarify precedence
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(3993): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4092): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4093): warning C4554: '<<': check operator precedence for possible error; use parentheses to clarify precedence
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4101): warning C4554: '<<': check operator precedence for possible error; use parentheses to clarify precedence
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4243): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4244): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4285): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4309): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4310): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4332): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4356): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4357): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4379): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4420): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4421): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4443): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4477): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4478): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4502): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4529): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(4530): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(5109): warning C4101: 'field': unreferenced local variable
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(5785): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(5804): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(5926): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(6019): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(6064): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(6109): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(6208): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(6264): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(6374): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(6408): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(6450): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(6469): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(6552): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7150): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7247): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7438): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7445): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7451): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7452): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7459): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7467): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7469): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7470): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7477): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7479): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7489): warning C4244: 'argument': conversion from '__int64' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7490): warning C4244: 'argument': conversion from '__int64' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7497): warning C4244: 'argument': conversion from '__int64' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7506): warning C4244: 'argument': conversion from '__int64' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7510): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7511): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7520): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7525): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7535): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7554): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7556): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7572): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7583): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7643): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7648): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7674): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7824): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7825): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7826): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7827): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7832): warning C4244: 'argument': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7835): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7836): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7845): warning C4244: 'argument': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7864): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7865): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(7866): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(8513): warning C4244: 'argument': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(8792): warning C4244: 'argument': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(8938): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(8957): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(8960): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(8994): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9034): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9038): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9043): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9048): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9053): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9058): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9063): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9094): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9173): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9229): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9253): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9254): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9315): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9348): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9349): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9387): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9419): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(9420): warning C4244: '+=': conversion from 'uint64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(85): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(66): note: while compiling class template member function 'void List<KeyPair<int,Field>>::remove(unsigned __int64)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(526): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::remove(unsigned __int64)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(507): note: see reference to class template instantiation 'List<KeyPair<int,Field>>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(91): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(56): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(36): note: while compiling class template member function 'void List<int64_t>::insert(__int64,T &)'
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(75): note: see reference to function template instantiation 'void List<int64_t>::insert(__int64,T &)' being compiled
+          with
+          [
+              T=int64_t
+          ]
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(234): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(231): note: while compiling class template member function 'void List<native_string>::__expand(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(33): note: see reference to function template instantiation 'void List<native_string>::__expand(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.cpp(189): note: see reference to class template instantiation 'List<native_string>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(255): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(247): note: while compiling class template member function 'void List<Scope>::__shrink(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(150): note: see reference to function template instantiation 'void List<Scope>::__shrink(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(626): note: see reference to class template instantiation 'List<Scope>' being compiled
+  Runtime2.cpp
+c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(86): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(145): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\method.h(158): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(215): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(222): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(17): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\classobject.h(16): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): warning C4099: 'Expression': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(145): note: see declaration of 'Expression'
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(310): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(323): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(440): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(441): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(449): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(450): warning C4244: 'return': conversion from '__int64' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(525): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(537): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(535): warning C4102: 'readjust': unreferenced label
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(578): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime2.cpp(38): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime2.cpp(148): warning C4244: '=': conversion from '__int64' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime2.cpp(174): warning C4244: '=': conversion from '__int64' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime2.cpp(223): warning C4244: '=': conversion from '__int64' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime2.cpp(237): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime2.cpp(254): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime2.cpp(1322): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime2.cpp(1870): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime2.cpp(1987): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime2.cpp(2347): warning C4101: 'field': unreferenced local variable
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime2.cpp(2605): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime2.cpp(2629): warning C4244: '=': conversion from 'uint64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\runtime2.cpp(3190): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(85): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(66): note: while compiling class template member function 'void List<KeyPair<int,Field>>::remove(unsigned __int64)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(526): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::remove(unsigned __int64)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(507): note: see reference to class template instantiation 'List<KeyPair<int,Field>>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(91): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(56): warning C4244: '=': conversion from '__int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(36): note: while compiling class template member function 'void List<int64_t>::insert(__int64,T &)'
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(75): note: see reference to function template instantiation 'void List<int64_t>::insert(__int64,T &)' being compiled
+          with
+          [
+              T=int64_t
+          ]
+  c:\users\bknun\documents\clion\sharp\lib\grammar\assembler.h(59): note: see reference to class template instantiation 'List<int64_t>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(234): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(231): note: while compiling class template member function 'void List<BranchTable>::__expand(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(23): note: see reference to function template instantiation 'void List<BranchTable>::__expand(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\grammar\runtime.h(509): note: see reference to class template instantiation 'List<BranchTable>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(255): warning C4018: '<': signed/unsigned mismatch
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(247): note: while compiling class template member function 'void List<KeyPair<int,Field>>::__shrink(void)'
+  c:\users\bknun\documents\clion\sharp\lib\grammar\list.h(81): note: see reference to function template instantiation 'void List<KeyPair<int,Field>>::__shrink(void)' being compiled
+  fileio.cpp
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\modules\std.io\fileio.cpp(15): fatal error C1083: Cannot open include file: 'utime.h': No such file or directory
+  cmath.cpp
+  Environment.cpp
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(38): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\classobject.h(12): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(14): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(38): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(15): warning C4099: 'ClassObject': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(40): note: see declaration of 'ClassObject'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): warning C4099: 'Method': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(69): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(153): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(157): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(161): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(165): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(13): warning C4099: 'Object': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(14): warning C4099: 'Method': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.h(16): warning C4099: 'Manifest': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.h(16): note: see declaration of 'Manifest'
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.cpp(22): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.cpp(31): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.cpp(105): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.cpp(106): warning C4244: 'argument': conversion from 'double' to 'const char', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\list.h(174): warning C4244: 'return': conversion from 'unsigned __int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\runtime\list.h(174): note: while compiling class template member function 'unsigned long List<native_string>::size(void)'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.h(34): note: see reference to function template instantiation 'unsigned long List<native_string>::size(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.h(31): note: see reference to class template instantiation 'List<native_string>' being compiled
+  Exe.cpp
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(38): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\classobject.h(12): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(14): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(38): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(15): warning C4099: 'ClassObject': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(40): note: see declaration of 'ClassObject'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): warning C4099: 'Method': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(69): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(153): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(157): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(161): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(165): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(13): warning C4099: 'Object': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(14): warning C4099: 'Method': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.h(16): warning C4099: 'Manifest': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.h(16): note: see declaration of 'Manifest'
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(63): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(86): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(98): warning C4244: '=': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(104): warning C4244: '=': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(107): warning C4244: '=': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(126): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(136): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(137): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(138): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(139): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(156): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(165): warning C4244: 'initializing': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(166): warning C4244: 'initializing': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(167): warning C4244: 'initializing': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(175): warning C4244: '=': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(176): warning C4244: '=': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(177): warning C4244: '=': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(196): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(199): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(212): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(214): warning C4244: '=': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(216): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(230): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(232): warning C4244: '=': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(234): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(291): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(321): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(325): warning C4244: 'initializing': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(329): warning C4244: 'argument': conversion from '__int64' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(333): warning C4244: 'argument': conversion from '__int64' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(345): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(353): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(361): warning C4018: '>=': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(367): warning C4244: '=': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(370): warning C4244: '=': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(372): warning C4244: '=': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(373): warning C4244: '=': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(375): warning C4244: '=': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(376): warning C4244: '=': conversion from 'int64_t' to 'short', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(377): warning C4244: '=': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(378): warning C4244: '=': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(380): warning C4244: 'initializing': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(388): warning C4244: '=': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(395): warning C4244: '=': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(400): warning C4244: '=': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(409): warning C4244: '=': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(426): warning C4244: '=': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(457): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(470): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(477): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(505): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(510): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(571): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(583): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(604): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(605): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(606): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(631): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(631): warning C4244: 'argument': conversion from 'uint64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(635): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(636): warning C4244: 'argument': conversion from 'uint64_t' to 'stream_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\list.h(174): warning C4244: 'return': conversion from 'unsigned __int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\runtime\list.h(174): note: while compiling class template member function 'unsigned long List<KeyPair<int64_t,ClassObject *>>::size(void)'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(264): note: see reference to function template instantiation 'unsigned long List<KeyPair<int64_t,ClassObject *>>::size(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\runtime\exe.cpp(130): note: see reference to class template instantiation 'List<KeyPair<int64_t,ClassObject *>>' being compiled
+c:\users\bknun\documents\clion\sharp\lib\runtime\list.h(302): warning C4244: 'argument': conversion from 'unsigned __int64' to 'size_t', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\runtime\list.h(291): note: while compiling class template member function 'void List<KeyPair<int64_t,ClassObject *>>::__expand(void)'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\list.h(44): note: see reference to function template instantiation 'void List<KeyPair<int64_t,ClassObject *>>::__expand(void)' being compiled
+c:\users\bknun\documents\clion\sharp\lib\runtime\list.h(304): warning C4244: 'argument': conversion from 'unsigned __int64' to 'size_t', possible loss of data
+  init.cpp
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(15): warning C4099: 'ClassObject': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(40): note: see declaration of 'ClassObject'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\classobject.h(12): warning C4099: 'Object': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): warning C4099: 'Method': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(69): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(153): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(157): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(161): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(165): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.h(81): error C2059: syntax error: '*'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.h(81): error C2091: function returns function
+c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.h(16): warning C4099: 'Manifest': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.h(16): note: see declaration of 'Manifest'
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(13): warning C4099: 'Object': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\classobject.h(12): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(14): warning C4099: 'Method': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\init.cpp(199): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+  Manifest.cpp
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.cpp(16): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.cpp(29): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\list.h(174): warning C4244: 'return': conversion from 'unsigned __int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\runtime\list.h(174): note: while compiling class template member function 'unsigned long List<source_file>::size(void)'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.cpp(8): note: see reference to function template instantiation 'unsigned long List<source_file>::size(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.h(53): note: see reference to class template instantiation 'List<source_file>' being compiled
+  Generating Code...
+  Compiling...
+  GarbageCollector.cpp
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(15): warning C4099: 'ClassObject': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(40): note: see declaration of 'ClassObject'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\classobject.h(12): warning C4099: 'Object': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): warning C4099: 'Method': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(69): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(153): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(157): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(161): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(165): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.h(81): error C2059: syntax error: '*'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.h(81): error C2091: function returns function
+c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.cpp(172): error C2664: 'int Thread::startDaemon(DWORD (__cdecl *(__stdcall *)(void))(void *),Thread *)': cannot convert argument 1 from 'DWORD (__stdcall *)(void *)' to 'DWORD (__cdecl *(__stdcall *)(void))(void *)'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.cpp(173): note: None of the functions with this name in scope match the target type
+c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.cpp(223): warning C4244: '-=': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.cpp(251): warning C4146: unary minus operator applied to unsigned type, result still unsigned
+c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.cpp(279): warning C4146: unary minus operator applied to unsigned type, result still unsigned
+c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.cpp(302): warning C4146: unary minus operator applied to unsigned type, result still unsigned
+c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.cpp(566): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+  ClassObject.cpp
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(38): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\classobject.h(12): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(14): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(38): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(15): warning C4099: 'ClassObject': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(40): note: see declaration of 'ClassObject'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+  Exception.cpp
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(38): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\classobject.h(12): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(14): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(38): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(15): warning C4099: 'ClassObject': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(40): note: see declaration of 'ClassObject'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): warning C4099: 'Method': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(69): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(153): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(157): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(161): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(165): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(13): warning C4099: 'Object': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(14): warning C4099: 'Method': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.h(81): error C2059: syntax error: '*'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.h(81): error C2091: function returns function
+  Object.cpp
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(56): error C2011: 'std::recursive_mutex': 'class' type redefinition
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\mutex(96): note: see declaration of 'std::recursive_mutex'
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(145): error C2371: 'std::mutex': redefinition; different basic types
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\mutex(83): note: see declaration of 'std::mutex'
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(151): error C2011: 'std::recursive_timed_mutex': 'class' type redefinition
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\mutex(902): note: see declaration of 'std::recursive_timed_mutex'
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(214): error C2011: 'std::timed_mutex': 'class' type redefinition
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\mutex(825): note: see declaration of 'std::timed_mutex'
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(250): error C2011: 'std::defer_lock_t': 'struct' type redefinition
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\mutex(120): note: see declaration of 'std::defer_lock_t'
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(253): error C2011: 'std::try_to_lock_t': 'struct' type redefinition
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\mutex(124): note: see declaration of 'std::try_to_lock_t'
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(257): error C2011: 'std::adopt_lock_t': 'struct' type redefinition
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\mutex(116): note: see declaration of 'std::adopt_lock_t'
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(259): error C2079: 'defer_lock' uses undefined struct 'std::defer_lock_t'
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(259): error C2371: 'std::defer_lock': redefinition; different basic types
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\mutex(127): note: see declaration of 'std::defer_lock'
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(260): error C2079: 'try_to_lock' uses undefined struct 'std::try_to_lock_t'
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(260): error C2371: 'std::try_to_lock': redefinition; different basic types
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\mutex(128): note: see declaration of 'std::try_to_lock'
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(261): error C2079: 'adopt_lock' uses undefined struct 'std::adopt_lock_t'
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(261): error C2371: 'std::adopt_lock': redefinition; different basic types
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\mutex(126): note: see declaration of 'std::adopt_lock'
+c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(275): error C2953: 'std::lock_guard': class template has already been defined
+  c:\users\bknun\documents\clion\sharp\lib\util\mingw.mutex.h(264): note: see declaration of 'std::lock_guard'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(48): error C2079: 'GarbageCollector::mutex' uses undefined class 'std::recursive_mutex'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(15): warning C4099: 'ClassObject': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(40): note: see declaration of 'ClassObject'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(104): error C2027: use of undefined type 'std::recursive_mutex'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\mutex(96): note: see declaration of 'std::recursive_mutex'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(111): error C2027: use of undefined type 'std::recursive_mutex'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\mutex(96): note: see declaration of 'std::recursive_mutex'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(111): error C2227: left of '->lock' must point to class/struct/union/generic type
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(117): error C2027: use of undefined type 'std::recursive_mutex'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\mutex(96): note: see declaration of 'std::recursive_mutex'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(117): error C2227: left of '->unlock' must point to class/struct/union/generic type
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\classobject.h(12): warning C4099: 'Object': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): warning C4099: 'Method': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(69): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(153): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(157): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(161): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(165): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(13): warning C4099: 'Object': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\classobject.h(12): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(14): warning C4099: 'Method': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.h(81): error C2059: syntax error: '*'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.h(81): error C2091: function returns function
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.cpp(24): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.cpp(47): warning C4018: '<': signed/unsigned mismatch
+  profiler.cpp
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(15): warning C4099: 'ClassObject': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(40): note: see declaration of 'ClassObject'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): warning C4099: 'Method': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(69): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(153): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(157): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(161): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(165): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\list.h(174): warning C4244: 'return': conversion from 'unsigned __int64' to 'unsigned long', possible loss of data
+  c:\users\bknun\documents\clion\sharp\lib\runtime\list.h(174): note: while compiling class template member function 'unsigned long List<SwitchTable>::size(void)'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(69): note: see reference to function template instantiation 'unsigned long List<SwitchTable>::size(void)' being compiled
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(59): note: see reference to class template instantiation 'List<SwitchTable>' being compiled
+  SignalHandler.cpp
+c:\users\bknun\documents\clion\sharp\lib\runtime\signalhandler.cpp(39): error C2679: binary '<<': no operator found which takes a right-hand operand of type 'std::string' (or there is no acceptable conversion)
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(500): note: could be 'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(std::basic_streambuf<char,std::char_traits<char>> *)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(480): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(const void *)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(460): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(long double)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(440): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(double)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(420): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(float)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(400): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(unsigned __int64)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(380): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(__int64)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(360): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(unsigned long)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(340): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(long)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(320): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(unsigned int)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(295): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(int)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(275): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(unsigned short)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(241): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(short)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(221): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(bool)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(215): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(std::ios_base &(__cdecl *)(std::ios_base &))'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(209): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(std::basic_ios<char,std::char_traits<char>> &(__cdecl *)(std::basic_ios<char,std::char_traits<char>> &))'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(204): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::basic_ostream<char,std::char_traits<char>>::operator <<(std::basic_ostream<char,std::char_traits<char>> &(__cdecl *)(std::basic_ostream<char,std::char_traits<char>> &))'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(1021): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::operator <<<char,std::char_traits<char>>(std::basic_ostream<char,std::char_traits<char>> &,const std::error_code &)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(983): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::operator <<<char,std::char_traits<char>,std::string>(std::basic_ostream<char,std::char_traits<char>> &&,const _Ty &)'
+          with
+          [
+              _Ty=std::string
+          ]
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(973): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::operator <<<std::char_traits<char>>(std::basic_ostream<char,std::char_traits<char>> &,unsigned char)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(966): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::operator <<<std::char_traits<char>>(std::basic_ostream<char,std::char_traits<char>> &,const unsigned char *)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(959): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::operator <<<std::char_traits<char>>(std::basic_ostream<char,std::char_traits<char>> &,signed char)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(952): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::operator <<<std::char_traits<char>>(std::basic_ostream<char,std::char_traits<char>> &,const signed char *)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(826): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::operator <<<std::char_traits<char>>(std::basic_ostream<char,std::char_traits<char>> &,char)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(779): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::operator <<<std::char_traits<char>>(std::basic_ostream<char,std::char_traits<char>> &,const char *)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(741): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::operator <<<char,std::char_traits<char>>(std::basic_ostream<char,std::char_traits<char>> &,char)'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\ostream(694): note: or       'std::basic_ostream<char,std::char_traits<char>> &std::operator <<<char,std::char_traits<char>>(std::basic_ostream<char,std::char_traits<char>> &,const char *)'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\signalhandler.cpp(39): note: while trying to match the argument list '(std::basic_ostream<char,std::char_traits<char>>, std::string)'
+  termios.cpp
+  Thread.cpp
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(38): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\classobject.h(12): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(14): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(38): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(15): warning C4099: 'ClassObject': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(40): note: see declaration of 'ClassObject'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): warning C4099: 'Method': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(69): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(153): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(157): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(161): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(165): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.h(81): error C2059: syntax error: '*'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.h(81): error C2091: function returns function
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(13): warning C4099: 'Object': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(14): warning C4099: 'Method': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.h(16): warning C4099: 'Manifest': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.h(16): note: see declaration of 'Manifest'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(68): warning C4018: '<=': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(193): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(282): warning C4244: 'argument': conversion from 'int64_t' to 'int32_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(594): warning C4229: anachronism used: modifiers on data are ignored
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(594): error C2143: syntax error: missing ')' before '('
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(594): error C2065: 'threadFunc': undeclared identifier
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(594): error C2206: 'Thread::startDaemon': typedef cannot be used for function definition
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(594): error C2143: syntax error: missing ';' before '('
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(594): error C2062: type 'void' unexpected
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(594): error C2059: syntax error: ')'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(594): error C2143: syntax error: missing ';' before '{'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(594): error C2447: '{': missing function header (old-style formal list?)
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(734): error C2059: syntax error: '&&'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(751): error C2059: syntax error: '&&'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(751): error C2143: syntax error: missing ';' before '}'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(752): error C2059: syntax error: 'try'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(752): error C2143: syntax error: missing ';' before '{'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(752): error C2447: '{': missing function header (old-style formal list?)
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(1263): error C2059: syntax error: 'catch'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(1263): error C2143: syntax error: missing ';' before '{'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(1263): error C2447: '{': missing function header (old-style formal list?)
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(1266): error C2059: syntax error: 'catch'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(1266): error C2143: syntax error: missing ';' before '{'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(1266): error C2447: '{': missing function header (old-style formal list?)
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(1278): error C2059: syntax error: '}'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(1278): error C2143: syntax error: missing ';' before '}'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(1280): error C2143: syntax error: missing ';' before '{'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(1280): error C2447: '{': missing function header (old-style formal list?)
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.cpp(1324): warning C4244: 'argument': conversion from 'int64_t' to 'DWORD', possible loss of data
+  VirtualMachine.cpp
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(22): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(47): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(65): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(89): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(90): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(101): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(112): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(115): warning C4244: 'argument': conversion from 'int64_t' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(123): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\string.h(141): warning C4244: 'argument': conversion from 'int64_t' to 'const unsigned int', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(38): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\classobject.h(12): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(14): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(38): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(15): warning C4099: 'ClassObject': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\memory\garbagecollector.h(40): note: see declaration of 'ClassObject'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): warning C4099: 'Object': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): warning C4099: 'Method': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(69): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(153): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(157): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(161): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(165): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.h(81): error C2059: syntax error: '*'
+c:\users\bknun\documents\clion\sharp\lib\runtime\thread.h(81): error C2091: function returns function
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(13): warning C4099: 'Object': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\object.h(97): note: see declaration of 'Object'
+c:\users\bknun\documents\clion\sharp\lib\runtime\environment.h(14): warning C4099: 'Method': type name first seen using 'struct' now seen using 'class'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\oo\method.h(40): note: see declaration of 'Method'
+c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.h(16): warning C4099: 'Manifest': type name first seen using 'class' now seen using 'struct'
+  c:\users\bknun\documents\clion\sharp\lib\runtime\manifest.h(16): note: see declaration of 'Manifest'
+c:\users\bknun\documents\clion\sharp\lib\modules\std.io\fileio.h(35): error C2061: syntax error: identifier 'mode_t'
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(52): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(66): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(80): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(94): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(108): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(122): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(136): warning C4244: 'argument': conversion from 'int64_t' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(199): error C2872: 'count': ambiguous symbol
+  c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(164): note: could be 'size_t count'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\xutility(3632): note: or       'iterator_traits<_Iter>::difference_type std::count(const _InIt,const _InIt,const _Ty &)'
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(200): error C2872: 'count': ambiguous symbol
+  c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(164): note: could be 'size_t count'
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.14.26428\include\xutility(3632): note: or       'iterator_traits<_Iter>::difference_type std::count(const _InIt,const _InIt,const _Ty &)'
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(272): warning C4244: '=': conversion from 'int64_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(314): warning C4244: '=': conversion from 'unsigned __int64' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(317): warning C4244: '=': conversion from 'unsigned __int64' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(328): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(329): warning C4244: 'argument': conversion from 'double' to 'const char', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(338): warning C4244: 'initializing': conversion from 'double' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(384): warning C4244: 'initializing': conversion from 'double' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(385): warning C4244: 'initializing': conversion from 'double' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(429): warning C4244: 'initializing': conversion from 'double' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(430): warning C4244: 'initializing': conversion from 'double' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(483): warning C4244: 'initializing': conversion from 'double' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(484): warning C4244: 'initializing': conversion from 'double' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(537): warning C4244: 'initializing': conversion from 'double' to 'size_t', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(588): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(589): warning C4244: 'argument': conversion from 'double' to 'const char', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(594): warning C4244: '=': conversion from '__int64' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(596): warning C4244: '=': conversion from '__int64' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(598): warning C4244: '=': conversion from '__int64' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(612): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(627): warning C4244: '=': conversion from 'time_t' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(629): error C2065: 'mode_t': undeclared identifier
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(629): error C2146: syntax error: missing ')' before identifier 'registers'
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(629): error C2146: syntax error: missing ';' before identifier 'registers'
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(629): error C2059: syntax error: ')'
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(630): error C2181: illegal else without matching if
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(657): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(658): warning C4244: 'argument': conversion from 'double' to 'const char', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(660): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(661): warning C4244: 'argument': conversion from 'double' to 'const char', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(676): warning C4244: '=': conversion from '__int64' to 'double', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(763): warning C4018: '<=': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(763): warning C4018: '>=': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(823): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(823): warning C4018: '>=': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(830): warning C4244: 'argument': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\runtime\virtualmachine.cpp(840): warning C4244: 'argument': conversion from '__int64' to 'long', possible loss of data
+  File.cpp
+c:\users\bknun\documents\clion\sharp\lib\util\file.cpp(27): warning C4018: '<': signed/unsigned mismatch
+c:\users\bknun\documents\clion\sharp\lib\util\file.cpp(42): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+c:\users\bknun\documents\clion\sharp\lib\util\file.cpp(57): warning C4101: 'ba': unreferenced local variable
+c:\users\bknun\documents\clion\sharp\lib\util\file.cpp(68): warning C4244: 'argument': conversion from 'int64_t' to 'long', possible loss of data
+c:\users\bknun\documents\clion\sharp\lib\util\file.cpp(83): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+c:\users\bknun\documents\clion\sharp\lib\util\file.cpp(102): warning C4101: 'ba': unreferenced local variable
+c:\users\bknun\documents\clion\sharp\lib\util\file.cpp(105): warning C4101: 'e': unreferenced local variable
+c:\users\bknun\documents\clion\sharp\lib\util\file.cpp(160): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+c:\users\bknun\documents\clion\sharp\lib\util\file.cpp(172): warning C4101: 'ba': unreferenced local variable
+  time.cpp
+c:\users\bknun\documents\clion\sharp\lib\util\time.cpp(13): warning C4996: 'localtime': This function or variable may be unsafe. Consider using localtime_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\time.h(506): note: see declaration of 'localtime'
+  zcompress.cpp
+c:\users\bknun\documents\clion\sharp\lib\util\zip\zcompress.cpp(421): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+c:\users\bknun\documents\clion\sharp\lib\util\zip\zcompress.cpp(427): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+c:\users\bknun\documents\clion\sharp\lib\util\zip\zcompress.cpp(516): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+  zcore.cpp
+  zdecompress.cpp
+c:\users\bknun\documents\clion\sharp\lib\util\zip\zdecompress.cpp(137): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+c:\users\bknun\documents\clion\sharp\lib\util\zip\zdecompress.cpp(140): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+c:\users\bknun\documents\clion\sharp\lib\util\zip\zdecompress.cpp(247): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+  zlib.cpp
+c:\users\bknun\documents\clion\sharp\lib\util\zip\zinclude.h(40): warning C4305: 'initializing': truncation from 'double' to 'float'
+c:\users\bknun\documents\clion\sharp\lib\util\zip\zlib.cpp(50): warning C4018: '<': signed/unsigned mismatch
+  zstream.cpp
+c:\users\bknun\documents\clion\sharp\lib\util\zip\zstream.cpp(46): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+c:\users\bknun\documents\clion\sharp\lib\util\zip\zstream.cpp(51): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+  main.cpp
+  Generating Code...
