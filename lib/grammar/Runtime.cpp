@@ -9236,16 +9236,6 @@ void RuntimeEngine::resolveAllEnums() {
                 case ast_enum_decl:
                     resolveEnumDecl(ast);
                     break;
-                case ast_class_decl:
-                    resolveClassDecl(ast, false, true);
-                    break;
-                case ast_interface_decl:
-                    resolveClassDecl(ast, false, true);
-                    break;
-                case ast_generic_class_decl:
-                case ast_generic_interface_decl:
-                    resolveGenericClassDecl(ast, false, true);
-                    break;
                 default:
                     /* ignore */
                     break;
