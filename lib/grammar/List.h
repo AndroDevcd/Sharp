@@ -252,7 +252,9 @@ private:
             }
 
             T* newbuf = new T[len-1];
-            std::copy_n(_Data, std::min(len-1, len-1), newbuf);
+			for (long i = 0; i < len-1; i++) {
+				newbuf[i] = _Data[i];
+			}
             delete[] _Data;
             _Data = newbuf;
             len--;

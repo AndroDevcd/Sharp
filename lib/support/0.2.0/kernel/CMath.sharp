@@ -1,0 +1,109 @@
+mod std.kernel;
+
+/**                          
+* Created by bknun on 7/11/2018            
+* Description:                             
+*/
+public class CMath {
+
+    private static def __cmath(var n, var procedure) : var {
+        asm(
+            "loadl %ebx,<n>"
+            "loadl %ecx,<procedure>"
+            "int 0xe3"
+            "return_val %cmt"
+            "ret"
+        );
+    }
+
+    private static def __cmath(var n, var n2, var procedure) : var {
+        asm(
+            "loadl %ebx,<n>"
+            "loadl %egx,<n2>"
+            "loadl %ecx,<procedure>"
+            "int 0xe3"
+            "return_val %cmt"
+            "ret"
+        );
+    }
+
+    public static def sin(var n) : var {
+        return __cmath(n, 0);
+    }
+
+    public static def cos(var n) : var {
+        return __cmath(n, 2);
+    }
+
+    public static def tan(var n) : var {
+        return __cmath(n, 3);
+    }
+
+    public static def sinh(var n) : var {
+        return __cmath(n, 4);
+    }
+
+    public static def cosh(var n) : var {
+        return __cmath(n, 5);
+    }
+
+    public static def tanh(var n) : var {
+        return __cmath(n, 6);
+    }
+
+    public static def asin(var n) : var {
+        return __cmath(n, 7);
+    }
+
+    public static def acos(var n) : var {
+        return __cmath(n, 8);
+    }
+
+    public static def atan(var n) : var {
+        return __cmath(n, 9);
+    }
+
+    public static def atan2(var n, var n2) : var {
+        return __cmath(n, n2, 10);
+    }
+
+    public static def exp(var n) : var {
+        return __cmath(n, 11);
+    }
+
+    public static def log(var n) : var {
+        return __cmath(n, 12);
+    }
+
+    public static def log10(var n) : var {
+        return __cmath(n, 13);
+    }
+
+    public static def pow(var n) : var {
+        return __cmath(n, 14);
+    }
+
+    public static def sqrt(var n) : var {
+        return __cmath(n, 15);
+    }
+
+    public static def ceil(var n) : var {
+        return __cmath(n, 16);
+    }
+
+    public static def floor(var n) : var {
+        return __cmath(n, 17);
+    }
+
+    public static def fabs(var n) : var {
+        return __cmath(n, 18);
+    }
+
+    public static def ldexp(var n, var n2) : var {
+        return __cmath(n, n2, 19);
+    }
+
+    public static def fmod(var n, var n2) : var {
+        return __cmath(n, n2, 9);
+    }
+}

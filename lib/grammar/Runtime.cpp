@@ -2,7 +2,12 @@
 // Created by bknun on 9/12/2017.
 //
 
+#ifndef VISUAL_STUDIOS
 #include <dirent.h>
+#endif
+#ifdef VISUAL_STUDIOS
+#include "../support/visual-studios/vc/include/dirent.h"
+#endif
 #include <sys/stat.h>
 #include "../../stdimports.h"
 #ifdef POSIX_

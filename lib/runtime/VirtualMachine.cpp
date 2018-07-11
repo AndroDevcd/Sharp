@@ -17,6 +17,7 @@
 #include "Manifest.h"
 #include "../Modules/std.io/fileio.h"
 #include "../util/File.h"
+#include "../Modules/std.kernel/cmath.h"
 
 VirtualMachine* vm;
 Environment* env;
@@ -299,6 +300,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             return;
         case 0xe2: // native setCurrentThread(Thread)
             thread_self->currentThread = thread_self->dataStack[thread_self->sp--].object;
+            return;
+        case 0xe3:
+            registers[cmt]=__cmath(registers[ebx], registers[egx], (int)registers[ecx]);
             return;
         case 0xa8:
             registers[cmt]=Thread::Create((int32_t )registers[adx], (unsigned long)registers[egx]);
