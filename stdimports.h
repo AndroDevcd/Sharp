@@ -49,7 +49,7 @@ using namespace std;
     #define __os_yield() sched_yield();
 #endif
 
-#define VISUAL_STUDIOS
+//#define VISUAL_STUDIOS
 
 #ifdef VISUAL_STUDIOS
 #define MAKE_COMPILER
