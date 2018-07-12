@@ -116,11 +116,11 @@ public:
     bool exceptionThrown;
     Object currentThread, args;
 
-    int64_t pc, fp, sp;
+    int64_t pc, fp;
     Method *current;
     Frame *callStack;
     unsigned long calls;
-    StackElement* dataStack;
+    StackElement* dataStack, *sp, *stackTail;
     unsigned long stack_lmt;
     Cache cache;
     Throwable throwable;

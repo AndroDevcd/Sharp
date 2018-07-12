@@ -115,9 +115,11 @@ struct line_table {
     int64_t line_number;
 };
 
+struct StackElement;
+
 struct Frame {
 public:
-    Frame(Method* last, uint64_t pc, uint64_t sp,
+    Frame(Method* last, uint64_t pc, StackElement* sp,
           uint64_t fp)
     {
         this->last=last;
@@ -126,7 +128,7 @@ public:
         this->fp=fp;
     }
 
-    void init(Method* last, uint64_t pc, uint64_t sp,
+    void init(Method* last, uint64_t pc, StackElement* sp,
             uint64_t fp)
     {
         this->last=last;
@@ -137,7 +139,7 @@ public:
 
     Method *last;                   /* Last method */
     uint64_t pc;
-    uint64_t sp;
+    StackElement* sp;
     uint64_t fp;
 };
 

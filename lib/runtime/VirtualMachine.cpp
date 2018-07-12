@@ -275,8 +275,8 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             Thread *thread = Thread::getThread((int32_t )registers[adx]);
 
             if(thread != NULL) {
-                thread->currentThread = thread_self->dataStack[thread_self->sp--].object;
-                thread->args = thread_self->dataStack[thread_self->sp--].object;
+                thread->currentThread = (thread_self->sp--)->object;
+                thread->args = (thread_self->sp--)->object;
             }
             registers[cmt]=Thread::start((int32_t )registers[adx]);
             return;
@@ -292,14 +292,14 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             return;
         case 0xe0: // native getCurrentThread()
             THREAD_STACK_CHECK(thread_self);
-            thread_self->dataStack[++thread_self->sp].object = thread_self->currentThread;
+            (++thread_self->sp)->object = thread_self->currentThread;
             return;
         case 0xe1: // native getCurrentThreadArgs()
             THREAD_STACK_CHECK(thread_self);
-            thread_self->dataStack[++thread_self->sp].object = thread_self->args;
+            (++thread_self->sp)->object = thread_self->args;
             return;
         case 0xe2: // native setCurrentThread(Thread)
-            thread_self->currentThread = thread_self->dataStack[thread_self->sp--].object;
+            thread_self->currentThread = (thread_self->sp--)->object;
             return;
         case 0xe3:
             registers[cmt]=__cmath(registers[ebx], registers[egx], (int)registers[ecx]);
@@ -320,7 +320,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             __os_sleep((int64_t) registers[ebx]);
             return;
         case 0xb0: {
-            Object *arry = &thread_self->dataStack[thread_self->sp].object;
+            Object *arry = &thread_self->sp->object;
             SharpObject *o = arry->object;
 
             if(o != NULL && o->HEAD!=NULL) {
@@ -335,8 +335,8 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             return;
         }
         case 0xc0: {
-            size_t len = thread_self->dataStack[thread_self->sp--].var;
-            Object *arry = &thread_self->dataStack[thread_self->sp].object;
+            size_t len = (thread_self->sp--)->var;
+            Object *arry = &thread_self->sp->object;
             SharpObject *o = arry->object;
             Object data; data.object = NULL;
 
@@ -380,9 +380,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             return;
         }
         case 0xc1: {
-            size_t len = thread_self->dataStack[thread_self->sp--].var;
-            size_t indexLen = thread_self->dataStack[thread_self->sp--].var;
-            Object *arry = &thread_self->dataStack[thread_self->sp].object;
+            size_t len = (thread_self->sp--)->var;
+            size_t indexLen = (thread_self->sp--)->var;
+            Object *arry = &thread_self->sp->object;
             SharpObject *o = arry->object;
             Object data; data.object = NULL;
 
@@ -424,9 +424,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 throw Exception(Environment::NullptrException, "");
             return;
         } case 0xc3: {
-            size_t endIndex = thread_self->dataStack[thread_self->sp--].var;
-            size_t startIndex = thread_self->dataStack[thread_self->sp--].var;
-            Object *arry = &thread_self->dataStack[thread_self->sp].object;
+            size_t endIndex = (thread_self->sp--)->var;
+            size_t startIndex = (thread_self->sp--)->var;
+            Object *arry = &thread_self->sp->object;
             SharpObject *o = arry->object;
             Object data; data.object = NULL;
             size_t sz = endIndex-startIndex, idx=0;
@@ -473,9 +473,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 throw Exception(Environment::NullptrException, "");
             return;
         } case 0xc4: {
-            size_t endIndex = thread_self->dataStack[thread_self->sp--].var;
-            size_t startIndex = thread_self->dataStack[thread_self->sp--].var;
-            Object *arry = &thread_self->dataStack[thread_self->sp].object;
+            size_t endIndex = (thread_self->sp--)->var;
+            size_t startIndex = (thread_self->sp--)->var;
+            Object *arry = &thread_self->sp->object;
             SharpObject *o = arry->object;
             Object data; data.object = NULL;
             size_t sz = endIndex-startIndex, idx=0;
@@ -527,8 +527,8 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 throw Exception(Environment::NullptrException, "");
             return;
         } case 0xc6: {
-            size_t len = thread_self->dataStack[thread_self->sp--].var;
-            Object *arry = &thread_self->dataStack[thread_self->sp].object;
+            size_t len = (thread_self->sp--)->var;
+            Object *arry = &thread_self->sp->object;
             SharpObject *o = arry->object;
 
             if(o != NULL) {
@@ -573,7 +573,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xbb:
         case 0xbc:
         case 0xbf: {
-            Object *arry = &thread_self->dataStack[thread_self->sp--].object;
+            Object *arry = &(thread_self->sp--)->object;
             SharpObject *o = arry->object;
 
             if(o != NULL && o->HEAD!=NULL) {
@@ -642,8 +642,8 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         }
         case 0xba:
         case 0xbd:  {
-            SharpObject *o = thread_self->dataStack[thread_self->sp--].object.object;
-            SharpObject *o2 = thread_self->dataStack[thread_self->sp--].object.object;
+            SharpObject *o = (thread_self->sp--)->object.object;
+            SharpObject *o2 = (thread_self->sp--)->object.object;
 
             if (o != NULL && o->HEAD != NULL && o2 != NULL && o2->HEAD != NULL) {
                 native_string path, rename;
@@ -669,7 +669,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             registers[ebx]=disk_space((int32_t )registers[ebx]);
             return;
         case 0xc2:
-            registers[ebx] = GarbageCollector::_sizeof(thread_self->dataStack[thread_self->sp--].object.object);
+            registers[ebx] = GarbageCollector::_sizeof((thread_self->sp--)->object.object);
             return;
         default:
             // unsupported

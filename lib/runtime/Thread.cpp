@@ -98,7 +98,7 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     thread->exitVal = 0;
     thread->stack_lmt = stack_size;
     thread->fp=0;
-    thread->sp=-1;
+    thread->sp=NULL;
 
     pushThread(thread);
 
@@ -135,7 +135,7 @@ void Thread::Create(string name) {
     this->callStack = NULL;
     this->calls=0;
     this->fp=0;
-    this->sp=-1;
+    this->sp=dataStack-1;
 
     for(unsigned long i = 0; i < STACK_SIZE; i++) {
         this->dataStack[i].object.object = NULL;
@@ -173,7 +173,7 @@ void Thread::CreateDaemon(string name) {
     this->exitVal = 0;
     this->stack_lmt=0;
     this->fp=0;
-    this->sp=-1;
+    this->sp=NULL;
     this->main=NULL;
 
     pushThread(this);
@@ -637,7 +637,7 @@ void printRegs() {
     cout << "ehf = " << registers[ehf] << endl;
     cout << "bmr = " << registers[bmr] << endl;
     cout << "egx = " << registers[egx] << endl;
-    cout << "sp -> " << thread_self->sp << endl;
+    cout << "sp -> " << (thread_self->sp-thread_self->dataStack) << endl;
     cout << "fp -> " << thread_self->fp << endl;
     cout << "pc -> " << thread_self->pc << endl;
     cout << "current -> " << thread_self->current->name.str() << endl;
@@ -817,7 +817,7 @@ void Thread::exec() {
             state=THREAD_KILLED;
             _brh
             NEWARRAY:
-            dataStack[++sp].object =
+            (++sp)->object =
                     GarbageCollector::self->newObject(registers[GET_Da(cache[pc])]);
             STACK_CHECK _brh
             CAST:
@@ -848,7 +848,7 @@ void Thread::exec() {
             registers[GET_Ca(cache[pc])]=(uint64_t)registers[GET_Cb(cache[pc])];
             _brh
             RSTORE:
-            dataStack[++sp].var = registers[GET_Da(cache[pc])];
+            (++sp)->var = registers[GET_Da(cache[pc])];
             STACK_CHECK _brh
             ADD:
             registers[cache[pc+1]]=registers[GET_Ca(cache[pc])]+registers[GET_Cb(cache[pc])]; pc++;
@@ -895,7 +895,7 @@ void Thread::exec() {
             registers[GET_Ca(cache[pc])]=registers[GET_Cb(cache[pc])];
             _brh
             IALOAD:
-            o = (dataStack+sp)->object.object;
+            o = sp->object.object;
             if(o != NULL && o->HEAD != NULL) {
                 registers[GET_Ca(cache[pc])] = o->HEAD[(uint64_t)registers[GET_Cb(cache[pc])]];
             } else throw Exception(Environment::NullptrException, "");
@@ -928,14 +928,14 @@ void Thread::exec() {
             _brh
             POPL:
             dataStack[fp+GET_Da(cache[pc])].object
-                    = dataStack[sp--].object.object;
+                    = (sp--)->object.object;
             _brh
             IPOPL:
             dataStack[fp+GET_Da(cache[pc])].var
-                    = dataStack[sp--].var;
+                    = (sp--)->var;
             _brh
             MOVSL:
-            o2 = &(dataStack[sp+GET_Da(cache[pc])].object);
+            o2 = &((sp+GET_Da(cache[pc]))->object);
             _brh
             MOVBI:
             registers[bmr]=GET_Da(cache[pc]) + exponent(cache[pc + 1]); pc++;
@@ -971,7 +971,7 @@ void Thread::exec() {
             registers[GET_Da(cache[pc])] = pc;
             _brh
             PUSHOBJ:
-            dataStack[++sp].object = o2;
+            (++sp)->object = o2;
             STACK_CHECK _brh
             DEL:
             GarbageCollector::self->freeObject(o2);
@@ -996,7 +996,7 @@ void Thread::exec() {
             executeMethod(val, this)
             _brh_NOINCREMENT
             NEWCLASS:
-            dataStack[++sp].object =
+            (++sp)->object =
                     GarbageCollector::self->newObject(&env->classes[GET_Da(cache[pc])]);
             STACK_CHECK _brh
             MOVN:
@@ -1037,7 +1037,7 @@ void Thread::exec() {
             CHECK_NULLOBJ(o2 = &o2->object->node[(int64_t)registers[GET_Da(cache[pc])]];)
             _brh
             NEWOBJARRAY:
-            dataStack[++sp].object = GarbageCollector::self->newObjectArray(registers[GET_Da(cache[pc])]);
+            (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Da(cache[pc])]);
             STACK_CHECK _brh
             NOT:
             registers[GET_Ca(cache[pc])]=!registers[GET_Cb(cache[pc])];
@@ -1046,7 +1046,7 @@ void Thread::exec() {
             pc += GET_Da(cache[pc]);
             _brh
             LOADVAL:
-            registers[GET_Da(cache[pc])]=dataStack[sp--].var;
+            registers[GET_Da(cache[pc])]=(sp--)->var;
             _brh
             SHL:
             registers[cache[pc+1]]=(int64_t)registers[GET_Ca(cache[pc])]<<(int64_t)registers[GET_Cb(cache[pc])]; pc++;
@@ -1088,12 +1088,12 @@ void Thread::exec() {
             _brh
             NEWCLASSARRAY:
             CHECK_NULL(
-                    dataStack[++sp].object = GarbageCollector::self->newObjectArray(registers[GET_Ca(cache[pc])],
+                    (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Ca(cache[pc])],
                                                                                     env->findClassBySerial(GET_Cb(cache[pc])));
             )
             STACK_CHECK _brh
             NEWSTRING:
-            GarbageCollector::self->createStringArray(&dataStack[++sp].object, env->getStringById(GET_Da(cache[pc])));
+            GarbageCollector::self->createStringArray(&(++sp)->object, env->getStringById(GET_Da(cache[pc])));
             STACK_CHECK _brh
             ADDL:
             dataStack[fp+GET_Cb(cache[pc])].var+=registers[GET_Ca(cache[pc])];
@@ -1136,11 +1136,11 @@ void Thread::exec() {
             _brh
             POPOBJ:
             CHECK_NULL(
-                    *o2 = dataStack[sp--].object;
+                    *o2 = (sp--)->object;
             )
             _brh
             SMOVR:
-            dataStack[sp+GET_Cb(cache[pc])].var=registers[GET_Ca(cache[pc])];
+            (sp+GET_Cb(cache[pc]))->var=registers[GET_Ca(cache[pc])];
             _brh
             SMOVR_2:
             dataStack[fp+GET_Cb(cache[pc])].var=registers[GET_Ca(cache[pc])];
@@ -1160,7 +1160,7 @@ void Thread::exec() {
             )
             _brh
             SMOV:
-            registers[GET_Ca(cache[pc])]=dataStack[sp+GET_Cb(cache[pc])].var;
+            registers[GET_Ca(cache[pc])]=(sp+GET_Cb(cache[pc]))->var;
             _brh
             LOADPC_2:
             registers[GET_Ca(cache[pc])]=pc+GET_Cb(cache[pc]);
@@ -1169,29 +1169,29 @@ void Thread::exec() {
             dataStack[fp].var=registers[GET_Da(cache[pc])];
             _brh
             ISTORE:
-            dataStack[++sp].var = GET_Da(cache[pc]);
+            (++sp)->var = GET_Da(cache[pc]);
             STACK_CHECK _brh
             ISTOREL:
             dataStack[fp+GET_Da(cache[pc])].var=cache[pc+1]; pc++;
             _brh
             PUSHNIL:
-            GarbageCollector::self->freeObject(&dataStack[++sp].object);
+            GarbageCollector::self->freeObject(&(++sp)->object);
             STACK_CHECK _brh
             IPUSHL:
-            dataStack[++sp].var = dataStack[fp+GET_Da(cache[pc])].var;
+            (++sp)->var = dataStack[fp+GET_Da(cache[pc])].var;
             STACK_CHECK _brh
             PUSHL:
-            dataStack[++sp].object = dataStack[fp+GET_Da(cache[pc])].object;
+            (++sp)->object = dataStack[fp+GET_Da(cache[pc])].object;
             STACK_CHECK _brh
             ITEST:
-            o2 = &dataStack[sp--].object;
-            registers[GET_Da(cache[pc])] = o2->object == dataStack[sp--].object.object;
+            o2 = &(sp--)->object;
+            registers[GET_Da(cache[pc])] = o2->object == (sp--)->object.object;
             _brh
             INVOKE_DELEGATE:
             delegate= GET_Ca(cache[pc]);
             args= GET_Cb(cache[pc]);
 
-            o2 = &dataStack[sp-args].object;
+            o2 = &(sp-args)->object;
 
 
             CHECK_NULL2(
@@ -1244,7 +1244,7 @@ void Thread::exec() {
             )
             _brh
             ISADD:
-            dataStack[sp+GET_Cb(cache[pc])].var+=GET_Ca(cache[pc]);
+            (sp+GET_Cb(cache[pc]))->var+=GET_Ca(cache[pc]);
             _brh
             JE:
             if(registers[cmt]) {
@@ -1277,7 +1277,7 @@ void Thread::exec() {
             vm->fillStackTrace(throwable.stackTrace);
             return;
         }
-        vm->Throw(&dataStack[sp].object);
+        vm->Throw(&sp->object);
 
         DISPATCH();
     }
@@ -1298,6 +1298,7 @@ void Thread::setup() {
     if(callStack==NULL)
         callStack = (Frame*)__malloc(sizeof(Frame)*stack_lmt);
     calls=0;
+    stackTail = (dataStack+stack_lmt)-1;
     current = NULL;
     suspendPending = false;
     exceptionThrown = false;
@@ -1317,7 +1318,7 @@ void Thread::setup() {
             }
         }
         fp=0;
-        sp=-1;
+        sp=dataStack-1;
 
         for(unsigned long i = 0; i < stack_lmt; i++) {
             this->dataStack[i].object.object = NULL;

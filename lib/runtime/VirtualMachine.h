@@ -82,7 +82,8 @@ public:
     thread_self->current = method; \
     thread_self->cache = method->bytecode; \
     thread_self->fp = thread_self->calls==1 ? thread_self->fp : \
-                      ((method->returnVal) ? thread_self->sp-method->stackEqulizer : (thread_self->sp-method->stackEqulizer+1)); \
+                      ((method->returnVal) ? (thread_self->sp-thread_self->dataStack)-method->stackEqulizer : \
+                ((thread_self->sp-thread_self->dataStack)-method->stackEqulizer+1)); \
     thread_self->sp += (method->stackSize - method->paramSize); \
 }
 

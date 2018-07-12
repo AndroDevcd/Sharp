@@ -54,7 +54,7 @@ void Exception::pushException() {
             return;
         }
 
-        thread_self->dataStack[++thread_self->sp].object
+        (++thread_self->sp)->object
                 = GarbageCollector::self->newObject(throwable.throwable);
     }
 }
