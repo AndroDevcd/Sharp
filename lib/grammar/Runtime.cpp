@@ -174,10 +174,10 @@ int _bootstrap(int argc, const char* argv[])
         }
     }
 
-//    if(!c_options.compileBootstrap && files.size() == 0){
-//        help();
-//        return 1;
-//    }
+    if(!c_options.compileBootstrap && files.size() == 0){
+        help();
+        return 1;
+    }
 #ifdef WIN32_
     native_string path("C:/Sharp/include");
 #endif
@@ -196,6 +196,11 @@ int _bootstrap(int argc, const char* argv[])
 
     for(long i = 0; i < includes.size(); i++)
         files.add(includes.get(i).str());
+
+    if(files.size() == 0){
+        help();
+        return 1;
+    }
 
     for(unsigned int i = 0; i < files.size(); i++) {
         string& file = files.get(i);
