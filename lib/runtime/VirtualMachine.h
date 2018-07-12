@@ -63,7 +63,7 @@ public:
 
     int exitVal;
 
-    void fillMethodCall(Frame &frame, stringstream &ss, Frame *prev);
+    void fillMethodCall(Frame &frame, stringstream &ss);
 };
 
 #define executeMethod(address, thread_self) { \
@@ -71,13 +71,10 @@ public:
     Method *method = env->methods+address; \
  \
     if(thread_self->calls==0) { \
-        thread_self->callStack = (Frame*)malloc(sizeof(Frame)); \
-        thread_self->callStack->init(NULL, 0,0,0); \
+        thread_self->callStack[0].init(NULL, 0,0,0); \
     } else { \
-        Frame *f = (Frame*)malloc(sizeof(Frame)); \
-        f->init(thread_self->current, thread_self->pc, thread_self->sp-method->stackEqulizer, thread_self->fp); \
-        f->prev = thread_self->callStack; \
-        thread_self->callStack = f;  \
+        thread_self->callStack[thread_self->calls+1] \
+            .init(thread_self->current, thread_self->pc, thread_self->sp-method->stackEqulizer, thread_self->fp); \
     }\
     thread_self->calls++; \
      \

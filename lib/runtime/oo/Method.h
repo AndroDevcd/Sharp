@@ -124,7 +124,6 @@ public:
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
-        this->prev=NULL;
     }
 
     void init(Method* last, uint64_t pc, uint64_t sp,
@@ -134,14 +133,12 @@ public:
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
-        this->prev=NULL;
     }
 
     Method *last;                   /* Last method */
     uint64_t pc;
     uint64_t sp;
     uint64_t fp;
-    Frame *prev;
 };
 
 #pragma optimize( "", off )

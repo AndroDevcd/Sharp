@@ -603,16 +603,8 @@ void GarbageCollector::realloc(SharpObject *o, size_t sz) {
         else
             managedBytes += (sizeof(double)*(sz-o->size));
 
-        if(sz > o->size) {
+        if(sz > o->size)
             std::memset(o->HEAD+o->size, 0, sizeof(double)*(sz-o->size));
-//            size_t i = o->size;
-//            double* p = &o->HEAD[i];
-//            while(i < sz) {
-//                *p = 0;
-//                p++;
-//                i++;
-//            }
-        }
         o->size = sz;
     }
 }

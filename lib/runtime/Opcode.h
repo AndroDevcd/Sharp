@@ -48,6 +48,7 @@
         return; \
 
 #define STACK_CHECK  if((sp+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
+#define CALLSTACK_CHECK  if((calls+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
 #define THREAD_STACK_CHECK(self)  if((self->sp+1) >= self->stack_lmt) throw Exception(Environment::StackOverflowErr, "");
 
 #ifndef SHARP_PROF_

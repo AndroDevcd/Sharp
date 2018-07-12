@@ -3,7 +3,7 @@ project(Sharp)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(POSIX "os")
+#set(POSIX "os")
 if (POSIX)
 
     set(BUILD_SHARED_LIBS OFF)
@@ -17,7 +17,7 @@ else()
     set(BUILD_SHARED_LIBS OFF)
     set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-static")
 
-    set(CMAKE_CXX_FLAGS_DEBUG  "-Werror -g -lstdc++ ${CMAKE_CXX_FLAGS_DEBUG}")
+    set(CMAKE_CXX_FLAGS_DEBUG  "-Werror -lstdc++ ${CMAKE_CXX_FLAGS_DEBUG}")
     set(CMAKE_CXX_FLAGS_MINSIZEREL  "-Werror -lstdc++ -s -O3 -Ofast ${CMAKE_CXX_FLAGS_MINSIZEREL}")
     set(CMAKE_CXX_FLAGS_RELEASE   "-Werror -lstdc++ -g -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
 endif ()

@@ -362,16 +362,15 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     data.object->refCount = 1;
                 } else if(o->HEAD != NULL) { // var[]
                     data = GarbageCollector::self->newObject(len);
-
-                    for(size_t i = 0; i < len; i++) {
-                        data.object->HEAD[i] = o->HEAD[i];
-                    }
+                    std::memcpy(data.object->HEAD, o->HEAD, sizeof(double)*len);
 
                     *arry = data.object;
                     data.object->refCount = 1;
                 } else if(o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObject(len);
-                    std::memcpy(data.object->HEAD, o->HEAD, sizeof(double)*len);
+                    for(size_t i = 0; i < len; i++) {
+                        data.object->node[i] = o->node[i];
+                    }
                     *arry = data.object;
                     data.object->refCount = 1;
                 }
@@ -413,7 +412,6 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     data.object->refCount = 1;
                 } else if(o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObjectArray(len);
-
                     for(size_t i = 0; i < indexLen; i++) {
                         data.object->node[i] = o->node[i];
                     }
@@ -456,12 +454,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     data.object->refCount = 1;
                 } else if(o->HEAD != NULL) { // var[]
                     data = GarbageCollector::self->newObject(sz+1);
-
-                    for(size_t i = startIndex; i < o->size; i++) {
-                        data.object->HEAD[idx++] = o->HEAD[i];
-                        if(i==endIndex) break;
-                    }
-
+                    std::memcpy(data.object->HEAD, &o->HEAD[startIndex], sizeof(double)*data.object->size);
                     *arry = data.object;
                     data.object->refCount = 1;
                 } else if(o->node != NULL) { // object? maybe...
@@ -601,7 +594,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 else if(signal==0xb6)
                     registers[ebx] = delete_file(path);
                 else if(signal==0xb7) {
-                   List<native_string> files;
+                    List<native_string> files;
                     get_file_list(path, files);
 
                     thread_self->sp++;
@@ -689,7 +682,7 @@ int VirtualMachine::returnMethod() {
     if(thread_self->calls <= 1)
         return 1;
 
-    Frame *frame = thread_self->callStack;
+    Frame *frame = thread_self->callStack+(thread_self->calls-1);
 
     if(thread_self->current->finallyBlocks.size() > 0)
         executeFinally(thread_self->current);
@@ -700,9 +693,7 @@ int VirtualMachine::returnMethod() {
     thread_self->pc = frame->pc;
     thread_self->sp = frame->sp;
     thread_self->fp = frame->fp;
-    thread_self->callStack = frame->prev;
     thread_self->calls--;
-    std::free(frame);
     return 0;
 }
 
@@ -807,7 +798,7 @@ void VirtualMachine::fillStackTrace(Object *exceptionObject) {
     }
 }
 
-void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss, Frame *prev) {
+void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
     if(frame.last == NULL) return;
 
     ss << "\tSource ";
@@ -846,28 +837,15 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss, Frame *prev)
 void VirtualMachine::fillStackTrace(native_string &str) {
 // fill message
     stringstream ss;
-    Method* m = thread_self->current;
-    int64_t pc = thread_self->pc, _fp=thread_self->fp;
-
-    unsigned int pos = thread_self->calls > EXCEPTION_PRINT_MAX ? thread_self->calls
-                                                                             - EXCEPTION_PRINT_MAX : 0;
-    Frame *prev = NULL, *f = thread_self->callStack;
-    List<Frame*> frames;
-    while(f != NULL) {
-        frames.add(f);
-        f = f->prev;
+    unsigned int iter = 0;
+    for(long i = thread_self->calls; i >= 0 ; i--) {
+        if(iter++ >= EXCEPTION_PRINT_MAX)
+            break;
+        fillMethodCall(thread_self->callStack[thread_self->calls-1], ss);
     }
 
-    for(long i = frames.size()-1; i >= 0 ; i--) {
-        f = frames.get(i);
-        fillMethodCall(*f, ss, prev);
-        prev = f;
-    }
-
-
-    prev = thread_self->calls == 1 ? NULL : thread_self->callStack;
-    Frame frame(thread_self->current, pc, thread_self->sp, _fp);
-    fillMethodCall(frame, ss, prev);
+    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp);
+    fillMethodCall(frame, ss);
 
     str = ss.str();
 }
