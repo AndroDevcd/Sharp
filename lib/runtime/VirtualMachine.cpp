@@ -682,7 +682,7 @@ int VirtualMachine::returnMethod() {
     if(thread_self->calls <= 1)
         return 1;
 
-    Frame *frame = thread_self->callStack+(thread_self->calls-1);
+    Frame *frame = thread_self->callStack+(thread_self->calls);
 
     if(thread_self->current->finallyBlocks.size() > 0)
         executeFinally(thread_self->current);
