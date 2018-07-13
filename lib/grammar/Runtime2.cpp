@@ -754,7 +754,7 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                 out.code.inject(out.code.size(), fn->code);
                 out.code.push_i64(SET_Di(i64, op_CALLD, ebx));
                 fn->free();
-                free(fn);
+                delete fn;
             }
         }
     }
