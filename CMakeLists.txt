@@ -19,10 +19,10 @@ else()
 
     set(CMAKE_CXX_FLAGS_DEBUG  "-Werror -lstdc++ ${CMAKE_CXX_FLAGS_DEBUG}")
     set(CMAKE_CXX_FLAGS_MINSIZEREL  "-Werror -lstdc++ -s -O3 -Ofast ${CMAKE_CXX_FLAGS_MINSIZEREL}")
-    set(CMAKE_CXX_FLAGS_RELEASE   "-Werror -lstdc++ -g -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
+    set(CMAKE_CXX_FLAGS_RELEASE   "-Werror -lstdc++ -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
 endif ()
 
-#set(SHARPC "build")
+set(SHARPC "build")
 
 # Linux compiler console: g++ *.cpp ../../main.cpp ../util/*.cpp parser/*.cpp parser/*/*.cpp -lstdc++ -s -O3 -Ofast -o bootstrap -std=c++11
 

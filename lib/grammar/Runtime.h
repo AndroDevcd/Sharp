@@ -107,6 +107,21 @@ public:
         else return prototype.returnType;
     }
 
+    void operator=(ResolvedReference ref) {
+        referenceName=ref.referenceName;
+        array=ref.array;
+        isMethod=ref.isMethod;
+        resolved=ref.resolved;
+        isProtoType=ref.isProtoType;
+        type=ref.type;
+        klass=ref.klass;
+        field=ref.field;
+        prototype=ref.prototype;
+        method=ref.method;
+        oo=ref.oo;
+        uType=ref.uType;
+    }
+
     string referenceName;
     bool array, isMethod, resolved;
     bool isProtoType;
