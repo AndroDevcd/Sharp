@@ -543,7 +543,7 @@ void RuntimeEngine::setHeadClass(ClassObject *klass) {
 
 void RuntimeEngine::addLine(Block& block, Ast *pAst) {
 
-    currentScope()->currentFunction->line_table.add(KeyPair<long, int64_t>(pAst->line, block.code.__asm64.size()));
+    currentScope()->currentFunction->line_table.add(KeyPair<long, int64_t>(pAst->line-1, block.code.__asm64.size()));
 }
 
 void RuntimeEngine::parseReturnStatement(Block& block, Ast* pAst) { // TODO: fix return sign of new
@@ -7990,7 +7990,7 @@ void RuntimeEngine::createDumpFile() {
             int64_t x64=method->code.__asm64.get(x);
             if(iter < method->line_table.size() && x >= method->line_table.get(iter).value) {
                 line = method->line_table.get(iter).key;
-                ss << "line: " <<  method->line_table.get(iter++).value << ' ';
+                ss << "line: " <<  method->line_table.get(iter++).key << ' ';
                 ss <<std::hex << "[0x" << x << std::dec << "] " << x << ":" << '\t';
             } else {
                 if(line <=9) ss << "        ";

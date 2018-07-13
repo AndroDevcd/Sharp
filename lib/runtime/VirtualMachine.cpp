@@ -817,9 +817,16 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
     long long x, line=-1, ptr=-1;
     for(x = 0; x < frame.last->lineNumbers.size(); x++)
     {
-        if(frame.pc >= frame.last->lineNumbers.get(x).pc) {
-            ptr = x;
+        if(frame.last->lineNumbers.get(x).pc >= frame.pc) {
+            if(x > 0)
+                ptr = x-1;
+            else
+                ptr = x;
             break;
+        }
+
+        if(!((x+1) < frame.last->lineNumbers.size())) {
+            ptr = x;
         }
     }
 
@@ -842,12 +849,15 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
 
 void VirtualMachine::fillStackTrace(native_string &str) {
 // fill message
+    if(thread_self->callStack == NULL || thread_self->calls == 0) return;
+
     stringstream ss;
     unsigned int iter = 0;
-    for(long i = thread_self->calls; i >= 0 ; i--) {
+    long start = thread_self->calls <= EXCEPTION_PRINT_MAX ? 0 : thread_self->calls-EXCEPTION_PRINT_MAX;
+    for(long i = start; i < thread_self->calls ; i++) {
         if(iter++ >= EXCEPTION_PRINT_MAX)
             break;
-        fillMethodCall(thread_self->callStack[i-1], ss);
+        fillMethodCall(thread_self->callStack[i], ss);
     }
 
     Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp);

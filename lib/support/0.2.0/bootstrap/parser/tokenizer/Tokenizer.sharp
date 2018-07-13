@@ -28,6 +28,8 @@ class Tokenizer {
         if(tokens.empty())
             return;
 
+        if(true)
+            throw new Exception("");
         addLines();
         errors = new ErrorManager(lines, file, true, Options.aggressiveErrors);
         current = tokens.at(0);

@@ -643,7 +643,9 @@ void printRegs() {
     cout << "sp -> " << (thread_self->sp-thread_self->dataStack) << endl;
     cout << "fp -> " << thread_self->fp << endl;
     cout << "pc -> " << thread_self->pc << endl;
-    cout << "current -> " << thread_self->current->name.str() << endl;
+    if(thread_self->current != NULL) {
+        cout << "current -> " << thread_self->current->name.str() << endl;
+    }
     native_string stackTrace;
 
     vm->fillStackTrace(stackTrace);
@@ -1296,13 +1298,13 @@ void Thread::interrupt() {
 }
 
 void Thread::setup() {
+    current = NULL;
     if(dataStack==NULL)
         dataStack = (StackElement*)__malloc(sizeof(StackElement)*stack_lmt);
     if(callStack==NULL)
         callStack = (Frame*)__malloc(sizeof(Frame)*stack_lmt);
     calls=0;
     stackTail = (dataStack+stack_lmt)-1;
-    current = NULL;
     suspendPending = false;
     exceptionThrown = false;
     suspended = false;
