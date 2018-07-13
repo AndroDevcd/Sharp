@@ -15,7 +15,7 @@
 long long hbytes = 0, freedBytes = 0, freedYoung = 0, freedAdult = 0, freedOld = 0;
 GarbageCollector *GarbageCollector::self = nullptr;
 
-const int baselineMax = 15;
+const int baselineMax = 10;
 long long int baseLine[baselineMax];
 long long int baselineCount =0;
 
