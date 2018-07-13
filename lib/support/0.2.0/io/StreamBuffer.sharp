@@ -43,6 +43,13 @@ class StreamBuffer {
         return new string(data, 0, dp - 1);
     }
 
+    /**
+    * The data will be converted to a unicode UTF-16 encoded string
+    */
+    public def substring(var startIndex, var endIndex) : string {
+        return new string(data, startIndex, endIndex);
+    }
+
     public def at(var pos) : var {
         if( (pos >= dp) || (pos < 0) ) {
             throw new IndexOutOfBoundsException("Access to buffer at: " + pos + "  size: " + dp);
@@ -65,6 +72,11 @@ class StreamBuffer {
 
     public def operator+(string data) : StreamBuffer {
         var[] raw = data.toArray();
+        pushBack(raw);
+        return self;
+    }
+
+    public def operator+(var[] raw) : StreamBuffer {
         pushBack(raw);
         return self;
     }

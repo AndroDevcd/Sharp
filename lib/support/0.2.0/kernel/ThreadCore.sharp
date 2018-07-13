@@ -27,7 +27,7 @@ public class ThreadCore
         var id = thread.getId();
 
         asm(
-            "loadl %adx, <id>         // load main method  "
+            "loadl %adx, <id>         // load thread id    "
             "pushl <args>             // push arguments    "
             "pushl <thread>           // push thread object"
             "int 0xa4                   // start thread    "
@@ -51,9 +51,30 @@ public class ThreadCore
     public static def __thread_set_thread(Thread thread)
     {
         asm(
-            "movl 0                   // load main method  "
-            "pushobj                  // load main method  "
+            "movl 0                   // mov pointer to thread  "
+            "pushobj                  // push thread to stack   "
             "int 0xe2                   // set thread      "
+            "ret                                           "
+        );
+    }
+
+    public static def __thread_priority(Thread thread, var priority) : var
+    {
+        var id = thread.getId();
+
+        asm(
+            "loadl %adx, <id>         // load thread id    "
+            "loadl %egx, <priority>   // load thread priority   "
+            "int 0xe2                   // update priority      "
+            "return_val %cmt                               "
+            "ret                                           "
+        );
+    }
+
+    public static def __thread_yield()
+    {
+        asm(
+            "int 0xe5                   // yield           "
             "ret                                           "
         );
     }
@@ -63,9 +84,8 @@ public class ThreadCore
         var id = thread.getId(), result;
 
         asm(
-            "loadl %adx, <id>         // load main method  "
+            "loadl %adx, <id>         // load thread id    "
             "int 0xa6                   // interrupt thread"
-            "int 0xa7                   // destroy thread  "
             "smovr_2 %cmt,<result>                         "
         );
 
@@ -82,7 +102,7 @@ public class ThreadCore
         var id = thread.getId(), result;
 
         asm(
-            "loadl %adx, <id>         // load main method  "
+            "loadl %adx, <id>         // load thread id    "
             "int 0xa7                   // destroy thread  "
             "smovr_2 %cmt,<result>                         "
         );

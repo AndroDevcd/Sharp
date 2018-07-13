@@ -57,6 +57,8 @@ public:
 
     Object* findField(std::string name, SharpObject *object);
 
+    double __sgetFieldVar(string field, SharpObject *object);
+
     void createString(Object *o, native_string &str);
 };
 

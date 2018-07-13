@@ -78,13 +78,47 @@ void Parser::parse()
             }
             parse_importdecl(NULL);
         }
+        else if(isvariable_decl(current()))
+        {
+            parse_variabledecl(NULL);
+        }
         else
         {
+            // save parser state
+            errors->enableErrorCheckMode();
+            pushback();
+
+            unsigned long old = cursor+1;
+            /*
+             * variable decl?
+             */
+            if(parse_utype(NULL))
+            {
+                cursor = old;
+                _current = &toks->getEntities().get(cursor);
+
+                errors->pass();
+                if(current().getId() == IDENTIFIER)
+                {
+                    // Variable decliration
+                    tree->pop_back();
+                    ast_cursor--;
+                    parse_variabledecl(NULL);
+                    goto _continue;
+                }
+            } else
+                errors->pass();
+
+            tree->pop_back();
+            ast_cursor--;
+            pushback();
+
             // "expected class, or import declaration"
             errors->createNewError(UNEXPECTED_SYMBOL, current(), " `" + current().getToken() + "`; expected class, enum, or import declaration");
             parse_all(NULL);
         }
 
+        _continue:
         advance();
         remove_accesstypes();
     }

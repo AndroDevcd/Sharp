@@ -24,6 +24,12 @@ enum ThreadState {
     THREAD_KILLED       =0x003
 };
 
+enum ThreadPriority {
+    THREAD_PRIORITY_LOW = 0x0001,
+    THREAD_PRIORITY_NORM = 0X0004,
+    THREAD_PRIORITY_HIGH = 0X0006
+};
+
 class Thread {
 public:
     Thread()
@@ -68,6 +74,8 @@ public:
     static void waitForThreadExit(Thread* thread);
     static void terminateAndWaitForThreadExit(Thread* thread);
     static int waitForThread(Thread *thread);
+    static int setPriority(int32_t, int);
+    static int setPriority(Thread*, int);
     static void killAll();
     static void shutdown();
 
@@ -103,6 +111,7 @@ public:
 #endif
 
     int32_t id;
+    int priority;
     bool daemon;
     bool terminated;
     unsigned int state;

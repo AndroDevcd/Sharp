@@ -18,7 +18,7 @@ public class ArrayList<T> {
 
     /**
      * Constructs an empty list.
-     * with a default capacity of 3
+     * with a default capacity of 10
      */
     public ArrayList() {
         /* data will be set to default capacity */

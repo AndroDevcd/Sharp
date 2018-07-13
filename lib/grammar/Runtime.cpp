@@ -438,6 +438,7 @@ void RuntimeEngine::compile()
         resolveAllGenericMethodsReturns();
         resolveAllEnums();
         inheritObjectClass();
+        resolveAllGlobalFields();
         inlineFields();
         resolveAllInterfaces();
         resolveAllDelegates();
@@ -479,6 +480,11 @@ void RuntimeEngine::compile()
                     case ast_method_decl:
                         addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
                         parseMethodDecl(ast);
+                        removeScope();
+                        break;
+                    case ast_var_decl:
+                        addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
+                        analyzeVarDecl(ast);
                         removeScope();
                         break;
                     default:
@@ -3419,10 +3425,14 @@ Expression RuntimeEngine::parseEqualExpression(Ast* pAst) {
             errors->createNewError(GENERIC, pAst->line, pAst->col, "expression is not assignable");
             break;
         case expression_field:
-            if(left.utype.field->isVar()) {
+            if(left.utype.field->isVar() ) {
                 // add var
-                if(right.type == expression_null || operand.getTokenType() == ASSIGN) {
-                    assignValue(operand, out, left, right, pAst);
+                if(right.type == expression_null || operand.getTokenType() == ASSIGN
+                        || (right.trueType() == CLASS && hasOverload(operand, left, right.getClass(), pAst))) {
+                    if(right.trueType() == CLASS && hasOverload(operand, left, right.getClass(), pAst))
+                        assignValue(operand, out, right, left, pAst);
+                    else
+                        assignValue(operand, out, left, right, pAst);
                 } else {
                     assignNative(operand, out, left, right, pAst);
                 }
@@ -4232,6 +4242,11 @@ bool RuntimeEngine::preprocess()
                     break;
                 case ast_method_decl: /* ignore */
                     break;
+                case ast_var_decl:
+                    addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
+                    parseVarDecl(ast, true);
+                    removeScope();
+                    break;
                 default:
                     stringstream err;
                     err << ": unknown ast type: " << ast->getType();
@@ -4406,12 +4421,76 @@ void RuntimeEngine::resolveAllFields() {
                     break;
                 case ast_enum_decl: /* ignore */
                     break;
+                case ast_var_decl: /* ignore */
+                    break;
                 case ast_method_decl:
                     if(resolvedFields) {
                         addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
                         resolveMethodDecl(ast, true);
                         removeScope();
                     }
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+        }
+
+        if(errors->hasErrors()){
+            report:
+
+            errorCount+= errors->getErrorCount();
+            unfilteredErrorCount+= errors->getUnfilteredErrorCount();
+
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        } else {
+            succeededParsers.addif(activeParser->sourcefile);
+            failedParsers.removefirst(activeParser->sourcefile);
+        }
+
+        errors->free();
+        delete (errors); this->errors = NULL;
+        removeScope();
+    }
+}
+
+void RuntimeEngine::resolveAllGlobalFields() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        activeParser = parsers.get(i);
+        errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
+        currentModule = "$unknown";
+
+        addScope(Scope(GLOBAL_SCOPE, NULL));
+        for(int x = 0; x < activeParser->treesize(); x++) {
+            Ast* ast = activeParser->ast_at(x);
+            SEMTEX_CHECK_ERRORS
+
+            if(x==0) {
+                if(ast->getType() == ast_module_decl) {
+                    add_module(currentModule = parseModuleName(ast));
+                    continue;
+                }
+            }
+
+            switch(ast->getType()) {
+                case ast_class_decl:
+                    resolveClassDecl(ast, false);
+                    break;
+                case ast_interface_decl:
+                    resolveClassDecl(ast, false);
+                    break;
+                case ast_generic_class_decl:
+                case ast_generic_interface_decl:
+                    if(resolvedFields)
+                        resolveGenericClassDecl(ast, true);
+                    break;
+                case ast_enum_decl: /* ignore */
+                    break;
+                case ast_var_decl:
+                    addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
+                    resolveVarDecl(ast, false);
+                    removeScope();
                     break;
                 default:
                     /* ignore */
@@ -4470,6 +4549,8 @@ void RuntimeEngine::resolveAllGenerics() {
                     break;
                 case ast_method_decl: /* ignore */
                     break;
+                case ast_var_decl: /* ignore */
+                    break;
                 default:
                     /* ignore */
                     break;
@@ -4521,6 +4602,11 @@ void RuntimeEngine::inlineFields() {
                     break;
                 case ast_generic_class_decl:
                     resolveGenericClassDecl(ast, true);
+                    break;
+                case ast_var_decl:
+                    addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
+                    resolveVarDecl(ast, true);
+                    removeScope();
                     break;
                 default:
                     /* ignore */
@@ -7200,16 +7286,26 @@ void RuntimeEngine::parseGenericClassDecl(Ast *ast, bool isInterface)
     removeScope();
 }
 
-void RuntimeEngine::parseVarDecl(Ast *ast)
+void RuntimeEngine::parseVarDecl(Ast *ast, bool global)
 {
     List<AccessModifier> modifiers;
     int startpos=0;
 
-
     if(parseAccessDecl(ast, modifiers, startpos)){
+        if(global)
+            createNewWarning(GENERIC, ast->line, ast->col, "access modifiers ignored on global functions");
         parseVarAccessModifiers(modifiers, ast);
+        if(global) {
+            modifiers.free();
+            modifiers.add(PUBLIC);
+            modifiers.add(STATIC);
+        }
     } else {
-        modifiers.add(PRIVATE);
+        if(global) {
+            modifiers.add(PUBLIC);
+            modifiers.add(STATIC);
+        } else
+            modifiers.add(PRIVATE);
     }
 
     parse_var:

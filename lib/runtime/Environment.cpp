@@ -107,3 +107,13 @@ void Environment::createString(Object *o, native_string &str) {
         }
     }
 }
+
+double Environment::__sgetFieldVar(string field, SharpObject *object) {
+    Object *FIELD = env->findField(field, object);
+
+    if(FIELD != NULL && FIELD->object != NULL
+       && FIELD->object->HEAD != NULL) {
+        return FIELD->object->HEAD[0];
+    }
+    return 0;
+}

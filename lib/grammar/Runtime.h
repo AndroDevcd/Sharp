@@ -708,7 +708,7 @@ private:
 
     void removeScope();
 
-    void parseVarDecl(Ast *ast);
+    void parseVarDecl(Ast *ast, bool global = false);
 
     void parseVarAccessModifiers(List<AccessModifier> &modifiers, Ast *ast);
 
@@ -1183,6 +1183,8 @@ private:
     Method *fieldToFunction(Field *field, Expression &code);
 
     void varToObject(Expression &expression, Expression &out);
+
+    void resolveAllGlobalFields();
 };
 
 
@@ -1211,7 +1213,7 @@ private:
 #define unique_label_id(x) "$$L" << (x)
 
 #define progname "bootstrap"
-#define progvers "0.2.323"
+#define progvers "0.2.343"
 
 struct options {
     ~options()

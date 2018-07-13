@@ -3,7 +3,12 @@ mod std.io;
 import std;
 
 /**
- * Created by BraxtonN on 5/25/2018.
+ * WinFileSystem represents the high level version of the operations
+ * that you can invoke on a windows file system. Not much needs to be changed in
+ * this file other than normalizing the path name.
+ *
+ * Windows does not classify access execute aso a request for that will fail
+ * before we even interrupt the vm
  */
 public class WinFileSystem base FileSystem {
     private var slash;

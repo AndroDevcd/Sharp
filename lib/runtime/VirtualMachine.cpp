@@ -307,6 +307,12 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xa8:
             registers[cmt]=Thread::Create((int32_t )registers[adx], (unsigned long)registers[egx]);
             return;
+        case 0xe4:
+            registers[cmt]=Thread::setPriority((int32_t )registers[adx], (int)registers[egx]);
+            return;
+        case 0xe5:
+            __os_yield();
+            return;
         case 0xa9:
             vm->shutdown();
             return;
