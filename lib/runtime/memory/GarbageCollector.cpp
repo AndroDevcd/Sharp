@@ -15,6 +15,10 @@
 long long hbytes = 0, freedBytes = 0, freedYoung = 0, freedAdult = 0, freedOld = 0;
 GarbageCollector *GarbageCollector::self = nullptr;
 
+const int baselineMax = 15;
+long long int baseLine[baselineMax];
+long long int baselineCount =0;
+
 void* __malloc(size_t bytes)
 {
     void* ptr =nullptr;
@@ -226,6 +230,25 @@ void GarbageCollector::collect(CollectionPolicy policy) {
     freedAdult = 0;
     freedOld = 0;
     mutex.unlock();
+
+    /**
+     * We want to update the allocation threshold as the program runs for
+     * more efficent memory collection
+     *
+     */
+    if(baselineCount == baselineMax) {
+        size_t total =0, avg;
+        for(long i = 0; i < baselineMax; i++) {
+            total+=baseLine[i];
+        }
+        avg=total/baselineMax;
+        baselineCount =0;
+        if(avg > memoryThreshold) {
+            memoryThreshold = avg; // dynamically update threshold
+        }
+    } else {
+        baseLine[baselineCount++] = managedBytes;
+    }
 }
 
 void GarbageCollector::collectYoungObjects() {
