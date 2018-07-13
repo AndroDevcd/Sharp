@@ -1299,10 +1299,14 @@ void Thread::interrupt() {
 
 void Thread::setup() {
     current = NULL;
-    if(dataStack==NULL)
+    if(dataStack==NULL) {
         dataStack = (StackElement*)__malloc(sizeof(StackElement)*stack_lmt);
-    if(callStack==NULL)
+        GarbageCollector::self->addMemory(sizeof(StackElement)*stack_lmt);
+    }
+    if(callStack==NULL) {
         callStack = (Frame*)__malloc(sizeof(Frame)*stack_lmt);
+        GarbageCollector::self->addMemory(sizeof(Frame)*stack_lmt);
+    }
     calls=0;
     stackTail = (dataStack+stack_lmt)-1;
     suspendPending = false;
@@ -1332,7 +1336,8 @@ void Thread::setup() {
             this->dataStack[i].object.object = NULL;
             this->dataStack[i].var=0;
         }
-    }
+    } else
+        GarbageCollector::self->addMemory(sizeof(StackElement)*stack_lmt);
 }
 
 int Thread::setPriority(Thread* thread, int priority) {

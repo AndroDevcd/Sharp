@@ -24,6 +24,8 @@ void init_main(List <native_string>& list1);
 
 void createStringArray(Object *object, List<native_string> &lst);
 
+size_t getMemBytes(const char *argv, bool &setLimit);
+
 void version() {
     cout << progname << " " << progvers << endl;
 }
@@ -39,6 +41,7 @@ void help() {
     cout << "[-options]\n\n    -V                     print the bootstrap version number and exit" << endl;
     cout <<               "    -showversion           print the bootstrap version number and continue." << endl;
     cout <<               "    -Maxlmt<size:type>     set the maximum memory allowed to the virtual machine." << endl;
+    cout <<               "    -gthreshold<size:type> set the minimum memory allowed to trigger the garbage collector." << endl;
     cout <<               "    --h -?                 display this help message." << endl;
 }
 
@@ -60,6 +63,7 @@ int runtimeStart(int argc, const char* argv[])
      */
     GarbageCollector::initilize();
     GarbageCollector::setMemoryLimit(GC_HEAP_LIMIT);
+    GarbageCollector::setMemoryThreshold(KB_TO_BYTES(64));
 
     for (int i = 1; i < argc; ++i) {
         if(opt("-V")){
@@ -73,51 +77,19 @@ int runtimeStart(int argc, const char* argv[])
         else if(opt("-showversion")){
             version();
         }
-        else if(opt("-Maxlmt")){
+        else if(opt("-gthreashold") || opt("-gt")) {
+            bool setLimit;
+            GarbageCollector::setMemoryThreshold(getMemBytes(argv[++i], setLimit));
+
+            if(!setLimit)
+                error("expected postfix 'K', 'M', or 'G' after number with option `-gthreashold`");
+        }
+        else if(opt("-maxlmt")){
             if(i+1 >= argc)
                 error("maximum memory limit required after option `-Maxlmt`");
             else {
-                string size = string(argv[++i]);
-                stringstream ss;
-                bool parsedDigit = false, setLimit = false;
-
-                for(unsigned int i = 0; i < size.size(); i++) {
-                    if(isdigit(size.at(i))) {
-                        parsedDigit = true;
-                        ss << size.at(i);
-                    } else if(isalpha(size.at(i))) {
-                        string num = ss.str();
-                        unsigned long limit = strtoul(ss.str().c_str(), NULL, 0);
-                        switch(size.at(i)) {
-                            case 'k':
-                            case 'K':
-                                setLimit = true;
-                                GarbageCollector::setMemoryLimit(KB_TO_BYTES(limit));
-                                break;
-                            case 'm':
-                            case 'M':
-                                setLimit = true;
-                                GarbageCollector::setMemoryLimit(MB_TO_BYTES(limit));
-                                break;
-                            case 'G':
-                            case 'g':
-                                setLimit = true;
-                                GarbageCollector::setMemoryLimit(GB_TO_BYTES(limit));
-                                break;
-                            default:
-                                error("expected postfix 'K', 'M', or 'G' after number with option `-Maxlmt`");
-                                break;
-                        }
-                    } else {
-                        if(parsedDigit)
-                            error("expected postfix 'K', 'M', or 'G' after number with option `-Maxlmt`");
-                        else
-                            error("expected number option `-Maxlmt`");
-                    }
-
-                    if(setLimit)
-                        break;
-                }
+                bool setLimit;
+                GarbageCollector::setMemoryLimit(getMemBytes(argv[++i], setLimit));
 
                 if(!setLimit)
                     error("expected postfix 'K', 'M', or 'G' after number with option `-Maxlmt`");
@@ -152,6 +124,45 @@ int runtimeStart(int argc, const char* argv[])
     }
 
     return startApplication(executable, pArgs);
+}
+
+size_t getMemBytes(const char *str, bool &setLimit) {
+    setLimit= false;
+    string size = string(str);
+    stringstream ss;
+    bool parsedDigit = false;
+
+    for(unsigned int i = 0; i < size.size(); i++) {
+        if(isdigit(size.at(i))) {
+            parsedDigit = true;
+            ss << size.at(i);
+        } else if(isalpha(size.at(i))) {
+            string num = ss.str();
+            unsigned long limit = strtoul(ss.str().c_str(), NULL, 0);
+            switch(size.at(i)) {
+                case 'k':
+                case 'K':
+                    setLimit = true;
+                    return KB_TO_BYTES(limit);
+                case 'm':
+                case 'M':
+                    setLimit = true;
+                    return MB_TO_BYTES(limit);
+                case 'G':
+                case 'g':
+                    setLimit = true;
+                    return GB_TO_BYTES(limit);
+                default:
+                    error("expected postfix 'K', 'M', or 'G' after number with option `-maxlmt`");
+                    break;
+            }
+        } else {
+            if(parsedDigit)
+                error("expected postfix 'K', 'M', or 'G' after number with option `-maxlmt`");
+            else
+                error("expected number option `-maxlmt`");
+        }
+    }
 }
 
 int startApplication(string exe, List<native_string>& pArgs) {

@@ -68,6 +68,12 @@ public:
         }
     }
 
+    static void setMemoryThreshold(unsigned long long limit) {
+        if(self != NULL) {
+            self->memoryThreshold = limit;
+        }
+    }
+
     /**
      * Messages are sendable by other threads to command the garbage collector
      * to preform a certain type of garbage collection. Most of the time the user
@@ -112,6 +118,16 @@ public:
      */
      void freeObject(Object* object);
 
+     /**
+      * Add untracked memory to managed memory
+      * @param bytes
+      */
+     CXX11_INLINE void addMemory(size_t bytes) {
+         mutex.lock();
+         managedBytes += bytes;
+         mutex.unlock();
+     }
+
     CXX11_INLINE bool spaceAvailable(unsigned long long bytes) {
         return (bytes+managedBytes) < memoryLimit;
     }
@@ -143,6 +159,7 @@ public:
 private:
      long long managedBytes;
     unsigned long long memoryLimit;
+    unsigned long long memoryThreshold;
     bool isShutdown;
 
     /**
@@ -191,7 +208,7 @@ private:
 #define GC_COLLECT_YOUNG() ( yObjs >= 25 )
 #define GC_COLLECT_ADULT() ( aObjs >= 10 )
 #define GC_COLLECT_OLD() ( oObjs >= 10 )
-#define GC_COLLECT_MEM() ( managedBytes >= KB_TO_BYTES(64) )
+#define GC_COLLECT_MEM() ( managedBytes >= memoryThreshold )
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))
 
 // generation macros
