@@ -28,7 +28,7 @@ public:
     ResolvedReference()
             :
             type(UNDEFINED),
-            field(NULL),
+            field(),
             method(NULL),
             klass(NULL),
             oo(NULL),
@@ -38,6 +38,7 @@ public:
             isMethod(false),
             uType(NULL),
             prototype(),
+            isField(false),
             isProtoType(false)
     {
     }
@@ -61,7 +62,7 @@ public:
         if(isMethod)
             return "method";
         else if(type==CLASS)
-            return field != NULL ? field->klass->getFullName() : (klass==NULL ? "?" : klass->getFullName());
+            return isField ? field.klass->getFullName() : (klass==NULL ? "?" : klass->getFullName());
         else if(type==OBJECT)
             return "object";
         else if(type==VAR) {
@@ -75,10 +76,10 @@ public:
         else if(type==UNDEFINED)
             return "undefined";
         else if(type==CLASSFIELD) {
-            if(field->type==CLASS)
-                return field->klass->getFullName();
+            if(field.type==CLASS)
+                return field.klass->getFullName();
             else
-                return typeToString(field->type);
+                return typeToString(field.type);
         }
         else
             return "unresolved";
@@ -90,20 +91,20 @@ public:
 
     bool isVar() { return type==VAR; }
     bool dynamicObject() { return type==OBJECT; }
-    bool isEnum() { return field != NULL && field->isEnum; }
+    bool isEnum() { return isField && field.isEnum; }
     List<Param> getParams() {
         if(method)
             return method->getParams();
-        else if(field)
-            return field->getParams();
+        else if(isField)
+            return field.getParams();
         else return prototype.getParams();
     }
 
     FieldType getReturnType() {
         if(method)
             return method->type;
-        else if(field)
-            return field->returnType;
+        else if(isField)
+            return field.returnType;
         else return prototype.returnType;
     }
 
@@ -120,21 +121,22 @@ public:
         method=ref.method;
         oo=ref.oo;
         uType=ref.uType;
+        isField=ref.isField;
     }
 
     string referenceName;
-    bool array, isMethod, resolved;
+    bool array, isMethod, isField, resolved;
     bool isProtoType;
     FieldType type;
     ClassObject* klass;
-    Field* field, prototype;
+    Field field, prototype;
     Method* method;
     OperatorOverload* oo;
     Ast* uType;
 
     bool isArray() {
-        if(field != NULL)
-            return field->isArray;
+        if(isField)
+            return field.isArray;
 
         return array;
     }
@@ -210,7 +212,7 @@ struct Expression {
     bool arrayObject() {
         switch(type) {
             case expression_field:
-                return utype.field->isArray;
+                return utype.field.isArray;
             default:
                 return utype.array;
         }
@@ -218,7 +220,7 @@ struct Expression {
     int trueType() {
         switch(type) {
             case expression_field:
-                return utype.field->type;
+                return utype.field.type;
             case expression_objectclass:
                 return OBJECT;
             case expression_lclass:
@@ -235,7 +237,7 @@ struct Expression {
     ClassObject* getClass() {
         switch(type) {
             case expression_field:
-                return utype.field->klass;
+                return utype.field.klass;
             default:
                 return utype.klass;
         }
@@ -245,12 +247,12 @@ struct Expression {
     }
 
     bool isConstExpr() {
-        return literal || (type==expression_field && utype.field->isConst());
+        return literal || (type==expression_field && utype.field.isConst());
     }
 
     bool isProtoType() {
         return type == expression_prototype ||
-               (utype.field != NULL && utype.field->prototype);
+               (utype.isField && utype.field.prototype);
     }
 
     bool isArray() {

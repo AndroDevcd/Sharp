@@ -302,7 +302,7 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
 
             params.add(Param(field));
         } else if(expression->type == expression_field) {
-            params.add(*expression->utype.field);
+            params.add(expression->utype.field);
         } else if(expression->type == expression_native) {
             success = false;
             errors->createNewError(GENERIC, expression->link->line, expression->link->col, " unexpected symbol `" +
@@ -405,19 +405,19 @@ void RuntimeEngine::pushAuthenticExpressionToStackNoInject(Expression& expressio
             }
             break;
         case expression_field:
-            if(expression.utype.field->isVar() && !expression.utype.field->isArray) {
-                if(expression.utype.field->local) {
+            if(expression.utype.field.isVar() && !expression.utype.field.isArray) {
+                if(expression.utype.field.local) {
                     out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
                 } else {
                     out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
                     out.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, adx));
                     out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
                 }
-            } else if(expression.utype.field->isVar() && expression.utype.field->isArray) {
+            } else if(expression.utype.field.isVar() && expression.utype.field.isArray) {
                 if (expression.func) {
                 } else
                     out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
-            } else if(expression.utype.field->dynamicObject() || expression.utype.field->type == CLASS) {
+            } else if(expression.utype.field.dynamicObject() || expression.utype.field.type == CLASS) {
                 if (expression.func) {
                 } else
                     out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
@@ -528,8 +528,8 @@ void RuntimeEngine::pushExpressionToStack(Expression& expression, Expression& ou
             out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
             break;
         case expression_field:
-            if(expression.utype.field->isVar() && !expression.utype.field->isArray) {
-                if(expression.utype.field->local) {
+            if(expression.utype.field.isVar() && !expression.utype.field.isArray) {
+                if(expression.utype.field.local) {
                     out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
                 } else {
                     out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
@@ -592,13 +592,13 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
         access = true;
         // accessor
         resolveUtype(ptr, expression, utype);
-        if(expression.type == expression_class || (expression.type == expression_field && expression.utype.field->type == CLASS)) {
+        if(expression.type == expression_class || (expression.type == expression_field && expression.utype.field.type == CLASS)) {
             ClassObject* klass;
             if(expression.type == expression_class) {
                 klass = expression.utype.klass;
                 staticCall = true;
             } else {
-                klass = expression.utype.field->klass;
+                klass = expression.utype.field.klass;
             }
 
             if((fn = klass->getFunction(methodName, params, true, true)) != NULL){}
@@ -631,8 +631,8 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
 
                 errors->createNewError(COULD_NOT_RESOLVE, valueLst->line, valueLst->col, " `" + methodName + paramsToString(params) + "`");
             }
-        } else if(expression.type == expression_field && expression.utype.field->type != CLASS) {
-            errors->createNewError(GENERIC, expression.link->line, expression.link->col, " field `" +  expression.utype.field->name + "` is not a class");
+        } else if(expression.type == expression_field && expression.utype.field.type != CLASS) {
+            errors->createNewError(GENERIC, expression.link->line, expression.link->col, " field `" +  expression.utype.field.name + "` is not a class");
 
         } else if(expression.utype.type == UNDEFINED) {
         }
@@ -786,7 +786,8 @@ void RuntimeEngine::resolveUtypeContext(ClassObject* classContext, ReferencePoin
         if((field = classContext->getField(refrence.referenceName)) != NULL) {
 
             expression.utype.type = CLASSFIELD;
-            expression.utype.field = field;
+            expression.utype.field = *field;
+            expression.utype.isField = true;
             expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
             expression.type = expression_field;
         }else {
@@ -814,19 +815,19 @@ void RuntimeEngine::pushExpressionToStackNoInject(Expression& expression, Expres
             }
             break;
         case expression_field:
-            if(expression.utype.field->isVar() && !expression.utype.field->isArray) {
-                if(expression.utype.field->local) {
+            if(expression.utype.field.isVar() && !expression.utype.field.isArray) {
+                if(expression.utype.field.local) {
                     out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
                 } else {
                     out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
                     out.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, adx));
                     out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
                 }
-            } else if(expression.utype.field->isVar() && expression.utype.field->isArray) {
+            } else if(expression.utype.field.isVar() && expression.utype.field.isArray) {
                 if (expression.func) {
                 } else
                     out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
-            } else if(expression.utype.field->dynamicObject() || expression.utype.field->type == CLASS) {
+            } else if(expression.utype.field.dynamicObject() || expression.utype.field.type == CLASS) {
                 if (expression.func) {
                 } else
                     out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
@@ -883,12 +884,12 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
     if(splitMethodUtype(methodName, ptr)) {
         // accessor
         resolveUtypeContext(classContext, ptr, expression, pAst);
-        if(expression.type == expression_class || (expression.type == expression_field && expression.utype.field->type == CLASS)) {
+        if(expression.type == expression_class || (expression.type == expression_field && expression.utype.field.type == CLASS)) {
             ClassObject* klass;
             if(expression.type == expression_class) {
                 klass = expression.utype.klass;
             } else {
-                klass = expression.utype.field->klass;
+                klass = expression.utype.field.klass;
             }
 
             if((fn = klass->getFunction(methodName, params, true, true)) != NULL){}
@@ -903,7 +904,7 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
                                                                                    + (klass == NULL ? ptr.referenceName : methodName) + paramsToString(params) + "`");
             }
         }
-        else if(expression.type == expression_field && expression.utype.field->type != CLASS) {
+        else if(expression.type == expression_field && expression.utype.field.type != CLASS) {
             errors->createNewError(GENERIC, pAst2->line, pAst2->col, " field `" + (expression.utype.klass == NULL ? ptr.referenceName : methodName) + "` is not a class");
 
         }
@@ -1105,8 +1106,8 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
             }
             break;
         case expression_field:
-            if(expr.utype.field->isVar() && !expr.utype.field->isArray) {
-                if(expr.utype.field->local) {
+            if(expr.utype.field.isVar() && !expr.utype.field.isArray) {
+                if(expr.utype.field.local) {
                     if(reg != ebx) {
                         out.code.push_i64(SET_Ci(i64, op_MOVR, reg,0, ebx));
                     }
@@ -1115,25 +1116,25 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
                     out.code.push_i64(SET_Di(i64, op_CHECKLEN, adx));
                     out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
                 }
-            } else if(expr.utype.field->isVar() && expr.utype.field->isArray) {
-                errors->createNewError(GENERIC, expr.link, "cannot get integer value from " + expr.utype.field->name + "[] expression");
-            } else if(expr.utype.field->dynamicObject() && !expr.utype.field->isArray) {
+            } else if(expr.utype.field.isVar() && expr.utype.field.isArray) {
+                errors->createNewError(GENERIC, expr.link, "cannot get integer value from " + expr.utype.field.name + "[] expression");
+            } else if(expr.utype.field.dynamicObject() && !expr.utype.field.isArray) {
                 out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
                 out.code.push_i64(SET_Di(i64, op_CHECKLEN, adx));
                 out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
-            }else if(expr.utype.field->type == CLASS || expr.utype.field->dynamicObject()) {
-                if(expr.utype.field->isEnum || expr.utype.field->klass->isEnum()) {
-                    Field *valueField = expr.utype.field->klass->getField("value", true);
+            }else if(expr.utype.field.type == CLASS || expr.utype.field.dynamicObject()) {
+                if(expr.utype.field.isEnum || expr.utype.field.klass->isEnum()) {
+                    Field *valueField = expr.utype.field.klass->getField("value", true);
                     if(valueField != NULL) {
-                        if(isFieldInlined(expr.utype.field)) {
-                            inlineVariableValue(out, expr.utype.field);
+                        if(isFieldInlined(&expr.utype.field)) {
+                            inlineVariableValue(out, &expr.utype.field);
                         } else {
                             out.code.push_i64(SET_Di(i64, op_MOVN, valueField->address));
                             out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
                             out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
                         }
                     }
-                } else if(isNativeIntegerClass(expr.utype.field->klass)) {
+                } else if(isNativeIntegerClass(expr.utype.field.klass)) {
                     out.code.push_i64(SET_Di(i64, op_MOVN, 0));
                     out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
                     out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
@@ -1189,7 +1190,7 @@ Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
 
     switch(interm.type) {
         case expression_field:
-            if(!interm.utype.field->isArray) {
+            if(!interm.utype.field.isArray) {
                 // error not an array
                 errors->createNewError(GENERIC, indexExpr.link->line, indexExpr.link->col, "expression of type `" + interm.typeToString() + "` must evaluate to array");
             }
@@ -1201,15 +1202,15 @@ Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
             expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
             expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
 
-            if(interm.utype.field->type == CLASS) {
-                expression.utype.klass = interm.utype.field->klass;
+            if(interm.utype.field.type == CLASS) {
+                expression.utype.klass = interm.utype.field.klass;
                 expression.type = expression_lclass;
 
                 expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
-            } else if(interm.utype.field->type == VAR) {
+            } else if(interm.utype.field.type == VAR) {
                 expression.type = expression_var;
                 expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
-            } else if(interm.utype.field->type == OBJECT) {
+            } else if(interm.utype.field.type == OBJECT) {
                 expression.type = expression_objectclass;
                 expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
             }else {
@@ -1300,7 +1301,7 @@ Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
     if(indexExpr.type == expression_var) {
         // we have an integer!
     } else if(indexExpr.type == expression_field) {
-        if(!indexExpr.utype.field->isVar()) {
+        if(!indexExpr.utype.field.isVar()) {
             errors->createNewError(GENERIC, indexExpr.link->line, indexExpr.link->col, "array index is not an integer");
         }
     } else if(indexExpr.type == expression_unresolved) {
@@ -1507,12 +1508,12 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
         currentScope()->self = true;
         resolveUtype(ptr, expression, utype);
         currentScope()->self = false;
-        if(expression.type == expression_class || (expression.type == expression_field && expression.utype.field->type == CLASS)) {
+        if(expression.type == expression_class || (expression.type == expression_field && expression.utype.field.type == CLASS)) {
             ClassObject* klass;
             if(expression.type == expression_class) {
                 klass = expression.utype.klass;
             } else {
-                klass = expression.utype.field->klass;
+                klass = expression.utype.field.klass;
             }
 
             if((fn = klass->getFunction(methodName, params, true, true)) != NULL){}
@@ -1692,12 +1693,12 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
         currentScope()->base = true;
         resolveUtype(ptr, expression, utype);
         currentScope()->base = false;
-        if(expression.type == expression_class || (expression.type == expression_field && expression.utype.field->type == CLASS)) {
+        if(expression.type == expression_class || (expression.type == expression_field && expression.utype.field.type == CLASS)) {
             ClassObject* klass;
             if(expression.type == expression_class) {
                 klass = expression.utype.klass;
             } else {
-                klass = expression.utype.field->klass;
+                klass = expression.utype.field.klass;
             }
 
             if((fn = klass->getFunction(methodName, params, false, true)) != NULL){}
@@ -2255,28 +2256,28 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
                 }
                 break;
             case expression_field:
-                if(interm.utype.field->type == CLASS) {
-                    postIncClass(expression, entity, interm.utype.field->klass);
+                if(interm.utype.field.type == CLASS) {
+                    postIncClass(expression, entity, interm.utype.field.klass);
                     return expression;
-                } else if(interm.utype.field->type == VAR || interm.utype.field->type == OBJECT) {
-                    if(interm.utype.field->type == OBJECT) {
+                } else if(interm.utype.field.type == VAR || interm.utype.field.type == OBJECT) {
+                    if(interm.utype.field.type == OBJECT) {
                         errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "use of `" + entity.getToken() + "` operator on field of type `dynamic_object` without a cast. Try ((SomeClass)dynamic_class)++");
-                    } else if(interm.utype.field->isVar()) {
+                    } else if(interm.utype.field.isVar()) {
                         // increment the field
                         pushExpressionToRegisterNoInject(interm, expression, ebx);
 
 
                         if(entity.getTokenType() == _INC) {
-                            if(expression.utype.field->local) {
+                            if(expression.utype.field.local) {
                                 if(c_options.optimize) {
                                     expression.code.free();
-                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, interm.utype.field->address));
+                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, interm.utype.field.address));
                                     expression.code.push_i64(
-                                            SET_Ci(i64, op_IADDL, 1,0 , interm.utype.field->address));
+                                            SET_Ci(i64, op_IADDL, 1,0 , interm.utype.field.address));
                                 } else {
                                     expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
                                     expression.code.push_i64(
-                                            SET_Ci(i64, op_ADDL, ecx,0 , interm.utype.field->address));
+                                            SET_Ci(i64, op_ADDL, ecx,0 , interm.utype.field.address));
                                 }
                             }
                             else {
@@ -2286,16 +2287,16 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
                             }
                         }
                         else {
-                            if(expression.utype.field->local) {
+                            if(expression.utype.field.local) {
                                 if(c_options.optimize) {
                                     expression.code.free();
-                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, interm.utype.field->address));
+                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, interm.utype.field.address));
                                     expression.code.push_i64(
-                                            SET_Ci(i64, op_ISUBL, 1,0 , interm.utype.field->address));
+                                            SET_Ci(i64, op_ISUBL, 1,0 , interm.utype.field.address));
                                 } else {
                                     expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
                                     expression.code.push_i64(
-                                            SET_Ci(i64, op_SUBL, ecx, 0, interm.utype.field->address));
+                                            SET_Ci(i64, op_SUBL, ecx, 0, interm.utype.field.address));
                                 }
                             }
                             else {
@@ -2305,7 +2306,7 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
                             }
                         }
                     }
-                } else if(interm.utype.field->type != UNDEFINED){
+                } else if(interm.utype.field.type != UNDEFINED){
                     // do nothing field is unresolved
                     errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "expression must evaluate to an int to use `" + entity.getToken() + "` operator");
 
@@ -2361,7 +2362,7 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
 
     switch(interm.type) {
         case expression_field:
-            if(!interm.utype.field->isArray) {
+            if(!interm.utype.field.isArray) {
                 // error not an array
                 errors->createNewError(GENERIC, pAst->getSubAst(0)->line, pAst->getSubAst(0)->col, "expression of type `" + interm.typeToString() + "` must evaluate to array");
             }
@@ -2376,16 +2377,16 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
             expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
 
 
-            if(interm.utype.field->type == CLASS) {
-                expression.utype.klass = interm.utype.field->klass;
+            if(interm.utype.field.type == CLASS) {
+                expression.utype.klass = interm.utype.field.klass;
                 expression.type = expression_lclass;
 
                 expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
-            } else if(interm.utype.field->type == VAR) {
+            } else if(interm.utype.field.type == VAR) {
                 expression.type = expression_var;
                 expression.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, ebx));
             }
-            else if(interm.utype.field->type == OBJECT) {
+            else if(interm.utype.field.type == OBJECT) {
                 expression.type = expression_objectclass;
                 expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
             } else {
@@ -2480,7 +2481,7 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
     if(indexExpr.type == expression_var) {
         // we have an integer!
     } else if(indexExpr.type == expression_field) {
-        if(!indexExpr.utype.field->isVar()) {
+        if(!indexExpr.utype.field.isVar()) {
             errors->createNewError(GENERIC, pAst->getSubAst(1)->line, pAst->getSubAst(1)->col, "array index is not an integer");
         }
     } else if(indexExpr.type == expression_unresolved) {
@@ -2527,22 +2528,22 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
             out.utype = utype.utype;
             return;
         case expression_field:
-            if(arg.utype.field->type == CLASS) {
+            if(arg.utype.field.type == CLASS) {
                 if(utype.utype.klass->assignable(arg.utype.klass)) {
                     out.inject(arg);
                     out.type = expression_lclass;
                     out.utype = utype.utype;
                     return;
                 }
-            } else if(arg.utype.field->type == OBJECT) {
+            } else if(arg.utype.field.type == OBJECT) {
                 pushExpressionToPtr(arg, out);
                 out.code.push_i64(SET_Di(i64, op_MOVI, utype.utype.klass->address), cmt);
                 out.code.push_i64(SET_Di(i64, op_CAST, cmt));
                 out.type = expression_lclass;
                 out.utype = utype.utype;
                 return;
-            } else if(arg.utype.field->type == VAR) {
-                errors->createNewError(GENERIC, utype.link->line, utype.link->col, "field `" + arg.utype.field->name + "` is not a class; "
+            } else if(arg.utype.field.type == VAR) {
+                errors->createNewError(GENERIC, utype.link->line, utype.link->col, "field `" + arg.utype.field.name + "` is not a class; "
                         "cannot cast `" + arg.utype.typeToString() + "` to `" + utype.utype.typeToString() + "`");
                 return;
             } else {
@@ -2637,11 +2638,11 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
         if(expression.trueType() == OBJECT) {
             pushExpressionToRegisterNoInject(expression, out, ebx);
             return;
-        } else if(expression.utype.field != NULL && expression.utype.field->isEnum) {
+        } else if(expression.utype.isField && expression.utype.field.isEnum) {
             pushExpressionToRegisterNoInject(expression, out, ebx);
             return;
-        } else if(expression.trueType() == CLASS && expression.utype.field != NULL) {
-            ClassObject *klass = expression.utype.field->klass;
+        } else if(expression.trueType() == CLASS && expression.utype.isField) {
+            ClassObject *klass = expression.utype.field.klass;
             if(klass->isEnum()) {
                 pushExpressionToRegisterNoInject(expression, out, ebx);
                 return;
@@ -2671,7 +2672,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 //                pushExpressionToRegisterNoInject(arg, out, ebx);
 //                out.code.push_i64(SET_Ci(i64, op_MOV8, ebx, 0, ebx));
 //                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field->vaddr));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
@@ -2683,7 +2684,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 //                pushExpressionToRegisterNoInject(arg, out, ebx);
 //                out.code.push_i64(SET_Ci(i64, op_MOV16, ebx, 0, ebx));
 //                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field->vaddr));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
@@ -2695,7 +2696,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 //                pushExpressionToRegisterNoInject(arg, out, ebx);
 //                out.code.push_i64(SET_Ci(i64, op_MOV32, ebx, 0, ebx));
 //                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field->vaddr));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
@@ -2707,7 +2708,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 //                pushExpressionToRegisterNoInject(arg, out, ebx);
 //                out.code.push_i64(SET_Ci(i64, op_MOV64, ebx, 0, ebx));
 //                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field->vaddr));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
@@ -2719,7 +2720,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 //                pushExpressionToRegisterNoInject(arg, out, ebx);
 //                out.code.push_i64(SET_Ci(i64, op_MOVU8, ebx, 0, ebx));
 //                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field->vaddr));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
@@ -2731,7 +2732,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 //                pushExpressionToRegisterNoInject(arg, out, ebx);
 //                out.code.push_i64(SET_Ci(i64, op_MOVU16, ebx, 0, ebx));
 //                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field->vaddr));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
@@ -2743,7 +2744,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 //                pushExpressionToRegisterNoInject(arg, out, ebx);
 //                out.code.push_i64(SET_Ci(i64, op_MOVU32, ebx, 0, ebx));
 //                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field->vaddr));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
@@ -2755,7 +2756,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 //                pushExpressionToRegisterNoInject(arg, out, ebx);
 //                out.code.push_i64(SET_Ci(i64, op_MOVU64, ebx, 0, ebx));
 //                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field->vaddr));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
@@ -2887,21 +2888,21 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
                 }
                 break;
             case expression_field:
-                if(interm.utype.field->type == CLASS) {
-                    preIncClass(expression, entity, expression.utype.field->klass);
+                if(interm.utype.field.type == CLASS) {
+                    preIncClass(expression, entity, expression.utype.field.klass);
                     return expression;
-                } else if(interm.utype.field->type == VAR) {
+                } else if(interm.utype.field.type == VAR) {
                     // increment the field
                     if(entity.getTokenType() == _INC) {
-                        if(expression.utype.field->local) {
+                        if(expression.utype.field.local) {
                             if(c_options.optimize) {
                                 expression.code.push_i64(
-                                        SET_Ci(i64, op_IADDL, 1,0 , interm.utype.field->address));
+                                        SET_Ci(i64, op_IADDL, 1,0 , interm.utype.field.address));
                                 expression.code.push_i64(SET_Di(i64, op_INC, ebx));
                             } else {
                                 expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
                                 expression.code.push_i64(
-                                        SET_Ci(i64, op_ADDL, ecx,0 , interm.utype.field->address));
+                                        SET_Ci(i64, op_ADDL, ecx,0 , interm.utype.field.address));
                                 expression.code.push_i64(SET_Di(i64, op_INC, ebx));
                             }
                         }
@@ -2912,15 +2913,15 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
                         }
                     }
                     else {
-                        if(expression.utype.field->local) {
+                        if(expression.utype.field.local) {
                             if(c_options.optimize) {
                                 expression.code.push_i64(
-                                        SET_Ci(i64, op_ISUBL, 1,0 , interm.utype.field->address));
+                                        SET_Ci(i64, op_ISUBL, 1,0 , interm.utype.field.address));
                                 expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
                             } else {
                                 expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
                                 expression.code.push_i64(
-                                        SET_Ci(i64, op_SUBL, ecx, 0, interm.utype.field->address));
+                                        SET_Ci(i64, op_SUBL, ecx, 0, interm.utype.field.address));
                                 expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
                             }
                         }
@@ -2931,11 +2932,11 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
                         }
                     }
 
-                } else if(interm.utype.field->type == OBJECT) {
+                } else if(interm.utype.field.type == OBJECT) {
                     errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "use of `" + entity.getToken() +
                                                                                           "` operator on field of type `dynamic_object` without a cast. Try ((SomeClass)dynamic_class)++");
 
-                } else if(interm.utype.field->type != UNDEFINED){
+                } else if(interm.utype.field.type != UNDEFINED){
                     errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(),
                                            "expression must evaluate to an int to use `" + entity.getToken() +
                                            "` operator");
@@ -3049,17 +3050,17 @@ Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
             break;
         case expression_field:
             expression.type = expression_var;
-            if(expression.utype.field->isNative()) {
-                if(expression.utype.field->dynamicObject()) {
+            if(expression.utype.field.isNative()) {
+                if(expression.utype.field.dynamicObject()) {
                     errors->createNewError(GENERIC, pAst->line, pAst->col, "use of `!` operator on field of type `dynamic_object` without a cast. Try !((SomeClass)dynamic_class)");
-                } else if(expression.utype.field->isVar()) {
+                } else if(expression.utype.field.isVar()) {
                     pushExpressionToRegisterNoInject(expression, expression, ebx);
                     expression.code.push_i64(SET_Ci(i64, op_NOT, ebx,0, ebx));
                 }
-            } else if(expression.utype.field->type == CLASS) {
-                if(expression.utype.field->local)
-                    expression.code.push_i64(SET_Di(i64, op_MOVL, expression.utype.field->address));
-                notClass(expression, expression.utype.field->klass, pAst);
+            } else if(expression.utype.field.type == CLASS) {
+                if(expression.utype.field.local)
+                    expression.code.push_i64(SET_Di(i64, op_MOVL, expression.utype.field.address));
+                notClass(expression, expression.utype.field.klass, pAst);
             } else {
                 errors->createNewError(GENERIC, pAst->line, pAst->col, "field must evaluate to an int to use `!` operator");
             }
@@ -3127,9 +3128,9 @@ Expression RuntimeEngine::parseUnary(token_entity operand, Expression& right, As
                                                                     "` cannot be applied to expression of type `" + right.typeToString() + "`");
             break;
         case expression_field:
-            if(right.utype.field->isNative()) {
+            if(right.utype.field.isNative()) {
                 // add var
-                if(right.utype.field->isVar()) {
+                if(right.utype.field.isVar()) {
                     pushExpressionToRegister(right, expression, ebx);
 
                     if(operand == "+") {
@@ -3142,7 +3143,7 @@ Expression RuntimeEngine::parseUnary(token_entity operand, Expression& right, As
                     errors->createNewError(GENERIC, pAst->line,  pAst->col, "Unary operator `" + operand.getToken() +
                                                                             "` cannot be applied to expression of type `" + right.typeToString() + "`");
                 }
-            } else if(right.utype.field->type == CLASS) {
+            } else if(right.utype.field.type == CLASS) {
                 errors->createNewError(GENERIC, pAst->line,  pAst->col, "Expression of type `" + right.typeToString() + "` is non numeric");
             } else {
                 // do nothing field unresolved
@@ -3279,31 +3280,31 @@ bool RuntimeEngine::equalsVectorArray(Expression& left, Expression& right) {
             }
             break;
         case expression_field:
-            if(left.utype.field->isNative()) {
+            if(left.utype.field.isNative()) {
                 // add var
                 if(right.trueType() == OBJECT) {
                     if(left.trueType() == OBJECT) {
                         return true;
                     }
                 } else if(right.type == expression_string || right.type == expression_null) {
-                    return left.utype.field->isArray;
+                    return left.utype.field.isArray;
                 } else if(right.trueType() == VAR || (right.trueType() != CLASS)) {
                     if(left.trueType() == VAR) {
                         return left.isArray() == right.isArray();
                     }
                 }
-            } else if(left.utype.field->type == CLASS) {
+            } else if(left.utype.field.type == CLASS) {
                 if(right.type == expression_lclass) {
-                    if(left.utype.field->klass->match(right.utype.klass)) {
+                    if(left.utype.field.klass->match(right.utype.klass)) {
                         return true;
                     }
                 } else if(right.type == expression_class) {
-                    if(left.utype.field->klass->match(right.utype.klass)) {
+                    if(left.utype.field.klass->match(right.utype.klass)) {
                         errors->createNewError(GENERIC, right.link->line,  right.link->col, "Class `" + right.typeToString() + "` must be lvalue");
                         return false;
                     }
-                } else if(right.type == expression_field && right.utype.field->type == CLASS) {
-                    if(right.utype.field->klass->match(left.utype.field->klass)) {
+                } else if(right.type == expression_field && right.utype.field.type == CLASS) {
+                    if(right.utype.field.klass->match(left.utype.field.klass)) {
                         return true;
                     }
                 } else {
@@ -3312,7 +3313,7 @@ bool RuntimeEngine::equalsVectorArray(Expression& left, Expression& right) {
                     exprs.push_back(right);
 
                     expressionListToParams(params, exprs);
-                    return left.utype.field->klass->getOverload(oper_EQUALS, params) != NULL;
+                    return left.utype.field.klass->getOverload(oper_EQUALS, params) != NULL;
                 }
             } else {
                 // do nothing field unresolved
@@ -3324,7 +3325,7 @@ bool RuntimeEngine::equalsVectorArray(Expression& left, Expression& right) {
                     return true;
                 }
             } else if(right.type == expression_field) {
-                if(left.utype.klass->match(right.utype.field->klass)) {
+                if(left.utype.klass->match(right.utype.field.klass)) {
                     return true;
                 }
             } else if(right.type == expression_class) {
