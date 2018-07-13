@@ -831,7 +831,7 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
     ss << ", in "; ss << frame.last->fullName.str() << "() [0x" << std::hex
                       << frame.last->address << "] $0x" << frame.pc  << std::dec;
 
-    ss << " fp; " << frame.fp << " sp: " << frame.sp;
+    ss << " fp; " << frame.fp << " sp: " << frame.sp-thread_self->dataStack;
 
     if(line != -1 && metaData.sourceFiles.size() > 0) {
         ss << getPrettyErrorLine(line, frame.last->sourceFile);
@@ -847,7 +847,7 @@ void VirtualMachine::fillStackTrace(native_string &str) {
     for(long i = thread_self->calls; i >= 0 ; i--) {
         if(iter++ >= EXCEPTION_PRINT_MAX)
             break;
-        fillMethodCall(thread_self->callStack[thread_self->calls-1], ss);
+        fillMethodCall(thread_self->callStack[i-1], ss);
     }
 
     Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp);
