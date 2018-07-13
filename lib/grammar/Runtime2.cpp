@@ -753,8 +753,6 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
             else {
                 out.code.inject(out.code.size(), fn->code);
                 out.code.push_i64(SET_Di(i64, op_CALLD, ebx));
-                fn->free();
-                delete fn;
             }
         }
     }
@@ -1421,6 +1419,9 @@ Expression RuntimeEngine::parseDotNotationCall(Ast* pAst) {
                     }
                 }
             }
+
+            if(fn->dynamicPointer)
+                delete fn;
         } else
             expression.type = expression_unresolved;
     } else {
