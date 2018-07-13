@@ -1334,7 +1334,7 @@ void Thread::setup() {
 }
 
 int Thread::setPriority(Thread* thread, int priority) {
-    if(thread->thread != NULL) {
+    if(thread->thread != 0) {
         if(thread->priority == priority)
             return 0;
 
