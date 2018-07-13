@@ -38,7 +38,7 @@ void SharpObject::print() {
     cout << "Object @0x" << this << endl;
     cout << "size " << size << endl;
     cout << "refrences " << refCount << endl;
-    cout << "generation " << generation << endl;
+    cout << "generation " << GENERATION(generation) << endl;
     if(k != NULL) cout << "class: " << k->name.str() << endl;
 
     if(HEAD != NULL) {

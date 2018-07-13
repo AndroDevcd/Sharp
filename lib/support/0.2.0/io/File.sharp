@@ -1,8 +1,20 @@
 mod std.io;
 
 import std;
-import std.internal;
+import std.kernel;
 
+/**
+* Standard library for processing files
+*
+* The File class represents an abstract representation of a file or
+* directory. This class is responsible for doing all file IO operations
+* on the host filesystem.
+*
+* This abstract library uses a operating system based file system to make sure that
+* any operations sent to the kernel will be handled appropriately.
+*
+*
+*/
 public class File {
     private static FileSystem fs = getFileSystem();
 

@@ -5,11 +5,14 @@
 #ifndef SHARP_GARBAGECOLLECTOR_H
 #define SHARP_GARBAGECOLLECTOR_H
 
+#include <vector>
+#include "../../../stdimports.h"
+#include "../List.h"
+
 #ifndef WIN32_
 #include <mutex>
-#endif
 
-#include "../List.h"
+#endif
 
 enum CollectionPolicy
 {
@@ -35,18 +38,20 @@ enum CollectionGeneration
 struct Object;
 struct SharpObject;
 class ClassObject;
+class Thread;
 
-#define heap (*_Mheap)
+#define heap (_Mheap)
 
 class GarbageCollector {
 public:
     static GarbageCollector *self;
     recursive_mutex mutex;
+    Thread *tself;
     List<CollectionPolicy> messageQueue;
 
     static void initilize();
     static void startup();
-    void shutdown();
+    static void shutdown();
     static
 #ifdef WIN32_
     DWORD WINAPI
@@ -60,6 +65,12 @@ public:
     static void setMemoryLimit(unsigned long long limit) {
         if(self != NULL) {
             self->memoryLimit = limit;
+        }
+    }
+
+    static void setMemoryThreshold(unsigned long long limit) {
+        if(self != NULL) {
+            self->memoryThreshold = limit;
         }
     }
 
@@ -94,10 +105,28 @@ public:
     void createStringArray(Object* object, native_string& s); /* Native string allocation */
 
     /**
+     * Reallocation methods for faster code
+     * @param o
+     * @param sz
+     */
+    void realloc(SharpObject *o, size_t sz);
+    void reallocObject(SharpObject *o, size_t sz);
+
+    /**
      * Function call by virtual machine
      * @param object
      */
      void freeObject(Object* object);
+
+     /**
+      * Add untracked memory to managed memory
+      * @param bytes
+      */
+     CXX11_INLINE void addMemory(size_t bytes) {
+         mutex.lock();
+         managedBytes += bytes;
+         mutex.unlock();
+     }
 
     CXX11_INLINE bool spaceAvailable(unsigned long long bytes) {
         return (bytes+managedBytes) < memoryLimit;
@@ -105,6 +134,13 @@ public:
 
     unsigned long long getMemoryLimit();
     unsigned long long getManagedMemory();
+
+    /**
+     * Retrieve the os level size of an object refrence
+     * @param object
+     * @return
+     */
+    static size_t _sizeof(SharpObject *object, bool recursive = true);
 
     /**
      * This will keep track of our different generations and the
@@ -121,8 +157,9 @@ public:
     unsigned long aObjs;
     unsigned long oObjs;
 private:
-    unsigned long long managedBytes;
+     long long managedBytes;
     unsigned long long memoryLimit;
+    unsigned long long memoryThreshold;
     bool isShutdown;
 
     /**
@@ -137,17 +174,25 @@ private:
      * its just an estimate
      */
     /* collect when 10% has been dropped */
-    unsigned long youngObjects;
+    long long youngObjects;
     /* collect when 40% has been dropped */
-    unsigned long adultObjects;
+    long long adultObjects;
     /* collect when 20% has been dropped */
     unsigned long oldObjects;
+#ifdef SHARP_PROF_
     unsigned long x;
-    std::list<SharpObject*>* _Mheap;
+#endif
+    SharpObject* _Mheap, *tail;
+    unsigned long long heapSize;
 
     void collectYoungObjects();
     void collectAdultObjects();
     void collectOldObjects();
+
+    /**
+     * All objects are born dirty and need to be cleaned
+     */
+    void cleanDirtyObjects();
 
     /**
      * This function performs the actual collection of
@@ -155,36 +200,42 @@ private:
      * @param object
      * @return
      */
-    list<SharpObject *>::iterator sweep(SharpObject *object);
+    SharpObject* sweep(SharpObject *object);
 
-    CXX11_INLINE list<SharpObject *>::iterator invalidate(SharpObject *object) {
-        for (auto it = heap.begin(); it != heap.end(); it++) {
-            if(*it == object) {
-                return heap.erase(it);
-            }
-        }
-
-        return heap.end();
-    }
+    void erase(SharpObject *pObject);
 };
 
-#define GC_COLLECT_YOUNG() ( (unsigned int)(((double)yObjs/(double)youngObjects)*100) >= 10 )
-#define GC_COLLECT_ADULT() ( (unsigned int)(((double)aObjs/(double)adultObjects)*100) >= 40 )
-#define GC_COLLECT_OLD() ( (unsigned int)(((double)oObjs/(double)oldObjects)*100) >= 20 )
+#define GC_COLLECT_YOUNG() ( yObjs >= 25 )
+#define GC_COLLECT_ADULT() ( aObjs >= 10 )
+#define GC_COLLECT_OLD() ( oObjs >= 10 )
+#define GC_COLLECT_MEM() ( managedBytes >= memoryThreshold )
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))
 
+// generation macros
+#define GENERATION_MASK 0x7
+#define GENERATION(g) (g & GENERATION_MASK)
+#define MARKED(g) ((g >> 3))
+#define MARK(g, enable) (g ^= (-(unsigned long)enable ^ g) & (1UL << 3))
+
 #define UPDATE_GC(object) \
-    switch(object->generation) { \
+    switch(GENERATION(object->generation)) { \
         case gc_young: \
-            youngObjects--; \
+            freedYoung++; \
             break; \
         case gc_adult: \
-            adultObjects--; \
+            freedAdult++; \
             break; \
         case gc_old: \
-            oldObjects--; \
+            freedOld++; \
             break; \
     }
+
+#define PUSH(object) { \
+    heapSize++; \
+    tail->next = object; \
+    object->prev = tail; \
+    tail = object; \
+}
 
 /**
  * Bytes are used via the JEDEC Standard 100B.01

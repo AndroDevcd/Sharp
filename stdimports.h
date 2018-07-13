@@ -25,6 +25,8 @@ using namespace std;
 #endif
 
 #ifdef WIN32_
+
+#define __os_yield() _mm_pause
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -44,7 +46,16 @@ using namespace std;
     #define POSIX_USEC_INTERVAL 1000
 
     #define MUTEX pthread_mutex_t
+    #define __os_yield() sched_yield();
 #endif
+
+//#define VISUAL_STUDIOS
+
+#ifdef VISUAL_STUDIOS
+#define MAKE_COMPILER
+#endif
+
+//#define SHARP_PROF_
 
 #ifndef DEBUGGING
 #define DEBUGGING
@@ -70,8 +81,9 @@ extern Sharp versions;
 
 void* __malloc(size_t bytes);
 void* __calloc(size_t n, size_t bytes);
-void* __realloc(void *ptr, size_t bytes);
+void* __realloc(void *ptr, size_t bytes, size_t);
 void __os_sleep(int64_t);
+void setupSigHandler();
 
 #define CXX11_INLINE inline
 

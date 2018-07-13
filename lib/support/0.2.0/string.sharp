@@ -38,19 +38,22 @@ public class string {
             self->string(str.toArray());
         }
 
-        public string( var[] immstr, var offset, var length )
+        public string( var[] immstr, var offset )
         {
             if(immstr == null) {
                 data = null;
             } else {
-                for(var i = offset; i < sizeof(immstr); i++) {
-                    if(length-- >= 0) {
-                        append(immstr[i]);
-                    } else
-                        break;
-                }
+                data = (var[])System.memcpy(immstr, offset, sizeof(immstr));
             }
+        }
 
+        public string( var[] immstr, var offset, var endIndex )
+        {
+            if(immstr == null) {
+                data = null;
+            } else {
+                data = (var[])System.memcpy(immstr, offset, endIndex);
+            }
         }
 
         public def replace( var pos, var replaceChar ) : string
@@ -65,31 +68,34 @@ public class string {
 
         def append(var char) : string
         {
-            var[] str = new var[] { char };
-            return append(str);
+            if(data == null)
+                data = new var[1];
+            else
+                System.realloc(data, sizeof(data) + 1);
+
+            data[sizeof(data) - 1] = char;
+            return self;
         }
 
         def append(char c) : string
         {
-            var[] str = new var[] { c.getValue() };
-            return append(str);
+            return append(c.getValue());
         }
 
         def append(var[] immstr) : string
         {
-            var[] newStr = new var[sizeof(data) + sizeof(immstr)];
+            var iter=sizeof(data);
 
-            var iter=0;
-            for(var i = 0; i < sizeof(data); i++) {
-                newStr[iter++] = (_int16)data[i];
-            }
+            if(data == null)
+                data = new var[sizeof(immstr)];
+            else
+                System.realloc(data, sizeof(data) + sizeof(immstr));
 
             for(var i = 0; i < sizeof(immstr); i++)
             {
-                newStr[iter++] = (_int16)immstr[i];
+                data[iter++] = (_int16)immstr[i];
             }
 
-            data = newStr;
             return self;
         }
 
@@ -163,7 +169,9 @@ public class string {
 
         public def operator=( var[] immstr )
         {
-            data = Array<var>.copyOf(immstr, sizeof(immstr));
+            if (immstr == null) data = null;
+            else
+                data = (var[])System.copyOf(immstr, sizeof(immstr));
         }
 
         public def operator+( var num ) : string
@@ -233,7 +241,7 @@ public class string {
         public def operator+( char c ) : string
         {
             string s = new string(data);
-            s.append(c);
+            s.append(c.getValue());
 
             return s;
         }
@@ -296,7 +304,7 @@ public class string {
 
         public def operator+=( char num ) : string
         {
-            return append(new var[] { num });
+            return append(num.getValue());
         }
 
         public def operator+=( Enum e ) : string
@@ -316,7 +324,8 @@ public class string {
 
         public def toArray() : var[]
         {
-            return Array<var>.copyOf(data, sizeof(data));
+            if(data == null) return null;
+            return (var[])System.copyOf(data, sizeof(data));
         }
 
         public static def parse( var number ) : string
@@ -352,28 +361,20 @@ public class string {
 
 
             string s = "";
-            for(var i = startIndex; i < size(); i++) {
-                s.append(at(i));
-            }
-
+            s.data = (var[])System.memcpy(data, startIndex, size()-1);
             return s;
         }
 
-        public def substring(var startIndex, var stopindex) : string {
+        public def substring(var startIndex, var stopIndex) : string {
             if((startIndex >= size()) || (startIndex < 0))
                 return new string("");
-            if(stopindex < startIndex)
+            if(stopIndex < startIndex)
                 throw new IllegalArgumentException(
-                    "stopIndex: " + stopindex + " cannot be less than startIndex: " + startIndex);
+                    "stopIndex: " + stopIndex + " cannot be less than startIndex: " + startIndex);
 
 
             string s = "";
-            for(var i = startIndex; i < size(); i++) {
-                if(i == stopindex)
-                    break;
-                s.append(at(i));
-            }
-
+            s.data = (var[])System.memcpy(data, startIndex, stopIndex);
             return s;
         }
 
@@ -389,7 +390,7 @@ public class string {
             while( i < len ){
                 if(!char.isDigit(s.at(i))) {
                     throw new IllegalArgumentException(
-                        "invalid char in string: " + (new var[] { s.at(i) }));
+                        "illegal char in string: " + new char(s.at(i)));
                 }
 
                 number *= 10;
@@ -426,8 +427,10 @@ public class string {
                 return false;
             }
 
+            var endIndex;
             for(var i = 0; i < size(); i++) {
-                if(substring(i, i+str.size()) == str)
+                endIndex = i+str.size();
+                if(substring(i, endIndex > size() ? size() : endIndex) == str)
                     return true;
             }
 
@@ -473,5 +476,9 @@ public class string {
         public def size() : var
         {
             return sizeof(data);
+        }
+
+        public def getData() : var[] {
+            return data;
         }
 }

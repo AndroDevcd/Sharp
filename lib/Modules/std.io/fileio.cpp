@@ -25,19 +25,26 @@
 #endif
 
 
+int FILE_EXISTS    = 0x01;
+int FILE_REGULAR   = 0x02;
+int FILE_DIRECTORY = 0x04;
+int FILE_HIDDEN    = 0x08;
+struct stat result;
 native_string resolve_path(native_string& path) {
     native_string fullPath;
 
 #ifdef WIN32_
     char full_path[MAX_PATH];
 
-    GetFullPathName(path.str().c_str(), MAX_PATH, full_path, NULL);
+    if(stat(path.str().c_str(), &result)==0) {
+        GetFullPathName(path.str().c_str(), MAX_PATH, full_path, NULL);
 
-    for(int i = 0; i < MAX_PATH; i++) {
-        if(full_path[i] != '\000')
-            fullPath += full_path[i];
-        else
-            break;
+        for(int i = 0; i < MAX_PATH; i++) {
+            if(full_path[i] != '\000')
+                fullPath += full_path[i];
+            else
+                break;
+        }
     }
 #endif
     
@@ -56,11 +63,6 @@ native_string resolve_path(native_string& path) {
     return fullPath;
 }
 
-int FILE_EXISTS    = 0x01;
-int FILE_REGULAR   = 0x02;
-int FILE_DIRECTORY = 0x04;
-int FILE_HIDDEN    = 0x08;
-struct stat result;
 long long get_file_attrs(native_string& path) {
     if(stat(path.str().c_str(), &result)==0)
     {
@@ -78,7 +80,7 @@ long long get_file_attrs(native_string& path) {
         attrs |= FILE_EXISTS;
 
 #ifdef WIN32_
-        long attributes = GetFileAttributes(path.c_str());
+        long attributes = GetFileAttributes(path.str().c_str());
         if (attributes & FILE_ATTRIBUTE_HIDDEN)
             attrs |= FILE_HIDDEN;
 #endif
@@ -160,7 +162,7 @@ void get_file_list(native_string &path, List<native_string> &files) {
             native_string file;
             file = path.str() + "/" + string(ent->d_name);
 
-            if(ent-> d_type == DT_DIR) {
+            if(ent->d_type == DT_DIR) {
                 native_string folder(file.str() + "/");
                 get_file_list(folder, files);
                 continue;

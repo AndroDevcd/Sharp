@@ -44,7 +44,7 @@ struct Method {
     int stackSize;                 /* inital stack space required for frame */
     short int returnVal;           /* Simple binary flag indicating the function returns a value */
     ClassObject* owner;
-    native_string name;
+    native_string name, fullName;
     int64_t* params;
     bool* arrayFlag;                /* array flag for each parameter */
     int paramSize;
@@ -61,6 +61,7 @@ struct Method {
 
     void free() {
         name.free();
+        fullName.free();
         sourceFile=0;
         exceptions.free();
         lineNumbers.free();
@@ -88,6 +89,7 @@ struct Method {
 
     void init() {
         name.init();
+        fullName.init();
         sourceFile=0;
         exceptions.init();
         lineNumbers.init();
@@ -113,10 +115,21 @@ struct line_table {
     int64_t line_number;
 };
 
+struct StackElement;
+
 struct Frame {
 public:
-    Frame(Method* last, uint64_t pc, uint64_t sp,
+    Frame(Method* last, uint64_t pc, StackElement* sp,
           uint64_t fp)
+    {
+        this->last=last;
+        this->pc=pc;
+        this->sp=sp;
+        this->fp=fp;
+    }
+
+    void init(Method* last, uint64_t pc, StackElement* sp,
+            uint64_t fp)
     {
         this->last=last;
         this->pc=pc;
@@ -126,7 +139,7 @@ public:
 
     Method *last;                   /* Last method */
     uint64_t pc;
-    uint64_t sp;
+    StackElement* sp;
     uint64_t fp;
 };
 

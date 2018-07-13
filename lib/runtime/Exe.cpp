@@ -56,6 +56,7 @@ int Process_Exe(std::string exe)
         }
 
         bool manifestFlag = false;
+        int var = 0;
         for (;;) {
 
             hdr_cnt++;
@@ -82,7 +83,7 @@ int Process_Exe(std::string exe)
                     manifest.version =getstring(buffer);
                     break;
                 case 0x5:
-                    manifest.debug = buffer.at(n++) == 1;
+                    manifest.debug = buffer.at(n++) == '1';
                     break;
                 case 0x6:
                     manifest.entryMethod =geti64(buffer);
@@ -365,6 +366,7 @@ int Process_Exe(std::string exe)
 
                     method->address = geti64(buffer);
                     method->name = getstring(buffer);
+                    method->fullName = getstring(buffer);
                     method->sourceFile = getlong(buffer);
                     method->owner = findClass(geti64(buffer));
                     method->paramSize = geti64(buffer);
@@ -378,8 +380,8 @@ int Process_Exe(std::string exe)
                     long len = getlong(buffer);
                     line_table lt;
                     for(long i = 0; i < len; i++) {
-                        lt.pc = geti64(buffer);
                         lt.line_number = geti64(buffer);
+                        lt.pc = geti64(buffer);
                         method->lineNumbers.push_back(lt);
                     }
 
@@ -490,6 +492,7 @@ int Process_Exe(std::string exe)
                 break;
             }
         }
+
 
         if(compressed) {
             buffer.end();

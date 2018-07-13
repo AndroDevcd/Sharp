@@ -1,4 +1,4 @@
-mod std.internal;
+mod std.kernel;
 
 /**
  * Created by BraxtonN on 5/18/2018.
@@ -28,28 +28,27 @@ public class ConsoleHandler {
 
      public def read() : var
      {
-        var result;
         asm(
-            "  get %ebx                                        "
-            "  return_val %ebx                                 "
-            "  ret                                             "
+            "  get %ebx              // read single character from the console "
+            "  return_val %ebx                                                 "
+            "  ret                                                             "
         );
      }
 
      /**
      * print a single character to the console
      */
-     public def __print_stdout_(var char, var isCharacter)
+     public static def __print_stdout_(var char, var isCharacter)
      {
          if(isCharacter) {
              asm(
-                 "  loadl %ebx,1               // get local 'char'  "
+                 "  loadl %ebx,0               // get local 'char'  "
                  "  _putc %ebx                                      "
                  "  ret                                             "
              );
          } else {
              asm(
-                 "  loadl %ebx,1               // get local 'char'  "
+                 "  loadl %ebx,0               // get local 'char'  "
                  "  put %ebx                                        "
                  "  ret                                             "
              );

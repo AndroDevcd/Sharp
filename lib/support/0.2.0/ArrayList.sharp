@@ -7,11 +7,23 @@ mod std;
 public class ArrayList<T> {
     private T[] mData;
 
+    private static const var DEFAULT_CAPACITY = 10;
+    private static const var RESIZE_CAPACITY = 20;
+
+    /**
+    * Size and capacity to keep allocations at a low
+    */
+    private var capacity;
+    private var size;
+
     /**
      * Constructs an empty list.
+     * with a default capacity of 10
      */
     public ArrayList() {
-        /* data will remain null */
+        /* data will be set to default capacity */
+        capacity = DEFAULT_CAPACITY;
+        mData = new T[DEFAULT_CAPACITY];
     }
 
     /**
@@ -19,7 +31,7 @@ public class ArrayList<T> {
      *
      */
     public def size() : var {
-        return sizeof(mData);
+        return size;
     }
 
     /**
@@ -27,7 +39,7 @@ public class ArrayList<T> {
      *
      */
     public def empty() : var {
-        return sizeof(mData) == 0;
+        return size == 0;
     }
 
     /**
@@ -36,8 +48,8 @@ public class ArrayList<T> {
      *
      */
     public def toArray() : T[] {
-        if(mData == null) return null;
-        return ((T[]) Array<T>.copyOf(mData, sizeof(mData)));
+        if(size == 0) return null;
+        return ((T[]) System.copyOf(mData, size));
     }
 
     /**
@@ -45,7 +57,7 @@ public class ArrayList<T> {
      *
      */
     public def get(var index) : T {
-        if (index >= sizeof(mData))
+        if (index >= size)
             throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
 
         return mData[index];
@@ -65,7 +77,7 @@ public class ArrayList<T> {
      *
      */
     public def set(var index, T element) : T {
-        if (index >= sizeof(mData))
+        if (index >= size)
             throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
 
         T oldValue = mData[index];
@@ -75,21 +87,28 @@ public class ArrayList<T> {
 
     /**
      * Expand the list to hold more data
+     *
+     * The list is oversized to reduce the ammount of allocations
+     * required by the system
      */
     private def expand() {
-        mData = (T[]) Array<T>.copyOf(mData, sizeof(mData), sizeof(mData)+1);
+        if(size >= capacity) {
+            // resize
+            capacity += (capacity >> 2) + RESIZE_CAPACITY;
+            System.realloc(mData, capacity);
+        }
     }
 
     /**
      * Shrink the list to hold more data
      */
     private def shrink() {
-        if(sizeof(mData) >= 1)
-            mData = (T[]) Array<T>.copyOf(mData, sizeof(mData)-1, sizeof(mData)-1);
-        else
-            mData = null;
+        if(size <= capacity && size > 0) {
+            size--;
+            capacity--;
+            System.realloc(mData, capacity);
+        }
     }
-
 
     /**
       * Appends the specified elements inside the provided list to the end of this list.
@@ -112,7 +131,7 @@ public class ArrayList<T> {
       */
      public def add(T e) {
          expand();
-         mData[sizeof(mData)-1] = e;
+         mData[size++] = e;
      }
 
 
@@ -133,20 +152,16 @@ public class ArrayList<T> {
      *
      */
      public def insert(var pos, T value) {
-         if(pos>sizeof(mData) || pos < 0)
+         if(pos>size || pos < 0)
             throw new IndexOutOfBoundsException(outOfBoundsMsg(pos));
 
-         if(sizeof(mData) == 0) {
+         if(size == 0) {
              add(value);
          } else {
-             T[] result = new T[sizeof(mData)+1];
-             var newLen=sizeof(mData)+1;
-             for(var i = 0; i < pos; i++)
-                 result[i] = mData[i];
-             result[pos] = value;
-             for(var i = pos + 1; i < newLen; i++)
-                 result[i] = mData[i - 1];
-             mData=result;
+            expand();
+             for(var i = sizeof(mData) - 1; i >= pos; i--)
+                mData[i+1] = mData[i];
+             mData[pos-1] = value;
          }
 
      }
@@ -161,22 +176,18 @@ public class ArrayList<T> {
          if(pos>sizeof(mData) || pos < 0)
             throw new IndexOutOfBoundsException(outOfBoundsMsg(pos));
 
-         if(sizeof(mData)==1){
-             mData = null;
+         if(size==1){
+             size--;
          }
-         else if(sizeof(mData)==2) {
+         else if(size==2) {
              if(pos==0) {
                  mData[0]=mData[1];
              }
              shrink();
          } else {
-             var newLen=sizeof(mData)-1,iter=1;
-             for(var i = 0; i < newLen; i++) {
-                 if(iter == pos)
-                     iter++;
-
-                 mData[i] = mData[iter];
-             }
+             var newLen=sizeof(mData)-1;
+             for(var i = pos; i < newLen; i++)
+                 mData[i] = mData[i+1];
 
              shrink();
          }
@@ -191,7 +202,6 @@ public class ArrayList<T> {
          mData = null;
      }
 
-
     /**
      * Constructs an IndexOutOfBoundsException detail message.
      * Of the many possible refactorings of the error handling code,
@@ -201,10 +211,4 @@ public class ArrayList<T> {
         return "Index: " + index + ", size: " + sizeof(mData);
     }
 
-    /**
-    * User must implement their own equals method
-    */
-    public def operator==(ArrayList<T> arry) : var {
-        return false;
-    }
 }

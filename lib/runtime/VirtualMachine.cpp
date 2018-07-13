@@ -2,6 +2,8 @@
 // Created by BraxtonN on 2/15/2018.
 //
 
+#include <random>
+#include <cmath>
 #include "VirtualMachine.h"
 #include "Exe.h"
 #include "Thread.h"
@@ -15,6 +17,7 @@
 #include "Manifest.h"
 #include "../Modules/std.io/fileio.h"
 #include "../util/File.h"
+#include "../Modules/std.kernel/cmath.h"
 
 VirtualMachine* vm;
 Environment* env;
@@ -37,8 +40,8 @@ int CreateVirtualMachine(std::string exe)
      * Aux classes
      */
     Field* fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, &env->classes[manifest.classes]);
-    fields[1].init("stackTrace", 0, VAR, false, false, &env->classes[manifest.classes]);
+    fields[0].init("message", 0, VAR, false, true, &env->classes[manifest.classes]);
+    fields[1].init("stackTrace", 0, VAR, false, true, &env->classes[manifest.classes]);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -51,8 +54,8 @@ int CreateVirtualMachine(std::string exe)
     env->Throwable = &env->classes[manifest.classes++];
 
     fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, false, env->Throwable);
+    fields[0].init("message", 0, VAR, false, true, env->Throwable);
+    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -65,8 +68,8 @@ int CreateVirtualMachine(std::string exe)
     env->RuntimeErr = &env->classes[manifest.classes++];
 
     fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, false, env->Throwable);
+    fields[0].init("message", 0, VAR, false, true, env->Throwable);
+    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -79,8 +82,8 @@ int CreateVirtualMachine(std::string exe)
     env->StackOverflowErr = &env->classes[manifest.classes++];
 
     fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, false, env->Throwable);
+    fields[0].init("message", 0, VAR, false, true, env->Throwable);
+    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -93,8 +96,8 @@ int CreateVirtualMachine(std::string exe)
     env->ThreadStackException = &env->classes[manifest.classes++];
 
     fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, false, env->Throwable);
+    fields[0].init("message", 0, VAR, false, true, env->Throwable);
+    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -107,8 +110,8 @@ int CreateVirtualMachine(std::string exe)
     env->IndexOutOfBoundsException = &env->classes[manifest.classes++];
 
     fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, false, env->Throwable);
+    fields[0].init("message", 0, VAR, false, true, env->Throwable);
+    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -121,8 +124,8 @@ int CreateVirtualMachine(std::string exe)
     env->NullptrException = &env->classes[manifest.classes++];
 
     fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, false, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, false, env->Throwable);
+    fields[0].init("message", 0, VAR, false, true, env->Throwable);
+    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
@@ -155,7 +158,7 @@ void VirtualMachine::destroy() {
         exitVal = 1;
 
     Thread::shutdown();
-    GarbageCollector::self->shutdown();
+    GarbageCollector::shutdown();
 }
 
 extern size_t count, overflow;
@@ -170,15 +173,15 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     thread_self = (Thread*)arg;
     thread_self->state = THREAD_RUNNING;
 
+    thread_self->setup();
     try {
         /*
          * Call main method
          */
-        executeMethod(thread_self->main->address)
+        executeMethod(thread_self->main->address, thread_self)
 
         thread_self->exec();
-        if(count != 0)
-            cout << "instructions executed " << count << " overflowed " << overflow << endl;
+
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();
@@ -186,6 +189,15 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         thread_self->throwable = e.getThrowable();
         thread_self->exceptionThrown = true;
     }
+
+
+#ifdef SHARP_PROF_
+    if(!masterShutdown)
+        thread_self->tprof.dump();
+#endif
+
+    if(count != 0)
+        cout << "instructions executed " << count << " overflowed " << overflow << endl;
 
     /*
      * Check for uncaught exception in thread before exit
@@ -259,9 +271,16 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xa3:
             registers[bmr]= Clock::realTimeInNSecs();
             return;
-        case 0xa4:
+        case 0xa4: {
+            Thread *thread = Thread::getThread((int32_t )registers[adx]);
+
+            if(thread != NULL) {
+                thread->currentThread = (thread_self->sp--)->object;
+                thread->args = (thread_self->sp--)->object;
+            }
             registers[cmt]=Thread::start((int32_t )registers[adx]);
             return;
+        }
         case 0xa5:
             registers[cmt]=Thread::join((int32_t )registers[adx]);
             return;
@@ -271,8 +290,28 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xa7:
             registers[cmt]=Thread::destroy((int32_t )registers[adx]);
             return;
+        case 0xe0: // native getCurrentThread()
+            THREAD_STACK_CHECK(thread_self);
+            (++thread_self->sp)->object = thread_self->currentThread;
+            return;
+        case 0xe1: // native getCurrentThreadArgs()
+            THREAD_STACK_CHECK(thread_self);
+            (++thread_self->sp)->object = thread_self->args;
+            return;
+        case 0xe2: // native setCurrentThread(Thread)
+            thread_self->currentThread = (thread_self->sp--)->object;
+            return;
+        case 0xe3:
+            registers[cmt]=__cmath(registers[ebx], registers[egx], (int)registers[ecx]);
+            return;
         case 0xa8:
             registers[cmt]=Thread::Create((int32_t )registers[adx], (unsigned long)registers[egx]);
+            return;
+        case 0xe4:
+            registers[cmt]=Thread::setPriority((int32_t )registers[adx], (int)registers[egx]);
+            return;
+        case 0xe5:
+            __os_yield();
             return;
         case 0xa9:
             vm->shutdown();
@@ -287,7 +326,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             __os_sleep((int64_t) registers[ebx]);
             return;
         case 0xb0: {
-            Object *arry = &thread_self->dataStack[thread_self->sp].object;
+            Object *arry = &thread_self->sp->object;
             SharpObject *o = arry->object;
 
             if(o != NULL && o->HEAD!=NULL) {
@@ -301,6 +340,233 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 throw Exception(Environment::NullptrException, "");
             return;
         }
+        case 0xc0: {
+            size_t len = (thread_self->sp--)->var;
+            Object *arry = &thread_self->sp->object;
+            SharpObject *o = arry->object;
+            Object data; data.object = NULL;
+
+            if(o != NULL) {
+                if(len > o->size || len < 0) {
+                    stringstream ss;
+                    ss << "invalid call to native System.copy() len: " << len
+                       << ", array size: " << o->size;
+                    throw Exception(ss.str());
+                }
+
+                if(o->k != NULL) { // class?
+
+                    if(o->node == NULL)
+                        throw Exception(Environment::NullptrException, "");
+                    data = GarbageCollector::self->newObjectArray(len, o->k);
+
+                    for(size_t i = 0; i < len; i++) {
+                        data.object->node[i] = o->node[i];
+                    }
+
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                } else if(o->HEAD != NULL) { // var[]
+                    data = GarbageCollector::self->newObject(len);
+                    std::memcpy(data.object->HEAD, o->HEAD, sizeof(double)*len);
+
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                } else if(o->node != NULL) { // object? maybe...
+                    data = GarbageCollector::self->newObject(len);
+                    for(size_t i = 0; i < len; i++) {
+                        data.object->node[i] = o->node[i];
+                    }
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                }
+
+            } else
+                throw Exception(Environment::NullptrException, "");
+            return;
+        }
+        case 0xc1: {
+            size_t len = (thread_self->sp--)->var;
+            size_t indexLen = (thread_self->sp--)->var;
+            Object *arry = &thread_self->sp->object;
+            SharpObject *o = arry->object;
+            Object data; data.object = NULL;
+
+            if(o != NULL) {
+                if(indexLen > o->size || len < 0 || indexLen < 0 ) {
+                    stringstream ss;
+                    ss << "invalid call to native System.copy2() index-len: " << indexLen
+                       << ", array size: " << o->size;
+                    throw Exception(ss.str());
+                }
+
+                if(o->k != NULL) { // class?
+                    if(o->node == NULL)
+                        throw Exception(Environment::NullptrException, "");
+                    data = GarbageCollector::self->newObjectArray(len, o->k);
+
+                    for(size_t i = 0; i < indexLen; i++) {
+                        data.object->node[i] = o->node[i];
+                    }
+
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                } else if(o->HEAD != NULL) { // var[]
+                    data = GarbageCollector::self->newObject(len);
+                    std::memcpy(data.object->HEAD, o->HEAD, sizeof(double)*indexLen);
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                } else if(o->node != NULL) { // object? maybe...
+                    data = GarbageCollector::self->newObjectArray(len);
+                    for(size_t i = 0; i < indexLen; i++) {
+                        data.object->node[i] = o->node[i];
+                    }
+
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                }
+
+            } else
+                throw Exception(Environment::NullptrException, "");
+            return;
+        } case 0xc3: {
+            size_t endIndex = (thread_self->sp--)->var;
+            size_t startIndex = (thread_self->sp--)->var;
+            Object *arry = &thread_self->sp->object;
+            SharpObject *o = arry->object;
+            Object data; data.object = NULL;
+            size_t sz = endIndex-startIndex, idx=0;
+
+            if(o != NULL) {
+                if(startIndex > o->size || startIndex < 0 || endIndex < 0
+                   || endIndex > o->size || endIndex < startIndex) {
+                    stringstream ss;
+                    ss << "invalid call to native System.memcpy() startIndex: " << startIndex
+                       << " endIndex: " << endIndex << ", array size: " << o->size;
+                    throw Exception(ss.str());
+                }
+
+                if(o->k != NULL) { // class?
+                    if(o->node == NULL)
+                        throw Exception(Environment::NullptrException, "");
+                    data = GarbageCollector::self->newObjectArray(sz+1, o->k);
+
+                    for(size_t i = startIndex; i < o->size; i++) {
+                        data.object->node[idx++] = o->node[i];
+                        if(i==endIndex) break;
+                    }
+
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                } else if(o->HEAD != NULL) { // var[]
+                    data = GarbageCollector::self->newObject(sz+1);
+                    std::memcpy(data.object->HEAD, &o->HEAD[startIndex], sizeof(double)*data.object->size);
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                } else if(o->node != NULL) { // object? maybe...
+                    data = GarbageCollector::self->newObjectArray(sz+1);
+
+                    for(size_t i = startIndex; i < o->size; i++) {
+                        data.object->node[idx++] = o->node[i];
+                        if(i==endIndex) break;
+                    }
+
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                }
+
+            } else
+                throw Exception(Environment::NullptrException, "");
+            return;
+        } case 0xc4: {
+            size_t endIndex = (thread_self->sp--)->var;
+            size_t startIndex = (thread_self->sp--)->var;
+            Object *arry = &thread_self->sp->object;
+            SharpObject *o = arry->object;
+            Object data; data.object = NULL;
+            size_t sz = endIndex-startIndex, idx=0;
+
+            if(o != NULL) {
+                if(startIndex > o->size || startIndex < 0 || endIndex < 0
+                   || endIndex > o->size || endIndex < startIndex) {
+                    stringstream ss;
+                    ss << "invalid call to native System.reverse() startIndex: " << startIndex
+                       << " endIndex: " << endIndex << ", array size: " << o->size;
+                    throw Exception(ss.str());
+                }
+
+                if(o->k != NULL) { // class?
+                    if(o->node == NULL)
+                        throw Exception(Environment::NullptrException, "");
+                    data = GarbageCollector::self->newObjectArray(sz+1, o->k);
+
+                    for(size_t i = endIndex; i > 0; i--) {
+                        data.object->node[idx++] = o->node[i];
+                        if(i==startIndex) break;
+                    }
+
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                } else if(o->HEAD != NULL) { // var[]
+                    data = GarbageCollector::self->newObject(sz+1);
+
+                    for(size_t i = endIndex; i > 0; i--) {
+                        data.object->HEAD[idx++] = o->HEAD[i];
+                        if(i==startIndex) break;
+                    }
+
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                } else if(o->node != NULL) { // object? maybe...
+                    data = GarbageCollector::self->newObjectArray(sz+1);
+
+                    for(size_t i = endIndex; i > 0; i--) {
+                        data.object->node[idx++] = o->node[i];
+                        if(i==startIndex) break;
+                    }
+
+                    *arry = data.object;
+                    data.object->refCount = 1;
+                }
+
+            } else
+                throw Exception(Environment::NullptrException, "");
+            return;
+        } case 0xc6: {
+            size_t len = (thread_self->sp--)->var;
+            Object *arry = &thread_self->sp->object;
+            SharpObject *o = arry->object;
+
+            if(o != NULL) {
+                if(len <= 0) {
+                    stringstream ss;
+                    ss << "invalid call to native System.realloc() len: " << len
+                       << ", array size: " << o->size;
+                    throw Exception(ss.str());
+                }
+
+                if(o->k != NULL) { // class?
+
+                    if(o->node == NULL)
+                        throw Exception(Environment::NullptrException, "");
+
+                    GarbageCollector::self->reallocObject(o, len);
+                } else if(o->HEAD != NULL) { // var[]
+                    GarbageCollector::self->realloc(o, len);
+                } else if(o->node != NULL) { // object? maybe...
+                    GarbageCollector::self->reallocObject(o, len);
+                }
+
+            } else
+                throw Exception(Environment::NullptrException, "");
+            return;
+        }
+        case 0xc5:
+//            std::random_device rd;
+//            std::mt19937 mt(rd());
+//            std::uniform_real_distribution<double> dist(ECX, EGX);
+//            EBX = dist(mt);
+            break;
         case 0xb1:
         case 0xb2:
         case 0xb3:
@@ -313,7 +579,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xbb:
         case 0xbc:
         case 0xbf: {
-            Object *arry = &thread_self->dataStack[thread_self->sp--].object;
+            Object *arry = &(thread_self->sp--)->object;
             SharpObject *o = arry->object;
 
             if(o != NULL && o->HEAD!=NULL) {
@@ -334,7 +600,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 else if(signal==0xb6)
                     registers[ebx] = delete_file(path);
                 else if(signal==0xb7) {
-                   List<native_string> files;
+                    List<native_string> files;
                     get_file_list(path, files);
 
                     thread_self->sp++;
@@ -365,8 +631,8 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     File::read_alltext(path.str().c_str(), buf);
                     native_string str;
 
-                    for(long long i = 0; i < buf.size(); i++) {
-                        str += buf.at(i);
+                    if(str.injectBuff(buf)) {
+                        throw Exception("out of memory");
                     }
 
                     thread_self->sp++;
@@ -382,8 +648,8 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         }
         case 0xba:
         case 0xbd:  {
-            SharpObject *o = thread_self->dataStack[thread_self->sp--].object.object;
-            SharpObject *o2 = thread_self->dataStack[thread_self->sp--].object.object;
+            SharpObject *o = (thread_self->sp--)->object.object;
+            SharpObject *o2 = (thread_self->sp--)->object.object;
 
             if (o != NULL && o->HEAD != NULL && o2 != NULL && o2->HEAD != NULL) {
                 native_string path, rename;
@@ -408,6 +674,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xbe:
             registers[ebx]=disk_space((int32_t )registers[ebx]);
             return;
+        case 0xc2:
+            registers[ebx] = GarbageCollector::_sizeof((thread_self->sp--)->object.object);
+            return;
         default:
             // unsupported
             break;
@@ -416,21 +685,21 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
 
 
 int VirtualMachine::returnMethod() {
-    if(thread_self->callStack.size() <= 1)
+    if(thread_self->calls <= 1)
         return 1;
 
-    Frame frame = thread_self->callStack.last();
+    Frame *frame = thread_self->callStack+(thread_self->calls);
 
     if(thread_self->current->finallyBlocks.size() > 0)
         executeFinally(thread_self->current);
 
-    thread_self->current = frame.last;
-    thread_self->cache = frame.last->bytecode;
+    thread_self->current = frame->last;
+    thread_self->cache = frame->last->bytecode;
 
-    thread_self->pc = frame.pc;
-    thread_self->sp = frame.sp;
-    thread_self->fp = frame.fp;
-    thread_self->callStack.pop_back();
+    thread_self->pc = frame->pc;
+    thread_self->sp = frame->sp;
+    thread_self->fp = frame->fp;
+    thread_self->calls--;
     return 0;
 }
 
@@ -441,7 +710,6 @@ void VirtualMachine::Throw(Object *exceptionObject) {
     }
 
     thread_self->throwable.throwable = exceptionObject->object->k;
-    int t = thread_self->callStack.size();
     fillStackTrace(exceptionObject);
 
     if(TryThrow(thread_self->current, exceptionObject)) {
@@ -451,7 +719,7 @@ void VirtualMachine::Throw(Object *exceptionObject) {
         return;
     }
 
-    while(thread_self->callStack.size() >= 1) {
+    while(thread_self->calls >= 1) {
         Method *method = thread_self->current;
         executeFinally(thread_self->current);
 
@@ -536,7 +804,7 @@ void VirtualMachine::fillStackTrace(Object *exceptionObject) {
     }
 }
 
-void VirtualMachine::fillMethodCall(Frame frame, stringstream &ss, Frame *prev) {
+void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
     if(frame.last == NULL) return;
 
     ss << "\tSource ";
@@ -549,9 +817,16 @@ void VirtualMachine::fillMethodCall(Frame frame, stringstream &ss, Frame *prev) 
     long long x, line=-1, ptr=-1;
     for(x = 0; x < frame.last->lineNumbers.size(); x++)
     {
-        if(frame.pc >= frame.last->lineNumbers.get(x).pc) {
-            ptr = x;
+        if(frame.last->lineNumbers.get(x).pc >= frame.pc) {
+            if(x > 0)
+                ptr = x-1;
+            else
+                ptr = x;
             break;
+        }
+
+        if(!((x+1) < frame.last->lineNumbers.size())) {
+            ptr = x;
         }
     }
 
@@ -560,8 +835,10 @@ void VirtualMachine::fillMethodCall(Frame frame, stringstream &ss, Frame *prev) 
     } else
         ss << ", line ?";
 
-    ss << ", in "; ss << frame.last->name.str() << "() [0x" << std::hex
+    ss << ", in "; ss << frame.last->fullName.str() << "() [0x" << std::hex
                       << frame.last->address << "] $0x" << frame.pc  << std::dec;
+
+    ss << " fp; " << frame.fp << " sp: " << frame.sp-thread_self->dataStack;
 
     if(line != -1 && metaData.sourceFiles.size() > 0) {
         ss << getPrettyErrorLine(line, frame.last->sourceFile);
@@ -572,22 +849,19 @@ void VirtualMachine::fillMethodCall(Frame frame, stringstream &ss, Frame *prev) 
 
 void VirtualMachine::fillStackTrace(native_string &str) {
 // fill message
-    stringstream ss;
-    Method* m = thread_self->current;
-    int64_t pc = thread_self->pc, _fp=thread_self->fp;
+    if(thread_self->callStack == NULL || thread_self->calls == 0) return;
 
-    unsigned int pos = thread_self->callStack.size() > EXCEPTION_PRINT_MAX ? thread_self->callStack.size()
-                                                                             - EXCEPTION_PRINT_MAX : 0;
-    Frame *prev = NULL;
-    for(long i = pos; i < thread_self->callStack.size(); i++)
-    {
-        fillMethodCall(thread_self->callStack.get(i), ss, prev);
-        prev = &thread_self->callStack.get(i);
+    stringstream ss;
+    unsigned int iter = 0;
+    long start = thread_self->calls <= EXCEPTION_PRINT_MAX ? 0 : thread_self->calls-EXCEPTION_PRINT_MAX;
+    for(long i = start; i < thread_self->calls ; i++) {
+        if(iter++ >= EXCEPTION_PRINT_MAX)
+            break;
+        fillMethodCall(thread_self->callStack[i], ss);
     }
 
-    prev = thread_self->callStack.size() == 1 ? NULL : &thread_self->callStack.get(thread_self->callStack.size()-1);
-    Frame frame(thread_self->current, pc, thread_self->sp, _fp);
-    fillMethodCall(frame, ss, prev);
+    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp);
+    fillMethodCall(frame, ss);
 
     str = ss.str();
 }

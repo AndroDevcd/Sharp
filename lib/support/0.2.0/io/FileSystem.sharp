@@ -3,7 +3,9 @@ mod std.io;
 import std;
 
 /**
- * Created by BraxtonN on 5/25/2018.
+ * FileSystem serves as the abstract base level class for the underlying
+ * filesystem residing on the host OS. This class contains a set of delegates
+ * that must be implemented that are OS dependant.
  */
 public class FileSystem {
 

@@ -16,12 +16,19 @@ class ReferencePointer;
 class ResolvedReference;
 struct Expression;
 
+enum method_type
+{
+    _operator,
+    _method,
+    _constructor
+};
+
 class ResolvedReference {
 public:
     ResolvedReference()
             :
             type(UNDEFINED),
-            field(NULL),
+            field(),
             method(NULL),
             klass(NULL),
             oo(NULL),
@@ -29,7 +36,10 @@ public:
             array(false),
             resolved(false),
             isMethod(false),
-            uType(NULL)
+            uType(NULL),
+            prototype(),
+            isField(false),
+            isProtoType(false)
     {
     }
 
@@ -52,20 +62,24 @@ public:
         if(isMethod)
             return "method";
         else if(type==CLASS)
-            return field != NULL ? field->klass->getFullName() : (klass==NULL ? "?" : klass->getFullName());
+            return isField ? field.klass->getFullName() : (klass==NULL ? "?" : klass->getFullName());
         else if(type==OBJECT)
             return "object";
-        else if(type==VAR)
-            return "var";
+        else if(type==VAR) {
+            if(isMethod)
+                return method->getFullName();
+            else
+                return "var";
+        }
         else if(type==TYPEVOID)
             return "void";
         else if(type==UNDEFINED)
             return "undefined";
         else if(type==CLASSFIELD) {
-            if(field->type==CLASS)
-                return field->klass->getFullName();
+            if(field.type==CLASS)
+                return field.klass->getFullName();
             else
-                return typeToString(field->type);
+                return typeToString(field.type);
         }
         else
             return "unresolved";
@@ -77,20 +91,52 @@ public:
 
     bool isVar() { return type==VAR; }
     bool dynamicObject() { return type==OBJECT; }
-    bool isEnum() { return field != NULL && field->isEnum; }
+    bool isEnum() { return isField && field.isEnum; }
+    List<Param> getParams() {
+        if(method)
+            return method->getParams();
+        else if(isField)
+            return field.getParams();
+        else return prototype.getParams();
+    }
+
+    FieldType getReturnType() {
+        if(method)
+            return method->type;
+        else if(isField)
+            return field.returnType;
+        else return prototype.returnType;
+    }
+
+    void operator=(ResolvedReference ref) {
+        referenceName=ref.referenceName;
+        array=ref.array;
+        isMethod=ref.isMethod;
+        resolved=ref.resolved;
+        isProtoType=ref.isProtoType;
+        type=ref.type;
+        klass=ref.klass;
+        field=ref.field;
+        prototype=ref.prototype;
+        method=ref.method;
+        oo=ref.oo;
+        uType=ref.uType;
+        isField=ref.isField;
+    }
 
     string referenceName;
-    bool array, isMethod, resolved;
+    bool array, isMethod, isField, resolved;
+    bool isProtoType;
     FieldType type;
     ClassObject* klass;
-    Field* field;
+    Field field, prototype;
     Method* method;
     OperatorOverload* oo;
     Ast* uType;
 
     bool isArray() {
-        if(field != NULL)
-            return field->isArray;
+        if(isField)
+            return field.isArray;
 
         return array;
     }
@@ -109,6 +155,7 @@ enum expression_type {
     expression_unresolved=13,
     expression_null=14,
     expression_generic=15, // special case for generic utypes
+    expression_prototype=16,
     expression_unknown=0x900f
 };
 
@@ -126,6 +173,7 @@ struct Expression {
             intValue(0),
             value(""),
             literal(false),
+            charLiteral(false),
             arrayElement(false),
             inCmtRegister(false)
     {
@@ -144,6 +192,7 @@ struct Expression {
             intValue(0),
             value(""),
             literal(false),
+            charLiteral(false),
             arrayElement(false),
             inCmtRegister(false)
     {
@@ -155,14 +204,15 @@ struct Expression {
     ResolvedReference utype;
     Assembler code;
     Ast* link;
-    bool dot, newExpression, func, literal, arrayElement, inCmtRegister, ifExpression;
+    bool dot, newExpression, func, literal,
+            charLiteral, arrayElement, inCmtRegister, ifExpression;
     string value;
     double intValue;
 
     bool arrayObject() {
         switch(type) {
             case expression_field:
-                return utype.field->isArray;
+                return utype.field.isArray;
             default:
                 return utype.array;
         }
@@ -170,7 +220,7 @@ struct Expression {
     int trueType() {
         switch(type) {
             case expression_field:
-                return utype.field->type;
+                return utype.field.type;
             case expression_objectclass:
                 return OBJECT;
             case expression_lclass:
@@ -187,7 +237,7 @@ struct Expression {
     ClassObject* getClass() {
         switch(type) {
             case expression_field:
-                return utype.field->klass;
+                return utype.field.klass;
             default:
                 return utype.klass;
         }
@@ -197,7 +247,12 @@ struct Expression {
     }
 
     bool isConstExpr() {
-        return literal || (type==expression_field && utype.field->isConst());
+        return literal || (type==expression_field && utype.field.isConst());
+    }
+
+    bool isProtoType() {
+        return type == expression_prototype ||
+               (utype.isField && utype.field.prototype);
     }
 
     bool isArray() {
@@ -603,6 +658,11 @@ public:
     static bool isNativeIntegerClass(ClassObject *klass);
 
     List<ClassObject*> classes;
+
+    static Expression fieldToExpression(Ast *pAst, Field &field);
+
+    static bool prototypeEquals(Field *proto, List<Param> params, FieldType rtype);
+
 private:
     bool preprocessed;
     List<Parser*> parsers;
@@ -665,7 +725,7 @@ private:
 
     void removeScope();
 
-    void parseVarDecl(Ast *ast);
+    void parseVarDecl(Ast *ast, bool global = false);
 
     void parseVarAccessModifiers(List<AccessModifier> &modifiers, Ast *ast);
 
@@ -710,7 +770,7 @@ private:
 
     void resolveFieldHeiarchy(Field *field, ReferencePointer &refrence, Expression &expression, Ast *pAst);
 
-    void resolveMethodDecl(Ast *ast);
+    void resolveMethodDecl(Ast *ast, bool golbal = false);
 
     void parseMethodAccessModifiers(List<AccessModifier> &modifiers, Ast *pAst);
 
@@ -930,8 +990,6 @@ private:
 
     Expression parseQuesExpression(Ast *pAst);
 
-    Expression fieldToExpression(Ast *pAst, Field &field);
-
     Expression fieldToExpression(Ast *pAst, string name);
 
     void initalizeNewClass(ClassObject *klass, Expression &out);
@@ -1120,6 +1178,30 @@ private:
     void resolveAllGenericMethodsParams();
 
     bool isAndOp(token_entity entity);
+
+    void inheritObjectClass();
+
+    void resolveAllGenericMethodsReturns();
+
+    void resolveAllGenericMethodsReturns(Ast *pAst);
+
+    void resolveGenericMethodsReturn(Ast *pAst, long &i, long &i1, long &i2, method_type type);
+
+    void createGlobalClass();
+
+    void resolvePrototypeDecl(Ast *ast);
+
+    void parseProtypeDecl(Ast *pAst);
+
+    void parseFieldReturnType(Expression &expression, Field &field);
+
+    void parseFuncPrototype(Ast *ast, Field *field);
+
+    Method *fieldToFunction(Field *field, Expression &code);
+
+    void varToObject(Expression &expression, Expression &out);
+
+    void resolveAllGlobalFields();
 };
 
 
@@ -1130,6 +1212,8 @@ private:
 #define for_label_begin_id "$$for_start"
 
 #define for_label_end_id "$$for_end"
+
+#define for_label_iter_id "$$for_iter"
 
 #define while_label_begin_id "$$while_start"
 
@@ -1146,7 +1230,7 @@ private:
 #define unique_label_id(x) "$$L" << (x)
 
 #define progname "bootstrap"
-#define progvers "0.2.312"
+#define progvers "0.2.343"
 
 struct options {
     ~options()

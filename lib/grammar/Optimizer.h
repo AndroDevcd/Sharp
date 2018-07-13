@@ -56,6 +56,11 @@ private:
     void optimizeSmovr();
     void optimizeCheckLen();
     void optimizeRegister(int reg);
+    void optimizeRedundantLoadStore();
+
+    void optimizeNops();
+
+    void optimizeRedundantGoto();
 };
 
 

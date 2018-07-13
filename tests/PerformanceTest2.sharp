@@ -1,11 +1,16 @@
-mod application;
+mod app;
 
 import std;
 
-public class Start {
+public class Application {
 
     private static def addUpTo(var dest) : var {
-        return (_uint64)(((_int64)dest * (_int64)(dest + 1)) >> 1);
+      var sum = 0;
+      for (var i = 1; i <= dest; i++) {
+        sum += i;
+      }
+      return sum;
+        //return (_uint64)(((_int64)dest * (_int64)(dest + 1)) >> 1);
     }
 
     private static def rollAverage(var dest) : var {
@@ -18,8 +23,7 @@ public class Start {
     }
 
     /**
-    * Cost per million performance improvements
-    * #1: 40.782s
+    *
     */
     public static def main(string[] args) : var {
         var n = string.parseInt(args[0]);

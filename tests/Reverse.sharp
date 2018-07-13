@@ -1,0 +1,28 @@
+mod app;
+
+import std;
+
+public class Application {
+
+    public static def reverseArray(var[] arry) {
+        object[] aa = System.reverse(arry, 0, sizeof(arry));
+    }
+
+    public static def main(string[] args) : var {
+        if (sizeof(args) != 2) {
+          System.println("Usage: sharpc array-reverse <size> <iterations>");
+          System.exit();
+        }
+
+        var[] myList = new var[string.parseInt(args[0])];
+        System.println("size = " + sizeof(myList));
+        for (var i = 0; i < sizeof(myList); i++) {
+          myList[i] = i;
+        }
+        var count = string.parseInt(args[1]);
+        System.println("count = " + count);
+        for (var i = 0; i < count; i++) {
+          reverseArray(myList);
+        }
+    }
+}

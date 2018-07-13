@@ -82,10 +82,10 @@ A value consists of an <expression>
 <uType> <identifier>                         i.e. object dog  Animal cat
 
 <uTypeArg-list-opt>;
-[ '(' <uTypeArgOpt> (',' <uTypeArgOpt>)* ')']
+[ '(' [param] <uTypeArgOpt> (',' [param] <uTypeArgOpt>)* ')']
 
 <uTypeArg-list>;
-[ '(' <uTypeArg> (',' <uTypeArg>)* ')']      i.e (object arg1) (Double arg1, object arg2)
+[ '(' [param] <uTypeArg> (',' [param] <uTypeArg>)* ')']      i.e (object arg1) (Double arg1, object arg2)
 
 <VectorArray>:
 '{' <expression> (',' <expression>)* '}'      i.e. int[] numbers = new int[] { 1, 2, 3, }
@@ -169,7 +169,7 @@ Import Declaration:
 import <modulename> ;
 
 Prototype Declaration:
-func <identifier = name> <uTypeArg-list-naked> [: <uType>] ;
+fn <identifier = name> <uTypeArg-list-opt> [: <uType>] ;
 
 Class Declaration:
 `[<accesstype>] class <identifier = name> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`

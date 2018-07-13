@@ -47,9 +47,15 @@
     if (state == THREAD_KILLED) \
         return; \
 
-#define STACK_CHECK  if((sp+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
+#define STACK_CHECK  if(sp >= stackTail) throw Exception(Environment::StackOverflowErr, "");
+#define CALLSTACK_CHECK  if((calls+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
+#define THREAD_STACK_CHECK(self)  if(self->sp >= self->stackTail) throw Exception(Environment::StackOverflowErr, "");
 
-#define _brh_NOINCREMENT SAFTEY_CHECK /*count++; if(count == 0) overflow++;*/ if(!startAddress) DISPATCH() else goto *opcodeStart;
+#ifndef SHARP_PROF_
+#define _brh_NOINCREMENT SAFTEY_CHECK if(!startAddress) DISPATCH() else goto *opcodeStart;
+#else
+#define _brh_NOINCREMENT SAFTEY_CHECK count++; if(count == 0) overflow++; goto *opcodeStart;
+#endif
 #define _brh  pc++; _brh_NOINCREMENT
 
 #define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
@@ -174,6 +180,7 @@
         &&IPOPL,                                 \
         &&SWITCH,                                 \
         &&CMP,                                 \
+        &&CALLD,                                 \
     };
 
 enum Opcode {
@@ -291,7 +298,8 @@ enum Opcode {
     op_JNE                      =0x6f,
     op_IPOPL                    =0x70,
     op_SWITCH                   =0x71,
-    op_CMP                      =0x72
+    op_CMP                      =0x72,
+    op_CALLD                    =0x73
 };
 
 #endif //SHARP_OPCODE_H

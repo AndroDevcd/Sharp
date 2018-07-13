@@ -7,6 +7,7 @@
 
 #include <string>
 #include "../../../stdimports.h"
+#include "../../util/File.h"
 
 class native_string {
 public:
@@ -90,6 +91,21 @@ public:
         }
     }
 
+    int injectBuff(File::buffer &buf) {
+
+        if(buf.size()>0) {
+            len = buf.size();
+            chars = (char*)malloc(sizeof(char)*buf.size());
+
+            if(chars==NULL)return 1;
+            std::memcpy(chars, buf.data(), sizeof(char)*len);
+        } else {
+            free();
+        }
+
+        return 0;
+    }
+
     void operator+=(const char &c) {
         if(len == 0) {
             len=1;
@@ -105,10 +121,6 @@ public:
     string str() {
         if(len==0) return "";
         return string(chars,len);
-    }
-
-    const char* c_str() {
-        return chars;
     }
 
     void free() {

@@ -2,13 +2,6 @@ mod app;
 
 import std;
 
-/**                          
-* Created by bknun on 6/5/2018            
-* Description:                             
-*/
-public class Application {
-
-    public static def main(string[] args) : var {
-        return app#Runtime.bootstrap(args);
-    }
+def main(string[] args) : var {
+    return app#Runtime.bootstrap(args);
 }

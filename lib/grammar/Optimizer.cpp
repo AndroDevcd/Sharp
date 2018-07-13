@@ -35,10 +35,10 @@ void Optimizer::readjustAddresses(unsigned int stopAddr) {
     }
 
     for(unsigned int i = 0; i < func->line_table.size(); i++) {
-        KeyPair<int64_t, long> &lt = func->line_table.get(i);
+        KeyPair<long, int64_t> &lt = func->line_table.get(i);
 
-        if(stopAddr < lt.key && lt.key > 0)
-            lt.key--;
+        if(stopAddr < lt.value && lt.value > 0)
+            lt.value--;
     }
 
 
@@ -197,6 +197,34 @@ void Optimizer::optimizeLocalPops() {
     }
 }
 
+/**
+ * [0x2] 2:	goto @3
+ * [0x4] 3:	popobj
+ *
+ * to -> [0x4] 3: popobj
+ */
+void Optimizer::optimizeRedundantGoto() {
+    int64_t x64, addr;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_GOTO:
+                addr = GET_Da(x64);
+
+                if(addr == (i+1)) {
+                    assembler->__asm64.remove(i);
+                    readjustAddresses(i);
+
+                    optimizedOpcodes++;
+                    goto readjust;
+                }
+                break;
+        }
+    }
+}
+
 void Optimizer::optimize(Method *method) {
     this->assembler = &method->code;
     this->unique_addr_lst.addAll(method->unique_address_table);
@@ -206,6 +234,7 @@ void Optimizer::optimize(Method *method) {
     if(method->code.size()==0)
         return;
 
+    optimizeRedundantGoto();
     optimizeLocalPops();
     optimizeRedundantMovICall();
     optimizeRedundantSelfInitilization();
@@ -227,15 +256,17 @@ void Optimizer::optimize(Method *method) {
     optimizeLoadLocal_3();
     optimizeSmovr();
     optimizeCheckLen();
-    optimizeRegister(adx);
     optimizeRegister(ebx); /* most commonly used register in the language */
     optimizeRegister(egx);
+    optimizeRedundantLoadStore();
 
     /**
      * must be last or the entire program will be rendered unstable
      * and will most likely fatally crash with (SEGV) signal
      */
     optimizeJumpBranches();
+
+    //optimizeNops(); this is the devil! i don't ever think this will work smh
 }
 
 /**
@@ -1088,6 +1119,77 @@ void Optimizer::optimizeRegister(int reg) {
                 break;
             default:
                 break; /* ignore */
+        }
+    }
+}
+
+
+/**
+ * [0x7] 7:	rstore ebx
+ * [0x8] 8:	loadval ebx
+ *
+ * to -> (removed)
+ */
+void Optimizer::optimizeRedundantLoadStore() {
+    int64_t x64, reg1;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_RSTORE:
+                reg1 = GET_Da(x64);
+
+                if(GET_OP(assembler->__asm64.get(i+1)) == op_LOADVAL
+                   && GET_Da(assembler->__asm64.get(i+1)) == reg1) {
+
+                    assembler->__asm64.remove(i); // remove rstore
+                    readjustAddresses(i);
+
+                    assembler->__asm64.remove(i); // remove loadval
+                    readjustAddresses(i);
+
+                    optimizedOpcodes+=2;
+                    goto readjust;
+                }
+                break;
+        }
+    }
+}
+
+/**
+ * [0x7c] 124:	nop
+ *
+ * to -> (removed)
+ */
+void Optimizer::optimizeNops() {
+    int64_t x64;
+    readjust:
+    for(unsigned int i = 0; i < assembler->size(); i++) {
+        x64 = assembler->__asm64.get(i);
+
+        switch (GET_OP(x64)) {
+            case op_NOP:
+                if((i+1) < assembler->size() && assembler->__asm64.get(i+1) == op_NOP)
+                    continue;
+
+                assembler->__asm64.remove(i); // remove nop
+                readjustAddresses(i);
+
+                optimizedOpcodes++;
+                goto readjust;
+            case op_MOVI:
+            case op_ADD:
+            case op_SUB:
+            case op_MUL:
+            case op_DIV:
+            case op_MOD:
+            case op_SHL:
+            case op_SHR:
+            case op_ISTOREL:
+            case op_MOVBI: // skip these to prevent undefined behavior
+                i++;
+                break;
         }
     }
 }

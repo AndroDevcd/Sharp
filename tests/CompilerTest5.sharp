@@ -1,4 +1,4 @@
-mod application;
+mod app;
 
 import std;
 
@@ -7,6 +7,9 @@ public class Application {
     public static def main(string[] args) : var {
         ArrayList<var> intArry = new ArrayList<var>(); // TODO: empty modifiers after methods classes etc. before block call
         intArry.add(9);
+
+        Dictionary<ee, string> enumArry = new Dictionary<ee, string>(); // TODO: empty modifiers after methods classes etc. before block call
+        enumArry.put(ee.red, "hi");
 
         try {
             System.println(" intArry[0] = " + intArry.get(99));
@@ -21,6 +24,7 @@ public class Application {
         foreach(var v : tmp) {
             System.println("int  " +  v);
         }
+        tmp = null;
 
         intArry.set(0, 15);
         System.println("intArry[0] = " + intArry.get(0));
@@ -65,4 +69,10 @@ public class Application {
     interface IFace<T> {
 
     }
+
+    enum ee {
+        red,
+        GREEN,
+        BLUE
+    };
 }

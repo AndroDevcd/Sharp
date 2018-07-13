@@ -21,29 +21,23 @@ struct SharpObject
         HEAD=NULL;
         node=NULL;
         k=NULL;
-#ifdef WIN32_
-        mutex.initalize();
-#endif
-#ifdef POSIX_
-        new (&mutex) std::mutex();
-#endif
+        next=NULL;
+        prev=NULL;
+        mutex=NULL;
         this->size=size;
-        refCount=1;
+        refCount=0;
         generation = 0x000; /* generation young */
     }
     void init(unsigned long size, ClassObject* k)
     {
         HEAD=NULL;
         node=NULL;
+        next=NULL;
+        prev=NULL;
         this->k=k;
-#ifdef WIN32_
-        mutex.initalize();
-#endif
-#ifdef POSIX_
-        new (&mutex) std::mutex();
-#endif
+        mutex=NULL;
         this->size=size;
-        refCount=1;
+        refCount=0;
         generation = 0x000; /* generation young */
     }
 
@@ -55,21 +49,30 @@ struct SharpObject
     /* info */
     ClassObject* k;
     unsigned long size;
-    unsigned int refCount : 32;
+    long int refCount : 32;
 #ifdef WIN32_
-    recursive_mutex mutex;
+    recursive_mutex* mutex;
 #endif
 #ifdef POSIX_
-    std::mutex mutex;
+    std::mutex* mutex;
 #endif
-    unsigned int generation : 3; /* collection generation */
+    /**
+     * collection generation
+     *
+     * layout
+     * 0000 4 bits consisting of "gc mark' and 'generation'
+     *
+     * 0            000
+     * ^-- mark     ^-- generation
+     */
+    unsigned int generation : 4; /* gc stuff */
+    SharpObject *next, *prev; /* linked list pointers */
 };
 
-#define DEC_REF(object) \
-    if((object) != NULL) { \
-        (object)->refCount--; \
-         \
-        switch((object)->generation) { \
+#define DEC_REF(obj) \
+    if(obj != NULL) { \
+        obj->refCount--; \
+        switch(GENERATION((obj)->generation)) { \
             case gc_young: \
                 GarbageCollector::self->yObjs++; \
                 break; \
@@ -80,7 +83,11 @@ struct SharpObject
                 GarbageCollector::self->oObjs++; \
                 break; \
         } \
-        object = nullptr; \
+    }
+
+#define INC_REF(object) \
+    if(object != NULL) { \
+        object->refCount++; \
     }
 
 /**
@@ -90,31 +97,54 @@ struct SharpObject
 struct Object {
     SharpObject* object;
 
+    void monitorLock() {
+        if(object != nullptr) {
+            if(object->mutex==NULL) {
+#ifdef WIN32_
+                object->mutex = new recursive_mutex();
+#endif
+#ifdef POSIX_
+                object->mutex = new std::mutex();
+#endif
+            }
+
+            object->mutex->lock();
+        }
+    }
+
+    void monitorUnLock() {
+        if(object && object->mutex != NULL) {
+            object->mutex->unlock();
+        }
+    }
+
     CXX11_INLINE void operator=(Object &o) {
-        if(&o == this) return;
-        DEC_REF(this->object)
+        if(&o == this || o.object==object) return;
+        DEC_REF(this->object);
 
         if(o.object != NULL) {
             this->object = o.object;
             this->object->refCount++;
-        }
-
+        } else object=NULL;
     }
     CXX11_INLINE void operator=(Object *o) {
-        if(o == this) return;
-        DEC_REF(this->object)
+        if(o == this || (o != NULL && o->object==object)) return;
+        DEC_REF(this->object);
 
-        if(o->object != NULL)
+        if(o != NULL && o->object != NULL)
         {
             this->object = o->object;
             this->object->refCount++;
-        }
+        } else object=NULL;
     }
     CXX11_INLINE void operator=(SharpObject *o) {
         if(o == this->object) return;
-        DEC_REF(this->object)
+        DEC_REF(this->object);
 
         this->object = o;
+        if(o != NULL) {
+            o->refCount++;
+        }
     }
     void castObject(uint64_t classPtr);
 };

@@ -96,15 +96,16 @@ public:
             }
             __shrink();
         } else {
-            long long newLen=len-1,iter=1;
-            for(long long i = 0; i < newLen; i++) {
-                if(iter == _X)
-                    iter++;
+            T* result = (T*)__malloc(sizeof(T)*(len-1));
+            long long newLen=len-1;
+            for(long long i = 0; i < _X; i++)
+                result[i] = _Data[i];
+            for(long long i = _X; i < newLen; i++)
+                result[i] = _Data[i + 1];
 
-                _Data[i] = _Data[iter];
-            }
-
-            __shrink();
+            free();
+            len=newLen;
+            _Data=result;
         }
 
 
@@ -252,9 +253,39 @@ public:
         return -1;
     }
 
+    void del(T data) {
+        for(unsigned long long c = 0; c < len; c++) {
+            if(data == _Data[c]){
+
+                if(len==1){
+                    free();
+                }
+                else if(len==2) {
+                    if(c==0) {
+                        _Data[0]=_Data[1];
+                    }
+                    __shrink();
+                } else {
+                    T* result = (T*)__malloc(sizeof(T)*(len-1));
+                    long long newLen=len-1;
+                    for(long long i = 0; i < c; i++)
+                        result[i] = _Data[i];
+                    for(long long i = c; i < newLen; i++)
+                        result[i] = _Data[i + 1];
+
+                    std::free(_Data);
+                    len=newLen;
+                    _Data=result;
+                }
+
+                return;
+            }
+        }
+    }
+
     bool empty() { return len==0; }
 
-    T* _Data;
+    T* _Data, *ptr;
 private:
     CXX11_INLINE
     void __expand() {
@@ -268,10 +299,12 @@ private:
             }
 
             if(_Data==NULL){
-                _Data=(T*)__malloc(sizeof(T)*len);
+                ptr=(T*)__malloc(sizeof(T)*len);
             } else {
-                _Data=(T*)__realloc(_Data, sizeof(T)*len);
+                ptr=(T*)__realloc(_Data, sizeof(T)*len, sizeof(T)*(len-1));
             }
+
+            _Data=ptr;
         } catch(Exception &e){
             len--;
             throw e;
@@ -285,15 +318,15 @@ private:
             if(len==0)
                 free();
             else
-                _Data=(T*)__realloc(_Data, sizeof(T)*len);
+                _Data=(T*)__realloc(_Data, sizeof(T)*len, sizeof(T)*(len-1));
         } catch(Exception &e) {
             len++;
             throw e;
         }
     }
 
-    unsigned  long len;
-    unsigned  long max;
+    unsigned  long long len;
+    unsigned  long long max;
 };
 
 #endif //SHARP_LIST_H

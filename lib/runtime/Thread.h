@@ -9,16 +9,25 @@
 #include "oo/ClassObject.h"
 #include "oo/Exception.h"
 #include "oo/Method.h"
+#include "profiler.h"
 
 #define MAX_THREADS 0xffba
 
 #define STACK_SIZE 0xcfba
+
+#define main_threadid 0x0
 
 enum ThreadState {
     THREAD_CREATED      =0x000,
     THREAD_RUNNING      =0x001,
     THREAD_SUSPENDED    =0x002,
     THREAD_KILLED       =0x003
+};
+
+enum ThreadPriority {
+    THREAD_PRIORITY_LOW = 0x0001,
+    THREAD_PRIORITY_NORM = 0X0004,
+    THREAD_PRIORITY_HIGH = 0X0006
 };
 
 class Thread {
@@ -37,6 +46,9 @@ public:
             throwable(),
             callStack(),
             dataStack(NULL)
+#ifdef SHARP_PROF_
+            ,tprof()
+#endif
 
     {
     #ifdef WIN32_
@@ -62,6 +74,8 @@ public:
     static void waitForThreadExit(Thread* thread);
     static void terminateAndWaitForThreadExit(Thread* thread);
     static int waitForThread(Thread *thread);
+    static int setPriority(int32_t, int);
+    static int setPriority(Thread*, int);
     static void killAll();
     static void shutdown();
 
@@ -92,11 +106,16 @@ public:
 #endif
     static bool isAllThreadsSuspended;
 
+#ifdef SHARP_PROF_
+    Profiler tprof;
+#endif
+
     int32_t id;
+    int priority;
     bool daemon;
     bool terminated;
     unsigned int state;
-    unsigned int signal;
+    unsigned int starting;
     bool suspended;
     bool exited;
     native_string name;
@@ -104,11 +123,13 @@ public:
     int exitVal;
     bool suspendPending;
     bool exceptionThrown;
+    Object currentThread, args;
 
-    int64_t pc, fp, sp;
+    int64_t pc, fp;
     Method *current;
-    List<Frame> callStack;
-    StackElement* dataStack;
+    Frame *callStack;
+    unsigned long calls;
+    StackElement* dataStack, *sp, *stackTail;
     unsigned long stack_lmt;
     Cache cache;
     Throwable throwable;
@@ -130,6 +151,7 @@ public:
 
     void interrupt();
 
+    void setup();
 private:
 
     void wait();
@@ -146,7 +168,10 @@ private:
 extern thread_local Thread* thread_self;
 extern thread_local double registers[12];
 
-#define main_threadid 0x0
+#define EBX registers[ebx]
+#define ADX registers[adx]
+#define ECX registers[ecx]
+#define EGX registers[egx]
 
 extern FinallyTable finallyTable;
 extern short int startAddress;

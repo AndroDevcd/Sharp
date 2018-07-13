@@ -1,0 +1,143 @@
+mod std.kernel;
+
+import std;
+import std.io;
+
+/**
+ * Created by BraxtonN on 5/17/2018.
+ *
+ * Low level utility class to interface with the Sharp
+ * Virtual Machine. Classic function calls consist of
+ * garbage collector requests and the entry-point to
+ * your application
+ */
+public class Runtime {
+
+    private static var MINIMUM_ARGS = 4;
+    private static string[] userArgs = null;
+
+    /**
+    * This is necessary to setup all our static data for our classes
+    * DO NOT remove this call or it will result in crashes.
+    *
+    * NO code should be placed inside this function
+    */
+    private static def setupClasses() {
+    }
+
+    /**
+    * This is the entry point of your application
+    */
+    public static def __srt_init_(object[] args) : var {
+
+        BuildConfig.applicationName = "" + (var[])args[0];
+        BuildConfig.version = "" + (var[])args[1];
+        BuildConfig.platform = "" + (var[])args[2];
+        BuildConfig.OS = "" + (var[])args[3];
+
+        /**
+        * Build config must be setup first before we do anything
+        */
+        setupClasses();
+        Thread.setupMainThread();
+        userArgs = new string[sizeof(args) - MINIMUM_ARGS];
+
+//        System.println("application " + application);
+//        System.println("version " + vers);
+//        System.println("platform " + platformVersion);
+//        System.println("os " + os);
+
+        // set user args to be passed
+        var iter;
+        for(var i = MINIMUM_ARGS; i < sizeof(args); i++) {
+            userArgs[iter++] = new string((var[])args[i]);
+        }
+
+        // user defined main
+        var ret = global#__SRT_Global.main(userArgs);
+
+        System.print("\nProgram finished with exit code " + ret);
+        return ret;
+    }
+
+    public static def nativeExit() {
+        asm(
+            "int 0xa9         // interrupt the entire system and initiate shutdown "
+            "                                                                      " );
+    }
+
+    public static def gc() {
+        asm(
+            "int 0xa1         // send request to gc to collect data                "
+            "                                                                      " );
+    }
+
+    public static def memoryLimit() : var {
+        var limit; //0xaa
+
+        asm(
+            "int 0xaa         // send request to get total max memory given to the garbage collector  "
+            "smovr_2 cmt,0    // set limit to value                                                   " );
+        return limit;
+    }
+
+    public static def managedMemory() : var {
+        var limit; //0xaa
+
+        asm(
+            "int 0xab         // send request to get total memory currently under management          "
+            "smovr_2 cmt,0    // set limit to value                                                   " );
+        return limit;
+    }
+
+    public static def freeMemory() : var {
+        return memoryLimit()-managedMemory();
+    }
+
+    public static def copy(object[] data, var len) : object[] {
+        asm(
+            "pushl <data>                                                                             "
+            "ipushl <len>                                                                             "
+            "int 0xc0         // send request to natively copy object                                 "
+            "popl <data>                                                                              "
+            "ret                                                                                      " );
+    }
+
+    public static def copy2(object[] data, var indexLen, var len) : object[] {
+        asm(
+            "pushl <data>                                                                             "
+            "ipushl <indexLen>                                                                        "
+            "ipushl <len>                                                                             "
+            "int 0xc1         // send request to natively copy object                                 "
+            "popl <data>                                                                              "
+            "ret                                                                                      " );
+    }
+
+    public static def copy3(object[] data, var startIndex, var stopIndex) : object[] {
+        asm(
+            "pushl <data>                                                                             "
+            "ipushl <startIndex>                                                                        "
+            "ipushl <stopIndex>                                                                             "
+            "int 0xc3         // send request to natively copy object                                 "
+            "popl <data>                                                                              "
+            "ret                                                                                      " );
+    }
+
+    public static def copy4(object[] data, var startIndex, var stopIndex) : object[] {
+        asm(
+            "pushl <data>                                                                             "
+            "ipushl <startIndex>                                                                        "
+            "ipushl <stopIndex>                                                                             "
+            "int 0xc4         // send request to natively copy object                                 "
+            "popl <data>                                                                              "
+            "ret                                                                                      " );
+    }
+
+    public static def realloc(object[] data, var size) {
+        asm(
+            "pushl <data>                                                                             "
+            "ipushl <size>                                                                            "
+            "int 0xc6         // send request to natively copy object                                 "
+            "ret                                                                                      " );
+    }
+}

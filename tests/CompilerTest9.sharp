@@ -1,0 +1,31 @@
+mod app;
+
+import std;
+
+public class Foo {
+    public static fn proto (var);
+    public static Foo f;
+    static def foo2(var vv) {
+        proto(1);
+    }
+}
+
+def foo2(var vv) {
+    System.println("vv " + vv);
+}
+
+def foo(var c, fn poop(var)) {
+    poop = foo2;
+    Foo.proto(9);
+    Foo.f.proto(9);
+    poop(9);
+}
+
+def main(string[] args) : var {
+    Foo.f = new Foo();
+    Foo.proto = foo2;
+    foo(0, foo2);
+    var x = Foo.foo2;
+    //var v = foo;
+    return 0;
+}

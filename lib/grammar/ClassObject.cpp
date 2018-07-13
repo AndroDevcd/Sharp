@@ -439,3 +439,16 @@ Expression *ClassObject::getGenericType(string &key) {
 
     return nullptr;
 }
+
+Method *ClassObject::getFunctionByName(string name, bool &ambiguous) {
+    Method *func = NULL;
+    for(size_t i = 0; i < functions.size(); i++) {
+        if(name == functions.get(i).getName()) {
+            if(func == NULL)
+                func = &functions.get(i);
+            else
+                ambiguous = true;
+        }
+    }
+    return func;
+}

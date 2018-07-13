@@ -1,14 +1,15 @@
-mod std.internal.vm;
+mod std.kernel.vm;
 
-import std.internal;
+import std.kernel;
 
+/**
+* Time class for sleeping and getting current time
+*
+* As per doccumentation on Threads, it it important to note that
+* when sleep() is called and an interrupt signal is sent to the sleeping thread
+* the thread will not die until the sleeping is over
+*/
 public class Time {
-
-    class TimeUnit {
-        public static var SECONDS = 0;
-        public static var MILLISECONDS = 1;
-        public static var MICROSECONDS = 2;
-    }
 
     private static def nativeTime() : var {
         var now;
@@ -39,6 +40,11 @@ public class Time {
 
     public static def millsTime() : var {
         return timeToMills(nativeTime());
+    }
+
+
+    public static def sleep(TimeUnit timeUnit, var time) {
+        sleep((var)timeUnit, time);
     }
 
     public static def sleep(var timeUnit, var time) {
@@ -72,3 +78,9 @@ public class Time {
         return usec;
     }
 }
+
+public enum TimeUnit {
+    SECONDS = 0,
+    MILLISECONDS = 1,
+    MICROSECONDS = 2
+};

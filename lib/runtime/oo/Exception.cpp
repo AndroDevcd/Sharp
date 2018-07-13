@@ -51,11 +51,10 @@ void Exception::pushException() {
              * If there is no memory we exit
              */
             thread_self->state = THREAD_KILLED;
-            thread_self->signal = 1;
             return;
         }
 
-        thread_self->dataStack[++thread_self->sp].object
+        (++thread_self->sp)->object
                 = GarbageCollector::self->newObject(throwable.throwable);
     }
 }

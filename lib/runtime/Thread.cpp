@@ -1,9 +1,6 @@
 //
 // Created by BraxtonN on 2/12/2018.
 //
-#ifdef WIN32_
-    #include <conio.h>
-#endif
 
 #include <cmath>
 #include "Thread.h"
@@ -15,16 +12,23 @@
 #include "register.h"
 #include "Manifest.h"
 #include "oo/Object.h"
+#include "../util/time.h"
+
+#ifdef WIN32_
+#include <conio.h>
+#elif defined(POSIX_)
+#include "termios.h"
+#endif
 
 int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
 List<Thread*> Thread::threads;
 
 #ifdef WIN32_
-    std::mutex Thread::threadsMonitor;
+std::mutex Thread::threadsMonitor;
 #endif
 #ifdef POSIX_
-    std::mutex Thread::threadsMonitor;
+std::mutex Thread::threadsMonitor;
 #endif
 bool Thread::isAllThreadsSuspended = false;
 
@@ -41,15 +45,27 @@ void Thread::Startup() {
             sizeof(Thread)*1);
     main->main = &env->methods[manifest.entryMethod];
     main->Create("Main");
+#ifdef WIN32_
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+    SetPriorityClass(GetCurrentThread(), HIGH_PRIORITY_CLASS);
+#endif
+    setupSigHandler();
 }
 
+/**
+ * API level thread create called from Sharp
+ *
+ * @param methodAddress
+ * @param stack_size
+ * @return
+ */
 int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     if(methodAddress < 0 || methodAddress >= manifest.methods)
         return -1;
     Method* method = &env->methods[methodAddress];
     if(method->paramSize>0)
         return -2;
-    if(stack_size < method->paramSize)
+    if(stack_size <= method->paramSize)
         return -3;
 
     Thread* thread = (Thread*)malloc(
@@ -65,8 +81,13 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     thread->main = method;
     thread->id = Thread::tid++;
     thread->dataStack = NULL;
-    thread->callStack.init();
+    thread->callStack = NULL;
+    thread->currentThread.object=NULL;
+    thread->args.object=NULL;
+    thread->calls=0;
+    thread->starting=0;
     thread->current = NULL;
+    thread->priority=THREAD_PRIORITY_NORM;
     thread->suspendPending = false;
     thread->exceptionThrown = false;
     thread->suspended = false;
@@ -78,7 +99,7 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     thread->exitVal = 0;
     thread->stack_lmt = stack_size;
     thread->fp=0;
-    thread->sp=-1;
+    thread->sp=NULL;
 
     pushThread(thread);
 
@@ -96,23 +117,27 @@ void Thread::Create(string name) {
     new (&this->mutex) std::mutex();
 #endif
     this->name.init();
-
+    this->currentThread.object=NULL;
+    this->args.object=NULL;
     this->name = name;
+    this->starting = 0;
     this->id = Thread::tid++;
     this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*STACK_SIZE);
     this->suspendPending = false;
     this->exceptionThrown = false;
     this->suspended = false;
     this->exited = false;
+    this->priority=THREAD_PRIORITY_HIGH;
     this->throwable.init();
     this->daemon = false;
     this->terminated = false;
     this->state = THREAD_CREATED;
     this->exitVal = 0;
     this->stack_lmt = STACK_SIZE;
-    this->callStack.init();
+    this->callStack = NULL;
+    this->calls=0;
     this->fp=0;
-    this->sp=-1;
+    this->sp=dataStack-1;
 
     for(unsigned long i = 0; i < STACK_SIZE; i++) {
         this->dataStack[i].object.object = NULL;
@@ -130,11 +155,15 @@ void Thread::CreateDaemon(string name) {
     new (&this->mutex) std::mutex();
 #endif
     this->name.init();
-
     this->name = name;
     this->id = Thread::tid++;
     this->dataStack = NULL;
-    this->callStack.init();
+    this->callStack = NULL;
+    this->currentThread.object=NULL;
+    this->args.object=NULL;
+    this->calls=0;
+    this->starting=0;
+    this->priority=THREAD_PRIORITY_NORM;
     this->current = NULL;
     this->suspendPending = false;
     this->exceptionThrown = false;
@@ -147,7 +176,8 @@ void Thread::CreateDaemon(string name) {
     this->exitVal = 0;
     this->stack_lmt=0;
     this->fp=0;
-    this->sp=-1;
+    this->sp=NULL;
+    this->main=NULL;
 
     pushThread(this);
 }
@@ -215,7 +245,7 @@ void Thread::wait() {
 int Thread::start(int32_t id) {
     Thread *thread = getThread(id);
 
-    if (thread == NULL)
+    if (thread == NULL || thread->starting || id==main_threadid)
         return 1;
 
     if(thread->state == THREAD_RUNNING)
@@ -226,6 +256,7 @@ int Thread::start(int32_t id) {
 
     thread->exited = false;
     thread->state = THREAD_CREATED;
+    thread->starting = 1;
 #ifdef WIN32_
     thread->thread = CreateThread(
             NULL,                   // default security attributes
@@ -235,8 +266,7 @@ int Thread::start(int32_t id) {
             0,                      // use default creation flags
             NULL);
     if(thread->thread == NULL) return 3; // thread was not started
-    else
-        return waitForThread(thread);
+    else return waitForThread(thread);
 #endif
 #ifdef POSIX_
     if(pthread_create( &thread->thread, NULL, vm->InterpreterThreadStart, (void*) thread))
@@ -249,8 +279,8 @@ int Thread::start(int32_t id) {
 }
 
 int Thread::destroy(int64_t id) {
-    if(id == thread_self->id)
-        return 1; // cannot destroy thread_self
+    if(id == thread_self->id || id==main_threadid)
+        return 1; // cannot destroy thread_self or main
 
     Thread* thread = getThread(id);
     if(thread == NULL || thread->daemon)
@@ -265,7 +295,7 @@ int Thread::destroy(int64_t id) {
         else
         {
             popThread(thread);
-            thread->term(); // terminate thread
+            thread->term();
             std::free (thread);
             return 0;
         }
@@ -284,7 +314,10 @@ int Thread::interrupt(int32_t id) {
     if(thread->terminated)
         return 2;
 
-    return interrupt(thread);
+    int result = interrupt(thread);
+    if(result==0 && !masterShutdown)
+        waitForThreadExit(thread);
+    return result;
 }
 
 void Thread::waitForThreadSuspend(Thread *thread) {
@@ -343,18 +376,18 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
         }
 
         thread->state = THREAD_KILLED;
-        thread->signal = 1;
     }
 }
 
 int Thread::waitForThread(Thread *thread) {
-    const int sMaxRetries = 10000000;
+    const int sMaxRetries = 100000000;
     const int sMaxSpinCount = 25;
 
     int spinCount = 0;
     int retryCount = 0;
 
-    while (thread->state != THREAD_RUNNING)
+    while (thread->state == THREAD_CREATED
+           || thread->state == THREAD_SUSPENDED)
     {
         if (retryCount++ == sMaxRetries)
         {
@@ -362,8 +395,8 @@ int Thread::waitForThread(Thread *thread) {
             if(++spinCount >= sMaxSpinCount)
             {
                 return -255; // give up
-            } else if(thread->state != THREAD_RUNNING)
-                return 0;
+            }
+            __os_sleep(1);
         }
     }
     return 0;
@@ -377,7 +410,7 @@ void Thread::suspendAllThreads() {
         thread=threads.get(i);
 
         if(thread!=NULL &&
-           (thread->id != thread_self->id)){
+           (thread->id != thread_self->id) && thread->state == THREAD_RUNNING){
             suspendThread(thread);
             waitForThreadSuspend(thread);
         }
@@ -409,7 +442,6 @@ void Thread::suspendThread(Thread *thread) {
     else {
         std::lock_guard<std::mutex> gd(thread->mutex);
         thread->suspendPending = true;
-        thread->signal = 1;
     }
 }
 
@@ -422,11 +454,19 @@ void Thread::term() {
         }
         std::free(dataStack); dataStack = NULL;
     }
+
+    if(callStack != NULL) {
+        std::free(callStack); callStack = NULL;
+    }
+
+#ifdef SHARP_PROF_
+    tprof.free();
+#endif
     this->name.free();
 }
 
 int Thread::join(int32_t id) {
-    if (id == thread_self->id)
+    if (id == thread_self->id || id==main_threadid)
         return 1;
 
     Thread* thread = getThread(id);
@@ -439,6 +479,9 @@ int Thread::join(int32_t id) {
 }
 
 int Thread::threadjoin(Thread *thread) {
+    if(thread->starting)
+        waitForThread(thread);
+
     if (thread->state == THREAD_RUNNING)
     {
 #ifdef WIN32_
@@ -448,6 +491,7 @@ int Thread::threadjoin(Thread *thread) {
 #ifdef POSIX_
         if(pthread_join(thread->thread, NULL))
             return 3;
+        else return 0;
 #endif
     }
 
@@ -461,7 +505,8 @@ void Thread::killAll() {
     for(unsigned int i = 0; i < threads.size(); i++) {
         thread = threads.get(i);
 
-        if(thread != NULL && thread->id != thread_self->id) {
+        if(thread != NULL && thread->id != thread_self->id
+           && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
             if(thread->state == THREAD_RUNNING){
                 interrupt(thread);
             }
@@ -488,12 +533,12 @@ int Thread::interrupt(Thread *thread) {
             * stop them.
             */
             vm->shutdown();
+            masterShutdown = true;
         }
         else
         {
             std::lock_guard<std::mutex> gd(thread->mutex);
             thread->state = THREAD_KILLED; // terminate thread
-            thread->signal = 1;
             return 0;
         }
     }
@@ -521,14 +566,27 @@ void Thread::exit() {
         this->exitVal = -800;
         cout << throwable.stackTrace.str();
         cout << endl << throwable.throwable->name.str() << " "
-           << throwable.message.str() << "\n";
+             << throwable.message.str() << "\n";
     } else {
-        if(!daemon)
+        if(!daemon && dataStack)
             this->exitVal = (int)dataStack[0].var;
         else
             this->exitVal = 0;
     }
 
+    if(dataStack != NULL) {
+        StackElement *p = dataStack;
+        for(size_t i = 0; i < stack_lmt; i++)
+        {
+            if(p->object.object) {
+                DEC_REF(p->object.object);
+                p->object.object=NULL;
+            }
+            p++;
+        }
+    }
+
+    free(this->callStack); callStack = NULL;
     this->state = THREAD_KILLED;
     this->exited = true;
 }
@@ -582,10 +640,12 @@ void printRegs() {
     cout << "ehf = " << registers[ehf] << endl;
     cout << "bmr = " << registers[bmr] << endl;
     cout << "egx = " << registers[egx] << endl;
-    cout << "sp -> " << thread_self->sp << endl;
+    cout << "sp -> " << (thread_self->sp-thread_self->dataStack) << endl;
     cout << "fp -> " << thread_self->fp << endl;
     cout << "pc -> " << thread_self->pc << endl;
-    cout << "current -> " << thread_self->current->name.str() << endl;
+    if(thread_self->current != NULL) {
+        cout << "current -> " << thread_self->current->name.str() << endl;
+    }
     native_string stackTrace;
 
     vm->fillStackTrace(stackTrace);
@@ -671,16 +731,31 @@ size_t count = 0, overflow = 0;
 
 void Thread::exec() {
 
-    int64_t tmp=0;
-    int64_t val=0;
-    int64_t delegate=0;
-    int64_t args=0;
+    register int64_t tmp=0;
+    register int64_t val=0;
+    register int64_t delegate=0;
+    register int64_t args=0;
     ClassObject *klass;
     SharpObject* o=NULL;
+    Method* f;
     int c;
     Object* o2=NULL;
     void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
     Method* finnallyMethod;
+
+#ifdef SHARP_PROF_
+    tprof.init();
+    tprof.starttm=Clock::realTimeInNSecs();
+    for(size_t i = 0; i < manifest.methods; i++) {
+        tprof.functions.push_back();
+        tprof.functions.last().init();
+        tprof.functions.last() = funcProf(env->methods+i);
+    }
+#endif
+
+#ifdef SHARP_PROF_
+    tprof.hit(main);
+#endif
 
     _initOpcodeTable
     try {
@@ -695,17 +770,22 @@ void Thread::exec() {
                 return;
 
             interp:
-//            count++;
-//            if(pc>=606&&current->address==78) {
-//                int i = 0;
-////                CHECK_NULLOBJ(
-////                //o2->object->print();
-////                )
-//            }
+            if(current->address==0x167 && pc >= 0) {
+                int i = 0;
+            }
             DISPATCH();
             _NOP:
                 _brh
             _INT:
+
+#ifdef SHARP_PROF_
+            if(GET_Da(cache[pc]) == 0xa9) {
+                tprof.endtm=Clock::realTimeInNSecs();
+                tprof.profile();
+                tprof.dump();
+            }
+
+#endif
                 vm->sysInterrupt(GET_Da(cache[pc]));
                 if(masterShutdown) return;
                 _brh
@@ -713,27 +793,36 @@ void Thread::exec() {
                 registers[cache[pc+1]]=GET_Da(cache[pc]); pc++;
                 _brh
             RET:
-                if(thread_self->callStack.size() <= 1)
+                if(thread_self->calls <= 1) {
+#ifdef SHARP_PROF_
+                tprof.endtm=Clock::realTimeInNSecs();
+                tprof.profile();
+#endif
                     return;
+                }
 
-                Frame frame = thread_self->callStack.last();
+                Frame *frame = callStack+(calls);
+                calls--;
 
-                if(thread_self->current->finallyBlocks.size() > 0)
+                if(current->finallyBlocks.size() > 0)
                     vm->executeFinally(thread_self->current);
 
-                thread_self->current = frame.last;
-                thread_self->cache = frame.last->bytecode;
+                current = frame->last;
+                cache = frame->last->bytecode;
 
-                thread_self->pc = frame.pc;
-                thread_self->sp = frame.sp;
-                thread_self->fp = frame.fp;
-                thread_self->callStack.pop_back();
+                pc = frame->pc;
+                sp = frame->sp;
+                fp = frame->fp;
+
+#ifdef SHARP_PROF_
+            tprof.profile();
+#endif
                 _brh
             HLT:
                 state=THREAD_KILLED;
                 _brh
             NEWARRAY:
-                dataStack[++sp].object =
+                (++sp)->object =
                         GarbageCollector::self->newObject(registers[GET_Da(cache[pc])]);
                 STACK_CHECK _brh
             CAST:
@@ -764,7 +853,7 @@ void Thread::exec() {
                 registers[GET_Ca(cache[pc])]=(uint64_t)registers[GET_Cb(cache[pc])];
                 _brh
             RSTORE:
-                dataStack[++sp].var = registers[GET_Da(cache[pc])];
+                (++sp)->var = registers[GET_Da(cache[pc])];
                 STACK_CHECK _brh
             ADD:
                 registers[cache[pc+1]]=registers[GET_Ca(cache[pc])]+registers[GET_Cb(cache[pc])]; pc++;
@@ -811,8 +900,8 @@ void Thread::exec() {
                 registers[GET_Ca(cache[pc])]=registers[GET_Cb(cache[pc])];
                 _brh
             IALOAD:
-                o = (dataStack+sp)->object.object;
-                if(o != NULL) {
+                o = sp->object.object;
+                if(o != NULL && o->HEAD != NULL) {
                     registers[GET_Ca(cache[pc])] = o->HEAD[(uint64_t)registers[GET_Cb(cache[pc])]];
                 } else throw Exception(Environment::NullptrException, "");
                 _brh
@@ -844,14 +933,14 @@ void Thread::exec() {
                 _brh
             POPL:
                 dataStack[fp+GET_Da(cache[pc])].object
-                        = dataStack[sp--].object;
+                        = (sp--)->object.object;
                 _brh
             IPOPL:
                 dataStack[fp+GET_Da(cache[pc])].var
-                        = dataStack[sp--].var;
+                        = (sp--)->var;
                 _brh
             MOVSL:
-                o2 = &(dataStack[sp+GET_Da(cache[pc])].object);
+                o2 = &((sp+GET_Da(cache[pc]))->object);
                 _brh
             MOVBI:
                 registers[bmr]=GET_Da(cache[pc]) + exponent(cache[pc + 1]); pc++;
@@ -869,17 +958,16 @@ void Thread::exec() {
                 printf("%c", (char)registers[GET_Da(cache[pc])]);
                 _brh
             GET:
-                c = 10; //getche();
-                registers[GET_Da(cache[pc])] = c;
+                registers[GET_Da(cache[pc])] = getche();
                 _brh
             CHECKLEN:
-            CHECK_NULL2(
-                    if(registers[GET_Da(cache[pc])]<o2->object->size &&!(registers[GET_Da(cache[pc])]<0)) { _brh }
-                    else {
-                        stringstream ss;
-                        ss << "Access to Object at: " << registers[GET_Da(cache[pc])] << " size is " << o2->object->size;
-                        throw Exception(Environment::IndexOutOfBoundsException, ss.str());
-                    }
+                CHECK_NULL2(
+                        if((registers[GET_Da(cache[pc])]<o2->object->size) &&!(registers[GET_Da(cache[pc])]<0)) { _brh }
+                        else {
+                            stringstream ss;
+                            ss << "Access to Object at: " << registers[GET_Da(cache[pc])] << " size is " << o2->object->size;
+                            throw Exception(Environment::IndexOutOfBoundsException, ss.str());
+                        }
                 )
             GOTO:
                 pc = GET_Da(cache[pc]);
@@ -888,20 +976,41 @@ void Thread::exec() {
                 registers[GET_Da(cache[pc])] = pc;
                 _brh
             PUSHOBJ:
-                dataStack[++sp].object = o2;
+                (++sp)->object = o2;
                 STACK_CHECK _brh
             DEL:
                 GarbageCollector::self->freeObject(o2);
                 _brh
             CALL:
-               executeMethod(GET_Da(cache[pc]))
+#ifdef SHARP_PROF_
+            tprof.hit(env->methods+GET_Da(cache[pc]));
+#endif
+                CALLSTACK_CHECK
+                executeMethod(GET_Da(cache[pc]), this)
+                _brh_NOINCREMENT
+            CALLD:
+#ifdef SHARP_PROF_
+            tprof.hit(env->methods+GET_Da(cache[pc]));
+#endif
+                if((val = (int64_t )registers[GET_Da(cache[pc])]) <= 0) {
+                    stringstream ss;
+                    ss << "invalid call to pointer of " << val;
+                    throw Exception(ss.str());
+                }
+                CALLSTACK_CHECK
+                executeMethod(val, this)
                 _brh_NOINCREMENT
             NEWCLASS:
-                dataStack[++sp].object =
-                                   GarbageCollector::self->newObject(&env->classes[GET_Da(cache[pc])]);
+                (++sp)->object =
+                        GarbageCollector::self->newObject(&env->classes[GET_Da(cache[pc])]);
                 STACK_CHECK _brh
             MOVN:
-                CHECK_NULLOBJ(o2 = &o2->object->node[GET_Da(cache[pc])];)
+                CHECK_NULLOBJ(
+                        if(GET_Da(cache[pc]) >= o2->object->size)
+                            throw Exception("movn");
+
+                        o2 = &o2->object->node[GET_Da(cache[pc])];
+                )
                 _brh
             SLEEP:
                 __os_sleep((int64_t)registers[GET_Da(cache[pc])]);
@@ -913,10 +1022,10 @@ void Thread::exec() {
                 registers[cmt]=registers[GET_Ca(cache[pc])]!=registers[GET_Cb(cache[pc])];
                 _brh
             LOCK:
-                CHECK_NULLOBJ(o2->object->mutex.lock();)
+                CHECK_NULLOBJ(o2->monitorLock();)
                 _brh
             ULOCK:
-                CHECK_NULLOBJ(o2->object->mutex.unlock();)
+                CHECK_NULLOBJ(o2->monitorUnLock();)
                 _brh
             EXP:
                 registers[bmr] = exponent(registers[GET_Da(cache[pc])]);
@@ -925,10 +1034,15 @@ void Thread::exec() {
                 o2 = env->globalHeap+GET_Da(cache[pc]);
                 _brh
             MOVND:
+                if(o2 != NULL && o2->object != NULL) {
+                    if(o2->object->size <= registers[GET_Da(cache[pc])]) {
+                        throw Exception("movnd");
+                    }
+                }
                 CHECK_NULLOBJ(o2 = &o2->object->node[(int64_t)registers[GET_Da(cache[pc])]];)
                 _brh
             NEWOBJARRAY:
-                dataStack[++sp].object = GarbageCollector::self->newObjectArray(registers[GET_Da(cache[pc])]);
+                (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Da(cache[pc])]);
                 STACK_CHECK _brh
             NOT:
                 registers[GET_Ca(cache[pc])]=!registers[GET_Cb(cache[pc])];
@@ -937,7 +1051,7 @@ void Thread::exec() {
                 pc += GET_Da(cache[pc]);
                 _brh
             LOADVAL:
-                registers[GET_Da(cache[pc])]=dataStack[sp--].var;
+                registers[GET_Da(cache[pc])]=(sp--)->var;
                 _brh
             SHL:
                 registers[cache[pc+1]]=(int64_t)registers[GET_Ca(cache[pc])]<<(int64_t)registers[GET_Cb(cache[pc])]; pc++;
@@ -979,12 +1093,12 @@ void Thread::exec() {
                 _brh
             NEWCLASSARRAY:
                 CHECK_NULL(
-                        dataStack[++sp].object = GarbageCollector::self->newObjectArray(registers[GET_Ca(cache[pc])],
-                                                                           env->findClassBySerial(GET_Cb(cache[pc])));
+                        (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Ca(cache[pc])],
+                                                                                        env->findClassBySerial(GET_Cb(cache[pc])));
                 )
                 STACK_CHECK _brh
             NEWSTRING:
-                GarbageCollector::self->createStringArray(&dataStack[++sp].object, env->getStringById(GET_Da(cache[pc])));
+                GarbageCollector::self->createStringArray(&(++sp)->object, env->getStringById(GET_Da(cache[pc])));
                 STACK_CHECK _brh
             ADDL:
                 dataStack[fp+GET_Cb(cache[pc])].var+=registers[GET_Ca(cache[pc])];
@@ -1027,11 +1141,11 @@ void Thread::exec() {
                 _brh
             POPOBJ:
                 CHECK_NULL(
-                        *o2 = dataStack[sp--].object;
+                        *o2 = (sp--)->object;
                 )
                 _brh
             SMOVR:
-                dataStack[sp+GET_Cb(cache[pc])].var=registers[GET_Ca(cache[pc])];
+                (sp+GET_Cb(cache[pc]))->var=registers[GET_Ca(cache[pc])];
                 _brh
             SMOVR_2:
                 dataStack[fp+GET_Cb(cache[pc])].var=registers[GET_Ca(cache[pc])];
@@ -1047,11 +1161,11 @@ void Thread::exec() {
                 _brh
             RMOV:
                 CHECK_INULLOBJ(
-                    o2->object->HEAD[(int64_t)registers[GET_Ca(cache[pc])]]=registers[GET_Cb(cache[pc])];
+                        o2->object->HEAD[(int64_t)registers[GET_Ca(cache[pc])]]=registers[GET_Cb(cache[pc])];
                 )
                 _brh
             SMOV:
-                registers[GET_Ca(cache[pc])]=dataStack[sp+GET_Cb(cache[pc])].var;
+                registers[GET_Ca(cache[pc])]=(sp+GET_Cb(cache[pc]))->var;
                 _brh
             LOADPC_2:
                 registers[GET_Ca(cache[pc])]=pc+GET_Cb(cache[pc]);
@@ -1060,30 +1174,30 @@ void Thread::exec() {
                 dataStack[fp].var=registers[GET_Da(cache[pc])];
                 _brh
             ISTORE:
-                dataStack[++sp].var = GET_Da(cache[pc]);
+                (++sp)->var = GET_Da(cache[pc]);
                 STACK_CHECK _brh
             ISTOREL:
                 dataStack[fp+GET_Da(cache[pc])].var=cache[pc+1]; pc++;
                 _brh
             PUSHNIL:
-                GarbageCollector::self->freeObject(&dataStack[++sp].object);
+                GarbageCollector::self->freeObject(&(++sp)->object);
                 STACK_CHECK _brh
             IPUSHL:
-                dataStack[++sp].var = dataStack[fp+GET_Da(cache[pc])].var;
+                (++sp)->var = dataStack[fp+GET_Da(cache[pc])].var;
                 STACK_CHECK _brh
             PUSHL:
-                dataStack[++sp].object = dataStack[fp+GET_Da(cache[pc])].object;
+                (++sp)->object = dataStack[fp+GET_Da(cache[pc])].object;
                 STACK_CHECK _brh
             ITEST:
-                o2 = &dataStack[sp--].object;
-                registers[GET_Da(cache[pc])] = o2->object == dataStack[sp--].object.object;
+                o2 = &(sp--)->object;
+                registers[GET_Da(cache[pc])] = o2->object == (sp--)->object.object;
                 _brh
             INVOKE_DELEGATE:
                 delegate= GET_Ca(cache[pc]);
                 args= GET_Cb(cache[pc]);
 
-                o2 = &dataStack[sp-args].object;
-                
+                o2 = &(sp-args)->object;
+
 
                 CHECK_NULL2(
                         klass = o2->object->k;
@@ -1091,7 +1205,8 @@ void Thread::exec() {
                             search:
                             for(long i = 0; i < klass->methodCount; i++) {
                                 if(env->methods[klass->methods[i]].delegateAddress == delegate) {
-                                    executeMethod(env->methods[klass->methods[i]].address)
+                                    CALLSTACK_CHECK
+                                    executeMethod(env->methods[klass->methods[i]].address, this)
                                     _brh_NOINCREMENT
                                 }
                             }
@@ -1100,7 +1215,7 @@ void Thread::exec() {
                                 klass = klass->base;
                                 goto search;
                             }
-                            throw Exception(Environment::RuntimeErr, "delegate function not found");
+                            throw Exception(Environment::RuntimeErr, "delegate function has no subscribers");
                         } else {
                             throw Exception(Environment::RuntimeErr, "attempt to call delegate function on non class object");
                         }
@@ -1117,7 +1232,8 @@ void Thread::exec() {
                         if(klass!= NULL) {
                             for(long i = 0; i < klass->methodCount; i++) {
                                 if(env->methods[klass->methods[i]].delegateAddress == delegate) {
-                                    executeMethod(env->methods[klass->methods[i]].address)
+                                    CALLSTACK_CHECK
+                                    executeMethod(env->methods[klass->methods[i]].address, this)
                                     _brh_NOINCREMENT
                                 }
                             }
@@ -1126,14 +1242,14 @@ void Thread::exec() {
                                 klass = klass->base;
                                 goto search;
                             }
-                            throw Exception(Environment::RuntimeErr, "delegate function not found");
+                            throw Exception(Environment::RuntimeErr, "delegate function has no subscribers");
                         } else {
                             throw Exception(Environment::RuntimeErr, "attempt to call delegate function on non class object");
                         }
                 )
                 _brh
             ISADD:
-                dataStack[sp+GET_Cb(cache[pc])].var+=GET_Ca(cache[pc]);
+                (sp+GET_Cb(cache[pc]))->var+=GET_Ca(cache[pc]);
                 _brh
             JE:
                 if(registers[cmt]) {
@@ -1166,7 +1282,7 @@ void Thread::exec() {
             vm->fillStackTrace(throwable.stackTrace);
             return;
         }
-        vm->Throw(&dataStack[sp].object);
+        vm->Throw(&sp->object);
 
         DISPATCH();
     }
@@ -1179,8 +1295,102 @@ void Thread::interrupt() {
         suspendSelf();
     if (state == THREAD_KILLED)
         return;
+}
 
-    signal = 0;
+void Thread::setup() {
+    current = NULL;
+    if(dataStack==NULL) {
+        dataStack = (StackElement*)__malloc(sizeof(StackElement)*stack_lmt);
+        GarbageCollector::self->addMemory(sizeof(StackElement)*stack_lmt);
+    }
+    if(callStack==NULL) {
+        callStack = (Frame*)__malloc(sizeof(Frame)*stack_lmt);
+        GarbageCollector::self->addMemory(sizeof(Frame)*stack_lmt);
+    }
+    calls=0;
+    stackTail = (dataStack+stack_lmt)-1;
+    suspendPending = false;
+    exceptionThrown = false;
+    suspended = false;
+    exited = false;
+    terminated = false;
+    exitVal = 0;
+    starting = 0;
+
+    if(id != main_threadid){
+        int priority = (int)env->__sgetFieldVar("priority", currentThread.object);
+        setPriority(this, priority);
+
+        if(currentThread.object != nullptr
+           && currentThread.object->k != nullptr) {
+            Object *threadName = env->findField("name", currentThread.object);
+
+            if(threadName != NULL) { // reset thread name
+                env->createString(threadName, name);
+            }
+        }
+        fp=0;
+        sp=dataStack-1;
+
+        for(unsigned long i = 0; i < stack_lmt; i++) {
+            this->dataStack[i].object.object = NULL;
+            this->dataStack[i].var=0;
+        }
+    } else
+        GarbageCollector::self->addMemory(sizeof(StackElement)*stack_lmt);
+}
+
+int Thread::setPriority(Thread* thread, int priority) {
+    if(thread->thread != 0) {
+        if(thread->priority == priority)
+            return 0;
+
+#ifdef WIN32_
+
+        switch(priority) {
+            case THREAD_PRIORITY_HIGH:
+                SetThreadPriority(thread->thread, THREAD_PRIORITY_HIGHEST);
+                break;
+            case THREAD_PRIORITY_NORM:
+                SetThreadPriority(thread->thread, THREAD_PRIORITY_ABOVE_NORMAL);
+                break;
+            case THREAD_PRIORITY_LOW:
+                SetThreadPriority(thread->thread, THREAD_PRIORITY_BELOW_NORMAL);
+                break;
+        }
+#endif
+#ifdef POSIX_
+        pthread_attr_t thAttr;
+        int policy = 0;
+        int pthread_prio = 0;
+
+        pthread_attr_init(&thAttr);
+        pthread_attr_getschedpolicy(&thAttr, &policy);
+
+        if(priority == THREAD_PRIORITY_HIGH) {
+            pthread_prio = sched_get_priority_max(policy);
+        } else if(priority == THREAD_PRIORITY_LOW) {
+            pthread_prio = sched_get_priority_min(policy);
+        }
+
+        pthread_setschedprio(thread->thread, pthread_prio);
+        pthread_attr_destroy(&thAttr);
+#endif
+    }
+
+    return 3;
+}
+
+int Thread::setPriority(int32_t id, int priority) {
+
+    Thread* thread = getThread(id);
+    if(thread == NULL || thread->daemon)
+        return 1;
+    if(thread->terminated || thread->state==THREAD_KILLED
+       || thread->state==THREAD_CREATED)
+        return 2;
+
+    return setPriority(thread, priority);
 }
 
 void __os_sleep(int64_t INTERVAL) {

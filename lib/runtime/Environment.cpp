@@ -98,3 +98,22 @@ Object* Environment::findField(std::string name, SharpObject *object) {
 
     return NULL;
 }
+
+void Environment::createString(Object *o, native_string &str) {
+    if(o->object->HEAD != NULL) {
+        str.free();
+        for(long i = 0; i < o->object->size; i++) {
+            str += o->object->HEAD[1];
+        }
+    }
+}
+
+double Environment::__sgetFieldVar(string field, SharpObject *object) {
+    Object *FIELD = env->findField(field, object);
+
+    if(FIELD != NULL && FIELD->object != NULL
+       && FIELD->object->HEAD != NULL) {
+        return FIELD->object->HEAD[0];
+    }
+    return 0;
+}

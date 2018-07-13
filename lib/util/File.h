@@ -112,6 +112,10 @@ public:
 
         string to_str();
 
+        char* data() {
+            return _Data;
+        }
+
     private:
         void _push_back(char);
         char* _Data;

@@ -3,7 +3,9 @@ mod std.io;
 import std;
 
 /**
- * Created by BraxtonN on 5/25/2018.
+ * UnixFileSystem represents the high level version of the operations
+ * that you can invoke on a linux file system. Not much needs to be changed in
+ * this file other than normalizing the path name
  */
 public class UnixFileSystem base FileSystem {
     private var slash;
@@ -23,24 +25,25 @@ public class UnixFileSystem base FileSystem {
     public def delegate::normalize(string pathname) : string {
         var n = pathname.size();
         var[] normalized = pathname.toArray();
-        var index = 0;
-        var prevChar = 0;
-        for (var i = 0; i < n; i++) {
-            var current = normalized[i];
+        string name = "";
+        char current = 0, prevChar = 0;
+        for (var i = 0; i < pathname.size(); i++) {
+            current = normalized[i];
             // Remove duplicate slashes.
-            if (!(current == '/' && prevChar == '/')) {
-                normalized[index++] = current;
+            if (current == '/' && prevChar == '/')
+                continue;
+            else if(current == '\\')  {
+                if(prevChar != '\\')
+                    name += '/';
             }
+            else
+                name += current;
 
             prevChar = current;
         }
 
-        // Omit the trailing slash, except when pathname == "/".
-        if (prevChar == '/' && n > 1) {
-            index--;
-        }
-
-        return (index != n) ? new string(normalized, 0, index) : pathname;
+//        System.println("name " + name);
+        return name;
     }
 
      /**

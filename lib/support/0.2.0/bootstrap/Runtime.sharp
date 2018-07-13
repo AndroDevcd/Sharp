@@ -2,7 +2,8 @@ mod app;
 
 import std;
 import std.io;
-import std.internal;
+import std.kernel;
+import std.kernel.vm;
 
 /**                          
 * Created by bknun on 6/5/2018            
@@ -194,17 +195,16 @@ public class Runtime {
     }
 
     static def exec_runtime(ArrayList<string> files) {
+
         File testFile = new File(files.get(0));
 
         IOStream istream = new IOStream(testFile, IOStream.READ);
-        var _char;
-        string tokens = "";
-        while((_char = istream.nextChar()) != -1) {
-            tokens += new var[] { _char };
-        }
+        var _char, iter;
+        string tokens = istream.toString();
 
         istream.close();
         Tokenizer tokenizer = new Tokenizer(tokens, files.get(0));
+        Parser parser = new Parser(tokenizer);
     }
 
 
@@ -234,7 +234,7 @@ public class Runtime {
         System.println(              "    -o<file>          set the output object file"                        );
         System.println(              "    -c                compile only and do not generate exe"              );
         System.println(              "    -a                enable aggressive error reporting"                 );
-        System.println(              "    -s                string debugging info"                             );
+        System.println(              "    -s                strip debugging info"                              );
         System.println(              "    -O                optimize executable"                               );
         System.println(              "    -L<path>          library directory path"                            );
         System.println(              "    -w                disable all warnings"                              );

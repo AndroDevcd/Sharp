@@ -58,6 +58,10 @@ void Parser::parse()
         {
             parse_classdecl(NULL);
         }
+        else if(ismethod_decl(current()))
+        {
+            parse_methoddecl(NULL);
+        }
         else if(isinterface_decl(current()))
         {
             parse_interfacedecl(NULL);
@@ -74,13 +78,47 @@ void Parser::parse()
             }
             parse_importdecl(NULL);
         }
+        else if(isvariable_decl(current()))
+        {
+            parse_variabledecl(NULL);
+        }
         else
         {
+            // save parser state
+            errors->enableErrorCheckMode();
+            pushback();
+
+            unsigned long old = cursor+1;
+            /*
+             * variable decl?
+             */
+            if(parse_utype(NULL))
+            {
+                cursor = old;
+                _current = &toks->getEntities().get(cursor);
+
+                errors->pass();
+                if(current().getId() == IDENTIFIER)
+                {
+                    // Variable decliration
+                    tree->pop_back();
+                    ast_cursor--;
+                    parse_variabledecl(NULL);
+                    goto _continue;
+                }
+            } else
+                errors->pass();
+
+            tree->pop_back();
+            ast_cursor--;
+            pushback();
+
             // "expected class, or import declaration"
             errors->createNewError(UNEXPECTED_SYMBOL, current(), " `" + current().getToken() + "`; expected class, enum, or import declaration");
             parse_all(NULL);
         }
 
+        _continue:
         advance();
         remove_accesstypes();
     }
@@ -249,7 +287,7 @@ bool Parser::isvariable_decl(token_entity token) {
 }
 
 bool Parser::isprototype_decl(token_entity token) {
-    return token.getId() == IDENTIFIER && token.getToken() == "func";
+    return token.getId() == IDENTIFIER && token.getToken() == "fn";
 }
 
 bool Parser::ismethod_decl(token_entity token) {
@@ -601,7 +639,7 @@ void Parser::parse_classblock(Ast *pAst) {
         }
         else if(isinterface_decl(current()))
         {
-            parse_interfacedecl(NULL);
+            parse_interfacedecl(pAst);
         }
         else if(isimport_decl(current()))
         {
@@ -733,6 +771,7 @@ void Parser::parse_variabledecl(Ast *pAst) {
         for(int i = 0; i < access_types.size(); i++) {
             pAst->addEntity(access_types.get(i));
         }
+        remove_accesstypes();
         pushback();
         if(!parse_utype(pAst))
             errors->createNewError(GENERIC, current(), "expected native type or reference pointer");
@@ -753,29 +792,30 @@ void Parser::parse_variabledecl(Ast *pAst) {
         expect(SEMICOLON, "`;`");
 }
 
-void Parser::parse_prototypedecl(Ast *pAst) {
+void Parser::parse_prototypedecl(Ast *pAst, bool semicolon) {
     pAst = get_ast(pAst, ast_func_prototype);
 
-    if(partialdecl ==0) {
-
-        for(int i = 0; i < access_types.size(); i++) {
-            pAst->addEntity(access_types.get(i));
-        }
-        pushback();
-    } else {
-        partialdecl--;
+    for(int i = 0; i < access_types.size(); i++) {
+        pAst->addEntity(access_types.get(i));
     }
+    remove_accesstypes();
 
-    advance();
+    if(pAst->getEntityCount()>0)
+        pushback();
+
+    if(!isprototype_decl(current()))
+        advance();
     expect_token(
-            pAst, "func", "`func`");
+            pAst, "fn", "`fn`");
 
     expectidentifier(pAst);
 
     parse_utypearg_list_opt(pAst);
     parse_methodreturn_type(pAst); // assign-expr operators must return void
     parse_prototype_valueassignment(pAst);
-    expect(SEMICOLON, "`;`");
+
+    if(semicolon)
+        expect(SEMICOLON, "`;`");
 }
 
 void Parser::parse_valueassignment(Ast *pAst) {
@@ -883,7 +923,9 @@ void Parser::parse_valuelist(Ast *pAst) {
         if(peek(1).getTokenType() == COMMA)
         {
             expect(COMMA, pAst, "`,`");
-            parse_value(pAst);
+            if(!parse_value(pAst)){
+                errors->createNewError(GENERIC, pAst->getLastSubAst(), "expected value");
+            }
             goto _pValue;
         }
     }
@@ -1045,16 +1087,33 @@ bool Parser::match(int num_args, ...) {
 }
 
 bool Parser::binary(Ast *pAst) {
-    bool parsed = equality(pAst), encapsulated = false;
+    bool parsed = shift(pAst);
 
     while(match(5, AND, XOR, OR, ANDAND, OROR)) {
         advance();
         pAst->addEntity(current());
 
         Ast right(pAst, pAst->getType(), pAst->line, pAst->col);
-        equality(&right);
+        shift(&right);
         pAst->addAst(right);
         pAst->encapsulate(ast_and_e);
+        parsed = true;
+    }
+
+    return parsed;
+}
+
+bool Parser::shift(Ast *pAst) {
+    bool parsed = equality(pAst);
+
+    while(match(2, SHL, SHR)) {
+        advance();
+        pAst->addEntity(current());
+
+        Ast right(pAst, pAst->getType(), pAst->line, pAst->col);
+        comparason(&right);
+        pAst->addAst(right);
+        pAst = pAst->encapsulate(ast_shift_e);
         parsed = true;
     }
 
@@ -1530,12 +1589,19 @@ void Parser::parse_utypearg_list_opt(Ast* pAst) {
 
     if(peek(1).getTokenType() != RIGHTPAREN)
     {
-        parse_utypearg_opt(pAst);
+        if(isprototype_decl(peek(1)))
+            parse_prototypedecl(pAst, false);
+        else
+            parse_utypearg_opt(pAst);
         _puTypeArgOpt:
         if(peek(1).getTokenType() == COMMA)
         {
             expect(COMMA, pAst, "`,`");
-            parse_utypearg_opt(pAst);
+
+            if(isprototype_decl(peek(1)))
+                parse_prototypedecl(pAst, false);
+            else
+                parse_utypearg_opt(pAst);
             goto _puTypeArgOpt;
         }
     }
@@ -1549,12 +1615,19 @@ void Parser::parse_utypearg_list(Ast* pAst) {
 
     if(peek(1).getTokenType() != RIGHTPAREN)
     {
-        parse_utypearg(pAst);
+        if(isprototype_decl(peek(1)))
+            parse_prototypedecl(pAst, false);
+        else
+            parse_utypearg(pAst);
         _puTypeArg:
         if(peek(1).getTokenType() == COMMA)
         {
             expect(COMMA, pAst, "`,`");
-            parse_utypearg(pAst);
+
+            if(isprototype_decl(peek(1)))
+                parse_prototypedecl(pAst, false);
+            else
+                parse_utypearg(pAst);
             goto _puTypeArg;
         }
     }
@@ -1669,6 +1742,7 @@ void Parser::parse_operatordecl(Ast *pAst) {
     for(int i = 0; i < access_types.size(); i++) {
         pAst->addEntity(access_types.get(i));
     }
+    remove_accesstypes();
     pAst->addEntity(current());
 
     advance();
@@ -1697,6 +1771,7 @@ void Parser::parse_delegatedecl(Ast *pAst) {
     for(int i = 0; i < access_types.size(); i++) {
         pAst->addEntity(access_types.get(i));
     }
+    remove_accesstypes();
     pAst->addEntity(current());
 
     advance();
@@ -1726,6 +1801,7 @@ void Parser::parse_constructor(Ast *pAst) {
     for(int i = 0; i < access_types.size(); i++) {
         pAst->addEntity(access_types.get(i));
     }
+    remove_accesstypes();
     pushback();
 
     expectidentifier(pAst);
@@ -1740,6 +1816,7 @@ void Parser::parse_methoddecl(Ast *pAst) {
     for(int i = 0; i < access_types.size(); i++) {
         pAst->addEntity(access_types.get(i));
     }
+    remove_accesstypes();
     pAst->addEntity(current());
 
     expectidentifier(pAst);
@@ -2355,7 +2432,7 @@ bool Parser::iskeyword(string key) {
            || key == "_int32" || key == "_int64" || key == "_uint8"
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
            || key == "delegate" || key == "interface" || key == "lock" || key == "enum"
-           || key == "switch" || key == "default";
+           || key == "switch" || key == "default" || key == "fn";
 }
 
 bool Parser::parse_type_identifier(Ast *pAst) {

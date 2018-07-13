@@ -1,7 +1,7 @@
 mod std;
 
-import std.internal;
-import std.internal.vm;
+import std.kernel;
+import std.kernel.vm;
 
 /**
  * Created by BraxtonN on 5/18/2018.
@@ -103,5 +103,25 @@ public class System {
 
     public static def getManagedMemory() : var {
         return Runtime.managedMemory();
+    }
+
+    public static def copyOf(object[] data, var len) : object[] {
+        return Runtime.copy(data, len);
+    }
+
+    public static def copyOf(object[] data, var indexLen, var len) : object[] {
+        return Runtime.copy2(data, indexLen, len);
+    }
+
+    public static def memcpy(object[] data, var startIndex, var endIndex) : object[] {
+        return Runtime.copy3(data, startIndex, endIndex);
+    }
+
+    public static def realloc(object[] data, var size) {
+        return Runtime.realloc(data, size);
+    }
+
+    public static def invert(object[] data, var startIndex, var endIndex) : object[] {
+        return Runtime.copy4(data, startIndex, endIndex);
     }
 }

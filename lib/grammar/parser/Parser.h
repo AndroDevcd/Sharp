@@ -238,7 +238,7 @@ private:
 
     bool isprototype_decl(token_entity token);
 
-    void parse_prototypedecl(Ast *pAst);
+    void parse_prototypedecl(Ast *pAst, bool semicolon = true);
 
     void parse_prototype_valueassignment(Ast *pAst);
 
@@ -271,6 +271,8 @@ private:
     bool match(int num_args, ...);
 
     bool equality(Ast *pAst);
+
+    bool shift(Ast *pAst);
 
     bool comparason(Ast *pAst);
 
