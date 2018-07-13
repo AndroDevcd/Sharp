@@ -1,8 +1,8 @@
-#Change List
+# Change List
 This file contains all the various changes made to sharp. 
 For each stable build of sharp pushed to master there will be a corresponding version.
 
-#####Version 0.2.343 (July 13, 2018)
+##### Version 0.2.343 (July 13, 2018)
 
 - All objects now inherit Std#Object class to allow for baseline support
 for basic operators used in std#Dictionary<>
