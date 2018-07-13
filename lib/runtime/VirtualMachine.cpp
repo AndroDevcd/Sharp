@@ -849,7 +849,7 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
 
 void VirtualMachine::fillStackTrace(native_string &str) {
 // fill message
-    if(thread_self->callStack == NULL || thread_self->calls == 0) return;
+    if(thread_self->callStack == NULL) return;
 
     stringstream ss;
     unsigned int iter = 0;

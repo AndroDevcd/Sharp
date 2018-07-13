@@ -34,21 +34,21 @@ class Parser {
             if(panic)
                 break;
 
-//            if(isAccessType(current))
-//                parseAccessTypes();
-//
-//            if(quit()) break;
-//
-//            if(isEnd()) {
-//                accessTypes.clear();
-//                return;
-//            } else if(isDecl(current, MOD)) {
-//                if(accessTypes.size() > 0)
-//                    errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
-//                parseModuleDecl(null);
-//            } else if(isDecl(current, CLASS)) {
-//                parseClassDecl(null);
-//            }
+            if(isAccessType(current))
+                parseAccessTypes();
+
+            if(quit()) break;
+
+            if(isEnd()) {
+                accessTypes.clear();
+                return;
+            } else if(isDecl(current, MOD)) {
+                if(accessTypes.size() > 0)
+                    errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
+                parseModuleDecl(null);
+            } else if(isDecl(current, CLASS)) {
+                parseClassDecl(null);
+            }
 
             advance();
         }
@@ -76,7 +76,7 @@ class Parser {
         if(peek(1).getToken() == "base") {
             advance();
             expectToken(ast, "base");
-            parseRefrencePointer(ast);
+            parseReferencePointer(ast);
         }
 
         if(peek(1).getToken() == ":") {
@@ -136,7 +136,7 @@ class Parser {
         {
             advance();
             expectToken(ast, "base");
-            parseRefrencePointer(ast);
+            parseReferencePointer(ast);
         }
 
         parseInterfaceBlock(ast);
@@ -168,7 +168,7 @@ class Parser {
                       errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
                  errors.createNewError(CompilerError.GENERIC, current, "unexpected import declaration");
-                 //parseImportDecl(ast);
+                 parseImportDecl(ast);
             } else if(isDecl(current, VAR) || isDecl(current, OBJECT)) {
                  if(accessTypes.size() > 0)
                       errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
@@ -220,7 +220,7 @@ class Parser {
 
     private def parseValue(Ast ast) : var {
         ast = getAst(ast, AstType.Value);
-        //return parseExpression(ast);
+        return parseExpression(ast);
     }
 
     private def parseIdentifierList(Ast ast) {
@@ -238,11 +238,11 @@ class Parser {
     private def parseRefrenceIdentifierList(Ast ast) {
         ast = getAst(ast, AstType.Identifier_List);
 
-        parseRefrencePointer(ast);
+        parseReferencePointer(ast);
         pRefPtr:
         if(peek(1).getType() == TokenType.COMMA) {
             expect(TokenType.COMMA, ast, "`,`");
-            parseRefrencePointer(ast);
+            parseReferencePointer(ast);
             goto pRefPtr;
         }
     }
@@ -386,7 +386,7 @@ class Parser {
         }
 
         errors.enableProtectedMode();
-        if(!parseRefrencePointer(ast)) {
+        if(!parseReferencePointer(ast)) {
             errors.pass();
         } else {
             errors.fail();
@@ -396,7 +396,7 @@ class Parser {
         return false;
     }
 
-    private def parseRefrencePointer(Ast ast) : var {
+    private def parseReferencePointer(Ast ast) : var {
         ast = getAst(ast, AstType.Reference_Pointer);
 
         advance();
