@@ -6,7 +6,7 @@ import std;
  * Created by BraxtonN on 6/8/2018.
  */
 class ErrorManager {
-    private static Dictionary<CompilerError, string> predefinedErrors = new Dictionary<CompilerError, string>();
+    private static Map<CompilerError, string> predefinedErrors = new Map<CompilerError, string>();
     private ArrayList<ParseError> errors, rawErrors, warnings;
     private ArrayList<ArrayList<ParseError> > possibleErrors;
     private ParseError lastError, lastCheckedError;

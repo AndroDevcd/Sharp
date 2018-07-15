@@ -8,3 +8,4 @@
     - The class with ? should be processed at compile time to assign objects that follow this rule alike
 - Allow for importing of star (*) 
     - import std.*; imports all of the standard library
+- Have automatic lookup for enums

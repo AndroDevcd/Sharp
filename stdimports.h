@@ -60,6 +60,8 @@ struct Sharp {
      * Jan 13, 2017 Initial build release of sharp 0.1.3, this contains
      * all the base level support for running sharp. Sharp was
      * developed to support both windows and linux operating systems
+     *
+     * Base is no longer supported as it is too old to support
      */
     int BASE  = 1;
 

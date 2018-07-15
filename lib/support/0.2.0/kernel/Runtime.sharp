@@ -42,10 +42,10 @@ public class Runtime {
         Thread.setupMainThread();
         userArgs = new string[sizeof(args) - MINIMUM_ARGS];
 
-//        System.println("application " + application);
-//        System.println("version " + vers);
-//        System.println("platform " + platformVersion);
-//        System.println("os " + os);
+//        System.println("application " + BuildConfig.applicationName);
+//        System.println("version " + BuildConfig.version);
+//        System.println("platform " + BuildConfig.platform);
+//        System.println("os " + BuildConfig.OS);
 
         // set user args to be passed
         var iter;

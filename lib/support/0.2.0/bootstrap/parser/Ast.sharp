@@ -52,6 +52,11 @@ class Ast {
         return false;
     }
 
+    public def clear() {
+        children.clear();
+        tokens.clear();
+    }
+
     public def hasChild(AstType type) : var {
         Ast[] arry = children.toArray();
         foreach(Ast ast : arry) {
@@ -70,12 +75,18 @@ class Ast {
         return children.last();
     }
 
+    public def lastToken() : TokenEntity {
+        return tokens.last();
+    }
+
     public def encapsulate(AstType type) {
         Ast encap = new Ast(self, type, line, col);
         add(encap);
 
         for(var i = 0; i < children.size()-1; i++) {
-            encap.add(children.get(i));
+            Ast tmp = children.get(i);
+            tmp.parent = encap;
+            encap.add(tmp);
         }
 
         for(var i = 0; i < tokens.size(); i++) {
@@ -112,6 +123,10 @@ class Ast {
 
     public def popToken() {
         tokens.popBack();
+    }
+
+    public def popChild() {
+        children.popBack();
     }
 
     public def getType() : AstType {

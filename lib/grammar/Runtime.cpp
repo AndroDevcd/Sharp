@@ -4192,6 +4192,7 @@ bool RuntimeEngine::preprocess()
     bool success = true;
     // add class for global methods
     createGlobalClass();
+    string oldModule = "";
 
     for(unsigned long i = 0; i < parsers.size(); i++)
     {
@@ -4242,9 +4243,12 @@ bool RuntimeEngine::preprocess()
                 case ast_method_decl: /* ignore */
                     break;
                 case ast_var_decl:
+                    oldModule = currentModule;
+                    currentModule = "global";
                     addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
                     parseVarDecl(ast, true);
                     removeScope();
+                    currentModule = oldModule;
                     break;
                 default:
                     stringstream err;
@@ -4389,6 +4393,7 @@ void RuntimeEngine::resolveAllDelegates() {
 }
 
 void RuntimeEngine::resolveAllFields() {
+    string oldModule = "";
     for(unsigned long i = 0; i < parsers.size(); i++) {
         activeParser = parsers.get(i);
         errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
@@ -4424,9 +4429,13 @@ void RuntimeEngine::resolveAllFields() {
                     break;
                 case ast_method_decl:
                     if(resolvedFields) {
+
+                        oldModule = currentModule;
+                        currentModule = "global";
                         addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
                         resolveMethodDecl(ast, true);
                         removeScope();
+                        currentModule = oldModule;
                     }
                     break;
                 default:
@@ -4455,6 +4464,7 @@ void RuntimeEngine::resolveAllFields() {
 }
 
 void RuntimeEngine::resolveAllGlobalFields() {
+    string oldModule = "";
     for(unsigned long i = 0; i < parsers.size(); i++) {
         activeParser = parsers.get(i);
         errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
@@ -4487,9 +4497,12 @@ void RuntimeEngine::resolveAllGlobalFields() {
                 case ast_enum_decl: /* ignore */
                     break;
                 case ast_var_decl:
+                    oldModule = currentModule;
+                    currentModule = "global";
                     addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
                     resolveVarDecl(ast, false);
                     removeScope();
+                    currentModule = oldModule;
                     break;
                 default:
                     /* ignore */
@@ -4578,6 +4591,7 @@ void RuntimeEngine::resolveAllGenerics() {
 }
 
 void RuntimeEngine::inlineFields() {
+    string oldModule = "";
     for(unsigned long i = 0; i < parsers.size(); i++) {
         activeParser = parsers.get(i);
         errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
@@ -4603,9 +4617,12 @@ void RuntimeEngine::inlineFields() {
                     resolveGenericClassDecl(ast, true);
                     break;
                 case ast_var_decl:
+                    oldModule = currentModule;
+                    currentModule = "global";
                     addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
                     resolveVarDecl(ast, true);
                     removeScope();
+                    currentModule = oldModule;
                     break;
                 default:
                     /* ignore */
