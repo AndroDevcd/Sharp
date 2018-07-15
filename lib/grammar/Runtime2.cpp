@@ -698,6 +698,14 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                 expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
             }
         } else {
+            if(ptr.singleRefrenceModule()) {
+                if(ptr.module == "global") {
+                    ClassObject *global = getClass("global", globalClass, classes);
+                    if((fn = global->getFunction(ptr.referenceName, params)) != NULL) {
+                        goto funcFound;
+                    }
+                }
+            }
             errors->createNewError(COULD_NOT_RESOLVE, valueLst->line, valueLst->col, " `" + ptr.referenceName +  paramsToString(params) + "`");
         }
     }

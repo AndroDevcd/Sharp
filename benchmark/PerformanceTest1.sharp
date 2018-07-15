@@ -10,6 +10,10 @@ def main(string[] args) : var {
     for (var i=0; i<n; ++i)
        bodies.advance(0.01);
     System.println(bodies.energy());
+    global#foo();
+}
+
+def foo() {
 }
 
 public class NBodySystem {

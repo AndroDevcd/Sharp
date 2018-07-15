@@ -9,3 +9,4 @@
 - Allow for importing of star (*) 
     - import std.*; imports all of the standard library
 - Have automatic lookup for enums
+- Allow for expression in first argument of for loop

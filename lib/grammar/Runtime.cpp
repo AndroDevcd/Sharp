@@ -4296,6 +4296,8 @@ void RuntimeEngine::createGlobalClass() {
     global->setFullName(ss.str());
     addDefaultConstructor(global, NULL);
     modifiers.free();
+
+    add_module(currentModule);
 }
 
 void RuntimeEngine::resolveAllInterfaces() {
