@@ -43,14 +43,14 @@ public:
 
     CXX11_INLINE
     void executeFinally(Method *method) {
-        uint64_t oldpc = thread_self->pc;
+        uint64_t oldpc = PC(thread_self);
 
         for(unsigned int i = 0; i < method->finallyBlocks.size(); i++) {
             FinallyTable &ft = method->finallyBlocks.get(i);
             if((ft.try_start_pc >= oldpc && ft.try_end_pc < oldpc) || ft.start_pc > oldpc) {
                 finallyTable = ft;
                 startAddress = 1;
-                thread_self->pc = ft.start_pc;
+                thread_self->pc = thread_self->cache+ft.start_pc;
 
                 /**
                  * Execute finally blocks before returning
@@ -78,13 +78,13 @@ public:
     }\
     thread_self->calls++; \
      \
-    thread_self->pc = 0; \
     thread_self->current = method; \
     thread_self->cache = method->bytecode; \
     thread_self->fp = thread_self->calls==1 ? thread_self->fp : \
                       ((method->returnVal) ? (thread_self->sp-thread_self->dataStack)-method->stackEqulizer : \
                 ((thread_self->sp-thread_self->dataStack)-method->stackEqulizer+1)); \
     thread_self->sp += (method->stackSize - method->paramSize); \
+    thread_self->pc = thread_self->cache; \
 }
 
 extern VirtualMachine* vm;

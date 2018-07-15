@@ -39,7 +39,7 @@
 #define CA_MAX 134217727
 #define CA_MIN -134217727
 
-#define DISPATCH() /*if(GET_OP(cache[pc])> op_GET) throw Exception("op"); else*/ goto *opcode_table[GET_OP(cache[pc])];
+#define DISPATCH() /*if(GET_OP(cache[pc])> op_GET) throw Exception("op"); else*/ goto *opcode_table[GET_OP(*pc)];
 
 #define SAFTEY_CHECK \
     if (suspendPending) \

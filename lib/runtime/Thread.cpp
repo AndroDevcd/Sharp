@@ -642,7 +642,7 @@ void printRegs() {
     cout << "egx = " << registers[egx] << endl;
     cout << "sp -> " << (thread_self->sp-thread_self->dataStack) << endl;
     cout << "fp -> " << thread_self->fp << endl;
-    cout << "pc -> " << thread_self->pc << endl;
+    cout << "pc -> " << PC(thread_self) << endl;
     if(thread_self->current != NULL) {
         cout << "current -> " << thread_self->current->name.str() << endl;
     }
@@ -765,12 +765,12 @@ void Thread::exec() {
             finnallyMethod = current;
 
             finally:
-            if((pc <finallyTable.start_pc || pc > finallyTable.end_pc)
+            if((PC(this) <finallyTable.start_pc || PC(this) > finallyTable.end_pc)
                && current==finnallyMethod)
                 return;
 
             interp:
-            if(current->address==1 && pc >= 2) {
+            if(current->address==1 && PC(this) >= 2) {
                 int i = 0;
             }
             DISPATCH();
@@ -786,11 +786,11 @@ void Thread::exec() {
             }
 
 #endif
-                vm->sysInterrupt(GET_Da(cache[pc]));
+                vm->sysInterrupt(GET_Da(*pc));
                 if(masterShutdown) return;
                 _brh
             _MOVI:
-                registers[cache[pc+1]]=GET_Da(cache[pc]); pc++;
+                registers[*(pc+1)]=GET_Da(*pc); pc++;
                 _brh
             RET:
                 if(thread_self->calls <= 1) {
@@ -823,157 +823,157 @@ void Thread::exec() {
                 _brh
             NEWARRAY:
                 (++sp)->object =
-                        GarbageCollector::self->newObject(registers[GET_Da(cache[pc])]);
+                        GarbageCollector::self->newObject(registers[GET_Da(*pc)]);
                 STACK_CHECK _brh
             CAST:
-                CHECK_NULL(o2->castObject(registers[GET_Da(cache[pc])]);)
+                CHECK_NULL(o2->castObject(registers[GET_Da(*pc)]);)
                 _brh
             MOV8:
-                registers[GET_Ca(cache[pc])]=(int8_t)registers[GET_Cb(cache[pc])];
+                registers[GET_Ca(*pc)]=(int8_t)registers[GET_Cb(*pc)];
                 _brh
             MOV16:
-                registers[GET_Ca(cache[pc])]=(int16_t)registers[GET_Cb(cache[pc])];
+                registers[GET_Ca(*pc)]=(int16_t)registers[GET_Cb(*pc)];
                 _brh
             MOV32:
-                registers[GET_Ca(cache[pc])]=(int32_t)registers[GET_Cb(cache[pc])];
+                registers[GET_Ca(*pc)]=(int32_t)registers[GET_Cb(*pc)];
                 _brh
             MOV64:
-                registers[GET_Ca(cache[pc])]=(int64_t)registers[GET_Cb(cache[pc])];
+                registers[GET_Ca(*pc)]=(int64_t)registers[GET_Cb(*pc)];
                 _brh
             MOVU8:
-                registers[GET_Ca(cache[pc])]=(uint8_t)registers[GET_Cb(cache[pc])];
+                registers[GET_Ca(*pc)]=(uint8_t)registers[GET_Cb(*pc)];
                 _brh
             MOVU16:
-                registers[GET_Ca(cache[pc])]=(uint16_t)registers[GET_Cb(cache[pc])];
+                registers[GET_Ca(*pc)]=(uint16_t)registers[GET_Cb(*pc)];
                 _brh
             MOVU32:
-                registers[GET_Ca(cache[pc])]=(uint32_t)registers[GET_Cb(cache[pc])];
+                registers[GET_Ca(*pc)]=(uint32_t)registers[GET_Cb(*pc)];
                 _brh
             MOVU64:
-                registers[GET_Ca(cache[pc])]=(uint64_t)registers[GET_Cb(cache[pc])];
+                registers[GET_Ca(*pc)]=(uint64_t)registers[GET_Cb(*pc)];
                 _brh
             RSTORE:
-                (++sp)->var = registers[GET_Da(cache[pc])];
+                (++sp)->var = registers[GET_Da(*pc)];
                 STACK_CHECK _brh
             ADD:
-                registers[cache[pc+1]]=registers[GET_Ca(cache[pc])]+registers[GET_Cb(cache[pc])]; pc++;
+                registers[*(pc+1)]=registers[GET_Ca(*pc)]+registers[GET_Cb(*pc)]; pc++;
                 _brh
             SUB:
-                registers[cache[pc+1]]=registers[GET_Ca(cache[pc])]-registers[GET_Cb(cache[pc])]; pc++;
+                registers[*(pc+1)]=registers[GET_Ca(*pc)]-registers[GET_Cb(*pc)]; pc++;
                 _brh
             MUL:
-                registers[cache[pc+1]]=registers[GET_Ca(cache[pc])]*registers[GET_Cb(cache[pc])]; pc++;
+                registers[*(pc+1)]=registers[GET_Ca(*pc)]*registers[GET_Cb(*pc)]; pc++;
                 _brh
             DIV:
-                if(registers[GET_Ca(cache[pc])]==0 && registers[GET_Cb(cache[pc])]==0) throw Exception("divide by 0");
-                registers[cache[pc+1]]=registers[GET_Ca(cache[pc])]/registers[GET_Cb(cache[pc])]; pc++;
+                if(registers[GET_Ca(*pc)]==0 && registers[GET_Cb(*pc)]==0) throw Exception("divide by 0");
+                registers[*(pc+1)]=registers[GET_Ca(*pc)]/registers[GET_Cb(*pc)]; pc++;
                 _brh
             MOD:
-                registers[cache[pc+1]]=(int64_t)registers[GET_Ca(cache[pc])]%(int64_t)registers[GET_Cb(cache[pc])]; pc++;
+                registers[*(pc+1)]=(int64_t)registers[GET_Ca(*pc)]%(int64_t)registers[GET_Cb(*pc)]; pc++;
                 _brh
             IADD:
-                registers[GET_Ca(cache[pc])]+=GET_Cb(cache[pc]);
+                registers[GET_Ca(*pc)]+=GET_Cb(*pc);
                 _brh
             ISUB:
-                registers[GET_Ca(cache[pc])]-=GET_Cb(cache[pc]);
+                registers[GET_Ca(*pc)]-=GET_Cb(*pc);
                 _brh
             IMUL:
-                registers[GET_Ca(cache[pc])]*=GET_Cb(cache[pc]);
+                registers[GET_Ca(*pc)]*=GET_Cb(*pc);
                 _brh
             IDIV:
-                if(registers[GET_Ca(cache[pc])]==0 && registers[GET_Cb(cache[pc])]==0) throw Exception("divide by 0");
-                registers[GET_Ca(cache[pc])]/=GET_Cb(cache[pc]);
+                if(registers[GET_Ca(*pc)]==0 && registers[GET_Cb(*pc)]==0) throw Exception("divide by 0");
+                registers[GET_Ca(*pc)]/=GET_Cb(*pc);
                 _brh
             IMOD:
-                registers[GET_Ca(cache[pc])]=(int64_t)registers[GET_Ca(cache[pc])]%(int64_t)GET_Cb(cache[pc]);
+                registers[GET_Ca(*pc)]=(int64_t)registers[GET_Ca(*pc)]%(int64_t)GET_Cb(*pc);
                 _brh
             POP:
                 --sp;
                 _brh
             INC:
-                registers[GET_Da(cache[pc])]++;
+                registers[GET_Da(*pc)]++;
                 _brh
             DEC:
-                registers[GET_Da(cache[pc])]--;
+                registers[GET_Da(*pc)]--;
                 _brh
             MOVR:
-                registers[GET_Ca(cache[pc])]=registers[GET_Cb(cache[pc])];
+                registers[GET_Ca(*pc)]=registers[GET_Cb(*pc)];
                 _brh
             IALOAD:
                 o = sp->object.object;
                 if(o != NULL && o->HEAD != NULL) {
-                    registers[GET_Ca(cache[pc])] = o->HEAD[(uint64_t)registers[GET_Cb(cache[pc])]];
+                    registers[GET_Ca(*pc)] = o->HEAD[(uint64_t)registers[GET_Cb(*pc)]];
                 } else throw Exception(Environment::NullptrException, "");
                 _brh
             BRH:
-                pc=registers[adx];
+                pc=cache+(int64_t)registers[adx];
                 _brh_NOINCREMENT
             IFE:
                 if(registers[cmt]) {
-                    pc=registers[adx]; _brh_NOINCREMENT
+                    pc=cache+(int64_t)registers[adx]; _brh_NOINCREMENT
                 } else  _brh
             IFNE:
                 if(registers[cmt]==0) {
-                    pc=registers[adx]; _brh_NOINCREMENT
+                    pc=cache+(int64_t)registers[adx]; _brh_NOINCREMENT
                 } else  _brh
             LT:
-                registers[cmt]=registers[GET_Ca(cache[pc])]<registers[GET_Cb(cache[pc])];
+                registers[cmt]=registers[GET_Ca(*pc)]<registers[GET_Cb(*pc)];
                 _brh
             GT:
-                registers[cmt]=registers[GET_Ca(cache[pc])]>registers[GET_Cb(cache[pc])];
+                registers[cmt]=registers[GET_Ca(*pc)]>registers[GET_Cb(*pc)];
                 _brh
             LTE:
-                registers[cmt]=registers[GET_Ca(cache[pc])]<=registers[GET_Cb(cache[pc])];
+                registers[cmt]=registers[GET_Ca(*pc)]<=registers[GET_Cb(*pc)];
                 _brh
             GTE:
-                registers[cmt]=registers[GET_Ca(cache[pc])]>=registers[GET_Cb(cache[pc])];
+                registers[cmt]=registers[GET_Ca(*pc)]>=registers[GET_Cb(*pc)];
                 _brh
             MOVL:
-                o2 = &dataStack[fp+GET_Da(cache[pc])].object;
+                o2 = &dataStack[fp+GET_Da(*pc)].object;
                 _brh
             POPL:
-                dataStack[fp+GET_Da(cache[pc])].object
+                dataStack[fp+GET_Da(*pc)].object
                         = (sp--)->object.object;
                 _brh
             IPOPL:
-                dataStack[fp+GET_Da(cache[pc])].var
+                dataStack[fp+GET_Da(*pc)].var
                         = (sp--)->var;
                 _brh
             MOVSL:
-                o2 = &((sp+GET_Da(cache[pc]))->object);
+                o2 = &((sp+GET_Da(*pc))->object);
                 _brh
             MOVBI:
-                registers[bmr]=GET_Da(cache[pc]) + exponent(cache[pc + 1]); pc++;
+                registers[bmr]=GET_Da(*pc) + exponent(*(pc+1)); pc++;
                 _brh
             SIZEOF:
                 if(o2==NULL || o2->object == NULL)
-                    registers[GET_Da(cache[pc])] = 0;
+                    registers[GET_Da(*pc)] = 0;
                 else
-                    registers[GET_Da(cache[pc])]=o2->object->size;
+                    registers[GET_Da(*pc)]=o2->object->size;
                 _brh
             PUT:
-                cout << registers[GET_Da(cache[pc])];
+                cout << registers[GET_Da(*pc)];
                 _brh
             PUTC:
-                printf("%c", (char)registers[GET_Da(cache[pc])]);
+                printf("%c", (char)registers[GET_Da(*pc)]);
                 _brh
             GET:
-                registers[GET_Da(cache[pc])] = getche();
+                registers[GET_Da(*pc)] = getche();
                 _brh
             CHECKLEN:
                 CHECK_NULL2(
-                        if((registers[GET_Da(cache[pc])]<o2->object->size) &&!(registers[GET_Da(cache[pc])]<0)) { _brh }
+                        if((registers[GET_Da(*pc)]<o2->object->size) &&!(registers[GET_Da(*pc)]<0)) { _brh }
                         else {
                             stringstream ss;
-                            ss << "Access to Object at: " << registers[GET_Da(cache[pc])] << " size is " << o2->object->size;
+                            ss << "Access to Object at: " << registers[GET_Da(*pc)] << " size is " << o2->object->size;
                             throw Exception(Environment::IndexOutOfBoundsException, ss.str());
                         }
                 )
             GOTO:
-                pc = GET_Da(cache[pc]);
+                pc = cache+GET_Da(*pc);
                 _brh_NOINCREMENT
             LOADPC:
-                registers[GET_Da(cache[pc])] = pc;
+                registers[GET_Da(*pc)] = PC(this);
                 _brh
             PUSHOBJ:
                 (++sp)->object = o2;
@@ -983,16 +983,16 @@ void Thread::exec() {
                 _brh
             CALL:
 #ifdef SHARP_PROF_
-            tprof.hit(env->methods+GET_Da(cache[pc]));
+            tprof.hit(env->methods+GET_Da(*pc));
 #endif
                 CALLSTACK_CHECK
-                executeMethod(GET_Da(cache[pc]), this)
+                executeMethod(GET_Da(*pc), this)
                 _brh_NOINCREMENT
             CALLD:
 #ifdef SHARP_PROF_
-            tprof.hit(env->methods+GET_Da(cache[pc]));
+            tprof.hit(env->methods+GET_Da(*pc));
 #endif
-                if((val = (int64_t )registers[GET_Da(cache[pc])]) <= 0) {
+                if((val = (int64_t )registers[GET_Da(*pc)]) <= 0) {
                     stringstream ss;
                     ss << "invalid call to pointer of " << val;
                     throw Exception(ss.str());
@@ -1002,24 +1002,24 @@ void Thread::exec() {
                 _brh_NOINCREMENT
             NEWCLASS:
                 (++sp)->object =
-                        GarbageCollector::self->newObject(&env->classes[GET_Da(cache[pc])]);
+                        GarbageCollector::self->newObject(&env->classes[GET_Da(*pc)]);
                 STACK_CHECK _brh
             MOVN:
                 CHECK_NULLOBJ(
-                        if(GET_Da(cache[pc]) >= o2->object->size)
+                        if(GET_Da(*pc) >= o2->object->size)
                             throw Exception("movn");
 
-                        o2 = &o2->object->node[GET_Da(cache[pc])];
+                        o2 = &o2->object->node[GET_Da(*pc)];
                 )
                 _brh
             SLEEP:
-                __os_sleep((int64_t)registers[GET_Da(cache[pc])]);
+                __os_sleep((int64_t)registers[GET_Da(*pc)]);
                 _brh
             TEST:
-                registers[cmt]=registers[GET_Ca(cache[pc])]==registers[GET_Cb(cache[pc])];
+                registers[cmt]=registers[GET_Ca(*pc)]==registers[GET_Cb(*pc)];
                 _brh
             TNE:
-                registers[cmt]=registers[GET_Ca(cache[pc])]!=registers[GET_Cb(cache[pc])];
+                registers[cmt]=registers[GET_Ca(*pc)]!=registers[GET_Cb(*pc)];
                 _brh
             LOCK:
                 CHECK_NULLOBJ(o2->monitorLock();)
@@ -1028,59 +1028,59 @@ void Thread::exec() {
                 CHECK_NULLOBJ(o2->monitorUnLock();)
                 _brh
             EXP:
-                registers[bmr] = exponent(registers[GET_Da(cache[pc])]);
+                registers[bmr] = exponent(registers[GET_Da(*pc)]);
                 _brh
             MOVG:
-                o2 = env->globalHeap+GET_Da(cache[pc]);
+                o2 = env->globalHeap+GET_Da(*pc);
                 _brh
             MOVND:
                 if(o2 != NULL && o2->object != NULL) {
-                    if(o2->object->size <= registers[GET_Da(cache[pc])]) {
+                    if(o2->object->size <= registers[GET_Da(*pc)]) {
                         throw Exception("movnd");
                     }
                 }
-                CHECK_NULLOBJ(o2 = &o2->object->node[(int64_t)registers[GET_Da(cache[pc])]];)
+                CHECK_NULLOBJ(o2 = &o2->object->node[(int64_t)registers[GET_Da(*pc)]];)
                 _brh
             NEWOBJARRAY:
-                (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Da(cache[pc])]);
+                (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Da(*pc)]);
                 STACK_CHECK _brh
             NOT:
-                registers[GET_Ca(cache[pc])]=!registers[GET_Cb(cache[pc])];
+                registers[GET_Ca(*pc)]=!registers[GET_Cb(*pc)];
                 _brh
             SKIP:
-                pc += GET_Da(cache[pc]);
+                pc = pc+GET_Da(*pc);
                 _brh
             LOADVAL:
-                registers[GET_Da(cache[pc])]=(sp--)->var;
+                registers[GET_Da(*pc)]=(sp--)->var;
                 _brh
             SHL:
-                registers[cache[pc+1]]=(int64_t)registers[GET_Ca(cache[pc])]<<(int64_t)registers[GET_Cb(cache[pc])]; pc++;
+                registers[*(pc+1)]=(int64_t)registers[GET_Ca(*pc)]<<(int64_t)registers[GET_Cb(*pc)]; pc++;
                 _brh
             SHR:
-                registers[cache[pc+1]]=(int64_t)registers[GET_Ca(cache[pc])]>>(int64_t)registers[GET_Cb(cache[pc])]; pc++;
+                registers[*(pc+1)]=(int64_t)registers[GET_Ca(*pc)]>>(int64_t)registers[GET_Cb(*pc)]; pc++;
                 _brh
             SKPE:
                 if(registers[cmt]) {
-                    pc+=GET_Da(cache[pc]); _brh_NOINCREMENT
+                    pc = pc+GET_Da(*pc); _brh_NOINCREMENT
                 } else _brh
             SKNE:
                 if(registers[cmt]==0) {
-                    pc+=GET_Da(cache[pc]); _brh_NOINCREMENT
+                    pc = pc+GET_Da(*pc); _brh_NOINCREMENT
                 } else _brh
             CMP:
-                registers[cmt]=registers[GET_Ca(cache[pc])]==GET_Cb(cache[pc]);
+                registers[cmt]=registers[GET_Ca(*pc)]==GET_Cb(*pc);
                 _brh
             AND:
-                registers[cmt]=registers[GET_Ca(cache[pc])]&&registers[GET_Cb(cache[pc])];
+                registers[cmt]=registers[GET_Ca(*pc)]&&registers[GET_Cb(*pc)];
                 _brh
             UAND:
-                registers[cmt]=(int64_t)registers[GET_Ca(cache[pc])]&(int64_t)registers[GET_Cb(cache[pc])];
+                registers[cmt]=(int64_t)registers[GET_Ca(*pc)]&(int64_t)registers[GET_Cb(*pc)];
                 _brh
             OR:
-                registers[cmt]=(int64_t)registers[GET_Ca(cache[pc])]|(int64_t)registers[GET_Cb(cache[pc])];
+                registers[cmt]=(int64_t)registers[GET_Ca(*pc)]|(int64_t)registers[GET_Cb(*pc)];
                 _brh
             UNOT:
-                registers[cmt]=(int64_t)registers[GET_Ca(cache[pc])]^(int64_t)registers[GET_Cb(cache[pc])];
+                registers[cmt]=(int64_t)registers[GET_Ca(*pc)]^(int64_t)registers[GET_Cb(*pc)];
                 _brh
             THROW:
                 throw Exception("", false);
@@ -1093,50 +1093,50 @@ void Thread::exec() {
                 _brh
             NEWCLASSARRAY:
                 CHECK_NULL(
-                        (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Ca(cache[pc])],
-                                                                                        env->findClassBySerial(GET_Cb(cache[pc])));
+                        (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Ca(*pc)],
+                                                                                        env->findClassBySerial(GET_Cb(*pc)));
                 )
                 STACK_CHECK _brh
             NEWSTRING:
-                GarbageCollector::self->createStringArray(&(++sp)->object, env->getStringById(GET_Da(cache[pc])));
+                GarbageCollector::self->createStringArray(&(++sp)->object, env->getStringById(GET_Da(*pc)));
                 STACK_CHECK _brh
             ADDL:
-                dataStack[fp+GET_Cb(cache[pc])].var+=registers[GET_Ca(cache[pc])];
+                dataStack[fp+GET_Cb(*pc)].var+=registers[GET_Ca(*pc)];
                 _brh
             SUBL:
-                dataStack[fp+GET_Cb(cache[pc])].var-=registers[GET_Ca(cache[pc])];
+                dataStack[fp+GET_Cb(*pc)].var-=registers[GET_Ca(*pc)];
                 _brh
             MULL:
-                dataStack[fp+GET_Cb(cache[pc])].var*=registers[GET_Ca(cache[pc])];
+                dataStack[fp+GET_Cb(*pc)].var*=registers[GET_Ca(*pc)];
                 _brh
             DIVL:
-                dataStack[fp+GET_Cb(cache[pc])].var/=registers[GET_Ca(cache[pc])];
+                dataStack[fp+GET_Cb(*pc)].var/=registers[GET_Ca(*pc)];
                 _brh
             MODL:
-                dataStack[fp+GET_Cb(cache[pc])].modul(registers[GET_Ca(cache[pc])]);
+                dataStack[fp+GET_Cb(*pc)].modul(registers[GET_Ca(*pc)]);
                 _brh
             IADDL:
-                dataStack[fp+GET_Cb(cache[pc])].var+=GET_Ca(cache[pc]);
+                dataStack[fp+GET_Cb(*pc)].var+=GET_Ca(*pc);
                 _brh
             ISUBL:
-                dataStack[fp+GET_Cb(cache[pc])].var-=GET_Ca(cache[pc]);
+                dataStack[fp+GET_Cb(*pc)].var-=GET_Ca(*pc);
                 _brh
             IMULL:
-                dataStack[fp+GET_Cb(cache[pc])].var*=GET_Ca(cache[pc]);
+                dataStack[fp+GET_Cb(*pc)].var*=GET_Ca(*pc);
                 _brh
             IDIVL:
-                dataStack[fp+GET_Cb(cache[pc])].var/=GET_Ca(cache[pc]);
+                dataStack[fp+GET_Cb(*pc)].var/=GET_Ca(*pc);
                 _brh
             IMODL:
-                val = dataStack[fp+GET_Cb(cache[pc])].var;
-                dataStack[fp+GET_Cb(cache[pc])].var=val%GET_Ca(cache[pc]);
+                val = dataStack[fp+GET_Cb(*pc)].var;
+                dataStack[fp+GET_Cb(*pc)].var=val%GET_Ca(*pc);
                 _brh
             LOADL:
-                registers[GET_Ca(cache[pc])]=dataStack[fp+GET_Cb(cache[pc])].var;
+                registers[GET_Ca(*pc)]=dataStack[fp+GET_Cb(*pc)].var;
                 _brh
             IALOAD_2:
                 CHECK_INULLOBJ(
-                        registers[GET_Ca(cache[pc])] = o2->object->HEAD[(uint64_t)registers[GET_Cb(cache[pc])]];
+                        registers[GET_Ca(*pc)] = o2->object->HEAD[(uint64_t)registers[GET_Cb(*pc)]];
                 )
                 _brh
             POPOBJ:
@@ -1145,56 +1145,56 @@ void Thread::exec() {
                 )
                 _brh
             SMOVR:
-                (sp+GET_Cb(cache[pc]))->var=registers[GET_Ca(cache[pc])];
+                (sp+GET_Cb(*pc))->var=registers[GET_Ca(*pc)];
                 _brh
             SMOVR_2:
-                dataStack[fp+GET_Cb(cache[pc])].var=registers[GET_Ca(cache[pc])];
+                dataStack[fp+GET_Cb(*pc)].var=registers[GET_Ca(*pc)];
                 _brh
             ANDL:
-                dataStack[fp+GET_Cb(cache[pc])].andl(registers[GET_Ca(cache[pc])]);
+                dataStack[fp+GET_Cb(*pc)].andl(registers[GET_Ca(*pc)]);
                 _brh
             ORL:
-                dataStack[fp+GET_Cb(cache[pc])].orl(registers[GET_Ca(cache[pc])]);
+                dataStack[fp+GET_Cb(*pc)].orl(registers[GET_Ca(*pc)]);
                 _brh
             NOTL:
-                dataStack[fp+GET_Cb(cache[pc])].notl(registers[GET_Ca(cache[pc])]);
+                dataStack[fp+GET_Cb(*pc)].notl(registers[GET_Ca(*pc)]);
                 _brh
             RMOV:
                 CHECK_INULLOBJ(
-                        o2->object->HEAD[(int64_t)registers[GET_Ca(cache[pc])]]=registers[GET_Cb(cache[pc])];
+                        o2->object->HEAD[(int64_t)registers[GET_Ca(*pc)]]=registers[GET_Cb(*pc)];
                 )
                 _brh
             SMOV:
-                registers[GET_Ca(cache[pc])]=(sp+GET_Cb(cache[pc]))->var;
+                registers[GET_Ca(*pc)]=(sp+GET_Cb(*pc))->var;
                 _brh
             LOADPC_2:
-                registers[GET_Ca(cache[pc])]=pc+GET_Cb(cache[pc]);
+                registers[GET_Ca(*pc)]=PC(this)+GET_Cb(*pc);
                 _brh
             RETURNVAL:
-                dataStack[fp].var=registers[GET_Da(cache[pc])];
+                dataStack[fp].var=registers[GET_Da(*pc)];
                 _brh
             ISTORE:
-                (++sp)->var = GET_Da(cache[pc]);
+                (++sp)->var = GET_Da(*pc);
                 STACK_CHECK _brh
             ISTOREL:
-                dataStack[fp+GET_Da(cache[pc])].var=cache[pc+1]; pc++;
+                dataStack[fp+GET_Da(*pc)].var=*(pc+1); pc++;
                 _brh
             PUSHNIL:
                 GarbageCollector::self->freeObject(&(++sp)->object);
                 STACK_CHECK _brh
             IPUSHL:
-                (++sp)->var = dataStack[fp+GET_Da(cache[pc])].var;
+                (++sp)->var = dataStack[fp+GET_Da(*pc)].var;
                 STACK_CHECK _brh
             PUSHL:
-                (++sp)->object = dataStack[fp+GET_Da(cache[pc])].object;
+                (++sp)->object = dataStack[fp+GET_Da(*pc)].object;
                 STACK_CHECK _brh
             ITEST:
                 o2 = &(sp--)->object;
-                registers[GET_Da(cache[pc])] = o2->object == (sp--)->object.object;
+                registers[GET_Da(*pc)] = o2->object == (sp--)->object.object;
                 _brh
             INVOKE_DELEGATE:
-                delegate= GET_Ca(cache[pc]);
-                args= GET_Cb(cache[pc]);
+                delegate= GET_Ca(*pc);
+                args= GET_Cb(*pc);
 
                 o2 = &(sp-args)->object;
 
@@ -1222,10 +1222,10 @@ void Thread::exec() {
                 )
                 _brh
             INVOKE_DELEGATE_STATIC:
-                delegate= GET_Ca(cache[pc]);
-                args= GET_Cb(cache[pc]);
+                delegate= GET_Ca(*pc);
+                args= GET_Cb(*pc);
 
-                o2 = &env->globalHeap[(long)cache[++pc]];
+                o2 = &env->globalHeap[*(++pc)];
 
                 CHECK_NULL2(
                         klass = o2->object->k;
@@ -1249,22 +1249,22 @@ void Thread::exec() {
                 )
                 _brh
             ISADD:
-                (sp+GET_Cb(cache[pc]))->var+=GET_Ca(cache[pc]);
+                (sp+GET_Cb(*pc))->var+=GET_Ca(*pc);
                 _brh
             JE:
                 if(registers[cmt]) {
-                    pc=GET_Da(cache[pc]); _brh_NOINCREMENT
+                    pc=cache+GET_Da(*pc); _brh_NOINCREMENT
                 } else  _brh
             JNE:
                 if(registers[cmt]==0) {
-                    pc=GET_Da(cache[pc]); _brh_NOINCREMENT
+                    pc=cache+GET_Da(*pc); _brh_NOINCREMENT
                 } else  _brh
             SWITCH: {
-                if((val = current->switchTable.get(GET_Da(cache[pc])).values.indexof(registers[ebx])) != -1 ) {
-                    pc=current->switchTable.get(GET_Da(cache[pc])).addresses.get(val);
+                if((val = current->switchTable.get(GET_Da(*pc)).values.indexof(registers[ebx])) != -1 ) {
+                    pc=cache+current->switchTable.get(GET_Da(*pc)).addresses.get(val);
                     _brh_NOINCREMENT
                 } else {
-                    pc=current->switchTable.get(GET_Da(cache[pc])).defaultAddress;
+                    pc=cache+current->switchTable.get(GET_Da(*pc)).defaultAddress;
                     _brh_NOINCREMENT
                 }
             }

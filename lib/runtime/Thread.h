@@ -125,13 +125,13 @@ public:
     bool exceptionThrown;
     Object currentThread, args;
 
-    int64_t pc, fp;
+    int64_t fp;
     Method *current;
     Frame *callStack;
     unsigned long calls;
     StackElement* dataStack, *sp, *stackTail;
     unsigned long stack_lmt;
-    Cache cache;
+    Cache cache, pc;
     Throwable throwable;
 #ifdef WIN32_
     HANDLE thread;
@@ -172,6 +172,9 @@ extern thread_local double registers[12];
 #define ADX registers[adx]
 #define ECX registers[ecx]
 #define EGX registers[egx]
+
+#define PC(thread_self) \
+    (thread_self->pc-thread_self->cache)
 
 extern FinallyTable finallyTable;
 extern short int startAddress;

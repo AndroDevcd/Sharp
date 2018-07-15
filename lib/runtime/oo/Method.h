@@ -31,6 +31,7 @@ struct SwitchTable { // for every value there will be a corresponding address
     }
 };
 
+typedef int64_t* Cache;
 
 /**
  * This is the representation of a method in its barest form
@@ -119,7 +120,7 @@ struct StackElement;
 
 struct Frame {
 public:
-    Frame(Method* last, uint64_t pc, StackElement* sp,
+    Frame(Method* last, Cache pc, StackElement* sp,
           uint64_t fp)
     {
         this->last=last;
@@ -128,7 +129,7 @@ public:
         this->fp=fp;
     }
 
-    void init(Method* last, uint64_t pc, StackElement* sp,
+    void init(Method* last, Cache pc, StackElement* sp,
             uint64_t fp)
     {
         this->last=last;
@@ -138,7 +139,7 @@ public:
     }
 
     Method *last;                   /* Last method */
-    uint64_t pc;
+    Cache pc;
     StackElement* sp;
     uint64_t fp;
 };
@@ -165,7 +166,5 @@ struct StackElement {
     }
 };
 #pragma optimize( "", on )
-
-typedef int64_t* Cache;
 
 #endif //SHARP_METHOD_H

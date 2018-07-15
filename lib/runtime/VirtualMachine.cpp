@@ -751,7 +751,7 @@ void VirtualMachine::Throw(Object *exceptionObject) {
 }
 
 bool VirtualMachine::TryThrow(Method *method, Object *exceptionObject) {
-    int64_t pc = thread_self->pc;
+    int64_t pc = PC(thread_self);
     if(method->exceptions.size() > 0) {
         ExceptionTable* et, *tbl=NULL;
         for(unsigned int i = 0; i < method->exceptions.size(); i++) {
@@ -768,7 +768,7 @@ bool VirtualMachine::TryThrow(Method *method, Object *exceptionObject) {
         {
             Object* object = &thread_self->dataStack[thread_self->fp+tbl->local].object;
             *object = exceptionObject;
-            thread_self->pc = tbl->handler_pc;
+            thread_self->pc = thread_self->cache+tbl->handler_pc;
 
             return true;
         }
@@ -817,7 +817,7 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
     long long x, line=-1, ptr=-1;
     for(x = 0; x < frame.last->lineNumbers.size(); x++)
     {
-        if(frame.last->lineNumbers.get(x).pc >= frame.pc) {
+        if(frame.last->lineNumbers.get(x).pc >= (frame.pc-frame.last->bytecode)) {
             if(x > 0)
                 ptr = x-1;
             else
