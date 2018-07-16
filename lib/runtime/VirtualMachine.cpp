@@ -18,6 +18,7 @@
 #include "../Modules/std.io/fileio.h"
 #include "../util/File.h"
 #include "../Modules/std.kernel/cmath.h"
+#include "../Modules/std.kernel/clist.h"
 
 VirtualMachine* vm;
 Environment* env;
@@ -181,7 +182,6 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         executeMethod(thread_self->main->address, thread_self)
 
         thread_self->exec();
-
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();
@@ -312,6 +312,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             return;
         case 0xe5:
             __os_yield();
+            return;
+        case 0xe6:
+            clist((int)registers[adx]);
             return;
         case 0xa9:
             vm->shutdown();

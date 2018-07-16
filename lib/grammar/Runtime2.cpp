@@ -733,7 +733,7 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
-            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
+            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
                 pushExpressionToRegister(expressions.get(i), out, ebx);
 
                 out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
@@ -951,7 +951,7 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
-            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
+            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
                 pushExpressionToRegister(expressions.get(i), out, ebx);
 
                 out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
@@ -1581,7 +1581,7 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
-            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
+            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
                 pushExpressionToRegister(expressions.get(i), out, ebx);
 
                 out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
@@ -1784,7 +1784,7 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
-            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
+            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
                 pushExpressionToRegister(expressions.get(i), out, ebx);
 
                 out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
@@ -2065,7 +2065,7 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                 expression.code.push_i64(SET_Di(i64, op_NEWCLASS, utype.utype.klass->address));
 
                 for(unsigned int i = 0; i < expressions.size(); i++) {
-                    if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
+                    if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
                         pushExpressionToRegister(expressions.get(i), expression, ebx);
 
                         expression.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);

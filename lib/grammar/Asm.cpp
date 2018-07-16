@@ -744,7 +744,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -1046,7 +1046,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL ||  (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -1072,7 +1072,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -1138,7 +1138,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -1152,7 +1152,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -1166,7 +1166,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -1184,7 +1184,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");

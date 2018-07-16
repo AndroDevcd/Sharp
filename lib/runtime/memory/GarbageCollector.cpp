@@ -345,11 +345,6 @@ void GarbageCollector::run() {
             return;
         }
 
-#ifdef SHARP_PROF_
-        if(managedBytes > hbytes)
-            hbytes = managedBytes;
-#endif
-
         if(!messageQueue.empty()) {
             mutex.lock();
             CollectionPolicy policy = messageQueue.last();
@@ -365,6 +360,12 @@ void GarbageCollector::run() {
         }
 
         do {
+
+#ifdef SHARP_PROF_
+            if(managedBytes > hbytes)
+                hbytes = managedBytes;
+#endif
+
 #ifdef WIN32_
             Sleep(1);
 #endif

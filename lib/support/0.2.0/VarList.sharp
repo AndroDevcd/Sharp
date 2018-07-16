@@ -1,34 +1,25 @@
 mod std;
 
-/**                          
-* Created by bknun on 6/7/2018            
-* Description:                             
+import std.kernel;
+
+/**
+* Created by bknun on 6/7/2018
+* Description:
 */
-public class ArrayList<T> {
-    private T[] mData;
-
+public class VarList base CListVar {
     private static const var DEFAULT_CAPACITY = 10;
-    private static const var RESIZE_CAPACITY = 20;
-
-    /**
-    * Size and capacity to keep allocations at a low
-    */
-    private var capacity;
-    private var size;
 
     /**
      * Constructs an empty list.
      * with a default capacity of 10
      */
-    public ArrayList() {
+    public VarList() {
         /* data will be set to default capacity */
-        capacity = DEFAULT_CAPACITY;
-        mData = new T[DEFAULT_CAPACITY];
+        mData = new var[DEFAULT_CAPACITY];
     }
 
     /**
      * Returns the number of elements in this list.
-     *
      */
     public def size() : var {
         return size;
@@ -47,16 +38,16 @@ public class ArrayList<T> {
      * in proper sequence (from first to last element).
      *
      */
-    public def toArray() : T[] {
+    public def toArray() : var[] {
         if(size == 0) return null;
-        return ((T[]) System.copyOf(mData, size));
+        return ((var[]) System.copyOf(mData, size));
     }
 
     /**
      * Returns the element at the specified position in this list.
      *
      */
-    public def get(var index) : T {
+    public def get(var index) : var {
         if (index >= size)
             throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
 
@@ -67,7 +58,7 @@ public class ArrayList<T> {
      * Returns the last element in this list.
      *
      */
-    public def last() : T {
+    public def last() : var {
         return get(size()-1);
     }
 
@@ -76,38 +67,21 @@ public class ArrayList<T> {
      * the specified element.
      *
      */
-    public def set(var index, T element) : T {
+    public def set(var index, var element) : var {
         if (index >= size)
             throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
 
-        T oldValue = mData[index];
+        var oldValue = mData[index];
         mData[index] = element;
         return oldValue;
     }
 
-    /**
-     * Expand the list to hold more data
-     *
-     * The list is oversized to reduce the ammount of allocations
-     * required by the system
-     */
-    private def expand() {
-        if(size >= capacity) {
-            // resize
-            capacity += (capacity >> 2) + RESIZE_CAPACITY;
-            System.realloc(mData, capacity);
-        }
-    }
 
     /**
      * Shrink the list to hold more data
      */
     private def shrink() {
-        if(size <= capacity && size > 0) {
-            size--;
-            capacity--;
-            System.realloc(mData, capacity);
-        }
+        base->CListVar.shrink();
     }
 
     /**
@@ -116,9 +90,9 @@ public class ArrayList<T> {
       * @param e elements to be appended to this list
       * @return <tt>true</tt> (as specified by {@link Collection#add})
       */
-     public def addAll(ArrayList<T> lst) {
-        T[] arry = lst.toArray();
-        foreach(T data : arry) {
+     public def add(ArrayList<var> lst) {
+        var[] arry = lst.toArray();
+        foreach(var data : arry) {
             add(data);
         }
      }
@@ -129,9 +103,8 @@ public class ArrayList<T> {
       * @param e element to be appended to this list
       * @return <tt>true</tt> (as specified by {@link Collection#add})
       */
-     public def add(T e) {
-         expand();
-         mData[size++] = e;
+     public def add(var num) {
+         base->CListVar.add(num);
      }
 
 
@@ -151,19 +124,8 @@ public class ArrayList<T> {
      * any subsequent elements to the right (adds one to their indices).
      *
      */
-     public def insert(var pos, T value) {
-         if(pos>size || pos < 0)
-            throw new IndexOutOfBoundsException(outOfBoundsMsg(pos));
-
-         if(size == 0) {
-             add(value);
-         } else {
-            expand();
-             for(var i = sizeof(mData) - 1; i > pos; i--)
-                mData[i] = mData[i-1];
-             mData[pos] = value;
-         }
-
+     public def insert(var pos, var value) {
+         base->CListVar.insert(pos, value);
      }
 
     /**
@@ -173,24 +135,7 @@ public class ArrayList<T> {
      *
      */
      public def remove(var pos) {
-         if(pos>size || pos < 0)
-            throw new IndexOutOfBoundsException(outOfBoundsMsg(pos));
-
-         if(size==1){
-             size--;
-         }
-         else if(size==2) {
-             if(pos==0) {
-                 mData[0]=mData[1];
-             }
-             shrink();
-         } else {
-             var newLen=sizeof(mData)-1;
-             for(var i = pos; i < newLen; i++)
-                 mData[i] = mData[i+1];
-
-             shrink();
-         }
+         base->CListVar.remove(pos);
      }
 
      /**
@@ -199,9 +144,9 @@ public class ArrayList<T> {
       */
      public def clear() {
          // clear to let GC do its work
-         size = 0;
-         capacity = DEFAULT_CAPACITY;
-         mData = new T[DEFAULT_CAPACITY];
+         // we need to reset the size though so the
+         // clist lib can work
+         mData = new var[DEFAULT_CAPACITY];
      }
 
     /**

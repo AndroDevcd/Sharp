@@ -256,10 +256,10 @@ void Optimizer::optimize(Method *method) {
     optimizeLoadLocal_3();
     optimizeSmovr();
     optimizeCheckLen();
-    optimizeRegister(ebx); /* most commonly used register in the language */
-    optimizeRegister(egx);
     optimizeRedundantLoadStore();
 
+    optimizeRegister(ebx); /* most commonly used register in the language */
+    optimizeRegister(egx);
     /**
      * must be last or the entire program will be rendered unstable
      * and will most likely fatally crash with (SEGV) signal
@@ -1061,6 +1061,7 @@ void Optimizer::optimizeRegister(int reg) {
             case op_MOVU32:
             case op_MOVU64:
             case op_INC:
+            case op_RSTORE:
             case op_DEC:
             case op_SIZEOF:
             case op_GET:
@@ -1112,7 +1113,6 @@ void Optimizer::optimizeRegister(int reg) {
                     readjustAddresses(i);
 
                     optimizedOpcodes+=2;
-                    goto readjust;
                 } else if(val==0 && reg1 == reg) {
                     regValue = 0;
                 }

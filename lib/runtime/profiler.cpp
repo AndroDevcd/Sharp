@@ -22,7 +22,7 @@ void Profiler::profile() {
     if(lastHit != -1) {
         now = Clock::realTimeInNSecs();
         funcProf &prof = functions.get(lastHit);
-        prof.time += (now-past)/1000000L;
+        prof.time += NANO_TOMILL(now-past);
         prof.avgtm = prof.time/prof.hits;
         lastHit = -1;
     }
@@ -40,7 +40,7 @@ void Profiler::dump() {
 
         for(j = i + 1; j < functions.size(); ++j)
         {
-            if(functions.get(i).time > functions.get(j).time)
+            if(functions.get(i).hits > functions.get(j).hits)
             {
                 tmp = functions.get(i);
                 functions.get(i) = functions.get(j);
@@ -60,7 +60,7 @@ void Profiler::dump() {
         ss << std::setw(11) << prof.time << setw(13) << prof.avgtm << setw(13) << prof.hits << setw(37) << prof.func->fullName.str() << "   " << source;
         ss << endl;
 
-        if(prof.time==0)
+        if(prof.hits==0)
             break;
     }
 

@@ -779,7 +779,7 @@ void Thread::exec() {
             _INT:
 
 #ifdef SHARP_PROF_
-            if(GET_Da(cache[pc]) == 0xa9) {
+            if(GET_Da(*pc) == 0xa9) {
                 tprof.endtm=Clock::realTimeInNSecs();
                 tprof.profile();
                 tprof.dump();
@@ -796,6 +796,7 @@ void Thread::exec() {
                 if(thread_self->calls <= 1) {
 #ifdef SHARP_PROF_
                 tprof.endtm=Clock::realTimeInNSecs();
+                tprof.lastHit = current->address;
                 tprof.profile();
 #endif
                     return;
@@ -804,7 +805,7 @@ void Thread::exec() {
                 Frame *frame = callStack+(calls);
                 calls--;
 
-                if(current->finallyBlocks.size() > 0)
+                if(current->finallyBlocks.len > 0)
                     vm->executeFinally(thread_self->current);
 
                 current = frame->last;

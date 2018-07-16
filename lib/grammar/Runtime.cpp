@@ -3093,7 +3093,13 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 memassign:
                 pushExpressionToStack(right, out);
                 out.inject(left);
-                out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+
+                if(left.trueType() == OBJECT && right.trueType() == VAR) {
+                    out.code.push_i64(SET_Di(i64, op_LOADVAL, egx));
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), ebx);
+                    out.code.push_i64(SET_Ci(i64, op_RMOV, ebx, 0, egx));
+                } else
+                    out.code.push_i64(SET_Ei(i64, op_POPOBJ));
             } else {
                 if(left.trueType() == CLASS) {
                     addClass(operand, left.getClass(), out, left, right, pAst);
@@ -3322,8 +3328,13 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
         if(equalsNoErr(left, right) && operand == "=") {
             out.type=expression_objectclass;
             pushExpressionToStack(right, out);
-            out.inject(left);
-            out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+            pushExpressionToPtr(left, out);
+            if(right.trueType() == VAR) {
+                out.code.push_i64(SET_Di(i64, op_LOADVAL, egx));
+                out.code.push_i64(SET_Di(i64, op_MOVI, 0), ebx);
+                out.code.push_i64(SET_Ci(i64, op_RMOV, ebx, 0, egx));
+            } else
+                out.code.push_i64(SET_Ei(i64, op_POPOBJ));
         } else {
             errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `" + operand.getToken()
                                                               + "` cannot be applied to expression of type `" + left.typeToString() + "` and `" + right.typeToString() + "`");
@@ -6670,7 +6681,7 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
         klass->address = classSize++;
 
     addScope(Scope(CLASS_SCOPE, klass));
-    if(!forEnum && resolvedFields && resolvedGenerics) {
+    if(!forEnum && resolvedFields && resolvedGenerics && resolvedMethods) {
         ClassObject *base = parseBaseClass(ast, ++startpos);
 
         if(!klass->isInterface() && base != NULL && base->isInterface()) {
