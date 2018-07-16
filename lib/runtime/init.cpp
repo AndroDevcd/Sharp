@@ -24,7 +24,7 @@ void init_main(List <native_string>& list1);
 
 void createStringArray(Object *object, List<native_string> &lst);
 
-size_t getMemBytes(const char *argv, bool &setLimit);
+unsigned long long getMemBytes(const char *argv, bool &setLimit);
 
 void version() {
     cout << progname << " " << progvers << endl;
@@ -126,7 +126,7 @@ int runtimeStart(int argc, const char* argv[])
     return startApplication(executable, pArgs);
 }
 
-size_t getMemBytes(const char *str, bool &setLimit) {
+unsigned long long getMemBytes(const char *str, bool &setLimit) {
     setLimit= false;
     string size = string(str);
     stringstream ss;

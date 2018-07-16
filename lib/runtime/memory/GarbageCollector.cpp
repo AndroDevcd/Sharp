@@ -19,7 +19,7 @@ const int baselineMax = 10;
 long long int baseLine[baselineMax];
 long long int baselineCount =0;
 
-void* __malloc(size_t bytes)
+void* __malloc(unsigned long long bytes)
 {
     void* ptr =nullptr;
     bool gc=false;
@@ -41,7 +41,7 @@ void* __malloc(size_t bytes)
         return ptr;
     }
 }
-void* __calloc(size_t n, size_t bytes)
+void* __calloc(unsigned long long n, unsigned long long bytes)
 {
     void* ptr =nullptr;
     bool gc=false;
@@ -63,7 +63,7 @@ void* __calloc(size_t n, size_t bytes)
         return ptr;
     }
 }
-void* __realloc(void *ptr, size_t bytes, size_t old)
+void* __realloc(void *ptr, unsigned long long bytes, unsigned long long old)
 {
     void* rmap =nullptr;
     bool gc=false;

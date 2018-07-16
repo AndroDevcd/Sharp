@@ -1398,10 +1398,10 @@ void RuntimeEngine::parseThrowStatement(Block& block, Ast* pAst) {
                 block.code.inject(block.code.size(), out.code);
             } else {
                 errors->createNewError(GENERIC, pAst->getSubAst(ast_expression), "class `" + clause.utype.klass->getFullName() +
-                                                                           "` does not inherit `std.err#Throwable`");
+                                                                           "` does not inherit `std#Throwable`");
             }
         } else {
-            errors->createNewError(GENERIC, pAst->getSubAst(ast_expression), "missing core class `std.err#Throwable` for exception handling");
+            errors->createNewError(GENERIC, pAst->getSubAst(ast_expression), "missing core class `std#Throwable` for exception handling");
         }
     } else if(clause.type == expression_field) {
         if(clause.utype.field.type == CLASS) {
@@ -2027,6 +2027,8 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
         case expression_objectclass:
             if(right.trueType() == OBJECT || right.trueType() == CLASS || right.trueType() == VAR) {
                 return left.isArray() == right.isArray();
+            } else if(right.type == expression_null) {
+                return true;
             }
             break;
         case expression_string:

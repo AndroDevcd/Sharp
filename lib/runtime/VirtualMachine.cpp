@@ -46,7 +46,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#Throwable",
+            "std#Throwable",
             fields,
             2,
             NULL,
@@ -60,7 +60,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#RuntimeErr",
+            "std#RuntimeErr",
             fields,
             2,
             env->Throwable,
@@ -74,7 +74,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#StackOverflowErr",
+            "std#StackOverflowErr",
             fields,
             2,
             env->RuntimeErr,
@@ -88,7 +88,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#ThreadStackException",
+            "std#ThreadStackException",
             fields,
             2,
             env->RuntimeErr,
@@ -102,7 +102,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#IndexOutOfBoundsException",
+            "std#IndexOutOfBoundsException",
             fields,
             2,
             env->RuntimeErr,
@@ -116,7 +116,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#NullptrException",
+            "std#NullptrException",
             fields,
             2,
             env->RuntimeErr,
@@ -130,7 +130,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#ClassCastException",
+            "std#ClassCastException",
             fields,
             2,
             env->RuntimeErr,
