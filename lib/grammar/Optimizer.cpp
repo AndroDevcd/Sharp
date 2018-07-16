@@ -260,6 +260,7 @@ void Optimizer::optimize(Method *method) {
 
     optimizeRegister(ebx); /* most commonly used register in the language */
     optimizeRegister(egx);
+    optimizeRegister(adx);
     /**
      * must be last or the entire program will be rendered unstable
      * and will most likely fatally crash with (SEGV) signal
