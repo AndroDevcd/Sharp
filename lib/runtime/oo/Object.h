@@ -72,17 +72,19 @@ struct SharpObject
 #define DEC_REF(obj) \
     if(obj != NULL) { \
         obj->refCount--; \
-        switch(GENERATION((obj)->generation)) { \
-            case gc_young: \
-                GarbageCollector::self->yObjs++; \
-                break; \
-            case gc_adult: \
-                GarbageCollector::self->aObjs++; \
-                break; \
-            case gc_old: \
-                GarbageCollector::self->oObjs++; \
-                break; \
-        } \
+        if(obj->refCount <= 0) { \
+            switch(GENERATION((obj)->generation)) { \
+                case gc_young: \
+                    GarbageCollector::self->yObjs++; \
+                    break; \
+                case gc_adult: \
+                    GarbageCollector::self->aObjs++; \
+                    break; \
+                case gc_old: \
+                    GarbageCollector::self->oObjs++; \
+                    break; \
+            } \
+        }\
     }
 
 #define INC_REF(object) \

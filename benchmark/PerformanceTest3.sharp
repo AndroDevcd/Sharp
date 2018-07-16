@@ -5,7 +5,7 @@ import std;
 def main(string[] args) : var {
     ObjList black_list = new ObjList();
 
-    for(var i = 0; i < 10000000; i++) {
+    for(var i = 0; i < 1000000; i++) {
         black_list.add(new Foo());
         // there
     }
