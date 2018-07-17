@@ -332,22 +332,22 @@ class Parser {
         }
 
         if(parseUtypeNaked(ast)) {
-            if(peek(1).getType() == TokenType.LEFTPAREN) {
+            if(peek(1).getType() == TokenType.LEFT_PAREN) {
                 parseValueList(pAst);
 
-                pAst->encapsulate(ast_dot_fn_e);
+                ast.encapsulate(AstType.Dot_Fn_E);
                 /* func()++ or func()--
                  * This expression rule dosen't process correctly by itsself
                  * so we hav to do it ourselves
                  */
-                if(peek(1).getTokenType() == _INC || peek(1).getTokenType() == _DEC)
+                if(peek(1).getTokenType() == TokenType._INC || peek(1).getTokenType() == TokenType._DEC)
                 {
                     advance();
                     pAst->addEntity(current());
                 }
                 else if(peek(1).getTokenType() == LEFTBRACE) {
                     advance();
-                    pAst->addEntity(current());
+                    ast.add(current);
 
                     parse_expression(pAst);
                     expect(RIGHTBRACE, pAst, "`]`");
