@@ -185,9 +185,7 @@ private:
     SharpObject* _Mheap, *tail;
     unsigned long long heapSize;
 
-    void collectYoungObjects();
-    void collectAdultObjects();
-    void collectOldObjects();
+    void collectGarbage();
 
     /**
      * All objects are born dirty and need to be cleaned

@@ -190,9 +190,7 @@ void GarbageCollector::collect(CollectionPolicy policy) {
          * avoid lags in the application big memory requests should not be
          * performed often
          */
-        collectYoungObjects();
-        collectAdultObjects();
-        collectOldObjects();
+        collectGarbage();
 
         Thread::resumeAllThreads();
     } else if(policy == GC_EXPLICIT) {
@@ -202,21 +200,14 @@ void GarbageCollector::collect(CollectionPolicy policy) {
          * to prevent lag when freeing up memory. the Old generation will
          * always be the largest generation
          */
-            collectYoungObjects();
-            collectAdultObjects();
+        collectGarbage();
     } else if(policy == GC_CONCURRENT) {
 
         /**
          * This should only be called by the GC thread itsself
          */
-        if(GC_COLLECT_YOUNG()) {        /* 250 objects */
-            collectYoungObjects();
-        }
-        if(GC_COLLECT_ADULT()) {        /* 10 objects */
-            collectAdultObjects();
-        }
-        if(GC_COLLECT_OLD()) {        /* 10 objects */
-            collectOldObjects();
+        if(GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()) {        /* 250 objects */
+            collectGarbage();
         }
     }
 
@@ -251,7 +242,7 @@ void GarbageCollector::collect(CollectionPolicy policy) {
     }
 }
 
-void GarbageCollector::collectYoungObjects() {
+void GarbageCollector::collectGarbage() {
 
     yObjs = 0;
 
@@ -261,68 +252,29 @@ void GarbageCollector::collectYoungObjects() {
             break;
         }
 
-        if(GENERATION(object->generation) == gc_young) {
+        if(GENERATION(object->generation) <= gc_old) {
             // free object
             if(MARKED(object->generation) && object->refCount == 0) {
                 object = sweep(object);
                 continue;
             } else if(MARKED(object->generation) && object->refCount > 0){
-                youngObjects--;
-                adultObjects++;
-                object->generation=gc_adult;
+                switch(GENERATION(object->generation)) {
+                    case gc_young:
+                        youngObjects--;
+                        adultObjects++;
+                        object->generation=gc_adult;
+                        break;
+                    case gc_adult:
+                        adultObjects--;
+                        adultObjects++;
+                        object->generation=gc_old;
+                        break;
+                    case gc_old:
+                        break;
+                }
             } else {
                 MARK(object->generation, 1);
             }
-        }
-
-        object = object->next;
-    }
-}
-
-void GarbageCollector::collectAdultObjects() {
-    aObjs = 0;
-
-    SharpObject *object = self->_Mheap->next;
-    while(object != NULL) {
-        if(tself->state == THREAD_KILLED) {
-            break;
-        }
-
-        if(GENERATION(object->generation) == gc_adult) {
-
-            // free object
-            if(MARKED(object->generation) && object->refCount == 0) {
-                object = sweep(object);
-                continue;
-            } else if(MARKED(object->generation) && object->refCount > 0){
-                adultObjects--;
-                oldObjects++;
-                object->generation=gc_old;
-            } else
-                MARK(object->generation, 1);
-        }
-
-        object = object->next;
-    }
-}
-
-void GarbageCollector::collectOldObjects() {
-    oObjs = 0;
-
-    SharpObject *object = self->_Mheap->next, *nxt;
-    while(object != NULL) {
-        if(tself->state == THREAD_KILLED) {
-            break;
-        }
-
-        if(GENERATION(object->generation) == gc_old) {
-
-            // free object
-            if(MARKED(object->generation) && object->refCount == 0) {
-                object = sweep(object);
-                continue;
-            } else
-                MARK(object->generation, 1);
         }
 
         object = object->next;
