@@ -11,7 +11,7 @@ def main(string[] args) : var {
         // there
     }
 
-    File fd = new File("/dev/null");
+    File fd = new File("tmp");
     IOStream stream = new IOStream(fd, IOStream.WRITE);
     string s = "0";
     for(var i = 0; i < n; i++) {

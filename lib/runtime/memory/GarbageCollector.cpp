@@ -17,7 +17,7 @@ GarbageCollector *GarbageCollector::self = nullptr;
 
 const int baselineMax = 10;
 long long int baseLine[baselineMax];
-long long int baselineCount =0;
+long long int baselineCount =0, downgradeCount = 0;
 
 void* __malloc(unsigned long long bytes)
 {
@@ -236,6 +236,11 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         baselineCount =0;
         if(avg > memoryThreshold) {
             memoryThreshold = avg; // dynamically update threshold
+        } else{
+            if(downgradeCount == (baselineMax /2)) {
+                memoryThreshold = avg; // downgrade memory due to some free operation
+            } else
+                downgradeCount++;
         }
     } else {
         baseLine[baselineCount++] = managedBytes;
