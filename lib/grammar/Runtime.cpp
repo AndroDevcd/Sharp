@@ -7350,13 +7350,22 @@ void RuntimeEngine::parseVarDecl(Ast *ast, bool global)
     int startpos=0;
 
     if(parseAccessDecl(ast, modifiers, startpos)){
-        if(global)
-            createNewWarning(GENERIC, ast->line, ast->col, "access modifiers ignored on global functions");
+        if(global) {
+            if(!modifiers.find(mCONST))
+                createNewWarning(GENERIC, ast->line, ast->col, "access modifiers ignored on global functions");
+        }
         parseVarAccessModifiers(modifiers, ast);
         if(global) {
-            modifiers.free();
-            modifiers.add(PUBLIC);
-            modifiers.add(STATIC);
+            if(modifiers.find(mCONST)) {
+                modifiers.free();
+                modifiers.add(PUBLIC);
+                modifiers.add(STATIC);
+                modifiers.add(mCONST);
+            } else {
+                modifiers.free();
+                modifiers.add(PUBLIC);
+                modifiers.add(STATIC);
+            }
         }
     } else {
         if(global) {

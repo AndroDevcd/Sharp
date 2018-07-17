@@ -727,7 +727,7 @@ short int startAddress = 0;
  * We need this to keep track of which finally block we are executing
  */
 FinallyTable finallyTable;
-size_t count = 0, overflow = 0;
+unsigned long long count = 0, overflow = 0;
 
 void Thread::exec() {
 
@@ -744,7 +744,7 @@ void Thread::exec() {
     Method* finnallyMethod;
 
 #ifdef SHARP_PROF_
-    tprof.init();
+    tprof.init(stack_lmt);
     tprof.starttm=Clock::realTimeInNSecs();
     for(size_t i = 0; i < manifest.methods; i++) {
         tprof.functions.push_back();
@@ -796,7 +796,6 @@ void Thread::exec() {
                 if(thread_self->calls <= 1) {
 #ifdef SHARP_PROF_
                 tprof.endtm=Clock::realTimeInNSecs();
-                tprof.lastHit = current->address;
                 tprof.profile();
 #endif
                     return;

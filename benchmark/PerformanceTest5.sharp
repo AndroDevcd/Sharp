@@ -1,0 +1,30 @@
+mod app;
+
+
+import std;
+
+/**
+ * Created by BraxtonN on 7/17/2018.
+ */
+def main(string[] args) : var {
+    var triangle = 1;
+    var index = 1;
+
+    while(factorCount (triangle) < 1001)
+    {
+        index++;
+        triangle += index;
+    }
+    System.println("" + triangle);
+}
+
+def factorCount(var n) : var {
+    var square = Math.sqrt(n);
+    var isquare = (_int64)square;
+    var count = isquare == square ? -1 : 0;
+    while(isquare) {
+        if(0 == n % isquare) count += 2;
+        isquare--;
+    }
+    return count;
+}

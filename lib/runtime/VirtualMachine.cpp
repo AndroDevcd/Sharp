@@ -162,7 +162,7 @@ void VirtualMachine::destroy() {
     GarbageCollector::shutdown();
 }
 
-extern size_t count, overflow;
+extern unsigned long long count, overflow;
 
 #ifdef WIN32_
 DWORD WINAPI
@@ -839,7 +839,7 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
         ss << ", line ?";
 
     ss << ", in "; ss << frame.last->fullName.str() << "() [0x" << std::hex
-                      << frame.last->address << "] $0x" << frame.pc  << std::dec;
+                      << frame.last->address << "] $0x" << (frame.pc-frame.last->bytecode)  << std::dec;
 
     ss << " fp; " << frame.fp << " sp: " << frame.sp-thread_self->dataStack;
 
@@ -856,11 +856,19 @@ void VirtualMachine::fillStackTrace(native_string &str) {
 
     stringstream ss;
     unsigned int iter = 0;
-    long start = thread_self->calls <= EXCEPTION_PRINT_MAX ? 0 : thread_self->calls-EXCEPTION_PRINT_MAX;
-    for(long i = start; i < thread_self->calls ; i++) {
-        if(iter++ >= EXCEPTION_PRINT_MAX)
-            break;
-        fillMethodCall(thread_self->callStack[i], ss);
+    if(thread_self->calls <= EXCEPTION_PRINT_MAX) {
+
+        for(long i = 0; i < thread_self->calls+1; i++) {
+            if(iter++ >= EXCEPTION_PRINT_MAX)
+                break;
+            fillMethodCall(thread_self->callStack[i], ss);
+        }
+    } else {
+        for(long i = thread_self->calls-EXCEPTION_PRINT_MAX; i < thread_self->calls ; i++) {
+            if(iter++ >= EXCEPTION_PRINT_MAX)
+                break;
+            fillMethodCall(thread_self->callStack[i], ss);
+        }
     }
 
     Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp);

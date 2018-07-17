@@ -228,8 +228,12 @@ struct Expression {
             case expression_var:
                 if(func || arrayElement || literal || utype.type == UNDEFINED)
                     return VAR;
-                else
-                    return utype.type;
+                else {
+                    if(utype.type == CLASSFIELD)
+                        return utype.field.type;
+                    else
+                        return utype.type;
+                }
             default:
                 return utype.type;
         }
