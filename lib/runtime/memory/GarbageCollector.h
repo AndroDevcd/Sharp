@@ -140,7 +140,7 @@ public:
      * @param object
      * @return
      */
-    static size_t _sizeof(SharpObject *object, bool recursive = true);
+    static unsigned long long _sizeof(SharpObject *object);
 
     /**
      * This will keep track of our different generations and the

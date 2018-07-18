@@ -1611,7 +1611,7 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
         case ast_expression: {
             Expression expr(pAst);
             expr = parseExpression(pAst);
-            if((expr.func && expr.type != expression_void) || expr.newExpression) {
+            if(expr.func && expr.type != expression_void) || ) {
                 expr.code.push_i64(SET_Ei(i64, op_POP));
             }
 

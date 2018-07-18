@@ -377,23 +377,21 @@ void GarbageCollector::sendMessage(CollectionPolicy message) {
     messageQueue.push_back(message);
 }
 
-size_t GarbageCollector::_sizeof(SharpObject *object, bool recursive) {
-    size_t size =0;
+unsigned long long GarbageCollector::_sizeof(SharpObject *object) {
+    unsigned long long size =0;
     if(object != nullptr) {
 
         if(object->HEAD != nullptr) {
-            size += object->size;
+            size += sizeof(double)*object->size;
         } else if(object->node != nullptr) {
-            if(recursive) {
-                for(unsigned long i = 0; i < object->size; i++) {
-                    SharpObject *o = object->node[i].object;
+            for(unsigned long i = 0; i < object->size; i++) {
+                SharpObject *o = object->node[i].object;
 
-                    /**
-                     * If the object still has references we just drop it and move on
-                     */
-                    if(o != nullptr) {
-                        size += _sizeof(o);
-                    }
+                /**
+                 * If the object still has references we just drop it and move on
+                 */
+                if(o != nullptr) {
+                    size += _sizeof(o);
                 }
             }
 

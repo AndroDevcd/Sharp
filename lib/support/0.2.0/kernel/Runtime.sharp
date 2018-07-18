@@ -137,7 +137,26 @@ public class Runtime {
         asm(
             "pushl <data>                                                                             "
             "ipushl <size>                                                                            "
-            "int 0xc6         // send request to natively copy object                                 "
+            "int 0xc6         // send request to natively realloc object                                 "
             "ret                                                                                      " );
+    }
+
+    public static def sizeOf(object data) : var {
+        asm(
+            "pushl <data>"
+            "int 0xc2" // get real sizeof object in memory
+            "return_val %ebx"
+            "ret"
+        );
+    }
+
+
+    public static def sizeOf(object[] data) : var {
+        asm(
+            "pushl <data>"
+            "int 0xc2" // get real sizeof object in memory
+            "return_val %ebx"
+            "ret"
+        );
     }
 }

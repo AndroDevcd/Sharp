@@ -124,4 +124,12 @@ public class System {
     public static def invert(object[] data, var startIndex, var endIndex) : object[] {
         return Runtime.copy4(data, startIndex, endIndex);
     }
+
+    public static def sizeOf(object[] data) : var {
+        return Runtime.sizeOf(data);
+    }
+
+    public static def sizeOf(object data) : var {
+        return Runtime.sizeOf(data);
+    }
 }
