@@ -992,7 +992,7 @@ void Thread::exec() {
 #ifdef SHARP_PROF_
             tprof.hit(env->methods+GET_Da(*pc));
 #endif
-                if((val = (int64_t )registers[GET_Da(*pc)]) <= 0) {
+                if((val = (int64_t )registers[GET_Da(*pc)]) <= 0 || val >= manifest.methods) {
                     stringstream ss;
                     ss << "invalid call to pointer of " << val;
                     throw Exception(ss.str());

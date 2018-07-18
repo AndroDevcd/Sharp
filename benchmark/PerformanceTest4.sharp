@@ -3,12 +3,10 @@ mod app;
 import std;
 
 def main(string[] args) : var {
-    string s = "0";
     for(var i = 0; i < 100; i++) {
         fib(30);
         // there
     }
-
 }
 
 // recursive fibbinocci

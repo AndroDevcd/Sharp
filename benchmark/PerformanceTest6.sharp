@@ -1,0 +1,24 @@
+mod app;
+
+
+import std;
+
+/**
+ * Created by BraxtonN on 7/17/2018.
+ *
+ * hilarious ackermans function that runs until it explodes
+ */
+def main(string[] args) : var {
+
+    for(var i = 0; i < 6; i++)
+        for(var j = 0; j < 6; j++)
+            System.println("ackerman (" + i + "," + j + ") = "+ ack(i,j));
+}
+
+def ack(var m, var n) : var {
+    var ans;
+    if (m == 0) ans = n+1;
+    else if (n == 0) ans = ack(m-1,1);
+    else ans = ack(m-1, ack(m, n-1));
+    return ans;
+}

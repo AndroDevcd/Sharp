@@ -10,3 +10,5 @@
     - import std.*; imports all of the standard library
 - Have automatic lookup for enums
 - Allow for expression in first argument of for loop
+- Add asm volatile() argument to prevent optimzer 
+from changing the source code

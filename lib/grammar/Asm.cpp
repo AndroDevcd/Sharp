@@ -503,6 +503,8 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     assembler.push_i64(SET_Di(i64, op_MOVI, itmp.high_bytes), i2.high_bytes);
 
                 } else {
+                    if(current() == "#")
+                        npos++;
                     expect_int();
                     itmp = i2;
                     expect(",");
@@ -823,6 +825,9 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect("<");
                 expect_function();
                 expect(">");
+                assembler.push_i64(SET_Di(i64, op_CALL, i2.high_bytes));
+            } else if(instruction_is("calld")) {
+                expect_register();
                 assembler.push_i64(SET_Di(i64, op_CALL, i2.high_bytes));
             } else if(instruction_is("new_class")) {
                 expect("<");

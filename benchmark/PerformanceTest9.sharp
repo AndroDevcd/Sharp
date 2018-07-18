@@ -1,0 +1,17 @@
+mod app;
+
+
+import std;
+
+
+/**
+ * Created by BraxtonN on 7/17/2018.
+ *
+ *
+ */
+def main(string[] args) : var {
+    for(var i = 0; i < 5000000; i++)
+    {
+        new Exception();
+    }
+}

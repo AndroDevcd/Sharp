@@ -1,0 +1,29 @@
+mod app;
+
+
+import std;
+
+/**
+ * Created by BraxtonN on 7/17/2018.
+ *
+ * fastest loop possible in sharp
+ */
+def main(string[] args) : var {
+
+    var i;
+
+    asm( // this will be optimized even further by the optimizer
+    " movi #50000000, egx"
+    ".loop:"
+    "   loadl ebx,<i>"
+    "   lt ebx, egx"
+    "   movi $end,adx"
+    "   ifne"
+    "   iaddl 1,1" // @i
+    "   goto $loop"
+    "   .end:"
+    "       nop"
+    );
+
+    return 0;
+}
