@@ -286,7 +286,7 @@ class Parser {
             ast.add(current);
         }
 
-        retain(pAst);
+        retain(ast);
         if(parseUtype(ast))
         {
             if(peek(1).getType() == TokenType.DOT)
@@ -297,7 +297,7 @@ class Parser {
                 expectToken(ast.getChild(0), "class", "`class` after primary expression");
 
                 dump();
-                error.fail();
+                errors.fail();
                 ast.encapsulate(AstType.Utype_Class_E);
                 return true;
             } else
@@ -313,12 +313,184 @@ class Parser {
 
             if(peek(1).getType() == TokenType.PTR) {
                 expect(TokenType.PTR, ast, "`->` after self");
-                parseDotNotationCallExpression(pAst);
+                parseDotNotationCallExpression(ast);
             }
 
             ast.encapsulate(AstType.Self_E);
             return true;
         }
+
+        if(peek(1).getToken() == "base")
+        {
+            advance();
+            expectToken(ast, "base");
+            expect(TokenType.PTR, ast, "`->` after base");
+            parseDotNotationCallExpression(ast);
+
+            ast.encapsulate(AstType.Base_E);
+            return true;
+        }
+
+        retain(ast);
+        errors.enableProtectedMode();
+        if(parseDotNotationCallExpression(ast)) {
+            dump();
+            errors.fail();
+            ast.encapsulate(AstType.Dot_Not_E);
+            if(!(peek(1).getType() == TokenType.LEFT_BRACE ||
+                peek(1).getType() == TokenType._INC
+                || peek(1).getType() == TokenType._DEC))
+                return true;
+        } else {
+            errors.pass();
+            rollback(ast);
+        }
+
+        if(peek(1).getToken() == "new")
+        {
+            advance();
+            expectToken(ast, "new");
+            parseUtypeNaked(ast);
+            var newClass = false;
+
+            if(peek(1).getType() == TokenType.LEFT_BRACE && parseArrayExpression(ast)){}
+            else if(peek(1).getType() == TokenType.LEFT_BRACE) {
+                expect(TokenType.LEFT_BRACE, ast, "`[`");
+                expect(TokenType.RIGHT_BRACE, ast, "`]`");
+                parseVectorArray(ast);
+            }
+            else if(peek(1).getType() == TokenType.LEFT_PAREN) {
+                parseValueList(ast);
+                newClass = true;
+            }
+
+            ast.encapsulate(AstType.New_E);
+            if(peek(1).getType() != TokenType.LEFT_BRACE) {
+                if(newClass && peek(1).getType() == TokenType.DOT)
+                    parseDotNotationCallExpression(ast);
+                return true;
+            }
+        }
+
+        if(peek(1).getToken() == "sizeof")
+        {
+            advance();
+            expectToken(ast, "sizeof");
+
+            expect(TokenType.LEFT_PAREN, ast, "`(`");
+            parseExpression(ast);
+            expect(TokenType.RIGHT_PAREN, ast, "`)`");
+
+            ast.encapsulate(AstType.Sizeof_E);
+            return true;
+        }
+
+        if(peek(1).getType() == TokenType.LEFT_PAREN)
+        {
+            retain(ast);
+            errors.enableProtectedMode();
+
+            advance();
+            ast.add(current);
+
+            if(!parseUtype(ast))
+            {
+                errors.pass();
+                rollback(ast);
+            } else {
+                if(peek(1).getType() == TokenType.RIGHT_PAREN)
+                {
+                    expect(TokenType.RIGHT_PAREN, ast, "`)`");
+                    if(!parseExpression(ast))
+                    {
+                        errors.pass();
+                        rollback(ast);
+                    } else
+                    {
+                        dump();
+                        errors.fail();
+                        ast.encapsulate(AstType.Cast_E);
+                        return true;
+                    }
+                }else {
+                    errors.pass();
+                    rollbackLast(ast);
+                }
+            }
+
+        }
+
+        if(peek(1).getType() == TokenType.LEFT_PAREN)
+        {
+            advance();
+            ast.add(current);
+
+            parseExpression(ast);
+
+            expect(TokenType.RIGHT_PAREN, ast, "`)`");
+
+            if(!isExprSymbol(peek(1).getToken())) {
+                retain(ast);
+                errors.enableProtectedMode();
+                if(parseDotNotationCallExpression(ast)) {
+                    dump();
+                    errors.fail();
+                } else {
+                    errors.pass();
+                    rollbackLast(ast);
+                }
+
+                ast.encapsulate(AstType.Paren_E);
+                return true;
+            } else
+                ast.encapsulate(AstType.Paren_E);
+
+            if(peek(1).getType() != TokenType.LEFT_BRACE)
+                return true;
+        }
+
+        if(peek(1).getToken() == "null")
+        {
+            advance();
+            expectToken(ast, "null");
+            ast.encapsulate(AstType.Null_E);
+            return true;
+        }
+    }
+
+    private def parseArrayExpression(Ast ast) : var {
+        ast = getAst(ast, AstType.Array_Expression);
+
+        retain(ast);
+        errors.enableProtectedMode();
+        expect(TokenType.LEFT_BRACE, ast, "`[`");
+
+        if(peek(1).getType() != TokenType.RIGHT_BRACE) {
+            if(!parseExpression(ast))
+            {
+                errors.pass();
+                rollback(ast);
+                return false;
+            } else
+            {
+                dump();
+                errors.fail();
+            }
+        } else {
+            if (peek(2).getType() == TokenType.LEFT_CURLY) {
+                pushBack();
+                return false;
+            } else {
+                dump();
+                errors.fail();
+
+                errors.createNewError(CompilerError.GENERIC, ast, "expected expression after '['");
+                return false;
+            }
+        }
+
+        expect(TokenType.RIGHT_BRACE, ast, "`]`");
+        return true;
     }
 
     private def parseDotNotationCallExpression(Ast ast) : var
@@ -333,51 +505,51 @@ class Parser {
 
         if(parseUtypeNaked(ast)) {
             if(peek(1).getType() == TokenType.LEFT_PAREN) {
-                parseValueList(pAst);
+                parseValueList(ast);
 
                 ast.encapsulate(AstType.Dot_Fn_E);
                 /* func()++ or func()--
                  * This expression rule dosen't process correctly by itsself
                  * so we hav to do it ourselves
                  */
-                if(peek(1).getTokenType() == TokenType._INC || peek(1).getTokenType() == TokenType._DEC)
+                if(peek(1).getType() == TokenType._INC || peek(1).getType() == TokenType._DEC)
                 {
                     advance();
-                    pAst->addEntity(current());
+                    ast.add(current);
                 }
-                else if(peek(1).getTokenType() == LEFTBRACE) {
+                else if(peek(1).getType() == TokenType.LEFT_BRACE) {
                     advance();
                     ast.add(current);
 
-                    parse_expression(pAst);
-                    expect(RIGHTBRACE, pAst, "`]`");
+                    parseExpression(ast);
+                    expect(TokenType.RIGHT_BRACE, ast, "`]`");
 
-                    errors->enableErrorCheckMode();
-                    this->retainstate(pAst);
-                    if(!parse_dot_notation_call_expr(pAst))
+                    errors.enableProtectedMode();
+                    retain(ast);
+                    if(!parseDotNotationCallExpression(ast))
                     {
-                        errors->pass();
-                        this->rollbacklast();
+                        errors.pass();
+                        rollbackLast(ast);
                     } else {
-                        this->dumpstate();
-                        errors->fail();
+                        dump();
+                        errors.fail();
                     }
                 }
                 else {
-                    errors->enableErrorCheckMode();
-                    this->retainstate(pAst);
-                    if(!parse_dot_notation_call_expr(pAst))
+                    errors.enableProtectedMode();
+                    retain(ast);
+                    if(!parseDotNotationCallExpression(ast))
                     {
-                        errors->pass();
-                        this->rollbacklast();
+                        errors.pass();
+                        rollbackLast(ast);
                     } else {
-                        this->dumpstate();
-                        errors->fail();
+                        dump();
+                        errors.fail();
                     }
                 }
             }
         } else {
-            pushback();
+            pushBack();
             return false;
         }
 
@@ -387,9 +559,9 @@ class Parser {
     private def parseValueList(Ast ast) {
         ast = getAst(ast, AstType.Value_List);
 
-        expect(TokenType.LEFTPAREN, ast, "`(`");
+        expect(TokenType.LEFT_PAREN, ast, "`(`");
 
-        if(peek(1).getType() != TokenType.RIGHTPAREN)
+        if(peek(1).getType() != TokenType.RIGHT_PAREN)
         {
             parseValue(ast);
 
@@ -404,13 +576,13 @@ class Parser {
             }
         }
 
-        expect(CompilerError.RIGHTPAREN, pAst, "`)`");
+        expect(TokenType.RIGHT_PAREN, ast, "`)`");
     }
 
-    private def parseUtypeNaked(Ast ast) {
+    private def parseUtypeNaked(Ast ast) : var {
         ast = getAst(ast, AstType.Utype);
 
-        if(parseTypeIdentifier(pAst)) {
+        if(parseTypeIdentifier(ast)) {
             return true;
         }
         else
@@ -423,9 +595,9 @@ class Parser {
         ast = getAst(ast, AstType.Literal);
 
         TokenEntity token = peek(1);
-        if(e.getId() == TokenType.CHAR_LITERAL || token.getId() == TokenType.INTEGER_LITERAL
-            || token.getId() == TokenType.STRING_LITERAL || token.getId() == HEX_LITERAL
-            || token.getToken() == "true" || token.getToken() == "false"))
+        if(token.getId() == TokenId.CHAR_LITERAL || token.getId() == TokenId.INTEGER_LITERAL
+            || token.getId() == TokenId.STRING_LITERAL || token.getId() == TokenId.HEX_LITERAL
+            || token.getToken() == "true" || token.getToken() == "false")
         {
             advance();
             ast.add(current);
@@ -789,6 +961,21 @@ class Parser {
                token == "<"  || token == ">"  ||
                token == "<=" || token == ">=" ||
                token == "!=";
+    }
+
+    def isExprSymbol(string token) : var {
+        return token == "[" || token == "++" ||
+               token == "--" || token == "*" ||
+               token == "/" || token == "%" ||
+               token == "-" || token == "+"||
+               token == ">>" || token == "<<"||
+               token == "<" || token == ">"||
+               token == "<=" || token == ">="||
+               token == "==" || token == "!="||
+               token == "&" || token == "|"||
+               token == "&&" || token == "||"||
+               token == "^" || token == "?" ||
+               isAssignOperator(token);
     }
 
     private def expectIdentifier(Ast ast) : var {

@@ -434,6 +434,7 @@ void RuntimeEngine::compile()
         resolveAllGenerics();
         resolveAllFields();
         resolveAllMethods();
+        resolveClassBases();
         resolveAllGenericMethodsParams();
         resolveAllGenericMethodsReturns();
         resolveAllEnums();
@@ -4407,6 +4408,56 @@ void RuntimeEngine::resolveAllDelegates() {
     }
 }
 
+void RuntimeEngine::resolveClassBases() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        activeParser = parsers.get(i);
+        errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
+        currentModule = "$unknown";
+
+        addScope(Scope(GLOBAL_SCOPE, NULL));
+        for(int x = 0; x < activeParser->treesize(); x++) {
+            Ast* ast = activeParser->ast_at(x);
+            SEMTEX_CHECK_ERRORS
+
+            if(x==0) {
+                if(ast->getType() == ast_module_decl) {
+                    add_module(currentModule = parseModuleName(ast));
+                    continue;
+                }
+            }
+
+            switch(ast->getType()) {
+                case ast_class_decl:
+                    resolveClassBase(ast);
+                    break;
+                case ast_interface_decl:
+                    resolveClassDecl(ast, false);
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+        }
+
+        if(errors->hasErrors()){
+            report:
+
+            errorCount+= errors->getErrorCount();
+            unfilteredErrorCount+= errors->getUnfilteredErrorCount();
+
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        } else {
+            succeededParsers.addif(activeParser->sourcefile);
+            failedParsers.removefirst(activeParser->sourcefile);
+        }
+
+        errors->free();
+        delete (errors); this->errors = NULL;
+        removeScope();
+    }
+}
+
 void RuntimeEngine::resolveAllFields() {
     string oldModule = "";
     for(unsigned long i = 0; i < parsers.size(); i++) {
@@ -6663,6 +6714,64 @@ void RuntimeEngine::resolveClassDeclDelegates(Ast* ast) {
     removeScope();
 }
 
+void RuntimeEngine::resolveClassBase(Ast* ast) {
+    Ast* block = ast->getSubAst(ast_block), *trunk;
+    List<AccessModifier> modifiers;
+    ClassObject* klass;
+    int startpos=1;
+
+    parseAccessDecl(ast, modifiers, startpos);
+    string name =  ast->getEntity(startpos).getToken();
+
+    if(currentScope()->type == GLOBAL_SCOPE) {
+        klass = getClass(currentModule, name, classes);
+    }
+    else {
+        klass = currentScope()->klass->getChildClass(name);
+    }
+
+    addScope(Scope(CLASS_SCOPE, klass));
+    ClassObject *base = parseBaseClass(ast, ++startpos);
+
+    if(!klass->isInterface() && base != NULL && base->isInterface()) {
+        stringstream err;
+        err << "classes can only inherit other classes, do 'class Dog base Animal : Traits {} ' instead";
+        errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+    } else {
+        if(base != NULL)
+            klass->setBaseClass(base->getSerial() == klass->getSerial() ? NULL : base);
+    }
+
+    if(ast->hasSubAst(ast_reference_identifier_list)) {
+        List<ClassObject*> interfaces = parseRefrenceIdentifierList(ast->getSubAst(ast_reference_identifier_list));
+
+        for(long i = 0; i < interfaces.size(); i++) {
+            if(interfaces.get(i) != NULL && !interfaces.get(i)->isInterface()) {
+                stringstream err;
+                err << "class `" + interfaces.get(i)->getName() + "` is not an interface";
+                errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+            }
+        }
+        klass->setInterfaces(interfaces);
+    }
+
+    for(long i = 0; i < block->getSubAstCount(); i++) {
+        trunk = block->getSubAst(i);
+        CHECK_ERRORS
+
+        switch(trunk->getType()) {
+            case ast_class_decl:
+                resolveClassBase(trunk);
+                break;
+            case ast_interface_decl:
+                resolveClassBase(trunk);
+                break;
+        }
+    }
+
+    removeScope();
+}
+
 void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
     Ast* block = ast->getSubAst(ast_block), *trunk;
     List<AccessModifier> modifiers;
@@ -6682,32 +6791,8 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
     if(!inlineField && resolvedFields && !forEnum && klass->address == -1)
         klass->address = classSize++;
 
+    klass->setAst(ast);
     addScope(Scope(CLASS_SCOPE, klass));
-    if(!forEnum && resolvedFields && resolvedGenerics && resolvedMethods) {
-        ClassObject *base = parseBaseClass(ast, ++startpos);
-
-        if(!klass->isInterface() && base != NULL && base->isInterface()) {
-            stringstream err;
-            err << "classes can only inherit other classes, do 'class Dog base Animal : Traits {} ' instead";
-            errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-        } else {
-            if(base != NULL)
-                klass->setBaseClass(base->getSerial() == klass->getSerial() ? NULL : base);
-        }
-
-        if(ast->hasSubAst(ast_reference_identifier_list)) {
-            List<ClassObject*> interfaces = parseRefrenceIdentifierList(ast->getSubAst(ast_reference_identifier_list));
-
-            for(long i = 0; i < interfaces.size(); i++) {
-                if(interfaces.get(i) != NULL && !interfaces.get(i)->isInterface()) {
-                    stringstream err;
-                    err << "class `" + interfaces.get(i)->getName() + "` is not an interface";
-                    errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-                }
-            }
-            klass->setInterfaces(interfaces);
-        }
-    }
     for(long i = 0; i < block->getSubAstCount(); i++) {
         trunk = block->getSubAst(i);
         CHECK_ERRORS

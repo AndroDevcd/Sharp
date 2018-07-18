@@ -107,7 +107,7 @@ public class Dictionary<TKey, TValue> {
       */
      public def drop() {
         if(keys.empty())
-            throw IllegalArgumentException("cannot delete key from empty list");
+            throw new IllegalArgumentException("cannot delete key from empty list");
 
         values.popBack();
         keys.popBack();

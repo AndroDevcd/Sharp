@@ -1206,6 +1206,10 @@ private:
     void varToObject(Expression &expression, Expression &out);
 
     void resolveAllGlobalFields();
+
+    void resolveClassBases();
+
+    void resolveClassBase(Ast *ast);
 };
 
 

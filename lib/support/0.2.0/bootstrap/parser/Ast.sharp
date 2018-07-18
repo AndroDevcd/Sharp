@@ -174,7 +174,7 @@ enum AstType {
     Utype_Arg_Opt,
     Expression,
     Array_Expression,
-    Primary_Expr,
+    Primary_Expression,
     Dotnotation_Call_Expr,
     Utype,
     Block,
