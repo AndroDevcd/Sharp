@@ -141,6 +141,24 @@ public class ThreadCore
         return args;
     }
 
+    private static def __thread_exit(Thread thread, var code)
+    {
+        thread.setStarted(false);
+        thread.setExited(true);
+        thread.exitCode = code;
+
+        asm(
+            "hlt                   // exit thread  "
+        );
+    }
+
+    private static def __thread_yield()
+    {
+        asm(
+            "int 0xe5              // os yield  "
+        );
+    }
+
     /**
     * Inital call to all threads to call appropriate method
     */

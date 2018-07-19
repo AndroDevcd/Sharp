@@ -78,6 +78,14 @@ public class Thread {
         Time.sleep(TimeUnit.MILLISECONDS, time);
     }
 
+    public static def exit(var code) {
+        ThreadCore.__thread_exit(self, code);
+    }
+
+    public static def yield() {
+        ThreadCore.__thread_yield(self);
+    }
+
     public def setPriority(var priority) {
         if(priority > MAX_PRIORITY || priority < MIN_PRIORITY)
             throw new IllegalArgumentException("invalid thread priority " + priority);
@@ -149,6 +157,10 @@ public class Thread {
 
         addThread(main);
         ThreadCore.__thread_set_thread(main); // set current thread to main
+    }
+
+    public def operator==(Thread thread) : var {
+        return id==thread.id;
     }
 
     public var exitCode;
