@@ -34,6 +34,28 @@ void Object::castObject(uint64_t classPtr) {
     }
 }
 
+void Object::monitorLock() {
+    if(object != nullptr) {
+
+        if(object->mutex==NULL) {
+            Thread::threadsMonitor.lock(); // protection from thread race condition
+            if(object->mutex!=NULL) {
+                Thread::threadsMonitor.unlock();
+                goto _lck;
+            }
+#ifdef WIN32_
+            object->mutex = new recursive_mutex();
+#endif
+#ifdef POSIX_
+            object->mutex = new std::mutex();
+#endif
+        }
+
+        _lck:
+        object->mutex->lock();
+    }
+}
+
 void SharpObject::print() {
     cout << "Object @0x" << this << endl;
     cout << "size " << size << endl;

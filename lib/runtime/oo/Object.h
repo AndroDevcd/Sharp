@@ -99,20 +99,7 @@ struct SharpObject
 struct Object {
     SharpObject* object;
 
-    void monitorLock() {
-        if(object != nullptr) {
-            if(object->mutex==NULL) {
-#ifdef WIN32_
-                object->mutex = new recursive_mutex();
-#endif
-#ifdef POSIX_
-                object->mutex = new std::mutex();
-#endif
-            }
-
-            object->mutex->lock();
-        }
-    }
+    void monitorLock();
 
     void monitorUnLock() {
         if(object && object->mutex != NULL) {
