@@ -36,9 +36,16 @@ void error(string message) {
 }
 
 void help() {
+#ifndef SHARP_PROF_
     std::cerr << "Usage: sharp" << " {OPTIONS} EXECUTABLE" << std::endl;
-    cout << "Source file must have a .sharp extension to be compiled\n" << endl;
+#elif defined(SHARP_PROF_)
+    std::cerr << "Usage: sprof" << " {OPTIONS} EXECUTABLE" << std::endl;
+#endif
+    cout << "Executable must be built with sharpc to be ran\n" << endl;
     cout << "[-options]\n\n    -V                     print the bootstrap version number and exit" << endl;
+#ifdef SHARP_PROF_
+    cout <<               "    -sort<id>              sort by time(tm), avg time(avgt), calls(calls), or ir(ir)." << endl;
+#endif
     cout <<               "    -showversion           print the bootstrap version number and continue." << endl;
     cout <<               "    -Maxlmt<size:type>     set the maximum memory allowed to the virtual machine." << endl;
     cout <<               "    -gthreshold<size:type> set the minimum memory allowed to trigger the garbage collector." << endl;
@@ -79,11 +86,32 @@ int runtimeStart(int argc, const char* argv[])
         }
         else if(opt("-gthreashold") || opt("-gt")) {
             bool setLimit;
+            if((i+1) >= argc)
+                error("expected argument after option `-gt`");
             GarbageCollector::setMemoryThreshold(getMemBytes(argv[++i], setLimit));
 
             if(!setLimit)
                 error("expected postfix 'K', 'M', or 'G' after number with option `-gthreashold`");
         }
+#ifdef SHARP_PROF_
+        else if(opt("-sort") || opt("-sortby")) {
+            if((i+1) >= argc)
+                error("expected argument after option `-sort`");
+
+            i++;
+            if(opt("tm")) {
+                c_options.sortBy = profilerSort::tm;
+            } else if(opt("avgt") || opt("avgtm")) {
+                c_options.sortBy = avgt;
+            } else if(opt("calls")) {
+                c_options.sortBy = calls;
+            } else if(opt("ir")) {
+                c_options.sortBy = ir;
+            } else {
+                error("invalid argument after option `-sort`");
+            }
+        }
+#endif
         else if(opt("-maxlmt")){
             if(i+1 >= argc)
                 error("maximum memory limit required after option `-Maxlmt`");

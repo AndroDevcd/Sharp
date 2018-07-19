@@ -15,9 +15,22 @@ void error(string message);
 #define rev "r5"
 #define progvers "2.2.157" rev
 
+#ifdef SHARP_PROF_
+enum profilerSort {
+    tm,
+    avgt,
+    calls,
+    ir
+};
+#endif
+
 struct options {
 
     bool debugMode = true;
+
+#ifdef SHARP_PROF_
+    int sortBy = profilerSort::tm;
+#endif
 };
 
 extern options c_options;

@@ -828,6 +828,16 @@ void Thread::exec() {
             CAST:
                 CHECK_NULL(o2->castObject(registers[GET_Da(*pc)]);)
                 _brh
+            VARCAST:
+                CHECK_NULL2(
+                        if(o2->object->HEAD == NULL) {
+                            castErr:
+                            stringstream ss;
+                            ss << "illegal cast to var" << (GET_Da(*pc) ? "[]" : "");
+                            throw Exception(Environment::ClassCastException, ss.str());
+                        }
+                )
+                _brh
             MOV8:
                 registers[GET_Ca(*pc)]=(int8_t)registers[GET_Cb(*pc)];
                 _brh

@@ -2640,11 +2640,19 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
         return;
     } else if(utype.utype.isArray() && utype.utype.type == VAR) {
         if(expression.trueType() == OBJECT || expression.trueType() == VAR) {
+            if(expression.trueType() == OBJECT) {
+                out.code.free();
+                pushExpressionToPtr(expression, out, ebx);
+                out.code.push_i64(SET_Di(i64, op_VARCAST, 1));
+            }
             out.func=expression.func;
             return;
         }
     } else if(!utype.utype.isArray() && utype.utype.type == VAR) {
         if(expression.trueType() == OBJECT) {
+            out.code.free();
+            pushExpressionToPtr(expression, out, ebx);
+            out.code.push_i64(SET_Di(i64, op_VARCAST, 0));
             pushExpressionToRegisterNoInject(expression, out, ebx);
             return;
         } else if(expression.utype.isField && expression.utype.field.isEnum) {

@@ -181,6 +181,7 @@
         &&SWITCH,                                 \
         &&CMP,                                 \
         &&CALLD,                                 \
+        &&VARCAST,                                 \
     };
 
 enum Opcode {
@@ -299,7 +300,8 @@ enum Opcode {
     op_IPOPL                    =0x70,
     op_SWITCH                   =0x71,
     op_CMP                      =0x72,
-    op_CALLD                    =0x73
+    op_CALLD                    =0x73,
+    op_VARCAST                  =0x74
 };
 
 #endif //SHARP_OPCODE_H

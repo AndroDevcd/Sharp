@@ -578,6 +578,12 @@ string tokenizer::get_escaped_string(string msg) const {
                 case 'f':
                     escapedmessage << '\f';
                     break;
+                case '0':
+                    escapedmessage << '\0';
+                    break;
+                case 'a':
+                    escapedmessage << '\a';
+                    break;
                 default:
                     escapedmessage << msg.at(i+1);
                     break;

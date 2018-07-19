@@ -57,7 +57,7 @@ enum token_type
     _INC,               // ++
     _DEC,               // --
     DOLLAR,             // $
-    _EOF = 9999,        // end of file
+    _EOF = 0x000,        // end of file
 
     NONE                // not a type
 };

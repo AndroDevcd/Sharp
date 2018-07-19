@@ -1991,6 +1991,8 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
             }  else if(left.trueType() == OBJECT) {
                 if(right.trueType() == OBJECT || right.trueType() == CLASS) {
                     return left.isArray() == right.isArray();
+                } else if(right.trueType() == VAR) {
+                    return left.isArray() == right.isArray();
                 }
             } else {
                 // do nothing field unresolved
@@ -2963,6 +2965,8 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
                         return true;
                     }
                 }
+            } else if(right.trueType() == VAR) {
+                return left.isArray() == right.isArray();
             } else {
                 // do nothing field unresolved
             }
@@ -8171,6 +8175,13 @@ void RuntimeEngine::createDumpFile() {
                 {
                     ss<<"cast ";
                     ss<< Asm::registrerToString(GET_Da(x64));
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_VARCAST:
+                {
+                    ss<<"vcast ";
+                    ss<< GET_Da(x64);
                     _ostream << ss.str();
                     break;
                 }

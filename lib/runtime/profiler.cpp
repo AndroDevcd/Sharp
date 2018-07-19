@@ -9,6 +9,8 @@
 #include "../util/time.h"
 #include "Exe.h"
 #include "Environment.h"
+#include "Thread.h"
+#include "init.h"
 
 
 extern unsigned long long count, overflow;
@@ -35,26 +37,47 @@ void Profiler::profile() {
 
 void Profiler::dump() {
     stringstream ss;
-    ss << "\n%%%%%============================================%%%%%" << endl;
-    ss << "                     Sharp Speed Profiler" << endl;
+    ss << "\n%%%%%=====================================================%%%%%" << endl;
+    ss <<    "                     Sharp Speed Profiler" << endl;
     ss << endl << endl;
 
     funcProf tmp;
-    size_t i, j, iter=40;
+    size_t i, j, iter=40, doSort = 0;
     for(i = 0; i < functions.size(); ++i) {
 
         for(j = i + 1; j < functions.size(); ++j)
         {
-            if(functions.get(i).hits > functions.get(j).hits)
+
+            switch(c_options.sortBy) {
+                case profilerSort::tm:
+                    if(functions.get(i).time > functions.get(j).time)
+                        doSort = 1;
+                    break;
+                case avgt:
+                    if(functions.get(i).avgtm > functions.get(j).avgtm)
+                        doSort = 1;
+                    break;
+                case profilerSort::calls:
+                    if(functions.get(i).hits > functions.get(j).hits)
+                        doSort = 1;
+                    break;
+                case ir:
+                    if(functions.get(i).ir > functions.get(j).ir)
+                        doSort = 1;
+                    break;
+            }
+
+            if(doSort)
             {
                 tmp = functions.get(i);
                 functions.get(i) = functions.get(j);
                 functions.get(j) = tmp;
+                doSort = 0;
             }
         }
     }
 
-    ss << "total time(ms) : avg time(ms)     :     calls    :       ir       :       ir/iter       :               function               :                file" << endl;
+    ss << "   total time(ms)  :    avg time(ms)    :     calls    :        ir        :       ir/iter       :               function               :                file" << endl;
     for(i = functions.size()-1; i > 0; i--) {
         if(iter-- <= 0)
             break;
@@ -62,8 +85,8 @@ void Profiler::dump() {
         funcProf &prof = functions.get(i);
 
         string source = env->sourceFiles[prof.func->sourceFile].str();
-        ss << std::setw(11) << NANO_TOMILL(prof.time) << setw(13) << NANO_TOMILL(prof.avgtm) << setw(13) << prof.hits
-           << setw(15) << prof.ir << setw(19);
+        ss << std::setw(18) << NANO_TOMILL(prof.time) << setw(20) << NANO_TOMILL(prof.avgtm) << setw(13) << prof.hits
+           << setw(17) << prof.ir << setw(19);
         if(prof.ir == 0)
             ss << 0;
         else {
@@ -72,16 +95,34 @@ void Profiler::dump() {
             else
                 ss << (prof.ir/prof.hits);
         }
-        ss << setw(37) << prof.func->fullName.str() << " " << setw(19) << source;
+        ss << "   " << setw(39) << prof.func->fullName.str() << "      " << setw(22) << source;
         ss << endl;
 
-        if(prof.hits==0)
-            break;
+        switch(c_options.sortBy) {
+            case profilerSort::tm:
+                if(prof.time==0)
+                    goto print;
+                break;
+            case avgt:
+                if(prof.avgtm==0)
+                    goto print;
+                break;
+            case profilerSort::calls:
+                if(prof.hits==0)
+                    goto print;
+                break;
+            case ir:
+                if(prof.ir==0)
+                    goto print;
+                break;
+        }
     }
 
+    print:
     cout << ss.str();
     long long tm = NANO_TOMILL(endtm-starttm);
-    cout << "\n total time = " << (tm < 0 ? 0 : tm) << endl;
+    cout << "\nthread " << thread_self->name.str() << " (" << thread_self->id << ")";
+    cout << "\nreal time = " << (tm < 0 ? 0 : tm) << endl;
 }
 
 void Profiler::free() {

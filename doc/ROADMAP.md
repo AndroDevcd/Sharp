@@ -12,3 +12,4 @@
 - Allow for expression in first argument of for loop
 - Add asm volatile() argument to prevent optimzer 
 from changing the source code
+- Limit naming of declirations such as fields named as methods or classes

@@ -479,6 +479,12 @@ class Tokenizer {
                     case 'f':
                         escapedMessage += '\f';
                         break;
+                    case '0':
+                        escapedMessage += '\0';
+                        break;
+                    case 'a':
+                        escapedMessage += '\a';
+                        break;
                     default:
                         escapedMessage += c.char(msg.at(i+1));
                         break;
