@@ -5,6 +5,20 @@ import std;
 
 /**
  * Created by BraxtonN on 7/17/2018.
+ *
+ * This file illustrates the calculation of the number of
+ * factors a number has up to 10,000 factors
+ *
+ * This program illustrates the strain and performance penalty
+ * of calling millions of loop iterations. Sharp currently does not
+ * perform any optimization of loops so the user must be absolutely
+ * sure that whatever code is inside the loop is requires.
+ *
+ * After using Sharp's builtin profiler it has shown that after this
+ * program executes it has executed some 9.8B, yes billion instructions
+ * to execute the program. That number is how many Sharp opcodes executed
+ * which means the amount of processor instructions executed is in the Tens of trillions
+ * of instructions LoL. What is the cause of this? why factorCount() of course
  */
 def main(string[] args) : var {
     var triangle = 1;

@@ -2,6 +2,15 @@ mod app;
 
 import std;
 
+/*
+* This program illustrates the use of class ObjList
+* ObjList is a class that uses native c++ code to perform
+* the add, remove, and insert calls for better performance
+*
+* ObjectList will always be much faster than ArrayList<> because it
+* simply uses c++ to perform the lengthy operations.
+*
+*/
 def main(string[] args) : var {
     ObjList black_list = new ObjList();
 

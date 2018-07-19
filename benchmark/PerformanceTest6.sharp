@@ -7,6 +7,13 @@ import std;
  * Created by BraxtonN on 7/17/2018.
  *
  * hilarious ackermans function that runs until it explodes
+ *
+ * This function is a self destructing function as it requires an
+ * astronomical amount of function calls and massive stack frames to
+ * perform the computation required to solve ackerman of 0-6 inclusively
+ *
+ * This source code was originally pulled from computerphile on youtube at link
+ * (https://www.youtube.com/watch?v=i7sm9dzFtEI&t=322s)
  */
 def main(string[] args) : var {
 

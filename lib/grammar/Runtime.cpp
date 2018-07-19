@@ -1611,7 +1611,8 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
         case ast_expression: {
             Expression expr(pAst);
             expr = parseExpression(pAst);
-            if(expr.func && expr.type != expression_void) || ) {
+            if(expr.func && expr.type != expression_void ||
+                expr.newExpression) {
                 expr.code.push_i64(SET_Ei(i64, op_POP));
             }
 
@@ -9782,12 +9783,21 @@ void RuntimeEngine::resolveGenericMethodsReturn(Ast *ast, long &operators, long 
 
     switch(type) {
         case _method:
+            if(methods >= currentScope()->klass->functionCount())
+                return;
+
             method = currentScope()->klass->getFunction(methods++);
             break;
         case _operator:
+            if(operators >= currentScope()->klass->overloadCount())
+                return;
+
             method = currentScope()->klass->getOverload(operators++);
             break;
         case _constructor:
+            if(constructors >= currentScope()->klass->constructorCount())
+                return;
+
             method = currentScope()->klass->getConstructor(constructors++);
             break;
     }

@@ -7,6 +7,10 @@ import std;
  * Created by BraxtonN on 7/17/2018.
  *
  * fastest loop possible in sharp
+ *
+ * This program illustrates the fastest possible loop
+ * in the Sharp programming language totaling 5 instructions (when optimized)
+ * to complete a full loop cycle
  */
 def main(string[] args) : var {
 

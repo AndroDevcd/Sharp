@@ -23,7 +23,10 @@ bool Field::operator==(Field& f)
     } else if(f.nullType && isArray){
         return type == CLASS || type==OBJECT || type == VAR;
     } else if(type == OBJECT) {
-        return f.type == CLASS || f.type == OBJECT || f.type == VAR;
+        if(f.type == OBJECT) {
+            return isArray==f.isArray;
+        }
+        return f.type == CLASS || f.type == VAR;
     }
     return false;
 }
