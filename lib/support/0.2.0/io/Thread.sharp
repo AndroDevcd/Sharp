@@ -78,12 +78,12 @@ public class Thread {
         Time.sleep(TimeUnit.MILLISECONDS, time);
     }
 
-    public static def exit(var code) {
+    public def exit(var code) {
         ThreadCore.__thread_exit(self, code);
     }
 
     public static def yield() {
-        ThreadCore.__thread_yield(self);
+        ThreadCore.__thread_yield();
     }
 
     public def setPriority(var priority) {
