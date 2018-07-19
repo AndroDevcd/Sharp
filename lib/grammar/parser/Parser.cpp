@@ -1189,7 +1189,7 @@ bool Parser::multiplication(Ast *pAst) {
 }
 
 bool Parser::unary(Ast *pAst) {
-    if(match(2, MINUS)) {
+    if(match(1, MINUS)) {
         advance();
         pAst->addEntity(current());
 

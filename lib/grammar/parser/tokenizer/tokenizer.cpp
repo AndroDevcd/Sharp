@@ -508,7 +508,8 @@ void tokenizer::parse()
                 else if (escaped)
                 {
                     hascharacter = true;
-                    if(!isletter((char) tolower(current)) && current != '\\' && current != '\"' && current != '\'')
+                    if(current != '0' && current != 'a' && !isletter((char) tolower(current))
+                       && current != '\\' && current != '\"' && current != '\'')
                     {
                         errors->createNewError(ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", text preceding `\\` must be alpha, '\"', or '\\'' only");
                         goto start;
