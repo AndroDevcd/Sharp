@@ -49,6 +49,8 @@ void Object::monitorLock() {
 #ifdef POSIX_
             object->mutex = new std::mutex();
 #endif
+
+            Thread::threadsMonitor.unlock();
         }
 
         _lck:
