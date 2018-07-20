@@ -9,4 +9,8 @@ class Object {
     public def operator==(object o) : var {
         return ((object)self)==o;
     }
+
+    public def toString() : string {
+        return new string("");
+    }
 }
