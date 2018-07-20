@@ -2069,16 +2069,18 @@ void RuntimeEngine::addNative(token_entity operand, FieldType type, Expression& 
     if(left.type == expression_var) {
         equals(left, right);
 
-        pushExpressionToRegister(right, out, egx);
+        pushExpressionToStack(right, out);
         pushExpressionToRegister(left, out, ebx);
+        out.code.push_i64(SET_Di(i64, op_LOADVAL, egx));
         out.code.push_i64(SET_Ci(i64, operandToOp(operand), ebx,0, egx), ebx);
         right.code.free();
     } else if(left.type == expression_field) {
         if(left.utype.field.isVar()) {
             equals(left, right);
 
-            pushExpressionToRegister(right, out, egx); // no inject?
+            pushExpressionToStack(right, out);
             pushExpressionToRegister(left, out, ebx);
+            out.code.push_i64(SET_Di(i64, op_LOADVAL, egx));
             out.code.push_i64(SET_Ci(i64, operandToOp(operand), ebx,0, egx), ebx);
             right.code.free();
         }
