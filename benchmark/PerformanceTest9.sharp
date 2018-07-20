@@ -25,10 +25,6 @@ def main(string[] args) : var {
         new Exception();
     } // 1.650s
 
-    object o = 9;
-    object[] oo = new var[3];
-    var c = (var)o;
-    var[] j = (var[])oo;
     /*
      * Exception e = new Exception();
      * for(var i = 0; i < 5000000; i++)
