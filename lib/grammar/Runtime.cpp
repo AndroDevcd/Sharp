@@ -6611,7 +6611,7 @@ void RuntimeEngine::validateDelegates(ClassObject *host, ClassObject *klass, Ast
     if(delegates.size() > 0) {
         Method *func;
         for(int i = 0; i < delegates.size(); i++) {
-            if((func = klass->getFunction(delegates.get(i)->getName(), delegates.get(i)->getParams(), true, true)) != NULL) {
+            if((func = klass->getDelegateFunction(delegates.get(i)->getName(), delegates.get(i)->getParams(), true, true)) != NULL) {
                 if(func->delegatePost) {
                     // were good
                     delegates.get(i)->delegateAddress = func->address;
@@ -6745,6 +6745,7 @@ void RuntimeEngine::resolveClassBase(Ast* ast) {
     } else {
         if(base != NULL)
             klass->setBaseClass(base->getSerial() == klass->getSerial() ? NULL : base);
+            klass->addInterfaces(base);
     }
 
     if(ast->hasSubAst(ast_reference_identifier_list)) {

@@ -81,6 +81,46 @@ Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase,
     return NULL;
 }
 
+Method *ClassObject::getDelegatePost(string name, List<Param>& params, bool useBase, bool nativeSupport) {
+    for(unsigned long i = 0; i < functions.size(); i++) {
+        if(Param::match(functions.get(i).getParams(), params, nativeSupport) && name == functions.get(i).getName()) {
+            if(functions.get(i).delegatePost)
+                return &functions.get(i);
+
+        }
+    }
+
+    if(useBase && base != NULL)
+        return base->getDelegatePost(name, params, useBase, nativeSupport);
+
+    return NULL;
+}
+
+long delegateFunctionRecursion = 0;
+Method *ClassObject::getDelegateFunction(string name, List<Param>& params, bool useBase, bool nativeSupport) {
+    delegateFunctionRecursion++;
+    Method* fn = NULL;
+    if(delegateFunctionRecursion <= 1 && (fn = getDelegatePost(name, params, useBase, nativeSupport)) != NULL) {
+        delegateFunctionRecursion--;
+        return fn;
+    }
+
+    ClassObject* iface;
+    for(unsigned long i = 0; i < interfaces.size(); i++) {
+        iface = interfaces.get(i);
+        if((fn = iface->getFunction(name, params, true, true, false)) != NULL) {
+            delegateFunctionRecursion--;
+            return fn;
+        }
+    }
+
+    if(useBase && base != NULL)
+        return base->getDelegateFunction(name, params, useBase, nativeSupport);
+
+    delegateFunctionRecursion--;
+    return NULL;
+}
+
 Method *ClassObject::getFunction(string name, int64_t _offset) {
     for(unsigned int i = 0; i < functions.size(); i++) {
         Method& function = functions.get(i);
@@ -451,4 +491,10 @@ Method *ClassObject::getFunctionByName(string name, bool &ambiguous) {
         }
     }
     return func;
+}
+
+void ClassObject::addInterfaces(ClassObject *klass) {
+    if(klass != NULL) {
+        interfaces.appendAll(klass->interfaces);
+    }
 }

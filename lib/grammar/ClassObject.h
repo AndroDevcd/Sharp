@@ -226,6 +226,7 @@ public:
         return false;
     }
     void setInterfaces(List<ClassObject*> interfaces) { this->interfaces.addAll(interfaces); }
+    Method *getDelegateFunction(string name, List<Param> &params, bool useBase = true, bool nativeSupport = true);
 
     RuntimeNote note;
 
@@ -251,6 +252,8 @@ public:
 
     List<Method *> getDelegates();
 
+    void addInterfaces(ClassObject *pObject);
+
 private:
     AccessModifier modifier;
     long serial;
@@ -269,6 +272,8 @@ private:
     List<ClassObject*> childClasses;
     List<ClassObject*> interfaces;
     ClassObject *super, *base, *head;
+
+    Method *getDelegatePost(string name, List<Param> &params, bool useBase, bool nativeSupport);
 };
 
 #define totalFucntionCount(x) x->functionCount()+x->constructorCount()+x->overloadCount()

@@ -122,7 +122,7 @@ public class string {
         {
             string s = new string(data);
             if(o != null && o.toString() != null)
-                return s.append(o.toString());
+                return s.append(o.toString().toArray());
             else
                 return s.append("null");
         }
@@ -190,8 +190,8 @@ public class string {
         public def operator+=( Object o ) : string
         {
             string s = o.toString();
-            if(s != null)
-                return append();
+            if(s != null && s.data != null)
+                return append(s.toArray());
             else
                 return append("null");
         }
