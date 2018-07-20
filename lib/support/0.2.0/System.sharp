@@ -141,4 +141,8 @@ public class System {
     public static def sizeOf(object data) : var {
         return Runtime.sizeOf(data);
     }
+
+    public static def toString(var data) : var {
+        return Runtime.toString(data);
+    }
 }
