@@ -12,7 +12,7 @@ def main(string[] args) : var {
   }
 
   var timeDelta = 0.0001;
-  var count = string.parseInt(args[1]);
+  var count = string.parseInt(args[0]);
 
   Particle p1 = new Particle(new Vector(0.3, 0), -1);
   Particle p2 = new Particle(new Vector(-0.3, 1), 1);

@@ -246,14 +246,6 @@ public class string {
             return s;
         }
 
-        public def operator+( Object o ) : string
-        {
-            string s = new string(data);
-            s.append(o.toString().toArray());
-
-            return s;
-        }
-
         public def operator+( Enum e ) : string
         {
             string s = new string(data);
