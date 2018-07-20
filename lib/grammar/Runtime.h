@@ -1238,7 +1238,7 @@ private:
 #define unique_label_id(x) "$$L" << (x)
 
 #define progname "bootstrap"
-#define progvers "0.2.343"
+#define progvers "0.2.372"
 
 struct options {
     ~options()
