@@ -111,7 +111,7 @@ public:
 
     bool assignable(ClassObject *klass) {
         if(klass != NULL) {
-            return klass->serial == serial || klass->hasBaseClass(this) || klass->hasInterface(this);
+            return klass->serial == serial || klass->hasBaseClass(this) || this->hasInterface(klass);
         }
         return false;
     }
@@ -223,6 +223,8 @@ public:
             if(interfaces.get(i)==intf)
                 return true;
         }
+        if(base != NULL)
+            return base->hasInterface(intf);
         return false;
     }
     void setInterfaces(List<ClassObject*> interfaces) { this->interfaces.addAll(interfaces); }
@@ -251,8 +253,6 @@ public:
     List<Method *> getDelegatePosts(bool ubase);
 
     List<Method *> getDelegates();
-
-    void addInterfaces(ClassObject *pObject);
 
 private:
     AccessModifier modifier;

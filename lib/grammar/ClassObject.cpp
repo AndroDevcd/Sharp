@@ -487,9 +487,3 @@ Method *ClassObject::getFunctionByName(string name, bool &ambiguous) {
     }
     return func;
 }
-
-void ClassObject::addInterfaces(ClassObject *klass) {
-    if(klass != NULL) {
-        interfaces.appendAll(klass->interfaces);
-    }
-}

@@ -1213,7 +1213,7 @@ void Thread::exec() {
                         klass = o2->object->k;
                         if(klass!= NULL) {
                             search:
-                            for(long i = 0; i < klass->methodCount; i++) {
+                            for(long i = klass->methodCount-1; i >= 0; i--) {
                                 if(env->methods[klass->methods[i]].delegateAddress == delegate) {
                                     CALLSTACK_CHECK
                                     executeMethod(env->methods[klass->methods[i]].address, this)
@@ -1240,7 +1240,7 @@ void Thread::exec() {
                 CHECK_NULL2(
                         klass = o2->object->k;
                         if(klass!= NULL) {
-                            for(long i = 0; i < klass->methodCount; i++) {
+                            for(long i = klass->methodCount-1; i >= 0; i--) {
                                 if(env->methods[klass->methods[i]].delegateAddress == delegate) {
                                     CALLSTACK_CHECK
                                     executeMethod(env->methods[klass->methods[i]].address, this)

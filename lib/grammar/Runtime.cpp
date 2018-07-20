@@ -6751,7 +6751,6 @@ void RuntimeEngine::resolveClassBase(Ast* ast) {
     } else {
         if(base != NULL)
             klass->setBaseClass(base->getSerial() == klass->getSerial() ? NULL : base);
-            klass->addInterfaces(base);
     }
 
     if(ast->hasSubAst(ast_reference_identifier_list)) {
