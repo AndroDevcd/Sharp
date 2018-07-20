@@ -142,7 +142,7 @@ public class System {
         return Runtime.sizeOf(data);
     }
 
-    public static def toString(var data) : var {
+    public static def toString(var data) : var[] {
         return Runtime.toString(data);
     }
 }
