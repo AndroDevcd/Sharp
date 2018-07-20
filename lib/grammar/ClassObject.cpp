@@ -96,12 +96,9 @@ Method *ClassObject::getDelegatePost(string name, List<Param>& params, bool useB
     return NULL;
 }
 
-long delegateFunctionRecursion = 0;
 Method *ClassObject::getDelegateFunction(string name, List<Param>& params, bool useBase, bool nativeSupport) {
-    delegateFunctionRecursion++;
     Method* fn = NULL;
-    if(delegateFunctionRecursion <= 1 && (fn = getDelegatePost(name, params, useBase, nativeSupport)) != NULL) {
-        delegateFunctionRecursion--;
+    if((fn = getDelegatePost(name, params, useBase, nativeSupport)) != NULL) {
         return fn;
     }
 
@@ -109,7 +106,6 @@ Method *ClassObject::getDelegateFunction(string name, List<Param>& params, bool 
     for(unsigned long i = 0; i < interfaces.size(); i++) {
         iface = interfaces.get(i);
         if((fn = iface->getFunction(name, params, true, true, false)) != NULL) {
-            delegateFunctionRecursion--;
             return fn;
         }
     }
@@ -117,7 +113,6 @@ Method *ClassObject::getDelegateFunction(string name, List<Param>& params, bool 
     if(useBase && base != NULL)
         return base->getDelegateFunction(name, params, useBase, nativeSupport);
 
-    delegateFunctionRecursion--;
     return NULL;
 }
 

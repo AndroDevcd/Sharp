@@ -2423,6 +2423,7 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
                         out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
                         leftExpr.type=expression_var;
+                        out.func = true;
                         leftExpr.func=true;
                         leftExpr.literal = false;
                         leftExpr.code.free();
@@ -2453,6 +2454,7 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
                         out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
                         leftExpr.type=expression_var;
+                        out.func = true;
                         leftExpr.func=true;
                         leftExpr.literal = false;
                         leftExpr.code.free();
@@ -2478,6 +2480,8 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
                     out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
                     leftExpr.type=expression_var;
+
+                    out.func = true;
                     leftExpr.func=true;
                     leftExpr.literal = false;
                     leftExpr.code.free();
