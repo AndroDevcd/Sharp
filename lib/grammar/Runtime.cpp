@@ -1935,7 +1935,8 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
         case expression_var:
             if(right.trueType() == VAR) {
                 // add 2 vars
-                return true;
+                if(left.isArray() == right.isArray())
+                    return true;
             }
             else if(right.type == expression_null) {
                 return left.isArray();
@@ -1963,7 +1964,8 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                     return left.isArray();
                 } else if(right.trueType() == VAR || (right.trueType() != CLASS)) {
                     if(left.trueType() == VAR) {
-                        return left.isArray() == right.isArray();
+                        if(left.isArray() == right.isArray())
+                            return true;
                     }
                 }
             } else if(left.trueType() == CLASS) {
@@ -1986,13 +1988,16 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                     exprs.push_back(right);
 
                     expressionListToParams(params, exprs);
-                    return left.utype.field.klass->getOverload(oper_EQUALS, params) != NULL;
+                    if(left.utype.field.klass->getOverload(oper_EQUALS, params) != NULL)
+                        return true;
                 }
             }  else if(left.trueType() == OBJECT) {
                 if(right.trueType() == OBJECT || right.trueType() == CLASS) {
-                    return left.isArray() == right.isArray();
+                    if(left.isArray() == right.isArray())
+                        return true;
                 } else if(right.trueType() == VAR) {
-                    return left.isArray() == right.isArray();
+                    if(left.isArray() == right.isArray())
+                        return true;
                 }
             } else {
                 // do nothing field unresolved
