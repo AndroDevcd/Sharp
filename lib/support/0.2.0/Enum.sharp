@@ -41,4 +41,8 @@ public class Enum {
     public def getValue() : var {
         return value;
     }
+
+    public def delegate::toString() : string {
+        return getName();
+    }
 }

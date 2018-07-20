@@ -2526,11 +2526,6 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
                 break;
         }
     }
-
-    /*
-     * So we dont missinterpret the value returned from the expr :)
-     */
-    out.func=leftExpr.func;
 }
 
 Expression RuntimeEngine::parseAddExpression(Ast* pAst) {

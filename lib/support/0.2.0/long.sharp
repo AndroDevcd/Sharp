@@ -122,4 +122,8 @@ public class long base integer {
     public def value() : var {
         return (value);
     }
+
+    public def delegate::toString() : string {
+        return "" + value;
+    }
 }

@@ -1,0 +1,8 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 7/20/2018.
+ */
+interface Printable {
+    def delegate::toString() : string;
+}
