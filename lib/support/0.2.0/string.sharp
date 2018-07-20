@@ -328,9 +328,39 @@ public class string {
             return (var[])System.copyOf(data, sizeof(data));
         }
 
+        private static def parsefloat( var number ) : string
+        {
+            return new string(System.toString(number));
+        }
+
         public static def parse( var number ) : string
         {
-            return return new string(System.toString(number));
+            if(Math.abs(number) - Math.abs((_int64)number) > 0.0)
+                return parsefloat(number);
+
+            number = (_int64)number;
+            if (number == 0) {
+                return new string("0");
+            }
+
+            string temp = new string("");
+            string returnvalue= new string("");
+            var negative = false;
+            if(((_int64)number)<0) {
+                number *= -1;
+                negative = true;
+            }
+
+            while (((_int64)number)>0) {
+                temp.append((number%10)+48);
+                number/=10;
+            }
+
+            if(negative) returnvalue.append("-");
+            for (var i=sizeof(temp.toArray())-1; i >= 0; i--) {
+                returnvalue.append(temp.at(i));
+            }
+            return returnvalue;
         }
 
         public def substring(var startIndex) : string {
