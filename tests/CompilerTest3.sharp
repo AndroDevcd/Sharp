@@ -1,9 +1,7 @@
 mod application;
 
 import std;
-
-public class Application {
-        var a=8, b, c;
+var a=8, b, c;
 
     public static def main(string[] args) : var {
         object klass = new Callee();
@@ -14,20 +12,20 @@ public class Application {
         string.parse(55);
         Callback cb = new Callee();
         Event e = new Callee();
+        Callee c = e;
         e.event();
     }
-}
 
-class Callback {
+public class Callback {
 
     public def delegate::work();
 }
 
-interface Event {
+public interface Event {
     public def delegate::event();
 }
 
-class Callee base Callback : Event {
+public class Callee base Callback : Event {
 
     public def delegate::event() {
         System.print("Event Called!");

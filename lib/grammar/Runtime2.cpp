@@ -2521,7 +2521,7 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
 
     switch(arg.type) {
         case expression_lclass:
-            if(utype.utype.klass->assignable(arg.utype.klass)) {
+            if(utype.getClass()->assignable(arg.getClass(), true)) {
                 out.inject(arg);
                 out.utype = utype.utype;
                 out.type = expression_lclass;
@@ -2538,7 +2538,7 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
             return;
         case expression_field:
             if(arg.utype.field.type == CLASS) {
-                if(utype.utype.klass->assignable(arg.utype.klass)) {
+                if(utype.getClass()->assignable(arg.getClass(), true)) {
                     out.inject(arg);
                     out.type = expression_lclass;
                     out.utype = utype.utype;

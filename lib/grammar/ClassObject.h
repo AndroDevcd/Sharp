@@ -109,9 +109,12 @@ public:
         return klass != NULL && klass->serial == serial;
     }
 
-    bool assignable(ClassObject *klass) {
+    bool assignable(ClassObject *klass, bool cast = false) {
         if(klass != NULL) {
-            return klass->serial == serial || klass->hasBaseClass(this) || this->hasInterface(klass);
+            if(_interface && klass->hasInterface(this))
+                return true;
+            return klass->serial == serial || klass->hasBaseClass(this)
+                   || (cast && this->hasInterface(klass));
         }
         return false;
     }

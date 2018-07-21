@@ -1979,7 +1979,7 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                         return false;
                     }
                 } else if(right.type == expression_field && right.utype.field.type == CLASS) {
-                    if(right.utype.field.klass->assignable(left.utype.field.klass)) {
+                    if(left.utype.field.klass->assignable(right.utype.klass)) {
                         return true;
                     }
                 } else {
@@ -2055,7 +2055,7 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
     }
 
     if(left.trueType() == CLASS && right.trueType() == CLASS) {
-        errors->createNewError(GENERIC, right.link->line,  right.link->col, "classes in expression are not compatible");
+        errors->createNewError(GENERIC, right.link->line,  right.link->col, "classes in expression are not compatible, are you possibly missing a cast?");
     } else
         errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `" + left.typeToString() + "` and `" + right.typeToString() + "` are not compatible" + msg);
     return false;
