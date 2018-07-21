@@ -3109,10 +3109,23 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 }
 
                 memassign:
-                pushExpressionToStack(right, out);
-                out.inject(left);
+                if(left.trueType() == OBJECT && right.trueType() == VAR && !right.isArray()) {
 
-                out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+                    pushExpressionToRegister(right, out, ecx);
+                    out.inject(left);
+                    
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 1), ebx);
+                    out.code.push_i64(SET_Di(i64, op_NEWARRAY, ebx));
+                    out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                    out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ecx));
+                } else {
+
+                    pushExpressionToStack(right, out);
+                    out.inject(left);
+                    out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+                }
+
             } else {
                 if(left.trueType() == CLASS) {
                     addClass(operand, left.getClass(), out, left, right, pAst);
