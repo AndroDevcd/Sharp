@@ -3102,12 +3102,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 pushExpressionToStack(right, out);
                 out.inject(left);
 
-                if(left.trueType() == OBJECT && right.trueType() == VAR) {
-                    out.code.push_i64(SET_Di(i64, op_LOADVAL, egx));
-                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), ebx);
-                    out.code.push_i64(SET_Ci(i64, op_RMOV, ebx, 0, egx));
-                } else
-                    out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+                out.code.push_i64(SET_Ei(i64, op_POPOBJ));
             } else {
                 if(left.trueType() == CLASS) {
                     addClass(operand, left.getClass(), out, left, right, pAst);
