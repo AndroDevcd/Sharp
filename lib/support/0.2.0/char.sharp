@@ -157,6 +157,6 @@ public class char base integer {
     }
 
     public def delegate::toString() : string {
-        return "" + value;
+        return new string(value);
     }
 }

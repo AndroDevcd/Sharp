@@ -40,23 +40,23 @@ public class WinFileSystem base FileSystem {
         var n = pathname.size();
         var[] normalized = pathname.toArray();
         string name = "";
-        char current = 0, prevChar = 0;
+        var[] current = new var[1]; var prevChar = 0;
         for (var i = 0; i < sizeof(normalized); i++) {
-            current = normalized[i];
+            current[0] = normalized[i];
             // Remove duplicate slashes.
-            if (current == '/' && prevChar == '/')
+            if (current[0] == '/' && prevChar == '/')
                 continue;
-            else if(current == '\\')  {
+            else if(current[0] == '\\')  {
                 if(prevChar != '\\')
                     name += '\\';
             }
             else
                 name += current;
 
-            prevChar = current;
+            prevChar = current[0];
         }
 
-//        System.println("name " + name);
+        System.println("name " + name);
         return name;
     }
 

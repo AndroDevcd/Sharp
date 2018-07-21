@@ -770,7 +770,7 @@ void Thread::exec() {
                 return;
 
             interp:
-            if(current->address==1 && PC(this) >= 2) {
+            if(current->address==2 && PC(this) >= 2) {
                 int i = 0;
             }
             DISPATCH();

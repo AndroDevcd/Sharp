@@ -17,6 +17,11 @@ public class string {
 
         }
 
+        public string( var ch )
+        {
+            append(ch);
+        }
+
         public string( char[] immstr )
         {
             if(immstr == null) {
