@@ -159,7 +159,8 @@ public class ArrayList<T> {
              add(value);
          } else {
             expand();
-             for(var i = sizeof(mData) - 1; i > pos; i--)
+            size++;
+             for(var i = size - 1; i > pos; i--)
                 mData[i] = mData[i-1];
              mData[pos] = value;
          }
@@ -185,7 +186,7 @@ public class ArrayList<T> {
              }
              shrink();
          } else {
-             var newLen=sizeof(mData)-1;
+             var newLen=size-1;
              for(var i = pos; i < newLen; i++)
                  mData[i] = mData[i+1];
 
@@ -210,7 +211,7 @@ public class ArrayList<T> {
      * this "outlining" performs best with both server and client VMs.
      */
     private def outOfBoundsMsg(var index) : string {
-        return "Index: " + index + ", size: " + sizeof(mData);
+        return "Index: " + index + ", size: " + size;
     }
 
 }

@@ -1210,6 +1210,8 @@ private:
     void resolveClassBases();
 
     void resolveClassBase(Ast *ast);
+
+    void resolveClassEnumDecl(Ast *ast);
 };
 
 

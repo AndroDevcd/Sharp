@@ -157,7 +157,7 @@ public class Dictionary<TKey, TValue> {
      public def remove(TKey key) {
         var index;
         TKey[] k = keys.toArray();
-        for(var i = 0; i < sizeof(keys); i++) {
+        for(var i = 0; i < keys.size(); i++) {
             if(key == k[i]) {
                 keys.remove(i);
                 values.remove(i);

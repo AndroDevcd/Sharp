@@ -2,10 +2,9 @@ mod application;
 
 import std;
 import std.io;
-import std.internal.vm;
+import std.kernel.vm;
 
-public class Application {
-        var a=8, b, c;
+var a=8, b, c;
 
     def foo() : string[] {
         object[] arry = new object[5];
@@ -35,11 +34,11 @@ public class Application {
 
         lock (file) {
             file.setWritable(true);
-            IOStream ostream = new IOStream(file, IOStream.OUT);
+            IOStream ostream = new IOStream(file, IOStream.WRITE);
             ostream.write("Hello, World!");
             ostream.close();
 
-            IOStream istream = new IOStream(file, IOStream.IN);
+            IOStream istream = new IOStream(file, IOStream.READ);
             var _char;
 
             while((_char = istream.nextChar()) != -1) {
@@ -67,7 +66,7 @@ public class Application {
         string[] files = dir.list();
         foreach(string f : files) {
             System.println("file: " + f);
-            File tmp = new File(dir.getPath() + "/" + f);
+            File tmp = new File(f);
             System.println("file " + tmp.getName() + " is a directory " + tmp.isDirectory());
             System.println("file: " + tmp.getPath());
             //tmp.delete();
@@ -80,24 +79,3 @@ public class Application {
         System.println("file " + file.getName() + " total usable disk space  " + file.getUsableSpace());
 //        dir.delete();
     }
-}
-
-class Callback {
-
-    public def delegate::work();
-}
-
-interface Event {
-    public def delegate::event();
-}
-
-class Callee base Callback : Event {
-
-    public def delegate::event() {
-        System.print("Event Called!");
-    }
-
-    public def delegate::work() {
-        System.print("success I am Called!");
-    }
-}

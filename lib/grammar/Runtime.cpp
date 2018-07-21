@@ -1970,16 +1970,16 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                 }
             } else if(left.trueType() == CLASS) {
                 if(right.type == expression_lclass) {
-                    if(left.utype.field.klass->assignable(right.utype.klass)) {
+                    if(left.getClass()->assignable(right.getClass())) {
                         return true;
                     }
                 } else if(right.type == expression_class) {
-                    if(left.utype.field.klass->assignable(right.utype.klass)) {
+                    if(left.getClass()->assignable(right.getClass())) {
                         errors->createNewError(GENERIC, right.link->line,  right.link->col, "Class `" + right.typeToString() + "` must be lvalue" + msg);
                         return false;
                     }
                 } else if(right.type == expression_field && right.utype.field.type == CLASS) {
-                    if(left.utype.field.klass->assignable(right.utype.klass)) {
+                    if(left.getClass()->assignable(right.getClass())) {
                         return true;
                     }
                 } else {
@@ -2005,15 +2005,15 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
             break;
         case expression_lclass:
             if(right.type == expression_lclass) {
-                if(left.utype.klass->assignable(right.utype.klass)) {
+                if(left.getClass()->assignable(right.getClass())) {
                     return true;
                 }
             } else if(right.type == expression_field) {
-                if(left.utype.klass->assignable(right.utype.field.klass)) {
+                if(left.getClass()->assignable(right.getClass())) {
                     return true;
                 }
             } else if(right.type == expression_class) {
-                if(left.utype.klass->assignable(right.utype.klass)) {
+                if(left.getClass()->assignable(right.getClass())) {
                     errors->createNewError(GENERIC, right.link->line,  right.link->col, "Class `" + right.typeToString() + "` must be lvalue" + msg);
                     return false;
                 }
@@ -2023,7 +2023,7 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
             break;
         case expression_class:
             if(right.type == expression_class) {
-                if(left.utype.klass->assignable(right.utype.klass)) {
+                if(left.getClass()->assignable(right.getClass())) {
                     return true;
                 }
             }
@@ -6947,6 +6947,64 @@ void RuntimeEngine::resolveEnumDecl(Ast* ast) {
     removeScope();
 }
 
+void RuntimeEngine::resolveClassEnumDecl(Ast* ast) {
+    Ast* block = ast->getSubAst(ast_block), *trunk;
+    List<AccessModifier> modifiers;
+    ClassObject* klass;
+    int startpos=1;
+
+    parseAccessDecl(ast, modifiers, startpos);
+    string name =  ast->getEntity(startpos).getToken();
+
+    if(currentScope()->type == GLOBAL_SCOPE) {
+        klass = getClass(currentModule, name, classes);
+    }
+    else {
+        klass = currentScope()->klass->getChildClass(name);
+    }
+
+    addScope(Scope(CLASS_SCOPE, klass));
+    for(long i = 0; i < block->getSubAstCount(); i++) {
+        trunk = block->getSubAst(i);
+        CHECK_ERRORS
+
+        switch(trunk->getType()) {
+            case ast_class_decl: /* ignore */
+                resolveClassEnumDecl(trunk);
+                break;
+            case ast_var_decl: /* ignore */
+                break;
+            case ast_method_decl: /* ignore */
+                break;
+            case ast_operator_decl: /* ignore */
+                break;
+            case ast_construct_decl: /* ignore */
+                break;
+            case ast_delegate_post_decl: /* ignore */
+                break;
+            case ast_delegate_decl: /* ignore */
+                break;
+            case ast_interface_decl: /* ignore */
+                break;
+            case ast_generic_class_decl: /* ignore */
+                break;
+            case ast_enum_decl: /* ignore */
+                resolveEnumDecl(trunk);
+                break;
+            case ast_enum_identifier: /* ignore */
+                break;
+            default:
+                /* ignore */
+                break;
+        }
+    }
+
+    Expression out(block);
+    assignEnumArray(block, klass, out);
+    addDefaultConstructor(klass, ast);
+    removeScope();
+}
+
 void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField, bool forEnum) {
     Ast* block = ast->getSubAst(ast_block), *trunk;
     List<AccessModifier> modifiers;
@@ -9518,6 +9576,9 @@ void RuntimeEngine::resolveAllEnums() {
             switch(ast->getType()) {
                 case ast_enum_decl:
                     resolveEnumDecl(ast);
+                    break;
+                case ast_class_decl:
+                    resolveClassEnumDecl(ast);
                     break;
                 default:
                     /* ignore */

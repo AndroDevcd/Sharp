@@ -121,8 +121,9 @@ public class string {
         public def operator+( Printable o ) : string
         {
             string s = new string(data);
-            if(o != null && o.toString() != null)
-                return s.append(o.toString().toArray());
+            string tmp = o.toString();
+            if(o != null && tmp != null)
+                return s.append(tmp.toArray());
             else
                 return s.append("null");
         }
