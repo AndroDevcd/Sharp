@@ -3055,6 +3055,8 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 return;
             } else if(operand == "==" && right.type == expression_null) {
                 pushExpressionToPtr(left, out);
+                if(left.func)
+                    out.code.push_i64(SET_Ei(i64, op_POP));
 
                 out.code.push_i64(SET_Ei(i64, op_CHECKNULL));
                 out.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, cmt));
@@ -3072,6 +3074,8 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 return;
             } else if(operand == "!=" && right.type == expression_null) {
                 pushExpressionToPtr(left, out);
+                if(left.func)
+                    out.code.push_i64(SET_Ei(i64, op_POP));
 
                 out.code.push_i64(SET_Ei(i64, op_CHECKNULL));
                 out.code.push_i64(SET_Ci(i64, op_NOT, cmt,0, cmt));
@@ -3224,6 +3228,8 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
             return;
         } else if(operand == "==" && right.type == expression_null) {
             pushExpressionToPtr(left, out);
+            if(left.func)
+                out.code.push_i64(SET_Ei(i64, op_POP));
 
             out.code.push_i64(SET_Ei(i64, op_CHECKNULL));
             out.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, cmt));
@@ -3241,6 +3247,8 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
             return;
         } else if(operand == "!=" && right.type == expression_null) {
             pushExpressionToPtr(left, out);
+            if(left.func)
+                out.code.push_i64(SET_Ei(i64, op_POP));
 
             out.code.push_i64(SET_Ei(i64, op_CHECKNULL));
             out.code.push_i64(SET_Ci(i64, op_NOT, cmt,0, cmt));
@@ -3316,6 +3324,8 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
             return;
         } else if(operand == "==" && right.type == expression_null) {
             pushExpressionToPtr(left, out);
+            if(left.func)
+                out.code.push_i64(SET_Ei(i64, op_POP));
 
             out.code.push_i64(SET_Ei(i64, op_CHECKNULL));
             out.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, cmt));
@@ -3323,6 +3333,8 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
             return;
         } else if(operand == "!=" && right.type == expression_null) {
             pushExpressionToPtr(left, out);
+            if(left.func)
+                out.code.push_i64(SET_Ei(i64, op_POP));
 
             out.code.push_i64(SET_Ei(i64, op_CHECKNULL));
             out.code.push_i64(SET_Ci(i64, op_NOT, cmt,0, cmt));

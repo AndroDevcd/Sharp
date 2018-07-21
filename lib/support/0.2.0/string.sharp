@@ -118,7 +118,7 @@ public class string {
                 return s.append("null");
         }
 
-        public def operator+( Object o ) : string
+        public def operator+( Printable o ) : string
         {
             string s = new string(data);
             if(o != null && o.toString() != null)
@@ -187,7 +187,7 @@ public class string {
             return append(parse(num).toArray());
         }
 
-        public def operator+=( Object o ) : string
+        public def operator+=( Printable o ) : string
         {
             string s = o.toString();
             if(s != null && s.data != null)

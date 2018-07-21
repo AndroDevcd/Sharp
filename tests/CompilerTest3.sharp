@@ -12,7 +12,6 @@ var a=8, b, c;
         string.parse(55);
         Callback cb = new Callee();
         Event e = new Callee();
-        Callee c = e;
         e.event();
     }
 

@@ -65,12 +65,12 @@ public class System {
         printChar('\n');
     }
 
-    public static def println(Object o) {
+    public static def println(Printable o) {
         cHandler.printData(o.toString().toArray());
         printChar('\n');
     }
 
-    public static def print(Object o) {
+    public static def print(Printable o) {
         cHandler.printData(o.toString().toArray());
     }
     
