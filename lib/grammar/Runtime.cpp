@@ -1743,7 +1743,7 @@ void RuntimeEngine::parseMethodDecl(Ast* pAst, bool delegate) {
     string name =  pAst->getEntity(startpos+(delegate ? 3 : 0)).getToken();
     parseMethodParams(params, parseUtypeArgList(pAst->getSubAst(ast_utype_arg_list)), pAst->getSubAst(ast_utype_arg_list));
 
-    Method* method = currentScope()->klass->getFunction(name, params);
+    Method* method = currentScope()->klass->getFunction(name, params, false, false, false, true);
 
     if(method != NULL) {
 
@@ -1784,7 +1784,7 @@ void RuntimeEngine::parseOperatorDecl(Ast* pAst) {
     string name =  pAst->getEntity(pAst->getEntityCount()-1).getToken();
     parseMethodParams(params, parseUtypeArgList(pAst->getSubAst(ast_utype_arg_list)), pAst->getSubAst(ast_utype_arg_list));
 
-    Method* method = currentScope()->klass->getOverload(stringToOp(name), params);
+    Method* method = currentScope()->klass->getOverload(stringToOp(name), params, false, true, true);
 
     if(method != NULL) {
 
@@ -1828,7 +1828,7 @@ void RuntimeEngine::parseConstructorDecl(Ast* pAst) {
     List<Param> params;
     parseMethodParams(params, parseUtypeArgList(pAst->getSubAst(ast_utype_arg_list)), pAst->getSubAst(ast_utype_arg_list));
 
-    Method* method = currentScope()->klass->getConstructor(params);
+    Method* method = currentScope()->klass->getConstructor(params, false, true, true);
 
     if(method != NULL) {
         addScope(Scope(INSTANCE_BLOCK, currentScope()->klass, method));

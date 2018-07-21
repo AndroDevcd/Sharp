@@ -164,13 +164,13 @@ public:
 
     size_t constructorCount();
     Method* getConstructor(int p);
-    Method* getConstructor(List<Param>& params, bool useBase =false, bool nativeSupport = false);
+    Method* getConstructor(List<Param>& params, bool useBase =false, bool nativeSupport = false, bool ambiguousProtect = false);
     bool addConstructor(Method constr);
 
     size_t functionCount(bool ignore=false);
     Method* getFunction(int p);
     Method* getFunctionByName(string name, bool &ambiguous);
-    Method* getFunction(string name, List<Param>& params, bool useBase =false, bool nativeSupport = false, bool skipdelegates=false);
+    Method* getFunction(string name, List<Param>& params, bool useBase =false, bool nativeSupport = false, bool skipdelegates=false, bool ambiguousProtect = false);
     Method* getFunction(string name, int64_t _offset);
     bool addFunction(Method function);
 
@@ -180,7 +180,7 @@ public:
     OperatorOverload* getPostDecOverload();
     OperatorOverload* getPreIncOverload();
     OperatorOverload* getPreDecOverload();
-    OperatorOverload* getOverload(Operator op, List<Param>& params, bool useBase =false, bool  = false);
+    OperatorOverload* getOverload(Operator op, List<Param>& params, bool useBase =false, bool  = false, bool ambiguousProtect = false);
     OperatorOverload* getOverload(Operator op, int64_t _offset);
     bool hasOverload(Operator op);
     bool addOperatorOverload(OperatorOverload overload);

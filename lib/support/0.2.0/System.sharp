@@ -78,10 +78,6 @@ public class System {
         cHandler.__print_stdout_(data, false);
     }
 
-    public static def print(Enum e) {
-        print(e.getName());
-    }
-    
     public static def printChar(var data) {
         ConsoleHandler.__print_stdout_(data, true);
     }

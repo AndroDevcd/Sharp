@@ -3388,7 +3388,7 @@ bool RuntimeEngine::equalsVectorArray(Expression& left, Expression& right) {
 }
 
 bool RuntimeEngine::prototypeEquals(Field *proto, List<Param> params, FieldType rtype) {
-    if(Param::match(proto->params, params, true)) {
+    if(Param::match(proto->params, params, true, false)) {
         if(proto->returnType==rtype)
             return true;
 

@@ -13,3 +13,4 @@
 - Add asm volatile() argument to prevent optimzer 
 from changing the source code
 - Limit naming of declirations such as fields named as methods or classes
+- Figure out weird bug with Unixfile system processing char when normalizing file path

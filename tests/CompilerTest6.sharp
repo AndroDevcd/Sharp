@@ -2,9 +2,7 @@ mod application;
 
 import std;
 
-public class Application {
-
-    enum Enums {
+public enum Enums {
         APPLE = 90999,
         CHERRY = 17,
         PEACH
@@ -24,4 +22,3 @@ public class Application {
         System.print(Enums.APPLE);
         System.print((var)Enums.APPLE);
     }
-}
