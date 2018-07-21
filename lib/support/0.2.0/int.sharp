@@ -118,4 +118,8 @@ public class int base integer {
     public def operator--() : var {
         return (value=(_int32)value-1);
     }
+
+    public def delegate::toString() : string {
+        return "" + value;
+    }
 }

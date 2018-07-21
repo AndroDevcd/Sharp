@@ -1935,7 +1935,8 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
         case expression_var:
             if(right.trueType() == VAR) {
                 // add 2 vars
-                return true;
+                if(left.isArray() == right.isArray())
+                    return true;
             }
             else if(right.type == expression_null) {
                 return left.isArray();
@@ -1963,7 +1964,8 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                     return left.isArray();
                 } else if(right.trueType() == VAR || (right.trueType() != CLASS)) {
                     if(left.trueType() == VAR) {
-                        return left.isArray() == right.isArray();
+                        if(left.isArray() == right.isArray())
+                            return true;
                     }
                 }
             } else if(left.trueType() == CLASS) {
@@ -1986,13 +1988,16 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                     exprs.push_back(right);
 
                     expressionListToParams(params, exprs);
-                    return left.utype.field.klass->getOverload(oper_EQUALS, params) != NULL;
+                    if(left.utype.field.klass->getOverload(oper_EQUALS, params) != NULL)
+                        return true;
                 }
             }  else if(left.trueType() == OBJECT) {
                 if(right.trueType() == OBJECT || right.trueType() == CLASS) {
-                    return left.isArray() == right.isArray();
+                    if(left.isArray() == right.isArray())
+                        return true;
                 } else if(right.trueType() == VAR) {
-                    return left.isArray() == right.isArray();
+                    if(left.isArray() == right.isArray())
+                        return true;
                 }
             } else {
                 // do nothing field unresolved
@@ -2064,16 +2069,18 @@ void RuntimeEngine::addNative(token_entity operand, FieldType type, Expression& 
     if(left.type == expression_var) {
         equals(left, right);
 
-        pushExpressionToRegister(right, out, egx);
+        pushExpressionToStack(right, out);
         pushExpressionToRegister(left, out, ebx);
+        out.code.push_i64(SET_Di(i64, op_LOADVAL, egx));
         out.code.push_i64(SET_Ci(i64, operandToOp(operand), ebx,0, egx), ebx);
         right.code.free();
     } else if(left.type == expression_field) {
         if(left.utype.field.isVar()) {
             equals(left, right);
 
-            pushExpressionToRegister(right, out, egx); // no inject?
+            pushExpressionToStack(right, out);
             pushExpressionToRegister(left, out, ebx);
+            out.code.push_i64(SET_Di(i64, op_LOADVAL, egx));
             out.code.push_i64(SET_Ci(i64, operandToOp(operand), ebx,0, egx), ebx);
             right.code.free();
         }
@@ -2418,6 +2425,7 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
                         out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
                         leftExpr.type=expression_var;
+                        out.func = true;
                         leftExpr.func=true;
                         leftExpr.literal = false;
                         leftExpr.code.free();
@@ -2448,6 +2456,7 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
                         out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
                         leftExpr.type=expression_var;
+                        out.func = true;
                         leftExpr.func=true;
                         leftExpr.literal = false;
                         leftExpr.code.free();
@@ -2473,6 +2482,8 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
                     out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
 
                     leftExpr.type=expression_var;
+
+                    out.func = true;
                     leftExpr.func=true;
                     leftExpr.literal = false;
                     leftExpr.code.free();
@@ -2521,11 +2532,6 @@ void RuntimeEngine::parseAddExpressionChain(Expression &out, Ast *pAst) {
                 break;
         }
     }
-
-    /*
-     * So we dont missinterpret the value returned from the expr :)
-     */
-    out.func=leftExpr.func;
 }
 
 Expression RuntimeEngine::parseAddExpression(Ast* pAst) {
@@ -6606,7 +6612,7 @@ void RuntimeEngine::validateDelegates(ClassObject *host, ClassObject *klass, Ast
     if(delegates.size() > 0) {
         Method *func;
         for(int i = 0; i < delegates.size(); i++) {
-            if((func = klass->getFunction(delegates.get(i)->getName(), delegates.get(i)->getParams(), true, true)) != NULL) {
+            if((func = klass->getDelegateFunction(delegates.get(i)->getName(), delegates.get(i)->getParams(), true, true)) != NULL) {
                 if(func->delegatePost) {
                     // were good
                     delegates.get(i)->delegateAddress = func->address;

@@ -64,6 +64,15 @@ public class System {
         cHandler.printData(str.toArray());
         printChar('\n');
     }
+
+    public static def println(Object o) {
+        cHandler.printData(o.toString().toArray());
+        printChar('\n');
+    }
+
+    public static def print(Object o) {
+        cHandler.printData(o.toString().toArray());
+    }
     
     public static def print(var data) {
         cHandler.__print_stdout_(data, false);
@@ -131,5 +140,9 @@ public class System {
 
     public static def sizeOf(object data) : var {
         return Runtime.sizeOf(data);
+    }
+
+    public static def toString(var data) : var[] {
+        return Runtime.toString(data);
     }
 }

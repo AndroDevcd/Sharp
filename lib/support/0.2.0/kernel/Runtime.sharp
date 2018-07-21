@@ -150,6 +150,17 @@ public class Runtime {
         );
     }
 
+    public static def toString(var data) : var[] {
+        var[] str;
+        asm(
+            "ipushl <data>"
+            "int 0xc7" // get real sizeof object in memory
+            "movl <str>"
+            "popobj"
+        );
+        return str;
+    }
+
 
     public static def sizeOf(object[] data) : var {
         asm(

@@ -203,7 +203,7 @@ private:
     void erase(SharpObject *pObject);
 };
 
-#define GC_COLLECT_YOUNG() ( yObjs >= 25 )
+#define GC_COLLECT_YOUNG() ( yObjs >= 1 )
 #define GC_COLLECT_ADULT() ( aObjs >= 10 )
 #define GC_COLLECT_OLD() ( oObjs >= 10 )
 #define GC_COLLECT_MEM() ( managedBytes >= memoryThreshold )

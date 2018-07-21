@@ -1,0 +1,34 @@
+mod app;
+
+import std;
+
+/**
+ * Created by BraxtonN on 7/20/2018.
+ */
+public class Particle {
+    public Vector position;
+    public var mass;
+    public Vector velocity;
+    
+    public Particle(Vector pos, var _mass) {
+      position = pos;
+      mass = _mass;
+      velocity = new Vector();
+    }
+    
+    public def forceFrom(Particle p) : Vector {
+      Vector distance = p.position.subtract(position);
+      var magnitude = mass * p.mass / (distance.dot(distance));
+      return distance.normalize().scale(magnitude);
+    }
+    
+    public def applyForce(Vector force, var timeDelta) {
+      velocity.addInPlace(force.scale(timeDelta / Math.abs(mass)));
+      position.addInPlace(velocity.scale(timeDelta));
+    }
+    
+    public def toString() : string {
+      return "{Particle mass: " + mass + " velocity: " + velocity +
+        " position: " + position + "}";
+    }
+}

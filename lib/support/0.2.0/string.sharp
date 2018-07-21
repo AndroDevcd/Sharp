@@ -118,11 +118,11 @@ public class string {
                 return s.append("null");
         }
 
-        public def operator+( string str ) : string
+        public def operator+( Object o ) : string
         {
             string s = new string(data);
-            if(str != null)
-                return s.append(str.toArray());
+            if(o != null && o.toString() != null)
+                return s.append(o.toString().toArray());
             else
                 return s.append("null");
         }
@@ -182,134 +182,18 @@ public class string {
             return s;
         }
 
-        public def operator+( int num ) : string
-        {
-            string s = new string(data);
-            s.append(parse(num.getValue()).toArray());
-
-            return s;
-        }
-
-        public def operator+( short num ) : string
-        {
-            string s = new string(data);
-            s.append(parse(num.getValue()).toArray());
-
-            return s;
-        }
-
-        public def operator+( long num ) : string
-        {
-            string s = new string(data);
-            s.append(parse(num.getValue()).toArray());
-
-            return s;
-        }
-
-        public def operator+( bool num ) : string
-        {
-            string s = new string(data);
-            s.append(parse(num.getValue()).toArray());
-
-            return s;
-        }
-
-        public def operator+( uint num ) : string
-        {
-            string s = new string(data);
-            s.append(parse(num.getValue()).toArray());
-
-            return s;
-        }
-
-        public def operator+( ushort num ) : string
-        {
-            string s = new string(data);
-            s.append(parse(num.getValue()).toArray());
-
-            return s;
-        }
-
-        public def operator+( ulong num ) : string
-        {
-            string s = new string(data);
-            s.append(parse(num.getValue()).toArray());
-
-            return s;
-        }
-
-        public def operator+( char c ) : string
-        {
-            string s = new string(data);
-            s.append(c.getValue());
-
-            return s;
-        }
-
-        public def operator+( Enum e ) : string
-        {
-            string s = new string(data);
-            if(e != null)
-                s.append(e.getName().toArray());
-            else
-                s.append("null");
-
-            return s;
-        }
-
         public def operator+=( var num ) : string
         {
             return append(parse(num).toArray());
         }
 
-        public def operator+=( int num ) : string
+        public def operator+=( Object o ) : string
         {
-            return operator+=(num.getValue());
-        }
-
-        public def operator+=( bool num ) : string
-        {
-            return operator+=(num.getValue() ? "true" : "false");
-        }
-
-        public def operator+=( long num ) : string
-        {
-            return operator+=(num.getValue());
-        }
-
-        public def operator+=( short num ) : string
-        {
-            return operator+=(num.getValue());
-        }
-
-        public def operator+=( uchar num ) : string
-        {
-            return operator+=(num.getValue());
-        }
-
-        public def operator+=( uint num ) : string
-        {
-            return operator+=(num.getValue());
-        }
-
-        public def operator+=( ulong num ) : string
-        {
-            return operator+=(num.getValue());
-        }
-
-        public def operator+=( ushort num ) : string
-        {
-            return operator+=(num.getValue());
-        }
-
-        public def operator+=( char num ) : string
-        {
-            return append(num.getValue());
-        }
-
-        public def operator+=( Enum e ) : string
-        {
-            return append(e.getName().toArray());
+            string s = o.toString();
+            if(s != null && s.data != null)
+                return append(s.toArray());
+            else
+                return append("null");
         }
 
         public def operator+=( var[] immstr ) : string
@@ -328,8 +212,16 @@ public class string {
             return (var[])System.copyOf(data, sizeof(data));
         }
 
+        private static def parsefloat( var number ) : string
+        {
+            return new string(System.toString(number));
+        }
+
         public static def parse( var number ) : string
         {
+            if(Math.abs(number) - Math.abs((_int64)number) > 0.0)
+                return parsefloat(number);
+
             number = (_int64)number;
             if (number == 0) {
                 return new string("0");
@@ -480,5 +372,9 @@ public class string {
 
         public def getData() : var[] {
             return data;
+        }
+
+        public def delegate::toString() : string {
+            return new string(data);
         }
 }

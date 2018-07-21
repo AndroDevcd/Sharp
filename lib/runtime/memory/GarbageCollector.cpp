@@ -560,16 +560,18 @@ unsigned long long GarbageCollector::getManagedMemory() {
 
 void GarbageCollector::erase(SharpObject *p) {
     heapSize--;
-    p->prev->next = p->next;
 
     if(p == tail) {
         mutex.lock();
+        p->prev->next = p->next;
         if(p == tail) {
             tail = p->prev;
             tail->next = NULL;
         } else  p->next->prev = p->prev;
         mutex.unlock();
+        return;
     } else if(p->next != NULL) p->next->prev = p->prev;
+    p->prev->next = p->next;
 }
 
 void GarbageCollector::realloc(SharpObject *o, size_t sz) {

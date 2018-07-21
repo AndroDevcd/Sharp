@@ -4,6 +4,7 @@
 
 #include <random>
 #include <cmath>
+#include <string>
 #include "VirtualMachine.h"
 #include "Exe.h"
 #include "Thread.h"
@@ -247,6 +248,15 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
     switch (signal) {
         case 0x9f:
             //cout << env->strings[(int64_t )thread_self->__stack[(int64_t)__rxs[sp]--].var].value.str();
+            return;
+        case 0xc7:
+            {
+                stringstream ss;
+                ss.precision(16);
+                ss << registers[ebx];
+                native_string str(ss.str());
+                GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
+            }
             return;
         case 0xa0:
             registers[bmr]= Clock::__os_time((int) registers[ebx]);

@@ -81,6 +81,41 @@ Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase,
     return NULL;
 }
 
+Method *ClassObject::getDelegatePost(string name, List<Param>& params, bool useBase, bool nativeSupport) {
+    for(unsigned long i = 0; i < functions.size(); i++) {
+        if(Param::match(functions.get(i).getParams(), params, nativeSupport) && name == functions.get(i).getName()) {
+            if(functions.get(i).delegatePost)
+                return &functions.get(i);
+
+        }
+    }
+
+    if(useBase && base != NULL)
+        return base->getDelegatePost(name, params, useBase, nativeSupport);
+
+    return NULL;
+}
+
+Method *ClassObject::getDelegateFunction(string name, List<Param>& params, bool useBase, bool nativeSupport) {
+    Method* fn = NULL;
+    if((fn = getDelegatePost(name, params, useBase, nativeSupport)) != NULL) {
+        return fn;
+    }
+
+    ClassObject* iface;
+    for(unsigned long i = 0; i < interfaces.size(); i++) {
+        iface = interfaces.get(i);
+        if((fn = iface->getFunction(name, params, true, true, false)) != NULL) {
+            return fn;
+        }
+    }
+
+    if(useBase && base != NULL)
+        return base->getDelegateFunction(name, params, useBase, nativeSupport);
+
+    return NULL;
+}
+
 Method *ClassObject::getFunction(string name, int64_t _offset) {
     for(unsigned int i = 0; i < functions.size(); i++) {
         Method& function = functions.get(i);
