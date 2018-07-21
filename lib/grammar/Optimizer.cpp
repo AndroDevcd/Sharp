@@ -1116,7 +1116,7 @@ void Optimizer::optimizeRegister(int reg) {
                     optimizedOpcodes+=2;
                 } else if(val==0 && reg1 == reg) {
                     regValue = 0;
-                }
+                } else regValue = -1;
                 break;
             default:
                 break; /* ignore */
