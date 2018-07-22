@@ -1111,7 +1111,7 @@ bool Parser::shift(Ast *pAst) {
         pAst->addEntity(current());
 
         Ast right(pAst, pAst->getType(), pAst->line, pAst->col);
-        comparason(&right);
+        equality(&right);
         pAst->addAst(right);
         pAst = pAst->encapsulate(ast_shift_e);
         parsed = true;

@@ -79,7 +79,7 @@ class Ast {
         return tokens.last();
     }
 
-    public def encapsulate(AstType type) {
+    public def encapsulate(AstType type) : Ast {
         Ast encap = new Ast(self, type, line, col);
         add(encap);
 
@@ -96,6 +96,7 @@ class Ast {
         children.clear();
         tokens.clear();
         children.add(encap);
+        return encap;
     }
 
     public def copy(Ast ast) {

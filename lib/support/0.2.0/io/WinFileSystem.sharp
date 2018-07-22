@@ -56,7 +56,6 @@ public class WinFileSystem base FileSystem {
             prevChar = current[0];
         }
 
-        System.println("name " + name);
         return name;
     }
 

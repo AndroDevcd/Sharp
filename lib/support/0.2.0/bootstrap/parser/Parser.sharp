@@ -176,7 +176,203 @@ class Parser {
 
                  errors.createNewError(CompilerError.GENERIC, current, "unexpected variable declaration");
                  parseVariableDecl(ast);
+            } else if(isDecl(current, PROTOTYPE)) {
+                 if(accessTypes.size() > 0)
+                      errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
+
+                 errors.createNewError(CompilerError.GENERIC, current, "unexpected prototype declaration");
+                 parseProtoTypeDecl(ast, false);
+            }else if(isDecl(current, METHOD))
+            {
+                if(peek(1).getToken() == "operator") {
+                    if(accessTypes.size() > 0)
+                    {
+                        errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current);
+                    }
+                    errors.createNewError(CompilerError.GENERIC, current, "unexpected operator declaration");
+                    parseOperatorDecl(ast);
+                }
+                else if(peek(1).getToken() == "delegate") {
+                    parseDelegateDecl(pAst);
+                }
+                else {
+                    if(accessTypes.size() > 0)
+                    {
+                        errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
+                    }
+                    errors.createNewError(CompilerError.GENERIC, current, "unexpected method declaration");
+                    parseMethodDecl(ast);
+                }
             }
+            else if(isconstructor_decl())
+            {
+                if(access_types.size() > 0)
+                {
+                    errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+                }
+                errors->createNewError(GENERIC, current(), "unexpected constructor declaration");
+                parse_constructor(ast);
+            }
+            else if(current().getTokenType() == _EOF)
+            {
+                errors->createNewError(UNEXPECTED_EOF, current());
+                break;
+            }
+            else if (current().getTokenType() == RIGHTCURLY)
+            {
+                if((brackets-1) < 0)
+                {
+                    errors->createNewError(ILLEGAL_BRACKET_MISMATCH, current());
+                }
+                else
+                {
+                    brackets--;
+
+                    // end of class block
+                    if(brackets == 0)
+                    {
+                        pushback();
+                        break;
+                    }
+                }
+            }
+            else if(current().getTokenType() == LEFTCURLY)
+                brackets++;
+            else {
+                // save parser state
+                this->retainstate(ast);
+                pushback();
+
+                /*
+                 * variable decl?
+                 */
+                if(parse_utype(ast))
+                {
+                    if(peek(1).getId() == IDENTIFIER)
+                    {
+                        // Variable decliration
+                        ast = this->rollbacklast();
+                        parse_variabledecl(ast);
+                        remove_accesstypes();
+                        continue;
+                    }
+                }
+
+                ast = this->rollback();
+                errors->createNewError(GENERIC, current(), "expected delegate prototype declaration");
+                parse_all(ast);
+            }
+
+            remove_accesstypes();
+        }
+
+        if(brackets != 0)
+            errors->createNewError(MISSING_BRACKET, current(), " expected `}` at end of interface declaration");
+
+        expect(RIGHTCURLY, "`}` at end of interface declaration");
+    }
+
+    private def parseDelegateDecl(Ast ast) {
+        ast = getAst(ast, AstType.Delegate_Decl);
+
+        for(var i = 0; i < accessTypes.size(); i++) {
+            ast.add(accessTypes.get(i));
+        }
+        accessTypes.clear();
+        ast.add(current);
+
+        advance();
+        expectToken(
+                ast, "delegate", "`delegate`");
+
+        expect(TokenType.COLON, ast, "`:`");
+        expect(TokenType.COLON, ast, "`:`");
+        expectIdentifier(ast);
+
+        parseUtypeArgList(ast);
+        parseMethodReturnType(ast); // assign-expr operators must return void
+        if(peek(1).getType() == TokenType.LEFT_CURLY)
+        {
+            parseBlock(ast);
+        } else {
+            expect(TokenType.SEMICOLON, ast, "`;`");
+            ast.setType(AstType.Delegate_Post_Decl);
+        }
+    }
+
+    private def parseOperatorDecl(Ast ast) {
+        ast = getAst(ast, AstType.Operator_Decl);
+
+        for(var i = 0; i < accessTypes.size(); i++) {
+            ast.add(accessTypes.get(i));
+        }
+        accessTypes.clear();
+        ast.add(current);
+
+        advance();
+        expectToken(
+                ast, "operator", "`operator`");
+
+        advance();
+        if(!isOverrideOperator(current.getToken()))
+            errors.createNewError(GENERIC, current, "expected override operator");
+        else
+            ast.add(current);
+
+        parseUtypeArgList(ast);
+        parseMethodReturnType(pAst); // assign-expr operators must return void
+
+        parseBlock(ast);
+    }
+
+    private def parseProtoTypeDecl(Ast ast, var semicolon) {
+        ast = getAst(ast, AstType.Func_Prototype);
+
+        for(var i = 0; i < accessTypes.size(); i++) {
+            ast.add(accessTypes.get(i));
+        }
+        accessTypes.clear();
+
+        if(ast.tokenSize()>0)
+            pushBack();
+
+        if(!isDecl(current, PROTOTYPE))
+            advance();
+        expectToken(
+                ast, "fn", "`fn`");
+
+        expectIdentifier(ast);
+
+        parseUtypeListOpt(ast);
+        parseMethodReturnType(ast); // assign-expr operators must return void
+        parserProtoTypeValueAssignment(ast);
+
+        if(semicolon)
+            expect(TokenType.SEMICOLON, "`;`");
+    }
+
+    private def parserProtoTypeValueAssignment(Ast ast) {
+        advance();
+        if(isOverrideOperator(current.getToken()))
+        {
+            if(current.getToken() != "=") {
+                errors.createNewError(CompilerError.GENERIC, current, "expected assign operator `=`");
+            }
+            ast.add(current);
+            parseValue(ast);
+        }
+        else
+            pushBack();
+    }
+
+    private def parseMethodReturnType(Ast ast) {
+        if(peek(1).getType() == TokenType.COLON)
+        {
+            ast = getAst(ast, AstType.Method_Return_Type);
+            advance();
+
+            ast.add(current);
+            parseUtype(ast);
         }
     }
 
@@ -203,6 +399,7 @@ class Parser {
                 ast.add(token);
             }
 
+            accessTypes.clear();
             pushBack();
             if(!parseUtype(ast))
                 errors.createNewError(CompilerError.GENERIC, current, "expected native type or reference pointer");
@@ -262,6 +459,164 @@ class Parser {
             return true;
         } else {
             rollbackLast(ast);
+        }
+
+        if(isOverrideOperator(peek(1).getToken())) {
+            advance();
+            ast.add(current);
+
+            parseExpression(ast);
+            ast.encapsulate(AstType.Assign_E);
+
+            if(!isOverrideOperator(peek(1).getToken()))
+                return true;
+        }
+
+        var parsed = binary(ast);
+
+        /* expression '?' expression ':' expression */
+        if(peek(1).getType() == TokenType.QUESMK)
+        {
+            advance();
+            ast.add(current);
+
+            parseExpression(ast);
+
+            expect(TokenType.COLON, ast, "`:`");
+
+            parseExpression(ast);
+            ast.encapsulate(AstType.Ques_E);
+            return true;
+        }
+
+        return parsed;
+    }
+
+    private def binary(Ast ast) : var {
+        var parsed = shift(ast);
+
+        while(peek(1).getType() == TokenType.AND || peek(1).getType() == TokenType.XOR
+            || peek(1).getType() == TokenType.OR || peek(1).getType() == TokenType.ANDAND
+            || peek(1).getType() == TokenType.OROR) {
+            advance();
+            ast.add(current);
+
+            shift(ast);
+            ast.encapsulate(AstType.And_E);
+            parsed = true;
+        }
+
+        return parsed;
+    }
+
+    private def shift(Ast ast) : var {
+        var parsed = equality(ast);
+
+        while(peek(1).getType() == TokenType.SHL
+            || peek(1).getType() == TokenType.SHR) {
+            advance();
+            ast.add(current);
+
+            equality(ast);
+            ast = ast.encapsulate(AstType.Shift_E);
+            parsed = true;
+        }
+
+        return parsed;
+    }
+
+    private def equality(Ast ast) : var {
+        var parsed = comparison(ast);
+
+        while(peek(1).getType() == TokenType.EQEQ
+            || peek(1).getType() == TokenType.NOTEQ) {
+            advance();
+            ast.add(current);
+
+            comparison(ast);
+            ast = ast.encapsulate(AstType.Equal_E);
+            parsed = true;
+        }
+
+        return parsed;
+    }
+
+    private def comparison(Ast ast) : var {
+        var parsed = addition(ast);
+
+        while(peek(1).getType() == TokenType.GREATERTHAN || peek(1).getType() == TokenType._GTE
+            || peek(1).getType() == TokenType.LESSTHAN || peek(1).getType() == TokenType._LTE) {
+            advance();
+            ast.add(current);
+
+            addition(ast);
+            ast = ast.encapsulate(AstType.Less_E);
+            parsed = true;
+        }
+
+        return parsed;
+    }
+
+    private def addition(Ast ast) : var {
+        var parsed = multiplication(ast);
+
+        while(peek(1).getType() == TokenType.MINUS || peek(1).getType() == TokenType.PLUS) {
+            advance();
+            ast.add(current);
+
+            multiplication(ast);
+            ast = ast.encapsulate(AstType.Add_E);
+            parsed = true;
+        }
+
+        return parsed;
+    }
+
+    private def multiplication(Ast ast) : var {
+        var parsed = unary(ast);
+
+        while(peek(1).getType() == TokenType._DIV || peek(1).getType() == TokenType._MOD
+            || peek(1).getType() == TokenType.MULT) {
+            advance();
+            ast.add(current);
+
+            unary(ast);
+            ast = ast.encapsulate(AstType.Mult_E);
+            parsed = true;
+        }
+
+        return parsed;
+    }
+
+    private def unary(Ast ast) : var {
+        if(peek(1).getType() == TokenType.MINUS) {
+            advance();
+            ast.add(current);
+
+            var parsed = unary(ast);
+            ast = ast.encapsulate(AstType.Add_E);
+            return parsed;
+        } else if(peek(1).getType() == TokenType.NOT) {
+            advance();
+            ast.add(current);
+
+            var parsed = unary(ast);
+            ast = ast.encapsulate(AstType.Not_E);
+            return parsed;
+        }
+
+        retain(ast);
+        errors.enableProtectedMode();
+        if(!parsePrimaryExpression(ast))
+        {
+            errors.pass();
+            rollbackLast(ast);
+            return false;
+        } else
+        {
+            dump();
+            errors.fail();
+            return true;
         }
     }
 
@@ -456,6 +811,48 @@ class Parser {
             ast.encapsulate(AstType.Null_E);
             return true;
         }
+
+        if(peek(1).getType() == TokenType.LEFT_BRACE)
+        {
+            expect(TokenType.LEFT_BRACE, ast, "`[`");
+            parseExpression(ast);
+            expect(TokenType.RIGHT_BRACE, ast, "`]`");
+
+
+
+            if(!isOverrideOperator(peek(1).getToken())){
+                errors.enableProtectedMode();
+                retain(ast);
+                if(!parseDotNotationCallExpression(ast)) {
+                    rollbackLast(ast);
+                    errors.pass();
+                }
+                else {
+                    errors.fail();
+                    dump();
+                }
+
+                ast.encapsulate(AstType.Arry_E);
+                return true;
+            }
+            ast.encapsulate(AstType.Arry_E);
+
+            if(!(peek(1).getType() == TokenType._INC ||
+                peek(1).getType() == TokenType._DEC))
+                return true;
+        }
+
+        /* ++ or -- after the expression */
+        if(peek(1).getType() == TokenType._INC ||
+            peek(1).getType() == TokenType._DEC)
+        {
+            advance();
+            ast.add(current);
+            ast.encapsulate(AstType.Post_Inc_E);
+            return true;
+        }
+
+        return false;
     }
 
     private def parseArrayExpression(Ast ast) : var {
@@ -780,6 +1177,91 @@ class Parser {
         return false;
     }
 
+    private def parseUtypeListOpt(Ast ast) {
+        ast = getAst(ast, AstType.Utype_Arg_List_Opt);
+        expect(TokenType.LEFT_PAREN, ast, "`(`");
+
+        if(peek(1).getType() != TokenType.RIGHT_PAREN)
+        {
+            if(isDecl(peek(1), PROTOTYPE))
+                parseProtoTypeDecl(ast, false);
+            else
+                parseUtypeArgOpt(ast);
+            _puTypeArgOpt:
+            if(peek(1).getType() == TokenType.COMMA)
+            {
+                expect(TokenType.COMMA, ast, "`,`");
+
+                if(isDecl(peek(1), PROTOTYPE))
+                    parseProtoTypeDecl(ast, false);
+                else
+                    parseUtypeArgOpt(ast);
+                goto _puTypeArgOpt;
+            }
+        }
+
+        expect(TokenType.RIGHT_PAREN, ast, "`)`");
+    }
+
+
+    private def parseUtypeList(Ast ast) {
+        ast = getAst(ast, AstType.Utype_Arg_List);
+        expect(TokenType.LEFT_PAREN, ast, "`(`");
+
+        if(peek(1).getType() != TokenType.RIGHT_PAREN)
+        {
+            if(isDecl(peek(1), PROTOTYPE))
+                parseProtoTypeDecl(ast, false);
+            else
+                parseUtypeArg(ast);
+            _puTypeArg:
+            if(peek(1).getType() == TokenType.COMMA)
+            {
+                expect(TokenType.COMMA, ast, "`,`");
+
+                if(isDecl(peek(1), PROTOTYPE))
+                    parseProtoTypeDecl(ast, false);
+                else
+                    parseUtypeArg(ast);
+                goto _puTypeArg;
+            }
+        }
+
+        expect(TokenType.RIGHT_PAREN, ast, "`)`");
+    }
+
+    private def parseUtypeArg(Ast ast) : var {
+        ast = getAst(ast, AstType.Utype_Arg);
+
+        if(parseUtype(ast))
+        {
+            expectIdentifier(ast);
+            return true;
+        }else
+            errors.createNewError(CompilerError.GENERIC, current, "expected native type or reference pointer");
+
+        return false;
+    }
+
+    private def parseUtypeArgOpt(Ast ast) : var {
+        ast = getAst(ast, AstType.Utype_Arg_Opt);
+
+        if(parseUtype(ast))
+        {
+            errors.enableProtectedMode();
+            if(!expectIdentifier(ast)) {
+                errors.pass();
+                pushBack();
+            }
+            else
+                errors.fail();
+            return true;
+        }else
+            errors.createNewError(CompilerError.GENERIC, current, "expected native type or reference pointer");
+
+        return false;
+    }
+
     private def parseUtypeList(Ast ast) {
         ast = getAst(ast, AstType.Utype_List);
 
@@ -1087,6 +1569,8 @@ class Parser {
     private static const var[] IMPORT = "import";
     private static const var[] VAR = "var";
     private static const var[] OBJECT = "object";
+    private static const var[] PROTOTYPE = "fn";
+    private static const var[] METHOD = "def;
 
     private string sourceFile = "";
     private var panic;

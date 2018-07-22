@@ -28,10 +28,11 @@ void clist(int proc) {
 void __clist_expand(SharpObject* lst) {
     SharpObject* size = lst->node[0].object;
     SharpObject* data = lst->node[1].object;
+    register int64_t sz = data->size;
 
-    if(size->HEAD[0] >= data->size) {
-        size_t capacity = data->size+
-                          (data->size >> 2) + (data->size > 1000000 ? 10 : RESIZE_LIMIT);
+    if(size->HEAD[0] >= sz) {
+        size_t capacity = sz+
+                          (sz >> 2) + (sz > 1000000 ? 10 : RESIZE_LIMIT);
 
         if(data->node != NULL) {
             GarbageCollector::self->reallocObject(data, capacity);

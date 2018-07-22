@@ -14,3 +14,23 @@
 from changing the source code
 - Limit naming of declirations such as fields named as methods or classes
 - Figure out weird bug with Unixfile system processing char when normalizing file path
+- Add support for inline anaonymous functions
+    - Syntax:
+```javascript
+def foo() {
+    
+    var x = 1, y = 3.14, c = 10;
+    
+    // calculate some value
+    var result = use x, y : var {
+        c = 10; // could not resolve c out of scope
+        return Math.sqrt(x)+y;
+    }
+}
+```
+
+- the concept of  the use statement is that the use directive
+creates an inline anonymous function to be used directly with your 
+code. The inline function has no notion of the surrounding scope
+around it. I create the corresponding name $anonymous1 etc. in the class or
+global scope and translate it to ``var result = $anonymous1(x, y);``
