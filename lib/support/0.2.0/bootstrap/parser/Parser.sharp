@@ -187,13 +187,13 @@ class Parser {
                 if(peek(1).getToken() == "operator") {
                     if(accessTypes.size() > 0)
                     {
-                        errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current);
+                        errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
                     }
                     errors.createNewError(CompilerError.GENERIC, current, "unexpected operator declaration");
                     parseOperatorDecl(ast);
                 }
                 else if(peek(1).getToken() == "delegate") {
-                    parseDelegateDecl(pAst);
+                    parseDelegateDecl(ast);
                 }
                 else {
                     if(accessTypes.size() > 0)
@@ -204,25 +204,25 @@ class Parser {
                     parseMethodDecl(ast);
                 }
             }
-            else if(isconstructor_decl())
+            else if(isConstructorDecl())
             {
-                if(access_types.size() > 0)
+                if(accessTypes.size() > 0)
                 {
-                    errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+                    errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
                 }
-                errors->createNewError(GENERIC, current(), "unexpected constructor declaration");
-                parse_constructor(ast);
+                errors.createNewError(CompilerError.GENERIC, current, "unexpected constructor declaration");
+                parseConstructor(ast);
             }
-            else if(current().getTokenType() == _EOF)
+            else if(current.getType() == TokenType._EOF)
             {
-                errors->createNewError(UNEXPECTED_EOF, current());
+                errors.createNewError(CompilerError.UNEXPECTED_EOF, current, "");
                 break;
             }
-            else if (current().getTokenType() == RIGHTCURLY)
+            else if (current.getType() == TokenType.RIGHT_CURLY)
             {
                 if((brackets-1) < 0)
                 {
-                    errors->createNewError(ILLEGAL_BRACKET_MISMATCH, current());
+                    errors.createNewError(CompilerError.ILLEGAL_BRACKET_MISMATCH, current, "");
                 }
                 else
                 {
@@ -231,45 +231,82 @@ class Parser {
                     // end of class block
                     if(brackets == 0)
                     {
-                        pushback();
+                        pushBack();
                         break;
                     }
                 }
             }
-            else if(current().getTokenType() == LEFTCURLY)
+            else if(current.getType() == TokenType.LEFT_CURLY)
                 brackets++;
             else {
                 // save parser state
-                this->retainstate(ast);
-                pushback();
+                retain(ast);
+                pushBack();
 
                 /*
                  * variable decl?
                  */
-                if(parse_utype(ast))
+                if(parseUtype(ast))
                 {
-                    if(peek(1).getId() == IDENTIFIER)
+                    if(peek(1).getId() == TokenId.IDENTIFIER)
                     {
                         // Variable decliration
-                        ast = this->rollbacklast();
-                        parse_variabledecl(ast);
-                        remove_accesstypes();
+                        rollbackLast(ast);
+                        parseVariableDecl(ast);
+                        accessTypes.clear();
                         continue;
                     }
                 }
 
-                ast = this->rollback();
-                errors->createNewError(GENERIC, current(), "expected delegate prototype declaration");
-                parse_all(ast);
+                rollback(ast);
+                errors.createNewError(CompilerError.GENERIC, current, "expected delegate prototype declaration");
+                parseAll(ast);
             }
 
-            remove_accesstypes();
+            accessTypes.clear();
         }
 
         if(brackets != 0)
-            errors->createNewError(MISSING_BRACKET, current(), " expected `}` at end of interface declaration");
+            errors.createNewError(CompilerError.MISSING_BRACKET, current, " expected `}` at end of interface declaration");
 
-        expect(RIGHTCURLY, "`}` at end of interface declaration");
+        expect(TokenType.RIGHT_CURLY, "`}` at end of interface declaration");
+    }
+
+    private def isConstructorDecl() : var {
+        return current.getId() == TokenId.IDENTIFIER && !isKeyword(current.getToken()) &&
+                   peek(1).getType() == TokenType.LEFT_PAREN;
+    }
+
+    private def parseConstructor(Ast ast) {
+        ast = getAst(ast, AstType.Constructor_Decl);
+
+        for(var i = 0; i < accessTypes.size(); i++) {
+            ast.add(accessTypes.get(i));
+        }
+        accessTypes.clear();
+        pushBack();
+
+        expectIdentifier(ast);
+
+        parseUtypeArgList(ast);
+        parseBlock(ast);
+    }
+
+    private def parseMethodDecl(Ast ast) {
+        ast = getAst(ast, AstType.Method_Decl);
+
+        for(var i = 0; i < accessTypes.size(); i++) {
+            ast.add(accessTypes.get(i));
+        }
+        accessTypes.clear();
+        ast.add(current);
+
+        expectIdentifier(ast);
+
+        parseUtypeList(ast);
+
+        parseMethodReturnType(ast);
+        parseBlock(ast);
     }
 
     private def parseDelegateDecl(Ast ast) {
@@ -315,12 +352,12 @@ class Parser {
 
         advance();
         if(!isOverrideOperator(current.getToken()))
-            errors.createNewError(GENERIC, current, "expected override operator");
+            errors.createNewError(CompilerError.GENERIC, current, "expected override operator");
         else
             ast.add(current);
 
         parseUtypeArgList(ast);
-        parseMethodReturnType(pAst); // assign-expr operators must return void
+        parseMethodReturnType(ast); // assign-expr operators must return void
 
         parseBlock(ast);
     }
@@ -1204,7 +1241,7 @@ class Parser {
     }
 
 
-    private def parseUtypeList(Ast ast) {
+    private def parseUtypeArgList(Ast ast) {
         ast = getAst(ast, AstType.Utype_Arg_List);
         expect(TokenType.LEFT_PAREN, ast, "`(`");
 
@@ -1570,7 +1607,7 @@ class Parser {
     private static const var[] VAR = "var";
     private static const var[] OBJECT = "object";
     private static const var[] PROTOTYPE = "fn";
-    private static const var[] METHOD = "def;
+    private static const var[] METHOD = "def";
 
     private string sourceFile = "";
     private var panic;

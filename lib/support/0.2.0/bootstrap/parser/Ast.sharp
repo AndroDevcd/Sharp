@@ -157,7 +157,7 @@ enum AstType {
     Enum_Decl,
     Delegate_Post_Decl,
     Delegate_Decl,
-    Construct_Decl,
+    Constructor_Decl,
     Label_Decl,
     Operator_Decl,
     Var_Decl,
