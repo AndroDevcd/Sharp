@@ -13,17 +13,6 @@ import std;
 public class WinFileSystem base FileSystem {
     private var slash;
 
-    /* Constants for file attributes */
-    public static const var FILE_COMPRESSED    = 2048;
-    public static const var FILE_ARCHIVE       = 32;
-    public static const var FILE_DIRECTORY     = 16;
-    public static const var FILE_ENCRYPTED     = 16384;
-    public static const var FILE_HIDDEN        = 2;
-    public static const var FILE_NORMAL        = 128;
-    public static const var FILE_READONLY      = 1;
-    public static const var FILE_SYSTEM        = 4;
-    public static const var FILE_TEMP          = 256;
-
     public WinFileSystem() {
         slash = '\\';
     }
@@ -65,7 +54,13 @@ public class WinFileSystem base FileSystem {
       * other I/O error occurs.
       */
      public def delegate::getFileAttributes(File f) : var {
-        var[] path = f.getAbsolutePath().toArray();
+        var[] path;
+
+        try {
+            path = f.getAbsolutePath().toArray();
+        }catch(IOException e) {
+            return 0;
+        }
         var attrs;
 
         /*

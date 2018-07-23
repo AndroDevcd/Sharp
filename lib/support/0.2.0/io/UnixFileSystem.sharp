@@ -52,7 +52,13 @@ public class UnixFileSystem base FileSystem {
       * other I/O error occurs.
       */
      public def delegate::getFileAttributes(File f) : var {
-        var[] path = f.getAbsolutePath().toArray();
+        var[] path;
+
+        try {
+            path = f.getAbsolutePath().toArray();
+        }catch(IOException e) {
+            return 0;
+        }
         var attrs;
 
         /*
