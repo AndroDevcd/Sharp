@@ -254,8 +254,11 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             return;
         case 0xc7:
             {
-                native_string str(fmt::format("{}", registers[ebx]));
+                char buf[250];
+                sprintf(buf, "%G", registers[ebx]);
+                native_string str(buf);
                 GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
+                str.free();
             }
             return;
         case 0xa0:

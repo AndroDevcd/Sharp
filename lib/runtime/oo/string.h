@@ -38,8 +38,7 @@ public:
             }
 
             chars = (char*)malloc(sizeof(char)*len);
-            for(int64_t i = 0; i < len; i++)
-                chars[i] = value[i];
+            std::memcpy(chars, value, sizeof(char)*len);
         }
     }
 
