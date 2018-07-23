@@ -965,6 +965,16 @@ void VirtualMachine::__snprintf(int cfmt, double val, int precision) {
         case '%':
             snprintf(buf, 256, "%%");
             break;
+        case 'l': {
+            native_string str(to_string((long long)val));
+            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
+            return;
+        }
+        case 'L': {
+            native_string str(to_string((unsigned long long)val));
+            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
+            return;
+        }
         default: {
             native_string str(to_string(val));
             GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
