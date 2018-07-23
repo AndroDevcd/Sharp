@@ -7,6 +7,7 @@
 #include "../../runtime/List.h"
 #ifdef WIN32_
 #include  <io.h>
+#include <direct.h>
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -14,7 +15,6 @@
 #include <dirent.h>
 #include <utime.h>
 #include <iomanip>
-#include <direct.h>
 
 #ifndef WIN32
 #include <unistd.h>
