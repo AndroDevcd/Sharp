@@ -24,6 +24,7 @@
 VirtualMachine* vm;
 Environment* env;
 bool masterShutdown = false;
+thread_local stringstream varToString;
 
 int CreateVirtualMachine(std::string exe)
 {
@@ -251,10 +252,10 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             return;
         case 0xc7:
             {
-                stringstream ss;
-                ss.precision(16);
-                ss << registers[ebx];
-                native_string str(ss.str());
+
+                varToString.str("");
+                varToString << registers[ebx];
+                native_string str(varToString.str());
                 GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
             }
             return;

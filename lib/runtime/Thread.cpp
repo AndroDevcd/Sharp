@@ -1317,6 +1317,7 @@ void Thread::setup() {
         callStack = (Frame*)__malloc(sizeof(Frame)*stack_lmt);
         GarbageCollector::self->addMemory(sizeof(Frame)*stack_lmt);
     }
+    varToString.precision(16);
     calls=0;
     stackTail = (dataStack+stack_lmt)-1;
     suspendPending = false;

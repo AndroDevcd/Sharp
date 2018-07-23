@@ -24,6 +24,25 @@ public:
         }
     }
 
+    native_string(const char value[], long max)
+            :
+            len(0)
+    {
+        if(value == "") {
+            chars = NULL;
+        } else {
+            for(int64_t i = 0; i < max; i++)  {
+                if(value[i] != 0) {
+                    this->len++;
+                } else break;
+            }
+
+            chars = (char*)malloc(sizeof(char)*len);
+            for(int64_t i = 0; i < len; i++)
+                chars[i] = value[i];
+        }
+    }
+
     native_string()
     {
         init();
