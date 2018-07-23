@@ -191,6 +191,7 @@ unsigned long long getMemBytes(const char *str, bool &setLimit) {
                 error("expected number option `-maxlmt`");
         }
     }
+    return 0;
 }
 
 int startApplication(string exe, List<native_string>& pArgs) {

@@ -150,10 +150,12 @@ public class Runtime {
         );
     }
 
-    public static def toString(var data) : var[] {
+    public static def _snprintf(var fmt, var data, var precision) : var[] {
         var[] str;
         asm(
+            "loadl %egx,<fmt>"
             "loadl %ebx,<data>"
+            "loadl %ecx,<precision>"
             "int 0xc7" // convert double to string
             "movl <str>"
             "popobj"

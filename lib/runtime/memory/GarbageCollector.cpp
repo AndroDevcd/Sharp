@@ -89,7 +89,7 @@ void* __realloc(void *ptr, unsigned long long bytes, unsigned long long old)
 void GarbageCollector::initilize() {
     self=(GarbageCollector*)malloc(sizeof(GarbageCollector)*1);
 #ifdef WIN32_
-    self->mutex.initalize();
+    new (&self->mutex) std::mutex();
 #endif
 #ifdef POSIX_
     new (&self->mutex) std::mutex();
@@ -444,6 +444,7 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
         std::free(object);
         return tmp;
     }
+    return NULL;
 }
 
 SharpObject *GarbageCollector::newObject(unsigned long size) {

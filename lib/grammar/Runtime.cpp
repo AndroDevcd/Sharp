@@ -9,6 +9,7 @@
 #include "../support/visual-studios/vc/include/dirent.h"
 #endif
 #include <sys/stat.h>
+#include <cmath>
 #include "../../stdimports.h"
 #ifdef POSIX_
 #include <cmath>
@@ -223,6 +224,7 @@ inline bool ends_with(std::string const & value, std::string const & ending)
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
+struct stat result;
 void get_full_file_list(native_string &path, List<native_string> &files) {
     DIR *dir;
     struct dirent *ent;
@@ -233,7 +235,7 @@ void get_full_file_list(native_string &path, List<native_string> &files) {
             native_string file;
             file = path.str() + "/" + string(ent->d_name);
 
-            if(ent-> d_type == DT_DIR) {
+            if(stat(file.str().c_str(), &result) == 0 && S_ISDIR(result.st_mode)) {
                 native_string folder(file.str() + "/");
                 get_full_file_list(folder, files);
                 continue;

@@ -8,6 +8,7 @@ Sharp versions;
 #endif
 #ifndef MAKE_COMPILER
     #include "lib/runtime/init.h"
+#include "lib/runtime/VirtualMachine.h"
 
 #endif
 

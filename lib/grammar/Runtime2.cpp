@@ -4,6 +4,7 @@
 
 #include <dirent.h>
 #include <sys/stat.h>
+#include <cmath>
 #include "../../stdimports.h"
 #ifdef POSIX_
 #include <cmath>

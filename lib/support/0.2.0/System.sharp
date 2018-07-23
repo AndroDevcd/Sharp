@@ -139,6 +139,10 @@ public class System {
     }
 
     public static def toString(var data) : var[] {
-        return Runtime.toString(data);
+        return Runtime._snprintf('g', data, 0);
+    }
+
+    public static def snprintf(var fmt, var data, var precision) : var[] {
+        return Runtime._snprintf(fmt, data, precision);
     }
 }

@@ -64,6 +64,8 @@ public:
     int exitVal;
 
     void fillMethodCall(Frame &frame, stringstream &ss);
+
+    static void __snprintf(int cfmt, double val, int precision);
 };
 
 #define executeMethod(address, thread_self) { \

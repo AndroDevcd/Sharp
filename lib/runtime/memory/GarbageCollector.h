@@ -6,6 +6,7 @@
 #define SHARP_GARBAGECOLLECTOR_H
 
 #include <vector>
+#include <mutex>
 #include "../../../stdimports.h"
 #include "../List.h"
 

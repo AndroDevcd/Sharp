@@ -20,13 +20,10 @@
 #include "../util/File.h"
 #include "../Modules/std.kernel/cmath.h"
 #include "../Modules/std.kernel/clist.h"
-#include "../util/fmt/include/format.h"
-#include "../util/fmt/include/printf.h"
 
 VirtualMachine* vm;
 Environment* env;
 bool masterShutdown = false;
-thread_local stringstream varToString;
 
 int CreateVirtualMachine(std::string exe)
 {
@@ -247,20 +244,13 @@ void VirtualMachine::shutdown() {
     }
 }
 
-thread_local char buf[250];
-thread_local native_string vtsbuf;
 void VirtualMachine::sysInterrupt(int32_t signal) {
     switch (signal) {
         case 0x9f:
             //cout << env->strings[(int64_t )thread_self->__stack[(int64_t)__rxs[sp]--].var].value.str();
             return;
         case 0xc7:
-            {
-                memset(buf, 0, sizeof(char)*250);
-                sprintf(buf, "%G", registers[ebx]);
-                vtsbuf.set(buf, 250);
-                GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, vtsbuf);
-            }
+            __snprintf((int) registers[egx], registers[ebx], (int) registers[ecx]);
             return;
         case 0xa0:
             registers[bmr]= Clock::__os_time((int) registers[ebx]);
@@ -913,4 +903,77 @@ string VirtualMachine::getPrettyErrorLine(long line, long sourceFile) {
     if(metaData.hasLine(line, sourceFile))
         ss << endl << "\t   " << line << ":    "; ss << metaData.getLine(line, sourceFile);
     return ss.str();
+}
+
+thread_local char buf[256];
+void VirtualMachine::__snprintf(int cfmt, double val, int precision) {
+    memset(buf, 0, sizeof(char)*256);
+    switch(cfmt) {
+        case 'd':
+        case 'i':
+            snprintf(buf, 256, "%d", (int)val);
+            break;
+        case 'u':
+            snprintf(buf, 256, "%u", (unsigned int)val);
+            break;
+        case 'o':
+            snprintf(buf, 256, "%o", (unsigned int)val);
+            break;
+        case 'x':
+            snprintf(buf, 256, "%x", (unsigned int)val);
+            break;
+        case 'X':
+            snprintf(buf, 256, "%X", (unsigned int)val);
+            break;
+        case 'f':
+            if(precision) {
+                stringstream ss;
+                ss << "%." << precision << 'f';
+                snprintf(buf, 256, ss.str().c_str(), val);
+            } else
+                snprintf(buf, 256, "%f", val);
+            break;
+        case 'F':
+            if(precision) {
+                stringstream ss;
+                ss << "%." << precision << 'F';
+                snprintf(buf, 256, ss.str().c_str(), val);
+            } else
+                snprintf(buf, 256, "%F", val);
+            break;
+        case 'e':
+            snprintf(buf, 256, "%e", val);
+            break;
+        case 'E':
+            snprintf(buf, 256, "%E", val);
+            break;
+        case 'g':
+            snprintf(buf, 256, "%g", val);
+            break;
+        case 'G':
+            snprintf(buf, 256, "%G", val);
+            break;
+        case 'a':
+            snprintf(buf, 256, "%a", val);
+            break;
+        case 'A':
+            snprintf(buf, 256, "%A", val);
+            break;
+        case 'c':
+            snprintf(buf, 256, "%c", (unsigned int)val);
+            break;
+        case '%':
+            snprintf(buf, 256, "%%");
+            break;
+        default: {
+            native_string str(to_string(val));
+            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
+            return;
+        }
+
+
+    }
+
+    native_string str(buf, 256);
+    GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
 }
