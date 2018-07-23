@@ -315,7 +315,8 @@ public class FileSystem {
         );
 
         io.begin();
-        io + ("" + raw);
+        if(raw != null)
+            io + ("" + raw);
     }
 
 
