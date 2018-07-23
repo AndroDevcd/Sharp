@@ -8,6 +8,7 @@
 #ifndef FMT_CORE_H_
 #define FMT_CORE_H_
 
+#include "../../../../stdimports.h"
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -481,7 +482,7 @@ class value {
     long double long_double_value;
     const void *pointer;
     string_value<char_type> string;
-    string_value<signed char> sstring;
+    string_value<signed char> _sstring;
     string_value<unsigned char> ustring;
     custom_value<Context> custom;
   };
@@ -496,7 +497,7 @@ class value {
   value(const signed char *val) {
     static_assert(std::is_same<char, char_type>::value,
                   "incompatible string types");
-    sstring.value = val;
+    _sstring.value = val;
   }
   value(const unsigned char *val) {
     static_assert(std::is_same<char, char_type>::value,

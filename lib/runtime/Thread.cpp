@@ -727,7 +727,7 @@ short int startAddress = 0;
  * We need this to keep track of which finally block we are executing
  */
 FinallyTable finallyTable;
-unsigned long long count = 0, overflow = 0;
+unsigned long long irCount = 0, overflow = 0;
 
 void Thread::exec() {
 
@@ -1317,7 +1317,6 @@ void Thread::setup() {
         callStack = (Frame*)__malloc(sizeof(Frame)*stack_lmt);
         GarbageCollector::self->addMemory(sizeof(Frame)*stack_lmt);
     }
-    varToString.precision(16);
     calls=0;
     stackTail = (dataStack+stack_lmt)-1;
     suspendPending = false;

@@ -176,7 +176,6 @@ extern thread_local double registers[12];
 #define PC(thread_self) \
     (thread_self->pc-thread_self->cache)
 
-extern thread_local stringstream varToString;
 extern FinallyTable finallyTable;
 extern short int startAddress;
 

@@ -5,7 +5,6 @@
 #include <random>
 #include <cmath>
 #include <string>
-#include "../util/fmt/include/core.h"
 #include "VirtualMachine.h"
 #include "Exe.h"
 #include "Thread.h"
@@ -21,6 +20,8 @@
 #include "../util/File.h"
 #include "../Modules/std.kernel/cmath.h"
 #include "../Modules/std.kernel/clist.h"
+#include "../util/fmt/include/format.h"
+#include "../util/fmt/include/printf.h"
 
 VirtualMachine* vm;
 Environment* env;
@@ -165,7 +166,7 @@ void VirtualMachine::destroy() {
     GarbageCollector::shutdown();
 }
 
-extern unsigned long long count, overflow;
+extern unsigned long long irCount, overflow;
 
 #ifdef WIN32_
 DWORD WINAPI
@@ -199,8 +200,8 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         thread_self->tprof.dump();
 #endif
 
-    if(count != 0)
-        cout << "instructions executed " << count << " overflowed " << overflow << endl;
+    if(irCount != 0)
+        cout << "instructions executed " << irCount << " overflowed " << overflow << endl;
 
     /*
      * Check for uncaught exception in thread before exit
@@ -253,8 +254,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             return;
         case 0xc7:
             {
-
-                native_string str(fmt::format("{}", registers[ebx]));
+                native_string str(fmt::sprintf("%G", registers[ebx]));
                 GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
             }
             return;
