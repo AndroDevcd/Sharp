@@ -40,6 +40,7 @@ class StreamBuffer {
     * The data will be converted to a unicode UTF-16 encoded string
     */
     public def toString() : string {
+        if(dp==0) return new string();
         return new string(data, 0, dp - 1);
     }
 

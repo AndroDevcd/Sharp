@@ -76,7 +76,13 @@ public class UnixFileSystem base FileSystem {
       * Return false if access is denied or an I/O error occurs
       */
      public def delegate::checkAccess(File f, var access) : var {
-        var[] path = f.getAbsolutePath().toArray();
+        var[] path;
+
+        try {
+            path = f.getAbsolutePath().toArray();
+        }catch(IOException e) {
+            return 1;
+        }
         var result;
 
         /*
