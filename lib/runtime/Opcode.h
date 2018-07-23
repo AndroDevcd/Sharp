@@ -54,7 +54,7 @@
 #ifndef SHARP_PROF_
 #define _brh_NOINCREMENT SAFTEY_CHECK if(!startAddress) DISPATCH() else goto *opcodeStart;
 #else
-#define _brh_NOINCREMENT SAFTEY_CHECK count++; if(count == 0) overflow++; goto *opcodeStart;
+#define _brh_NOINCREMENT SAFTEY_CHECK irCount++; if(irCount == 0) overflow++; goto *opcodeStart;
 #endif
 #define _brh  pc++; _brh_NOINCREMENT
 
