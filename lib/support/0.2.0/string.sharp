@@ -6,6 +6,8 @@ mod std;
 public class string {
     /*this will hold our string */
         private var[] data;
+        private static var varFmt = 'g';
+        private static var precision = 0; // default presicion
 
         public string( var[] immstr )
         {
@@ -114,6 +116,19 @@ public class string {
             return data[pos];
         }
 
+        public static def fmt( var _fmt ) {
+            varFmt = _fmt;
+            if(_fmt != 'f' && _fmt != 'F') precision = 0;
+        }
+
+        public static def precision( var prec ) {
+            if(prec <= 0)
+                throw new IllegalArgumentException("invalid precision: " + prec);
+
+            varFmt = 'f';
+            precision = prec;
+        }
+
         public def operator+( var[] immstr ) : string
         {
             string s = new string(data);
@@ -218,14 +233,9 @@ public class string {
             return (var[])System.copyOf(data, sizeof(data));
         }
 
-        private static def parsefloat( var number ) : string
-        {
-            return new string(System.toString(number));
-        }
-
         public static def parse( var number ) : string
         {
-            return new string(System.toString(number));
+            return new string(System.snprintf(varFmt, number, precision));
         }
 
         public def substring(var startIndex) : string {
