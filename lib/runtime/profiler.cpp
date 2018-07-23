@@ -13,11 +13,11 @@
 #include "init.h"
 
 
-extern unsigned long long count, overflow;
+extern unsigned long long irCount, overflow;
 void Profiler::hit(Method *func) {
     funcProf prof;
     prof.func = func;
-    prof.ir = count;
+    prof.ir = irCount;
     prof.past = Clock::realTimeInNSecs();
     functions.get(func->address).hits++;
     calls.push_back(prof);
@@ -30,7 +30,7 @@ void Profiler::profile() {
         funcProf *func = &functions.get(prof.func->address);
         func->time += Clock::realTimeInNSecs()-prof.past;
         func->avgtm = func->time/func->hits;
-        func->ir += count-prof.ir;
+        func->ir += irCount-prof.ir;
         calls.pop_back();
     }
 }
