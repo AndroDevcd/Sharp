@@ -5,6 +5,7 @@
 #include <random>
 #include <cmath>
 #include <string>
+#include "../util/fmt/include/core.h"
 #include "VirtualMachine.h"
 #include "Exe.h"
 #include "Thread.h"
@@ -253,9 +254,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xc7:
             {
 
-                varToString.str("");
-                varToString << registers[ebx];
-                native_string str(varToString.str());
+                native_string str(fmt::format("{}", registers[ebx]));
                 GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
             }
             return;
