@@ -26,9 +26,21 @@ public:
 
     native_string(const char value[], long max)
             :
-            len(0)
+            len(0),
+            chars(NULL)
     {
-        if(value == "") {
+        set(value, max);
+    }
+
+    native_string()
+    {
+        init();
+    }
+
+    void set(const char value[], long max) {
+        free();
+
+        if(max==0) {
             chars = NULL;
         } else {
             for(int64_t i = 0; i < max; i++)  {
@@ -40,11 +52,6 @@ public:
             chars = (char*)malloc(sizeof(char)*len);
             std::memcpy(chars, value, sizeof(char)*len);
         }
-    }
-
-    native_string()
-    {
-        init();
     }
 
     void init() {

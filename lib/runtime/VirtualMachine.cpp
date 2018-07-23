@@ -247,7 +247,8 @@ void VirtualMachine::shutdown() {
     }
 }
 
-thread_local char buf{250};
+thread_local char buf[250];
+thread_local native_string vtsbuf;
 void VirtualMachine::sysInterrupt(int32_t signal) {
     switch (signal) {
         case 0x9f:
@@ -255,11 +256,10 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             return;
         case 0xc7:
             {
-                memset(&buf, 0, sizeof(buf));
-                sprintf(&buf, "%G", registers[ebx]);
-                native_string str(&buf, 250);
-                GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
-                str.free();
+                memset(buf, 0, sizeof(char)*250);
+                sprintf(buf, "%G", registers[ebx]);
+                vtsbuf.set(buf, 250);
+                GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, vtsbuf);
             }
             return;
         case 0xa0:
