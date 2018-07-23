@@ -258,7 +258,7 @@ public class string {
                 return new string("");
 
 
-            string s = "";
+            string s = new string();
             s.data = (var[])System.memcpy(data, startIndex, size()-1);
             return s;
         }
@@ -271,7 +271,7 @@ public class string {
                     "stopIndex: " + stopIndex + " cannot be less than startIndex: " + startIndex);
 
 
-            string s = "";
+            string s = new string();
             s.data = (var[])System.memcpy(data, startIndex, stopIndex);
             return s;
         }
@@ -340,7 +340,7 @@ public class string {
                 return false;
 
             var ext = postFix.size();
-            string extension = "";
+            string extension = new string();
             for(var i = size() - ext; i < size(); i++){
                 extension += new char(at(i));
             }
@@ -350,7 +350,7 @@ public class string {
 
 
         public static def toLower(string s) : string {
-            string newstr = "";
+            string newstr = new string();
             var[] chs = s.toArray();
             foreach(var c : chs) {
                 newstr += char.toLower(c);
@@ -359,7 +359,7 @@ public class string {
         }
 
         public static def toUpper(string s) : string {
-            string newstr = "";
+            string newstr = new string();
             var[] chs = s.toArray();
             foreach(var c : chs) {
                 newstr += char.toUpper(c);

@@ -107,6 +107,12 @@ public class IOStream {
         iobuf + string.parse(n);
     }
 
+    public def writeChar(var n) {
+        if(direction == READ)
+            throw new IllegalStateException("illegal write on IOStream");
+        iobuf + n;
+    }
+
     public def clear() {
         iobuf.end();
     }

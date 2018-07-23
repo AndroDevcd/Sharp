@@ -1355,6 +1355,10 @@ void RuntimeEngine::parseTryCatchStatement(Block& block, Ast* pAst) {
                         klasses.add(klass);
                 }
 
+                if(!currentScope()->reachable && (currentScope()->last_statement==ast_return_stmnt
+                                                  || currentScope()->last_statement == ast_throw_statement)) {
+                    currentScope()->reachable=true;
+                }
                 currentScope()->removeLocals(currentScope()->blocks);
                 currentScope()->blocks--;
                 break;
