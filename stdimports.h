@@ -19,7 +19,6 @@ using namespace std;
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 #define WIN32_
-#include "lib/util/mingw.mutex.h"
 #else
 #define POSIX_
 #endif
