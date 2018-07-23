@@ -153,8 +153,8 @@ public class Runtime {
     public static def toString(var data) : var[] {
         var[] str;
         asm(
-            "ipushl <data>"
-            "int 0xc7" // get real sizeof object in memory
+            "loadl %ebx,<data>"
+            "int 0xc7" // convert double to string
             "movl <str>"
             "popobj"
         );

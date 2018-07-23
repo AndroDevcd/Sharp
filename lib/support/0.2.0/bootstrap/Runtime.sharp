@@ -182,6 +182,7 @@ public class Runtime {
         }
 
         exec_runtime(files);
+        return 0;
     }
 
     static def contains(ArrayList<string> files, string file) : var {
