@@ -71,7 +71,7 @@ public class Time {
      */
     private static def adjustTime(var usec) : var {
 
-        if(BuildConfig.isWindows()) {
+        if(Manifest.isWindows()) {
             return usec/1000;
         }
 

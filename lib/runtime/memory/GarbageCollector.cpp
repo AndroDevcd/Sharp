@@ -520,7 +520,7 @@ SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
 }
 
 SharpObject *GarbageCollector::newObjectArray(unsigned long size, ClassObject *k) {
-    if(k != nullptr || size==0) {
+    if(k != nullptr && size > 0) {
         
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
         object->init(size, k);
