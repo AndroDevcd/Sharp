@@ -330,7 +330,7 @@ void GarbageCollector::run() {
 #ifdef POSIX_
             usleep(1*999);
 #endif
-            if(messageQueue.empty()) goto message;
+            if(!messageQueue.empty()) goto message;
         } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD())) && !tself->suspendPending
                 && tself->state == THREAD_RUNNING);
         /**
