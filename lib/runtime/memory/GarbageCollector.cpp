@@ -302,6 +302,7 @@ void GarbageCollector::run() {
             return;
         }
 
+        message:
         if(!messageQueue.empty()) {
             mutex.lock();
             CollectionPolicy policy = messageQueue.last();
@@ -329,7 +330,8 @@ void GarbageCollector::run() {
 #ifdef POSIX_
             usleep(1*999);
 #endif
-        } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD())) && messageQueue.empty() && !tself->suspendPending
+            if(messageQueue.empty()) goto message;
+        } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD())) && !tself->suspendPending
                 && tself->state == THREAD_RUNNING);
         /**
          * Attempt to collect objects based on the appropriate

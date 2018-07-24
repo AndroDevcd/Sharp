@@ -2,7 +2,7 @@ mod std.kernel;
 
 import std;
 
-public class BuildConfig {
+public class Manifest {
     public static string OS;
     public static string applicationName;
     public static string platform;

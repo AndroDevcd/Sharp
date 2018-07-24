@@ -30,10 +30,10 @@ public class Runtime {
     */
     public static def __srt_init_(object[] args) : var {
 
-        BuildConfig.applicationName = "" + (var[])args[0];
-        BuildConfig.version = "" + (var[])args[1];
-        BuildConfig.platform = "" + (var[])args[2];
-        BuildConfig.OS = "" + (var[])args[3];
+        Manifest.applicationName = "" + (var[])args[0];
+        Manifest.version = "" + (var[])args[1];
+        Manifest.platform = "" + (var[])args[2];
+        Manifest.OS = "" + (var[])args[3];
 
         /**
         * Build config must be setup first before we do anything

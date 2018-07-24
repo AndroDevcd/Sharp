@@ -1,0 +1,145 @@
+mod app;
+
+
+import std;
+
+def foo(var a, var b, var c, var d) {
+    // 20 calls
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+    bar(a, b, c);
+}
+
+def bar(var a, var b, var c) {
+    // 20 calls
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+    baz(a, b);
+}
+
+def baz(var a, var b) {
+    // 20 calls
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+    quux(a);
+}
+
+def quux(var a) {
+    // 20 calls
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+    qux();
+}
+
+def qux() {}
+
+
+def test_calls(var loops) {
+
+    for (var i = 0; i < loops; i++) {
+        // 20 calls
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+        foo(1, 2, 3, 4);
+    }
+}
+
+/**
+ * Created by BraxtonN on 7/17/2018.
+ *
+ * This program was created to illustrate the speed of calling functions in sharp
+ *
+ */
+def main(string[] args) : var {
+    var past = System.getUtcTimeInMills(), now;
+    test_calls(20);
+
+    label:
+    now = System.getUtcTimeInMills();
+    System.println("calls (" + (now-past) + ") ms");
+}

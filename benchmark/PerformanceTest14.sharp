@@ -1,0 +1,35 @@
+mod app;
+
+
+import std;
+
+/**
+ * Created by BraxtonN on 7/17/2018.
+ *
+ * This program was created to illustrate the speed of iterating through an array
+ * via for loop or foreach
+ *
+ * for (438.549) ms
+ * foreach (338.869) ms
+ *
+ * Program finished with exit code 0
+ * Compiled in 809779us & 809ms
+ *
+ */
+def main(string[] args) : var {
+    var[] arry = new var[10000000];
+    var past = System.getUtcTimeInMills(), now;
+    var val;
+    for(var i = 0; i < sizeof(arry); i++) {
+        val = arry[i];
+    }
+    now = System.getUtcTimeInMills();
+    System.println("for (" + (now-past) + ") ms");
+
+    past = System.getUtcTimeInMills();
+    foreach(var n : arry) {
+        val = n;
+    }
+    now = System.getUtcTimeInMills();
+    System.println("foreach (" + (now-past) + ") ms");
+}
