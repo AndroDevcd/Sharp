@@ -50,7 +50,7 @@ bool kbhit()
 bool _kbhit()
 {
     bool hit;
-    initTermios(echo);
+    initTermios(false);
     hit = _kbhit();
     resetTermios();
     return hit;
