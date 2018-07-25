@@ -9,7 +9,7 @@ var gameOver;
 const var width = 20, height = 20;
 var x,y, coinX, coinY, score;
 var[] tailX = new var[100], tailY = new var[100];
-var tail, ch;
+var tail;
 enum direction { STOP=0, LEFT, UP, RIGHT, DOWN };
 direction dir;
 
@@ -110,27 +110,49 @@ def input()
 {
     if(_kbhit())
     {
-        ch = System.readChar();
-    System.println("\nvalue: " + ch);
-        if(ch==0xE0 && _kbhit())
-            ch = System.readChar();
-    System.println("\nvalue: " + ch);
-        switch(ch) {
-            case 72:
-                dir = UP;
-                break;
-            case 80:
-                dir = DOWN;
-                break;
-            case 75:
-                dir = LEFT;
-                break;
-            case 77:
-                dir = RIGHT;
-                break;
-            case 'Q':
-                gameOver = true;
-                break;
+        var ch = System.readChar();
+        if(Manifest.isWindows()) {
+            if(ch==0xE0 && _kbhit())
+                ch = System.readChar();
+
+            switch(ch) {
+                case 72:
+                    dir = UP;
+                    break;
+                case 80:
+                    dir = DOWN;
+                    break;
+                case 75:
+                    dir = LEFT;
+                    break;
+                case 77:
+                    dir = RIGHT;
+                    break;
+                case 'Q':
+                    gameOver = true;
+                    break;
+            }
+        } else {
+            if(ch==0x18 && _kbhit())
+                ch = System.readChar();
+
+            switch(ch) {
+                case 103:
+                    dir = UP;
+                    break;
+                case 108:
+                    dir = DOWN;
+                    break;
+                case 105:
+                    dir = LEFT;
+                    break;
+                case 106:
+                    dir = RIGHT;
+                    break;
+                case 'Q':
+                    gameOver = true;
+                    break;
+            }
         }
     }
 }
