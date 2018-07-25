@@ -10,6 +10,7 @@
 #include "oo/Exception.h"
 #include "oo/Method.h"
 #include "profiler.h"
+#include "../Modules/std/Random.h"
 
 #define MAX_THREADS 0xffba
 
@@ -39,6 +40,7 @@ public:
             state(THREAD_KILLED),
             suspended(false),
             name(""),
+            rand(NULL),
             main(NULL),
             exitVal(1),
             suspendPending(false),
@@ -124,6 +126,7 @@ public:
     bool suspendPending;
     bool exceptionThrown;
     Object currentThread, args;
+    Random* rand;
 
     int64_t fp;
     Method *current;
@@ -172,6 +175,8 @@ extern thread_local double registers[12];
 #define ADX registers[adx]
 #define ECX registers[ecx]
 #define EGX registers[egx]
+#define CMT registers[cmt]
+#define BMR registers[bmr]
 
 #define PC(thread_self) \
     (thread_self->pc-thread_self->cache)

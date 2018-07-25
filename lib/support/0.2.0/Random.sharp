@@ -1,0 +1,31 @@
+mod std;
+
+import std.kernel;
+
+def random() : var {
+    return __rand();
+}
+
+def randomInt() : var {
+    return __randInt();
+}
+
+def random(var min, var max) : var {
+    return __rand(min, max);
+}
+
+def randomInt(var min, var max) : var {
+    return __randInt(min, max);
+}
+
+def randomSeed() : var {
+    return __seed();
+}
+
+def reset() : var {
+    return __reset();
+}
+
+def seed(var sd) {
+    __seed(sd);
+}

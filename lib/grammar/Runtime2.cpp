@@ -665,10 +665,9 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
 
                         if(fn != NULL) goto funcFound;
                     } else {
-                        ClassObject *global = getClass("global", globalClass, classes);
                         KeyPair<int, Field> *field;
                         Field *f;
-                        if((fn = global->getFunction(ptr.referenceName, params)) != NULL) {
+                        if((fn = getGlobalFunction(ptr.referenceName, params)) != NULL) {
                             goto funcFound;
                         } else if((field = currentScope()->getLocalField(ptr.referenceName)) != NULL) {
                             f = &field->value;
@@ -680,7 +679,11 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                         } else if((f = currentScope()->klass->getField(ptr.referenceName, true)) != NULL) {
                             if(f->prototype) {
                                 Expression e, tmp;
-                                e.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                                if(f->isStatic())
+                                    e.code.push_i64(SET_Di(i64, op_MOVG, f->owner->address));
+                                else
+                                    e.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                                e.code.push_i64(SET_Di(i64, op_MOVN, f->address));
                                 tmp = fieldToExpression(NULL, *f); tmp.code.free();
                                 pushExpressionToRegister(tmp, e, ebx);
                                 fn = fieldToFunction(f, e);
@@ -700,11 +703,9 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
             }
         } else {
             if(ptr.singleRefrenceModule()) {
-                if(ptr.module == "global") {
-                    ClassObject *global = getClass("global", globalClass, classes);
-                    if((fn = global->getFunction(ptr.referenceName, params)) != NULL) {
-                        goto funcFound;
-                    }
+                ClassObject *global = getClass(ptr.module, globalClass, classes);
+                if(global != NULL && (fn = global->getFunction(ptr.referenceName, params)) != NULL) {
+                    goto funcFound;
                 }
             }
             errors->createNewError(COULD_NOT_RESOLVE, valueLst->line, valueLst->col, " `" + ptr.referenceName +  paramsToString(params) + "`");
@@ -3407,4 +3408,108 @@ Method *RuntimeEngine::fieldToFunction(Field *field, Expression &code) {
     fn->code.__asm64.appendAll(code.code.__asm64);
     fn->dynamicPointer=true;
     return fn;
+}
+
+Method *RuntimeEngine::getGlobalFunction(string name, List<Param> &params) {
+    Method* fn;
+    ClassObject* klass;
+
+    for (unsigned int i = 0; i < importMap.size(); i++) {
+        if (importMap.get(i).key == activeParser->sourcefile) {
+
+            List<string> &lst = importMap.get(i).value;
+            for (unsigned int x = 0; x < lst.size(); x++) {
+                if ((klass = getClass(lst.get(x), globalClass, globals)) != NULL) {
+                    if((fn = klass->getFunction(name, params)) != NULL)
+                        return fn;
+                }
+            }
+
+            break;
+        }
+    }
+    return nullptr;
+}
+
+
+Field *RuntimeEngine::getGlobalField(string name) {
+    Field* field;
+    ClassObject* klass;
+
+    for (unsigned int i = 0; i < importMap.size(); i++) {
+        if (importMap.get(i).key == activeParser->sourcefile) {
+
+            List<string> &lst = importMap.get(i).value;
+            for (unsigned int x = 0; x < lst.size(); x++) {
+                if ((klass = getClass(lst.get(x), globalClass, globals)) != NULL) {
+                    if((field = klass->getField(name)) != NULL)
+                        return field;
+                }
+            }
+
+            break;
+        }
+    }
+    return nullptr;
+}
+
+// signature candidates
+// private static fn main(string[]) : var;
+// private static fn main2(string[]);
+// private static fn main3();
+void RuntimeEngine::checkMainMethodSignature(Method method, bool global) {
+    ClassObject* stringClass = getClass("std", "string", classes);
+    if(global && method.getName() == "main") {
+        if(stringClass != NULL) {
+            List<Param> params;
+            List<AccessModifier> modifiers;
+            RuntimeNote note;
+            Field args = Field(stringClass, 0, "args", method.getParentClass(), modifiers, note);
+            args.isArray = true;
+            args.type = CLASS;
+            params.add(Param(args));
+
+            if(Param::match(method.getParams(), params, false, true)) {
+                if(method.type == VAR) { // fn main(string[]) : var;
+                    if(!mainMethodFound) {
+                        mainNote = method.note;
+                        mainMethodFound = true;
+                        mainAddress = method.address;
+                        mainSignature = 0;
+                    } else {
+                        errors->createNewError(GENERIC, method.ast, "main method with the same or different signature already exists");
+                        printNote(mainNote, "method `main` previously defined here");
+                    }
+
+                } else if(method.type == TYPEVOID) { // fn main(string[]);
+                    if(!mainMethodFound) {
+                        mainNote = method.note;
+                        mainMethodFound = true;
+                        mainAddress = method.address;
+                        mainSignature = 1;
+                    } else {
+                        errors->createNewError(GENERIC, method.ast, "main method with the same or different signature already exists");
+                        printNote(mainNote, "method `main` previously defined here");
+                    }
+                } else
+                    createNewWarning(GENERIC, method.ast->line, method.ast->col, "main method might not be executed");
+            }
+
+            params.free();
+            if(Param::match(method.getParams(), params, false, true)) {
+                if(method.type == TYPEVOID) { // fn main();
+                    if(!mainMethodFound) {
+                        mainNote = method.note;
+                        mainMethodFound = true;
+                        mainAddress = method.address;
+                        mainSignature = 2;
+                    } else {
+                        errors->createNewError(GENERIC, method.ast, "main method with the same or different signature already exists");
+                        printNote(mainNote, "method `main` previously defined here");
+                    }
+                } else
+                    createNewWarning(GENERIC, method.ast->line, method.ast->col, "main method might not be executed");
+            }
+        }
+    }
 }

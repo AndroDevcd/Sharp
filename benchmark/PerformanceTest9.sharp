@@ -24,7 +24,6 @@ def main(string[] args) : var {
     {
         new Exception();
     } // 1.650s
-
     /*
      * Exception e = new Exception();
      * for(var i = 0; i < 5000000; i++)

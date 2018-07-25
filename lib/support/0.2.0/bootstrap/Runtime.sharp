@@ -12,7 +12,7 @@ import std.kernel.vm;
 public class Runtime {
 
     private static string programName = "sharpc";
-    private static string programVers = "0.3.19";
+    private static string programVers = "0.3.21";
 
     public static def bootstrap(string[] args) : var {
         if(args == null) {
@@ -151,7 +151,7 @@ public class Runtime {
         }
 
         string path = "";
-        if(BuildConfig.isWindows()) {
+        if(Manifest.isWindows()) {
             path = "C:/Sharp/include";
         } else {
             path = "/usr/include/sharp/";

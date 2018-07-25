@@ -5,6 +5,8 @@ mod std;
  */
 class integer {
     protected var value;
+    // maximum possible value the compiler can process for ints
+    public static var MAX = 36028797018963967;
 
     public integer(var num) {
         value = num;

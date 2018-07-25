@@ -149,7 +149,7 @@ public class Thread {
 
     public static def setupMainThread() {
         Thread main = new Thread();
-        main.main = global#__SRT_Global.main;
+        //main.main; main function will remain 0 as the address is unknown
         main.id = 0;
         main.name = "main";
         main.started = true;

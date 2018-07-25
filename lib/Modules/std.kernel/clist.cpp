@@ -116,7 +116,7 @@ void __clist_insert() {
             } else {
                 for(size_t i = data->size-1; i > pos; i--)
                     data->node[i] = data->node[i-1];
-                data->node[(size_t)size->HEAD[0]++] =
+                data->node[pos] =
                         (self->sp--)->object.object;
             }
 

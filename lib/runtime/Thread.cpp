@@ -78,6 +78,7 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     new (&thread->mutex) std::mutex();
 #endif
     thread->name.init();
+    thread->rand = new Random();
     thread->main = method;
     thread->id = Thread::tid++;
     thread->dataStack = NULL;
@@ -121,6 +122,7 @@ void Thread::Create(string name) {
     this->args.object=NULL;
     this->name = name;
     this->starting = 0;
+    this->rand = new Random();
     this->id = Thread::tid++;
     this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*STACK_SIZE);
     this->suspendPending = false;
@@ -157,6 +159,7 @@ void Thread::CreateDaemon(string name) {
     this->name.init();
     this->name = name;
     this->id = Thread::tid++;
+    this->rand = new Random();
     this->dataStack = NULL;
     this->callStack = NULL;
     this->currentThread.object=NULL;
@@ -457,6 +460,10 @@ void Thread::term() {
 
     if(callStack != NULL) {
         std::free(callStack); callStack = NULL;
+    }
+
+    if(rand != NULL) {
+        delete rand;
     }
 
 #ifdef SHARP_PROF_

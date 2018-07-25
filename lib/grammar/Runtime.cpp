@@ -481,12 +481,12 @@ void RuntimeEngine::compile()
                     case ast_enum_decl:
                         break;
                     case ast_method_decl:
-                        addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
+                        addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
                         parseMethodDecl(ast);
                         removeScope();
                         break;
                     case ast_var_decl:
-                        addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
+                        addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
                         analyzeVarDecl(ast);
                         removeScope();
                         break;
@@ -4209,8 +4209,38 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
                     errors->createNewError(GENERIC, 1, 0, "setup method '" + setupMethod + "()' must be private");
                 }
 
+                // we need to look for user main method
+                if(mainMethodFound) {
+                    Field *userMain;
+                    switch(mainSignature) {
+                        case 0: { // fn main(string[]) : var;
+                            userMain = StarterClass->getField("main");
+                            break;
+                        }
+                        case 1: { // fn main2(string[]);
+                            userMain = StarterClass->getField("main2");
+                            break;
+                        }
+                        case 2: { // fn main3();
+                            userMain = StarterClass->getField("main3");
+                            break;
+                        }
+                    }
+
+                    if(userMain != NULL) {
+                        if(userMain->type == VAR && userMain->isStatic()) {
+                            staticMainInserts.push_i64(SET_Di(i64, op_MOVG, StarterClass->address));
+                            staticMainInserts.push_i64(SET_Di(i64, op_MOVN, userMain->address));
+                            staticMainInserts.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                            staticMainInserts.push_i64(SET_Di(i64, op_MOVI, mainAddress), ebx); // set main address
+                            staticMainInserts.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                        } else
+                            errors->createNewError(GENERIC, 1, 0, "main method prototype is invalid in runtime class");
+                    } else
+                        errors->createNewError(GENERIC, 1, 0, "user main method was not found");
+                }
+
                 setupClasses->code.inject(setupClasses->code.size()==0 ? 0 : setupClasses->code.size()-1, staticMainInserts);
-//                readjustAddresses(setupClasses, staticMainInserts.size());
                 staticMainInserts.free();
             }
 
@@ -4241,10 +4271,6 @@ void RuntimeEngine::resolveAllMethods() {
 bool RuntimeEngine::preprocess()
 {
     bool success = true;
-    // add class for global methods
-    createGlobalClass();
-    string oldModule = "";
-
     for(unsigned long i = 0; i < parsers.size(); i++)
     {
         activeParser = parsers.get(i);
@@ -4264,6 +4290,8 @@ bool RuntimeEngine::preprocess()
             if(i == 0 && ast->getType() == ast_module_decl) {
                 add_module(currentModule = parseModuleName(ast));
                 imports.push_back(currentModule);
+                // add class for global methods
+                createGlobalClass();
                 continue;
             } else if(i == 0)
                 errors->createNewError(GENERIC, ast->line, ast->col, "module declaration must be "
@@ -4294,12 +4322,9 @@ bool RuntimeEngine::preprocess()
                 case ast_method_decl: /* ignore */
                     break;
                 case ast_var_decl:
-                    oldModule = currentModule;
-                    currentModule = "global";
-                    addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
+                    addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
                     parseVarDecl(ast, true);
                     removeScope();
-                    currentModule = oldModule;
                     break;
                 default:
                     stringstream err;
@@ -4338,17 +4363,18 @@ bool RuntimeEngine::preprocess()
 void RuntimeEngine::createGlobalClass() {
     List<AccessModifier> modifiers;
     modifiers.add(PUBLIC);
-    currentModule = "global";
-    activeParser = parsers.get(0);
-    ClassObject * global = addGlobalClassObject(globalClass, modifiers, NULL);
-    global->address = classSize++;
-    stringstream ss;
-    ss << currentModule << "#" << global->getName();
-    global->setFullName(ss.str());
-    addDefaultConstructor(global, NULL);
-    modifiers.free();
+    ClassObject * global = getClass(currentModule, globalClass, classes);
+    if(global == NULL) {
+        global = addGlobalClassObject(globalClass, modifiers, NULL);
+        global->address = classSize++;
+        stringstream ss;
+        ss << currentModule << "#" << global->getName();
+        global->setFullName(ss.str());
+        addDefaultConstructor(global, NULL);
+        globals.add(global); // global class ref
+    }
 
-    add_module(currentModule);
+    modifiers.free();
 }
 
 void RuntimeEngine::resolveAllInterfaces() {
@@ -4496,7 +4522,6 @@ void RuntimeEngine::resolveClassBases() {
 }
 
 void RuntimeEngine::resolveAllFields() {
-    string oldModule = "";
     for(unsigned long i = 0; i < parsers.size(); i++) {
         activeParser = parsers.get(i);
         errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
@@ -4532,13 +4557,9 @@ void RuntimeEngine::resolveAllFields() {
                     break;
                 case ast_method_decl:
                     if(resolvedFields) {
-
-                        oldModule = currentModule;
-                        currentModule = "global";
-                        addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
+                        addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
                         resolveMethodDecl(ast, true);
                         removeScope();
-                        currentModule = oldModule;
                     }
                     break;
                 default:
@@ -4567,7 +4588,6 @@ void RuntimeEngine::resolveAllFields() {
 }
 
 void RuntimeEngine::resolveAllGlobalFields() {
-    string oldModule = "";
     for(unsigned long i = 0; i < parsers.size(); i++) {
         activeParser = parsers.get(i);
         errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
@@ -4600,12 +4620,9 @@ void RuntimeEngine::resolveAllGlobalFields() {
                 case ast_enum_decl: /* ignore */
                     break;
                 case ast_var_decl:
-                    oldModule = currentModule;
-                    currentModule = "global";
-                    addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
+                    addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
                     resolveVarDecl(ast, false);
                     removeScope();
-                    currentModule = oldModule;
                     break;
                 default:
                     /* ignore */
@@ -4694,7 +4711,6 @@ void RuntimeEngine::resolveAllGenerics() {
 }
 
 void RuntimeEngine::inlineFields() {
-    string oldModule = "";
     for(unsigned long i = 0; i < parsers.size(); i++) {
         activeParser = parsers.get(i);
         errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
@@ -4720,12 +4736,9 @@ void RuntimeEngine::inlineFields() {
                     resolveGenericClassDecl(ast, true);
                     break;
                 case ast_var_decl:
-                    oldModule = currentModule;
-                    currentModule = "global";
-                    addScope(Scope(CLASS_SCOPE, getClass("global", globalClass, classes)));
+                    addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
                     resolveVarDecl(ast, true);
                     removeScope();
-                    currentModule = oldModule;
                     break;
                 default:
                     /* ignore */
@@ -5607,8 +5620,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                             return;
                         }
 
-                        ClassObject *global = getClass("global", globalClass, classes);
-                        if((field = global->getField(refrence.referenceName)) != NULL) {
+                        if((field = getGlobalField(refrence.referenceName)) != NULL) {
                             verifyFieldAccess(field, pAst);
                             expression.utype.type = CLASSFIELD;
                             expression.utype.field = *field;
@@ -5647,6 +5659,24 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                 expression.utype.klass = klass;
                 expression.type = expression_class;
             } else {
+                Method *fn;
+                bool ambiguous = false;
+                ClassObject* global = getClass(refrence.module, globalClass, globals);
+                if(global != NULL && (fn = global->getFunctionByName(refrence.referenceName, ambiguous)) != NULL) {
+                    if(ambiguous)
+                        createNewWarning(GENERIC, pAst->line, pAst->col, "reference to function name is ambiguous");
+                    expression.utype.type = VAR;
+                    expression.utype.method = fn;
+                    expression.utype.isMethod = true;
+                    expression.type = expression_prototype;
+                    if(!fn->isStatic()) {
+                        errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " function pointer `" + refrence.referenceName + "` " +
+                                                                                                                                               (refrence.module == "" ? "" : "in module {" + refrence.module + "} ") + " must be static");
+                    }
+                    expression.code.push_i64(SET_Di(i64, op_MOVI, fn->address), ebx);
+                    return;
+                }
+
                 /* Un resolvable */
                 errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + refrence.referenceName + "` " +
                         (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
@@ -6247,6 +6277,7 @@ void RuntimeEngine::resolveMethodDecl(Ast* ast, bool global) {
         method.ast = ast;
         if(!currentScope()->klass->isGeneric())
             method.address = methods++;
+        checkMainMethodSignature(method, global);
         if(!currentScope()->klass->addFunction(method)) {
             this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                          "function `" + name + "` is already defined in the scope");

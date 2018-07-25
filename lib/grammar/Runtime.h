@@ -575,19 +575,25 @@ public:
             sourceFiles(),
             scopeMap(),
             classes(),
+            mainAddress(0),
+            mainSignature(0),
             errorCount(0),
             unfilteredErrorCount(0),
             importMap(),
             noteMessages(),
             resolvedFields(false),
+            activeParser(NULL),
             classSize(0),
             inline_map(),
             methods(0),
             main(NULL),
             stringMap(),
+            mainMethodFound(false),
             panic(false),
+            mainNote(),
             allMethods(),
             staticMainInserts(),
+            globals(),
             preprocessed(false),
             resolvedGenerics(false),
             resolvedMethods(false)
@@ -662,6 +668,7 @@ public:
     static bool isNativeIntegerClass(ClassObject *klass);
 
     List<ClassObject*> classes;
+    List<ClassObject*> globals;
 
     static Expression fieldToExpression(Ast *pAst, Field &field);
 
@@ -680,6 +687,9 @@ private:
     ErrorManager* errors;
     string currentModule;
     bool resolvedFields, resolvedGenerics, resolvedMethods;
+    bool mainMethodFound;
+    RuntimeNote mainNote;
+    int64_t mainAddress, mainSignature;
     unsigned long methods;
     unsigned long classSize;
     Method* main;
@@ -1212,6 +1222,12 @@ private:
     void resolveClassBase(Ast *ast);
 
     void resolveClassEnumDecl(Ast *ast);
+
+    Method *getGlobalFunction(string name, List<Param> &params);
+
+    Field *getGlobalField(string name);
+
+    void checkMainMethodSignature(Method method, bool global);
 };
 
 

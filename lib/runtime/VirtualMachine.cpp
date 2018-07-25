@@ -306,7 +306,10 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             thread_self->currentThread = (thread_self->sp--)->object;
             return;
         case 0xe3:
-            registers[cmt]=__cmath(registers[ebx], registers[egx], (int)registers[ecx]);
+            CMT=__cmath(EBX, EGX, (int)ECX);
+            return;
+        case 0xe7:
+            BMR= __crand((int)ADX);
             return;
         case 0xa8:
             registers[cmt]=Thread::Create((int32_t )registers[adx], (unsigned long)registers[egx]);

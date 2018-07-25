@@ -195,14 +195,24 @@ public class ArrayList<T> {
      }
 
      /**
+      * Live reference to the data in the list
+      */
+     public def data() : T[] {
+        return mData;
+     }
+
+     /**
       * Removes all of the elements from this list.  The list will
       * be empty after this call returns.
       */
      public def clear() {
          // clear to let GC do its work
+         if(size != 0 && capacity > DEFAULT_CAPACITY) {
+             capacity = DEFAULT_CAPACITY;
+             mData = new T[DEFAULT_CAPACITY];
+         }
+
          size = 0;
-         capacity = DEFAULT_CAPACITY;
-         mData = new T[DEFAULT_CAPACITY];
      }
 
     /**

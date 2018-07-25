@@ -71,6 +71,14 @@ class Ast {
         return children.get(pos);
     }
 
+    public def getChild(AstType type) : Ast {
+        foreach(Ast ast : children.data()) {
+            if(ast.type == type)
+                return ast;
+        }
+        return null;
+    }
+
     public def last() : Ast {
         return children.last();
     }
