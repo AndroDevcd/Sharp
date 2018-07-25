@@ -137,7 +137,7 @@ def input()
                 ch = System.readChar();
 
             switch(ch) {
-                case 103:
+                case 91:
                     dir = UP;
                     break;
                 case 108:
