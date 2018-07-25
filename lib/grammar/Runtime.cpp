@@ -5639,6 +5639,20 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                             }
 
                             return;
+                        } else if((field = getEnum(refrence.referenceName)) != NULL) {
+                            verifyFieldAccess(field, pAst);
+                            expression.utype.type = CLASSFIELD;
+                            expression.utype.field = *field;
+                            expression.utype.isField = true;
+                            expression.type = expression_field;
+
+                            if(field->isStatic())
+                                expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                            else
+                                expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                            expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+
+                            return;
                         }
                         /* Un resolvable */
                         errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + refrence.referenceName + "` " +
@@ -7423,7 +7437,7 @@ void RuntimeEngine::parseEnumDecl(Ast *ast)
 
     if(currentScope()->klass == NULL) {
         currentClass = addGlobalClassObject(className, modifiers, ast);
-
+        enums.addif(currentClass);
         stringstream ss;
         ss << currentModule << "#" << currentClass->getName();
         currentClass->setFullName(ss.str());
@@ -7434,6 +7448,7 @@ void RuntimeEngine::parseEnumDecl(Ast *ast)
         stringstream ss;
         ss << currentScope()->klass->getFullName() << "." << currentClass->getName();
         currentClass->setFullName(ss.str());
+        enums.addif(currentClass);
     }
 
     currentClass->setIsEnum(true);

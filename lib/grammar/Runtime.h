@@ -594,6 +594,7 @@ public:
             allMethods(),
             staticMainInserts(),
             globals(),
+            enums(),
             preprocessed(false),
             resolvedGenerics(false),
             resolvedMethods(false)
@@ -669,6 +670,7 @@ public:
 
     List<ClassObject*> classes;
     List<ClassObject*> globals;
+    List<ClassObject*> enums;
 
     static Expression fieldToExpression(Ast *pAst, Field &field);
 
@@ -1228,6 +1230,8 @@ private:
     Field *getGlobalField(string name);
 
     void checkMainMethodSignature(Method method, bool global);
+
+    Field *getEnum(string name);
 };
 
 

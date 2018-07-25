@@ -311,6 +311,18 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xe7:
             BMR= __crand((int)ADX);
             return;
+        case 0xe8: {
+            SharpObject* str = (thread_self->sp--)->object.object;
+            if(str != NULL && str->HEAD != NULL) {
+                native_string cmd;
+                for(long i = 0; i < str->size; i++)
+                    cmd += str->HEAD[i];
+                CMT= system(cmd.str().c_str());
+                cmd.free();
+            } else
+                throw Exception(env->NullptrException, "");
+            return;
+        }
         case 0xa8:
             registers[cmt]=Thread::Create((int32_t )registers[adx], (unsigned long)registers[egx]);
             return;
@@ -571,12 +583,6 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 throw Exception(Environment::NullptrException, "");
             return;
         }
-        case 0xc5:
-//            std::random_device rd;
-//            std::mt19937 mt(rd());
-//            std::uniform_real_distribution<double> dist(ECX, EGX);
-//            EBX = dist(mt);
-            break;
         case 0xb1:
         case 0xb2:
         case 0xb3:

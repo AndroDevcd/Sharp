@@ -3068,7 +3068,6 @@ Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
             errors->createNewError(GENERIC, pAst->line, pAst->col, "unary operator '!' cannot be applied to dynamic_object, did you forget to add a cast?  i.e !((SomeClass)dynamic_class)");
             break;
         case expression_field:
-            expression.type = expression_var;
             if(expression.utype.field.isNative()) {
                 if(expression.utype.field.dynamicObject()) {
                     errors->createNewError(GENERIC, pAst->line, pAst->col, "use of `!` operator on field of type `dynamic_object` without a cast. Try !((SomeClass)dynamic_class)");
@@ -3083,6 +3082,7 @@ Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
             } else {
                 errors->createNewError(GENERIC, pAst->line, pAst->col, "field must evaluate to an int to use `!` operator");
             }
+            expression.type = expression_var;
             break;
         case expression_null:
             errors->createNewError(GENERIC, pAst->line, pAst->col, "unary operator '!' cannot be applied to null");
@@ -3444,6 +3444,28 @@ Field *RuntimeEngine::getGlobalField(string name) {
                 if ((klass = getClass(lst.get(x), globalClass, globals)) != NULL) {
                     if((field = klass->getField(name)) != NULL)
                         return field;
+                }
+            }
+
+            break;
+        }
+    }
+    return nullptr;
+}
+
+Field *RuntimeEngine::getEnum(string name) {
+    Field* field;
+
+    for (unsigned int i = 0; i < importMap.size(); i++) {
+        if (importMap.get(i).key == activeParser->sourcefile) {
+
+            List<string> &lst = importMap.get(i).value;
+            for (unsigned int x = 0; x < lst.size(); x++) {
+                for(long j = 0; j < enums.size(); j++) {
+                    if(enums.get(j)->getModuleName() == lst.get(x)) {
+                        if((field = enums.get(j)->getField(name)) != NULL)
+                            return field;
+                    }
                 }
             }
 

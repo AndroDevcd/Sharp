@@ -1,0 +1,65 @@
+mod game;
+
+import std;
+import std.os;
+
+var gameOver;
+const var width = 20, height = 20;
+var x,y, coinX, coinY, score;
+
+enum direction { STOP, LEFT, UP, RIGHT, DOWN };
+direction dir;
+
+def main(string[] args) : var {
+    setup();
+    while(!gameOver) {
+        draw();
+        input();
+        logic();
+    }
+
+    return 0;
+}
+
+def setup() {
+    dir = STOP;
+    x = width / 2;
+    y = height / 2;
+    coinX = randomInt(0, width-1);
+    coinY = randomInt(0, height-1);
+}
+
+def draw() {
+    sysexec("cls");
+    for(var i = 0; i < width+2; i++)
+        System.printChar('%');
+    System.println();
+
+    for(var i = 0; i < height; i++)
+    {
+        for(var j = 0; j < width; j++)
+        {
+            if(j == 0)
+                System.printChar('%');
+            else
+                System.printChar(' ');
+
+            if(j == (width-1))
+                System.printChar('%');
+        }
+        System.println();
+    }
+
+    for(var i = 0; i < width+2; i++)
+        System.printChar('%');
+    System.println();
+}
+
+def input() {
+
+
+}
+
+def logic() {
+
+}
