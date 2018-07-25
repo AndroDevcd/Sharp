@@ -68,7 +68,6 @@ bool _kbhit()
     enable_raw_mode();
     hit = _kbhit();
     disable_raw_mode();
-    tcflush(0, TCIFLUSH); // Clear stdin to prevent characters appearing on prompt
     return hit;
 }
 
