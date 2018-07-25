@@ -5,7 +5,6 @@
 #include <random>
 #include <cmath>
 #include <string>
-#include <conio.h>
 #include "VirtualMachine.h"
 #include "Exe.h"
 #include "Thread.h"
@@ -21,6 +20,13 @@
 #include "../util/File.h"
 #include "../Modules/std.kernel/cmath.h"
 #include "../Modules/std.kernel/clist.h"
+#ifdef WIN32_
+#include <conio.h>
+#endif
+#ifdef POSIX_
+#include <curses.h>
+#include <ncurses.h>
+#endif
 
 VirtualMachine* vm;
 Environment* env;
