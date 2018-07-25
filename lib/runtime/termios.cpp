@@ -65,9 +65,9 @@ bool kbhit()
 bool _kbhit()
 {
     bool hit;
-    enable_raw_mode();
+    initTermios(false);
     hit = kbhit();
-    disable_raw_mode();
+    resetTermios();
     return hit;
 }
 
