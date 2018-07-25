@@ -1187,6 +1187,11 @@ void RuntimeEngine::parseSwitchStatement(Block& block, Ast* pAst) {
                         parseStatement(block, sub->getSubAst(0));
                     }
                 }
+
+                if(!currentScope()->reachable && (currentScope()->last_statement==ast_return_stmnt
+                                                  || currentScope()->last_statement == ast_throw_statement)) {
+                    currentScope()->reachable=true;
+                }
                 break;
         }
     }

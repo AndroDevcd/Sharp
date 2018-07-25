@@ -11,12 +11,21 @@ var x,y, coinX, coinY, score;
 var[] tailX = new var[100], tailY = new var[100];
 var tail;
 enum direction { STOP=0, LEFT, UP, RIGHT, DOWN };
-direction dir;
+direction dir, last;
+
+// global repeatedly used string for better performance
+var[] COMMANDS = "\ncommands: up, down, left, right, Q: quit, p: pause";
+var[] WINCLS = "cls";
+var[] POSIXCLS = "clear";
 
 def main(string[] args) : var {
     setup();
     while(!gameOver) {
         Thread.sleep(85);
+        if(dir == STOP && last != STOP && !_kbhit())
+            continue;
+
+        run:
         draw();
         input();
         logic();
@@ -32,6 +41,7 @@ def randomizeCoin() {
 
 def setup() {
     dir = STOP;
+    last = dir;
     x = width / 2;
     y = height / 2;
     randomizeCoin();
@@ -43,9 +53,9 @@ def print(var ch) {
 
 def draw() {
     if(Manifest.isWindows())
-        sysexec("cls");
+        sysexec(WINCLS);
     else
-        sysexec("clear");
+        sysexec(POSIXCLS);
     for(var i = 0; i < width+2; i++)
         print('%');
     print('\n');
@@ -58,7 +68,7 @@ def draw() {
                 print('%');
 
             if( i == y && j == x) {
-                switch(dir)
+                switch(last)
                 {
                     case LEFT:
                         print('<');
@@ -104,6 +114,9 @@ def draw() {
         System.printChar('%');
     print('\n');
     System.println("\nscore: " + score);
+    System.println(COMMANDS);
+    if(dir == STOP)
+        System.println("\ngame paused");
 }
 
 def input()
@@ -113,23 +126,30 @@ def input()
         var ch = System.readRawChar();
         if(Manifest.isWindows()) {
             if(ch==0xE0 && _kbhit())
-                ch = System.readChar();
+                ch = System.readRawChar();
 
             switch(ch) {
                 case 72:
                     dir = UP;
+                    last = dir;
                     break;
                 case 80:
                     dir = DOWN;
+                    last = dir;
                     break;
                 case 75:
                     dir = LEFT;
+                    last = dir;
                     break;
                 case 77:
                     dir = RIGHT;
+                    last = dir;
                     break;
                 case 'Q':
                     gameOver = true;
+                    break;
+                case 'p':
+                    dir = STOP;
                     break;
             }
         } else {
@@ -141,15 +161,19 @@ def input()
             switch(ch) {
                 case 'A':
                     dir = UP;
+                    last = dir;
                     break;
                 case 'B':
                     dir = DOWN;
+                    last = dir;
                     break;
                 case 'D':
                     dir = LEFT;
+                    last = dir;
                     break;
                 case 'C':
                     dir = RIGHT;
+                    last = dir;
                     break;
                 case 'Q':
                     gameOver = true;
@@ -161,6 +185,7 @@ def input()
 
 def logic()
 {
+    if(dir==STOP) return;
     var prevX = tailX[0];
     var prevY = tailY[0];
     var prev2X, prev2Y;
