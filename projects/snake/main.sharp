@@ -178,6 +178,9 @@ def input()
                 case 'Q':
                     gameOver = true;
                     break;
+                case 'p':
+                    dir = STOP;
+                    break;
             }
         }
     }
