@@ -4238,7 +4238,8 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
                             errors->createNewError(GENERIC, 1, 0, "main method prototype is invalid in runtime class");
                     } else
                         errors->createNewError(GENERIC, 1, 0, "user main method was not found");
-                }
+                } else
+                    errors->createNewError(GENERIC, 1, 0, "user main method was not found");
 
                 setupClasses->code.inject(setupClasses->code.size()==0 ? 0 : setupClasses->code.size()-1, staticMainInserts);
                 staticMainInserts.free();

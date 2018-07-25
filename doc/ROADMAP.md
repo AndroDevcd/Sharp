@@ -34,3 +34,8 @@ creates an inline anonymous function to be used directly with your
 code. The inline function has no notion of the surrounding scope
 around it. I create the corresponding name $anonymous1 etc. in the class or
 global scope and translate it to ``var result = $anonymous1(x, y);``
+
+- Implement the use of faster code to write for loops
+```javascript
+
+```
