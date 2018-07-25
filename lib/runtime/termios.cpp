@@ -66,7 +66,7 @@ bool _kbhit()
 {
     bool hit;
     enable_raw_mode();
-    hit = _kbhit();
+    hit = kbhit();
     disable_raw_mode();
     return hit;
 }
