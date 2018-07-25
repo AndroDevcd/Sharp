@@ -145,10 +145,10 @@ def input()
                 case 'B':
                     dir = DOWN;
                     break;
-                case 'C':
+                case 'D':
                     dir = LEFT;
                     break;
-                case 'D':
+                case 'C':
                     dir = RIGHT;
                     break;
                 case 'Q':
