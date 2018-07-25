@@ -24,8 +24,7 @@
 #include <conio.h>
 #endif
 #ifdef POSIX_
-#include <curses.h>
-#include <ncurses.h>
+#include "termios.h"
 #endif
 
 VirtualMachine* vm;

@@ -39,6 +39,22 @@ char getch_(int echo)
     return ch;
 }
 
+bool kbhit()
+{
+    int byteswaiting;
+    ioctl(0, FIONREAD, &byteswaiting);
+    return byteswaiting > 0;
+}
+
+bool _kbhit()
+{
+    bool hit;
+    initTermios(echo);
+    hit = _kbhit();
+    resetTermios();
+    return hit;
+}
+
 /* Read 1 character without echo */
 char getch(void)
 {
