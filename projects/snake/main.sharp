@@ -110,7 +110,7 @@ def input()
 {
     if(_kbhit())
     {
-        var ch = System.readChar();
+        var ch = System.readRawChar();
         if(Manifest.isWindows()) {
             if(ch==0xE0 && _kbhit())
                 ch = System.readChar();
@@ -133,20 +133,22 @@ def input()
                     break;
             }
         } else {
-            if(ch==0x18 && _kbhit())
-                ch = System.readChar();
+            if(ch==0x18) {
+                System.readRawChar(); // skip [
+                ch = System.readRawChar();
+            }
 
             switch(ch) {
-                case 91:
+                case 'A':
                     dir = UP;
                     break;
-                case 108:
+                case 'B':
                     dir = DOWN;
                     break;
-                case 105:
+                case 'C':
                     dir = LEFT;
                     break;
-                case 106:
+                case 'D':
                     dir = RIGHT;
                     break;
                 case 'Q':

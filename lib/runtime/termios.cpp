@@ -6,8 +6,6 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <stdio.h>
-#include <sys/select.h>
-#include <stropts.h>
 
 struct termios old;
 struct termios _new;
@@ -41,24 +39,36 @@ char getch_(int echo)
     resetTermios();
     return ch;
 }
+void enable_raw_mode()
+{
+    termios term;
+    tcgetattr(0, &term);
+    term.c_lflag &= ~(ICANON | ECHO); // Disable echo as well
+    tcsetattr(0, TCSANOW, &term);
+}
 
-int _kbhit() {
-    static const int STDIN = 0;
-    static bool initialized = false;
+void disable_raw_mode()
+{
+    termios term;
+    tcgetattr(0, &term);
+    term.c_lflag |= ICANON | ECHO;
+    tcsetattr(0, TCSANOW, &term);
+}
 
-    if (! initialized) {
-        // Use termios to turn off line buffering
-        termios term;
-        tcgetattr(STDIN, &term);
-        term.c_lflag &= ~ICANON;
-        tcsetattr(STDIN, TCSANOW, &term);
-        setbuf(stdin, NULL);
-        initialized = true;
-    }
+bool kbhit()
+{
+    int byteswaiting;
+    ioctl(0, FIONREAD, &byteswaiting);
+    return byteswaiting > 0;
+}
 
-    int bytesWaiting;
-    ioctl(STDIN, FIONREAD, &bytesWaiting);
-    return bytesWaiting;
+bool _kbhit()
+{
+    bool hit;
+    initTermios(false);
+    hit = kbhit();
+    resetTermios();
+    return hit;
 }
 
 /* Read 1 character without echo */
