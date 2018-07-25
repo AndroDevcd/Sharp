@@ -16,10 +16,10 @@ direction dir;
 def main(string[] args) : var {
     setup();
     while(!gameOver) {
+        Thread.sleep(85);
         draw();
         input();
         logic();
-        Thread.sleep(85);
     }
 
     return 0;
