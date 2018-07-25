@@ -59,6 +59,10 @@ public class System {
     public static def readChar() : var {
         return cHandler.read();
     }
+
+    public static def readRawChar() : var {
+        return cHandler.readsilent();
+    }
     
     public static def println(string str) {
         cHandler.printData(str.toArray());

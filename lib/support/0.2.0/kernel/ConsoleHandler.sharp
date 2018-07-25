@@ -29,6 +29,17 @@ public class ConsoleHandler {
      public def read() : var
      {
         asm(
+            "  movi #1,%cmt           // echo character "
+            "  get %ebx              // read single character from the console "
+            "  return_val %ebx                                                 "
+            "  ret                                                             "
+        );
+     }
+
+     public def readsilent() : var
+     {
+        asm(
+            "  movi #0,%cmt           // don't echo character "
             "  get %ebx              // read single character from the console "
             "  return_val %ebx                                                 "
             "  ret                                                             "

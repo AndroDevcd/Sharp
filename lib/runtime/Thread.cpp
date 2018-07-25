@@ -975,7 +975,10 @@ void Thread::exec() {
                 printf("%c", (char)registers[GET_Da(*pc)]);
                 _brh
             GET:
-                registers[GET_Da(*pc)] = getche();
+                if(CMT)
+                    registers[GET_Da(*pc)] = getche();
+                else
+                    registers[GET_Da(*pc)] = getch();
                 _brh
             CHECKLEN:
                 CHECK_NULL2(
