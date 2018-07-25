@@ -4,6 +4,7 @@
 #include "../../stdimports.h"
 #ifdef POSIX_
 #include <termios.h>
+#include <sys/ioctl.h>
 #include <stdio.h>
 
 struct termios old;
