@@ -5,6 +5,7 @@
 #include <random>
 #include <cmath>
 #include <string>
+#include <conio.h>
 #include "VirtualMachine.h"
 #include "Exe.h"
 #include "Thread.h"
@@ -323,6 +324,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 throw Exception(env->NullptrException, "");
             return;
         }
+        case 0xe9:
+            CMT= _kbhit();
+            return;
         case 0xa8:
             registers[cmt]=Thread::Create((int32_t )registers[adx], (unsigned long)registers[egx]);
             return;
@@ -693,9 +697,12 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xc2:
             registers[ebx] = GarbageCollector::_sizeof((thread_self->sp--)->object.object);
             return;
-        default:
+        default: {
             // unsupported
-            break;
+            stringstream ss;
+            ss << "unsupported signal to int instruction: " << signal;
+            throw Exception(ss.str());
+        }
     }
 }
 

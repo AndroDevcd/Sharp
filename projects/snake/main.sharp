@@ -2,12 +2,15 @@ mod game;
 
 import std;
 import std.os;
+import std.io;
+import std.kernel;
 
 var gameOver;
 const var width = 20, height = 20;
 var x,y, coinX, coinY, score;
-
-enum direction { STOP, LEFT, UP, RIGHT, DOWN };
+var[] tailX = new var[100], tailY = new var[100];
+var tail;
+enum direction { STOP=0, LEFT, UP, RIGHT, DOWN };
 direction dir;
 
 def main(string[] args) : var {
@@ -16,50 +19,167 @@ def main(string[] args) : var {
         draw();
         input();
         logic();
+        Thread.sleep(50);
     }
 
     return 0;
+}
+
+def randomizeCoin() {
+    coinX = randomInt(0, width-1);
+    coinY = randomInt(0, height-1);
 }
 
 def setup() {
     dir = STOP;
     x = width / 2;
     y = height / 2;
-    coinX = randomInt(0, width-1);
-    coinY = randomInt(0, height-1);
+    randomizeCoin();
+}
+
+def print(var ch) {
+    System.printChar(ch);
 }
 
 def draw() {
-    sysexec("cls");
+    if(Manifest.isWindows())
+        sysexec("cls");
+    else
+        sysexec("clear");
     for(var i = 0; i < width+2; i++)
-        System.printChar('%');
-    System.println();
+        print('%');
+    print('\n');
 
     for(var i = 0; i < height; i++)
     {
         for(var j = 0; j < width; j++)
         {
             if(j == 0)
-                System.printChar('%');
-            else
-                System.printChar(' ');
+                print('%');
 
-            if(j == (width-1))
-                System.printChar('%');
+            if( i == y && j == x) {
+                switch(dir)
+                {
+                    case LEFT:
+                        print('<');
+                        break;
+                    case RIGHT:
+                        print('>');
+                        break;
+                    case UP:
+                        print('A');
+                        break;
+                    case DOWN:
+                        print('V');
+                        break;
+                    default:
+                        print('A');
+                        break;
+                }
+            }
+            else if(i == coinY && j == coinX)
+                print('x');
+            else
+            {
+                var print;
+                for(var k = 0; k < tail; k++)
+                {
+                    if(tailX[k] == j && tailY[k] == i) {
+                        print('o');
+                        print = true;
+                    }
+                }
+
+                if(!print)
+                    print(' ');
+            }
+
+            if(j == (width - 1))
+                print('%');
         }
-        System.println();
+        print('\n');
     }
 
     for(var i = 0; i < width+2; i++)
         System.printChar('%');
-    System.println();
+    print('\n');
+    System.println("\nscore: " + score);
 }
 
-def input() {
-
-
+def input()
+{
+    if(_kbhit())
+    {
+        var ch = System.readChar();
+        if(ch==0xE0 && _kbhit())
+            ch = System.readChar();
+        switch(ch) {
+            case 72:
+                dir = UP;
+                break;
+            case 80:
+                dir = DOWN;
+                break;
+            case 75:
+                dir = LEFT;
+                break;
+            case 77:
+                dir = RIGHT;
+                break;
+            case 'Q':
+                gameOver = true;
+                break;
+        }
+    }
 }
 
-def logic() {
+def logic()
+{
+    var prevX = tailX[0];
+    var prevY = tailY[0];
+    var prev2X, prev2Y;
+    tailX[0] = x;
+    tailY[0] = y;
+    for(var i = 1; i < tail; i++)
+    {
+        prev2X = tailX[i];
+        prev2Y = tailY[i];
+        tailX[i] = prevX;
+        tailY[i] = prevY;
+        prevX = prev2X;
+        prevY = prev2Y;
+    }
 
+    switch(dir)
+    {
+        case LEFT:
+            x--;
+            break;
+        case RIGHT:
+            x++;
+            break;
+        case UP:
+            y--;
+            break;
+        case DOWN:
+            y++;
+            break;
+        default:
+            break;
+    }
+
+//    if(x > width || x < 0 || y > height || y < 0)
+//        gameOver = true;
+
+    if (x >= width) x = 0; else if(x < 0) x = width - 1;
+    if (y >= height) y = 0; else if(y < 0) y = height - 1;
+    for(var i = 0; i < tail; i++) {
+        if(tailX[i] == x && tailY[i] == y)
+            gameOver = true;
+    }
+    if(x == coinX && y == coinY) {
+        score += 10;
+        randomizeCoin();
+        tail++;
+    }
 }

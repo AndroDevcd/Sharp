@@ -57,6 +57,10 @@ private:
     void optimizeCheckLen();
     void optimizeRegister(int reg);
     void optimizeRedundantLoadStore();
+    void optimizeLoadLocal_4();
+    void optimizeReturnVal();
+    void optimizeNot();
+    void optimizeFrag1();
 
     void optimizeNops();
 

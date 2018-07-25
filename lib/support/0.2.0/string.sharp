@@ -91,6 +91,8 @@ public class string {
 
         def append(var[] immstr) : string
         {
+            if(immstr == null) return self;
+
             var iter=sizeof(data);
 
             if(data == null)
@@ -139,9 +141,9 @@ public class string {
         public def operator+( Printable o ) : string
         {
             string s = new string(data);
-            string tmp = o.toString();
+            var[] tmp = o.toString().data;
             if(o != null && tmp != null)
-                return s.append(tmp.toArray());
+                return s.append(tmp);
             else
                 return s.append("null");
         }
@@ -210,7 +212,7 @@ public class string {
         {
             string s = o.toString();
             if(s != null && s.data != null)
-                return append(s.toArray());
+                return append(s.data);
             else
                 return append("null");
         }
