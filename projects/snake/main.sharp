@@ -19,7 +19,7 @@ def main(string[] args) : var {
         draw();
         input();
         logic();
-        Thread.sleep(80);
+        Thread.sleep(85);
     }
 
     return 0;
