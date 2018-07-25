@@ -39,6 +39,21 @@ char getch_(int echo)
     resetTermios();
     return ch;
 }
+void enable_raw_mode()
+{
+    termios term;
+    tcgetattr(0, &term);
+    term.c_lflag &= ~(ICANON | ECHO); // Disable echo as well
+    tcsetattr(0, TCSANOW, &term);
+}
+
+void disable_raw_mode()
+{
+    termios term;
+    tcgetattr(0, &term);
+    term.c_lflag |= ICANON | ECHO;
+    tcsetattr(0, TCSANOW, &term);
+}
 
 bool kbhit()
 {
@@ -50,9 +65,10 @@ bool kbhit()
 bool _kbhit()
 {
     bool hit;
-    initTermios(false);
+    enable_raw_mode();
     hit = _kbhit();
-    resetTermios();
+    disable_raw_mode();
+    tcflush(0, TCIFLUSH); // Clear stdin to prevent characters appearing on prompt
     return hit;
 }
 
