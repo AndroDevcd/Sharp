@@ -735,6 +735,9 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
+            Expression exp = fieldToExpression(NULL, fn->getParam(i).field);
+            equals(exp, expressions.get(i));
+
             if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
                 pushExpressionToRegister(expressions.get(i), out, ebx);
 
@@ -953,6 +956,9 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
+            Expression exp = fieldToExpression(NULL, fn->getParam(i).field);
+            equals(exp, expressions.get(i));
+
             if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
                 pushExpressionToRegister(expressions.get(i), out, ebx);
 
@@ -1583,6 +1589,9 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
+            Expression exp = fieldToExpression(NULL, fn->getParam(i).field);
+            equals(exp, expressions.get(i));
+
             if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
                 pushExpressionToRegister(expressions.get(i), out, ebx);
 
@@ -1786,6 +1795,9 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
+            Expression exp = fieldToExpression(NULL, fn->getParam(i).field);
+            equals(exp, expressions.get(i));
+
             if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
                 pushExpressionToRegister(expressions.get(i), out, ebx);
 
@@ -2067,6 +2079,9 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                 expression.code.push_i64(SET_Di(i64, op_NEWCLASS, utype.utype.klass->address));
 
                 for(unsigned int i = 0; i < expressions.size(); i++) {
+                    Expression exp = fieldToExpression(NULL, fn->getParam(i).field);
+                    equals(exp, expressions.get(i));
+
                     if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
                         pushExpressionToRegister(expressions.get(i), expression, ebx);
 
@@ -3390,7 +3405,7 @@ bool RuntimeEngine::equalsVectorArray(Expression& left, Expression& right) {
 }
 
 bool RuntimeEngine::prototypeEquals(Field *proto, List<Param> params, FieldType rtype) {
-    if(Param::match(proto->params, params, true, false)) {
+    if(Param::match(proto->params, params, true, false, true)) {
         if(proto->returnType==rtype)
             return true;
 
@@ -3491,7 +3506,7 @@ void RuntimeEngine::checkMainMethodSignature(Method method, bool global) {
             args.type = CLASS;
             params.add(Param(args));
 
-            if(Param::match(method.getParams(), params, false, true)) {
+            if(Param::match(method.getParams(), params, false, true, true)) {
                 if(method.type == VAR) { // fn main(string[]) : var;
                     if(!mainMethodFound) {
                         mainNote = method.note;
@@ -3518,7 +3533,7 @@ void RuntimeEngine::checkMainMethodSignature(Method method, bool global) {
             }
 
             params.free();
-            if(Param::match(method.getParams(), params, false, true)) {
+            if(Param::match(method.getParams(), params, false, true, true)) {
                 if(method.type == TYPEVOID) { // fn main();
                     if(!mainMethodFound) {
                         mainNote = method.note;

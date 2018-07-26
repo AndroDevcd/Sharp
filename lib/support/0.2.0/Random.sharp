@@ -18,6 +18,14 @@ def randomInt(var min, var max) : var {
     return __randInt(min, max);
 }
 
+def pick(object[] arry) : object {
+    return arry[randomInt(0, sizeof(arry)-1)];
+}
+
+def pick(var[] arry) : object {
+    return arry[randomInt(0, sizeof(arry)-1)];
+}
+
 def randomSeed() : var {
     return __seed();
 }

@@ -1954,7 +1954,7 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
             }
             break;
         case expression_null:
-            if(right.trueType() == OBJECT || (right.trueType() == CLASS && right.type == expression_class)) {
+            if(right.trueType() == OBJECT || (right.trueType() == CLASS && right.type == expression_lclass)) {
                 return true;
             } else if(right.type == expression_class) {
                 errors->createNewError(GENERIC, right.link->line,  right.link->col, "Class `" + right.typeToString() + "` must be lvalue" + msg);
@@ -1989,6 +1989,8 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                         errors->createNewError(GENERIC, right.link->line,  right.link->col, "Class `" + right.typeToString() + "` must be lvalue" + msg);
                         return false;
                     }
+                } else if(right.type == expression_null) {
+                    return true;
                 } else if(right.type == expression_field && right.utype.field.type == CLASS) {
                     if(left.getClass()->assignable(right.getClass())) {
                         return true;
@@ -2004,10 +2006,9 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                 }
             }  else if(left.trueType() == OBJECT) {
                 if(right.trueType() == OBJECT || right.trueType() == CLASS) {
-                    if(left.isArray() == right.isArray())
-                        return true;
+                    return true;
                 } else if(right.trueType() == VAR) {
-                    if(left.isArray() == right.isArray())
+                    if(!left.isArray() && right.isArray())
                         return true;
                 }
             } else {
@@ -2046,7 +2047,9 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
             break;
         case expression_objectclass:
             if(right.trueType() == OBJECT || right.trueType() == CLASS || right.trueType() == VAR) {
-                return left.isArray() == right.isArray();
+                if(right.trueType() == VAR)
+                    return !left.isArray() && right.isArray();
+                return true;
             } else if(right.type == expression_null) {
                 return true;
             }
@@ -2150,6 +2153,8 @@ void RuntimeEngine::addClass(token_entity operand, ClassObject* klass, Expressio
         if(!overload->isStatic())
             pushExpressionToStack(left, out);
 
+        Expression exp = fieldToExpression(NULL, overload->getParam(0).field);
+        equals(exp, eList.last());
         pushExpressionToStack(right, out);
 
         verifyMethodAccess(overload, pAst);
@@ -2202,6 +2207,8 @@ void RuntimeEngine::addClassChain(token_entity operand, ClassObject* klass, Expr
             out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
         }
 
+        Expression exp = fieldToExpression(NULL, overload->getParam(0).field);
+        equals(exp, eList.last());
         verifyMethodAccess(overload, pAst);
         pushExpressionToStack(right, out);
 
@@ -2241,8 +2248,10 @@ void RuntimeEngine::addStringConstruct(token_entity operand, ClassObject* klass,
         // call operand
 
         newOut.inject(out);
-
         pushExpressionToStack(right, newOut);
+
+        Expression exp = fieldToExpression(NULL, overload->getParam(0).field);
+        equals(exp, eList.last());
 
         verifyMethodAccess(overload, pAst);
         out.type = methodReturntypeToExpressionType(overload);
@@ -2291,6 +2300,9 @@ void RuntimeEngine::constructNewNativeClass(string k, string module, Expression 
             out.code.push_i64(SET_Di(i64, op_NEWCLASS, klass->address));
 
             for(unsigned int i = 0; i < expressions.size(); i++) {
+                Expression exp = fieldToExpression(NULL, fn->getParam(i).field);
+                equals(exp, expressions.get(i));
+
                 if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
                     pushExpressionToRegister(expressions.get(i), out, ebx);
 
@@ -2343,6 +2355,9 @@ bool RuntimeEngine::constructNewString(Expression &stringExpr, Expression &right
             out.code.push_i64(SET_Di(i64, op_NEWCLASS, klass->address));
 
             for(unsigned int i = 0; i < expressions.size(); i++) {
+                Expression exp = fieldToExpression(NULL, fn->getParam(i).field);
+                equals(exp, expressions.get(i));
+
                 if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
                     pushExpressionToRegister(expressions.get(i), out, ebx);
 
@@ -2965,7 +2980,7 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
                     if(left.trueType() == VAR) {
                         return left.isArray() == right.isArray();
                     } else if(left.trueType() == OBJECT) {
-                        return true;
+                        return !left.isArray() && right.isArray();
                     }
                 }
             } else if(left.utype.field.type == CLASS) {
@@ -2981,6 +2996,8 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
                     if(right.utype.field.klass->assignable(left.utype.field.klass)) {
                         return true;
                     }
+                } else if(right.type == expression_null) {
+                    return true;
                 }
             } else if(right.trueType() == VAR) {
                 return left.isArray() == right.isArray();
@@ -3018,6 +3035,9 @@ bool RuntimeEngine::equalsNoErr(Expression& left, Expression& right) {
         case expression_objectclass:
             if(right.trueType() == OBJECT || right.trueType() == CLASS
                || right.trueType() == VAR) {
+
+                if(right.trueType() == VAR)
+                    return !left.isArray() && right.isArray();
                 return true;
             }
             break;

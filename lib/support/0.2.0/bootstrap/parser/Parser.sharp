@@ -321,7 +321,7 @@ class Parser {
 
     private def parseStatement(Ast ast) : var {
         ast = get_ast(ast, ast_statement);
-        CHECK_ERRORS_RETURN(false)
+        if(quit()) return false;
 
         accessTypes.clear();
         if(isAccessType(current))
@@ -383,36 +383,36 @@ class Parser {
             parseForEachStatement(ast);
             return true;
         }
-        else if(isDecl(current,))
+        else if(isDecl(current, WHILE))
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
-            parse_whilestmnt(ast );
+            parseWhileStatement(ast);
             return true;
         }
-        else if(isdowhile_stmnt(current()))
+        else if(isDecl(current, DOWHILE))
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
-            parse_dowhilestmnt(ast);
+            parseDoWhileStatement(ast);
             return true;
         }
-        else if(istrycatch_stmnt(current()))
+        else if(isDecl(current, TRYCATCH))
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
-            parse_trycatch(ast);
+            parseTryCatch(ast);
             return true;
         }
-        else if(isthrow_stmnt(current()))
+        else if(isDecl(current, THROW))
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
-            parse_throwstmnt(ast);
+            parseThrowStatement(ast);
             return true;
         }
         else if(current().getToken() == "continue")
@@ -420,10 +420,9 @@ class Parser {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
-            Ast* ast2 = get_ast(ast, ast_continue_statement);
+            Ast tmp = getAst(ast, Continue_Statement);
 
-            expect_token(ast2, "continue", "`continue`");
-
+            expect_token(tmp, "continue", "`continue`");
             expect(SEMICOLON, ast, "`;`");
             return true;
         }
@@ -432,10 +431,10 @@ class Parser {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
-            Ast* ast2 = get_ast(ast, ast_break_statement);
+            Ast tmp = getAst(ast, Break_Statement);
 
-            expect_token(ast2, "break", "`break`");
-            expect(SEMICOLON, ast2, "`;`");
+            expect_token(tmp, "break", "`break`");
+            expect(SEMICOLON, tmp, "`;`");
             return true;
         }
         else if(current().getToken() == "goto")
@@ -443,55 +442,53 @@ class Parser {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
-            Ast* ast2 = get_ast(ast, ast_goto_statement);
+            Ast tmp = getAst(ast, Goto_Statement);
 
-            expect_token(ast2, "goto", "`goto`");
-
-            expectidentifier(ast2);
-            // TODO: add support for calling goto labels[9];
+            expect_token(tmp, "goto", "`goto`");
+            expectIdentifier(tmp); // TODO: add support for calling goto labels[9];
             expect(SEMICOLON, ast2, "`;`");
             return true;
         }
-        else if(isvariable_decl(current()))
+        else if(isNativeType(current()))
         {
-            parse_variabledecl(ast);
+            parseVariableDecl(ast);
             return true;
         }
-        else if(isprototype_decl(current()))
+        else if(isDecl(current, PROTOTYPE))
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
-            parse_prototypedecl(ast);
+            parseProtoTypeDecl(ast);
             return true;
         }
             /* these are just in case there is a missed bracket anywhere */
-        else if(ismodule_decl(current()))
+        else if(isDecl(current, MOD))
         {
-            errors->createNewError(GENERIC, current(), "module declaration not allowed here");
-            parse_moduledecl(ast);
+            errors.createNewError(GENERIC, current, "module declaration not allowed here");
+            parseModuleDecl(ast);
         }
-        else if(isclass_decl(current()))
+        else if(isDecl(current, CLASS))
         {
-            errors->createNewError(GENERIC, current(), "unexpected class declaration");
-            parse_classdecl(ast);
+            errors.createNewError(GENERIC, current, "unexpected class declaration");
+            parseClassDecl(ast);
         }
-        else if(isenum_decl(current()))
+        else if(isDecl(current, ENUM))
         {
-            errors->createNewError(GENERIC, current(), "enum declaration cannot be local");
-            parse_enumdecl(ast);
+            errors.createNewError(GENERIC, current, "enum declaration cannot be local");
+            parseEnumDecl(ast);
         }
-        else if(isinterface_decl(current()))
+        else if(isDecl(current, INTERFACE))
         {
-            errors->createNewError(GENERIC, current(), "unexpected interface declaration");
-            parse_interfacedecl(NULL);
+            errors.createNewError(GENERIC, current, "unexpected interface declaration");
+            parseInterfaceDecl(NULL);
         }
-        else if(isimport_decl(current()))
+        else if(isDecl(current, IMPORT))
         {
-            errors->createNewError(GENERIC, current(), "import declaration not allowed here (why are you putting this here lol?)");
-            parse_importdecl(ast);
+            errors.createNewError(GENERIC, current, "import declaration not allowed here (why are you putting this here lol?)");
+            parseImportDecl(ast);
         }
-        else if(current().getTokenType() == SEMICOLON)
+        else if(current().getType() == SEMICOLON)
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
@@ -499,7 +496,7 @@ class Parser {
             /* we don't care about empty statements but we allow them */
             if(commas > 1) {
                 commas = 0;
-                errors->createNewWarning(GENERIC, current().getLine(), current().getColumn(), "unnecessary semicolon ';'");
+                errors.createNewWarning(GENERIC, current.getLine(), current.getColumn(), "unnecessary semicolon ';'");
             } else
                 commas++;
             return true;
@@ -507,55 +504,55 @@ class Parser {
         else
         {
             // save parser state
-            errors->enableErrorCheckMode();
-            this->retainstate(ast);
-            pushback();
+            errors.enableProtectedMode();
+            retain(ast);
+            pushBack();
 
             /*
              * variable decl?
              */
-            if(parse_utype(ast))
+            if(parseUtype(ast))
             {
-                errors->pass();
-                if(peek(1).getTokenType() == COLON)
+                errors.pass();
+                if(peek(1).getType() == COLON)
                 {
-            if(accessTypes.size() > 0)
-                errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
+                    if(accessTypes.size() > 0)
+                        errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
-                    ast = this->rollback();
-                    parse_labeldecl(ast);
+                    rollback(ast);
+                    parseLabelDecl(ast);
                     return true;
                 }
                 else if(peek(1).getId() == IDENTIFIER)
                 {
                     // Variable decliration
-                    ast = this->rollback();
-                    parse_variabledecl(ast);
+                    rollback(ast);
+                    parseVariableDecl(ast);
                     return true;
                 }
             } else
-                errors->pass();
+                errors.pass();
 
-            ast = this->rollback();
-            pushback();
+            rollback(ast);
+            pushBack();
 
-            errors->enableErrorCheckMode();
-            this->retainstate(ast);
-            if(!parse_expression(ast))
+            errors.enableProtectedMode();
+            retain(ast);
+            if(!parseExpression(ast))
             {
-                errors->pass();
+                errors.pass();
                 advance();
-                errors->createNewError(GENERIC, ast, "not a statement");
+                errors.createNewError(GENERIC, ast, "not a statement");
                 return false;
             } else {
-                if(access_types.size() > 0)
-                    errors->createNewError(ILLEGAL_ACCESS_DECLARATION, ast);
+                if(accessTypes.size() > 0)
+                    errors.createNewError(ILLEGAL_ACCESS_DECLARATION, ast);
 
-                errors->fail();
-                this->dumpstate();
+                errors.fail();
+                dump();
 
-                if(peek(1).getTokenType() != SEMICOLON)
-                    errors->createNewError(GENERIC, ast, "expected `;`");
+                if(peek(1).getType() != SEMICOLON)
+                    errors.createNewError(GENERIC, ast, "expected `;`");
                 else
                     expect(SEMICOLON, ast, "`;`");
                 return true;
@@ -563,6 +560,132 @@ class Parser {
         }
 
         return false;
+    }
+
+    private def parseLabelDecl(Ast ast) {
+        pAst = getAst(pAst, Label_Decl);
+
+        pushBack();
+        expectIdentifier(pAst);
+        expect(COLON, pAst, "`:` after label declaration");
+
+        advance();
+        parseStatement(pAst);
+    }
+
+    private def parseEnumIdentifier(Ast ast) {
+        ast = getAst(ast, Enum_Identifier);
+
+        expectIdentifier(ast);
+
+        if(peek(1).getType() == ASSIGN) {
+            expect(ASSIGN, "`=`");
+
+            parseValue(ast);
+        }
+    }
+
+    private def parseEnumBlock(Ast ast) {
+        ast = getAst(ast, Enum_Identifier_List);
+
+        expect(LEFT_CURLY, "`{`");
+
+        parseEnumIdentifier(ast);
+        pRefPtr:
+        if(peek(1).getType() == COMMA)
+        {
+            expect(COMMA, ast, "`,`");
+            parseEnumIdentifier(ast);
+            goto pRefPtr;
+        }
+
+        expect(RIGHT_CURLY, "`}`");
+        expect(SEMICOLON, "`;`");
+    }
+
+    private def parseEnumDecl(Ast ast) {
+        ast = getAst(ast, Enum_Decl);
+
+        TokenEntity[] arry = accessTypes.toArray();
+        foreach(TokenEntity token : arry) {
+            ast.add(token);
+        }
+        ast.add(current);
+
+
+        expectIdentifier(ast);
+        parseEnumBlock(ast);
+    }
+
+    private def parseThrowStatement(Ast ast) {
+        pAst = getAst(pAst, Throw_Statement);
+
+        expectToken(pAst, "throw", "`throw`");
+        parseExpression(pAst);
+        expect(SEMICOLON, pAst, "`;`");
+    }
+
+    private def parseCatchClause(Ast ast) {
+        pAst = getAst(pAst, Catch_Clause);
+
+        advance();
+        expectToken(pAst, "catch", "`catch`");
+
+        expect(LEFT_PAREN, pAst, "`(`");
+        parseUtypeArgOpt(pAst);
+        expect(RIGHT_PAREN, pAst, "`)`");
+
+        parseBlock(pAst);
+    }
+
+    private def parseFinallyBlock(Ast ast) {
+        pAst = getAst(pAst, Finally_Block);
+
+        advance();
+        expectToken(pAst, "finally", "`finally`");
+        parseBlock(pAst);
+    }
+
+    private def parseTryCatch(Ast ast) {
+        ast = getAst(pAst, Trycatch_Statement);
+
+        expectToken(pAst, "try", "`try`");
+        parseBlock(pAst);
+
+        while(peek(1).getToken() == "catch")
+            parseCatchClause(pAst);
+
+        if(peek(1).getToken() == "finally")
+        {
+            parseFinallyBlock(pAst);
+        }
+    }
+
+    private def parseDoWhileStatement(Ast ast) {
+        ast = getAst(ast, Do_While_Statement);
+
+        expectToken(ast, "do", "`do`");
+        parseBlock(ast);
+
+        advance();
+        expectToken(ast, "while", "`while`");
+        expect(LEFT_PAREN, ast, "`(`");
+        parseExpression(ast);
+        expect(RIGHT_PAREN, ast, "`)`");
+
+        expect(SEMICOLON, ast, "`;`");
+    }
+
+    private def parseWhileStatement(Ast ast) {
+        ast = getAst(ast, AstType.While_Statement);
+
+        expectToken(ast, "while", "`while`");
+
+        expect(LEFT_PAREN, ast, "`(`");
+        parseExpression(ast);
+        expect(RIGHT_PAREN, ast, "`)`");
+
+        parseBlock(ast);
     }
 
     private def parseForEachStatement(Ast ast) {
@@ -1917,11 +2040,7 @@ class Parser {
     }
 
     private def isNativeType(string type) : var {
-        return type == "var" || type == "object"
-               || type == "_int8" || type == "_int16"
-               || type == "_int32" || type == "_int64"
-               || type == "_uint8" || type == "_uint16"
-               || type == "_uint32" || type == "_uint64";
+        return type == "var" || type == "object";
     }
 
     public def expect(TokenType type, Ast ast, var[] msg) {
@@ -2135,6 +2254,7 @@ class Parser {
     private static const var[] CASE = "case";
     private static const var[] DEFAULT = "default";
     private static const var[] VOLATILE = "volatile";
+    private static const var[] ENUM = "enum";
 
     private string sourceFile = "";
     private var panic;
