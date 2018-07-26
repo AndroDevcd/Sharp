@@ -45,17 +45,27 @@ def setup() {
     x = width / 2;
     y = height / 2;
     randomizeCoin();
+
+    // game cannot be run on this machine
+    if(clearScreen() != 0) {
+        System.println("The environment you are running this program in is not supported.");
+        System.exit();
+    }
 }
 
 def print(var ch) {
     System.printChar(ch);
 }
 
-def draw() {
+def clearScreen() : var {
     if(Manifest.isWindows())
-        sysexec(WINCLS);
+        return sysexec(WINCLS);
     else
-        sysexec(POSIXCLS);
+        return sysexec(POSIXCLS);
+}
+
+def draw() {
+    clearScreen();
     for(var i = 0; i < width+2; i++)
         print('%');
     print('\n');
