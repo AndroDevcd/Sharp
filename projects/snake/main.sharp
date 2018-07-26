@@ -140,20 +140,28 @@ def input()
 
             switch(ch) {
                 case 72:
-                    dir = UP;
-                    last = dir;
+                    if(dir != DOWN) { // collision prevention
+                        dir = UP;
+                        last = dir;
+                    }
                     break;
                 case 80:
-                    dir = DOWN;
-                    last = dir;
+                    if(dir != UP) {
+                        dir = DOWN;
+                        last = dir;
+                    }
                     break;
                 case 75:
-                    dir = LEFT;
-                    last = dir;
+                    if(dir != RIGHT) {
+                        dir = LEFT;
+                        last = dir;
+                    }
                     break;
                 case 77:
-                    dir = RIGHT;
-                    last = dir;
+                    if(dir != LEFT) {
+                        dir = RIGHT;
+                        last = dir;
+                    }
                     break;
                 case 'Q':
                     gameOver = true;
