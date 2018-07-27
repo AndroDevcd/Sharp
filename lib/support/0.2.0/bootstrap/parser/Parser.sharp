@@ -94,7 +94,7 @@ class Parser {
                 pushBack();
 
                 // "expected class, or import declaration"
-                errors.createNewError(UNEXPECTED_SYMBOL, current, " `" + current.getToken() + "`; expected class, enum, or import declaration");
+                errors.createNewError(UNEXPECTED_SYMBOL, current, " `" + current.getToken() + "`; expected class, enum, method, interface, variable, or import declaration");
                 parseAll(null);
             }
 
