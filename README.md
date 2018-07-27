@@ -10,7 +10,7 @@
 
 Sharp is an open source a modern object-oriented programming language that aims to bridge the gap between modern expressive programming paradigms and strictly typed rigid languages like Java and C#. My goal is to provide the usefulness of an object oriented programming language, while holding the simplicity of an expressive programming language without having to sacrifice performance.     
     
-###Sharp is elegantly simple.  
+### Sharp is elegantly simple.  
 ```javascript    
 mod app;    
     
