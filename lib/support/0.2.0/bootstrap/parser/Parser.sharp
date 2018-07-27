@@ -285,21 +285,21 @@ class Parser {
             if(quit()) break;
 
             advance();
-            if (current().getType() == TokenType.RIGHT_CURLY)
+            if (current.getType() == TokenType.RIGHT_CURLY)
             {
                 if(!curly)
                     errors.createNewError(CompilerError.GENERIC, current, "expected '{'");
                 pushBack();
                 break;
             }
-            else if(current().getType() == TokenType.LEFT_CURLY)
+            else if(current.getType() == TokenType.LEFT_CURLY)
             {
                 pushBack();
                 parseBlock(ast);
             }
-            else if(current().getType() == TokenType._EOF)
+            else if(current.getType() == TokenType._EOF)
             {
-                errors.createNewError(CompilerError.UNEXPECTED_EOF, current);
+                errors.createNewError(CompilerError.UNEXPECTED_EOF, current, "");
                 break;
             }
             else {
@@ -319,8 +319,9 @@ class Parser {
             expect(TokenType.RIGHT_CURLY, "`}`");
     }
 
+    var commas=0;
     private def parseStatement(Ast ast) : var {
-        ast = get_ast(ast, ast_statement);
+        ast = getAst(ast, Statement);
         if(quit()) return false;
 
         accessTypes.clear();
@@ -415,41 +416,41 @@ class Parser {
             parseThrowStatement(ast);
             return true;
         }
-        else if(current().getToken() == "continue")
+        else if(current.getToken() == "continue")
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
             Ast tmp = getAst(ast, Continue_Statement);
 
-            expect_token(tmp, "continue", "`continue`");
+            expectToken(tmp, "continue", "`continue`");
             expect(SEMICOLON, ast, "`;`");
             return true;
         }
-        else if(current().getToken() == "break")
+        else if(current.getToken() == "break")
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
             Ast tmp = getAst(ast, Break_Statement);
 
-            expect_token(tmp, "break", "`break`");
+            expectToken(tmp, "break", "`break`");
             expect(SEMICOLON, tmp, "`;`");
             return true;
         }
-        else if(current().getToken() == "goto")
+        else if(current.getToken() == "goto")
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
             Ast tmp = getAst(ast, Goto_Statement);
 
-            expect_token(tmp, "goto", "`goto`");
+            expectToken(tmp, "goto", "`goto`");
             expectIdentifier(tmp); // TODO: add support for calling goto labels[9];
-            expect(SEMICOLON, ast2, "`;`");
+            expect(SEMICOLON, tmp, "`;`");
             return true;
         }
-        else if(isNativeType(current()))
+        else if(isNativeType(current.getToken()))
         {
             parseVariableDecl(ast);
             return true;
@@ -459,7 +460,7 @@ class Parser {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
 
-            parseProtoTypeDecl(ast);
+            parseProtoTypeDecl(ast, true);
             return true;
         }
             /* these are just in case there is a missed bracket anywhere */
@@ -481,14 +482,14 @@ class Parser {
         else if(isDecl(current, INTERFACE))
         {
             errors.createNewError(GENERIC, current, "unexpected interface declaration");
-            parseInterfaceDecl(NULL);
+            parseInterfaceDecl(null);
         }
         else if(isDecl(current, IMPORT))
         {
             errors.createNewError(GENERIC, current, "import declaration not allowed here (why are you putting this here lol?)");
             parseImportDecl(ast);
         }
-        else if(current().getType() == SEMICOLON)
+        else if(current.getType() == SEMICOLON)
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(CompilerError.ILLEGAL_ACCESS_DECLARATION, current, "");
@@ -496,7 +497,7 @@ class Parser {
             /* we don't care about empty statements but we allow them */
             if(commas > 1) {
                 commas = 0;
-                errors.createNewWarning(GENERIC, current.getLine(), current.getColumn(), "unnecessary semicolon ';'");
+                errors.createNewWarning(GENERIC, current.getLine(), current.getCol(), "unnecessary semicolon ';'");
             } else
                 commas++;
             return true;
@@ -546,7 +547,7 @@ class Parser {
                 return false;
             } else {
                 if(accessTypes.size() > 0)
-                    errors.createNewError(ILLEGAL_ACCESS_DECLARATION, ast);
+                    errors.createNewError(ILLEGAL_ACCESS_DECLARATION, ast, "");
 
                 errors.fail();
                 dump();
@@ -563,14 +564,14 @@ class Parser {
     }
 
     private def parseLabelDecl(Ast ast) {
-        pAst = getAst(pAst, Label_Decl);
+        ast = getAst(ast, Label_Decl);
 
         pushBack();
-        expectIdentifier(pAst);
-        expect(COLON, pAst, "`:` after label declaration");
+        expectIdentifier(ast);
+        expect(COLON, ast, "`:` after label declaration");
 
         advance();
-        parseStatement(pAst);
+        parseStatement(ast);
     }
 
     private def parseEnumIdentifier(Ast ast) {
@@ -618,46 +619,46 @@ class Parser {
     }
 
     private def parseThrowStatement(Ast ast) {
-        pAst = getAst(pAst, Throw_Statement);
+        ast = getAst(ast, Throw_Statement);
 
-        expectToken(pAst, "throw", "`throw`");
-        parseExpression(pAst);
-        expect(SEMICOLON, pAst, "`;`");
+        expectToken(ast, "throw", "`throw`");
+        parseExpression(ast);
+        expect(SEMICOLON, ast, "`;`");
     }
 
     private def parseCatchClause(Ast ast) {
-        pAst = getAst(pAst, Catch_Clause);
+        ast = getAst(ast, Catch_Clause);
 
         advance();
-        expectToken(pAst, "catch", "`catch`");
+        expectToken(ast, "catch", "`catch`");
 
-        expect(LEFT_PAREN, pAst, "`(`");
-        parseUtypeArgOpt(pAst);
-        expect(RIGHT_PAREN, pAst, "`)`");
+        expect(LEFT_PAREN, ast, "`(`");
+        parseUtypeArgOpt(ast);
+        expect(RIGHT_PAREN, ast, "`)`");
 
-        parseBlock(pAst);
+        parseBlock(ast);
     }
 
     private def parseFinallyBlock(Ast ast) {
-        pAst = getAst(pAst, Finally_Block);
+        ast = getAst(ast, Finally_Block);
 
         advance();
-        expectToken(pAst, "finally", "`finally`");
-        parseBlock(pAst);
+        expectToken(ast, "finally", "`finally`");
+        parseBlock(ast);
     }
 
     private def parseTryCatch(Ast ast) {
-        ast = getAst(pAst, Trycatch_Statement);
+        ast = getAst(ast, Trycatch_Statement);
 
-        expectToken(pAst, "try", "`try`");
-        parseBlock(pAst);
+        expectToken(ast, "try", "`try`");
+        parseBlock(ast);
 
         while(peek(1).getToken() == "catch")
-            parseCatchClause(pAst);
+            parseCatchClause(ast);
 
         if(peek(1).getToken() == "finally")
         {
-            parseFinallyBlock(pAst);
+            parseFinallyBlock(ast);
         }
     }
 
@@ -705,7 +706,7 @@ class Parser {
     }
 
     private def parseLockStatement(Ast ast) {
-        ast = get_ast(ast, AstType.Lock_Statement);
+        ast = getAst(ast, AstType.Lock_Statement);
 
         expectToken(ast, "lock", "`lock`");
 
@@ -723,7 +724,7 @@ class Parser {
 
         expect(TokenType.LEFT_PAREN, ast, "`(`");
 
-        if(peek(1).getTokenType() != TokenType.SEMICOLON) {
+        if(peek(1).getType() != TokenType.SEMICOLON) {
             parseUtypeArg(ast);
             parseValueAssignment(ast);
         }
@@ -738,7 +739,7 @@ class Parser {
 
         if(peek(1).getType() != TokenType.RIGHT_PAREN) {
             parseExpression(ast);
-            ast.last().setAst(AstType.For_Expression_Iter);
+            ast.last().setType(AstType.For_Expression_Iter);
         }
         expect(TokenType.RIGHT_PAREN, ast, "`)`");
 
@@ -846,7 +847,7 @@ class Parser {
 
         expectToken(ast, "if", "`if`");
 
-        expect(AstType.LEFT_PAREN, ast, "`(`");
+        expect(TokenType.LEFT_PAREN, ast, "`(`");
         parseExpression(ast);
         expect(TokenType.RIGHT_PAREN, ast, "`)`");
 
@@ -867,7 +868,7 @@ class Parser {
                 tmp.add(current);
 
                 expect(TokenType.LEFT_PAREN, tmp, "`(`");
-                parse_expression(tmp);
+                parseExpression(tmp);
                 expect(TokenType.RIGHT_PAREN, tmp, "`)`");
             }
             else
@@ -889,7 +890,7 @@ class Parser {
     private def parseReturnStatement(Ast ast) {
         ast = getAst(ast, AstType.Return_Stmnt);
 
-        adt.addEntity(current);
+        ast.add(current);
 
         if(peek(1).getToken() != ";")
             parseValue(ast);
