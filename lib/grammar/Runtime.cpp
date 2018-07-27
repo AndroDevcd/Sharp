@@ -9717,7 +9717,7 @@ bool RuntimeEngine::isExpressionConvertableToNativeClass(Field *f, Expression &e
             || f->klass->getName() == "uchar" || f->klass->getName() == "ulong"
             || f->klass->getName() == "ushort")) {
         if(f->klass->getName() == "string") {
-            return exp.type == expression_string;
+            return exp.type == expression_string || (exp.trueType() == VAR && exp.isArray());
         } else {
             return (exp.trueType() == VAR && !exp.isArray());
         }

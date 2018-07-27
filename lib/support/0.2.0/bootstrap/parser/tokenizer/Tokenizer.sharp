@@ -568,6 +568,10 @@ class Tokenizer {
         return entities.last(); // EOF returned
     }
 
+    public def getTokens() : TokenEntity[] {
+        return entities.data();
+    }
+
     public def size() : var {
         return entities.size();
     }

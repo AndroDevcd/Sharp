@@ -1001,15 +1001,17 @@ bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
                 parse_expression(pAst);
                 expect(RIGHTBRACE, pAst, "`]`");
 
-                errors->enableErrorCheckMode();
-                this->retainstate(pAst);
-                if(!parse_dot_notation_call_expr(pAst))
-                {
-                    errors->pass();
-                    this->rollbacklast();
-                } else {
-                    this->dumpstate();
-                    errors->fail();
+                if(peek(1).getTokenType() == DOT) {
+                    errors->enableErrorCheckMode();
+                    this->retainstate(pAst);
+                    if(!parse_dot_notation_call_expr(pAst))
+                    {
+                        errors->pass();
+                        this->rollbacklast();
+                    } else {
+                        this->dumpstate();
+                        errors->fail();
+                    }
                 }
             }
             else {
@@ -2054,10 +2056,14 @@ void Parser::parse_labeldecl(Ast *pAst) {
 
     pushback();
     expectidentifier(pAst);
-    expect(COLON, pAst, "`:` after label decliration");
+    expect(COLON, pAst, "`:` after label declaration");
 
-    advance();
-    parse_statement(pAst);
+    if(peek(1).getTokenType() == LEFTCURLY)
+        parse_block(pAst);
+    else {
+        advance();
+        parse_statement(pAst);
+    }
 
 }
 

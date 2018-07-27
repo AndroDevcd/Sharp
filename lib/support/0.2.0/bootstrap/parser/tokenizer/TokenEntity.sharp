@@ -70,6 +70,10 @@ class TokenEntity {
         return self->type;
     }
 
+    public def delegate::toString() : string {
+        return token;
+    }
+
     private var line;
     private var col;
     private TokenId id;

@@ -106,7 +106,11 @@ public class ArrayList<T> {
         if(size <= capacity && size > 0) {
             size--;
             capacity--;
-            System.realloc(mData, capacity);
+
+            if(capacity == 0 || size == 0) {
+                clear();
+            } else
+                System.realloc(mData, capacity);
         }
     }
 

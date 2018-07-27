@@ -36,6 +36,18 @@ around it. I create the corresponding name $anonymous1 etc. in the class or
 global scope and translate it to ``var result = $anonymous1(x, y);``
 
 - Implement the use of faster code to write for loops
+-- anonymous for loop
 ```javascript
+    for < 10:
+        print("single line");
 
+    for >= 100: {
+       print("multi-line");
+    }
+```
+- fix bug that deadlocks lock statements due to return and goto
+```javascript
+lock(self) {
+    return 1; // lock is not released
+}
 ```

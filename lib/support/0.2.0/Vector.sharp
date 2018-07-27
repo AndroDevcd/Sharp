@@ -37,9 +37,12 @@ public class Vector<T> {
      *
      */
     public def size() : var {
+        var sz;
         lock(self) {
-            return size;
+            sz = size;
         }
+
+        return sz;
     }
 
     /**
@@ -47,9 +50,12 @@ public class Vector<T> {
      *
      */
     public def empty() : var {
+        var sz;
         lock(self) {
-            return size == 0;
+            sz = size == 0;
         }
+
+        return sz;
     }
 
     /**
@@ -58,11 +64,14 @@ public class Vector<T> {
      *
      */
     public def toArray() : T[] {
-
+        T[] arry;
         lock(self) {
-            if(size == 0) return null;
-            return ((T[]) System.copyOf(mData, size));
+            if(size == 0) arry = null;
+            else
+                arry = ((T[]) System.copyOf(mData, size));
         }
+
+        return arry;
     }
 
     /**
@@ -70,12 +79,19 @@ public class Vector<T> {
      *
      */
     public def get(var index) : T {
-
+        T tmp;
         lock(self) {
             if (index >= size)
-                throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
+                goto err;
 
-            return mData[index];
+            tmp = mData[index];
+        }
+
+        return tmp;
+
+        err:
+        {
+            throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
         }
     }
 
@@ -93,14 +109,19 @@ public class Vector<T> {
      *
      */
     public def set(var index, T element) : T {
-
+        T oldValue;
         lock(self) {
             if (index >= size)
-                throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
+                goto err;
 
-            T oldValue = mData[index];
+            oldValue = mData[index];
             mData[index] = element;
-            return oldValue;
+        }
+
+        return oldValue;
+        err:
+        {
+            throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
         }
     }
 
@@ -125,7 +146,11 @@ public class Vector<T> {
         if(size <= capacity && size > 0) {
             size--;
             capacity--;
-            System.realloc(mData, capacity);
+
+            if(capacity == 0 || size == 0) {
+                clear();
+            } else
+                System.realloc(mData, capacity);
         }
     }
 
@@ -136,8 +161,7 @@ public class Vector<T> {
       * @return <tt>true</tt> (as specified by {@link Collection#add})
       */
      public def addAll(Vector<T> lst) {
-        T[] arry = lst.toArray();
-        foreach(T data : arry) {
+        foreach(T data : lst.mData) {
             add(data);
         }
      }
@@ -180,7 +204,7 @@ public class Vector<T> {
 
          lock(self) {
              if(pos>size || pos < 0)
-                throw new IndexOutOfBoundsException(outOfBoundsMsg(pos));
+                goto err;
 
              if(size == 0) {
                  add(value);
@@ -190,6 +214,11 @@ public class Vector<T> {
                     mData[i] = mData[i-1];
                  mData[pos] = value;
              }
+         }
+
+         {
+            err:
+                throw new IndexOutOfBoundsException(outOfBoundsMsg(pos));
          }
      }
 
@@ -203,7 +232,7 @@ public class Vector<T> {
 
          lock(self) {
              if(pos>size || pos < 0)
-                throw new IndexOutOfBoundsException(outOfBoundsMsg(pos));
+                goto err;
 
              if(size==1){
                  size--;
@@ -220,6 +249,11 @@ public class Vector<T> {
 
                  shrink();
              }
+         }
+
+         {
+            err:
+                throw new IndexOutOfBoundsException(outOfBoundsMsg(pos));
          }
      }
 
