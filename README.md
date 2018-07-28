@@ -10,7 +10,7 @@
 
 Sharp is an open source a modern object-oriented programming language that aims to bridge the gap between modern expressive programming paradigms and strictly typed rigid languages like Java and C#. My goal is to provide the usefulness of an object oriented programming language, while holding the simplicity of an expressive programming language without having to sacrifice performance.     
 
-[Sharp Github Repo](https://github.com/AndroDevcd/Sharp/wiki/Sharp-0.2.0-Language-Specification)
+<!---[Text to link to a different page](https://androdevcd.github.io/Sharp/) -->
 
 ### Sharp is elegantly simple.  
 ```javascript    
