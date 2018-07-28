@@ -98,22 +98,6 @@ public class System {
         Runtime.nativeExit();
     }
 
-    public static def gc() {
-        Runtime.gc();
-    }
-
-    public static def freeMemory() : var {
-        return Runtime.freeMemory();
-    }
-
-    public static def getMaxMemory() : var {
-        return Runtime.memoryLimit();
-    }
-
-    public static def getManagedMemory() : var {
-        return Runtime.managedMemory();
-    }
-
     public static def copyOf(object data, var len) : object[] {
         return Runtime.copy(data, len);
     }

@@ -106,6 +106,18 @@ public:
     void createStringArray(Object* object, native_string& s); /* Native string allocation */
 
     /**
+     * Utility system level functions to garbage collect at a high level
+     *
+     * The functions below give the user the power to perform self collections
+     * starting and stoping the GC, etc.
+     */
+    int selfCollect();
+    void sedate();
+    void wake();
+    void kill();
+    bool isAwake();
+
+    /**
      * Reallocation methods for faster code
      * @param o
      * @param sz
@@ -117,7 +129,7 @@ public:
      * Function call by virtual machine
      * @param object
      */
-     void freeObject(Object* object);
+     void releaseObject(Object *object);
 
      /**
       * Add untracked memory to managed memory
@@ -185,13 +197,9 @@ private:
 #endif
     SharpObject* _Mheap, *tail;
     unsigned long long heapSize;
+    bool sleep;
 
     void collectGarbage();
-
-    /**
-     * All objects are born dirty and need to be cleaned
-     */
-    void cleanDirtyObjects();
 
     /**
      * This function performs the actual collection of
@@ -202,6 +210,8 @@ private:
     SharpObject* sweep(SharpObject *object);
 
     void erase(SharpObject *pObject);
+
+    void sedateSelf();
 };
 
 #define GC_COLLECT_YOUNG() ( yObjs >= 1 )

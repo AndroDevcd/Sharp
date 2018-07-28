@@ -17,6 +17,7 @@
 #define STACK_SIZE 0xcfba
 
 #define main_threadid 0x0
+#define gc_threadid 0x1
 
 enum ThreadState {
     THREAD_CREATED      =0x000,

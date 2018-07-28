@@ -453,7 +453,7 @@ void Thread::term() {
     this->terminated = true;
     if(dataStack != NULL) {
         for(unsigned long i = 0; i < this->stack_lmt; i++) {
-            GarbageCollector::self->freeObject(&dataStack[i].object);
+            GarbageCollector::self->releaseObject(&dataStack[i].object);
         }
         std::free(dataStack); dataStack = NULL;
     }
@@ -999,7 +999,7 @@ void Thread::exec() {
                 (++sp)->object = o2;
                 STACK_CHECK _brh
             DEL:
-                GarbageCollector::self->freeObject(o2);
+            GarbageCollector::self->releaseObject(o2);
                 _brh
             CALL:
 #ifdef SHARP_PROF_
@@ -1200,7 +1200,7 @@ void Thread::exec() {
                 dataStack[fp+GET_Da(*pc)].var=*(pc+1); pc++;
                 _brh
             PUSHNIL:
-                GarbageCollector::self->freeObject(&(++sp)->object);
+            GarbageCollector::self->releaseObject(&(++sp)->object);
                 STACK_CHECK _brh
             IPUSHL:
                 (++sp)->var = dataStack[fp+GET_Da(*pc)].var;

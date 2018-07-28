@@ -107,6 +107,7 @@ void GarbageCollector::initilize() {
     self->youngObjects=0;
     self->oldObjects=0;
     self->yObjs=0;
+    self->sleep=false;
 
 #ifdef SHARP_PROF_
     self->x = 0;
@@ -117,7 +118,7 @@ void GarbageCollector::initilize() {
     self->messageQueue.init();
 }
 
-void GarbageCollector::freeObject(Object *object) {
+void GarbageCollector::releaseObject(Object *object) {
     if(object != nullptr && object->object != nullptr)
     {
         object->object->refCount--;
@@ -330,6 +331,7 @@ void GarbageCollector::run() {
 #ifdef POSIX_
             usleep(1*999);
 #endif
+            if(sleep) sedateSelf();
             if(!messageQueue.empty()) goto message;
         } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD())) && !tself->suspendPending
                 && tself->state == THREAD_RUNNING);
@@ -622,4 +624,78 @@ void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
         }
         o->size = sz;
     }
+}
+
+void GarbageCollector::kill() {
+    mutex.lock();
+    if(tself->state == THREAD_RUNNING) {
+        tself->state = THREAD_KILLED;
+        Thread::waitForThreadExit(tself);
+    }
+
+    mutex.unlock();
+}
+
+void GarbageCollector::sedateSelf() {
+    Thread* self = thread_self;
+    self->suspended = true;
+    self->state = THREAD_SUSPENDED;
+    while(sleep) {
+
+#ifdef WIN32_
+        Sleep(30);
+#endif
+#ifdef POSIX_
+        usleep(30*999);
+#endif
+        if(self->state != THREAD_RUNNING)
+            break;
+    }
+
+    // we don't want to shoot ourselves in the foot
+    if(self->state == THREAD_SUSPENDED)
+        self->state = THREAD_RUNNING;
+    self->suspended = false;
+}
+
+void GarbageCollector::sedate() {
+    mutex.lock();
+    if(!sleep && tself->state == THREAD_RUNNING) {
+        sleep = true;
+        Thread::waitForThreadSuspend(Thread::getThread(gc_threadid));
+    }
+    mutex.unlock();
+}
+
+void GarbageCollector::wake() {
+    mutex.lock();
+    if(sleep) {
+        sleep = false;
+        Thread::waitForThread(Thread::getThread(gc_threadid));
+    }
+    mutex.unlock();
+}
+
+int GarbageCollector::selfCollect() {
+    if(sleep || tself->state == THREAD_KILLED) {
+        mutex.lock();
+        collectGarbage();
+
+        managedBytes-= freedBytes;
+        youngObjects -= freedYoung;
+        adultObjects -= freedAdult;
+        oldObjects -= freedOld;
+        freedBytes = 0;
+        freedYoung = 0;
+        freedAdult = 0;
+        freedOld = 0;
+        mutex.unlock();
+        return 0;
+    }
+
+    return -1;
+}
+
+bool GarbageCollector::isAwake() {
+    return !sleep && tself->state == THREAD_RUNNING;
 }

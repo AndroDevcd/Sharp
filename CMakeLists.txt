@@ -22,7 +22,7 @@ else()
     set(CMAKE_CXX_FLAGS_RELEASE   "-Werror -lstdc++ -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
 endif ()
 
-set(SHARPC "build")
+#set(SHARPC "build")
 
 # compiler
 if (SHARPC)

@@ -183,4 +183,42 @@ public class Runtime {
             "ret"
         );
     }
+
+
+    public static def sedateGc() {
+        asm(
+            "int 0xf1" // put gc to deep sleep
+            "ret"
+        );
+    }
+
+    public static def selfCollect() : var {
+        asm(
+            "int 0xf0" // perform collection of memory directly on the calling thread
+            "return_val %cmt"
+            "ret"
+        );
+    }
+
+    public static def wakeGc() {
+        asm(
+            "int 0xf2" // wakeup gc from deep sleep (if thread is alive)
+            "ret"
+        );
+    }
+
+    public static def killGc() {
+        asm(
+            "int 0xf3" // permanently kill gc for the life of your application
+            "ret"
+        );
+    }
+
+    public static def isGcAwake() : var {
+        asm(
+            "int 0xf4" // get real sizeof object in memory
+            "return_val %cmt"
+            "ret"
+        );
+    }
 }

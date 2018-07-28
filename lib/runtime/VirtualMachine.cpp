@@ -278,6 +278,21 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             GarbageCollector::self->sendMessage(
                     CollectionPolicy::GC_LOW);
             return;
+        case 0xf0:
+            CMT=GarbageCollector::self->selfCollect();
+            break;
+        case 0xf1:
+            GarbageCollector::self->sedate();
+            break;
+        case 0xf2:
+            GarbageCollector::self->wake();
+            break;
+        case 0xf3:
+            GarbageCollector::self->kill();
+            break;
+        case 0xf4:
+            CMT=GarbageCollector::self->isAwake();
+            break;
         case 0xa3:
             registers[bmr]= Clock::realTimeInNSecs();
             return;
@@ -638,7 +653,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                             files.get(i).free();
                         }
                     } else {
-                        GarbageCollector::self->freeObject(arry);
+                        GarbageCollector::self->releaseObject(arry);
                     }
 
                     files.free();
@@ -664,7 +679,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     if(str.len > 0) {
                         GarbageCollector::self->createStringArray(arry, str);
                     } else {
-                        GarbageCollector::self->freeObject(arry);
+                        GarbageCollector::self->releaseObject(arry);
                     }
                 }
             } else
