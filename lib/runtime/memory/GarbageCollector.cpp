@@ -646,6 +646,11 @@ void GarbageCollector::sedateSelf() {
     self->state = THREAD_SUSPENDED;
     while(sleep) {
 
+#ifdef SHARP_PROF_
+        if(managedBytes > hbytes)
+                hbytes = managedBytes;
+#endif
+
 #ifdef WIN32_
         Sleep(30);
 #endif

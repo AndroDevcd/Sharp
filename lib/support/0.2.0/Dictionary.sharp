@@ -42,6 +42,28 @@ public class Dictionary<TKey, TValue> {
      }
 
      /**
+      * Returns the last key in the list. The general
+      * contract for the lastKey method is that if there is anything
+      * residing in the list the data will be returned. Otherwise
+      * an exception is thrown
+      *
+      */
+      public def lastKey() : TKey {
+        return keys.last();
+      }
+
+     /**
+      * Returns the last value in the list. The general
+      * contract for the lastValue method is that if there is anything
+      * residing in the list the data will be returned. Otherwise
+      * an exception is thrown
+      *
+      */
+      public def lastValue() : TValue {
+        return values.last();
+      }
+
+     /**
       * Returns an array of the values in this dictionary. The general
       * contract for the elements method is that an array of type <value> object
       * is returned that will be a reference to all the values in the dictionary.

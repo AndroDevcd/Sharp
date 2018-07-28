@@ -116,6 +116,7 @@ class Parser {
             ast.add(token);
         }
 
+        accessTypes.clear();
         ast.add(current);
         expectIdentifier(ast);
 
@@ -163,8 +164,95 @@ class Parser {
                 parseClassDecl(ast);
             } else if(isDecl(current, INTERFACE)) {
                 parseInterfaceDecl(ast);
+            } else if(isDecl(current, IMPORT))
+            {
+                if(accessTypes.size() > 0)
+                     errors.createNewError(ILLEGAL_ACCESS_DECLARATION, current, "");
+                errors.createNewError(GENERIC, current, "unexpected import declaration");
+                parseImportDecl(ast);
             }
+            else if(isNativeType(current.getToken()))
+            {
+                parseVariableDecl(ast);
+            }
+            else if(isDecl(current, PROTOTYPE))
+            {
+                parseProtoTypeDecl(ast, true);
+            }
+            else if(isDecl(current, ENUM))
+            {
+                parseEnumDecl(ast);
+            }
+            else if(isDecl(current, METHOD))
+            {
+                if(peek(1).getToken() == "operator")
+                    parseOperatorDecl(ast);
+                else if(peek(1).getToken() == "delegate")
+                    parseDelegateDecl(ast);
+                else
+                    parseMethodDecl(ast);
+            }
+            else if(isConstructorDecl())
+            {
+                parseConstructor(ast);
+            }
+            else if(current.getType() == _EOF)
+            {
+                errors.createNewError(UNEXPECTED_EOF, current, "");
+                break;
+            }
+            else if (current.getType() == RIGHT_CURLY)
+            {
+                if((brackets-1) < 0)
+                {
+                    errors.createNewError(ILLEGAL_BRACKET_MISMATCH, current, "");
+                }
+                else
+                {
+                    brackets--;
+
+                    // end of class block
+                    if(brackets == 0)
+                    {
+                        pushBack();
+                        break;
+                    }
+                }
+            }
+            else if(current.getType() == LEFT_CURLY)
+                brackets++;
+            else {
+                // save parser state
+                retain(ast);
+                pushBack();
+
+                /*
+                 * variable decl?
+                 */
+                if(parseUtype(ast))
+                {
+                    if(peek(1).getId() == IDENTIFIER)
+                    {
+                        // Variable decliration
+                        rollbackLast(ast);
+                        parseVariableDecl(ast);
+                        accessTypes.clear();
+                        continue;
+                    }
+                }
+
+                rollback(ast);
+                errors.createNewError(GENERIC, current, "expected method, class, or variable declaration");
+                parseAll(ast);
+            }
+
+            accessTypes.clear();
         }
+
+        if(brackets != 0)
+            errors.createNewError(MISSING_BRACKET, current, " expected `}` at end of class declaration");
+
+        expect(RIGHT_CURLY, "`}` at end of class declaration");
     }
 
     private def parseInterfaceDecl(Ast ast) {
@@ -1734,8 +1822,8 @@ class Parser {
 
     private def rollbackLast(Ast ast) {
         if(states.size() > 0) {
-            cursor = states.keyAt(states.size() -1);
-            advance();
+            cursor = states.lastKey();
+            current = tokenizer.get(cursor);
 
             if(ast.childrenSize() == 1) {
                 ast.clear();
@@ -1748,10 +1836,10 @@ class Parser {
 
     private def rollback(Ast ast) {
         if(states.size() > 0) {
-            cursor = states.keyAt(states.size() -1);
-            Ast tmp = states.valueAt(states.size() -1);
+            cursor = states.lastKey();
+            current = tokenizer.get(cursor);
+            Ast tmp = states.lastValue();
             ast.copy(tmp);
-            advance();
 
             states.drop();
         }
@@ -1872,8 +1960,7 @@ class Parser {
     private def parseTemplateDecl(Ast ast) : var {
         if(peek(1).getType() == LESSTHAN) {
             advance();
-            Ast tmp = new Ast();
-            tmp.copy(ast);
+            retain(ast);
 
             if(peek(1).getType() == GREATERTHAN) {
                 errors.createNewError(GENERIC, current, "expected identifier before `>`");
@@ -1883,7 +1970,7 @@ class Parser {
 
             if(parseUtype(ast) && (peek(1).getType() == GREATERTHAN || peek(1).getType() == COMMA))
             {
-                ast.copy(tmp);
+                rollbackLast(ast);
                 errors.pass();
                 parseUtypeList(ast);
                 if(peek(1).getType() == GREATERTHAN) {
@@ -1894,7 +1981,7 @@ class Parser {
 
                 return true;
             } else
-                ast.copy(tmp);
+                dump();
 
             errors.pass();
             pushBack();
@@ -1975,13 +2062,9 @@ class Parser {
 
         if(parseUtype(ast))
         {
-            errors.enableProtectedMode();
-            if(!expectIdentifier(ast)) {
-                errors.pass();
-                pushBack();
-            }
-            else
-                errors.fail();
+            if(peek(1).getType() == IDENTIFIER)
+                expectIdentifier(ast);
+
             return true;
         }else
             errors.createNewError(GENERIC, current, "expected native type or reference pointer");

@@ -71,7 +71,7 @@ class TokenEntity {
     }
 
     public def delegate::toString() : string {
-        return token;
+        return token + ": " + line + "," + col;
     }
 
     private var line;

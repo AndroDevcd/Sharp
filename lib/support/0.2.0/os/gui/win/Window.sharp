@@ -1,0 +1,5 @@
+mod std.os.gui;
+
+class Window {
+
+}

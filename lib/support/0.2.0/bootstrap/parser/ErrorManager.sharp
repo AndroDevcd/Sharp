@@ -353,7 +353,9 @@ class ParseError {
    public ParseError(CompilerError err, string msg, var l, var c,
             string additional) {
       id = err;
-      error = msg + additional;
+      if(additional != null && additional.size() != 0)
+        error = msg + additional;
+      else error = msg;
       line = l;
       col = c;
       warning = false;
@@ -362,7 +364,9 @@ class ParseError {
    public ParseError(var warning, CompilerError err, string msg, var l, var c,
             string additional) {
       id = err;
-      error = msg + additional;
+      if(additional != null && additional.size() != 0)
+        error = msg + additional;
+      else error = msg;
       line = l;
       col = c;
       self->warning = warning;
@@ -371,7 +375,9 @@ class ParseError {
    public ParseError(var warning, CompilerError err, string msg, TokenEntity entity,
             string additional) {
       id = err;
-      error = msg + additional;
+      if(additional != null && additional.size() != 0)
+        error = msg + additional;
+      else error = msg;
       line = entity.getLine();
       col = entity.getCol();
       self->warning = warning;
