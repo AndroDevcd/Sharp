@@ -20,6 +20,7 @@ var[] POSIXCLS = "clear";
 
 def main(string[] args) : var {
     setup();
+    kill();
     while(!gameOver) {
         Thread.sleep(85);
         if(dir == STOP && last != STOP && !_kbhit())

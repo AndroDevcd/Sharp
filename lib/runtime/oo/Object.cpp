@@ -47,7 +47,7 @@ void Object::monitorLock() {
             object->mutex = new recursive_mutex();
 #endif
 #ifdef POSIX_
-            object->mutex = new std::mutex();
+            object->mutex = new recursive_mutex();
 #endif
 
             Thread::threadsMonitor.unlock();

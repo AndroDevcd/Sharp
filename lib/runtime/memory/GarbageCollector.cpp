@@ -335,6 +335,10 @@ void GarbageCollector::run() {
             if(!messageQueue.empty()) goto message;
         } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD())) && !tself->suspendPending
                 && tself->state == THREAD_RUNNING);
+
+        if(tself->state == THREAD_KILLED)
+            return;
+
         /**
          * Attempt to collect objects based on the appropriate
          * conditions. This call does not guaruntee that any collections

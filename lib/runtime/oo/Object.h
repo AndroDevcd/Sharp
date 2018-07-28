@@ -54,7 +54,7 @@ struct SharpObject
     recursive_mutex* mutex;
 #endif
 #ifdef POSIX_
-    std::mutex* mutex;
+    recursive_mutex* mutex;
 #endif
     /**
      * collection generation
