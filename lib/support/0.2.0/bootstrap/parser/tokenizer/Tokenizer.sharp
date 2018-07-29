@@ -94,6 +94,7 @@ class Tokenizer {
               case '*': addToken(peek(1)=='=' ? TokenType.MULTEQ : TokenType.MULT); break;
               case ' ':
               case '\t':
+              case '\r':
                 // Ignore whitespace.
                 break;
               case '/':
@@ -118,7 +119,6 @@ class Tokenizer {
                 }
                 break;
 
-              case '\r':
               case '\n':
                 line++;
                 col = 0;
@@ -389,6 +389,10 @@ class Tokenizer {
             return;
         }
         advance();
+        if(current == '\"') {
+            entities.add(new TokenEntity("", TokenId.STRING_LITERAL, col, line));
+            return;
+        }
 
         start = cursor;
         var escapedFound = false;
@@ -510,9 +514,8 @@ class Tokenizer {
     def advance() {
         col++;
         cursor++;
-        try {
+        if(cursor < tokens.size())
             current = tokens.at(cursor);
-        } catch(Exception e) {}
     }
 
     def peekEnd(var chars) : var {
@@ -581,7 +584,7 @@ class Tokenizer {
 
         start = 0;
         for(var i = 0; i < sizeof(raw); i++) {
-            if(char.isNewLine(raw[i])) {
+            if(raw[i] == '\n') {
                 lines.add(tokens.substring(start, i==0 || start==i ? i : i-1));
                 start = i+1;
             }

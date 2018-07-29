@@ -111,7 +111,8 @@ void Parser::parse()
 
             tree->pop_back();
             ast_cursor--;
-            pushback();
+            cursor = old;
+            _current = &toks->getEntities().get(cursor);
 
             // "expected class, or import declaration"
             errors->createNewError(UNEXPECTED_SYMBOL, current(), " `" + current().getToken() + "`; expected class, enum, or import declaration");

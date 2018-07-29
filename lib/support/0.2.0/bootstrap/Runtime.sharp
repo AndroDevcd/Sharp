@@ -206,6 +206,7 @@ public class Runtime {
         istream.close();
         Tokenizer tokenizer = new Tokenizer(tokens, files.get(0));
         Parser parser = new Parser(tokenizer);
+        parser.getErrors().printErrors();
     }
 
 

@@ -32,14 +32,20 @@ class ErrorManager {
 
     public def printErrors() {
         if(!directReport) {
+            string errStr;
             if(errorsFound) {
-                if(aggressiveErrors)
-                    System.println(getErrors(rawErrors));
-                else
-                    System.println(getErrors(errors));
+                if(aggressiveErrors) {
+                    errStr = getErrors(rawErrors);
+                    if(!errStr.empty()) System.println(errStr);
+                }
+                else {
+                    errStr = getErrors(errors);
+                    if(!errStr.empty()) System.println(errStr);
+                }
             }
 
-            System.println(getErrors(warnings));
+            errStr = getErrors(warnings);
+            if(!errStr.empty()) System.println(errStr);
         }
     }
 
@@ -114,6 +120,9 @@ class ErrorManager {
 
     public def dumpProtectedErrors() {
         possibleErrors.popBack();
+        if(possibleErrors.size() == 0) {
+            protectedMode = false;
+        }
     }
 
     public def fail() {
@@ -128,9 +137,10 @@ class ErrorManager {
                 }
             }
 
+            if(!lst.empty())
+                errorsFound = true;
             lastCheckedError = new ParseError();
             dumpProtectedErrors();
-            errorsFound = true;
         }
     }
 

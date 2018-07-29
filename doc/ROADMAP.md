@@ -51,3 +51,5 @@ lock(self) {
     return 1; // lock is not released
 }
 ```
+
+- support function pointers as global variables

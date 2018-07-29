@@ -26,7 +26,7 @@ class Parser {
 
     private def parse() {
         sourceFile = tokenizer.getFile();
-        errors = new ErrorManager(lines, sourceFile, true, Options.aggressiveErrors);
+        errors = new ErrorManager(lines, sourceFile, false, Options.aggressiveErrors);
         current = tokenizer.get(cursor);
 
 
@@ -91,7 +91,10 @@ class Parser {
                     errors.pass();
 
                 tree.popBack();
-                pushBack();
+                cursor = old;
+                // gotdamn c++ we have to do this >:(
+                TokenEntity[] arry = tokenizer.getTokens();
+                current = arry[cursor];
 
                 // "expected class, or import declaration"
                 errors.createNewError(UNEXPECTED_SYMBOL, current, " `" + current.getToken() + "`; expected class, enum, method, interface, variable, or import declaration");
@@ -103,9 +106,7 @@ class Parser {
             accessTypes.clear();
         }
 
-            parsed = true;
-            if(errors.hasErrors())
-                return;
+        parsed = true;
     }
 
     private def parseClassDecl(Ast ast) {
@@ -627,7 +628,7 @@ class Parser {
         }
         else if(isDecl(current, IMPORT))
         {
-            errors.createNewError(GENERIC, current, "import declaration not allowed here (why are you putting this here lol?)");
+            errors.createNewError(GENERIC, current, "import declaration not allowed here (why are you putting this here LoL?)");
             parseImportDecl(ast);
         }
         else if(current.getType() == SEMICOLON)
@@ -911,8 +912,10 @@ class Parser {
         ast = getAst(ast, Assembly_Statement);
 
         expectToken(ast, "asm", "`asm`");
-        if(peek(1).getToken() == VOLATILE)
+        if(peek(1).getToken() == VOLATILE) {
+            advance();
             expectToken(ast, "volatile", "`volatile`");
+        }
 
         expect(LEFT_PAREN, ast, "`(`");
         parseAssemblyBlock(ast);
@@ -1044,7 +1047,52 @@ class Parser {
     }
 
     private def parseAll(Ast ast) {
-
+        if(isAccessType(current))
+            parseAccessTypes();
+        if(quit()) return;
+        
+        if(current.getType() == _EOF)
+        {
+            return;
+        }
+        else if(isDecl(current, METHOD))
+        {
+            if(peek(1).getToken() == "operator")
+                parseOperatorDecl(ast);
+            else if(peek(1).getToken() == "delegate")
+                parseDelegateDecl(ast);
+            else
+                parseMethodDecl(ast);
+        }
+        else if(isDecl(current, MOD))
+        {
+            if(accessTypes.size() > 0)
+            {
+                errors.createNewError(ILLEGAL_ACCESS_DECLARATION, current, "");
+            }
+            parseModuleDecl(ast);
+        }
+        else if(isDecl(current, CLASS))
+        {
+            parseClassDecl(ast);
+        }
+        else if(isDecl(current, ENUM))
+        {
+            parseEnumDecl(ast);
+        }
+        else if(isDecl(current, INTERFACE))
+        {
+            parseInterfaceDecl(null);
+        }
+        else if(isDecl(current, IMPORT))
+        {
+            if(accessTypes.size() > 0)
+            {
+                errors.createNewError(ILLEGAL_ACCESS_DECLARATION, current, "");
+            }
+            parseImportDecl(ast);
+        } else
+            parseStatement(ast);
     }
 
     private def isConstructorDecl() : var {
@@ -1271,12 +1319,13 @@ class Parser {
         retain(ast);
         if(parsePrimaryExpression(ast)) {
             dump();
-            return true;
+            if(!isOverrideOperator(peek(1).getToken()))
+                return true;
         } else {
             rollbackLast(ast);
         }
 
-        if(isOverrideOperator(peek(1).getToken())) {
+        if(isAssignOperator(peek(1).getToken())) {
             advance();
             ast.add(current);
 
@@ -1850,6 +1899,16 @@ class Parser {
             states.removeAt(states.size()-1);
     }
 
+    private def dump(var setCursor) {
+        if(states.size() > 0) {
+            var old = states.lastKey();
+
+            if(setCursor)
+                cursor = old;
+            states.drop();
+        }
+    }
+
     private def retain(Ast ast) {
         Ast copy = new Ast();
         copy.copy(ast);
@@ -2062,7 +2121,7 @@ class Parser {
 
         if(parseUtype(ast))
         {
-            if(peek(1).getType() == IDENTIFIER)
+            if(peek(1).getId() == IDENTIFIER)
                 expectIdentifier(ast);
 
             return true;
@@ -2137,8 +2196,12 @@ class Parser {
             }
             else
                 pushBack();
-        } else
+        } else if(current.getId() == TokenId.IDENTIFIER)
             pushBack();
+        else {
+            pushBack();
+            return false;
+        }
 
         bool generic = false;
         parseModuleName(ast, generic, true);
@@ -2219,7 +2282,7 @@ class Parser {
     public def expectToken(Ast ast, var[] token, var[] msg) {
 
         if(current.getToken() != token) {
-            errors.createNewError(GENERIC, current, "" + msg);
+            errors.createNewError(GENERIC, current, "expected " + msg);
         } else {
             ast.add(current);
         }
@@ -2299,7 +2362,7 @@ class Parser {
                || key == "_int32" || key == "_int64" || key == "_uint8"
                || key == "_uint16"|| key == "_uint32" || key == "_uint64"
                || key == "delegate" || key == "interface" || key == "lock" || key == "enum"
-               || key == "switch" || key == "default" || key == "volatile";
+               || key == "switch" || key == "default" || key == "volatile" || key == "fn";
     }
 
     private def peek(var forward) : TokenEntity {
@@ -2318,6 +2381,10 @@ class Parser {
             ast.add(new Ast(ast, type, current.getLine(), current.getCol()));
             return ast.last();
         }
+    }
+
+    public def getErrors() : ErrorManager {
+        return errors;
     }
 
     private def isDecl(TokenEntity token, var[] value) : var {

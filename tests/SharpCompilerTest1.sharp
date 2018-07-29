@@ -51,6 +51,98 @@ public class Tmpl<T, A> base Callback : Event {
     }
 }
 
+object i = 0;
+
+        enum Tmp {
+            A,
+            B,
+            C
+        };
+
+
+        TS instance;
+
+        private static def foo() {
+            {
+                return 9;
+                if(true) {
+
+                }
+                switch(9) {
+                    case 7:
+                        break;
+                    default:
+                        break;
+                }
+
+                asm("fodomsdmfsdf"
+                    "dvndknvdkvnkdv");
+
+                asm volatile ("fodomsdmfsdf"
+                    "dvndknvdkvnkdv");
+
+                for(var i = 0; i < 10; i++) {
+
+                }
+                lock(foo) {
+
+                }
+
+                foreach(Foo foo : fooArr) {
+
+                }
+
+                while(true) {
+
+                }
+
+                do {
+
+                } while(true);
+
+                try {
+
+                }catch(Exception e) {
+
+                }
+
+
+                throw new Exception("");
+                continue;
+                break;
+                goto lbl;
+                fn foo(var, int i);
+                fn foo(var, int i) : int;
+                var i = ++x;
+                var i = { 1, 2, 3 };
+                var i = Maze.class;
+                var i = self->z().tt()[9];
+                var i = base->xx;
+                var i = base->xx.foo();
+                ss.zz()[9];
+                new Exception("");
+                new var[] { 99, 0, 0, 0, 0};
+                new var[9];
+                (new var[9]);
+                (new var[9]).xeep()[0];
+                null;
+                sizeof(z);
+                [9];
+                x++;
+                (var[])malloc(99);
+                +i;
+                 var i = i < 10;
+            }
+        }
+
+
+        interface cc<T> base cc<T> {
+            def delegate:: foo();
+            def delegate:: foo() { }
+            def delegate:: foo() : var;
+        }
+
+fn foo(var, fn foo2() : var) : var;
 public class Callback {
 
     public def delegate::work();
