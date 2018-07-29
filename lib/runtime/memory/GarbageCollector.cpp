@@ -9,6 +9,9 @@
 #include "../oo/Field.h"
 #include "../../util/time.h"
 #include "../../util/KeyPair.h"
+#include "../Environment.h"
+#include "../Exe.h"
+#include "../Manifest.h"
 #include <thread>
 #include <algorithm>
 
@@ -140,8 +143,6 @@ void GarbageCollector::releaseObject(Object *object) {
 void GarbageCollector::shutdown() {
     if(self != nullptr) {
         self->isShutdown=true;
-        /* Clear out all memory */
-
 #ifdef SHARP_PROF_
         cout << "\nsize of object: " << sizeof(SharpObject) << endl;
         cout << "highest memory calculated: " << hbytes << endl;
@@ -152,19 +153,7 @@ void GarbageCollector::shutdown() {
         cout << "heap size: " << self->heapSize << endl;
         cout << std::flush << endl;
 #endif
-
-        SharpObject *p = self->_Mheap->next;
-
-        while(p != NULL) {
-
-            if(p->refCount < 1) {
-                p = self->sweep(p);
-                continue;
-            }
-
-            p = p->next;
-        }
-
+        // im no longer freeing memory due to multiple memory references on objects when clearing
         std::free(self->_Mheap);
         std::free(self); self = nullptr;
     }
@@ -427,8 +416,8 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
                  */
                 if(o != nullptr && o->refCount <= 1) {
                     sweep(o);
-                } else if(o != nullptr){
-                    o->refCount--;
+                } else {
+                    DEC_REF(o);
                 }
             }
 

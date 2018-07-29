@@ -6083,27 +6083,32 @@ void RuntimeEngine::assignEnumName(Ast *ast, Field *field, Expression &out) {
 }
 
 void RuntimeEngine::assignEnumArray(Ast *ast, ClassObject *klass, Expression &out) {
-    Field *enums = klass->getField("enums", true);
-    if(enums != NULL) {
+    if(!(klass->getName() == "Enum" && klass->getModuleName() == "std")) {
+        Field *enums = klass->getField("enums", true);
+        if(enums != NULL) {
 
-        out.code.push_i64(SET_Di(i64, op_MOVI, klass->fieldCount()), ebx); // call Enum()
-        out.code.__asm64.push_back(SET_Ci(i64, op_NEWCLASSARRAY, ebx, 0, klass->address)); // create Enum class
+            out.code.push_i64(SET_Di(i64, op_MOVI, klass->fieldCount()-3), ebx); // call Enum()
+            out.code.__asm64.push_back(SET_Ci(i64, op_NEWCLASSARRAY, ebx, 0, klass->address)); // create Enum class
 
-        for(long i = 0; i < klass->fieldCount(); i++) {
+            // skip the 3 first fields
+            for(long i = 3; i < klass->fieldCount(); i++) {
+
+                out.code.__asm64.push_back(SET_Di(i64, op_MOVG, klass->address));
+                out.code.__asm64.push_back(SET_Di(i64, op_MOVN, klass->getField(i)->address)); // get enum field
+                out.code.push_i64(SET_Ei(i64, op_PUSHOBJ)); // push object
+
+                out.code.push_i64(SET_Di(i64, op_MOVSL, -1)); // get our array object
+                out.code.push_i64(SET_Di(i64, op_MOVN, (i-3))); // select array element
+                out.code.push_i64(SET_Ei(i64, op_POPOBJ)); // set object
+            }
 
             out.code.__asm64.push_back(SET_Di(i64, op_MOVG, klass->address));
-            out.code.__asm64.push_back(SET_Di(i64, op_MOVN, klass->getField(i)->address)); // get enum field
-            out.code.push_i64(SET_Ei(i64, op_PUSHOBJ)); // push object
-
-            out.code.push_i64(SET_Di(i64, op_MOVSL, -1)); // get our array object
-            out.code.push_i64(SET_Di(i64, op_MOVN, i)); // select array element
-            out.code.push_i64(SET_Ei(i64, op_POPOBJ)); // set object
+            out.code.__asm64.push_back(SET_Di(i64, op_MOVN, enums->address)); // get enums[]
+            out.code.__asm64.push_back(SET_Ei(i64, op_POPOBJ));
+            staticMainInserts.inject(staticMainInserts.size(), out.code);
         }
-
-        out.code.__asm64.push_back(SET_Di(i64, op_MOVG, klass->address));
-        out.code.__asm64.push_back(SET_Di(i64, op_MOVN, enums->address)); // get enums[]
-        out.code.__asm64.push_back(SET_Ei(i64, op_POPOBJ));
-        staticMainInserts.inject(staticMainInserts.size(), out.code);
+    } else {
+        int i = 0;
     }
 }
 
@@ -7090,7 +7095,6 @@ void RuntimeEngine::resolveClassEnumDecl(Ast* ast) {
     }
 
     Expression out(block);
-    assignEnumArray(block, klass, out);
     addDefaultConstructor(klass, ast);
     removeScope();
 }
@@ -8928,7 +8932,7 @@ void RuntimeEngine::createDumpFile() {
                 case op_NEWCLASSARRAY:
                 {
                     ss<<"new_classarray ";
-                    ss<< Asm::registrerToString(GET_Ca(x64));
+                    ss<< GET_Ca(x64);
                     ss<< " ";
                     ss << " // "; ss << find_class(GET_Cb(x64)) << "[]";
                     _ostream << ss.str();

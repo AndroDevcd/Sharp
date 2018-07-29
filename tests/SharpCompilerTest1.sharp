@@ -142,7 +142,6 @@ object i = 0;
             def delegate:: foo() : var;
         }
 
-fn foo(var, fn foo2() : var) : var;
 public class Callback {
 
     public def delegate::work();
