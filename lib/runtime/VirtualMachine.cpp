@@ -41,6 +41,9 @@ int CreateVirtualMachine(std::string exe)
 
     Thread::Startup();
     GarbageCollector::startup();
+#ifdef WIN32_
+    env->gui = new Gui();
+#endif
 
     manifest.classes -= AUX_CLASSES;
 
@@ -167,6 +170,15 @@ void VirtualMachine::destroy() {
 
     Thread::shutdown();
     GarbageCollector::shutdown();
+
+#ifdef WIN32_
+    if(env->gui != NULL)
+    {
+        env->gui->shutdown();
+        delete env->gui;
+    }
+
+#endif
 }
 
 extern unsigned long long irCount, overflow;
@@ -189,6 +201,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         executeMethod(thread_self->main->address, thread_self)
 
         thread_self->exec();
+        env->gui->setupMain();
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();
