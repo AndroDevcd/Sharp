@@ -1,0 +1,14 @@
+mod std.os.gui;
+
+/**
+ * Created by BraxtonN on 7/30/2018.
+ */
+class Polygon {
+    Point[] points;
+}
+
+// model of win api struct POINT
+class Point {
+    var x;
+    var y;
+}

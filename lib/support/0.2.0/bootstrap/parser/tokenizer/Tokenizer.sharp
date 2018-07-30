@@ -103,7 +103,7 @@ class Tokenizer {
                   while (!char.isNewLine(peek(1)) && !isEnd()) advance();
                 } else if(match('*')) {
                   // A multiline comment goes until the [*/].
-                  while(!isEnd() && (current != '*' && peek(1) != '/'))
+                  while(!isEnd() && !(current == '*' && peek(1) == '/'))
                   {
                       if(char.isNewLine(current)){
                           newline();
@@ -111,6 +111,7 @@ class Tokenizer {
 
                       advance();
                   }
+                  advance();
                 } else {
                     if(match('='))
                         addToken(TokenType.DIVEQ);

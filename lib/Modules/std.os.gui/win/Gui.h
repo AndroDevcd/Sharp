@@ -14,6 +14,9 @@
 
 typedef int64_t wnd_id;
 extern wnd_id ugwid;
+#define GUI_ERR 547
+
+struct Poly;
 
 struct _Message {
     UINT msg;
@@ -42,10 +45,24 @@ struct Window {
     vector<_Message> queue;
     wnd_id id;
 
+    PAINTSTRUCT ps;
+    HDC hdc;
+    HBRUSH hBrush; // our current brush
+    HPEN hPen, origPen; // current and original pen
+    vector<HPEN> pens;
+    vector<HBRUSH> brushes;
+
     void init() {
         new (&queue) std::vector<_Message>();
+        new (&pens) std::vector<HPEN>();
+        new (&brushes) std::vector<HBRUSH>();
         id = 0;
         wnd = nullptr;
+        memset(&ps, 0, sizeof(PAINTSTRUCT));
+        hdc= nullptr;
+        hBrush=nullptr;
+        hPen = nullptr;
+        origPen = nullptr;
     }
 };
 
@@ -72,17 +89,31 @@ public:
     void winGuiIntf(long long proc);
 
 private:
+    bool createPolygon(Poly *poly);
     Window* getContextFast(wnd_id);
     Window* getWindow(wnd_id);
     List<Window> windows;
     Window *ctx;
+
 };
 
 enum _win_paintproc
 {
     _pt_text=0,
     _pt_start=1,
-    _pt_end=2
+    _pt_end=2,
+    _pt_move=3,
+    _pt_line=4,
+    _pt_rect=5,
+    _pt_fillrect=6,
+    _pt_ellipsize=7,
+    _pt_polygon=8,
+    _pt_createPen=9,
+    _pt_selectPen=10,
+    _pt_deletePen=11,
+    _pt_createBrush=12,
+    _pt_selectBrush=13,
+    _pt_deleteBrush=14,
 };
 
 enum _win_guiproc
@@ -96,6 +127,12 @@ enum _win_guiproc
     _g_upd=6,
     _g_dsp=7,
     _g_msg=8,
+};
+
+// higher level paint structs
+struct Poly { // polygon struct
+    POINT* pts;
+    int size;
 };
 
 LRESULT  winProc(HWND, UINT, WPARAM, LPARAM);

@@ -1319,7 +1319,7 @@ class Parser {
         retain(ast);
         if(parsePrimaryExpression(ast)) {
             dump();
-            if(!isOverrideOperator(peek(1).getToken()))
+            if(!isOverrideOperator(peek(1).getToken()) && peek(1).getType() != QUESMK)
                 return true;
         } else {
             rollbackLast(ast);
@@ -1332,7 +1332,7 @@ class Parser {
             parseExpression(ast);
             ast.encapsulate(Assign_E);
 
-            if(!isOverrideOperator(peek(1).getToken()))
+            if(!isOverrideOperator(peek(1).getToken()) && peek(1).getType() != QUESMK)
                 return true;
         }
 
@@ -1413,7 +1413,6 @@ class Parser {
             advance();
             ast.add(current);
 
-            addition(ast);
             ast = ast.encapsulate(Less_E);
             parsed = true;
         }
@@ -1785,28 +1784,12 @@ class Parser {
                     parseExpression(ast);
                     expect(RIGHT_BRACE, ast, "`]`");
 
-                    errors.enableProtectedMode();
-                    retain(ast);
-                    if(!parseDotNotationCallExpression(ast))
-                    {
-                        errors.pass();
-                        rollbackLast(ast);
-                    } else {
-                        dump();
-                        errors.fail();
-                    }
+                    if(peek(1).getType() == DOT)
+                        parseDotNotationCallExpression(ast);
                 }
                 else {
-                    errors.enableProtectedMode();
-                    retain(ast);
-                    if(!parseDotNotationCallExpression(ast))
-                    {
-                        errors.pass();
-                        rollbackLast(ast);
-                    } else {
-                        dump();
-                        errors.fail();
-                    }
+                    if(peek(1).getType() == DOT)
+                        parseDotNotationCallExpression(ast);
                 }
             }
         } else {

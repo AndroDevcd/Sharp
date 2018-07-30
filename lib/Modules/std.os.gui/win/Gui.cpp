@@ -13,8 +13,6 @@ recursive_mutex wndMutex;
 
 static TCHAR defaultWindowClass[] = _T("default window");
 
-thread_local PAINTSTRUCT ps;
-thread_local HDC hdc;
 
 int Gui::setupMain() {
     ctx = NULL;
@@ -98,7 +96,7 @@ int Gui::update(wnd_id wnd) {
 
 int Gui::dispatchMessage() {
     MSG msg;
-    if(GetMessage(&msg, NULL, 0, 0)) {
+    if(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
         return 0;
@@ -108,7 +106,7 @@ int Gui::dispatchMessage() {
 _Message Gui::getMessage(wnd_id wnd) {
     Window *w = getContextFast(wnd);
     _Message msg;
-    if(w) {
+    if(w && w->queue.size() > 0) {
         msg = w->queue.back();
         w->queue.pop_back();
     }
@@ -118,7 +116,7 @@ _Message Gui::getMessage(wnd_id wnd) {
 int Gui::paintStart(wnd_id wnd) {
     Window *w = getContextFast(wnd);
     if(w) {
-        hdc = BeginPaint(w->wnd, &ps);
+        w->hdc = BeginPaint(w->wnd, &w->ps);
         return 0;
     }
 
@@ -128,7 +126,7 @@ int Gui::paintStart(wnd_id wnd) {
 int Gui::paintEnd(wnd_id wnd) {
     Window *w = getContextFast(wnd);
     if(w) {
-        EndPaint(w->wnd, &ps);
+        EndPaint(w->wnd, &w->ps);
         return 0;
     }
     return 1;
@@ -190,7 +188,7 @@ LRESULT winProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case WM_DESTROY:
             env->gui->getWindow(hWnd)->queue.emplace_back(message, wParam, lParam);
             break;
-        default:
+            default:
             lresult = DefWindowProc(hWnd, message, wParam, lParam);
             break;
     }
@@ -222,7 +220,7 @@ void Gui::winGuiIntf(long long proc) {
 
                 CMT = createDefaultWindow(native_string(name->HEAD, name->size),
                         native_string(title->HEAD, title->size), ECX, EGX);
-            } else CMT = 547;
+            } else CMT = GUI_ERR;
             break;
         }
         case _g_show:
@@ -254,10 +252,9 @@ void Gui::winPaint(long long proc) {
             if(str) {
                 native_string msg(str->HEAD, str->size);
                 const char *wMsg = msg.str().c_str();
-                TextOut(hdc,
+                TextOut(ctx->hdc,
                         (int)(self->sp)->var, (int)(self->sp-1)->var,
                         wMsg, _tcslen(wMsg));
-                self->sp-=2;
             }
             break;
         }
@@ -267,7 +264,116 @@ void Gui::winPaint(long long proc) {
         case _pt_end:
             CMT = paintEnd(ADX);
             break;
+        case _pt_move:
+            CMT = MoveToEx(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var, NULL);
+            break;
+        case _pt_line:
+            CMT = LineTo(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var);
+            break;
+        case _pt_rect:
+            CMT = Rectangle(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var, (int)(self->sp-2)->var, (int)(self->sp-3)->var);
+            break;
+        case _pt_fillrect: {
+            if(ctx->hBrush == nullptr) { CMT = 1; return; }
+            RECT rect = {(int)(self->sp)->var, (int)(self->sp-1)->var, (int)(self->sp-2)->var, (int)(self->sp-3)->var};
+            CMT = FillRect(ctx->hdc, &rect, ctx->hBrush);
+            break;
+        }
+        case _pt_ellipsize:
+            CMT = Ellipse(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var, (int)(self->sp-2)->var, (int)(self->sp-3)->var);
+            break;
+        case _pt_polygon:
+            Poly poly;
+            if(createPolygon(&poly)) {
+                CMT = Polygon(ctx->hdc, poly.pts, poly.size);
+                delete[] poly.pts;
+            } else CMT = GUI_ERR;
+            break;
+        case _pt_createPen: {
+            ctx->pens.push_back(
+                    CreatePen((int)(self->sp)->var, (int)(self->sp-1)->var,
+                              (COLORREF)(self->sp-2)->var));
+            break;
+        }
+        case _pt_selectPen: {
+            if(ADX < ctx->pens.size()) {
+                CMT = 0;
+                HPEN select = ctx->pens.at(ADX);
+                HPEN old = (HPEN)SelectObject(ctx->hdc, select);
+                if(ctx->origPen == nullptr)
+                    ctx->origPen = old;
+                ctx->hPen = select;
+            } else CMT = 1;
+            break;
+        }
+        case _pt_deletePen: {
+            if(ADX < ctx->pens.size()) {
+                CMT = 0;
+                HPEN select = ctx->pens.at(ADX);
+                DeleteObject(select);
+
+                if(ctx->hPen == select)
+                    ctx->hPen = nullptr;
+                ctx->pens.erase(ctx->pens.begin() + ADX);
+            } else CMT = 1;
+            break;
+        }
+        case _pt_selectBrush: {
+            if(ADX < ctx->pens.size()) {
+                CMT = 0;
+                HBRUSH select = ctx->brushes.at(ADX);
+                SelectObject(ctx->hdc, select);
+                ctx->hBrush = select;
+            }
+            break;
+        }
+        case _pt_deleteBrush: {
+            if(ADX < ctx->pens.size()) {
+                CMT = 0;
+                HBRUSH select = ctx->brushes.at(ADX);
+                DeleteObject(select);
+                ctx->brushes.erase(ctx->brushes.begin() + ADX);
+            } else CMT = 1;
+            break;
+        }
+        case _pt_createBrush: {
+            ctx->brushes.push_back(
+                    CreateSolidBrush((COLORREF)(self->sp)->var));
+            break;
+        }
         default:
             break;
     }
+}
+
+bool Gui::createPolygon(Poly *poly) {
+    Thread* self = thread_self;
+    SharpObject *polygonObject = (self->sp)->object.object;
+
+    if(polygonObject && polygonObject->k) {
+        if(polygonObject->k->name == "std.os.gui#Polygon") {
+            Object *points = env->findField("points", polygonObject);
+            if(points && points->object) {
+                if(points->object->k && points->object->k->name == "std.os.gui#Point") {
+                    poly->size = (int)points->object->size;
+                    poly->pts = new POINT[poly->size];
+
+                    SharpObject* pt;
+                    Object *x, *y;
+                    for(int i = 0; i < poly->size; i++) {
+                        x = env->findField("x", points->object->node[i].object);
+                        y = env->findField("y", points->object->node[i].object);
+
+                        if(x && y) {
+                            poly->pts[i].x = (int)x->object->HEAD[0];
+                            poly->pts[i].y = (int)y->object->HEAD[0];
+                        } else { delete[] poly->pts; return false; }
+                    }
+
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }

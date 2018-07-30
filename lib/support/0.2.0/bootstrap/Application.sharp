@@ -1,17 +1,19 @@
 mod app;
 
 import std;
+import std.os;
 import std.os.gui;
 
 def main(string[] args) : var {
     app#Runtime.bootstrap(args);
     Window wnd = new Window("hi", "hello world");
-    System.println("wnd id" + wnd.id);
     show(wnd.id, 5);
     update(wnd.id);
     setContext(wnd.id);
 
-    while(dispatchMessage()==0) {
+    var gameOver = false;
+    while(!gameOver) {
+        dispatchMessage();
         Message msg = getMessage();
         switch(msg.msg) {
             case 0x000F:
@@ -21,6 +23,7 @@ def main(string[] args) : var {
                 break;
             case 0x0002:
                 quit();
+                gameOver = true;
                 break;
         }
     }

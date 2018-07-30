@@ -7,15 +7,35 @@ import std;
 */
 enum _GUI
 {
-    GUI_QUIT=0,
-    GUI_PAINT,
-    GUI_SET_CTX,
-    GUI_CTX,
-    GUI_DWND,
-    GUI_SHOW,
-    GUI_UPD,
-    GUI_DSP,
-    GUI_MSG
+    gui_quit=0,
+    gui_paint,
+    gui_set_ctx,
+    gui_ctx,
+    gui_dwnd,
+    gui_show,
+    gui_upd,
+    gui_dsp,
+    gui_msg
+};
+
+// pain procedures
+enum _PAINT
+{
+    pt_text=0,
+    pt_start=1,
+    pt_end=2,
+    pt_move=3,
+    pt_line=4,
+    pt_rect=5,
+    pt_fillrect=6,
+    pt_ellipsize=7,
+    pt_polygon=8,
+    pt_createPen=9,
+    pt_selectPen=10,
+    pt_deletePen=11,
+    pt_createBrush=12,
+    pt_selectBrush=13,
+    pt_deleteBrush=14,
 };
 
 // simple pipe for non ambiguous calls
@@ -36,18 +56,46 @@ def guiPipe2(var proc) : var {
     );
 }
 
+// simple pipe for non-ambiguous calls that provide basic feedback
+def guiPipe3(var paintProc, var x, var y) : var {
+    asm(
+        "movi #1,%ebx"
+        "loadl %ecx,<paintProc>"
+        "ipushl <y>"
+        "ipushl <x>"
+        "int 0xf5"
+        "return_val %cmt"
+        "ret"
+    );
+}
+
+// simple pipe for non-ambiguous calls that provide basic feedback
+def guiPipe4(var paintProc, var a, var b, var c, var d) : var {
+    asm(
+        "movi #1,%ebx"
+        "loadl %ecx,<paintProc>"
+        "ipushl <d>"
+        "ipushl <c>"
+        "ipushl <b>"
+        "ipushl <a>"
+        "int 0xf5"
+        "return_val %cmt"
+        "ret"
+    );
+}
+
 def quit() {
-    guiPipe((var)GUI_QUIT);
+    guiPipe((var)gui_quit);
 }
 
 def paintStart() : var {
     asm("movi #0x1, %ecx"); // set paint procedure
-    return guiPipe2((var)GUI_PAINT);
+    return guiPipe2((var)gui_paint);
 }
 
 def paintEnd() : var {
     asm("movi #0x2, %ecx"); // set paint procedure
-    return guiPipe2((var)GUI_PAINT);
+    return guiPipe2((var)gui_paint);
 }
 
 def paintText(var[] msg, var x, var y) : var {
@@ -72,12 +120,7 @@ def setContext(var wnd) : var {
 }
 
 def getContext() : var {
-    asm(
-        "movi #0x3, %ebx"
-        "int 0xf5"
-        "return_val %cmt"
-        "ret"
-    );
+    return guiPipe2((var)gui_ctx);
 }
 
 def createDefaultWnd(string name, string title, var width, var height) : var {
@@ -96,24 +139,14 @@ def createDefaultWnd(string name, string title, var width, var height) : var {
 }
 
 def show(var wnd, var cmd) : var {
-    asm(
-        "movi #0x5, %ebx"
-        "loadl %adx,<wnd>"
-        "loadl %egx,<cmd>"
-        "int 0xf5"
-        "return_val %cmt"
-        "ret"
-    );
+    asm("loadl %adx,<wnd>"
+        "loadl %egx,<cmd>");
+    return guiPipe2((var)gui_show);
 }
 
 def update(var wnd) : var {
-    asm(
-        "movi #0x6, %ebx"
-        "loadl %adx,<wnd>"
-        "int 0xf5"
-        "return_val %cmt"
-        "ret"
-    );
+    asm("loadl %adx,<wnd>");
+    return guiPipe2((var)gui_upd);
 }
 
 public class Message {
@@ -122,9 +155,11 @@ public class Message {
     var lParam;
 }
 
+Message gMsg = new Message();
+
 def getMessage() : Message {
     guiPipe((var)GUI_MSG);
-    Message msg = new Message();
+    Message msg = gMsg;
 
     asm(
         "movl <msg>"
@@ -142,5 +177,94 @@ def getMessage() : Message {
 }
 
 def dispatchMessage() : var {
-    return guiPipe2((var)GUI_DSP);
+    return guiPipe2((var)gui_dsp);
+}
+
+def moveTo(var x, var y) : var {
+    return guiPipe3(pt_move, x, y);
+}
+
+def lineTo(var x, var y) : var {
+    return guiPipe4(pt_line, x, y);
+}
+
+def rectangle(var left, var top, var right var bottom) : var {
+    return guiPipe4(pt_line, left, top, right, bottom);
+}
+
+def fillRect(var left, var top, var right var bottom) : var {
+    return guiPipe4(pt_line, left, top, right, bottom);
+}
+
+def ellipsize(var left, var top, var right var bottom) : var {
+    return guiPipe4(pt_line, left, top, right, bottom);
+}
+
+def polygon(Polygon poly) : var {
+
+    asm(
+        "movi #1,%ebx"
+        "movi #8, %ecx>"
+        "pushobj <poly>"
+        "int 0xf5"
+        "return_val %cmt"
+        "ret"
+    );
+}
+
+def createPin(var style, var width, var color) {
+
+    asm(
+        "movi #1,%ebx"
+        "movi #8, %ecx>"
+        "ipushl <color>"
+        "ipushl <width>"
+        "ipushl <style>"
+        "int 0xf5"
+        "ret"
+    );
+}
+
+def selectPen(var pen): var {
+    asm(
+        "loadl %adx,<pen>"
+        "loadl %ecx,10" // select pen
+    );
+    return guiPipe2((var)gui_paint);
+}
+
+def deletePen(var pen): var {
+    asm(
+        "loadl %adx,<pen>"
+        "loadl %ecx,11" // select pen
+    );
+    return guiPipe2((var)gui_paint);
+}
+
+def selectBrush(var brush): var {
+    asm(
+        "loadl %adx,<brush>"
+        "loadl %ecx,13" // select pen
+    );
+    return guiPipe2((var)gui_paint);
+}
+
+def deleteBrush(var brush): var {
+    asm(
+        "loadl %adx,<brush>"
+        "loadl %ecx,14" // select pen
+    );
+    return guiPipe2((var)gui_paint);
+}
+
+// creates a solid brush
+def createBrush(var style, var color) {
+
+    asm(
+        "movi #1,%ebx"
+        "movi #10, %ecx>"
+        "ipushl <color>"
+        "int 0xf5"
+        "ret"
+    );
 }
