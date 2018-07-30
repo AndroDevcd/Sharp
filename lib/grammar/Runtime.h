@@ -667,6 +667,7 @@ public:
     static Operator stringToOp(string op);
 
     static bool isNativeIntegerClass(ClassObject *klass);
+    ErrorManager* getErrors() { return errors; }
 
     List<ClassObject*> classes;
     List<ClassObject*> globals;

@@ -1210,8 +1210,8 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
             cout << note.getNote("Assembler messages:");
             tk->getErrors()->printErrors();
 
-            errors+= tk->getErrors()->getErrorCount();
-            uo_errors+= tk->getErrors()->getUnfilteredErrorCount();
+            instance->errorCount+= tk->getErrors()->getErrorCount();
+            instance->unfilteredErrorCount+= tk->getErrors()->getUnfilteredErrorCount();
         }
     }
 

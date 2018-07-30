@@ -35,7 +35,7 @@ enum _PAINT
     pt_deletePen=11,
     pt_createBrush=12,
     pt_selectBrush=13,
-    pt_deleteBrush=14,
+    pt_deleteBrush=14
 };
 
 // simple pipe for non ambiguous calls
@@ -59,8 +59,8 @@ def guiPipe2(var proc) : var {
 // simple pipe for non-ambiguous calls that provide basic feedback
 def guiPipe3(var paintProc, var x, var y) : var {
     asm(
-        "movi #1,%ebx"
-        "loadl %ecx,<paintProc>"
+        "movi #1,%ebx "
+        "loadl %ecx,<paintProc> "
         "ipushl <y>"
         "ipushl <x>"
         "int 0xf5"
@@ -72,8 +72,8 @@ def guiPipe3(var paintProc, var x, var y) : var {
 // simple pipe for non-ambiguous calls that provide basic feedback
 def guiPipe4(var paintProc, var a, var b, var c, var d) : var {
     asm(
-        "movi #1,%ebx"
-        "loadl %ecx,<paintProc>"
+        "movi #1,%ebx "
+        "loadl %ecx,<paintProc> "
         "ipushl <d>"
         "ipushl <c>"
         "ipushl <b>"
@@ -100,19 +100,19 @@ def paintEnd() : var {
 
 def paintText(var[] msg, var x, var y) : var {
     asm(
-        "movi #0x1, %ebx"
-        "movi #0x0, %ecx"
-        "ipushl <y>"
-        "ipushl <x>"
-        "pushl <msg>"
+        "movi #0x1, %ebx "
+        "movi #0x0, %ecx "
+        "ipushl <y> "
+        "ipushl <x> "
+        "pushl <msg> "
         "int 0xf5"
     );
 }
 
 def setContext(var wnd) : var {
     asm(
-        "movi #0x2, %ebx"
-        "loadl %adx,<wnd>"
+        "movi #0x2, %ebx "
+        "loadl %adx,<wnd> "
         "int 0xf5"
         "return_val %cmt"
         "ret"
@@ -127,13 +127,13 @@ def createDefaultWnd(string name, string title, var width, var height) : var {
     var[] n = name.getData();
     var[] t = title.getData();
     asm(
-        "movi #0x4, %ebx"
-        "pushl <t>"
-        "pushl <n>"
-        "loadl %ecx,<width>"
-        "loadl %egx,<height>"
-        "int 0xf5"
-        "return_val %cmt"
+        "movi #0x4, %ebx "
+        "pushl <t> "
+        "pushl <n> "
+        "loadl %ecx,<width> "
+        "loadl %egx,<height> "
+        "int 0xf5 "
+        "return_val %cmt "
         "ret"
     );
 }
@@ -158,20 +158,20 @@ public class Message {
 Message gMsg = new Message();
 
 def getMessage() : Message {
-    guiPipe((var)GUI_MSG);
+    guiPipe((var)gui_msg);
     Message msg = gMsg;
 
     asm(
-        "movl <msg>"
-        "movn 0"
-        "movi #0,adx"
-        "rmov adx,ebx"
-        "movl <msg>"
-        "movn 1"
-        "rmov adx,ecx"
-        "movl <msg>"
-        "movn 2"
-        "rmov adx,egx"
+        "movl <msg> "
+        "movn 0 "
+        "movi #0,adx "
+        "rmov adx,ebx "
+        "movl <msg> "
+        "movn 1 "
+        "rmov adx,ecx "
+        "movl <msg> "
+        "movn 2 "
+        "rmov adx,egx "
     );
     return msg;
 }
@@ -181,33 +181,34 @@ def dispatchMessage() : var {
 }
 
 def moveTo(var x, var y) : var {
-    return guiPipe3(pt_move, x, y);
+    return guiPipe3((var)pt_move, x, y);
 }
 
 def lineTo(var x, var y) : var {
-    return guiPipe4(pt_line, x, y);
+    return guiPipe3((var)pt_line, x, y);
 }
 
-def rectangle(var left, var top, var right var bottom) : var {
-    return guiPipe4(pt_line, left, top, right, bottom);
+def rectangle(var left, var top, var right, var bottom) : var {
+    return guiPipe4((var)pt_rect, left, top, right, bottom);
 }
 
-def fillRect(var left, var top, var right var bottom) : var {
-    return guiPipe4(pt_line, left, top, right, bottom);
+def fillRect(var left, var top, var right, var bottom) : var {
+    return guiPipe4((var)pt_fillrect, left, top, right, bottom);
 }
 
-def ellipsize(var left, var top, var right var bottom) : var {
-    return guiPipe4(pt_line, left, top, right, bottom);
+def ellipsize(var left, var top, var right, var bottom) : var {
+    return guiPipe4((var)pt_ellipsize, left, top, right, bottom);
 }
 
 def polygon(Polygon poly) : var {
 
     asm(
-        "movi #1,%ebx"
-        "movi #8, %ecx>"
-        "pushobj <poly>"
-        "int 0xf5"
-        "return_val %cmt"
+        "movi #1,%ebx "
+        "movi #8, %ecx "
+        "movl <poly>"
+        "pushobj "
+        "int 0xf5 "
+        "return_val %cmt "
         "ret"
     );
 }
@@ -215,11 +216,11 @@ def polygon(Polygon poly) : var {
 def createPin(var style, var width, var color) {
 
     asm(
-        "movi #1,%ebx"
-        "movi #8, %ecx>"
-        "ipushl <color>"
-        "ipushl <width>"
-        "ipushl <style>"
+        "movi #1,%ebx "
+        "movi #8, %ecx "
+        "ipushl <color> "
+        "ipushl <width> "
+        "ipushl <style> "
         "int 0xf5"
         "ret"
     );
@@ -227,7 +228,7 @@ def createPin(var style, var width, var color) {
 
 def selectPen(var pen): var {
     asm(
-        "loadl %adx,<pen>"
+        "loadl %adx,<pen> "
         "loadl %ecx,10" // select pen
     );
     return guiPipe2((var)gui_paint);
@@ -235,7 +236,7 @@ def selectPen(var pen): var {
 
 def deletePen(var pen): var {
     asm(
-        "loadl %adx,<pen>"
+        "loadl %adx,<pen> "
         "loadl %ecx,11" // select pen
     );
     return guiPipe2((var)gui_paint);
@@ -261,9 +262,9 @@ def deleteBrush(var brush): var {
 def createBrush(var style, var color) {
 
     asm(
-        "movi #1,%ebx"
-        "movi #10, %ecx>"
-        "ipushl <color>"
+        "movi #1,%ebx "
+        "movi #10, %ecx "
+        "ipushl <color> "
         "int 0xf5"
         "ret"
     );

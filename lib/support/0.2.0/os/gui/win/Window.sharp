@@ -6,10 +6,13 @@ public class Window {
     public var id;
     public string name;
     public string title;
+    public var width, height;
 
     public Window(string name, string title) {
         self->name = name;
         self->title = title;
-        self->id = createDefaultWnd(name, title, 500, 500);
+        self->width = 500;
+        self->height = 650;
+        self->id = createDefaultWnd(name, title, 500, 650);
     }
 }

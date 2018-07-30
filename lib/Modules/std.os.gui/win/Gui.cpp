@@ -239,8 +239,12 @@ void Gui::winGuiIntf(long long proc) {
             EGX = msg.wParam;
             break;
         }
-        default:
-            break;
+        default: {
+            // unsupported
+            stringstream ss;
+            ss << "unsupported signal to gui pipe: " << signal;
+            throw Exception(ss.str());
+        }
     }
 }
 
@@ -341,8 +345,12 @@ void Gui::winPaint(long long proc) {
                     CreateSolidBrush((COLORREF)(self->sp)->var));
             break;
         }
-        default:
-            break;
+        default: {
+            // unsupported
+            stringstream ss;
+            ss << "unsupported signal to gui pipe: " << signal;
+            throw Exception(ss.str());
+        }
     }
 }
 

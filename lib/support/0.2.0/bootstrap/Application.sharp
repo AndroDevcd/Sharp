@@ -19,6 +19,8 @@ def main(string[] args) : var {
             case 0x000F:
                 paintStart();
                 paintText("Hello, World!", 5, 5);
+                moveTo(300, 300);
+                ellipsize(0, 0, 50, 50);
                 paintEnd();
                 break;
             case 0x0002:
