@@ -32,6 +32,14 @@ public:
         set(value, max);
     }
 
+    native_string(const double *value, long max)
+            :
+            len(0),
+            chars(NULL)
+    {
+        set(value, max);
+    }
+
     native_string()
     {
         init();
@@ -51,6 +59,20 @@ public:
 
             chars = (char*)malloc(sizeof(char)*len);
             std::memcpy(chars, value, sizeof(char)*len);
+        }
+    }
+
+    void set(const double* value, long max) {
+        free();
+
+        if(value == NULL || max==0) {
+            chars = NULL;
+        } else {
+            len = max;
+            chars = (char*)malloc(sizeof(char)*max);
+            for(int64_t i = 0; i < max; i++)
+                chars[i] = (char)value[i];
+
         }
     }
 

@@ -1,5 +1,15 @@
 mod std.os.gui;
 
-class Window {
+import std;
 
+public class Window {
+    public var id;
+    public string name;
+    public string title;
+
+    public Window(string name, string title) {
+        self->name = name;
+        self->title = title;
+        self->id = createDefaultWnd(name, title, 500, 500);
+    }
 }

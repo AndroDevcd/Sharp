@@ -10,6 +10,7 @@
 #include "../../../runtime/List.h"
 #include <Windows.h>
 #include <vector>
+#include <mutex>
 
 typedef int64_t wnd_id;
 extern wnd_id ugwid;
@@ -18,6 +19,22 @@ struct _Message {
     UINT msg;
     WPARAM wParam;
     LPARAM lParam;
+
+    _Message()
+    :
+        msg(0),
+        wParam(0),
+        lParam(0)
+    {
+    }
+
+    _Message(UINT msg, WPARAM wp, LPARAM lp)
+            :
+            msg(msg),
+            wParam(wp),
+            lParam(lp)
+    {
+    }
 };
 
 struct Window {
@@ -35,16 +52,50 @@ struct Window {
 class Gui {
 public:
     int setupMain();
-    int createDefaultWindow(native_string winName, native_string winTitle, long width, long height);
+    wnd_id createDefaultWindow(native_string winName, native_string winTitle, long width, long height);
 
-    void show(wnd_id wnd);
-    int getMessage(wnd_id wnd);
-    int draw(wnd_id wnd);
-    _Message dispatchMessage(wnd_id wnd);
+    int show(wnd_id wnd, int cmd);
+    _Message getMessage(wnd_id wnd);
+    int update(wnd_id wnd);
+    int dispatchMessage();
     void shutdown();
+    int paintStart(wnd_id);
+    int paintEnd(wnd_id);
+    int setContext(wnd_id);
+    wnd_id currentContext();
+    Window* getWindow(HWND);
+
+    /*
+     * Pipe to interface to the gui
+     */
+    void winPaint(long long proc);
+    void winGuiIntf(long long proc);
 
 private:
+    Window* getContextFast(wnd_id);
+    Window* getWindow(wnd_id);
     List<Window> windows;
+    Window *ctx;
+};
+
+enum _win_paintproc
+{
+    _pt_text=0,
+    _pt_start=1,
+    _pt_end=2
+};
+
+enum _win_guiproc
+{
+    _g_quit=0,
+    _g_paint=1,
+    _g_set_ctx=2,
+    _g_ctx=3,
+    _g_dwnd=4,
+    _g_show=5,
+    _g_upd=6,
+    _g_dsp=7,
+    _g_msg=8,
 };
 
 LRESULT  winProc(HWND, UINT, WPARAM, LPARAM);

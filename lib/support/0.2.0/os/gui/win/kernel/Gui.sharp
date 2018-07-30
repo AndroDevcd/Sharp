@@ -1,0 +1,146 @@
+mod std.os.gui;
+
+import std;
+
+/**
+* Low level gui interface
+*/
+enum _GUI
+{
+    GUI_QUIT=0,
+    GUI_PAINT,
+    GUI_SET_CTX,
+    GUI_CTX,
+    GUI_DWND,
+    GUI_SHOW,
+    GUI_UPD,
+    GUI_DSP,
+    GUI_MSG
+};
+
+// simple pipe for non ambiguous calls
+def guiPipe(var proc) {
+    asm(
+        "loadl %ebx,<proc>"
+        "int 0xf5"
+    );
+}
+
+// simple pipe for non-ambiguous calls that provide basic feedback
+def guiPipe2(var proc) : var {
+    asm(
+        "loadl %ebx,<proc>"
+        "int 0xf5"
+        "return_val %cmt"
+        "ret"
+    );
+}
+
+def quit() {
+    guiPipe((var)GUI_QUIT);
+}
+
+def paintStart() : var {
+    asm("movi #0x1, %ecx"); // set paint procedure
+    return guiPipe2((var)GUI_PAINT);
+}
+
+def paintEnd() : var {
+    asm("movi #0x2, %ecx"); // set paint procedure
+    return guiPipe2((var)GUI_PAINT);
+}
+
+def paintText(var[] msg, var x, var y) : var {
+    asm(
+        "movi #0x1, %ebx"
+        "movi #0x0, %ecx"
+        "ipushl <y>"
+        "ipushl <x>"
+        "pushl <msg>"
+        "int 0xf5"
+    );
+}
+
+def setContext(var wnd) : var {
+    asm(
+        "movi #0x2, %ebx"
+        "loadl %adx,<wnd>"
+        "int 0xf5"
+        "return_val %cmt"
+        "ret"
+    );
+}
+
+def getContext() : var {
+    asm(
+        "movi #0x3, %ebx"
+        "int 0xf5"
+        "return_val %cmt"
+        "ret"
+    );
+}
+
+def createDefaultWnd(string name, string title, var width, var height) : var {
+    var[] n = name.getData();
+    var[] t = title.getData();
+    asm(
+        "movi #0x4, %ebx"
+        "pushl <t>"
+        "pushl <n>"
+        "loadl %ecx,<width>"
+        "loadl %egx,<height>"
+        "int 0xf5"
+        "return_val %cmt"
+        "ret"
+    );
+}
+
+def show(var wnd, var cmd) : var {
+    asm(
+        "movi #0x5, %ebx"
+        "loadl %adx,<wnd>"
+        "loadl %egx,<cmd>"
+        "int 0xf5"
+        "return_val %cmt"
+        "ret"
+    );
+}
+
+def update(var wnd) : var {
+    asm(
+        "movi #0x6, %ebx"
+        "loadl %adx,<wnd>"
+        "int 0xf5"
+        "return_val %cmt"
+        "ret"
+    );
+}
+
+public class Message {
+    var msg;
+    var wParam;
+    var lParam;
+}
+
+def getMessage() : Message {
+    guiPipe((var)GUI_MSG);
+    Message msg = new Message();
+
+    asm(
+        "movl <msg>"
+        "movn 0"
+        "movi #0,adx"
+        "rmov adx,ebx"
+        "movl <msg>"
+        "movn 1"
+        "rmov adx,ecx"
+        "movl <msg>"
+        "movn 2"
+        "rmov adx,egx"
+    );
+    return msg;
+}
+
+def dispatchMessage() : var {
+    return guiPipe2((var)GUI_DSP);
+}

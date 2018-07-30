@@ -43,6 +43,7 @@ int CreateVirtualMachine(std::string exe)
     GarbageCollector::startup();
 #ifdef WIN32_
     env->gui = new Gui();
+    env->gui->setupMain();
 #endif
 
     manifest.classes -= AUX_CLASSES;
@@ -201,7 +202,6 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         executeMethod(thread_self->main->address, thread_self)
 
         thread_self->exec();
-        env->gui->setupMain();
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();
@@ -305,6 +305,9 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             break;
         case 0xf4:
             CMT=GarbageCollector::self->isAwake();
+            break;
+        case 0xf5:
+            env->gui->winGuiIntf(EBX);
             break;
         case 0xa3:
             registers[bmr]= Clock::realTimeInNSecs();
