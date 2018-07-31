@@ -38,6 +38,17 @@ enum _PAINT
     pt_deleteBrush=14
 };
 
+enum PaintStyle
+{
+    PS_SOLID =0,
+    PS_DASH =1,
+    PS_DOT =2,
+    PS_DASHDOT =3,
+    PS_DASHDOTDOT =4,
+    PS_NULL =5,
+    PS_INSIDEFRAME =6
+};
+
 // simple pipe for non ambiguous calls
 def guiPipe(var proc) {
     asm(
@@ -213,11 +224,18 @@ def polygon(Polygon poly) : var {
     );
 }
 
-def createPin(var style, var width, var color) {
+// rgb based on windows GDI spec
+// format 0x00bbggrr
+def RGB(var r, var g, var b) : var
+{
+    return ((b & 0xff) << 16) + ((g & 0xff) << 8) + (r & 0xff);
+}
+
+def createPen(var style, var width, var color) {
 
     asm(
         "movi #1,%ebx "
-        "movi #8, %ecx "
+        "movi #9, %ecx "
         "ipushl <color> "
         "ipushl <width> "
         "ipushl <style> "
@@ -229,7 +247,7 @@ def createPin(var style, var width, var color) {
 def selectPen(var pen): var {
     asm(
         "loadl %adx,<pen> "
-        "loadl %ecx,10" // select pen
+        "movi #10,%ecx" // select pen
     );
     return guiPipe2((var)gui_paint);
 }
@@ -237,7 +255,7 @@ def selectPen(var pen): var {
 def deletePen(var pen): var {
     asm(
         "loadl %adx,<pen> "
-        "loadl %ecx,11" // select pen
+        "movi #11,%ecx" // select pen
     );
     return guiPipe2((var)gui_paint);
 }
@@ -245,7 +263,7 @@ def deletePen(var pen): var {
 def selectBrush(var brush): var {
     asm(
         "loadl %adx,<brush>"
-        "loadl %ecx,13" // select pen
+        "movi #13,%ecx" // select pen
     );
     return guiPipe2((var)gui_paint);
 }
@@ -253,17 +271,17 @@ def selectBrush(var brush): var {
 def deleteBrush(var brush): var {
     asm(
         "loadl %adx,<brush>"
-        "loadl %ecx,14" // select pen
+        "movi #14,%ecx" // select pen
     );
     return guiPipe2((var)gui_paint);
 }
 
 // creates a solid brush
-def createBrush(var style, var color) {
+def createBrush(var color) {
 
     asm(
         "movi #1,%ebx "
-        "movi #10, %ecx "
+        "movi #12, %ecx "
         "ipushl <color> "
         "int 0xf5"
         "ret"

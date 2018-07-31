@@ -348,7 +348,7 @@ void Gui::winPaint(long long proc) {
         default: {
             // unsupported
             stringstream ss;
-            ss << "unsupported signal to gui pipe: " << signal;
+            ss << "unsupported signal to gui-pt pipe: " << signal;
             throw Exception(ss.str());
         }
     }

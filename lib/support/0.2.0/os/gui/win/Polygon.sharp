@@ -3,7 +3,7 @@ mod std.os.gui;
 /**
  * Created by BraxtonN on 7/30/2018.
  */
-class Polygon {
+public class Polygon {
     public Point[] points;
 
     public Polygon(var size) {
