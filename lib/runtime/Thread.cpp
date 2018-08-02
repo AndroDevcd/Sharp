@@ -800,7 +800,7 @@ void Thread::exec() {
                 registers[*(pc+1)]=GET_Da(*pc); pc++;
                 _brh
             RET:
-                if(thread_self->calls <= 1) {
+                if(calls <= 1) {
 #ifdef SHARP_PROF_
                 tprof.endtm=Clock::realTimeInNSecs();
                 tprof.profile();
@@ -808,14 +808,13 @@ void Thread::exec() {
                     return;
                 }
 
-                Frame *frame = callStack+(calls);
-                calls--;
+                Frame *frame = callStack+(calls--);
 
                 if(current->finallyBlocks.len > 0)
                     vm->executeFinally(thread_self->current);
 
                 current = frame->last;
-                cache = frame->last->bytecode;
+                cache = current->bytecode;
 
                 pc = frame->pc;
                 sp = frame->sp;
@@ -1328,7 +1327,7 @@ void Thread::setup() {
         GarbageCollector::self->addMemory(sizeof(Frame)*stack_lmt);
     }
     calls=0;
-    stackTail = (dataStack+stack_lmt)-1;
+    stackTail = (dataStack+stack_lmt)-3;
     suspendPending = false;
     exceptionThrown = false;
     suspended = false;

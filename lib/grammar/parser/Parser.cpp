@@ -2490,6 +2490,7 @@ bool Parser::parse_template_decl(Ast *pAst) {
             } else
                 expect(GREATERTHAN, pAst, "`>`");
             tmp.free();
+
             return true;
         } else
             pAst->copy(&tmp);

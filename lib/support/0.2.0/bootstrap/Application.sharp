@@ -6,48 +6,48 @@ import std.os.gui;
 
 def main(string[] args) : var {
     app#Runtime.bootstrap(args);
-    Window wnd = new Window("hi", "hello world");
-    show(wnd.id, 5);
-    update(wnd.id);
-    setContext(wnd.id);
-
-    var gameOver = false;
-    while(!gameOver) {
-        dispatchMessage();
-        Message msg = getMessage();
-        switch(msg.msg) {
-            case 0x000F:
-                paintStart();
-                paintText("Hello, World!", 5, 5);
-                moveTo(300, 300);
-
-                createPen((var)PS_SOLID, 2, RGB(0, 125, 255));
-                selectPen(0);
-                lineTo(50, 50);
-                createBrush(RGB(0, 125, 255));
-                selectBrush(0);
-                //ellipsize(10, 10, 100, 100);
-                fillRect(1, 2, 20, 30);
-
-                Polygon poly = new Polygon();
-                poly.points = new Point[3];
-                poly.points[0] = new Point();
-                poly.points[1] = new Point();
-                poly.points[2] = new Point();
-
-                poly.points[0].x = 100;
-                poly.points[0].y = 110;
-                poly.points[1].y = 200;
-                poly.points[1].y = 210;
-                poly.points[2].y = 300;
-                poly.points[2].y = 310;
-                polygon(poly);
-                paintEnd();
-                break;
-            case 0x0002:
-                quit();
-                gameOver = true;
-                break;
-        }
-    }
+//    Window wnd = new Window("hi", "hello world");
+//    show(wnd.id, 5);
+//    update(wnd.id);
+//    setContext(wnd.id);
+//
+//    var gameOver = false;
+//    while(!gameOver) {
+//        dispatchMessage();
+//        Message msg = getMessage();
+//        switch(msg.msg) {
+//            case 0x000F:
+//                paintStart();
+//                paintText("Hello, World!", 5, 5);
+//                moveTo(300, 300);
+//
+//                createPen((var)PS_SOLID, 2, RGB(0, 125, 255));
+//                selectPen(0);
+//                lineTo(50, 50);
+//                createBrush(RGB(0, 125, 255));
+//                selectBrush(0);
+//                //ellipsize(10, 10, 100, 100);
+//                fillRect(1, 2, 20, 30);
+//
+//                Polygon poly = new Polygon();
+//                poly.points = new Point[3];
+//                poly.points[0] = new Point();
+//                poly.points[1] = new Point();
+//                poly.points[2] = new Point();
+//
+//                poly.points[0].x = 100;
+//                poly.points[0].y = 110;
+//                poly.points[1].y = 200;
+//                poly.points[1].y = 210;
+//                poly.points[2].y = 300;
+//                poly.points[2].y = 310;
+//                polygon(poly);
+//                paintEnd();
+//                break;
+//            case 0x0002:
+//                quit();
+//                gameOver = true;
+//                break;
+//        }
+//    }
 }

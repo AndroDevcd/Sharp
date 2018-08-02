@@ -306,9 +306,11 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
         case 0xf4:
             CMT=GarbageCollector::self->isAwake();
             break;
+#ifdef WIN32_
         case 0xf5:
             env->gui->winGuiIntf(EBX);
             break;
+#endif
         case 0xa3:
             registers[bmr]= Clock::realTimeInNSecs();
             return;

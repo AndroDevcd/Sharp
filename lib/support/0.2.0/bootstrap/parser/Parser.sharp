@@ -26,7 +26,7 @@ class Parser {
 
     private def parse() {
         sourceFile = tokenizer.getFile();
-        errors = new ErrorManager(lines, sourceFile, false, Options.aggressiveErrors);
+        errors = new ErrorManager(lines, sourceFile, true, Options.aggressiveErrors);
         current = tokenizer.get(cursor);
 
 
@@ -44,16 +44,20 @@ class Parser {
                 accessTypes.clear();
                 return;
             } else if(isDecl(current, MOD)) {
+                helper("parse mod");
                 if(accessTypes.size() > 0)
                     errors.createNewError(ILLEGAL_ACCESS_DECLARATION, current, "");
                 parseModuleDecl(null);
             } else if(isDecl(current, CLASS)) {
                 parseClassDecl(null);
             } else if(isDecl(current, METHOD)) {
+                helper("parse method");
                 parseMethodDecl(null);
             } else if(isDecl(current, INTERFACE)) {
+                helper("parse itf");
                 parseInterfaceDecl(null);
             } else if(isDecl(current, ENUM)) {
+                helper("parse enum");
                 parseEnumDecl(null);
             } else if(isDecl(current, IMPORT)) {
                 if(accessTypes.size() > 0)
@@ -61,6 +65,7 @@ class Parser {
                     
                 parseImportDecl(null);
             } else if(isNativeType(current.getToken())) {
+                helper("parse vdecl");
                 parseVariableDecl(null);
             }else
             {
@@ -75,6 +80,8 @@ class Parser {
                 if(parseUtype(null))
                 {
                     cursor = old;
+                    current = tokenizer.get(cursor);
+
                     // gotdamn c++ we have to do this >:(
                     TokenEntity[] arry = tokenizer.getTokens();
                     current = arry[cursor];
@@ -83,6 +90,7 @@ class Parser {
                     if(current.getId() == IDENTIFIER)
                     {
                         // Variable decliration
+                        System.println("var decl");
                         tree.popBack();
                         parseVariableDecl(null);
                         goto _continue;
@@ -103,6 +111,7 @@ class Parser {
 
             _continue:
             advance();
+            System.println("curr " + current + " " + peek(1));
             accessTypes.clear();
         }
 
@@ -119,25 +128,27 @@ class Parser {
 
         accessTypes.clear();
         ast.add(current);
-        expectIdentifier(ast);
 
-        if(peek(1).getToken() == "<") {
+        advance();
+        expectIdentifier(ast);
+        advance();
+
+        if(current.getToken() == "<") {
             ast.setType(Generic_Class_Decl);
 
-            expect(LESSTHAN, "`<`");
+            expect(LESSTHAN, "`<`"); advance();
             parseIdentifierList(ast);
-            expect(GREATERTHAN, "`>`");
+            expect(GREATERTHAN, "`>`"); advance();
         }
 
-        if(peek(1).getToken() == "base") {
-            advance();
+        if(current.getToken() == "base") {
             expectToken(ast, "base");
             parseReferencePointer(ast);
         }
 
-        if(peek(1).getToken() == ":") {
+        if(current.getToken() == ":") {
             expect(COLON, "`:`");
-            parseRefrenceIdentifierList(ast);
+            parseReferenceIdentifierList(ast);
         }
 
         parseClassBlock(ast);
@@ -178,10 +189,12 @@ class Parser {
             }
             else if(isDecl(current, PROTOTYPE))
             {
+                helper("class prototype found");
                 parseProtoTypeDecl(ast, true);
             }
             else if(isDecl(current, ENUM))
             {
+                helper("parse enum in class");
                 parseEnumDecl(ast);
             }
             else if(isDecl(current, METHOD))
@@ -190,11 +203,14 @@ class Parser {
                     parseOperatorDecl(ast);
                 else if(peek(1).getToken() == "delegate")
                     parseDelegateDecl(ast);
-                else
+                else {
+                    helper("method decl in class");
                     parseMethodDecl(ast);
+                }
             }
             else if(isConstructorDecl())
             {
+                helper("constructor decl in class");
                 parseConstructor(ast);
             }
             else if(current.getType() == _EOF)
@@ -215,7 +231,6 @@ class Parser {
                     // end of class block
                     if(brackets == 0)
                     {
-                        pushBack();
                         break;
                     }
                 }
@@ -232,7 +247,8 @@ class Parser {
                  */
                 if(parseUtype(ast))
                 {
-                    if(peek(1).getId() == IDENTIFIER)
+                    helper("utype parsed for class");
+                    if(current.getId() == IDENTIFIER)
                     {
                         // Variable decliration
                         rollbackLast(ast);
@@ -265,23 +281,25 @@ class Parser {
         }
 
         ast.add(current);
-        expectIdentifier(ast);
 
-        if(peek(1).getToken() == "<") {
+        advance();
+        expectIdentifier(ast);
+        advance();
+
+        if(current.getToken() == "<") {
             ast.setType(Generic_Interface_Decl);
 
-            expect(LESSTHAN, "`<`");
+            expect(LESSTHAN, "`<`"); advance();
             parseIdentifierList(ast);
-            expect(GREATERTHAN, "`>`");
+            expect(GREATERTHAN, "`>`"); advance();
         }
 
-        if(peek(1).getToken() == "base")
+        if(current.getToken() == "base")
         {
-            advance();
             expectToken(ast, "base");
             parseReferencePointer(ast);
         }
-
+        helper("parsing interface class");
         parseInterfaceBlock(ast);
     }
 
@@ -373,7 +391,6 @@ class Parser {
                     // end of interface block
                     if(brackets == 0)
                     {
-                        pushBack();
                         break;
                     }
                 }
@@ -416,7 +433,7 @@ class Parser {
 
     private def parseBlock(Ast ast) {
         var curly = false;
-        if(peek(1).getToken() == "{") {
+        if(current.getToken() == "{") {
             expect(LEFT_CURLY, "`{`");
             curly = true;
         }
@@ -431,12 +448,10 @@ class Parser {
             {
                 if(!curly)
                     errors.createNewError(GENERIC, current, "expected '{'");
-                pushBack();
                 break;
             }
             else if(current.getType() == LEFT_CURLY)
             {
-                pushBack();
                 parseBlock(ast);
             }
             else if(current.getType() == _EOF)
@@ -445,6 +460,7 @@ class Parser {
                 break;
             }
             else {
+                helper("statement in block");
                 parseStatement(ast);
 
                 if(!curly) {
@@ -457,8 +473,9 @@ class Parser {
             accessTypes.clear();
         }
 
-        if(curly)
+        if(curly) {
             expect(RIGHT_CURLY, "`}`");
+        }
     }
 
     var commas=0;
@@ -474,7 +491,7 @@ class Parser {
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(ILLEGAL_ACCESS_DECLARATION, current, "");
-
+            helper("return statement");
             parseReturnStatement(ast);
             return true;
         }
@@ -506,7 +523,7 @@ class Parser {
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(ILLEGAL_ACCESS_DECLARATION, current, "");
-
+            helper("parsing for");
             parseForStatement(ast);
             return true;
         }
@@ -565,7 +582,7 @@ class Parser {
 
             Ast tmp = getAst(ast, Continue_Statement);
 
-            expectToken(tmp, "continue", "`continue`");
+            expectToken(tmp, "continue", "`continue`"); advance();
             expect(SEMICOLON, ast, "`;`");
             return true;
         }
@@ -576,7 +593,7 @@ class Parser {
 
             Ast tmp = getAst(ast, Break_Statement);
 
-            expectToken(tmp, "break", "`break`");
+            expectToken(tmp, "break", "`break`"); advance();
             expect(SEMICOLON, tmp, "`;`");
             return true;
         }
@@ -587,14 +604,16 @@ class Parser {
 
             Ast tmp = getAst(ast, Goto_Statement);
 
-            expectToken(tmp, "goto", "`goto`");
-            expectIdentifier(tmp); // TODO: add support for calling goto labels[9];
+            expectToken(tmp, "goto", "`goto`"); advance();
+            expectIdentifier(tmp); advance(); // TODO: add support for calling goto labels[9];
             expect(SEMICOLON, tmp, "`;`");
             return true;
         }
         else if(isNativeType(current.getToken()))
         {
+            helper("found native type var");
             parseVariableDecl(ast);
+            helper("end native type var");
             return true;
         }
         else if(isDecl(current, PROTOTYPE))
@@ -649,15 +668,18 @@ class Parser {
             // save parser state
             errors.enableProtectedMode();
             retain(ast);
+            helper("before");
             pushBack();
+            helper("parsing alternative statement");
 
             /*
              * variable decl?
              */
             if(parseUtype(ast))
             {
+                helper("waiting for data after utype--------");
                 errors.pass();
-                if(peek(1).getType() == COLON)
+                if(current.getType() == COLON)
                 {
                     if(accessTypes.size() > 0)
                         errors.createNewError(ILLEGAL_ACCESS_DECLARATION, current, "");
@@ -666,23 +688,28 @@ class Parser {
                     parseLabelDecl(ast);
                     return true;
                 }
-                else if(peek(1).getId() == IDENTIFIER)
+                else if(current.getId() == IDENTIFIER)
                 {
                     // Variable decliration
                     rollback(ast);
+                    helper("parse variable decl");
                     parseVariableDecl(ast);
+                    helper("var decl done");
                     return true;
                 }
             } else
                 errors.pass();
 
             rollback(ast);
-            pushBack();
+
 
             errors.enableProtectedMode();
             retain(ast);
+
+            helper("parseStatement");
             if(!parseExpression(ast))
             {
+                dump();
                 errors.pass();
                 advance();
                 errors.createNewError(GENERIC, ast, "not a statement");
@@ -693,11 +720,11 @@ class Parser {
 
                 errors.fail();
                 dump();
-
-                if(peek(1).getType() != SEMICOLON)
+                if(current.getType() != SEMICOLON)
                     errors.createNewError(GENERIC, ast, "expected `;`");
-                else
+                else {
                     expect(SEMICOLON, ast, "`;`");
+                }
                 return true;
             }
         }
@@ -723,10 +750,10 @@ class Parser {
     private def parseEnumIdentifier(Ast ast) {
         ast = getAst(ast, Enum_Identifier);
 
-        expectIdentifier(ast);
+        expectIdentifier(ast); advance();
 
-        if(peek(1).getType() == ASSIGN) {
-            expect(ASSIGN, "`=`");
+        if(current.getType() == ASSIGN) {
+            expect(ASSIGN, "`=`"); advance();
 
             parseValue(ast);
         }
@@ -735,18 +762,18 @@ class Parser {
     private def parseEnumBlock(Ast ast) {
         ast = getAst(ast, Enum_Identifier_List);
 
-        expect(LEFT_CURLY, "`{`");
+        expect(LEFT_CURLY, "`{`"); advance();
 
         parseEnumIdentifier(ast);
         pRefPtr:
-        if(peek(1).getType() == COMMA)
+        if(current.getType() == COMMA)
         {
-            expect(COMMA, ast, "`,`");
+            expect(COMMA, ast, "`,`"); advance();
             parseEnumIdentifier(ast);
             goto pRefPtr;
         }
 
-        expect(RIGHT_CURLY, "`}`");
+        expect(RIGHT_CURLY, "`}`"); advance();
         expect(SEMICOLON, "`;`");
     }
 
@@ -759,16 +786,19 @@ class Parser {
         }
         ast.add(current);
 
-
+        advance();
         expectIdentifier(ast);
+        advance();
+
         parseEnumBlock(ast);
     }
 
     private def parseThrowStatement(Ast ast) {
         ast = getAst(ast, Throw_Statement);
 
-        expectToken(ast, "throw", "`throw`");
-        parseExpression(ast);
+        expectToken(ast, "throw", "`throw`"); advance();
+        if(!parseExpression(ast))
+            errors.createNewError(GENERIC, current, "expected expression");
         expect(SEMICOLON, ast, "`;`");
     }
 
@@ -776,11 +806,11 @@ class Parser {
         ast = getAst(ast, Catch_Clause);
 
         advance();
-        expectToken(ast, "catch", "`catch`");
+        expectToken(ast, "catch", "`catch`"); advance();
 
         expect(LEFT_PAREN, ast, "`(`");
         parseUtypeArgOpt(ast);
-        expect(RIGHT_PAREN, ast, "`)`");
+        expect(RIGHT_PAREN, ast, "`)`"); advance();
 
         parseBlock(ast);
     }
@@ -789,18 +819,19 @@ class Parser {
         ast = getAst(ast, Finally_Block);
 
         advance();
-        expectToken(ast, "finally", "`finally`");
+        expectToken(ast, "finally", "`finally`"); advance();
         parseBlock(ast);
     }
 
     private def parseTryCatch(Ast ast) {
         ast = getAst(ast, Trycatch_Statement);
 
-        expectToken(ast, "try", "`try`");
+        expectToken(ast, "try", "`try`"); advance();
         parseBlock(ast);
 
-        while(peek(1).getToken() == "catch")
+        while(peek(1).getToken() == "catch") {
             parseCatchClause(ast);
+        }
 
         if(peek(1).getToken() == "finally")
         {
@@ -811,14 +842,15 @@ class Parser {
     private def parseDoWhileStatement(Ast ast) {
         ast = getAst(ast, Do_While_Statement);
 
-        expectToken(ast, "do", "`do`");
+        expectToken(ast, "do", "`do`"); advance();
         parseBlock(ast);
 
         advance();
-        expectToken(ast, "while", "`while`");
-        expect(LEFT_PAREN, ast, "`(`");
-        parseExpression(ast);
-        expect(RIGHT_PAREN, ast, "`)`");
+        expectToken(ast, "while", "`while`"); advance();
+        expect(LEFT_PAREN, ast, "`(`"); advance();
+        if(!parseExpression(ast))
+            errors.createNewError(GENERIC, current, "expected expression");
+        expect(RIGHT_PAREN, ast, "`)`"); advance();
 
         expect(SEMICOLON, ast, "`;`");
     }
@@ -826,11 +858,12 @@ class Parser {
     private def parseWhileStatement(Ast ast) {
         ast = getAst(ast, While_Statement);
 
-        expectToken(ast, "while", "`while`");
+        expectToken(ast, "while", "`while`"); advance();
 
-        expect(LEFT_PAREN, ast, "`(`");
-        parseExpression(ast);
-        expect(RIGHT_PAREN, ast, "`)`");
+        expect(LEFT_PAREN, ast, "`(`"); advance();
+        if(!parseExpression(ast))
+            errors.createNewError(GENERIC, current, "expected expression");
+        expect(RIGHT_PAREN, ast, "`)`"); advance();
 
         parseBlock(ast);
     }
@@ -838,15 +871,17 @@ class Parser {
     private def parseForEachStatement(Ast ast) {
         ast = getAst(ast, Foreach_Statement);
 
-        expectToken(ast, "foreach", "`foreach`");
+        expectToken(ast, "foreach", "`foreach`"); advance();
 
         expect(LEFT_PAREN, ast, "`(`");
+        helper("parsingggggg arg in foreach");
         parseUtypeArg(ast);
+        helper("parsed arg in foreach");
+        expect(COLON, ast, "`:`"); advance();
 
-        expect(COLON, ast, "`:`");
-
-        parseExpression(ast);
-        expect(RIGHT_PAREN, ast, "`)`");
+        if(!parseExpression(ast))
+            errors.createNewError(GENERIC, current, "expected expression");
+        expect(RIGHT_PAREN, ast, "`)`"); advance();
 
         parseBlock(ast);
     }
@@ -854,11 +889,13 @@ class Parser {
     private def parseLockStatement(Ast ast) {
         ast = getAst(ast, Lock_Statement);
 
-        expectToken(ast, "lock", "`lock`");
+        expectToken(ast, "lock", "`lock`"); advance();
 
-        expect(LEFT_PAREN, ast, "`(`");
-        parseExpression(ast);
-        expect(RIGHT_PAREN, ast, "`)`");
+        expect(LEFT_PAREN, ast, "`(`"); advance();
+
+        if(!parseExpression(ast))
+            errors.createNewError(GENERIC, current, "expected expression");
+        expect(RIGHT_PAREN, ast, "`)`"); advance();
 
         parseBlock(ast);
     }
@@ -866,42 +903,50 @@ class Parser {
     private def parseForStatement(Ast ast) {
         ast = getAst(ast, For_Statement);
 
-        expectToken(ast, "for", "`for`");
+        expectToken(ast, "for", "`for`"); advance();
 
         expect(LEFT_PAREN, ast, "`(`");
-
-        if(peek(1).getType() != SEMICOLON) {
+        helper("parse for");
+        if(current.getType() != SEMICOLON) {
+        helper("FOR -> parseUtypeArg");
             parseUtypeArg(ast);
+        helper("FOR -> parseValueAssignment");
             parseValueAssignment(ast);
+        helper("FOR -> arg parsed!!!!!!!!!!");
         }
+        helper("after arg");
 
-        expect(SEMICOLON, ast, "`;`"); // The inititalizer
+        expect(SEMICOLON, ast, "`;`"); advance();// The inititalizer
 
-        if(peek(1).getType() != SEMICOLON) {
-            parseExpression(ast);
+        if(current.getType() != SEMICOLON) {
+
+            if(!parseExpression(ast))
+                errors.createNewError(GENERIC, current, "expected expression");
             ast.last().setType(For_Expression_Cond);
         }
-        expect(SEMICOLON, ast, "`;`");
+        expect(SEMICOLON, ast, "`;`"); advance();
 
-        if(peek(1).getType() != RIGHT_PAREN) {
-            parseExpression(ast);
+        if(current.getType() != RIGHT_PAREN) {
+
+            if(!parseExpression(ast))
+                errors.createNewError(GENERIC, current, "expected expression");
             ast.last().setType(For_Expression_Iter);
         }
-        expect(RIGHT_PAREN, ast, "`)`");
-
+        expect(RIGHT_PAREN, ast, "`)`"); advance();
+        helper("parsing block");
         parseBlock(ast);
     }
 
     private def parseAssemblyBlock(Ast ast) {
         ast = getAst(ast, Assembly_Block);
 
-        if(peek(1).getId() == TokenId.STRING_LITERAL) {
-            advance();
+        if(current.getId() == TokenId.STRING_LITERAL) {
             ast.add(current);
+            advance();
 
-            while(peek(1).getId() == TokenId.STRING_LITERAL) {
-                advance();
+            while(current.getId() == TokenId.STRING_LITERAL) {
                 ast.add(current);
+                advance();
             }
         } else {
             errors.createNewError(GENERIC, current, "expected string literal");
@@ -911,49 +956,57 @@ class Parser {
     private def parseAssemblyStatement(Ast ast) {
         ast = getAst(ast, Assembly_Statement);
 
-        expectToken(ast, "asm", "`asm`");
-        if(peek(1).getToken() == VOLATILE) {
-            advance();
-            expectToken(ast, "volatile", "`volatile`");
+        expectToken(ast, "asm", "`asm`"); advance();
+        if(current.getToken() == VOLATILE) {
+            expectToken(ast, "volatile", "`volatile`"); advance();
         }
 
-        expect(LEFT_PAREN, ast, "`(`");
+        expect(LEFT_PAREN, ast, "`(`"); advance();
         parseAssemblyBlock(ast);
-        expect(RIGHT_PAREN, ast, "`)`");
+        expect(RIGHT_PAREN, ast, "`)`"); advance();
         expect(SEMICOLON, ast, "`;`");
     }
 
     private def parseSwitchStatement(Ast ast) {
         ast = getAst(ast, Switch_Statement);
 
-        expectToken(ast, "switch", "`switch`");
+        expectToken(ast, "switch", "`switch`"); advance();
 
-        expect(LEFT_PAREN, ast, "`(`");
-        parseExpression(ast);
-        expect(RIGHT_PAREN, ast, "`)`");
+        expect(LEFT_PAREN, ast, "`(`"); advance();
+
+        if(!parseExpression(ast))
+            errors.createNewError(GENERIC, current, "expected expression");
+        expect(RIGHT_PAREN, ast, "`)`"); advance();
 
         parseSwitchBlock(ast);
     }
 
     private def parseSwitchDeclarator(Ast ast) {
         ast = getAst(ast, Switch_Declarator);
-        advance();
         ast.add(current); // case | default
 
-        if(ast.getToken(0).getToken() == "case")
-            parseExpression(ast);
+        if(current.getToken() == "case") {
+            advance();
+            helper("case statement");
 
-        expect(COLON, "`:`");
+            if(!parseExpression(ast))
+                errors.createNewError(GENERIC, current, "expected expression");
+        } else
+            advance();
 
+        expect(COLON, "`:`"); advance();
+
+        helper("we need to check some things here for switch");
         retry:
-        if(isSwitchDeclarator(peek(1)) || peek(1).getType() == RIGHT_CURLY) return;
-        if(peek(1).getType() == LEFT_CURLY) {
+        if(isSwitchDeclarator(current) || current.getType() == RIGHT_CURLY) return;
+        if(current.getType() == LEFT_CURLY) {
+            helper("parsing block");
             parseBlock(ast);
             goto retry;
         } else {
-            advance();
             errors.enableProtectedMode();
             retain(ast);
+            helper("parsing statement");
             if(!parseStatement(ast))
             {
                 errors.pass();
@@ -962,6 +1015,7 @@ class Parser {
             } else {
                 errors.fail();
                 dump();
+                advance();
                 goto retry;
             }
         }
@@ -970,13 +1024,13 @@ class Parser {
     private def parseSwitchBlock(Ast ast) {
         ast = getAst(ast, Switch_Block);
 
-        expect(LEFT_CURLY, "`{`");
+        expect(LEFT_CURLY, "`{`"); advance();
 
-        if(isSwitchDeclarator(peek(1)))
+        if(isSwitchDeclarator(current))
         {
             parseSwitchDeclarator(ast);
             _pSwitchDecl:
-            if(isSwitchDeclarator(peek(1)))
+            if(isSwitchDeclarator(current))
             {
                 parseSwitchDeclarator(ast);
                 goto _pSwitchDecl;
@@ -993,12 +1047,14 @@ class Parser {
     private def parseIfStatement(Ast ast) {
         ast = getAst(ast, If_Statement);
 
-        expectToken(ast, "if", "`if`");
+        expectToken(ast, "if", "`if`"); advance();
 
-        expect(LEFT_PAREN, ast, "`(`");
-        parseExpression(ast);
-        expect(RIGHT_PAREN, ast, "`)`");
+        expect(LEFT_PAREN, ast, "`(`"); advance();
 
+        if(!parseExpression(ast))
+            errors.createNewError(GENERIC, current, "expected expression");
+        expect(RIGHT_PAREN, ast, "`)`"); advance();
+        helper("parsing block for if");
         parseBlock(ast);
 
         Ast tmp;
@@ -1006,18 +1062,20 @@ class Parser {
         condexpr:
         if(peek(1).getToken() == "else")
         {
-            if(peek(2).getToken() == "if")
+            advance();
+            if(peek(1).getToken() == "if")
             {
                 tmp = getAst(ast, Elseif_Statement);
 
-                advance();
                 tmp.add(current);
                 advance();
-                tmp.add(current);
+                tmp.add(current); advance();
 
-                expect(LEFT_PAREN, tmp, "`(`");
-                parseExpression(tmp);
-                expect(RIGHT_PAREN, tmp, "`)`");
+                expect(LEFT_PAREN, tmp, "`(`"); advance();
+
+                if(!parseExpression(ast))
+                    errors.createNewError(GENERIC, current, "expected expression");
+                expect(RIGHT_PAREN, tmp, "`)`"); advance();
             }
             else
             {
@@ -1039,8 +1097,9 @@ class Parser {
         ast = getAst(ast, Return_Stmnt);
 
         ast.add(current);
+        advance();
 
-        if(peek(1).getToken() != ";")
+        if(current.getToken() != ";")
             parseValue(ast);
 
         expect(SEMICOLON, ast, "`;`");
@@ -1108,11 +1167,11 @@ class Parser {
             ast.add(token);
         }
         accessTypes.clear();
-        pushBack();
 
         expectIdentifier(ast);
+        advance();
 
-        parseUtypeArgList(ast);
+        parseUtypeArgList(ast); advance();
         parseBlock(ast);
     }
 
@@ -1126,9 +1185,12 @@ class Parser {
         accessTypes.clear();
         ast.add(current);
 
+        helper("expecting identifier in method decl");
+        advance();
         expectIdentifier(ast);
-
-        parseUtypeArgList(ast);
+        advance();
+        helper("method parseUtypeArgList");
+        parseUtypeArgList(ast); advance();
 
         parseMethodReturnType(ast);
         parseBlock(ast);
@@ -1145,15 +1207,16 @@ class Parser {
 
         advance();
         expectToken(
-                ast, "delegate", "`delegate`");
+                ast, "delegate", "`delegate`"); advance();
 
-        expect(COLON, ast, "`:`");
-        expect(COLON, ast, "`:`");
+        expect(COLON, ast, "`:`"); advance();
+        expect(COLON, ast, "`:`"); advance();
         expectIdentifier(ast);
+        advance();
 
-        parseUtypeArgList(ast);
+        parseUtypeArgList(ast); advance();
         parseMethodReturnType(ast); // assign-expr operators must return void
-        if(peek(1).getType() == LEFT_CURLY)
+        if(current.getType() == LEFT_CURLY)
         {
             parseBlock(ast);
         } else {
@@ -1179,12 +1242,14 @@ class Parser {
         advance();
         if(!isOverrideOperator(current.getToken()))
             errors.createNewError(GENERIC, current, "expected override operator");
-        else
+        else {
             ast.add(current);
+            advance();
+        }
 
-        parseUtypeArgList(ast);
+        parseUtypeArgList(ast); advance();
         parseMethodReturnType(ast); // assign-expr operators must return void
-
+        helper("parsing operator block");
         parseBlock(ast);
     }
 
@@ -1196,15 +1261,12 @@ class Parser {
         }
         accessTypes.clear();
 
-        if(ast.tokenSize()>0)
-            pushBack();
-
         if(!isDecl(current, PROTOTYPE))
             advance();
         expectToken(
-                ast, "fn", "`fn`");
+                ast, "fn", "`fn`"); advance();
 
-        expectIdentifier(ast);
+        expectIdentifier(ast); advance();
 
         parseUtypeListOpt(ast);
         parseMethodReturnType(ast); // assign-expr operators must return void
@@ -1229,12 +1291,12 @@ class Parser {
     }
 
     private def parseMethodReturnType(Ast ast) {
-        if(peek(1).getType() == COLON)
+        if(current.getType() == COLON)
         {
             ast = getAst(ast, Method_Return_Type);
-            advance();
 
             ast.add(current);
+            helper("return type");
             parseUtype(ast);
         }
     }
@@ -1242,6 +1304,7 @@ class Parser {
     private def parseImportDecl(Ast ast) {
         ast = getAst(ast, Import_Decl);
         ast.add(current);
+        advance();
 
         bool generic = false;
         parseModuleName(ast, generic);
@@ -1267,29 +1330,29 @@ class Parser {
             if(!parseUtype(ast))
                 errors.createNewError(GENERIC, current, "expected native type or reference pointer");
 
-        } else
+        } else {
             partialDecl--;
+        }
 
-        expectIdentifier(ast);
+        expectIdentifier(ast); advance();
         parseValueAssignment(ast);
 
-        if(peek(1).getType() == COMMA) {
+        if(current.getType() == COMMA) {
             partialDecl++;
-            expect(COMMA, "`,`");
+            expect(COMMA, "`,`"); advance();
 
             parseVariableDecl(partialDecl <= 1 ? ast : ast.getParent());
-        } else if(partialDecl == 0)
+        } else if(partialDecl == 0) {
             expect(SEMICOLON, "`;`");
+        }
     }
 
     private def parseValueAssignment(Ast ast) {
-        advance();
         if(isAssignOperator(current.getToken())) {
             ast.add(current);
+            advance();
             parseValue(ast);
         }
-        else
-            pushBack();
     }
 
     private def parseValue(Ast ast) : var {
@@ -1301,16 +1364,19 @@ class Parser {
         ast = getAst(ast, Expression);
         if(quit()) return false;
 
-        if(peek(1).getType() == _INC
-            || peek(1).getType() == _DEC) {
-            advance();
+        if(current.getType() == _INC
+            || current.getType() == _DEC) {
             ast.add(current);
-            parseExpression(ast);
+            advance();
+
+
+            if(!parseExpression(ast))
+                errors.createNewError(GENERIC, current, "expected expression");
             ast.encapsulate(Pre_Inc_E);
             return true;
         }
 
-        if(peek(1).getType() == LEFT_CURLY) {
+        if(current.getType() == LEFT_CURLY) {
             parseVectorArray(ast);
             ast.encapsulate(Vect_E);
             return true;
@@ -1319,51 +1385,56 @@ class Parser {
         retain(ast);
         if(parsePrimaryExpression(ast)) {
             dump();
-            if(!isOverrideOperator(peek(1).getToken()) && peek(1).getType() != QUESMK)
+            if(!isOverrideOperator(current.getToken()) && current.getType() != QUESMK)
                 return true;
         } else {
             rollbackLast(ast);
         }
 
-        if(isAssignOperator(peek(1).getToken())) {
-            advance();
+        if(isAssignOperator(current.getToken())) {
             ast.add(current);
+            advance();
 
-            parseExpression(ast);
+
+            if(!parseExpression(ast))
+                errors.createNewError(GENERIC, current, "expected expression");
             ast.encapsulate(Assign_E);
 
-            if(!isOverrideOperator(peek(1).getToken()) && peek(1).getType() != QUESMK)
+            if(!isOverrideOperator(current.getToken()) && current.getType() != QUESMK)
                 return true;
         }
 
         var parsed = binary(ast);
 
         /* expression '?' expression ':' expression */
-        if(peek(1).getType() == QUESMK)
+        if(current.getType() == QUESMK)
         {
-            advance();
             ast.add(current);
+            advance();
 
-            parseExpression(ast);
+            if(!parseExpression(ast))
+                errors.createNewError(GENERIC, current, "expected expression");
 
-            expect(COLON, ast, "`:`");
+            expect(COLON, ast, "`:`"); advance();
 
-            parseExpression(ast);
+            if(!parseExpression(ast))
+                errors.createNewError(GENERIC, current, "expected expression");
             ast.encapsulate(Ques_E);
             return true;
         }
 
+        helper("returning from expression " + parsed);
         return parsed;
     }
 
     private def binary(Ast ast) : var {
         var parsed = shift(ast);
 
-        while(peek(1).getType() == AND || peek(1).getType() == XOR
-            || peek(1).getType() == OR || peek(1).getType() == ANDAND
-            || peek(1).getType() == OROR) {
-            advance();
+        while(current.getType() == AND || current.getType() == XOR
+            || current.getType() == OR || current.getType() == ANDAND
+            || current.getType() == OROR) {
             ast.add(current);
+            advance();
 
             shift(ast);
             ast.encapsulate(And_E);
@@ -1376,10 +1447,10 @@ class Parser {
     private def shift(Ast ast) : var {
         var parsed = equality(ast);
 
-        while(peek(1).getType() == SHL
-            || peek(1).getType() == SHR) {
-            advance();
+        while(current.getType() == SHL
+            || current.getType() == SHR) {
             ast.add(current);
+            advance();
 
             equality(ast);
             ast = ast.encapsulate(Shift_E);
@@ -1392,10 +1463,10 @@ class Parser {
     private def equality(Ast ast) : var {
         var parsed = comparison(ast);
 
-        while(peek(1).getType() == EQEQ
-            || peek(1).getType() == NOTEQ) {
-            advance();
+        while(current.getType() == EQEQ
+            || current.getType() == NOTEQ) {
             ast.add(current);
+            advance();
 
             comparison(ast);
             ast = ast.encapsulate(Equal_E);
@@ -1406,13 +1477,17 @@ class Parser {
     }
 
     private def comparison(Ast ast) : var {
+            helper("before lessthan");
         var parsed = addition(ast);
+            helper("after lessthan + " + parsed);
 
-        while(peek(1).getType() == GREATERTHAN || peek(1).getType() == _GTE
-            || peek(1).getType() == LESSTHAN || peek(1).getType() == _LTE) {
-            advance();
+        while(current.getType() == GREATERTHAN || current.getType() == _GTE
+            || current.getType() == LESSTHAN || current.getType() == _LTE) {
             ast.add(current);
+            advance();
 
+            helper("lessthan");
+            addition(ast);
             ast = ast.encapsulate(Less_E);
             parsed = true;
         }
@@ -1423,9 +1498,9 @@ class Parser {
     private def addition(Ast ast) : var {
         var parsed = multiplication(ast);
 
-        while(peek(1).getType() == MINUS || peek(1).getType() == PLUS) {
-            advance();
+        while(current.getType() == MINUS || current.getType() == PLUS) {
             ast.add(current);
+            advance();
 
             multiplication(ast);
             ast = ast.encapsulate(Add_E);
@@ -1438,10 +1513,10 @@ class Parser {
     private def multiplication(Ast ast) : var {
         var parsed = unary(ast);
 
-        while(peek(1).getType() == _DIV || peek(1).getType() == _MOD
-            || peek(1).getType() == MULT) {
-            advance();
+        while(current.getType() == _DIV || current.getType() == _MOD
+            || current.getType() == MULT) {
             ast.add(current);
+            advance();
 
             unary(ast);
             ast = ast.encapsulate(Mult_E);
@@ -1452,16 +1527,16 @@ class Parser {
     }
 
     private def unary(Ast ast) : var {
-        if(peek(1).getType() == MINUS) {
-            advance();
+        if(current.getType() == MINUS) {
             ast.add(current);
+            advance();
 
             var parsed = unary(ast);
             ast = ast.encapsulate(Add_E);
             return parsed;
-        } else if(peek(1).getType() == NOT) {
-            advance();
+        } else if(current.getType() == NOT) {
             ast.add(current);
+            advance();
 
             var parsed = unary(ast);
             ast = ast.encapsulate(Not_E);
@@ -1472,11 +1547,13 @@ class Parser {
         errors.enableProtectedMode();
         if(!parsePrimaryExpression(ast))
         {
+            helper("primary expression failed");
             errors.pass();
             rollbackLast(ast);
             return false;
         } else
         {
+            helper("primary expression passed");
             dump();
             errors.fail();
             return true;
@@ -1498,21 +1575,71 @@ class Parser {
         rollback(ast);
         errors.pass();
 
+        if(current.getToken() == "new")
+        {
+            expectToken(ast, "new");
+            parseUtypeNaked(ast);
+            var newClass = false;
+            helper("parsing new expression");
+            if(current.getType() == LEFT_BRACE) {
+                if(peek(1).getType() == RIGHT_BRACE && peek(2).getType() == LEFT_CURLY) {
+                    helper("VECCCCCCCCCCCCCCCCCCCTTTTTTTTTTTTTTTTTTTTTTOOOOOOOOOOOOOO AAAAAAAAARRRRRRRRTYYYYYYYYYYYY");
+                    expect(LEFT_BRACE, ast, "`[`"); advance();
+                    expect(RIGHT_BRACE, ast, "`]`"); advance();
+                    parseVectorArray(ast);
+                } else {
+                    helper("array expression");
+                    parseArrayExpression(ast);
+                }
+            }
+            else if(current.getType() == LEFT_PAREN) {
+                parseValueList(ast);
+                newClass = true;
+            }
+
+            ast.encapsulate(New_E);
+            if(current.getType() != LEFT_BRACE) {
+                helper("FINISHED new expr");
+                if(newClass && current.getType() == DOT)
+                    parseDotNotationCallExpression(ast);
+                return true;
+            }else
+                helper("continuing new expr");
+        }
+
+        if(current.getToken() == "sizeof")
+        {
+            expectToken(ast, "sizeof"); advance();
+
+            expect(LEFT_PAREN, ast, "`(`"); advance();
+
+            if(!parseExpression(ast))
+                errors.createNewError(GENERIC, current, "expected expression");
+            expect(RIGHT_PAREN, ast, "`)`"); advance();
+
+            ast.encapsulate(Sizeof_E);
+            return true;
+        }
+
         errors.enableProtectedMode();
-        if(peek(1).getType() == DOT) {
-            advance();
+        if(current.getType() == DOT) {
             ast.add(current);
         }
 
         retain(ast);
+        pushBack();
+
+        helper("trying .class utype");
         if(parseUtype(ast))
         {
-            if(peek(1).getType() == DOT)
+            helper("parsed utype for .class");
+            if(current.getType() == DOT)
             {
                 expect(DOT, ast.getChild(0), "`.`");
                 advance();
 
                 expectToken(ast.getChild(0), "class", "`class` after primary expression");
+                advance();
 
                 dump();
                 errors.fail();
@@ -1520,16 +1647,17 @@ class Parser {
                 return true;
             } else
                 rollback(ast);
-        } else
+        } else {
+            helper("failed .class utype");
             rollback(ast);
+        }
         errors.pass();
 
-        if(peek(1).getToken() == "self")
+        if(current.getToken() == "self")
         {
-            advance();
-            expectToken(ast, "self");
+            expectToken(ast, "self"); advance();
 
-            if(peek(1).getType() == PTR) {
+            if(current.getType() == PTR) {
                 expect(PTR, ast, "`->` after self");
                 parseDotNotationCallExpression(ast);
             }
@@ -1538,10 +1666,9 @@ class Parser {
             return true;
         }
 
-        if(peek(1).getToken() == "base")
+        if(current.getToken() == "base")
         {
-            advance();
-            expectToken(ast, "base");
+            expectToken(ast, "base"); advance();
             expect(PTR, ast, "`->` after base");
             parseDotNotationCallExpression(ast);
 
@@ -1550,75 +1677,42 @@ class Parser {
         }
 
         retain(ast);
+        pushBack();
+
         errors.enableProtectedMode();
+            helper("trying dotnot call");
         if(parseDotNotationCallExpression(ast)) {
+            helper("passed dottnot");
             dump();
             errors.fail();
             ast.encapsulate(Dot_Not_E);
-            if(!(peek(1).getType() == LEFT_BRACE ||
-                peek(1).getType() == _INC
-                || peek(1).getType() == _DEC))
+            if(!(current.getType() == LEFT_BRACE ||
+                current.getType() == _INC
+                || current.getType() == _DEC))
                 return true;
+            helper("passed dottnot");
         } else {
+            helper("failed dottnot");
             errors.pass();
             rollback(ast);
         }
 
-        if(peek(1).getToken() == "new")
-        {
-            advance();
-            expectToken(ast, "new");
-            parseUtypeNaked(ast);
-            var newClass = false;
-
-            if(peek(1).getType() == LEFT_BRACE && parseArrayExpression(ast)){}
-            else if(peek(1).getType() == LEFT_BRACE) {
-                expect(LEFT_BRACE, ast, "`[`");
-                expect(RIGHT_BRACE, ast, "`]`");
-                parseVectorArray(ast);
-            }
-            else if(peek(1).getType() == LEFT_PAREN) {
-                parseValueList(ast);
-                newClass = true;
-            }
-
-            ast.encapsulate(New_E);
-            if(peek(1).getType() != LEFT_BRACE) {
-                if(newClass && peek(1).getType() == DOT)
-                    parseDotNotationCallExpression(ast);
-                return true;
-            }
-        }
-
-        if(peek(1).getToken() == "sizeof")
-        {
-            advance();
-            expectToken(ast, "sizeof");
-
-            expect(LEFT_PAREN, ast, "`(`");
-            parseExpression(ast);
-            expect(RIGHT_PAREN, ast, "`)`");
-
-            ast.encapsulate(Sizeof_E);
-            return true;
-        }
-
-        if(peek(1).getType() == LEFT_PAREN)
+        if(current.getType() == LEFT_PAREN)
         {
             retain(ast);
             errors.enableProtectedMode();
-
-            advance();
+            helper("---------Left paren for the cast!!");
             ast.add(current);
 
             if(!parseUtype(ast))
             {
                 errors.pass();
                 rollback(ast);
+                helper("cast expr failed");
             } else {
-                if(peek(1).getType() == RIGHT_PAREN)
+                if(current.getType() == RIGHT_PAREN)
                 {
-                    expect(RIGHT_PAREN, ast, "`)`");
+                    expect(RIGHT_PAREN, ast, "`)`"); advance();
                     if(!parseExpression(ast))
                     {
                         errors.pass();
@@ -1638,24 +1732,23 @@ class Parser {
 
         }
 
-        if(peek(1).getType() == LEFT_PAREN)
+        if(current.getType() == LEFT_PAREN)
         {
-            advance();
             ast.add(current);
+            advance();
+            helper("---------Left paren-------------!!");
+            helper("left PARENNNNNNN");
 
-            parseExpression(ast);
+            if(!parseExpression(ast))
+                errors.createNewError(GENERIC, current, "expected expression");
+            helper("left after");
 
-            expect(RIGHT_PAREN, ast, "`)`");
+            expect(RIGHT_PAREN, ast, "`)`"); advance();
 
-            if(!isExprSymbol(peek(1).getToken())) {
-                retain(ast);
-                errors.enableProtectedMode();
-                if(parseDotNotationCallExpression(ast)) {
-                    dump();
-                    errors.fail();
-                } else {
-                    errors.pass();
-                    rollbackLast(ast);
+            if(!isExprSymbol(current.getToken())) {
+                helper("check for dot to dot notation call");
+                if(current.getType() == DOT) {
+                    parseDotNotationCallExpression(ast);
                 }
 
                 ast.encapsulate(Paren_E);
@@ -1663,36 +1756,30 @@ class Parser {
             } else
                 ast.encapsulate(Paren_E);
 
-            if(peek(1).getType() != LEFT_BRACE)
+            if(current.getType() != LEFT_BRACE)
                 return true;
         }
 
-        if(peek(1).getToken() == "null")
+        if(current.getToken() == "null")
         {
-            advance();
-            expectToken(ast, "null");
+            expectToken(ast, "null"); advance();
             ast.encapsulate(Null_E);
             return true;
         }
 
-        if(peek(1).getType() == LEFT_BRACE)
+        if(current.getType() == LEFT_BRACE)
         {
-            expect(LEFT_BRACE, ast, "`[`");
-            parseExpression(ast);
-            expect(RIGHT_BRACE, ast, "`]`");
+            expect(LEFT_BRACE, ast, "`[`"); advance();
+
+            if(!parseExpression(ast))
+                errors.createNewError(GENERIC, current, "expected expression");
+            expect(RIGHT_BRACE, ast, "`]`"); advance();
 
 
 
-            if(!isOverrideOperator(peek(1).getToken())){
-                errors.enableProtectedMode();
-                retain(ast);
-                if(!parseDotNotationCallExpression(ast)) {
-                    rollbackLast(ast);
-                    errors.pass();
-                }
-                else {
-                    errors.fail();
-                    dump();
+            if(!isOverrideOperator(current.getToken())){
+                if(current.getType() == DOT) {
+                    parseDotNotationCallExpression(ast);
                 }
 
                 ast.encapsulate(Arry_E);
@@ -1700,17 +1787,17 @@ class Parser {
             }
             ast.encapsulate(Arry_E);
 
-            if(!(peek(1).getType() == _INC ||
-                peek(1).getType() == _DEC))
+            if(!(current.getType() == _INC ||
+                current.getType() == _DEC))
                 return true;
         }
 
         /* ++ or -- after the expression */
-        if(peek(1).getType() == _INC ||
-            peek(1).getType() == _DEC)
+        if(current.getType() == _INC ||
+            current.getType() == _DEC)
         {
-            advance();
             ast.add(current);
+            advance();
             ast.encapsulate(Post_Inc_E);
             return true;
         }
@@ -1723,34 +1810,15 @@ class Parser {
 
         retain(ast);
         errors.enableProtectedMode();
-        expect(LEFT_BRACE, ast, "`[`");
-
-        if(peek(1).getType() != RIGHT_BRACE) {
-            if(!parseExpression(ast))
-            {
-                errors.pass();
-                rollback(ast);
-                return false;
-            } else
-            {
-                dump();
-                errors.fail();
-            }
-        } else {
-            if (peek(2).getType() == LEFT_CURLY) {
-                pushBack();
-                return false;
-            } else {
-                dump();
-                errors.fail();
-
-                errors.createNewError(GENERIC, ast, "expected expression after '['");
-                return false;
-            }
-        }
-
-        expect(RIGHT_BRACE, ast, "`]`");
+        expect(LEFT_BRACE, ast, "`[`"); advance();
+        if(!parseExpression(ast))
+            errors.createNewError(GENERIC, current, "expected expression");
+        expect(RIGHT_BRACE, ast, "`]`"); advance();
         return true;
+    }
+
+    def helper(string msg) {
+        System.println(msg + " current " + current + " +1 " + peek(1));
     }
 
     private def parseDotNotationCallExpression(Ast ast) : var
@@ -1762,33 +1830,39 @@ class Parser {
             advance();
             ast.add(current);
         }
-
+        helper("parsing utype naked");
         if(parseUtypeNaked(ast)) {
-            if(peek(1).getType() == LEFT_PAREN) {
+        helper("AFTER utype naked");
+            if(current.getType() == LEFT_PAREN) {
+        helper("left paren");
                 parseValueList(ast);
+        helper("parsed value list");
 
                 ast.encapsulate(Dot_Fn_E);
                 /* func()++ or func()--
                  * This expression rule dosen't process correctly by itsself
                  * so we hav to do it ourselves
                  */
-                if(peek(1).getType() == _INC || peek(1).getType() == _DEC)
+                if(current.getType() == _INC || current.getType() == _DEC)
                 {
                     advance();
                     ast.add(current);
                 }
-                else if(peek(1).getType() == LEFT_BRACE) {
-                    advance();
+                else if(current.getType() == LEFT_BRACE) {
                     ast.add(current);
+                    advance();
 
-                    parseExpression(ast);
-                    expect(RIGHT_BRACE, ast, "`]`");
+                    if(!parseExpression(ast))
+                        errors.createNewError(GENERIC, current, "expected expression");
+                    expect(RIGHT_BRACE, ast, "`]`"); advance();
+                    helper("array expr parsed");
 
-                    if(peek(1).getType() == DOT)
+                    if(current.getType() == DOT)
                         parseDotNotationCallExpression(ast);
                 }
                 else {
-                    if(peek(1).getType() == DOT)
+                    System.println("whats nxt " + peek(1) + ' ' + current);
+                    if(current.getType() == DOT)
                         parseDotNotationCallExpression(ast);
                 }
             }
@@ -1804,15 +1878,17 @@ class Parser {
         ast = getAst(ast, Value_List);
 
         expect(LEFT_PAREN, ast, "`(`");
+        advance();
 
-        if(peek(1).getType() != RIGHT_PAREN)
+        if(current.getType() != RIGHT_PAREN)
         {
+//            advance(); does this break our syntax?
             parseValue(ast);
 
             _pValue:
-            if(peek(1).getType() == COMMA)
+            if(current.getType() == COMMA)
             {
-                expect(COMMA, ast, "`,`");
+                expect(COMMA, ast, "`,`"); advance();
                 if(!parseValue(ast)){
                     errors.createNewError(GENERIC, ast.last(), "expected value");
                 }
@@ -1820,7 +1896,7 @@ class Parser {
             }
         }
 
-        expect(RIGHT_PAREN, ast, "`)`");
+        expect(RIGHT_PAREN, ast, "`)`"); advance();
     }
 
     private def parseUtypeNaked(Ast ast) : var {
@@ -1838,13 +1914,12 @@ class Parser {
     private def parseLiteral(Ast ast) : var {
         ast = getAst(ast, Literal);
 
-        TokenEntity token = peek(1);
-        if(token.getId() == TokenId.CHAR_LITERAL || token.getId() == TokenId.INTEGER_LITERAL
-            || token.getId() == TokenId.STRING_LITERAL || token.getId() == TokenId.HEX_LITERAL
-            || token.getToken() == "true" || token.getToken() == "false")
+        if(current.getId() == TokenId.CHAR_LITERAL || current.getId() == TokenId.INTEGER_LITERAL
+            || current.getId() == TokenId.STRING_LITERAL || current.getId() == TokenId.HEX_LITERAL
+            || current.getToken() == "true" || current.getToken() == "false")
         {
-            advance();
             ast.add(current);
+            advance();
             return true;
         } else {
             errors.createNewError(GENERIC, current, "expected literal of type (string, char, hex, or bool)");
@@ -1879,7 +1954,7 @@ class Parser {
 
     private def dump() {
         if(states.size() > 0)
-            states.removeAt(states.size()-1);
+            states.drop();
     }
 
     private def dump(var setCursor) {
@@ -1900,40 +1975,48 @@ class Parser {
 
     private def parseVectorArray(Ast ast) {
         ast = getAst(ast, Vector_Array);
-        expect(LEFT_CURLY, ast, "`{`");
+        expect(LEFT_CURLY, ast, "`{`"); advance();
 
-        if(peek(1).getType() != RIGHT_CURLY) {
-            parseExpression(ast);
+        helper("parse vector arry");
+        if(current.getType() != RIGHT_CURLY) {
+            if(!parseExpression(ast))
+                errors.createNewError(GENERIC, current, "expected expression");
+
             _pExpr:
-            if(peek(1).getType() == COMMA)
+            if(current.getType() == COMMA)
             {
-                expect(COMMA, ast, "`,`");
-                parseExpression(ast);
+                expect(COMMA, ast, "`,`"); advance();
+                helper("parsing expression in vec array");
+                if(!parseExpression(ast))
+                    errors.createNewError(GENERIC, current, "expected expression");
                 goto _pExpr;
             }
         }
 
-        expect(RIGHT_CURLY, ast, "`}`");
+        helper("ending vector arry");
+        expect(RIGHT_CURLY, ast, "`}`"); advance();
     }
 
     private def parseIdentifierList(Ast ast) {
         ast = getAst(ast, Identifier_List);
 
         expectIdentifier(ast);
+        advance();
+
         pRefPtr:
-        if(peek(1).getType() == COMMA) {
-            expect(COMMA, ast, "`,`");
-            expectIdentifier(ast);
+        if(current.getType() == COMMA) {
+            expect(COMMA, ast, "`,`"); advance();
+            expectIdentifier(ast); advance();
             goto pRefPtr;
         }
     }
 
-    private def parseRefrenceIdentifierList(Ast ast) {
+    private def parseReferenceIdentifierList(Ast ast) {
         ast = getAst(ast, Identifier_List);
 
         parseReferencePointer(ast);
         pRefPtr:
-        if(peek(1).getType() == COMMA) {
+        if(current.getType() == COMMA) {
             expect(COMMA, ast, "`,`");
             parseReferencePointer(ast);
             goto pRefPtr;
@@ -1943,6 +2026,7 @@ class Parser {
     private def parseModuleDecl(Ast ast) {
         ast = getAst(ast, Module_Decl);
         ast.add(current);
+        advance();
 
         bool generic = false;
         parseModuleName(ast, generic);
@@ -1962,41 +2046,48 @@ class Parser {
         if(!local)
             ast = getAst(ast, ModuleName);
 
-        if(peek(1).getToken() == "operator") {
-            if(isOverrideOperator(peek(2).getToken())) {
-                advance(2);
+        if(current.getToken() == "operator") {
+            if(isOverrideOperator(peek(1).getToken())) {
+                advance();
                 ast.add(current);
                 return;
             }
         }else {
+            helper("inside moduleName1");
             expectIdentifier(ast);
             generic = parseTemplateDecl(ast);
+            helper("inside moduleName");
         }
 
-         advance();
-         while(current.getType() == DOT) {
-             if(peek(1).getToken() == CLASS)
-                 break;
+         if(peek(1).getType() == DOT) {
+            advance();
+            while(current.getType() == DOT) {
+                if(peek(1).getToken() == CLASS)
+                    break;
 
-             ast.add(current);
+                ast.add(current);
+                advance();
 
-             if(peek(1).getToken() == "operator") {
-                 if(isOverrideOperator(peek(2).getToken())) {
-                     advance(2);
-                     ast.add(current);
-                     advance();
-                     break;
-                 }
-             } else {
-                 if(expectIdentifier(ast)){
-                     if(parseTemplateDecl(ast))
-                         generic = true;
-                 }
-             }
-             advance();
+                if(current.getToken() == "operator") {
+                    if(isOverrideOperator(peek(1).getToken())) {
+                        advance();
+                        ast.add(current);
+                        advance();
+                        break;
+                    }
+                } else {
+                    if(expectIdentifier(ast)){
+                        if(parseTemplateDecl(ast))
+                            generic = true;
+                    }
+                }
+
+                advance();
+            }
+         } else {
+            if(current.getType() != LESSTHAN)
+                advance();
          }
-
-         pushBack();
     }
 
     private def parseTemplateDecl(Ast ast) : var {
@@ -2004,15 +2095,16 @@ class Parser {
             advance();
             retain(ast);
 
-            if(peek(1).getType() == GREATERTHAN) {
+            if(current.getType() == GREATERTHAN) {
                 errors.createNewError(GENERIC, current, "expected identifier before `>`");
                 advance();
                 return true;
             }
 
-            if(parseUtype(ast) && (peek(1).getType() == GREATERTHAN || peek(1).getType() == COMMA))
+            if(parseUtype(ast) && (current.getType() == GREATERTHAN || current.getType() == COMMA))
             {
                 rollbackLast(ast);
+
                 errors.pass();
                 parseUtypeList(ast);
                 if(peek(1).getType() == GREATERTHAN) {
@@ -2022,11 +2114,11 @@ class Parser {
                     expect(GREATERTHAN, ast, "`>`");
 
                 return true;
-            } else
-                dump();
+            }
 
+            rollbackLast(ast);
+            helper("template parse failed");
             errors.pass();
-            pushBack();
         }
 
         getAst(ast, None);
@@ -2039,24 +2131,33 @@ class Parser {
 
         if(peek(1).getType() != RIGHT_PAREN)
         {
-            if(isDecl(peek(1), PROTOTYPE))
+            helper("parse utype arg 1");
+            if(isDecl(peek(1), PROTOTYPE)) {
+                advance();
                 parseProtoTypeDecl(ast, false);
+            }
             else
                 parseUtypeArgOpt(ast);
+            helper("parse utype arg 2");
             _puTypeArgOpt:
-            if(peek(1).getType() == COMMA)
+            if(current.getType() == COMMA)
             {
                 expect(COMMA, ast, "`,`");
 
-                if(isDecl(peek(1), PROTOTYPE))
+                helper("parse utypearg opt");
+                if(isDecl(peek(1), PROTOTYPE)) {
+                    advance();
+                    helper("parsing protype");
                     parseProtoTypeDecl(ast, false);
+                }
                 else
                     parseUtypeArgOpt(ast);
                 goto _puTypeArgOpt;
             }
-        }
+        } else
+            advance();
 
-        expect(RIGHT_PAREN, ast, "`)`");
+        expect(RIGHT_PAREN, ast, "`)`"); advance();
     }
 
 
@@ -2066,22 +2167,23 @@ class Parser {
 
         if(peek(1).getType() != RIGHT_PAREN)
         {
-            if(isDecl(peek(1), PROTOTYPE))
+            if(isDecl(current, PROTOTYPE))
                 parseProtoTypeDecl(ast, false);
             else
                 parseUtypeArg(ast);
             _puTypeArg:
-            if(peek(1).getType() == COMMA)
+            if(current.getType() == COMMA)
             {
-                expect(COMMA, ast, "`,`");
+                expect(COMMA, ast, "`,`"); advance();
 
-                if(isDecl(peek(1), PROTOTYPE))
+                if(isDecl(current, PROTOTYPE))
                     parseProtoTypeDecl(ast, false);
                 else
                     parseUtypeArg(ast);
                 goto _puTypeArg;
             }
-        }
+        } else
+            advance();
 
         expect(RIGHT_PAREN, ast, "`)`");
     }
@@ -2091,7 +2193,8 @@ class Parser {
 
         if(parseUtype(ast))
         {
-            expectIdentifier(ast);
+            helper("parsing arg");
+            expectIdentifier(ast); advance();
             return true;
         }else
             errors.createNewError(GENERIC, current, "expected native type or reference pointer");
@@ -2104,8 +2207,10 @@ class Parser {
 
         if(parseUtype(ast))
         {
-            if(peek(1).getId() == IDENTIFIER)
+            if(current.getId() == IDENTIFIER) {
                 expectIdentifier(ast);
+                advance();
+            }
 
             return true;
         }else
@@ -2132,12 +2237,12 @@ class Parser {
 
         if(parseTypeIdentifier(ast))
         {
-            if(peek(1).getType() == LEFT_BRACE)
+            helper("utype parsed");
+            if(current.getType() == LEFT_BRACE)
             {
-                advance();
-                ast.add(current);
+                ast.add(current); advance();
 
-                expect(RIGHT_BRACE, ast, "`]`");
+                expect(RIGHT_BRACE, ast, "`]`"); advance();
             }
 
             return true;
@@ -2155,13 +2260,16 @@ class Parser {
             pushBack();
         else {
             ast.add(current);
+            advance();
             return true;
         }
 
         errors.enableProtectedMode();
         if(!parseReferencePointer(ast)) {
+            helper("ref ptr failed");
             errors.pass();
         } else {
+            helper("ref ptr passed");
             errors.fail();
             return true;
         }
@@ -2173,28 +2281,28 @@ class Parser {
         ast = getAst(ast, Reference_Pointer);
 
         advance();
+        helper("try ref ptr");
         if(current.getId() == TokenId.IDENTIFIER && isKeyword(current.getToken())) {
             if(current.getToken() != "operator") {
                 return false;
             }
-            else
-                pushBack();
-        } else if(current.getId() == TokenId.IDENTIFIER)
-            pushBack();
+        } else if(current.getId() == TokenId.IDENTIFIER){}
         else {
             pushBack();
             return false;
         }
 
         bool generic = false;
+        helper("before moduleName");
         parseModuleName(ast, generic, true);
+        helper("after moduleName");
 
-        advance();
         if(current.getType() == HASH) {
             if(generic)
                 errors.createNewError(GENERIC, current, "module-name does not allow for generic typing ");
             ast.add(current);
 
+            advance();
             if(expectIdentifier(ast)) {
                 parseTemplateDecl(ast);
                 advance();
@@ -2205,24 +2313,22 @@ class Parser {
                     break;
 
                 ast.add(current);
+                advance();
 
-                if(peek(1).getToken() == "operator") {
-                    if(isOverrideOperator(peek(2).getToken())) {
-                        advance(2);
+                if(current.getToken() == "operator") {
+                    if(isOverrideOperator(peek(1).getToken())) {
+                        advance();
                         ast.add(current);
                         break;
                     }
                 } else {
                     if(!expectIdentifier(ast)) break;
-
                     parseTemplateDecl(ast);
                 }
+
                 advance();
             }
-
-            pushBack();
-        } else
-            pushBack();
+        }
 
         return true;
     }
@@ -2232,7 +2338,6 @@ class Parser {
     }
 
     public def expect(TokenType type, Ast ast, var[] msg) {
-        advance();
 
         if(current.getType() == type) {
             ast.add(current);
@@ -2242,7 +2347,6 @@ class Parser {
     }
 
     public def expect(TokenType type, var[] msg) : var {
-        advance();
 
         if(current.getType() == type) {
             return true;
@@ -2314,7 +2418,6 @@ class Parser {
     }
 
     private def expectIdentifier(Ast ast) : var {
-        advance();
 
         if(current.getId() == TokenId.IDENTIFIER && !isKeyword(current.getToken()))
         {

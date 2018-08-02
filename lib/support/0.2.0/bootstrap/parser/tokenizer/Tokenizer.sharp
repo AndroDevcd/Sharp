@@ -121,8 +121,7 @@ class Tokenizer {
                 break;
 
               case '\n':
-                line++;
-                col = 0;
+                newline();
                 break;
 
               case '"':

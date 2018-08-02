@@ -129,8 +129,15 @@ class ErrorManager {
         if(possibleErrors.size() > 0) {
             ArrayList<ParseError> lst = possibleErrors.last();
             ParseError[] errs = lst.toArray();
+
             foreach(ParseError err : errs) {
-                if(shouldReport(null, lastError, err)) {
+                if(directReport) {
+                    printError(err);
+
+                    errors.add(err);
+                    rawErrors.add(err);
+                    lastError = err;
+                } else if(aggressiveErrors || shouldReport(null, lastError, err)) {
                     errors.add(err);
                     rawErrors.add(err);
                     lastError = err;
@@ -154,14 +161,14 @@ class ErrorManager {
         ParseError newErr = new ParseError(false, err, predefinedMessage, token, msg);
         ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
 
-        if(shouldReport(token, lastError, newErr) || (aggressiveErrors && directReport)) {
-            if(directReport)
-                printError(newErr);
-            else if(protectedMode) {
+        if(shouldReport(token, lastError, newErr) || aggressiveErrors || directReport) {
+
+            if(protectedMode) {
                 possibleErrors.last().add(newErr);
                 lastCheckedError = newErr;
                 return;
-            }
+            } else if(directReport)
+                printError(newErr);
 
             errorsFound = true;
             errors.add(newErr);
@@ -177,14 +184,13 @@ class ErrorManager {
         ParseError newErr = new ParseError(false, err, predefinedMessage, line, col, msg);
         ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
 
-        if(shouldReport(null, lastError, newErr) || (aggressiveErrors && directReport)) {
-            if(directReport)
-                printError(newErr);
-            else if(protectedMode) {
+        if(shouldReport(null, lastError, newErr) || aggressiveErrors || directReport) {
+            if(protectedMode) {
                 possibleErrors.last().add(newErr);
                 lastCheckedError = newErr;
                 return;
-            }
+            } else if(directReport)
+                printError(newErr);
 
             errorsFound = true;
             errors.add(newErr);
@@ -260,14 +266,13 @@ class ErrorManager {
         ParseError newErr = new ParseError(false, err, predefinedMessage, ast.line, ast.col, msg);
         ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
 
-        if(shouldReport(null, lastError, newErr) || (aggressiveErrors && directReport)) {
-            if(directReport)
-                printError(newErr);
-            else if(protectedMode) {
+        if(shouldReport(null, lastError, newErr) || aggressiveErrors || directReport) {
+            if(protectedMode) {
                 possibleErrors.last().add(newErr);
                 lastCheckedError = newErr;
                 return;
-            }
+            } else if(directReport)
+                printError(newErr);
 
             errorsFound = true;
             errors.add(newErr);

@@ -86,6 +86,7 @@ public:
                       ((method->returnVal) ? (thread_self->sp-thread_self->dataStack)-method->stackEqulizer : \
                 ((thread_self->sp-thread_self->dataStack)-method->stackEqulizer+1)); \
     thread_self->sp += (method->stackSize - method->paramSize); \
+    THREAD_STACK_CHECK(thread_self); \
     thread_self->pc = thread_self->cache; \
 }
 
