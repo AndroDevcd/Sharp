@@ -436,7 +436,8 @@ class Parser {
         if(current.getToken() == "{") {
             expect(LEFT_CURLY, "`{`");
             curly = true;
-        }
+        } else
+            pushBack();
 
         ast = getAst(ast, Block);
         while(!isEnd())
@@ -735,14 +736,12 @@ class Parser {
     private def parseLabelDecl(Ast ast) {
         ast = getAst(ast, Label_Decl);
 
-        pushBack();
-        expectIdentifier(ast);
-        expect(COLON, ast, "`:` after label declaration");
+        expectIdentifier(ast); advance();
+        expect(COLON, ast, "`:` after label declaration"); advance();
 
-        if(peek(1).getType() == LEFT_CURLY)
+        if(current.getType() == LEFT_CURLY)
             parseBlock(ast);
         else {
-            advance();
             parseStatement(ast);
         }
     }
@@ -1109,7 +1108,7 @@ class Parser {
         if(isAccessType(current))
             parseAccessTypes();
         if(quit()) return;
-        
+
         if(current.getType() == _EOF)
         {
             return;
@@ -1333,7 +1332,7 @@ class Parser {
         } else {
             partialDecl--;
         }
-
+        helper("parsing identifier in var decl");
         expectIdentifier(ast); advance();
         parseValueAssignment(ast);
 
@@ -2077,15 +2076,17 @@ class Parser {
                     }
                 } else {
                     if(expectIdentifier(ast)){
-                        if(parseTemplateDecl(ast))
+                        if(parseTemplateDecl(ast)) {
+                            pushBack();
                             generic = true;
+                        }
                     }
                 }
 
                 advance();
             }
          } else {
-            if(current.getType() != LESSTHAN)
+            if(current.getType() != LESSTHAN && !generic.getValue())
                 advance();
          }
     }
@@ -2104,15 +2105,18 @@ class Parser {
             if(parseUtype(ast) && (current.getType() == GREATERTHAN || current.getType() == COMMA))
             {
                 rollbackLast(ast);
+                helper("parseUtypeList(ast);");
 
                 errors.pass();
                 parseUtypeList(ast);
+                helper("type params");
                 if(peek(1).getType() == GREATERTHAN) {
+                    advance();
                     expect(GREATERTHAN, ast, "`>`");
                     ast.popToken();
                 } else
                     expect(GREATERTHAN, ast, "`>`");
-
+                advance();
                 return true;
             }
 
@@ -2167,17 +2171,23 @@ class Parser {
 
         if(peek(1).getType() != RIGHT_PAREN)
         {
-            if(isDecl(current, PROTOTYPE))
+
+            if(isDecl(peek(1), PROTOTYPE)) {
+                advance();
                 parseProtoTypeDecl(ast, false);
+            }
             else
                 parseUtypeArg(ast);
+
             _puTypeArg:
             if(current.getType() == COMMA)
             {
-                expect(COMMA, ast, "`,`"); advance();
+                expect(COMMA, ast, "`,`");
 
-                if(isDecl(current, PROTOTYPE))
+                if(isDecl(peek(1), PROTOTYPE)) {
+                    advance();
                     parseProtoTypeDecl(ast, false);
+                }
                 else
                     parseUtypeArg(ast);
                 goto _puTypeArg;
@@ -2224,7 +2234,7 @@ class Parser {
 
         parseUtype(ast);
         pRefPtr:
-        if(peek(1).getType() == COMMA)
+        if(current.getType() == COMMA)
         {
             expect(COMMA, ast, "`,`");
             parseUtype(ast);
@@ -2304,8 +2314,8 @@ class Parser {
 
             advance();
             if(expectIdentifier(ast)) {
-                parseTemplateDecl(ast);
-                advance();
+                if(!parseTemplateDecl(ast))
+                    advance();
             }
 
             while(current.getType() == DOT ) {
@@ -2323,7 +2333,9 @@ class Parser {
                     }
                 } else {
                     if(!expectIdentifier(ast)) break;
-                    parseTemplateDecl(ast);
+
+                    if(parseTemplateDecl(ast))
+                        pushBack();
                 }
 
                 advance();
