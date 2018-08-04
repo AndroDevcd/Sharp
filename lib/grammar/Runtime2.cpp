@@ -1942,7 +1942,9 @@ void RuntimeEngine::checkVectorArray(Expression& utype, List<Expression>& vecArr
                     }
                     break;
                 case expression_string:
-                    errors->createNewError(GENERIC, vecArry.get(i).link->line, vecArry.get(i).link->col, "multi dimentional array are not supported yet, use string() class instead");
+                    if(utype.trueType() == OBJECT) {
+                    } else
+                        errors->createNewError(GENERIC, vecArry.get(i).link->line, vecArry.get(i).link->col, "multi dimentional array are not supported yet, use string() class instead");
                     break;
                 case expression_objectclass:
                     if(utype.utype.type != CLASS) {

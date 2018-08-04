@@ -218,7 +218,8 @@ class Tokenizer {
             else if (escaped)
             {
                 hasCharacter = true;
-                if(!char.isAlpha(current) && current != '\\' && current != '\"' && current != '\'')
+                if(current != '0' && current != 'a' && !char.isAlpha(current)
+                    && current != '\\' && current != '\"' && current != '\'')
                 {
                     errors.createNewError(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", text preceding `\\` must be alpha, '\"', or '\\'' only");
                     return;
@@ -248,7 +249,6 @@ class Tokenizer {
             entities.add(new TokenEntity(getEscapedString(tokens.substring(start, cursor-1)), TokenId.CHAR_LITERAL, col, line));
         }
 
-        advance();
     }
 
     private def parseIdentifier() {

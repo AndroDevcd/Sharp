@@ -44,20 +44,16 @@ class Parser {
                 accessTypes.clear();
                 return;
             } else if(isDecl(current, MOD)) {
-                helper("parse mod");
                 if(accessTypes.size() > 0)
                     errors.createNewError(ILLEGAL_ACCESS_DECLARATION, current, "");
                 parseModuleDecl(null);
             } else if(isDecl(current, CLASS)) {
                 parseClassDecl(null);
             } else if(isDecl(current, METHOD)) {
-                helper("parse method");
                 parseMethodDecl(null);
             } else if(isDecl(current, INTERFACE)) {
-                helper("parse itf");
                 parseInterfaceDecl(null);
             } else if(isDecl(current, ENUM)) {
-                helper("parse enum");
                 parseEnumDecl(null);
             } else if(isDecl(current, IMPORT)) {
                 if(accessTypes.size() > 0)
@@ -65,7 +61,6 @@ class Parser {
                     
                 parseImportDecl(null);
             } else if(isNativeType(current.getToken())) {
-                helper("parse vdecl");
                 parseVariableDecl(null);
             }else
             {
@@ -90,7 +85,6 @@ class Parser {
                     if(current.getId() == IDENTIFIER)
                     {
                         // Variable decliration
-                        System.println("var decl");
                         tree.popBack();
                         parseVariableDecl(null);
                         goto _continue;
@@ -111,7 +105,6 @@ class Parser {
 
             _continue:
             advance();
-            System.println("curr " + current + " " + peek(1));
             accessTypes.clear();
         }
 
@@ -189,12 +182,10 @@ class Parser {
             }
             else if(isDecl(current, PROTOTYPE))
             {
-                helper("class prototype found");
                 parseProtoTypeDecl(ast, true);
             }
             else if(isDecl(current, ENUM))
             {
-                helper("parse enum in class");
                 parseEnumDecl(ast);
             }
             else if(isDecl(current, METHOD))
@@ -204,13 +195,11 @@ class Parser {
                 else if(peek(1).getToken() == "delegate")
                     parseDelegateDecl(ast);
                 else {
-                    helper("method decl in class");
                     parseMethodDecl(ast);
                 }
             }
             else if(isConstructorDecl())
             {
-                helper("constructor decl in class");
                 parseConstructor(ast);
             }
             else if(current.getType() == _EOF)
@@ -247,7 +236,6 @@ class Parser {
                  */
                 if(parseUtype(ast))
                 {
-                    helper("utype parsed for class");
                     if(current.getId() == IDENTIFIER)
                     {
                         // Variable decliration
@@ -299,7 +287,6 @@ class Parser {
             expectToken(ast, "base");
             parseReferencePointer(ast);
         }
-        helper("parsing interface class");
         parseInterfaceBlock(ast);
     }
 
@@ -461,7 +448,6 @@ class Parser {
                 break;
             }
             else {
-                helper("statement in block");
                 parseStatement(ast);
 
                 if(!curly) {
@@ -492,7 +478,6 @@ class Parser {
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(ILLEGAL_ACCESS_DECLARATION, current, "");
-            helper("return statement");
             parseReturnStatement(ast);
             return true;
         }
@@ -524,7 +509,6 @@ class Parser {
         {
             if(accessTypes.size() > 0)
                 errors.createNewError(ILLEGAL_ACCESS_DECLARATION, current, "");
-            helper("parsing for");
             parseForStatement(ast);
             return true;
         }
@@ -612,9 +596,7 @@ class Parser {
         }
         else if(isNativeType(current.getToken()))
         {
-            helper("found native type var");
             parseVariableDecl(ast);
-            helper("end native type var");
             return true;
         }
         else if(isDecl(current, PROTOTYPE))
@@ -669,16 +651,13 @@ class Parser {
             // save parser state
             errors.enableProtectedMode();
             retain(ast);
-            helper("before");
             pushBack();
-            helper("parsing alternative statement");
 
             /*
              * variable decl?
              */
             if(parseUtype(ast))
             {
-                helper("waiting for data after utype--------");
                 errors.pass();
                 if(current.getType() == COLON)
                 {
@@ -693,9 +672,7 @@ class Parser {
                 {
                     // Variable decliration
                     rollback(ast);
-                    helper("parse variable decl");
                     parseVariableDecl(ast);
-                    helper("var decl done");
                     return true;
                 }
             } else
@@ -707,7 +684,6 @@ class Parser {
             errors.enableProtectedMode();
             retain(ast);
 
-            helper("parseStatement");
             if(!parseExpression(ast))
             {
                 dump();
@@ -873,9 +849,7 @@ class Parser {
         expectToken(ast, "foreach", "`foreach`"); advance();
 
         expect(LEFT_PAREN, ast, "`(`");
-        helper("parsingggggg arg in foreach");
         parseUtypeArg(ast);
-        helper("parsed arg in foreach");
         expect(COLON, ast, "`:`"); advance();
 
         if(!parseExpression(ast))
@@ -905,15 +879,10 @@ class Parser {
         expectToken(ast, "for", "`for`"); advance();
 
         expect(LEFT_PAREN, ast, "`(`");
-        helper("parse for");
         if(current.getType() != SEMICOLON) {
-        helper("FOR -> parseUtypeArg");
             parseUtypeArg(ast);
-        helper("FOR -> parseValueAssignment");
             parseValueAssignment(ast);
-        helper("FOR -> arg parsed!!!!!!!!!!");
         }
-        helper("after arg");
 
         expect(SEMICOLON, ast, "`;`"); advance();// The inititalizer
 
@@ -932,7 +901,6 @@ class Parser {
             ast.last().setType(For_Expression_Iter);
         }
         expect(RIGHT_PAREN, ast, "`)`"); advance();
-        helper("parsing block");
         parseBlock(ast);
     }
 
@@ -986,26 +954,24 @@ class Parser {
 
         if(current.getToken() == "case") {
             advance();
-            helper("case statement");
 
+            System.println("case statement BEFORE " + current + " +1 " + peek(1));
             if(!parseExpression(ast))
                 errors.createNewError(GENERIC, current, "expected expression");
+            System.println("case statement " + current + " +1 " + peek(1));
         } else
             advance();
 
         expect(COLON, "`:`"); advance();
 
-        helper("we need to check some things here for switch");
         retry:
         if(isSwitchDeclarator(current) || current.getType() == RIGHT_CURLY) return;
         if(current.getType() == LEFT_CURLY) {
-            helper("parsing block");
             parseBlock(ast);
             goto retry;
         } else {
             errors.enableProtectedMode();
             retain(ast);
-            helper("parsing statement");
             if(!parseStatement(ast))
             {
                 errors.pass();
@@ -1053,7 +1019,6 @@ class Parser {
         if(!parseExpression(ast))
             errors.createNewError(GENERIC, current, "expected expression");
         expect(RIGHT_PAREN, ast, "`)`"); advance();
-        helper("parsing block for if");
         parseBlock(ast);
 
         Ast tmp;
@@ -1184,11 +1149,10 @@ class Parser {
         accessTypes.clear();
         ast.add(current);
 
-        helper("expecting identifier in method decl");
         advance();
         expectIdentifier(ast);
         advance();
-        helper("method parseUtypeArgList");
+
         parseUtypeArgList(ast); advance();
 
         parseMethodReturnType(ast);
@@ -1248,7 +1212,6 @@ class Parser {
 
         parseUtypeArgList(ast); advance();
         parseMethodReturnType(ast); // assign-expr operators must return void
-        helper("parsing operator block");
         parseBlock(ast);
     }
 
@@ -1295,7 +1258,6 @@ class Parser {
             ast = getAst(ast, Method_Return_Type);
 
             ast.add(current);
-            helper("return type");
             parseUtype(ast);
         }
     }
@@ -1332,7 +1294,7 @@ class Parser {
         } else {
             partialDecl--;
         }
-        helper("parsing identifier in var decl");
+
         expectIdentifier(ast); advance();
         parseValueAssignment(ast);
 
@@ -1422,7 +1384,6 @@ class Parser {
             return true;
         }
 
-        helper("returning from expression " + parsed);
         return parsed;
     }
 
@@ -1476,16 +1437,13 @@ class Parser {
     }
 
     private def comparison(Ast ast) : var {
-            helper("before lessthan");
         var parsed = addition(ast);
-            helper("after lessthan + " + parsed);
 
         while(current.getType() == GREATERTHAN || current.getType() == _GTE
             || current.getType() == LESSTHAN || current.getType() == _LTE) {
             ast.add(current);
             advance();
 
-            helper("lessthan");
             addition(ast);
             ast = ast.encapsulate(Less_E);
             parsed = true;
@@ -1546,13 +1504,11 @@ class Parser {
         errors.enableProtectedMode();
         if(!parsePrimaryExpression(ast))
         {
-            helper("primary expression failed");
             errors.pass();
             rollbackLast(ast);
             return false;
         } else
         {
-            helper("primary expression passed");
             dump();
             errors.fail();
             return true;
@@ -1579,15 +1535,13 @@ class Parser {
             expectToken(ast, "new");
             parseUtypeNaked(ast);
             var newClass = false;
-            helper("parsing new expression");
+
             if(current.getType() == LEFT_BRACE) {
                 if(peek(1).getType() == RIGHT_BRACE && peek(2).getType() == LEFT_CURLY) {
-                    helper("VECCCCCCCCCCCCCCCCCCCTTTTTTTTTTTTTTTTTTTTTTOOOOOOOOOOOOOO AAAAAAAAARRRRRRRRTYYYYYYYYYYYY");
                     expect(LEFT_BRACE, ast, "`[`"); advance();
                     expect(RIGHT_BRACE, ast, "`]`"); advance();
                     parseVectorArray(ast);
                 } else {
-                    helper("array expression");
                     parseArrayExpression(ast);
                 }
             }
@@ -1598,12 +1552,10 @@ class Parser {
 
             ast.encapsulate(New_E);
             if(current.getType() != LEFT_BRACE) {
-                helper("FINISHED new expr");
                 if(newClass && current.getType() == DOT)
                     parseDotNotationCallExpression(ast);
                 return true;
-            }else
-                helper("continuing new expr");
+            }
         }
 
         if(current.getToken() == "sizeof")
@@ -1628,10 +1580,8 @@ class Parser {
         retain(ast);
         pushBack();
 
-        helper("trying .class utype");
         if(parseUtype(ast))
         {
-            helper("parsed utype for .class");
             if(current.getType() == DOT)
             {
                 expect(DOT, ast.getChild(0), "`.`");
@@ -1647,7 +1597,6 @@ class Parser {
             } else
                 rollback(ast);
         } else {
-            helper("failed .class utype");
             rollback(ast);
         }
         errors.pass();
@@ -1679,9 +1628,7 @@ class Parser {
         pushBack();
 
         errors.enableProtectedMode();
-            helper("trying dotnot call");
         if(parseDotNotationCallExpression(ast)) {
-            helper("passed dottnot");
             dump();
             errors.fail();
             ast.encapsulate(Dot_Not_E);
@@ -1689,9 +1636,7 @@ class Parser {
                 current.getType() == _INC
                 || current.getType() == _DEC))
                 return true;
-            helper("passed dottnot");
         } else {
-            helper("failed dottnot");
             errors.pass();
             rollback(ast);
         }
@@ -1700,14 +1645,12 @@ class Parser {
         {
             retain(ast);
             errors.enableProtectedMode();
-            helper("---------Left paren for the cast!!");
             ast.add(current);
 
             if(!parseUtype(ast))
             {
                 errors.pass();
                 rollback(ast);
-                helper("cast expr failed");
             } else {
                 if(current.getType() == RIGHT_PAREN)
                 {
@@ -1735,17 +1678,13 @@ class Parser {
         {
             ast.add(current);
             advance();
-            helper("---------Left paren-------------!!");
-            helper("left PARENNNNNNN");
 
             if(!parseExpression(ast))
                 errors.createNewError(GENERIC, current, "expected expression");
-            helper("left after");
 
             expect(RIGHT_PAREN, ast, "`)`"); advance();
 
             if(!isExprSymbol(current.getToken())) {
-                helper("check for dot to dot notation call");
                 if(current.getType() == DOT) {
                     parseDotNotationCallExpression(ast);
                 }
@@ -1816,10 +1755,6 @@ class Parser {
         return true;
     }
 
-    def helper(string msg) {
-        System.println(msg + " current " + current + " +1 " + peek(1));
-    }
-
     private def parseDotNotationCallExpression(Ast ast) : var
     {
         ast = getAst(ast, Dotnotation_Call_Expr);
@@ -1829,13 +1764,10 @@ class Parser {
             advance();
             ast.add(current);
         }
-        helper("parsing utype naked");
+
         if(parseUtypeNaked(ast)) {
-        helper("AFTER utype naked");
             if(current.getType() == LEFT_PAREN) {
-        helper("left paren");
                 parseValueList(ast);
-        helper("parsed value list");
 
                 ast.encapsulate(Dot_Fn_E);
                 /* func()++ or func()--
@@ -1854,13 +1786,11 @@ class Parser {
                     if(!parseExpression(ast))
                         errors.createNewError(GENERIC, current, "expected expression");
                     expect(RIGHT_BRACE, ast, "`]`"); advance();
-                    helper("array expr parsed");
 
                     if(current.getType() == DOT)
                         parseDotNotationCallExpression(ast);
                 }
                 else {
-                    System.println("whats nxt " + peek(1) + ' ' + current);
                     if(current.getType() == DOT)
                         parseDotNotationCallExpression(ast);
                 }
@@ -1976,7 +1906,6 @@ class Parser {
         ast = getAst(ast, Vector_Array);
         expect(LEFT_CURLY, ast, "`{`"); advance();
 
-        helper("parse vector arry");
         if(current.getType() != RIGHT_CURLY) {
             if(!parseExpression(ast))
                 errors.createNewError(GENERIC, current, "expected expression");
@@ -1985,14 +1914,12 @@ class Parser {
             if(current.getType() == COMMA)
             {
                 expect(COMMA, ast, "`,`"); advance();
-                helper("parsing expression in vec array");
                 if(!parseExpression(ast))
                     errors.createNewError(GENERIC, current, "expected expression");
                 goto _pExpr;
             }
         }
 
-        helper("ending vector arry");
         expect(RIGHT_CURLY, ast, "`}`"); advance();
     }
 
@@ -2052,10 +1979,8 @@ class Parser {
                 return;
             }
         }else {
-            helper("inside moduleName1");
             expectIdentifier(ast);
             generic = parseTemplateDecl(ast);
-            helper("inside moduleName");
         }
 
          if(peek(1).getType() == DOT) {
@@ -2105,23 +2030,16 @@ class Parser {
             if(parseUtype(ast) && (current.getType() == GREATERTHAN || current.getType() == COMMA))
             {
                 rollbackLast(ast);
-                helper("parseUtypeList(ast);");
 
                 errors.pass();
                 parseUtypeList(ast);
-                helper("type params");
-                if(peek(1).getType() == GREATERTHAN) {
-                    advance();
-                    expect(GREATERTHAN, ast, "`>`");
-                    ast.popToken();
-                } else
-                    expect(GREATERTHAN, ast, "`>`");
+
+                expect(GREATERTHAN, ast, "`>`");
                 advance();
                 return true;
             }
 
             rollbackLast(ast);
-            helper("template parse failed");
             errors.pass();
         }
 
@@ -2135,23 +2053,20 @@ class Parser {
 
         if(peek(1).getType() != RIGHT_PAREN)
         {
-            helper("parse utype arg 1");
             if(isDecl(peek(1), PROTOTYPE)) {
                 advance();
                 parseProtoTypeDecl(ast, false);
             }
             else
                 parseUtypeArgOpt(ast);
-            helper("parse utype arg 2");
+
             _puTypeArgOpt:
             if(current.getType() == COMMA)
             {
                 expect(COMMA, ast, "`,`");
 
-                helper("parse utypearg opt");
                 if(isDecl(peek(1), PROTOTYPE)) {
                     advance();
-                    helper("parsing protype");
                     parseProtoTypeDecl(ast, false);
                 }
                 else
@@ -2203,7 +2118,6 @@ class Parser {
 
         if(parseUtype(ast))
         {
-            helper("parsing arg");
             expectIdentifier(ast); advance();
             return true;
         }else
@@ -2247,7 +2161,6 @@ class Parser {
 
         if(parseTypeIdentifier(ast))
         {
-            helper("utype parsed");
             if(current.getType() == LEFT_BRACE)
             {
                 ast.add(current); advance();
@@ -2276,10 +2189,8 @@ class Parser {
 
         errors.enableProtectedMode();
         if(!parseReferencePointer(ast)) {
-            helper("ref ptr failed");
             errors.pass();
         } else {
-            helper("ref ptr passed");
             errors.fail();
             return true;
         }
@@ -2291,7 +2202,6 @@ class Parser {
         ast = getAst(ast, Reference_Pointer);
 
         advance();
-        helper("try ref ptr");
         if(current.getId() == TokenId.IDENTIFIER && isKeyword(current.getToken())) {
             if(current.getToken() != "operator") {
                 return false;
@@ -2303,9 +2213,7 @@ class Parser {
         }
 
         bool generic = false;
-        helper("before moduleName");
         parseModuleName(ast, generic, true);
-        helper("after moduleName");
 
         if(current.getType() == HASH) {
             if(generic)
@@ -2442,25 +2350,68 @@ class Parser {
         return false;
     }
 
+    private object[] keywords = new object[]
+    {
+        "mod",
+        "true",
+        "false",
+        "class",
+        "static",
+        "protected",
+        "pro",
+        "private",
+        "def",
+        "import",
+        "return",
+        "self",
+        "const",
+        "public",
+        "new",
+        "null",
+        "operator",
+        "base",
+        "if",
+        "while",
+        "do",
+        "try",
+        "catch",
+        "finally",
+        "throw",
+        "continue",
+        "goto",
+        "break",
+        "else",
+        "object",
+        "asm",
+        "for",
+        "foreach",
+        "var",
+        "sizeof",
+        "_int8",
+        "_int16",
+        "_int32",
+        "_int64",
+        "_uint8",
+        "_uint16",
+        "_uint32",
+        "_uint64",
+        "delegate",
+        "interface",
+        "lock",
+        "enum",
+        "switch",
+        "default",
+        "volatile",
+        "fn"
+    };
+
     private def isKeyword(string key) : var {
-        return key == "mod" || key == "true"
-               || key == "false" || key == "class"
-               || key == "static" || key == "protected"
-               || key == "private" || key == "def"
-               || key == "import" || key == "return"
-               || key == "self" || key == "const"
-               || key == "public" || key == "new"
-               || key == "null" || key == "operator"
-               || key == "base" || key == "if" || key == "while" || key == "do"
-               || key == "try" || key == "catch"
-               || key == "finally" || key == "throw" || key == "continue"
-               || key == "goto" || key == "break" || key == "else"
-               || key == "object" || key == "asm" || key == "for" || key == "foreach"
-               || key == "var" || key == "sizeof"|| key == "_int8" || key == "_int16"
-               || key == "_int32" || key == "_int64" || key == "_uint8"
-               || key == "_uint16"|| key == "_uint32" || key == "_uint64"
-               || key == "delegate" || key == "interface" || key == "lock" || key == "enum"
-               || key == "switch" || key == "default" || key == "volatile" || key == "fn";
+        foreach(object keyword : keywords) {
+            if(key == (var[])keyword)
+                return true;
+        }
+
+        return false;
     }
 
     private def peek(var forward) : TokenEntity {
