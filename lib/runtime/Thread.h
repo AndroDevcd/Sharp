@@ -129,11 +129,10 @@ public:
     Object currentThread, args;
     Random* rand;
 
-    int64_t fp;
     Method *current;
     Frame *callStack;
     unsigned long calls;
-    StackElement* dataStack, *sp, *stackTail;
+    StackElement* dataStack, *sp, *FP;
     unsigned long stack_lmt;
     Cache cache, pc;
     Throwable throwable;

@@ -1,6 +1,7 @@
 mod app;
 
 import std;
+import std.io;
 
 /**                          
 * Created by bknun on 7/5/2018            
@@ -21,6 +22,21 @@ class Parser {
             lines = tokenizer.getLines();
 
             parse();
+
+            string sb = "";
+            for(var i = 0; i < tree.size()-1; i++) {
+                Ast child = tree.get(i);
+                if(child != null)
+                    child.toString(sb);
+                else
+                    sb += "null\n";
+            }
+
+            File out = new File("tree.txt");
+            out.create();
+            IOStream ostream = new IOStream(out, IOStream.WRITE);
+            ostream.write(sb);
+            ostream.close();
         }
     }
 
@@ -155,6 +171,10 @@ class Parser {
         while(!isEnd() && brackets > 0) {
             if(quit()) break;
 
+//            string sb = "";
+//            ast.toString(sb);
+//            System.println("" + sb);
+
             advance();
             if(isAccessType(current))
                 parseAccessTypes();
@@ -246,7 +266,7 @@ class Parser {
                     }
                 }
 
-                rollback(ast);
+                rollbackLast(ast);
                 errors.createNewError(GENERIC, current, "expected method, class, or variable declaration");
                 parseAll(ast);
             }
@@ -404,7 +424,7 @@ class Parser {
                     }
                 }
 
-                rollback(ast);
+                rollbackLast(ast);
                 errors.createNewError(GENERIC, current, "expected delegate prototype declaration");
                 parseAll(ast);
             }
@@ -955,10 +975,8 @@ class Parser {
         if(current.getToken() == "case") {
             advance();
 
-            System.println("case statement BEFORE " + current + " +1 " + peek(1));
             if(!parseExpression(ast))
                 errors.createNewError(GENERIC, current, "expected expression");
-            System.println("case statement " + current + " +1 " + peek(1));
         } else
             advance();
 
@@ -1527,7 +1545,7 @@ class Parser {
             ast.encapsulate(Literal_E);
             return true;
         }
-        rollback(ast);
+        rollbackLast(ast);
         errors.pass();
 
         if(current.getToken() == "new")
@@ -1595,9 +1613,9 @@ class Parser {
                 ast.encapsulate(Utype_Class_E);
                 return true;
             } else
-                rollback(ast);
+                rollbackLast(ast);
         } else {
-            rollback(ast);
+            rollbackLast(ast);
         }
         errors.pass();
 
@@ -2350,7 +2368,7 @@ class Parser {
         return false;
     }
 
-    private object[] keywords = new object[]
+    private static object[] keywords = new object[]
     {
         "mod",
         "true",

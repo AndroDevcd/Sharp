@@ -121,7 +121,7 @@ struct StackElement;
 struct Frame {
 public:
     Frame(Method* last, Cache pc, StackElement* sp,
-          uint64_t fp)
+          StackElement* fp)
     {
         this->last=last;
         this->pc=pc;
@@ -130,7 +130,7 @@ public:
     }
 
     void init(Method* last, Cache pc, StackElement* sp,
-            uint64_t fp)
+              StackElement* fp)
     {
         this->last=last;
         this->pc=pc;
@@ -141,7 +141,7 @@ public:
     Method *last;                   /* Last method */
     Cache pc;
     StackElement* sp;
-    uint64_t fp;
+    StackElement* fp;
 };
 
 #pragma optimize( "", off )

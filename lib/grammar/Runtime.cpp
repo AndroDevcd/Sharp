@@ -3385,6 +3385,27 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
             out.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, cmt));
             out.inCmtRegister = true;
             return;
+        } else if(operand == "==" && (right.trueType() == OBJECT
+                                       || (right.utype.isField && right.utype.field.isObjectInMemory()))) {
+
+            pushExpressionToStack(right, out);
+            pushExpressionToStack(left, out);
+
+            out.code.push_i64(SET_Di(i64, op_ITEST, ebx));
+            out.code.push_i64(SET_Ci(i64, op_MOVR, cmt,0, ebx));
+            out.inCmtRegister = true;
+            return;
+        } else if(operand == "!=" && (right.trueType() == OBJECT
+                                       || (right.utype.isField && right.utype.field.isObjectInMemory()))) {
+
+            pushExpressionToStack(right, out);
+            pushExpressionToStack(left, out);
+
+            out.code.push_i64(SET_Di(i64, op_ITEST, ebx));
+            out.code.push_i64(SET_Ci(i64, op_NOT, ebx,0, ebx));
+            out.code.push_i64(SET_Ci(i64, op_MOVR, cmt,0, ebx));
+            out.inCmtRegister = true;
+            return;
         } else if(right.type == expression_null) {
             errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `" + operand.getToken()
                                                               + "` cannot be applied to expression of type `" + left.typeToString() + "` and `" + right.typeToString() + "`");

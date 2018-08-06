@@ -23,10 +23,14 @@ class Ast {
     }
 
     public def add(Ast ast) {
+        if(ast == null)
+            throw new Exception("null Ast");
         children.add(ast);
     }
 
     public def add(TokenEntity token) {
+        if(token == null)
+            throw new Exception("null token");
         tokens.add(token);
     }
 
@@ -43,8 +47,8 @@ class Ast {
     }
 
     public def hasToken(TokenType type) : var {
-        TokenEntity[] arry = tokens.toArray();
-        foreach(TokenEntity token : arry) {
+        for(var i = 0; i < tokens.size()-2; i++) {
+            TokenEntity token = tokens.get(i);
             if(token.getType() == type)
                 return true;
         }
@@ -58,9 +62,9 @@ class Ast {
     }
 
     public def hasChild(AstType type) : var {
-        Ast[] arry = children.toArray();
-        foreach(Ast ast : arry) {
-            if(ast.type == type)
+        for(var i = 0; i < children.size()-2; i++) {
+            Ast child = children.get(i);
+            if(child.type == type)
                 return true;
         }
 
@@ -72,9 +76,10 @@ class Ast {
     }
 
     public def getChild(AstType type) : Ast {
-        foreach(Ast ast : children.data()) {
-            if(ast.type == type)
-                return ast;
+        for(var i = 0; i < children.size()-2; i++) {
+            Ast child = children.get(i);
+            if(child.type == type)
+                return child;
         }
         return null;
     }
@@ -91,10 +96,10 @@ class Ast {
         Ast encap = new Ast(self, type, line, col);
         add(encap);
 
-        for(var i = 0; i < children.size()-1; i++) {
-            Ast tmp = children.get(i);
-            tmp.parent = encap;
-            encap.add(tmp);
+        for(var i = 0; i < children.size()-2; i++) {
+            Ast child = children.get(i);
+            child.parent = encap;
+            encap.add(child);
         }
 
         for(var i = 0; i < tokens.size(); i++) {
@@ -107,6 +112,45 @@ class Ast {
         return encap;
     }
 
+    private def addTabs(string sb) {
+        for(var i = 0; i < recurs; i++)
+            sb+='\t';
+    }
+
+    static var recurs = 0;
+    public def toString(string sb) {
+        addTabs(sb);
+        sb += "Ast: " + type + " ;" + line + "," + col + "\n";
+
+        addTabs(sb);
+        sb += "tokens:\n";
+        for(var i = 0; i < tokens.size()-1; i++) {
+            TokenEntity token = tokens.get(i);
+            addTabs(sb);
+            if(token != null)
+                sb += "" + token + "\n";
+            else
+                sb += "null\n";
+        }
+
+        addTabs(sb);
+        sb += "children:\n";
+
+        recurs++;
+        for(var i = 0; i < children.size()-1; i++) {
+            Ast child = children.get(i);
+            addTabs(sb);
+
+            if(child != null)
+                child.toString(sb);
+            else
+                sb += "null\n";
+        }
+
+        sb += '\n';
+        recurs--;
+    }
+
     public def copy(Ast ast) {
         children.clear();
         tokens.clear();
@@ -115,14 +159,18 @@ class Ast {
         col = ast.col;
         type = ast.type;
 
-        object[] arry = ast.children.toArray();
-        foreach(object child : arry) {
-            children.add((Ast)child);
+        for(var i = 0; i < children.size()-1; i++) {
+            Ast child = children.get(i);
+            if(child == null)
+                throw new Exception("null Ast");
+            add(child);
         }
 
-        arry = ast.tokens.toArray();
-        foreach(object token : arry) {
-            tokens.add((TokenEntity)token);
+        for(var i = 0; i < tokens.size()-1; i++) {
+            TokenEntity token = tokens.get(i);
+            if(token == null)
+                throw new Exception("null Ast");
+            add(token);
         }
     }
 

@@ -57,6 +57,7 @@
 #define _brh_NOINCREMENT SAFTEY_CHECK irCount++; if(irCount == 0) overflow++; goto *opcodeStart;
 #endif
 #define _brh  pc++; _brh_NOINCREMENT
+#define _brh_inc(x)  pc+=x; _brh_NOINCREMENT
 
 #define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
 #define CHECK_NULL2(x) if(o2==NULL|o2->object == NULL) { throw Exception(Environment::NullptrException, ""); } else { x }

@@ -11,7 +11,7 @@ if (POSIX)
 
     set(CMAKE_CXX_FLAGS_DEBUG  "-Werror -pthread -lstdc++ ${CMAKE_CXX_FLAGS_DEBUG}")
     set(CMAKE_CXX_FLAGS_MINSIZEREL  "-Werror -lstdc++ -s -O3 -Ofast ${CMAKE_CXX_FLAGS_MINSIZEREL}")
-    set(CMAKE_CXX_FLAGS_RELEASE  "-Werror -pthread -lstdc++ -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
+    set(CMAKE_CXX_FLAGS_RELEASE  "-Werror -pthread -lgccjit -lstdc++ -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
 else()
 
     set(BUILD_SHARED_LIBS OFF)
@@ -19,10 +19,10 @@ else()
 
     set(CMAKE_CXX_FLAGS_DEBUG  "-Werror -g -lstdc++ ${CMAKE_CXX_FLAGS_DEBUG}")
     set(CMAKE_CXX_FLAGS_MINSIZEREL  "-Werror -lstdc++ -s -O3 -Ofast ${CMAKE_CXX_FLAGS_MINSIZEREL}")
-    set(CMAKE_CXX_FLAGS_RELEASE   "-Werror -lstdc++ -g -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
+    set(CMAKE_CXX_FLAGS_RELEASE   "-I../gcc/gcc -I../gcc/gcc/jit -Werror -lstdc++  -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
 endif ()
 
-set(SHARPC "build")
+#set(SHARPC "build")
 
 # compiler
 if (SHARPC)

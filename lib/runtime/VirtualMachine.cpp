@@ -759,7 +759,7 @@ int VirtualMachine::returnMethod() {
 
     thread_self->pc = frame->pc;
     thread_self->sp = frame->sp;
-    thread_self->fp = frame->fp;
+    thread_self->FP = frame->fp;
     thread_self->calls--;
     return 0;
 }
@@ -827,7 +827,7 @@ bool VirtualMachine::TryThrow(Method *method, Object *exceptionObject) {
 
         if(tbl != NULL)
         {
-            Object* object = &thread_self->dataStack[thread_self->fp+tbl->local].object;
+            Object* object = &(thread_self->FP+tbl->local)->object;
             *object = exceptionObject;
             thread_self->pc = thread_self->cache+tbl->handler_pc;
 
@@ -899,7 +899,7 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
     ss << ", in "; ss << frame.last->fullName.str() << "() [0x" << std::hex
                       << frame.last->address << "] $0x" << (frame.pc-frame.last->bytecode)  << std::dec;
 
-    ss << " fp; " << frame.fp << " sp: " << frame.sp-thread_self->dataStack;
+    ss << " fp; " << frame.fp-thread_self->dataStack << " sp: " << frame.sp-thread_self->dataStack;
 
     if(line != -1 && metaData.sourceFiles.size() > 0) {
         ss << getPrettyErrorLine(line, frame.last->sourceFile);
@@ -929,7 +929,7 @@ void VirtualMachine::fillStackTrace(native_string &str) {
         }
     }
 
-    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp);
+    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->FP);
     fillMethodCall(frame, ss);
 
     str = ss.str();

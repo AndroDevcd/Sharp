@@ -76,15 +76,15 @@ public:
         thread_self->callStack[0].init(NULL, 0,0,0); \
     } else { \
         thread_self->callStack[thread_self->calls+1] \
-            .init(thread_self->current, thread_self->pc, thread_self->sp-method->stackEqulizer, thread_self->fp); \
+            .init(thread_self->current, thread_self->pc, thread_self->sp-method->stackEqulizer, thread_self->FP); \
     }\
     thread_self->calls++; \
      \
     thread_self->current = method; \
     thread_self->cache = method->bytecode; \
-    thread_self->fp = thread_self->calls==1 ? thread_self->fp : \
-                      ((method->returnVal) ? (thread_self->sp-thread_self->dataStack)-method->stackEqulizer : \
-                ((thread_self->sp-thread_self->dataStack)-method->stackEqulizer+1)); \
+    thread_self->FP = thread_self->calls==1 ? thread_self->FP : \
+                      ((method->returnVal) ? thread_self->sp-method->stackEqulizer : \
+                (thread_self->sp-method->stackEqulizer+1)); \
     thread_self->sp += (method->stackSize - method->paramSize); \
     THREAD_STACK_CHECK(thread_self); \
     thread_self->pc = thread_self->cache; \

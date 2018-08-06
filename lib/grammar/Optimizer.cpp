@@ -234,44 +234,48 @@ void Optimizer::optimize(Method *method) {
     if(method->code.size()==0)
         return;
 
-    optimizeRedundantGoto();
-    optimizeLocalPops();
-    optimizeRedundantMovICall();
-    //optimizeFrag1();
-    optimizeRedundantSelfInitilization();
-    optimizeLocalPush();
-    optimizeRedundantMovICall2();
-    optimizeObjectPush();
-    optimizeRedundantObjectTest();
-    optimizeLoadLocal();
-    optimizeLoadLocal_2();
-    optimizeValueLoad();
-    optimizeSizeof();
-    optimizeBmrHendles();
-    optimizeBmrHendles2();
-    optimizeRedundantIncrement();
-    optimizeStackInc();
-    optimizeUnusedEbxAssign();
-    optimizeRedundantReturn();
-    optimizeRedundantMovr();
-    optimizeLoadLocal_3();
-    optimizeSmovr();
-    optimizeCheckLen();
-    optimizeRedundantLoadStore();
+    try {
+        optimizeRedundantGoto();
+        optimizeLocalPops();
+        optimizeRedundantMovICall();
+        //optimizeFrag1();
+        optimizeRedundantSelfInitilization();
+        optimizeLocalPush();
+        optimizeRedundantMovICall2();
+        optimizeObjectPush();
+        optimizeRedundantObjectTest();
+        optimizeLoadLocal();
+        optimizeLoadLocal_2();
+        optimizeValueLoad();
+        optimizeSizeof();
+        optimizeBmrHendles();
+        optimizeBmrHendles2();
+        optimizeRedundantIncrement();
+        optimizeStackInc();
+        optimizeUnusedEbxAssign();
+        optimizeRedundantReturn();
+        optimizeRedundantMovr();
+        optimizeLoadLocal_3();
+        optimizeSmovr();
+        optimizeCheckLen();
+        optimizeRedundantLoadStore();
 
-    optimizeRegister(ebx); /* most commonly used register in the language */
-    optimizeRegister(egx);
-    optimizeRegister(adx);
-    /**
-     * must be last or the entire program will be rendered unstable
-     * and will most likely fatally crash with (SEGV) signal
-     */
-    optimizeJumpBranches();
-    optimizeLoadLocal_4();
-    optimizeReturnVal();
-    optimizeNot();
+        optimizeRegister(ebx); /* most commonly used register in the language */
+        optimizeRegister(egx);
+        optimizeRegister(adx);
+        /**
+         * must be last or the entire program will be rendered unstable
+         * and will most likely fatally crash with (SEGV) signal
+         */
+        optimizeJumpBranches();
+        optimizeLoadLocal_4();
+        optimizeReturnVal();
+        optimizeNot();
 
-    //optimizeNops(); this is the devil! i don't ever think this will work smh
+        //optimizeNops(); this is the devil! i don't ever think this will work smh
+    }catch(std::exception &e) {
+        // the c++ compiler has many bugs we just ignore them
+    }
 }
 
 /**

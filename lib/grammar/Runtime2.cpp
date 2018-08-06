@@ -2694,7 +2694,8 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 
                 if(expression.trueType()== VAR) {
                     varToObject(expression, out);
-                }
+                } else
+                    out.type = expression_objectclass;
                 return;
             }
         }
@@ -2985,7 +2986,7 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
                 return expression;
                 break;
             case expression_objectclass:
-                errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "use of `" + entity.getToken() + "` operator on type `dynamic_object` without a cast. Try ((SomeClass)dynamic_class)++");
+                errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "use of `" + entity.getToken() + "` operator on type `object` without a cast. Try ((SomeClass)dynamic_class)++");
                 break;
             case expression_null:
                 errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "value `null` cannot be used as var");
@@ -3082,7 +3083,7 @@ Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
             errors->createNewError(UNEXPECTED_SYMBOL, pAst->line, pAst->col, " `" + expression.utype.typeToString() + "`");
             break;
         case expression_objectclass:
-            errors->createNewError(GENERIC, pAst->line, pAst->col, "unary operator '!' cannot be applied to dynamic_object, did you forget to add a cast?  i.e !((SomeClass)dynamic_class)");
+            errors->createNewError(GENERIC, pAst->line, pAst->col, "unary operator '!' cannot be applied to object, did you forget to add a cast?  i.e !((SomeClass)obj)");
             break;
         case expression_field:
             if(expression.utype.field.isNative()) {

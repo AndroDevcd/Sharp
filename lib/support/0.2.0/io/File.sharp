@@ -187,7 +187,7 @@ public class File {
      * filesystem activities that might affect the file.
      *
      */
-    public def createNewFile() {
+    public def create() {
         fs.createFile(path);
     }
 
