@@ -132,7 +132,7 @@ public:
     Method *current;
     Frame *callStack;
     unsigned long calls;
-    StackElement* dataStack, *sp, *FP;
+    StackElement* dataStack, *sp, *fp;
     unsigned long stack_lmt;
     Cache cache, pc;
     Throwable throwable;

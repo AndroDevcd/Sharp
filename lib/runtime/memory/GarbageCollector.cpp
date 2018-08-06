@@ -16,6 +16,7 @@
 #include <algorithm>
 
 long long hbytes = 0, freedBytes = 0, freedYoung = 0, freedAdult = 0, freedOld = 0;
+long long transferredYoung = 0, transferredAdult = 0, transferredOld = 0;
 GarbageCollector *GarbageCollector::self = nullptr;
 
 const int baselineMax = 10;
@@ -150,7 +151,7 @@ void GarbageCollector::shutdown() {
         cout << "Total managed bytes left " << self->managedBytes << endl;
         cout << "Objects left over young: " << self->youngObjects << " adult: " << self->adultObjects
                                           << " old: " << self->oldObjects << endl;
-        cout << "heap size: " << self->heapSize << endl;
+        //cout << "heap size: " << self->heapSize << endl;
         cout << std::flush << endl;
 #endif
         // im no longer freeing memory due to multiple memory references on objects when clearing
@@ -206,10 +207,15 @@ void GarbageCollector::collect(CollectionPolicy policy) {
     youngObjects -= freedYoung;
     adultObjects -= freedAdult;
     oldObjects -= freedOld;
+    youngObjects += transferredYoung;
+    adultObjects += transferredAdult;
+    oldObjects += transferredOld;
     freedBytes = 0;
     freedYoung = 0;
     freedAdult = 0;
-    freedOld = 0;
+    transferredYoung = 0;
+    transferredAdult = 0;
+    transferredOld = 0;
     mutex.unlock();
 
     /**
@@ -255,13 +261,13 @@ void GarbageCollector::collectGarbage() {
             } else if(MARKED(object->generation) && object->refCount > 0){
                 switch(GENERATION(object->generation)) {
                     case gc_young:
-                        youngObjects--;
-                        adultObjects++;
+                        freedYoung--;
+                        transferredAdult++;
                         object->generation=gc_adult;
                         break;
                     case gc_adult:
-                        adultObjects--;
-                        adultObjects++;
+                        freedAdult--;
+                        transferredOld++;
                         object->generation=gc_old;
                         break;
                     case gc_old:

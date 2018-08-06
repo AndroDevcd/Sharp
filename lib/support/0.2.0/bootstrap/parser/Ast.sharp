@@ -293,6 +293,7 @@ enum AstType {
     Ques_E,
     Assign_E,
     Sizeof_E,
+    Free_E,
 
     None
 };

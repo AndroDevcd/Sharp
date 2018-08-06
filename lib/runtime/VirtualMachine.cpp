@@ -759,7 +759,7 @@ int VirtualMachine::returnMethod() {
 
     thread_self->pc = frame->pc;
     thread_self->sp = frame->sp;
-    thread_self->FP = frame->fp;
+    thread_self->fp = frame->fp;
     thread_self->calls--;
     return 0;
 }
@@ -827,7 +827,7 @@ bool VirtualMachine::TryThrow(Method *method, Object *exceptionObject) {
 
         if(tbl != NULL)
         {
-            Object* object = &(thread_self->FP+tbl->local)->object;
+            Object* object = &(thread_self->fp+tbl->local)->object;
             *object = exceptionObject;
             thread_self->pc = thread_self->cache+tbl->handler_pc;
 
@@ -929,7 +929,7 @@ void VirtualMachine::fillStackTrace(native_string &str) {
         }
     }
 
-    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->FP);
+    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp);
     fillMethodCall(frame, ss);
 
     str = ss.str();

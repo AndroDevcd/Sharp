@@ -171,10 +171,6 @@ class Parser {
         while(!isEnd() && brackets > 0) {
             if(quit()) break;
 
-//            string sb = "";
-//            ast.toString(sb);
-//            System.println("" + sb);
-
             advance();
             if(isAccessType(current))
                 parseAccessTypes();
@@ -898,8 +894,9 @@ class Parser {
 
         expectToken(ast, "for", "`for`"); advance();
 
-        expect(LEFT_PAREN, ast, "`(`");
+        expect(LEFT_PAREN, ast, "`(`"); advance();
         if(current.getType() != SEMICOLON) {
+            pushBack();
             parseUtypeArg(ast);
             parseValueAssignment(ast);
         }

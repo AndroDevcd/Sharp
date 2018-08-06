@@ -2,10 +2,13 @@
 This file contains all the various changes made to sharp. 
 For each stable build of sharp pushed to master there will be a corresponding version.
 
-##### Version 0.2.372 (July 19, 2018)
+##### Version 0.2.373 (August 6, 2018)
+
+##### Version 0.2.372 (August 6, 2018)
 * Added dynamic threshold updating in GC
-* More bug fixes and improvments
-* Added sharp speed profiler code
+* More bug fixes and improvements
+* Added sharp speed profiler
+* Began support for gui processing
 
 ##### Version 0.2.343 (July 13, 2018)
 

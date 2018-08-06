@@ -191,7 +191,7 @@ private:
     /* collect when 40% has been dropped */
     long long adultObjects;
     /* collect when 20% has been dropped */
-    unsigned long oldObjects;
+    long long oldObjects;
 #ifdef SHARP_PROF_
     unsigned long x;
 #endif

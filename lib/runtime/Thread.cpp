@@ -99,7 +99,7 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     thread->state = THREAD_CREATED;
     thread->exitVal = 0;
     thread->stack_lmt = stack_size;
-    thread->FP=0;
+    thread->fp=0;
     thread->sp=NULL;
 
     pushThread(thread);
@@ -138,7 +138,7 @@ void Thread::Create(string name) {
     this->stack_lmt = STACK_SIZE;
     this->callStack = NULL;
     this->calls=0;
-    this->FP=dataStack;
+    this->fp=dataStack;
     this->sp=dataStack-1;
 
     for(unsigned long i = 0; i < STACK_SIZE; i++) {
@@ -178,7 +178,7 @@ void Thread::CreateDaemon(string name) {
     this->state = THREAD_CREATED;
     this->exitVal = 0;
     this->stack_lmt=0;
-    this->FP=0;
+    this->fp=0;
     this->sp=NULL;
     this->main=NULL;
 
@@ -648,7 +648,7 @@ void printRegs() {
     cout << "bmr = " << registers[bmr] << endl;
     cout << "egx = " << registers[egx] << endl;
     cout << "sp -> " << (thread_self->sp-thread_self->dataStack) << endl;
-    cout << "fp -> " << (thread_self->FP-thread_self->dataStack) << endl;
+    cout << "fp -> " << (thread_self->fp-thread_self->dataStack) << endl;
     cout << "pc -> " << PC(thread_self) << endl;
     if(thread_self->current != NULL) {
         cout << "current -> " << thread_self->current->name.str() << endl;
@@ -817,7 +817,7 @@ void Thread::exec() {
 
                 pc = frame->pc;
                 sp = frame->sp;
-                FP = frame->fp;
+                fp = frame->fp;
 
 #ifdef SHARP_PROF_
             tprof.profile();
@@ -944,14 +944,14 @@ void Thread::exec() {
                 registers[cmt]=registers[GET_Ca(*pc)]>=registers[GET_Cb(*pc)];
                 _brh
             MOVL:
-                o2 = &(FP+GET_Da(*pc))->object;
+                o2 = &(fp+GET_Da(*pc))->object;
                 _brh
             POPL:
-            (FP+GET_Da(*pc))->object
+            (fp+GET_Da(*pc))->object
                         = (sp--)->object.object;
                 _brh
             IPOPL:
-                (FP+GET_Da(*pc))->var
+                (fp+GET_Da(*pc))->var
                         = (sp--)->var;
                 _brh
             MOVSL:
@@ -1107,7 +1107,7 @@ void Thread::exec() {
                 CHECK_NULL(registers[cmt]=o2->object==NULL;)
                 _brh
             RETURNOBJ:
-                FP->object=o2;
+                fp->object=o2;
                 _brh
             NEWCLASSARRAY:
                 CHECK_NULL(
@@ -1119,38 +1119,38 @@ void Thread::exec() {
                 GarbageCollector::self->createStringArray(&(++sp)->object, env->getStringById(GET_Da(*pc)));
                 STACK_CHECK _brh
             ADDL:
-                (FP+GET_Cb(*pc))->var+=registers[GET_Ca(*pc)];
+                (fp+GET_Cb(*pc))->var+=registers[GET_Ca(*pc)];
                 _brh
             SUBL:
-                (FP+GET_Cb(*pc))->var-=registers[GET_Ca(*pc)];
+                (fp+GET_Cb(*pc))->var-=registers[GET_Ca(*pc)];
                 _brh
             MULL:
-                (FP+GET_Cb(*pc))->var*=registers[GET_Ca(*pc)];
+                (fp+GET_Cb(*pc))->var*=registers[GET_Ca(*pc)];
                 _brh
             DIVL:
-                (FP+GET_Cb(*pc))->var/=registers[GET_Ca(*pc)];
+                (fp+GET_Cb(*pc))->var/=registers[GET_Ca(*pc)];
                 _brh
             MODL:
-                (FP+GET_Cb(*pc))->modul(registers[GET_Ca(*pc)]);
+                (fp+GET_Cb(*pc))->modul(registers[GET_Ca(*pc)]);
                 _brh
             IADDL:
-                (FP+GET_Cb(*pc))->var+=GET_Ca(*pc);
+                (fp+GET_Cb(*pc))->var+=GET_Ca(*pc);
                 _brh
             ISUBL:
-                (FP+GET_Cb(*pc))->var-=GET_Ca(*pc);
+                (fp+GET_Cb(*pc))->var-=GET_Ca(*pc);
                 _brh
             IMULL:
-                (FP+GET_Cb(*pc))->var*=GET_Ca(*pc);
+                (fp+GET_Cb(*pc))->var*=GET_Ca(*pc);
                 _brh
             IDIVL:
-                (FP+GET_Cb(*pc))->var/=GET_Ca(*pc);
+                (fp+GET_Cb(*pc))->var/=GET_Ca(*pc);
                 _brh
             IMODL:
-                val = (FP+GET_Cb(*pc))->var;
-                (FP+GET_Cb(*pc))->var=val%GET_Ca(*pc);
+                val = (fp+GET_Cb(*pc))->var;
+                (fp+GET_Cb(*pc))->var=val%GET_Ca(*pc);
                 _brh
             LOADL:
-                registers[GET_Ca(*pc)]=(FP+GET_Cb(*pc))->var;
+                registers[GET_Ca(*pc)]=(fp+GET_Cb(*pc))->var;
                 _brh
             IALOAD_2:
                 CHECK_INULLOBJ(
@@ -1166,16 +1166,16 @@ void Thread::exec() {
                 (sp+GET_Cb(*pc))->var=registers[GET_Ca(*pc)];
                 _brh
             SMOVR_2:
-                (FP+GET_Cb(*pc))->var=registers[GET_Ca(*pc)];
+                (fp+GET_Cb(*pc))->var=registers[GET_Ca(*pc)];
                 _brh
             ANDL:
-                (FP+GET_Cb(*pc))->andl(registers[GET_Ca(*pc)]);
+                (fp+GET_Cb(*pc))->andl(registers[GET_Ca(*pc)]);
                 _brh
             ORL:
-                (FP+GET_Cb(*pc))->orl(registers[GET_Ca(*pc)]);
+                (fp+GET_Cb(*pc))->orl(registers[GET_Ca(*pc)]);
                 _brh
             NOTL:
-                (FP+GET_Cb(*pc))->notl(registers[GET_Ca(*pc)]);
+                (fp+GET_Cb(*pc))->notl(registers[GET_Ca(*pc)]);
                 _brh
             RMOV:
                 CHECK_INULLOBJ(
@@ -1189,22 +1189,22 @@ void Thread::exec() {
                 registers[GET_Ca(*pc)]=PC(this)+GET_Cb(*pc);
                 _brh
             RETURNVAL:
-                (FP)->var=registers[GET_Da(*pc)];
+                (fp)->var=registers[GET_Da(*pc)];
                 _brh
             ISTORE:
                 (++sp)->var = GET_Da(*pc);
                 STACK_CHECK _brh
             ISTOREL:
-                (FP+GET_Da(*pc))->var=*(pc+1);
+                (fp+GET_Da(*pc))->var=*(pc+1);
                 _brh_inc(2)
             PUSHNIL:
             GarbageCollector::self->releaseObject(&(++sp)->object);
                 STACK_CHECK _brh
             IPUSHL:
-                (++sp)->var = (FP+GET_Da(*pc))->var;
+                (++sp)->var = (fp+GET_Da(*pc))->var;
                 STACK_CHECK _brh
             PUSHL:
-                (++sp)->object = (FP+GET_Da(*pc))->object;
+                (++sp)->object = (fp+GET_Da(*pc))->object;
                 STACK_CHECK _brh
             ITEST:
                 o2 = &(sp--)->object;
@@ -1346,7 +1346,7 @@ void Thread::setup() {
                 env->createString(threadName, name);
             }
         }
-        FP=dataStack;
+        fp=dataStack;
         sp=dataStack-1;
 
         for(unsigned long i = 0; i < stack_lmt; i++) {
