@@ -9,12 +9,10 @@ To download Sharp go to ``releases`` and download the latest release of Sharp. U
 
 #### Installing on Windows
 
-Navigate to the folder ``{YOUR_DIR}\sharp-v{VERSION}\bin\64bit\win``.  You can move the binary to a folder of your choice. Add Sharp to your PATH:
+Navigate to the folder ``{YOUR_DIR}\sharp-v{VERSION}\bin\64bit\win``.  Create the folder ``C:/Sharp/bin``.  Place the Sharp binaries in the bin folder. Add following folder to your PATH:
 
 ```
-{SHARP_PATH}\Sharp.exe
-{SHARP_PATH}\Sharpc.exe
-{SHARP_PATH}\Shprof.exe
+PATH = {OTHER_PATH_DIRS}, C:/Sharp/bin/
 ```
 
 Windows Powershell is the preferred method to use sharp but you may use windows CMD as well.
