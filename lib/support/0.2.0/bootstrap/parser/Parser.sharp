@@ -1545,34 +1545,6 @@ class Parser {
         rollbackLast(ast);
         errors.pass();
 
-        if(current.getToken() == "new")
-        {
-            expectToken(ast, "new");
-            parseUtypeNaked(ast);
-            var newClass = false;
-
-            if(current.getType() == LEFT_BRACE) {
-                if(peek(1).getType() == RIGHT_BRACE && peek(2).getType() == LEFT_CURLY) {
-                    expect(LEFT_BRACE, ast, "`[`"); advance();
-                    expect(RIGHT_BRACE, ast, "`]`"); advance();
-                    parseVectorArray(ast);
-                } else {
-                    parseArrayExpression(ast);
-                }
-            }
-            else if(current.getType() == LEFT_PAREN) {
-                parseValueList(ast);
-                newClass = true;
-            }
-
-            ast.encapsulate(New_E);
-            if(current.getType() != LEFT_BRACE) {
-                if(newClass && current.getType() == DOT)
-                    parseDotNotationCallExpression(ast);
-                return true;
-            }
-        }
-
         if(current.getToken() == "sizeof")
         {
             expectToken(ast, "sizeof"); advance();
@@ -1584,6 +1556,29 @@ class Parser {
             expect(RIGHT_PAREN, ast, "`)`"); advance();
 
             ast.encapsulate(Sizeof_E);
+            return true;
+        }
+
+        if(current.getToken() == "self")
+        {
+            expectToken(ast, "self"); advance();
+
+            if(current.getType() == PTR) {
+                expect(PTR, ast, "`->` after self");
+                parseDotNotationCallExpression(ast);
+            }
+
+            ast.encapsulate(Self_E);
+            return true;
+        }
+
+        if(current.getToken() == "base")
+        {
+            expectToken(ast, "base"); advance();
+            expect(PTR, ast, "`->` after base");
+            parseDotNotationCallExpression(ast);
+
+            ast.encapsulate(Base_E);
             return true;
         }
 
@@ -1616,29 +1611,6 @@ class Parser {
         }
         errors.pass();
 
-        if(current.getToken() == "self")
-        {
-            expectToken(ast, "self"); advance();
-
-            if(current.getType() == PTR) {
-                expect(PTR, ast, "`->` after self");
-                parseDotNotationCallExpression(ast);
-            }
-
-            ast.encapsulate(Self_E);
-            return true;
-        }
-
-        if(current.getToken() == "base")
-        {
-            expectToken(ast, "base"); advance();
-            expect(PTR, ast, "`->` after base");
-            parseDotNotationCallExpression(ast);
-
-            ast.encapsulate(Base_E);
-            return true;
-        }
-
         retain(ast);
         pushBack();
 
@@ -1654,6 +1626,34 @@ class Parser {
         } else {
             errors.pass();
             rollback(ast);
+        }
+
+        if(current.getToken() == "new")
+        {
+            expectToken(ast, "new");
+            parseUtypeNaked(ast);
+            var newClass = false;
+
+            if(current.getType() == LEFT_BRACE) {
+                if(peek(1).getType() == RIGHT_BRACE && peek(2).getType() == LEFT_CURLY) {
+                    expect(LEFT_BRACE, ast, "`[`"); advance();
+                    expect(RIGHT_BRACE, ast, "`]`"); advance();
+                    parseVectorArray(ast);
+                } else {
+                    parseArrayExpression(ast);
+                }
+            }
+            else if(current.getType() == LEFT_PAREN) {
+                parseValueList(ast);
+                newClass = true;
+            }
+
+            ast.encapsulate(New_E);
+            if(current.getType() != LEFT_BRACE) {
+                if(newClass && current.getType() == DOT)
+                    parseDotNotationCallExpression(ast);
+                return true;
+            }
         }
 
         if(current.getType() == LEFT_PAREN)
@@ -1774,8 +1774,7 @@ class Parser {
     {
         ast = getAst(ast, Dotnotation_Call_Expr);
 
-        if(peek(1).getType() == DOT)
-        {
+        if(peek(1).getType() == DOT) {
             advance();
             ast.add(current);
         }
@@ -1802,12 +1801,16 @@ class Parser {
                         errors.createNewError(GENERIC, current, "expected expression");
                     expect(RIGHT_BRACE, ast, "`]`"); advance();
 
-                    if(current.getType() == DOT)
+                    if(current.getType() == DOT) {
+                        pushBack();
                         parseDotNotationCallExpression(ast);
+                    }
                 }
                 else {
-                    if(current.getType() == DOT)
+                    if(current.getType() == DOT){
+                        pushBack();
                         parseDotNotationCallExpression(ast);
+                    }
                 }
             }
         } else {
