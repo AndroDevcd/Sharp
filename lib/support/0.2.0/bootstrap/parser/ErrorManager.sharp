@@ -36,16 +36,16 @@ class ErrorManager {
             if(errorsFound) {
                 if(aggressiveErrors) {
                     errStr = getErrors(rawErrors);
-                    if(!errStr.empty()) System.println(errStr);
+                    if(!errStr.empty()) println(errStr);
                 }
                 else {
                     errStr = getErrors(errors);
-                    if(!errStr.empty()) System.println(errStr);
+                    if(!errStr.empty()) println(errStr);
                 }
             }
 
             errStr = getErrors(warnings);
-            if(!errStr.empty()) System.println(errStr);
+            if(!errStr.empty()) println(errStr);
         }
     }
 
@@ -76,18 +76,18 @@ class ErrorManager {
     def printError(ParseError error) {
 
         if(error.warning) {
-            System.print(filename + ":" + error.line + ":" + error.col + ": warning S60" +
+            print(filename + ":" + error.line + ":" + error.col + ": warning S60" +
                 ((var)error.id) + ":  " + error.error + "\n");
         } else {
-            System.print(filename + ":" + error.line + ":" + error.col + ": error S60" +
+            print(filename + ":" + error.line + ":" + error.col + ": error S60" +
                 ((var)error.id) + ":  " + error.error + "\n");
         }
 
-        System.print("\t" + getLine(error.line) + "\n\t");
+        print("\t" + getLine(error.line) + "\n\t");
 
         for(var i = 0; i < error.col-1; i++)
-            System.print(" ");
-        System.print("^\n");
+            print(" ");
+        print("^\n");
     }
 
     def getLine(var line) : string {

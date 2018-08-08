@@ -47,10 +47,10 @@ public class Runtime {
         Thread.setupMainThread();
         userArgs = new string[sizeof(args) - MINIMUM_ARGS];
 
-//        System.println("application " + BuildConfig.applicationName);
-//        System.println("version " + BuildConfig.version);
-//        System.println("platform " + BuildConfig.platform);
-//        System.println("os " + BuildConfig.OS);
+//        println("application " + BuildConfig.applicationName);
+//        println("version " + BuildConfig.version);
+//        println("platform " + BuildConfig.platform);
+//        println("os " + BuildConfig.OS);
 
         // set user args to be passed
         var iter;
@@ -62,7 +62,7 @@ public class Runtime {
         // user defined main
         if(main != 0) {
             ret = main(userArgs);
-            System.print("\nProgram finished with exit code " + ret);
+            print("\nProgram finished with exit code " + ret);
         } else if(main2 != 0)
             main2(userArgs);
         else

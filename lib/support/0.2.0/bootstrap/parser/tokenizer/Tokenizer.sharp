@@ -145,7 +145,7 @@ class Tokenizer {
 
 //        TokenEntity[] arry = entities.toArray();
 //        foreach(TokenEntity token : arry) {
-//            System.println(" token: " + token.getToken()
+//            println(" token: " + token.getToken()
 //                + " - " + token.getId() + " line " + token.getLine()
 //                + " col " + token.getCol());
 //        }

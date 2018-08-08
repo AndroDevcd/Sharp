@@ -40,7 +40,7 @@ public class ObjList base CListObj {
      */
     public def toArray() : object[] {
         if(size == 0) return null;
-        return ((object[]) System.copyOf(mData, size));
+        return ((object[]) copyOf(mData, size));
     }
 
     /**

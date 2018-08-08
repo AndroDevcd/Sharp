@@ -40,7 +40,7 @@ public class VarList base CListVar {
      */
     public def toArray() : var[] {
         if(size == 0) return null;
-        return ((var[]) System.copyOf(mData, size));
+        return ((var[]) copyOf(mData, size));
     }
 
     /**

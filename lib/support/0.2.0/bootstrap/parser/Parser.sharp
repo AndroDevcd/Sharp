@@ -161,6 +161,10 @@ class Parser {
         }
 
         parseClassBlock(ast);
+
+        string sb = "";
+        ast.toString(sb);
+        println("" + sb);
     }
 
     private def parseClassBlock(Ast ast) {
@@ -2319,40 +2323,91 @@ class Parser {
         }
     }
 
+    private object[] assignOperators = new object[]
+    {
+        "+=",
+        "-=",
+        "*=",
+        "/=",
+        "&=",
+        "|=",
+        "^=",
+        "%=",
+        "="
+    };
+
     private def isAssignOperator(string token) : var {
-        return token == "+=" || token == "-="||
-               token == "*=" || token == "/="||
-               token == "&=" || token == "|="||
-               token == "^=" || token == "%="||
-               token == "=";
+        foreach(var[] t : assignOperators) {
+            if(token == t)
+                return true;
+        }
+        return false;
     }
+
+
+    private object[] overrideOperators = new object[]
+    {
+        "++",
+        "--",
+        "*",
+        "/",
+        "%",
+        "-",
+        "+",
+        "==",
+        "&&",
+        "||",
+        ">>",
+        "<<",
+        "<",
+        ">",
+        "<=",
+        ">=",
+        "!="
+    };
 
     private def isOverrideOperator(string token) : var  {
-        return isAssignOperator(token) ||
-               token == "++" ||token == "--" ||
-               token == "*" || token == "/"  ||
-               token == "%" || token == "-"  ||
-               token == "+" || token == "==" ||
-               token == "&&" || token == "||" ||
-               token == ">>" || token == "<<" ||
-               token == "<"  || token == ">"  ||
-               token == "<=" || token == ">=" ||
-               token == "!=";
+        foreach(var[] t : overrideOperators) {
+            if(token == t)
+                return true;
+        }
+
+        return isAssignOperator(token);
     }
 
+    private object[] expressionSymbols = new object[]
+    {
+        "[",
+        "++",
+        "--",
+        "*",
+        "/",
+        "%",
+        "-",
+        "+",
+        ">>",
+        "<<",
+        "<",
+        ">",
+        "<=",
+        ">=",
+        "==",
+        "!=",
+        "&",
+        "|",
+        "&&",
+        "||",
+        "^",
+        "?"
+    };
+
     def isExprSymbol(string token) : var {
-        return token == "[" || token == "++" ||
-               token == "--" || token == "*" ||
-               token == "/" || token == "%" ||
-               token == "-" || token == "+"||
-               token == ">>" || token == "<<"||
-               token == "<" || token == ">"||
-               token == "<=" || token == ">="||
-               token == "==" || token == "!="||
-               token == "&" || token == "|"||
-               token == "&&" || token == "||"||
-               token == "^" || token == "?" ||
-               isAssignOperator(token);
+        foreach(var[] t : expressionSymbols) {
+            if(token == t)
+                return true;
+        }
+
+        return isAssignOperator(token);
     }
 
     private def expectIdentifier(Ast ast) : var {

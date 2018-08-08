@@ -31,7 +31,7 @@ public class Enum {
 
     public Enum(Enum e) {
         value = e.value;
-        name = (var[])System.copyOf(e.name, sizeof(e.name));
+        name = (var[])copyOf(e.name, sizeof(e.name));
     }
 
     public def getName() : string {

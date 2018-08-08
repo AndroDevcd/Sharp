@@ -46,14 +46,14 @@ public class Runtime {
             }
             else if(arg == "-V"){
                 printVersion();
-                System.exit();
+                exit();
             }
             else if(arg == "-O"){
                 Options.optimize = true;
             }
             else if(arg == "-h" || arg == "-?"){
                 help();
-                System.exit();
+                exit();
             }
             else if(arg == "-R" || arg == "-release"){
                 Options.optimize = true;
@@ -72,7 +72,7 @@ public class Runtime {
             }
             else if(arg == "-showversion"){
                 printVersion();
-                System.println();
+                println();
             }
             else if(arg == "-target"){
                 if(i+1 >= sizeof(args))
@@ -220,33 +220,33 @@ public class Runtime {
     }
 
     private static def error(string message) {
-        System.println("bootstrap:  error: " + message);
-        System.exit();
+        println("bootstrap:  error: " + message);
+        exit();
     }
 
     private static def printVersion() {
-        System.print(programName + " " + programVers);
+        print(programName + " " + programVers);
     }
 
     private static def help() {
-        System.println("Usage: sharpc " + "{OPTIONS} SOURCE FILE(S)");
-        System.println("Source file must have a .sharp extion to be compiled.\n");
-        System.println("[-options]\n\n    -V                print compiler version and exit");
-        System.println(              "    -showversion      print compiler version and continue"               );
-        System.println(              "    -o<file>          set the output object file"                        );
-        System.println(              "    -c                compile only and do not generate exe"              );
-        System.println(              "    -a                enable aggressive error reporting"                 );
-        System.println(              "    -s                strip debugging info"                              );
-        System.println(              "    -O                optimize executable"                               );
-        System.println(              "    -L<path>          library directory path"                            );
-        System.println(              "    -w                disable all warnings"                              );
-        System.println(              "    -errlmt<count>    set max errors the compiler allows before quitting");
-        System.println(              "    -v<version>       set the application version"                       );
-        System.println(              "    -unsafe -u        allow unsafe code"                                 );
-        System.println(              "    -objdmp           create dump file for generated assembly"           );
-        System.println(              "    -target           target the specified platform of sharp to run on"  );
-        System.println(              "    -target           target the specified platform of sharp to run on"  );
-        System.println(              "    -release -r       generate a release build exe"                      );
-        System.println(              "    --h -?            display this help message"                         );
+        println("Usage: sharpc " + "{OPTIONS} SOURCE FILE(S)");
+        println("Source file must have a .sharp extion to be compiled.\n");
+        println("[-options]\n\n    -V                print compiler version and exit");
+        println(              "    -showversion      print compiler version and continue"               );
+        println(              "    -o<file>          set the output object file"                        );
+        println(              "    -c                compile only and do not generate exe"              );
+        println(              "    -a                enable aggressive error reporting"                 );
+        println(              "    -s                strip debugging info"                              );
+        println(              "    -O                optimize executable"                               );
+        println(              "    -L<path>          library directory path"                            );
+        println(              "    -w                disable all warnings"                              );
+        println(              "    -errlmt<count>    set max errors the compiler allows before quitting");
+        println(              "    -v<version>       set the application version"                       );
+        println(              "    -unsafe -u        allow unsafe code"                                 );
+        println(              "    -objdmp           create dump file for generated assembly"           );
+        println(              "    -target           target the specified platform of sharp to run on"  );
+        println(              "    -target           target the specified platform of sharp to run on"  );
+        println(              "    -release -r       generate a release build exe"                      );
+        println(              "    --h -?            display this help message"                         );
     }
 }

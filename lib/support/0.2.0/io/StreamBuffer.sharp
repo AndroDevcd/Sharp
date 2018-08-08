@@ -109,7 +109,7 @@ class StreamBuffer {
 
         if(dp >= size) {
             size += STREAM_CHUNK;
-            System.realloc(data,  size);
+            realloc(data,  size);
         }
 
         data[dp++] = _char;
@@ -121,7 +121,7 @@ class StreamBuffer {
 
         if((dp+sizeof(raw)) >= size) {
             size += sizeof(raw)+STREAM_CHUNK;
-            System.realloc(data,  size);
+            realloc(data,  size);
         }
 
         foreach(var _char : raw)

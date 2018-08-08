@@ -31,8 +31,8 @@ public class string {
             } else {
                 var[] chs = new var[sizeof(immstr)];
                 var iter;
-                foreach(var c : immstr) {
-                    chs[iter++] = c;
+                foreach(char c : immstr) {
+                    chs[iter++] = c.getValue();
                 }
 
                 append(chs);
@@ -50,7 +50,7 @@ public class string {
             if(immstr == null) {
                 data = null;
             } else {
-                data = (var[])System.memcpy(immstr, offset, sizeof(immstr));
+                data = (var[])memcpy(immstr, offset, sizeof(immstr));
             }
         }
 
@@ -59,7 +59,7 @@ public class string {
             if(immstr == null) {
                 data = null;
             } else {
-                data = (var[])System.memcpy(immstr, offset, endIndex);
+                data = (var[])memcpy(immstr, offset, endIndex);
             }
         }
 
@@ -78,7 +78,7 @@ public class string {
             if(data == null)
                 data = new var[1];
             else
-                System.realloc(data, sizeof(data) + 1);
+                realloc(data, sizeof(data) + 1);
 
             data[sizeof(data) - 1] = char;
             return self;
@@ -98,7 +98,7 @@ public class string {
             if(data == null)
                 data = new var[sizeof(immstr)];
             else
-                System.realloc(data, sizeof(data) + sizeof(immstr));
+                realloc(data, sizeof(data) + sizeof(immstr));
 
             for(var i = 0; i < sizeof(immstr); i++)
             {
@@ -192,7 +192,7 @@ public class string {
         {
             if (immstr == null) data = null;
             else
-                data = (var[])System.copyOf(immstr, sizeof(immstr));
+                data = (var[])copyOf(immstr, sizeof(immstr));
         }
 
         public def operator+( var num ) : string
@@ -230,12 +230,12 @@ public class string {
         public def toArray() : var[]
         {
             if(data == null) return null;
-            return (var[])System.copyOf(data, sizeof(data));
+            return (var[])copyOf(data, sizeof(data));
         }
 
         public static def parse( var number ) : string
         {
-            return new string(System.snprintf(varFmt, number, precision));
+            return new string(snprintf(varFmt, number, precision));
         }
 
         public def substring(var startIndex) : string {
@@ -244,7 +244,7 @@ public class string {
 
 
             string s = new string();
-            s.data = (var[])System.memcpy(data, startIndex, size()-1);
+            s.data = (var[])memcpy(data, startIndex, size()-1);
             return s;
         }
 
@@ -257,7 +257,7 @@ public class string {
 
 
             string s = new string();
-            s.data = (var[])System.memcpy(data, startIndex, stopIndex);
+            s.data = (var[])memcpy(data, startIndex, stopIndex);
             return s;
         }
 

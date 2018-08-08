@@ -61,7 +61,7 @@ public:
     string typeToString() {
         if(isMethod)
             return "method";
-        else if(type==CLASS)
+        else if(type==CLASS || klass != NULL)
             return isField ? field.klass->getFullName() : (klass==NULL ? "?" : klass->getFullName());
         else if(type==OBJECT)
             return "object";

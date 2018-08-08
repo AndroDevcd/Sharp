@@ -836,7 +836,6 @@ void Thread::exec() {
             VARCAST:
                 CHECK_NULL2(
                         if(o2->object->HEAD == NULL) {
-                            castErr:
                             stringstream ss;
                             ss << "illegal cast to var" << (GET_Da(*pc) ? "[]" : "");
                             throw Exception(Environment::ClassCastException, ss.str());

@@ -68,7 +68,7 @@ public class Vector<T> {
         lock(self) {
             if(size == 0) arry = null;
             else
-                arry = ((T[]) System.copyOf(mData, size));
+                arry = ((T[]) copyOf(mData, size));
         }
 
         return arry;
@@ -135,7 +135,7 @@ public class Vector<T> {
         if(size >= capacity) {
             // resize
             capacity += (capacity >> 2) + RESIZE_CAPACITY;
-            System.realloc(mData, capacity);
+            realloc(mData, capacity);
         }
     }
 
@@ -150,7 +150,7 @@ public class Vector<T> {
             if(capacity == 0 || size == 0) {
                 clear();
             } else
-                System.realloc(mData, capacity);
+                realloc(mData, capacity);
         }
     }
 

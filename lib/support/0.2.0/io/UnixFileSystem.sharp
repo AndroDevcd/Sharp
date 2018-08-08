@@ -42,7 +42,7 @@ public class UnixFileSystem base FileSystem {
             prevChar = current;
         }
 
-//        System.println("name " + name);
+//        println("name " + name);
         return name;
     }
 

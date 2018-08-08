@@ -49,7 +49,7 @@ public class ArrayList<T> {
      */
     public def toArray() : T[] {
         if(size == 0) return null;
-        return ((T[]) System.copyOf(mData, size));
+        return ((T[]) copyOf(mData, size));
     }
 
     /**
@@ -95,7 +95,7 @@ public class ArrayList<T> {
         if(size >= capacity) {
             // resize
             capacity += (capacity >> 2) + RESIZE_CAPACITY;
-            System.realloc(mData, capacity);
+            realloc(mData, capacity);
         }
     }
 
@@ -110,7 +110,7 @@ public class ArrayList<T> {
             if(capacity == 0 || size == 0) {
                 clear();
             } else
-                System.realloc(mData, capacity);
+                realloc(mData, capacity);
         }
     }
 

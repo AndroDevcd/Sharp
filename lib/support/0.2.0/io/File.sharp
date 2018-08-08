@@ -420,7 +420,7 @@ public class File {
 //            suffix = ".tmp";
 //
 //        File tmpdir = (directory != null) ? directory
-//                                          : new File(System.getProperty("java.io.tmpdir", "."));
+//                                          : new File(getProperty("java.io.tmpdir", "."));
 //        File f;
 //        try {
 //            do {

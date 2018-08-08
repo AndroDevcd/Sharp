@@ -1014,6 +1014,7 @@ void RuntimeEngine::assignUtypeForeach(Ast *pAst, Scope *scope, Block &block, Ex
     if(pAst->hasSubAst(ast_utype_arg)) {
         KeyPair<string, ResolvedReference> utypeArg = parseUtypeArg(pAst->getSubAst(ast_utype_arg));
         Expression out(pAst);
+        out.inject(assignExpr);
 
         KeyPair<int, Field>* local = currentScope()->getLocalField(utypeArg.key);
         Expression fieldExpr = fieldToExpression(pAst, local->value);
@@ -1022,8 +1023,30 @@ void RuntimeEngine::assignUtypeForeach(Ast *pAst, Scope *scope, Block &block, Ex
         if(assignExpr.trueType() == OBJECT && fieldExpr.trueType() == CLASS) {
             out.code.push_i64(SET_Di(i64, op_MOVI, fieldExpr.utype.field.klass->address), cmt);
             out.code.push_i64(SET_Di(i64, op_CAST, cmt));
-        } else
-            assignValue(operand, out, fieldExpr, assignExpr, pAst);
+            out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            out.code.push_i64(SET_Di(i64, op_MOVL, local->value.address));
+            out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+        } else if(assignExpr.trueType() == OBJECT && fieldExpr.trueType() == VAR) {
+            out.code.push_i64(SET_Di(i64, op_VARCAST, fieldExpr.isArray()));
+            out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            out.code.push_i64(SET_Di(i64, op_MOVL, local->value.address));
+            out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+        } else if(assignExpr.trueType() == VAR && fieldExpr.trueType() == VAR) {
+            out.code.push_i64(SET_Ci(i64, op_SMOVR_2, ebx, 0, local->value.address));
+        } else if(assignExpr.trueType() == CLASS) {
+            equals(assignExpr, fieldExpr);
+            out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            out.code.push_i64(SET_Di(i64, op_MOVL, local->value.address));
+            out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+        } else if(assignExpr.trueType() == OBJECT && fieldExpr.trueType() == OBJECT) {
+            equals(assignExpr, fieldExpr);
+            out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            out.code.push_i64(SET_Di(i64, op_MOVL, local->value.address));
+            out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+        } else {
+            errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `" + operand.getToken()
+                                                                    + "` cannot be applied to expression of type `" + fieldExpr.typeToString() + "` and `" + assignExpr.typeToString() + "`");
+        }
         block.code.inject(block.code.size(), out.code);
     }
 }
