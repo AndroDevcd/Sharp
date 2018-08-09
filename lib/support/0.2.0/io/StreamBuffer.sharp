@@ -7,7 +7,8 @@ import std;
 *
 * When data is added to the stream the class allocated data in blocks or "chunks"
 * of data the size of 128 bytes. This is to prevent constant allocation to the runtime system
-* to minimize memory request lags.
+* to minimize memory request lags. As you allocate more data the chunk of buffered data increased with allocation
+* similar with ArrayList<>
 *
 * StreamBuffer is a class that is used by IOStream to read and write a stream of data to a file
 */
@@ -108,7 +109,7 @@ class StreamBuffer {
             begin();
 
         if(dp >= size) {
-            size += STREAM_CHUNK;
+            size += (size >> 3) + STREAM_CHUNK;
             realloc(data,  size);
         }
 
@@ -120,7 +121,7 @@ class StreamBuffer {
             begin();
 
         if((dp+sizeof(raw)) >= size) {
-            size += sizeof(raw)+STREAM_CHUNK;
+            size += sizeof(raw) + (size >> 3) + STREAM_CHUNK;
             realloc(data,  size);
         }
 

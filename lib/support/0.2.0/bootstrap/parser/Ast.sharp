@@ -47,7 +47,7 @@ class Ast {
     }
 
     public def hasToken(TokenType type) : var {
-        for(var i = 0; i < tokens.size()-2; i++) {
+        for(var i = 0; i < tokens.size(); i++) {
             TokenEntity token = tokens.get(i);
             if(token.getType() == type)
                 return true;
@@ -62,7 +62,7 @@ class Ast {
     }
 
     public def hasChild(AstType type) : var {
-        for(var i = 0; i < children.size()-2; i++) {
+        for(var i = 0; i < children.size(); i++) {
             Ast child = children.get(i);
             if(child.type == type)
                 return true;
@@ -76,7 +76,7 @@ class Ast {
     }
 
     public def getChild(AstType type) : Ast {
-        for(var i = 0; i < children.size()-2; i++) {
+        for(var i = 0; i < children.size(); i++) {
             Ast child = children.get(i);
             if(child.type == type)
                 return child;
@@ -96,7 +96,7 @@ class Ast {
         Ast encap = new Ast(self, type, line, col);
         add(encap);
 
-        for(var i = 0; i < children.size()-2; i++) {
+        for(var i = 0; i < children.size()-1; i++) {
             Ast child = children.get(i);
             child.parent = encap;
             encap.add(child);
@@ -122,9 +122,10 @@ class Ast {
         addTabs(sb);
         sb += "Ast: " + type + " ;" + line + "," + col + "\n";
 
+        recurs++;
         addTabs(sb);
         sb += "tokens:\n";
-        for(var i = 0; i < tokens.size()-1; i++) {
+        for(var i = 0; i < tokens.size(); i++) {
             TokenEntity token = tokens.get(i);
             addTabs(sb);
             if(token != null)
@@ -134,10 +135,9 @@ class Ast {
         }
 
         addTabs(sb);
-        sb += "children:\n";
+        sb += "children: (" + children.size() + ")\n";
 
-        recurs++;
-        for(var i = 0; i < children.size()-1; i++) {
+        for(var i = 0; i < children.size(); i++) {
             Ast child = children.get(i);
             addTabs(sb);
 
@@ -159,14 +159,14 @@ class Ast {
         col = ast.col;
         type = ast.type;
 
-        for(var i = 0; i < children.size()-1; i++) {
+        for(var i = 0; i < children.size(); i++) {
             Ast child = children.get(i);
             if(child == null)
                 throw new Exception("null Ast");
             add(child);
         }
 
-        for(var i = 0; i < tokens.size()-1; i++) {
+        for(var i = 0; i < tokens.size(); i++) {
             TokenEntity token = tokens.get(i);
             if(token == null)
                 throw new Exception("null Ast");

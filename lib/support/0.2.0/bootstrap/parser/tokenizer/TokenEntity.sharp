@@ -34,9 +34,17 @@ class TokenEntity {
         return self->id != id;
     }
 
-    public def operator==(string token) : var {
+    public def operator!=(TokenType type) : var {
+        return self->type != type;
+    }
+
+    public def operator==(var[] token) : var {
         return self->token == token;
     }
+
+//    public def operator==(string token) : var {
+//        return self->token == token;
+//    }
 
     public def operator!=(string token) : var {
         return self->token != token;
@@ -48,6 +56,10 @@ class TokenEntity {
 
     public def operator==(TokenId id) : var {
         return self->id == id;
+    }
+
+    public def operator==(TokenType type) : var {
+        return self->type == type;
     }
 
     public def getId() : TokenId {

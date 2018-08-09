@@ -68,7 +68,7 @@ public class ArrayList<T> {
      *
      */
     public def last() : T {
-        return get(size()-1);
+        return get(size-1);
     }
 
     /**
