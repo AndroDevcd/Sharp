@@ -23,20 +23,20 @@ class Parser {
 
             parse();
 
-            string sb = "";
-            for(var i = 0; i < tree.size(); i++) {
-                Ast child = tree.get(i);
-                if(child != null)
-                    child.toString(sb);
-                else
-                    sb += "null\n";
-            }
-
-            File out = new File("tree.txt");
-            out.create();
-            IOStream ostream = new IOStream(out, IOStream.WRITE);
-            ostream.write(sb);
-            ostream.close();
+//            strbuf sb = new strbuf("");
+//            for(var i = 0; i < tree.size(); i++) {
+//                Ast child = tree.get(i);
+//                if(child != null)
+//                    child.toString(sb);
+//                else
+//                    sb += "null\n";
+//            }
+//
+//            File out = new File("tree.txt");
+//            out.create();
+//            IOStream ostream = new IOStream(out, IOStream.WRITE);
+//            ostream.write(sb.toString());
+//            ostream.close();
         }
     }
 
@@ -1907,7 +1907,7 @@ class Parser {
             cursor = states.lastKey();
             current = tokenizer.get(cursor);
             Ast tmp = states.lastValue();
-            ast.copy(tmp);
+            ast.fastCopy(tmp);
 
             states.drop();
         }

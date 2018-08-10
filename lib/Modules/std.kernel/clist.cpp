@@ -85,7 +85,7 @@ void __clist_add() {
 
             if(data->HEAD != NULL) {
                 data->HEAD[(size_t)(*size)++]
-                        = registers[ebx];
+                        = registers[i64ebx];
             } else {
                 data->node[(size_t)(*size)++] =
                         (self->sp--)->object.object;
@@ -103,13 +103,13 @@ void __clist_insert() {
             && lst->node[1].object != NULL) {
             SharpObject* size = lst->node[0].object;
             SharpObject* data = lst->node[1].object;
-            size_t pos = (size_t)registers[ebx];
+            size_t pos = (size_t)registers[i64ebx];
 
             if(size->HEAD[0] >= data->size)
                 __clist_expand(lst);
 
             if(data->HEAD != NULL) {
-                double value = registers[egx];
+                double value = registers[i64egx];
                 for(size_t i = data->size-1; i > pos; i--)
                     data->HEAD[i] = data->HEAD[i-1];
                 data->HEAD[pos] = value;
@@ -133,7 +133,7 @@ void __clist_remove() {
             && lst->node[1].object != NULL) {
             SharpObject* size = lst->node[0].object;
             SharpObject* data = lst->node[1].object;
-            size_t pos = (size_t)registers[ebx];
+            size_t pos = (size_t)registers[i64ebx];
 
             if(size->HEAD[0] == 1) {
                 size->HEAD[0]--;

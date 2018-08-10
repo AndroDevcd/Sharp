@@ -10,13 +10,13 @@ double __crand(int proc) {
     Random *rand = thread_self->rand;
     switch(proc) {
         case 0x000:
-            return rand->rand(EBX, ECX);
+            return rand->rand(_64EBX, _64ECX);
         case 0x001:
-            return rand->randInt((long long)EBX, (long long)ECX);
+            return rand->randInt((long long)_64EBX, (long long)_64ECX);
         case 0x002:
             return rand->reset();
         case 0x003:
-            rand->seed((__seed_type)EBX);
+            rand->seed((__seed_type)_64EBX);
             return 0;
         case 0x004:
             return rand->seed();

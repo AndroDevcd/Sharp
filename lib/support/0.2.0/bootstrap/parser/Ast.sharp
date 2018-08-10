@@ -112,13 +112,13 @@ class Ast {
         return encap;
     }
 
-    private def addTabs(string sb) {
+    private def addTabs(strbuf sb) {
         for(var i = 0; i < recurs; i++)
             sb+='\t';
     }
 
     static var recurs = 0;
-    public def toString(string sb) {
+    public def toString(strbuf sb) {
         addTabs(sb);
         sb += "Ast: " + type + " ;" + line + "," + col + "\n";
 
@@ -161,17 +161,24 @@ class Ast {
 
         for(var i = 0; i < children.size(); i++) {
             Ast child = children.get(i);
-            if(child == null)
-                throw new Exception("null Ast");
             add(child);
         }
 
         for(var i = 0; i < tokens.size(); i++) {
             TokenEntity token = tokens.get(i);
-            if(token == null)
-                throw new Exception("null Ast");
             add(token);
         }
+    }
+
+    public def fastCopy(Ast ast) {
+        children.clear();
+        tokens.clear();
+
+        line = ast.line;
+        col = ast.col;
+        type = ast.type;
+        children = ast.children;
+        tokens = ast.tokens;
     }
 
     public def getParent() : Ast {

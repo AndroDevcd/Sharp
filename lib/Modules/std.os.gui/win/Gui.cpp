@@ -203,13 +203,13 @@ void Gui::winGuiIntf(long long proc) {
             PostQuitMessage(0);
             break;
         case _g_paint:
-            winPaint(ECX);
+            winPaint(_64ECX);
             break;
         case _g_set_ctx:
-            CMT = setContext(ADX);
+            _64CMT = setContext(_64ADX);
             break;
         case _g_ctx:
-            CMT = currentContext();
+            _64CMT = currentContext();
             break;
         case _g_dwnd: {
             Thread* self = thread_self;
@@ -218,25 +218,25 @@ void Gui::winGuiIntf(long long proc) {
 
             if(name && title) {
 
-                CMT = createDefaultWindow(native_string(name->HEAD, name->size),
-                        native_string(title->HEAD, title->size), ECX, EGX);
-            } else CMT = GUI_ERR;
+                _64CMT = createDefaultWindow(native_string(name->HEAD, name->size),
+                        native_string(title->HEAD, title->size), _64ECX, _64EGX);
+            } else _64CMT = GUI_ERR;
             break;
         }
         case _g_show:
-            CMT = show(ADX, EGX);
+            _64CMT = show(_64ADX, _64EGX);
             break;
         case _g_upd:
-            CMT = update(ADX);
+            _64CMT = update(_64ADX);
             break;
         case _g_dsp:
-            CMT = dispatchMessage();
+            _64CMT = dispatchMessage();
             break;
         case _g_msg: {
-            _Message msg = getMessage(ADX);
-            EBX = msg.msg;
-            ECX = msg.lParam;
-            EGX = msg.wParam;
+            _Message msg = getMessage(_64ADX);
+            _64EBX = msg.msg;
+            _64ECX = msg.lParam;
+            _64EGX = msg.wParam;
             break;
         }
         default: {
@@ -263,35 +263,35 @@ void Gui::winPaint(long long proc) {
             break;
         }
         case _pt_start:
-            CMT = paintStart(ADX);
+            _64CMT = paintStart(_64ADX);
             break;
         case _pt_end:
-            CMT = paintEnd(ADX);
+            _64CMT = paintEnd(_64ADX);
             break;
         case _pt_move:
-            CMT = MoveToEx(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var, NULL);
+            _64CMT = MoveToEx(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var, NULL);
             break;
         case _pt_line:
-            CMT = LineTo(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var);
+            _64CMT = LineTo(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var);
             break;
         case _pt_rect:
-            CMT = Rectangle(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var, (int)(self->sp-2)->var, (int)(self->sp-3)->var);
+            _64CMT = Rectangle(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var, (int)(self->sp-2)->var, (int)(self->sp-3)->var);
             break;
         case _pt_fillrect: {
-            if(ctx->hBrush == nullptr) { CMT = 1; return; }
+            if(ctx->hBrush == nullptr) { _64CMT = 1; return; }
             RECT rect = {(int)(self->sp)->var, (int)(self->sp-1)->var, (int)(self->sp-2)->var, (int)(self->sp-3)->var};
-            CMT = FillRect(ctx->hdc, &rect, ctx->hBrush);
+            _64CMT = FillRect(ctx->hdc, &rect, ctx->hBrush);
             break;
         }
         case _pt_ellipsize:
-            CMT = Ellipse(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var, (int)(self->sp-2)->var, (int)(self->sp-3)->var);
+            _64CMT = Ellipse(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var, (int)(self->sp-2)->var, (int)(self->sp-3)->var);
             break;
         case _pt_polygon:
             Poly poly;
             if(createPolygon(&poly)) {
-                CMT = Polygon(ctx->hdc, poly.pts, poly.size);
+                _64CMT = Polygon(ctx->hdc, poly.pts, poly.size);
                 delete[] poly.pts;
-            } else CMT = GUI_ERR;
+            } else _64CMT = GUI_ERR;
             break;
         case _pt_createPen: {
             ctx->pens.push_back(
@@ -300,44 +300,44 @@ void Gui::winPaint(long long proc) {
             break;
         }
         case _pt_selectPen: {
-            if(ADX < ctx->pens.size()) {
-                CMT = 0;
-                HPEN select = ctx->pens.at(ADX);
+            if(_64ADX < ctx->pens.size()) {
+                _64CMT = 0;
+                HPEN select = ctx->pens.at(_64ADX);
                 HPEN old = (HPEN)SelectObject(ctx->hdc, select);
                 if(ctx->origPen == nullptr)
                     ctx->origPen = old;
                 ctx->hPen = select;
-            } else CMT = 1;
+            } else _64CMT = 1;
             break;
         }
         case _pt_deletePen: {
-            if(ADX < ctx->pens.size()) {
-                CMT = 0;
-                HPEN select = ctx->pens.at(ADX);
+            if(_64ADX < ctx->pens.size()) {
+                _64CMT = 0;
+                HPEN select = ctx->pens.at(_64ADX);
                 DeleteObject(select);
 
                 if(ctx->hPen == select)
                     ctx->hPen = nullptr;
-                ctx->pens.erase(ctx->pens.begin() + ADX);
-            } else CMT = 1;
+                ctx->pens.erase(ctx->pens.begin() + _64ADX);
+            } else _64CMT = 1;
             break;
         }
         case _pt_selectBrush: {
-            if(ADX < ctx->pens.size()) {
-                CMT = 0;
-                HBRUSH select = ctx->brushes.at(ADX);
+            if(_64ADX < ctx->pens.size()) {
+                _64CMT = 0;
+                HBRUSH select = ctx->brushes.at(_64ADX);
                 SelectObject(ctx->hdc, select);
                 ctx->hBrush = select;
             }
             break;
         }
         case _pt_deleteBrush: {
-            if(ADX < ctx->pens.size()) {
-                CMT = 0;
-                HBRUSH select = ctx->brushes.at(ADX);
+            if(_64ADX < ctx->pens.size()) {
+                _64CMT = 0;
+                HBRUSH select = ctx->brushes.at(_64ADX);
                 DeleteObject(select);
-                ctx->brushes.erase(ctx->brushes.begin() + ADX);
-            } else CMT = 1;
+                ctx->brushes.erase(ctx->brushes.begin() + _64ADX);
+            } else _64CMT = 1;
             break;
         }
         case _pt_createBrush: {

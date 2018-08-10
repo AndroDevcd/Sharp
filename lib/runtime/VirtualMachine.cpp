@@ -269,10 +269,10 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             //cout << env->strings[(int64_t )thread_self->__stack[(int64_t)__rxs[sp]--].var].value.str();
             return;
         case 0xc7:
-            __snprintf((int) registers[egx], registers[ebx], (int) registers[ecx]);
+            __snprintf((int) registers[i64egx], registers[i64ebx], (int) registers[i64ecx]);
             return;
         case 0xa0:
-            registers[bmr]= Clock::__os_time((int) registers[ebx]);
+            registers[i64bmr]= Clock::__os_time((int) registers[i64ebx]);
             return;
         case 0xa1:
             /**
@@ -292,7 +292,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     CollectionPolicy::GC_LOW);
             return;
         case 0xf0:
-            CMT=GarbageCollector::self->selfCollect();
+            _64CMT=GarbageCollector::self->selfCollect();
             break;
         case 0xf1:
             GarbageCollector::self->sedate();
@@ -304,34 +304,34 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             GarbageCollector::self->kill();
             break;
         case 0xf4:
-            CMT=GarbageCollector::self->isAwake();
+            _64CMT=GarbageCollector::self->isAwake();
             break;
 #ifdef WIN32_
         case 0xf5:
-            env->gui->winGuiIntf(EBX);
+            env->gui->winGuiIntf(_64EBX);
             break;
 #endif
         case 0xa3:
-            registers[bmr]= Clock::realTimeInNSecs();
+            registers[i64bmr]= Clock::realTimeInNSecs();
             return;
         case 0xa4: {
-            Thread *thread = Thread::getThread((int32_t )registers[adx]);
+            Thread *thread = Thread::getThread((int32_t )registers[i64adx]);
 
             if(thread != NULL) {
                 thread->currentThread = (thread_self->sp--)->object;
                 thread->args = (thread_self->sp--)->object;
             }
-            registers[cmt]=Thread::start((int32_t )registers[adx]);
+            registers[i64cmt]=Thread::start((int32_t )registers[i64adx]);
             return;
         }
         case 0xa5:
-            registers[cmt]=Thread::join((int32_t )registers[adx]);
+            registers[i64cmt]=Thread::join((int32_t )registers[i64adx]);
             return;
         case 0xa6:
-            registers[cmt]=Thread::interrupt((int32_t )registers[adx]);
+            registers[i64cmt]=Thread::interrupt((int32_t )registers[i64adx]);
             return;
         case 0xa7:
-            registers[cmt]=Thread::destroy((int32_t )registers[adx]);
+            registers[i64cmt]=Thread::destroy((int32_t )registers[i64adx]);
             return;
         case 0xe0: // native getCurrentThread()
             THREAD_STACK_CHECK(thread_self);
@@ -345,10 +345,10 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             thread_self->currentThread = (thread_self->sp--)->object;
             return;
         case 0xe3:
-            CMT=__cmath(EBX, EGX, (int)ECX);
+            _64CMT=__cmath(_64EBX, _64EGX, (int)_64ECX);
             return;
         case 0xe7:
-            BMR= __crand((int)ADX);
+            _64BMR= __crand((int)_64ADX);
             return;
         case 0xe8: {
             SharpObject* str = (thread_self->sp--)->object.object;
@@ -356,38 +356,38 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 native_string cmd;
                 for(long i = 0; i < str->size; i++)
                     cmd += str->HEAD[i];
-                CMT= system(cmd.str().c_str());
+                _64CMT= system(cmd.str().c_str());
                 cmd.free();
             } else
                 throw Exception(env->NullptrException, "");
             return;
         }
         case 0xe9:
-            CMT= _kbhit();
+            _64CMT= _kbhit();
             return;
         case 0xa8:
-            registers[cmt]=Thread::Create((int32_t )registers[adx], (unsigned long)registers[egx]);
+            registers[i64cmt]=Thread::Create((int32_t )registers[i64adx], (unsigned long)registers[i64egx]);
             return;
         case 0xe4:
-            registers[cmt]=Thread::setPriority((int32_t )registers[adx], (int)registers[egx]);
+            registers[i64cmt]=Thread::setPriority((int32_t )registers[i64adx], (int)registers[i64egx]);
             return;
         case 0xe5:
             __os_yield();
             return;
         case 0xe6:
-            clist((int)registers[adx]);
+            clist((int)registers[i64adx]);
             return;
         case 0xa9:
             vm->shutdown();
             return;
         case 0xaa:
-            registers[cmt]=GarbageCollector::self->getMemoryLimit();
+            registers[i64cmt]=GarbageCollector::self->getMemoryLimit();
             return;
         case 0xab:
-            registers[cmt]=GarbageCollector::self->getManagedMemory();
+            registers[i64cmt]=GarbageCollector::self->getManagedMemory();
             return;
         case 0xac:
-            __os_sleep((int64_t) registers[ebx]);
+            __os_sleep((int64_t) registers[i64ebx]);
             return;
         case 0xb0: {
             Object *arry = &thread_self->sp->object;
@@ -646,17 +646,17 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     path += o->HEAD[i];
                 }
                 if(signal==0xb1)
-                    registers[ebx] = check_access(path, (int)registers[ebx]);
+                    registers[i64ebx] = check_access(path, (int)registers[i64ebx]);
                 else if(signal==0xb2)
-                    registers[ebx] = get_file_attrs(path);
+                    registers[i64ebx] = get_file_attrs(path);
                 else if(signal==0xb3)
-                    registers[ebx] = last_update(path);
+                    registers[i64ebx] = last_update(path);
                 else if(signal==0xb4)
-                    registers[ebx] = file_size(path);
+                    registers[i64ebx] = file_size(path);
                 else if(signal==0xb5)
                     create_file(path);
                 else if(signal==0xb6)
-                    registers[ebx] = delete_file(path);
+                    registers[i64ebx] = delete_file(path);
                 else if(signal==0xb7) {
                     List<native_string> files;
                     get_file_list(path, files);
@@ -677,13 +677,13 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     files.free();
                 }
                 else if(signal==0xb8)
-                    registers[ebx] = make_dir(path);
+                    registers[i64ebx] = make_dir(path);
                 else if(signal==0xb9)
-                    registers[ebx] = delete_dir(path);
+                    registers[i64ebx] = delete_dir(path);
                 else if(signal==0xbb)
-                    registers[ebx] = update_time(path, (time_t)registers[ebx]);
+                    registers[i64ebx] = update_time(path, (time_t)registers[i64ebx]);
                 else if(signal==0xbc)
-                    registers[ebx] = __chmod(path, (mode_t)registers[ebx], (bool)registers[egx], (bool)registers[ecx]);
+                    registers[i64ebx] = __chmod(path, (mode_t)registers[i64ebx], (bool)registers[i64egx], (bool)registers[i64ecx]);
                 else if(signal==0xbf) {
                     File::buffer buf;
                     File::read_alltext(path.str().c_str(), buf);
@@ -719,21 +719,21 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 }
 
                 if(signal==0xba)
-                    registers[ebx] = rename_file(path, rename);
+                    registers[i64ebx] = rename_file(path, rename);
                 else if(signal==0xbd) {
                     File::buffer buf;
                     buf.operator<<(rename.str()); // rename will contain our actual unicode data
-                    registers[ebx] = File::write(path.str().c_str(), buf);
+                    registers[i64ebx] = File::write(path.str().c_str(), buf);
                 }
             }
 
             return;
         }
         case 0xbe:
-            registers[ebx]=disk_space((int32_t )registers[ebx]);
+            registers[i64ebx]=disk_space((int32_t )registers[i64ebx]);
             return;
         case 0xc2:
-            registers[ebx] = GarbageCollector::_sizeof((thread_self->sp--)->object.object);
+            registers[i64ebx] = GarbageCollector::_sizeof((thread_self->sp--)->object.object);
             return;
         default: {
             // unsupported

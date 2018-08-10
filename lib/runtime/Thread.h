@@ -171,12 +171,12 @@ private:
 extern thread_local Thread* thread_self;
 extern thread_local double registers[12];
 
-#define EBX registers[ebx]
-#define ADX registers[adx]
-#define ECX registers[ecx]
-#define EGX registers[egx]
-#define CMT registers[cmt]
-#define BMR registers[bmr]
+#define _64EBX registers[i64ebx]
+#define _64ADX registers[i64adx]
+#define _64ECX registers[i64ecx]
+#define _64EGX registers[i64egx]
+#define _64CMT registers[i64cmt]
+#define _64BMR registers[i64bmr]
 
 #define PC(thread_self) \
     (thread_self->pc-thread_self->cache)

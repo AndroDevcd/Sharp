@@ -883,7 +883,7 @@ bool Parser::parse_utype(Ast *pAst) {
 
     if(parse_type_identifier(pAst))
     {
-        if(peek(1).getTokenType() == LEFTBRACE)
+        if(peek(1).getTokenType() == LEFTBRACE && peek(2).getTokenType() == RIGHTBRACE)
         {
             advance();
             pAst->addEntity(current());

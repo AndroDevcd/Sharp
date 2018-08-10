@@ -20,6 +20,8 @@ public class Runtime {
             return 1;
         }
 
+        string s = "";
+        s.string(" ");
         ErrorManager.initErrors();
         ArrayList<string> files = new ArrayList<string>();
         for(var i = 0; i < sizeof(args); i++) {

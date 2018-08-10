@@ -637,16 +637,16 @@ void*
 void printRegs() {
     cout << endl;
     cout << "Registers: \n";
-    cout << "adx = " << registers[adx] << endl;
-    cout << "cx = " << registers[cx] << endl;
-    cout << "cmt = " << registers[cmt] << endl;
-    cout << "ebx = " << registers[ebx] << endl;
-    cout << "ecx = " << registers[ecx] << endl;
-    cout << "ecf = " << registers[ecf] << endl;
-    cout << "edf = " << registers[edf] << endl;
-    cout << "ehf = " << registers[ehf] << endl;
-    cout << "bmr = " << registers[bmr] << endl;
-    cout << "egx = " << registers[egx] << endl;
+    cout << "adx = " << registers[i64adx] << endl;
+    cout << "cx = " << registers[i64cx] << endl;
+    cout << "cmt = " << registers[i64cmt] << endl;
+    cout << "ebx = " << registers[i64ebx] << endl;
+    cout << "ecx = " << registers[i64ecx] << endl;
+    cout << "ecf = " << registers[i64ecf] << endl;
+    cout << "edf = " << registers[i64edf] << endl;
+    cout << "ehf = " << registers[i64ehf] << endl;
+    cout << "bmr = " << registers[i64bmr] << endl;
+    cout << "egx = " << registers[i64egx] << endl;
     cout << "sp -> " << (thread_self->sp-thread_self->dataStack) << endl;
     cout << "fp -> " << (thread_self->fp-thread_self->dataStack) << endl;
     cout << "pc -> " << PC(thread_self) << endl;
@@ -920,27 +920,27 @@ void Thread::exec() {
                 } else throw Exception(Environment::NullptrException, "");
                 _brh
             BRH:
-                pc=cache+(int64_t)registers[adx];
+                pc=cache+(int64_t)registers[i64adx];
                 _brh_NOINCREMENT
             IFE:
-                if(registers[cmt]) {
-                    pc=cache+(int64_t)registers[adx]; _brh_NOINCREMENT
+                if(registers[i64cmt]) {
+                    pc=cache+(int64_t)registers[i64adx]; _brh_NOINCREMENT
                 } else  _brh
             IFNE:
-                if(registers[cmt]==0) {
-                    pc=cache+(int64_t)registers[adx]; _brh_NOINCREMENT
+                if(registers[i64cmt]==0) {
+                    pc=cache+(int64_t)registers[i64adx]; _brh_NOINCREMENT
                 } else  _brh
             LT:
-                registers[cmt]=registers[GET_Ca(*pc)]<registers[GET_Cb(*pc)];
+                registers[i64cmt]=registers[GET_Ca(*pc)]<registers[GET_Cb(*pc)];
                 _brh
             GT:
-                registers[cmt]=registers[GET_Ca(*pc)]>registers[GET_Cb(*pc)];
+                registers[i64cmt]=registers[GET_Ca(*pc)]>registers[GET_Cb(*pc)];
                 _brh
             LTE:
-                registers[cmt]=registers[GET_Ca(*pc)]<=registers[GET_Cb(*pc)];
+                registers[i64cmt]=registers[GET_Ca(*pc)]<=registers[GET_Cb(*pc)];
                 _brh
             GTE:
-                registers[cmt]=registers[GET_Ca(*pc)]>=registers[GET_Cb(*pc)];
+                registers[i64cmt]=registers[GET_Ca(*pc)]>=registers[GET_Cb(*pc)];
                 _brh
             MOVL:
                 o2 = &(fp+GET_Da(*pc))->object;
@@ -957,7 +957,7 @@ void Thread::exec() {
                 o2 = &((sp+GET_Da(*pc))->object);
                 _brh
             MOVBI:
-                registers[bmr]=GET_Da(*pc) + exponent(*(pc+1)); pc++;
+                registers[i64bmr]=GET_Da(*pc) + exponent(*(pc+1)); pc++;
                 _brh
             SIZEOF:
                 if(o2==NULL || o2->object == NULL)
@@ -972,7 +972,7 @@ void Thread::exec() {
                 printf("%c", (char)registers[GET_Da(*pc)]);
                 _brh
             GET:
-                if(CMT)
+                if(_64CMT)
                     registers[GET_Da(*pc)] = getche();
                 else
                     registers[GET_Da(*pc)] = getch();
@@ -1033,10 +1033,10 @@ void Thread::exec() {
                 __os_sleep((int64_t)registers[GET_Da(*pc)]);
                 _brh
             TEST:
-                registers[cmt]=registers[GET_Ca(*pc)]==registers[GET_Cb(*pc)];
+                registers[i64cmt]=registers[GET_Ca(*pc)]==registers[GET_Cb(*pc)];
                 _brh
             TNE:
-                registers[cmt]=registers[GET_Ca(*pc)]!=registers[GET_Cb(*pc)];
+                registers[i64cmt]=registers[GET_Ca(*pc)]!=registers[GET_Cb(*pc)];
                 _brh
             LOCK:
                 CHECK_NULLOBJ(o2->monitorLock();)
@@ -1045,7 +1045,7 @@ void Thread::exec() {
                 CHECK_NULLOBJ(o2->monitorUnLock();)
                 _brh
             EXP:
-                registers[bmr] = exponent(registers[GET_Da(*pc)]);
+                registers[i64bmr] = exponent(registers[GET_Da(*pc)]);
                 _brh
             MOVG:
                 o2 = env->globalHeap+GET_Da(*pc);
@@ -1077,33 +1077,33 @@ void Thread::exec() {
                 registers[*(pc+1)]=(int64_t)registers[GET_Ca(*pc)]>>(int64_t)registers[GET_Cb(*pc)];
                 _brh_inc(2)
             SKPE:
-                if(registers[cmt]) {
+                if(registers[i64cmt]) {
                     pc = pc+GET_Da(*pc); _brh_NOINCREMENT
                 } else _brh
             SKNE:
-                if(registers[cmt]==0) {
+                if(registers[i64cmt]==0) {
                     pc = pc+GET_Da(*pc); _brh_NOINCREMENT
                 } else _brh
             CMP:
-                registers[cmt]=registers[GET_Ca(*pc)]==GET_Cb(*pc);
+                registers[i64cmt]=registers[GET_Ca(*pc)]==GET_Cb(*pc);
                 _brh
             AND:
-                registers[cmt]=registers[GET_Ca(*pc)]&&registers[GET_Cb(*pc)];
+                registers[i64cmt]=registers[GET_Ca(*pc)]&&registers[GET_Cb(*pc)];
                 _brh
             UAND:
-                registers[cmt]=(int64_t)registers[GET_Ca(*pc)]&(int64_t)registers[GET_Cb(*pc)];
+                registers[i64cmt]=(int64_t)registers[GET_Ca(*pc)]&(int64_t)registers[GET_Cb(*pc)];
                 _brh
             OR:
-                registers[cmt]=(int64_t)registers[GET_Ca(*pc)]|(int64_t)registers[GET_Cb(*pc)];
+                registers[i64cmt]=(int64_t)registers[GET_Ca(*pc)]|(int64_t)registers[GET_Cb(*pc)];
                 _brh
             UNOT:
-                registers[cmt]=(int64_t)registers[GET_Ca(*pc)]^(int64_t)registers[GET_Cb(*pc)];
+                registers[i64cmt]=(int64_t)registers[GET_Ca(*pc)]^(int64_t)registers[GET_Cb(*pc)];
                 _brh
             THROW:
                 throw Exception("", false);
                 _brh
             CHECKNULL:
-                CHECK_NULL(registers[cmt]=o2->object==NULL;)
+                CHECK_NULL(registers[i64cmt]=o2->object==NULL;)
                 _brh
             RETURNOBJ:
                 fp->object=o2;
@@ -1269,15 +1269,15 @@ void Thread::exec() {
                 (sp+GET_Cb(*pc))->var+=GET_Ca(*pc);
                 _brh
             JE:
-                if(registers[cmt]) {
+                if(registers[i64cmt]) {
                     pc=cache+GET_Da(*pc); _brh_NOINCREMENT
                 } else  _brh
             JNE:
-                if(registers[cmt]==0) {
+                if(registers[i64cmt]==0) {
                     pc=cache+GET_Da(*pc); _brh_NOINCREMENT
                 } else  _brh
             SWITCH: {
-                if((val = current->switchTable.get(GET_Da(*pc)).values.indexof(registers[ebx])) != -1 ) {
+                if((val = current->switchTable.get(GET_Da(*pc)).values.indexof(registers[i64ebx])) != -1 ) {
                     pc=cache+current->switchTable.get(GET_Da(*pc)).addresses.get(val);
                     _brh_NOINCREMENT
                 } else {

@@ -1,0 +1,413 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 5/17/2018.
+ */
+public class strbuf {
+    /*this will hold our string */
+        private var[] data;
+
+        private var DEFAULT_CAPACITY = 255;
+        // how many bars do we add each time a reallocation is nedded
+        private var RESiZE_CAPACITY = 128;
+        private var capacity;
+        private var ptr; // where we are in the buffer
+        private static var varFmt = 'g';
+        private static var precision = 0; // default presicion
+
+        public strbuf()
+        {
+            setdefault();
+        }
+
+        private def setdefault()
+        {
+            data = new var[DEFAULT_CAPACITY];
+            capacity = DEFAULT_CAPACITY;
+            ptr = -1;
+        }
+
+        public strbuf( var[] immstr )
+        {
+            if(immstr == null) {
+                setdefault();
+            } else {
+                data = (var[])memcpy(immstr, 0, sizeof(immstr));
+                capacity = sizeof(immstr);
+                ptr = capacity;
+            }
+        }
+
+        public strbuf( var ch )
+        {
+            setdefault();
+            append(ch);
+        }
+
+        public strbuf( char[] immstr )
+        {
+            setdefault();
+            if(immstr != null) {
+
+                var[] chs = new var[sizeof(immstr)];
+                var iter;
+                foreach(char c : immstr) {
+                    chs[iter++] = c.getValue();
+                }
+
+                append(chs);
+            }
+
+        }
+
+        public strbuf(string str )
+        {
+            self->strbuf(str.toArray());
+        }
+
+        public strbuf( var[] immstr, var offset )
+        {
+            if(immstr == null) {
+                setdefault();
+            } else {
+                data = (var[])memcpy(immstr, offset, sizeof(immstr));
+                capacity = sizeof(immstr);
+                ptr = capacity;
+            }
+        }
+
+        public strbuf( var[] immstr, var offset, var endIndex )
+        {
+            if(immstr == null) {
+                setdefault();
+            } else {
+                data = (var[])memcpy(immstr, offset, endIndex);
+                capacity = sizeof(immstr);
+                ptr = capacity;
+            }
+        }
+
+        public def replace( var pos, var replaceChar ) : strbuf
+        {
+            if(pos >= sizeof(data)) {
+                throw new RuntimeErr("Index out of bounds exception");
+            }
+
+            data[pos] = replaceChar;
+            return self;
+         }
+
+        def append(var char) : strbuf
+        {
+            if(data == null) {
+                setdefault();
+            }
+            else {
+                if((capacity-ptr) <= 1) {
+                    capacity = sizeof(data) + (sizeof(data) >> 3) + RESiZE_CAPACITY;
+                    realloc(data, capacity);
+                }
+            }
+
+            data[++ptr] = char;
+            return self;
+        }
+
+        def append(char c) : strbuf
+        {
+            return append(c.getValue());
+        }
+
+        def append(var[] immstr) : strbuf
+        {
+            if(immstr == null) return self;
+
+            var iter=ptr; // stack access is faster than memory
+
+            if(data == null) {
+                capacity = sizeof(immstr)+DEFAULT_CAPACITY;
+                ptr = -1;
+                data = new var[capacity];
+            }
+            else {
+                if((capacity-ptr) <= sizeof(immstr)) {
+                    var baseCap = sizeof(data) + sizeof(immstr);
+                    capacity = baseCap + (baseCap >> 3) + RESiZE_CAPACITY;
+                    realloc(data, capacity);
+                }
+            }
+
+            for(var i = 0; i < sizeof(immstr); i++)
+            {
+                data[++iter] = (_int16)immstr[i];
+            }
+
+            ptr = iter;
+            return self;
+        }
+
+        public def at( var pos ) : var
+        {
+            if(pos >= sizeof(data)) {
+                throw new RuntimeErr("Index out of bounds Array: size " + sizeof(data)
+                       + " at index pos " + pos);
+            }
+
+            return data[pos];
+        }
+
+        public static def fmt( var _fmt ) {
+            varFmt = _fmt;
+            if(_fmt != 'f' && _fmt != 'F') precision = 0;
+        }
+
+        public static def precision( var prec ) {
+            if(prec < 0)
+                throw new IllegalArgumentException("invalid precision: " + prec);
+            precision = prec;
+        }
+
+        public def operator+( var[] immstr ) : string
+        {
+            string s = new string(data);
+            if(immstr != null)
+                return s += immstr;
+            else
+                return s += "null";
+        }
+
+        public def operator+( Printable o ) : string
+        {
+            string s = new string(data);
+            var[] tmp = o.toString().data;
+            if(o != null && tmp != null)
+                return s += tmp;
+            else
+                return s += "null";
+        }
+
+        public def operator==( string str ) : var
+        {
+            if(str.size() != sizeof(data)) {
+                return false;
+            }
+
+            var iter;
+            foreach(var char : data) {
+                if(char != str.at(iter++)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public def operator!=( string str ) : var {
+            return !operator==(str);
+        }
+
+        public def operator==( var[] str ) : var
+        {
+            if(sizeof(str) != sizeof(data)) {
+                return false;
+            }
+
+            var iter;
+            foreach( var char : data ) {
+                if(char != str[iter++]) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public def operator!=( var[] str ) : var {
+            return !operator==(str);
+        }
+
+        public def operator=( var[] immstr )
+        {
+            clear();
+            append(immstr);
+        }
+
+        private def clear()
+        {
+            if(capacity > DEFAULT_CAPACITY) {
+                setdefault();
+            }
+
+            ptr = -1;
+        }
+
+        public def operator+( var num ) : string
+        {
+            string s = new string(data);
+            s += parse(num).toArray();
+
+            return s;
+        }
+
+        public def operator+=( var num ) : strbuf
+        {
+            return append(num);
+        }
+
+        public def operator+=( Printable o ) : strbuf
+        {
+            string s = o.toString();
+            if(s != null && s.getData() != null)
+                return append(s.getData());
+            else
+                return append("null");
+        }
+
+        public def operator+=( var[] immstr ) : strbuf
+        {
+            return append(immstr);
+        }
+
+        public def operator+=( string str ) : strbuf
+        {
+            return append(str.toArray());
+        }
+
+        public def toArray() : var[]
+        {
+            if(ptr == -1) return null;
+            return (var[])copyOf(data, ptr);
+        }
+
+        public static def parse( var number ) : string
+        {
+            return new string(snprintf(varFmt, number, precision));
+        }
+
+        public def substring(var startIndex) : string {
+            if((startIndex >= size()) || (startIndex < 0))
+                return new string("");
+
+
+            string s = new string();
+            s = (var[])memcpy(data, startIndex, size()-1);
+            return s;
+        }
+
+        public def substring(var startIndex, var stopIndex) : string {
+            if((startIndex >= size()) || (startIndex < 0))
+                return new string("");
+            if(stopIndex < startIndex)
+                throw new IllegalArgumentException(
+                    "stopIndex: " + stopIndex + " cannot be less than startIndex: " + startIndex);
+
+
+            string s = new string();
+            s = (var[])memcpy(data, startIndex, stopIndex);
+            return s;
+        }
+
+        public static def parseInt(string s) : var {
+            var i = 0;
+            var number = 0;
+            var isNegative = false;
+            var len = s.size();
+            if( s.at(0) == '-' ){
+                isNegative = true;
+                i = 1;
+            }
+            while( i < len ){
+                if(!char.isDigit(s.at(i))) {
+                    throw new IllegalArgumentException(
+                        "illegal char in string: " + new char(s.at(i)));
+                }
+
+                number *= 10;
+                number += ( s.at(i++) - '0' );
+            }
+            if( isNegative )
+                number = -number;
+            return number;
+        }
+
+        /**
+         * Tests if the substring of this string beginning at the
+         * specified index starts with the specified prefix.
+         *
+         */
+        public def startsWith(string prefix, var toffset) : var {
+            var to = toffset;
+            var po = 0;
+            var pc = prefix.size();
+            // Note: toffset might be near -1>>>1.
+            if ((toffset < 0) || (toffset > size() - pc)) {
+                return false;
+            }
+            while ((--pc) >= 0) {
+                if (at(to++) != prefix.at(po++)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public def find(string str) : var {
+            if(str.size() > size()) {
+                return false;
+            }
+
+            var endIndex;
+            for(var i = 0; i < size(); i++) {
+                endIndex = i+str.size();
+                if(substring(i, endIndex > size() ? size() : endIndex) == str)
+                    return true;
+            }
+
+            return false;
+        }
+
+        public def endsWith(string postFix) : var {
+            if(postFix.size() > size())
+                return false;
+
+            var ext = postFix.size();
+            string extension = new string();
+            for(var i = size() - ext; i < size(); i++){
+                extension += new char(at(i));
+            }
+
+            return extension == postFix;
+        }
+
+
+        public static def toLower(string s) : string {
+            string newstr = new string();
+            var[] chs = s.toArray();
+            foreach(var c : chs) {
+                newstr += char.toLower(c);
+            }
+            return newstr;
+        }
+
+        public static def toUpper(string s) : string {
+            string newstr = new string();
+            var[] chs = s.toArray();
+            foreach(var c : chs) {
+                newstr += char.toUpper(c);
+            }
+            return newstr;
+        }
+
+        public def empty() : var {
+            return ptr == -1;
+        }
+        
+        public def size() : var
+        {
+            return ptr+1;
+        }
+
+        public def delegate::toString() : string {
+            return ptr == -1 ? new string() : new string(data, 0, ptr);
+        }
+}

@@ -63,25 +63,25 @@ void Asm::expect_register() {
         npos++;
 
     if(current() == "adx") {
-        i2.high_bytes = adx;
+        i2.high_bytes = i64adx;
     } else if(current() == "cx") {
-        i2.high_bytes = cx;
+        i2.high_bytes = i64cx;
     } else if(current() == "cmt") {
-        i2.high_bytes = cmt;
+        i2.high_bytes = i64cmt;
     } else if(current() == "ebx") {
-        i2.high_bytes = ebx;
+        i2.high_bytes = i64ebx;
     } else if(current() == "ecx") {
-        i2.high_bytes = ecx;
+        i2.high_bytes = i64ecx;
     } else if(current() == "ecf") {
-        i2.high_bytes = ecf;
+        i2.high_bytes = i64ecf;
     } else if(current() == "edf") {
-        i2.high_bytes = edf;
+        i2.high_bytes = i64edf;
     } else if(current() == "ehf") {
-        i2.high_bytes = ehf;
+        i2.high_bytes = i64ehf;
     } else if(current() == "bmr") {
-        i2.high_bytes = bmr;
+        i2.high_bytes = i64bmr;
     } else if(current() == "egx") {
-        i2.high_bytes = egx;
+        i2.high_bytes = i64egx;
     } else {
         // error
         tk->getErrors()->createNewError(GENERIC, current(), "symbol `" + current().getToken() + "` is not a register");
@@ -1233,25 +1233,25 @@ token_entity Asm::current() {
 
 string Asm::registrerToString(int64_t r) {
     switch(r) {
-        case adx:
+        case i64adx:
             return "adx";
-        case cx:
+        case i64cx:
             return "cx";
-        case cmt:
+        case i64cmt:
             return "cmt";
-        case ebx:
+        case i64ebx:
             return "ebx";
-        case ecx:
+        case i64ecx:
             return "ecx";
-        case ecf:
+        case i64ecf:
             return "ecf";
-        case edf:
+        case i64edf:
             return "edf";
-        case ehf:
+        case i64ehf:
             return "ehf";
-        case bmr:
+        case i64bmr:
             return "bmr";
-        case egx:
+        case i64egx:
             return "egx";
         default: {
             stringstream ss;

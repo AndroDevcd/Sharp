@@ -121,7 +121,7 @@ class StreamBuffer {
             begin();
 
         if((dp+sizeof(raw)) >= size) {
-            size += sizeof(raw) + (size >> 3) + STREAM_CHUNK;
+            size += sizeof(raw) + (size >> 4) + STREAM_CHUNK;
             realloc(data,  size);
         }
 
