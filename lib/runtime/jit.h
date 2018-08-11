@@ -11,6 +11,10 @@
 #include "../util/jit/asmjit/src/asmjit/asmjit.h"
 #include "oo/Method.h"
 
+#define jit_error_compile 1             // error compiling the source
+#define jit_error_mem     304           // not enough memory
+#define jit_error_ok      0             // the result you want
+
 struct jit_ctx;
 class VirtualMachine;
 class Environment;
@@ -22,6 +26,13 @@ struct jit_func {
     int64_t serial, rAddr; // jit unique serial : reference Address to generated function
 };
 
+// convient id's for each field to access
+#define jit_field_id_current 0
+#define jit_field_id_registers 1
+#define jit_field_id_vm 2
+#define jit_field_id_env 3
+#define jit_field_id_func 4
+
 struct jit_ctx {
     Thread* current;
     double *registers;
@@ -30,7 +41,7 @@ struct jit_ctx {
     Method* func; // current method we are executing only used in initalization of the call
 };
 
-extern thread_local jit_ctx* jctx;
+extern thread_local jit_ctx jctx;
 
 void call(jit_ctx *, int64_t);
 int compile(Method *);

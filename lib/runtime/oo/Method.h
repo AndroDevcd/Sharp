@@ -38,7 +38,8 @@ typedef int64_t* Cache;
  * it will contain all the information to run correctly in the system
  *
  */
-struct Method {
+struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUCT DATA USED BY THE JIT */
+    int64_t* jit_labels;
     unsigned long address;          /* refrence id to the the address space */
 
     int64_t* bytecode;
@@ -86,6 +87,10 @@ struct Method {
         if(bytecode != NULL) {
             std::free(bytecode);
         }
+
+        if(jit_labels != NULL) {
+            std::free(jit_labels);
+        }
     }
 
     void init() {
@@ -100,6 +105,7 @@ struct Method {
         arrayFlag = NULL;
         paramSize = 0;
         owner = NULL;
+        jit_labels = NULL;
         stackSize = 0;
         bytecode = NULL;
         address = 0;

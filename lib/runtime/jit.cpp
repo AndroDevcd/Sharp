@@ -4,7 +4,9 @@
 
 #include "jit.h"
 #include "Opcode.h"
+#include "Thread.h"
 #include <stdio.h>
+#include <fstream>
 
 using namespace asmjit;
 
@@ -13,9 +15,12 @@ using namespace asmjit;
  */
 JitRuntime rt;
 
-thread_local jit_ctx* jctx;
+thread_local jit_ctx jctx;
 std::vector<jit_func> functions;
 uint64_t jit_funcid = 0;
+X86Mem jit_ctx_fields[5]; // memory map of jit_ctx
+
+void setupJitContextFields(const X86Gp &ctx);
 
 /**
  * testing suite for Sharp
@@ -28,10 +33,28 @@ int compile(Method *method) {
         using namespace asmjit::x86;            // Easier access to x86/x64 registers.
         int64_t* bc = method->bytecode;
         int64_t sz = method->cacheSize;
+        jctx.func = method;
+        jctx.registers = registers;
+        cout << "func " << method << endl;
 
+        // make it easier for the JIT Compiler
+        method->jit_labels = (int64_t *)malloc(sizeof(int64_t)*method->cacheSize);
+        if(!method->jit_labels)
+            return jit_error_mem; // "error processing exe: not enough memory"
+        else
+            std::memset(method->jit_labels, 0, sizeof(int64_t)*method->cacheSize);
+
+        cout << "func->labels " << method->jit_labels << endl;
         CodeHolder code;                        // Holds code and relocation information.
         code.init(rt.getCodeInfo());            // Initialize to the same arch as JIT runtime.
-        FileLogger logger(stdout);
+        std::ofstream outfile ("JIT.s");        // Quickly create file
+        outfile << "";                          // clear it
+        outfile.close();
+
+        FILE * pFile;                           // out logging file
+        pFile = fopen ("JIT.s" , "rw+");
+
+        FileLogger logger(pFile);
         code.setLogger(&logger);                // Initialize logger temporarily to ensure quality of code
 
         X86Assembler cc(&code);                  // Create and attach X86Compiler to `code`.
@@ -40,16 +63,14 @@ int compile(Method *method) {
         // registers zax for `ctx` is used to store the pointer to the jit context
         X86Gp ctx   = cc.zax();
 
-        X86Gp tmp        = x86::gpq(0);       // setup register locations for local variables
-        X86Gp val        = x86::gpq(1);       // virtual registers are r0, r1, r2, and r3
-        X86Gp delegate   = x86::gpq(2);       // each time a function is called that can mess with the state of these registers
-        X86Gp argsReg    = x86::gpq(3);       // they must be pushed to the stack to be retained
+        X86Gp tmp        = r10;       // setup register locations for local variables
+        X86Gp val        = r11;       // virtual registers are r10, r11, r12, and r13
+        X86Gp delegate   = r12;       // each time a function is called that can mess with the state of these registers
+        X86Gp argsReg    = r13;       // they must be pushed to the stack to be retained
 
         // we need these for stack manip
         X86Gp zbp = cc.zbp();
         X86Gp zsp = cc.zsp();
-        X86Gp zdi = cc.zdi();
-        X86Gp zax = cc.zax();
 
 
         X86Xmm vec0 = xmm0;
@@ -129,25 +150,48 @@ int compile(Method *method) {
         cc.mov(klassPtr, 0);                    // very important!!
         cc.mov(objectPtr, 0);
         cc.mov(o2Ptr, 0);
+        cc.mov(labelsPtr, 0);
 
-        int64_t malloc_ =                     // pointer address to malloc function
-                (int64_t )std::malloc;
+        // Setup jit_ctx field offsets
+        setupJitContextFields(ctx);
 
-        cc.mov(edi, (uint64_t )(sizeof(uint64_t)*sz));
-        cc.call(malloc_);          //   Function signature.
-        cc.mov(labelsPtr, rax);
+        // we already have ctx pointer no need to set
+        cc.mov(ctx, jit_ctx_fields[jit_field_id_func]); // ctx->func
+
+        // oh god now we have to get labels field
+        X86Mem method_jit_fields = x86::qword_ptr(ctx, 0); // You know what im just super lazy so i slapped it straight to the top
+        cc.mov(ctx, method_jit_fields); // ctx->func->jit_labels
+
+
+        Label lbl_begin = cc.newNamedLabel("begin", 5);
+        Label lbl_end = cc.newNamedLabel("end", 3);
+        Label lbl_funcend = cc.newNamedLabel("func_end", 8);
+
+        cc.mov(labelsPtr, ctx);                         // int64_t* labels = ctx->func->jit_labels;
+        X86Mem tmp_jit_labels = x86::qword_ptr(ctx, 0); // labels[0]
+        cc.nop(); cc.nop();
+        cc.mov(ctx, labelsPtr);                         // get int64_t* labels value
+        cc.mov(ctx, tmp_jit_labels);
+        cc.test(ctx, ctx);
+        cc.jne(lbl_begin);
+        cc.nop();
+        cc.jmp(lbl_end);
+
+        cc.bind(lbl_begin);
+        cc.nop();
+        // user code start
 
         /**
          * Solution for dynamic label problem
          *
          * void jit_function0(jit_ctx *ctx) {
          *     ...
-         *     goto end;
+         *     if(ctx->func->jit_labels[0]==0)
+         *        goto end;
          *     begin:
-         *        x86 code starts here
+         *        user code starts here
          *
          *     end:
-         *        new int64[labelsSz]; // sudocode to create a new array for the labels
          *        set int64 array to label values
          *        goto begin;
          */
@@ -158,6 +202,7 @@ int compile(Method *method) {
             x64 = *bc;
 
             cc.bind(labels[i]);
+            cc.nop();
             switch(GET_OP(x64)) {
                 case op_NOP: {
                     break;
@@ -173,15 +218,27 @@ int compile(Method *method) {
             bc++;
         }
 
+        cc.jmp(lbl_funcend);                   // if we reach the end of our function we dont want to set the labels again
+        cc.bind(lbl_end);
+        cc.nop();
+        // labeles[] setting here
+
+        cc.jmp(lbl_begin);                     // jump back to top to execute user code
+
+        // end of function
+        cc.bind(lbl_funcend);
+        cc.nop();
+
         FuncUtils::emitEpilog(&cc, layout);    // Emit function epilog and return.
 
         if(!error) {
 
             sjit_function jitfn;
             Error err = rt.add(&jitfn, &code);   // Add the generated code to the runtime.
-            if (err) return 1;
+            if (err) return jit_error_compile;
             else {
-                jitfn(nullptr);
+                jit_ctx *ctx = &jctx;
+                jitfn(ctx);
                 jit_func jfunc;
                 jfunc.func = jitfn;
                 jfunc.serial = jit_funcid++;
@@ -189,10 +246,19 @@ int compile(Method *method) {
                 functions.push_back(jfunc);
             }
         }
+
+        releaseMem(); // this will go away we just use it for now
     }
 
-    releaseMem();
-    return 0;
+    return jit_error_ok;
+}
+
+void setupJitContextFields(const X86Gp &ctx) {
+    jit_ctx_fields[jit_field_id_current] = x86::qword_ptr(ctx, 0); // Thread *current
+    jit_ctx_fields[jit_field_id_registers] = x86::qword_ptr(ctx, sizeof(Thread*)); // double *registers
+    jit_ctx_fields[jit_field_id_vm] = x86::qword_ptr(ctx, (sizeof(Thread*) + sizeof(double*))); // VirtualMachine *vm
+    jit_ctx_fields[jit_field_id_env] = x86::qword_ptr(ctx, (sizeof(Thread*) + sizeof(double*) + sizeof(VirtualMachine*))); // Environment *env
+    jit_ctx_fields[jit_field_id_func] = x86::qword_ptr(ctx, (sizeof(Thread*) + sizeof(double*) + sizeof(VirtualMachine*) + sizeof(Environment*))); // Method *func
 }
 
 void releaseMem()
