@@ -20,6 +20,8 @@
 #include "../util/File.h"
 #include "../Modules/std.kernel/cmath.h"
 #include "../Modules/std.kernel/clist.h"
+#include "jit.h"
+
 #ifdef WIN32_
 #include <conio.h>
 #endif
@@ -46,6 +48,7 @@ int CreateVirtualMachine(std::string exe)
     env->gui->setupMain();
 #endif
 
+    compile(env->methods+25);
     manifest.classes -= AUX_CLASSES;
 
     /**

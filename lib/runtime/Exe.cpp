@@ -629,7 +629,7 @@ native_string string_forward(File::buffer& str, size_t begin, size_t end) {
 
 bool checkFile(File::buffer& exe) {
     if(exe.at(n++) == file_sig && string_forward(exe, n, 3) == "SEF") {
-        n +=3 + offset;
+        n +=3 + zoffset;
 
         /* Check file's digital signature */
         if(exe.at(n++) == digi_sig1 && exe.at(n++) == digi_sig2

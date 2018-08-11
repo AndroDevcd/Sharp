@@ -18,7 +18,7 @@ struct i64_t {
     int32_t B;
 };
 
-#define offset 0xf
+#define zoffset 0xf
 #define file_sig 0x0f
 #define digi_sig1 0x07
 #define digi_sig2 0x1b
