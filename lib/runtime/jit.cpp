@@ -169,10 +169,10 @@ int compile(Method *method) {
 
         cc.mov(labelsPtr, ctx);                         // int64_t* labels = ctx->func->jit_labels;
         X86Mem tmp_jit_labels = x86::qword_ptr(ctx, 0); // labels[0]
-        cc.nop(); cc.nop();
+
         cc.mov(ctx, labelsPtr);                         // get int64_t* labels value
-        cc.mov(ctx, tmp_jit_labels);
-        cc.test(ctx, ctx);
+        cc.mov(ctx, tmp_jit_labels);                    // if(ctx->func->jit_labels[0]==0)
+        cc.test(ctx, ctx);                              //      goto end;
         cc.jne(lbl_begin);
         cc.nop();
         cc.jmp(lbl_end);
@@ -191,9 +191,13 @@ int compile(Method *method) {
          *     begin:
          *        user code starts here
          *
+         *        goto real_end;
          *     end:
          *        set int64 array to label values
          *        goto begin;
+         *
+         *     real_end:
+         *        return;
          */
         Error error = 0;
         int64_t x64;
