@@ -48,7 +48,6 @@ int CreateVirtualMachine(std::string exe)
     env->gui->setupMain();
 #endif
 
-    compile(env->methods+25);
     manifest.classes -= AUX_CLASSES;
 
     /**
@@ -204,7 +203,9 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
          */
         executeMethod(thread_self->main->address, thread_self)
 
-        thread_self->exec();
+        thread_self->initJitCtx();
+        compile(jctx.func);
+        //thread_self->exec();
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();

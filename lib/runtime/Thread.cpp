@@ -13,6 +13,7 @@
 #include "Manifest.h"
 #include "oo/Object.h"
 #include "../util/time.h"
+#include "jit.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -1407,6 +1408,15 @@ int Thread::setPriority(int32_t id, int priority) {
         return 2;
 
     return setPriority(thread, priority);
+}
+
+void Thread::initJitCtx() {
+    jctx.registers = registers;
+    //jctx.func = current;
+    jctx.func = env->methods+7;
+    jctx.env = env;
+    jctx.vm = vm;
+    jctx.current = this;
 }
 
 void __os_sleep(int64_t INTERVAL) {

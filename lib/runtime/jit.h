@@ -33,6 +33,23 @@ struct jit_func {
 #define jit_field_id_env 3
 #define jit_field_id_func 4
 
+// convient id's for each field in thread object
+#define jit_field_id_thread_current 0
+#define jit_field_id_thread_callStack 1
+#define jit_field_id_thread_calls 2
+#define jit_field_id_thread_dataStack 3
+#define jit_field_id_thread_sp 4
+#define jit_field_id_thread_fp 5
+#define jit_field_id_thread_stack_lmt 6
+#define jit_field_id_thread_cache 7
+#define jit_field_id_thread_pc 8
+
+// convient id's for each field in StackElement object
+#define jit_field_id_stack_element_var 0
+#define jit_field_id_stack_element_object 1
+
+#define SIZE(x) (int64_t)(sz = (int64_t)(x))
+
 struct jit_ctx {
     Thread* current;
     double *registers;

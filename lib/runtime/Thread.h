@@ -97,6 +97,18 @@ public:
     void CreateDaemon(string);
     void exit();
 
+    void initJitCtx();
+
+public: // easier to acces for JIT
+
+    StackElement* dataStack,
+            *sp, *fp;
+    Method *current;
+    Frame *callStack;
+    unsigned long calls;
+    unsigned long stack_lmt;
+    Cache cache, pc;
+
     static int32_t tid;
     static List<Thread*> threads;
 #ifdef WIN32_
@@ -129,12 +141,6 @@ public:
     Object currentThread, args;
     Random* rand;
 
-    Method *current;
-    Frame *callStack;
-    unsigned long calls;
-    StackElement* dataStack, *sp, *fp;
-    unsigned long stack_lmt;
-    Cache cache, pc;
     Throwable throwable;
 #ifdef WIN32_
     HANDLE thread;
