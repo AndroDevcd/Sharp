@@ -93,11 +93,11 @@ public:
     void hit(Method *func);
     void profile();
 
-    std::vector<funcProf> calls;
-    List<funcProf> functions;
     size_t totalHits; // total ammount of function calls
     int64_t starttm, endtm;
     size_t lastHit;
+    std::vector<funcProf> calls;
+    List<funcProf> functions;
 
     void dump();
 

@@ -49,11 +49,11 @@ public:
             throwable(),
             callStack(),
             dataStack(NULL)
-#ifdef SHARP_PROF_
-            ,tprof()
-#endif
 
     {
+#ifdef SHARP_PROF_
+        tprof = new profiler();
+#endif
     #ifdef WIN32_
         new (&mutex) std::mutex();
     #endif
@@ -108,6 +108,9 @@ public: // easier to acces for JIT
     unsigned long calls;
     unsigned long stack_lmt;
     Cache cache, pc;
+#ifdef SHARP_PROF_
+    Profiler *tprof;
+#endif
 
     static int32_t tid;
     static List<Thread*> threads;
@@ -120,10 +123,6 @@ public: // easier to acces for JIT
     std::mutex mutex;
 #endif
     static bool isAllThreadsSuspended;
-
-#ifdef SHARP_PROF_
-    Profiler tprof;
-#endif
 
     int32_t id;
     int priority;

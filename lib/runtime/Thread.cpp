@@ -468,7 +468,8 @@ void Thread::term() {
     }
 
 #ifdef SHARP_PROF_
-    tprof.free();
+    tprof->free();
+    delete tprof;
 #endif
     this->name.free();
 }
@@ -755,17 +756,17 @@ void Thread::exec() {
     Method* finnallyMethod;
 
 #ifdef SHARP_PROF_
-    tprof.init(stack_lmt);
-    tprof.starttm=Clock::realTimeInNSecs();
+    tprof->init(stack_lmt);
+    tprof->starttm=Clock::realTimeInNSecs();
     for(size_t i = 0; i < manifest.methods; i++) {
-        tprof.functions.push_back();
-        tprof.functions.last().init();
-        tprof.functions.last() = funcProf(env->methods+i);
+        tprof->functions.push_back();
+        tprof->functions.last().init();
+        tprof->functions.last() = funcProf(env->methods+i);
     }
 #endif
 
 #ifdef SHARP_PROF_
-    tprof.hit(main);
+    tprof->hit(main);
 #endif
 
     _initOpcodeTable
@@ -793,9 +794,9 @@ void Thread::exec() {
 
 #ifdef SHARP_PROF_
             if(GET_Da(*pc) == 0xa9) {
-                tprof.endtm=Clock::realTimeInNSecs();
-                tprof.profile();
-                tprof.dump();
+                tprof->endtm=Clock::realTimeInNSecs();
+                tprof->profile();
+                tprof->dump();
             }
 
 #endif
@@ -808,8 +809,8 @@ void Thread::exec() {
             RET:
                 if(calls <= 1) {
 #ifdef SHARP_PROF_
-                tprof.endtm=Clock::realTimeInNSecs();
-                tprof.profile();
+                tprof->endtm=Clock::realTimeInNSecs();
+                tprof->profile();
 #endif
                     return;
                 }
@@ -827,7 +828,7 @@ void Thread::exec() {
                 fp = frame->fp;
 
 #ifdef SHARP_PROF_
-            tprof.profile();
+            tprof->profile();
 #endif
                 _brh
             HLT:
@@ -1007,14 +1008,14 @@ void Thread::exec() {
                 _brh
             CALL:
 #ifdef SHARP_PROF_
-            tprof.hit(env->methods+GET_Da(*pc));
+            tprof->hit(env->methods+GET_Da(*pc));
 #endif
                 CALLSTACK_CHECK
                 executeMethod(GET_Da(*pc), this)
                 _brh_NOINCREMENT
             CALLD:
 #ifdef SHARP_PROF_
-            tprof.hit(env->methods+GET_Da(*pc));
+            tprof->hit(env->methods+GET_Da(*pc));
 #endif
                 if((val = (int64_t )registers[GET_Da(*pc)]) <= 0 || val >= manifest.methods) {
                     stringstream ss;
@@ -1420,8 +1421,6 @@ void Thread::initJitCtx() {
     jctx.registers = registers;
     //jctx.func = current;
     jctx.func = env->methods+7;
-    jctx.env = env;
-    jctx.vm = vm;
     jctx.current = this;
 }
 

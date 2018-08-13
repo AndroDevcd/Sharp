@@ -1,0 +1,15 @@
+mod app;
+
+/**
+ * Created by BraxtonN on 8/13/2018.
+ *
+ * Testing suite for Sharp.
+ *
+ * This file contains all the testing of the Sharp JIT
+ */
+def main() {
+    asm(
+        "nop"
+        "int 0x9f" // this call does nothing so its safe
+    );
+}

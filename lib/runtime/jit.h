@@ -16,8 +16,6 @@
 #define jit_error_ok      0             // the result you want
 
 struct jit_ctx;
-class VirtualMachine;
-class Environment;
 
 typedef void (*sjit_function)(jit_ctx *);
 
@@ -29,9 +27,7 @@ struct jit_func {
 // convient id's for each field to access
 #define jit_field_id_current 0
 #define jit_field_id_registers 1
-#define jit_field_id_vm 2
-#define jit_field_id_env 3
-#define jit_field_id_func 4
+#define jit_field_id_func 2
 
 // convient id's for each field in thread object
 #define jit_field_id_thread_current 0
@@ -43,10 +39,19 @@ struct jit_func {
 #define jit_field_id_thread_stack_lmt 6
 #define jit_field_id_thread_cache 7
 #define jit_field_id_thread_pc 8
+#ifdef SHARP_PROF_
+#define jit_field_id_thread_tprof 9
+#endif
 
 // convient id's for each field in StackElement object
 #define jit_field_id_stack_element_var 0
 #define jit_field_id_stack_element_object 1
+
+// convient id's for each field in profiler object
+#define jit_field_id_profiler_totalHits 0
+#define jit_field_id_profiler_starttm 1
+#define jit_field_id_profiler_endtm 2
+#define jit_field_id_profiler_lastHit 3
 
 #define SIZE(x) (int64_t)(sz = (int64_t)(x))
 
@@ -58,12 +63,12 @@ struct jit_func {
         lconstMem = ptr(lconsts.getConstantLabel(idx));  \
         cc.movsd(vec0, lconstMem); \
     }
+#define returnFuntion() \
+    cc.jmp(lbl_funcend);
 
 struct jit_ctx {
     Thread* current;
     double *registers;
-    VirtualMachine* vm;
-    Environment* env;
     Method* func; // current method we are executing only used in initalization of the call
 };
 

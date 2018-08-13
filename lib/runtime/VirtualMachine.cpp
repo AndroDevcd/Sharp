@@ -270,7 +270,7 @@ void VirtualMachine::shutdown() {
 void VirtualMachine::sysInterrupt(int32_t signal) {
     switch (signal) {
         case 0x9f:
-            //cout << env->strings[(int64_t )thread_self->__stack[(int64_t)__rxs[sp]--].var].value.str();
+            /* does nothing nop equivalent */
             return;
         case 0xc7:
             __snprintf((int) registers[i64egx], registers[i64ebx], (int) registers[i64ecx]);
