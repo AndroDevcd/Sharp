@@ -357,6 +357,7 @@ int compile(Method *method) {
                 }
                 case op_LOADL: {                   // registers[GET_Ca(*pc)]=(fp+GET_Cb(*pc))->var;
                     cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(tmp, jit_ctx_fields[jit_field_id_registers]); // ctx->registers (quick "hack" for less instructions)
                     cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
                     cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
 
@@ -367,14 +368,12 @@ int compile(Method *method) {
                     tmpMem = stack_element_fields[jit_field_id_stack_element_var];
                     cc.movsd(vec0, tmpMem);
 
-                    cc.mov(ctx, ctxPtr);        // move the contex var into register
-                    cc.mov(ctx, jit_ctx_fields[jit_field_id_registers]); // ctx->registers
 
                     if(GET_Ca(x64) != 0) {
-                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(x64)));
+                        cc.add(tmp, (int64_t )(sizeof(double) * GET_Ca(x64)));
                     }
 
-                    tmpMem = qword_ptr(ctx);
+                    tmpMem = qword_ptr(tmp);
                     cc.movsd(tmpMem, vec0);
                     break;
                 }
