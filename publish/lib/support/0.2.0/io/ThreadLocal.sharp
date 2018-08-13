@@ -1,0 +1,53 @@
+mod std.io;
+
+/**
+ * Created by BraxtonN on 7/9/2018.
+ *
+ * Unable to support thread locals until version 0.3.0+
+ */
+class ThreadLocal<T> {
+
+    /*
+    * This will hold the current value of the thread local
+    */
+//    object value;
+//
+//    public def get() : T {
+//        Thread thread = Thread.currentThread();
+//        ThreadLocalMap map = thread.map;
+//        if(map != null) {
+//
+//        }
+//
+//        return setInitialValue();
+//    }
+//
+//    public def setInitialValue() : T {
+//        T inital; // compiler hack
+//        Thread t = Thread.currentThread();
+//        ThreadLocalMap map = t.map;
+//        if(map == null)
+//            map.set(self, inital); // may be null or 0 for var
+//        else
+//            createMap(t, inital);
+//        return inital;
+//    }
+//
+//    private def createMap(Thread t, object inital) {
+//        t.map = new ThreadLocalMap(self, initial);
+//    }
+
+    class ThreadLocalMap {
+        /**
+        * This will hold a list of our entries to each threads thread local values.
+        * For every thread that is created a new Thread local map instance will have to be created
+        */
+//        private ArrayList<ThreadLocal<object>> entries = new ArrayList<ThreadLocal<object>>();
+//
+//        public ThreadLocalMap(ThreadLocal<object> local, object initValue)
+//        {
+//
+//        }
+
+    }
+}

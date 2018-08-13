@@ -1,0 +1,102 @@
+mod app;
+
+import std;
+
+/**                          
+* Created by bknun on 6/13/2018            
+* Description:                             
+*/
+class TokenEntity {
+    public TokenEntity() {
+        token = "";
+        type = TokenType.NONE;
+        id = TokenId.NOENTITY;
+    }
+
+    public TokenEntity(string tok, TokenId id, TokenType type, var col, var line) {
+        self->token = tok;
+        self->type = type;
+        self->id = id;
+        self->col = col;
+        self->line = line;
+    }
+
+
+    public TokenEntity(string tok, TokenId id, var col, var line) {
+        self->token = tok;
+        self->type = TokenType.NONE;
+        self->id = id;
+        self->col = col;
+        self->line = line;
+    }
+
+    public def operator!=(TokenId id) : var {
+        return self->id != id;
+    }
+
+    public def operator==(string token) : var {
+        return self->token == token;
+    }
+
+    public def operator!=(string token) : var {
+        return self->token != token;
+    }
+
+    public def operator==(TokenEntity entity) : var {
+        return id==entity.id && token == entity.token;
+    }
+
+    public def operator==(TokenId id) : var {
+        return self->id == id;
+    }
+
+    public def getId() : TokenId {
+        return id;
+    }
+
+    public def getToken() : string {
+        return new string(token);
+    }
+
+    public def getCol() : var {
+        return self->col;
+    }
+
+    public def getLine() : var {
+        return self->line;
+    }
+
+    public def getType() : TokenType {
+        return self->type;
+    }
+
+    public def delegate::toString() : string {
+        return token + ": " + line + "," + col;
+    }
+
+    private var line;
+    private var col;
+    private TokenId id;
+    private TokenType type;
+    private string token = "";
+}
+
+enum TokenId
+{
+    IDENTIFIER,
+    NATIVE_TYPE,
+    TYPE_IDENTIFIER,
+    INTEGER_LITERAL,
+    HEX_LITERAL,
+    MODULENAME,
+    STRING_LITERAL,
+    CHAR_LITERAL,
+    LITERAL,
+    VALUE,
+    ACCESSTYPE,
+    SINGLELINE_COMMENT,
+    RETURN_STATEMENT,
+
+    SINGLE, // single token
+    NOENTITY // not an entity
+};

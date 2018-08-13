@@ -1,0 +1,252 @@
+mod app;
+
+import std;
+import std.io;
+import std.kernel;
+import std.kernel.vm;
+
+/**                          
+* Created by bknun on 6/5/2018            
+* Description:                             
+*/
+public class Runtime {
+
+    private static string programName = "sharpc";
+    private static string programVers = "0.3.21";
+
+    public static def bootstrap(string[] args) : var {
+        if(args == null) {
+            help();
+            return 1;
+        }
+
+        ErrorManager.initErrors();
+        ArrayList<string> files = new ArrayList<string>();
+        for(var i = 0; i < sizeof(args); i++) {
+
+            parseArg:
+            string arg = args[i];
+            if(arg == "-a"){
+                Options.aggressiveErrors = true;
+            }
+            else if(arg == "-c"){
+                Options.compile = true;
+            }
+            else if(arg == "-o"){
+                if(i+1 >= sizeof(args))
+                    error("output file required after option `-o`");
+                else
+                    Options.out = args[++i];
+            }
+            else if(arg == "-L"){
+                if(i+1 >= sizeof(args))
+                    error("library directory required after option `-L`");
+                else
+                    Options.libraries.add(args[++i]);
+            }
+            else if(arg == "-V"){
+                printVersion();
+                System.exit();
+            }
+            else if(arg == "-O"){
+                Options.optimize = true;
+            }
+            else if(arg == "-h" || arg == "-?"){
+                help();
+                System.exit();
+            }
+            else if(arg == "-R" || arg == "-release"){
+                Options.optimize = true;
+                Options.debug = false;
+                Options.strip = true;
+            }
+            else if(arg == "-s"){
+                Options.strip = true;
+                Options.debug = false;
+            }
+            else if(arg == "-magic"){
+                Options.magic = true;
+            }
+            else if(arg == "-debug") {
+                Options.debugMode = true;
+            }
+            else if(arg == "-showversion"){
+                printVersion();
+                System.println();
+            }
+            else if(arg == "-target"){
+                if(i+1 >= sizeof(args))
+                    error("file version required after option `-target`");
+                else {
+                    string target = args[++i];
+                    if(integerString(target))
+                        Options.target = string.parseInt(target);
+                    else {
+                        if(string.toLower(target) == "base") {
+                            Options.target = Platform.BASE;
+                        } else if(string.toLower(target) == "alpha") {
+                            Options.target = Platform.ALPHA;
+                        }
+                        else {
+                            error("unknown target " + target);
+                        }
+                    }
+                }
+            }
+            else if(arg == "-w"){
+                Options.warnings = false;
+            }
+            else if(arg == "-v"){
+                if(i+1 >= sizeof(args))
+                    error("file version required after option `-v`");
+                else
+                    Options.version = args[++i];
+            }
+            else if(arg == "-u" || arg == "-unsafe"){
+                Options.unsafe = true;
+            }
+            else if(arg == "-werror"){
+                Options.werrors = true;
+                Options.warnings = true;
+            }
+            else if(arg == "-errlmt") {
+                string lmt = args[++i];
+
+                if(integerString(lmt)) {
+                    Options.maxErrors = string.parseInt(lmt);
+            
+                    if(Options.maxErrors > 100000) {
+                        error("cannot set the max errors allowed higher than (100,000) - " + lmt);
+                    } else if(Options.maxErrors <= 0) {
+                        error("cannot have an error limit of 0 ");
+                    }
+                }
+                else {
+                    error("invalid error limit set " + lmt);
+                }
+            }
+            else if(arg == "-objdmp"){
+                Options.objDump = true;
+            }
+            else if(arg.at(0) == '-'){
+                error("invalid option `" + arg + "`, try bootstrap -h");
+            }
+            else {
+                // add the source files
+                do {
+                    if(args[i].at(0) == '-')
+                        goto parseArg;
+
+                    if(!contains(files, args[i]))
+                        files.add(args[i++]);
+                    else i++;
+                }while(i<sizeof(args));
+                break;
+            }
+        }
+
+        if(files.size() == 0){
+            help();
+            return 1;
+        }
+
+        string path = "";
+        if(Manifest.isWindows()) {
+            path = "C:/Sharp/include";
+        } else {
+            path = "/usr/include/sharp/";
+        }
+
+        File includes = new File(path);
+        string[] supportFiles = includes.list();
+
+        foreach(string file : supportFiles) {
+            files.add(file);
+        }
+
+        for(var i = 0; i < Options.libraries.size(); i++) {
+            includes = new File(Options.libraries.get(i));
+            supportFiles = includes.list();
+
+            foreach(string file : supportFiles) {
+                files.add(file);
+            }
+        }
+
+        for(var i = 0; i < files.size(); i++) {
+            if(!(new File(files.get(i)).exists()))
+                error("file `" + files.get(i) + "` doesnt exist!");
+
+            if(!files.get(i).endsWith(".sharp"))
+                error("file `" + files.get(i) + "` is not a sharp file!");
+        }
+
+        exec_runtime(files);
+        return 0;
+    }
+
+    static def contains(ArrayList<string> files, string file) : var {
+        string[] lst = files.toArray();
+        foreach(string f : lst) {
+            if(f == file)
+                return true;
+        }
+
+        return false;
+    }
+
+    static def exec_runtime(ArrayList<string> files) {
+
+        File testFile = new File(files.get(0));
+
+        IOStream istream = new IOStream(testFile, IOStream.READ);
+        var _char, iter;
+        string tokens = istream.toString();
+
+        istream.close();
+        Tokenizer tokenizer = new Tokenizer(tokens, files.get(0));
+        Parser parser = new Parser(tokenizer);
+        parser.getErrors().printErrors();
+    }
+
+
+    private static def integerString(string str) : var {
+        var[] chs = str.toArray();
+        foreach(var c : chs) {
+            if(!char.isDigit(c))
+                return false;
+        }
+        return true;
+    }
+
+    private static def error(string message) {
+        System.println("bootstrap:  error: " + message);
+        System.exit();
+    }
+
+    private static def printVersion() {
+        System.print(programName + " " + programVers);
+    }
+
+    private static def help() {
+        System.println("Usage: sharpc " + "{OPTIONS} SOURCE FILE(S)");
+        System.println("Source file must have a .sharp extion to be compiled.\n");
+        System.println("[-options]\n\n    -V                print compiler version and exit");
+        System.println(              "    -showversion      print compiler version and continue"               );
+        System.println(              "    -o<file>          set the output object file"                        );
+        System.println(              "    -c                compile only and do not generate exe"              );
+        System.println(              "    -a                enable aggressive error reporting"                 );
+        System.println(              "    -s                strip debugging info"                              );
+        System.println(              "    -O                optimize executable"                               );
+        System.println(              "    -L<path>          library directory path"                            );
+        System.println(              "    -w                disable all warnings"                              );
+        System.println(              "    -errlmt<count>    set max errors the compiler allows before quitting");
+        System.println(              "    -v<version>       set the application version"                       );
+        System.println(              "    -unsafe -u        allow unsafe code"                                 );
+        System.println(              "    -objdmp           create dump file for generated assembly"           );
+        System.println(              "    -target           target the specified platform of sharp to run on"  );
+        System.println(              "    -target           target the specified platform of sharp to run on"  );
+        System.println(              "    -release -r       generate a release build exe"                      );
+        System.println(              "    --h -?            display this help message"                         );
+    }
+}

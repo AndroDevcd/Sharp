@@ -1,0 +1,17 @@
+mod std.io;
+
+import std;
+
+/**
+ * Created by BraxtonN on 5/24/2018.
+ */
+public class IOException base Exception {
+
+      public IOException(var[] message) {
+        base->Exception(message);
+      }
+
+      public IOException(string message) {
+        base->Exception(message);
+      }
+}
