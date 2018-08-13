@@ -20,6 +20,8 @@
 #include "../util/File.h"
 #include "../Modules/std.kernel/cmath.h"
 #include "../Modules/std.kernel/clist.h"
+#include "jit.h"
+
 #ifdef WIN32_
 #include <conio.h>
 #endif
@@ -183,6 +185,7 @@ void VirtualMachine::destroy() {
 }
 
 extern unsigned long long irCount, overflow;
+extern void printRegs();
 
 #ifdef WIN32_
 DWORD WINAPI
@@ -201,6 +204,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
          */
         executeMethod(thread_self->main->address, thread_self)
 
+        thread_self->initJitCtx();
         thread_self->exec();
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {

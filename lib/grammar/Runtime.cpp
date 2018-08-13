@@ -7891,7 +7891,7 @@ std::string RuntimeEngine::generate_manifest() {
 
 std::string RuntimeEngine::generate_header() {
     stringstream header;
-    header << (char)file_sig << "SEF"; header << copychars(nil, offset);
+    header << (char)file_sig << "SEF"; header << copychars(nil, zoffset);
     header << (char)digi_sig1 << (char)digi_sig2 << (char)digi_sig3;
 
     header << generate_manifest();

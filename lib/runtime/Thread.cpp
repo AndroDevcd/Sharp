@@ -13,6 +13,7 @@
 #include "Manifest.h"
 #include "oo/Object.h"
 #include "../util/time.h"
+#include "jit.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -658,6 +659,10 @@ void printRegs() {
     vm->fillStackTrace(stackTrace);
     cout << "stacktrace ->\n\n " << stackTrace.str() << endl;
     cout << endl;
+
+    for(long i = 0; i < 15; i++) {
+        cout << "fp.var [" << i << "] = " << thread_self->dataStack[i].var << ";" << endl;
+    }
 }
 #endif
 
@@ -776,8 +781,10 @@ void Thread::exec() {
                 return;
 
             interp:
-            if(current->address==2 && PC(this) >= 2) {
-                int i = 0;
+            if(current->address==7 && PC(this) >= 0) {
+                jctx.func = current;
+                compile(jctx.func);
+                return;
             }
             DISPATCH();
             _NOP:
@@ -1407,6 +1414,15 @@ int Thread::setPriority(int32_t id, int priority) {
         return 2;
 
     return setPriority(thread, priority);
+}
+
+void Thread::initJitCtx() {
+    jctx.registers = registers;
+    //jctx.func = current;
+    jctx.func = env->methods+7;
+    jctx.env = env;
+    jctx.vm = vm;
+    jctx.current = this;
 }
 
 void __os_sleep(int64_t INTERVAL) {
