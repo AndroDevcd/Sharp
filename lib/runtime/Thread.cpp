@@ -659,6 +659,10 @@ void printRegs() {
     vm->fillStackTrace(stackTrace);
     cout << "stacktrace ->\n\n " << stackTrace.str() << endl;
     cout << endl;
+
+    for(long i = 0; i < 15; i++) {
+        cout << "fp.var [" << i << "] = " << thread_self->dataStack[i].var << ";" << endl;
+    }
 }
 #endif
 
@@ -777,8 +781,10 @@ void Thread::exec() {
                 return;
 
             interp:
-            if(current->address==2 && PC(this) >= 2) {
-                int i = 0;
+            if(current->address==7 && PC(this) >= 0) {
+                jctx.func = current;
+                compile(jctx.func);
+                return;
             }
             DISPATCH();
             _NOP:

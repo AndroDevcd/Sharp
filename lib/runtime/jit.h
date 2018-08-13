@@ -50,6 +50,15 @@ struct jit_func {
 
 #define SIZE(x) (int64_t)(sz = (int64_t)(x))
 
+#define SET_LCONST_DVAL(val) \
+    if(val == 0) { \
+        cc.pxor(vec0, vec0); \
+    } else { \
+        idx = lconsts.createConstant(cc, (double)(val)); \
+        lconstMem = ptr(lconsts.getConstantLabel(idx));  \
+        cc.movsd(vec0, lconstMem); \
+    }
+
 struct jit_ctx {
     Thread* current;
     double *registers;

@@ -6,6 +6,7 @@
 #include "Opcode.h"
 #include "Thread.h"
 #include "../util/KeyPair.h"
+#include "register.h"
 #include <stdio.h>
 #include <fstream>
 
@@ -150,7 +151,7 @@ int compile(Method *method) {
         CodeHolder code;                        // Holds code and relocation information.
         code.init(rt.getCodeInfo());            // Initialize to the same arch as JIT runtime.
         std::ofstream outfile ("JIT.s");        // Quickly create file
-        outfile << "";                          // clear it
+//        outfile << "";                          // clear it
         outfile.close();
 
         FILE * pFile;                           // out logging file
@@ -230,14 +231,14 @@ int compile(Method *method) {
                 + labelsSize + klassSize + objectSize + o2Size;
         cc.sub(zsp, (stackSize));                  // allocate nessicary bytes on the stack for variables
 
-        Label labels[sz];                       // Each opcode has its own labels
+        Label labels[sz];                       // Each opcode has its own labels but not all labels will be used
         for(int64_t i = 0; i < sz; i++) {       // Iterate through all the addresses to create labels for each address
             labels[i] = cc.newLabel();
         }
 
         // Emit all assembly code below
 
-        X86Mem ctxPtr = x86::dword_ptr(zbp, -paddr); // store memory location of ctx pointer in the stack
+        X86Mem ctxPtr = x86::qword_ptr(zbp, -paddr); // store memory location of ctx pointer in the stack
         X86Mem klassPtr = x86::qword_ptr(zbp, -kaddr); // store memory location of klass pointer in the stack
         X86Mem objectPtr = x86::qword_ptr(zbp, -oaddr); // store memory location of o pointer in the stack
         X86Mem o2Ptr = x86::qword_ptr(zbp, -o2addr); // store memory location of o2 pointer in the stack
@@ -288,7 +289,6 @@ int compile(Method *method) {
         cc.jne(lbl_begin);
         cc.nop();
         cc.jmp(lbl_end);
-        cout << "sizeof int " << sizeof(int) << endl;
         cc.bind(lbl_begin);
         cc.nop();
         // user code start
@@ -334,15 +334,136 @@ int compile(Method *method) {
                     }
 
                     bc++;
-                    if(*bc == 0) {
-                        cc.pxor(vec0, vec0);
-                    } else {
-
-                        idx = lconsts.createConstant(cc, (double)(*bc));
-                        lconstMem = qword_ptr(lconsts.getConstant(idx).df[0]);        // load constant value to stack
-                        cc.movsd(vec0, lconstMem);
-                    }
+                    i++; cc.bind(labels[i]); // we wont use it but we need to bind it anyway
+                    SET_LCONST_DVAL(*bc);
                     cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_MOVI: {                  // registers[*(pc+1)]=GET_Da(*pc);
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_registers]); // ctx->registers
+
+                    bc++;
+                    i++; cc.bind(labels[i]); // we wont use it but we need to bind it anyway
+                    if(*bc != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * (*bc)));
+                    }
+
+                    SET_LCONST_DVAL(GET_Da(x64));
+
+                    tmpMem = qword_ptr(ctx);
+                    cc.movsd(tmpMem, vec0);
+                    break;
+                }
+                case op_LOADL: {                   // registers[GET_Ca(*pc)]=(fp+GET_Cb(*pc))->var;
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    tmpMem = stack_element_fields[jit_field_id_stack_element_var];
+                    cc.movsd(vec0, tmpMem);
+
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_registers]); // ctx->registers
+
+                    if(GET_Ca(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(x64)));
+                    }
+
+                    tmpMem = qword_ptr(ctx);
+                    cc.movsd(tmpMem, vec0);
+                    break;
+                }
+                case op_LT: {                     // registers[i64cmt]=registers[GET_Ca(*pc)]<registers[GET_Cb(*pc)];
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_registers]); // ctx->registers
+                    cc.mov(val, ctx);      // we want to store the pointer to register for faster access
+
+                    cc.add(ctx, (int64_t )(sizeof(double) * i64cmt));
+
+                    cc.mov(tmp, val);      // were just using these registers because we can, makes life so much easier
+                    if(GET_Ca(x64) != 0) {
+                        cc.add(tmp, (int64_t )(sizeof(double) * GET_Ca(x64)));
+                    }
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+
+                    cc.mov(tmp, val);      // were just using these registers because we can, makes life so much easier
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(tmp, (int64_t )(sizeof(double) * GET_Cb(x64)));
+                    }
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec0, tmpMem);
+
+                    cc.ucomisd(vec0, vec1);
+
+                    Label ifFalse = cc.newLabel();
+                    Label ifEnd = cc.newLabel();
+                    cc.jbe(ifFalse);
+                    idx = lconsts.createConstant(cc, (double)(1));
+                    lconstMem = ptr(lconsts.getConstantLabel(idx));
+
+                    cc.movsd(vec0, lconstMem);
+                    cc.jmp(ifEnd);
+                    cc.bind(ifFalse);
+
+                    cc.pxor(vec0, vec0);
+                    cc.bind(ifEnd);
+
+                    tmpMem = qword_ptr(ctx);
+                    cc.movsd(tmpMem, vec0);
+
+                    break;
+                }
+                case op_JNE: { // if(registers[i64cmt]==0) { pc=cache+GET_Da(*pc); _brh_NOINCREMENT }
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_registers]); // ctx->registers
+                    cc.add(ctx, (int64_t )(sizeof(double) * i64cmt));
+                    tmpMem = qword_ptr(ctx);
+                    cc.movsd(vec0, tmpMem);
+                    cc.pxor(vec1, vec1);
+                    cc.ucomisd(vec0, vec1);
+                    Label ifEnd = cc.newLabel();
+                    cc.jp(ifEnd);
+                    cc.pxor(vec1, vec1);
+                    cc.ucomisd(vec0, vec1);
+                    cc.jne(ifEnd);
+                    cc.jmp(labels[GET_Da(x64)]);
+
+                    cc.bind(ifEnd);
+
+                    break;
+                }
+                case op_IADDL: {                        // (fp+GET_Cb(*pc))->var+=GET_Ca(*pc);
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+
+                    SET_LCONST_DVAL(GET_Ca(x64));
+                    cc.addsd(vec0, vec1);
+
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_GOTO: {// $                             // pc = cache+GET_Da(*pc);
+                    cc.jmp(labels[GET_Da(x64)]);
+                    break;
+                }
+                case op_RETURNVAL: {
+                    break;
+                }
+                case op_RET: {
                     break;
                 }
                 default: {

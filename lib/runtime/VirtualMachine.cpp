@@ -185,6 +185,7 @@ void VirtualMachine::destroy() {
 }
 
 extern unsigned long long irCount, overflow;
+extern void printRegs();
 
 #ifdef WIN32_
 DWORD WINAPI
@@ -204,8 +205,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         executeMethod(thread_self->main->address, thread_self)
 
         thread_self->initJitCtx();
-        compile(jctx.func);
-        //thread_self->exec();
+        thread_self->exec();
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();
