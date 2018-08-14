@@ -38,9 +38,13 @@ void restoreCalleeRegisters(X86Assembler &cc, int64_t stackSize);
 void savePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1);
 void restorePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1);
 
+// global function helpers
 void global_jit_sysInterrupt(int32_t signal);
+void global_jit_profile(Profiler* prof);
+void global_jit_dump(Profiler* prof);
 
 void passArg0(X86Assembler &cc, int64_t arg0);
+void passArg0(X86Assembler &cc, X86Gp &arg);
 
 #ifdef SHARP_PROF_
 void setupProfilerFields(const X86Gp &ctx);
@@ -287,6 +291,10 @@ int compile(Method *method) {
         // setup stack element field offsets
         setupStackElementFields(ctx);
 
+#ifdef SHARP_PROF_
+        setupProfilerFields(ctx);
+#endif
+
         // we want fast access
         cc.mov(ctx, ctxPtr);        // move the contex var into register
         cc.mov(registersReg, jit_ctx_fields[jit_field_id_registers]); // ctx->registers (quick "hack" for less instructions)
@@ -351,6 +359,8 @@ int compile(Method *method) {
                     break;
                 }
                 case op_INT: {                  // vm->sysInterrupt(GET_Da(*pc)); if(masterShutdown) return;
+
+                    savePrivateRegisters(cc, vec0, vec1);
 #ifdef SHARP_PROF_
 //                    if(GET_Da(*pc) == 0xa9) {
 //                        tprof.endtm=Clock::realTimeInNSecs();
@@ -358,23 +368,33 @@ int compile(Method *method) {
 //                        tprof.dump();
 //                    }
 
-                    if(GET_Da(*pc) == 0xa9) {
+                    if(GET_Da(x64) == 0xa9) {
+                        cc.nop();
+                        cc.nop();
+                        cc.nop();
+                        cc.nop();
+                        cc.nop();
                         cc.mov(ctx, ctxPtr);        // move the contex var into register
                         cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
                         cc.mov(ctx, thread_fields[jit_field_id_thread_tprof]); // ctx->current->tprof
-                        cc.mov(tmp, ctx);       // store tprof pointer
-                        cc.mov(ctx, profiler_fields[jit_field_id_profiler_endtm]); // ctx->current->tprof->endtm
-                        cc.mov(val, ctx);       // store tprof pointer
+                        cc.mov(argsReg, ctx);       // this register will be saved by the called function
 
-                        preserveState();
+                        cout << "thread->tprof = " << thread_self->tprof << " tprof->endtm = " << &thread_self->tprof->endtm << endl;
+                        cout << "thread_self " << thread_self << endl;
+
                         cc.call((int64_t)Clock::realTimeInNSecs);
-                        tmpMem = qword_ptr(val);
-                        cc.mov(tmpMem, ctx);
-                        restoreState();
+                        cc.mov(tmp, ctx);
+                        cc.mov(ctx, argsReg);
+                        cc.mov(profiler_fields[jit_field_id_profiler_endtm], tmp); // ctx->current->tprof->endtm = Clock::realTimeInNSecs();
+
+                        passArg0(cc, argsReg);
+                        cc.call((int64_t)global_jit_profile);
+
+                        passArg0(cc, argsReg);
+                        cc.call((int64_t)global_jit_dump);
                     }
 
 #endif
-                    savePrivateRegisters(cc, vec0, vec1);
 
                     // rdi to send rax to get
                     passArg0(cc, GET_Da(x64));
@@ -386,6 +406,7 @@ int compile(Method *method) {
                     cc.test(bl, bl);
                     Label ifFalse = cc.newLabel();
                     cc.je(ifFalse);
+                    restorePrivateRegisters(cc, vec0, vec1); // we wnt to make sure the stack is in its correct position
                     returnFuntion();
 
                     cc.bind(ifFalse);
@@ -612,6 +633,19 @@ void passArg0(X86Assembler &cc, int64_t arg) {
 
 }
 
+void passArg0(X86Assembler &cc, X86Gp& arg) {
+    X86Gp arg0;
+    if (ASMJIT_ARCH_64BIT) {
+        bool isWinOS = static_cast<bool>(ASMJIT_OS_WINDOWS);
+        arg0 = isWinOS ? x86::rcx : x86::rdi;  // First argument (array ptr).
+    }
+    else {
+        arg0 = cc.zdx();                       // Use EDX to hold the array pointer.
+    }
+    cc.mov(arg0, arg); // set signal to send
+
+}
+
 void saveCalleeRegisters(X86Assembler &cc) {
     using namespace asmjit::x86;
     /**
@@ -681,13 +715,13 @@ void savePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1) {
 void restorePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1) {
     using namespace asmjit::x86;
 
-    cc.movdqu(dqword_ptr(cc.zsp()), vec1);
-    cc.add(cc.zsp(), 16);
-    cc.movdqu(dqword_ptr(cc.zsp()), vec0);
-    cc.add(cc.zsp(), 16);
-
     cc.pop(r11);
     cc.pop(r10);
+
+    cc.movdqu(vec1, dqword_ptr(cc.zsp()));
+    cc.add(cc.zsp(), 16);
+    cc.movdqu(vec0, dqword_ptr(cc.zsp()));
+    cc.add(cc.zsp(), 16);
 }
 
 /**
@@ -698,6 +732,14 @@ void restorePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1) {
  */
 void global_jit_sysInterrupt(int32_t signal) {
     vm->sysInterrupt(signal);
+}
+
+void global_jit_profile(Profiler* prof) {
+    prof->profile();
+}
+
+void global_jit_dump(Profiler* prof) {
+    prof->dump();
 }
 
 void setupJitContextFields(const X86Gp &ctx) {
@@ -711,16 +753,19 @@ void setupThreadContextFields(const X86Gp &ctx) {
     int64_t sz = 0; // holds the growing size of the data
     thread_fields[jit_field_id_thread_dataStack] = x86::qword_ptr(ctx, 0); // StackElement *dataStack;
     thread_fields[jit_field_id_thread_sp] = x86::qword_ptr(ctx, SIZE(sizeof(StackElement*))); // StackElement *sp
-    thread_fields[jit_field_id_thread_fp] = x86::qword_ptr(ctx, SIZE(sz*2)); // StackElement *sp
-    thread_fields[jit_field_id_thread_current] = x86::qword_ptr(ctx, SIZE(sz*3)); // Method *current
+    thread_fields[jit_field_id_thread_fp] = x86::qword_ptr(ctx, SIZE(sz + sizeof(StackElement*))); // StackElement *sp
+    thread_fields[jit_field_id_thread_current] = x86::qword_ptr(ctx, SIZE(sz + sizeof(StackElement*))); // Method *current
     thread_fields[jit_field_id_thread_callStack] = x86::qword_ptr(ctx, SIZE(sz + sizeof(Method*))); // Frame *callStack
     thread_fields[jit_field_id_thread_calls] = x86::qword_ptr(ctx, SIZE(sz + sizeof(Frame*))); // unsigned long calls
     thread_fields[jit_field_id_thread_stack_lmt] = x86::qword_ptr(ctx, SIZE(sz + sizeof(unsigned long))); // unsigned long stack_lmt
     thread_fields[jit_field_id_thread_cache] = x86::qword_ptr(ctx, SIZE(sz + sizeof(unsigned long))); // int64_t *cache
-    thread_fields[jit_field_id_thread_pc] = x86::qword_ptr(ctx, SIZE(sz + sizeof(int64_t *))); // int64_t *pc
+    thread_fields[jit_field_id_thread_pc] = x86::qword_ptr(ctx, SIZE(sz + sizeof(Cache))); // int64_t *pc
 
+     cout << "size before tprof " << sz << endl;
+     cout << "calculated size " << ((sizeof(StackElement*)*3) + sizeof(Method*) + sizeof(Frame*)
+                                    + (sizeof(unsigned long)*2) + (sizeof(Cache)*2)) << endl;
 #ifdef SHARP_PROF_
-    thread_fields[jit_field_id_thread_tprof] = x86::qword_ptr(ctx, SIZE(sz + sizeof(int64_t *))); // Profiler tprof
+    thread_fields[jit_field_id_thread_tprof] = x86::qword_ptr(ctx, SIZE(sz + sizeof(Cache))); // Profiler *tprof
 #endif
 }
 

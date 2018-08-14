@@ -217,7 +217,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 
 #ifdef SHARP_PROF_
     if(!masterShutdown)
-        thread_self->tprof.dump();
+        thread_self->tprof->dump();
 #endif
 
     if(irCount != 0)

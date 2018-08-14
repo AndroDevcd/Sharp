@@ -103,6 +103,10 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     thread->fp=0;
     thread->sp=NULL;
 
+#ifdef SHARP_PROF_
+    thread->tprof = new Profiler();
+#endif
+
     pushThread(thread);
 
     stringstream ss;
@@ -141,6 +145,10 @@ void Thread::Create(string name) {
     this->calls=0;
     this->fp=dataStack;
     this->sp=dataStack-1;
+
+#ifdef SHARP_PROF_
+    this->tprof = new Profiler();
+#endif
 
     for(unsigned long i = 0; i < STACK_SIZE; i++) {
         this->dataStack[i].object.object = NULL;
@@ -183,6 +191,9 @@ void Thread::CreateDaemon(string name) {
     this->sp=NULL;
     this->main=NULL;
 
+#ifdef SHARP_PROF_
+    this->tprof = new Profiler();
+#endif
     pushThread(this);
 }
 

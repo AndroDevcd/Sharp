@@ -10,6 +10,6 @@ mod app;
 def main() {
     asm(
         "nop"
-        "int 0x9f" // this call does nothing so its safe
+        "int 0xa9" // this call does nothing so its safe
     );
 }

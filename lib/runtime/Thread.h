@@ -52,7 +52,7 @@ public:
 
     {
 #ifdef SHARP_PROF_
-        tprof = new profiler();
+        tprof = NULL;
 #endif
     #ifdef WIN32_
         new (&mutex) std::mutex();
