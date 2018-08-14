@@ -288,7 +288,7 @@ void GarbageCollector::run() {
 //    std::uniform_real_distribution<double> dist(1, 10000);
 
 #ifdef SHARP_PROF_
-    tself->tprof->init(1);
+    tself->tprof->init(2);
 #endif
 
     for(;;) {

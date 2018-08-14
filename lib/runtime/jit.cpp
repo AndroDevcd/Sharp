@@ -369,11 +369,6 @@ int compile(Method *method) {
 //                    }
 
                     if(GET_Da(x64) == 0xa9) {
-                        cc.nop();
-                        cc.nop();
-                        cc.nop();
-                        cc.nop();
-                        cc.nop();
                         cc.mov(ctx, ctxPtr);        // move the contex var into register
                         cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
                         cc.mov(ctx, thread_fields[jit_field_id_thread_tprof]); // ctx->current->tprof
