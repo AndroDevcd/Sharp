@@ -408,21 +408,6 @@ int compile(Method *method) {
                     restorePrivateRegisters(cc, vec0, vec1);
                     break;
                 }
-                case op_ISTOREL: {              // (fp+GET_Da(*pc))->var = *(pc+1);
-                    cc.mov(ctx, ctxPtr);        // move the contex var into register
-                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
-                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
-
-                    if(GET_Da(x64) != 0) {
-                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Da(x64)));
-                    }
-
-                    bc++;
-                    i++; cc.bind(labels[i]); // we wont use it but we need to bind it anyway
-                    SET_LCONST_DVAL(*bc);
-                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
-                    break;
-                }
                 case op_MOVI: {                  // registers[*(pc+1)]=GET_Da(*pc);
                     cc.mov(ctx, registersReg);        // move the contex var into register
 
@@ -436,6 +421,77 @@ int compile(Method *method) {
 
                     tmpMem = qword_ptr(ctx);
                     cc.movsd(tmpMem, vec0);
+                    break;
+                }
+                case op_RET: {
+                    /**
+                     * if(calls <= 1) {
+        #ifdef SHARP_PROF_
+                        tprof->endtm=Clock::realTimeInNSecs();
+                        tprof->profile();
+        #endif
+                            return;
+                        }
+
+                        Frame *frame = callStack+(calls--);
+
+                        if(current->finallyBlocks.len > 0)
+                            vm->executeFinally(thread_self->current);
+
+                        current = frame->last;
+                        cache = current->bytecode;
+
+                        pc = frame->pc;
+                        sp = frame->sp;
+                        fp = frame->fp;
+
+        #ifdef SHARP_PROF_
+                    tprof->profile();
+        #endif
+                     */
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
+                    cc.mov(tmp, ctx);           // save Thread*
+
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_calls]);
+                    cc.cmp(ctx, 1); // if(calls <= 1) {
+                    Label ifFalse = cc.newLabel();
+                    cc.ja(ifFalse);
+#ifdef SHARP_PROF_
+
+                    savePrivateRegisters(cc, vec0, vec1);
+                    cc.mov(ctx, tmp);        // move thread* var into register
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_tprof]); // ctx->current->tprof
+                    cc.mov(argsReg, ctx);       // this register will be saved by the called function
+
+                    cc.call((int64_t)Clock::realTimeInNSecs);
+                    cc.mov(tmp, ctx);
+                    cc.mov(ctx, argsReg);
+                    cc.mov(profiler_fields[jit_field_id_profiler_endtm], tmp); // ctx->current->tprof->endtm = Clock::realTimeInNSecs();
+
+                    passArg0(cc, argsReg);
+                    cc.call((int64_t)global_jit_profile);
+                    restorePrivateRegisters(cc, vec0, vec1);
+
+#endif
+                    returnFuntion();
+                    cc.bind(ifFalse);
+
+                    break;
+                }
+                case op_ISTOREL: {              // (fp+GET_Da(*pc))->var = *(pc+1);
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+
+                    if(GET_Da(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Da(x64)));
+                    }
+
+                    bc++;
+                    i++; cc.bind(labels[i]); // we wont use it but we need to bind it anyway
+                    SET_LCONST_DVAL(*bc);
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
                     break;
                 }
                 case op_LOADL: {                   // registers[GET_Ca(*pc)]=(fp+GET_Cb(*pc))->var;
@@ -540,9 +596,6 @@ int compile(Method *method) {
                     break;
                 }
                 case op_RETURNVAL: {
-                    break;
-                }
-                case op_RET: {
                     break;
                 }
                 default: {
