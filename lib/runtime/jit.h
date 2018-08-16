@@ -7,6 +7,7 @@
 
 #define ASMJIT_EMBED 1
 
+#include "../runtime/profiler.h"
 #include "../../stdimports.h"
 #include "../util/jit/asmjit/src/asmjit/asmjit.h"
 #include "oo/Method.h"
@@ -28,6 +29,8 @@ struct jit_func {
 #define jit_field_id_current 0
 #define jit_field_id_registers 1
 #define jit_field_id_func 2
+#define jit_field_id_ir 3
+#define jit_field_id_overflow 4
 
 // convient id's for each field in thread object
 #define jit_field_id_thread_current 0
@@ -53,7 +56,9 @@ struct jit_func {
 #define jit_field_id_profiler_endtm 2
 #define jit_field_id_profiler_lastHit 3
 
-#define SIZE(x) (int64_t)(sz = (int64_t)(x))
+#define offset_start(s) s
+#define offset_end(e) e
+#define relative_offset(obj, start, end) ((int64_t)&obj->offset_end(end)-(int64_t)&obj->offset_start(start))
 
 #define SET_LCONST_DVAL(val) \
     if(val == 0) { \
@@ -70,6 +75,7 @@ struct jit_ctx {
     Thread* current;
     double *registers;
     Method* func; // current method we are executing only used in initalization of the call
+    unsigned long long *irCount, *overflow = 0;
 };
 
 extern thread_local jit_ctx jctx;

@@ -1433,6 +1433,8 @@ void Thread::initJitCtx() {
     jctx.registers = registers;
     //jctx.func = current;
     jctx.func = env->methods+7;
+    jctx.irCount=&irCount;
+    jctx.overflow = &overflow;
     jctx.current = this;
 }
 

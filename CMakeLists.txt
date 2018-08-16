@@ -11,7 +11,7 @@ if (POSIX)
 
     set(CMAKE_CXX_FLAGS_DEBUG  "-Werror -pthread -lstdc++ ${CMAKE_CXX_FLAGS_DEBUG}")
     set(CMAKE_CXX_FLAGS_MINSIZEREL  "-Werror -lstdc++ -s -O3 -Ofast ${CMAKE_CXX_FLAGS_MINSIZEREL}")
-    set(CMAKE_CXX_FLAGS_RELEASE  "-Werror -pthread -lstdc++ -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
+    set(CMAKE_CXX_FLAGS_RELEASE  " -pthread -lstdc++ -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
 else()
 
     set(BUILD_SHARED_LIBS OFF)

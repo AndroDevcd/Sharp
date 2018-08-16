@@ -352,6 +352,22 @@ int compile(Method *method) {
             if(error) break;
             x64 = *bc;
 
+#ifdef SHARP_PROF_
+            cc.mov(ctx, ctxPtr);        // move the contex var into register
+            cc.mov(tmp, jit_ctx_fields[jit_field_id_ir]);
+            cc.mov(val, qword_ptr(tmp));
+            cc.add(val, 1);
+            cc.mov(qword_ptr(tmp), val);
+            cc.cmp(val, 0);
+            Label irNotOverflow = cc.newLabel();
+            cc.jne(irNotOverflow);
+            cc.mov(tmp, jit_ctx_fields[jit_field_id_overflow]);
+            cc.mov(val, qword_ptr(tmp));
+            cc.add(val, 1);
+            cc.mov(qword_ptr(tmp), val);
+            cc.bind(irNotOverflow);
+#endif
+
             cc.bind(labels[i]);
             switch(GET_OP(x64)) {
                 case op_NOP: {
@@ -359,8 +375,6 @@ int compile(Method *method) {
                     break;
                 }
                 case op_INT: {                  // vm->sysInterrupt(GET_Da(*pc)); if(masterShutdown) return;
-                    bc++;
-                    continue;
                     savePrivateRegisters(cc, vec0, vec1);
 #ifdef SHARP_PROF_
 //                    if(GET_Da(*pc) == 0xa9) {
@@ -654,8 +668,6 @@ int compile(Method *method) {
             }
             else {
                 jit_ctx *ctx = &jctx;
-                cout << "ctx " << ctx << " ctx->current = " << ctx->current
-                     << " ctx->current->calls = " << &ctx->current->current << endl;
                 jitfn(ctx);
                 jit_func jfunc;
                 jfunc.func = jitfn;
@@ -795,44 +807,48 @@ void global_jit_dump(Profiler* prof) {
 
 void setupJitContextFields(const X86Gp &ctx) {
     int64_t sz = 0; // holds the growing size of the data
-    jit_ctx_fields[jit_field_id_current] = x86::qword_ptr(ctx, 0); // Thread *current
-    jit_ctx_fields[jit_field_id_registers] = x86::qword_ptr(ctx, SIZE(sizeof(Thread*))); // double *registers
-    jit_ctx_fields[jit_field_id_func] = x86::qword_ptr(ctx, SIZE(sz + sizeof(double*))); // Method *func
+    jit_ctx_fields[jit_field_id_current] = x86::qword_ptr(ctx, relative_offset((&jctx), current, current)); // Thread *current
+    jit_ctx_fields[jit_field_id_registers] = x86::qword_ptr(ctx, relative_offset((&jctx), current, registers)); // double *registers
+    jit_ctx_fields[jit_field_id_func] = x86::qword_ptr(ctx, relative_offset((&jctx), current, func)); // Method *func
+
+#ifdef SHARP_PROF_
+    jit_ctx_fields[jit_field_id_ir] = x86::qword_ptr(ctx, relative_offset((&jctx), current, irCount)); // unsigned long long *irCount
+    jit_ctx_fields[jit_field_id_overflow] = x86::qword_ptr(ctx, relative_offset((&jctx), current, overflow)); // unsigned long long *overflow
+#endif
 }
 
 void setupThreadContextFields(const X86Gp &ctx) {
-    int64_t sz = 0; // holds the growing size of the data
-    thread_fields[jit_field_id_thread_calls] = x86::qword_ptr(ctx, 0); // unsigned long calls
-    thread_fields[jit_field_id_thread_dataStack] = x86::qword_ptr(ctx, SIZE(sizeof(unsigned long))); // StackElement *dataStack;
-    thread_fields[jit_field_id_thread_sp] = x86::qword_ptr(ctx, SIZE(sz + sizeof(StackElement*))); // StackElement *sp
-    thread_fields[jit_field_id_thread_fp] = x86::qword_ptr(ctx, SIZE(sz + sizeof(StackElement*))); // StackElement *fp
-    thread_fields[jit_field_id_thread_current] = x86::qword_ptr(ctx, SIZE(sz + sizeof(StackElement*))); // Method *current
-    thread_fields[jit_field_id_thread_callStack] = x86::qword_ptr(ctx, SIZE(sz + sizeof(Method*))); // Frame *callStack
-    thread_fields[jit_field_id_thread_stack_lmt] = x86::qword_ptr(ctx, SIZE(sz + sizeof(Frame*))); // unsigned long stack_lmt
-    thread_fields[jit_field_id_thread_cache] = x86::qword_ptr(ctx, SIZE(sz + sizeof(unsigned long))); // int64_t *cache
-    thread_fields[jit_field_id_thread_pc] = x86::qword_ptr(ctx, SIZE(sz + sizeof(Cache))); // int64_t *pc
+    Thread* thread = thread_self;
+    thread_fields[jit_field_id_thread_calls] = x86::qword_ptr(ctx, relative_offset(thread, calls, calls)); // unsigned long calls
+    thread_fields[jit_field_id_thread_dataStack] = x86::qword_ptr(ctx, relative_offset(thread, calls, dataStack)); // StackElement *dataStack;
+    thread_fields[jit_field_id_thread_sp] = x86::qword_ptr(ctx, relative_offset(thread, calls, sp));  // StackElement *sp
+    thread_fields[jit_field_id_thread_fp] = x86::qword_ptr(ctx, relative_offset(thread, calls, fp)); // StackElement *fp
+    thread_fields[jit_field_id_thread_current] = x86::qword_ptr(ctx, relative_offset(thread, calls, current)); // Method *current
+    thread_fields[jit_field_id_thread_callStack] = x86::qword_ptr(ctx, relative_offset(thread, calls, callStack)); // Frame *callStack
+    thread_fields[jit_field_id_thread_stack_lmt] = x86::qword_ptr(ctx, relative_offset(thread, calls, stack_lmt));  // unsigned long stack_lmt
+    thread_fields[jit_field_id_thread_cache] = x86::qword_ptr(ctx, relative_offset(thread, calls, cache)); // int64_t *cache
+    thread_fields[jit_field_id_thread_pc] = x86::qword_ptr(ctx, relative_offset(thread, calls, pc)); // int64_t *pc
 
-     cout << "size before tprof " << sz << endl;
-     cout << "calculated size " << ((sizeof(StackElement*)*3) + sizeof(Method*) + sizeof(Frame*)
-                                    + (sizeof(unsigned long)*2) + (sizeof(Cache)*2)) << endl;
 #ifdef SHARP_PROF_
-    thread_fields[jit_field_id_thread_tprof] = x86::qword_ptr(ctx, SIZE(sz + sizeof(Cache))); // Profiler *tprof
+    thread_fields[jit_field_id_thread_tprof] = x86::qword_ptr(ctx, relative_offset(thread, calls, tprof)); // Profiler *tprof
 #endif
 }
 
 void setupStackElementFields(const X86Gp &ctx) {
     int64_t sz = 0; // holds the growing size of the data
-    stack_element_fields[jit_field_id_stack_element_var] = x86::qword_ptr(ctx, 0); // double var;
-    stack_element_fields[jit_field_id_stack_element_object] = x86::qword_ptr(ctx, SIZE(sizeof(double))); // Object object;
+    StackElement stack;
+    stack_element_fields[jit_field_id_stack_element_var] = x86::qword_ptr(ctx, relative_offset((&stack), var, var)); // double var;
+    stack_element_fields[jit_field_id_stack_element_object] = x86::qword_ptr(ctx, relative_offset((&stack), var, object)); // Object object;
 }
 
 #ifdef SHARP_PROF_
 void setupProfilerFields(const X86Gp &ctx) {
     int64_t sz = 0; // holds the growing size of the data
-    profiler_fields[jit_field_id_profiler_totalHits] = x86::qword_ptr(ctx, 0); // size_t totalHits;
-    profiler_fields[jit_field_id_profiler_starttm] = x86::qword_ptr(ctx, SIZE(sizeof(size_t))); // int64_t starttm;
-    profiler_fields[jit_field_id_profiler_endtm] = x86::qword_ptr(ctx, SIZE(sz + sizeof(int64_t))); // int64_t endtm;
-    profiler_fields[jit_field_id_profiler_lastHit] = x86::qword_ptr(ctx, SIZE(sz + sizeof(int64_t))); // size_t lastHit;
+    Profiler prof;
+    profiler_fields[jit_field_id_profiler_totalHits] = x86::qword_ptr(ctx, relative_offset((&prof), totalHits, totalHits)); // size_t totalHits;
+    profiler_fields[jit_field_id_profiler_starttm] = x86::qword_ptr(ctx, relative_offset((&prof), totalHits, starttm)); // int64_t starttm;
+    profiler_fields[jit_field_id_profiler_endtm] = x86::qword_ptr(ctx, relative_offset((&prof), totalHits, endtm)); // int64_t endtm;
+    profiler_fields[jit_field_id_profiler_lastHit] = x86::qword_ptr(ctx, relative_offset((&prof), totalHits, lastHit)); // size_t lastHit;
 }
 #endif
 
