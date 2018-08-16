@@ -99,13 +99,12 @@ public:
 
     void initJitCtx();
 
-public: // easier to acces for JIT
-
+    // easier to acces for JIT
+    unsigned long calls;
     StackElement* dataStack,
             *sp, *fp;
     Method *current;
     Frame *callStack;
-    unsigned long calls;
     unsigned long stack_lmt;
     Cache cache, pc;
 #ifdef SHARP_PROF_

@@ -359,7 +359,8 @@ int compile(Method *method) {
                     break;
                 }
                 case op_INT: {                  // vm->sysInterrupt(GET_Da(*pc)); if(masterShutdown) return;
-
+                    bc++;
+                    continue;
                     savePrivateRegisters(cc, vec0, vec1);
 #ifdef SHARP_PROF_
 //                    if(GET_Da(*pc) == 0xa9) {
@@ -456,7 +457,7 @@ int compile(Method *method) {
                     cc.mov(ctx, thread_fields[jit_field_id_thread_calls]);
                     cc.cmp(ctx, 1); // if(calls <= 1) {
                     Label ifFalse = cc.newLabel();
-                    cc.ja(ifFalse);
+                    cc.jnae(ifFalse);
 #ifdef SHARP_PROF_
 
                     savePrivateRegisters(cc, vec0, vec1);
@@ -653,6 +654,8 @@ int compile(Method *method) {
             }
             else {
                 jit_ctx *ctx = &jctx;
+                cout << "ctx " << ctx << " ctx->current = " << ctx->current
+                     << " ctx->current->calls = " << &ctx->current->current << endl;
                 jitfn(ctx);
                 jit_func jfunc;
                 jfunc.func = jitfn;
@@ -799,13 +802,13 @@ void setupJitContextFields(const X86Gp &ctx) {
 
 void setupThreadContextFields(const X86Gp &ctx) {
     int64_t sz = 0; // holds the growing size of the data
-    thread_fields[jit_field_id_thread_dataStack] = x86::qword_ptr(ctx, 0); // StackElement *dataStack;
-    thread_fields[jit_field_id_thread_sp] = x86::qword_ptr(ctx, SIZE(sizeof(StackElement*))); // StackElement *sp
-    thread_fields[jit_field_id_thread_fp] = x86::qword_ptr(ctx, SIZE(sz + sizeof(StackElement*))); // StackElement *sp
+    thread_fields[jit_field_id_thread_calls] = x86::qword_ptr(ctx, 0); // unsigned long calls
+    thread_fields[jit_field_id_thread_dataStack] = x86::qword_ptr(ctx, SIZE(sizeof(unsigned long))); // StackElement *dataStack;
+    thread_fields[jit_field_id_thread_sp] = x86::qword_ptr(ctx, SIZE(sz + sizeof(StackElement*))); // StackElement *sp
+    thread_fields[jit_field_id_thread_fp] = x86::qword_ptr(ctx, SIZE(sz + sizeof(StackElement*))); // StackElement *fp
     thread_fields[jit_field_id_thread_current] = x86::qword_ptr(ctx, SIZE(sz + sizeof(StackElement*))); // Method *current
     thread_fields[jit_field_id_thread_callStack] = x86::qword_ptr(ctx, SIZE(sz + sizeof(Method*))); // Frame *callStack
-    thread_fields[jit_field_id_thread_calls] = x86::qword_ptr(ctx, SIZE(sz + sizeof(Frame*))); // unsigned long calls
-    thread_fields[jit_field_id_thread_stack_lmt] = x86::qword_ptr(ctx, SIZE(sz + sizeof(unsigned long))); // unsigned long stack_lmt
+    thread_fields[jit_field_id_thread_stack_lmt] = x86::qword_ptr(ctx, SIZE(sz + sizeof(Frame*))); // unsigned long stack_lmt
     thread_fields[jit_field_id_thread_cache] = x86::qword_ptr(ctx, SIZE(sz + sizeof(unsigned long))); // int64_t *cache
     thread_fields[jit_field_id_thread_pc] = x86::qword_ptr(ctx, SIZE(sz + sizeof(Cache))); // int64_t *pc
 
