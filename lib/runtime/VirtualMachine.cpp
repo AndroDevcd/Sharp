@@ -38,6 +38,10 @@ int CreateVirtualMachine(std::string exe)
     vm = (VirtualMachine*)__malloc(sizeof(VirtualMachine)*1);
     env = (Environment*)__malloc(sizeof(Environment)*1);
 
+#ifdef WIN32_
+    env->gui = NULL;
+#endif
+
     if(Process_Exe(exe) != 0)
         return 1;
 

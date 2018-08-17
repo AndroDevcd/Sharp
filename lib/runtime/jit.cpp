@@ -10,6 +10,7 @@
 #include "VirtualMachine.h"
 #include <stdio.h>
 #include <fstream>
+#include <cstdint>
 
 using namespace asmjit;
 
@@ -40,8 +41,10 @@ void restorePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1);
 
 // global function helpers
 void global_jit_sysInterrupt(int32_t signal);
+#ifdef SHARP_PROF_
 void global_jit_profile(Profiler* prof);
 void global_jit_dump(Profiler* prof);
+#endif
 
 void passArg0(X86Assembler &cc, int64_t arg0);
 void passArg0(X86Assembler &cc, X86Gp &arg);
@@ -797,6 +800,7 @@ void global_jit_sysInterrupt(int32_t signal) {
     vm->sysInterrupt(signal);
 }
 
+#ifdef SHAR_PROF_
 void global_jit_profile(Profiler* prof) {
     prof->profile();
 }
@@ -804,6 +808,7 @@ void global_jit_profile(Profiler* prof) {
 void global_jit_dump(Profiler* prof) {
     prof->dump();
 }
+#endif
 
 void setupJitContextFields(const X86Gp &ctx) {
     int64_t sz = 0; // holds the growing size of the data

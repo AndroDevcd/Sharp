@@ -143,12 +143,12 @@ class Tokenizer {
             advance();
         }
 
-//        TokenEntity[] arry = entities.toArray();
-//        foreach(TokenEntity token : arry) {
-//            println(" token: " + token.getToken()
-//                + " - " + token.getId() + " line " + token.getLine()
-//                + " col " + token.getCol());
-//        }
+        TokenEntity[] arry = entities.toArray();
+        foreach(TokenEntity token : arry) {
+            println(" token: " + token.getToken()
+                + " - " + token.getId() + " line " + token.getLine()
+                + " col " + token.getCol());
+        }
 
         end:
         entities.add(new TokenEntity("eof", TokenId.SINGLE, TokenType._EOF, 0, line));

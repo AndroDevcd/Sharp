@@ -15,7 +15,6 @@ class Parser {
         if(tokenizer != null && tokenizer.getErrors() != null
             && !tokenizer.getErrors().hasErrors())
         {
-            data = tokenizer.getData();
             accessTypes = new ArrayList<TokenEntity>();
             tree = new ArrayList<Ast>();
             states = new Dictionary<var, Ast>();
@@ -48,9 +47,6 @@ class Parser {
 
         while (!isEnd())
         {
-            if(panic)
-                break;
-
             if(isAccessType(current))
                 parseAccessTypes();
 
@@ -69,6 +65,9 @@ class Parser {
                 parseMethodDecl(null);
             } else if(isDecl(current, INTERFACE)) {
                 parseInterfaceDecl(null);
+            } else if(isDecl(current, ";")) {
+                // eat it
+                advance();
             } else if(isDecl(current, ENUM)) {
                 parseEnumDecl(null);
             } else if(isDecl(current, IMPORT)) {
@@ -2606,7 +2605,6 @@ class Parser {
     private ArrayList<string> lines;
     private TokenEntity current;
     private Tokenizer tokenizer;
-    private string data = "";
     private ArrayList<TokenEntity> accessTypes;
     private ErrorManager errors;
 }
