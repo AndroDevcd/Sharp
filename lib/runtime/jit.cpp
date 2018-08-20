@@ -23,7 +23,7 @@ thread_local jit_ctx jctx;
 std::vector<jit_func> functions;
 uint64_t jit_funcid = 0;
 X86Mem jit_ctx_fields[5]; // memory map of jit_ctx
-X86Mem thread_fields[10]; // sliced memory map of Thread
+X86Mem thread_fields[12]; // sliced memory map of Thread
 X86Mem stack_element_fields[2]; // memory map of StackElement
 #ifdef SHARP_PROF_
 X86Mem profiler_fields[4]; // memory map of Profiler
@@ -45,6 +45,7 @@ void global_jit_sysInterrupt(int32_t signal);
 void global_jit_profile(Profiler* prof);
 void global_jit_dump(Profiler* prof);
 #endif
+void global_jit_suspendSelf(Thread* thread);
 
 void passArg0(X86Assembler &cc, int64_t arg0);
 void passArg0(X86Assembler &cc, X86Gp &arg);
@@ -52,6 +53,14 @@ void passArg0(X86Assembler &cc, X86Gp &arg);
 #ifdef SHARP_PROF_
 void setupProfilerFields(const X86Gp &ctx);
 #endif
+
+// quick pass to function args
+#define JIT_TSCFIELDS cc,tmp,delegate,thread_check_section
+
+void jit_safetycheck(X86Assembler &cc, X86Mem &ctxPtr, X86Gp &ctx, X86Gp &val, X86Gp &tmp, X86Gp &delegate, X86Xmm &vec0, X86Xmm &vec1,
+                     Label &lbl_funcend);
+
+void goto_threadSafetyCheck(X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, Label &tsc, Label &retlbl, bool skipCtx);
 
 enum ConstKind {
     kConst64,
@@ -314,6 +323,7 @@ int compile(Method *method) {
         Label lbl_end = cc.newNamedLabel("end", 3);
         Label lbl_funcend = cc.newNamedLabel("func_end", 8);
         Label data_section = cc.newNamedLabel(".data", 5);
+        Label thread_check_section = cc.newNamedLabel(".thread_ckeck", 13);
 
         Constants lconsts;                              // local constant holder for function
 
@@ -370,6 +380,10 @@ int compile(Method *method) {
             cc.mov(qword_ptr(tmp), val);
             cc.bind(irNotOverflow);
 #endif
+#define is_op(x) (GET_OP(x64)==(x))
+            if(is_op(op_INT) || is_op(op_JNE) || is_op(op_GOTO)) {
+                goto_threadSafetyCheck(JIT_TSCFIELDS, labels[i], false);
+            }
 
             cc.bind(labels[i]);
             switch(GET_OP(x64)) {
@@ -631,16 +645,17 @@ int compile(Method *method) {
         cc.bind(lbl_end);
         cc.nop();
         // labeles[] setting here
+        cc.comment("; setting label values", 22);
         cc.mov(tmp, labelsPtr);                         // get a temporary ref to int64_t* labels
         X86Mem labelIndex = qword_ptr(tmp);
         X86Mem lbl;
         for(int64_t i = 0; i < sz; i++) {
             lbl = ptr(labels[i]);
-            cc.mov(ctx, lbl);
+            cc.lea(ctx, lbl);
             cc.mov(labelIndex, ctx);
 
             if((i + 1) < sz)                       // omit unessicary add instruction
-                cc.add(labelIndex, (int64_t )sizeof(int64_t));
+                cc.add(tmp, (int64_t )sizeof(int64_t));
         }
 
         cc.xor_(tmp, tmp);                      // tmp = 0;
@@ -652,6 +667,25 @@ int compile(Method *method) {
 
         restoreCalleeRegisters(cc, stackSize);
         FuncUtils::emitEpilog(&cc, layout);    // Emit function epilog and return.
+
+        /**
+         * Thread check section
+         *
+         * The thread check section is a section responsible for checking weather or
+         * not the thread has been killed or put to sleep.
+         *
+         * The general contract of this code section holds a few rules to be used
+         * correctly
+         *
+         *      %tmp - this register holds weather or not to fetch the jit_ctx
+         *      %val - this register is used so if information requires persistance it is the programmers
+         *             responsibility
+         * %delegate - this register MUST hold the return address to jump back to executing the Jit'ed code
+         *
+         * we must use goto_threadSafetyCheck() for thread safety check calls
+         */
+        cc.bind(thread_check_section);
+        jit_safetycheck(cc, ctxPtr, ctx, val, tmp, delegate, vec0, vec1, lbl_funcend);
 
         cc.nop();
         cc.nop();
@@ -710,6 +744,52 @@ void passArg0(X86Assembler &cc, X86Gp& arg) {
     }
     cc.mov(arg0, arg); // set signal to send
 
+}
+
+void goto_threadSafetyCheck(X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, Label &tsc, Label &retlbl, bool skipCtx) {
+    using namespace asmjit::x86;
+    cc.mov(tmp, skipCtx ? 1 : 0); // set jit_ctz switch
+    cc.lea(delegate, ptr(retlbl)); // set return addr
+    cc.jmp(tsc); // call thread_sec proc
+}
+
+void jit_safetycheck(X86Assembler &cc, X86Mem &ctxPtr, X86Gp &ctx, X86Gp &val, X86Gp & tmp, X86Gp & delegate, X86Xmm &vec0, X86Xmm &vec1,
+                     Label &lbl_funcend) {
+    using namespace asmjit::x86;
+//#define SAFTEY_CHECK
+//    if (suspendPending)
+//        suspendSelf();
+//    if (state == THREAD_KILLED)
+//        return;
+    Label skipCtx = cc.newLabel();
+    cc.cmp(tmp, 1);
+    cc.je(skipCtx);
+    cc.mov(ctx, ctxPtr);
+    cc.bind(skipCtx);
+
+    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // jctx->current
+    cc.mov(val, ctx);                                  //  store thread*
+    cc.movzx(ebx, thread_fields[jit_field_id_thread_suspendPending]);
+    cc.test(bl, bl);
+    Label ifFalse1 = cc.newLabel();
+    cc.je(ifFalse1);
+
+    savePrivateRegisters(cc, vec0, vec1);
+    passArg0(cc, val);
+
+    cc.call((int64_t)global_jit_suspendSelf);
+    restorePrivateRegisters(cc, vec0, vec1);
+    cc.bind(ifFalse1);
+
+    cc.mov(ctx, val);
+    cc.mov(val, thread_fields[jit_field_id_thread_state]);
+    cc.cmp(val, THREAD_KILLED);
+    Label ifFalse2 = cc.newLabel();
+    cc.jne(ifFalse2);
+    returnFuntion();
+
+    cc.bind(ifFalse2);
+    cc.jmp(delegate); // dynamically jump to last called position
 }
 
 void saveCalleeRegisters(X86Assembler &cc) {
@@ -810,6 +890,10 @@ void global_jit_dump(Profiler* prof) {
 }
 #endif
 
+void global_jit_suspendSelf(Thread* thread) {
+    thread->suspendSelf();
+}
+
 void setupJitContextFields(const X86Gp &ctx) {
     int64_t sz = 0; // holds the growing size of the data
     jit_ctx_fields[jit_field_id_current] = x86::qword_ptr(ctx, relative_offset((&jctx), current, current)); // Thread *current
@@ -837,6 +921,8 @@ void setupThreadContextFields(const X86Gp &ctx) {
 #ifdef SHARP_PROF_
     thread_fields[jit_field_id_thread_tprof] = x86::qword_ptr(ctx, relative_offset(thread, calls, tprof)); // Profiler *tprof
 #endif
+    thread_fields[jit_field_id_thread_suspendPending] = x86::byte_ptr(ctx, relative_offset(thread, calls, suspendPending)); // bool suspendPending
+    thread_fields[jit_field_id_thread_state] = x86::dword_ptr(ctx, relative_offset(thread, calls, state)); // unsigned int state
 }
 
 void setupStackElementFields(const X86Gp &ctx) {

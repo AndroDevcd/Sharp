@@ -45,6 +45,8 @@ struct jit_func {
 #ifdef SHARP_PROF_
 #define jit_field_id_thread_tprof 9
 #endif
+#define jit_field_id_thread_suspendPending 10
+#define jit_field_id_thread_state 11
 
 // convient id's for each field in StackElement object
 #define jit_field_id_stack_element_var 0
