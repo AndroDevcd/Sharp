@@ -58,6 +58,15 @@ struct jit_func {
 #define jit_field_id_profiler_endtm 2
 #define jit_field_id_profiler_lastHit 3
 
+// convient id's for each field in Frame object
+#define jit_field_id_frame_last 0
+#define jit_field_id_frame_pc 1
+#define jit_field_id_frame_sp 2
+#define jit_field_id_frame_fp 3
+
+// convient id's for each field in Frame object
+#define jit_field_id_method_bytecode 0
+
 #define offset_start(s) s
 #define offset_end(e) e
 #define relative_offset(obj, start, end) ((int64_t)&obj->offset_end(end)-(int64_t)&obj->offset_start(start))
@@ -72,6 +81,17 @@ struct jit_func {
     }
 #define returnFuntion() \
     cc.jmp(lbl_funcend);
+
+#define registerParams(vec, val) \
+    cc, tmp, registersReg, val, tmpMem, vec
+
+/**
+ * Ohhhh the dear stack, smh....
+ * This field is required to prevent the stack from fu#....screwing me over as a result
+ * of a quad word or even a double quad word being pushed to the stack. it is a bit wasteful
+ * yes i understand. But I am an Android developer not a systems engineer :)
+ */
+#define STACK_ALIGN_OFFSET 0x10
 
 struct jit_ctx {
     Thread* current;

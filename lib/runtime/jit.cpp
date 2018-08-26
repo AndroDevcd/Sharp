@@ -24,15 +24,21 @@ std::vector<jit_func> functions;
 uint64_t jit_funcid = 0;
 X86Mem jit_ctx_fields[5]; // memory map of jit_ctx
 X86Mem thread_fields[12]; // sliced memory map of Thread
+X86Mem frame_fields[4]; // memory map of Frame
 X86Mem stack_element_fields[2]; // memory map of StackElement
+X86Mem method_fields[1]; // memory map of Method
 #ifdef SHARP_PROF_
 X86Mem profiler_fields[4]; // memory map of Profiler
 #endif
 
+// setup functions
 void setupJitContextFields(const X86Gp &ctx);
 void setupThreadContextFields(const X86Gp &ctx);
 void setupStackElementFields(const X86Gp &ctx);
+void setupFrameFields(const X86Gp &ctx);
+void setupMethodFields(const X86Gp &ctx);
 
+// state save functions
 void saveCalleeRegisters(X86Assembler &cc);
 void restoreCalleeRegisters(X86Assembler &cc, int64_t stackSize);
 
@@ -46,21 +52,40 @@ void global_jit_profile(Profiler* prof);
 void global_jit_dump(Profiler* prof);
 #endif
 void global_jit_suspendSelf(Thread* thread);
+unsigned long global_jit_finallyBlocks(Method* fn);
+void global_jit_exeuteFinally();
+SharpObject* global_jit_newObject0(int64_t size);
+void global_jit_setObject0(StackElement *sp, SharpObject* o);
 
+// function calling helper methods
 void passArg0(X86Assembler &cc, int64_t arg0);
 void passArg0(X86Assembler &cc, X86Gp &arg);
+void passArg1(X86Assembler &cc, int64_t arg0);
+void passArg1(X86Assembler &cc, X86Gp &arg);
+void passArg2(X86Assembler &cc, int64_t arg0);
+void passArg2(X86Assembler &cc, X86Gp &arg);
+void passReturnArg(X86Assembler &cc, X86Gp& arg);
 
 #ifdef SHARP_PROF_
 void setupProfilerFields(const X86Gp &ctx);
 #endif
 
 // quick pass to function args
-#define JIT_TSCFIELDS cc,tmp,delegate,thread_check_section
+#define JIT_TCSFIELDS cc,tmp,delegate,thread_check_section
 
 void jit_safetycheck(X86Assembler &cc, X86Mem &ctxPtr, X86Gp &ctx, X86Gp &val, X86Gp &tmp, X86Gp &delegate, X86Xmm &vec0, X86Xmm &vec1,
                      Label &lbl_funcend);
 
 void goto_threadSafetyCheck(X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, Label &tsc, Label &retlbl, bool skipCtx);
+
+// high level interfacing methods
+void
+getRegister(X86Assembler &cc, const X86Gp &tmp, const X86Gp &registersReg, int idx, X86Mem &tmpMem, const X86Xmm &vec);
+
+void
+doubleToInt64(X86Assembler &cc, const X86Gp &dest, const X86Xmm &src);
+
+FILE *getLogFile();
 
 enum ConstKind {
     kConst64,
@@ -184,24 +209,18 @@ int compile(Method *method) {
 
         CodeHolder code;                        // Holds code and relocation information.
         code.init(rt.getCodeInfo());            // Initialize to the same arch as JIT runtime.
-        std::ofstream outfile ("JIT.s");        // Quickly create file
-//        outfile << "";                          // clear it
-        outfile.close();
 
-        FILE * pFile;                           // out logging file
-        pFile = fopen ("JIT.s" , "rw+");
-
-        FileLogger logger(pFile);
+        FileLogger logger(getLogFile());
         code.setLogger(&logger);                // Initialize logger temporarily to ensure quality of code
 
-        X86Assembler cc(&code);                  // Create and attach X86Compiler to `code`.
+        X86Assembler cc(&code);                  // Create and attach X86Assembler to `code`.
 
         // Decide which registers will be mapped to function arguments.
         // registers zax for `ctx` is used to store the pointer to the jit context
         X86Gp ctx   = cc.zax();
 
         X86Gp tmp        = r10;       // setup register locations for local variables
-        X86Gp val        = r11;       // virtual registers are r10, r11, r12, and r13
+        X86Gp val        = r11;       // virtual registers are r10, r11, r12, r13, and r14
         X86Gp delegate   = r12;       // each time a function is called that can mess with the state of these registers
         X86Gp argsReg    = r13;       // they must be pushed to the stack to be retained
         X86Gp registersReg = r14;     // they must be pushed to the stack to be retained
@@ -266,10 +285,10 @@ int compile(Method *method) {
         int objectSize   = sizeof(SharpObject*), oaddr = kaddr + objectSize;
         int o2Size       = sizeof(Object*), o2addr = oaddr + o2Size;
         int32_t stackSize = ptrSize + /* tmpSize + valSize + delegateSize + argsSize */
-                + labelsSize + klassSize + objectSize + o2Size;
+                            + labelsSize + klassSize + objectSize + o2Size;
         cc.sub(zsp, (stackSize));                  // allocate nessicary bytes on the stack for variables
 
-        Label labels[sz];                       // Each opcode has its own labels but not all labels will be used
+        Label labels[sz];                       // Each opcode has its own label but not all labels will be used
         for(int64_t i = 0; i < sz; i++) {       // Iterate through all the addresses to create labels for each address
             labels[i] = cc.newLabel();
         }
@@ -303,12 +322,18 @@ int compile(Method *method) {
         // setup stack element field offsets
         setupStackElementFields(ctx);
 
+        // setup frame field offsets
+        setupFrameFields(ctx);
+
+        // setup method field offsets
+        setupMethodFields(ctx);
+
 #ifdef SHARP_PROF_
         setupProfilerFields(ctx);
 #endif
 
         // we want fast access
-        cc.mov(ctx, ctxPtr);        // move the contex var into register
+        cc.mov(ctx, ctxPtr);        // move the context var into register
         cc.mov(registersReg, jit_ctx_fields[jit_field_id_registers]); // ctx->registers (quick "hack" for less instructions)
 
         // we already have ctx pointer no need to set
@@ -323,21 +348,19 @@ int compile(Method *method) {
         Label lbl_end = cc.newNamedLabel("end", 3);
         Label lbl_funcend = cc.newNamedLabel("func_end", 8);
         Label data_section = cc.newNamedLabel(".data", 5);
-        Label thread_check_section = cc.newNamedLabel(".thread_ckeck", 13);
+        Label thread_check_section = cc.newNamedLabel(".thread_check", 13);
 
         Constants lconsts;                              // local constant holder for function
 
         cc.mov(labelsPtr, ctx);                         // int64_t* labels = ctx->func->jit_labels;
         X86Mem tmp_jit_labels = x86::qword_ptr(ctx, 0); // labels[0]
 
-        cc.mov(ctx, labelsPtr);                         // get int64_t* labels value
+        // get int64_t* labels value (ctx already has it)
         cc.mov(ctx, tmp_jit_labels);                    // if(ctx->func->jit_labels[0]==0)
         cc.test(ctx, ctx);                              //      goto end;
         cc.jne(lbl_begin);
-        cc.nop();
         cc.jmp(lbl_end);
         cc.bind(lbl_begin);
-        cc.nop();
         // user code start
 
         /**
@@ -382,7 +405,7 @@ int compile(Method *method) {
 #endif
 #define is_op(x) (GET_OP(x64)==(x))
             if(is_op(op_INT) || is_op(op_JNE) || is_op(op_GOTO)) {
-                goto_threadSafetyCheck(JIT_TSCFIELDS, labels[i], false);
+                goto_threadSafetyCheck(JIT_TCSFIELDS, labels[i], false);
             }
 
             cc.bind(labels[i]);
@@ -406,9 +429,6 @@ int compile(Method *method) {
                         cc.mov(ctx, thread_fields[jit_field_id_thread_tprof]); // ctx->current->tprof
                         cc.mov(argsReg, ctx);       // this register will be saved by the called function
 
-                        cout << "thread->tprof = " << thread_self->tprof << " tprof->endtm = " << &thread_self->tprof->endtm << endl;
-                        cout << "thread_self " << thread_self << endl;
-
                         cc.call((int64_t)Clock::realTimeInNSecs);
                         cc.mov(tmp, ctx);
                         cc.mov(ctx, argsReg);
@@ -423,9 +443,7 @@ int compile(Method *method) {
 
 #endif
 
-                    // rdi to send rax to get
                     passArg0(cc, GET_Da(x64));
-
                     cc.call((int64_t)global_jit_sysInterrupt);
 
                     cc.mov(rbx, (int64_t)&masterShutdown);
@@ -481,15 +499,19 @@ int compile(Method *method) {
                     tprof->profile();
         #endif
                      */
+
                     cc.mov(ctx, ctxPtr);        // move the contex var into register
                     cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
+
+                    cc.mov(val, thread_fields[jit_field_id_thread_calls]);
+                    cc.cmp(val, 1); // if(calls <= 1) {
+                    Label ifFalse = cc.newLabel();
+                    cc.ja(ifFalse);
                     cc.mov(tmp, ctx);           // save Thread*
 
-                    cc.mov(ctx, thread_fields[jit_field_id_thread_calls]);
-                    cc.cmp(ctx, 1); // if(calls <= 1) {
-                    Label ifFalse = cc.newLabel();
-                    cc.jnae(ifFalse);
 #ifdef SHARP_PROF_
+
+
 
                     savePrivateRegisters(cc, vec0, vec1);
                     cc.mov(ctx, tmp);        // move thread* var into register
@@ -504,13 +526,117 @@ int compile(Method *method) {
                     passArg0(cc, argsReg);
                     cc.call((int64_t)global_jit_profile);
                     restorePrivateRegisters(cc, vec0, vec1);
-
 #endif
+
                     returnFuntion();
                     cc.bind(ifFalse);
 
+                    cc.sub(val, 1);
+                    cc.mov(thread_fields[jit_field_id_thread_calls], val);
+
+                    cc.add(val, 1);
+
+                    cc.mov(tmp, (size_t)sizeof(Frame));
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_callStack]);
+                    cc.imul(val, tmp);      // int64 offset = calls*sizeof(Frame)
+                    cc.add(ctx, val);      // shift pointer in ctx to address...i think??..
+                    cc.mov(val, ctx);      // swap values
+
+//                    if(current->finallyBlocks.len > 0)
+//                        vm->executeFinally(thread_self->current);
+
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
+                    cc.mov(tmp, ctx);           // save Thread*
+
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_current]); // ctx->current->current
+
+                    savePrivateRegisters(cc, vec0, vec1);
+                    passArg0(cc, ctx);
+                    cc.call((int64_t)global_jit_finallyBlocks);
+                    passReturnArg(cc, delegate);
+                    cc.cmp(delegate, 0);
+                    Label finallyBlockEnd = cc.newLabel();
+                    cc.jna(finallyBlockEnd);
+                    cc.call((int64_t)global_jit_exeuteFinally);
+                    cc.bind(finallyBlockEnd);
+                    restorePrivateRegisters(cc, vec0, vec1);
+
+                    cc.mov(ctx, val); // fame->last
+                    cc.mov(delegate, frame_fields[jit_field_id_frame_last]);
+                    cc.mov(ctx, tmp);
+
+                    cc.mov(thread_fields[jit_field_id_thread_current], delegate); // current = fame->last
+                    cc.mov(ctx, delegate);
+                    cc.mov(delegate, method_fields[jit_field_id_method_bytecode]);
+
+                    cc.mov(ctx, tmp);
+                    cc.mov(thread_fields[jit_field_id_thread_cache], delegate); // cache = current->bytecode
+
+                    cc.mov(ctx, val);
+                    cc.mov(delegate, frame_fields[jit_field_id_frame_pc]); // pc = frame->pc;
+
+                    cc.mov(ctx, tmp); // move thread*
+                    cc.mov(thread_fields[jit_field_id_thread_pc], delegate);
+
+                    cc.mov(ctx, val);
+                    cc.mov(delegate, frame_fields[jit_field_id_frame_sp]); // sp = frame->sp;
+
+                    cc.mov(ctx, tmp); // move thread*
+                    cc.mov(thread_fields[jit_field_id_thread_sp], delegate);
+
+                    cc.mov(ctx, val);
+                    cc.mov(delegate, frame_fields[jit_field_id_frame_fp]); // fp = frame->fp;
+
+                    cc.mov(ctx, tmp); // move thread*
+                    cc.mov(thread_fields[jit_field_id_thread_fp], delegate);
+
+
+                    cout << "thread->calls " << &thread_self->calls << endl;
+                    cout << "thread->callStack " << thread_self->callStack << endl;
+                    cout << "thread->callStack+calls " << (thread_self->callStack+thread_self->calls) << endl;
+                    cout << "thread->calls VALUE = " << thread_self->calls << endl;
+
+
+#ifdef SHARP_PROF_
+
+
+                    // in this case we dont give a crap because were returning anyway no no need to save regs :)
+                    cc.mov(ctx, tmp);        // move thread* var into register
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_tprof]); // ctx->current->tprof
+
+                    passArg0(cc, ctx);
+                    cc.call((int64_t)global_jit_profile);
+#endif
+                    returnFuntion();
                     break;
                 }
+                case op_HLT: {
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
+                    cc.mov(thread_fields[jit_field_id_thread_state], THREAD_KILLED); // kill ourselves
+                    returnFuntion();
+                    break;
+                }
+                case op_NEWARRAY: { // (++sp)->object = GarbageCollector::self->newObject(registers[GET_Da(*pc)]);
+                    getRegister(registerParams(vec0, GET_Da(x64)));
+                    doubleToInt64(cc, tmp, vec0);
+
+                    passArg0(cc, tmp);
+                    cc.call((int64_t)global_jit_newObject0);
+                    passReturnArg(cc, tmp);
+
+                    cc.mov(ctx, ctxPtr);
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]);
+                    cc.mov(val, thread_fields[jit_field_id_thread_sp]);
+                    cc.lea(val, ptr(val, sizeof(StackElement)));
+                    cc.mov(thread_fields[jit_field_id_thread_sp], val);
+
+                    passArg0(cc, val);
+                    passArg1(cc, tmp);
+                    cc.call((int64_t)global_jit_setObject0);
+                    break;
+                } // TODO: after the exception system is in place support stack checks after instructions
                 case op_ISTOREL: {              // (fp+GET_Da(*pc))->var = *(pc+1);
                     cc.mov(ctx, ctxPtr);        // move the contex var into register
                     cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
@@ -553,19 +679,8 @@ int compile(Method *method) {
 
                     cc.add(ctx, (int64_t )(sizeof(double) * i64cmt));
 
-                    cc.mov(tmp, registersReg);      // were just using these registers because we can, makes life so much easier
-                    if(GET_Ca(x64) != 0) {
-                        cc.add(tmp, (int64_t )(sizeof(double) * GET_Ca(x64)));
-                    }
-                    tmpMem = qword_ptr(tmp);
-                    cc.movsd(vec1, tmpMem);
-
-                    cc.mov(tmp, registersReg);      // were just using these registers because we can, makes life so much easier
-                    if(GET_Cb(x64) != 0) {
-                        cc.add(tmp, (int64_t )(sizeof(double) * GET_Cb(x64)));
-                    }
-                    tmpMem = qword_ptr(tmp);
-                    cc.movsd(vec0, tmpMem);
+                    getRegister(registerParams(vec1, GET_Ca(x64)));
+                    getRegister(registerParams(vec0, GET_Cb(x64)));
 
                     cc.ucomisd(vec0, vec1);
 
@@ -631,7 +746,7 @@ int compile(Method *method) {
                     break;
                 }
                 default: {
-//                    error = 1;
+//                    error = jit_error_compile;
 //                    cout << "jit assembler:  error: unidentified opcode (" <<  GET_OP(x64) << ") at [" << i << "]." << endl;
 //                    cout << "\tPlease contact the developer with this information immediately." << endl;
                     break;
@@ -663,7 +778,6 @@ int compile(Method *method) {
 
         // end of function
         cc.bind(lbl_funcend);
-        cc.nop();
 
         restoreCalleeRegisters(cc, stackSize);
         FuncUtils::emitEpilog(&cc, layout);    // Emit function epilog and return.
@@ -691,7 +805,7 @@ int compile(Method *method) {
         cc.nop();
         cc.nop();
         cc.align(kAlignData, 64);              // Align 64
-        cc.bind(data_section);                 // emit constancts to be used
+        cc.bind(data_section);                 // emit constants to be used
         cc.comment(";\t\tdata section start", 21);
         lconsts.emitConstants(cc);
 
@@ -720,6 +834,51 @@ int compile(Method *method) {
     return jit_error_ok;
 }
 
+FILE *getLogFile() {
+    ofstream outfile ("JIT.s");        // Quickly create file
+    outfile.close();
+
+    FILE * pFile;                           // out logging file
+    pFile = fopen ("JIT.s" , "rw+");
+    return pFile;
+}
+
+/**
+ * high level equvilent of registers[i64ebx];
+ *
+ * This function abstracts retrieving register values to make core much easier to read
+ *
+ * @param cc
+ * @param tmp
+ * @param registersReg
+ * @param idx
+ * @param tmpMem
+ * @param vec
+ * @return
+ */
+void
+getRegister(X86Assembler &cc, const X86Gp &tmp, const X86Gp &registersReg, int idx, X86Mem &tmpMem, const X86Xmm &vec) {
+    cc.mov(tmp, registersReg);      // were just using these registers because we can, makes life so much easier
+    if(idx != 0) {
+        cc.add(tmp, (int64_t )(sizeof(double) * idx));
+    }
+
+    tmpMem = x86::qword_ptr(tmp);
+    cc.movsd(vec, tmpMem);
+}
+
+void
+doubleToInt64(X86Assembler &cc, const X86Gp &dest, const X86Xmm &src) {
+    cc.cvttsd2si(dest, src);
+}
+
+/**
+ * Argument passing util functions
+ * These functions allow you to pass up to 3 arguments to a function
+ * through a register or numeric value
+ * @param cc
+ * @param arg
+ */
 void passArg0(X86Assembler &cc, int64_t arg) {
     X86Gp arg0;
     if (ASMJIT_ARCH_64BIT) {
@@ -727,7 +886,7 @@ void passArg0(X86Assembler &cc, int64_t arg) {
         arg0 = isWinOS ? x86::rcx : x86::rdi;  // First argument (array ptr).
     }
     else {
-        arg0 = cc.zdx();                       // Use EDX to hold the array pointer.
+        arg0 = cc.zax();                       // Use EDX to hold the array pointer.
     }
     cc.mov(arg0, arg); // set signal to send
 
@@ -737,12 +896,82 @@ void passArg0(X86Assembler &cc, X86Gp& arg) {
     X86Gp arg0;
     if (ASMJIT_ARCH_64BIT) {
         bool isWinOS = static_cast<bool>(ASMJIT_OS_WINDOWS);
-        arg0 = isWinOS ? x86::rcx : x86::rdi;  // First argument (array ptr).
+        arg0 = isWinOS ? x86::rcx : x86::rdi;  // First argument.
     }
     else {
-        arg0 = cc.zdx();                       // Use EDX to hold the array pointer.
+        arg0 = cc.zax();                       // Use EaX to hold the second arg.
     }
-    cc.mov(arg0, arg); // set signal to send
+    cc.mov(arg0, arg);
+
+}
+
+void passArg1(X86Assembler &cc, X86Gp& arg) {
+    X86Gp arg0;
+    if (ASMJIT_ARCH_64BIT) {
+        bool isWinOS = static_cast<bool>(ASMJIT_OS_WINDOWS);
+        arg0 = isWinOS ? x86::rdx : x86::rsi;  // Second argument.
+    }
+    else {
+        arg0 = cc.zcx();                       // Use ECX to hold the second arg.
+    }
+    cc.mov(arg0, arg);
+
+}
+
+void passArg1(X86Assembler &cc, int64_t arg) {
+    X86Gp arg0;
+    if (ASMJIT_ARCH_64BIT) {
+        bool isWinOS = static_cast<bool>(ASMJIT_OS_WINDOWS);
+        arg0 = isWinOS ? x86::rdx : x86::rsi;  // Second argument.
+    }
+    else {
+        arg0 = cc.zcx();                       // Use ECX to hold the second arg.
+    }
+    cc.mov(arg0, arg);
+
+}
+
+void passArg2(X86Assembler &cc, X86Gp& arg) {
+    X86Gp arg0;
+    if (ASMJIT_ARCH_64BIT) {
+        bool isWinOS = static_cast<bool>(ASMJIT_OS_WINDOWS);
+        arg0 = isWinOS ? x86::r8 : x86::rdx;  // Third argument.
+    }
+    else {
+        arg0 = cc.zdx();                       // Use EdX to hold the third arg.
+    }
+    cc.mov(arg0, arg);
+
+}
+
+void passArg2(X86Assembler &cc, int64_t arg) {
+    X86Gp arg0;
+    if (ASMJIT_ARCH_64BIT) {
+        bool isWinOS = static_cast<bool>(ASMJIT_OS_WINDOWS);
+        arg0 = isWinOS ? x86::r8 : x86::rdx;  // Third argument.
+    }
+    else {
+        arg0 = cc.zdx();                       // Use EdX to hold the third arg.
+    }
+    cc.mov(arg0, arg);
+
+}
+
+/**
+ * Get return argument from a function call
+ * @param cc
+ * @param arg
+ */
+void passReturnArg(X86Assembler &cc, X86Gp& arg) {
+    X86Gp arg0;
+    if (ASMJIT_ARCH_64BIT) {
+        bool isWinOS = static_cast<bool>(ASMJIT_OS_WINDOWS);
+        arg0 = isWinOS ? x86::eax : x86::rdi;  // First argument (array ptr).
+    }
+    else {
+        arg0 = cc.zbx();                       // Use EDX to hold the array pointer.
+    }
+    cc.mov(arg, arg0); // set signal to send
 
 }
 
@@ -856,11 +1085,13 @@ void savePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1) {
 
     cc.push(r10);
     cc.push(r11);
+    cc.sub(cc.zsp(), STACK_ALIGN_OFFSET);
 }
 
 void restorePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1) {
     using namespace asmjit::x86;
 
+    cc.add(cc.zsp(), STACK_ALIGN_OFFSET);
     cc.pop(r11);
     cc.pop(r10);
 
@@ -894,8 +1125,23 @@ void global_jit_suspendSelf(Thread* thread) {
     thread->suspendSelf();
 }
 
+unsigned long global_jit_finallyBlocks(Method* fn) {
+    return fn->finallyBlocks.size();
+}
+
+void global_jit_exeuteFinally() {
+    vm->executeFinally(thread_self->current);
+}
+
+SharpObject* global_jit_newObject0(int64_t size) {
+    return GarbageCollector::self->newObject(size);
+}
+
+void global_jit_setObject0(StackElement *sp, SharpObject* o) {
+    sp->object = o;
+}
+
 void setupJitContextFields(const X86Gp &ctx) {
-    int64_t sz = 0; // holds the growing size of the data
     jit_ctx_fields[jit_field_id_current] = x86::qword_ptr(ctx, relative_offset((&jctx), current, current)); // Thread *current
     jit_ctx_fields[jit_field_id_registers] = x86::qword_ptr(ctx, relative_offset((&jctx), current, registers)); // double *registers
     jit_ctx_fields[jit_field_id_func] = x86::qword_ptr(ctx, relative_offset((&jctx), current, func)); // Method *func
@@ -908,7 +1154,7 @@ void setupJitContextFields(const X86Gp &ctx) {
 
 void setupThreadContextFields(const X86Gp &ctx) {
     Thread* thread = thread_self;
-    thread_fields[jit_field_id_thread_calls] = x86::qword_ptr(ctx, relative_offset(thread, calls, calls)); // unsigned long calls
+    thread_fields[jit_field_id_thread_calls] = x86::qword_ptr(ctx, relative_offset(thread, calls, calls)); // long long calls
     thread_fields[jit_field_id_thread_dataStack] = x86::qword_ptr(ctx, relative_offset(thread, calls, dataStack)); // StackElement *dataStack;
     thread_fields[jit_field_id_thread_sp] = x86::qword_ptr(ctx, relative_offset(thread, calls, sp));  // StackElement *sp
     thread_fields[jit_field_id_thread_fp] = x86::qword_ptr(ctx, relative_offset(thread, calls, fp)); // StackElement *fp
@@ -926,10 +1172,22 @@ void setupThreadContextFields(const X86Gp &ctx) {
 }
 
 void setupStackElementFields(const X86Gp &ctx) {
-    int64_t sz = 0; // holds the growing size of the data
     StackElement stack;
     stack_element_fields[jit_field_id_stack_element_var] = x86::qword_ptr(ctx, relative_offset((&stack), var, var)); // double var;
     stack_element_fields[jit_field_id_stack_element_object] = x86::qword_ptr(ctx, relative_offset((&stack), var, object)); // Object object;
+}
+
+void setupFrameFields(const X86Gp &ctx) {
+    Frame frame(0,0,0,0);
+    frame_fields[jit_field_id_frame_last] = x86::qword_ptr(ctx, relative_offset((&frame), last, last)); // Method* last;
+    frame_fields[jit_field_id_frame_pc] = x86::qword_ptr(ctx, relative_offset((&frame), last, pc)); // int64_t* pc;
+    frame_fields[jit_field_id_frame_sp] = x86::qword_ptr(ctx, relative_offset((&frame), last, sp)); // StackElement* sp;
+    frame_fields[jit_field_id_frame_fp] = x86::qword_ptr(ctx, relative_offset((&frame), last, fp)); // StackElement* fp;
+}
+
+void setupMethodFields(const X86Gp &ctx) {
+    Method m;
+    method_fields[jit_field_id_frame_last] = x86::qword_ptr(ctx, relative_offset((&m), jit_labels, bytecode)); // int64_t bytecode;
 }
 
 #ifdef SHARP_PROF_

@@ -100,7 +100,7 @@ public:
     void initJitCtx();
 
     // easier to acces for JIT
-    unsigned long calls;
+    long long calls;
     StackElement* dataStack,
             *sp, *fp;
     Method *current;

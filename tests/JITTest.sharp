@@ -11,6 +11,9 @@ def main() {
     asm(
         "nop"
         "int 0x9f" // this call does nothing so its safe
+//        "hlt "
+        "movi #1,%ebx"
+        "newarray %ebx"
         "ret"
     );
 }

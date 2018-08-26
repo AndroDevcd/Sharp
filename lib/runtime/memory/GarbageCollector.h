@@ -97,11 +97,11 @@ public:
      */
     void collect(CollectionPolicy policy);
 
-    SharpObject* newObject(unsigned long size); /* Array allocation */
+    SharpObject* newObject(int64_t size); /* Array allocation */
     SharpObject* newObject(ClassObject* k); /* Class allocation */
 
-    SharpObject* newObjectArray(unsigned long size); /* Array Object allocation */
-    SharpObject* newObjectArray(unsigned long size, ClassObject* k); /* Class Array allocation */
+    SharpObject* newObjectArray(int64_t size); /* Array Object allocation */
+    SharpObject* newObjectArray(int64_t size, ClassObject* k); /* Class Array allocation */
 
     void createStringArray(Object* object, native_string& s); /* Native string allocation */
 

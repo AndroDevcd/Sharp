@@ -795,7 +795,6 @@ void Thread::exec() {
             interp:
             if(current->address==7 && PC(this) >= 0) {
                 jctx.func = current;
-                calls = 0;
                 compile(jctx.func);
                 return;
             }

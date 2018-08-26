@@ -450,7 +450,7 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
     return NULL;
 }
 
-SharpObject *GarbageCollector::newObject(unsigned long size) {
+SharpObject *GarbageCollector::newObject(int64_t size) {
     if(size==0)
         return nullptr;
     
@@ -500,7 +500,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
     return nullptr;
 }
 
-SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
+SharpObject *GarbageCollector::newObjectArray(int64_t size) {
     if(size==0)
         return nullptr;
     
@@ -520,7 +520,7 @@ SharpObject *GarbageCollector::newObjectArray(unsigned long size) {
     return object;
 }
 
-SharpObject *GarbageCollector::newObjectArray(unsigned long size, ClassObject *k) {
+SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
     if(k != nullptr && size > 0) {
         
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
