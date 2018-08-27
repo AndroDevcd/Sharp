@@ -56,6 +56,10 @@ unsigned long global_jit_finallyBlocks(Method* fn);
 void global_jit_exeuteFinally();
 SharpObject* global_jit_newObject0(int64_t size);
 void global_jit_setObject0(StackElement *sp, SharpObject* o);
+void global_jit_castObject(Object *o2, int64_t klass);
+void global_jit_setVar(StackElement *sp, double var);
+void global_jit_imod(int64_t op0, int64_t op1);
+
 
 // function calling helper methods
 void passArg0(X86Assembler &cc, int64_t arg0);
@@ -84,6 +88,9 @@ getRegister(X86Assembler &cc, const X86Gp &tmp, const X86Gp &registersReg, int i
 
 void
 doubleToInt64(X86Assembler &cc, const X86Gp &dest, const X86Xmm &src);
+
+void
+int64ToDouble(X86Assembler &cc, const X86Xmm &dest, const X86Gp &src)
 
 FILE *getLogFile();
 
@@ -637,12 +644,340 @@ int compile(Method *method) {
                     cc.call((int64_t)global_jit_setObject0);
                     break;
                 } // TODO: after the exception system is in place support stack checks after instructions
+                case op_CAST: { // CHECK_NULL(o2->castObject(registers[GET_Da(*pc)]);)
+                    getRegister(registerParams(vec0, GET_Da(x64)));
+                    cc.mov(ctx, o2Ptr);
+                    doubleToInt64(cc, tmp, vec0);
+
+                    passArg0(cc, ctx);
+                    passArg1(cc, tmp);
+                    cc.call((int64_t)global_jit_castObject);
+                    break;
+                }
+                case op_VARCAST: {
+                    cc.nop(); // TODO: unsupported for now add exception system to update opcodes
+                    break;
+                }
+                case op_MOV8: { // registers[GET_Ca(*pc)]=(int8_t)registers[GET_Cb(*pc)];
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    doubleToInt64(cc, eax, vec0);
+                    cc.movsx(eax, al);
+                    int64ToDouble(cc, vec0, eax);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Ca(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
+                case op_MOV16: { //registers[GET_Ca(*pc)]=(int16_t)registers[GET_Cb(*pc)];
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    doubleToInt64(cc, eax, vec0);
+                    cc.cwde();
+                    int64ToDouble(cc, vec0, eax);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Ca(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
+                case op_MOV32:
+                case op_MOV64: { // registers[GET_Ca(*pc)]=(int32_t)registers[GET_Cb(*pc)];
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    doubleToInt64(cc, eax, vec0);
+                    int64ToDouble(cc, vec0, eax);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Ca(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
+                case op_MOVU8: { // registers[GET_Ca(*pc)]=(uint8_t)registers[GET_Cb(*pc)];
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    doubleToInt64(cc, eax, vec0);
+                    cc.movzx(eax, al);
+                    int64ToDouble(cc, vec0, eax);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Ca(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
+                case op_MOVU16: { // registers[GET_Ca(*pc)]=(uint16_t)registers[GET_Cb(*pc)];
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    doubleToInt64(cc, eax, vec0);
+                    cc.movzx(eax, ax);
+                    int64ToDouble(cc, vec0, eax);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Ca(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
+                case op_MOVU32: { // registers[GET_Ca(*pc)]=(uint32_t)registers[GET_Cb(*pc)];
+                    cc.pxor(vec0, vec0);
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    doubleToInt64(cc, rax, vec0);
+                    cc.mov(eax, eax);
+                    int64ToDouble(cc, vec0, rax);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Ca(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
+                case op_MOVU64: {
+                    cc.nop(); // TODO: unsupported for now its too complicated
+                    break;
+                }
+                case op_RSTORE: { // (++sp)->var = registers[GET_Da(*pc)];
+                    getRegister(registerParams(vec0, GET_Da(*bc)));
+
+                    cc.mov(ctx, ctxPtr);
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]);
+                    cc.mov(val, thread_fields[jit_field_id_thread_sp]);
+                    cc.lea(val, ptr(val, sizeof(StackElement)));
+                    cc.mov(thread_fields[jit_field_id_thread_sp], val);
+
+                    passArg0(cc, val);
+                    cc.call((int64_t)global_jit_setVar);
+                    break;
+                }
+                case op_ADD: { //registers[*(pc+1)]=registers[GET_Ca(*pc)]+registers[GET_Cb(*pc)];
+                    getRegister(registerParams(vec1, GET_Ca(*bc)));
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    cc.addsd(vec0, vec1);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    bc++;
+                    i++; cc.bind(labels[i]); // we wont use it but we need to bind it anyway
+                    if((*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * (*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
+                case op_SUB: { //registers[*(pc+1)]=registers[GET_Ca(*pc)]-registers[GET_Cb(*pc)];
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+                    getRegister(registerParams(vec1, GET_Cb(*bc)));
+                    cc.subsd(vec0, vec1);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    bc++;
+                    i++; cc.bind(labels[i]); // we wont use it but we need to bind it anyway
+                    if(*bc != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * *bc));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
+                case op_MUL: { //registers[*(pc+1)]=registers[GET_Ca(*pc)]*registers[GET_Cb(*pc)];
+                    getRegister(registerParams(vec1, GET_Ca(*bc)));
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    cc.mulsd(vec0, vec1);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    bc++;
+                    i++; cc.bind(labels[i]); // we wont use it but we need to bind it anyway
+                    if(*bc != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * *bc));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
+                case op_DIV: { //registers[*(pc+1)]=registers[GET_Ca(*pc)]/registers[GET_Cb(*pc)];
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+                    getRegister(registerParams(vec1, GET_Cb(*bc)));
+                    cc.divsd(vec0, vec1);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    bc++;
+                    i++; cc.bind(labels[i]); // we wont use it but we need to bind it anyway
+                    if(*bc != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * *bc));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
+                case op_MOD: { // registers[*(pc+1)]=(int64_t)registers[GET_Ca(*pc)]%(int64_t)registers[GET_Cb(*pc)];
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+                    doubleToInt64(cc, rax, vec0);
+
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    doubleToInt64(cc, rcx, vec0);
+
+                    cc.cqo();
+                    cc.idiv(rcx);
+                    cc.mov(rax, rdx);
+
+                    int64ToDouble(cc, vec0, rax);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    bc++;
+                    i++; cc.bind(labels[i]); // we wont use it but we need to bind it anyway
+                    if(*bc != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * *bc));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
+                case op_IADD: { // registers[GET_Ca(*pc)]+=GET_Cb(*pc);
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+
+                    SET_LCONST_DVAL2(vec1, GET_Cb(*bc));
+                    cc.addsd(vec1, vec0);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Ca(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec1);
+                    break;
+                }
+                case op_ISUB: { // registers[GET_Ca(*pc)]-=GET_Cb(*pc);
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+
+                    SET_LCONST_DVAL2(vec1, GET_Cb(*bc));
+                    cc.subsd(vec1, vec0);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Ca(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec1);
+                    break;
+                }
+                case op_IMUL: { // registers[GET_Ca(*pc)]*=GET_Cb(*pc);
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+
+                    SET_LCONST_DVAL2(vec1, GET_Cb(*bc));
+                    cc.mulsd(vec1, vec0);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Ca(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec1);
+                    break;
+                }
+                case op_IDIV: { // registers[GET_Ca(*pc)]/=GET_Cb(*pc);
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+
+                    SET_LCONST_DVAL2(vec1, GET_Cb(*bc));
+                    cc.divsd(vec1, vec0);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Ca(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec1);
+                    break;
+                }
+                case op_IMOD: { // registers[GET_Ca(*pc)]=(int64_t)registers[GET_Ca(*pc)]%(int64_t)GET_Cb(*pc);
+                    passArg0(cc, GET_Ca(*bc));
+                    passArg1(cc, GET_Cb(*bc));
+
+                    cc.call((int64_t)global_jit_imod);
+                    break;
+                }
+                case op_POP: {// --sp;
+                    cc.mov(ctx, ctxPtr);
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]);
+                    cc.mov(val, thread_fields[jit_field_id_thread_sp]);
+                    cc.lea(val, ptr(val, -sizeof(StackElement)));
+                    cc.mov(thread_fields[jit_field_id_thread_sp], val);
+
+                    break;
+                }
+                case op_INC: { // registers[GET_Da(*pc)]++;
+                    getRegister(registerParams(vec0, GET_Da(*bc)));
+
+                    SET_LCONST_DVAL2(vec1, GET_Da(*bc));
+                    cc.addsd(vec1, vec0);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Da(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Da(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec1);
+                    break;
+                }
+                case op_DEC: { // registers[GET_Da(*pc)]--;
+                    getRegister(registerParams(vec0, GET_Da(*bc)));
+
+                    SET_LCONST_DVAL2(vec1, GET_Da(*bc));
+                    cc.subsd(vec1, vec0);
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Da(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Da(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec1);
+                    break;
+                }
+                case op_MOVR: { // registers[GET_Ca(*pc)]=registers[GET_Cb(*pc)];
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Ca(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
                 case op_ISTOREL: {              // (fp+GET_Da(*pc))->var = *(pc+1);
                     cc.mov(ctx, ctxPtr);        // move the contex var into register
                     cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
                     cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
 
-                    if(GET_Da(x64) != 0) {
+                     if(GET_Da(x64) != 0) {
                         cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Da(x64)));
                     }
 
@@ -870,6 +1205,11 @@ getRegister(X86Assembler &cc, const X86Gp &tmp, const X86Gp &registersReg, int i
 void
 doubleToInt64(X86Assembler &cc, const X86Gp &dest, const X86Xmm &src) {
     cc.cvttsd2si(dest, src);
+}
+
+void
+int64ToDouble(X86Assembler &cc, const X86Xmm &dest, const X86Gp &src) {
+    cc.cvtsi2sd(dest, src);
 }
 
 /**
@@ -1139,6 +1479,18 @@ SharpObject* global_jit_newObject0(int64_t size) {
 
 void global_jit_setObject0(StackElement *sp, SharpObject* o) {
     sp->object = o;
+}
+
+void global_jit_setVar(StackElement *sp, double var) {
+    sp->var = var;
+}
+
+void global_jit_castObject(Object *o2, int64_t klass) {
+    o2->castObject(klass);
+}
+
+void global_jit_imod(int64_t op0, int64_t op1) {
+    registers[op0]=(int64_t)registers[op0]%op1;
 }
 
 void setupJitContextFields(const X86Gp &ctx) {

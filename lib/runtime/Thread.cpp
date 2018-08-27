@@ -932,7 +932,7 @@ void Thread::exec() {
             MOVR:
                 registers[GET_Ca(*pc)]=registers[GET_Cb(*pc)];
                 _brh
-            IALOAD:
+            IALOAD: // goal
                 o = sp->object.object;
                 if(o != NULL && o->HEAD != NULL) {
                     registers[GET_Ca(*pc)] = o->HEAD[(uint64_t)registers[GET_Cb(*pc)]];

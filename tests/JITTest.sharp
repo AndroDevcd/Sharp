@@ -8,6 +8,8 @@ mod app;
  * This file contains all the testing of the Sharp JIT
  */
 def main() {
+//    for(var i = 09; i < 100000000; i++) {
+//    }
     asm(
         "nop"
         "int 0x9f" // this call does nothing so its safe

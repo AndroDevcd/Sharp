@@ -79,6 +79,14 @@ struct jit_func {
         lconstMem = ptr(lconsts.getConstantLabel(idx));  \
         cc.movsd(vec0, lconstMem); \
     }
+#define SET_LCONST_DVAL2(vec, val) \
+    if(val == 0) { \
+        cc.pxor(vec, vec0); \
+    } else { \
+        idx = lconsts.createConstant(cc, (double)(val)); \
+        lconstMem = ptr(lconsts.getConstantLabel(idx));  \
+        cc.movsd(vec, lconstMem); \
+    }
 #define returnFuntion() \
     cc.jmp(lbl_funcend);
 

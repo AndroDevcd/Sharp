@@ -135,7 +135,7 @@ struct Object {
             o->refCount++;
         }
     }
-    void castObject(uint64_t classPtr);
+    void castObject(int64_t classPtr);
 };
 
 

@@ -8,7 +8,7 @@
 #include "../register.h"
 #include "../Thread.h"
 
-void Object::castObject(uint64_t classPtr) {
+void Object::castObject(int64_t classPtr) {
     ClassObject* k = env->findClassBySerial(classPtr);
 
     stringstream nonclass;
