@@ -799,7 +799,7 @@ void Thread::exec() {
                 return;
             }
             DISPATCH();
-            _NOP:
+            _NOP: // tested
                 _brh
             _INT:
 
@@ -814,10 +814,10 @@ void Thread::exec() {
                 vm->sysInterrupt(GET_Da(*pc));
                 if(masterShutdown) return;
                 _brh
-            _MOVI:
+            _MOVI: // tested
                 registers[*(pc+1)]=GET_Da(*pc);
                 _brh_inc(2)
-            RET:
+            RET: // tested
                 if(calls <= 1) {
 #ifdef SHARP_PROF_
                 tprof->endtm=Clock::realTimeInNSecs();
@@ -842,10 +842,10 @@ void Thread::exec() {
             tprof->profile();
 #endif
                 _brh
-            HLT:
+            HLT: // tested
                 state=THREAD_KILLED;
                 _brh
-            NEWARRAY:
+            NEWARRAY: // tested
                 (++sp)->object =
                         GarbageCollector::self->newObject(registers[GET_Da(*pc)]);
                 STACK_CHECK _brh
@@ -861,7 +861,7 @@ void Thread::exec() {
                         }
                 )
                 _brh
-            MOV8:
+            MOV8: // tested
                 registers[GET_Ca(*pc)]=(int8_t)registers[GET_Cb(*pc)];
                 _brh
             MOV16:
@@ -932,13 +932,13 @@ void Thread::exec() {
             MOVR:
                 registers[GET_Ca(*pc)]=registers[GET_Cb(*pc)];
                 _brh
-            IALOAD: // goal
+            IALOAD:
                 o = sp->object.object;
                 if(o != NULL && o->HEAD != NULL) {
-                    registers[GET_Ca(*pc)] = o->HEAD[(uint64_t)registers[GET_Cb(*pc)]];
+                    registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
                 } else throw Exception(Environment::NullptrException, "");
                 _brh
-            BRH:
+            BRH: // tested
                 pc=cache+(int64_t)registers[i64adx];
                 _brh_NOINCREMENT
             IFE:

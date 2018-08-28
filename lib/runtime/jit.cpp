@@ -90,7 +90,10 @@ void
 doubleToInt64(X86Assembler &cc, const X86Gp &dest, const X86Xmm &src);
 
 void
-int64ToDouble(X86Assembler &cc, const X86Xmm &dest, const X86Gp &src)
+int64ToDouble(X86Assembler &cc, const X86Xmm &dest, const X86Gp &src);
+
+void
+jmpToLabel(X86Assembler &cc, const X86Gp &idx, const X86Gp &dest, X86Mem &labelsPtr);
 
 FILE *getLogFile();
 
@@ -925,7 +928,7 @@ int compile(Method *method) {
                     cc.mov(ctx, ctxPtr);
                     cc.mov(ctx, jit_ctx_fields[jit_field_id_current]);
                     cc.mov(val, thread_fields[jit_field_id_thread_sp]);
-                    cc.lea(val, ptr(val, -sizeof(StackElement)));
+                    cc.lea(val, ptr(val, -((int64_t)sizeof(StackElement))));
                     cc.mov(thread_fields[jit_field_id_thread_sp], val);
 
                     break;
@@ -970,6 +973,56 @@ int compile(Method *method) {
                     }
 
                     cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
+                case op_IALOAD: {
+                    /*
+                     *
+                     * o = sp->object.object;
+                       if(o != NULL && o->HEAD != NULL) {
+                           registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
+                       } else throw Exception(Environment::NullptrException, "");
+                     */
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_sp]); // ctx->current->sp
+                    cc.mov(ctx, stack_element_fields[jit_field_id_stack_element_object]);
+
+                    cc.mov(tmp, ctx); // tmp holds sp->object.object
+                    cc.cmp(tmp, 0);
+                    Label ifTrue = cc.newLabel();
+                    cc.je(ifTrue);
+
+                    cc.mov(ctx, qword_ptr(tmp)); // o->HEAD != NULL
+                    cc.test(ctx, ctx);
+                    cc.je(ifTrue);
+
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    doubleToInt64(cc, val, vec0);
+                    Label ifTrue2 = cc.newLabel();
+                    cc.cmp(val, 0);
+                    cc.je(ifTrue2);
+                    cc.add(ctx, val);
+                    cc.bind(ifTrue2);
+
+                    cc.movsd(vec0, qword_ptr(ctx));
+
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    if(GET_Ca(*bc) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(double) * GET_Ca(*bc)));
+                    }
+
+                    cc.movsd(qword_ptr(ctx), vec0);
+
+                    cc.bind(ifTrue); // were not doing exceptions right now
+                    break;
+                }
+                case op_BRH: { //  pc=cache+(int64_t)registers[i64adx];
+                    getRegister(registerParams(vec0, i64adx));
+                    doubleToInt64(cc, val, vec0);
+
+                    jmpToLabel(cc, val, tmp, labelsPtr);
                     break;
                 }
                 case op_ISTOREL: {              // (fp+GET_Da(*pc))->var = *(pc+1);
@@ -1210,6 +1263,22 @@ doubleToInt64(X86Assembler &cc, const X86Gp &dest, const X86Xmm &src) {
 void
 int64ToDouble(X86Assembler &cc, const X86Xmm &dest, const X86Gp &src) {
     cc.cvtsi2sd(dest, src);
+}
+
+void
+jmpToLabel(X86Assembler &cc, const X86Gp &idx, const X86Gp &dest, X86Mem &labelsPtr) {
+    using namespace asmjit::x86;
+
+    cc.mov(dest, labelsPtr);      // were just using these registers because we can, makes life so much easier
+    cc.cmp(idx, 0);
+    Label ifTrue = cc.newLabel();
+    cc.je(ifTrue);
+    cc.imul(idx, (size_t)sizeof(int64_t));      // offset = labelAddr*sizeof(int64_t)
+    cc.add(dest, idx);
+    cc.bind(ifTrue);
+
+    cc.mov(dest, x86::ptr(dest));
+    cc.jmp(dest);
 }
 
 /**

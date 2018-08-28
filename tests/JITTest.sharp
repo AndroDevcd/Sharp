@@ -16,6 +16,13 @@ def main() {
 //        "hlt "
         "movi #1,%ebx"
         "newarray %ebx"
+        "movi $nxt,%adx"
+        "brh"
+        "nop"
+        ".nxt:"
+        "movi #1000000,%ebx"
+        "nop nop nop nop nop"
+        "mov8 %ebx,%ebx"
         "ret"
     );
 }
