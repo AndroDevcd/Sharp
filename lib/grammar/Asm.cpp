@@ -123,7 +123,7 @@ void Asm::expect_int() {
         string int_string = RuntimeEngine::invalidateUnderscores(current().getToken());
 
         if(all_integers(int_string) || hex_int(int_string)) {
-            x = std::strtol (int_string.c_str(), NULL, 0);
+            x = std::strtoll (int_string.c_str(), NULL, 0);
             if(x > DA_MAX || x < DA_MIN) {
                 stringstream ss;
                 ss << "integral number too large: " + int_string;

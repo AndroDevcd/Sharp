@@ -864,72 +864,72 @@ void Thread::exec() {
             MOV8: // tested
                 registers[GET_Ca(*pc)]=(int8_t)registers[GET_Cb(*pc)];
                 _brh
-            MOV16:
+            MOV16: // tested
                 registers[GET_Ca(*pc)]=(int16_t)registers[GET_Cb(*pc)];
                 _brh
-            MOV32:
+            MOV32: // tested
                 registers[GET_Ca(*pc)]=(int32_t)registers[GET_Cb(*pc)];
                 _brh
-            MOV64:
+            MOV64: // tested
                 registers[GET_Ca(*pc)]=(int64_t)registers[GET_Cb(*pc)];
                 _brh
-            MOVU8:
+            MOVU8: // tested
                 registers[GET_Ca(*pc)]=(uint8_t)registers[GET_Cb(*pc)];
                 _brh
-            MOVU16:
+            MOVU16: // tested
                 registers[GET_Ca(*pc)]=(uint16_t)registers[GET_Cb(*pc)];
                 _brh
-            MOVU32:
+            MOVU32: // tested
                 registers[GET_Ca(*pc)]=(uint32_t)registers[GET_Cb(*pc)];
                 _brh
-            MOVU64:
+            MOVU64: // tested
                 registers[GET_Ca(*pc)]=(uint64_t)registers[GET_Cb(*pc)];
                 _brh
-            RSTORE:
+            RSTORE: // tested
                 (++sp)->var = registers[GET_Da(*pc)];
                 STACK_CHECK _brh
-            ADD:
+            ADD: // tested
                 registers[*(pc+1)]=registers[GET_Ca(*pc)]+registers[GET_Cb(*pc)];
                 _brh_inc(2)
-            SUB:
+            SUB: // tested
                 registers[*(pc+1)]=registers[GET_Ca(*pc)]-registers[GET_Cb(*pc)];
                 _brh_inc(2)
-            MUL:
+            MUL: // tested
                 registers[*(pc+1)]=registers[GET_Ca(*pc)]*registers[GET_Cb(*pc)];
                 _brh_inc(2)
-            DIV:
+            DIV: // tested
                 if(registers[GET_Ca(*pc)]==0 && registers[GET_Cb(*pc)]==0) throw Exception("divide by 0");
                 registers[*(pc+1)]=registers[GET_Ca(*pc)]/registers[GET_Cb(*pc)];
                 _brh_inc(2)
-            MOD:
+            MOD: // tested
                 registers[*(pc+1)]=(int64_t)registers[GET_Ca(*pc)]%(int64_t)registers[GET_Cb(*pc)];
                 _brh_inc(2)
-            IADD:
+            IADD: // tested
                 registers[GET_Ca(*pc)]+=GET_Cb(*pc);
                 _brh
-            ISUB:
+            ISUB: // tested
                 registers[GET_Ca(*pc)]-=GET_Cb(*pc);
                 _brh
-            IMUL:
+            IMUL: // tested
                 registers[GET_Ca(*pc)]*=GET_Cb(*pc);
                 _brh
-            IDIV:
+            IDIV: // tested
                 if(GET_Cb(*pc)==0) throw Exception("divide by 0");
                 registers[GET_Ca(*pc)]/=GET_Cb(*pc);
                 _brh
-            IMOD:
+            IMOD: // tested
                 registers[GET_Ca(*pc)]=(int64_t)registers[GET_Ca(*pc)]%(int64_t)GET_Cb(*pc);
                 _brh
-            POP:
+            POP: // tested
                 --sp;
                 _brh
-            INC:
+            INC: // tested
                 registers[GET_Da(*pc)]++;
                 _brh
-            DEC:
+            DEC: // tested
                 registers[GET_Da(*pc)]--;
                 _brh
-            MOVR:
+            MOVR: // tested
                 registers[GET_Ca(*pc)]=registers[GET_Cb(*pc)];
                 _brh
             IALOAD:
