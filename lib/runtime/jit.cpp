@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <fstream>
 #include <cstdint>
+#include <conio.h>
 
 using namespace asmjit;
 
@@ -27,6 +28,7 @@ X86Mem thread_fields[12]; // sliced memory map of Thread
 X86Mem frame_fields[4]; // memory map of Frame
 X86Mem stack_element_fields[2]; // memory map of StackElement
 X86Mem method_fields[1]; // memory map of Method
+X86Mem sharp_object_fields[4]; // memory map of Method
 #ifdef SHARP_PROF_
 X86Mem profiler_fields[4]; // memory map of Profiler
 #endif
@@ -37,6 +39,7 @@ void setupThreadContextFields(const X86Gp &ctx);
 void setupStackElementFields(const X86Gp &ctx);
 void setupFrameFields(const X86Gp &ctx);
 void setupMethodFields(const X86Gp &ctx);
+void setupSharpObjectFields(const X86Gp &ctx);
 
 // state save functions
 void saveCalleeRegisters(X86Assembler &cc);
@@ -57,9 +60,11 @@ void global_jit_exeuteFinally();
 SharpObject* global_jit_newObject0(int64_t size);
 void global_jit_setObject0(StackElement *sp, SharpObject* o);
 void global_jit_castObject(Object *o2, int64_t klass);
-void global_jit_setVar(StackElement *sp, double var);
 void global_jit_imod(int64_t op0, int64_t op1);
 void global_jit_put(int op0);
+void global_jit_putc(int op0);
+void global_jit_get(int op0);
+void global_jit_popl(Object* o2, SharpObject* o);
 
 
 // function calling helper methods
@@ -88,6 +93,9 @@ void
 getRegister(X86Assembler &cc, const X86Gp &tmp, const X86Gp &registersReg, int idx, X86Mem &tmpMem, const X86Xmm &vec);
 
 void
+setRegister(X86Assembler &cc, const X86Gp &ctx, const X86Gp &registersReg, const X86Xmm &vec0, const int64_t reg);
+
+void
 doubleToInt64(X86Assembler &cc, const X86Gp &dest, const X86Xmm &src);
 
 void
@@ -97,6 +105,7 @@ void
 jmpToLabel(X86Assembler &cc, const X86Gp &idx, const X86Gp &dest, X86Mem &labelsPtr);
 
 FILE *getLogFile();
+
 
 enum ConstKind {
     kConst64,
@@ -339,6 +348,9 @@ int compile(Method *method) {
         // setup method field offsets
         setupMethodFields(ctx);
 
+        // setup SharpObject field offsets
+        setupSharpObjectFields(ctx);
+
 #ifdef SHARP_PROF_
         setupProfilerFields(ctx);
 #endif
@@ -415,7 +427,8 @@ int compile(Method *method) {
             cc.bind(irNotOverflow);
 #endif
 #define is_op(x) (GET_OP(x64)==(x))
-            if(is_op(op_INT) || is_op(op_JNE) || is_op(op_GOTO)) {
+            if(is_op(op_INT) || is_op(op_JNE) || is_op(op_GOTO) || is_op(op_BRH)
+               || is_op(op_IFE) || is_op(op_IFNE)) {
                 goto_threadSafetyCheck(JIT_TCSFIELDS, labels[i], false);
             }
 
@@ -428,7 +441,6 @@ int compile(Method *method) {
                 case op_INT: {                  // vm->sysInterrupt(GET_Da(*pc)); if(masterShutdown) return;
 
                     cc.comment("; int", 5);
-                    savePrivateRegisters(cc, vec0, vec1);
 #ifdef SHARP_PROF_
 //                    if(GET_Da(*pc) == 0xa9) {
 //                        tprof.endtm=Clock::realTimeInNSecs();
@@ -443,7 +455,7 @@ int compile(Method *method) {
                         cc.mov(argsReg, ctx);       // this register will be saved by the called function
 
                         cc.call((int64_t)Clock::realTimeInNSecs);
-                        cc.mov(tmp, ctx);
+                        cc.mov(tmp, ctx); // pass returnVal()
                         cc.mov(ctx, argsReg);
                         cc.mov(profiler_fields[jit_field_id_profiler_endtm], tmp); // ctx->current->tprof->endtm = Clock::realTimeInNSecs();
 
@@ -464,11 +476,9 @@ int compile(Method *method) {
                     cc.test(bl, bl);
                     Label ifFalse = cc.newLabel();
                     cc.je(ifFalse);
-                    restorePrivateRegisters(cc, vec0, vec1); // we wnt to make sure the stack is in its correct position
                     returnFuntion();
 
                     cc.bind(ifFalse);
-                    restorePrivateRegisters(cc, vec0, vec1);
                     break;
                 }
                 case op_MOVI: {                  // registers[*(pc+1)]=GET_Da(*pc);
@@ -525,22 +535,17 @@ int compile(Method *method) {
                     cc.mov(tmp, ctx);           // save Thread*
 
 #ifdef SHARP_PROF_
-
-
-
-                    savePrivateRegisters(cc, vec0, vec1);
                     cc.mov(ctx, tmp);        // move thread* var into register
                     cc.mov(ctx, thread_fields[jit_field_id_thread_tprof]); // ctx->current->tprof
                     cc.mov(argsReg, ctx);       // this register will be saved by the called function
 
                     cc.call((int64_t)Clock::realTimeInNSecs);
-                    cc.mov(tmp, ctx);
+                    cc.mov(tmp, ctx); // passRetArg()
                     cc.mov(ctx, argsReg);
                     cc.mov(profiler_fields[jit_field_id_profiler_endtm], tmp); // ctx->current->tprof->endtm = Clock::realTimeInNSecs();
 
                     passArg0(cc, argsReg);
                     cc.call((int64_t)global_jit_profile);
-                    restorePrivateRegisters(cc, vec0, vec1);
 #endif
 
                     returnFuntion();
@@ -605,13 +610,6 @@ int compile(Method *method) {
 
                     cc.mov(ctx, tmp); // move thread*
                     cc.mov(thread_fields[jit_field_id_thread_fp], delegate);
-
-
-                    cout << "thread->calls " << &thread_self->calls << endl;
-                    cout << "thread->callStack " << thread_self->callStack << endl;
-                    cout << "thread->callStack+calls " << (thread_self->callStack+thread_self->calls) << endl;
-                    cout << "thread->calls VALUE = " << thread_self->calls << endl;
-
 
 #ifdef SHARP_PROF_
 
@@ -781,16 +779,11 @@ int compile(Method *method) {
                 case op_RSTORE: { // (++sp)->var = registers[GET_Da(*pc)];
                     cc.comment("; rstore", 8);
                     getRegister(registerParams(vec0, GET_Da(*bc)));
-                    cout << "sp " << (thread_self->sp) << endl;
-                    cout << "stack " << ((int64_t)sizeof(StackElement)) << endl;
                     cc.mov(ctx, ctxPtr);
                     cc.mov(ctx, jit_ctx_fields[jit_field_id_current]);
                     cc.add(thread_fields[jit_field_id_thread_sp], (int64_t)sizeof(StackElement));
                     cc.mov(val, thread_fields[jit_field_id_thread_sp]);
                     cc.movsd(qword_ptr(val), vec0);
-
-//                    passArg0(cc, val);
-//                    cc.call((int64_t)global_jit_setVar);
                     break;
                 }
                 case op_ADD: { //registers[*(pc+1)]=registers[GET_Ca(*pc)]+registers[GET_Cb(*pc)];
@@ -1028,12 +1021,11 @@ int compile(Method *method) {
                     cc.mov(ctx, thread_fields[jit_field_id_thread_sp]); // ctx->current->sp
                     cc.mov(ctx, stack_element_fields[jit_field_id_stack_element_object]);
 
-                    cc.mov(tmp, ctx); // tmp holds sp->object.object
-                    cc.cmp(tmp, 0);
+                    cc.cmp(ctx, 0); // tmp holds sp->object.object
                     Label ifTrue = cc.newLabel();
                     cc.je(ifTrue);
 
-                    cc.mov(ctx, qword_ptr(tmp)); // o->HEAD != NULL
+                    cc.mov(ctx, qword_ptr(ctx)); // o->HEAD != NULL
                     cc.test(ctx, ctx);
                     cc.je(ifTrue);
 
@@ -1042,6 +1034,7 @@ int compile(Method *method) {
                     Label ifTrue2 = cc.newLabel();
                     cc.cmp(val, 0);
                     cc.je(ifTrue2);
+                    cc.imul(val, (size_t)sizeof(double));
                     cc.add(ctx, val);
                     cc.bind(ifTrue2);
 
@@ -1059,11 +1052,42 @@ int compile(Method *method) {
                     break;
                 }
                 case op_BRH: { //  pc=cache+(int64_t)registers[i64adx];
-                    cc.comment("; brh", 6);
+                    cc.comment("; brh", 5);
                     getRegister(registerParams(vec0, i64adx));
                     doubleToInt64(cc, val, vec0);
 
                     jmpToLabel(cc, val, tmp, labelsPtr);
+                    break;
+                }
+                case op_IFE: {
+                    cc.comment("; ife", 5);
+                    Label ifTrue = cc.newLabel();
+                    getRegister(registerParams(vec0, i64cmt));
+                    doubleToInt64(cc, tmp, vec0);
+                    cc.cmp(tmp, 0);
+                    cc.je(ifTrue);
+
+                    getRegister(registerParams(vec0, i64adx));
+                    doubleToInt64(cc, val, vec0);
+
+                    jmpToLabel(cc, val, tmp, labelsPtr);
+                    cc.bind(ifTrue);
+                    break;
+                }
+                case op_IFNE: {
+
+                    cc.comment("; ifne", 6);
+                    Label ifTrue = cc.newLabel();
+                    getRegister(registerParams(vec0, i64cmt));
+                    doubleToInt64(cc, tmp, vec0);
+                    cc.cmp(tmp, 0);
+                    cc.jne(ifTrue);
+
+                    getRegister(registerParams(vec0, i64adx));
+                    doubleToInt64(cc, val, vec0);
+
+                    jmpToLabel(cc, val, tmp, labelsPtr);
+                    cc.bind(ifTrue);
                     break;
                 }
                 case op_ISTOREL: {              // (fp+GET_Da(*pc))->var = *(pc+1);
@@ -1105,36 +1129,6 @@ int compile(Method *method) {
                     cc.movsd(tmpMem, vec0);
                     break;
                 }
-                case op_LT: {                     // registers[i64cmt]=registers[GET_Ca(*pc)]<registers[GET_Cb(*pc)];
-
-                    cc.comment("; lt", 4);
-                    cc.mov(ctx, registersReg);        // move the contex var into register
-
-                    cc.add(ctx, (int64_t )(sizeof(double) * i64cmt));
-
-                    getRegister(registerParams(vec1, GET_Ca(x64)));
-                    getRegister(registerParams(vec0, GET_Cb(x64)));
-
-                    cc.ucomisd(vec0, vec1);
-
-                    Label ifFalse = cc.newLabel();
-                    Label ifEnd = cc.newLabel();
-                    cc.jbe(ifFalse);
-                    idx = lconsts.createConstant(cc, (double)(1));
-                    lconstMem = ptr(lconsts.getConstantLabel(idx));
-
-                    cc.movsd(vec0, lconstMem);
-                    cc.jmp(ifEnd);
-                    cc.bind(ifFalse);
-
-                    cc.pxor(vec0, vec0);
-                    cc.bind(ifEnd);
-
-                    tmpMem = qword_ptr(ctx);
-                    cc.movsd(tmpMem, vec0);
-
-                    break;
-                }
                 case op_JNE: { // if(registers[i64cmt]==0) { pc=cache+GET_Da(*pc); _brh_NOINCREMENT }
 
                     cc.comment("; jne", 5);
@@ -1174,10 +1168,273 @@ int compile(Method *method) {
                     cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
                     break;
                 }
+                case op_LT: {                     // registers[i64cmt]=registers[GET_Ca(*pc)]<registers[GET_Cb(*pc)];
+
+                    cc.comment("; lt", 4);
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    cc.add(ctx, (int64_t )(sizeof(double) * i64cmt));
+
+                    getRegister(registerParams(vec1, GET_Ca(x64)));
+                    getRegister(registerParams(vec0, GET_Cb(x64)));
+
+                    cc.comisd(vec0, vec1);
+
+                    Label ifFalse = cc.newLabel();
+                    Label ifEnd = cc.newLabel();
+                    cc.jbe(ifFalse);
+                    idx = lconsts.createConstant(cc, (double)(1));
+                    lconstMem = ptr(lconsts.getConstantLabel(idx));
+
+                    cc.movsd(vec0, lconstMem);
+                    cc.jmp(ifEnd);
+                    cc.bind(ifFalse);
+
+                    cc.pxor(vec0, vec0);
+                    cc.bind(ifEnd);
+
+                    tmpMem = qword_ptr(ctx);
+                    cc.movsd(tmpMem, vec0);
+
+                    break;
+                }
+                case op_GT: {                     // registers[i64cmt]=registers[GET_Ca(*pc)]<registers[GET_Cb(*pc)];
+
+                    cc.comment("; gt", 4);
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    cc.add(ctx, (int64_t )(sizeof(double) * i64cmt));
+
+                    getRegister(registerParams(vec0, GET_Ca(x64)));
+                    getRegister(registerParams(vec1, GET_Cb(x64)));
+
+                    cc.comisd(vec0, vec1);
+
+                    Label ifFalse = cc.newLabel();
+                    Label ifEnd = cc.newLabel();
+                    cc.jbe(ifFalse);
+                    idx = lconsts.createConstant(cc, (double)(1));
+                    lconstMem = ptr(lconsts.getConstantLabel(idx));
+
+                    cc.movsd(vec0, lconstMem);
+                    cc.jmp(ifEnd);
+                    cc.bind(ifFalse);
+
+                    cc.pxor(vec0, vec0);
+                    cc.bind(ifEnd);
+
+                    tmpMem = qword_ptr(ctx);
+                    cc.movsd(tmpMem, vec0);
+
+                    break;
+                }
+                case op_LTE: {
+
+                    cc.comment("; lte", 5);
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    cc.add(ctx, (int64_t )(sizeof(double) * i64cmt));
+
+                    getRegister(registerParams(vec1, GET_Ca(x64)));
+                    getRegister(registerParams(vec0, GET_Cb(x64)));
+
+                    cc.comisd(vec0, vec1);
+
+                    Label ifFalse = cc.newLabel();
+                    Label ifEnd = cc.newLabel();
+                    cc.jb(ifFalse);
+                    idx = lconsts.createConstant(cc, (double)(1));
+                    lconstMem = ptr(lconsts.getConstantLabel(idx));
+
+                    cc.movsd(vec0, lconstMem);
+                    cc.jmp(ifEnd);
+                    cc.bind(ifFalse);
+
+                    cc.pxor(vec0, vec0);
+                    cc.bind(ifEnd);
+
+                    tmpMem = qword_ptr(ctx);
+                    cc.movsd(tmpMem, vec0);
+
+                    break;
+                }
+                case op_GTE: {
+                    cc.comment("; gte", 5);
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+
+                    cc.add(ctx, (int64_t )(sizeof(double) * i64cmt));
+
+                    getRegister(registerParams(vec0, GET_Ca(x64)));
+                    getRegister(registerParams(vec1, GET_Cb(x64)));
+
+                    cc.comisd(vec0, vec1);
+
+                    Label ifFalse = cc.newLabel();
+                    Label ifEnd = cc.newLabel();
+                    cc.jb(ifFalse);
+                    idx = lconsts.createConstant(cc, (double)(1));
+                    lconstMem = ptr(lconsts.getConstantLabel(idx));
+
+                    cc.movsd(vec0, lconstMem);
+                    cc.jmp(ifEnd);
+                    cc.bind(ifFalse);
+
+                    cc.pxor(vec0, vec0);
+                    cc.bind(ifEnd);
+
+                    tmpMem = qword_ptr(ctx);
+                    cc.movsd(tmpMem, vec0);
+
+                    break;
+                }
+                case op_MOVL: { // o2 = &(fp+GET_Da(*pc))->object;
+                    cc.comment("; movl", 6);
+
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+
+                    if(GET_Da(*bc) != 0) {
+                        cc.add(ctx, (int64_t)(GET_Da(*bc)*sizeof(StackElement)));
+                    }
+
+                    cc.add(ctx, (size_t)sizeof(double));
+                    cc.mov(o2Ptr, ctx);
+                    break;
+                }
+                case op_POPL: { // (fp+GET_Da(*pc))->object = (sp--)->object.object;
+                    cc.comment("; popl", 6);
+
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
+                    cc.mov(tmp, ctx); // save thread*
+
+                    cc.mov(val, thread_fields[jit_field_id_thread_sp]); // ctx->current->sp
+                    cc.lea(delegate, ptr(val, (int32_t)-sizeof(StackElement)));
+                    cc.mov(thread_fields[jit_field_id_thread_sp], delegate); // sp--
+
+                    cc.mov(ctx, val);
+                    cc.mov(val, stack_element_fields[jit_field_id_stack_element_object]);
+
+                    cc.mov(ctx, tmp);
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+
+                    if(GET_Da(*bc) != 0) {
+                        cc.add(ctx, (int64_t)(sizeof(StackElement) * GET_Da(*bc))); // fp+GET_DA(*pc)
+                    }
+
+                    cc.lea(ctx, stack_element_fields[jit_field_id_stack_element_object]);
+
+                    passArg0(cc, ctx);
+                    passArg1(cc, val);
+                    cc.call((int64_t)global_jit_popl);
+                    break;
+                }
+                case op_IPOPL: { // (fp+GET_Da(*pc))->var = (sp--)->var;
+                    cc.comment("; popl", 6);
+
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
+                    cc.mov(tmp, ctx); // save thread*
+
+                    cc.mov(val, thread_fields[jit_field_id_thread_sp]); // ctx->current->sp
+                    cc.lea(delegate, ptr(val, (int32_t)-sizeof(StackElement)));
+                    cc.mov(thread_fields[jit_field_id_thread_sp], delegate); // sp--
+
+                    cc.mov(ctx, val);
+                    cc.movsd(vec0, stack_element_fields[jit_field_id_stack_element_var]); // sp->val
+
+                    cc.mov(ctx, tmp);
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+
+                    if(GET_Da(*bc) != 0) {
+                        cc.add(ctx, (int64_t)(sizeof(StackElement) * GET_Da(*bc))); // fp+GET_DA(*pc)
+                    }
+
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_MOVSL: { // o2 = &((sp+GET_Da(*pc))->object);
+                    cc.comment("; movsl", 7);
+
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_sp]); // ctx->current->sp
+
+                    cout << "sp->object &= " << &thread_self->sp->object << endl;
+                    if(GET_Da(*bc) != 0) {
+                        cc.add(ctx, (int64_t)(sizeof(StackElement) * GET_Da(*bc))); // sp+GET_DA(*pc)
+                    }
+
+                    cc.lea(ctx, stack_element_fields[jit_field_id_stack_element_object]);
+                    cc.mov(o2Ptr, ctx);
+                    break;
+                }
+                case op_MOVBI: { // registers[i64bmr]=GET_Da(*pc) + exponent(*(pc+1)); pc++;
+                    cc.comment("; movbi", 7);
+                    int64_t arg0 = GET_Da(*bc);
+                    bc++;
+                    i++; cc.bind(labels[i]); // we wont use it but we need to bind it anyway
+                    passArg0(cc, *bc);
+                    cc.call((int64_t)exponent);
+                    SET_LCONST_DVAL2(vec1, arg0);
+
+                    cc.addsd(vec0, vec1);
+                    setRegister(setRegisterParams(vec0, i64bmr));
+                    break;
+                }
+                case op_SIZEOF: {
+                    cc.comment("; sizeof", 8);
+                    /**
+                     *
+                        if(o2==NULL || o2->object == NULL)
+                            registers[GET_Da(*pc)] = 0;
+                        else
+                            registers[GET_Da(*pc)]=o2->object->size;
+                     */
+                    cc.mov(ctx, o2Ptr);
+                    cc.cmp(ctx, 0);
+                    Label ifTrue = cc.newLabel(), end = cc.newLabel();
+                    cc.jne(ifTrue);
+                    SET_LCONST_DVAL(0);
+
+                    setRegister(setRegisterParams(vec0, GET_Da(*bc)));
+                    cc.jmp(end);
+                    cc.bind(ifTrue);
+
+                    cc.mov(ctx, qword_ptr(ctx));
+                    cc.mov(ctx, sharp_object_fields[jit_field_id_shobj_size]);
+                    int64ToDouble(cc, vec0, ctx);
+                    setRegister(setRegisterParams(vec0, GET_Da(*bc)));
+
+                    cc.bind(end);
+                    break;
+                }
                 case op_PUT: {                            // cout << registers[GET_Da(*pc)];
-                    cc.comment("; put", 6);
+                    cc.comment("; put", 5);
                     passArg0(cc, GET_Da(*bc));
                     cc.call((int64_t)global_jit_put);
+                    break;
+                }
+                case op_PUTC: {                            // printf("%c", (char)registers[GET_Da(*pc)]);
+                    cc.comment("; putc", 6);
+                    passArg0(cc, GET_Da(*bc));
+                    cc.call((int64_t)global_jit_putc);
+                    break;
+                }
+                case op_GET: {
+                    cc.comment("; get", 5);
+                    passArg0(cc, GET_Da(*bc));
+                    cc.call((int64_t)global_jit_get);
+                    break;
+                }
+                case op_CHECKLEN: {
+                    // unsupported for now
+                    break;
+                }
+                case op_GOTO: {// $                             // pc = cache+GET_Da(*pc);
+                    cc.comment("; goto", 6);
+                    cc.jmp(labels[GET_Da(x64)]);
                     break;
                 }
                 case op_RETURNVAL: {
@@ -1271,6 +1528,12 @@ int compile(Method *method) {
     }
 
     return jit_error_ok;
+}
+
+void setRegister(X86Assembler &cc, const X86Gp &ctx, const X86Gp &registersReg, const X86Xmm &vec0, const int64_t reg) {
+    cc.mov(ctx, registersReg);        // move the contex var into register
+    cc.add(ctx, (int64_t )(sizeof(double) * reg));
+    cc.movsd(x86::qword_ptr(ctx), vec0);
 }
 
 FILE *getLogFile() {
@@ -1553,6 +1816,10 @@ void savePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1) {
 
     cc.push(r10);
     cc.push(r11);
+    if(ASMJIT_ARCH_64BIT)
+        cc.push(rax);
+    else
+        cc.push(rcx);
     cc.sub(cc.zsp(), STACK_ALIGN_OFFSET);
 }
 
@@ -1560,6 +1827,10 @@ void restorePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1) {
     using namespace asmjit::x86;
 
     cc.add(cc.zsp(), STACK_ALIGN_OFFSET);
+    if(ASMJIT_ARCH_64BIT)
+        cc.pop(rax);
+    else
+        cc.pop(rcx);
     cc.pop(r11);
     cc.pop(r10);
 
@@ -1609,10 +1880,6 @@ void global_jit_setObject0(StackElement *sp, SharpObject* o) {
     sp->object = o;
 }
 
-void global_jit_setVar(StackElement *sp, double var) {
-    sp->var = var;
-}
-
 void global_jit_castObject(Object *o2, int64_t klass) {
     o2->castObject(klass);
 }
@@ -1623,6 +1890,21 @@ void global_jit_imod(int64_t op0, int64_t op1) {
 
 void global_jit_put(int op0) {
     cout << registers[op0];
+}
+
+void global_jit_putc(int op0) {
+    printf("%c", (char)registers[op0]);
+}
+
+void global_jit_get(int op0) {
+    if(_64CMT)
+        registers[op0] = getche();
+    else
+        registers[op0] = getch();
+}
+
+void global_jit_popl(Object* o2, SharpObject* o) {
+    *o2 = o;
 }
 
 void setupJitContextFields(const X86Gp &ctx) {
@@ -1672,6 +1954,14 @@ void setupFrameFields(const X86Gp &ctx) {
 void setupMethodFields(const X86Gp &ctx) {
     Method m;
     method_fields[jit_field_id_frame_last] = x86::qword_ptr(ctx, relative_offset((&m), jit_labels, bytecode)); // int64_t bytecode;
+}
+
+void setupSharpObjectFields(const X86Gp &ctx) {
+    SharpObject o;
+    sharp_object_fields[jit_field_id_shobj_HEAD] = x86::qword_ptr(ctx, relative_offset((&o), HEAD, HEAD)); // double* HEAD;
+    sharp_object_fields[jit_field_id_shobj_node] = x86::qword_ptr(ctx, relative_offset((&o), HEAD, node)); // Object* node;
+    sharp_object_fields[jit_field_id_shobj_k] = x86::qword_ptr(ctx, relative_offset((&o), HEAD, k)); // ClassObject* k;
+    sharp_object_fields[jit_field_id_shobj_size] = x86::qword_ptr(ctx, relative_offset((&o), HEAD, size)); // int64_t size;
 }
 
 #ifdef SHARP_PROF_

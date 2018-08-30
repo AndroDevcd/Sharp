@@ -795,6 +795,7 @@ void Thread::exec() {
             interp:
             if(current->address==7 && PC(this) >= 0) {
                 jctx.func = current;
+                sp+=2;
                 compile(jctx.func);
                 return;
             }
@@ -932,7 +933,7 @@ void Thread::exec() {
             MOVR: // tested
                 registers[GET_Ca(*pc)]=registers[GET_Cb(*pc)];
                 _brh
-            IALOAD:
+            IALOAD: // tested
                 o = sp->object.object;
                 if(o != NULL && o->HEAD != NULL) {
                     registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
@@ -961,18 +962,18 @@ void Thread::exec() {
             GTE:
                 registers[i64cmt]=registers[GET_Ca(*pc)]>=registers[GET_Cb(*pc)];
                 _brh
-            MOVL:
+            MOVL: // tested
                 o2 = &(fp+GET_Da(*pc))->object;
                 _brh
-            POPL:
+            POPL: // tested
             (fp+GET_Da(*pc))->object
                         = (sp--)->object.object;
                 _brh
-            IPOPL:
+            IPOPL: // tested
                 (fp+GET_Da(*pc))->var
                         = (sp--)->var;
                 _brh
-            MOVSL:
+            MOVSL: // tested
                 o2 = &((sp+GET_Da(*pc))->object);
                 _brh
             MOVBI:

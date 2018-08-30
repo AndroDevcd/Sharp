@@ -187,5 +187,6 @@ extern thread_local double registers[12];
 
 extern FinallyTable finallyTable;
 extern short int startAddress;
+extern double exponent(int64_t n);
 
 #endif //SHARP_THREAD_H

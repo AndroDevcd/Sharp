@@ -8,9 +8,18 @@ mod app;
  * This file contains all the testing of the Sharp JIT
  */
 def main() {
-//    for(var i = 09; i < 100000000; i++) {
+//    var i=09;
+//    for(; i < 100000000; i++) {
+//        var a = 3;
+//        var b = a + 9;
+//        var c = a * b + (a * 1732737);
 //    }
+
     asm(
+        "movsl 0"
+        "ipopl 0"
+        "popl 0"
+        "put ebx"
         "nop"
         "int 0x9f" // this call does nothing so its safe
 //        "hlt "
@@ -42,7 +51,7 @@ def main() {
 //        "put %ebx"
         "rstore %ebx"
         "movi 2,%ebx"
-        "movi 2,%ecx"
+        "movi 2,%cx"
 //        "add %ebx,%ecx, %egx"
 //        "put %egx"
 //        "sub %ebx,%ecx, %egx"

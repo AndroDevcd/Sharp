@@ -67,6 +67,12 @@ struct jit_func {
 // convient id's for each field in Frame object
 #define jit_field_id_method_bytecode 0
 
+// convient id's for each field in SharpObject
+#define jit_field_id_shobj_HEAD 0
+#define jit_field_id_shobj_node 1
+#define jit_field_id_shobj_k 2
+#define jit_field_id_shobj_size 3
+
 #define offset_start(s) s
 #define offset_end(e) e
 #define relative_offset(obj, start, end) ((int64_t)&obj->offset_end(end)-(int64_t)&obj->offset_start(start))
@@ -92,6 +98,9 @@ struct jit_func {
 
 #define registerParams(vec, val) \
     cc, tmp, registersReg, val, tmpMem, vec
+
+#define setRegisterParams(vec, reg) \
+    cc, ctx, registersReg, vec, reg
 
 /**
  * Ohhhh the dear stack, smh....

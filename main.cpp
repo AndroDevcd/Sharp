@@ -20,6 +20,11 @@ int main(int argc, const char* argv[]) {
     _bootstrap( argc, argv );
 #endif
 #ifndef MAKE_COMPILER
+//    for(long i = 0; i < 100000000; i++) {
+//        double a = 3;
+//        double b = a + 9;
+//        double c = a * b + (a * 1732737);
+//    }
     runtimeStart( argc, argv );
 #endif
 

@@ -757,7 +757,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 assembler.push_i64(SET_Di(i64, op_MOVL, i2.high_bytes));
             } else if(instruction_is("movsl")) {
                 expect_int();
-                assembler.push_i64(SET_Di(i64, op_MOVL, i2.high_bytes));
+                assembler.push_i64(SET_Di(i64, op_MOVSL, i2.high_bytes));
             } else if(instruction_is("movbi")) {
                 expect_int();
 
@@ -1180,6 +1180,20 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 }
 
                 assembler.push_i64(SET_Di(i64, op_POPL, i2.high_bytes));
+            } else if(instruction_is("ipopl")) {
+                if(current() == "<") {
+                    npos++;
+                    string local = expect_identifier();
+
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                        tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
+                    }
+                    expect(">");
+                } else {
+                    expect_int();
+                }
+
+                assembler.push_i64(SET_Di(i64, op_IPOPL, i2.high_bytes));
             } else if(instruction_is("itest")) {
                 expect_int();
 
