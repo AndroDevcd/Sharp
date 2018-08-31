@@ -97,8 +97,6 @@ public:
     void CreateDaemon(string);
     void exit();
 
-    void initJitCtx();
-
     // easier to acces for JIT
     long long calls;
     StackElement* dataStack,
@@ -185,6 +183,7 @@ extern thread_local double registers[12];
 #define PC(thread_self) \
     (thread_self->pc-thread_self->cache)
 
+extern unsigned long long irCount, overflow;
 extern FinallyTable finallyTable;
 extern short int startAddress;
 extern double exponent(int64_t n);

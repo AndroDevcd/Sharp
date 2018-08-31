@@ -8,6 +8,8 @@
 #include "../util/KeyPair.h"
 #include "register.h"
 #include "VirtualMachine.h"
+#include "Environment.h"
+#include "Manifest.h"
 #include <stdio.h>
 #include <fstream>
 #include <cstdint>
@@ -19,11 +21,12 @@ using namespace asmjit;
  * Global reference to our runtime engine
  */
 JitRuntime rt;
+// this will hold all the functions pending compile
+List<jit_func> functions;
+std::recursive_mutex jit_mut;
 
 thread_local jit_ctx jctx;
-std::vector<jit_func> functions;
-uint64_t jit_funcid = 0;
-X86Mem jit_ctx_fields[5]; // memory map of jit_ctx
+X86Mem jit_ctx_fields[6]; // memory map of jit_ctx
 X86Mem thread_fields[12]; // sliced memory map of Thread
 X86Mem frame_fields[4]; // memory map of Frame
 X86Mem stack_element_fields[2]; // memory map of StackElement
@@ -59,21 +62,27 @@ unsigned long global_jit_finallyBlocks(Method* fn);
 void global_jit_exeuteFinally();
 SharpObject* global_jit_newObject0(int64_t size);
 void global_jit_setObject0(StackElement *sp, SharpObject* o);
+void global_jit_setObject1(StackElement *sp, Object* o);
 void global_jit_castObject(Object *o2, int64_t klass);
 void global_jit_imod(int64_t op0, int64_t op1);
 void global_jit_put(int op0);
 void global_jit_putc(int op0);
 void global_jit_get(int op0);
 void global_jit_popl(Object* o2, SharpObject* o);
+void global_jit_call0(Thread *thread, int64_t addr);
+void global_jit_call1(Thread* thread, int64_t addr);
 
 
 // function calling helper methods
 void passArg0(X86Assembler &cc, int64_t arg0);
 void passArg0(X86Assembler &cc, X86Gp &arg);
+void passArg0(X86Assembler &cc, X86Mem &arg);
 void passArg1(X86Assembler &cc, int64_t arg0);
 void passArg1(X86Assembler &cc, X86Gp &arg);
+void passArg1(X86Assembler &cc, X86Mem &arg);
 void passArg2(X86Assembler &cc, int64_t arg0);
 void passArg2(X86Assembler &cc, X86Gp &arg);
+void passArg2(X86Assembler &cc, X86Mem &arg);
 void passReturnArg(X86Assembler &cc, X86Gp& arg);
 
 #ifdef SHARP_PROF_
@@ -106,6 +115,8 @@ jmpToLabel(X86Assembler &cc, const X86Gp &idx, const X86Gp &dest, X86Mem &labels
 
 FILE *getLogFile();
 
+
+void incrementPc(X86Assembler &cc, const X86Gp &ctx, const X86Gp &val, const X86Mem &ctxPtr);
 
 enum ConstKind {
     kConst64,
@@ -208,18 +219,93 @@ struct Constants {
     }
 };
 
+void jit_shutdown() {
+    releaseMem(); // let go my little functions!
+}
+
+void jit_setup() {
+    using namespace asmjit::x86;            // Easier access to x86/x64 registers.
+
+
+    // Decide which registers will be mapped to function arguments.
+    // registers zax for `ctx` is used to store the pointer to the jit context
+    X86Gp ctx   = rax;
+
+    // These values will never change so we setup once so we dont
+    // perform any unsessicary work
+    // Setup jit_ctx field offsets
+    setupJitContextFields(ctx);
+
+    // setup thread field offsets
+    setupThreadContextFields(ctx);
+
+    // setup stack element field offsets
+    setupStackElementFields(ctx);
+
+    // setup frame field offsets
+    setupFrameFields(ctx);
+
+    // setup method field offsets
+    setupMethodFields(ctx);
+
+    // setup SharpObject field offsets
+    setupSharpObjectFields(ctx);
+
+    /**
+     * Initially compile all required JIT functions
+     */
+    performInitialCompile();
+}
+
+void jit_tls_setup() {
+    jctx.overflow = &overflow;
+    jctx.irCount = &irCount;
+    jctx.registers = registers;
+    jctx.current = thread_self;
+}
+
+int try_jit(Method* func) {
+    int error;
+    if(!func->isjit && func->jitAttempts < JIT_ATTEMPT_THRESHOLD)
+    {
+        if((error = compile(func)) != jit_error_ok) {
+            func->jitAttempts++;
+            return error;
+        }
+    } else if(!func->isjit)
+        return jit_error_max_attm;
+
+    return jit_error_ok;
+}
+
 /**
- * testing suite for Sharp
+ * Initially compile all methods that need to be jit'ed
+ */
+void performInitialCompile()
+{
+    for(int64_t i = 0; i < manifest.methods; i++) {
+        if(env->methods[i].isjit) {
+            // we want to compile it
+            env->methods[i].isjit=false;
+            if(compile(env->methods+i) != jit_error_ok)
+                env->methods[i].jitAttempts++;
+        }
+    }
+}
+
+/**
+ * JIT compiler function used to compile function from scratch
+ * Currently and for the forseable future sharp will only support JIT of
+ * x86/64 processors as well as x86/64 ARM for both windows and Linux
+ *
  */
 int compile(Method *method) {
-    cout << "===========================JIT\n\n";
 
     if(method->bytecode != NULL)
     {
         using namespace asmjit::x86;            // Easier access to x86/x64 registers.
         int64_t* bc = method->bytecode;
         int64_t sz = method->cacheSize;
-
         // make it easier for the JIT Compiler
         method->jit_labels = (int64_t *)malloc(sizeof(int64_t)*method->cacheSize);
         if(!method->jit_labels)
@@ -235,6 +321,10 @@ int compile(Method *method) {
 
         X86Assembler cc(&code);                  // Create and attach X86Assembler to `code`.
 
+        stringstream sstream;
+        sstream << " method " << method->fullName.str() << endl;
+        string msg = sstream.str();
+        cc.comment(msg.c_str(), msg.size());
         // Decide which registers will be mapped to function arguments.
         // registers zax for `ctx` is used to store the pointer to the jit context
         X86Gp ctx   = cc.zax();
@@ -332,24 +422,6 @@ int compile(Method *method) {
         cc.mov(objectPtr, 0);
         cc.mov(o2Ptr, 0);
         cc.mov(labelsPtr, 0);
-
-        // Setup jit_ctx field offsets
-        setupJitContextFields(ctx);
-
-        // setup thread field offsets
-        setupThreadContextFields(ctx);
-
-        // setup stack element field offsets
-        setupStackElementFields(ctx);
-
-        // setup frame field offsets
-        setupFrameFields(ctx);
-
-        // setup method field offsets
-        setupMethodFields(ctx);
-
-        // setup SharpObject field offsets
-        setupSharpObjectFields(ctx);
 
 #ifdef SHARP_PROF_
         setupProfilerFields(ctx);
@@ -548,6 +620,7 @@ int compile(Method *method) {
                     cc.call((int64_t)global_jit_profile);
 #endif
 
+                    incrementPc(cc, ctx, val, ctxPtr);
                     returnFuntion();
                     cc.bind(ifFalse);
 
@@ -621,6 +694,7 @@ int compile(Method *method) {
                     passArg0(cc, ctx);
                     cc.call((int64_t)global_jit_profile);
 #endif
+                    incrementPc(cc, ctx, val, ctxPtr);
                     returnFuntion();
                     break;
                 }
@@ -1361,7 +1435,6 @@ int compile(Method *method) {
                     cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
                     cc.mov(ctx, thread_fields[jit_field_id_thread_sp]); // ctx->current->sp
 
-                    cout << "sp->object &= " << &thread_self->sp->object << endl;
                     if(GET_Da(*bc) != 0) {
                         cc.add(ctx, (int64_t)(sizeof(StackElement) * GET_Da(*bc))); // sp+GET_DA(*pc)
                     }
@@ -1437,6 +1510,57 @@ int compile(Method *method) {
                     cc.jmp(labels[GET_Da(x64)]);
                     break;
                 }
+                case op_LOADPC: {
+                    cc.comment("; loadpc", 6);
+
+                    cc.mov(ctx, ctxPtr);        // move the contex var into register
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]); // ctx->current
+                    cc.mov(tmp, ctx);
+                    cc.mov(val, thread_fields[jit_field_id_thread_pc]); // ctx->current->pc
+                    cc.mov(delegate, thread_fields[jit_field_id_thread_cache]); // ctx->current->pc
+
+                    cc.sub(val, delegate);
+                    int64ToDouble(cc, vec0, val);
+                    setRegister(setRegisterParams(vec0, GET_Da(*bc)));
+                    break;
+                }
+                case op_PUSHOBJ: {
+                    cc.comment("; pushobj", 9);
+                    cc.mov(ctx, ctxPtr);
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]);
+                    cc.mov(val, thread_fields[jit_field_id_thread_sp]);
+                    cc.lea(val, ptr(val, sizeof(StackElement)));
+                    cc.mov(thread_fields[jit_field_id_thread_sp], val);
+
+                    passArg0(cc, val);
+                    passArg1(cc, o2Ptr);
+                    cc.call((int64_t)global_jit_setObject1);
+                    break;
+                }
+                case op_DEL: {
+//                    passArg0(cc, (int64_t)GarbageCollector::self);
+//                    passArg1(cc, o2Ptr);
+//                    cc.call((int64_t)&GarbageCollector::releaseObject);
+                    break;
+                }
+                case op_CALL: {
+                    cc.mov(ctx, ctxPtr);
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]);
+
+                    passArg0(cc, ctx);
+                    passArg1(cc, GET_Da(*bc));
+                    cc.call((int64_t) global_jit_call0);
+                    break;
+                }
+                case op_CALLD: {
+                    cc.mov(ctx, ctxPtr);
+                    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]);
+
+                    passArg0(cc, ctx);
+                    passArg1(cc, GET_Da(*bc));
+                    cc.call((int64_t) global_jit_call0);
+                    break;
+                }
                 case op_RETURNVAL: {
                     cc.comment("; retval", 8);
                     break;
@@ -1507,27 +1631,45 @@ int compile(Method *method) {
 
         if(!error) {
 
+            jit_mut.lock();
+            if(method->isjit) {
+                // sanity check
+                jit_mut.unlock();
+                return jit_error_ok;
+            }
+
             sjit_function jitfn;
             Error err = rt.add(&jitfn, &code);   // Add the generated code to the runtime.
             if (err) {
                 cout << "code error " << err << endl;
+                jit_mut.unlock();
                 return jit_error_compile;
             }
             else {
-                jit_ctx *ctx = &jctx;
-                jitfn(ctx);
                 jit_func jfunc;
                 jfunc.func = jitfn;
-                jfunc.serial = jit_funcid++;
-                jfunc.rAddr = method->address;
+                jfunc.serial = method->address;
+                method->jit_addr=functions.size();
+                method->isjit = 1;
                 functions.push_back(jfunc);
             }
+
+            jit_mut.unlock();
+            return jit_error_ok;
         }
 
-        releaseMem(); // this will go away we just use it for now
+        return error;
     }
 
-    return jit_error_ok;
+    return jit_error_compile;
+}
+
+void incrementPc(X86Assembler &cc, const X86Gp &ctx, const X86Gp &val, const X86Mem &ctxPtr) {
+    cc.mov(ctx, ctxPtr);
+    cc.mov(ctx, jit_ctx_fields[jit_field_id_current]);
+    cc.mov(val, thread_fields[jit_field_id_thread_pc]);
+    cc.lea(val, x86::ptr(val, sizeof(int64_t)));
+    cc.mov(thread_fields[jit_field_id_thread_pc], val);
 }
 
 void setRegister(X86Assembler &cc, const X86Gp &ctx, const X86Gp &registersReg, const X86Xmm &vec0, const int64_t reg) {
@@ -1636,7 +1778,33 @@ void passArg0(X86Assembler &cc, X86Gp& arg) {
 
 }
 
+void passArg0(X86Assembler &cc, X86Mem& arg) {
+    X86Gp arg0;
+    if (ASMJIT_ARCH_64BIT) {
+        bool isWinOS = static_cast<bool>(ASMJIT_OS_WINDOWS);
+        arg0 = isWinOS ? x86::rcx : x86::rdi;  // First argument.
+    }
+    else {
+        arg0 = cc.zax();                       // Use EaX to hold the second arg.
+    }
+    cc.mov(arg0, arg);
+
+}
+
 void passArg1(X86Assembler &cc, X86Gp& arg) {
+    X86Gp arg0;
+    if (ASMJIT_ARCH_64BIT) {
+        bool isWinOS = static_cast<bool>(ASMJIT_OS_WINDOWS);
+        arg0 = isWinOS ? x86::rdx : x86::rsi;  // Second argument.
+    }
+    else {
+        arg0 = cc.zcx();                       // Use ECX to hold the second arg.
+    }
+    cc.mov(arg0, arg);
+
+}
+
+void passArg1(X86Assembler &cc, X86Mem& arg) {
     X86Gp arg0;
     if (ASMJIT_ARCH_64BIT) {
         bool isWinOS = static_cast<bool>(ASMJIT_OS_WINDOWS);
@@ -1663,6 +1831,19 @@ void passArg1(X86Assembler &cc, int64_t arg) {
 }
 
 void passArg2(X86Assembler &cc, X86Gp& arg) {
+    X86Gp arg0;
+    if (ASMJIT_ARCH_64BIT) {
+        bool isWinOS = static_cast<bool>(ASMJIT_OS_WINDOWS);
+        arg0 = isWinOS ? x86::r8 : x86::rdx;  // Third argument.
+    }
+    else {
+        arg0 = cc.zdx();                       // Use EdX to hold the third arg.
+    }
+    cc.mov(arg0, arg);
+
+}
+
+void passArg2(X86Assembler &cc, X86Mem& arg) {
     X86Gp arg0;
     if (ASMJIT_ARCH_64BIT) {
         bool isWinOS = static_cast<bool>(ASMJIT_OS_WINDOWS);
@@ -1880,6 +2061,10 @@ void global_jit_setObject0(StackElement *sp, SharpObject* o) {
     sp->object = o;
 }
 
+void global_jit_setObject1(StackElement *sp, Object* o) {
+    sp->object = o;
+}
+
 void global_jit_castObject(Object *o2, int64_t klass) {
     o2->castObject(klass);
 }
@@ -1905,6 +2090,29 @@ void global_jit_get(int op0) {
 
 void global_jit_popl(Object* o2, SharpObject* o) {
     *o2 = o;
+}
+
+void global_jit_call0(Thread *thread, int64_t addr) {
+#ifdef SHARP_PROF_
+    tprof->hit(env->methods+GET_Da(*pc));
+#endif
+    if((thread->calls+1) >= thread->stack_lmt) throw Exception(Environment::StackOverflowErr, "");
+    executeMethod(addr, thread, true);
+}
+
+void global_jit_call1(Thread* thread, int64_t addr) {
+    int64_t val;
+#ifdef SHARP_PROF_
+    tprof->hit(env->methods+GET_Da(*pc));
+#endif
+    if((val = (int64_t )registers[addr]) <= 0 || val >= manifest.methods) {
+        stringstream ss;
+        ss << "invalid call to pointer of " << val;
+        throw Exception(ss.str());
+    }
+
+    if((thread->calls+1) >= thread->stack_lmt) throw Exception(Environment::StackOverflowErr, "");
+    executeMethod(addr, thread, true);
 }
 
 void setupJitContextFields(const X86Gp &ctx) {
@@ -1944,7 +2152,7 @@ void setupStackElementFields(const X86Gp &ctx) {
 }
 
 void setupFrameFields(const X86Gp &ctx) {
-    Frame frame(0,0,0,0);
+    Frame frame(0,0,0,0,false);
     frame_fields[jit_field_id_frame_last] = x86::qword_ptr(ctx, relative_offset((&frame), last, last)); // Method* last;
     frame_fields[jit_field_id_frame_pc] = x86::qword_ptr(ctx, relative_offset((&frame), last, pc)); // int64_t* pc;
     frame_fields[jit_field_id_frame_sp] = x86::qword_ptr(ctx, relative_offset((&frame), last, sp)); // StackElement* sp;
@@ -1977,13 +2185,14 @@ void setupProfilerFields(const X86Gp &ctx) {
 
 void releaseMem()
 {
-    for(std::vector<jit_func>::iterator it = functions.begin(); it != functions.end(); ++it) {
-        rt.release((*it).func);
+    for(int64_t i = 0; i < functions.len; i++) {
+        rt.release(functions.get(i).func);
     }
 }
 
-
-void call(jit_ctx *ctx, int64_t serial)
+void jit_call(int64_t serial)
 {
-
+    jctx.func = env->methods+serial;
+    if(jctx.func->isjit)
+        functions.get(jctx.func->jit_addr).func(&jctx);
 }

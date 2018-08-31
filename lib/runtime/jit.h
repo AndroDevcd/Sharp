@@ -12,9 +12,10 @@
 #include "../util/jit/asmjit/src/asmjit/asmjit.h"
 #include "oo/Method.h"
 
-#define jit_error_compile 1             // error compiling the source
-#define jit_error_mem     304           // not enough memory
-#define jit_error_ok      0             // the result you want
+#define jit_error_compile  1             // error compiling the source
+#define jit_error_mem      304           // not enough memory
+#define jit_error_max_attm 305           // mamimum atttempts reached
+#define jit_error_ok       0             // the result you want
 
 struct jit_ctx;
 
@@ -22,7 +23,7 @@ typedef void (*sjit_function)(jit_ctx *);
 
 struct jit_func {
     sjit_function func; // real address to mapped function in memory
-    int64_t serial, rAddr; // jit unique serial : reference Address to generated function
+    int64_t serial; // jit reference Address to generated function
 };
 
 // convient id's for each field to access
@@ -110,12 +111,24 @@ struct jit_func {
  */
 #define STACK_ALIGN_OFFSET 0x10
 
+#define JIT_ATTEMPT_THRESHOLD 3
+
 struct jit_ctx {
     Thread* current;
     double *registers;
     Method* func; // current method we are executing only used in initalization of the call
     unsigned long long *irCount, *overflow = 0;
 };
+
+extern List<int64_t> queue;
+extern std::recursive_mutex queue_mut;
+
+void jit_tls_setup();
+void jit_setup();
+void jit_shutdown();
+int try_jit(Method* func);
+void jit_call(int64_t serial);
+void performInitialCompile();
 
 extern thread_local jit_ctx jctx;
 

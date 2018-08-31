@@ -169,6 +169,43 @@ int CreateVirtualMachine(std::string exe)
     return 0;
 }
 
+
+void executeMethod(int64_t address, Thread* thread, bool inJit) {
+
+    Method *method = env->methods+address;
+    StackElement *equlizer=thread->sp-method->stackEqulizer;
+
+    if(thread->calls==0) {
+        thread->callStack[0].init(NULL, 0,0,0, false);
+    } else {
+        thread->callStack[thread->calls+1]
+            .init(thread->current, thread->pc, equlizer, thread->fp, method->isjit);
+    }
+    thread->calls++;
+
+    thread->current = method;
+    thread->cache = method->bytecode;
+    thread->fp = thread->calls==1 ? thread->fp :
+                      ((method->returnVal) ? equlizer : (equlizer+1));
+    thread->sp += (method->stackSize - method->paramSize);
+    THREAD_STACK_CHECK(thread);
+    thread->pc = thread->cache;
+
+    if(!method->isjit) {
+        if(method->longCalls >= JIT_LIMIT)
+        {
+            try_jit(method);
+        } else method->longCalls++;
+    }
+
+    if(method->isjit) {
+        jit_call(address);
+    } else if(inJit || thread->calls==1) {
+        thread->exec();
+    }
+
+}
+
 void VirtualMachine::destroy() {
     if(thread_self != NULL) {
         exitVal = thread_self->exitVal;
@@ -177,6 +214,7 @@ void VirtualMachine::destroy() {
 
     Thread::shutdown();
     GarbageCollector::shutdown();
+    jit_shutdown();
 
 #ifdef WIN32_
     if(env->gui != NULL)
@@ -188,7 +226,6 @@ void VirtualMachine::destroy() {
 #endif
 }
 
-extern unsigned long long irCount, overflow;
 extern void printRegs();
 
 #ifdef WIN32_
@@ -206,10 +243,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         /*
          * Call main method
          */
-        executeMethod(thread_self->main->address, thread_self)
-
-        thread_self->initJitCtx();
-        thread_self->exec();
+        executeMethod(thread_self->main->address, thread_self);
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();
@@ -904,7 +938,7 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
     } else
         ss << ", line ?";
 
-    ss << ", in "; ss << frame.last->fullName.str() << "() [0x" << std::hex
+    ss << ", in "; ss << frame.last->fullName.str() << "()" << (frame.isjit ? "[native]" : "") << " [0x" << std::hex
                       << frame.last->address << "] $0x" << (frame.pc-frame.last->bytecode)  << std::dec;
 
     ss << " fp; " << frame.fp-thread_self->dataStack << " sp: " << frame.sp-thread_self->dataStack;
@@ -937,7 +971,7 @@ void VirtualMachine::fillStackTrace(native_string &str) {
         }
     }
 
-    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp);
+    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp,0);
     fillMethodCall(frame, ss);
 
     str = ss.str();

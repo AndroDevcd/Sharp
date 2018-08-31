@@ -1,5 +1,11 @@
 mod app;
 
+def foo() {
+    for(var i = 0; i < 100000; i++) {
+    }
+}
+
+//var[] arry = new var[] { 1, 2, 3, 4, 5, 6 };
 /**
  * Created by BraxtonN on 8/13/2018.
  *
@@ -8,14 +14,20 @@ mod app;
  * This file contains all the testing of the Sharp JIT
  */
 def main() {
-//    var i=09;
+//    var[] a = arry;
+//    var i=09, z;
 //    for(; i < 100000000; i++) {
-//        var a = 3;
-//        var b = a + 9;
-//        var c = a * b + (a * 1732737);
+//        z *= a[0];
+//        z -= a[4] +1;
+//         z += a[2] +2;
+//    }
+
+//    for(var i = 0; i < 10000; i++) {
+//        foo();
 //    }
 
     asm(
+        "loadpc %ebx"
         "movsl 0"
         "ipopl 0"
         "popl 0"

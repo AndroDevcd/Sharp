@@ -793,12 +793,6 @@ void Thread::exec() {
                 return;
 
             interp:
-            if(current->address==7 && PC(this) >= 0) {
-                jctx.func = current;
-                sp+=2;
-                compile(jctx.func);
-                return;
-            }
             DISPATCH();
             _NOP: // tested
                 _brh
@@ -842,6 +836,13 @@ void Thread::exec() {
 #ifdef SHARP_PROF_
             tprof->profile();
 #endif
+                /**
+                 * We need to return back to the JIT context
+                 */
+                if(frame->isjit)
+                    return;
+
+                LONG_CALL();
                 _brh
             HLT: // tested
                 state=THREAD_KILLED;
@@ -941,12 +942,15 @@ void Thread::exec() {
                 _brh
             BRH: // tested
                 pc=cache+(int64_t)registers[i64adx];
+                LONG_CALL();
                 _brh_NOINCREMENT
             IFE:
+                LONG_CALL();
                 if(registers[i64cmt]) {
                     pc=cache+(int64_t)registers[i64adx]; _brh_NOINCREMENT
                 } else  _brh
             IFNE:
+                LONG_CALL();
                 if(registers[i64cmt]==0) {
                     pc=cache+(int64_t)registers[i64adx]; _brh_NOINCREMENT
                 } else  _brh
@@ -966,7 +970,7 @@ void Thread::exec() {
                 o2 = &(fp+GET_Da(*pc))->object;
                 _brh
             POPL: // tested
-            (fp+GET_Da(*pc))->object
+                (fp+GET_Da(*pc))->object
                         = (sp--)->object.object;
                 _brh
             IPOPL: // tested
@@ -985,7 +989,7 @@ void Thread::exec() {
                 else
                     registers[GET_Da(*pc)]=o2->object->size;
                 _brh
-            PUT:
+            PUT: // tested
                 cout << registers[GET_Da(*pc)];
                 _brh
             PUTC:
@@ -1006,10 +1010,11 @@ void Thread::exec() {
                             throw Exception(Environment::IndexOutOfBoundsException, ss.str());
                         }
                 )
-            GOTO:
+            GOTO: // tested
                 pc = cache+GET_Da(*pc);
+                LONG_CALL();
                 _brh_NOINCREMENT
-            LOADPC:
+            LOADPC: // tested
                 registers[GET_Da(*pc)] = PC(this);
                 _brh
             PUSHOBJ:
@@ -1023,7 +1028,7 @@ void Thread::exec() {
             tprof->hit(env->methods+GET_Da(*pc));
 #endif
                 CALLSTACK_CHECK
-                executeMethod(GET_Da(*pc), this)
+                executeMethod(GET_Da(*pc), this);
                 _brh_NOINCREMENT
             CALLD:
 #ifdef SHARP_PROF_
@@ -1035,7 +1040,7 @@ void Thread::exec() {
                     throw Exception(ss.str());
                 }
                 CALLSTACK_CHECK
-                executeMethod(val, this)
+                executeMethod(val, this);
                 _brh_NOINCREMENT
             NEWCLASS:
                 (++sp)->object =
@@ -1097,10 +1102,12 @@ void Thread::exec() {
                 registers[*(pc+1)]=(int64_t)registers[GET_Ca(*pc)]>>(int64_t)registers[GET_Cb(*pc)];
                 _brh_inc(2)
             SKPE:
+                LONG_CALL();
                 if(registers[i64cmt]) {
                     pc = pc+GET_Da(*pc); _brh_NOINCREMENT
                 } else _brh
             SKNE:
+                LONG_CALL();
                 if(registers[i64cmt]==0) {
                     pc = pc+GET_Da(*pc); _brh_NOINCREMENT
                 } else _brh
@@ -1243,7 +1250,7 @@ void Thread::exec() {
                             for(long i = 0; i < klass->methodCount; i++) {
                                 if(env->methods[klass->methods[i]].delegateAddress == delegate) {
                                     CALLSTACK_CHECK
-                                    executeMethod(env->methods[klass->methods[i]].address, this)
+                                    executeMethod(env->methods[klass->methods[i]].address, this);
                                     _brh_NOINCREMENT
                                 }
                             }
@@ -1270,7 +1277,7 @@ void Thread::exec() {
                             for(long i = 0; i < klass->methodCount; i++) {
                                 if(env->methods[klass->methods[i]].delegateAddress == delegate) {
                                     CALLSTACK_CHECK
-                                    executeMethod(env->methods[klass->methods[i]].address, this)
+                                    executeMethod(env->methods[klass->methods[i]].address, this);
                                     _brh_NOINCREMENT
                                 }
                             }
@@ -1289,14 +1296,17 @@ void Thread::exec() {
                 (sp+GET_Cb(*pc))->var+=GET_Ca(*pc);
                 _brh
             JE:
+                LONG_CALL();
                 if(registers[i64cmt]) {
                     pc=cache+GET_Da(*pc); _brh_NOINCREMENT
                 } else  _brh
             JNE:
+                LONG_CALL();
                 if(registers[i64cmt]==0) {
                     pc=cache+GET_Da(*pc); _brh_NOINCREMENT
                 } else  _brh
             SWITCH: {
+                LONG_CALL();
                 if((val = current->switchTable.get(GET_Da(*pc)).values.indexof(registers[i64ebx])) != -1 ) {
                     pc=cache+current->switchTable.get(GET_Da(*pc)).addresses.get(val);
                     _brh_NOINCREMENT
@@ -1352,6 +1362,7 @@ void Thread::setup() {
     terminated = false;
     exitVal = 0;
     starting = 0;
+    jit_tls_setup();
 
     if(id != main_threadid){
         int priority = (int)env->__sgetFieldVar("priority", currentThread.object);
@@ -1372,8 +1383,10 @@ void Thread::setup() {
             this->dataStack[i].object.object = NULL;
             this->dataStack[i].var=0;
         }
-    } else
+    } else {
+        jit_setup();
         GarbageCollector::self->addMemory(sizeof(StackElement)*stack_lmt);
+    }
 }
 
 int Thread::setPriority(Thread* thread, int priority) {
@@ -1427,15 +1440,6 @@ int Thread::setPriority(int32_t id, int priority) {
         return 2;
 
     return setPriority(thread, priority);
-}
-
-void Thread::initJitCtx() {
-    jctx.registers = registers;
-    //jctx.func = current;
-    jctx.func = env->methods+7;
-    jctx.irCount=&irCount;
-    jctx.overflow = &overflow;
-    jctx.current = this;
 }
 
 void __os_sleep(int64_t INTERVAL) {

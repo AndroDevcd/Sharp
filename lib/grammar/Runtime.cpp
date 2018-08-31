@@ -8078,6 +8078,7 @@ std::string RuntimeEngine::generate_text_section() {
         Method* f = allMethods.get(i);
         text << (char)data_method;
         text << i64_tostr(f->address);
+        text << (0) << ((char)nil);
         text << f->getName() << ((char)nil);
         text << f->getFullName() << ((char)nil);
         text << f->sourceFileLink << ((char)nil);

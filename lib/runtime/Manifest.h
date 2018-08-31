@@ -26,6 +26,8 @@ struct Manifest {
     int64_t strings;
 };
 
+extern Manifest manifest;
+
 struct source_file{
     long id;
     List<native_string> source_line;

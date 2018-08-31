@@ -45,7 +45,11 @@
     if (suspendPending) \
         suspendSelf(); \
     if (state == THREAD_KILLED) \
-        return; \
+        return;
+
+#define LONG_CALL() \
+    if(current->longCalls < JIT_LIMIT) \
+        current->longCalls++;
 
 #define STACK_CHECK  if(((sp-dataStack)+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
 #define CALLSTACK_CHECK  if((calls+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");

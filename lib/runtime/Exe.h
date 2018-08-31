@@ -7,7 +7,7 @@
 
 #include "../../stdimports.h"
 
-class Manifest;
+struct Manifest;
 class Meta;
 
 extern Manifest manifest;

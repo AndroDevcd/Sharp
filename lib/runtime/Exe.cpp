@@ -365,6 +365,7 @@ int Process_Exe(std::string exe)
                     method->init();
 
                     method->address = geti64(buffer);
+                    method->isjit = getlong(buffer);
                     method->name = getstring(buffer);
                     method->fullName = getstring(buffer);
                     method->sourceFile = getlong(buffer);
@@ -540,6 +541,7 @@ int Process_Exe(std::string exe)
         return 1;
     }
 
+    env->methods[8].isjit=true;
     return 0;
 }
 
