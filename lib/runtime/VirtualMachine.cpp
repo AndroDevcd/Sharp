@@ -199,11 +199,10 @@ void executeMethod(int64_t address, Thread* thread, bool inJit) {
     }
 
     if(method->isjit) {
-        jit_call(address);
+        jit_call(address, thread);
     } else if(inJit || thread->calls==1) {
         thread->exec();
     }
-
 }
 
 void VirtualMachine::destroy() {
@@ -249,7 +248,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         //        cout << thread_self->throwable.stackTrace.str();
         //    }
         thread_self->throwable = e.getThrowable();
-        thread_self->exceptionThrown = true;
+        sendSignal(thread_self->signal, tsig_except, 1);
     }
 
 
@@ -792,9 +791,12 @@ int VirtualMachine::returnMethod() {
         return 1;
 
     Frame *frame = thread_self->callStack+(thread_self->calls);
+    
+    if(thread_self->current->finallyBlocks.size() > 0) {
 
-    if(thread_self->current->finallyBlocks.size() > 0)
-        executeFinally(thread_self->current);
+        if(executeFinally(thread_self->current))
+            return 3;
+    }
 
     thread_self->current = frame->last;
     thread_self->cache = frame->last->bytecode;
@@ -803,44 +805,35 @@ int VirtualMachine::returnMethod() {
     thread_self->sp = frame->sp;
     thread_self->fp = frame->fp;
     thread_self->calls--;
-    return 0;
+    return frame->isjit ? 2 : 0;
 }
 
-void VirtualMachine::Throw(Object *exceptionObject) {
-    if(exceptionObject->object == NULL || exceptionObject->object->k == NULL) {
-        cout << "object is not a class" << endl;
+void VirtualMachine::Throw() {
+//    if(exceptionObject->object == NULL || exceptionObject->object->k == NULL) {
+//        cout << "object is not a class" << endl;
+//        return;
+//    }
+
+    if (!hasSignal(thread_self->signal, tsig_except))
+    {
+        thread_self->throwable.throwable = thread_self->exceptionObject.object->k;
+        fillStackTrace(&thread_self->exceptionObject);
+        sendSignal(thread_self->signal, tsig_except, 1);
+    }
+
+    if(TryCatch(thread_self->current, &thread_self->exceptionObject)) {
         return;
     }
 
-    thread_self->throwable.throwable = exceptionObject->object->k;
-    fillStackTrace(exceptionObject);
-
-    if(TryThrow(thread_self->current, exceptionObject)) {
-        thread_self->exceptionThrown = false;
-        thread_self->throwable.drop();
-        startAddress = 0;
-        return;
-    }
-
+    int result;
     while(thread_self->calls >= 1) {
-        Method *method = thread_self->current;
-        executeFinally(thread_self->current);
-
-        /**
-         * If the finally block returns while we are trying to locate where the
-         * exception will be caught we give up and the exception
-         * is lost forever
-         */
-        if(method != thread_self->current)
+        result = returnMethod();
+        if(result==1)
+            break;
+        else if(result == 2 || result == 3)
             return;
 
-        if(returnMethod())
-            break;
-
-        if(TryThrow(thread_self->current, exceptionObject)) {
-            thread_self->exceptionThrown = false;
-            thread_self->throwable.drop();
-            startAddress = 0;
+        if(TryCatch(thread_self->current, &thread_self->exceptionObject)) {
             return;
         }
     }
@@ -853,26 +846,33 @@ void VirtualMachine::Throw(Object *exceptionObject) {
     throw Exception(ss.str());
 }
 
-bool VirtualMachine::TryThrow(Method *method, Object *exceptionObject) {
+bool VirtualMachine::TryCatch(Method *method, Object *exceptionObject) {
     int64_t pc = PC(thread_self);
-    if(method->exceptions.size() > 0) {
-        ExceptionTable* et, *tbl=NULL;
-        for(unsigned int i = 0; i < method->exceptions.size(); i++) {
-            et = &method->exceptions.get(i);
 
-            if (et->start_pc <= pc && et->end_pc >= pc)
+    if(method->exceptions.size() > 0) {
+        ExceptionTable *tbl=NULL;
+        for(long int i = 0; i < method->exceptions.len; i++) {
+            ExceptionTable& et = method->exceptions._Data[i];
+
+            if (et.start_pc <= pc && et.end_pc >= pc)
             {
-                if (tbl == NULL || et->start_pc > tbl->start_pc)
-                    tbl = et;
+                if (tbl == NULL || et.start_pc > tbl->start_pc)
+                    tbl = &et;
             }
         }
 
         if(tbl != NULL)
         {
-            Object* object = &(thread_self->fp+tbl->local)->object;
+            Thread* self = thread_self;
+            Object* object = &(self->fp+tbl->local)->object;
             *object = exceptionObject;
-            thread_self->pc = thread_self->cache+tbl->handler_pc;
+            self->pc = self->cache+tbl->handler_pc;
+            self->exceptionObject = ((SharpObject*)0);
 
+            // cancel exception we caught it
+            sendSignal(self->signal, tsig_except, 0);
+            self->throwable.drop();
+            startAddress = 0;
             return true;
         }
     }

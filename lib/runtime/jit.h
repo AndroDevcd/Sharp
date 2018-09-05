@@ -46,8 +46,8 @@ struct jit_func {
 #ifdef SHARP_PROF_
 #define jit_field_id_thread_tprof 9
 #endif
-#define jit_field_id_thread_suspendPending 10
-#define jit_field_id_thread_state 11
+#define jit_field_id_thread_state 10
+#define jit_field_id_thread_signal 11
 
 // convient id's for each field in StackElement object
 #define jit_field_id_stack_element_var 0
@@ -94,7 +94,7 @@ struct jit_func {
         lconstMem = ptr(lconsts.getConstantLabel(idx));  \
         cc.movsd(vec, lconstMem); \
     }
-#define returnFuntion() \
+#define returnFunction() \
     cc.jmp(lbl_funcend);
 
 #define registerParams(vec, val) \
@@ -127,10 +127,8 @@ void jit_tls_setup();
 void jit_setup();
 void jit_shutdown();
 int try_jit(Method* func);
-void jit_call(int64_t serial);
+void jit_call(int64_t serial, Thread*);
 void performInitialCompile();
-
-extern thread_local jit_ctx jctx;
 
 void call(jit_ctx *, int64_t);
 int compile(Method *);

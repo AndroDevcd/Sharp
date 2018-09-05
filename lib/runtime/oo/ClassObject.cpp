@@ -29,7 +29,7 @@ Field *ClassObject::getfield(string name) {
 }
 
 int64_t ClassObject::fieldindex(string name) {
-    for(unsigned int i = 0; i < fieldCount; i++) {
+    for(long int i = fieldCount-1; i >= 0; i--) {
         if(fields[i].name == name)
             return i;
     }

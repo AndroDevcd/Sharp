@@ -19,6 +19,8 @@
 #define main_threadid 0x0
 #define gc_threadid 0x1
 
+struct jit_ctx;
+
 enum ThreadState {
     THREAD_CREATED      =0x000,
     THREAD_RUNNING      =0x001,
@@ -30,6 +32,19 @@ enum ThreadPriority {
     THREAD_PRIORITY_LOW = 0x0001,
     THREAD_PRIORITY_NORM = 0X0004,
     THREAD_PRIORITY_HIGH = 0X0006
+};
+
+/**
+ * Thread signals for events being handled in the threadding system
+ *
+ * Signals are send and read from at specific times and it makes
+ * for a much faster processing to better handle signals as they arise
+ */
+enum tsig_t {
+    tsig_empty = 0x000,
+    tsig_except = 0x001,
+    tsig_suspend = 0x002,
+    tsig_kill = 0x004
 };
 
 class Thread {
@@ -44,13 +59,14 @@ public:
             rand(NULL),
             main(NULL),
             exitVal(1),
-            suspendPending(false),
-            exceptionThrown(false),
+            signal(tsig_empty),
             throwable(),
             callStack(),
-            dataStack(NULL)
+            dataStack(NULL),
+            jctx(NULL)
 
     {
+        exceptionObject.object=0;
 #ifdef SHARP_PROF_
         tprof = NULL;
 #endif
@@ -103,11 +119,13 @@ public:
             *sp, *fp;
     Method *current;
     Frame *callStack;
+    jit_ctx *jctx;
     unsigned long stack_lmt;
     Cache cache, pc;
 #ifdef SHARP_PROF_
     Profiler *tprof;
 #endif
+    /* tsig_t */ int signal;
 
     static int32_t tid;
     static List<Thread*> threads;
@@ -132,9 +150,8 @@ public:
     native_string name;
     Method *main;
     int exitVal;
-    bool suspendPending;
-    bool exceptionThrown;
     Object currentThread, args;
+    Object exceptionObject;
     Random* rand;
 
     Throwable throwable;
@@ -169,6 +186,13 @@ private:
     static void pushThread(Thread *thread);
     static void popThread(Thread *thread);
 };
+
+/**
+ * Send a signal to shutdown and or sleep a thread and more
+ * see tsig_t for more information.
+ */
+#define sendSignal(sig, sigt, enable) (sig ^= (-(unsigned long)enable ^ sig) & (1UL << sigt))
+#define hasSignal(sig, sigt) ((sig >> sigt) & 1U)
 
 extern thread_local Thread* thread_self;
 extern thread_local double registers[12];

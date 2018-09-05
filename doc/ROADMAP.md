@@ -1,4 +1,4 @@
-# Roadmap 
+````# Roadmap 
 
 #### Version 0.3.0
 - Add built in functions 
@@ -53,3 +53,6 @@ lock(self) {
 ```
 
 - support function pointers as global variables
+- fix exception system problems
+    * Extreemly slow
+    * finally block execute has problems with returning from the function in question

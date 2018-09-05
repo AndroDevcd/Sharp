@@ -42,14 +42,20 @@
 #define DISPATCH() /*if(GET_OP(cache[pc])> op_GET) throw Exception("op"); else*/ goto *opcode_table[GET_OP(*pc)];
 
 #define SAFTEY_CHECK \
-    if (suspendPending) \
-        suspendSelf(); \
-    if (state == THREAD_KILLED) \
-        return;
+    if(signal) { \
+        if (hasSignal(signal, tsig_suspend)) \
+            suspendSelf(); \
+        if (state == THREAD_KILLED) \
+            return; \
+    }
 
 #define LONG_CALL() \
     if(current->longCalls < JIT_LIMIT) \
         current->longCalls++;
+
+#define THREAD_EXECEPT() \
+    if(hasSignal(signal, tsig_except)) \
+        goto exception_catch;
 
 #define STACK_CHECK  if(((sp-dataStack)+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
 #define CALLSTACK_CHECK  if((calls+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
@@ -69,125 +75,125 @@
 #define CHECK_INULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->HEAD==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
 
 #define _initOpcodeTable \
-    static void* opcode_table[] = { \
-        &&_NOP,            \
-        &&_INT,              \
-        &&_MOVI,              \
-        &&RET,              \
-        &&HLT,              \
-        &&NEWARRAY,         \
-        &&CAST,              \
-        &&MOV8,              \
-        &&MOV16,              \
-        &&MOV32,              \
-        &&MOV64,              \
-        &&MOVU8,              \
-        &&MOVU16,              \
-        &&MOVU32,              \
-        &&MOVU64,              \
-        &&RSTORE,               \
-        &&ADD,                  \
-        &&SUB,                   \
-        &&MUL,                   \
-        &&DIV,                   \
-        &&MOD,                   \
-        &&IADD,                   \
-        &&ISUB,                   \
-        &&IMUL,                   \
-        &&IDIV,                   \
-        &&IMOD,                   \
-        &&POP,                   \
-        &&INC,                   \
-        &&DEC,                   \
-        &&MOVR,                   \
-        &&IALOAD,                   \
-        &&BRH,                   \
-        &&IFE,                   \
-        &&IFNE,                   \
-        &&LT,                   \
-        &&GT,                   \
-        &&LTE,                   \
-        &&GTE,                   \
-        &&MOVL,                   \
-        &&MOVSL,                   \
-        &&MOVBI,                   \
-        &&SIZEOF,                   \
-        &&PUT,                   \
-        &&PUTC,                   \
-        &&CHECKLEN,                   \
-        &&GOTO,                   \
-        &&LOADPC,                   \
-        &&PUSHOBJ,                   \
-        &&DEL,                   \
-        &&CALL,                   \
-        &&NEWCLASS,                   \
-        &&MOVN,                   \
-        &&SLEEP,                   \
-        &&TEST,                   \
-        &&TNE,                   \
-        &&LOCK,                   \
-        &&ULOCK,                   \
-        &&EXP,                   \
-        &&MOVG,                   \
-        &&MOVND,                   \
-        &&NEWOBJARRAY,                      \
-        &&NOT,                      \
-        &&SKIP,                      \
-        &&LOADVAL,                      \
-        &&SHL,                      \
-        &&SHR,                      \
-        &&SKPE,                      \
-        &&SKNE,                      \
-        &&AND,                      \
-        &&UAND,                      \
-        &&OR,                      \
-        &&UNOT,                      \
-        &&THROW,                      \
-        &&CHECKNULL,                      \
-        &&RETURNOBJ,                      \
-        &&NEWCLASSARRAY,                      \
-        &&NEWSTRING,                      \
-        &&ADDL,                      \
-        &&SUBL,                      \
-        &&MULL,                      \
-        &&DIVL,                      \
-        &&MODL,                      \
-        &&IADDL,                      \
-        &&ISUBL,                      \
-        &&IMULL,                      \
-        &&IDIVL,                      \
-        &&IMODL,                      \
-        &&LOADL,                      \
-        &&IALOAD_2,                     \
-        &&POPOBJ,                       \
-        &&SMOVR,                        \
-        &&ANDL,                        \
-        &&ORL,                        \
-        &&NOTL,                        \
-        &&RMOV,                          \
-        &&SMOV,                          \
-        &&LOADPC_2,                      \
-        &&RETURNVAL,                     \
-        &&ISTORE,                        \
-        &&SMOVR_2,                        \
-        &&ISTOREL,                        \
-        &&POPL,                           \
-        &&PUSHNIL,                           \
-        &&IPUSHL,                           \
-        &&PUSHL,                           \
-        &&ITEST,                           \
-        &&INVOKE_DELEGATE,                  \
-        &&INVOKE_DELEGATE_STATIC,            \
-        &&GET,                                 \
-        &&ISADD,                                 \
-        &&JE,                                 \
-        &&JNE,                                 \
-        &&IPOPL,                                 \
-        &&SWITCH,                                 \
-        &&CMP,                                 \
-        &&CALLD,                                 \
-        &&VARCAST,                                 \
-    };
+        static void* opcode_table[] = { \
+            &&_NOP,            \
+            &&_INT,              \
+            &&_MOVI,              \
+            &&RET,              \
+            &&HLT,              \
+            &&NEWARRAY,         \
+            &&CAST,              \
+            &&MOV8,              \
+            &&MOV16,              \
+            &&MOV32,              \
+            &&MOV64,              \
+            &&MOVU8,              \
+            &&MOVU16,              \
+            &&MOVU32,              \
+            &&MOVU64,              \
+            &&RSTORE,               \
+            &&ADD,                  \
+            &&SUB,                   \
+            &&MUL,                   \
+            &&DIV,                   \
+            &&MOD,                   \
+            &&IADD,                   \
+            &&ISUB,                   \
+            &&IMUL,                   \
+            &&IDIV,                   \
+            &&IMOD,                   \
+            &&POP,                   \
+            &&INC,                   \
+            &&DEC,                   \
+            &&MOVR,                   \
+            &&IALOAD,                   \
+            &&BRH,                   \
+            &&IFE,                   \
+            &&IFNE,                   \
+            &&LT,                   \
+            &&GT,                   \
+            &&LTE,                   \
+            &&GTE,                   \
+            &&MOVL,                   \
+            &&MOVSL,                   \
+            &&MOVBI,                   \
+            &&SIZEOF,                   \
+            &&PUT,                   \
+            &&PUTC,                   \
+            &&CHECKLEN,                   \
+            &&GOTO,                   \
+            &&LOADPC,                   \
+            &&PUSHOBJ,                   \
+            &&DEL,                   \
+            &&CALL,                   \
+            &&NEWCLASS,                   \
+            &&MOVN,                   \
+            &&SLEEP,                   \
+            &&TEST,                   \
+            &&TNE,                   \
+            &&LOCK,                   \
+            &&ULOCK,                   \
+            &&EXP,                   \
+            &&MOVG,                   \
+            &&MOVND,                   \
+            &&NEWOBJARRAY,                      \
+            &&NOT,                      \
+            &&SKIP,                      \
+            &&LOADVAL,                      \
+            &&SHL,                      \
+            &&SHR,                      \
+            &&SKPE,                      \
+            &&SKNE,                      \
+            &&AND,                      \
+            &&UAND,                      \
+            &&OR,                      \
+            &&UNOT,                      \
+            &&THROW,                      \
+            &&CHECKNULL,                      \
+            &&RETURNOBJ,                      \
+            &&NEWCLASSARRAY,                      \
+            &&NEWSTRING,                      \
+            &&ADDL,                      \
+            &&SUBL,                      \
+            &&MULL,                      \
+            &&DIVL,                      \
+            &&MODL,                      \
+            &&IADDL,                      \
+            &&ISUBL,                      \
+            &&IMULL,                      \
+            &&IDIVL,                      \
+            &&IMODL,                      \
+            &&LOADL,                      \
+            &&IALOAD_2,                     \
+            &&POPOBJ,                       \
+            &&SMOVR,                        \
+            &&ANDL,                        \
+            &&ORL,                        \
+            &&NOTL,                        \
+            &&RMOV,                          \
+            &&SMOV,                          \
+            &&LOADPC_2,                      \
+            &&RETURNVAL,                     \
+            &&ISTORE,                        \
+            &&SMOVR_2,                        \
+            &&ISTOREL,                        \
+            &&POPL,                           \
+            &&PUSHNIL,                           \
+            &&IPUSHL,                           \
+            &&PUSHL,                           \
+            &&ITEST,                           \
+            &&INVOKE_DELEGATE,                  \
+            &&INVOKE_DELEGATE_STATIC,            \
+            &&GET,                                 \
+            &&ISADD,                                 \
+            &&JE,                                 \
+            &&JNE,                                 \
+            &&IPOPL,                                 \
+            &&SWITCH,                                 \
+            &&CMP,                                 \
+            &&CALLD,                                 \
+            &&VARCAST,                                 \
+        };
 
 enum Opcode {
     op_NOP                      =0x0,

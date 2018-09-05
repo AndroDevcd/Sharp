@@ -32,38 +32,46 @@ public:
 
     //void executeMethod(int64_t address);
     int returnMethod();
-    bool TryThrow(Method* method, Object* exceptionObject);
-    void Throw(Object *exceptionObject);
+    bool TryCatch(Method *method, Object *exceptionObject);
+    void Throw();
 
-    void fillStackTrace(Object *exceptionObject);
+    static void fillStackTrace(Object *exceptionObject);
 
-    void fillStackTrace(native_string &str);
+    static void fillStackTrace(native_string &str);
 
-    string getPrettyErrorLine(long line, long sourceFile);
+    static string getPrettyErrorLine(long line, long sourceFile);
 
-    CXX11_INLINE
-    void executeFinally(Method *method) {
-        uint64_t oldpc = PC(thread_self);
+    int executeFinally(Method *method) {
+        Thread *thread = thread_self;
+        int64_t oldpc = PC(thread);
 
-        for(unsigned int i = 0; i < method->finallyBlocks.size(); i++) {
+        for(long int i = 0; i < method->finallyBlocks.size(); i++) {
             FinallyTable &ft = method->finallyBlocks.get(i);
-            if((ft.try_start_pc >= oldpc && ft.try_end_pc < oldpc) || ft.start_pc > oldpc) {
+            if((ft.try_start_pc >= oldpc && ft.try_end_pc < oldpc) 
+               || ft.start_pc > oldpc) {
                 finallyTable = ft;
                 startAddress = 1;
-                thread_self->pc = thread_self->cache+ft.start_pc;
+                thread->pc = thread->cache+ft.start_pc;
 
                 /**
                  * Execute finally blocks before returning
                  */
-                thread_self->exec();
+                thread->exec();
                 startAddress = 0;
             }
         }
+
+        /**
+         * If the finally block returns while we are trying to locate where the
+         * exception will be caught we give up and the exception
+         * is lost forever
+         */
+        return method == thread_self->current ? 0 : 1;
     }
 
     int exitVal;
 
-    void fillMethodCall(Frame &frame, stringstream &ss);
+    static void fillMethodCall(Frame &frame, stringstream &ss);
 
     static void __snprintf(int cfmt, double val, int precision);
 };

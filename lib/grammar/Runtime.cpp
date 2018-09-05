@@ -1413,6 +1413,10 @@ void RuntimeEngine::parseTryCatchStatement(Block& block, Ast* pAst) {
 
         currentScope()->currentFunction->finallyBlocks.push_back(ft);
 
+        if(!currentScope()->reachable && (currentScope()->last_statement==ast_return_stmnt
+                                          || currentScope()->last_statement == ast_throw_statement)) {
+            currentScope()->reachable=true;
+        }
     }
     currentScope()->trys--;
 }
@@ -8353,6 +8357,23 @@ void RuntimeEngine::createDumpFile() {
         _ostream << tmp.str() << " [" << method->getFullName() << "] "
                  << method->note.getNote("") << "\n\n";
         _ostream << method->getName() << ":\n";
+
+        if(method->exceptions.size() > 0) {
+            stringstream sstream;
+            sstream << "Exception Table: " << endl << "[\n";
+            for(long int x = 0; x < method->exceptions.size(); x++) {
+                sstream << "start_pc: " << method->exceptions.get(x).start_pc << endl;
+                sstream << "end_pc: " << method->exceptions.get(x).end_pc << endl;
+                sstream << "handler_pc: " << method->exceptions.get(x).handler_pc << endl;
+                sstream << "local: " << method->exceptions.get(x).local << endl;
+                if((x + 1) < method->exceptions.size())
+                    sstream  << endl << endl;
+            }
+            sstream << "]\n";
+
+            _ostream << sstream.str();
+        }
+
         for(unsigned int x = 0; x < method->code.size(); x++) {
             stringstream ss;
             int64_t x64=method->code.__asm64.get(x);

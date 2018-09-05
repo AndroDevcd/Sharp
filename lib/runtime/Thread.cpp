@@ -87,11 +87,12 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     thread->currentThread.object=NULL;
     thread->args.object=NULL;
     thread->calls=0;
+    thread->jctx=new jit_ctx();
     thread->starting=0;
+    thread->exceptionObject.object=0;
     thread->current = NULL;
     thread->priority=THREAD_PRIORITY_NORM;
-    thread->suspendPending = false;
-    thread->exceptionThrown = false;
+    thread->signal = 0;
     thread->suspended = false;
     thread->throwable.init();
     thread->exited = false;
@@ -127,12 +128,13 @@ void Thread::Create(string name) {
     this->args.object=NULL;
     this->name = name;
     this->starting = 0;
+    this->exceptionObject.object=0;
     this->rand = new Random();
     this->id = Thread::tid++;
     this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*STACK_SIZE);
-    this->suspendPending = false;
-    this->exceptionThrown = false;
+    this->signal = 0;
     this->suspended = false;
+    this->jctx=new jit_ctx();
     this->exited = false;
     this->priority=THREAD_PRIORITY_HIGH;
     this->throwable.init();
@@ -170,15 +172,16 @@ void Thread::CreateDaemon(string name) {
     this->id = Thread::tid++;
     this->rand = new Random();
     this->dataStack = NULL;
+    this->jctx=new jit_ctx();
     this->callStack = NULL;
     this->currentThread.object=NULL;
     this->args.object=NULL;
+    this->exceptionObject.object=0;
     this->calls=0;
     this->starting=0;
     this->priority=THREAD_PRIORITY_NORM;
     this->current = NULL;
-    this->suspendPending = false;
-    this->exceptionThrown = false;
+    this->signal = 0;
     this->suspended = false;
     this->exited = false;
     this->daemon = true;
@@ -218,7 +221,7 @@ Thread *Thread::getThread(int32_t id) {
 
 void Thread::suspendSelf() {
     thread_self->suspended = true;
-    thread_self->suspendPending = false;
+    sendSignal(thread_self->signal, tsig_suspend, 0);
 
     /*
 	 * We call wait upon suspend. This function will
@@ -391,6 +394,7 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
         }
 
         thread->state = THREAD_KILLED;
+        sendSignal(thread->signal, tsig_kill, 1);
     }
 }
 
@@ -456,12 +460,13 @@ void Thread::suspendThread(Thread *thread) {
         suspendSelf();
     else {
         std::lock_guard<std::mutex> gd(thread->mutex);
-        thread->suspendPending = true;
+        sendSignal(thread->signal, tsig_suspend, 1);
     }
 }
 
 void Thread::term() {
     this->state = THREAD_KILLED;
+    sendSignal(this->signal, tsig_kill, 1);
     this->terminated = true;
     if(dataStack != NULL) {
         for(unsigned long i = 0; i < this->stack_lmt; i++) {
@@ -483,6 +488,7 @@ void Thread::term() {
     delete tprof;
 #endif
     this->name.free();
+    delete jctx;
 }
 
 int Thread::join(int32_t id) {
@@ -539,6 +545,12 @@ void Thread::killAll() {
     }
 }
 
+/**
+ * We must use sendSignal() synanomyously with interrupt and other calls
+ * that may kill a thread because this bit flag is used by the JIT Runtime
+ * @param thread
+ * @return
+ */
 int Thread::interrupt(Thread *thread) {
     if (thread->state == THREAD_RUNNING)
     {
@@ -559,6 +571,7 @@ int Thread::interrupt(Thread *thread) {
         {
             std::lock_guard<std::mutex> gd(thread->mutex);
             thread->state = THREAD_KILLED; // terminate thread
+            sendSignal(thread->signal, tsig_kill, 1);
             return 0;
         }
     }
@@ -582,7 +595,7 @@ void Thread::shutdown() {
 
 void Thread::exit() {
 
-    if(this->exceptionThrown) {
+    if(hasSignal(signal, tsig_except)) {
         this->exitVal = -800;
         cout << throwable.stackTrace.str();
         cout << endl << throwable.throwable->name.str() << " "
@@ -608,6 +621,7 @@ void Thread::exit() {
 
     free(this->callStack); callStack = NULL;
     this->state = THREAD_KILLED;
+    this->signal = tsig_empty;
     this->exited = true;
 }
 
@@ -746,7 +760,6 @@ double exponent(int64_t n){
  * of a function.
  */
 short int startAddress = 0;
-
 /*
  * We need this to keep track of which finally block we are executing
  */
@@ -823,8 +836,11 @@ void Thread::exec() {
 
                 Frame *frame = callStack+(calls--);
 
-                if(current->finallyBlocks.len > 0)
-                    vm->executeFinally(thread_self->current);
+                if(current->finallyBlocks.len > 0) {
+                    if(vm->executeFinally(thread_self->current)) {
+                        _brh
+                    }
+                }
 
                 current = frame->last;
                 cache = current->bytecode;
@@ -846,6 +862,7 @@ void Thread::exec() {
                 _brh
             HLT: // tested
                 state=THREAD_KILLED;
+                sendSignal(signal, tsig_kill, 1);
                 _brh
             NEWARRAY: // tested
                 (++sp)->object =
@@ -1029,6 +1046,7 @@ void Thread::exec() {
 #endif
                 CALLSTACK_CHECK
                 executeMethod(GET_Da(*pc), this);
+                THREAD_EXECEPT();
                 _brh_NOINCREMENT
             CALLD:
 #ifdef SHARP_PROF_
@@ -1041,6 +1059,7 @@ void Thread::exec() {
                 }
                 CALLSTACK_CHECK
                 executeMethod(val, this);
+                THREAD_EXECEPT();
                 _brh_NOINCREMENT
             NEWCLASS:
                 (++sp)->object =
@@ -1127,6 +1146,7 @@ void Thread::exec() {
                 registers[i64cmt]=(int64_t)registers[GET_Ca(*pc)]^(int64_t)registers[GET_Cb(*pc)];
                 _brh
             THROW:
+                exceptionObject = sp->object;
                 throw Exception("", false);
                 _brh
             CHECKNULL:
@@ -1251,6 +1271,7 @@ void Thread::exec() {
                                 if(env->methods[klass->methods[i]].delegateAddress == delegate) {
                                     CALLSTACK_CHECK
                                     executeMethod(env->methods[klass->methods[i]].address, this);
+                                    THREAD_EXECEPT();
                                     _brh_NOINCREMENT
                                 }
                             }
@@ -1278,6 +1299,7 @@ void Thread::exec() {
                                 if(env->methods[klass->methods[i]].delegateAddress == delegate) {
                                     CALLSTACK_CHECK
                                     executeMethod(env->methods[klass->methods[i]].address, this);
+                                    THREAD_EXECEPT();
                                     _brh_NOINCREMENT
                                 }
                             }
@@ -1323,22 +1345,30 @@ void Thread::exec() {
         // TODO: throw out of memory error
     } catch (Exception &e) {
         throwable = e.getThrowable();
-        exceptionThrown = true;
-
-        if(state == THREAD_KILLED) {
-            vm->fillStackTrace(throwable.stackTrace);
-            return;
-        }
-        vm->Throw(&sp->object);
-
-        DISPATCH();
     }
+
+    exception_catch:
+    if(state == THREAD_KILLED) {
+        vm->fillStackTrace(throwable.stackTrace);
+        return;
+    }
+    vm->Throw();
+
+    /**
+     * Exception is still live and must make its transition to low
+     * level Sharp
+     */
+    if(hasSignal(signal, tsig_except) || current->isjit) {
+        return;
+    }
+
+    DISPATCH();
 }
 
 void Thread::interrupt() {
     std::lock_guard<std::mutex> gd(mutex);
 
-    if (suspendPending)
+    if (hasSignal(signal, tsig_suspend))
         suspendSelf();
     if (state == THREAD_KILLED)
         return;
@@ -1355,8 +1385,8 @@ void Thread::setup() {
         GarbageCollector::self->addMemory(sizeof(Frame)*stack_lmt);
     }
     calls=0;
-    suspendPending = false;
-    exceptionThrown = false;
+    sendSignal(signal, tsig_suspend, 0);
+    sendSignal(signal, tsig_except, 0);
     suspended = false;
     exited = false;
     terminated = false;

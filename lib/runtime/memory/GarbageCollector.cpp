@@ -292,7 +292,7 @@ void GarbageCollector::run() {
 #endif
 
     for(;;) {
-        if(tself->suspendPending)
+        if(hasSignal(tself->signal, tsig_suspend))
             Thread::suspendSelf();
         if(tself->state == THREAD_KILLED) {
             return;
@@ -328,8 +328,8 @@ void GarbageCollector::run() {
 #endif
             if(sleep) sedateSelf();
             if(!messageQueue.empty()) goto message;
-        } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD())) && !tself->suspendPending
-                && tself->state == THREAD_RUNNING);
+        } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()))
+                && !hasSignal(tself->signal, tsig_suspend) && tself->state == THREAD_RUNNING);
 
         if(tself->state == THREAD_KILLED)
             return;
@@ -359,7 +359,7 @@ GarbageCollector::threadStart(void *pVoid) {
         self->run();
     } catch(Exception &e){
         /* Should never happen */
-        thread_self->exceptionThrown =true;
+        sendSignal(thread_self->signal, tsig_except, 1);
         thread_self->throwable=e.getThrowable();
     }
 
@@ -629,6 +629,7 @@ void GarbageCollector::kill() {
     mutex.lock();
     if(tself->state == THREAD_RUNNING) {
         tself->state = THREAD_KILLED;
+        sendSignal(tself->signal, tsig_kill, 1);
         Thread::waitForThreadExit(tself);
     }
 

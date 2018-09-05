@@ -49,6 +49,8 @@ void help() {
     cout <<               "    -showversion           print the bootstrap version number and continue." << endl;
     cout <<               "    -Maxlmt<size:type>     set the maximum memory allowed to the virtual machine." << endl;
     cout <<               "    -gthreshold<size:type> set the minimum memory allowed to trigger the garbage collector." << endl;
+    cout <<               "    -nojit                 disable runtime JIT compilation." << endl;
+    cout <<               "    -slowboot              JIT compile entire codebase at startup." << endl;
     cout <<               "    --h -?                 display this help message." << endl;
 }
 
@@ -83,6 +85,12 @@ int runtimeStart(int argc, const char* argv[])
         }
         else if(opt("-showversion")){
             version();
+        }
+        else if(opt("-nojit")){
+            c_options.jit = false;
+        }
+        else if(opt("-slowboot")){
+            c_options.slowBoot = true;
         }
         else if(opt("-gthreashold") || opt("-gt")) {
             bool setLimit;

@@ -51,10 +51,11 @@ void Exception::pushException() {
              * If there is no memory we exit
              */
             thread_self->state = THREAD_KILLED;
+            sendSignal(thread_self->signal, tsig_kill, 1);
             return;
         }
 
-        (++thread_self->sp)->object
+        thread_self->exceptionObject
                 = GarbageCollector::self->newObject(throwable.throwable);
     }
 }
