@@ -211,7 +211,7 @@ struct StackElement {
         var = (int64_t)var|v;
     }
 
-    void notl(int64_t v) {
+    void xorl(int64_t v) {
         var = (int64_t)var^v;
     }
 };

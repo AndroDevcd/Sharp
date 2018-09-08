@@ -759,7 +759,7 @@ double exponent(int64_t n){
  * when executing a finally block or the regular processing
  * of a function.
  */
-short int startAddress = 0;
+thread_local short startAddress = 0;
 /*
  * We need this to keep track of which finally block we are executing
  */
@@ -1142,7 +1142,7 @@ void Thread::exec() {
             OR:
                 registers[i64cmt]=(int64_t)registers[GET_Ca(*pc)]|(int64_t)registers[GET_Cb(*pc)];
                 _brh
-            UNOT:
+            XOR:
                 registers[i64cmt]=(int64_t)registers[GET_Ca(*pc)]^(int64_t)registers[GET_Cb(*pc)];
                 _brh
             THROW:
@@ -1156,10 +1156,8 @@ void Thread::exec() {
                 fp->object=o2;
                 _brh
             NEWCLASSARRAY:
-                CHECK_NULL(
-                        (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Ca(*pc)],
-                                                                                        env->findClassBySerial(GET_Cb(*pc)));
-                )
+                (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Ca(*pc)],
+                                                                    env->findClassBySerial(GET_Cb(*pc)));
                 STACK_CHECK _brh
             NEWSTRING:
                 GarbageCollector::self->createStringArray(&(++sp)->object, env->getStringById(GET_Da(*pc)));
@@ -1200,7 +1198,7 @@ void Thread::exec() {
                 _brh
             IALOAD_2:
                 CHECK_INULLOBJ(
-                        registers[GET_Ca(*pc)] = o2->object->HEAD[(uint64_t)registers[GET_Cb(*pc)]];
+                        registers[GET_Ca(*pc)] = o2->object->HEAD[(int64_t)registers[GET_Cb(*pc)]];
                 )
                 _brh
             POPOBJ:
@@ -1220,8 +1218,8 @@ void Thread::exec() {
             ORL:
                 (fp+GET_Cb(*pc))->orl(registers[GET_Ca(*pc)]);
                 _brh
-            NOTL:
-                (fp+GET_Cb(*pc))->notl(registers[GET_Ca(*pc)]);
+            XORL:
+            (fp + GET_Cb(*pc))->xorl(registers[GET_Ca(*pc)]);
                 _brh
             RMOV:
                 CHECK_INULLOBJ(

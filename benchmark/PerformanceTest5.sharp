@@ -29,7 +29,7 @@ def main(string[] args) : var {
         index++;
         triangle += index;
     }
-    System.println("" + triangle);
+    println("" + triangle);
 }
 
 def factorCount(var n) : var {

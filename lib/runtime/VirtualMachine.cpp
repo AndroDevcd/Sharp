@@ -864,14 +864,12 @@ bool VirtualMachine::TryCatch(Method *method, Object *exceptionObject) {
         if(tbl != NULL)
         {
             Thread* self = thread_self;
-            Object* object = &(self->fp+tbl->local)->object;
-            *object = exceptionObject;
+            (self->fp+tbl->local)->object = exceptionObject;
             self->pc = self->cache+tbl->handler_pc;
-            self->exceptionObject = ((SharpObject*)0);
+            DEC_REF(self->exceptionObject.object);
 
             // cancel exception we caught it
             sendSignal(self->signal, tsig_except, 0);
-            self->throwable.drop();
             startAddress = 0;
             return true;
         }

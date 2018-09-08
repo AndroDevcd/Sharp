@@ -61,8 +61,15 @@ void global_jit_suspendSelf(Thread* thread);
 unsigned long global_jit_finallyBlocks(Method* fn);
 int global_jit_executeFinally();
 SharpObject* global_jit_newObject0(int64_t size);
+void global_jit_newClass0(Thread* thread, int64_t classid);
+void global_jit_newArray0(Thread* thread, int64_t reg);
+void global_jit_pushNil(Thread* thread);
+void global_jit_pushl(Thread* thread, int64_t offset);
+void global_jit_newStr(Thread* thread, int64_t strid);
+void global_jit_newClass1(Thread* thread, int64_t reg, int64_t classid);
 void global_jit_setObject0(StackElement *sp, SharpObject* o);
 void global_jit_setObject1(StackElement *sp, Object* o);
+void global_jit_setObject2(StackElement *sp, Object* o);
 void global_jit_castObject(Object *o2, int64_t klass);
 void global_jit_imod(int64_t op0, int64_t op1);
 void global_jit_put(int op0);
@@ -70,12 +77,18 @@ void global_jit_putc(int op0);
 int64_t global_jit_getpc();
 void global_jit_get(int op0);
 void global_jit_popl(Object* o2, SharpObject* o);
+void global_jit_del(Object* o);
+void global_jit_lock(Object* o);
+void global_jit_ulock(Object* o);
 void global_jit_call0(Thread *thread, int64_t addr);
 void global_jit_call1(Thread* thread, int64_t addr);
 
 // global exception handling functions
 void __srt_cxxa_prepare_throw(Exception &e);
 int __srt_cxxa_try_catch(Method *method);
+void __srt_cxxa_throw_nullptr();
+void __srt_cxxa_throw_exception(Thread *thread);
+void __srt_cxxa_throw_indexOutOfBounds(int reg, int64_t size);
 
 // function calling helper methods
 void passArg0(X86Assembler &cc, int64_t arg0);
@@ -129,6 +142,14 @@ emitReturnOp(X86Assembler &cc, X86Gp &tmp, X86Gp &val, X86Gp &threadReg, X86Gp &
 void checkMasterShutdown(X86Assembler &cc, X86Gp &argsReg, int64_t pc, const Label &lbl_funcend);
 
 void updateThreadPc(X86Assembler &cc, const X86Gp &ctx, const X86Gp &val, const X86Gp &threadPtr, const X86Gp &argsReg);
+
+void safeGuard_CheckNull(const X86Mem &o2Ptr, X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, X86Gp & threadReg, X86Gp & ctx, X86Gp & argsReg, int64_t i, Label &thread_check_section, Label &traceBack);
+
+void safeGuard_CheckNull2(const X86Mem &o2Ptr, X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, X86Gp & threadReg, X86Gp & ctx, X86Gp & argsReg, int64_t i, Label &thread_check_section, Label &traceBack);
+
+void safeGuard_CheckNullObj(const X86Mem &o2Ptr, X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, X86Gp & threadReg, X86Gp & ctx, X86Gp & argsReg, int64_t i, Label &thread_check_section, Label &traceBack);
+
+void safeGuard_CheckINull(const X86Mem &o2Ptr, X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, X86Gp & threadReg, X86Gp & ctx, X86Gp & argsReg, int64_t i, Label &thread_check_section, Label &traceBack);
 
 enum ConstKind {
     kConst64,
@@ -599,6 +620,7 @@ int compile(Method *method) {
                     passArg0(cc, tmp);
                     cc.call((int64_t)global_jit_newObject0);
                     passReturnArg(cc, tmp);
+                    goto_threadSafetyCheck(JIT_TCSFIELDS, labels[i]);
 
                     cc.mov(ctx, threadReg);
                     cc.mov(val, thread_fields[jit_field_id_thread_sp]);
@@ -619,6 +641,7 @@ int compile(Method *method) {
                     passArg0(cc, ctx);
                     passArg1(cc, tmp);
                     cc.call((int64_t)global_jit_castObject);
+                    goto_threadSafetyCheck(JIT_TCSFIELDS, labels[i]);
                     break;
                 }
                 case op_VARCAST: {
@@ -993,6 +1016,24 @@ int compile(Method *method) {
                     cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
                     break;
                 }
+                case op_ADDL: {                        // (fp+GET_Cb(*pc))->var+=registers[GET_Ca(*pc)];
+                    cc.comment("; iaddl", 7);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+
+                    getRegister(registerParams(vec0, GET_Ca(x64)));
+                    cc.addsd(vec0, vec1);
+
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
                 case op_LT: {                     // registers[i64cmt]=registers[GET_Ca(*pc)]<registers[GET_Cb(*pc)];
 
                     cc.comment("; lt", 4);
@@ -1170,6 +1211,29 @@ int compile(Method *method) {
                     cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
                     break;
                 }
+                case op_IPUSHL: { // (++sp)->var = (fp+GET_Da(*pc))->var;
+                    cc.comment("; ipushl", 8);
+
+                    cc.mov(ctx, threadReg);
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+
+                    if(GET_Da(*bc) != 0) {
+                        cc.add(ctx, (int64_t)(sizeof(StackElement) * GET_Da(*bc))); // fp+GET_DA(*pc)
+                    }
+
+                    cc.movsd(vec0, stack_element_fields[jit_field_id_stack_element_var]);
+
+                    cc.mov(ctx, threadReg); // ctx->current
+
+                    cc.mov(val, thread_fields[jit_field_id_thread_sp]); // ctx->current->sp
+                    cc.lea(val, ptr(val, (int32_t)sizeof(StackElement)));
+                    cc.mov(thread_fields[jit_field_id_thread_sp], val); // sp++
+
+                    cc.mov(ctx, val);
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0); // sp->val
+
+                    break;
+                }
                 case op_MOVSL: { // o2 = &((sp+GET_Da(*pc))->object);
                     cc.comment("; movsl", 7);
 
@@ -1244,6 +1308,29 @@ int compile(Method *method) {
                 }
                 case op_CHECKLEN: {
                     // unsupported for now
+                    cc.comment("; checklen", 10);
+                    safeGuard_CheckNull2(o2Ptr, JIT_TCSFIELDS, labels[i]);
+                    getRegister(registerParams(vec0, GET_Da(*bc)));
+
+                    // we control everything so we know ctx holds o2->object
+                    cc.mov(val, sharp_object_fields[jit_field_id_shobj_size]);
+                    int64ToDouble(cc, vec1, val);
+
+                    cc.ucomisd(vec0, vec1);
+                    Label fail = cc.newLabel(), success = cc.newLabel();
+                    cc.jae(fail);
+
+                    SET_LCONST_DVAL2(vec1, 0);
+                    cc.ucomisd(vec0, vec1);
+                    cc.jae(success);
+                    cc.bind(fail);
+
+                    passArg0(cc, GET_Da(*bc));
+                    passArg1(cc, val);
+                    cc.call((int64_t)__srt_cxxa_throw_indexOutOfBounds);
+                    goto_threadSafetyCheck(JIT_TCSFIELDS, labels[i]);
+
+                    cc.bind(success);
                     break;
                 }
                 case op_GOTO: {// $                             // pc = cache+GET_Da(*pc);
@@ -1276,12 +1363,654 @@ int compile(Method *method) {
                     break;
                 }
                 case op_DEL: {
-//                    passArg0(cc, (int64_t)GarbageCollector::self);
-//                    passArg1(cc, o2Ptr);
-//                    cc.call((int64_t)&GarbageCollector::releaseObject);
+                    cc.comment("; del", 5);
+                    passArg0(cc, o2Ptr);
+                    cc.call((int64_t)global_jit_del);
+                    break;
+                }
+                case op_NEWCLASS: {
+                    cc.comment("; newclass", 10);
+                    passArg0(cc, threadReg);
+                    passArg1(cc, GET_Da(*bc));
+                    cc.call((int64_t)global_jit_newClass0);
+                    goto_threadSafetyCheck(JIT_TCSFIELDS, labels[i]);
+                    break;
+                }
+                case op_MOVN: {
+                    cc.comment("; movn", 6);
+                    safeGuard_CheckNullObj(o2Ptr, JIT_TCSFIELDS, labels[i]);
+
+                    if(GET_Da(*bc) > 0)
+                        cc.add(ctx, (int64_t)(GET_Da(*bc)*sizeof(Object)));
+                    cc.mov(o2Ptr, ctx);
+                    break;
+                }
+
+                case op_SLEEP: {
+                    cc.comment("; sleep", 7);
+                    getRegister(registerParams(vec0, GET_Da(*bc)));
+                    doubleToInt64(cc, val, vec0);
+
+                    passArg0(cc, val);
+                    cc.call((int64_t)__os_sleep);
+                    break;
+                }
+                case op_TEST: {
+                    cc.comment("; test", 6);
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+                    cc.add(ctx, (int64_t )(sizeof(double) * i64cmt));
+
+                    getRegister(registerParams(vec1, GET_Ca(x64)));
+                    getRegister(registerParams(vec0, GET_Cb(x64)));
+
+                    cc.ucomisd(vec0, vec1);
+
+                    Label ifFalse = cc.newLabel();
+                    Label ifEnd = cc.newLabel();
+                    cc.jp(ifFalse);
+                    cc.jne(ifFalse);
+                    idx = lconsts.createConstant(cc, (double)(1));
+                    lconstMem = ptr(lconsts.getConstantLabel(idx));
+
+                    cc.movsd(vec0, lconstMem);
+                    cc.jmp(ifEnd);
+                    cc.bind(ifFalse);
+
+                    cc.pxor(vec0, vec0);
+                    cc.bind(ifEnd);
+
+                    tmpMem = qword_ptr(ctx);
+                    cc.movsd(tmpMem, vec0);
+                    break;
+                }
+                case op_TNE: {
+                    cc.comment("; tne", 5);
+                    cc.mov(ctx, registersReg);        // move the contex var into register
+                    cc.add(ctx, (int64_t )(sizeof(double) * i64cmt));
+
+                    getRegister(registerParams(vec1, GET_Ca(x64)));
+                    getRegister(registerParams(vec0, GET_Cb(x64)));
+
+                    cc.ucomisd(vec0, vec1);
+
+                    Label ifFalse = cc.newLabel();
+                    Label ifEnd = cc.newLabel();
+                    cc.jp(ifFalse);
+                    cc.je(ifFalse);
+                    idx = lconsts.createConstant(cc, (double)(1));
+                    lconstMem = ptr(lconsts.getConstantLabel(idx));
+
+                    cc.movsd(vec0, lconstMem);
+                    cc.jmp(ifEnd);
+                    cc.bind(ifFalse);
+
+                    cc.pxor(vec0, vec0);
+                    cc.bind(ifEnd);
+
+                    tmpMem = qword_ptr(ctx);
+                    cc.movsd(tmpMem, vec0);
+                    break;
+                }
+                case op_LOCK: {
+                    cc.comment("; tne", 5);
+                    safeGuard_CheckNullObj(o2Ptr, JIT_TCSFIELDS, labels[i]);
+
+                    passArg0(cc, o2Ptr);
+                    cc.call((int64_t)global_jit_lock);
+                    break;
+                }
+                case op_ULOCK: {
+                    cc.comment("; tne", 5);
+                    safeGuard_CheckNullObj(o2Ptr, JIT_TCSFIELDS, labels[i]);
+
+                    passArg0(cc, o2Ptr);
+                    cc.call((int64_t)global_jit_ulock);
+                    break;
+                }
+                case op_EXP: {
+                    cc.comment("; exp", 5);
+                    getRegister(registerParams(vec0, GET_Da(x64)));
+                    doubleToInt64(cc, val, vec0);
+
+                    passArg0(cc, val);
+                    cc.call((int64_t)exponent);
+
+                    setRegister(setRegisterParams(vec0, i64bmr));
+                    break;
+                }
+
+                case op_MOVG: {
+                    cc.comment("; movg", 6);
+
+                    Object* o = env->globalHeap+GET_Da(*bc);
+                    cc.mov(ctxPtr, (int64_t)o);
+                    break;
+                }
+                case op_MOVND: {
+                    cc.comment("; movn", 6);
+                    safeGuard_CheckNullObj(o2Ptr, JIT_TCSFIELDS, labels[i]);
+                    cc.mov(val, ctx);
+
+                    getRegister(registerParams(vec0, GET_Da(x64)));
+                    doubleToInt64(cc, tmp, vec0);
+
+                    cc.imul(tmp, (size_t)sizeof(Object));
+                    cc.add(ctx, tmp);
+                    cc.mov(o2Ptr, ctx);
+                    break;
+                }
+                case op_NEWOBJARRAY: {
+                    cc.comment("; newclass", 10);
+                    passArg0(cc, threadReg);
+                    passArg1(cc, GET_Da(*bc));
+                    cc.call((int64_t) global_jit_newArray0);
+                    goto_threadSafetyCheck(JIT_TCSFIELDS, labels[i]);
+                    break;
+                }
+
+                case op_NOT: {
+                    cc.comment("; not", 5);
+                    Label ifTrue = cc.newLabel(), end = cc.newLabel();
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    doubleToInt64(cc, tmp, vec0);
+                    cc.cmp(tmp, 0);
+                    cc.ja(ifTrue);
+                    cc.mov(tmp, 1);
+                    cc.jmp(end);
+                    cc.bind(ifTrue);
+                    cc.mov(tmp, 0);
+                    cc.bind(end);
+
+                    int64ToDouble(cc, vec0, tmp);
+                    setRegister(setRegisterParams(vec0, GET_Ca(*bc)));
+                    break;
+                }
+
+                case op_SKIP: {
+                    cc.comment("; skip", 6);
+
+                    if(GET_Da(*bc) > 0) {
+                        cc.mov(val, (int64_t)(i+GET_Da(*bc)+1));
+                        jmpToLabel(cc, val, tmp, labelsPtr);
+                    } else
+                        cc.nop();
+                    break;
+                }
+                case op_SKPE: {
+                    cc.comment("; skpe", 6);
+                    tmpMem = qword_ptr(registersReg, (int64_t )(sizeof(double) * i64cmt));
+                    cc.pxor(vec0, vec0);
+                    cc.ucomisd(vec0, tmpMem);
+                    Label ifEnd = cc.newLabel();
+                    cc.jp(ifEnd);
+                    cc.je(ifEnd);
+                    cc.jmp(labels[i+GET_Da(x64)]);
+
+                    cc.bind(ifEnd);
+
+                    break;
+                }
+                case op_SKNE: {
+                    cc.comment("; skne", 6);
+                    tmpMem = qword_ptr(registersReg, (int64_t )(sizeof(double) * i64cmt));
+                    cc.pxor(vec0, vec0);
+                    cc.ucomisd(vec0, tmpMem);
+                    Label ifEnd = cc.newLabel();
+                    cc.jp(ifEnd);
+                    cc.jne(ifEnd);
+                    cc.jmp(labels[i+GET_Da(x64)]);
+
+                    cc.bind(ifEnd);
+
+                    break;
+                }
+                case op_CMP: {
+                    cc.comment("; cmp", 5);
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+
+                    SET_LCONST_DVAL2(vec1, GET_Cb(*bc));
+                    cc.ucomisd(vec0, vec1);
+                    Label ifEnd = cc.newLabel();
+                    cc.jp(ifEnd);
+                    cc.jne(ifEnd);
+                    cc.pxor(vec0, vec0);
+                    cc.jmp(ifEnd);
+                    SET_LCONST_DVAL2(vec0, 1);
+                    cc.bind(ifEnd);
+                    setRegister(setRegisterParams(vec0, i64cmt));
+                    break;
+                }
+                case op_AND: {
+                    cc.comment("; and", 5);
+                    Label isFalse = cc.newLabel(), isTrue = cc.newLabel(),
+                            end = cc.newLabel();
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+
+                    SET_LCONST_DVAL2(vec1, 0);
+                    cc.ucomisd(vec0, vec1);
+                    cc.jp(isFalse);
+                    cc.je(isFalse);
+
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    cc.ucomisd(vec0, vec1);
+                    cc.jp(isTrue);
+                    cc.jne(isTrue);
+
+                    cc.bind(isFalse);
+                    SET_LCONST_DVAL2(vec0, 0);
+                    cc.jmp(end);
+                    cc.bind(isTrue);
+                    SET_LCONST_DVAL2(vec0, 1);
+                    cc.bind(end);
+
+                    setRegister(setRegisterParams(vec0, i64cmt));
+                    break;
+                }
+                case op_UAND: {
+                    cc.comment("; uand", 6);
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+                    doubleToInt64(cc, rbx, vec0);
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    doubleToInt64(cc, rcx, vec0);
+                    cc.and_(rbx, rcx);
+
+                    int64ToDouble(cc, vec0, rbx);
+                    setRegister(setRegisterParams(vec0, i64cmt));
+                    break;
+                }
+                case op_OR: {
+                    cc.comment("; or", 4);
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+                    doubleToInt64(cc, rbx, vec0);
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    doubleToInt64(cc, rcx, vec0);
+                    cc.or_(rbx, rcx);
+
+                    int64ToDouble(cc, vec0, rbx);
+                    setRegister(setRegisterParams(vec0, i64cmt));
+                    break;
+                }
+                case op_XOR: {
+                    cc.comment("; xor", 5);
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+                    doubleToInt64(cc, rbx, vec0);
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    doubleToInt64(cc, rcx, vec0);
+                    cc.xor_(rbx, rcx);
+
+                    int64ToDouble(cc, vec0, rbx);
+                    setRegister(setRegisterParams(vec0, i64cmt));
+                    break;
+                }
+                case op_THROW: {
+                    cc.comment("; throw", 7);
+                    passArg0(cc, threadReg);
+                    cc.call((int64_t)__srt_cxxa_throw_exception);
+                    goto_threadSafetyCheck(JIT_TCSFIELDS, labels[i]);
+                    break;
+                }
+                case op_CHECKNULL: { // by far one of the dumbest opcodes......
+                    cc.comment("; checknull", 11);
+                    safeGuard_CheckNull2(o2Ptr, JIT_TCSFIELDS, labels[i]);
+                    SET_LCONST_DVAL2(vec0, 1);
+                    setRegister(setRegisterParams(vec0, i64cmt));
+                    break;
+                }
+                case op_RETURNOBJ: {
+                    cc.comment("; retobj", 8);
+                    cc.mov(ctx, threadReg);
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]);
+
+                    passArg0(cc, ctx);
+                    passArg1(cc, o2Ptr);
+                    cc.call((int64_t)global_jit_setObject1);
+                    break;
+                }
+                case op_NEWCLASSARRAY: {
+                    cc.comment("; newclassarry", 15);
+                    passArg0(cc, threadReg);
+                    passArg1(cc, GET_Ca(*bc));
+                    passArg2(cc, GET_Cb(*bc));
+                    cc.call((int64_t)global_jit_newClass1);
+                    goto_threadSafetyCheck(JIT_TCSFIELDS, labels[i]);
+                    break;
+                }
+                case op_NEWSTRING: {
+                    cc.comment("; newstr", 8);
+                    passArg0(cc, threadReg);
+                    passArg1(cc, GET_Da(*bc));
+                    cc.call((int64_t)global_jit_newStr);
+                    goto_threadSafetyCheck(JIT_TCSFIELDS, labels[i]);
+                    break;
+                }
+                case op_SUBL: {                        // (fp+GET_Cb(*pc))->var-=registers[GET_Ca(*pc)];
+                    cc.comment("; subl", 6);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+
+                    getRegister(registerParams(vec0, GET_Ca(x64)));
+                    cc.subsd(vec0, vec1);
+
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_MULL: {                        // (fp+GET_Cb(*pc))->var*=registers[GET_Ca(*pc)];
+                    cc.comment("; iaddl", 7);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+
+                    getRegister(registerParams(vec0, GET_Ca(x64)));
+                    cc.mulsd(vec0, vec1);
+
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_DIVL: {                        // (fp+GET_Cb(*pc))->var/=registers[GET_Ca(*pc)];
+                    cc.comment("; divl", 6);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+
+                    getRegister(registerParams(vec0, GET_Ca(x64)));
+                    cc.divsd(vec0, vec1);
+
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_MODL: {                        // (fp+GET_Cb(*pc))->modul(registers[GET_Ca(*pc)]);
+                    cc.comment("; mod", 6);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+                    doubleToInt64(cc, rax, vec1);
+
+                    getRegister(registerParams(vec0, GET_Ca(x64)));
+                    doubleToInt64(cc, rcx, vec0);
+
+                    cc.cqo();
+                    cc.idiv(rcx);
+                    cc.mov(rax, rdx);
+                    int64ToDouble(cc, vec0, rdx);
+
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_ISUBL: {                        // (fp+GET_Cb(*pc))->var-=GET_Ca(*pc);
+                    cc.comment("; isubl", 7);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+
+                    SET_LCONST_DVAL(GET_Ca(x64));
+                    cc.subsd(vec0, vec1);
+
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_IMULL: {                        // (fp+GET_Cb(*pc))->var*=GET_Ca(*pc);
+                    cc.comment("; imull", 7);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+
+                    SET_LCONST_DVAL(GET_Ca(x64));
+                    cc.mulsd(vec0, vec1);
+
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_IDIVL: {                        // (fp+GET_Cb(*pc))->var*=GET_Ca(*pc);
+                    cc.comment("; idivl", 7);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+
+                    SET_LCONST_DVAL(GET_Ca(x64));
+                    cc.divsd(vec0, vec1);
+
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_IMODL: {                        // (fp+GET_Cb(*pc))->var*=GET_Ca(*pc);
+                    cc.comment("; imodl", 7);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+                    doubleToInt64(cc, rax, vec1);
+
+                    SET_LCONST_DVAL2(vec0, GET_Ca(x64));
+                    doubleToInt64(cc, rcx, vec0);
+
+                    cc.cqo();
+                    cc.idiv(rcx);
+                    cc.mov(rax, rdx);
+                    int64ToDouble(cc, vec0, rdx);
+
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_IALOAD_2: {
+                    cc.comment("; iaload_2", 10);
+                    safeGuard_CheckINull(o2Ptr, JIT_TCSFIELDS, labels[i]);
+
+                    getRegister(registerParams(vec0, GET_Cb(*bc)));
+                    doubleToInt64(cc, val, vec0);
+
+                    cc.mul(val, sizeof(double));
+                    cc.movsd(vec0, qword_ptr(ctx, val));
+                    setRegister(setRegisterParams(vec0, GET_Ca(*bc)));
+                    break;
+                }
+                case op_POPOBJ: {
+                    cc.comment("; popobj", 8);
+                    safeGuard_CheckNull(o2Ptr, JIT_TCSFIELDS, labels[i]);
+                    cc.mov(ctx, threadReg);
+                    cc.mov(tmp, thread_fields[jit_field_id_thread_sp]);
+                    cc.lea(val, ptr(tmp, ((int32_t)-sizeof(StackElement))));
+                    cc.mov(thread_fields[jit_field_id_thread_sp], val);
+
+                    cc.add(tmp, (size_t)sizeof(double));
+
+                    passArg0(cc, tmp);
+                    passArg1(cc, o2Ptr);
+                    cc.call((int64_t)global_jit_setObject2);
+                    break;
+                }
+                case op_SMOVR: {
+                    cc.comment("; smovr", 7);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_sp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    getRegister(registerParams(vec0, GET_Ca(x64)));
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_SMOVR_2: {
+                    cc.comment("; smovr", 7);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    getRegister(registerParams(vec0, GET_Ca(x64)));
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_ANDL: {
+                    cc.comment("; andL", 6);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+                    doubleToInt64(cc, rax, vec1);
+
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+                    doubleToInt64(cc, rcx, vec0);
+                    cc.and_(rbx, rcx);
+
+                    int64ToDouble(cc, vec0, rbx);
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_ORL: {
+                    cc.comment("; orl", 5);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+                    doubleToInt64(cc, rax, vec1);
+
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+                    doubleToInt64(cc, rcx, vec0);
+                    cc.or_(rbx, rcx);
+
+                    int64ToDouble(cc, vec0, rbx);
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_XORL: {
+                    cc.comment("; xorl", 6);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+                    doubleToInt64(cc, rax, vec1);
+
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+                    doubleToInt64(cc, rcx, vec0);
+                    cc.xor_(rbx, rcx);
+
+                    int64ToDouble(cc, vec0, rbx);
+                    cc.movsd(stack_element_fields[jit_field_id_stack_element_var], vec0);
+                    break;
+                }
+                case op_RMOV: {
+                    cc.comment("; rmov", 6);
+                    safeGuard_CheckINull(o2Ptr, JIT_TCSFIELDS, labels[i]);
+
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+                    doubleToInt64(cc, rcx, vec0);
+                    cc.mul(rcx, (int64_t)sizeof(double));
+                    cc.add(ctx, rcx);
+
+                    getRegister(registerParams(vec0, GET_Ca(*bc)));
+                    cc.movsd(qword_ptr(ctx), vec0);
+                    break;
+                }
+                case op_SMOV: {
+                    cc.comment("; smov", 6);
+                    cc.mov(ctx, threadReg); // ctx->current
+                    cc.mov(ctx, thread_fields[jit_field_id_thread_sp]); // ctx->current->fp
+                    if(GET_Cb(x64) != 0) {
+                        cc.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(x64)));
+                    }
+
+                    cc.mov(tmp, ctx);
+                    tmpMem = qword_ptr(tmp);
+                    cc.movsd(vec1, tmpMem);
+
+                    setRegister(setRegisterParams(vec1, GET_Ca(*bc)));
+                    break;
+                }
+                case op_LOADPC_2: {
+                    cc.comment("; loadpc_2", 10);
+                    cc.call((int64_t)global_jit_getpc);
+                    passReturnArg(cc, val);
+
+                    cc.add(val, GET_Cb(*bc));
+                    int64ToDouble(cc, vec0, val);
+
+                    setRegister(setRegisterParams(vec0, GET_Ca(*bc)));
+                    break;
+                }
+                case op_PUSHNIL: {
+                    cc.comment("; pushnil", 9);
+
+                    passArg0(cc, threadReg);
+                    cc.call((int64_t)global_jit_pushNil);
+                    goto_threadSafetyCheck(JIT_TCSFIELDS, labels[i]);
+                    break;
+                }
+                case op_PUSHL: {
+                    cc.comment("; pushl", 7);
+
+                    passArg0(cc, threadReg);
+                    passArg1(cc, GET_Da(*bc));
+                    cc.call((int64_t)global_jit_pushl);
+                    goto_threadSafetyCheck(JIT_TCSFIELDS, labels[i]);
                     break;
                 }
                 case op_CALL: {
+                    cc.comment("; call", 6);
                     passArg0(cc, threadReg);
                     passArg1(cc, GET_Da(*bc));
                     cc.call((int64_t) global_jit_call0);
@@ -1293,6 +2022,7 @@ int compile(Method *method) {
                     break;
                 }
                 case op_CALLD: {
+                    cc.comment("; calld", 7);
                     passArg0(cc, threadReg);
                     passArg1(cc, GET_Da(*bc));
                     cc.call((int64_t) global_jit_call1);
@@ -1440,6 +2170,74 @@ int compile(Method *method) {
     }
 
     return jit_error_compile;
+}
+
+void safeGuard_CheckINull(const X86Mem &o2Ptr, X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, X86Gp & threadReg, X86Gp & ctx, X86Gp & argsReg, int64_t i, Label &thread_check_section, Label &traceBack) {
+    cc.mov(ctx, o2Ptr);
+    cc.cmp(ctx, 0); // 02==NULL
+    Label nullCheckPassed = cc.newLabel();
+    Label nullCheckFailed = cc.newLabel();
+    cc.je(nullCheckFailed);
+
+    cc.mov(ctx, x86::qword_ptr(ctx));
+    cc.cmp(ctx, 0);
+    cc.je(nullCheckFailed);
+
+    cc.mov(ctx, sharp_object_fields[jit_field_id_shobj_HEAD]);
+    cc.cmp(ctx, 0);
+    cc.jne(nullCheckPassed);
+
+    cc.bind(nullCheckFailed);
+    cc.call((int64_t)__srt_cxxa_throw_nullptr);
+    goto_threadSafetyCheck(JIT_TCSFIELDS, traceBack);
+    cc.bind(nullCheckPassed);
+}
+
+void safeGuard_CheckNullObj(const X86Mem &o2Ptr, X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, X86Gp & threadReg, X86Gp & ctx, X86Gp & argsReg, int64_t i, Label &thread_check_section, Label &traceBack) {
+    cc.mov(ctx, o2Ptr);
+    cc.cmp(ctx, 0); // 02==NULL
+    Label nullCheckPassed = cc.newLabel();
+    Label nullCheckFailed = cc.newLabel();
+    cc.je(nullCheckFailed);
+
+    cc.mov(ctx, x86::qword_ptr(ctx));
+    cc.cmp(ctx, 0);
+    cc.je(nullCheckFailed);
+
+    cc.mov(ctx, sharp_object_fields[jit_field_id_shobj_node]);
+    cc.cmp(ctx, 0);
+    cc.jne(nullCheckPassed);
+
+    cc.bind(nullCheckFailed);
+    cc.call((int64_t)__srt_cxxa_throw_nullptr);
+    goto_threadSafetyCheck(JIT_TCSFIELDS, traceBack);
+    cc.bind(nullCheckPassed);
+}
+
+void safeGuard_CheckNull2(const X86Mem &o2Ptr, X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, X86Gp & threadReg, X86Gp & ctx, X86Gp & argsReg, int64_t i, Label &thread_check_section, Label &traceBack) {
+    cc.mov(ctx, o2Ptr);
+    cc.cmp(ctx, 0); // 02==NULL
+    Label nullCheckPassed = cc.newLabel();
+    Label nullCheckFailed = cc.newLabel();
+    cc.je(nullCheckFailed);
+    cc.mov(ctx, x86::qword_ptr(ctx));
+    cc.cmp(ctx, 0);
+    cc.jne(nullCheckPassed);
+
+    cc.bind(nullCheckFailed);
+    cc.call((int64_t)__srt_cxxa_throw_nullptr);
+    goto_threadSafetyCheck(JIT_TCSFIELDS, traceBack);
+    cc.bind(nullCheckPassed);
+}
+
+void safeGuard_CheckNull(const X86Mem &o2Ptr, X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, X86Gp & threadReg, X86Gp & ctx, X86Gp & argsReg, int64_t i, Label &thread_check_section, Label &traceBack) {
+    cc.mov(ctx, o2Ptr);
+    cc.cmp(ctx, 0); // 02==NULL
+    Label nullCheckPassed = cc.newLabel();
+    cc.jne(nullCheckPassed);
+    cc.call((int64_t)__srt_cxxa_throw_nullptr);
+    goto_threadSafetyCheck(JIT_TCSFIELDS, traceBack);
+    cc.bind(nullCheckPassed);
 }
 
 void checkMasterShutdown(X86Assembler &cc, X86Gp &argsReg, int64_t pc, const Label &lbl_funcend) {
@@ -1596,7 +2394,9 @@ void incrementPc(X86Assembler &cc, const X86Gp &ctx, const X86Gp &val, const X86
 
 void setRegister(X86Assembler &cc, const X86Gp &ctx, const X86Gp &registersReg, const X86Xmm &vec0, const int64_t reg) {
     cc.mov(ctx, registersReg);        // move the contex var into register
-    cc.add(ctx, (int64_t )(sizeof(double) * reg));
+    if(reg != 0) {
+        cc.add(ctx, (int64_t )(sizeof(double) * reg));
+    }
     cc.movsd(x86::qword_ptr(ctx), vec0);
 }
 
@@ -2009,6 +2809,24 @@ void global_jit_dump(Profiler* prof) {
     sendSignal(thread_self->jctx->current->signal, tsig_except, 1);
  }
 
+ void __srt_cxxa_throw_nullptr() {
+     Exception e(Environment::NullptrException, "");
+     __srt_cxxa_prepare_throw(e);
+ }
+
+ void __srt_cxxa_throw_exception(Thread *thread) {
+     thread->exceptionObject = thread->sp->object;
+     Exception e("", false);
+     __srt_cxxa_prepare_throw(e);
+ }
+
+ void __srt_cxxa_throw_indexOutOfBounds(int reg, int64_t size) {
+     stringstream ss;
+     ss << "Access to Object at: " << registers[reg] << " size is " << size;
+     Exception e(Environment::IndexOutOfBoundsException, ss.str());
+     __srt_cxxa_prepare_throw(e);
+ }
+
  int __srt_cxxa_try_catch(Method *method) {
      return vm->TryCatch(method, &thread_self->exceptionObject) ? 1 : 0;
  }
@@ -2039,12 +2857,87 @@ SharpObject* global_jit_newObject0(int64_t size) {
     }
 }
 
+void global_jit_newClass0(Thread* thread, int64_t classid) {
+    try {
+        (++thread->sp)->object =
+                GarbageCollector::self->newObject(&env->classes[classid]);
+    } catch(Exception &e) {
+        __srt_cxxa_prepare_throw(e);
+    }
+}
+
+void global_jit_newClass1(Thread* thread, int64_t reg, int64_t classid) {
+    try {
+        (++thread->sp)->object = GarbageCollector::self->newObjectArray(registers[reg],
+                env->findClassBySerial(classid));
+        if(((thread->sp-thread->dataStack)+1) >= thread->stack_lmt) {
+            Exception e(Environment::StackOverflowErr, "");
+            __srt_cxxa_prepare_throw(e);
+        }
+    } catch(Exception &e) {
+        __srt_cxxa_prepare_throw(e);
+    }
+}
+
+void global_jit_newStr(Thread* thread, int64_t strid) {
+    try {
+        GarbageCollector::self->createStringArray(&(++thread->sp)->object,
+                                                  env->getStringById(strid));
+        if(((thread->sp-thread->dataStack)+1) >= thread->stack_lmt) {
+            Exception e(Environment::StackOverflowErr, "");
+            __srt_cxxa_prepare_throw(e);
+        }
+    } catch(Exception &e) {
+        __srt_cxxa_prepare_throw(e);
+    }
+}
+
+void global_jit_newArray0(Thread* thread, int64_t reg) {
+    try {
+        (++thread->sp)->object = GarbageCollector::self->newObjectArray(registers[reg]);
+        if(((thread->sp-thread->dataStack)+1) >= thread->stack_lmt) {
+            Exception e(Environment::StackOverflowErr, "");
+            __srt_cxxa_prepare_throw(e);
+        }
+    } catch(Exception &e) {
+        __srt_cxxa_prepare_throw(e);
+    }
+}
+
+void global_jit_pushNil(Thread* thread) {
+    try {
+        GarbageCollector::self->releaseObject(&(++thread->sp)->object);
+        if(((thread->sp-thread->dataStack)+1) >= thread->stack_lmt) {
+            Exception e(Environment::StackOverflowErr, "");
+            __srt_cxxa_prepare_throw(e);
+        }
+    } catch(Exception &e) {
+        __srt_cxxa_prepare_throw(e);
+    }
+}
+
+void global_jit_pushl(Thread* thread, int64_t offset) {
+    try {
+        (++thread->sp)->object = (thread->fp+offset)->object;
+        if(((thread->sp-thread->dataStack)+1) >= thread->stack_lmt) {
+            Exception e(Environment::StackOverflowErr, "");
+            __srt_cxxa_prepare_throw(e);
+        }
+    } catch(Exception &e) {
+        __srt_cxxa_prepare_throw(e);
+    }
+}
+
 void global_jit_setObject0(StackElement *sp, SharpObject* o) {
     sp->object = o;
 }
 
 void global_jit_setObject1(StackElement *sp, Object* o) {
     sp->object = o;
+}
+
+void global_jit_setObject2(StackElement *sp, Object* o) {
+    *o = sp->object;
 }
 
 void global_jit_castObject(Object *o2, int64_t klass) {
@@ -2080,6 +2973,18 @@ void global_jit_get(int op0) {
 
 void global_jit_popl(Object* o2, SharpObject* o) {
     *o2 = o;
+}
+
+void global_jit_del(Object* o) {
+    GarbageCollector::self->releaseObject(o);
+}
+
+void global_jit_lock(Object* o) {
+    o->monitorLock();
+}
+
+void global_jit_ulock(Object* o) {
+    o->monitorUnLock();
 }
 
 void global_jit_call0(Thread *thread, int64_t addr) {

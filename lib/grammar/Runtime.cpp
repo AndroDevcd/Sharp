@@ -3230,7 +3230,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                     out.code.push_i64(SET_Ci(i64, op_ORL, i64ebx,0, left.utype.field.address));
                 } else if(operand == "^=") {
                     pushExpressionToRegister(right, out, i64ebx);
-                    out.code.push_i64(SET_Ci(i64, op_NOTL, i64ebx,0, left.utype.field.address));
+                    out.code.push_i64(SET_Ci(i64, op_XORL, i64ebx,0, left.utype.field.address));
                 }
 
             } else {
@@ -3753,7 +3753,7 @@ Expression RuntimeEngine::parseAndExpression(Ast* pAst) {
 
                             pushExpressionToRegister(right, out, i64ebx);
                             out.code.push_i64(SET_Di(i64, op_LOADVAL, i64ecx));
-                            out.code.push_i64(SET_Ci(i64, op_UNOT, i64ecx,0, i64ebx));
+                            out.code.push_i64(SET_Ci(i64, op_XOR, i64ecx,0, i64ebx));
                             out.code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64cmt));
                             out.inCmtRegister = true;
                         }
@@ -8994,9 +8994,9 @@ void RuntimeEngine::createDumpFile() {
                     _ostream << ss.str();
                     break;
                 }
-                case op_UNOT:
+                case op_XOR:
                 {
-                    ss<<"unot ";
+                    ss<<"xor ";
                     ss<< Asm::registrerToString(GET_Ca(x64));
                     ss<< ", ";
                     ss<< Asm::registrerToString(GET_Cb(x64));
@@ -9178,9 +9178,9 @@ void RuntimeEngine::createDumpFile() {
                     _ostream << ss.str();
                     break;
                 }
-                case op_NOTL:
+                case op_XORL:
                 {
-                    ss<<"notl ";
+                    ss<<"xorl ";
                     ss<< Asm::registrerToString(GET_Ca(x64));
                     ss<< ", ";
                     ss<< GET_Cb(x64);

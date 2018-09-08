@@ -946,13 +946,13 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_register();
 
                 assembler.push_i64(SET_Ci(i64, op_OR, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
-            } else if(instruction_is("unot")) {
+            } else if(instruction_is("xor")) {
                 expect_register();
                 itmp = i2;
                 expect(",");
                 expect_register();
 
-                assembler.push_i64(SET_Ci(i64, op_UNOT, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+                assembler.push_i64(SET_Ci(i64, op_XOR, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
             } else if(instruction_is("throw")) {
                 assembler.push_i64(SET_Ei(i64, op_THROW));
             } else if(instruction_is("check_null")) {
@@ -1100,13 +1100,13 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_int();
 
                 assembler.push_i64(SET_Ci(i64, op_ORL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
-            } else if(instruction_is("notl")) {
+            } else if(instruction_is("xorl")) {
                 expect_register();
                 itmp = i2;
                 expect(",");
                 expect_int();
 
-                assembler.push_i64(SET_Ci(i64, op_NOTL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+                assembler.push_i64(SET_Ci(i64, op_XORL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
             } else if(instruction_is("rmov")) {
                 expect_register();
                 itmp = i2;

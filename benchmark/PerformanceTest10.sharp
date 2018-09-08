@@ -17,31 +17,31 @@ import std.io;
  */
 def main(string[] args) : var {
     ArrayList<var> varLst1 = new ArrayList<var>();
-    var past = System.getUtcTimeInMills(), now;
+    var past = getUtcTimeInMills(), now;
 
     for(var i = 0; i < 2000000; i++)
     {
         varLst1.add(i);
     }
 
-    now = System.getUtcTimeInMills();
-    System.println("ArrayList<var> time (" + (now-past) + ") ms");
+    now = getUtcTimeInMills();
+    println("ArrayList<var> time (" + (now-past) + ") ms");
     varLst1.clear();
 
     VarList varLst2 = new VarList();
-    past = System.getUtcTimeInMills();
+    past = getUtcTimeInMills();
 
     for(var i = 0; i < 2000000; i++)
     {
         varLst2.add(i);
     }
 
-    now = System.getUtcTimeInMills();
-    System.println("VarList time (" + (now-past) + ") ms");
+    now = getUtcTimeInMills();
+    println("VarList time (" + (now-past) + ") ms");
     varLst2.clear();
 
     ArrayList<TestClass> classLst = new ArrayList<TestClass>();
-    past = System.getUtcTimeInMills();
+    past = getUtcTimeInMills();
 
     for(var i = 0; i < 1000000; i++)
     {
@@ -49,11 +49,11 @@ def main(string[] args) : var {
     }
     classLst.clear();
 
-    now = System.getUtcTimeInMills();
-    System.println("ArrayList<TestClass> time (" + (now-past) + ") ms");
+    now = getUtcTimeInMills();
+    println("ArrayList<TestClass> time (" + (now-past) + ") ms");
 
     ObjList classLst2 = new ObjList(); // fast anonymous dataset list
-    past = System.getUtcTimeInMills();
+    past = getUtcTimeInMills();
 
     for(var i = 0; i < 1000000; i++)
     {
@@ -61,8 +61,8 @@ def main(string[] args) : var {
     }
     classLst2.clear();
 
-    now = System.getUtcTimeInMills();
-    System.println("ObjList time (" + (now-past) + ") ms");
+    now = getUtcTimeInMills();
+    println("ObjList time (" + (now-past) + ") ms");
 }
 
 public class TestClass {

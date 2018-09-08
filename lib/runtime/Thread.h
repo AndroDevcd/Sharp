@@ -209,7 +209,7 @@ extern thread_local double registers[12];
 
 extern unsigned long long irCount, overflow;
 extern FinallyTable finallyTable;
-extern short int startAddress;
+extern thread_local short startAddress;
 extern double exponent(int64_t n);
 
 #endif //SHARP_THREAD_H

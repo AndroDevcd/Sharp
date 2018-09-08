@@ -28,6 +28,6 @@ public static def main(string[] args) : var {
     var end = string.parseInt(args[1]);
 
     for(var i = n; i < end; i++) {
-        System.println("rollAvg(" + i + ") = " + rollAverage(i));
+        println("rollAvg(" + i + ") = " + rollAverage(i));
     }
 }

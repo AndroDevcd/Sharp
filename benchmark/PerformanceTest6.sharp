@@ -19,7 +19,7 @@ def main(string[] args) : var {
 
     for(var i = 0; i < 6; i++)
         for(var j = 0; j < 6; j++)
-            System.println("ackerman (" + i + "," + j + ") = "+ ack(i,j));
+            println("ackerman (" + i + "," + j + ") = "+ ack(i,j));
 }
 
 def ack(var m, var n) : var {

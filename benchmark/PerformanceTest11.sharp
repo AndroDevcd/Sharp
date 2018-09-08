@@ -13,10 +13,10 @@ import std;
  */
 def main(string[] args) : var {
     var out;
-    for(var i =0; i <= 100; i++)
-        for(var j = 0; j <= 1000; j++)
+    for(var i =0; i <= 100000; i++)
+        for(var j = 0; j <= 10000; j++)
             out+=i+j;
 
 
-    System.println("" + out);
+    println("" + out);
 }

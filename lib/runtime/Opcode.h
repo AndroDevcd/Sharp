@@ -147,7 +147,7 @@
             &&AND,                      \
             &&UAND,                      \
             &&OR,                      \
-            &&UNOT,                      \
+            &&XOR,                      \
             &&THROW,                      \
             &&CHECKNULL,                      \
             &&RETURNOBJ,                      \
@@ -169,7 +169,7 @@
             &&SMOVR,                        \
             &&ANDL,                        \
             &&ORL,                        \
-            &&NOTL,                        \
+            &&XORL,                        \
             &&RMOV,                          \
             &&SMOV,                          \
             &&LOADPC_2,                      \
@@ -267,7 +267,7 @@ enum Opcode {
     op_AND                      =0x44,
     op_UAND                     =0x45,
     op_OR                       =0x46,
-    op_UNOT                     =0x47,
+    op_XOR                     =0x47,
     op_THROW                    =0x48,
     op_CHECKNULL                =0x49,
     op_RETURNOBJ                =0x4a,
@@ -289,7 +289,7 @@ enum Opcode {
     op_SMOVR                    =0x5a,
     op_ANDL                     =0x5b,
     op_ORL                      =0x5c,
-    op_NOTL                     =0x5d,
+    op_XORL                     =0x5d,
     op_RMOV                     =0x5e,
     op_SMOV                     =0x5f,
     op_LOADPC_2                 =0x60,
