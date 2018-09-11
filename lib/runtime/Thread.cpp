@@ -1255,63 +1255,13 @@ void Thread::exec() {
                 registers[GET_Da(*pc)] = o2->object == (sp--)->object.object;
                 _brh
             INVOKE_DELEGATE:
-                delegate= GET_Ca(*pc);
-                args= GET_Cb(*pc);
-
-                o2 = &(sp-args)->object;
-
-
-                CHECK_NULL2(
-                        klass = o2->object->k;
-                        if(klass!= NULL) {
-                            search:
-                            for(long i = 0; i < klass->methodCount; i++) {
-                                if(env->methods[klass->methods[i]].delegateAddress == delegate) {
-                                    CALLSTACK_CHECK
-                                    executeMethod(env->methods[klass->methods[i]].address, this);
-                                    THREAD_EXECEPT();
-                                    _brh_NOINCREMENT
-                                }
-                            }
-
-                            if(klass->base != NULL) {
-                                klass = klass->base;
-                                goto search;
-                            }
-                            throw Exception(Environment::RuntimeErr, "delegate function has no subscribers");
-                        } else {
-                            throw Exception(Environment::RuntimeErr, "attempt to call delegate function on non class object");
-                        }
-                )
-                _brh
+                invokeDelegate(GET_Ca(*pc), GET_Cb(*pc), this, 0);
+                THREAD_EXECEPT();
+                _brh_NOINCREMENT
             INVOKE_DELEGATE_STATIC:
-                delegate= GET_Ca(*pc);
-                args= GET_Cb(*pc);
-
-                o2 = &env->globalHeap[*(++pc)];
-
-                CHECK_NULL2(
-                        klass = o2->object->k;
-                        if(klass!= NULL) {
-                            for(long i = 0; i < klass->methodCount; i++) {
-                                if(env->methods[klass->methods[i]].delegateAddress == delegate) {
-                                    CALLSTACK_CHECK
-                                    executeMethod(env->methods[klass->methods[i]].address, this);
-                                    THREAD_EXECEPT();
-                                    _brh_NOINCREMENT
-                                }
-                            }
-
-                            if(klass->base != NULL) {
-                                klass = klass->base;
-                                goto search;
-                            }
-                            throw Exception(Environment::RuntimeErr, "delegate function has no subscribers");
-                        } else {
-                            throw Exception(Environment::RuntimeErr, "attempt to call delegate function on non class object");
-                        }
-                )
-                _brh
+                invokeDelegate(GET_Ca(*pc), GET_Cb(*pc), this, *(++pc));
+                THREAD_EXECEPT();
+                _brh_NOINCREMENT
             ISADD:
                 (sp+GET_Cb(*pc))->var+=GET_Ca(*pc);
                 _brh
@@ -1327,13 +1277,8 @@ void Thread::exec() {
                 } else  _brh
             SWITCH: {
                 LONG_CALL();
-                if((val = current->switchTable.get(GET_Da(*pc)).values.indexof(registers[i64ebx])) != -1 ) {
-                    pc=cache+current->switchTable.get(GET_Da(*pc)).addresses.get(val);
-                    _brh_NOINCREMENT
-                } else {
-                    pc=cache+current->switchTable.get(GET_Da(*pc)).defaultAddress;
-                    _brh_NOINCREMENT
-                }
+                executeSwitch(this, GET_Da(*pc));
+                _brh_NOINCREMENT
             }
 
 

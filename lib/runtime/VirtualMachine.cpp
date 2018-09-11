@@ -169,6 +169,44 @@ int CreateVirtualMachine(std::string exe)
     return 0;
 }
 
+int64_t executeSwitch(Thread* thread, int64_t constant) {
+    register int64_t val;
+    if((val = thread->current->switchTable.get(constant).values.indexof(registers[i64ebx])) != -1 ) {
+        thread->pc=thread->cache+thread->current->switchTable.get(constant).addresses.get(val);
+        return PC(thread);
+    } else {
+        thread->pc=thread->cache+thread->current->switchTable.get(constant).defaultAddress;
+        return PC(thread);
+    }
+}
+
+void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t staticAddr) {
+    SharpObject* o2 = staticAddr!=0 ? env->globalHeap[staticAddr].object :  (thread->sp-args)->object.object;
+    ClassObject* klass;
+
+    if(o2!=NULL) {
+        klass = o2->k;
+        if (klass != NULL) {
+            search:
+            for (long i = 0; i < klass->methodCount; i++) {
+                if (env->methods[klass->methods[i]].delegateAddress == address) {
+                    if((thread->calls+1) >= thread->stack_lmt) throw Exception(Environment::StackOverflowErr, "");
+                    executeMethod(env->methods[klass->methods[i]].address, thread);
+                    return;
+                }
+            }
+
+            if (klass->base != NULL) {
+                klass = klass->base;
+                goto search;
+            }
+            throw Exception(Environment::RuntimeErr, "delegate function has no subscribers");
+        } else {
+            throw Exception(Environment::RuntimeErr, "attempt to call delegate function on non class object");
+        }
+    } else
+        throw Exception(Environment::NullptrException, "");
+}
 
 void executeMethod(int64_t address, Thread* thread, bool inJit) {
 

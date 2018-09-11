@@ -82,5 +82,7 @@ extern bool masterShutdown;
 
 int CreateVirtualMachine(std::string);
 void executeMethod(int64_t address, Thread* thread, bool inJit = false);
+void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t staticAddr);
+int64_t executeSwitch(Thread* thread, int64_t constant);
 
 #endif //SHARP_SHARP_H

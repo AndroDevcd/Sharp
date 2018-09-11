@@ -542,7 +542,7 @@ int Process_Exe(std::string exe)
     }
 
     env->methods[8].isjit=true;
-    env->methods[7].isjit=true;
+//    env->methods[7].isjit=true;
     return 0;
 }
 

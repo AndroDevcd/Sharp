@@ -10,8 +10,7 @@ def fib(var n) : var
 }
 
 def foo() {
-    for(var i = 0; i < 100000; i++) {
-    }
+    foo();
 }
 
 //var[] arry = new var[] { 1, 2, 3, 4, 5, 6 };
@@ -23,90 +22,5 @@ def foo() {
  * This file contains all the testing of the Sharp JIT
  */
 def main() {
-//    var[] a = arry;
-//    var i=09, z;
-//    for(; i < 100000000; i++) {
-//        z *= a[0];
-//        z -= a[4] +1;
-//         z += a[2] +2;
-//    }
-
-//    for(var i = 0; i < 10000; i++) {
-//        foo();
-//    }
-      print(fib(40));
-//    for(var i = 0; i < 1_000_000; i++) {
-//        try {
-//            asm("int 0x9f");
-//        }//catch(Throwable e) {
-//            asm("nop");
-//        }
-//        finally {
-////            return;
-//        }
-//    }
-    asm(
-    "nop"
-//        "loadpc %ebx"
-//        "movsl 0"
-//        "ipopl 0"
-//        "popl 0"
-//        "put ebx"
-//        "nop"
-//        "int 0x9f" // this call does nothing so its safe
-//        "hlt "
-//        "movi #1,%ebx"
-//        "newarray %ebx"
-//        "movi $nxt,%adx"
-//        "brh"
-//        "nop"
-//        ".nxt:"
-//        "movi #1000000,%ebx"
-//        "mov8 %ebx,%ebx"
-//        "movi #1000000,%ebx"
-//        "mov16 %ebx,%ebx"
-//        "movi #100000000000,%ebx"
-////        "nop nop nop nop nop"
-//        "mov16 %ebx,%ebx"
-////        "put %ebx"
-//        "movi #100000000000,%ebx"
-//        "mov32 %ebx,%ebx"
-////        "put %ebx"
-//        "movi #10000000,%ebx"
-//        "movu8 %ebx,%ebx"
-////        "put %ebx"
-//        "movi #10000000,%ebx"
-//        "movu16 %ebx,%ebx"
-////        "put %ebx"
-//        "movi #10_000_000_000,%ebx"
-//        "movu32 %ebx,%ebx"
-//        "put %ebx"
-//        "rstore %ebx"
-//        "movi 2,%ebx"
-//        "movi 2,%cx"
-//        "add %ebx,%ecx, %egx"
-//        "put %egx"
-//        "sub %ebx,%ecx, %egx"
-//        "put %egx"
-//        "mul %ebx,%ecx, %egx"
-//        "put %egx"
-//        "div %ebx,%ecx, %egx"
-//        "put %egx"
-//        "mod %ebx,%ecx, %egx"
-//        "put %egx"
-//        "iadd %ecx,#2"
-//        "isub %ecx,#2"
-//        "imul %ecx,#2"
-//        "isub %ecx,#2"
-//        "imod %ecx,#2"
-//        "pop"
-//        "inc %ecx"
-//        "inc %ecx"
-//        "nop nop nop nop nop nop "
-//        "dec %ecx"
-//        "dec %ecx"
-//        "movr %ebx,%ecx"
-//        "put %ebx"
-//        "ret"
-    );
+    foo();
 }
