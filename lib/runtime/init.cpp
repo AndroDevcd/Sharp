@@ -48,6 +48,7 @@ void help() {
 #endif
     cout <<               "    -showversion           print the bootstrap version number and continue." << endl;
     cout <<               "    -Maxlmt<size:type>     set the maximum memory allowed to the virtual machine." << endl;
+    cout <<               "    -stack<size:type>      set the default stack size allowed to threads." << endl;
     cout <<               "    -gthreshold<size:type> set the minimum memory allowed to trigger the garbage collector." << endl;
     cout <<               "    -nojit                 disable runtime JIT compilation." << endl;
     cout <<               "    -slowboot              JIT compile entire codebase at startup." << endl;
@@ -131,6 +132,24 @@ int runtimeStart(int argc, const char* argv[])
                     error("expected postfix 'K', 'M', or 'G' after number with option `-Maxlmt`");
             }
         }
+        else if(opt("-stack")){
+            if(i+1 >= argc)
+                error("maximum stack limit required after option `-stack`");
+            else {
+                bool setLimit;
+                size_t sz = getMemBytes(argv[++i], setLimit);
+                if(Thread::validStackSize(sz)) {
+                    dStackSz = sz;
+                } else {
+                    stringstream ss;
+                    ss << "default stack size must be between " << STACK_MIN << " & " << STACK_MAX << " bytes \n";
+                    error(ss.str());
+                }
+
+                if(!setLimit)
+                    error("expected postfix 'K', 'M', or 'G' after number with option `-stack`");
+            }
+        }
         else if(string(argv[i]).at(0) == '-'){
             error("invalid option `" + string(argv[i]) + "`, try sharp -h");
         }
@@ -210,7 +229,8 @@ int startApplication(string exe, List<native_string>& pArgs) {
     }
 
     init_main(pArgs);
-    vm->InterpreterThreadStart(Thread::threads.get(main_threadid));
+    Thread::start(main_threadid, 0);
+    Thread::join(main_threadid);
     result=vm->exitVal;
 
     std::free(vm);

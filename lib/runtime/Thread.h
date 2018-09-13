@@ -14,7 +14,10 @@
 
 #define MAX_THREADS 0xffba
 
-#define STACK_SIZE 0xcfba
+#define interp_STACK_SIZE 0xcfba
+#define STACK_SIZE MB_TO_BYTES(6)
+#define STACK_MAX MB_TO_BYTES(16)
+#define STACK_MIN KB_TO_BYTES(250)
 
 #define main_threadid 0x0
 #define gc_threadid 0x1
@@ -84,7 +87,7 @@ public:
 
     static void Startup();
     static void suspendSelf();
-    static int start(int32_t);
+    static int start(int32_t, size_t);
     static int destroy(int64_t);
     static int interrupt(int32_t);
     static int join(int32_t);
@@ -97,6 +100,7 @@ public:
     static int setPriority(Thread*, int);
     static void killAll();
     static void shutdown();
+    static bool validStackSize(size_t);
 
     static int startDaemon(
 #ifdef WIN32_
@@ -140,6 +144,8 @@ public:
     static bool isAllThreadsSuspended;
 
     int32_t id;
+    int64_t stack;
+    int64_t stbase;
     int priority;
     bool daemon;
     bool terminated;
@@ -211,5 +217,6 @@ extern unsigned long long irCount, overflow;
 extern FinallyTable finallyTable;
 extern thread_local short startAddress;
 extern double exponent(int64_t n);
+extern size_t dStackSz;
 
 #endif //SHARP_THREAD_H

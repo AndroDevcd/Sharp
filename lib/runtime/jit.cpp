@@ -27,7 +27,7 @@ List<jit_func> functions;
 std::recursive_mutex jit_mut;
 
 X86Mem jit_ctx_fields[6]; // memory map of jit_ctx
-X86Mem thread_fields[12]; // sliced memory map of Thread
+X86Mem thread_fields[14]; // sliced memory map of Thread
 X86Mem frame_fields[4]; // memory map of Frame
 X86Mem stack_element_fields[2]; // memory map of StackElement
 X86Mem method_fields[1]; // memory map of Method
@@ -88,6 +88,7 @@ void global_jit_call1(Thread* thread, int64_t addr);
 void __srt_cxxa_prepare_throw(Exception &e);
 int __srt_cxxa_try_catch(Method *method);
 void __srt_cxxa_throw_nullptr();
+void __srt_cxxa_throw_stackoverflow();
 void __srt_cxxa_throw_exception(Thread *thread);
 void __srt_cxxa_throw_indexOutOfBounds(int reg, int64_t size);
 
@@ -155,6 +156,8 @@ void safeGuard_CheckNullObj(const X86Mem &o2Ptr, X86Assembler &cc, X86Gp & tmp, 
 
 void safeGuard_CheckINull(const X86Mem &o2Ptr, X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, X86Gp & threadReg, X86Gp & ctx, X86Gp & argsReg, int64_t i, Label &thread_check_section, Label &traceBack);
 
+void checkStackIntegrity(X86Gp & val, X86Assembler &assembler, X86Gp & tmp, X86Gp & delegate, X86Gp & threadReg, X86Gp & ctx, X86Gp &argsReg, int64_t pc, Label &tsc);
+
 enum ConstKind {
     kConst64,
     kConstFloat
@@ -165,6 +168,13 @@ struct Constants {
     List<Data64> constants;
     List<ConstKind> constantKinds;
     List<Label> constantLabels;
+
+    Constants()
+    :
+        constants(),
+        constantKinds(),
+        constantLabels()
+    {}
 
     ~Constants() {
         constants.free();
@@ -361,6 +371,15 @@ int compile(Method *method) {
 
         stringstream sstream;
         sstream << "; method " << method->fullName.str() << endl;
+
+        sstream << ";X86Gp ctx   = cc.zax();\n"
+        "\n"
+        ";        X86Gp tmp        = r10;       // setup register locations for local variables\n"
+        ";        X86Gp val        = r11;       // virtual registers are r10, r11, r12, r13, and r14\n"
+        ";        X86Gp delegate   = r12;       // each time a function is called that can mess with the state of these registers\n"
+        ";        X86Gp argsReg    = r13;       // they must be pushed to the stack to be retained\n"
+        ";        X86Gp registersReg = r14;     //\n"
+        ";        X86Gp threadReg = r15; " << endl;
         string msg = sstream.str();
         cc.comment(msg.c_str(), msg.size());
         // Decide which registers will be mapped to function arguments.
@@ -487,7 +506,10 @@ int compile(Method *method) {
         cc.mov(labelsPtr, ctx);                         // int64_t* labels = ctx->func->jit_labels;
 
         X86Mem tmp_jit_labels = x86::qword_ptr(ctx, 0); // labels[0]
-
+        {
+            int64_t i = 0;
+            checkStackIntegrity(val, JIT_TCSFIELDS);
+        }
         // get int64_t* labels value (ctx already has it)
         cc.mov(ctx, tmp_jit_labels);                    // if(ctx->func->jit_labels[0]==0)
         cc.test(ctx, ctx);                              //      goto end;
@@ -2224,7 +2246,7 @@ int compile(Method *method) {
         cc.nop();
         cc.align(kAlignData, 64);              // Align 64
         cc.bind(data_section);                 // emit constants to be used
-        cc.comment("; data section start", 21);
+        cc.comment("; data section start", 20);
         lconsts.emitConstants(cc);
 
         if(!error) {
@@ -2260,6 +2282,30 @@ int compile(Method *method) {
     }
 
     return jit_error_compile;
+}
+
+void checkStackIntegrity(X86Gp & val, X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, X86Gp & threadReg, X86Gp & ctx, X86Gp &argsReg, int64_t i, Label &thread_check_section) {
+    /*
+     *  register int64_t rsp asm("%rsp"); \
+        if((thread->stbase - rsp) >= (thread->stack - KB_TO_BYTES(20))) { \
+            Exception e(Environment::StackOverflowErr, ""); \
+            __srt_cxxa_prepare_throw(e); \
+            return; \
+        } \
+     */
+    cc.mov(ctx, threadReg);
+    cc.mov(val, thread_fields[jit_field_id_thread_stbase]);
+    cc.sub(val, cc.zsp()); // thread->stbase - rsp
+
+    cc.mov(delegate, thread_fields[jit_field_id_thread_stack]);
+    cc.sub(delegate, KB_TO_BYTES(20));
+    cc.cmp(val, delegate);
+    Label ifFalse = cc.newLabel();
+    cc.jb(ifFalse);
+    cc.call((int64_t)__srt_cxxa_throw_stackoverflow);
+    goto_threadSafetyCheck(JIT_TCSFIELDS, ifFalse);
+    cc.bind(ifFalse);
+
 }
 
 void safeGuard_CheckINull(const X86Mem &o2Ptr, X86Assembler &cc, X86Gp & tmp, X86Gp & delegate, X86Gp & threadReg, X86Gp & ctx, X86Gp & argsReg, int64_t i, Label &thread_check_section, Label &traceBack) {
@@ -2829,8 +2875,6 @@ void saveCalleeRegisters(X86Assembler &cc) {
       * Save these register in out function
       */
     cc.push(cc.zbx());
-    cc.push(cc.zdi());
-    cc.push(cc.zsi());
     cc.push(r12);
     cc.push(r13);
     cc.push(r14);
@@ -2851,8 +2895,6 @@ void restoreCalleeRegisters(X86Assembler &cc, int64_t stackSize) {
     cc.pop(r14);
     cc.pop(r13);
     cc.pop(r12);
-    cc.pop(cc.zsi());
-    cc.pop(cc.zdi());
     cc.pop(cc.zbx());                // restore stack back to its original state
 }
 
@@ -2937,6 +2979,10 @@ void global_jit_dump(Profiler* prof) {
 
  void __srt_cxxa_throw_nullptr() {
      Exception e(Environment::NullptrException, "");
+     __srt_cxxa_prepare_throw(e);
+ }
+ void __srt_cxxa_throw_stackoverflow() {
+     Exception e(Environment::StackOverflowErr, "");
      __srt_cxxa_prepare_throw(e);
  }
 
@@ -3125,8 +3171,9 @@ void global_jit_call0(Thread *thread, int64_t addr) {
 #ifdef SHARP_PROF_
     tprof->hit(env->methods+GET_Da(*pc));
 #endif
+
     try {
-        if ((thread->calls + 3) >= thread->stack_lmt) {
+        if ((thread->calls + 1) >= thread->stack_lmt) {
             throw Exception(Environment::StackOverflowErr, "");
         }
         executeMethod(addr, thread, true);
@@ -3177,6 +3224,8 @@ void setupThreadContextFields(const X86Gp &ctx) {
     thread_fields[jit_field_id_thread_stack_lmt] = x86::qword_ptr(ctx, relative_offset(thread, calls, stack_lmt));  // unsigned long stack_lmt
     thread_fields[jit_field_id_thread_cache] = x86::qword_ptr(ctx, relative_offset(thread, calls, cache)); // int64_t *cache
     thread_fields[jit_field_id_thread_pc] = x86::qword_ptr(ctx, relative_offset(thread, calls, pc)); // int64_t *pc
+    thread_fields[jit_field_id_thread_stbase] = x86::qword_ptr(ctx, relative_offset(thread, calls, stbase)); // int64_t *pc
+    thread_fields[jit_field_id_thread_stack] = x86::qword_ptr(ctx, relative_offset(thread, calls, stack)); // int64_t *pc
 
 #ifdef SHARP_PROF_
     thread_fields[jit_field_id_thread_tprof] = x86::qword_ptr(ctx, relative_offset(thread, calls, tprof)); // Profiler *tprof
@@ -3234,6 +3283,7 @@ void jit_call(int64_t serial, Thread* thread)
 {
     Method * func = (thread->jctx->func = env->methods+serial);
     if(func->isjit) {
+
         sjit_function f = functions.get(func->jit_addr).func;
         f(thread->jctx);
     }

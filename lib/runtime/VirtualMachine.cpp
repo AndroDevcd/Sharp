@@ -274,6 +274,7 @@ void*
 VirtualMachine::InterpreterThreadStart(void *arg) {
     thread_self = (Thread*)arg;
     thread_self->state = THREAD_RUNNING;
+    thread_self->stbase = (int64_t)&arg;
 
     thread_self->setup();
     try {
@@ -400,7 +401,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 thread->currentThread = (thread_self->sp--)->object;
                 thread->args = (thread_self->sp--)->object;
             }
-            registers[i64cmt]=Thread::start((int32_t )registers[i64adx]);
+            registers[i64cmt]=Thread::start((int32_t )registers[i64adx], (size_t )registers[i64ebx]);
             return;
         }
         case 0xa5:

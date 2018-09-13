@@ -24,6 +24,7 @@
 int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
 List<Thread*> Thread::threads;
+size_t dStackSz = STACK_SIZE;
 
 #ifdef WIN32_
 std::mutex Thread::threadsMonitor;
@@ -131,7 +132,7 @@ void Thread::Create(string name) {
     this->exceptionObject.object=0;
     this->rand = new Random();
     this->id = Thread::tid++;
-    this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*STACK_SIZE);
+    this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*interp_STACK_SIZE);
     this->signal = 0;
     this->suspended = false;
     this->jctx=new jit_ctx();
@@ -142,7 +143,7 @@ void Thread::Create(string name) {
     this->terminated = false;
     this->state = THREAD_CREATED;
     this->exitVal = 0;
-    this->stack_lmt = STACK_SIZE;
+    this->stack_lmt = interp_STACK_SIZE;
     this->callStack = NULL;
     this->calls=0;
     this->fp=dataStack;
@@ -152,7 +153,7 @@ void Thread::Create(string name) {
     this->tprof = new Profiler();
 #endif
 
-    for(unsigned long i = 0; i < STACK_SIZE; i++) {
+    for(unsigned long i = 0; i < interp_STACK_SIZE; i++) {
         this->dataStack[i].object.object = NULL;
         this->dataStack[i].var=0;
     }
@@ -260,10 +261,10 @@ void Thread::wait() {
     this->state = THREAD_RUNNING;
 }
 
-int Thread::start(int32_t id) {
+int Thread::start(int32_t id, size_t stacksz) {
     Thread *thread = getThread(id);
 
-    if (thread == NULL || thread->starting || id==main_threadid)
+    if (thread_self != NULL && (thread == NULL || thread->starting || id==main_threadid))
         return 1;
 
     if(thread->state == THREAD_RUNNING)
@@ -272,13 +273,17 @@ int Thread::start(int32_t id) {
     if(thread->terminated)
         return 4;
 
+    if(stacksz && !validStackSize(stacksz))
+        return 5;
+
+    thread->stack = (stacksz ? stacksz : dStackSz);
     thread->exited = false;
     thread->state = THREAD_CREATED;
     thread->starting = 1;
 #ifdef WIN32_
     thread->thread = CreateThread(
             NULL,                   // default security attributes
-            0,                      // use default stack size
+            thread->stack,                      // use default stack size
             &vm->InterpreterThreadStart,       // thread function caller
             thread,                 // thread self when thread is created
             0,                      // use default creation flags
@@ -286,7 +291,7 @@ int Thread::start(int32_t id) {
     if(thread->thread == NULL) return 3; // thread was not started
     else return waitForThread(thread);
 #endif
-#ifdef POSIX_
+#ifdef POSIX_ // TODO: add default stack size check to linux
     if(pthread_create( &thread->thread, NULL, vm->InterpreterThreadStart, (void*) thread))
         return 3; // thread was not started
     else {
@@ -492,7 +497,7 @@ void Thread::term() {
 }
 
 int Thread::join(int32_t id) {
-    if (id == thread_self->id || id==main_threadid)
+    if (thread_self != NULL && (id == thread_self->id || id==main_threadid))
         return 1;
 
     Thread* thread = getThread(id);
@@ -1413,6 +1418,10 @@ int Thread::setPriority(int32_t id, int priority) {
         return 2;
 
     return setPriority(thread, priority);
+}
+
+bool Thread::validStackSize(size_t sz) {
+    return sz >= STACK_MIN && sz <= STACK_MAX;
 }
 
 void __os_sleep(int64_t INTERVAL) {

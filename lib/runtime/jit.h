@@ -48,6 +48,8 @@ struct jit_func {
 #endif
 #define jit_field_id_thread_state 10
 #define jit_field_id_thread_signal 11
+#define jit_field_id_thread_stbase 12
+#define jit_field_id_thread_stack 13
 
 // convient id's for each field in StackElement object
 #define jit_field_id_stack_element_var 0

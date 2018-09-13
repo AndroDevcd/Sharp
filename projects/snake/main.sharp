@@ -49,13 +49,13 @@ def setup() {
 
     // game cannot be run on this machine
     if(clearScreen() != 0) {
-        System.println("The environment you are running this program in is not supported.");
-        System.exit();
+        println("The environment you are running this program in is not supported.");
+        exit();
     }
 }
 
 def print(var ch) {
-    System.printChar(ch);
+    printChar(ch);
 }
 
 def clearScreen() : var {
@@ -122,22 +122,22 @@ def draw() {
     }
 
     for(var i = 0; i < width+2; i++)
-        System.printChar('%');
+        printChar('%');
     print('\n');
-    System.println("\nscore: " + score);
-    System.println(COMMANDS);
+    println("\nscore: " + score);
+    println(COMMANDS);
     if(dir == STOP)
-        System.println("\ngame paused");
+        println("\ngame paused");
 }
 
 def input()
 {
     if(_kbhit())
     {
-        var ch = System.readRawChar();
+        var ch = readRawChar();
         if(Manifest.isWindows()) {
             if(ch==0xE0 && _kbhit())
-                ch = System.readRawChar();
+                ch = readRawChar();
 
             switch(ch) {
                 case 72:
@@ -173,8 +173,8 @@ def input()
             }
         } else {
             if(ch==0x18) {
-                System.readRawChar(); // skip [
-                ch = System.readRawChar();
+                readRawChar(); // skip [
+                ch = readRawChar();
             }
 
             switch(ch) {
