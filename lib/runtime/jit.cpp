@@ -11,10 +11,13 @@
 #include "Environment.h"
 #include "Manifest.h"
 #include "main.h"
+#include "termios.h"
 #include <stdio.h>
 #include <fstream>
 #include <cstdint>
+#ifdef WIN32_
 #include <conio.h>
+#endif
 
 using namespace asmjit;
 
