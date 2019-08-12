@@ -5,7 +5,6 @@
 #ifndef SHARP_RANDOM_H
 #define SHARP_RANDOM_H
 
-
 #include <random>
 #include "../../util/time.h"
 

@@ -1,0 +1,22 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 6/11/2018.
+ */
+class integer {
+    protected var value;
+    // maximum possible value the compiler can process for ints
+    public static var MAX = 36028797018963967;
+
+    public integer(var num) {
+        value = num;
+    }
+
+    public integer(integer num) {
+        value = num.value;
+    }
+
+    public def getValue() : var {
+        return (value);
+    }
+}

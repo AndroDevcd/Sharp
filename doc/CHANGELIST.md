@@ -27,8 +27,8 @@ from the older version with the updated runtime system and vise versa. Any other
     # Bug Fixes
         * Added a check to prevent native variables from being assigned objects values i.e { object o =  new Object(); var i = o; }
         * Fixed holes and edge cases in Template classes and sub template classes
-        * Various other small fixes
         * Standard Library Thread file was incorrectly starting and creating threads
+        * Various other small fixes
 
     # QoL Improvements
         * Changed publishing procedure to a more detailed breakdown of the changes made for better insights on the language's progress

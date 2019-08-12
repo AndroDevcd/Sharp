@@ -10,9 +10,13 @@ sudo cp sharp /bin
 cd ../../../
 echo "installing standard lbrary..."
 
-cd lib/support/0.2.0/
+cd lib/support/0.2.422/
 sudo mkdir /usr/include/sharp/
 sudo cp -r */ /usr/include/sharp/
 sudo rm -r /usr/include/sharp/bootstrap/
+
+cd ../../../
+sharpc Test.sharp -o hello -s -R
+sharp test
 
 echo "sharp installed!"

@@ -1,0 +1,141 @@
+mod std;
+
+import std.kernel;
+import std.kernel.vm;
+
+/**
+ * Created by BraxtonN on 5/18/2018.
+ *
+ * The System interface contains several useful class fields
+ * and methods. This class should not be instantiated.
+ *
+ * Among the facilities provided by the System class
+ * are standard input, standard output, and error output streams;
+ *
+ */
+ConsoleHandler cHandler = new ConsoleHandler();
+
+def print(var[] data) {
+    cHandler.printData(data);
+}
+
+def print(string str) {
+    cHandler.printData(str.toArray());
+}
+
+def println(var[] data) {
+    cHandler.printData(data);
+    printChar('\n');
+}
+
+def println(var data) {
+    print(data);
+    printChar('\n');
+}
+
+def println() {
+    printChar('\n');
+}
+
+def println(Enum e) {
+    print(e.getName());
+    printChar('\n');
+}
+
+def readLine() : string {
+    var _char;
+    string message = "";
+
+    _char = readChar();
+    while((_char != 13) && (_char != 10)) { // \r\n
+        message += new var[] { _char };
+        _char = readChar();
+    }
+    return message;
+}
+
+def readPasswd() : string {
+    var _char;
+    string message = "";
+
+    _char = readRawChar();
+    while((_char != 13) && (_char != 10)) { // \r\n
+        message += new var[] { _char };
+        _char = readRawChar();
+    }
+    return message;
+}
+
+def readChar() : var {
+    return cHandler.read();
+}
+
+def readRawChar() : var {
+    return cHandler.readsilent();
+}
+
+def println(string str) {
+    cHandler.printData(str.toArray());
+    printChar('\n');
+}
+
+def println(Printable o) {
+    cHandler.printData(o.toString().toArray());
+    printChar('\n');
+}
+
+def print(Printable o) {
+    cHandler.printData(o.toString().toArray());
+}
+
+def print(var data) {
+    cHandler.__print_stdout_(data, false);
+}
+
+def printChar(var data) {
+    ConsoleHandler.__print_stdout_(data, true);
+}
+
+def getUtcTimeInMills() : var {
+    return Time.millsTime();
+}
+
+def getNanoTime() : var {
+    return Time.nanoTime();
+}
+
+def exit() {
+    Runtime.nativeExit();
+}
+
+def copyOf(object data, var len) : object[] {
+    return Runtime.copy(data, len);
+}
+
+def copyOf(object data, var indexLen, var len) : object[] {
+    return Runtime.copy2(data, indexLen, len);
+}
+
+def memcpy(object data, var startIndex, var endIndex) : object[] {
+    return Runtime.copy3(data, startIndex, endIndex);
+}
+
+def realloc(object data, var size) {
+    return Runtime.realloc(data, size);
+}
+
+def invert(object data, var startIndex, var endIndex) : object[] {
+    return Runtime.copy4(data, startIndex, endIndex);
+}
+
+def sizeOf(object data) : var {
+    return Runtime.sizeOf(data);
+}
+
+def toString(var data) : var[] {
+    return Runtime._snprintf('g', data, 0);
+}
+
+def snprintf(var fmt, var data, var precision) : var[] {
+    return Runtime._snprintf(fmt, data, precision);
+}

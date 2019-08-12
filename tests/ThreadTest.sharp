@@ -70,6 +70,17 @@ def foo(object[] args) : var {
 var i=2, j=3;
 thread_local object x = new int(9);
 
+//struct car { // this will be on next release
+//    vin   = "",
+//    color = RED,
+//    wheels = 4,
+//    hp : EngineType,
+//    make, model = ""; // both make and model interred to be string
+//
+//    def car()
+//
+//}
+
 def main() {
     x = new int(12748);
     Thread t = new Thread("foo", foo);
@@ -79,6 +90,7 @@ def main() {
     i =((int)x).getValue();
     print("i = " + i);
     t.join();
+    readLine();
 //    i = x;
 //    C<object> generic;
 //    D<object> generic2;
