@@ -281,7 +281,7 @@ int Thread::start(int32_t id, size_t stacksz) {
 #ifdef WIN32_
     thread->thread = CreateThread(
             NULL,                   // default security attributes
-            (thread->stack + MB_TO_BYTES(50)),                      // use default stack size
+            (thread->stack + STACK_OVERFLOW_BUF),                      // use default stack size
             &vm->InterpreterThreadStart,       // thread function caller
             thread,                 // thread self when thread is created
             0,                      // use default creation flags
@@ -289,8 +289,11 @@ int Thread::start(int32_t id, size_t stacksz) {
     if(thread->thread == NULL) return 3; // thread was not started
     else return waitForThread(thread);
 #endif
-#ifdef POSIX_ // TODO: add default stack size check to linux
-    if(pthread_create( &thread->thread, NULL, vm->InterpreterThreadStart, (void*) thread))
+#ifdef POSIX_
+    pthread_attr_t thAttr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr,thread->stack + STACK_OVERFLOW_BUF);
+    if(pthread_create( &thread->thread, &attr, vm->InterpreterThreadStart, (void*) thread))
         return 3; // thread was not started
     else {
         return waitForThread(thread);
