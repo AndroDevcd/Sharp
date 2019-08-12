@@ -33,7 +33,7 @@ struct options {
      * speeds of 20-30x even as high as 40x faster
      * than original speed
      */
-    bool jit = true;
+    bool jit = false; // diabled by default for now
 
     /**
      * Slow boot allows you to not care about the initial startup time
