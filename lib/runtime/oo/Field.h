@@ -20,7 +20,7 @@ public:
     }
 
     void init(string name, int64_t id, FieldType type, bool _static, bool arry,
-              ClassObject* owner, boolean tls = false)
+              ClassObject* owner, bool tls = false)
     {
         this->name.init();
         this->name = name;
