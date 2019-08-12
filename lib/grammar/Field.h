@@ -19,7 +19,7 @@ class Param;
 class Field {
 public:
     Field(FieldType type, uint64_t serial, const string name, ClassObject* parent, List<AccessModifier>& modifiers,
-          RuntimeNote& note)
+          RuntimeNote& note, StorageLocality stl, int64_t taddr)
             :
             type(type),
             serial(serial),
@@ -37,7 +37,9 @@ public:
             isEnum(false),
             constant_value(0),
             prototype(false),
-            returnType(TYPEVOID)
+            returnType(TYPEVOID),
+            locality(stl),
+            thread_address(taddr)
     {
         this->modifiers.init();
         this->params.init();
@@ -45,7 +47,7 @@ public:
     }
 
     Field(ClassObject* klass, uint64_t serial, const string name, ClassObject* parent, List<AccessModifier>& modifiers,
-          RuntimeNote& note)
+          RuntimeNote& note, StorageLocality stl, int64_t taddr)
             :
             type(UNDEFINED),
             serial(serial),
@@ -63,7 +65,9 @@ public:
             isEnum(false),
             constant_value(0),
             prototype(false),
-            returnType(TYPEVOID)
+            returnType(TYPEVOID),
+            locality(stl),
+            thread_address(taddr)
     {
         this->modifiers.init();
         this->params.init();
@@ -89,7 +93,9 @@ public:
             isEnum(false),
             constant_value(0),
             prototype(false),
-            returnType(TYPEVOID)
+            returnType(TYPEVOID),
+            locality(stl_local),
+            thread_address(0)
     {
     }
 
@@ -118,6 +124,8 @@ public:
         params.addAll(f.params);
         isEnum=f.isEnum;
         constant_value=f.constant_value;
+        locality=f.locality;
+        thread_address=f.thread_address;
     }
 
     void free(){
@@ -168,6 +176,10 @@ public:
         return type == OBJECT;
     }
 
+    bool hasThreadLocality() {
+        return locality == stl_thread;
+    }
+
     List<Param> getParams();
 
     bool isArray, nullType, local, isEnum;
@@ -186,6 +198,8 @@ public:
     ClassObject* owner;
     string key; // generic identifier
     List<AccessModifier> modifiers; // 3 max modifiers
+    StorageLocality locality;
+    int64_t thread_address;
 };
 
 #endif //SHARP_FIELD_H

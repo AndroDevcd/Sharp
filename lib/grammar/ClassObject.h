@@ -209,7 +209,13 @@ public:
     void setAst(Ast* start) { this->start=start; }
     Ast* getAst() { return start; }
     void addGenericKey(string key) { this->genericKeys.push_back(key); }
-    bool hasGenericKey(string key) { return this->genericKeys.find(key); }
+    bool hasGenericKey(string key) {
+        if(!this->genericKeys.find(key)) {
+            if(super != NULL) {
+                return super->hasGenericKey(key);
+            } else return false;
+        } else return true;
+    }
     long genericKeySize() { return this->genericKeys.size(); }
     size_t interfaceCount() { return interfaces.size(); }
     ClassObject* getInterface(size_t p) { return interfaces.get(p); }

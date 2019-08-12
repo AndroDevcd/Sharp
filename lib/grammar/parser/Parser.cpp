@@ -284,7 +284,7 @@ token_entity Parser::peek(int forward)
 }
 
 bool Parser::isvariable_decl(token_entity token) {
-    return isnative_type(token.getToken());
+    return isnative_type(token.getToken()) || isstorage_type(token);
 }
 
 bool Parser::isprototype_decl(token_entity token) {
@@ -395,6 +395,12 @@ bool Parser::isaccess_decl(token_entity token) {
             token.getId() == IDENTIFIER && token.getToken() == "static" ||
             token.getId() == IDENTIFIER && token.getToken() == "const" ||
             token.getId() == IDENTIFIER && token.getToken() == "public";
+}
+
+bool Parser::isstorage_type(token_entity token) {
+    return
+            token.getId() == IDENTIFIER && token.getToken() == "local" ||
+            token.getId() == IDENTIFIER && token.getToken() == "thread_local" ;
 }
 
 void Parser::parse_accesstypes() {
@@ -773,7 +779,11 @@ void Parser::parse_variabledecl(Ast *pAst) {
             pAst->addEntity(access_types.get(i));
         }
         remove_accesstypes();
-        pushback();
+        if(isstorage_type(current())) {
+            pAst->addEntity(current());
+        } else
+            pushback();
+
         if(!parse_utype(pAst))
             errors->createNewError(GENERIC, current(), "expected native type or reference pointer");
     } else {
@@ -1365,7 +1375,7 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
             if(peek(1).getTokenType() == RIGHTPAREN)
             {
                 expect(RIGHTPAREN, pAst, "`)`");
-                if(!parse_expression(pAst))
+                if(peek(1).getTokenType() == DOT || !parse_expression(pAst))
                 {
                     errors->pass();
                     this->rollback();
@@ -2439,7 +2449,8 @@ bool Parser::iskeyword(string key) {
            || key == "_int32" || key == "_int64" || key == "_uint8"
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
            || key == "delegate" || key == "interface" || key == "lock" || key == "enum"
-           || key == "switch" || key == "default" || key == "fn";
+           || key == "switch" || key == "default" || key == "fn" || key == "local"
+           || key == "thread_local";
 }
 
 bool Parser::parse_type_identifier(Ast *pAst) {

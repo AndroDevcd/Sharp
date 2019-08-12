@@ -129,7 +129,7 @@ void jit_tls_setup();
 void jit_setup();
 void jit_shutdown();
 int try_jit(Method* func);
-void jit_call(int64_t serial, Thread*);
+void jit_call(Method*, Thread*);
 void performInitialCompile();
 
 void call(jit_ctx *, int64_t);

@@ -108,6 +108,14 @@ public:
         else return prototype.returnType;
     }
 
+    ClassObject* getRepresentedClass() {
+        if(isField)
+            return field.klass;
+        else if(isMethod)
+            return method->klass;
+        else return klass;
+    }
+
     void operator=(ResolvedReference ref) {
         referenceName=ref.referenceName;
         array=ref.array;
@@ -593,11 +601,13 @@ public:
             mainNote(),
             allMethods(),
             staticMainInserts(),
+            initializeTLSInserts(),
             globals(),
             enums(),
             preprocessed(false),
             resolvedGenerics(false),
-            resolvedMethods(false)
+            resolvedMethods(false),
+            threadLocals(0)
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
@@ -695,6 +705,7 @@ private:
     int64_t mainAddress, mainSignature;
     unsigned long methods;
     unsigned long classSize;
+    unsigned long threadLocals;
     Method* main;
     List<Method*> allMethods;
     Block *currentBlock;
@@ -703,7 +714,7 @@ private:
     RuntimeNote lastNote;
     string lastNoteMsg;
     List<string> noteMessages;
-    Assembler staticMainInserts;
+    Assembler staticMainInserts, initializeTLSInserts;
     int64_t i64;
 
     void compile();
@@ -1233,6 +1244,10 @@ private:
     void checkMainMethodSignature(Method method, bool global);
 
     Field *getEnum(string name);
+
+    StorageLocality strtostl(string locality);
+
+    int64_t checkstl(StorageLocality locality);
 };
 
 
@@ -1261,7 +1276,7 @@ private:
 #define unique_label_id(x) "$$L" << (x)
 
 #define progname "bootstrap"
-#define progvers "0.2.372"
+#define progvers "0.2.422"
 
 struct options {
     ~options()
@@ -1358,6 +1373,8 @@ struct options {
      */
     List<string> libraries;
 };
+
+#define TLS_LIMIT 0x5F5E0F
 
 extern int recursiveAndExprssions;
 extern List<long> skipAddress;

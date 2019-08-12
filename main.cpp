@@ -7,7 +7,7 @@ Sharp versions;
     #include "lib/grammar/Runtime.h"
 #endif
 #ifndef MAKE_COMPILER
-    #include "lib/runtime/init.h"
+    #include "lib/runtime/main.h"
 #include "lib/runtime/VirtualMachine.h"
 #include "lib/runtime/jit.h"
 

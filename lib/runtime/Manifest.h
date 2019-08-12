@@ -20,10 +20,12 @@ struct Manifest {
     bool debug;
     int64_t entryMethod;
     int64_t methods, classes;
+    int64_t memlocals;
     int fvers;
     int target;
     long sourceFiles;
     int64_t strings;
+    int64_t threadLocals;
 };
 
 extern Manifest manifest;

@@ -470,6 +470,8 @@ bool ClassObject::addGenericType(Expression *utype) {
 Expression *ClassObject::getGenericType(string &key) {
     if(genericKeys.find(key)) {
         return &genericMap.get(genericKeys.indexof(key));
+    } else if(super != NULL) {
+        return super->getGenericType(key);
     }
 
     return nullptr;

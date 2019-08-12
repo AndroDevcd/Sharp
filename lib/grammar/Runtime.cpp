@@ -1306,7 +1306,7 @@ ClassObject* RuntimeEngine::parseCatchClause(Block &block, Ast *pAst, ExceptionT
 
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
                                    pAst->line, pAst->col);
-    Field f = Field(NULL, uniqueSerialId++, name, currentScope()->klass, modCompat, note);
+    Field f = Field(NULL, uniqueSerialId++, name, currentScope()->klass, modCompat, note, stl_local, 0);
 
     f.address = currentScope()->currentFunction->localVariables;
     f.local=true;
@@ -1537,12 +1537,15 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
 
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
                                    pAst->line, pAst->col);
-    Field f = Field(NULL, uniqueSerialId++, name, currentScope()->klass, modifiers, note);
+    Field f = Field(NULL, uniqueSerialId++, name, currentScope()->klass, modifiers, note, pAst->findEntity("thread_local") ? stl_thread : stl_local,
+            pAst->findEntity("thread_local") ? threadLocals++ : 0);
 
     f.address = currentScope()->currentFunction->localVariables++;
-    f.local=true;
     f.type = utype.utype.type;
     f.owner = currentScope()->klass;
+    if(!pAst->findEntity("thread_local")) {
+        f.local=true;
+    }
     if(utype.utype.type == CLASS) {
         f.klass = utype.utype.klass;
     } else if(utype.utype.type == TYPEVOID) {
@@ -1942,6 +1945,8 @@ void RuntimeEngine::analyzeClassDecl(Ast *ast) {
                 break;
             case ast_generic_class_decl: /* ignore */
                 break;
+            case ast_generic_interface_decl: /* ignore */
+                break;
             case ast_enum_decl:
                 break;
             case ast_func_prototype:
@@ -2032,7 +2037,7 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
                         return true;
                 }
             }  else if(left.trueType() == OBJECT) {
-                if(right.trueType() == OBJECT || right.trueType() == CLASS) {
+                if(right.trueType() == OBJECT || right.trueType() == CLASS || right.type == expression_null) {
                     return true;
                 } else if(right.trueType() == VAR) {
                     if(!left.isArray() && right.isArray())
@@ -3140,7 +3145,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 out.code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64cmt));
                 out.inCmtRegister = true;
                 return;
-            } else if(operand == "=" && right.type == expression_var && left.utype.field.type == OBJECT) {
+            } else if(operand == "=" && right.type == expression_var && left.utype.field.type == OBJECT && !right.isArray()) {
                 pushExpressionToStack(right, out);
                 out.inject(left);
 
@@ -3199,6 +3204,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
             // this will b easy...
             if(left.utype.field.local) {
 
+                equals(left, right);
                 if(operand == "=") {
                     if(right.literal && isWholeNumber(right.intValue)) {
                         out.code.push_i64(SET_Di(i64, op_ISTOREL, left.utype.field.address), right.intValue);
@@ -3256,6 +3262,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                     }
                 }
 
+                equals(left, right);
                 pushExpressionToStack(right, out);
                 if(operand == "=")
                     out.inject(left);
@@ -3709,25 +3716,30 @@ Expression RuntimeEngine::parseAndExpression(Ast* pAst) {
 
                             pushExpressionToRegister(left, out, i64ebx);
                             out.code.push_i64(SET_Ci(i64, op_CMP, i64ebx, 0, 1));
-                            out.code.push_i64(SET_Di(i64, op_SKNE, (tmp.code.size()+4)));
+                            out.code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64cmt));
+                            out.code.push_i64(SET_Di(i64, op_SKNE, (tmp.code.size()+3)));
                             skipAddress.add(out.code.size()-1);
                             out.code.push_i64(SET_Di(i64, op_ISTORE, 1));
                             out.inject(tmp);
                             out.code.push_i64(SET_Di(i64, op_LOADVAL, i64ecx));
                             out.code.push_i64(SET_Ci(i64, op_AND, i64ecx,0, i64ebx));
+                            out.code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64cmt));
 
-                            out.inCmtRegister = true;
+                            out.inCmtRegister = false;
                         } else if(operand == "||") {
                             out.inCmtRegister = true;
                             Expression tmp(pAst);
                             pushExpressionToRegister(right, tmp, i64ebx);
 
-                            pushExpressionToRegister(left, out, i64ebx);
-                            out.code.push_i64(SET_Ci(i64, op_CMP, i64ebx, 0, 1));
+                            pushExpressionToRegister(left, out, i64cmt);
+                            out.code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64cmt));
                             out.code.push_i64(SET_Di(i64, op_SKPE, tmp.code.size()));
                             skipAddress.add(out.code.size()-1);
                             out.inject(tmp);
                             out.code.push_i64(SET_Ci(i64, op_CMP, i64ebx, 0, 1));
+                            out.code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64cmt));
+
+                            out.inCmtRegister = false;
                         } else if(operand == "|") {
                             pushExpressionToRegister(left, out, i64ebx);
                             out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
@@ -3735,9 +3747,8 @@ Expression RuntimeEngine::parseAndExpression(Ast* pAst) {
                             pushExpressionToRegister(right, out, i64ebx);
                             out.code.push_i64(SET_Di(i64, op_LOADVAL, i64ecx));
                             out.code.push_i64(SET_Ci(i64, op_OR, i64ecx,0, i64ebx));
-                            if(recursiveAndExprssions<=1)
-                                out.code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64cmt));
-                            out.inCmtRegister = true;
+                            out.code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64cmt));
+                            out.inCmtRegister = false;
                         } else if(operand == "&") {
                             pushExpressionToRegister(left, out, i64ebx);
                             out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
@@ -3746,7 +3757,7 @@ Expression RuntimeEngine::parseAndExpression(Ast* pAst) {
                             out.code.push_i64(SET_Di(i64, op_LOADVAL, i64ecx));
                             out.code.push_i64(SET_Ci(i64, op_UAND, i64ecx,0, i64ebx));
                             out.code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64cmt));
-                            out.inCmtRegister = true;
+                            out.inCmtRegister = false;
                         } else if(operand == "^") {
                             pushExpressionToRegister(left, out, i64ebx);
                             out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
@@ -3755,7 +3766,7 @@ Expression RuntimeEngine::parseAndExpression(Ast* pAst) {
                             out.code.push_i64(SET_Di(i64, op_LOADVAL, i64ecx));
                             out.code.push_i64(SET_Ci(i64, op_XOR, i64ecx,0, i64ebx));
                             out.code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64cmt));
-                            out.inCmtRegister = true;
+                            out.inCmtRegister = false;
                         }
                     }
                 }
@@ -3954,6 +3965,8 @@ Expression RuntimeEngine::parseQuesExpression(Ast* pAst) {
     condIfFalse = parseExpression(pAst->getSubAst(2));
     expression = condIfTrue;
 
+    expression.literal = false;
+    expression.intValue=0;
     expression.code.__asm64.free();
     pushExpressionToRegister(condition, expression, i64cmt);
 
@@ -4066,7 +4079,11 @@ Expression RuntimeEngine::fieldToExpression(Ast *pAst, Field& field) {
     fieldExpr.utype.referenceName = field.name;
 
     if(field.isObjectInMemory()) {
-        fieldExpr.code.push_i64(SET_Di(i64, op_MOVL, field.address));
+        if(field.hasThreadLocality()) {
+            fieldExpr.code.push_i64(SET_Di(i64, op_TLS_MOVL, field.thread_address));
+        } else {
+            fieldExpr.code.push_i64(SET_Di(i64, op_MOVL, field.address));
+        }
     } else {
         //fieldExpr.code.push_i64(SET_Ci(i64, op_MOVR, i64adx, 0, fp));
         fieldExpr.code.push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, field.address));
@@ -4093,7 +4110,18 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
 
     parse_var:
     string name =  ast->getEntity(startpos).getToken();
+    if(Parser::isstorage_type(token_entity(name, IDENTIFIER, 0, 0))) {
+        name = ast->getEntity(++startpos).getToken();
+    }
+
     Field* field = currentScope()->klass->getField(name);
+    if(field->locality == stl_thread && !field->isStatic()) {
+        errors->createNewError(GENERIC, ast, "invalid storage of instance variable");
+    }
+
+    if(field->hasThreadLocality() && (field->type != CLASS && field->type != OBJECT && field->type != TYPEGENERIC)) {
+        errors->createNewError(GENERIC, ast, "field (" + field->fullName + ") of `thread_local` status must be of type {object or class}");
+    }
 
     if(ast->hasSubAst(ast_value)) {
         Expression expression = parseValue(ast->getSubAst(ast_value)), out(ast);
@@ -4104,8 +4132,12 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
 
         if(!isFieldInlined(field)) {
             if(field->isStatic()) {
-                fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVG, field->owner->address));
-                fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, field->address));
+                if(field->hasThreadLocality()) {
+                    fieldExpr.code.__asm64.push_back(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+                } else {
+                    fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVG, field->owner->address));
+                    fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, field->address));
+                }
             } else {
                 fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVL, 0));
                 fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, field->address));
@@ -4147,7 +4179,10 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
             }
 
             if(field->isStatic()) {
-                staticMainInserts.__asm64.appendAll(out.code.__asm64);
+                if(field->hasThreadLocality())
+                    initializeTLSInserts.__asm64.appendAll(out.code.__asm64);
+                else
+                    staticMainInserts.__asm64.appendAll(out.code.__asm64);
             } else {
                 /*
                  * We want to inject the value into all constructors
@@ -4271,14 +4306,15 @@ void RuntimeEngine::readjustAddresses(Method *func, unsigned int _offset) {
 Method *RuntimeEngine::getMainMethod(Parser *p) {
     string starter_classname = "Runtime";
     string mainMethod = "__srt_init_";
-    string setupMethod = "setupClasses";
+    string setupMethod = "initializeRTE";
+    string tlsSetupMethod = "initializeTLS";
 
     ClassObject* StarterClass = getClass("std.kernel", starter_classname, classes);
     if(StarterClass != NULL) {
         List<Param> params;
         List<AccessModifier> modifiers;
         RuntimeNote note = RuntimeNote(p->sourcefile, p->getErrors()->getLine(1), 1, 0);
-        params.add(Field(OBJECT, 0, "args", StarterClass, modifiers, note));
+        params.add(Field(OBJECT, 0, "args", StarterClass, modifiers, note, stl_local, 0));
         params.get(0).field.isArray = true;
 
         Method* main = StarterClass->getFunction(mainMethod , params);
@@ -4295,17 +4331,27 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
             }
 
             List<Param> empty;
-            Method *setupClasses = StarterClass->getFunction(setupMethod, empty);
+            Method *setupRTE = StarterClass->getFunction(setupMethod, empty);
+            Method *setupTLS = StarterClass->getFunction(tlsSetupMethod, empty);
 
-            if(setupClasses == NULL) {
+            if(setupRTE == NULL) {
                 errors->createNewError(GENERIC, 1, 0, "could not locate setup method '" + setupMethod + "()' in starter class");
+            } else if(setupTLS == NULL) {
+                errors->createNewError(GENERIC, 1, 0, "could not locate thread setup method '" + tlsSetupMethod + "()' in starter class");
             } else {
-                if(!setupClasses->isStatic()) {
+                if(!setupRTE->isStatic()) {
                     errors->createNewError(GENERIC, 1, 0, "setup method '" + setupMethod + "()' must be static");
                 }
+                if(!setupTLS->isStatic()) {
+                    errors->createNewError(GENERIC, 1, 0, "thread setup method '" + tlsSetupMethod + "()' must be static");
+                }
 
-                if(!setupClasses->hasModifier(PRIVATE)) {
+                if(!setupRTE->hasModifier(PRIVATE)) {
                     errors->createNewError(GENERIC, 1, 0, "setup method '" + setupMethod + "()' must be private");
+                }
+
+                if(!setupTLS->hasModifier(PUBLIC)) {
+                    errors->createNewError(GENERIC, 1, 0, "thread setup method '" + tlsSetupMethod + "()' must be public");
                 }
 
                 // we need to look for user main method
@@ -4322,7 +4368,7 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
                         }
                         case 2: { // fn main3();
                             userMain = StarterClass->getField("main3");
-                            break;
+                            break; // TODO: add fn main3() : var; as main4
                         }
                     }
 
@@ -4340,8 +4386,10 @@ Method *RuntimeEngine::getMainMethod(Parser *p) {
                 } else
                     errors->createNewError(GENERIC, 1, 0, "user main method was not found");
 
-                setupClasses->code.inject(setupClasses->code.size()==0 ? 0 : setupClasses->code.size()-1, staticMainInserts);
+                setupRTE->code.inject(setupRTE->code.size()==0 ? 0 : setupRTE->code.size()-1, staticMainInserts);
+                setupTLS->code.inject(setupTLS->code.size()==0 ? 0 : setupTLS->code.size()-1, initializeTLSInserts);
                 staticMainInserts.free();
+                initializeTLSInserts.free();
             }
 
 
@@ -4382,18 +4430,18 @@ bool RuntimeEngine::preprocess()
 
         sourceFiles.addif(activeParser->sourcefile);
         addScope(Scope(GLOBAL_SCOPE, NULL));
-        for(unsigned long i = 0; i < activeParser->treesize(); i++)
+        for(unsigned long x = 0; x < activeParser->treesize(); x++)
         {
-            Ast *ast = activeParser->ast_at(i);
+            Ast *ast = activeParser->ast_at(x);
             SEMTEX_CHECK_ERRORS
 
-            if(i == 0 && ast->getType() == ast_module_decl) {
+            if(x == 0 && ast->getType() == ast_module_decl) {
                 add_module(currentModule = parseModuleName(ast));
                 imports.push_back(currentModule);
                 // add class for global methods
                 createGlobalClass();
                 continue;
-            } else if(i == 0)
+            } else if(x == 0)
                 errors->createNewError(GENERIC, ast->line, ast->col, "module declaration must be "
                         "first in every file");
 
@@ -4948,6 +4996,9 @@ ResolvedReference RuntimeEngine::resolveReferencePointer(ReferencePointer &ptr, 
     if(ptr.classHeiarchy.size() == 0) {
         ClassObject* klass = tryClassResolve(ptr.module, ptr.referenceName, pAst);
         if(klass == NULL) {
+            if(getClass(ptr.module, ptr.referenceName, generics)) {
+                errors->createNewError(COULD_NOT_RESOLVE, pAst, "; The requested class `" + ptr.referenceName + "` was found to be a generic class, have you missed the keys to the class perhaps?");
+            }
             reference.type = UNDEFINED;
             reference.referenceName = ptr.referenceName;
         } else {
@@ -4958,6 +5009,11 @@ ResolvedReference RuntimeEngine::resolveReferencePointer(ReferencePointer &ptr, 
     } else {
         ClassObject* klass = tryClassResolve(ptr.module, ptr.classHeiarchy.get(0), pAst);
         if(klass == NULL) {
+            if(getClass(ptr.module, ptr.classHeiarchy.get(0), generics)) {
+                errors->createNewError(COULD_NOT_RESOLVE, pAst, "; The requested class `" + ptr.classHeiarchy.get(0)
+                + "` was found to be a generic class, have you missed the keys to the class perhaps?");
+            }
+
             reference.type = UNDEFINED;
             reference.referenceName = ptr.classHeiarchy.get(0);
         } else {
@@ -4969,6 +5025,11 @@ ResolvedReference RuntimeEngine::resolveReferencePointer(ReferencePointer &ptr, 
                 if((childClass = klass->getChildClass(className)) == NULL) {
                     reference.type = UNDEFINED;
                     reference.referenceName = className;
+
+                    if(childClass->isGeneric()) {
+                        errors->createNewError(COULD_NOT_RESOLVE, pAst, "; The requested class `" + childClass->getFullName()
+                              + "` was found to be a generic class, have you missed the keys to the class perhaps?");
+                    }
                     return reference;
                 } else {
                     klass = childClass;
@@ -4981,6 +5042,11 @@ ResolvedReference RuntimeEngine::resolveReferencePointer(ReferencePointer &ptr, 
                     reference.type = CLASS;
                     reference.klass = klass->getChildClass(ptr.referenceName);
                     reference.resolved = true;
+
+                    if(reference.klass->isGeneric()) {
+                        errors->createNewError(COULD_NOT_RESOLVE, pAst, "; The requested class `" + reference.klass->getFullName()
+                               + "` was found to be a generic class, have you missed the keys to the class perhaps?");
+                    }
                 } else {
                     reference.type = UNDEFINED;
                     reference.referenceName = ptr.referenceName;
@@ -4990,6 +5056,11 @@ ResolvedReference RuntimeEngine::resolveReferencePointer(ReferencePointer &ptr, 
                     reference.type = CLASS;
                     reference.klass = klass->getChildClass(ptr.referenceName);
                     reference.resolved = true;
+
+                    if(reference.klass->isGeneric()) {
+                        errors->createNewError(COULD_NOT_RESOLVE, pAst, "; The requested class `" + reference.klass->getFullName()
+                             + "` was found to be a generic class, have you missed the keys to the class perhaps?");
+                    }
                 } else {
                     reference.type = UNDEFINED;
                     reference.referenceName = ptr.referenceName;
@@ -5210,17 +5281,22 @@ void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& r
                 }
 
                 verifyFieldAccess(field, pAst);
-                if(requreMovg && refrenceTrys <= 1) {
-                    if(field->isStatic())
-                        expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                    else
-                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                if(field->hasThreadLocality()) {
+                    expression.code.free();
+                    expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+                } else {
+                    if (requreMovg && refrenceTrys <= 1) {
+                        if (field->isStatic())
+                            expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                        else
+                            expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                    }
+                    // for now we are just generating code for x.x.f not Main.x...thats static access
+                    if (isFieldInlined(field) && !field->isEnum) {
+                        inlineVariableValue(expression, field);
+                    } else
+                        expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
                 }
-                // for now we are just generating code for x.x.f not Main.x...thats static access
-                if(isFieldInlined(field) && !field->isEnum) {
-                    inlineVariableValue(expression, field);
-                } else
-                    expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
 
                 if(lastRefrence) {
                     expression.utype.type = CLASSFIELD;
@@ -5321,11 +5397,15 @@ void RuntimeEngine::resolveSelfUtype(Scope* scope, ReferencePointer& reference, 
                 if(isFieldInlined(field)) {
                     inlineVariableValue(expression, field);
                 } else {
-                    if(field->isStatic())
-                        expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                    else
-                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
-                    expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+                    if(field->hasThreadLocality()) {
+                        expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+                    } else {
+                        if(field->isStatic())
+                            expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                        else
+                            expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                        expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+                    }
                 }
             } else {
                 /* Un resolvable */
@@ -5379,11 +5459,15 @@ void RuntimeEngine::resolveSelfUtype(Scope* scope, ReferencePointer& reference, 
             } else {
 
                 if((field = currentScope()->klass->getField(starter_name)) != NULL) {
-                    if(field->isStatic())
-                        expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                    else
-                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
-                    expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+                    if(field->hasThreadLocality()) {
+                        expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+                    } else {
+                        if(field->isStatic())
+                            expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                        else
+                            expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                        expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+                    }
 
                     resolveFieldHeiarchy(field, reference, expression, ast);
                 } else {
@@ -5432,7 +5516,6 @@ ResolvedReference RuntimeEngine::getBaseClassOrField(string name, ClassObject* s
 
 void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, Expression& expression, Ast* ast) {
     ClassObject* klass = currentScope()->klass, *base;
-    Field* field;
     ResolvedReference ref;
 
     if(currentScope()->klass->getBaseClass() == NULL) {
@@ -5453,11 +5536,15 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                 expression.utype.isField = true;
                 expression.type = expression_field;
 
-                if(expression.utype.field.isStatic())
-                    expression.code.push_i64(SET_Di(i64, op_MOVG, expression.utype.field.owner->address));
-                else
-                    expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
-                expression.code.push_i64(SET_Di(i64, op_MOVN, expression.utype.field.address));
+                if(ref.field.hasThreadLocality()) {
+                    expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, ref.field.thread_address));
+                } else {
+                    if(expression.utype.field.isStatic())
+                        expression.code.push_i64(SET_Di(i64, op_MOVG, expression.utype.field.owner->address));
+                    else
+                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                    expression.code.push_i64(SET_Di(i64, op_MOVN, expression.utype.field.address));
+                }
             } else {
                 if(currentScope()->type == STATIC_BLOCK) {
                     errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, "cannot get object `" + ref.klass->getName()
@@ -5552,11 +5639,16 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                 if(ref.type != UNDEFINED) {
                     if(ref.type == CLASSFIELD) {
 
-                        if(ref.field.isStatic())
-                            expression.code.push_i64(SET_Di(i64, op_MOVG, ref.field.owner->address));
-                        else
-                            expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
-                        expression.code.push_i64(SET_Di(i64, op_MOVN, ref.field.address)); // gain access to field in object
+                        if(ref.field.hasThreadLocality()) {
+                            expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, ref.field.thread_address));
+                        } else {
+                            if(ref.field.isStatic())
+                                expression.code.push_i64(SET_Di(i64, op_MOVG, ref.field.owner->address));
+                            else
+                                expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                            expression.code.push_i64(SET_Di(i64, op_MOVN, ref.field.address)); // gain access to field in object
+                        }
+
 
                         resolveFieldHeiarchy(&ref.field, reference, expression, ast);
                     } else {
@@ -5638,12 +5730,19 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
 
                     if(field->isVar()) {
                         if(field->isObjectInMemory()) {
-                            expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
+                            if(field->hasThreadLocality()) {
+                                expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+                            } else
+                                expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
                         } else
                             expression.code.push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, field->address));
                     }
-                    else
-                        expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
+                    else {
+                        if(field->hasThreadLocality()) {
+                            expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+                        } else
+                            expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
+                    }
                 }
                 else if((field = currentScope()->klass->getField(refrence.referenceName, true)) != NULL) {
                     // field?
@@ -5661,11 +5760,15 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     if(isFieldInlined(field)) {
                         inlineVariableValue(expression, field);
                     } else {
-                        if(field->isStatic())
-                            expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                        else
-                            expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
-                        expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+                        if(field->hasThreadLocality()) {
+                            expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+                        } else {
+                            if(field->isStatic())
+                                expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                            else
+                                expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                            expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+                        }
                     }
                 } else if((fn = currentScope()->klass->getFunctionByName(refrence.referenceName, ambiguous)) != NULL) {
                     if(ambiguous)
@@ -5730,11 +5833,15 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                             if(isFieldInlined(field)) {
                                 inlineVariableValue(expression, field);
                             } else {
-                                if(field->isStatic())
-                                    expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                                else
-                                    expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
-                                expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+                                if(field->hasThreadLocality()) {
+                                    expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+                                } else {
+                                    if (field->isStatic())
+                                        expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                                    else
+                                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                                    expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+                                }
                             }
 
                             return;
@@ -5850,6 +5957,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                             return;
                         }
                     }
+                    expression.code.free();
                 }
                 // scope_class? | scope_instance_block? | scope_static_block?
                 if(refrence.module != "") {
@@ -5877,23 +5985,33 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                         errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col,
                                          "field `" + starter_name + "` cannot be de-referenced");
                     }
-                    else
-                        expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
+                    else {
+                        if(field->hasThreadLocality()) {
+                            expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+                        } else {
+                            expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
+                        }
+                    }
                     resolveFieldHeiarchy(field, refrence, expression, pAst);
                     return;
                 }
                 else if((field = currentScope()->klass->getField(starter_name, true)) != NULL) {
-                    if(currentScope()->type == STATIC_BLOCK) {
-                        errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col,
-                                               "cannot get object `" + starter_name + "` from self in static context");
-                    }
 
                     verifyFieldAccess(field, pAst);
-                    if(field->isStatic())
-                        expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                    else
-                        expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
-                    expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+                    if(field->hasThreadLocality()) {
+                        expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+                    } else {
+                        if(currentScope()->type == STATIC_BLOCK && !field->isStatic()) {
+                            errors->createNewError(GENERIC, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col,
+                                                   "cannot get object `" + starter_name + "` from self in static context");
+                        }
+
+                        if (field->isStatic())
+                            expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                        else
+                            expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                        expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+                    }
                     resolveFieldHeiarchy(field, refrence, expression, pAst);
                     return;
                 } else {
@@ -5989,10 +6107,14 @@ void RuntimeEngine::resolveVarDecl(Ast* ast, bool inlineField) {
 
     Expression expression;
 
-    if(resolvedFields)
+    if(resolvedFields || resolvedGenerics)
         expression = parseUtype(ast);
     parse_var:
     string name =  ast->getEntity(startpos).getToken();
+    if(Parser::isstorage_type(token_entity(name, IDENTIFIER, 0, 0))) {
+        name = ast->getEntity(++startpos).getToken();
+    }
+
     Field* field = currentScope()->klass->getField(name);
     if(expression.utype.type == CLASS || expression.utype.type==CLASSFIELD) {
         field->klass = expression.utype.klass;
@@ -6885,6 +7007,8 @@ void RuntimeEngine::resolveClassDeclDelegates(Ast* ast) {
                 break;
             case ast_interface_decl: /* ignore */
                 break;
+            case ast_generic_interface_decl: /* ignore */
+                break;
             case ast_generic_class_decl: /* ignore */
                 break;
             case ast_enum_decl: /* ignore */
@@ -6989,7 +7113,7 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
                 resolveClassDecl(trunk, inlineField, forEnum);
                 break;
             case ast_var_decl:
-                if(!forEnum && resolvedGenerics && !resolvedFields || inlineField)
+                if((!forEnum && resolvedGenerics && !resolvedFields) || inlineField)
                     resolveVarDecl(trunk, inlineField);
                 break;
             case ast_method_decl:
@@ -7016,8 +7140,9 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
                 if(resolvedGenerics)
                     resolveClassDecl(trunk, inlineField);
                 break;
+            case ast_generic_interface_decl:
             case ast_generic_class_decl:
-                if(!resolvedGenerics)
+                if(!resolvedGenerics || (!resolvedMethods && resolvedGenerics))
                     resolveGenericClassDecl(trunk, inlineField, forEnum);
                 break;
             case ast_enum_decl: /* ignore */
@@ -7228,7 +7353,7 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField, bool for
                 break;
             case ast_generic_class_decl:
                 if(resolvedFields)
-                    resolveGenericClassDecl(ast, true, forEnum);
+                    resolveGenericClassDecl(trunk, true, forEnum);
                 break;
             case ast_enum_decl: /* ignore */
                 if(forEnum)
@@ -7682,7 +7807,7 @@ void RuntimeEngine::parseVarDecl(Ast *ast, bool global)
     if(parseAccessDecl(ast, modifiers, startpos)){
         if(global) {
             if(!modifiers.find(mCONST))
-                createNewWarning(GENERIC, ast->line, ast->col, "access modifiers ignored on global functions");
+                createNewWarning(GENERIC, ast->line, ast->col, "access modifiers ignored on global variables");
         }
         parseVarAccessModifiers(modifiers, ast);
         if(global) {
@@ -7707,10 +7832,17 @@ void RuntimeEngine::parseVarDecl(Ast *ast, bool global)
 
     parse_var:
     string name =  ast->getEntity(startpos).getToken();
+    StorageLocality locality = stl_local;
+    if(Parser::isstorage_type(token_entity(name, IDENTIFIER, 0, 0))) {
+        locality = strtostl(name);
+        name = ast->getEntity(++startpos).getToken();
+    }
+
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
 
-    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note))) {
+    long long stlAddress = currentScope()->klass->isGeneric() ? 0 : checkstl(locality);
+    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note, locality, stlAddress))) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                "field `" + name + "` is already defined in the scope");
         printNote(note, "field `" + name + "` previously defined here");
@@ -7734,7 +7866,7 @@ void RuntimeEngine::parseEnumVar(Ast *ast)
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
 
-    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note))) {
+    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note, stl_local, 0))) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                "enum `" + name + "` is already defined in the scope");
         printNote(note, "field `" + name + "` previously defined here");
@@ -7888,6 +8020,7 @@ std::string RuntimeEngine::generate_manifest() {
     manifest << ((char)0x0c); manifest << i64_tostr(stringMap.size()) << ((char)nil);
     manifest << ((char)0x0e); manifest << c_options.target << ((char)nil);
     manifest << ((char)0x0f); manifest << sourceFiles.size() << ((char)nil);
+    manifest << ((char)0x1b); manifest << i64_tostr(threadLocals) << ((char)nil);
     manifest << '\n' << (char)eoh;
 
     return manifest.str();
@@ -7911,6 +8044,7 @@ std::string RuntimeEngine::field_to_stream(Field& field) {
     fstream << field.type << ((char)nil);
     fstream << (field.modifiers.find(STATIC) ? 1 : 0) << ((char)nil);
     fstream << (field.isArray ? 1 : 0) << ((char)nil);
+    fstream << (field.hasThreadLocality() ? 1 : 0) << ((char)nil);
     fstream << (field.type == CLASS ? field.klass->address : -1) << ((char)nil);
     fstream << endl;
 
@@ -8218,6 +8352,10 @@ void RuntimeEngine::generate() {
         optimizationResult = optimized;
         if(c_options.debugMode)
             cout << "Total instructions optimized out: " << optimized << endl;
+    }
+
+    if(threadLocals >= TLS_LIMIT) {
+        cout << "error: Failed to process application, tls limit reached." << endl;
     }
 
     for(unsigned int i = 0; i < allMethods.size(); i++)
@@ -9316,6 +9454,13 @@ void RuntimeEngine::createDumpFile() {
                     _ostream << ss.str();
                     break;
                 }
+                case op_TLS_MOVL:
+                {
+                    ss<<"tls_movl ";
+                    ss<< GET_Da(x64);
+                    _ostream << ss.str();
+                    break;
+                }
                 default:
                     ss << "? (" << GET_OP(x64) << ")";
                     _ostream << ss.str();
@@ -9500,7 +9645,7 @@ void RuntimeEngine::findAndCreateGenericClass(std::string module, string &klass,
                     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
                                                    pAst->line, pAst->col);
 
-                    newClass = new ClassObject(klass, currentModule, this->uniqueSerialId++,modifiers.get(0), note);
+                    newClass = new ClassObject(klass, currentModule, this->uniqueSerialId++,modifiers.get(0), note, parent);
                     if(!parent->addChildClass(newClass)) {
                         return;
                     }
@@ -9527,6 +9672,7 @@ void RuntimeEngine::findAndCreateGenericClass(std::string module, string &klass,
                 newClass->setFullName(newClass->getFullName() + name.str());
                 newClass->setName(klass);
                 newClass->setIsProcessed(true);
+                newClass->setSuperClass(parent);
 
                 long long currErrors = errors->getUnfilteredErrorCount() ,newErrors;
 
@@ -9578,15 +9724,17 @@ void RuntimeEngine::traverseGenericClass(ClassObject *klass, List<Expression> &u
         traverseField(klass, field, pAst);
     }
 
-    for(long i = 0; i < klass->childClassCount(); i++) {
-        ClassObject *child = klass->getChildClass(i);
-        traverseGenericClass(child, utypes, pAst);
-    }
-
-    for(long i = 0; i < klass->interfaceCount(); i++) {
-        ClassObject *child = klass->getInterface(i);
-        traverseGenericClass(child, utypes, pAst);
-    }
+    // my understading is that you do not have to traverse a generic
+    // child class because you cannot accesss those elements because you are only the class you create
+//    for(long i = 0; i < klass->childClassCount(); i++) {
+//        ClassObject *child = klass->getChildClass(i);
+//        traverseGenericClass(child, utypes, pAst);
+//    }
+//
+//    for(long i = 0; i < klass->interfaceCount(); i++) {
+//        ClassObject *child = klass->getInterface(i);
+//        traverseGenericClass(child, utypes, pAst);
+//    }
 }
 
 void RuntimeEngine::traverseMethod(ClassObject *klass, Method *func, Ast* pAst) {
@@ -9655,6 +9803,14 @@ void RuntimeEngine::traverseField(ClassObject *klass, Field *field, Ast* pAst) {
         } else if(utype->utype.type == TYPEVOID) {
             field->key = utype->utype.referenceName;
         }
+
+        if(field->hasThreadLocality()) {
+            field->thread_address = threadLocals++;
+            if(field->type != CLASS && field->type != OBJECT) {
+                errors->createNewError(GENERIC, pAst, "field (" + field->fullName + ") of `thread_local` status must be of type {object or class}");
+            }
+        }
+
 
         if(field->isArray && !utype->utype.array) {
             // we are fine field will just stay an array
@@ -10006,6 +10162,8 @@ void RuntimeEngine::resolveAllGenericMethodsReturns(Ast *ast) {
                 break;
             case ast_generic_class_decl: /* ignore */
                 break;
+            case ast_generic_interface_decl: /* ignore */
+                break;
             case ast_enum_decl: /* ignore */
                 break;
             case ast_func_prototype: /* ignore */
@@ -10096,7 +10254,7 @@ void RuntimeEngine::parseProtypeDecl(Ast *ast) {
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
 
-    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note))) {
+    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note, stl_local, 0))) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                      "field `" + name + "` is already defined in the scope");
         printNote(note, "field `" + name + "` previously defined here");

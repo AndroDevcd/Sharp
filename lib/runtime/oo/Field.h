@@ -20,7 +20,7 @@ public:
     }
 
     void init(string name, int64_t id, FieldType type, bool _static, bool arry,
-              ClassObject* owner)
+              ClassObject* owner, boolean tls = false)
     {
         this->name.init();
         this->name = name;
@@ -28,6 +28,7 @@ public:
         this->type=type;
         this->isStatic=_static;
         this->isArray=arry;
+        this->isThreadLocal = tls;
     }
 
     void operator=(Field& field) {
@@ -38,6 +39,7 @@ public:
         this->owner = field.owner;
         this->isStatic = field.isStatic;
         this->isArray=field.isArray;
+        this->isThreadLocal = field.isThreadLocal;
     }
 
     native_string name;
@@ -45,6 +47,7 @@ public:
     FieldType type;
     bool isStatic;
     bool isArray;
+    bool isThreadLocal;
     ClassObject* owner;
 
     void free() {

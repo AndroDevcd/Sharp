@@ -24,7 +24,7 @@
 int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
 List<Thread*> Thread::threads;
-size_t dStackSz = STACK_SIZE;
+size_t dStackSz = STACK_SIZE, iStackSz = interp_STACK_SIZE;
 
 #ifdef WIN32_
 std::mutex Thread::threadsMonitor;
@@ -61,14 +61,12 @@ void Thread::Startup() {
  * @param stack_size
  * @return
  */
-int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
+int32_t Thread::Create(int32_t methodAddress) {
     if(methodAddress < 0 || methodAddress >= manifest.methods)
         return -1;
     Method* method = &env->methods[methodAddress];
     if(method->paramSize>0)
         return -2;
-    if(stack_size <= method->paramSize)
-        return -3;
 
     Thread* thread = (Thread*)malloc(
             sizeof(Thread)*1);
@@ -101,7 +99,7 @@ int32_t Thread::Create(int32_t methodAddress, unsigned long stack_size) {
     thread->terminated = false;
     thread->state = THREAD_CREATED;
     thread->exitVal = 0;
-    thread->stack_lmt = stack_size;
+    thread->stack_lmt = iStackSz;
     thread->fp=0;
     thread->sp=NULL;
 
@@ -132,7 +130,7 @@ void Thread::Create(string name) {
     this->exceptionObject.object=0;
     this->rand = new Random();
     this->id = Thread::tid++;
-    this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*interp_STACK_SIZE);
+    this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*iStackSz);
     this->signal = 0;
     this->suspended = false;
     this->jctx=new jit_ctx();
@@ -143,17 +141,17 @@ void Thread::Create(string name) {
     this->terminated = false;
     this->state = THREAD_CREATED;
     this->exitVal = 0;
-    this->stack_lmt = interp_STACK_SIZE;
+    this->stack_lmt = iStackSz;
     this->callStack = NULL;
     this->calls=0;
-    this->fp=dataStack;
-    this->sp=dataStack-1;
+    this->fp=&dataStack[manifest.threadLocals];
+    this->sp=(&dataStack[manifest.threadLocals])-1;
 
 #ifdef SHARP_PROF_
     this->tprof = new Profiler();
 #endif
 
-    for(unsigned long i = 0; i < interp_STACK_SIZE; i++) {
+    for(unsigned long i = 0; i < iStackSz; i++) {
         this->dataStack[i].object.object = NULL;
         this->dataStack[i].var=0;
     }
@@ -283,7 +281,7 @@ int Thread::start(int32_t id, size_t stacksz) {
 #ifdef WIN32_
     thread->thread = CreateThread(
             NULL,                   // default security attributes
-            thread->stack,                      // use default stack size
+            (thread->stack + MB_TO_BYTES(50)),                      // use default stack size
             &vm->InterpreterThreadStart,       // thread function caller
             thread,                 // thread self when thread is created
             0,                      // use default creation flags
@@ -602,9 +600,11 @@ void Thread::exit() {
 
     if(hasSignal(signal, tsig_except)) {
         this->exitVal = -800;
-        cout << throwable.stackTrace.str();
-        cout << endl << throwable.throwable->name.str() << " "
-             << throwable.message.str() << "\n";
+
+        cout << "Unhandled exception on thread " << name.str() << " (most recent call last):\n"; cout
+                << throwable.stackTrace.str();
+        cout << endl << throwable.throwable->name.str() << " ("
+           << throwable.message.str() << ")\n";
     } else {
         if(!daemon && dataStack)
             this->exitVal = (int)dataStack[0].var;
@@ -824,7 +824,7 @@ void Thread::exec() {
             }
 
 #endif
-                vm->sysInterrupt(GET_Da(*pc));
+                VirtualMachine::sysInterrupt(GET_Da(*pc));
                 if(masterShutdown) return;
                 _brh
             _MOVI: // tested
@@ -1285,6 +1285,10 @@ void Thread::exec() {
                 executeSwitch(this, GET_Da(*pc));
                 _brh_NOINCREMENT
             }
+            TLS_MOVL:
+                o2 = &(dataStack+GET_Da(*pc))->object;
+                _brh
+
 
 
         }
@@ -1324,14 +1328,6 @@ void Thread::interrupt() {
 
 void Thread::setup() {
     current = NULL;
-    if(dataStack==NULL) {
-        dataStack = (StackElement*)__malloc(sizeof(StackElement)*stack_lmt);
-        GarbageCollector::self->addMemory(sizeof(StackElement)*stack_lmt);
-    }
-    if(callStack==NULL) {
-        callStack = (Frame*)__malloc(sizeof(Frame)*stack_lmt);
-        GarbageCollector::self->addMemory(sizeof(Frame)*stack_lmt);
-    }
     calls=0;
     sendSignal(signal, tsig_suspend, 0);
     sendSignal(signal, tsig_except, 0);
@@ -1342,6 +1338,15 @@ void Thread::setup() {
     starting = 0;
     jit_tls_setup();
 
+
+    if(dataStack==NULL) {
+        dataStack = (StackElement*)__malloc(sizeof(StackElement)*stack_lmt);
+        GarbageCollector::self->addMemory(sizeof(StackElement)*stack_lmt);
+    }
+    if(callStack==NULL) {
+        callStack = (Frame*)__malloc(sizeof(Frame)*stack_lmt);
+        GarbageCollector::self->addMemory(sizeof(Frame)*stack_lmt);
+    }
     if(id != main_threadid){
         int priority = (int)env->__sgetFieldVar("priority", currentThread.object);
         setPriority(this, priority);
@@ -1354,8 +1359,8 @@ void Thread::setup() {
                 env->createString(threadName, name);
             }
         }
-        fp=dataStack;
-        sp=dataStack-1;
+        fp=&dataStack[manifest.threadLocals];
+        sp=(&dataStack[manifest.threadLocals])-1;
 
         for(unsigned long i = 0; i < stack_lmt; i++) {
             this->dataStack[i].object.object = NULL;
@@ -1421,7 +1426,11 @@ int Thread::setPriority(int32_t id, int priority) {
 }
 
 bool Thread::validStackSize(size_t sz) {
-    return sz >= STACK_MIN && sz <= STACK_MAX;
+    return sz >= STACK_MIN;
+}
+
+bool Thread::validInternalStackSize(size_t sz) {
+    return sz >= interp_STACK_MIN;
 }
 
 void __os_sleep(int64_t INTERVAL) {

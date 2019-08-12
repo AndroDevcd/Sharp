@@ -158,6 +158,7 @@ public:
     Ast *getNextSubAst(ast_types at);
     bool hasSubAst(ast_types at);
     bool hasEntity(token_type t);
+    bool findEntity(string t);
     void freeSubAsts();
     long getEntityCount();
     token_entity getEntity(long at);

@@ -266,6 +266,7 @@ void Optimizer::optimize(Method *method) {
         /**
          * must be last or the entire program will be rendered unstable
          * and will most likely fatally crash with (SEGV) signal
+         * DO NOT reorder these optimizations
          */
         optimizeJumpBranches();
         optimizeLoadLocal_4();

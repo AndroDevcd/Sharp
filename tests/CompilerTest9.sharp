@@ -11,7 +11,7 @@ public class Foo {
 }
 
 def foo2(var vv) {
-    System.println("vv " + vv);
+    println("vv " + vv);
 }
 
 def foo(var c, fn poop(var)) {

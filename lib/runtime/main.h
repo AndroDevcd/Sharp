@@ -2,8 +2,8 @@
 // Created by BraxtonN on 2/15/2018.
 //
 
-#ifndef SHARP_INIT_H
-#define SHARP_INIT_H
+#ifndef SHARP_MAIN_H
+#define SHARP_MAIN_H
 
 #include "../../stdimports.h"
 
@@ -13,7 +13,7 @@ void error(string message);
 
 #define progname "sharp"
 #define rev "r5"
-#define progvers "2.3.38" rev
+#define progvers "2.3.46" rev
 
 #ifdef SHARP_PROF_
 enum profilerSort {
@@ -50,4 +50,4 @@ struct options {
 
 extern options c_options;
 
-#endif //SHARP_INIT_H
+#endif //SHARP_MAIN_H

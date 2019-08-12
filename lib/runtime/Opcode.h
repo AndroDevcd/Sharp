@@ -60,6 +60,7 @@
 #define STACK_CHECK  if(((sp-dataStack)+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
 #define CALLSTACK_CHECK  if((calls+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
 #define THREAD_STACK_CHECK(self)  if(((self->sp-self->dataStack)+2) >= self->stack_lmt) throw Exception(Environment::StackOverflowErr, "");
+#define THREAD_STACK_CHECK2(self, x)  if(((self->sp-self->dataStack)+2) >= self->stack_lmt || (((int64_t)(&x) - self->stfloor) <= 60000)) throw Exception(Environment::StackOverflowErr, "");
 
 #ifndef SHARP_PROF_
 #define _brh_NOINCREMENT SAFTEY_CHECK /*if(!startAddress) DISPATCH() else*/ goto *opcodeStart;
@@ -193,6 +194,7 @@
             &&CMP,                                 \
             &&CALLD,                                 \
             &&VARCAST,                                 \
+            &&TLS_MOVL                                 \
         };
 
 enum Opcode {
@@ -267,7 +269,7 @@ enum Opcode {
     op_AND                      =0x44,
     op_UAND                     =0x45,
     op_OR                       =0x46,
-    op_XOR                     =0x47,
+    op_XOR                      =0x47,
     op_THROW                    =0x48,
     op_CHECKNULL                =0x49,
     op_RETURNOBJ                =0x4a,
@@ -312,7 +314,8 @@ enum Opcode {
     op_SWITCH                   =0x71,
     op_CMP                      =0x72,
     op_CALLD                    =0x73,
-    op_VARCAST                  =0x74
+    op_VARCAST                  =0x74,
+    op_TLS_MOVL                 =0x75
 };
 
 #endif //SHARP_OPCODE_H

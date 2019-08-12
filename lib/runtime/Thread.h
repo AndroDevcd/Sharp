@@ -15,9 +15,11 @@
 #define MAX_THREADS 0xffba
 
 #define interp_STACK_SIZE 0xcfba
-#define STACK_SIZE MB_TO_BYTES(6)
-#define STACK_MAX MB_TO_BYTES(16)
-#define STACK_MIN KB_TO_BYTES(250)
+#define interp_STACK_MIN 0x3e8
+// minimum size required left after local memory objects are allocated on the stack
+#define interp_STACK_start_MIN 0xff
+#define STACK_SIZE MB_TO_BYTES(1)
+#define STACK_MIN KB_TO_BYTES(120)
 
 #define main_threadid 0x0
 #define gc_threadid 0x1
@@ -101,6 +103,7 @@ public:
     static void killAll();
     static void shutdown();
     static bool validStackSize(size_t);
+    static bool validInternalStackSize(size_t);
 
     static int startDaemon(
 #ifdef WIN32_
@@ -112,7 +115,7 @@ public:
     (*threadFunc)(void*), Thread* thread);
 
 
-    static int32_t Create(int32_t, unsigned long);
+    static int32_t Create(int32_t);
     void Create(string);
     void CreateDaemon(string);
     void exit();
@@ -124,7 +127,7 @@ public:
     Method *current;
     Frame *callStack;
     jit_ctx *jctx;
-    unsigned long stack_lmt;
+    size_t stack_lmt;
     Cache cache, pc;
 #ifdef SHARP_PROF_
     Profiler *tprof;
@@ -146,6 +149,7 @@ public:
     int32_t id;
     int64_t stack;
     int64_t stbase;
+    int64_t stfloor;
     int priority;
     bool daemon;
     bool terminated;
@@ -218,5 +222,6 @@ extern FinallyTable finallyTable;
 extern thread_local short startAddress;
 extern double exponent(int64_t n);
 extern size_t dStackSz;
+extern size_t iStackSz;
 
 #endif //SHARP_THREAD_H

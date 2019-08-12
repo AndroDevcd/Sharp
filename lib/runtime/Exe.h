@@ -26,7 +26,7 @@ struct i64_t {
 #define manif 0x1
 #define eoh 0x03
 #define nil 0x0
-#define hsz 0x0a
+#define hsz 0xb
 #define eos 0x1d
 #define sdata 0x05
 #define sstring 0x02
@@ -41,7 +41,7 @@ struct i64_t {
 #define data_string 0x1e
 #define data_byte 0x05
 #define I64_BYTES 8
-#define file_vers 2
+#define file_vers 3
 
 #define data_compress_threshold 0x1388f
 

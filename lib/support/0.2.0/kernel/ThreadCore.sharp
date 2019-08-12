@@ -2,6 +2,7 @@ mod std.kernel.vm;
 
 import std;
 import std.io;
+import std.kernel;
 
 /**
  * Created by BraxtonN on 7/9/2018.
@@ -11,11 +12,9 @@ public class ThreadCore
     public static def __thread_create(Thread thread) : var
     {
         var main = __thread_init_run; // we need the address of our initial function
-        var stackSize = thread.getStackSize();
 
         asm(
             "loadl %adx, <main>         // load main method"
-            "loadl %egx, <stackSize>    // load stack size "
             "int 0xa8                   // create thread   "
             "return_val %cmt                               "
             "ret                                           "
@@ -25,11 +24,13 @@ public class ThreadCore
     public static def __thread_start(Thread thread, object[] args) : var
     {
         var id = thread.getId();
+        var stackSize = thread.getStackSize();
 
         asm(
             "loadl %adx, <id>         // load thread id    "
             "pushl <args>             // push arguments    "
             "pushl <thread>           // push thread object"
+            "loadl %ebx, <stackSize>  // load stack size   "
             "int 0xa4                   // start thread    "
             "return_val %cmt                               "
             "ret                                           "
@@ -162,6 +163,7 @@ public class ThreadCore
         curr.setStarted(true);
         curr.setExited(false);
 
+        Runtime.initializeTLS();
         curr.exitCode = curr.main(__thread_args());
         curr.setStarted(false);
         curr.setExited(true);

@@ -7,7 +7,7 @@
 #include "../util/File.h"
 #include "oo/string.h"
 #include "List.h"
-#include "init.h"
+#include "main.h"
 #include "oo/Object.h"
 #include "VirtualMachine.h"
 #include "Thread.h"
@@ -48,7 +48,8 @@ void help() {
 #endif
     cout <<               "    -showversion           print the bootstrap version number and continue." << endl;
     cout <<               "    -Maxlmt<size:type>     set the maximum memory allowed to the virtual machine." << endl;
-    cout <<               "    -stack<size:type>      set the default stack size allowed to threads." << endl;
+    cout <<               "    -stack<size:type>      set the default physical stack size allowed to threads." << endl;
+    cout <<               "    -istack<size:type>     set the default internal 'fictional' stack size allowed to threads." << endl;
     cout <<               "    -gthreshold<size:type> set the minimum memory allowed to trigger the garbage collector." << endl;
     cout <<               "    -nojit                 disable runtime JIT compilation." << endl;
     cout <<               "    -slowboot              JIT compile entire codebase at startup." << endl;
@@ -142,12 +143,30 @@ int runtimeStart(int argc, const char* argv[])
                     dStackSz = sz;
                 } else {
                     stringstream ss;
-                    ss << "default stack size must be between " << STACK_MIN << " & " << STACK_MAX << " bytes \n";
+                    ss << "default stack size must be greater than " << STACK_MIN << " bytes \n";
                     error(ss.str());
                 }
 
                 if(!setLimit)
                     error("expected postfix 'K', 'M', or 'G' after number with option `-stack`");
+            }
+        }
+        else if(opt("-istack")){
+            if(i+1 >= argc)
+                error("maximum stack limit required after option `-istack`");
+            else {
+                bool setLimit;
+                size_t sz = getMemBytes(argv[++i], setLimit);
+                if(Thread::validInternalStackSize(sz)) {
+                    iStackSz = sz;
+                } else {
+                    stringstream ss;
+                    ss << "default 'fictional' stack size must be greater than " << interp_STACK_MIN << " cells \n";
+                    error(ss.str());
+                }
+
+                if(!setLimit)
+                    error("expected postfix 'K', 'M', or 'G' after number with option `-istack`");
             }
         }
         else if(string(argv[i]).at(0) == '-'){
@@ -223,8 +242,8 @@ unsigned long long getMemBytes(const char *str, bool &setLimit) {
 
 int startApplication(string exe, List<native_string>& pArgs) {
     int result;
-    if(CreateVirtualMachine(exe) != 0) {
-        fprintf(stderr, "Sharp VM init failed (check log file)\n");
+    if((result = CreateVirtualMachine(exe)) != 0) {
+        fprintf(stderr, "Sharp VM init failed with code: %d\n", result);
         goto bail;
     }
 

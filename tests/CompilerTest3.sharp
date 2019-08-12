@@ -27,10 +27,10 @@ public interface Event {
 public class Callee base Callback : Event {
 
     public def delegate::event() {
-        System.print("Event Called!");
+        print("Event Called!");
     }
 
     public def delegate::work() {
-        System.print("success I am Called!");
+        print("success I am Called!");
     }
 }

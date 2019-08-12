@@ -28,7 +28,7 @@ public:
 
     void shutdown();
 
-    void sysInterrupt(int32_t i);
+    static void sysInterrupt(int64_t i);
 
     //void executeMethod(int64_t address);
     int returnMethod();

@@ -45,7 +45,7 @@ public:
     static ClassObject *NullptrException;
     static ClassObject *ClassCastException;
 
-    Object* globalHeap;                                 /* Mainly static classes/variables etc */
+    Object* globalHeap;         /* Mainly static classes/variables etc */
     Object* throwable;          /* Used for crashes */
 
     ClassObject* classes;

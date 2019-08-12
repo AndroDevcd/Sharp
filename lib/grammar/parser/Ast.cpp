@@ -136,6 +136,17 @@ bool Ast::hasEntity(token_type t) {
     return false;
 }
 
+bool Ast::findEntity(string t) {
+
+    token_entity e;
+    for(unsigned int i = 0; i < entities.size(); i++) {
+        e = entities.at(i);
+        if(e.getToken() == t)
+            return true;
+    }
+    return false;
+}
+
 Ast *Ast::getSubAst(ast_types at) {
     Ast* pAst;
     for(unsigned int i = 0; i < sub_asts.size(); i++) {

@@ -30,4 +30,5 @@ public static def main(string[] args) : var {
     for(var i = n; i < end; i++) {
         println("rollAvg(" + i + ") = " + rollAverage(i));
     }
+    return 1;
 }

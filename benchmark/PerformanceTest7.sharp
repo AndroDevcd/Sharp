@@ -22,6 +22,7 @@ import std;
  * int loop(ms) 28935
  *
  * Program finished with exit code 0
+
  * Compiled in 52913777us & 52913ms
  *
  * Output from windows 10 core 2.59Ghz i7 6th gen (turbo boost off)

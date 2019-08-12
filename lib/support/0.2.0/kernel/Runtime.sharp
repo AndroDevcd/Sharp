@@ -22,12 +22,23 @@ public class Runtime {
     private static fn main3();
 
     /**
-    * This is necessary to setup all our static data for our classes
+    * This is necessary to setup all our static data for our classes,
+    * propagating the main function, and initializing the runtime environment
     * DO NOT remove this call or it will result in crashes.
     *
     * NO code should be placed inside this function
     */
-    private static def setupClasses() {
+    private static def initializeRTE() {
+    }
+
+    /**
+    * contains code for setting the initial values of tls variables
+    * this function will be called at the start of every thread
+    * DO NOT remove this call or it will result in crashes.
+    *
+    * NO code should be placed inside this function
+    */
+    public static def initializeTLS() {
     }
 
     /**
@@ -43,7 +54,8 @@ public class Runtime {
         /**
         * Build config must be setup first before we do anything
         */
-        setupClasses();
+        initializeRTE();
+        initializeTLS();
         Thread.setupMainThread();
         userArgs = new string[sizeof(args) - MINIMUM_ARGS];
 

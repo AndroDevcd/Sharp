@@ -275,18 +275,18 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
         }
 
         if(expression->type == expression_var) {
-            field = Field(VAR, 0, "", NULL, mods, note);
+            field = Field(VAR, 0, "", NULL, mods, note, stl_local, 0);
             field.isArray = expression->utype.array;
 
             params.add(Param(field));
         } else if(expression->type == expression_string) {
-            field = Field(VAR, 0, "", NULL, mods, note);
+            field = Field(VAR, 0, "", NULL, mods, note, stl_local, 0);
             field.isArray = true;
 
             /* Native string is a char array */
             params.add(Param(field));
         }  else if(expression->type == expression_prototype) {
-            field = Field(VAR, 0, "", NULL, mods, note);
+            field = Field(VAR, 0, "", NULL, mods, note, stl_local, 0);
             field.prototype = true;
             field.returnType = expression->utype.method->type;
             field.proto=expression->utype.method;
@@ -297,7 +297,7 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
             success = false;
             errors->createNewError(INVALID_PARAM, expression->link->line, expression->link->col, " `class`, param must be lvalue");
         } else if(expression->type == expression_lclass) {
-            field = Field(expression->utype.klass, 0, "", NULL, mods, note);
+            field = Field(expression->utype.klass, 0, "", NULL, mods, note, stl_local, 0);
             field.type = CLASS;
             field.isArray = expression->isArray();
 
@@ -309,7 +309,7 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
             errors->createNewError(GENERIC, expression->link->line, expression->link->col, " unexpected symbol `" +
                                                                                            expression->utype.referenceName + "`");
         } else if(expression->type == expression_objectclass) {
-            field = Field(OBJECT, 0, "", NULL, mods, note);
+            field = Field(OBJECT, 0, "", NULL, mods, note, stl_local, 0);
             field.isArray = expression->isArray();
 
             params.add(field);
@@ -318,13 +318,13 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
             errors->createNewError(GENERIC, expression->link->line, expression->link->col, " expression of type `void` cannot be a param");
         }
         else if(expression->type == expression_null) {
-            field = Field(OBJECT, 0, "", NULL, mods, note);
+            field = Field(OBJECT, 0, "", NULL, mods, note, stl_local, 0);
             field.nullType = true;
 
             params.add(Param(field));
         } else {
             /* Unknown expression */
-            field = Field(UNDEFINED, 0, "", NULL, mods, note);
+            field = Field(UNDEFINED, 0, "", NULL, mods, note, stl_local, 0);
 
             params.add(Param(field));
             success = false;
@@ -799,7 +799,12 @@ void RuntimeEngine::resolveUtypeContext(ClassObject* classContext, ReferencePoin
             expression.utype.type = CLASSFIELD;
             expression.utype.field = *field;
             expression.utype.isField = true;
-            expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+
+            if(field->hasThreadLocality()) {
+                expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+            } else {
+                expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+            }
             expression.type = expression_field;
         }else {
             /* Un resolvable */
@@ -1027,13 +1032,13 @@ Expression RuntimeEngine::parseDotNotationCallContext(Expression& contextExpress
     } else if(contextExpression.type == expression_unresolved) {
         expression.type= expression_unresolved;
         return expression;
-    } else if(contextExpression.type != expression_lclass) {
+    } else if(contextExpression.utype.getRepresentedClass() == NULL) {
         errors->createNewError(GENERIC, pAst->line, pAst->col, "expression does not return a class");
         expression.type = expression_unresolved;
         return expression;
     }
 
-    ClassObject* klass = contextExpression.utype.klass;
+    ClassObject* klass = contextExpression.utype.getRepresentedClass();
 
     if(pAst->getType() == ast_dot_fn_e) {
         fn = resolveContextMethodUtype(klass, pAst->getSubAst(ast_utype),
@@ -1179,7 +1184,7 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
             errors->createNewError(GENERIC, expr.link, "cannot get integer value from type of null");
             break;
         case expression_objectclass:
-            errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `dynamic_object`");
+            errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `object`");
             break;
         case expression_unresolved:
             break;
@@ -2289,7 +2294,7 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
                     return expression;
                 } else if(interm.utype.field.type == VAR || interm.utype.field.type == OBJECT) {
                     if(interm.utype.field.type == OBJECT) {
-                        errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "use of `" + entity.getToken() + "` operator on field of type `dynamic_object` without a cast. Try ((SomeClass)dynamic_class)++");
+                        errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "use of `" + entity.getToken() + "` operator on field of type `object` without a cast. Try ((SomeClass)dynamic_class)++");
                     } else if(interm.utype.field.isVar()) {
                         // increment the field
                         pushExpressionToRegisterNoInject(interm, expression, i64ebx);
@@ -2814,7 +2819,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 //    }
 
     if(expression.type != expression_unresolved)
-        errors->createNewError(INCOMPATIBLE_TYPES, utype.link->line, utype.link->col, "; cannot cast `" + expression.utype.typeToString() + "` to `" + utype.utype.typeToString() + "`");
+        errors->createNewError(INCOMPATIBLE_TYPES, utype.link->line, utype.link->col, "; unable to cast requested types");
     return;
 }
 
@@ -2878,10 +2883,6 @@ void RuntimeEngine::preIncClass(Expression& out, token_entity op, ClassObject* k
             out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
         verifyMethodAccess(overload, out.link);
-        out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64ebx);
-        out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
-
-
         out.code.push_i64(SET_Di(i64, op_CALL, overload->address));
 
         out.type = methodReturntypeToExpressionType(overload);
@@ -2971,7 +2972,7 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
 
                 } else if(interm.utype.field.type == OBJECT) {
                     errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "use of `" + entity.getToken() +
-                                                                                          "` operator on field of type `dynamic_object` without a cast. Try ((SomeClass)dynamic_class)++");
+                                                                                          "` operator on field of type `object` without a cast. Try ((SomeClass)dynamic_class)++");
 
                 } else if(interm.utype.field.type != UNDEFINED){
                     errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(),
@@ -3088,7 +3089,7 @@ Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
         case expression_field:
             if(expression.utype.field.isNative()) {
                 if(expression.utype.field.dynamicObject()) {
-                    errors->createNewError(GENERIC, pAst->line, pAst->col, "use of `!` operator on field of type `dynamic_object` without a cast. Try !((SomeClass)dynamic_class)");
+                    errors->createNewError(GENERIC, pAst->line, pAst->col, "use of `!` operator on field of type `object` without a cast. Try !((SomeClass)dynamic_class)");
                 } else if(expression.utype.field.isVar()) {
                     pushExpressionToRegisterNoInject(expression, expression, i64ebx);
                     expression.code.push_i64(SET_Ci(i64, op_NOT, i64ebx,0, i64ebx));
@@ -3504,7 +3505,7 @@ void RuntimeEngine::checkMainMethodSignature(Method method, bool global) {
             List<Param> params;
             List<AccessModifier> modifiers;
             RuntimeNote note;
-            Field args = Field(stringClass, 0, "args", method.getParentClass(), modifiers, note);
+            Field args = Field(stringClass, 0, "args", method.getParentClass(), modifiers, note, stl_local, 0);
             args.isArray = true;
             args.type = CLASS;
             params.add(Param(args));
@@ -3552,4 +3553,15 @@ void RuntimeEngine::checkMainMethodSignature(Method method, bool global) {
             }
         }
     }
+}
+
+StorageLocality RuntimeEngine::strtostl(string locality) {
+    return locality == "thread_local" ? stl_thread : stl_local;
+}
+
+int64_t RuntimeEngine::checkstl(StorageLocality locality) {
+    if(locality == stl_thread)
+        return threadLocals++;
+    else
+        return 0;
 }

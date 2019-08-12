@@ -38,12 +38,12 @@ int CreateVirtualMachine(std::string exe)
     vm = (VirtualMachine*)__malloc(sizeof(VirtualMachine)*1);
     env = (Environment*)__malloc(sizeof(Environment)*1);
 
-#ifdef WIN32_
-    env->gui = NULL;
-#endif
-
     if(Process_Exe(exe) != 0)
         return 1;
+
+    vm->exitVal = 0;
+    if((iStackSz - interp_STACK_start_MIN - manifest.threadLocals) <= 0)
+        return 2;
 
     Thread::Startup();
     GarbageCollector::startup();
@@ -217,7 +217,7 @@ void executeMethod(int64_t address, Thread* thread, bool inJit) {
         thread->callStack[0].init(NULL, 0,0,0, false);
     } else {
         thread->callStack[thread->calls+1]
-            .init(thread->current, thread->pc, equlizer, thread->fp, method->isjit);
+            .init(thread->current, thread->pc, equlizer, thread->fp, 0);
     }
     thread->calls++;
 
@@ -226,7 +226,7 @@ void executeMethod(int64_t address, Thread* thread, bool inJit) {
     thread->fp = thread->calls==1 ? thread->fp :
                       ((method->returnVal) ? equlizer : (equlizer+1));
     thread->sp += (method->stackSize - method->paramSize);
-    THREAD_STACK_CHECK(thread);
+    THREAD_STACK_CHECK2(thread, address);
     thread->pc = thread->cache;
 
     if(!method->isjit) {
@@ -237,7 +237,8 @@ void executeMethod(int64_t address, Thread* thread, bool inJit) {
     }
 
     if(method->isjit) {
-        jit_call(address, thread);
+        thread->callStack[thread->calls].isjit = true;
+        jit_call(method, thread);
     } else if(inJit || thread->calls==1) {
         thread->exec();
     }
@@ -275,9 +276,10 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     thread_self = (Thread*)arg;
     thread_self->state = THREAD_RUNNING;
     thread_self->stbase = (int64_t)&arg;
+    thread_self->stfloor = thread_self->stbase - thread_self->stack;
 
-    thread_self->setup();
     try {
+        thread_self->setup();
         /*
          * Call main method
          */
@@ -343,10 +345,11 @@ void VirtualMachine::shutdown() {
     }
 }
 
-void VirtualMachine::sysInterrupt(int32_t signal) {
+void VirtualMachine::sysInterrupt(int64_t signal) {
     switch (signal) {
         case 0x9f:
             /* does nothing nop equivalent */
+            throw Exception("");
             return;
         case 0xc7:
             __snprintf((int) registers[i64egx], registers[i64ebx], (int) registers[i64ecx]);
@@ -446,7 +449,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             _64CMT= _kbhit();
             return;
         case 0xa8:
-            registers[i64cmt]=Thread::Create((int32_t )registers[i64adx], (unsigned long)registers[i64egx]);
+            registers[i64cmt]=Thread::Create((int32_t )registers[i64adx]);
             return;
         case 0xe4:
             registers[i64cmt]=Thread::setPriority((int32_t )registers[i64adx], (int)registers[i64egx]);
@@ -864,7 +867,7 @@ void VirtualMachine::Throw() {
         return;
     }
 
-    int result;
+    int result = thread_self->calls;
     while(thread_self->calls >= 1) {
         result = returnMethod();
         if(result==1)
@@ -877,12 +880,8 @@ void VirtualMachine::Throw() {
         }
     }
 
-    stringstream ss;
-    ss << "Unhandled exception on thread " << thread_self->name.str() << " (most recent call last):\n"; ss
-            << thread_self->throwable.stackTrace.str();
-    ss << endl << thread_self->throwable.throwable->name.str() << " ("
-       << thread_self->throwable.message.str() << ")\n";
-    throw Exception(ss.str());
+    // unhandled exception
+    throw Exception(thread_self->throwable);
 }
 
 bool VirtualMachine::TryCatch(Method *method, Object *exceptionObject) {
@@ -970,6 +969,7 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
         }
     }
 
+    Thread * t = thread_self;
     if(ptr != -1) {
         ss << ", line " << (line = frame.last->lineNumbers.get(ptr).line_number);
     } else

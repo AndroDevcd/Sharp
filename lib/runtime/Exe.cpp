@@ -106,6 +106,9 @@ int Process_Exe(std::string exe)
                 case 0x0f:
                     manifest.sourceFiles =getlong(buffer);
                     break;
+                case 0x1b:
+                    manifest.threadLocals =geti64(buffer);
+                    break;
                 default:
                     throw std::runtime_error("file `" + exe + "` may be corrupt");
             }
@@ -541,8 +544,6 @@ int Process_Exe(std::string exe)
         return 1;
     }
 
-    env->methods[8].isjit=true;
-//    env->methods[7].isjit=true;
     return 0;
 }
 
@@ -598,6 +599,7 @@ void getField(File::buffer& exe, List<KeyPair<int64_t, Field*>> &fieldMap, Field
     field->type = (FieldType)getlong(exe);
     field->isStatic = (bool)getlong(exe);
     field->isArray = (bool)getlong(exe);
+    field->isThreadLocal = (bool)getlong(exe);
     field->owner = NULL;
     fieldMap.add(KeyPair<int64_t, Field*>(getlong(exe), field));
 }

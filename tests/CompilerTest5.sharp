@@ -2,64 +2,63 @@ mod app;
 
 import std;
 
-public class Application {
-
-    public static def main(string[] args) : var {
+ def main(string[] args) : var {
         ArrayList<var> intArry = new ArrayList<var>(); // TODO: empty modifiers after methods classes etc. before block call
         intArry.add(9);
 
-        Dictionary<ee, string> enumArry = new Dictionary<ee, string>(); // TODO: empty modifiers after methods classes etc. before block call
-        enumArry.put(ee.red, "hi");
+        Dictionary<c.ee, string> enumArry = new Dictionary<c.ee, string>(); // TODO: empty modifiers after methods classes etc. before block call
+        enumArry.put(c.ee.red, "hi");
 
         try {
-            System.println(" intArry[0] = " + intArry.get(99));
+            println(" intArry[0] = " + intArry.get(99));
         } catch(Exception e) {
             // we know why
         }
 
-        System.println("int array size " +  intArry.size());
-        System.println("int isEmpty " +  intArry.empty());
+        println("int array size " +  intArry.size());
+        println("int isEmpty " +  intArry.empty());
 
         var[] tmp = intArry.toArray();
         foreach(var v : tmp) {
-            System.println("int  " +  v);
+            println("int  " +  v);
         }
         tmp = null;
 
         intArry.set(0, 15);
-        System.println("intArry[0] = " + intArry.get(0));
+        println("intArry[0] = " + intArry.get(0));
 
         intArry.insert(0, 16);
-        System.println("intArry[0] = " + intArry.get(0));
-        System.println("int array size " +  intArry.size());
+        println("intArry[0] = " + intArry.get(0));
+        println("int array size " +  intArry.size());
 
         intArry.remove(1);
-        System.println("intArry[0] = " + intArry.get(0));
-        System.println("int array size " +  intArry.size());
+        println("intArry[0] = " + intArry.get(0));
+        println("int array size " +  intArry.size());
 
         intArry.clear();
-        System.println("int array size " +  intArry.size());
+        println("int array size " +  intArry.size());
 
         Dictionary<string, var> dict = new Dictionary<string, var>();
 
         dict.put("Dave" +"", 2);
         dict.put("Steve" +"", 3);
 
-        System.println("dictionary size " +  dict.size());
-        System.println("dave = " +  dict.get("Dave" +""));
-        System.println("steve = " +  dict.get("Steve" +""));
+        println("dictionary size " +  dict.size());
+        println("dave = " +  dict.get("Dave" +""));
+        println("steve = " +  dict.get("Steve" +""));
 
         dict.remove("Steve" +"");
-        System.println("dictionary size " +  dict.size());
-        System.println("dave = " +  dict.get("Dave" +""));
-        System.println("steve = " +  dict.get("Steve" +""));
+        println("dictionary size " +  dict.size());
+        println("dave = " +  dict.get("Dave" +""));
+        println("steve = " +  dict.get("Steve" +""));
 
         asm(" nop nop nop nop nop");
-        Tmpl<int> t = new Tmpl<int>();
+        c.Tmpl<int> t = new c.Tmpl<int>();
 
-        IFace<int> ifc = new IFace<int>();
+        c.IFace<int> ifc = new c.IFace<int>();
     }
 
+class c{
     class Tmpl<T> {
         def foo(T v) {
 
@@ -75,4 +74,4 @@ public class Application {
         GREEN,
         BLUE
     };
-}
+    }

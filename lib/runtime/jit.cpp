@@ -10,7 +10,7 @@
 #include "VirtualMachine.h"
 #include "Environment.h"
 #include "Manifest.h"
-#include "init.h"
+#include "main.h"
 #include <stdio.h>
 #include <fstream>
 #include <cstdint>
@@ -48,8 +48,8 @@ void setupSharpObjectFields(const X86Gp &ctx);
 void saveCalleeRegisters(X86Assembler &cc);
 void restoreCalleeRegisters(X86Assembler &cc, int64_t stackSize);
 
-void savePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1);
-void restorePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1);
+void savePrivateRegisters(X86Assembler &cc);
+void restorePrivateRegisters(X86Assembler &cc);
 
 // global function helpers
 void global_jit_sysInterrupt(int32_t signal);
@@ -313,17 +313,17 @@ void jit_tls_setup() {
 }
 
 int try_jit(Method* func) {
-    int error;
-    if(!func->isjit && func->jitAttempts < JIT_ATTEMPT_THRESHOLD)
+    int error = jit_error_ok;
+    if(!func->isjit && func->jitAttempts < JIT_ATTEMPT_THRESHOLD && func->address == 9)
     {
-        if((error = compile(func)) != jit_error_ok) {
+        if((error = compile(func)) != jit_error_ok)
+        {
             func->jitAttempts++;
-            return error;
         }
     } else if(!func->isjit)
-        return jit_error_max_attm;
+        error = jit_error_max_attm;
 
-    return jit_error_ok;
+    return error;
 }
 
 /**
@@ -408,7 +408,6 @@ int compile(Method *method) {
         ffi.setDirtyRegs(X86Reg::kKindVec,      // Make XMM0 and XMM1 dirty. VEC kind
                          Utils::mask(0, 1));    // describes XMM|YMM|ZMM registers.
 //        ffi.enablePreservedFP();
-//        ffi.enableCalls();
         ffi.enableMmxCleanup();
 
 
@@ -419,11 +418,13 @@ int compile(Method *method) {
         FuncFrameLayout layout;                 // Create the FuncFrameLayout, which
         layout.init(fd, ffi);                   // contains metadata of prolog/epilog.
 
+        cc.comment("; starting save state", 21);
 //        FuncUtils::emitProlog(&cc, layout);      // Emit function prolog.
         cc.push(zbp);
-        cc.mov(cc.zbp(), cc.zsp());
         FuncUtils::allocArgs(&cc, layout, args); // Allocate arguments to registers.
         saveCalleeRegisters(cc);
+        cc.mov(cc.zbp(), cc.zsp());
+        cc.comment("; state saved", 13);
 
         /**
          * Layout of how our function will look (conceptually)
@@ -444,7 +445,7 @@ int compile(Method *method) {
          * }
          */
         // allocate space for the stack
-        int ptrSize      = sizeof(jit_ctx*), paddr = ptrSize + (7*sizeof(int64_t));
+        int ptrSize      = sizeof(jit_ctx*), paddr = ptrSize + (5*sizeof(int64_t));
         int tmpSize      = sizeof(int64_t);           // yes I know this will be redundant but i want to be a verbose as possible
         int valSize      = sizeof(int64_t);           // to prevent any ambiguity or assumptions
         int delegateSize = sizeof(int64_t);           // the int64_t sizes are omitted for now as they are allocated into a register
@@ -454,7 +455,7 @@ int compile(Method *method) {
         int labelsSize   = sizeof(int64_t*), laddr = paddr + labelsSize;
         int o2Size       = sizeof(Object*), o2addr = laddr + o2Size;
         int32_t stackSize = ptrSize + /* tmpSize + valSize + delegateSize + argsSize */
-                            + labelsSize + o2Size + (7*sizeof(int64_t));
+                            + labelsSize + o2Size + (5*sizeof(int64_t));
         cc.sub(zsp, (stackSize));                  // allocate nessicary bytes on the stack for variables
 
         Label labels[sz];                       // Each opcode has its own label but not all labels will be used
@@ -483,9 +484,8 @@ int compile(Method *method) {
 #endif
 
         // we want fast access
-        cc.mov(ctx, ctxPtr);        // move the context var into register
         cc.mov(registersReg, jit_ctx_fields[jit_field_id_registers]); // ctx->registers (quick "hack" for less instructions)
-        cc.mov(threadReg, jit_ctx_fields[jit_field_id_current]); // ctx->registers (quick "hack" for less instructions)
+        cc.mov(threadReg, jit_ctx_fields[jit_field_id_current]); // ctx->thread (quick "hack" for less instructions)
 
         // we already have ctx pointer no need to set
         cc.mov(ctx, jit_ctx_fields[jit_field_id_func]); // ctx->func
@@ -506,10 +506,11 @@ int compile(Method *method) {
         cc.mov(labelsPtr, ctx);                         // int64_t* labels = ctx->func->jit_labels;
 
         X86Mem tmp_jit_labels = x86::qword_ptr(ctx, 0); // labels[0]
-        {
-            int64_t i = 0;
-            checkStackIntegrity(val, JIT_TCSFIELDS);
-        }
+//        { // se do this to destroy the scope of i to use balow
+//            int64_t i = 0;
+//            checkStackIntegrity(val, JIT_TCSFIELDS);
+//            cc.mov(ctx, labelsPtr);
+//        }
         // get int64_t* labels value (ctx already has it)
         cc.mov(ctx, tmp_jit_labels);                    // if(ctx->func->jit_labels[0]==0)
         cc.test(ctx, ctx);                              //      goto end;
@@ -534,6 +535,7 @@ int compile(Method *method) {
          *        goto begin;
          *
          *     real_end:
+         *        some end function procedural code
          *        return;
          */
         Error error = 0;
@@ -569,7 +571,7 @@ int compile(Method *method) {
                 case op_NOP: {
                     cc.nop();                   // by far one of the easiest instructions yet
                     break;
-                }
+                } // done
                 case op_INT: {                  // vm->sysInterrupt(GET_Da(*pc)); if(masterShutdown) return;
 
                     cc.comment("; int", 5);
@@ -2123,7 +2125,9 @@ int compile(Method *method) {
                     cc.comment("; call", 6);
                     passArg0(cc, threadReg);
                     passArg1(cc, GET_Da(*bc));
+                    savePrivateRegisters(cc);
                     cc.call((int64_t) global_jit_call0);
+                    restorePrivateRegisters(cc);
 
                     // lets just make sure we are good
                     checkMasterShutdown(cc, argsReg, i, lbl_funcend);
@@ -2298,7 +2302,7 @@ void checkStackIntegrity(X86Gp & val, X86Assembler &cc, X86Gp & tmp, X86Gp & del
     cc.sub(val, cc.zsp()); // thread->stbase - rsp
 
     cc.mov(delegate, thread_fields[jit_field_id_thread_stack]);
-    cc.sub(delegate, KB_TO_BYTES(20));
+    cc.sub(delegate, KB_TO_BYTES(45));
     cc.cmp(val, delegate);
     Label ifFalse = cc.newLabel();
     cc.jb(ifFalse);
@@ -2466,12 +2470,12 @@ emitReturnOp(X86Assembler &cc, X86Gp &tmp, X86Gp &val, X86Gp &threadReg, X86Gp &
     Label finallyBlockEnd = cc.newLabel();
     cc.jna(finallyBlockEnd);
     // we need to update the PC
-    savePrivateRegisters(cc, vec0, vec1);
+    savePrivateRegisters(cc);
     updateThreadPc(cc, ctx, val, threadReg, argsReg);
 
     cc.call((int64_t) global_jit_executeFinally);
     passReturnArg(cc, tmp);
-    restorePrivateRegisters(cc, vec0, vec1);
+    restorePrivateRegisters(cc);
     cc.cmp(tmp, 1);
     cc.je(end);
     cc.bind(finallyBlockEnd);
@@ -2809,11 +2813,11 @@ void jit_safetycheck(X86Assembler &cc, X86Mem &ctxPtr, X86Gp &ctx, X86Gp &val, X
     Label ifFalse1 = cc.newLabel();
     cc.je(ifFalse1);
 
-    savePrivateRegisters(cc, vec0, vec1);
+    savePrivateRegisters(cc);
     passArg0(cc, val);
 
     cc.call((int64_t)global_jit_suspendSelf);
-    restorePrivateRegisters(cc, vec0, vec1);
+    restorePrivateRegisters(cc);
     cc.bind(ifFalse1);
 
     cc.mov(ctx, threadPtr);
@@ -2913,7 +2917,7 @@ void restoreCalleeRegisters(X86Assembler &cc, int64_t stackSize) {
   * X86Xmm vec1 = xmm1;
   * Save these registers before function call
   */
-void savePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1) {
+void savePrivateRegisters(X86Assembler &cc) {
     using namespace asmjit::x86;
 //    sub     esp, 16
 //    movdqu  dqword [esp], xmm0
@@ -2926,7 +2930,7 @@ void savePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1) {
     cc.sub(cc.zsp(), STACK_ALIGN_OFFSET);
 }
 
-void restorePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1) {
+void restorePrivateRegisters(X86Assembler &cc) {
     using namespace asmjit::x86;
 
     cc.add(cc.zsp(), STACK_ALIGN_OFFSET);
@@ -2946,7 +2950,7 @@ void restorePrivateRegisters(X86Assembler &cc, X86Xmm &vec0, X86Xmm &vec1) {
  */
 void global_jit_sysInterrupt(int32_t signal) {
     try {
-        vm->sysInterrupt(signal);
+        VirtualMachine::sysInterrupt(signal);
     } catch(Exception &e) {
         __srt_cxxa_prepare_throw(e);
     }
@@ -2974,13 +2978,14 @@ void global_jit_dump(Profiler* prof) {
 
     VirtualMachine::fillStackTrace(eobj);
     thread_self->throwable.throwable = eobj->object->k;
-    sendSignal(thread_self->jctx->current->signal, tsig_except, 1);
+    sendSignal(thread_self->signal, tsig_except, 1);
  }
 
  void __srt_cxxa_throw_nullptr() {
      Exception e(Environment::NullptrException, "");
      __srt_cxxa_prepare_throw(e);
  }
+
  void __srt_cxxa_throw_stackoverflow() {
      Exception e(Environment::StackOverflowErr, "");
      __srt_cxxa_prepare_throw(e);
@@ -3279,12 +3284,13 @@ void releaseMem()
     }
 }
 
-void jit_call(int64_t serial, Thread* thread)
+void jit_call(Method* func, Thread* thread)
 {
-    Method * func = (thread->jctx->func = env->methods+serial);
+    thread->jctx->func = func;
     if(func->isjit) {
 
         sjit_function f = functions.get(func->jit_addr).func;
         f(thread->jctx);
+        int i = 0;
     }
 }
