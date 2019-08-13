@@ -290,7 +290,7 @@ int Thread::start(int32_t id, size_t stacksz) {
     else return waitForThread(thread);
 #endif
 #ifdef POSIX_
-    pthread_attr_t thAttr;
+    pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setstacksize(&attr,thread->stack + STACK_OVERFLOW_BUF);
     if(pthread_create( &thread->thread, &attr, vm->InterpreterThreadStart, (void*) thread))
