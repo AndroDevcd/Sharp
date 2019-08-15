@@ -14,6 +14,7 @@ sudo rm -r /usr/include/sharp/bootstrap/
 
 cd ../../../
 sharpc Test.sharp -o hello -s -R
-sharp test
+sharp hello
 
+echo ""
 echo "sharp installed!"

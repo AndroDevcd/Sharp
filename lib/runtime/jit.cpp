@@ -2305,7 +2305,7 @@ void checkStackIntegrity(X86Gp & val, X86Assembler &cc, X86Gp & tmp, X86Gp & del
     cc.sub(val, cc.zsp()); // thread->stbase - rsp
 
     cc.mov(delegate, thread_fields[jit_field_id_thread_stack]);
-    cc.sub(delegate, KB_TO_BYTES(45));
+    // todo: fix this line function call to sub is ambiguous cc.sub(delegate, STACK_OVERFLOW_BUF);
     cc.cmp(val, delegate);
     Label ifFalse = cc.newLabel();
     cc.jb(ifFalse);

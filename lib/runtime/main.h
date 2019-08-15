@@ -26,12 +26,12 @@ enum profilerSort {
 
 struct options {
 
-    bool debugMode = true;
+    bool debugMode = false;
 
     /**
      * JIT Compiler enabled by default to boost Sharp
-     * speeds of 20-30x even as high as 40x faster
-     * than original speed
+     * speeds of 25-50%+ faster than the original 
+     * program speed
      */
     bool jit = false; // diabled by default for now
 

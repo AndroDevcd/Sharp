@@ -20,11 +20,6 @@ int main(int argc, const char* argv[]) {
     _bootstrap( argc, argv );
 #endif
 #ifndef MAKE_COMPILER
-//    for(long i = 0; i < 100000000; i++) {
-//        double a = 3;
-//        double b = a + 9;
-//        double c = a * b + (a * 1732737);
-//    }
     runtimeStart( argc, argv );
 #endif
 
@@ -33,6 +28,7 @@ int main(int argc, const char* argv[]) {
         cout << endl << "Compiled in " << NANO_TOMICRO(now-past) << "us & "
              << NANO_TOMILL(now-past) << "ms\n";
 
-    cout << endl << "program exiting..." << endl;
+    if(c_options.debugMode)
+        cout << endl << "program exiting..." << endl;
     return 0;
 }

@@ -38,15 +38,16 @@ void error(string message) {
 void help() {
 #ifndef SHARP_PROF_
     std::cerr << "Usage: sharp" << " {OPTIONS} EXECUTABLE" << std::endl;
-#elif defined(SHARP_PROF_)
-    std::cerr << "Usage: sprof" << " {OPTIONS} EXECUTABLE" << std::endl;
 #endif
-    cout << "Executable must be built with sharpc to be ran\n" << endl;
-    cout << "[-options]\n\n    -V                     print the bootstrap version number and exit" << endl;
+#ifdef SHARP_PROF_
+    std::cerr << "Usage: " << PROFILER_NAME << "  {OPTIONS} EXECUTABLE" << std::endl;
+#endif
+    cout << "Executable must be built with sharpc to be executed\n" << endl;
+    cout << "[-options]\n\n    -V                     print the version number and exit" << endl;
 #ifdef SHARP_PROF_
     cout <<               "    -sort<id>              sort by time(tm), avg time(avgt), calls(calls), or ir(ir)." << endl;
 #endif
-    cout <<               "    -showversion           print the bootstrap version number and continue." << endl;
+    cout <<               "    -showversion           print the version number and continue." << endl;
     cout <<               "    -Maxlmt<size:type>     set the maximum memory allowed to the virtual machine." << endl;
     cout <<               "    -stack<size:type>      set the default physical stack size allowed to threads." << endl;
     cout <<               "    -istack<size:type>     set the default internal 'fictional' stack size allowed to threads." << endl;
@@ -93,6 +94,9 @@ int runtimeStart(int argc, const char* argv[])
         }
         else if(opt("-slowboot")){
             c_options.slowBoot = true;
+        }
+        else if(opt("-debug")) {
+            c_options.debugMode = true;
         }
         else if(opt("-gthreashold") || opt("-gt")) {
             bool setLimit;
