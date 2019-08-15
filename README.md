@@ -9,9 +9,7 @@
     
 # The Sharp Programming Language 
 
-Sharp is an open source a modern object-oriented programming language that aims to bridge the gap between modern expressive programming paradigms     
-and strictly typed rigid languages like Java and C#. My goal is to provide the usefulness of an object oriented programming language, while holding the simplicity of an expressive programming language     
-without having to sacrifice performance.     
+Sharp is an open source a modern object-oriented programming language that aims to bridge the gap between modern expressive programming paradigms and strictly typed rigid languages like Java and C#. My goal is to provide the usefulness of an object oriented programming language, while holding the simplicity of an expressive programming language without having to sacrifice performance.     
     
 Sharp is elegantly simple.    
 ```javascript    
@@ -36,7 +34,7 @@ def main() {
 }  
 ```  
   
-Sharp makes for loops easy by allowing the programmer to not have to care about creating iteration tracking variables unless absolutely necessary.  
+Sharp's syntax is minimalistic simple and easy to use  
   
 ```javascript  
 mod app;  
@@ -46,9 +44,10 @@ def main() {
       println("im looping!");  
 }  
 ```  
- the above illustration creates an **anonymous** for loop that does the tracking or loop iteration for you  
+
+The above illustration creates an **anonymous** for loop that does the tracking or loop iteration for you  
   
-Sharp has a multi-language inspired syntax taking the beauty of languages such as JavaScript, python, Java, and C#. While expressing it in a more concise way. sharp supports anonymous functions that make it easy to abstract away blocks of code without the need to have thousands of external functions in your code.  
+Sharp has a multi-language inspired syntax taking the beauty of languages such as JavaScript, python, Java, Go, and C#. While expressing it in a more concise way. sharp supports anonymous functions that make it easy to abstract away blocks of code without the need to have thousands of external functions in your code.  
   
 ```javascript  
 mod app;  
@@ -69,6 +68,43 @@ def main() {
    };  
 }  
 ```  
+
+Although being an object oriented language, sharp does not force you to need classes for simple operations.
+
+```javascript
+mod app;  
+
+struct Vehicle {
+    licensePlate: string, // licensePlate, make, & model are all string types
+          wheels, 
+       modelYear: int = 1997; // modelYear has a default value of 1997
+}
+
+  
+struct Truck : Vehicle {
+           make, 
+           model: string,
+           color: Color.RED,
+          wheels, 
+       modelYear: int = 1997; // modelYear has a default value of 1997
+}
+
+def populate(Vehicle v) {
+    ...
+}
+
+def main() {  
+   Vehicle car = new Vehicle();
+    populate(car);
+  
+   fn draw = use -> car: {  
+      // we want to draw the provided vehicle
+     // to the screen
+      
+      drawObject(car);
+   };  
+}  
+```
   
 ##### Some thoughts on language design  
 Sharp does not force you to be object oriented if you don''t want to like other languages force you to be. Of course some things done such as creating threads require some state to be stored and persist through the lifetime of your application; However Sharp allows you to be either more expressive or object-oriented or both.
