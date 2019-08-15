@@ -20,11 +20,12 @@ Next cd into the directory of your sharp build to the folder lib and run the com
 
 ```
 mkdir C:/Sharp/include
-cd {SHARP_INSTALL_PATH}/lib/support/0.2.422/
+cd {SHARP_RELEASE_PATH}/lib/support/0.2.422/
 cp -r * C:/Sharp/include
 rm -r C:/Sharp/include/bootstrap/
+cd ../../../
 Sharpc Test.sharp -o hello -s -R
-Sharp test
+Sharp hello
 ```
 
 After running the commands above if you receive the final output as ``Hello, World!``` Then Sharp has been installed properly and your good to go!
@@ -37,7 +38,7 @@ Navigate to the folder ``{YOUR_DIR}\Release-{VERSION}\``.  Installing sharp on l
 chmod +x linux-install.bash
 ./linux-install.bash
 sharpc Test.sharp -o hello -s -R
-sharp test
+sharp hello
 ```
 
 After running the commands above if you receive the final output as ``Hello, World!``` Then Sharp has been installed properly and your good to go!
