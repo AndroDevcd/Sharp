@@ -2959,7 +2959,7 @@ void global_jit_sysInterrupt(int32_t signal) {
     }
 }
 
-#ifdef SHAR_PROF_
+#ifdef SHARP_PROF_
 void global_jit_profile(Profiler* prof) {
     prof->profile();
 }
@@ -3177,7 +3177,7 @@ void global_jit_ulock(Object* o) {
 
 void global_jit_call0(Thread *thread, int64_t addr) {
 #ifdef SHARP_PROF_
-    tprof->hit(env->methods+GET_Da(*pc));
+    thread->tprof->hit(env->methods+addr);
 #endif
 
     try {
@@ -3193,7 +3193,7 @@ void global_jit_call0(Thread *thread, int64_t addr) {
 void global_jit_call1(Thread* thread, int64_t addr) {
     int64_t val;
 #ifdef SHARP_PROF_
-    tprof->hit(env->methods+GET_Da(*pc));
+    thread->tprof->hit(env->methods+addr);
 #endif
     try {
         if ((val = (int64_t) registers[addr]) <= 0 || val >= manifest.methods) {
@@ -3216,8 +3216,8 @@ void setupJitContextFields(const X86Gp &ctx) {
     jit_ctx_fields[jit_field_id_func] = x86::qword_ptr(ctx, relative_offset((thread->jctx), current, func)); // Method *func
 
 #ifdef SHARP_PROF_
-    jit_ctx_fields[jit_field_id_ir] = x86::qword_ptr(ctx, relative_offset((&jctx), current, irCount)); // unsigned long long *irCount
-    jit_ctx_fields[jit_field_id_overflow] = x86::qword_ptr(ctx, relative_offset((&jctx), current, overflow)); // unsigned long long *overflow
+    jit_ctx_fields[jit_field_id_ir] = x86::qword_ptr(ctx, relative_offset((thread->jctx), current, irCount)); // unsigned long long *irCount
+    jit_ctx_fields[jit_field_id_overflow] = x86::qword_ptr(ctx, relative_offset((thread->jctx), current, overflow)); // unsigned long long *overflow
 #endif
 }
 

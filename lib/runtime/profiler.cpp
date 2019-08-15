@@ -10,7 +10,7 @@
 #include "Exe.h"
 #include "Environment.h"
 #include "Thread.h"
-#include "init.h"
+#include "main.h"
 
 
 extern unsigned long long irCount, overflow;
