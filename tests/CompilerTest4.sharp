@@ -2,10 +2,9 @@ mod application;
 
 import std;
 import std.io;
-import std.internal.vm;
+import std.kernel.vm;
 
-public class Application {
-        var a=8, b, c;
+var a=8, b, c;
 
     def foo() : string[] {
         object[] arry = new object[5];
@@ -16,88 +15,67 @@ public class Application {
     public static def main(string[] args) : var {
         File file = new File(new string("README1.md"));
 
-        System.println("file " + file.getName() + " being created  ");
-        file.createNewFile();
-        //System.println("file " + file.getName() + " rename " + file.renameTo(new File(new string("poop.md"))));
-        System.println("file " + file.getName() + " read only " + file.setReadOnly());
-        System.println("file " + file.getName() + " absolute path is " + file.getAbsolutePath());
-        System.println("file " + file.getName() + " has read access " + file.isReadable());
-        System.println("file " + file.getName() + " has write access " + file.isWriteable());
+        println("file " + file.getName() + " being created  ");
+        file.create();
+        //println("file " + file.getName() + " rename " + file.renameTo(new File(new string("poop.md"))));
+        println("file " + file.getName() + " read only " + file.setReadOnly());
+        println("file " + file.getName() + " absolute path is " + file.getAbsolutePath());
+        println("file " + file.getName() + " has read access " + file.isReadable());
+        println("file " + file.getName() + " has write access " + file.isWriteable());
         asm("nop nop nop nop nop");
-        System.println("file " + file.getName() + " has write access " + (file.isWriteable()==1? "yes" : "no"));
+        println("file " + file.getName() + " has write access " + (file.isWriteable()==1? "yes" : "no"));
         asm("nop nop nop nop nop");
-       // System.println("file " + file.getName() + " setting writeable " + file.setWritable(true));
+       // println("file " + file.getName() + " setting writeable " + file.setWritable(true));
         if(file.exists()) {
-            System.println("file " + file.getName() + " exists");
+            println("file " + file.getName() + " exists");
         } else {
-            System.println("file " + file.getName() + " dosent exist!");
+            println("file " + file.getName() + " dosent exist!");
         }
 
         lock (file) {
             file.setWritable(true);
-            IOStream ostream = new IOStream(file, IOStream.OUT);
+            IOStream ostream = new IOStream(file, IOStream.WRITE);
             ostream.write("Hello, World!");
             ostream.close();
 
-            IOStream istream = new IOStream(file, IOStream.IN);
+            IOStream istream = new IOStream(file, IOStream.READ);
             var _char;
 
             while((_char = istream.nextChar()) != -1) {
-                System.printChar(_char);
+                printChar(_char);
             }
 
             istream.close();
         }
 //
-        System.println(" what is your name ?");
-        string name = System.readLine();
-        System.println(" hello " + name);
-        System.println("file " + file.getName() + " is a directory " + file.isDirectory());
-        System.println("file " + file.getName() + " is a file " + file.isFile());
-        System.println("file " + file.getName() + " is a hidden " + file.isHidden());
-        System.println("file " + file.getName() + " last modified time " + file.lastModified());
-        System.println("file " + file.getName() + " size is  " + file.length());
-        System.println("file " + file.getName() + " being deleted  ");
-        System.println("file " + file.getName() + " setting time to " + file.setLastModified(Time.timeToSecs(Time.nanoTime())));
+        println(" what is your name ?");
+        string name = readLine();
+        println(" hello " + name);
+        println("file " + file.getName() + " is a directory " + file.isDirectory());
+        println("file " + file.getName() + " is a file " + file.isFile());
+        println("file " + file.getName() + " is a hidden " + file.isHidden());
+        println("file " + file.getName() + " last modified time " + file.lastModified());
+        println("file " + file.getName() + " size is  " + file.length());
+        println("file " + file.getName() + " being deleted  ");
+        println("file " + file.getName() + " setting time to " + file.setLastModified(Time.timeToSecs(Time.nanoTime())));
        // file.delete();
 
         File dir = new File(new string("tests/tmp"));
         dir.mkdir();
-        System.println("file " + dir.getPath() + " has files  ");
+        println("file " + dir.getPath() + " has files  ");
         string[] files = dir.list();
         foreach(string f : files) {
-            System.println("file: " + f);
-            File tmp = new File(dir.getPath() + "/" + f);
-            System.println("file " + tmp.getName() + " is a directory " + tmp.isDirectory());
-            System.println("file: " + tmp.getPath());
-            //tmp.delete();
+            println("file: " + f);
+            File tmp = new File(f);
+            println("file " + tmp.getName() + " is a directory " + tmp.isDirectory());
+            println("file: " + tmp.getPath());
+            tmp.delete();
         }
-        System.println("folder is being deleted  ");
-        System.println("file " + file.getName() + " size is  " + file.length());
+        println("folder is being deleted  ");
+        println("file " + file.getName() + " size is  " + file.length());
 
-        System.println("file " + file.getName() + " total disk space  " + file.getTotalSpace());
-        System.println("file " + file.getName() + " total free disk space  " + file.getFreeSpace());
-        System.println("file " + file.getName() + " total usable disk space  " + file.getUsableSpace());
+        println("file " + file.getName() + " total disk space  " + file.getTotalSpace());
+        println("file " + file.getName() + " total free disk space  " + file.getFreeSpace());
+        println("file " + file.getName() + " total usable disk space  " + file.getUsableSpace());
 //        dir.delete();
     }
-}
-
-class Callback {
-
-    public def delegate::work();
-}
-
-interface Event {
-    public def delegate::event();
-}
-
-class Callee base Callback : Event {
-
-    public def delegate::event() {
-        System.print("Event Called!");
-    }
-
-    public def delegate::work() {
-        System.print("success I am Called!");
-    }
-}

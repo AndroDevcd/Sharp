@@ -1,0 +1,51 @@
+mod app;
+
+import std;
+
+//def fib(var n) : var
+//{
+//   if (n <= 1)
+//      return n;
+//   return fib(n-1) + fib(n-2);
+//}
+
+def foo2() {
+    asm("nop");
+    foo();
+}
+
+def fib(var n) : var
+{
+    var a = 1, b = 1;
+    for (var i = 3; i <= n; i++) {
+        var c = a + b;
+        a = b;
+        b = c;
+        b = c * c + 9 - b / 1220230330;
+        b = c * c;
+    }
+    return b;
+}
+
+def foo() {
+//    asm("nop");
+//    foo2();
+//    print("fib 30 = " + fib(500000000));
+//    print("fib 30 = " + fib(50000));
+    asm(
+        "nop"
+        "int 0x9f"
+    );
+}
+
+//var[] arry = new var[] { 1, 2, 3, 4, 5, 6 };
+/**
+ * Created by BraxtonN on 8/13/2018.
+ *
+ * Testing suite for Sharp.
+ *
+ * This file contains all the testing of the Sharp JIT
+ */
+def main() {
+    foo();
+}

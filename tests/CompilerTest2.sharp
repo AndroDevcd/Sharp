@@ -11,22 +11,25 @@ class k {
  */
 public class Application base k {
     var x;
-    var[] iarry;
+    public var[] iarry;
 
     public Application() {
         iarry = new var[] { 'h', 'i' };
     }
+}
 
-    public static def foo(object o) {
+public static def foo(object o) {
 
-    }
+}
 
-    public static def main(object[] args) : var {
+public static def main(object[] args) : var {
 
         object o = new Application();
         ((Application)o).x = 9;
 
+        asm("nop nop nop nop");
         o = ((Application)o).iarry;
+        asm("nop nop nop nop");
         System.print((var[])o);
 
         o = 9;
@@ -52,4 +55,3 @@ public class Application base k {
         foo(9);
         return 0;
     } // TODO: enforce return statements
-}

@@ -1,0 +1,72 @@
+mod app;
+
+
+import std;
+import std.io;
+
+
+/**
+ * Created by BraxtonN on 7/17/2018.
+ *
+ * This program was created to illustrates the speed of using
+ * VarList vs ArrayList and ObjList vs ArrayList
+ *
+ * VarList and ObjList both use the CList kernel class to
+ * perform heavy operations such ass add(), insert(), and remove()
+ * directly in c++ to increase the overall performance
+ */
+def main(string[] args) : var {
+    ArrayList<var> varLst1 = new ArrayList<var>();
+    var past = getUtcTimeInMills(), now;
+
+    for(var i = 0; i < 2000000; i++)
+    {
+        varLst1.add(i);
+    }
+
+    now = getUtcTimeInMills();
+    println("ArrayList<var> time (" + (now-past) + ") ms");
+    varLst1.clear();
+
+    VarList varLst2 = new VarList();
+    past = getUtcTimeInMills();
+
+    for(var i = 0; i < 2000000; i++)
+    {
+        varLst2.add(i);
+    }
+
+    now = getUtcTimeInMills();
+    println("VarList time (" + (now-past) + ") ms");
+    varLst2.clear();
+
+    ArrayList<TestClass> classLst = new ArrayList<TestClass>();
+    past = getUtcTimeInMills();
+
+    for(var i = 0; i < 1000000; i++)
+    {
+        classLst.add(new TestClass());
+    }
+    classLst.clear();
+
+    now = getUtcTimeInMills();
+    println("ArrayList<TestClass> time (" + (now-past) + ") ms");
+
+    ObjList classLst2 = new ObjList(); // fast anonymous dataset list
+    past = getUtcTimeInMills();
+
+    for(var i = 0; i < 1000000; i++)
+    {
+        classLst2.add(new TestClass());
+    }
+    classLst2.clear();
+
+    now = getUtcTimeInMills();
+    println("ObjList time (" + (now-past) + ") ms");
+}
+
+public class TestClass {
+    var id;
+    var[] TAG = "TestClass";
+}
+

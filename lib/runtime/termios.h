@@ -12,6 +12,8 @@ extern char getch(void);
 
 /* Read 1 character with echo */
 extern char getche(void);
+
+extern bool _kbhit(void);
 #endif
 
 #endif //SHARP_TERMIOS_H

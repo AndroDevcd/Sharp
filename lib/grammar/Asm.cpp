@@ -63,25 +63,25 @@ void Asm::expect_register() {
         npos++;
 
     if(current() == "adx") {
-        i2.high_bytes = adx;
+        i2.high_bytes = i64adx;
     } else if(current() == "cx") {
-        i2.high_bytes = cx;
+        i2.high_bytes = i64cx;
     } else if(current() == "cmt") {
-        i2.high_bytes = cmt;
+        i2.high_bytes = i64cmt;
     } else if(current() == "ebx") {
-        i2.high_bytes = ebx;
+        i2.high_bytes = i64ebx;
     } else if(current() == "ecx") {
-        i2.high_bytes = ecx;
+        i2.high_bytes = i64ecx;
     } else if(current() == "ecf") {
-        i2.high_bytes = ecf;
+        i2.high_bytes = i64ecf;
     } else if(current() == "edf") {
-        i2.high_bytes = edf;
+        i2.high_bytes = i64edf;
     } else if(current() == "ehf") {
-        i2.high_bytes = ehf;
+        i2.high_bytes = i64ehf;
     } else if(current() == "bmr") {
-        i2.high_bytes = bmr;
+        i2.high_bytes = i64bmr;
     } else if(current() == "egx") {
-        i2.high_bytes = egx;
+        i2.high_bytes = i64egx;
     } else {
         // error
         tk->getErrors()->createNewError(GENERIC, current(), "symbol `" + current().getToken() + "` is not a register");
@@ -123,7 +123,7 @@ void Asm::expect_int() {
         string int_string = RuntimeEngine::invalidateUnderscores(current().getToken());
 
         if(all_integers(int_string) || hex_int(int_string)) {
-            x = std::strtol (int_string.c_str(), NULL, 0);
+            x = std::strtoll (int_string.c_str(), NULL, 0);
             if(x > DA_MAX || x < DA_MIN) {
                 stringstream ss;
                 ss << "integral number too large: " + int_string;
@@ -503,6 +503,8 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     assembler.push_i64(SET_Di(i64, op_MOVI, itmp.high_bytes), i2.high_bytes);
 
                 } else {
+                    if(current() == "#")
+                        npos++;
                     expect_int();
                     itmp = i2;
                     expect(",");
@@ -744,7 +746,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -755,7 +757,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 assembler.push_i64(SET_Di(i64, op_MOVL, i2.high_bytes));
             } else if(instruction_is("movsl")) {
                 expect_int();
-                assembler.push_i64(SET_Di(i64, op_MOVL, i2.high_bytes));
+                assembler.push_i64(SET_Di(i64, op_MOVSL, i2.high_bytes));
             } else if(instruction_is("movbi")) {
                 expect_int();
 
@@ -823,6 +825,9 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect("<");
                 expect_function();
                 expect(">");
+                assembler.push_i64(SET_Di(i64, op_CALL, i2.high_bytes));
+            } else if(instruction_is("calld")) {
+                expect_register();
                 assembler.push_i64(SET_Di(i64, op_CALL, i2.high_bytes));
             } else if(instruction_is("new_class")) {
                 expect("<");
@@ -941,13 +946,13 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_register();
 
                 assembler.push_i64(SET_Ci(i64, op_OR, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
-            } else if(instruction_is("unot")) {
+            } else if(instruction_is("xor")) {
                 expect_register();
                 itmp = i2;
                 expect(",");
                 expect_register();
 
-                assembler.push_i64(SET_Ci(i64, op_UNOT, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+                assembler.push_i64(SET_Ci(i64, op_XOR, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
             } else if(instruction_is("throw")) {
                 assembler.push_i64(SET_Ei(i64, op_THROW));
             } else if(instruction_is("check_null")) {
@@ -1046,7 +1051,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL ||  (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -1072,7 +1077,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -1095,13 +1100,13 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_int();
 
                 assembler.push_i64(SET_Ci(i64, op_ORL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
-            } else if(instruction_is("notl")) {
+            } else if(instruction_is("xorl")) {
                 expect_register();
                 itmp = i2;
                 expect(",");
                 expect_int();
 
-                assembler.push_i64(SET_Ci(i64, op_NOTL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+                assembler.push_i64(SET_Ci(i64, op_XORL, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
             } else if(instruction_is("rmov")) {
                 expect_register();
                 itmp = i2;
@@ -1138,7 +1143,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -1152,7 +1157,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -1166,7 +1171,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -1175,6 +1180,20 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 }
 
                 assembler.push_i64(SET_Di(i64, op_POPL, i2.high_bytes));
+            } else if(instruction_is("ipopl")) {
+                if(current() == "<") {
+                    npos++;
+                    string local = expect_identifier();
+
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                        tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
+                    }
+                    expect(">");
+                } else {
+                    expect_int();
+                }
+
+                assembler.push_i64(SET_Di(i64, op_IPOPL, i2.high_bytes));
             } else if(instruction_is("itest")) {
                 expect_int();
 
@@ -1184,7 +1203,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     npos++;
                     string local = expect_identifier();
 
-                    if((i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
                         tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
                     }
                     expect(">");
@@ -1205,8 +1224,8 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
             cout << note.getNote("Assembler messages:");
             tk->getErrors()->printErrors();
 
-            errors+= tk->getErrors()->getErrorCount();
-            uo_errors+= tk->getErrors()->getUnfilteredErrorCount();
+            instance->errorCount+= tk->getErrors()->getErrorCount();
+            instance->unfilteredErrorCount+= tk->getErrors()->getUnfilteredErrorCount();
         }
     }
 
@@ -1228,25 +1247,25 @@ token_entity Asm::current() {
 
 string Asm::registrerToString(int64_t r) {
     switch(r) {
-        case adx:
+        case i64adx:
             return "adx";
-        case cx:
+        case i64cx:
             return "cx";
-        case cmt:
+        case i64cmt:
             return "cmt";
-        case ebx:
+        case i64ebx:
             return "ebx";
-        case ecx:
+        case i64ecx:
             return "ecx";
-        case ecf:
+        case i64ecf:
             return "ecf";
-        case edf:
+        case i64edf:
             return "edf";
-        case ehf:
+        case i64ehf:
             return "ehf";
-        case bmr:
+        case i64bmr:
             return "bmr";
-        case egx:
+        case i64egx:
             return "egx";
         default: {
             stringstream ss;

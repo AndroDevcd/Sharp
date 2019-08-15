@@ -97,7 +97,7 @@ void tokenizer::parse()
 
     parse_lines();
     errors = new ErrorManager(lines, file, false, c_options.aggressive_errors);
-
+    EOF_token = new token_entity("", SINGLE, 1, lines.size(), _EOF);
 
     for(;;)
     {
@@ -508,7 +508,8 @@ void tokenizer::parse()
                 else if (escaped)
                 {
                     hascharacter = true;
-                    if(!isletter((char) tolower(current)) && current != '\\' && current != '\"' && current != '\'')
+                    if(current != '0' && current != 'a' && !isletter((char) tolower(current))
+                       && current != '\\' && current != '\"' && current != '\'')
                     {
                         errors->createNewError(ILLEGAL_CHAR_LITERAL_FORMAT, line, col, ", text preceding `\\` must be alpha, '\"', or '\\'' only");
                         goto start;
@@ -577,6 +578,12 @@ string tokenizer::get_escaped_string(string msg) const {
                     break;
                 case 'f':
                     escapedmessage << '\f';
+                    break;
+                case '0':
+                    escapedmessage << '\0';
+                    break;
+                case 'a':
+                    escapedmessage << '\a';
                     break;
                 default:
                     escapedmessage << msg.at(i+1);

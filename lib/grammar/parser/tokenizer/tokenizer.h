@@ -26,7 +26,6 @@ public:
     {
         entites.init();
         lines.init();
-        EOF_token = new token_entity("", SINGLE, 0, line, _EOF);
 
         if(!tokens.empty()) {
             toks = tokens;

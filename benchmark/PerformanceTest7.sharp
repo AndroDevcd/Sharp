@@ -1,0 +1,48 @@
+mod app;
+
+
+import std;
+
+/**
+ * Created by BraxtonN on 7/17/2018.
+ *
+ * var vs int performance comparision
+ *
+ * This program issustrates the performance gap between
+ * using int vs using var. Using int is much slower because
+ * int is a class with performance overhead that requires a function call
+ * in order to perform any math operation and or comparision.
+ *
+ * Var on the otherhand lives directly on the stack for the fastest possible
+ * access. The speed of accessing a var is near close to the speed of using registers
+ * in Sharp to process information. When math operations are performed on a var
+ * they are performed directly on that var in the stack
+ *
+ * var loop(ms) 4962
+ * int loop(ms) 28935
+ *
+ * Program finished with exit code 0
+
+ * Compiled in 52913777us & 52913ms
+ *
+ * Output from windows 10 core 2.59Ghz i7 6th gen (turbo boost off)
+ */
+def main(string[] args) : var {
+
+    var past = getUtcTimeInMills(),now, tmp;
+    for(var i = 0; i < 50000000; i++)
+    {
+        tmp++;
+    }
+    now = getUtcTimeInMills();
+
+    println("var loop(ms) " + (now-past));
+
+    past = getUtcTimeInMills();
+    for(int i = 0; i < 50000000; i++)
+    {
+        tmp++;
+    }
+    now = getUtcTimeInMills();
+    println("int loop(ms) " + (now-past));
+}

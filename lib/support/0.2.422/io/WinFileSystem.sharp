@@ -1,0 +1,112 @@
+mod std.io;
+
+import std;
+
+/**
+ * WinFileSystem represents the high level version of the operations
+ * that you can invoke on a windows file system. Not much needs to be changed in
+ * this file other than normalizing the path name.
+ *
+ * Windows does not classify access execute aso a request for that will fail
+ * before we even interrupt the vm
+ */
+public class WinFileSystem base FileSystem {
+    private var slash;
+
+    public WinFileSystem() {
+        slash = '\\';
+    }
+
+    public def delegate::getPathSeparator() : var {
+        return slash;
+    }
+
+    /**
+    * Make sure we know that our path has the correct
+    * path seperators to be accessed
+    */
+    public def delegate::normalize(string pathname) : string {
+        var n = pathname.size();
+        var[] normalized = pathname.toArray();
+        string name = "";
+        var[] current = new var[1]; var prevChar = 0;
+        for (var i = 0; i < sizeof(normalized); i++) {
+            current[0] = normalized[i];
+            // Remove duplicate slashes.
+            if (current[0] == '/' && prevChar == '/')
+                continue;
+            else if(current[0] == '\\')  {
+                if(prevChar != '\\')
+                    name += '\\';
+            }
+            else
+                name += current;
+
+            prevChar = current[0];
+        }
+
+        return name;
+    }
+
+     /**
+      * Return the simple boolean attributes for the file or directory denoted
+      * by the given abstract pathname, or zero if it does not exist or some
+      * other I/O error occurs.
+      */
+     public def delegate::getFileAttributes(File f) : var {
+        var[] path;
+
+        try {
+            path = f.getAbsolutePath().toArray();
+        }catch(IOException e) {
+            return 0;
+        }
+        var attrs;
+
+        /*
+        * This will perform the os call to request the
+        * file attributes of the given abstract pathname
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb2               "
+            "smovr_2 %ebx,<attrs>   "
+        );
+
+        return attrs;
+     }
+
+
+     /**
+      * Check whether the file or directory denoted by the given abstract
+      * pathname may be accessed by this process.  The second argument specifies
+      * which access, ACCESS_READ, ACCESS_WRITE or ACCESS_EXECUTE, to check.
+      * Return false if access is denied or an I/O error occurs
+      */
+     public def delegate::checkAccess(File f, var access) : var {
+        var[] path;
+
+        try {
+            path = f.getAbsolutePath().toArray();
+        }catch(IOException e) {
+            return 1;
+        }
+        var result;
+
+        // unsupported on windows
+        if(access == FileSystem.ACCESS_EXECUTE)
+            return -1;
+        /*
+        * This will perform the os call to request the
+        * file access stats of the given abstract pathname
+        */
+        asm(
+            "pushl <path>           "
+            "loadl %ebx,<access>    "
+            "int 0xb1               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
+     }
+}

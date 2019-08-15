@@ -15,6 +15,11 @@ A number is any character consisting of: 1234567890
 A number-set which starts with a <number> and contains only numbers and underscores
 i.e. 128_4 773_459_1234
 
+<storagelocality>:
+An identifier that states where in memory the data will be stored:
+- local :: redundant but added for completeness as all memory is allocated on the stack
+- thread_local :: storage specifically unique and allocated individually and not shared between threads
+
 <number-literal>
 A number-literal consists of (<number>, <numberset>, or <numberset>.<numberset>)
 i.e. 773_459_1234.7
@@ -130,6 +135,8 @@ expression '[' expression ']' [<dot-notation-call-expr>] expression
     |  <dot-notation-call-expr>                 // ast_dot_not_e
     | new uType [([<value-list>] | [VectorArray>])] // TODO: add array creation
     | sizeof '(' expression ')'
+    | free '(' expression ')'
+    | malloc '(' uType, expression ')'
     | '(' uType ')' expression
     | '(' expression ')' [<dot-notation-call-expr>] expression
     | null
@@ -211,7 +218,7 @@ Operator Declaration:
 `[<accesstype>] def operator <override-operator> <uTypeArg-list> [: <uType>] <block>
 
 Variable Declaration statement:
-`[<accesstype>] <uType> <identifier = name> [ <assign-expr> <value>] [, <variable-decl>] ;`
+`[<accesstype>] [<storagelocality>] <uType> <identifier = name> [ <assign-expr> <value>] [, <variable-decl>] ;`
 
 Single Line comment Declaration:
 `//`

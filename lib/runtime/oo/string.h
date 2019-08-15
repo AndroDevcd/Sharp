@@ -24,9 +24,56 @@ public:
         }
     }
 
+    native_string(const char value[], long max)
+            :
+            len(0),
+            chars(NULL)
+    {
+        set(value, max);
+    }
+
+    native_string(const double *value, long max)
+            :
+            len(0),
+            chars(NULL)
+    {
+        set(value, max);
+    }
+
     native_string()
     {
         init();
+    }
+
+    void set(const char value[], long max) {
+        free();
+
+        if(max==0) {
+            chars = NULL;
+        } else {
+            for(int64_t i = 0; i < max; i++)  {
+                if(value[i] != 0) {
+                    this->len++;
+                } else break;
+            }
+
+            chars = (char*)malloc(sizeof(char)*len);
+            std::memcpy(chars, value, sizeof(char)*len);
+        }
+    }
+
+    void set(const double* value, long max) {
+        free();
+
+        if(value == NULL || max==0) {
+            chars = NULL;
+        } else {
+            len = max;
+            chars = (char*)malloc(sizeof(char)*max);
+            for(int64_t i = 0; i < max; i++)
+                chars[i] = (char)value[i];
+
+        }
     }
 
     void init() {

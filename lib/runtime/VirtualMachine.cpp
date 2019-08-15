@@ -4,6 +4,7 @@
 
 #include <random>
 #include <cmath>
+#include <string>
 #include "VirtualMachine.h"
 #include "Exe.h"
 #include "Thread.h"
@@ -18,6 +19,15 @@
 #include "../Modules/std.io/fileio.h"
 #include "../util/File.h"
 #include "../Modules/std.kernel/cmath.h"
+#include "../Modules/std.kernel/clist.h"
+#include "jit.h"
+
+#ifdef WIN32_
+#include <conio.h>
+#endif
+#ifdef POSIX_
+#include "termios.h"
+#endif
 
 VirtualMachine* vm;
 Environment* env;
@@ -31,8 +41,16 @@ int CreateVirtualMachine(std::string exe)
     if(Process_Exe(exe) != 0)
         return 1;
 
+    vm->exitVal = 0;
+    if((iStackSz - interp_STACK_start_MIN - manifest.threadLocals) <= 0)
+        return 2;
+
     Thread::Startup();
     GarbageCollector::startup();
+#ifdef WIN32_
+    env->gui = new Gui();
+    env->gui->setupMain();
+#endif
 
     manifest.classes -= AUX_CLASSES;
 
@@ -45,7 +63,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#Throwable",
+            "std#Throwable",
             fields,
             2,
             NULL,
@@ -59,7 +77,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#RuntimeErr",
+            "std#RuntimeErr",
             fields,
             2,
             env->Throwable,
@@ -73,7 +91,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#StackOverflowErr",
+            "std#StackOverflowErr",
             fields,
             2,
             env->RuntimeErr,
@@ -87,7 +105,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#ThreadStackException",
+            "std#ThreadStackException",
             fields,
             2,
             env->RuntimeErr,
@@ -101,7 +119,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#IndexOutOfBoundsException",
+            "std#IndexOutOfBoundsException",
             fields,
             2,
             env->RuntimeErr,
@@ -115,7 +133,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#NullptrException",
+            "std#NullptrException",
             fields,
             2,
             env->RuntimeErr,
@@ -129,7 +147,7 @@ int CreateVirtualMachine(std::string exe)
 
     env->classes[manifest.classes].init();
     env->classes[manifest.classes] = ClassObject(
-            "std.err#ClassCastException",
+            "std#ClassCastException",
             fields,
             2,
             env->RuntimeErr,
@@ -151,6 +169,81 @@ int CreateVirtualMachine(std::string exe)
     return 0;
 }
 
+int64_t executeSwitch(Thread* thread, int64_t constant) {
+    register int64_t val;
+    if((val = thread->current->switchTable.get(constant).values.indexof(registers[i64ebx])) != -1 ) {
+        thread->pc=thread->cache+thread->current->switchTable.get(constant).addresses.get(val);
+        return PC(thread);
+    } else {
+        thread->pc=thread->cache+thread->current->switchTable.get(constant).defaultAddress;
+        return PC(thread);
+    }
+}
+
+void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t staticAddr) {
+    SharpObject* o2 = staticAddr!=0 ? env->globalHeap[staticAddr].object :  (thread->sp-args)->object.object;
+    ClassObject* klass;
+
+    if(o2!=NULL) {
+        klass = o2->k;
+        if (klass != NULL) {
+            search:
+            for (long i = 0; i < klass->methodCount; i++) {
+                if (env->methods[klass->methods[i]].delegateAddress == address) {
+                    if((thread->calls+1) >= thread->stack_lmt) throw Exception(Environment::StackOverflowErr, "");
+                    executeMethod(env->methods[klass->methods[i]].address, thread);
+                    return;
+                }
+            }
+
+            if (klass->base != NULL) {
+                klass = klass->base;
+                goto search;
+            }
+            throw Exception(Environment::RuntimeErr, "delegate function has no subscribers");
+        } else {
+            throw Exception(Environment::RuntimeErr, "attempt to call delegate function on non class object");
+        }
+    } else
+        throw Exception(Environment::NullptrException, "");
+}
+
+void executeMethod(int64_t address, Thread* thread, bool inJit) {
+
+    Method *method = env->methods+address;
+    StackElement *equlizer=thread->sp-method->stackEqulizer;
+
+    if(thread->calls==0) {
+        thread->callStack[0].init(NULL, 0,0,0, false);
+    } else {
+        thread->callStack[thread->calls+1]
+            .init(thread->current, thread->pc, equlizer, thread->fp, 0);
+    }
+    thread->calls++;
+
+    thread->current = method;
+    thread->cache = method->bytecode;
+    thread->fp = thread->calls==1 ? thread->fp :
+                      ((method->returnVal) ? equlizer : (equlizer+1));
+    thread->sp += (method->stackSize - method->paramSize);
+    THREAD_STACK_CHECK2(thread, address);
+    thread->pc = thread->cache;
+
+    if(!method->isjit) {
+        if(method->longCalls >= JIT_LIMIT)
+        {
+            try_jit(method);
+        } else method->longCalls++;
+    }
+
+    if(method->isjit) {
+        thread->callStack[thread->calls].isjit = true;
+        jit_call(method, thread);
+    } else if(inJit || thread->calls==1) {
+        thread->exec();
+    }
+}
+
 void VirtualMachine::destroy() {
     if(thread_self != NULL) {
         exitVal = thread_self->exitVal;
@@ -159,9 +252,19 @@ void VirtualMachine::destroy() {
 
     Thread::shutdown();
     GarbageCollector::shutdown();
+    jit_shutdown();
+
+#ifdef WIN32_
+    if(env->gui != NULL)
+    {
+        env->gui->shutdown();
+        delete env->gui;
+    }
+
+#endif
 }
 
-extern size_t count, overflow;
+extern void printRegs();
 
 #ifdef WIN32_
 DWORD WINAPI
@@ -172,32 +275,31 @@ void*
 VirtualMachine::InterpreterThreadStart(void *arg) {
     thread_self = (Thread*)arg;
     thread_self->state = THREAD_RUNNING;
+    thread_self->stbase = (int64_t)&arg;
+    thread_self->stfloor = thread_self->stbase - thread_self->stack;
 
-    thread_self->setup();
     try {
+        thread_self->setup();
         /*
          * Call main method
          */
-        executeMethod(thread_self->main->address, thread_self)
-
-        thread_self->exec();
-
+        executeMethod(thread_self->main->address, thread_self);
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();
         //    }
         thread_self->throwable = e.getThrowable();
-        thread_self->exceptionThrown = true;
+        sendSignal(thread_self->signal, tsig_except, 1);
     }
 
 
 #ifdef SHARP_PROF_
     if(!masterShutdown)
-        thread_self->tprof.dump();
+        thread_self->tprof->dump();
 #endif
 
-    if(count != 0)
-        cout << "instructions executed " << count << " overflowed " << overflow << endl;
+    if(irCount != 0)
+        cout << "instructions executed " << irCount << " overflowed " << overflow << endl;
 
     /*
      * Check for uncaught exception in thread before exit
@@ -243,13 +345,17 @@ void VirtualMachine::shutdown() {
     }
 }
 
-void VirtualMachine::sysInterrupt(int32_t signal) {
+void VirtualMachine::sysInterrupt(int64_t signal) {
     switch (signal) {
         case 0x9f:
-            //cout << env->strings[(int64_t )thread_self->__stack[(int64_t)__rxs[sp]--].var].value.str();
+            /* does nothing nop equivalent */
+            throw Exception("");
+            return;
+        case 0xc7:
+            __snprintf((int) registers[i64egx], registers[i64ebx], (int) registers[i64ecx]);
             return;
         case 0xa0:
-            registers[bmr]= Clock::__os_time((int) registers[ebx]);
+            registers[i64bmr]= Clock::__os_time((int) registers[i64ebx]);
             return;
         case 0xa1:
             /**
@@ -268,27 +374,47 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             GarbageCollector::self->sendMessage(
                     CollectionPolicy::GC_LOW);
             return;
+        case 0xf0:
+            _64CMT=GarbageCollector::self->selfCollect();
+            break;
+        case 0xf1:
+            GarbageCollector::self->sedate();
+            break;
+        case 0xf2:
+            GarbageCollector::self->wake();
+            break;
+        case 0xf3:
+            GarbageCollector::self->kill();
+            break;
+        case 0xf4:
+            _64CMT=GarbageCollector::self->isAwake();
+            break;
+#ifdef WIN32_
+        case 0xf5:
+            env->gui->winGuiIntf(_64EBX);
+            break;
+#endif
         case 0xa3:
-            registers[bmr]= Clock::realTimeInNSecs();
+            registers[i64bmr]= Clock::realTimeInNSecs();
             return;
         case 0xa4: {
-            Thread *thread = Thread::getThread((int32_t )registers[adx]);
+            Thread *thread = Thread::getThread((int32_t )registers[i64adx]);
 
             if(thread != NULL) {
                 thread->currentThread = (thread_self->sp--)->object;
                 thread->args = (thread_self->sp--)->object;
             }
-            registers[cmt]=Thread::start((int32_t )registers[adx]);
+            registers[i64cmt]=Thread::start((int32_t )registers[i64adx], (size_t )registers[i64ebx]);
             return;
         }
         case 0xa5:
-            registers[cmt]=Thread::join((int32_t )registers[adx]);
+            registers[i64cmt]=Thread::join((int32_t )registers[i64adx]);
             return;
         case 0xa6:
-            registers[cmt]=Thread::interrupt((int32_t )registers[adx]);
+            registers[i64cmt]=Thread::interrupt((int32_t )registers[i64adx]);
             return;
         case 0xa7:
-            registers[cmt]=Thread::destroy((int32_t )registers[adx]);
+            registers[i64cmt]=Thread::destroy((int32_t )registers[i64adx]);
             return;
         case 0xe0: // native getCurrentThread()
             THREAD_STACK_CHECK(thread_self);
@@ -302,28 +428,49 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
             thread_self->currentThread = (thread_self->sp--)->object;
             return;
         case 0xe3:
-            registers[cmt]=__cmath(registers[ebx], registers[egx], (int)registers[ecx]);
+            _64CMT=__cmath(_64EBX, _64EGX, (int)_64ECX);
+            return;
+        case 0xe7:
+            _64BMR= __crand((int)_64ADX);
+            return;
+        case 0xe8: {
+            SharpObject* str = (thread_self->sp--)->object.object;
+            if(str != NULL && str->HEAD != NULL) {
+                native_string cmd;
+                for(long i = 0; i < str->size; i++)
+                    cmd += str->HEAD[i];
+                _64CMT= system(cmd.str().c_str());
+                cmd.free();
+            } else
+                throw Exception(env->NullptrException, "");
+            return;
+        }
+        case 0xe9:
+            _64CMT= _kbhit();
             return;
         case 0xa8:
-            registers[cmt]=Thread::Create((int32_t )registers[adx], (unsigned long)registers[egx]);
+            registers[i64cmt]=Thread::Create((int32_t )registers[i64adx]);
             return;
         case 0xe4:
-            registers[cmt]=Thread::setPriority((int32_t )registers[adx], (int)registers[egx]);
+            registers[i64cmt]=Thread::setPriority((int32_t )registers[i64adx], (int)registers[i64egx]);
             return;
         case 0xe5:
             __os_yield();
+            return;
+        case 0xe6:
+            clist((int)registers[i64adx]);
             return;
         case 0xa9:
             vm->shutdown();
             return;
         case 0xaa:
-            registers[cmt]=GarbageCollector::self->getMemoryLimit();
+            registers[i64cmt]=GarbageCollector::self->getMemoryLimit();
             return;
         case 0xab:
-            registers[cmt]=GarbageCollector::self->getManagedMemory();
+            registers[i64cmt]=GarbageCollector::self->getManagedMemory();
             return;
         case 0xac:
-            __os_sleep((int64_t) registers[ebx]);
+            __os_sleep((int64_t) registers[i64ebx]);
             return;
         case 0xb0: {
             Object *arry = &thread_self->sp->object;
@@ -561,12 +708,6 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 throw Exception(Environment::NullptrException, "");
             return;
         }
-        case 0xc5:
-//            std::random_device rd;
-//            std::mt19937 mt(rd());
-//            std::uniform_real_distribution<double> dist(ECX, EGX);
-//            EBX = dist(mt);
-            break;
         case 0xb1:
         case 0xb2:
         case 0xb3:
@@ -588,17 +729,17 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     path += o->HEAD[i];
                 }
                 if(signal==0xb1)
-                    registers[ebx] = check_access(path, (int)registers[ebx]);
+                    registers[i64ebx] = check_access(path, (int)registers[i64ebx]);
                 else if(signal==0xb2)
-                    registers[ebx] = get_file_attrs(path);
+                    registers[i64ebx] = get_file_attrs(path);
                 else if(signal==0xb3)
-                    registers[ebx] = last_update(path);
+                    registers[i64ebx] = last_update(path);
                 else if(signal==0xb4)
-                    registers[ebx] = file_size(path);
+                    registers[i64ebx] = file_size(path);
                 else if(signal==0xb5)
                     create_file(path);
                 else if(signal==0xb6)
-                    registers[ebx] = delete_file(path);
+                    registers[i64ebx] = delete_file(path);
                 else if(signal==0xb7) {
                     List<native_string> files;
                     get_file_list(path, files);
@@ -613,19 +754,19 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                             files.get(i).free();
                         }
                     } else {
-                        GarbageCollector::self->freeObject(arry);
+                        GarbageCollector::self->releaseObject(arry);
                     }
 
                     files.free();
                 }
                 else if(signal==0xb8)
-                    registers[ebx] = make_dir(path);
+                    registers[i64ebx] = make_dir(path);
                 else if(signal==0xb9)
-                    registers[ebx] = delete_dir(path);
+                    registers[i64ebx] = delete_dir(path);
                 else if(signal==0xbb)
-                    registers[ebx] = update_time(path, (time_t)registers[ebx]);
+                    registers[i64ebx] = update_time(path, (time_t)registers[i64ebx]);
                 else if(signal==0xbc)
-                    registers[ebx] = __chmod(path, (mode_t)registers[ebx], (bool)registers[egx], (bool)registers[ecx]);
+                    registers[i64ebx] = __chmod(path, (mode_t)registers[i64ebx], (bool)registers[i64egx], (bool)registers[i64ecx]);
                 else if(signal==0xbf) {
                     File::buffer buf;
                     File::read_alltext(path.str().c_str(), buf);
@@ -639,7 +780,7 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                     if(str.len > 0) {
                         GarbageCollector::self->createStringArray(arry, str);
                     } else {
-                        GarbageCollector::self->freeObject(arry);
+                        GarbageCollector::self->releaseObject(arry);
                     }
                 }
             } else
@@ -661,25 +802,28 @@ void VirtualMachine::sysInterrupt(int32_t signal) {
                 }
 
                 if(signal==0xba)
-                    registers[ebx] = rename_file(path, rename);
+                    registers[i64ebx] = rename_file(path, rename);
                 else if(signal==0xbd) {
                     File::buffer buf;
                     buf.operator<<(rename.str()); // rename will contain our actual unicode data
-                    registers[ebx] = File::write(path.str().c_str(), buf);
+                    registers[i64ebx] = File::write(path.str().c_str(), buf);
                 }
             }
 
             return;
         }
         case 0xbe:
-            registers[ebx]=disk_space((int32_t )registers[ebx]);
+            registers[i64ebx]=disk_space((int32_t )registers[i64ebx]);
             return;
         case 0xc2:
-            registers[ebx] = GarbageCollector::_sizeof((thread_self->sp--)->object.object);
+            registers[i64ebx] = GarbageCollector::_sizeof((thread_self->sp--)->object.object);
             return;
-        default:
+        default: {
             // unsupported
-            break;
+            stringstream ss;
+            ss << "unsupported signal to int instruction: " << signal;
+            throw Exception(ss.str());
+        }
     }
 }
 
@@ -689,9 +833,12 @@ int VirtualMachine::returnMethod() {
         return 1;
 
     Frame *frame = thread_self->callStack+(thread_self->calls);
+    
+    if(thread_self->current->finallyBlocks.size() > 0) {
 
-    if(thread_self->current->finallyBlocks.size() > 0)
-        executeFinally(thread_self->current);
+        if(executeFinally(thread_self->current))
+            return 3;
+    }
 
     thread_self->current = frame->last;
     thread_self->cache = frame->last->bytecode;
@@ -700,76 +847,68 @@ int VirtualMachine::returnMethod() {
     thread_self->sp = frame->sp;
     thread_self->fp = frame->fp;
     thread_self->calls--;
-    return 0;
+    return frame->isjit ? 2 : 0;
 }
 
-void VirtualMachine::Throw(Object *exceptionObject) {
-    if(exceptionObject->object == NULL || exceptionObject->object->k == NULL) {
-        cout << "object is not a class" << endl;
+void VirtualMachine::Throw() {
+//    if(exceptionObject->object == NULL || exceptionObject->object->k == NULL) {
+//        cout << "object is not a class" << endl;
+//        return;
+//    }
+
+    if (!hasSignal(thread_self->signal, tsig_except))
+    {
+        thread_self->throwable.throwable = thread_self->exceptionObject.object->k;
+        fillStackTrace(&thread_self->exceptionObject);
+        sendSignal(thread_self->signal, tsig_except, 1);
+    }
+
+    if(TryCatch(thread_self->current, &thread_self->exceptionObject)) {
         return;
     }
 
-    thread_self->throwable.throwable = exceptionObject->object->k;
-    fillStackTrace(exceptionObject);
-
-    if(TryThrow(thread_self->current, exceptionObject)) {
-        thread_self->exceptionThrown = false;
-        thread_self->throwable.drop();
-        startAddress = 0;
-        return;
-    }
-
+    int result = thread_self->calls;
     while(thread_self->calls >= 1) {
-        Method *method = thread_self->current;
-        executeFinally(thread_self->current);
-
-        /**
-         * If the finally block returns while we are trying to locate where the
-         * exception will be caught we give up and the exception
-         * is lost forever
-         */
-        if(method != thread_self->current)
+        result = returnMethod();
+        if(result==1)
+            break;
+        else if(result == 2 || result == 3)
             return;
 
-        if(returnMethod())
-            break;
-
-        if(TryThrow(thread_self->current, exceptionObject)) {
-            thread_self->exceptionThrown = false;
-            thread_self->throwable.drop();
-            startAddress = 0;
+        if(TryCatch(thread_self->current, &thread_self->exceptionObject)) {
             return;
         }
     }
 
-    stringstream ss;
-    ss << "Unhandled exception on thread " << thread_self->name.str() << " (most recent call last):\n"; ss
-            << thread_self->throwable.stackTrace.str();
-    ss << endl << thread_self->throwable.throwable->name.str() << " ("
-       << thread_self->throwable.message.str() << ")\n";
-    throw Exception(ss.str());
+    // unhandled exception
+    throw Exception(thread_self->throwable);
 }
 
-bool VirtualMachine::TryThrow(Method *method, Object *exceptionObject) {
-    int64_t pc = thread_self->pc;
-    if(method->exceptions.size() > 0) {
-        ExceptionTable* et, *tbl=NULL;
-        for(unsigned int i = 0; i < method->exceptions.size(); i++) {
-            et = &method->exceptions.get(i);
+bool VirtualMachine::TryCatch(Method *method, Object *exceptionObject) {
+    int64_t pc = PC(thread_self);
 
-            if (et->start_pc <= pc && et->end_pc >= pc)
+    if(method->exceptions.size() > 0) {
+        ExceptionTable *tbl=NULL;
+        for(long int i = 0; i < method->exceptions.len; i++) {
+            ExceptionTable& et = method->exceptions._Data[i];
+
+            if (et.start_pc <= pc && et.end_pc >= pc)
             {
-                if (tbl == NULL || et->start_pc > tbl->start_pc)
-                    tbl = et;
+                if (tbl == NULL || et.start_pc > tbl->start_pc)
+                    tbl = &et;
             }
         }
 
         if(tbl != NULL)
         {
-            Object* object = &thread_self->dataStack[thread_self->fp+tbl->local].object;
-            *object = exceptionObject;
-            thread_self->pc = tbl->handler_pc;
+            Thread* self = thread_self;
+            (self->fp+tbl->local)->object = exceptionObject;
+            self->pc = self->cache+tbl->handler_pc;
+            DEC_REF(self->exceptionObject.object);
 
+            // cancel exception we caught it
+            sendSignal(self->signal, tsig_except, 0);
+            startAddress = 0;
             return true;
         }
     }
@@ -817,7 +956,7 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
     long long x, line=-1, ptr=-1;
     for(x = 0; x < frame.last->lineNumbers.size(); x++)
     {
-        if(frame.last->lineNumbers.get(x).pc >= frame.pc) {
+        if(frame.last->lineNumbers.get(x).pc >= (frame.pc-frame.last->bytecode)) {
             if(x > 0)
                 ptr = x-1;
             else
@@ -830,15 +969,16 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
         }
     }
 
+    Thread * t = thread_self;
     if(ptr != -1) {
         ss << ", line " << (line = frame.last->lineNumbers.get(ptr).line_number);
     } else
         ss << ", line ?";
 
-    ss << ", in "; ss << frame.last->fullName.str() << "() [0x" << std::hex
-                      << frame.last->address << "] $0x" << frame.pc  << std::dec;
+    ss << ", in "; ss << frame.last->fullName.str() << "()" << (frame.isjit ? "[native]" : "") << " [0x" << std::hex
+                      << frame.last->address << "] $0x" << (frame.pc-frame.last->bytecode)  << std::dec;
 
-    ss << " fp; " << frame.fp << " sp: " << frame.sp-thread_self->dataStack;
+    ss << " fp; " << frame.fp-thread_self->dataStack << " sp: " << frame.sp-thread_self->dataStack;
 
     if(line != -1 && metaData.sourceFiles.size() > 0) {
         ss << getPrettyErrorLine(line, frame.last->sourceFile);
@@ -849,18 +989,26 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
 
 void VirtualMachine::fillStackTrace(native_string &str) {
 // fill message
-    if(thread_self->callStack == NULL || thread_self->calls == 0) return;
+    if(thread_self->callStack == NULL) return;
 
     stringstream ss;
     unsigned int iter = 0;
-    long start = thread_self->calls <= EXCEPTION_PRINT_MAX ? 0 : thread_self->calls-EXCEPTION_PRINT_MAX;
-    for(long i = start; i < thread_self->calls ; i++) {
-        if(iter++ >= EXCEPTION_PRINT_MAX)
-            break;
-        fillMethodCall(thread_self->callStack[i], ss);
+    if(thread_self->calls <= EXCEPTION_PRINT_MAX) {
+
+        for(long i = 0; i < thread_self->calls+1; i++) {
+            if(iter++ >= EXCEPTION_PRINT_MAX)
+                break;
+            fillMethodCall(thread_self->callStack[i], ss);
+        }
+    } else {
+        for(long i = thread_self->calls-EXCEPTION_PRINT_MAX; i < thread_self->calls ; i++) {
+            if(iter++ >= EXCEPTION_PRINT_MAX)
+                break;
+            fillMethodCall(thread_self->callStack[i], ss);
+        }
     }
 
-    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp);
+    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp,0);
     fillMethodCall(frame, ss);
 
     str = ss.str();
@@ -888,4 +1036,87 @@ string VirtualMachine::getPrettyErrorLine(long line, long sourceFile) {
     if(metaData.hasLine(line, sourceFile))
         ss << endl << "\t   " << line << ":    "; ss << metaData.getLine(line, sourceFile);
     return ss.str();
+}
+
+thread_local char buf[256];
+void VirtualMachine::__snprintf(int cfmt, double val, int precision) {
+    memset(buf, 0, sizeof(char)*256);
+    switch(cfmt) {
+        case 'd':
+        case 'i':
+            snprintf(buf, 256, "%d", (int)val);
+            break;
+        case 'u':
+            snprintf(buf, 256, "%u", (unsigned int)val);
+            break;
+        case 'o':
+            snprintf(buf, 256, "%o", (unsigned int)val);
+            break;
+        case 'x':
+            snprintf(buf, 256, "%x", (unsigned int)val);
+            break;
+        case 'X':
+            snprintf(buf, 256, "%X", (unsigned int)val);
+            break;
+        case 'f':
+            if(precision) {
+                stringstream ss;
+                ss << "%." << precision << 'f';
+                snprintf(buf, 256, ss.str().c_str(), val);
+            } else
+                snprintf(buf, 256, "%f", val);
+            break;
+        case 'F':
+            if(precision) {
+                stringstream ss;
+                ss << "%." << precision << 'F';
+                snprintf(buf, 256, ss.str().c_str(), val);
+            } else
+                snprintf(buf, 256, "%F", val);
+            break;
+        case 'e':
+            snprintf(buf, 256, "%e", val);
+            break;
+        case 'E':
+            snprintf(buf, 256, "%E", val);
+            break;
+        case 'g':
+            snprintf(buf, 256, "%g", val);
+            break;
+        case 'G':
+            snprintf(buf, 256, "%G", val);
+            break;
+        case 'a':
+            snprintf(buf, 256, "%a", val);
+            break;
+        case 'A':
+            snprintf(buf, 256, "%A", val);
+            break;
+        case 'c':
+            snprintf(buf, 256, "%c", (unsigned int)val);
+            break;
+        case '%':
+            snprintf(buf, 256, "%%");
+            break;
+        case 'l': {
+            native_string str(to_string((long long)val));
+            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
+            return;
+        }
+        case 'L': {
+            native_string str(to_string((unsigned long long)val));
+            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
+            return;
+        }
+        default: {
+            native_string str(to_string(val));
+            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
+            return;
+        }
+
+
+    }
+
+    native_string str(buf, 256);
+    GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
 }

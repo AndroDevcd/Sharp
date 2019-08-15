@@ -10,17 +10,18 @@
 
 #ifdef SHARP_PROF_
 
-
 struct funcProf {
     Method *func;
     size_t hits;  // total hits for function
     float time;  // time used per call
     float avgtm; // average time user for call
+    int64_t past, ir;
 
     funcProf(Method *f) {
         hits=0;
         time=0;
         avgtm=0;
+        ir=0;
         func = f;
     }
 
@@ -28,6 +29,7 @@ struct funcProf {
         hits=0;
         time=0;
         avgtm=0;
+        ir=0;
         func = NULL;
     }
 
@@ -35,6 +37,7 @@ struct funcProf {
         hits=0;
         time=0;
         avgtm=0;
+        ir=0;
         func = NULL;
     }
 
@@ -42,6 +45,7 @@ struct funcProf {
         hits=0;
         time=0;
         avgtm=0;
+        ir=0;
         func = NULL;
     }
 
@@ -49,6 +53,7 @@ struct funcProf {
         func=prof.func;
         hits=prof.hits;
         time = prof.time;
+        ir=prof.ir;
         avgtm = prof.avgtm;
     }
 
@@ -77,7 +82,9 @@ public:
     {
     }
 
-    void init() {
+    void init(size_t stack) {
+        new (&calls) std::vector<funcProf>();
+        calls.reserve(stack/2);
         functions.init();
         totalHits=0;
         starttm=0;
@@ -86,10 +93,11 @@ public:
     void hit(Method *func);
     void profile();
 
-    List<funcProf> functions;
     size_t totalHits; // total ammount of function calls
-    int64_t starttm, endtm, past, now;
+    int64_t starttm, endtm;
     size_t lastHit;
+    std::vector<funcProf> calls;
+    List<funcProf> functions;
 
     void dump();
 

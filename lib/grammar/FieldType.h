@@ -16,4 +16,10 @@ enum FieldType
     UNDEFINED
 };
 
+enum StorageLocality
+{
+    stl_local,
+    stl_thread
+};
+
 #endif //SHARP_FIELDTYPE_H

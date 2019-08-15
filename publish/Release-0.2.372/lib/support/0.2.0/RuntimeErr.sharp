@@ -1,0 +1,17 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 5/17/2018.
+ *
+ 8 this class will be used to throw all runtime exceptions
+ */
+public class RuntimeErr base Exception {
+
+      public RuntimeErr(var[] message) {
+        base->Exception(message);
+      }
+
+      public RuntimeErr(string message) {
+        base->Exception(message);
+      }
+}

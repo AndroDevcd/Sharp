@@ -1,0 +1,31 @@
+mod app;
+
+
+import std;
+
+
+/**
+ * Created by BraxtonN on 7/17/2018.
+ *
+ * This program was created to illustrate the speed of using the native system
+ * copy methods vs doing it in sharp
+ *
+ */
+def main(string[] args) : var {
+    var[] lst1 = new var[1000000];
+    var[] lst2 = new var[1000000];
+
+    var past = System.getUtcTimeInMills(), now;
+    for(var i = 0; i < sizeof(lst1); i++) {
+        lst2[i] = lst1[i];
+    }
+
+    now = System.getUtcTimeInMills();
+    System.println("for loop (" + (now-past) + ") ms");
+
+    past = System.getUtcTimeInMills();
+    lst2 = (var[])System.memcpy(lst1, 0, sizeof(lst1));
+
+    now = System.getUtcTimeInMills();
+    System.println("memcpy (" + (now-past) + ") ms");
+}

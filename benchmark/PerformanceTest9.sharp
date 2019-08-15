@@ -1,0 +1,34 @@
+mod app;
+
+
+import std;
+
+
+/**
+ * Created by BraxtonN on 7/17/2018.
+ *
+ * This program was created to illustrate the speed of constantly
+ * overallocating objects to memory.
+ *
+ * The fundamental problem here is not the allocation
+ * of the actual class. After profiling this code using linux command
+ * user $ gprof sharp alloc
+ *
+ * Gprof shows that the time spent allocating and instantiating the object
+ * accounted for 10% of the overall time. The garbage collector took the most
+ * with over 35%+ of the overall time as a result of having to keep waking
+ * up to clean up thousands of bytes of memory
+ */
+def main(string[] args) : var {
+    for(var i = 0; i < 5000000; i++)
+    {
+        new Exception();
+    } // 1.650s
+    /*
+     * Exception e = new Exception();
+     * for(var i = 0; i < 5000000; i++)
+     * {
+     *     Exception p = e;
+     * } // 514ms
+    */
+}

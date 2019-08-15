@@ -1,0 +1,52 @@
+mod app;
+
+import std;
+
+/**
+ * Created by BraxtonN on 7/20/2018.
+ */
+public class Vector {
+    public var x;
+    public var y;
+    
+    public Vector(var _x, var _y) {
+      self->x = _x;
+      self->y = _y;
+    }
+    
+    public Vector() {
+      self->x = 0;
+      self->y = 0;
+    }
+    
+    public def subtract(Vector v) : Vector {
+      return new Vector(x - v.x, y - v.y);
+    }
+    
+    public def add(Vector v) : Vector {
+      return new Vector(x + v.x, y + v.y);
+    }
+    
+    public def scale(var d) : Vector {
+      return new Vector(x * d, y * d);
+    }
+    
+    public def addInPlace(Vector v) {
+      x += v.x;
+      y += v.y;
+    }
+    
+    public def dot(Vector v) : var {
+      return x * v.x + y * v.y;
+    }
+    
+    public def normalize() : Vector {
+      var magnitude = Math.sqrt(dot(self));
+      if (magnitude == 0.0) return new Vector(0, 0);
+      return scale(1.0 / magnitude);
+    }
+    
+    public def toString() : string {
+      return "(" + x + ", " + y + ")";
+    }
+}

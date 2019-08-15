@@ -109,9 +109,12 @@ public:
         return klass != NULL && klass->serial == serial;
     }
 
-    bool assignable(ClassObject *klass) {
+    bool assignable(ClassObject *klass, bool cast = false) {
         if(klass != NULL) {
-            return klass->serial == serial || klass->hasBaseClass(this) || klass->hasInterface(this);
+            if(_interface && klass->hasInterface(this))
+                return true;
+            return klass->serial == serial || klass->hasBaseClass(this)
+                   || (cast && this->hasInterface(klass));
         }
         return false;
     }
@@ -161,13 +164,13 @@ public:
 
     size_t constructorCount();
     Method* getConstructor(int p);
-    Method* getConstructor(List<Param>& params, bool useBase =false, bool nativeSupport = false);
+    Method* getConstructor(List<Param>& params, bool useBase =false, bool nativeSupport = false, bool ambiguousProtect = false, bool find = true);
     bool addConstructor(Method constr);
 
     size_t functionCount(bool ignore=false);
     Method* getFunction(int p);
     Method* getFunctionByName(string name, bool &ambiguous);
-    Method* getFunction(string name, List<Param>& params, bool useBase =false, bool nativeSupport = false, bool skipdelegates=false);
+    Method* getFunction(string name, List<Param>& params, bool useBase =false, bool nativeSupport = false, bool skipdelegates=false, bool ambiguousProtect = false, bool find = true);
     Method* getFunction(string name, int64_t _offset);
     bool addFunction(Method function);
 
@@ -177,7 +180,7 @@ public:
     OperatorOverload* getPostDecOverload();
     OperatorOverload* getPreIncOverload();
     OperatorOverload* getPreDecOverload();
-    OperatorOverload* getOverload(Operator op, List<Param>& params, bool useBase =false, bool  = false);
+    OperatorOverload* getOverload(Operator op, List<Param>& params, bool useBase =false, bool  = false, bool ambiguousProtect = false, bool find = true);
     OperatorOverload* getOverload(Operator op, int64_t _offset);
     bool hasOverload(Operator op);
     bool addOperatorOverload(OperatorOverload overload);
@@ -206,7 +209,13 @@ public:
     void setAst(Ast* start) { this->start=start; }
     Ast* getAst() { return start; }
     void addGenericKey(string key) { this->genericKeys.push_back(key); }
-    bool hasGenericKey(string key) { return this->genericKeys.find(key); }
+    bool hasGenericKey(string key) {
+        if(!this->genericKeys.find(key)) {
+            if(super != NULL) {
+                return super->hasGenericKey(key);
+            } else return false;
+        } else return true;
+    }
     long genericKeySize() { return this->genericKeys.size(); }
     size_t interfaceCount() { return interfaces.size(); }
     ClassObject* getInterface(size_t p) { return interfaces.get(p); }
@@ -223,9 +232,12 @@ public:
             if(interfaces.get(i)==intf)
                 return true;
         }
+        if(base != NULL)
+            return base->hasInterface(intf);
         return false;
     }
     void setInterfaces(List<ClassObject*> interfaces) { this->interfaces.addAll(interfaces); }
+    Method *getDelegateFunction(string name, List<Param> &params, bool useBase = true, bool nativeSupport = true);
 
     RuntimeNote note;
 
@@ -269,6 +281,8 @@ private:
     List<ClassObject*> childClasses;
     List<ClassObject*> interfaces;
     ClassObject *super, *base, *head;
+
+    Method *getDelegatePost(string name, List<Param> &params, bool useBase, bool nativeSupport, bool find = true);
 };
 
 #define totalFucntionCount(x) x->functionCount()+x->constructorCount()+x->overloadCount()

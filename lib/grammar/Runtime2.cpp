@@ -4,6 +4,7 @@
 
 #include <dirent.h>
 #include <sys/stat.h>
+#include <cmath>
 #include "../../stdimports.h"
 #ifdef POSIX_
 #include <cmath>
@@ -57,40 +58,40 @@ void RuntimeEngine::parseCharLiteral(token_entity token, Expression& expression)
     if(token.getToken().size() > 1) {
         switch(token.getToken().at(1)) {
             case 'n':
-                expression.code.push_i64(SET_Di(i64, op_MOVI, '\n'), ebx);
+                expression.code.push_i64(SET_Di(i64, op_MOVI, '\n'), i64ebx);
                 expression.value = '\n';
                 break;
             case 't':
-                expression.code.push_i64(SET_Di(i64, op_MOVI, '\t'), ebx);
+                expression.code.push_i64(SET_Di(i64, op_MOVI, '\t'), i64ebx);
                 expression.intValue = '\t';
                 break;
             case 'b':
-                expression.code.push_i64(SET_Di(i64, op_MOVI, '\b'), ebx);
+                expression.code.push_i64(SET_Di(i64, op_MOVI, '\b'), i64ebx);
                 expression.intValue = '\b';
                 break;
             case 'v':
-                expression.code.push_i64(SET_Di(i64, op_MOVI, '\v'), ebx);
+                expression.code.push_i64(SET_Di(i64, op_MOVI, '\v'), i64ebx);
                 expression.intValue = '\v';
                 break;
             case 'r':
-                expression.code.push_i64(SET_Di(i64, op_MOVI, '\r'), ebx);
+                expression.code.push_i64(SET_Di(i64, op_MOVI, '\r'), i64ebx);
                 expression.intValue = '\r';
                 break;
             case 'f':
-                expression.code.push_i64(SET_Di(i64, op_MOVI, '\f'), ebx);
+                expression.code.push_i64(SET_Di(i64, op_MOVI, '\f'), i64ebx);
                 expression.intValue = '\f';
                 break;
             case '\\':
-                expression.code.push_i64(SET_Di(i64, op_MOVI, '\\'), ebx);
+                expression.code.push_i64(SET_Di(i64, op_MOVI, '\\'), i64ebx);
                 expression.intValue = '\\';
                 break;
             default:
-                expression.code.push_i64(SET_Di(i64, op_MOVI, token.getToken().at(1)), ebx);
+                expression.code.push_i64(SET_Di(i64, op_MOVI, token.getToken().at(1)), i64ebx);
                 expression.intValue = token.getToken().at(1);
                 break;
         }
     } else {
-        expression.code.push_i64(SET_Di(i64, op_MOVI, token.getToken().at(0)), ebx);
+        expression.code.push_i64(SET_Di(i64, op_MOVI, token.getToken().at(0)), i64ebx);
         expression.intValue =token.getToken().at(0);
     }
 
@@ -121,7 +122,7 @@ void RuntimeEngine::parseIntegerLiteral(token_entity token, Expression& expressi
             ss << "integral number too large: " + int_string;
             errors->createNewError(GENERIC, token.getLine(), token.getColumn(), ss.str());
         }
-        expression.code.push_i64(SET_Di(i64, op_MOVI, var), ebx);
+        expression.code.push_i64(SET_Di(i64, op_MOVI, var), i64ebx);
     }else {
         var = std::strtod (int_string.c_str(), NULL);
         if((int64_t )var > DA_MAX || (int64_t )var < DA_MIN) {
@@ -131,7 +132,7 @@ void RuntimeEngine::parseIntegerLiteral(token_entity token, Expression& expressi
         }
 
         expression.code.push_i64(SET_Di(i64, op_MOVBI, ((int64_t)var)), abs(get_low_bytes(var)));
-        expression.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, bmr));
+        expression.code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64bmr));
     }
 
     expression.intValue = var;
@@ -151,7 +152,7 @@ void RuntimeEngine::parseHexLiteral(token_entity token, Expression& expression) 
         ss << "integral number too large: " + hex_string;
         errors->createNewError(GENERIC, token.getLine(), token.getColumn(), ss.str());
     }
-    expression.code.push_i64(SET_Di(i64, op_MOVI, var), ebx);
+    expression.code.push_i64(SET_Di(i64, op_MOVI, var), i64ebx);
 
     expression.intValue = var;
     expression.literal = true;
@@ -176,7 +177,7 @@ void RuntimeEngine::parseStringLiteral(token_entity token, Expression& expressio
 
 void RuntimeEngine::parseBoolLiteral(token_entity token, Expression& expression) {
     expression.type = expression_var;
-    expression.code.push_i64(SET_Di(i64, op_MOVI, (token.getToken() == "true" ? 1 : 0)), ebx);
+    expression.code.push_i64(SET_Di(i64, op_MOVI, (token.getToken() == "true" ? 1 : 0)), i64ebx);
 
     expression.intValue = (token.getToken() == "true" ? 1 : 0);
     expression.literal = true;
@@ -217,7 +218,7 @@ Expression RuntimeEngine::psrseUtypeClass(Ast* pAst) {
     }
 
     if(expression.type == expression_class) {
-        expression.code.push_i64(SET_Di(i64, op_MOVI, expression.utype.klass->address), ebx);
+        expression.code.push_i64(SET_Di(i64, op_MOVI, expression.utype.klass->address), i64ebx);
         expression.type = expression_var;
         expression.literal = true;
         expression.intValue=expression.utype.klass->address;
@@ -274,18 +275,18 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
         }
 
         if(expression->type == expression_var) {
-            field = Field(VAR, 0, "", NULL, mods, note);
+            field = Field(VAR, 0, "", NULL, mods, note, stl_local, 0);
             field.isArray = expression->utype.array;
 
             params.add(Param(field));
         } else if(expression->type == expression_string) {
-            field = Field(VAR, 0, "", NULL, mods, note);
+            field = Field(VAR, 0, "", NULL, mods, note, stl_local, 0);
             field.isArray = true;
 
             /* Native string is a char array */
             params.add(Param(field));
         }  else if(expression->type == expression_prototype) {
-            field = Field(VAR, 0, "", NULL, mods, note);
+            field = Field(VAR, 0, "", NULL, mods, note, stl_local, 0);
             field.prototype = true;
             field.returnType = expression->utype.method->type;
             field.proto=expression->utype.method;
@@ -296,7 +297,7 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
             success = false;
             errors->createNewError(INVALID_PARAM, expression->link->line, expression->link->col, " `class`, param must be lvalue");
         } else if(expression->type == expression_lclass) {
-            field = Field(expression->utype.klass, 0, "", NULL, mods, note);
+            field = Field(expression->utype.klass, 0, "", NULL, mods, note, stl_local, 0);
             field.type = CLASS;
             field.isArray = expression->isArray();
 
@@ -308,7 +309,7 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
             errors->createNewError(GENERIC, expression->link->line, expression->link->col, " unexpected symbol `" +
                                                                                            expression->utype.referenceName + "`");
         } else if(expression->type == expression_objectclass) {
-            field = Field(OBJECT, 0, "", NULL, mods, note);
+            field = Field(OBJECT, 0, "", NULL, mods, note, stl_local, 0);
             field.isArray = expression->isArray();
 
             params.add(field);
@@ -317,13 +318,13 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
             errors->createNewError(GENERIC, expression->link->line, expression->link->col, " expression of type `void` cannot be a param");
         }
         else if(expression->type == expression_null) {
-            field = Field(OBJECT, 0, "", NULL, mods, note);
+            field = Field(OBJECT, 0, "", NULL, mods, note, stl_local, 0);
             field.nullType = true;
 
             params.add(Param(field));
         } else {
             /* Unknown expression */
-            field = Field(UNDEFINED, 0, "", NULL, mods, note);
+            field = Field(UNDEFINED, 0, "", NULL, mods, note, stl_local, 0);
 
             params.add(Param(field));
             success = false;
@@ -401,17 +402,17 @@ void RuntimeEngine::pushAuthenticExpressionToStackNoInject(Expression& expressio
                 if (expression.func) {
                     // out.code.push_i64(SET_Di(i64, op_INC, sp));
                 } else
-                    out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+                    out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
             }
             break;
         case expression_field:
             if(expression.utype.field.isVar() && !expression.utype.field.isArray) {
                 if(expression.utype.field.local) {
-                    out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+                    out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
                 } else {
-                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-                    out.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, adx));
-                    out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+                    out.code.push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx));
+                    out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
                 }
             } else if(expression.utype.field.isVar() && expression.utype.field.isArray) {
                 if (expression.func) {
@@ -520,21 +521,21 @@ void RuntimeEngine::pushExpressionToStack(Expression& expression, Expression& ou
                     if(expression.isArray())
                         out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
                     else
-                        out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+                        out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
                 }
             }
             break;
         case expression_prototype:
-            out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+            out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
             break;
         case expression_field:
             if(expression.utype.field.isVar() && !expression.utype.field.isArray) {
                 if(expression.utype.field.local) {
-                    out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+                    out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
                 } else {
-                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-                    out.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, adx));
-                    out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+                    out.code.push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx));
+                    out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
                 }
             } else if((expression.trueType() == VAR && expression.isArray()) ||
                       expression.trueType() == OBJECT || expression.trueType() == CLASS) {
@@ -622,7 +623,7 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                         expression.code.free();
 
                         tmp = fieldToExpression(NULL, *f); tmp.code.free();
-                        pushExpressionToRegister(tmp, e, ebx);
+                        pushExpressionToRegister(tmp, e, i64ebx);
                         fn = fieldToFunction(f, e);
                         goto funcFound;
                     }
@@ -664,10 +665,9 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
 
                         if(fn != NULL) goto funcFound;
                     } else {
-                        ClassObject *global = getClass("global", globalClass, classes);
                         KeyPair<int, Field> *field;
                         Field *f;
-                        if((fn = global->getFunction(ptr.referenceName, params)) != NULL) {
+                        if((fn = getGlobalFunction(ptr.referenceName, params)) != NULL) {
                             goto funcFound;
                         } else if((field = currentScope()->getLocalField(ptr.referenceName)) != NULL) {
                             f = &field->value;
@@ -679,9 +679,13 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                         } else if((f = currentScope()->klass->getField(ptr.referenceName, true)) != NULL) {
                             if(f->prototype) {
                                 Expression e, tmp;
-                                e.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                                if(f->isStatic())
+                                    e.code.push_i64(SET_Di(i64, op_MOVG, f->owner->address));
+                                else
+                                    e.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                                e.code.push_i64(SET_Di(i64, op_MOVN, f->address));
                                 tmp = fieldToExpression(NULL, *f); tmp.code.free();
-                                pushExpressionToRegister(tmp, e, ebx);
+                                pushExpressionToRegister(tmp, e, i64ebx);
                                 fn = fieldToFunction(f, e);
                                 goto funcFound;
                             }
@@ -698,6 +702,12 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                 expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
             }
         } else {
+            if(ptr.singleRefrenceModule()) {
+                ClassObject *global = getClass(ptr.module, globalClass, classes);
+                if(global != NULL && (fn = global->getFunction(ptr.referenceName, params)) != NULL) {
+                    goto funcFound;
+                }
+            }
             errors->createNewError(COULD_NOT_RESOLVE, valueLst->line, valueLst->col, " `" + ptr.referenceName +  paramsToString(params) + "`");
         }
     }
@@ -725,14 +735,17 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
-            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
-                pushExpressionToRegister(expressions.get(i), out, ebx);
+            Expression exp = fieldToExpression(NULL, fn->getParam(i).field);
+            equals(exp, expressions.get(i));
 
-                out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
-                out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-                out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
+                pushExpressionToRegister(expressions.get(i), out, i64ebx);
+
+                out.code.push_i64(SET_Di(i64, op_MOVI, 1), i64egx);
+                out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+                out.code.push_i64(SET_Di(i64, op_NEWARRAY, i64egx));
                 out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
-                out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                out.code.push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
             } else if(isExpressionConvertableToNativeClass(&fn->getParam(i).field, expressions.get(i))) {
                 ClassObject *k = fn->getParam(i).field.klass;
                 Expression fExpr = fieldToExpression(utype, fn->getParam(i).field);
@@ -752,7 +765,7 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                 out.code.push_i64(SET_Di(i64, op_CALL, fn->address));
             else {
                 out.code.inject(out.code.size(), fn->code);
-                out.code.push_i64(SET_Di(i64, op_CALLD, ebx));
+                out.code.push_i64(SET_Di(i64, op_CALLD, i64ebx));
             }
         }
     }
@@ -786,7 +799,12 @@ void RuntimeEngine::resolveUtypeContext(ClassObject* classContext, ReferencePoin
             expression.utype.type = CLASSFIELD;
             expression.utype.field = *field;
             expression.utype.isField = true;
-            expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+
+            if(field->hasThreadLocality()) {
+                expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+            } else {
+                expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
+            }
             expression.type = expression_field;
         }else {
             /* Un resolvable */
@@ -809,17 +827,17 @@ void RuntimeEngine::pushExpressionToStackNoInject(Expression& expression, Expres
             } else {
                 if (expression.func) {
                 } else
-                    out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+                    out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
             }
             break;
         case expression_field:
             if(expression.utype.field.isVar() && !expression.utype.field.isArray) {
                 if(expression.utype.field.local) {
-                    out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+                    out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
                 } else {
-                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-                    out.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, adx));
-                    out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+                    out.code.push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx));
+                    out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
                 }
             } else if(expression.utype.field.isVar() && expression.utype.field.isArray) {
                 if (expression.func) {
@@ -943,14 +961,17 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
-            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
-                pushExpressionToRegister(expressions.get(i), out, ebx);
+            Expression exp = fieldToExpression(NULL, fn->getParam(i).field);
+            equals(exp, expressions.get(i));
 
-                out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
-                out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-                out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
+                pushExpressionToRegister(expressions.get(i), out, i64ebx);
+
+                out.code.push_i64(SET_Di(i64, op_MOVI, 1), i64egx);
+                out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+                out.code.push_i64(SET_Di(i64, op_NEWARRAY, i64egx));
                 out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
-                out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                out.code.push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
             } else if(isExpressionConvertableToNativeClass(&fn->getParam(i).field, expressions.get(i))) {
                 ClassObject *k = fn->getParam(i).field.klass;
                 Expression fExpr = fieldToExpression(pAst, fn->getParam(i).field);
@@ -1011,13 +1032,13 @@ Expression RuntimeEngine::parseDotNotationCallContext(Expression& contextExpress
     } else if(contextExpression.type == expression_unresolved) {
         expression.type= expression_unresolved;
         return expression;
-    } else if(contextExpression.type != expression_lclass) {
+    } else if(contextExpression.utype.getRepresentedClass() == NULL) {
         errors->createNewError(GENERIC, pAst->line, pAst->col, "expression does not return a class");
         expression.type = expression_unresolved;
         return expression;
     }
 
-    ClassObject* klass = contextExpression.utype.klass;
+    ClassObject* klass = contextExpression.utype.getRepresentedClass();
 
     if(pAst->getType() == ast_dot_fn_e) {
         fn = resolveContextMethodUtype(klass, pAst->getSubAst(ast_utype),
@@ -1047,7 +1068,7 @@ Expression RuntimeEngine::parseDotNotationCallContext(Expression& contextExpress
         if(contextExpression.func)
             expression.code.injecti64(0, SET_Di(i64, op_MOVSL, 0));
         if(expression.trueType() == VAR && !expression.isArray()) {
-            pushExpressionToRegisterNoInject(expression, expression, ebx);
+            pushExpressionToRegisterNoInject(expression, expression, i64ebx);
         }
     }
 
@@ -1094,32 +1115,32 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
 
             if(expr.func) {
                 out.code.push_i64(SET_Di(i64, op_LOADVAL, reg));
-            } else if(reg != ebx) {
-                if(reg == cmt) {
+            } else if(reg != i64ebx) {
+                if(reg == i64cmt) {
                     if(!expr.inCmtRegister)
-                        out.code.push_i64(SET_Ci(i64, op_MOVR, reg,0, ebx));
+                        out.code.push_i64(SET_Ci(i64, op_MOVR, reg,0, i64ebx));
                 }
                 else
-                    out.code.push_i64(SET_Ci(i64, op_MOVR, reg,0, ebx));
+                    out.code.push_i64(SET_Ci(i64, op_MOVR, reg,0, i64ebx));
             }
             break;
         case expression_field:
             if(expr.utype.field.isVar() && !expr.utype.field.isArray) {
                 if(expr.utype.field.local) {
-                    if(reg != ebx) {
-                        out.code.push_i64(SET_Ci(i64, op_MOVR, reg,0, ebx));
+                    if(reg != i64ebx) {
+                        out.code.push_i64(SET_Ci(i64, op_MOVR, reg,0, i64ebx));
                     }
                 } else {
-                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-                    out.code.push_i64(SET_Di(i64, op_CHECKLEN, adx));
-                    out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+                    out.code.push_i64(SET_Di(i64, op_CHECKLEN, i64adx));
+                    out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, i64adx));
                 }
             } else if(expr.utype.field.isVar() && expr.utype.field.isArray) {
                 errors->createNewError(GENERIC, expr.link, "cannot get integer value from " + expr.utype.field.name + "[] expression");
             } else if(expr.utype.field.dynamicObject() && !expr.utype.field.isArray) {
-                out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-                out.code.push_i64(SET_Di(i64, op_CHECKLEN, adx));
-                out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
+                out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+                out.code.push_i64(SET_Di(i64, op_CHECKLEN, i64adx));
+                out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, i64adx));
             }else if(expr.utype.field.type == CLASS || expr.utype.field.dynamicObject()) {
                 if(expr.utype.field.isEnum || expr.utype.field.klass->isEnum()) {
                     Field *valueField = expr.utype.field.klass->getField("value", true);
@@ -1128,14 +1149,14 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
                             inlineVariableValue(out, &expr.utype.field);
                         } else {
                             out.code.push_i64(SET_Di(i64, op_MOVN, valueField->address));
-                            out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-                            out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
+                            out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+                            out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, i64adx));
                         }
                     }
                 } else if(isNativeIntegerClass(expr.utype.field.klass)) {
                     out.code.push_i64(SET_Di(i64, op_MOVN, 0));
-                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-                    out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+                    out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, i64adx));
                 } else
                     errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `object`");
             }
@@ -1144,13 +1165,13 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
             if(isNativeIntegerClass(expr.getClass())) {
                 if(expr.func) {
                     out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
-                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-                    out.code.push_i64(SET_Di(i64, op_MOVND, adx));
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+                    out.code.push_i64(SET_Di(i64, op_MOVND, i64adx));
                 } else {
                     out.code.push_i64(SET_Di(i64, op_MOVN, 0));
-                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
+                    out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
                 }
-                out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, adx));
+                out.code.push_i64(SET_Ci(i64, op_IALOAD_2, reg,0, i64adx));
                 if(expr.func)
                     out.code.push_i64(SET_Ei(i64, op_POP));
             } else
@@ -1163,7 +1184,7 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
             errors->createNewError(GENERIC, expr.link, "cannot get integer value from type of null");
             break;
         case expression_objectclass:
-            errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `dynamic_object`");
+            errors->createNewError(GENERIC, expr.link, "cannot get integer value from non integer type `object`");
             break;
         case expression_unresolved:
             break;
@@ -1195,22 +1216,22 @@ Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
 
             expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
-            pushExpressionToRegister(indexExpr, expression, ebx);
+            pushExpressionToRegister(indexExpr, expression, i64ebx);
 
             expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
-            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
+            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, i64ebx));
 
             if(interm.utype.field.type == CLASS) {
                 expression.utype.klass = interm.utype.field.klass;
                 expression.type = expression_lclass;
 
-                expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
+                expression.code.push_i64(SET_Di(i64, op_MOVND, i64ebx));
             } else if(interm.utype.field.type == VAR) {
                 expression.type = expression_var;
-                expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
+                expression.code.push_i64(SET_Di(i64, op_MOVND, i64ebx));
             } else if(interm.utype.field.type == OBJECT) {
                 expression.type = expression_objectclass;
-                expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
+                expression.code.push_i64(SET_Di(i64, op_MOVND, i64ebx));
             }else {
                 expression.type = expression_unknown;
             }
@@ -1228,7 +1249,7 @@ Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
                 expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
             }
 
-            pushExpressionToRegister(indexExpr, expression, ebx);
+            pushExpressionToRegister(indexExpr, expression, i64ebx);
 
 
             if(interm.func) {
@@ -1238,8 +1259,8 @@ Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
             }
 
 
-            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
-            expression.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, ebx));
+            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, i64ebx));
+            expression.code.push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64ebx));
 
             if(interm.func) {
                 expression.code.push_i64(SET_Ei(i64, op_POP));
@@ -1255,12 +1276,12 @@ Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
 
             expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
-            pushExpressionToRegister(indexExpr, expression, ebx);
+            pushExpressionToRegister(indexExpr, expression, i64ebx);
 
             expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
 
-            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
-            expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
+            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, i64ebx));
+            expression.code.push_i64(SET_Di(i64, op_MOVND, i64ebx));
             break;
         case expression_null:
             errors->createNewError(GENERIC, indexExpr.link->line, indexExpr.link->col, "null cannot be used as an array");
@@ -1273,7 +1294,7 @@ Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
 
             expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
-            pushExpressionToRegister(indexExpr, expression, ebx);
+            pushExpressionToRegister(indexExpr, expression, i64ebx);
 
             if(c_options.optimize) {
                 if(referenceAffected)
@@ -1281,8 +1302,8 @@ Expression RuntimeEngine::parseArrayExpression(Expression& interm, Ast* pAst) {
             } else
                 expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
 
-            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
-            expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
+            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, i64ebx));
+            expression.code.push_i64(SET_Di(i64, op_MOVND, i64ebx));
 
             break;
         case expression_void:
@@ -1387,9 +1408,9 @@ Expression RuntimeEngine::parseDotNotationCall(Ast* pAst) {
                             break;
                         case VAR:
                             if(pAst->hasEntity(_INC))
-                                expression.code.push_i64(SET_Di(i64, op_INC, ebx));
+                                expression.code.push_i64(SET_Di(i64, op_INC, i64ebx));
                             else
-                                expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
+                                expression.code.push_i64(SET_Di(i64, op_DEC, i64ebx));
                             break;
                         case OBJECT:
                             errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "function returning object must be casted before using `"
@@ -1573,14 +1594,17 @@ Method* RuntimeEngine::resolveSelfMethodUtype(Ast* utype, Ast* valueList, Expres
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
-            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
-                pushExpressionToRegister(expressions.get(i), out, ebx);
+            Expression exp = fieldToExpression(NULL, fn->getParam(i).field);
+            equals(exp, expressions.get(i));
 
-                out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
-                out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-                out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
+                pushExpressionToRegister(expressions.get(i), out, i64ebx);
+
+                out.code.push_i64(SET_Di(i64, op_MOVI, 1), i64egx);
+                out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+                out.code.push_i64(SET_Di(i64, op_NEWARRAY, i64egx));
                 out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
-                out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                out.code.push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
             } else if(isExpressionConvertableToNativeClass(&fn->getParam(i).field, expressions.get(i))) {
                 ClassObject *k = fn->getParam(i).field.klass;
                 Expression fExpr = fieldToExpression(utype, fn->getParam(i).field);
@@ -1776,14 +1800,17 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
         }
 
         for(unsigned int i = 0; i < expressions.size(); i++) {
-            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
-                pushExpressionToRegister(expressions.get(i), out, ebx);
+            Expression exp = fieldToExpression(NULL, fn->getParam(i).field);
+            equals(exp, expressions.get(i));
 
-                out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
-                out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-                out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+            if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
+                pushExpressionToRegister(expressions.get(i), out, i64ebx);
+
+                out.code.push_i64(SET_Di(i64, op_MOVI, 1), i64egx);
+                out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+                out.code.push_i64(SET_Di(i64, op_NEWARRAY, i64egx));
                 out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
-                out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                out.code.push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
             } else if(isExpressionConvertableToNativeClass(&fn->getParam(i).field, expressions.get(i))) {
                 ClassObject *k = fn->getParam(i).field.klass;
                 Expression fExpr = fieldToExpression(utype, fn->getParam(i).field);
@@ -1920,7 +1947,9 @@ void RuntimeEngine::checkVectorArray(Expression& utype, List<Expression>& vecArr
                     }
                     break;
                 case expression_string:
-                    errors->createNewError(GENERIC, vecArry.get(i).link->line, vecArry.get(i).link->col, "multi dimentional array are not supported yet, use string() class instead");
+                    if(utype.trueType() == OBJECT) {
+                    } else
+                        errors->createNewError(GENERIC, vecArry.get(i).link->line, vecArry.get(i).link->col, "multi dimentional array are not supported yet, use string() class instead");
                     break;
                 case expression_objectclass:
                     if(utype.utype.type != CLASS) {
@@ -1938,15 +1967,15 @@ void RuntimeEngine::checkVectorArray(Expression& utype, List<Expression>& vecArr
 void RuntimeEngine::parseNewArrayExpression(Expression& out, Expression& utype, Ast* pAst) {
     Expression sizeExpr = parseExpression(pAst->getSubAst(ast_expression));
 
-    pushExpressionToRegister(sizeExpr, out, ebx);
+    pushExpressionToRegister(sizeExpr, out, i64ebx);
 
     if(out.type == expression_var)
-        out.code.push_i64(SET_Di(i64, op_NEWARRAY, ebx));
+        out.code.push_i64(SET_Di(i64, op_NEWARRAY, i64ebx));
     else if(out.type == expression_lclass) {
-        out.code.push_i64(SET_Ci(i64, op_NEWCLASSARRAY, ebx, 0, utype.utype.klass->address));
+        out.code.push_i64(SET_Ci(i64, op_NEWCLASSARRAY, i64ebx, 0, utype.utype.klass->address));
     }
     else
-        out.code.push_i64(SET_Di(i64, op_NEWOBJARRAY, ebx));
+        out.code.push_i64(SET_Di(i64, op_NEWOBJARRAY, i64ebx));
 }
 
 Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
@@ -1972,14 +2001,14 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
         }
         expression.utype.array = true;
 
-        expression.code.push_i64(SET_Di(i64, op_MOVI, expressions.size()), ebx);
+        expression.code.push_i64(SET_Di(i64, op_MOVI, expressions.size()), i64ebx);
         if(expression.type == expression_var)
-            expression.code.push_i64(SET_Di(i64, op_NEWARRAY, ebx));
+            expression.code.push_i64(SET_Di(i64, op_NEWARRAY, i64ebx));
         else if(expression.type == expression_lclass) {
-            expression.code.push_i64(SET_Ci(i64, op_NEWCLASSARRAY, ebx, 0, utype.utype.klass->address));
+            expression.code.push_i64(SET_Ci(i64, op_NEWCLASSARRAY, i64ebx, 0, utype.utype.klass->address));
         }
         else
-            expression.code.push_i64(SET_Di(i64, op_NEWOBJARRAY, ebx));
+            expression.code.push_i64(SET_Di(i64, op_NEWOBJARRAY, i64ebx));
 
         // assign values
 
@@ -1995,13 +2024,13 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                     if(!currentRefrenceAffected(right))
                         expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
 
-                    pushExpressionToRegister(right, expression, ebx);
+                    pushExpressionToRegister(right, expression, i64ebx);
 
                     if(currentRefrenceAffected(right)) {
                         expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
                     }
-                    expression.code.push_i64(SET_Di(i64, op_MOVI, i), adx);
-                    expression.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                    expression.code.push_i64(SET_Di(i64, op_MOVI, i), i64adx);
+                    expression.code.push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
                     break;
                 case expression_lclass:
                 case expression_objectclass:
@@ -2057,14 +2086,17 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                 expression.code.push_i64(SET_Di(i64, op_NEWCLASS, utype.utype.klass->address));
 
                 for(unsigned int i = 0; i < expressions.size(); i++) {
-                    if(fn->getParam(i).field.dynamicObject() && expressions.get(i).type == expression_var) {
-                        pushExpressionToRegister(expressions.get(i), expression, ebx);
+                    Expression exp = fieldToExpression(NULL, fn->getParam(i).field);
+                    equals(exp, expressions.get(i));
 
-                        expression.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
-                        expression.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-                        expression.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+                    if(fn->getParam(i).field.dynamicObject() && expressions.get(i).trueType() == VAR && !expressions.get(i).isArray()) {
+                        pushExpressionToRegister(expressions.get(i), expression, i64ebx);
+
+                        expression.code.push_i64(SET_Di(i64, op_MOVI, 1), i64egx);
+                        expression.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+                        expression.code.push_i64(SET_Di(i64, op_NEWARRAY, i64egx));
                         expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
-                        expression.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                        expression.code.push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
                     } else if(isExpressionConvertableToNativeClass(&fn->getParam(i).field, expressions.get(i))) {
                         ClassObject *k = fn->getParam(i).field.klass;
                         Expression fExpr = fieldToExpression(pAst, fn->getParam(i).field);
@@ -2117,7 +2149,7 @@ Expression RuntimeEngine::parseSizeOfExpression(Ast* pAst) {
             errors->createNewError(GENERIC, expression.link, "cannot get sizeof from expression of type `" + expression.typeToString() + "`");
             break;
         case expression_string:
-            out.code.push_i64(SET_Di(i64, op_MOVI, expression.value.size()), ebx); // This is silly but we will allow it
+            out.code.push_i64(SET_Di(i64, op_MOVI, expression.value.size()), i64ebx); // This is silly but we will allow it
             break;
         default:
             if(expression.type == expression_var && expression.literal) {
@@ -2127,13 +2159,13 @@ Expression RuntimeEngine::parseSizeOfExpression(Ast* pAst) {
             pushExpressionToPtr(expression, out);
 
             if(out.code.size() == 0)
-                out.code.push_i64(SET_Di(i64, op_MOVI, 1), ebx); // just in case out object isnt an object
+                out.code.push_i64(SET_Di(i64, op_MOVI, 1), i64ebx); // just in case out object isnt an object
             else {
                 if(expression.func) {
-                    out.code.push_i64(SET_Di(i64, op_SIZEOF, ebx)); // just in case out object isnt an object
+                    out.code.push_i64(SET_Di(i64, op_SIZEOF, i64ebx)); // just in case out object isnt an object
                     out.code.push_i64(SET_Ei(i64, op_POP));
                 } else
-                    out.code.push_i64(SET_Di(i64, op_SIZEOF, ebx)); // just in case out object isnt an object
+                    out.code.push_i64(SET_Di(i64, op_SIZEOF, i64ebx)); // just in case out object isnt an object
             }
             break;
     }
@@ -2208,8 +2240,8 @@ void RuntimeEngine::postIncClass(Expression& out, token_entity op, ClassObject* 
             out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
         verifyMethodAccess(overload, out.link);
-        out.code.push_i64(SET_Di(i64, op_MOVI, 1), ebx);
-        out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
+        out.code.push_i64(SET_Di(i64, op_MOVI, 1), i64ebx);
+        out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
 
 
         out.code.push_i64(SET_Di(i64, op_CALL, overload->address));
@@ -2244,16 +2276,16 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
         switch(interm.type) {
             case expression_var:
                 if(interm.func) {
-                    pushExpressionToRegister(interm, expression, ebx);
+                    pushExpressionToRegister(interm, expression, i64ebx);
                     if(entity.getTokenType() == _INC)
-                        expression.code.push_i64(SET_Di(i64, op_INC, ebx));
+                        expression.code.push_i64(SET_Di(i64, op_INC, i64ebx));
                     else
-                        expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
+                        expression.code.push_i64(SET_Di(i64, op_DEC, i64ebx));
                 } else {
                     if(entity.getTokenType() == _INC)
-                        expression.code.push_i64(SET_Di(i64, op_INC, ebx));
+                        expression.code.push_i64(SET_Di(i64, op_INC, i64ebx));
                     else
-                        expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
+                        expression.code.push_i64(SET_Di(i64, op_DEC, i64ebx));
                 }
                 break;
             case expression_field:
@@ -2262,48 +2294,48 @@ Expression RuntimeEngine::parsePostInc(Ast* pAst) {
                     return expression;
                 } else if(interm.utype.field.type == VAR || interm.utype.field.type == OBJECT) {
                     if(interm.utype.field.type == OBJECT) {
-                        errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "use of `" + entity.getToken() + "` operator on field of type `dynamic_object` without a cast. Try ((SomeClass)dynamic_class)++");
+                        errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "use of `" + entity.getToken() + "` operator on field of type `object` without a cast. Try ((SomeClass)dynamic_class)++");
                     } else if(interm.utype.field.isVar()) {
                         // increment the field
-                        pushExpressionToRegisterNoInject(interm, expression, ebx);
+                        pushExpressionToRegisterNoInject(interm, expression, i64ebx);
 
 
                         if(entity.getTokenType() == _INC) {
                             if(expression.utype.field.local) {
                                 if(c_options.optimize) {
                                     expression.code.free();
-                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, interm.utype.field.address));
+                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, interm.utype.field.address));
                                     expression.code.push_i64(
                                             SET_Ci(i64, op_IADDL, 1,0 , interm.utype.field.address));
                                 } else {
-                                    expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
+                                    expression.code.push_i64(SET_Di(i64, op_MOVI, 1), i64ecx);
                                     expression.code.push_i64(
-                                            SET_Ci(i64, op_ADDL, ecx,0 , interm.utype.field.address));
+                                            SET_Ci(i64, op_ADDL, i64ecx,0 , interm.utype.field.address));
                                 }
                             }
                             else {
-                                expression.code.push_i64(SET_Di(i64, op_INC, ebx));
-                                expression.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
-                                expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
+                                expression.code.push_i64(SET_Di(i64, op_INC, i64ebx));
+                                expression.code.push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
+                                expression.code.push_i64(SET_Di(i64, op_DEC, i64ebx));
                             }
                         }
                         else {
                             if(expression.utype.field.local) {
                                 if(c_options.optimize) {
                                     expression.code.free();
-                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, ebx, 0, interm.utype.field.address));
+                                    expression.code.push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, interm.utype.field.address));
                                     expression.code.push_i64(
                                             SET_Ci(i64, op_ISUBL, 1,0 , interm.utype.field.address));
                                 } else {
-                                    expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
+                                    expression.code.push_i64(SET_Di(i64, op_MOVI, 1), i64ecx);
                                     expression.code.push_i64(
-                                            SET_Ci(i64, op_SUBL, ecx, 0, interm.utype.field.address));
+                                            SET_Ci(i64, op_SUBL, i64ecx, 0, interm.utype.field.address));
                                 }
                             }
                             else {
-                                expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
-                                expression.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
-                                expression.code.push_i64(SET_Di(i64, op_INC, ebx));
+                                expression.code.push_i64(SET_Di(i64, op_DEC, i64ebx));
+                                expression.code.push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
+                                expression.code.push_i64(SET_Di(i64, op_INC, i64ebx));
                             }
                         }
                     }
@@ -2371,25 +2403,25 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
             if(referenceAffected)
                 expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
-            pushExpressionToRegister(indexExpr, expression, ebx);
+            pushExpressionToRegister(indexExpr, expression, i64ebx);
 
             if(referenceAffected)
                 expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
-            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
+            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, i64ebx));
 
 
             if(interm.utype.field.type == CLASS) {
                 expression.utype.klass = interm.utype.field.klass;
                 expression.type = expression_lclass;
 
-                expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
+                expression.code.push_i64(SET_Di(i64, op_MOVND, i64ebx));
             } else if(interm.utype.field.type == VAR) {
                 expression.type = expression_var;
-                expression.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, ebx));
+                expression.code.push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64ebx));
             }
             else if(interm.utype.field.type == OBJECT) {
                 expression.type = expression_objectclass;
-                expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
+                expression.code.push_i64(SET_Di(i64, op_MOVND, i64ebx));
             } else {
                 expression.type = expression_unknown;
             }
@@ -2410,13 +2442,13 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
             if(referenceAffected)
                 expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
-            pushExpressionToRegister(indexExpr, expression, ebx);
+            pushExpressionToRegister(indexExpr, expression, i64ebx);
 
             if(referenceAffected)
                 expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
 
-            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
-            expression.code.push_i64(SET_Ci(i64, op_IALOAD_2, ebx,0, ebx));
+            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, i64ebx));
+            expression.code.push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64ebx));
 
             break;
         case expression_lclass:
@@ -2435,14 +2467,14 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
             }
 
 
-            pushExpressionToRegister(indexExpr, expression, ebx);
+            pushExpressionToRegister(indexExpr, expression, i64ebx);
 
             if(!interm.newExpression && referenceAffected) {
                 expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
             }
 
-            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
-            expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
+            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, i64ebx));
+            expression.code.push_i64(SET_Di(i64, op_MOVND, i64ebx));
 
             if(interm.newExpression && referenceAffected) {
                 expression.code.push_i64(SET_Ei(i64, op_POP));
@@ -2460,13 +2492,13 @@ Expression RuntimeEngine::parseArrayExpression(Ast* pAst) {
             if(referenceAffected)
                 expression.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
-            pushExpressionToRegister(indexExpr, expression, ebx);
+            pushExpressionToRegister(indexExpr, expression, i64ebx);
 
             if(referenceAffected)
                 expression.code.push_i64(SET_Di(i64, op_MOVSL, 0));
 
-            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, ebx));
-            expression.code.push_i64(SET_Di(i64, op_MOVND, ebx));
+            expression.code.push_i64(SET_Di(i64, op_CHECKLEN, i64ebx));
+            expression.code.push_i64(SET_Di(i64, op_MOVND, i64ebx));
             break;
         case expression_void:
             errors->createNewError(GENERIC, pAst->getSubAst(0)->line, pAst->getSubAst(0)->col, "void cannot be used as an array");
@@ -2513,7 +2545,7 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
 
     switch(arg.type) {
         case expression_lclass:
-            if(utype.utype.klass->assignable(arg.utype.klass)) {
+            if(utype.getClass()->assignable(arg.getClass(), true)) {
                 out.inject(arg);
                 out.utype = utype.utype;
                 out.type = expression_lclass;
@@ -2523,14 +2555,14 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
         case expression_objectclass:
             // TODO: put runtime code to evaluate at runtime
             pushExpressionToPtr(arg, out);
-            out.code.push_i64(SET_Di(i64, op_MOVI, utype.utype.klass->address), cmt);
-            out.code.push_i64(SET_Di(i64, op_CAST, cmt));
+            out.code.push_i64(SET_Di(i64, op_MOVI, utype.utype.klass->address), i64cmt);
+            out.code.push_i64(SET_Di(i64, op_CAST, i64cmt));
             out.type = utype.type;
             out.utype = utype.utype;
             return;
         case expression_field:
             if(arg.utype.field.type == CLASS) {
-                if(utype.utype.klass->assignable(arg.utype.klass)) {
+                if(utype.getClass()->assignable(arg.getClass(), true)) {
                     out.inject(arg);
                     out.type = expression_lclass;
                     out.utype = utype.utype;
@@ -2538,8 +2570,8 @@ void RuntimeEngine::parseClassCast(Expression& utype, Expression& arg, Expressio
                 }
             } else if(arg.utype.field.type == OBJECT) {
                 pushExpressionToPtr(arg, out);
-                out.code.push_i64(SET_Di(i64, op_MOVI, utype.utype.klass->address), cmt);
-                out.code.push_i64(SET_Di(i64, op_CAST, cmt));
+                out.code.push_i64(SET_Di(i64, op_MOVI, utype.utype.klass->address), i64cmt);
+                out.code.push_i64(SET_Di(i64, op_CAST, i64cmt));
                 out.type = expression_lclass;
                 out.utype = utype.utype;
                 return;
@@ -2583,69 +2615,77 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
     out.intValue = expression.intValue;
 
     if(utype.utype.referenceName == "_int8") {
-        pushExpressionToRegisterNoInject(expression, out, ebx);
-        out.code.push_i64(SET_Ci(i64, op_MOV8, ebx, 0, ebx));
+        pushExpressionToRegisterNoInject(expression, out, i64ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOV8, i64ebx, 0, i64ebx));
         if(expression.literal)
             out.intValue = (int8_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_int16") {
-        pushExpressionToRegisterNoInject(expression, out, ebx);
-        out.code.push_i64(SET_Ci(i64, op_MOV16, ebx, 0, ebx));
+        pushExpressionToRegisterNoInject(expression, out, i64ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOV16, i64ebx, 0, i64ebx));
         if(expression.literal)
             out.intValue = (int16_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_int32") {
-        pushExpressionToRegisterNoInject(expression, out, ebx);
-        out.code.push_i64(SET_Ci(i64, op_MOV32, ebx, 0, ebx));
+        pushExpressionToRegisterNoInject(expression, out, i64ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOV32, i64ebx, 0, i64ebx));
         if(expression.literal)
             out.intValue = (int32_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_int64") {
-        pushExpressionToRegisterNoInject(expression, out, ebx);
-        out.code.push_i64(SET_Ci(i64, op_MOV64, ebx, 0, ebx));
+        pushExpressionToRegisterNoInject(expression, out, i64ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOV64, i64ebx, 0, i64ebx));
         if(expression.literal)
             out.intValue = (int64_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_uint8") {
-        pushExpressionToRegisterNoInject(expression, out, ebx);
-        out.code.push_i64(SET_Ci(i64, op_MOVU8, ebx, 0, ebx));
+        pushExpressionToRegisterNoInject(expression, out, i64ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOVU8, i64ebx, 0, i64ebx));
         if(expression.literal)
             out.intValue = (uint8_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_uint16") {
-        pushExpressionToRegisterNoInject(expression, out, ebx);
-        out.code.push_i64(SET_Ci(i64, op_MOVU16, ebx, 0, ebx));
+        pushExpressionToRegisterNoInject(expression, out, i64ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOVU16, i64ebx, 0, i64ebx));
         if(expression.literal)
             out.intValue = (uint16_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_uint32") {
-        pushExpressionToRegisterNoInject(expression, out, ebx);
-        out.code.push_i64(SET_Ci(i64, op_MOVU32, ebx, 0, ebx));
+        pushExpressionToRegisterNoInject(expression, out, i64ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOVU32, i64ebx, 0, i64ebx));
         if(expression.literal)
             out.intValue = (uint32_t )expression.intValue;
         return;
     } else if(utype.utype.referenceName == "_uint64") {
-        pushExpressionToRegisterNoInject(expression, out, ebx);
-        out.code.push_i64(SET_Ci(i64, op_MOVU64, ebx, 0, ebx));
+        pushExpressionToRegisterNoInject(expression, out, i64ebx);
+        out.code.push_i64(SET_Ci(i64, op_MOVU64, i64ebx, 0, i64ebx));
         if(expression.literal)
             out.intValue = (uint64_t )expression.intValue;
         return;
     } else if(utype.utype.isArray() && utype.utype.type == VAR) {
         if(expression.trueType() == OBJECT || expression.trueType() == VAR) {
+            if(expression.trueType() == OBJECT) {
+                out.code.free();
+                pushExpressionToPtr(expression, out, i64ebx);
+                out.code.push_i64(SET_Di(i64, op_VARCAST, 1));
+            }
             out.func=expression.func;
             return;
         }
     } else if(!utype.utype.isArray() && utype.utype.type == VAR) {
         if(expression.trueType() == OBJECT) {
-            pushExpressionToRegisterNoInject(expression, out, ebx);
+            out.code.free();
+            pushExpressionToPtr(expression, out, i64ebx);
+            out.code.push_i64(SET_Di(i64, op_VARCAST, 0));
+            pushExpressionToRegisterNoInject(expression, out, i64ebx);
             return;
         } else if(expression.utype.isField && expression.utype.field.isEnum) {
-            pushExpressionToRegisterNoInject(expression, out, ebx);
+            pushExpressionToRegisterNoInject(expression, out, i64ebx);
             return;
         } else if(expression.trueType() == CLASS && expression.utype.isField) {
             ClassObject *klass = expression.utype.field.klass;
             if(klass->isEnum()) {
-                pushExpressionToRegisterNoInject(expression, out, ebx);
+                pushExpressionToRegisterNoInject(expression, out, i64ebx);
                 return;
             }
         }
@@ -2659,7 +2699,8 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 
                 if(expression.trueType()== VAR) {
                     varToObject(expression, out);
-                }
+                } else
+                    out.type = expression_objectclass;
                 return;
             }
         }
@@ -2667,97 +2708,97 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 //    switch(utype.utype.type) {
 //        case fi8:
 //            if(arg.type == expression_var) {
-//                out.code.push_i64(SET_Ci(i64, op_MOV8, ebx,0, ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOV8, i64ebx,0, i64ebx));
 //                return;
 //            } else if(arg.type == expression_field) {
-//                pushExpressionToRegisterNoInject(arg, out, ebx);
-//                out.code.push_i64(SET_Ci(i64, op_MOV8, ebx, 0, ebx));
-//                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
+//                pushExpressionToRegisterNoInject(arg, out, i64ebx);
+//                out.code.push_i64(SET_Ci(i64, op_MOV8, i64ebx, 0, i64ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOVR, i64adx, 0, fp));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, i64ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
 //        case fi16:
 //            if(arg.type == expression_var) {
-//                out.code.push_i64(SET_Ci(i64, op_MOV16, ebx,0, ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOV16, i64ebx,0, i64ebx));
 //                return;
 //            } else if(arg.type == expression_field) {
-//                pushExpressionToRegisterNoInject(arg, out, ebx);
-//                out.code.push_i64(SET_Ci(i64, op_MOV16, ebx, 0, ebx));
-//                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
+//                pushExpressionToRegisterNoInject(arg, out, i64ebx);
+//                out.code.push_i64(SET_Ci(i64, op_MOV16, i64ebx, 0, i64ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOVR, i64adx, 0, fp));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, i64ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
 //        case fi32:
 //            if(arg.type == expression_var) {
-//                out.code.push_i64(SET_Ci(i64, op_MOV32, ebx,0, ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOV32, i64ebx,0, i64ebx));
 //                return;
 //            } else if(arg.type == expression_field) {
-//                pushExpressionToRegisterNoInject(arg, out, ebx);
-//                out.code.push_i64(SET_Ci(i64, op_MOV32, ebx, 0, ebx));
-//                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
+//                pushExpressionToRegisterNoInject(arg, out, i64ebx);
+//                out.code.push_i64(SET_Ci(i64, op_MOV32, i64ebx, 0, i64ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOVR, i64adx, 0, fp));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, i64ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
 //        case fi64:
 //            if(arg.type == expression_var) {
-//                out.code.push_i64(SET_Ci(i64, op_MOV64, ebx,0, ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOV64, i64ebx,0, i64ebx));
 //                return;
 //            } else if(arg.type == expression_field) {
-//                pushExpressionToRegisterNoInject(arg, out, ebx);
-//                out.code.push_i64(SET_Ci(i64, op_MOV64, ebx, 0, ebx));
-//                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
+//                pushExpressionToRegisterNoInject(arg, out, i64ebx);
+//                out.code.push_i64(SET_Ci(i64, op_MOV64, i64ebx, 0, i64ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOVR, i64adx, 0, fp));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, i64ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
 //        case fui8:
 //            if(arg.type == expression_var) {
-//                out.code.push_i64(SET_Ci(i64, op_MOVU8, ebx,0, ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOVU8, i64ebx,0, i64ebx));
 //                return;
 //            } else if(arg.type == expression_field) {
-//                pushExpressionToRegisterNoInject(arg, out, ebx);
-//                out.code.push_i64(SET_Ci(i64, op_MOVU8, ebx, 0, ebx));
-//                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
+//                pushExpressionToRegisterNoInject(arg, out, i64ebx);
+//                out.code.push_i64(SET_Ci(i64, op_MOVU8, i64ebx, 0, i64ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOVR, i64adx, 0, fp));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, i64ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
 //        case fui16:
 //            if(arg.type == expression_var) {
-//                out.code.push_i64(SET_Ci(i64, op_MOVU16, ebx,0, ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOVU16, i64ebx,0, i64ebx));
 //                return;
 //            } else if(arg.type == expression_field) {
-//                pushExpressionToRegisterNoInject(arg, out, ebx);
-//                out.code.push_i64(SET_Ci(i64, op_MOVU16, ebx, 0, ebx));
-//                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
+//                pushExpressionToRegisterNoInject(arg, out, i64ebx);
+//                out.code.push_i64(SET_Ci(i64, op_MOVU16, i64ebx, 0, i64ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOVR, i64adx, 0, fp));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, i64ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
 //        case fui32:
 //            if(arg.type == expression_var) {
-//                out.code.push_i64(SET_Ci(i64, op_MOVU32, ebx,0, ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOVU32, i64ebx,0, i64ebx));
 //                return;
 //            } else if(arg.type == expression_field) {
-//                pushExpressionToRegisterNoInject(arg, out, ebx);
-//                out.code.push_i64(SET_Ci(i64, op_MOVU32, ebx, 0, ebx));
-//                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
+//                pushExpressionToRegisterNoInject(arg, out, i64ebx);
+//                out.code.push_i64(SET_Ci(i64, op_MOVU32, i64ebx, 0, i64ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOVR, i64adx, 0, fp));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, i64ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
 //        case fui64:
 //            if(arg.type == expression_var) {
-//                out.code.push_i64(SET_Ci(i64, op_MOVU64, ebx,0, ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOVU64, i64ebx,0, i64ebx));
 //                return;
 //            } else if(arg.type == expression_field) {
-//                pushExpressionToRegisterNoInject(arg, out, ebx);
-//                out.code.push_i64(SET_Ci(i64, op_MOVU64, ebx, 0, ebx));
-//                out.code.push_i64(SET_Ci(i64, op_MOVR, adx, 0, fp));
-//                out.code.push_i64(SET_Ci(i64, op_SMOVR, ebx, 0, arg.utype.field.vaddr));
+//                pushExpressionToRegisterNoInject(arg, out, i64ebx);
+//                out.code.push_i64(SET_Ci(i64, op_MOVU64, i64ebx, 0, i64ebx));
+//                out.code.push_i64(SET_Ci(i64, op_MOVR, i64adx, 0, fp));
+//                out.code.push_i64(SET_Ci(i64, op_SMOVR, i64ebx, 0, arg.utype.field.vaddr));
 //                return;
 //            }
 //            break;
@@ -2778,20 +2819,20 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
 //    }
 
     if(expression.type != expression_unresolved)
-        errors->createNewError(INCOMPATIBLE_TYPES, utype.link->line, utype.link->col, "; cannot cast `" + expression.utype.typeToString() + "` to `" + utype.utype.typeToString() + "`");
+        errors->createNewError(INCOMPATIBLE_TYPES, utype.link->line, utype.link->col, "; unable to cast requested types");
     return;
 }
 
 void RuntimeEngine::varToObject(Expression &expression, Expression &out) {
     if(expression.literal) {
-        out.code.push_i64(SET_Di(i64, op_MOVI, expression.intValue), ebx);
+        out.code.push_i64(SET_Di(i64, op_MOVI, expression.intValue), i64ebx);
     } else
-        pushExpressionToRegisterNoInject(expression, out, ebx);
-    out.code.push_i64(SET_Di(i64, op_MOVI, 1), egx);
-    out.code.push_i64(SET_Di(i64, op_NEWARRAY, egx));
+        pushExpressionToRegisterNoInject(expression, out, i64ebx);
+    out.code.push_i64(SET_Di(i64, op_MOVI, 1), i64egx);
+    out.code.push_i64(SET_Di(i64, op_NEWARRAY, i64egx));
     out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
-    out.code.push_i64(SET_Di(i64, op_MOVI, 0), adx);
-    out.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+    out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+    out.code.push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
     out.func = true;
 }
 
@@ -2842,10 +2883,6 @@ void RuntimeEngine::preIncClass(Expression& out, token_entity op, ClassObject* k
             out.code.push_i64(SET_Ei(i64, op_PUSHOBJ));
 
         verifyMethodAccess(overload, out.link);
-        out.code.push_i64(SET_Di(i64, op_MOVI, 0), ebx);
-        out.code.push_i64(SET_Di(i64, op_RSTORE, ebx));
-
-
         out.code.push_i64(SET_Di(i64, op_CALL, overload->address));
 
         out.type = methodReturntypeToExpressionType(overload);
@@ -2876,16 +2913,16 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
         switch(expression.type) {
             case expression_var:
                 if(interm.func) {
-                    pushExpressionToRegister(interm, expression, ebx);
+                    pushExpressionToRegister(interm, expression, i64ebx);
                     if(entity.getTokenType() == _INC)
-                        expression.code.push_i64(SET_Di(i64, op_INC, ebx));
+                        expression.code.push_i64(SET_Di(i64, op_INC, i64ebx));
                     else
-                        expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
+                        expression.code.push_i64(SET_Di(i64, op_DEC, i64ebx));
                 } else {
                     if(entity.getTokenType() == _INC)
-                        expression.code.push_i64(SET_Di(i64, op_INC, ebx));
+                        expression.code.push_i64(SET_Di(i64, op_INC, i64ebx));
                     else
-                        expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
+                        expression.code.push_i64(SET_Di(i64, op_DEC, i64ebx));
                 }
                 break;
             case expression_field:
@@ -2899,18 +2936,18 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
                             if(c_options.optimize) {
                                 expression.code.push_i64(
                                         SET_Ci(i64, op_IADDL, 1,0 , interm.utype.field.address));
-                                expression.code.push_i64(SET_Di(i64, op_INC, ebx));
+                                expression.code.push_i64(SET_Di(i64, op_INC, i64ebx));
                             } else {
-                                expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
+                                expression.code.push_i64(SET_Di(i64, op_MOVI, 1), i64ecx);
                                 expression.code.push_i64(
-                                        SET_Ci(i64, op_ADDL, ecx,0 , interm.utype.field.address));
-                                expression.code.push_i64(SET_Di(i64, op_INC, ebx));
+                                        SET_Ci(i64, op_ADDL, i64ecx,0 , interm.utype.field.address));
+                                expression.code.push_i64(SET_Di(i64, op_INC, i64ebx));
                             }
                         }
                         else {
-                            pushExpressionToRegisterNoInject(interm, expression, ebx);
-                            expression.code.push_i64(SET_Di(i64, op_INC, ebx));
-                            expression.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                            pushExpressionToRegisterNoInject(interm, expression, i64ebx);
+                            expression.code.push_i64(SET_Di(i64, op_INC, i64ebx));
+                            expression.code.push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
                         }
                     }
                     else {
@@ -2918,24 +2955,24 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
                             if(c_options.optimize) {
                                 expression.code.push_i64(
                                         SET_Ci(i64, op_ISUBL, 1,0 , interm.utype.field.address));
-                                expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
+                                expression.code.push_i64(SET_Di(i64, op_DEC, i64ebx));
                             } else {
-                                expression.code.push_i64(SET_Di(i64, op_MOVI, 1), ecx);
+                                expression.code.push_i64(SET_Di(i64, op_MOVI, 1), i64ecx);
                                 expression.code.push_i64(
-                                        SET_Ci(i64, op_SUBL, ecx, 0, interm.utype.field.address));
-                                expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
+                                        SET_Ci(i64, op_SUBL, i64ecx, 0, interm.utype.field.address));
+                                expression.code.push_i64(SET_Di(i64, op_DEC, i64ebx));
                             }
                         }
                         else {
-                            pushExpressionToRegisterNoInject(interm, expression, ebx);
-                            expression.code.push_i64(SET_Di(i64, op_DEC, ebx));
-                            expression.code.push_i64(SET_Ci(i64, op_RMOV, adx, 0, ebx));
+                            pushExpressionToRegisterNoInject(interm, expression, i64ebx);
+                            expression.code.push_i64(SET_Di(i64, op_DEC, i64ebx));
+                            expression.code.push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
                         }
                     }
 
                 } else if(interm.utype.field.type == OBJECT) {
                     errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "use of `" + entity.getToken() +
-                                                                                          "` operator on field of type `dynamic_object` without a cast. Try ((SomeClass)dynamic_class)++");
+                                                                                          "` operator on field of type `object` without a cast. Try ((SomeClass)dynamic_class)++");
 
                 } else if(interm.utype.field.type != UNDEFINED){
                     errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(),
@@ -2950,7 +2987,7 @@ Expression RuntimeEngine::parsePreInc(Ast* pAst) {
                 return expression;
                 break;
             case expression_objectclass:
-                errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "use of `" + entity.getToken() + "` operator on type `dynamic_object` without a cast. Try ((SomeClass)dynamic_class)++");
+                errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "use of `" + entity.getToken() + "` operator on type `object` without a cast. Try ((SomeClass)dynamic_class)++");
                 break;
             case expression_null:
                 errors->createNewError(GENERIC, entity.getLine(), entity.getColumn(), "value `null` cannot be used as var");
@@ -3027,9 +3064,9 @@ Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
         case expression_var:
             // negate value
             if(expression.func)
-                pushExpressionToRegisterNoInject(expression, expression, ebx);
+                pushExpressionToRegisterNoInject(expression, expression, i64ebx);
 
-            expression.code.push_i64(SET_Ci(i64, op_NOT, ebx,0, ebx));
+            expression.code.push_i64(SET_Ci(i64, op_NOT, i64ebx,0, i64ebx));
             break;
         case expression_lclass:
             // check for !operator
@@ -3047,16 +3084,15 @@ Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
             errors->createNewError(UNEXPECTED_SYMBOL, pAst->line, pAst->col, " `" + expression.utype.typeToString() + "`");
             break;
         case expression_objectclass:
-            errors->createNewError(GENERIC, pAst->line, pAst->col, "unary operator '!' cannot be applied to dynamic_object, did you forget to add a cast?  i.e !((SomeClass)dynamic_class)");
+            errors->createNewError(GENERIC, pAst->line, pAst->col, "unary operator '!' cannot be applied to object, did you forget to add a cast?  i.e !((SomeClass)obj)");
             break;
         case expression_field:
-            expression.type = expression_var;
             if(expression.utype.field.isNative()) {
                 if(expression.utype.field.dynamicObject()) {
-                    errors->createNewError(GENERIC, pAst->line, pAst->col, "use of `!` operator on field of type `dynamic_object` without a cast. Try !((SomeClass)dynamic_class)");
+                    errors->createNewError(GENERIC, pAst->line, pAst->col, "use of `!` operator on field of type `object` without a cast. Try !((SomeClass)dynamic_class)");
                 } else if(expression.utype.field.isVar()) {
-                    pushExpressionToRegisterNoInject(expression, expression, ebx);
-                    expression.code.push_i64(SET_Ci(i64, op_NOT, ebx,0, ebx));
+                    pushExpressionToRegisterNoInject(expression, expression, i64ebx);
+                    expression.code.push_i64(SET_Ci(i64, op_NOT, i64ebx,0, i64ebx));
                 }
             } else if(expression.utype.field.type == CLASS) {
                 if(expression.utype.field.local)
@@ -3065,6 +3101,7 @@ Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
             } else {
                 errors->createNewError(GENERIC, pAst->line, pAst->col, "field must evaluate to an int to use `!` operator");
             }
+            expression.type = expression_var;
             break;
         case expression_null:
             errors->createNewError(GENERIC, pAst->line, pAst->col, "unary operator '!' cannot be applied to null");
@@ -3105,7 +3142,7 @@ Expression RuntimeEngine::parseUnary(token_entity operand, Expression& right, As
                     }
 
                     expression.code.push_i64(SET_Di(i64, op_MOVBI, ((int64_t)var)), abs(get_low_bytes(var)));
-                    expression.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, bmr));
+                    expression.code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64bmr));
                 } else {
                     // movi
                     if(var > DA_MAX || var < DA_MIN) {
@@ -3113,15 +3150,15 @@ Expression RuntimeEngine::parseUnary(token_entity operand, Expression& right, As
                         ss << "integral number too large: " << var;
                         errors->createNewError(GENERIC, operand.getLine(), operand.getColumn(), ss.str());
                     }
-                    expression.code.push_i64(SET_Di(i64, op_MOVI, var), ebx);
+                    expression.code.push_i64(SET_Di(i64, op_MOVI, var), i64ebx);
                 }
             } else {
-                pushExpressionToRegister(right, expression, ebx);
+                pushExpressionToRegister(right, expression, i64ebx);
 
                 if(operand == "+")
-                    expression.code.push_i64(SET_Ci(i64, op_IMUL, ebx,0, 1));
+                    expression.code.push_i64(SET_Ci(i64, op_IMUL, i64ebx,0, 1));
                 else
-                    expression.code.push_i64(SET_Ci(i64, op_IMUL, ebx,0, -1));
+                    expression.code.push_i64(SET_Ci(i64, op_IMUL, i64ebx,0, -1));
             }
             break;
         case expression_null:
@@ -3132,13 +3169,13 @@ Expression RuntimeEngine::parseUnary(token_entity operand, Expression& right, As
             if(right.utype.field.isNative()) {
                 // add var
                 if(right.utype.field.isVar()) {
-                    pushExpressionToRegister(right, expression, ebx);
+                    pushExpressionToRegister(right, expression, i64ebx);
 
                     if(operand == "+") {
-                        expression.code.push_i64(SET_Ci(i64, op_IMUL, ebx,0, 1));
+                        expression.code.push_i64(SET_Ci(i64, op_IMUL, i64ebx,0, 1));
                     }
                     else {
-                        expression.code.push_i64(SET_Ci(i64, op_IMUL, ebx,0, -1));
+                        expression.code.push_i64(SET_Ci(i64, op_IMUL, i64ebx,0, -1));
                     }
                 } else {
                     errors->createNewError(GENERIC, pAst->line,  pAst->col, "Unary operator `" + operand.getToken() +
@@ -3207,10 +3244,10 @@ bool RuntimeEngine::addExpressions(Expression &out, Expression &leftExpr, Expres
         if( modf( *varout, &intpart) != 0 ) {
             // movbi
             out.code.push_i64(SET_Di(i64, op_MOVBI, ((int64_t)*varout)), abs(get_low_bytes(*varout)));
-            out.code.push_i64(SET_Ci(i64, op_MOVR, ebx,0, bmr));
+            out.code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64bmr));
         } else {
             // movi
-            out.code.push_i64(SET_Di(i64, op_MOVI, *varout), ebx);
+            out.code.push_i64(SET_Di(i64, op_MOVI, *varout), i64ebx);
         }
 
         leftExpr.literal = true;
@@ -3372,7 +3409,7 @@ bool RuntimeEngine::equalsVectorArray(Expression& left, Expression& right) {
 }
 
 bool RuntimeEngine::prototypeEquals(Field *proto, List<Param> params, FieldType rtype) {
-    if(Param::match(proto->params, params, true)) {
+    if(Param::match(proto->params, params, true, false, true)) {
         if(proto->returnType==rtype)
             return true;
 
@@ -3390,4 +3427,141 @@ Method *RuntimeEngine::fieldToFunction(Field *field, Expression &code) {
     fn->code.__asm64.appendAll(code.code.__asm64);
     fn->dynamicPointer=true;
     return fn;
+}
+
+Method *RuntimeEngine::getGlobalFunction(string name, List<Param> &params) {
+    Method* fn;
+    ClassObject* klass;
+
+    for (unsigned int i = 0; i < importMap.size(); i++) {
+        if (importMap.get(i).key == activeParser->sourcefile) {
+
+            List<string> &lst = importMap.get(i).value;
+            for (unsigned int x = 0; x < lst.size(); x++) {
+                if ((klass = getClass(lst.get(x), globalClass, globals)) != NULL) {
+                    if((fn = klass->getFunction(name, params)) != NULL)
+                        return fn;
+                }
+            }
+
+            break;
+        }
+    }
+    return nullptr;
+}
+
+
+Field *RuntimeEngine::getGlobalField(string name) {
+    Field* field;
+    ClassObject* klass;
+
+    for (unsigned int i = 0; i < importMap.size(); i++) {
+        if (importMap.get(i).key == activeParser->sourcefile) {
+
+            List<string> &lst = importMap.get(i).value;
+            for (unsigned int x = 0; x < lst.size(); x++) {
+                if ((klass = getClass(lst.get(x), globalClass, globals)) != NULL) {
+                    if((field = klass->getField(name)) != NULL)
+                        return field;
+                }
+            }
+
+            break;
+        }
+    }
+    return nullptr;
+}
+
+Field *RuntimeEngine::getEnum(string name) {
+    Field* field;
+
+    for (unsigned int i = 0; i < importMap.size(); i++) {
+        if (importMap.get(i).key == activeParser->sourcefile) {
+
+            List<string> &lst = importMap.get(i).value;
+            for (unsigned int x = 0; x < lst.size(); x++) {
+                for(long j = 0; j < enums.size(); j++) {
+                    if(enums.get(j)->getModuleName() == lst.get(x)) {
+                        if((field = enums.get(j)->getField(name)) != NULL)
+                            return field;
+                    }
+                }
+            }
+
+            break;
+        }
+    }
+    return nullptr;
+}
+
+// signature candidates
+// private static fn main(string[]) : var;
+// private static fn main2(string[]);
+// private static fn main3();
+void RuntimeEngine::checkMainMethodSignature(Method method, bool global) {
+    ClassObject* stringClass = getClass("std", "string", classes);
+    if(global && method.getName() == "main") {
+        if(stringClass != NULL) {
+            List<Param> params;
+            List<AccessModifier> modifiers;
+            RuntimeNote note;
+            Field args = Field(stringClass, 0, "args", method.getParentClass(), modifiers, note, stl_local, 0);
+            args.isArray = true;
+            args.type = CLASS;
+            params.add(Param(args));
+
+            if(Param::match(method.getParams(), params, false, true, true)) {
+                if(method.type == VAR) { // fn main(string[]) : var;
+                    if(!mainMethodFound) {
+                        mainNote = method.note;
+                        mainMethodFound = true;
+                        mainAddress = method.address;
+                        mainSignature = 0;
+                    } else {
+                        errors->createNewError(GENERIC, method.ast, "main method with the same or different signature already exists");
+                        printNote(mainNote, "method `main` previously defined here");
+                    }
+
+                } else if(method.type == TYPEVOID) { // fn main(string[]);
+                    if(!mainMethodFound) {
+                        mainNote = method.note;
+                        mainMethodFound = true;
+                        mainAddress = method.address;
+                        mainSignature = 1;
+                    } else {
+                        errors->createNewError(GENERIC, method.ast, "main method with the same or different signature already exists");
+                        printNote(mainNote, "method `main` previously defined here");
+                    }
+                } else
+                    createNewWarning(GENERIC, method.ast->line, method.ast->col, "main method might not be executed");
+            }
+
+            params.free();
+            if(Param::match(method.getParams(), params, false, true, true)) {
+                if(method.type == TYPEVOID) { // fn main();
+                    if(!mainMethodFound) {
+                        mainNote = method.note;
+                        mainMethodFound = true;
+                        mainAddress = method.address;
+                        mainSignature = 2;
+                    } else {
+                        errors->createNewError(GENERIC, method.ast, "main method with the same or different signature already exists");
+                        printNote(mainNote, "method `main` previously defined here");
+                    }
+                } else
+                    createNewWarning(GENERIC, method.ast->line, method.ast->col, "main method might not be executed");
+            }
+        }
+    }
+}
+
+StorageLocality RuntimeEngine::strtostl(string locality) {
+    return locality == "thread_local" ? stl_thread : stl_local;
+}
+
+int64_t RuntimeEngine::checkstl(StorageLocality locality) {
+    if(locality == stl_thread)
+        return threadLocals++;
+    else
+        return 0;
 }

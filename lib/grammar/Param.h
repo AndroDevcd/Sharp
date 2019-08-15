@@ -25,7 +25,7 @@ public:
     }
 
     bool match(Param& param);
-    static bool match(List<Param>& p1, List<Param>& p2, bool stringSupport);
+    static bool match(List<Param>& p1, List<Param>& p2, bool stringSupport, bool ambiguousProtect, bool find);
     void free() {
         field.free();
     }

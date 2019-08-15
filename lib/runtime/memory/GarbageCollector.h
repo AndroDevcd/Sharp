@@ -6,6 +6,7 @@
 #define SHARP_GARBAGECOLLECTOR_H
 
 #include <vector>
+#include <mutex>
 #include "../../../stdimports.h"
 #include "../List.h"
 
@@ -96,13 +97,25 @@ public:
      */
     void collect(CollectionPolicy policy);
 
-    SharpObject* newObject(unsigned long size); /* Array allocation */
+    SharpObject* newObject(int64_t size); /* Array allocation */
     SharpObject* newObject(ClassObject* k); /* Class allocation */
 
-    SharpObject* newObjectArray(unsigned long size); /* Array Object allocation */
-    SharpObject* newObjectArray(unsigned long size, ClassObject* k); /* Class Array allocation */
+    SharpObject* newObjectArray(int64_t size); /* Array Object allocation */
+    SharpObject* newObjectArray(int64_t size, ClassObject* k); /* Class Array allocation */
 
     void createStringArray(Object* object, native_string& s); /* Native string allocation */
+
+    /**
+     * Utility system level functions to garbage collect at a high level
+     *
+     * The functions below give the user the power to perform self collections
+     * starting and stoping the GC, etc.
+     */
+    int selfCollect();
+    void sedate();
+    void wake();
+    void kill();
+    bool isAwake();
 
     /**
      * Reallocation methods for faster code
@@ -116,7 +129,7 @@ public:
      * Function call by virtual machine
      * @param object
      */
-     void freeObject(Object* object);
+     void releaseObject(Object *object);
 
      /**
       * Add untracked memory to managed memory
@@ -140,7 +153,7 @@ public:
      * @param object
      * @return
      */
-    static size_t _sizeof(SharpObject *object, bool recursive = true);
+    static unsigned long long _sizeof(SharpObject *object);
 
     /**
      * This will keep track of our different generations and the
@@ -178,21 +191,15 @@ private:
     /* collect when 40% has been dropped */
     long long adultObjects;
     /* collect when 20% has been dropped */
-    unsigned long oldObjects;
+    long long oldObjects;
 #ifdef SHARP_PROF_
     unsigned long x;
 #endif
     SharpObject* _Mheap, *tail;
     unsigned long long heapSize;
+    bool sleep;
 
-    void collectYoungObjects();
-    void collectAdultObjects();
-    void collectOldObjects();
-
-    /**
-     * All objects are born dirty and need to be cleaned
-     */
-    void cleanDirtyObjects();
+    void collectGarbage();
 
     /**
      * This function performs the actual collection of
@@ -203,9 +210,11 @@ private:
     SharpObject* sweep(SharpObject *object);
 
     void erase(SharpObject *pObject);
+
+    void sedateSelf();
 };
 
-#define GC_COLLECT_YOUNG() ( yObjs >= 25 )
+#define GC_COLLECT_YOUNG() ( yObjs >= 1 )
 #define GC_COLLECT_ADULT() ( aObjs >= 10 )
 #define GC_COLLECT_OLD() ( oObjs >= 10 )
 #define GC_COLLECT_MEM() ( managedBytes >= memoryThreshold )

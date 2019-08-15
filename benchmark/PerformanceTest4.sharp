@@ -1,0 +1,23 @@
+mod app;
+
+import std;
+
+/**
+* This program illustrates the use of recursion to calculate fibbinocci
+* of a number. This is performed 100 times to show the amount of time
+* it can perform this computation
+*/
+def main(string[] args) : var {
+    for(var i = 0; i < 100; i++) {
+        fib(20);
+        // there
+    }
+}
+
+// recursive fibbinocci
+def fib(var n) : var {
+
+    if(n < 2)
+        return n;
+    return fib(n-1)+fib(n-2);
+}

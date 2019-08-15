@@ -31,13 +31,22 @@ struct SwitchTable { // for every value there will be a corresponding address
     }
 };
 
+#define JIT_LIMIT 25000
+
+/**
+ * The JIT will not waste time JIT'ing functions with only 5 instructions
+ */
+#define JIT_IR_MIN 5
+
+typedef int64_t* Cache;
 
 /**
  * This is the representation of a method in its barest form
  * it will contain all the information to run correctly in the system
  *
  */
-struct Method {
+struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUCT DATA USED BY THE JIT */
+    int64_t* jit_labels;
     unsigned long address;          /* refrence id to the the address space */
 
     int64_t* bytecode;
@@ -57,6 +66,32 @@ struct Method {
     List<FinallyTable> finallyBlocks;
     List<line_table> lineNumbers;
     List<SwitchTable> switchTable;
+    int isjit;
+    int64_t jit_addr; // index of jit function
+    /**
+     * This will contain the total number of calls to a single function.
+     * It is called long calls because it holds the calls made to a function as well as
+     * "back calls" as explained below
+     *
+     * def foo() {
+     *
+     * }
+     *
+     * def main() { // main is called 1 times
+     *      for < 10:
+     *          foo(); // foo is called 10 times
+     *      // with backlogging calls main is actually "called" 11 times
+     * }
+     *
+     * We also track how many branches are performed inside a function. branches in a function
+     * will be tracked only at the interpreted level. They are treated as long calls as well because
+     * they give further information that this particular function is doing quite a bit of work.
+     *
+     * Currently the limit for long calls will JIT any function that exceeds the max long call limit of
+     * 25,000. This includes any branches included in this number
+     */
+    int16_t longCalls;
+    int8_t jitAttempts; // we only allow 3 attempts to JIT a method
 
 
     void free() {
@@ -66,6 +101,10 @@ struct Method {
         exceptions.free();
         lineNumbers.free();
         finallyBlocks.free();
+        isjit=0;
+        longCalls=0;
+        jit_addr=0;
+        jitAttempts=0;
         for(long i = 0; i < switchTable.size(); i++) {
             SwitchTable &st = switchTable.get(i);
             st.values.free();
@@ -85,11 +124,17 @@ struct Method {
         if(bytecode != NULL) {
             std::free(bytecode);
         }
+
+        if(jit_labels != NULL) {
+            std::free(jit_labels);
+        }
     }
 
     void init() {
         name.init();
         fullName.init();
+        jitAttempts=0;
+        jit_addr=0;
         sourceFile=0;
         exceptions.init();
         lineNumbers.init();
@@ -99,6 +144,7 @@ struct Method {
         arrayFlag = NULL;
         paramSize = 0;
         owner = NULL;
+        jit_labels = NULL;
         stackSize = 0;
         bytecode = NULL;
         address = 0;
@@ -107,6 +153,8 @@ struct Method {
         returnVal = 0;
         stackEqulizer = 0;
         delegateAddress = -1;
+        isjit = 0;
+        longCalls=0;
     }
 };
 
@@ -119,28 +167,31 @@ struct StackElement;
 
 struct Frame {
 public:
-    Frame(Method* last, uint64_t pc, StackElement* sp,
-          uint64_t fp)
+    Frame(Method* last, Cache pc, StackElement* sp,
+          StackElement* fp, bool jit)
     {
         this->last=last;
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
+        this->isjit=jit;
     }
 
-    void init(Method* last, uint64_t pc, StackElement* sp,
-            uint64_t fp)
+    void init(Method* last, Cache pc, StackElement* sp,
+              StackElement* fp, bool jit)
     {
         this->last=last;
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
+        this->isjit=jit;
     }
 
     Method *last;                   /* Last method */
-    uint64_t pc;
+    Cache pc;
     StackElement* sp;
-    uint64_t fp;
+    StackElement* fp;
+    bool isjit;
 };
 
 #pragma optimize( "", off )
@@ -160,12 +211,10 @@ struct StackElement {
         var = (int64_t)var|v;
     }
 
-    void notl(int64_t v) {
+    void xorl(int64_t v) {
         var = (int64_t)var^v;
     }
 };
 #pragma optimize( "", on )
-
-typedef int64_t* Cache;
 
 #endif //SHARP_METHOD_H

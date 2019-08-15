@@ -1,0 +1,7 @@
+mod app;
+
+import std;
+
+def main() {
+	print("Hello, world!");
+}

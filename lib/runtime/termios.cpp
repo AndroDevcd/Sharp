@@ -4,6 +4,7 @@
 #include "../../stdimports.h"
 #ifdef POSIX_
 #include <termios.h>
+#include <sys/ioctl.h>
 #include <stdio.h>
 
 struct termios old;
@@ -37,6 +38,37 @@ char getch_(int echo)
     ch = getchar();
     resetTermios();
     return ch;
+}
+void enable_raw_mode()
+{
+    termios term;
+    tcgetattr(0, &term);
+    term.c_lflag &= ~(ICANON | ECHO); // Disable echo as well
+    tcsetattr(0, TCSANOW, &term);
+}
+
+void disable_raw_mode()
+{
+    termios term;
+    tcgetattr(0, &term);
+    term.c_lflag |= ICANON | ECHO;
+    tcsetattr(0, TCSANOW, &term);
+}
+
+bool kbhit()
+{
+    int byteswaiting;
+    ioctl(0, FIONREAD, &byteswaiting);
+    return byteswaiting > 0;
+}
+
+bool _kbhit()
+{
+    bool hit;
+    initTermios(false);
+    hit = kbhit();
+    resetTermios();
+    return hit;
 }
 
 /* Read 1 character without echo */

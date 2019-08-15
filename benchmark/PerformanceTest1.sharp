@@ -2,14 +2,15 @@ mod app;
 
 import std;
 
+// classic nbody test
 def main(string[] args) : var {
     var n = string.parseInt(args[0]);
 
     NBodySystem bodies = new NBodySystem();
-    System.println(bodies.energy());
+    println(bodies.energy());
     for (var i=0; i<n; ++i)
        bodies.advance(0.01);
-    System.println(bodies.energy());
+    println(bodies.energy());
 }
 
 public class NBodySystem {

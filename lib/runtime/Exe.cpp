@@ -106,6 +106,9 @@ int Process_Exe(std::string exe)
                 case 0x0f:
                     manifest.sourceFiles =getlong(buffer);
                     break;
+                case 0x1b:
+                    manifest.threadLocals =geti64(buffer);
+                    break;
                 default:
                     throw std::runtime_error("file `" + exe + "` may be corrupt");
             }
@@ -365,6 +368,7 @@ int Process_Exe(std::string exe)
                     method->init();
 
                     method->address = geti64(buffer);
+                    method->isjit = getlong(buffer);
                     method->name = getstring(buffer);
                     method->fullName = getstring(buffer);
                     method->sourceFile = getlong(buffer);
@@ -595,6 +599,7 @@ void getField(File::buffer& exe, List<KeyPair<int64_t, Field*>> &fieldMap, Field
     field->type = (FieldType)getlong(exe);
     field->isStatic = (bool)getlong(exe);
     field->isArray = (bool)getlong(exe);
+    field->isThreadLocal = (bool)getlong(exe);
     field->owner = NULL;
     fieldMap.add(KeyPair<int64_t, Field*>(getlong(exe), field));
 }
@@ -629,7 +634,7 @@ native_string string_forward(File::buffer& str, size_t begin, size_t end) {
 
 bool checkFile(File::buffer& exe) {
     if(exe.at(n++) == file_sig && string_forward(exe, n, 3) == "SEF") {
-        n +=3 + offset;
+        n +=3 + zoffset;
 
         /* Check file's digital signature */
         if(exe.at(n++) == digi_sig1 && exe.at(n++) == digi_sig2

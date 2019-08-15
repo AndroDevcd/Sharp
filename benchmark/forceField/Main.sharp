@@ -1,0 +1,28 @@
+mod app;
+
+import std;
+
+/**
+ * Created by BraxtonN on 7/20/2018.
+ */
+def main(string[] args) : var {
+  if (sizeof(args) != 1) {
+    System.println("Usage: sharp particle <count>");
+    System.exit();
+  }
+
+  var timeDelta = 0.0001;
+  var count = string.parseInt(args[0]);
+
+  Particle p1 = new Particle(new Vector(0.3, 0), -1);
+  Particle p2 = new Particle(new Vector(-0.3, 1), 1);
+  for (int i = 0; i < count; i++) {
+    Vector force1 = p1.forceFrom(p2);
+    Vector force2 = p2.forceFrom(p1);
+    p1.applyForce(force1, timeDelta);
+    p2.applyForce(force2, timeDelta);
+  }
+
+  System.println("p1 = " + p1);
+  System.println("p2 = " + p2);
+}

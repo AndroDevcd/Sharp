@@ -7,7 +7,9 @@ Sharp versions;
     #include "lib/grammar/Runtime.h"
 #endif
 #ifndef MAKE_COMPILER
-    #include "lib/runtime/init.h"
+    #include "lib/runtime/main.h"
+#include "lib/runtime/VirtualMachine.h"
+#include "lib/runtime/jit.h"
 
 #endif
 
@@ -22,11 +24,11 @@ int main(int argc, const char* argv[]) {
 #endif
 
     now= Clock::realTimeInNSecs();
-
     if(c_options.debugMode)
         cout << endl << "Compiled in " << NANO_TOMICRO(now-past) << "us & "
              << NANO_TOMILL(now-past) << "ms\n";
 
-    cout << endl << "program exiting..." << endl;
+    if(c_options.debugMode)
+        cout << endl << "program exiting..." << endl;
     return 0;
 }

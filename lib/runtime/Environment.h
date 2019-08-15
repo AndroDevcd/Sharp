@@ -9,6 +9,9 @@
 #include "oo/string.h"
 #include "oo/ClassObject.h"
 #include "oo/Method.h"
+#ifdef WIN32_
+#include "../Modules/std.os.gui/win/Gui.h"
+#endif
 
 class Object;
 class Method;
@@ -42,7 +45,7 @@ public:
     static ClassObject *NullptrException;
     static ClassObject *ClassCastException;
 
-    Object* globalHeap;                                 /* Mainly static classes/variables etc */
+    Object* globalHeap;         /* Mainly static classes/variables etc */
     Object* throwable;          /* Used for crashes */
 
     ClassObject* classes;
@@ -50,6 +53,9 @@ public:
     native_string* sourceFiles;
     String* strings;
     Method* methods;
+#ifdef WIN32_
+    Gui* gui;
+#endif
 
     void shutdown();
 

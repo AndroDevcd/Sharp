@@ -61,7 +61,7 @@ public:
     string typeToString() {
         if(isMethod)
             return "method";
-        else if(type==CLASS)
+        else if(type==CLASS || klass != NULL)
             return isField ? field.klass->getFullName() : (klass==NULL ? "?" : klass->getFullName());
         else if(type==OBJECT)
             return "object";
@@ -106,6 +106,14 @@ public:
         else if(isField)
             return field.returnType;
         else return prototype.returnType;
+    }
+
+    ClassObject* getRepresentedClass() {
+        if(isField)
+            return field.klass;
+        else if(isMethod)
+            return method->klass;
+        else return klass;
     }
 
     void operator=(ResolvedReference ref) {
@@ -228,8 +236,12 @@ struct Expression {
             case expression_var:
                 if(func || arrayElement || literal || utype.type == UNDEFINED)
                     return VAR;
-                else
-                    return utype.type;
+                else {
+                    if(utype.type == CLASSFIELD)
+                        return utype.field.type;
+                    else
+                        return utype.type;
+                }
             default:
                 return utype.type;
         }
@@ -571,22 +583,31 @@ public:
             sourceFiles(),
             scopeMap(),
             classes(),
+            mainAddress(0),
+            mainSignature(0),
             errorCount(0),
             unfilteredErrorCount(0),
             importMap(),
             noteMessages(),
             resolvedFields(false),
+            activeParser(NULL),
             classSize(0),
             inline_map(),
             methods(0),
             main(NULL),
             stringMap(),
+            mainMethodFound(false),
             panic(false),
+            mainNote(),
             allMethods(),
             staticMainInserts(),
+            initializeTLSInserts(),
+            globals(),
+            enums(),
             preprocessed(false),
             resolvedGenerics(false),
-            resolvedMethods(false)
+            resolvedMethods(false),
+            threadLocals(0)
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
@@ -656,8 +677,11 @@ public:
     static Operator stringToOp(string op);
 
     static bool isNativeIntegerClass(ClassObject *klass);
+    ErrorManager* getErrors() { return errors; }
 
     List<ClassObject*> classes;
+    List<ClassObject*> globals;
+    List<ClassObject*> enums;
 
     static Expression fieldToExpression(Ast *pAst, Field &field);
 
@@ -676,8 +700,12 @@ private:
     ErrorManager* errors;
     string currentModule;
     bool resolvedFields, resolvedGenerics, resolvedMethods;
+    bool mainMethodFound;
+    RuntimeNote mainNote;
+    int64_t mainAddress, mainSignature;
     unsigned long methods;
     unsigned long classSize;
+    unsigned long threadLocals;
     Method* main;
     List<Method*> allMethods;
     Block *currentBlock;
@@ -686,7 +714,7 @@ private:
     RuntimeNote lastNote;
     string lastNoteMsg;
     List<string> noteMessages;
-    Assembler staticMainInserts;
+    Assembler staticMainInserts, initializeTLSInserts;
     int64_t i64;
 
     void compile();
@@ -1202,6 +1230,24 @@ private:
     void varToObject(Expression &expression, Expression &out);
 
     void resolveAllGlobalFields();
+
+    void resolveClassBases();
+
+    void resolveClassBase(Ast *ast);
+
+    void resolveClassEnumDecl(Ast *ast);
+
+    Method *getGlobalFunction(string name, List<Param> &params);
+
+    Field *getGlobalField(string name);
+
+    void checkMainMethodSignature(Method method, bool global);
+
+    Field *getEnum(string name);
+
+    StorageLocality strtostl(string locality);
+
+    int64_t checkstl(StorageLocality locality);
 };
 
 
@@ -1230,7 +1276,7 @@ private:
 #define unique_label_id(x) "$$L" << (x)
 
 #define progname "bootstrap"
-#define progvers "0.2.343"
+#define progvers "0.2.422"
 
 struct options {
     ~options()
@@ -1327,6 +1373,8 @@ struct options {
      */
     List<string> libraries;
 };
+
+#define TLS_LIMIT 0x5F5E0F
 
 extern int recursiveAndExprssions;
 extern List<long> skipAddress;

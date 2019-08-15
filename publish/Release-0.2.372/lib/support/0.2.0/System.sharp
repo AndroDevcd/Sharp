@@ -1,0 +1,132 @@
+mod std;
+
+import std.kernel;
+import std.kernel.vm;
+
+/**
+ * Created by BraxtonN on 5/18/2018.
+ *
+ * The System class contains several useful class fields
+ * and methods. This class should not be instantiated.
+ *
+ * Among the facilities provided by the System class
+ * are standard input, standard output, and error output streams;
+ *
+ */
+public class System {
+
+    static ConsoleHandler cHandler = new ConsoleHandler();
+
+    public static def print(var[] data) {
+        cHandler.printData(data);
+    }
+    
+    public static def print(string str) {
+        cHandler.printData(str.toArray());
+    }
+    
+    public static def println(var[] data) {
+        cHandler.printData(data);
+        printChar('\n');
+    }
+
+    public static def println(var data) {
+        print(data);
+        printChar('\n');
+    }
+
+    public static def println() {
+        printChar('\n');
+    }
+
+    public static def println(Enum e) {
+        print(e.getName());
+        printChar('\n');
+    }
+
+    public static def readLine() : string {
+        var _char;
+        string message = "";
+
+        _char = readChar();
+        while((_char != 13) && (_char != 10)) { // \r\n
+            message += new var[] { _char };
+            _char = readChar();
+        }
+        return message;
+    }
+
+    public static def readChar() : var {
+        return cHandler.read();
+    }
+
+    public static def readRawChar() : var {
+        return cHandler.readsilent();
+    }
+    
+    public static def println(string str) {
+        cHandler.printData(str.toArray());
+        printChar('\n');
+    }
+
+    public static def println(Printable o) {
+        cHandler.printData(o.toString().toArray());
+        printChar('\n');
+    }
+
+    public static def print(Printable o) {
+        cHandler.printData(o.toString().toArray());
+    }
+    
+    public static def print(var data) {
+        cHandler.__print_stdout_(data, false);
+    }
+
+    public static def printChar(var data) {
+        ConsoleHandler.__print_stdout_(data, true);
+    }
+
+    public static def getUtcTimeInMills() : var {
+        return Time.millsTime();
+    }
+
+    public static def getNanoTime() : var {
+        return Time.nanoTime();
+    }
+
+    public static def exit() {
+        Runtime.nativeExit();
+    }
+
+    public static def copyOf(object data, var len) : object[] {
+        return Runtime.copy(data, len);
+    }
+
+    public static def copyOf(object data, var indexLen, var len) : object[] {
+        return Runtime.copy2(data, indexLen, len);
+    }
+
+    public static def memcpy(object data, var startIndex, var endIndex) : object[] {
+        return Runtime.copy3(data, startIndex, endIndex);
+    }
+
+    public static def realloc(object data, var size) {
+        return Runtime.realloc(data, size);
+    }
+
+    public static def invert(object data, var startIndex, var endIndex) : object[] {
+        return Runtime.copy4(data, startIndex, endIndex);
+    }
+
+    public static def sizeOf(object data) : var {
+        return Runtime.sizeOf(data);
+    }
+
+    public static def toString(var data) : var[] {
+        return Runtime._snprintf('g', data, 0);
+    }
+
+    public static def snprintf(var fmt, var data, var precision) : var[] {
+        return Runtime._snprintf(fmt, data, precision);
+    }
+}

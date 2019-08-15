@@ -29,9 +29,9 @@ Method* ClassObject::getConstructor(int p) {
     return &constructors.get(p);
 }
 
-Method *ClassObject::getConstructor(List<Param>& params, bool useBase, bool nativeSupport) {
+Method *ClassObject::getConstructor(List<Param>& params, bool useBase, bool nativeSupport, bool ambiguousProtect, bool find) {
     for(unsigned long i = 0; i < constructors.size(); i++) {
-        if(Param::match(constructors.get(i).getParams(), params, nativeSupport))
+        if(Param::match(constructors.get(i).getParams(), params, nativeSupport, ambiguousProtect, find))
             return &constructors.get(i);
     }
 
@@ -42,7 +42,7 @@ Method *ClassObject::getConstructor(List<Param>& params, bool useBase, bool nati
 }
 
 bool ClassObject::addConstructor(Method constr) {
-    if(getConstructor(constr.getParams()) != NULL)
+    if(getConstructor(constr.getParams(), false, false, true, false) != NULL)
         return false;
 
     constructors.push_back(constr);
@@ -64,9 +64,9 @@ Method* ClassObject::getFunction(int p) {
     return &functions.get(p);
 }
 
-Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase, bool nativeSupport, bool skipdelegates) {
+Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase, bool nativeSupport, bool skipdelegates, bool ambiguousProtect, bool find) {
     for(unsigned long i = 0; i < functions.size(); i++) {
-        if(Param::match(functions.get(i).getParams(), params, nativeSupport) && name == functions.get(i).getName()) {
+        if(Param::match(functions.get(i).getParams(), params, nativeSupport, ambiguousProtect, find) && name == functions.get(i).getName()) {
             if(skipdelegates && !functions.get(i).delegate)
                 return &functions.get(i);
             else
@@ -77,6 +77,41 @@ Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase,
 
     if(useBase && base != NULL)
         return base->getFunction(name, params, useBase);
+
+    return NULL;
+}
+
+Method *ClassObject::getDelegatePost(string name, List<Param>& params, bool useBase, bool nativeSupport, bool find) {
+    for(unsigned long i = 0; i < functions.size(); i++) {
+        if(Param::match(functions.get(i).getParams(), params, nativeSupport, true, find) && name == functions.get(i).getName()) {
+            if(functions.get(i).delegatePost)
+                return &functions.get(i);
+
+        }
+    }
+
+    if(useBase && base != NULL)
+        return base->getDelegatePost(name, params, useBase, nativeSupport);
+
+    return NULL;
+}
+
+Method *ClassObject::getDelegateFunction(string name, List<Param>& params, bool useBase, bool nativeSupport) {
+    Method* fn = NULL;
+    if((fn = getDelegatePost(name, params, useBase, nativeSupport)) != NULL) {
+        return fn;
+    }
+
+    ClassObject* iface;
+    for(unsigned long i = 0; i < interfaces.size(); i++) {
+        iface = interfaces.get(i);
+        if((fn = iface->getFunction(name, params, true, true, false)) != NULL) {
+            return fn;
+        }
+    }
+
+    if(useBase && base != NULL)
+        return base->getDelegateFunction(name, params, useBase, nativeSupport);
 
     return NULL;
 }
@@ -96,7 +131,7 @@ Method *ClassObject::getFunction(string name, int64_t _offset) {
 }
 
 bool ClassObject::addFunction(Method function) {
-    if(getFunction(function.getName(), function.getParams()) != NULL)
+    if(getFunction(function.getName(), function.getParams(), false, false, false, true, false) != NULL)
         return false;
 
     functions.push_back(function);
@@ -183,9 +218,9 @@ OperatorOverload *ClassObject::getOverload(size_t p) {
     return &overloads.get(p);
 }
 
-OperatorOverload *ClassObject::getOverload(Operator op, List<Param> &params, bool useBase, bool nativeSupport) {
+OperatorOverload *ClassObject::getOverload(Operator op, List<Param> &params, bool useBase, bool nativeSupport, bool ambiguousProtect, bool find) {
     for(unsigned long i = 0; i < overloads.size(); i++) {
-        if(Param::match(overloads.get(i).getParams(), params, nativeSupport) && op == overloads.get(i).getOperator())
+        if(Param::match(overloads.get(i).getParams(), params, nativeSupport, ambiguousProtect, find) && op == overloads.get(i).getOperator())
             return &overloads.get(i);
     }
 
@@ -211,7 +246,7 @@ OperatorOverload *ClassObject::getOverload(Operator op, int64_t _offset) {
 }
 
 bool ClassObject::addOperatorOverload(OperatorOverload overload) {
-    if(getOverload(overload.getOperator(), overload.getParams()) != NULL)
+    if(getOverload(overload.getOperator(), overload.getParams(), false, false, true, false) != NULL)
         return false;
 
     overloads.push_back(overload);
@@ -435,6 +470,8 @@ bool ClassObject::addGenericType(Expression *utype) {
 Expression *ClassObject::getGenericType(string &key) {
     if(genericKeys.find(key)) {
         return &genericMap.get(genericKeys.indexof(key));
+    } else if(super != NULL) {
+        return super->getGenericType(key);
     }
 
     return nullptr;

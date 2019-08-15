@@ -286,6 +286,7 @@ public:
     bool empty() { return len==0; }
 
     T* _Data, *ptr;
+    unsigned  long long len;
 private:
     CXX11_INLINE
     void __expand() {
@@ -325,7 +326,6 @@ private:
         }
     }
 
-    unsigned  long long len;
     unsigned  long long max;
 };
 

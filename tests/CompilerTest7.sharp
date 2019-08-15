@@ -2,10 +2,7 @@ mod application;
 
 import std;
 
-public class Application {
-
-
-    enum Enums {
+enum Enums {
         APPLE = 90999,
         CHERRY = 17,
         PEACH
@@ -20,22 +17,22 @@ public class Application {
         asm(" nop nop nop nop nop nop");
         switch(data) {
             case Enums.APPLE:
-                System.print("apple");
+                print("apple");
                 break;
             case Enums.CHERRY:
-                System.print("cherry");
+                print("cherry");
                 break;
             case Enums.PEACH:
-                System.print("peach");
+                print("peach");
                 break;
             case 7:
-                System.print(2.333345);
-                System.print("7");
+                print(2.333345);
+                print("7");
                 break;
             case (_int16)4.3:
                 break;
             default:
-                System.print("default");
+                print("default");
                 break;
         }
         int a = 1;
@@ -43,7 +40,6 @@ public class Application {
         int c = 3;
 
         // 1 + 2 * 3 +1*2 + 1
-        System.print("");
-        System.println((a + b * c + a * b + a).getValue());
+        print("");
+        println((a + b * c + a * b + a).getValue());
     }
-}

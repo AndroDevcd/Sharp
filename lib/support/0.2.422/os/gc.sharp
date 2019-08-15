@@ -1,0 +1,43 @@
+mod std.os;
+
+import std.kernel;
+
+/**
+* Garbage collector interface
+*/
+
+def gc() {
+    Runtime.gc();
+}
+
+def freeMemory() : var {
+    return Runtime.freeMemory();
+}
+
+def maxMemory() : var {
+    return Runtime.memoryLimit();
+}
+
+def managedMemory() : var {
+    return Runtime.managedMemory();
+}
+
+def sedate() {
+    Runtime.sedateGc();
+}
+
+def collect() : var {
+    return Runtime.selfCollect();
+}
+
+def wake() {
+    Runtime.wakeGc();
+}
+
+def kill() {
+    Runtime.killGc();
+}
+
+def isAwake() : var {
+    return Runtime.isGcAwake();
+}

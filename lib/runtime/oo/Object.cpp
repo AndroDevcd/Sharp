@@ -8,7 +8,7 @@
 #include "../register.h"
 #include "../Thread.h"
 
-void Object::castObject(uint64_t classPtr) {
+void Object::castObject(int64_t classPtr) {
     ClassObject* k = env->findClassBySerial(classPtr);
 
     stringstream nonclass;
@@ -31,6 +31,30 @@ void Object::castObject(uint64_t classPtr) {
         ss << "illegal cast of class '" << this->object->k->name.str() << "' to '";
         ss << k->name.str() << "'";
         throw Exception(Environment::ClassCastException, ss.str());
+    }
+}
+
+void Object::monitorLock() {
+    if(object != nullptr) {
+
+        if(object->mutex==NULL) {
+            Thread::threadsMonitor.lock(); // protection from thread race condition
+            if(object->mutex!=NULL) {
+                Thread::threadsMonitor.unlock();
+                goto _lck;
+            }
+#ifdef WIN32_
+            object->mutex = new recursive_mutex();
+#endif
+#ifdef POSIX_
+            object->mutex = new recursive_mutex();
+#endif
+
+            Thread::threadsMonitor.unlock();
+        }
+
+        _lck:
+        object->mutex->lock();
     }
 }
 

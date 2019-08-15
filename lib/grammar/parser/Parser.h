@@ -50,6 +50,7 @@ public:
     static bool isnative_type(string type);
     static bool isassign_exprsymbol(string token);
     static bool isspecial_native_type(string type);
+    static bool isstorage_type(token_entity token);
 
     /**
      * This is a special flag that denotes that the compiler has detected too many errors

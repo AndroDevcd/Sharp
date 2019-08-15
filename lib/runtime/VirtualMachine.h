@@ -28,69 +28,61 @@ public:
 
     void shutdown();
 
-    void sysInterrupt(int32_t i);
+    static void sysInterrupt(int64_t i);
 
     //void executeMethod(int64_t address);
     int returnMethod();
-    bool TryThrow(Method* method, Object* exceptionObject);
-    void Throw(Object *exceptionObject);
+    bool TryCatch(Method *method, Object *exceptionObject);
+    void Throw();
 
-    void fillStackTrace(Object *exceptionObject);
+    static void fillStackTrace(Object *exceptionObject);
 
-    void fillStackTrace(native_string &str);
+    static void fillStackTrace(native_string &str);
 
-    string getPrettyErrorLine(long line, long sourceFile);
+    static string getPrettyErrorLine(long line, long sourceFile);
 
-    CXX11_INLINE
-    void executeFinally(Method *method) {
-        uint64_t oldpc = thread_self->pc;
+    int executeFinally(Method *method) {
+        Thread *thread = thread_self;
+        int64_t oldpc = PC(thread);
 
-        for(unsigned int i = 0; i < method->finallyBlocks.size(); i++) {
+        for(long int i = 0; i < method->finallyBlocks.size(); i++) {
             FinallyTable &ft = method->finallyBlocks.get(i);
-            if((ft.try_start_pc >= oldpc && ft.try_end_pc < oldpc) || ft.start_pc > oldpc) {
+            if((ft.try_start_pc >= oldpc && ft.try_end_pc < oldpc) 
+               || ft.start_pc > oldpc) {
                 finallyTable = ft;
                 startAddress = 1;
-                thread_self->pc = ft.start_pc;
+                thread->pc = thread->cache+ft.start_pc;
 
                 /**
                  * Execute finally blocks before returning
                  */
-                thread_self->exec();
+                thread->exec();
                 startAddress = 0;
             }
         }
+
+        /**
+         * If the finally block returns while we are trying to locate where the
+         * exception will be caught we give up and the exception
+         * is lost forever
+         */
+        return method == thread_self->current ? 0 : 1;
     }
 
     int exitVal;
 
-    void fillMethodCall(Frame &frame, stringstream &ss);
-};
+    static void fillMethodCall(Frame &frame, stringstream &ss);
 
-#define executeMethod(address, thread_self) { \
- \
-    Method *method = env->methods+address; \
- \
-    if(thread_self->calls==0) { \
-        thread_self->callStack[0].init(NULL, 0,0,0); \
-    } else { \
-        thread_self->callStack[thread_self->calls+1] \
-            .init(thread_self->current, thread_self->pc, thread_self->sp-method->stackEqulizer, thread_self->fp); \
-    }\
-    thread_self->calls++; \
-     \
-    thread_self->pc = 0; \
-    thread_self->current = method; \
-    thread_self->cache = method->bytecode; \
-    thread_self->fp = thread_self->calls==1 ? thread_self->fp : \
-                      ((method->returnVal) ? (thread_self->sp-thread_self->dataStack)-method->stackEqulizer : \
-                ((thread_self->sp-thread_self->dataStack)-method->stackEqulizer+1)); \
-    thread_self->sp += (method->stackSize - method->paramSize); \
-}
+    static void __snprintf(int cfmt, double val, int precision);
+};
 
 extern VirtualMachine* vm;
 extern Environment* env;
 extern bool masterShutdown;
 
 int CreateVirtualMachine(std::string);
+void executeMethod(int64_t address, Thread* thread, bool inJit = false);
+void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t staticAddr);
+int64_t executeSwitch(Thread* thread, int64_t constant);
 
 #endif //SHARP_SHARP_H

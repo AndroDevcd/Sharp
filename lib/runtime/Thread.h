@@ -10,12 +10,22 @@
 #include "oo/Exception.h"
 #include "oo/Method.h"
 #include "profiler.h"
+#include "../Modules/std/Random.h"
 
 #define MAX_THREADS 0xffba
 
-#define STACK_SIZE 0xcfba
+#define interp_STACK_SIZE 0xcfba
+#define interp_STACK_MIN 0x3e8
+// minimum size required left after local memory objects are allocated on the stack
+#define interp_STACK_start_MIN 0xff
+#define STACK_SIZE MB_TO_BYTES(1)
+#define STACK_MIN KB_TO_BYTES(80)
+#define STACK_OVERFLOW_BUF KB_TO_BYTES(50) // ERY LARGE OVERFLOW BUFFER FOR jit STACK OFERFLOW CATCHES
 
 #define main_threadid 0x0
+#define gc_threadid 0x1
+
+struct jit_ctx;
 
 enum ThreadState {
     THREAD_CREATED      =0x000,
@@ -30,6 +40,19 @@ enum ThreadPriority {
     THREAD_PRIORITY_HIGH = 0X0006
 };
 
+/**
+ * Thread signals for events being handled in the threadding system
+ *
+ * Signals are send and read from at specific times and it makes
+ * for a much faster processing to better handle signals as they arise
+ */
+enum tsig_t {
+    tsig_empty = 0x000,
+    tsig_except = 0x001,
+    tsig_suspend = 0x002,
+    tsig_kill = 0x004
+};
+
 class Thread {
 public:
     Thread()
@@ -39,18 +62,20 @@ public:
             state(THREAD_KILLED),
             suspended(false),
             name(""),
+            rand(NULL),
             main(NULL),
             exitVal(1),
-            suspendPending(false),
-            exceptionThrown(false),
+            signal(tsig_empty),
             throwable(),
             callStack(),
-            dataStack(NULL)
-#ifdef SHARP_PROF_
-            ,tprof()
-#endif
+            dataStack(NULL),
+            jctx(NULL)
 
     {
+        exceptionObject.object=0;
+#ifdef SHARP_PROF_
+        tprof = NULL;
+#endif
     #ifdef WIN32_
         new (&mutex) std::mutex();
     #endif
@@ -65,7 +90,7 @@ public:
 
     static void Startup();
     static void suspendSelf();
-    static int start(int32_t);
+    static int start(int32_t, size_t);
     static int destroy(int64_t);
     static int interrupt(int32_t);
     static int join(int32_t);
@@ -78,6 +103,8 @@ public:
     static int setPriority(Thread*, int);
     static void killAll();
     static void shutdown();
+    static bool validStackSize(size_t);
+    static bool validInternalStackSize(size_t);
 
     static int startDaemon(
 #ifdef WIN32_
@@ -89,10 +116,24 @@ public:
     (*threadFunc)(void*), Thread* thread);
 
 
-    static int32_t Create(int32_t, unsigned long);
+    static int32_t Create(int32_t);
     void Create(string);
     void CreateDaemon(string);
     void exit();
+
+    // easier to acces for JIT
+    long long calls;
+    StackElement* dataStack,
+            *sp, *fp;
+    Method *current;
+    Frame *callStack;
+    jit_ctx *jctx;
+    size_t stack_lmt;
+    Cache cache, pc;
+#ifdef SHARP_PROF_
+    Profiler *tprof;
+#endif
+    /* tsig_t */ int signal;
 
     static int32_t tid;
     static List<Thread*> threads;
@@ -106,11 +147,10 @@ public:
 #endif
     static bool isAllThreadsSuspended;
 
-#ifdef SHARP_PROF_
-    Profiler tprof;
-#endif
-
     int32_t id;
+    int64_t stack;
+    int64_t stbase;
+    int64_t stfloor;
     int priority;
     bool daemon;
     bool terminated;
@@ -121,17 +161,10 @@ public:
     native_string name;
     Method *main;
     int exitVal;
-    bool suspendPending;
-    bool exceptionThrown;
     Object currentThread, args;
+    Object exceptionObject;
+    Random* rand;
 
-    int64_t pc, fp;
-    Method *current;
-    Frame *callStack;
-    unsigned long calls;
-    StackElement* dataStack, *sp, *stackTail;
-    unsigned long stack_lmt;
-    Cache cache;
     Throwable throwable;
 #ifdef WIN32_
     HANDLE thread;
@@ -165,15 +198,31 @@ private:
     static void popThread(Thread *thread);
 };
 
+/**
+ * Send a signal to shutdown and or sleep a thread and more
+ * see tsig_t for more information.
+ */
+#define sendSignal(sig, sigt, enable) (sig ^= (-(unsigned long)enable ^ sig) & (1UL << sigt))
+#define hasSignal(sig, sigt) ((sig >> sigt) & 1U)
+
 extern thread_local Thread* thread_self;
 extern thread_local double registers[12];
 
-#define EBX registers[ebx]
-#define ADX registers[adx]
-#define ECX registers[ecx]
-#define EGX registers[egx]
+#define _64EBX registers[i64ebx]
+#define _64ADX registers[i64adx]
+#define _64ECX registers[i64ecx]
+#define _64EGX registers[i64egx]
+#define _64CMT registers[i64cmt]
+#define _64BMR registers[i64bmr]
 
+#define PC(thread_self) \
+    (thread_self->pc-thread_self->cache)
+
+extern unsigned long long irCount, overflow;
 extern FinallyTable finallyTable;
-extern short int startAddress;
+extern thread_local short startAddress;
+extern double exponent(int64_t n);
+extern size_t dStackSz;
+extern size_t iStackSz;
 
 #endif //SHARP_THREAD_H

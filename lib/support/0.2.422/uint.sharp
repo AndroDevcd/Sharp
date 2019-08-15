@@ -1,0 +1,129 @@
+mod std;
+
+public class uint base integer {
+    var value;
+
+    public uint(var num) {
+        value = (_uint32)num;
+    }
+
+    public uint(integer num) {
+        base->integer((_uint32)num.value);
+    }
+    
+    public def operator+(var num) : var {
+        return (_uint32)(value+num);
+    }
+    
+    public def operator+(integer num) : uint {
+        return new uint(operator+(num.value));
+    }
+    
+    public def operator-(var num) : var {
+        return (_uint32)(value-num);
+    }
+    
+    public def operator-(integer num) : uint {
+        return new uint(operator-(num.value));
+    }
+    
+    public def operator*(var num) : var {
+        return (_uint32)(value*num);
+    }
+    
+    public def operator*(integer num) : uint {
+        return new uint(operator*(num.value));
+    }
+
+    public def operator!=(var num) : var {
+        return (value!=num);
+    }
+
+    public def operator!=(integer num) : var {
+        return (value!=num.value);
+    }
+    
+    public def operator/(var num) : var {
+        return (_uint32)(value/num);
+    }
+    
+    public def operator/(integer num) : uint {
+        return new uint(operator/(num.value));
+    }
+    
+    public def operator=(var num) : var {
+        return (value=(_uint32)num);
+    }
+    
+    public def operator=(integer num) : uint {
+        return new uint(operator=(num.value));
+    }
+    
+    public def operator==(var num) : var {
+        return (value==num);
+    }
+    
+    public def operator==(integer num) : var {
+        return (value==num.value);
+    }
+    
+    public def operator<(var num) : var {
+        return (value<num);
+    }
+    
+    public def operator<(integer num) : var {
+        return (value<num.value);
+    }
+    
+    public def operator>(var num) : var {
+        return (value>num);
+    }
+    
+    public def operator>(integer num) : var {
+        return (value>num.value);
+    }
+    
+    public def operator<=(var num) : var {
+        return (value<=num);
+    }
+    
+    public def operator<=(integer num) : var {
+        return (value<=num.value);
+    }
+    
+    public def operator>=(var num) : var {
+        return (value>=num);
+    }
+    
+    public def operator>=(integer num) : var {
+        return (value>=num.value);
+    }
+
+    public def operator++(var num) : var { // post inc i++
+        var before = value;
+        value=(_uint32)value+1;
+        return before;
+    }
+
+    public def operator++() : var { // pre inc ++i
+        return (value=(_uint32)value+1);
+    }
+
+    public def operator--(var num) : var {
+        var before = value;
+        value=(_uint32)value-1;
+        return before;
+    }
+
+    public def operator--() : var {
+        return (value=(_uint32)value-1);
+    }
+
+    public def value() : var {
+        return (value);
+    }
+
+    public def delegate::toString() : string {
+        return "" + value;
+    }
+}
