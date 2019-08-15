@@ -2,7 +2,6 @@
 *.stackdump
 /cmake-build*
 .idea/
-bin/
 out
 present/
 release/
