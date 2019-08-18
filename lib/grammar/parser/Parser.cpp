@@ -944,6 +944,74 @@ void Parser::parse_valuelist(Ast *pAst) {
     expect(RIGHTPAREN, pAst, "`)`");
 }
 
+void Parser::parse_expression_list(Ast *pAst) {
+    pAst = get_ast(pAst, ast_expression_list);
+
+    expect(LEFTCURLY, pAst, "`{`");
+    cout << "expression list " << endl;
+    if(peek(1).getTokenType() != RIGHTCURLY)
+    {
+        parse_expression(pAst);
+
+        _pExpr:
+        if(peek(1).getTokenType() == COMMA)
+        {
+            expect(COMMA, pAst, "`,`");
+            if(!parse_expression(pAst)){
+                errors->createNewError(GENERIC, pAst->getLastSubAst(), "expected expression");
+            }
+            goto _pExpr;
+        }
+    }
+
+    expect(RIGHTCURLY, pAst, "`}");
+}
+
+bool Parser::parse_field_initialization(Ast *pAst) {
+    pAst = get_ast(pAst, ast_field_init);
+
+    if(peek(1).getToken() == "base") {
+        advance();
+        expect_token(pAst, "base", "`base`");
+        expect(PTR, pAst, "`->`");
+    }
+
+    if(parse_utype_naked(pAst) && peek(1).getTokenType() == ASSIGN) {
+        expect(ASSIGN, pAst, "`=`");
+
+        if(!parse_expression(pAst)){
+            errors->createNewError(GENERIC, pAst->getLastSubAst(), "expected expression");
+        }
+        return true;
+    }
+
+    return false;
+}
+
+void Parser::parse_field_init_list(Ast *pAst) {
+    pAst = get_ast(pAst, ast_field_init_list);
+
+    cout << "field init list" << endl;
+    expect(LEFTCURLY, pAst, "`{`");
+
+    if(peek(1).getTokenType() != RIGHTCURLY)
+    {
+        parse_field_initialization(pAst);
+
+        _pField:
+        if(peek(1).getTokenType() == COMMA)
+        {
+            expect(COMMA, pAst, "`,`");
+            if(!parse_field_initialization(pAst)){
+                errors->createNewError(GENERIC, pAst->getLastSubAst(), "expected field initializer");
+            }
+            goto _pField;
+        }
+    }
+
+    expect(RIGHTCURLY, pAst, "`}");
+}
+
 bool Parser::isassign_exprsymbol(string token) {
     return token == "+=" || token == "-="||
            token == "*=" || token == "/="||
@@ -1335,6 +1403,21 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
         else if(peek(1).getTokenType() == LEFTPAREN) {
             parse_valuelist(pAst);
             newClass = true;
+        } else if(peek(1).getTokenType() == LEFTCURLY) {
+            if(peek(2).getId() == IDENTIFIER) {
+                if(peek(2).getToken() == "base") {
+                    parse_field_init_list(pAst);
+                } else if(peek(3).getTokenType() == ASSIGN){
+                    parse_field_init_list(pAst);
+                } else {
+                    parse_expression_list(pAst);
+                }
+            } else {
+                parse_expression_list(pAst);
+            }
+        } else {
+            errors->createNewError(GENERIC, current(), "expected '[' or '(' or '{' after new expression");
+            return true;
         }
 
         pAst = pAst->encapsulate(ast_new_e);

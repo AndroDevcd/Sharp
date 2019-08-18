@@ -29,8 +29,9 @@ public:
         _Data[len-1]=data;
     }
 
-    void push_back() {
+    T& __new() {
         __expand();
+        return _Data[len-1];
     }
 
     void insert(long long pos, T& data) {

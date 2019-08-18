@@ -1430,7 +1430,7 @@ public:
     Slot newSlot;
     newSlot.value = value;
     newSlot.reg = reg;
-    _slots.push_back(newSlot);
+    _slots.__new(newSlot);
 
     // Create the constant and inject it after the injectTarget.
     X86Mem mem = _cc->newConst(kConstScopeGlobal, &value, 16);

@@ -27,7 +27,7 @@ public:
     bool addinjector(string key) {
         if(!has_injector(key)) {
             injectors.key.push_back(key);
-            injectors.value.push_back();
+            injectors.value.__new();
             injectors.value.last().init();
             return true;
         }
@@ -36,7 +36,7 @@ public:
 
     void addinjector_unsafe(std::string key) {
         injectors.key.push_back(key);
-        injectors.value.push_back();
+        injectors.value.__new();
         injectors.value.last().init();
     }
 

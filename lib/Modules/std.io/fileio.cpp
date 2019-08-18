@@ -169,7 +169,7 @@ void get_file_list(native_string &path, List<native_string> &files) {
                 continue;
             }
 
-            files.push_back();
+            files.__new();
             files.last().init();
             files.last() = file;
         }

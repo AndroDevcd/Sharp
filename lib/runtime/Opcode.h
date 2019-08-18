@@ -195,6 +195,9 @@
             &&CALLD,                                 \
             &&VARCAST,                                 \
             &&TLS_MOVL                                 \
+            &&DUP                                      \
+            &&POPOBJ_2                                  \
+            &&SWAP                                     \
         };
 
 enum Opcode {
@@ -315,7 +318,10 @@ enum Opcode {
     op_CMP                      =0x72,
     op_CALLD                    =0x73,
     op_VARCAST                  =0x74,
-    op_TLS_MOVL                 =0x75
+    op_TLS_MOVL                 =0x75,
+    op_DUP                      =0x76,
+    op_POPOBJ_2                 =0x77,
+    op_SWAP                     =0x78
 };
 
 #endif //SHARP_OPCODE_H

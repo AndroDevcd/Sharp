@@ -3,59 +3,59 @@ mod app;
 import std;
 import std.io;
 
-//thread_local c1 cl1;
-//thread_local object[] arry;
-//
-//class b {
-////    public static thread_local b tlsBase;
-//    public var i;
-//    public static thread_local b tlsBase = null;    //passed
-//
-//    public def operator++() {
-//
-//    }
-//
-//    class bg<T> {
-//        public static T v;
-//
-//        class Inner<L> {
-//            public static thread_local T v;
-//        }
-//    }
-//}
-//
-//class G<T,K> {
-//    public static thread_local T v;
-//    public static thread_local K vk;
-//
-//    class gclass {
-//        public File v;
-//    }
-//}
-//class c1 base b{
-//    public var i;
-//    public c1 y;
-//    public  static thread_local object tls;
-//
-//    public def foo()  {
-////        self->tls = null;  //passed
-////        base->tlsBase = null; //passed
-//
-//    }
-//}
-//
-////class C<T> base G<T>      broken G is not respected
-//
-//class C<T> base G<T, T>.gclass {
-//    public static T x;
-//    static thread_local object c;
-//}
-//
-//
-//class D<T> base b.bg<var>.Inner<var> {
-//    public static T x;
-//    static thread_local object c;
-//}
+thread_local c1 cl1;
+thread_local object[] arry;
+
+class b {
+//    public static thread_local b tlsBase;
+    public var i;
+    public static thread_local b tlsBase = null;    //passed
+
+    public def operator++() {
+
+    }
+
+    class bg<T> {
+        public static T v;
+
+        class Inner<L> {
+            public static thread_local T v;
+        }
+    }
+}
+
+class G<T,K> {
+    public static thread_local T v;
+    public static thread_local K vk;
+
+    class gclass {
+        public File v;
+    }
+}
+class c1 base b{
+    public var i;
+    public c1 y;
+    public  static thread_local object tls;
+
+    public def foo()  {
+//        self->tls = null;  //passed
+//        base->tlsBase = null; //passed
+
+    }
+}
+
+//class C<T> base G<T>      broken G is not respected
+
+class C<T> base G<T, T>.gclass {
+    public static T x;
+    static thread_local object c;
+}
+
+
+class D<T> base b.bg<int>.Inner<int> {
+    public static T x;
+    static thread_local object c;
+}
 
 def foo(object[] args) : var {
     thread_local int l = new int(10);
@@ -92,9 +92,9 @@ def main() {
     t.join();
     readLine();
 //    i = x;
-//    C<object> generic;
-//    D<object> generic2;
-//    generic.v = null;
+    C<object> generic;
+    D<object> generic2;
+    generic.v = null;
     //thread_local File i;
 //    cl1 = new c1();           passed
 //    cl1.i = 9;                passed

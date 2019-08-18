@@ -409,7 +409,8 @@ struct Scope {
             uniqueLabelSerial(0),
             reachable(true),
             last_statement(0),
-            switches(0)
+            switches(0),
+            classInitialization(false)
     {
         locals.init();
         label_map.init();
@@ -431,7 +432,8 @@ struct Scope {
             uniqueLabelSerial(0),
             reachable(true),
             last_statement(0),
-            switches(0)
+            switches(0),
+            classInitialization(false)
     {
         locals.init();
         label_map.init();
@@ -453,7 +455,8 @@ struct Scope {
             uniqueLabelSerial(0),
             reachable(true),
             last_statement(0),
-            switches(0)
+            switches(0),
+            classInitialization(false)
     {
         locals.init();
         label_map.init();
@@ -539,7 +542,7 @@ struct Scope {
     List<KeyPair<std::string, std::string>> loopAddressTable;
     int blocks;
     long loops, trys, switches, uniqueLabelSerial, last_statement;
-    bool self, base, reachable;
+    bool self, base, reachable, classInitialization;
 
     void free() {
         locals.free();
@@ -836,7 +839,7 @@ private:
 
     void analyzeImportDecl(Ast *pAst);
 
-    void createNewWarning(error_type error, int line, int col, string xcmnts);
+    void createNewWarning(error_type error, int type, int line, int col, string xcmnts);
 
     void analyzeClassDecl(Ast *ast);
 
@@ -1248,6 +1251,8 @@ private:
     StorageLocality strtostl(string locality);
 
     int64_t checkstl(StorageLocality locality);
+
+    void parseFieldInitalizers(List<KeyPair<Expression, Expression>> &fieldInits, Ast *pAst, Expression expression);
 };
 
 
@@ -1373,6 +1378,17 @@ struct options {
      */
     List<string> libraries;
 };
+
+// WARNING SWITCHES
+#define __WGENERAL 0
+#define __WACCESS 1
+#define __WAMBIG 2
+#define __WDECL 3
+#define __WMAIN 4
+#define __WCAST 5
+#define __WINIT 6
+
+extern bool warning_map[];
 
 #define TLS_LIMIT 0x5F5E0F
 

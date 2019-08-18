@@ -1291,6 +1291,21 @@ void Thread::exec() {
             TLS_MOVL:
                 o2 = &(dataStack+GET_Da(*pc))->object;
                 _brh
+            DUP:
+                Object* obj = &sp->object;
+                (++sp)->object = obj;
+                _brh
+            POPOBJ_2:
+                o2 = &(sp--)->object;
+                _brh
+            SWAP:
+                if((sp-dataStack) >= 2) {
+                    obj = &sp->object;
+                    (sp)->object = (sp-1)->object;
+                    (sp-1)->object = *obj;
+                } else
+                    throw Exception("illegal stack swap");
+                _brh
 
 
 

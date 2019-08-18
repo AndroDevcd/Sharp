@@ -392,7 +392,7 @@ int Process_Exe(std::string exe)
                     len = getlong(buffer);
                     long addressLen, valuesLen;
                     for(long i = 0; i < len; i++) {
-                        method->switchTable.push_back();
+                        method->switchTable.__new();
                         method->switchTable.last().init();
                         SwitchTable &st = method->switchTable.last();
 
@@ -419,7 +419,7 @@ int Process_Exe(std::string exe)
                         et.className=getstring(buffer);
                         et.local=geti64(buffer);
                         et.start_pc=geti64(buffer);
-                        method->exceptions.push_back();
+                        method->exceptions.__new();
 
                         ExceptionTable &e = method->exceptions.get(method->exceptions.size()-1);
                         e.init();
@@ -519,7 +519,7 @@ int Process_Exe(std::string exe)
                         break;
 
                     case data_file: {
-                        metaData.sourceFiles.push_back();
+                        metaData.sourceFiles.__new();
                         source_file &sf = metaData.sourceFiles.get(
                                 metaData.sourceFiles.size()-1);
 
@@ -554,7 +554,7 @@ void parse_source_file(List<native_string> &list, native_string str) {
     for(unsigned int i = 0; i < str.len; i++) {
         if(str.chars[i] == '\n')
         {
-            list.push_back();
+            list.__new();
             list.last().init();
             list.last() = line;
 
@@ -564,7 +564,7 @@ void parse_source_file(List<native_string> &list, native_string str) {
         }
     }
 
-    list.push_back();
+    list.__new();
     list.last().init();
     list.last() = line;
 

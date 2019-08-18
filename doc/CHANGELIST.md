@@ -25,6 +25,29 @@ from the older version with the updated runtime system and vise versa. Any other
 
 ##### Version 0.2.422 (August 12, 2019)
     # Bug Fixes
+        * Fixed templates inside of classes compiler bug
+        * Fixed new expression not catching edge case where there is no cunstructor provided i.e. House h = new House;
+
+    # QoL Improvements
+        * Updated the Assembler to allow for high level virtual assembly programming with the newly added instructions
+
+    # New Additions
+        * Multiple compiler options changes
+            * Added compiler option to specifically disable certain warnings individually
+            * Moved compiler warning options to a seperate function (you now have to use [-hw] to see all warning options)
+        * Constructors are no longer needed as classes can now be initalized inline without the use of constructors using new initilization feature see (LanguageChanges.md) for more information 
+        * New VM instructions
+            * Added to x64 VM Instruction `dup` for stack duplication
+            * Added to x64 VM Instruction `popobj_2` for direct stack object assignment
+            * Added to x64 VM Instruction `swap` for stack swapping
+
+    # Known Issues
+        *
+
+    Backwards compatibility support tested Version: ()
+
+##### Version 0.2.422 (August 12, 2019)
+    # Bug Fixes
         * Added a check to prevent native variables from being assigned objects values i.e { object o =  new Object(); var i = o; }
         * Fixed holes and edge cases in Template classes and sub template classes
         * Standard Library Thread file was incorrectly starting and creating threads

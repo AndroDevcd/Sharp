@@ -65,7 +65,7 @@ wnd_id Gui::createDefaultWindow(native_string winName, native_string winTitle, l
     {
         return -2;
     } else {
-        windows.push_back();
+        windows.__new();
         Window &wnd = windows.last();
 
         wnd.init();

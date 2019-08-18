@@ -69,33 +69,46 @@ def main() {
 }  
 ```  
 
-Although being an object oriented language, sharp does not force you to need classes for simple operations.
+Although being an object oriented language, sharp makes it very easy for using classes for simple operations
+by effectivley elimminating the need to create constructors for initalizing any given class.
 
 ```javascript
 mod app;  
 
-struct Vehicle {
-    licensePlate: string, // licensePlate, make, & model are all string types
-          wheels, 
-       modelYear: int = 1997; // modelYear has a default value of 1997
+class Vehicle {
+    string licensePlate; // licensePlate, make, & model are all string types
+    int wheels = 4; // wheels has a default value of 4
 }
-
   
-struct Truck : Vehicle {
-           make, 
-           model: string,
-           color: Color.RED,
-          wheels, 
-       modelYear: int = 1997; // modelYear has a default value of 1997
-}
-
-def populate(Vehicle v) {
-    ...
+class Truck : Vehicle {
+    string make, model;
+    Color color;
+    int modelYear = 1997; // modelYear has a default value of 1997
 }
 
 def main() {  
-   Vehicle car = new Vehicle();
-    populate(car);
+   Truck car = new Truck {
+            make = "Ford",
+            model = "F-150",
+            color = Color.SPACE_GREY,
+            modelYear = 2020,
+            licensePlate = "ZSY 7CH9"
+            // wheels = default // wheels is already set to default value of 4 so we dont need this statement
+        }; // no need for constructor in Vehicle or Truck as we create this object inline and assign the values
+    
+        /**
+        * The above code translates to      
+        * Truck tmp = new Truck();          
+        * tmp.make = ..;
+        * tmp.model = ..;
+        * tmp.color = ..;
+        * tmp.modelYear = ..;
+        * tmp.licensePlate = ..;
+        * tmp.wheels = ..;
+        *
+        * car = tmp; tmp = null;
+        *
+        */
   
    fn draw = use -> car: {  
       // we want to draw the provided vehicle

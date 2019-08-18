@@ -15,6 +15,7 @@ class ClassObject;
 class Ast;
 class Method;
 class Param;
+class Expression;
 
 class Field {
 public:
@@ -39,7 +40,9 @@ public:
             prototype(false),
             returnType(TYPEVOID),
             locality(stl),
-            thread_address(taddr)
+            thread_address(taddr),
+            defaultValue(false),
+            defValExpr(NULL)
     {
         this->modifiers.init();
         this->params.init();
@@ -67,7 +70,9 @@ public:
             prototype(false),
             returnType(TYPEVOID),
             locality(stl),
-            thread_address(taddr)
+            thread_address(taddr),
+            defaultValue(false),
+            defValExpr(NULL)
     {
         this->modifiers.init();
         this->params.init();
@@ -95,49 +100,17 @@ public:
             prototype(false),
             returnType(TYPEVOID),
             locality(stl_local),
-            thread_address(0)
+            thread_address(0),
+            defaultValue(false),
+            defValExpr(NULL)
     {
     }
 
     bool operator==(Field& f);
 
-    void operator=(Field f)
-    {
-        free();
+    void operator=(Field f);
 
-        type = f.type;
-        klass = f.klass;
-        serial = f.serial;
-        name = f.name;
-        fullName = f.fullName;
-        owner = f.owner;
-        modifiers.addAll(f.modifiers);
-        isArray = f.isArray;
-        nullType = f.nullType;
-        address=f.address;
-        local=f.local;
-        key=f.key;
-        ast=f.ast;
-        proto=f.proto;
-        prototype=f.prototype;
-        returnType=f.returnType;
-        params.addAll(f.params);
-        isEnum=f.isEnum;
-        constant_value=f.constant_value;
-        locality=f.locality;
-        thread_address=f.thread_address;
-    }
-
-    void free(){
-        klass = NULL;
-        owner = NULL;
-
-        name.clear();
-        fullName.clear();
-        modifiers.free();
-        key.clear();
-        params.free();
-    }
+    void free();
 
 //    bool isField() {
 //        return nf != fnof || nf >= fdynamic;
@@ -185,10 +158,12 @@ public:
     bool isArray, nullType, local, isEnum;
     bool resolved;
     bool prototype;
+    bool defaultValue;
     Method* proto;
     FieldType returnType;
     double constant_value;
     RuntimeNote note;
+    Expression* defValExpr;
     FieldType type;
     ClassObject* klass;
     List<Param> params; // for prototypes

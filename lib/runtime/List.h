@@ -45,7 +45,7 @@ public:
         _Data[len-1]=data;
     }
 
-    void push_back() {
+    void __new() {
         __expand();
     }
 

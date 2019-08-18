@@ -182,7 +182,7 @@ int runtimeStart(int argc, const char* argv[])
             native_string arg;
             while(i < argc) {
                 arg = string(argv[i++]);
-                pArgs.push_back();
+                pArgs.__new();
 
                 pArgs.get(pArgs.size()-1).init();
                 pArgs.get(pArgs.size()-1) = arg;
