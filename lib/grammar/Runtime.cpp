@@ -4994,8 +4994,14 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
 
         if(!failed && resolvedGenerics && resolvedMethods && ast->hasSubAst(ast_utype_list) && ast->getSubAst(idx++)->getType() == ast_utype_list){
             List<Expression> utypes;
+
+            bool classInitOld = currentScope()->classInitialization, baseOld = currentScope()->base;
+            currentScope()->classInitialization  = false;
+            currentScope()->base  = false;
             parseUtypeList(ast->getSubAst(idx-1), utypes);
             findAndCreateGenericClass(ptr.module, id, utypes, parent, ast);
+            currentScope()->classInitialization = classInitOld;
+            currentScope()->base = baseOld;
         }
 
         if(hash && !hashfound && !last) {
@@ -5710,7 +5716,7 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                         resolveFieldHeiarchy(&ref.field, reference, expression, ast);
                     } else {
 
-                        resolveClassHeiarchy(ref.klass, reference, expression, ast);
+                        resolveClassHeiarchy(ref.klass, reference, expression, ast, true, !currentScope()->classInitialization);
                     }
                 } else {
                     if((klass = getClass(reference.module, starter_name, classes)) != NULL) {
@@ -5981,7 +5987,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
 
                 // class?
                 if((klass = tryClassResolve(refrence.module, starter_name, pAst)) != NULL) {
-                    resolveClassHeiarchy(klass, refrence, expression, pAst);
+                    resolveClassHeiarchy(klass, refrence, expression, pAst, true, !currentScope()->classInitialization);
                     return;
                 } else {
                     /* un resolvable */
@@ -6027,7 +6033,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                 // scope_class? | scope_instance_block? | scope_static_block?
                 if(refrence.module != "") {
                     if((klass = tryClassResolve(refrence.module, starter_name, pAst)) != NULL) {
-                        resolveClassHeiarchy(klass, refrence, expression, pAst);
+                        resolveClassHeiarchy(klass, refrence, expression, pAst, true, !currentScope()->classInitialization);
                         return;
                     } else {
                         errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + starter_name + "` " +
@@ -6081,10 +6087,10 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     return;
                 } else {
                     if((klass = tryClassResolve(refrence.module, starter_name, pAst)) != NULL) {
-                        resolveClassHeiarchy(klass, refrence, expression, pAst);
+                        resolveClassHeiarchy(klass, refrence, expression, pAst, true, !currentScope()->classInitialization);
                         return;
                     } else if((klass = currentScope()->klass->getChildClass(starter_name)) != NULL) {
-                        resolveClassHeiarchy(klass, refrence, expression, pAst);
+                        resolveClassHeiarchy(klass, refrence, expression, pAst, true, !currentScope()->classInitialization);
                         return;
                     } else {
                         errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + starter_name + "` " +

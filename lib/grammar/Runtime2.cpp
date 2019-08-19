@@ -2130,15 +2130,13 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                 errors->createNewError(COULD_NOT_RESOLVE, utype.link->line, utype.link->col, " `" + utype.utype.typeToString() + "`");
         }
     }
-    else if(pAst->hasSubAst(ast_field_init_list)) {
+    else if(pAst->hasSubAst(ast_field_init_list) || pAst->hasSubAst(ast_expression_list)) {
         List<KeyPair<Expression, Expression>> fieldInitializers;
-        parseFieldInitalizers(fieldInitializers, pAst, utype);
 
         expression.type = expression_lclass;
         expression.utype = utype.utype;
 
         if(utype.type == expression_class) {
-            // TODO: figure out all the fields that havent been added with a def vaklue and add them to feildInitalizers List<> herer before for loop
             List<Field*> fields;
             ClassObject *klass = utype.utype.klass;
             addFields:
@@ -2151,7 +2149,13 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                 goto addFields;
             }
 
-            for(long i = 0; i < fields.size(); i++) {
+            if(pAst->hasSubAst(ast_field_init_list))
+                parseFieldInitalizers(fieldInitializers, pAst, utype);
+            else
+                parseExpressionList(fieldInitializers, pAst, utype, fields);
+
+
+                for(long i = 0; i < fields.size(); i++) {
                 Field* f = fields.get(i);
                 if(f->defaultValue) {
                     bool found = false;
@@ -2189,7 +2193,7 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
 
 
                         if(!utype.utype.klass->match(field.owner) && !utype.utype.klass->hasBaseClass(field.owner)) {
-                            errors->createNewError(GENERIC, utype.link->line, utype.link->col, " field `" + utype.utype.typeToString() + "` was not found in `" + utype.typeToString() + "`");
+                            errors->createNewError(GENERIC, utype.link->line, utype.link->col, " field `" + field.fullName + "` was not found in `" + utype.typeToString() + "`");
                         }
 
                         if(!field.isStatic()) {
@@ -2296,8 +2300,8 @@ void RuntimeEngine::parseFieldInitalizers(List<KeyPair<Expression, Expression>> 
         KeyPair<Expression, Expression> &iField = fieldInits.__new();
         branch = fieldInitList->getSubAst(i);
 
-        currentScope()->classInitialization  = true;
         addScope(Scope(INSTANCE_BLOCK, utype.utype.klass));
+        currentScope()->classInitialization  = true;
 
         if(branch->getEntity(0).getToken() == "base") {
             bool old = currentScope()->base;
@@ -2309,9 +2313,22 @@ void RuntimeEngine::parseFieldInitalizers(List<KeyPair<Expression, Expression>> 
         }
 
         removeScope();
-        currentScope()->classInitialization  = false;
 
         iField.value = parseExpression(branch->getSubAst(ast_expression));
+    }
+}
+
+void RuntimeEngine::parseExpressionList(List<KeyPair<Expression, Expression>> &fieldInits, Ast *pAst,
+                         Expression utype, List<Field*>& fields) {
+    Ast *expressionList = pAst->getSubAst(ast_expression_list), *branch;
+
+    for(long i = 0; i < expressionList->getSubAstCount(); i++)
+    {
+        KeyPair<Expression, Expression> &iField = fieldInits.__new();
+        branch = expressionList->getSubAst(i);
+
+        iField.key = fieldToExpression(branch, *fields.get(i));
+        iField.value = parseExpression(branch);
     }
 }
 

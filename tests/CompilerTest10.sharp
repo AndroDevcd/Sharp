@@ -2,8 +2,12 @@ mod app;
 
 import std;
 
-class Employee {
-    Employee name, company;
+class Human {
+    public string type = "l";
+}
+
+class Employee base Human {
+    string name, company;
     int salary;
     var t = 3;
 
@@ -37,14 +41,16 @@ class Employee {
 def main(string[] args) : var {
     Employee john;
     var[] arr=new var[6];
+//    ??x = 9;
     asm("nop nop nop nop nop");
-//    john = new Employee {"john", "Google", 125_000};
-    john = new Employee {
+    john = new Employee {"john", "Google", 778, 8, ""};
+//    john = new Employee {
 //            name = "john"
-            salary = 5
-    };
+////            company = "Google",
+////            salary = 128000
+//    };
 
-//    fn someComputation := use -> num, x, y: var {
+//    fn someComputation := def ?(int num, int x, int y): var {
 //          // we are in a completly seperate code space
 //          // this code space knows nothing of the x variable
 //          // unless explicitly passed in

@@ -1253,6 +1253,9 @@ private:
     int64_t checkstl(StorageLocality locality);
 
     void parseFieldInitalizers(List<KeyPair<Expression, Expression>> &fieldInits, Ast *pAst, Expression expression);
+
+    void parseExpressionList(List<KeyPair<Expression, Expression>> &fieldInits, Ast *pAst,
+                             Expression utype, List<Field*>& fields);
 };
 
 
