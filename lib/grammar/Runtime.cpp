@@ -1605,6 +1605,7 @@ void RuntimeEngine::parsePrototypeDecl(Block& block, Ast* pAst) {
 
         currentScope()->locals.__new().set(currentScope()->blocks, f);
         Expression fieldExpr = fieldToExpression(pAst, f);
+        block.code.push_i64(SET_Di(i64, op_ISTOREL, f.address), 0);
     }
 }
 

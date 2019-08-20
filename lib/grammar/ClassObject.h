@@ -274,10 +274,10 @@ private:
     bool processed;
     List<string> genericKeys;
     List<Expression> genericMap;
-    List<Method> constructors;
-    List<Method> functions;
-    List<OperatorOverload> overloads;
-    List<Field> fields;
+    List<Method*> constructors;
+    List<Method*> functions;
+    List<OperatorOverload*> overloads;
+    List<Field*> fields;
     List<ClassObject*> childClasses;
     List<ClassObject*> interfaces;
     ClassObject *super, *base, *head;
