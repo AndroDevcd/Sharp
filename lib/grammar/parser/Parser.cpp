@@ -78,11 +78,11 @@ void Parser::parse()
             }
             parse_importdecl(NULL);
         }
-        else if(isvariable_decl(current()))
+        else if(isvariable_decl(current()) || (isstorage_type(current()) && isvariable_decl(peek(1))))
         {
             parse_variabledecl(NULL);
         }
-        else if(isprototype_decl(current()))
+        else if(isprototype_decl(current()) || (isstorage_type(current()) && isprototype_decl(peek(1))))
         {
             parse_prototypedecl(NULL);
         }
@@ -288,11 +288,11 @@ token_entity Parser::peek(int forward)
 }
 
 bool Parser::isvariable_decl(token_entity token) {
-    return isnative_type(token.getToken()) || isstorage_type(token);
+    return isnative_type(token.getToken());
 }
 
 bool Parser::isprototype_decl(token_entity token) {
-    return token.getId() == IDENTIFIER && token.getToken() == "fn";
+    return (token.getId() == IDENTIFIER && token.getToken() == "fn");
 }
 
 bool Parser::ismethod_decl(token_entity token) {
@@ -394,17 +394,17 @@ bool Parser::isspecial_native_type(string type) {
 
 bool Parser::isaccess_decl(token_entity token) {
     return
-            token.getId() == IDENTIFIER && token.getToken() == "protected" ||
-            token.getId() == IDENTIFIER && token.getToken() == "private" ||
-            token.getId() == IDENTIFIER && token.getToken() == "static" ||
-            token.getId() == IDENTIFIER && token.getToken() == "const" ||
-            token.getId() == IDENTIFIER && token.getToken() == "public";
+            (token.getId() == IDENTIFIER && token.getToken() == "protected") ||
+            (token.getId() == IDENTIFIER && token.getToken() == "private") ||
+            (token.getId() == IDENTIFIER && token.getToken() == "static") ||
+            (token.getId() == IDENTIFIER && token.getToken() == "const") ||
+            (token.getId() == IDENTIFIER && token.getToken() == "public");
 }
 
 bool Parser::isstorage_type(token_entity token) {
     return
-            token.getId() == IDENTIFIER && token.getToken() == "local" ||
-            token.getId() == IDENTIFIER && token.getToken() == "thread_local" ;
+            (token.getId() == IDENTIFIER && token.getToken() == "local") ||
+            (token.getId() == IDENTIFIER && token.getToken() == "thread_local") ;
 }
 
 void Parser::parse_accesstypes() {
@@ -511,7 +511,7 @@ void Parser::parse_interfaceblock(Ast *pAst) {
             errors->createNewError(GENERIC, current(), "unexpected import declaration");
             parse_importdecl(pAst);
         }
-        else if(isvariable_decl(current()))
+        else if(isvariable_decl(current()) || (isstorage_type(current()) && isvariable_decl(peek(1))))
         {
             if(access_types.size() > 0)
             {
@@ -520,7 +520,7 @@ void Parser::parse_interfaceblock(Ast *pAst) {
             errors->createNewError(GENERIC, current(), "unexpected variable declaration");
             parse_variabledecl(pAst);
         }
-        else if(isprototype_decl(current()))
+        else if(isprototype_decl(current()) || (isstorage_type(current()) && isprototype_decl(peek(1))))
         {
             if(access_types.size() > 0)
             {
@@ -661,11 +661,11 @@ void Parser::parse_classblock(Ast *pAst) {
             errors->createNewError(GENERIC, current(), "unexpected import declaration");
             parse_importdecl(pAst);
         }
-        else if(isvariable_decl(current()))
+        else if(isvariable_decl(current()) || (isstorage_type(current()) && isvariable_decl(peek(1))))
         {
             parse_variabledecl(pAst);
         }
-        else if(isprototype_decl(current()))
+        else if(isprototype_decl(current()) || (isstorage_type(current()) && isprototype_decl(peek(1))))
         {
             parse_prototypedecl(pAst);
         }
@@ -814,8 +814,9 @@ void Parser::parse_prototypedecl(Ast *pAst, bool semicolon) {
         pAst->addEntity(access_types.get(i));
     }
     remove_accesstypes();
-
-    if(pAst->getEntityCount()>0)
+    if(isstorage_type(current())) {
+        pAst->addEntity(current());
+    } else if(pAst->getEntityCount()>0)
         pushback();
 
     if(!isprototype_decl(current())) {
@@ -2316,12 +2317,12 @@ bool Parser::parse_statement(Ast* pAst) {
         expect(SEMICOLON, pAst2, "`;`");
         return true;
     }
-    else if(isvariable_decl(current()))
+    else if(isvariable_decl(current()) || (isstorage_type(current()) && isvariable_decl(peek(1))))
     {
         parse_variabledecl(pAst);
         return true;
     }
-    else if(isprototype_decl(current()))
+    else if(isprototype_decl(current()) || (isstorage_type(current()) && isprototype_decl(peek(1))))
     {
         if(access_types.size() > 0)
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());

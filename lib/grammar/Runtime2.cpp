@@ -293,6 +293,14 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
 
             /* Native string is a char array */
             params.add(Param(field));
+        }  else if(expression->type == expression_anon_func) {
+            field = Field(VAR, 0, "", NULL, mods, note, stl_local, 0);
+            field.prototype = true;
+            field.returnType = expression->utype.method->type;
+            field.proto=expression->utype.method;
+
+            /* Native string is a char array */
+            params.add(Param(field));
         } else if(expression->type == expression_class) {
             success = false;
             errors->createNewError(INVALID_PARAM, expression->link->line, expression->link->col, " `class`, param must be lvalue");
@@ -527,6 +535,9 @@ void RuntimeEngine::pushExpressionToStack(Expression& expression, Expression& ou
             break;
         case expression_prototype:
             out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+            break;
+        case expression_anon_func:
+            out.code.push_i64(SET_Di(i64, op_ISTORE, expression.utype.method->address));
             break;
         case expression_field:
             if(expression.utype.field.isVar() && !expression.utype.field.isArray) {

@@ -153,7 +153,7 @@ public:
         return locality == stl_thread;
     }
 
-    List<Param> getParams();
+    List<Param>& getParams();
 
     bool isArray, nullType, local, isEnum;
     bool resolved;

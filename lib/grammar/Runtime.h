@@ -92,7 +92,7 @@ public:
     bool isVar() { return type==VAR; }
     bool dynamicObject() { return type==OBJECT; }
     bool isEnum() { return isField && field.isEnum; }
-    List<Param> getParams() {
+    List<Param>& getParams() {
         if(method)
             return method->getParams();
         else if(isField)

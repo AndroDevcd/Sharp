@@ -33,7 +33,7 @@ bool Field::operator==(Field& f)
     return false;
 }
 
-List<Param> Field::getParams() {
+List<Param>& Field::getParams() {
     return proto==NULL ? params : proto->getParams();
 }
 

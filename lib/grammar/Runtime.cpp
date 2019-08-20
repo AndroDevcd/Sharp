@@ -1587,8 +1587,12 @@ void RuntimeEngine::parsePrototypeDecl(Block& block, Ast* pAst) {
     if(modifiers.find(mCONST)) {
         errors->createNewError(GENERIC, pAst, "modifier `const` is not allowed for function prototypes");
     }
+    string name =  pAst->getEntity(startpos).getToken();
+    if(Parser::isstorage_type(token_entity(name, IDENTIFIER, 0, 0))) {
+        startpos++;
+    }
 
-    string name =  pAst->getEntity(++startpos).getToken();
+    name = pAst->getEntity(++startpos).getToken();
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
                                    pAst->line, pAst->col);
     Field f = Field(NULL, uniqueSerialId++, name, currentScope()->klass, modifiers, note, pAst->findEntity("thread_local") ? stl_thread : stl_local,
@@ -1605,7 +1609,10 @@ void RuntimeEngine::parsePrototypeDecl(Block& block, Ast* pAst) {
 
         currentScope()->locals.__new().set(currentScope()->blocks, f);
         Expression fieldExpr = fieldToExpression(pAst, f);
-        block.code.push_i64(SET_Di(i64, op_ISTOREL, f.address), 0);
+
+        if(!pAst->findEntity("thread_local")) {
+            block.code.push_i64(SET_Di(i64, op_ISTOREL, f.address), 0);
+        }
     }
 }
 
@@ -3298,13 +3305,15 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                         if(right.isProtoType() || right.isAnonymousFunction()) {
                             if(!prototypeEquals(&left.utype.field, right.utype.getParams(), right.utype.getReturnType())) {
                                 errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `fn*" + paramsToString(left.utype.field.params) +
-                                                                                                    (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
-                                                                                                    + "` and `" + right.typeToString() + "` are not compatible");
+                                     (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
+                                     + "` and `fn*" + paramsToString(right.utype.getParams()) +
+                                       (right.utype.getReturnType()==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(right.utype.getReturnType())) + "` are not compatible");
                             }
                         } else {
                             errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `fn*" + paramsToString(left.utype.field.params) +
-                                                                                                (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
-                                                                                                + "` and `" + right.typeToString() + "` are not compatible");
+                                  (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
+                                  + "` and `fn*" + paramsToString(right.utype.getParams()) +
+                                    (right.utype.getReturnType()==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(right.utype.getReturnType())) + "` are not compatible");
                         }
                     } else {
                         errors->createNewError(GENERIC, right.link->line,  right.link->col, " operator `" + operand.getToken() + "` is not allowed on funtion pointers");
@@ -3352,16 +3361,18 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 if(left.isProtoType()) {
                     if(operand == "=") {
 
-                        if(right.isProtoType()) {
+                        if(right.isProtoType() || right.isAnonymousFunction()) {
                             if(!prototypeEquals(&left.utype.field, right.utype.getParams(), right.utype.getReturnType())) {
                                 errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `fn*" + paramsToString(left.utype.field.params) +
-                                                       (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
-                                                       + "` and `" + right.typeToString() + "` are not compatible");
+                                        (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
+                                        + "` and `fn*" + paramsToString(right.utype.getParams()) +
+                                        (right.utype.getReturnType()==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(right.utype.getReturnType())) + "` are not compatible");
                             }
                         } else {
                             errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `fn*" + paramsToString(left.utype.field.params) +
-                                    (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
-                                    + "` and `" + right.typeToString() + "` are not compatible");
+                                 (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
+                                 + "` and `fn*" + paramsToString(right.utype.getParams()) +
+                                 (right.utype.getReturnType()==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(right.utype.getReturnType())) + "` are not compatible");
                         }
                     } else {
                         errors->createNewError(GENERIC, right.link->line,  right.link->col, " operator `" + operand.getToken() + "` is not allowed on funtion pointers");
@@ -5867,8 +5878,12 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                                 expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
                             } else
                                 expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
-                        } else
-                            expression.code.push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, field->address));
+                        } else {
+                            if(field->hasThreadLocality()) {
+                                expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+                            } else
+                                expression.code.push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, field->address));
+                        }
                     }
                     else {
                         if(field->hasThreadLocality()) {
@@ -6303,7 +6318,12 @@ void RuntimeEngine::resolvePrototypeDecl(Ast* ast) {
         errors->createNewError(GENERIC, ast, "modifier `const` is not allowed for function protypes");
     }
 
-    string name =  ast->getEntity(++startpos).getToken();
+    string name =  ast->getEntity(startpos).getToken();
+    if(Parser::isstorage_type(token_entity(name, IDENTIFIER, 0, 0))) {
+        startpos++;
+    }
+
+    name = ast->getEntity(++startpos).getToken();
     Field* field = currentScope()->klass->getField(name);
     parseFuncPrototype(ast, field);
 
@@ -10430,11 +10450,19 @@ void RuntimeEngine::parseProtypeDecl(Ast *ast, bool global) {
             modifiers.add(PRIVATE);
     }
 
-    string name =  ast->getEntity(++startpos).getToken();
+    string name =  ast->getEntity(startpos).getToken();
+    StorageLocality locality = stl_local;
+    if(Parser::isstorage_type(token_entity(name, IDENTIFIER, 0, 0))) {
+        locality = strtostl(name);
+        startpos++;
+    }
+
+    name = ast->getEntity(++startpos).getToken();
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
 
-    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note, stl_local, 0))) {
+    long long stlAddress = currentScope()->klass->isGeneric() ? 0 : checkstl(locality);
+    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note, locality, stlAddress))) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                      "field `" + name + "` is already defined in the scope");
         printNote(note, "field `" + name + "` previously defined here");
