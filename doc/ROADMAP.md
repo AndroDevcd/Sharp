@@ -9,7 +9,7 @@
 - Allow for importing of star (*) 
     - import std.*; imports all of the standard library
 - Have automatic lookup for enums
-- Allow for expression in first argument of for loop
+- Allow for expression in first argument of for loop --done
 - Add asm volatile() argument to allow optimzer to modify the injected code
 - standard asm() code will not be modified by compiler unlexss there needs to be a
   address readjustment due to code being removed above the asm() block

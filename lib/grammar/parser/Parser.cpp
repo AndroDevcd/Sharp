@@ -82,6 +82,10 @@ void Parser::parse()
         {
             parse_variabledecl(NULL);
         }
+        else if(isprototype_decl(current()))
+        {
+            parse_prototypedecl(NULL);
+        }
         else
         {
             // save parser state
@@ -814,8 +818,9 @@ void Parser::parse_prototypedecl(Ast *pAst, bool semicolon) {
     if(pAst->getEntityCount()>0)
         pushback();
 
-    if(!isprototype_decl(current()))
+    if(!isprototype_decl(current())) {
         advance();
+    }
     expect_token(
             pAst, "fn", "`fn`");
 
@@ -948,7 +953,7 @@ void Parser::parse_expression_list(Ast *pAst) {
     pAst = get_ast(pAst, ast_expression_list);
 
     expect(LEFTCURLY, pAst, "`{`");
-    cout << "expression list " << endl;
+
     if(peek(1).getTokenType() != RIGHTCURLY)
     {
         parse_expression(pAst);
@@ -1427,6 +1432,20 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
             }
                 return true;
         }
+    }
+
+    if(peek(1).getToken() == "def" && peek(2).getToken() == "?")
+    {
+        pAst = get_ast(pAst, ast_anonymous_function);
+
+        advance();
+        expect_token(pAst, "def", "");
+        expect(QUESMK, pAst, "`?`");
+
+        parse_utypearg_list(pAst);
+        parse_methodreturn_type(pAst);
+        parse_block(pAst);
+        return true;
     }
 
     if(peek(1).getToken() == "sizeof")

@@ -1124,6 +1124,9 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
                     out.code.push_i64(SET_Ci(i64, op_MOVR, reg,0, i64ebx));
             }
             break;
+        case expression_anon_func:
+            out.code.push_i64(SET_Di(i64, op_MOVI, expr.utype.method->address), reg);
+            break;
         case expression_field:
             if(expr.utype.field.isVar() && !expr.utype.field.isArray) {
                 if(expr.utype.field.local) {
@@ -1494,6 +1497,8 @@ Expression RuntimeEngine::parsePrimaryExpression(Ast* ast) {
             return parseArrayExpression(ast);
         case ast_post_inc_e:
             return parsePostInc(ast);
+        case ast_anonymous_function:
+            return parseAnonymousFunction(ast);
         default:
             stringstream err;
             err << ": unknown ast type: " << ast->getType();
@@ -2455,6 +2460,69 @@ void RuntimeEngine::postIncClass(Expression& out, token_entity op, ClassObject* 
         errors->createNewError(GENERIC, op.getLine(), op.getColumn(), "use of class `" + klass->getName() + "` must return an int to use `" + op.getToken() + "` operator");
         out.type = expression_var;
     }
+}
+
+Expression RuntimeEngine::parseAnonymousFunction(Ast* pAst) {
+    List<AccessModifier> modifiers;
+    Expression expression(pAst);
+
+    modifiers.add(PRIVATE);
+    modifiers.add(STATIC);
+
+    List<Param> params;
+    stringstream ss;
+    ss << "anonFunc#" << anonymousFunctions++;
+    string name =  ss.str();
+    parseMethodParams(params, parseUtypeArgList(pAst->getSubAst(ast_utype_arg_list)), pAst->getSubAst(ast_utype_arg_list));
+
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
+                                   pAst->line, pAst->col);
+
+    Expression utype(pAst);
+    Method method = Method(name, currentModule, currentScope()->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
+    if(pAst->hasSubAst(ast_method_return_type)) {
+        utype = parseUtype(pAst->getSubAst(ast_method_return_type));
+        parseMethodReturnType(utype, method);
+    } else
+        method.type = TYPEVOID;
+
+    method.ast = pAst;
+    if(!currentScope()->klass->isGeneric())
+        method.address = methods++;
+    if(!currentScope()->klass->addFunction(method)) {
+        errors->createNewError(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
+                                     "function `" + name + "` is already defined in the scope");
+        printNote(currentScope()->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
+    }
+
+    Method* func = currentScope()->klass->getFunction(name, params, false, false, false, true);
+    if(func != NULL) {
+        addScope(Scope(STATIC_BLOCK, currentScope()->klass, func));
+
+        KeyPair<int, Field> local;
+        for(unsigned int i = 0; i < params.size(); i++) {
+
+            params.get(i).field.address=func->localVariables++;
+            params.get(i).field.local=true;
+            local.set(currentScope()->blocks, params.get(i).field);
+            currentScope()->locals.add(local);
+        }
+
+        Block fblock;
+        parseBlock(pAst->getSubAst(ast_block), fblock);
+
+        resolveAllBranches(fblock);
+        reorderFinallyBlocks(func);
+        func->code.__asm64.appendAll(fblock.code.__asm64);
+        func->assembly_table.addAll(fblock.assembly_table);
+        removeScope();
+    }
+
+    expression.type=expression_anon_func;
+    expression.utype.type=method.type;
+    expression.utype.isMethod=true;
+    expression.utype.method=func;
+    return expression;
 }
 
 Expression RuntimeEngine::parsePostInc(Ast* pAst) {

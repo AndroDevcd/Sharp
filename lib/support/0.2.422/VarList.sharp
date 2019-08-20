@@ -5,6 +5,7 @@ import std.kernel;
 /**
 * Created by bknun on 6/7/2018
 * Description:
+* Legacy c++ based object list handler is now deprecated use ArrayList instead
 */
 public class VarList base CListVar {
     private static const var DEFAULT_CAPACITY = 10;

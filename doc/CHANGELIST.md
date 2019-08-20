@@ -27,6 +27,7 @@ from the older version with the updated runtime system and vise versa. Any other
     # Bug Fixes
         * Fixed templates inside of classes compiler bug
         * Fixed new expression not catching edge case where there is no cunstructor provided i.e. House h = new House;
+        * Function pointers were not allowed to be created at global scope or local scope
 
     # QoL Improvements
         * Updated the Assembler to allow for high level virtual assembly programming with the newly added instructions
@@ -40,6 +41,7 @@ from the older version with the updated runtime system and vise versa. Any other
             * Added to x64 VM Instruction `dup` for stack duplication
             * Added to x64 VM Instruction `popobj_2` for direct stack object assignment
             * Added to x64 VM Instruction `swap` for stack swapping
+        * Added anomyous functions to the language
 
     # Known Issues
         *

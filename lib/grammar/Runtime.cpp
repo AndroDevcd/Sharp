@@ -543,6 +543,8 @@ void RuntimeEngine::compile()
                         analyzeVarDecl(ast);
                         removeScope();
                         break;
+                    case ast_func_prototype:
+                        break;
                     default:
                         stringstream err;
                         err << ": unknown ast type: " << ast->getType();
@@ -1576,6 +1578,36 @@ void RuntimeEngine::parseLabelDecl(Block& block, Ast* pAst) {
     parseStatement(block, pAst->getSubAst(ast_statement)->getSubAst(0));
 }
 
+void RuntimeEngine::parsePrototypeDecl(Block& block, Ast* pAst) {
+    List<AccessModifier> modifiers;
+    int startpos=0;
+
+    parseAccessDecl(pAst, modifiers, startpos);
+
+    if(modifiers.find(mCONST)) {
+        errors->createNewError(GENERIC, pAst, "modifier `const` is not allowed for function prototypes");
+    }
+
+    string name =  pAst->getEntity(++startpos).getToken();
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
+                                   pAst->line, pAst->col);
+    Field f = Field(NULL, uniqueSerialId++, name, currentScope()->klass, modifiers, note, pAst->findEntity("thread_local") ? stl_thread : stl_local,
+                    pAst->findEntity("thread_local") ? threadLocals++ : 0);
+
+    f.address = currentScope()->currentFunction->localVariables++;
+    f.owner = currentScope()->klass;
+    if(!pAst->findEntity("thread_local")) {
+        f.local=true;
+    }
+
+    if(validateLocalField(name, pAst)) {
+        parseFuncPrototype(pAst, &f);
+
+        currentScope()->locals.__new().set(currentScope()->blocks, f);
+        Expression fieldExpr = fieldToExpression(pAst, f);
+    }
+}
+
 void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
     List<AccessModifier> modifiers;
     int startpos=0, index = 1;
@@ -1705,7 +1737,7 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
         case ast_expression: {
             Expression expr(pAst);
             expr = parseExpression(pAst);
-            if(expr.func && expr.type != expression_void ||
+            if((expr.func && expr.type != expression_void) ||
                 expr.newExpression) {
                 expr.code.push_i64(SET_Ei(i64, op_POP));
             }
@@ -1754,6 +1786,9 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
             break;
         case ast_var_decl:
             parseVarDecl(block, pAst); // done
+            break;
+        case ast_func_prototype:
+            parsePrototypeDecl(block, pAst); // done
             break;
         default: {
             stringstream err;
@@ -2045,7 +2080,9 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
         case expression_field:
             if(left.trueType() == VAR) {
                 // add var
-                if(right.trueType() == OBJECT || right.trueType() == CLASS) {
+                if(right.type == expression_anon_func) {
+                    return left.utype.field.prototype;
+                } else if(right.trueType() == OBJECT || right.trueType() == CLASS) {
                     if(left.trueType() == OBJECT) {
                         return true;
                     } else if(isNativeIntegerClass(right.getClass())) {
@@ -3254,6 +3291,25 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
             if(left.utype.field.local) {
 
                 equals(left, right);
+                if(left.isProtoType()) {
+                    if(operand == "=") {
+
+                        if(right.isProtoType() || right.isAnonymousFunction()) {
+                            if(!prototypeEquals(&left.utype.field, right.utype.getParams(), right.utype.getReturnType())) {
+                                errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `fn*" + paramsToString(left.utype.field.params) +
+                                                                                                    (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
+                                                                                                    + "` and `" + right.typeToString() + "` are not compatible");
+                            }
+                        } else {
+                            errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `fn*" + paramsToString(left.utype.field.params) +
+                                                                                                (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
+                                                                                                + "` and `" + right.typeToString() + "` are not compatible");
+                        }
+                    } else {
+                        errors->createNewError(GENERIC, right.link->line,  right.link->col, " operator `" + operand.getToken() + "` is not allowed on funtion pointers");
+                    }
+                }
+
                 if(operand == "=") {
                     if(right.literal && isWholeNumber(right.intValue)) {
                         out.code.push_i64(SET_Di(i64, op_ISTOREL, left.utype.field.address), right.intValue);
@@ -3307,7 +3363,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                                     + "` and `" + right.typeToString() + "` are not compatible");
                         }
                     } else {
-                        errors->createNewError(GENERIC, right.link->line,  right.link->col, " operator `" + operand.getToken() + "` is not allowed");
+                        errors->createNewError(GENERIC, right.link->line,  right.link->col, " operator `" + operand.getToken() + "` is not allowed on funtion pointers");
                     }
                 }
 
@@ -4531,6 +4587,11 @@ bool RuntimeEngine::preprocess()
                     parseVarDecl(ast, true);
                     removeScope();
                     break;
+                case ast_func_prototype:
+                    addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
+                    parseProtypeDecl(ast, true);
+                    removeScope();
+                    break;
                 default:
                     stringstream err;
                     err << ": unknown ast type: " << ast->getType();
@@ -4764,6 +4825,13 @@ void RuntimeEngine::resolveAllFields() {
                     if(resolvedFields) {
                         addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
                         resolveMethodDecl(ast, true);
+                        removeScope();
+                    }
+                    break;
+                case ast_func_prototype:
+                    if(!resolvedFields) {
+                        addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
+                        resolvePrototypeDecl(ast);
                         removeScope();
                     }
                     break;
@@ -5198,6 +5266,7 @@ string Expression::typeToString() {
         case expression_unknown:
             return "?";
         case expression_prototype:
+        case expression_anon_func:
             return utype.method->getFullName();
         case expression_class:
             return utype.typeToString() + (utype.array ? "[]" : "");
@@ -7687,7 +7756,7 @@ void RuntimeEngine::parseClassDecl(Ast *ast, bool isInterface)
             case ast_method_decl: /* Will be parsed later */
                 break;
             case ast_func_prototype:
-                parseProtypeDecl(ast);
+                parseProtypeDecl(ast, false);
                 break;
             case ast_operator_decl: /* Will be parsed later */
                 break;
@@ -10328,15 +10397,36 @@ void RuntimeEngine::resolveGenericMethodsReturn(Ast *ast, long &operators, long 
 
 }
 
-void RuntimeEngine::parseProtypeDecl(Ast *ast) {
+void RuntimeEngine::parseProtypeDecl(Ast *ast, bool global) {
     List<AccessModifier> modifiers;
     int startpos=0;
 
 
     if(parseAccessDecl(ast, modifiers, startpos)){
+        if(global) {
+            if(!modifiers.find(mCONST))
+                createNewWarning(GENERIC, __WACCESS, ast->line, ast->col, "access modifiers ignored on global variables");
+        }
+
         parseVarAccessModifiers(modifiers, ast);
+        if(global) {
+            if(modifiers.find(mCONST)) {
+                modifiers.free();
+                modifiers.add(PUBLIC);
+                modifiers.add(STATIC);
+                modifiers.add(mCONST);
+            } else {
+                modifiers.free();
+                modifiers.add(PUBLIC);
+                modifiers.add(STATIC);
+            }
+        }
     } else {
-        modifiers.add(PRIVATE);
+        if(global) {
+            modifiers.add(PUBLIC);
+            modifiers.add(STATIC);
+        } else
+            modifiers.add(PRIVATE);
     }
 
     string name =  ast->getEntity(++startpos).getToken();

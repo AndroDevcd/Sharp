@@ -164,6 +164,7 @@ enum expression_type {
     expression_null=14,
     expression_generic=15, // special case for generic utypes
     expression_prototype=16,
+    expression_anon_func=17,
     expression_unknown=0x900f
 };
 
@@ -265,6 +266,10 @@ struct Expression {
     bool isProtoType() {
         return type == expression_prototype ||
                (utype.isField && utype.field.prototype);
+    }
+
+    bool isAnonymousFunction() {
+        return type == expression_anon_func;
     }
 
     bool isArray() {
@@ -610,7 +615,8 @@ public:
             preprocessed(false),
             resolvedGenerics(false),
             resolvedMethods(false),
-            threadLocals(0)
+            threadLocals(0),
+            anonymousFunctions(0)
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
@@ -709,6 +715,7 @@ private:
     unsigned long methods;
     unsigned long classSize;
     unsigned long threadLocals;
+    unsigned long anonymousFunctions;
     Method* main;
     List<Method*> allMethods;
     Block *currentBlock;
@@ -1222,7 +1229,7 @@ private:
 
     void resolvePrototypeDecl(Ast *ast);
 
-    void parseProtypeDecl(Ast *pAst);
+    void parseProtypeDecl(Ast *pAst, bool global);
 
     void parseFieldReturnType(Expression &expression, Field &field);
 
@@ -1256,6 +1263,10 @@ private:
 
     void parseExpressionList(List<KeyPair<Expression, Expression>> &fieldInits, Ast *pAst,
                              Expression utype, List<Field*>& fields);
+
+    void parsePrototypeDecl(Block &block, Ast *pAst);
+
+    Expression parseAnonymousFunction(Ast *pAst);
 };
 
 

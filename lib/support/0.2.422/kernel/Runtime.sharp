@@ -105,7 +105,7 @@ public class Runtime {
     }
 
     public static def managedMemory() : var {
-        var limit; //0xaa
+        var limit; //0xab
 
         asm(
             "int 0xab         // send request to get total memory currently under management          "

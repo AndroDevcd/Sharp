@@ -1,0 +1,25 @@
+mod app;
+
+import std;
+
+def foo() {
+print("hello");
+}
+
+fn proto2 (var);
+
+def main(string[] args) : var {
+    fn proto (var);
+
+    proto = def? (var y) {  };
+
+//    fn someComputation := def ?(int num, int x, int y): var {
+//          // we are in a completly seperate code space
+//          // this code space knows nothing of the x variable
+//          // unless explicitly passed in
+//
+//          print("num = " + num);
+//    ;
+    //var v = foo;
+    return 0;
+}

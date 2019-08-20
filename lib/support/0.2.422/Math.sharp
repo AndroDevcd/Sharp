@@ -4,7 +4,8 @@ import std.kernel;
 
 /**                          
 * Created by bknun on 7/11/2018            
-* Description:                             
+* Description:
+* Simple math class to perform math operations
 */
 public class Math {
     public Math() { }
