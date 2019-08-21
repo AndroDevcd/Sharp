@@ -16,6 +16,7 @@ def main(string[] args) : var {
 
 thread_local fn proto2 (var);
 
+//    proto2 = def? (var y) {  };
 
 
 
@@ -241,9 +242,99 @@ thread_local fn proto2 (var);
 
 
 
-    proto2 = def? (var y) {  };
 
-//    foo(proto3 = def? (var y) {  }, 5); // broken
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    foo(proto3 = def? (var y) {  }, 5); // broken
 
 //    fn someComputation := def ?(int num, int x, int y): var {
 //          // we are in a completly seperate code space
@@ -256,78 +347,5 @@ thread_local fn proto2 (var);
     return 0;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-public static thread_local fn proto3 (var);
-
-
-
+public static thread_local fn proto3 = def? (var y) {  };
 

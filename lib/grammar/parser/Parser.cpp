@@ -827,9 +827,15 @@ void Parser::parse_prototypedecl(Ast *pAst, bool semicolon) {
 
     expectidentifier(pAst);
 
-    parse_utypearg_list_opt(pAst);
-    parse_methodreturn_type(pAst); // assign-expr operators must return void
-    parse_prototype_valueassignment(pAst);
+    if(peek(1).getTokenType() == LEFTPAREN) {
+        parse_utypearg_list_opt(pAst);
+        parse_methodreturn_type(pAst); // assign-expr operators must return void
+    }
+
+    if(semicolon)
+        parse_prototype_valueassignment(pAst);
+    else if(isassign_exprsymbol(peek(1).getToken()))
+        errors->createNewError(GENERIC, current(), "operator `" + peek(1).getToken() + "` on function pointer is not allowed here");
 
     if(semicolon)
         expect(SEMICOLON, "`;`");

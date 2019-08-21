@@ -290,6 +290,7 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
             field.prototype = true;
             field.returnType = expression->utype.method->type;
             field.proto=expression->utype.method;
+            field.params.addAll(expression->utype.method->getParams());
 
             /* Native string is a char array */
             params.add(Param(field));

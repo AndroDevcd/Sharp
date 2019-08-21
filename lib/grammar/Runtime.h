@@ -1267,6 +1267,8 @@ private:
     void parsePrototypeDecl(Block &block, Ast *pAst);
 
     Expression parseAnonymousFunction(Ast *pAst);
+
+    void resolveAllPrototypes();
 };
 
 

@@ -498,6 +498,7 @@ void RuntimeEngine::compile()
         inlineFields();
         resolveAllInterfaces();
         resolveAllDelegates();
+        resolveAllPrototypes();
 
         // TODO: make checkSupportClasses() to check on vital support classes to make sure things are as they should be
         // TODO: inforce const on variables
@@ -3308,6 +3309,9 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                                      (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
                                      + "` and `fn*" + paramsToString(right.utype.getParams()) +
                                        (right.utype.getReturnType()==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(right.utype.getReturnType())) + "` are not compatible");
+                            } else {
+                                out.utype = left.utype;
+                                out.type=left.type;
                             }
                         } else {
                             errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `fn*" + paramsToString(left.utype.field.params) +
@@ -3367,6 +3371,9 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                                         (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
                                         + "` and `fn*" + paramsToString(right.utype.getParams()) +
                                         (right.utype.getReturnType()==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(right.utype.getReturnType())) + "` are not compatible");
+                            } else {
+                                out.utype = left.utype;
+                                out.type=left.type;
                             }
                         } else {
                             errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `fn*" + paramsToString(left.utype.field.params) +
@@ -4799,6 +4806,68 @@ void RuntimeEngine::resolveClassBases() {
     }
 }
 
+void RuntimeEngine::resolveAllPrototypes() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        activeParser = parsers.get(i);
+        errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
+        currentModule = "$unknown";
+
+        addScope(Scope(GLOBAL_SCOPE, NULL));
+        for(int x = 0; x < activeParser->treesize(); x++) {
+            Ast* ast = activeParser->ast_at(x);
+            SEMTEX_CHECK_ERRORS
+
+            if(x==0) {
+                if(ast->getType() == ast_module_decl) {
+                    add_module(currentModule = parseModuleName(ast));
+                    continue;
+                }
+            }
+
+            switch(ast->getType()) {
+                case ast_class_decl:
+//                    resolveClassDecl(ast, false);
+                    break;
+                case ast_interface_decl:
+                    break;
+                case ast_generic_class_decl:
+                case ast_generic_interface_decl:
+                case ast_enum_decl: /* ignore */
+                    break;
+                case ast_var_decl: /* ignore */
+                    break;
+                case ast_method_decl:
+                    break;
+                case ast_func_prototype:
+                    addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
+                    resolvePrototypeDecl(ast);
+                    removeScope();
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+        }
+
+        if(errors->hasErrors()){
+            report:
+
+            errorCount+= errors->getErrorCount();
+            unfilteredErrorCount+= errors->getUnfilteredErrorCount();
+
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        } else {
+            succeededParsers.addif(activeParser->sourcefile);
+            failedParsers.removefirst(activeParser->sourcefile);
+        }
+
+        errors->free();
+        delete (errors); this->errors = NULL;
+        removeScope();
+    }
+}
+
 void RuntimeEngine::resolveAllFields() {
     for(unsigned long i = 0; i < parsers.size(); i++) {
         activeParser = parsers.get(i);
@@ -4841,7 +4910,7 @@ void RuntimeEngine::resolveAllFields() {
                     }
                     break;
                 case ast_func_prototype:
-                    if(!resolvedFields) {
+                    if(resolvedFields) {
                         addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
                         resolvePrototypeDecl(ast);
                         removeScope();
@@ -6315,7 +6384,7 @@ void RuntimeEngine::resolvePrototypeDecl(Ast* ast) {
     parseAccessDecl(ast, modifiers, startpos);
 
     if(modifiers.find(mCONST)) {
-        errors->createNewError(GENERIC, ast, "modifier `const` is not allowed for function protypes");
+        errors->createNewError(GENERIC, ast, "modifier `const` is not allowed for function pointers");
     }
 
     string name =  ast->getEntity(startpos).getToken();
@@ -6335,16 +6404,43 @@ void RuntimeEngine::parseFuncPrototype(Ast *ast, Field *field) {
     field->prototype=true;
     field->type = VAR;
 
-    List<Param> params;
-    parseMethodParams(params, parseUtypeArgList(ast->getSubAst(ast_utype_arg_list_opt)), ast->getSubAst(ast_utype_arg_list_opt));
+    if(ast->getSubAst(ast_utype_arg_list_opt)) {
+        List<Param> params;
+        parseMethodParams(params, parseUtypeArgList(ast->getSubAst(ast_utype_arg_list_opt)), ast->getSubAst(ast_utype_arg_list_opt));
 
-    field->params.addAll(params);
-    Expression utype(ast);
+        field->params.addAll(params);
+    }
+
     if(ast->hasSubAst(ast_method_return_type)) {
+        Expression utype(ast);
         utype = parseUtype(ast->getSubAst(ast_method_return_type));
         parseFieldReturnType(utype, *field);
     } else
         field->returnType = TYPEVOID;
+
+    if(ast->hasSubAst(ast_value)) {
+        Expression value(ast), out(ast);
+        value = parseValue(ast->getSubAst(ast_value));
+
+        if(value.type == expression_anon_func || value.utype.isMethod) {
+            token_entity operand("=", SINGLE, 0,0, ASSIGN);
+            Expression fieldExpr = fieldToExpression(ast, *field);
+            if(!ast->getSubAst(ast_utype_arg_list_opt)) {
+                field->params.addAll(value.utype.method->getParams());
+                parseFieldReturnType(value, *field);
+            }
+
+            assignValue(operand, out, fieldExpr, value, ast);
+        } else if(value.type == expression_field && value.utype.field.prototype) {
+            if(currentScope()->type == STATIC_BLOCK || currentScope()->type == INSTANCE_BLOCK) {
+
+            } else {
+                errors->createNewError(GENERIC, value.link->line,  value.link->col, "Assignment of function pointer `" + field->fullName + "` does not allow field assignment in current scope");
+            }
+        } else {
+            errors->createNewError(GENERIC, value.link->line,  value.link->col, "Expression of type `" + value.typeToString() + "` cannot be assigned to function pointer `" + field->fullName + "`");
+        }
+    }
 }
 
 void RuntimeEngine::resolveEnumVarDecl(Ast* ast) {
@@ -7311,8 +7407,6 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
                     resolveEnumDecl(trunk);
                 break;
             case ast_func_prototype:
-                if(!forEnum && resolvedGenerics && resolvedFields)
-                    resolvePrototypeDecl(trunk);
                 break;
             default:
                 stringstream err;
@@ -7519,6 +7613,8 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField, bool for
             case ast_enum_decl: /* ignore */
                 if(forEnum)
                     resolveEnumDecl(ast);
+                break;
+            case ast_func_prototype:
                 break;
             default:
                 stringstream err;
@@ -7930,6 +8026,9 @@ void RuntimeEngine::parseGenericClassDecl(Ast *ast, bool isInterface)
                 break;
             case ast_var_decl:
                 parseVarDecl(ast);
+                break;
+            case ast_func_prototype:
+                parseProtypeDecl(ast, false);
                 break;
             case ast_method_decl: /* Will be parsed later */
                 break;

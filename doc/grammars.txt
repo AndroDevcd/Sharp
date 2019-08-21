@@ -188,7 +188,7 @@ Import Declaration:
 import <modulename> ;
 
 Prototype Declaration:
-fn <identifier = name> <uTypeArg-list-opt> [: <uType>] ;
+fn <identifier = name> [<uTypeArg-list-opt> [: <uType>]] [`=` <expression>];
 
 Class Declaration:
 `[<accesstype>] class <identifier = name> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
