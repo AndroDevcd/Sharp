@@ -16,7 +16,7 @@
 from changing the source code
 - Limit naming of declirations such as fields named as methods or classes
 - Figure out weird bug with Unixfile system processing char when normalizing file path
-- Add support for inline anaonymous functions
+- Add support for inline anaonymous functions -- done
     - Syntax:
 ```javascript
 def foo() {
@@ -45,6 +45,10 @@ global scope and translate it to ``var result = $anonymous1(x, y);``
         print("single line");
 
     for >= 100: {
+       print("multi-line");
+    }
+
+    for 100: { // operator < is assumed to be the poerator
        print("multi-line");
     }
 ```

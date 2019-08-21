@@ -29,9 +29,10 @@ from the older version with the updated runtime system and vise versa. Any other
         * Fixed new expression not catching edge case where there is no cunstructor provided i.e. House h = new House;
         * Function pointers were not allowed to be created at global scope or local scope
         * `thread_local` will now be allowed on function pointers
+        * Function pointers should now properly work on generic classes
 
     # QoL Improvements
-        * Updated the Assembler to allow for high level virtual assembly programming with the newly added instructions
+        * Updated the Assembler to allow for high level assembly programming with the newly added instructions
 
     # New Additions
         * Multiple compiler options changes

@@ -317,6 +317,7 @@ void Asm::expect_function() {
 
             if(method != NULL) {
                 i2.high_bytes = method->address;
+                lastMethod = method;
             } else {
                 tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + mname + "`");
                 return;
@@ -341,6 +342,7 @@ void Asm::expect_function() {
 
             if(method != NULL) {
                 i2.high_bytes = method->address;
+                lastMethod = method;
             } else {
                 tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + mname + "`");
                 return;
@@ -1198,6 +1200,53 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_int();
 
                 assembler.push_i64(SET_Di(i64, op_ITEST, i2.high_bytes));
+            }  else if(instruction_is("inv_del")) {
+
+                expect("<");
+                expect_function();
+                itmp = i2;
+                expect(">");
+
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, itmp.high_bytes, (itmp.high_bytes<0), i2.high_bytes));
+            }   else if(instruction_is("inv_del_static")) {
+
+                expect("<");
+                expect_function();
+                itmp = i2;
+                expect(">");
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, itmp.high_bytes, (itmp.high_bytes<0), i2.high_bytes), (lastMethod ? lastMethod->owner->address : 0));
+            }   else if(instruction_is("isadd")) {
+
+                expect_int();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_ISADD, itmp.high_bytes, (itmp.high_bytes<0), i2.high_bytes));
+            }   else if(instruction_is("je")) {
+
+                expect_int();
+
+                assembler.push_i64(SET_Di(i64, op_JE, i2.high_bytes));
+            }   else if(instruction_is("jne")) {
+                expect_int();
+
+                assembler.push_i64(SET_Di(i64, op_JNE, i2.high_bytes));
+            }    else if(instruction_is("tls_movl")) {
+                expect_int();
+
+                assembler.push_i64(SET_Di(i64, op_TLS_MOVL, i2.high_bytes));
+            } else if(instruction_is("dup")) {
+                assembler.push_i64(SET_Ei(i64, op_DUP));
+            } else if(instruction_is("popobj_2")) {
+                assembler.push_i64(SET_Ei(i64, op_POPOBJ_2));
+            } else if(instruction_is("swap")) {
+                assembler.push_i64(SET_Ei(i64, op_SWAP));
             } else {
                 if(current() == "<") {
                     npos++;

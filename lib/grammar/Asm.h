@@ -28,7 +28,8 @@ public:
             npos(0),
             instance(NULL),
             code(""),
-            expect_instr(false)
+            expect_instr(false),
+            lastMethod(NULL)
     {
     }
 
@@ -42,6 +43,7 @@ private:
     int2_t i2;
     Assembler* assembler;
     RuntimeEngine* instance;
+    Method* lastMethod;
     string code;
     tokenizer* tk;
     bool expect_instr;

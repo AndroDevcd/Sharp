@@ -15,7 +15,7 @@ def main(string[] args) : var {
 //    fn proto = def? (var x) {};
 //
 thread_local fn proto4 (var);
-   var c = def ?(var v) {};
+   object c = def ?(var v) {};
 //    G<var>.proto = def ?(var v) {};
 
 
