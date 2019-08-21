@@ -1233,7 +1233,7 @@ private:
 
     void parseFieldReturnType(Expression &expression, Field &field);
 
-    void parseFuncPrototype(Ast *ast, Field *field);
+    void parseFuncPrototype(Ast *ast, Field *field, Block *block = NULL);
 
     Method *fieldToFunction(Field *field, Expression &code);
 
@@ -1269,6 +1269,8 @@ private:
     Expression parseAnonymousFunction(Ast *pAst);
 
     void resolveAllPrototypes();
+
+    void resolvePrototypeInClassDecl(Ast *ast);
 };
 
 

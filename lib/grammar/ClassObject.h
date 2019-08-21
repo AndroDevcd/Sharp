@@ -138,18 +138,31 @@ public:
     }
 
     void operator=(ClassObject& klass) {
+        free();
         this->base = klass.base;
         this->childClasses.addAll(klass.childClasses);
-        this->constructors.addAll(klass.constructors);
-        this->fields.addAll(klass.fields);
+        for(long i = 0; i < klass.constructors.size(); i++) {
+            this->constructors.add(new Method());
+            *this->constructors.last() = *klass.getConstructor(i);
+        }
+        for(long i = 0; i < klass.fields.size(); i++) {
+            this->fields.add(new Field());
+            *this->fields.last() = *klass.getField(i);
+        }
+        for(long i = 0; i < klass.functions.size(); i++) {
+            this->functions.add(new Method());
+            *this->functions.last() = *klass.getFunction(i);
+        }
+        for(long i = 0; i < klass.overloads.size(); i++) {
+            this->overloads.add(new OperatorOverload());
+            *this->overloads.last() = *klass.getOverload(i);
+        }
         this->fullName = klass.fullName;
-        this->functions.addAll(klass.functions);
         this->head = klass.head;
         this->modifier = klass.modifier;
         this->module_name = klass.module_name;
         this->name = klass.name;
         this->note = klass.note;
-        this->overloads.addAll(klass.overloads);
         this->super = klass.super;
         this->serial = klass.serial;
         this->address = klass.address;

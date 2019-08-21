@@ -832,8 +832,13 @@ void Parser::parse_prototypedecl(Ast *pAst, bool semicolon) {
         parse_methodreturn_type(pAst); // assign-expr operators must return void
     }
 
-    if(semicolon)
-        parse_prototype_valueassignment(pAst);
+    if(semicolon) {
+
+        if(peek(1).getTokenType() != ASSIGN && !pAst->hasSubAst(ast_utype_arg_list_opt)) {
+            errors->createNewError(GENERIC, current(), "expected `=` or `(` after function pointer was declared");
+        } else
+            parse_prototype_valueassignment(pAst);
+    }
     else if(isassign_exprsymbol(peek(1).getToken()))
         errors->createNewError(GENERIC, current(), "operator `" + peek(1).getToken() + "` on function pointer is not allowed here");
 

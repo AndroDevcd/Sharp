@@ -2499,8 +2499,7 @@ Expression RuntimeEngine::parseAnonymousFunction(Ast* pAst) {
         method.type = TYPEVOID;
 
     method.ast = pAst;
-    if(!currentScope()->klass->isGeneric())
-        method.address = methods++;
+    method.address = methods++;
     if(!currentScope()->klass->addFunction(method)) {
         errors->createNewError(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
                                      "function `" + name + "` is already defined in the scope");

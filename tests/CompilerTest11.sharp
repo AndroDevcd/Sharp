@@ -7,16 +7,18 @@ print("hello");
 }
 
 
-def foo(fn k(var), var g) {
+def foo2(fn k(var), var g) {
     k(9);
 }
 
 def main(string[] args) : var {
-    fn proto (var);
+//    fn proto = def? (var x) {};
+//
+thread_local fn proto4 (var);
+   var c = def ?(var v) {};
+//    G<var>.proto = def ?(var v) {};
 
-thread_local fn proto2 (var);
 
-//    proto2 = def? (var y) {  };
 
 
 
@@ -332,9 +334,7 @@ thread_local fn proto2 (var);
 
 
 
-
-
-    foo(proto3 = def? (var y) {  }, 5); // broken
+//    foo(proto3 = def? (var y) {  }, 5); // broken
 
 //    fn someComputation := def ?(int num, int x, int y): var {
 //          // we are in a completly seperate code space
@@ -347,5 +347,7 @@ thread_local fn proto2 (var);
     return 0;
 }
 
-public static thread_local fn proto3 = def? (var y) {  };
+class k {
+//    public static fn proto3 = def? (var y) {  };
+}
 

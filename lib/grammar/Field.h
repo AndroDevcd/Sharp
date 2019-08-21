@@ -112,6 +112,32 @@ public:
 
     void free();
 
+    void init() {
+
+        type = UNDEFINED;
+        serial = 0;
+        name = "";
+        fullName = "";
+        modifiers.init();
+        note = RuntimeNote("","",0,0);
+        isArray = false;
+        nullType = false;
+        local = false;
+        owner = NULL;
+        key = "";
+        klass = NULL;
+        ast = NULL;
+        proto = NULL;
+        isEnum = false;
+        constant_value = 0;
+        prototype = false;
+        returnType = TYPEVOID;
+        locality = stl_local;
+        thread_address = 0;
+        defaultValue = false;
+        defValExpr = NULL;
+    }
+
 //    bool isField() {
 //        return nf != fnof || nf >= fdynamic;
 //    }

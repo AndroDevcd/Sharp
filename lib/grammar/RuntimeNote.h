@@ -29,6 +29,14 @@ public:
     {
     }
 
+    void init() {
+
+        file = "";
+        l = "";
+        line = 0;
+        col = 0;
+    }
+
     string getNote(string message) {
         stringstream note;
         note << "in file: ";
