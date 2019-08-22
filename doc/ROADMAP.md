@@ -16,6 +16,7 @@
 from changing the source code
 - Limit naming of declirations such as fields named as methods or classes
 - Figure out weird bug with Unixfile system processing char when normalizing file path
+- remove static call functionality for delegate functions
 - Add support for inline anaonymous functions -- done
     - Syntax:
 ```javascript

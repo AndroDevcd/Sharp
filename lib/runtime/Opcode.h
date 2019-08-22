@@ -194,9 +194,9 @@
             &&CMP,                                 \
             &&CALLD,                                 \
             &&VARCAST,                                 \
-            &&TLS_MOVL                                 \
-            &&DUP                                      \
-            &&POPOBJ_2                                  \
+            &&TLS_MOVL,                                 \
+            &&DUP,                                      \
+            &&POPOBJ_2,                                  \
             &&SWAP                                     \
         };
 

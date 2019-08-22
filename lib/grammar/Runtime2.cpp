@@ -626,12 +626,17 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                     if(f->prototype) {
                         Expression e, tmp;
 
-                        if(staticCall || f->isStatic()) {
-                            e.code.push_i64(SET_Di(i64, op_MOVG, klass->address));
+                        if(f->hasThreadLocality()) {
+                            e.code.push_i64(SET_Di(i64, op_TLS_MOVL, f->thread_address));
                         } else {
-                            e.inject(expression);
+
+                            if(staticCall || f->isStatic()) {
+                                e.code.push_i64(SET_Di(i64, op_MOVG, klass->address));
+                            } else {
+                                e.inject(expression);
+                            }
+                            e.code.push_i64(SET_Di(i64, op_MOVN, f->address));
                         }
-                        e.code.push_i64(SET_Di(i64, op_MOVN, f->address));
                         expression.code.free();
 
                         tmp = fieldToExpression(NULL, *f); tmp.code.free();
@@ -691,11 +696,15 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                         } else if((f = currentScope()->klass->getField(ptr.referenceName, true)) != NULL) {
                             if(f->prototype) {
                                 Expression e, tmp;
-                                if(f->isStatic())
-                                    e.code.push_i64(SET_Di(i64, op_MOVG, f->owner->address));
-                                else
-                                    e.code.push_i64(SET_Di(i64, op_MOVL, 0));
-                                e.code.push_i64(SET_Di(i64, op_MOVN, f->address));
+                                if(f->hasThreadLocality()) {
+                                    e.code.push_i64(SET_Di(i64, op_TLS_MOVL, f->thread_address));
+                                } else {
+                                    if(f->isStatic())
+                                        e.code.push_i64(SET_Di(i64, op_MOVG, f->owner->address));
+                                    else
+                                        e.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                                    e.code.push_i64(SET_Di(i64, op_MOVN, f->address));
+                                }
                                 tmp = fieldToExpression(NULL, *f); tmp.code.free();
                                 pushExpressionToRegister(tmp, e, i64ebx);
                                 fn = fieldToFunction(f, e);

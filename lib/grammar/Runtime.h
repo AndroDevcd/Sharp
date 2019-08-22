@@ -1233,7 +1233,7 @@ private:
 
     void parseFieldReturnType(Expression &expression, Field &field);
 
-    void parseFuncPrototype(Ast *ast, Field *field, Block *block = NULL);
+    void parseFuncPrototype(Ast *ast, Field *field, Block *block = NULL, bool argument = false);
 
     Method *fieldToFunction(Field *field, Expression &code);
 

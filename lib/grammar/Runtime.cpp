@@ -6398,12 +6398,12 @@ void RuntimeEngine::resolvePrototypeDecl(Ast* ast) {
     Field* field = currentScope()->klass->getField(name);
     field->owner = currentScope()->klass;
     field->address = field->owner->getFieldAddress(field);
-
+    field->thread_address = checkstl(field->locality);
     parseFuncPrototype(ast, field);
 
 }
 
-void RuntimeEngine::parseFuncPrototype(Ast *ast, Field *field, Block *block) {
+void RuntimeEngine::parseFuncPrototype(Ast *ast, Field *field, Block *block, bool argument) {
     field->prototype=true;
     field->type = VAR;
 
@@ -6424,6 +6424,12 @@ void RuntimeEngine::parseFuncPrototype(Ast *ast, Field *field, Block *block) {
     Expression value(ast), out(ast);
     if(ast->hasSubAst(ast_value)) {
         value = parseValue(ast->getSubAst(ast_value));
+        if(field->hasThreadLocality()) {
+            out.code.push_i64(SET_Di(i64, op_MOVI, 1), i64ebx);
+            out.code.push_i64(SET_Di(i64, op_NEWARRAY, i64ebx));
+            out.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+            out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+        }
 
         if(value.type == expression_anon_func || value.utype.isMethod) {
             token_entity operand("=", SINGLE, 0,0, ASSIGN);
@@ -6453,34 +6459,40 @@ void RuntimeEngine::parseFuncPrototype(Ast *ast, Field *field, Block *block) {
     } else {
 
         if (!ast->findEntity("thread_local")) {
-            out.code.push_i64(SET_Di(i64, op_ISTOREL, field->address), 0);
+            if(field->local)
+               out.code.push_i64(SET_Di(i64, op_ISTOREL, field->address), 0);
         } else {
 
+            out.code.push_i64(SET_Di(i64, op_MOVI, 1), i64ebx);
+            out.code.push_i64(SET_Di(i64, op_NEWARRAY, i64ebx));
             out.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+            out.code.push_i64(SET_Ei(i64, op_POPOBJ));
             out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
             out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64ebx);
             out.code.push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx));
         }
     }
 
-    if(field->isStatic()) {
-        if(field->hasThreadLocality())
-            initializeTLSInserts.__asm64.appendAll(out.code.__asm64);
-        else
-            staticMainInserts.__asm64.appendAll(out.code.__asm64);
-    } else {
+    if(!argument) {
+        if(field->isStatic()) {
+            if(field->hasThreadLocality())
+                initializeTLSInserts.__asm64.appendAll(out.code.__asm64);
+            else
+                staticMainInserts.__asm64.appendAll(out.code.__asm64);
+        } else {
 
-        if(currentScope()->type == CLASS_SCOPE || currentScope()->type == GLOBAL_SCOPE) {
-            /*
-             * We want to inject the value into all constructors
-             */
-            for (unsigned int i = 0; i < currentScope()->klass->constructorCount(); i++) {
-                Method *method = currentScope()->klass->getConstructor(i);
-                readjustAddresses(method, out.code.size());
-                method->code.inject(0, out.code);
+            if(currentScope()->type == CLASS_SCOPE || currentScope()->type == GLOBAL_SCOPE) {
+                /*
+                 * We want to inject the value into all constructors
+                 */
+                for (unsigned int i = 0; i < currentScope()->klass->constructorCount(); i++) {
+                    Method *method = currentScope()->klass->getConstructor(i);
+                    readjustAddresses(method, out.code.size());
+                    method->code.inject(0, out.code);
+                }
+            } else if(block != NULL){
+                block->code.inject(block->code.size(), out.code);
             }
-        } else if(block != NULL){
-            block->code.inject(block->code.size(), out.code);
         }
     }
 }
@@ -6707,8 +6719,13 @@ void RuntimeEngine::parseMethodParams(List<Param>& params, KeyPair<List<string>,
     for(unsigned int i = 0; i < fields.key.size(); i++) {
         if(containsParam(params, fields.key.get(i))) {
             errors->createNewError(SYMBOL_ALREADY_DEFINED, pAst->line, pAst->col, "symbol `" + fields.key.get(i) + "` already defined in the scope");
-        } else
-            params.add(Param(fieldMapToField(fields.key.get(i), fields.value.get(i), pAst)));
+        } else {
+            stringstream name;
+            name << fields.key.get(i);
+            if(name.str() == "" && pAst->getType() == ast_utype_arg_list_opt)
+                name << "arg" << i;
+            params.add(Param(fieldMapToField(name.str(), fields.value.get(i), pAst)));
+        }
     }
 }
 
@@ -6732,7 +6749,7 @@ KeyPair<List<string>, List<ResolvedReference>> RuntimeEngine::parseUtypeArgList(
 
     for(unsigned int i = 0; i < ast->getSubAstCount(); i++) {
         if(ast->getSubAst(i)->getType()==ast_func_prototype) {
-            parseFuncPrototype(ast->getSubAst(i), &utype_arg.value.prototype);
+            parseFuncPrototype(ast->getSubAst(i), &utype_arg.value.prototype, NULL, true);
             utype_arg.key=ast->getSubAst(i)->getEntity(1).getToken();
             utype_arg.value.isProtoType=true;
             utype_arg.value.type=VAR;
@@ -10642,8 +10659,7 @@ void RuntimeEngine::parseProtypeDecl(Ast *ast, bool global) {
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
 
-    long long stlAddress = currentScope()->klass->isGeneric() ? 0 : checkstl(locality);
-    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note, locality, stlAddress))) {
+    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note, locality, 0))) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                      "field `" + name + "` is already defined in the scope");
         printNote(note, "field `" + name + "` previously defined here");
