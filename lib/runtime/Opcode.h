@@ -50,7 +50,7 @@
     }
 
 #define LONG_CALL() \
-    if(current->longCalls < JIT_LIMIT) \
+    if(current->longCalls < JIT_IR_LIMIT) \
         current->longCalls++;
 
 #define THREAD_EXECEPT() \

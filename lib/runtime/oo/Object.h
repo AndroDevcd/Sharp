@@ -26,7 +26,7 @@ struct SharpObject
         mutex=NULL;
         this->size=size;
         refCount=0;
-        generation = 0x000; /* generation young */
+        gc_info = 0x000; /* generation young */
     }
     void init(unsigned long size, ClassObject* k)
     {
@@ -38,7 +38,7 @@ struct SharpObject
         mutex=NULL;
         this->size=size;
         refCount=0;
-        generation = 0x000; /* generation young */
+        gc_info = 0x000; /* generation young */
     }
 
     void print();
@@ -65,7 +65,7 @@ struct SharpObject
      * 0            000
      * ^-- mark     ^-- generation
      */
-    unsigned int generation : 4; /* gc stuff */
+    unsigned int gc_info : 4; /* gc stuff */
     SharpObject *next, *prev; /* linked list pointers */
 };
 
@@ -73,7 +73,7 @@ struct SharpObject
     if(obj != NULL) { \
         obj->refCount--; \
         if(obj->refCount <= 0) { \
-            switch(GENERATION((obj)->generation)) { \
+            switch(GENERATION((obj)->gc_info)) { \
                 case gc_young: \
                     GarbageCollector::self->yObjs++; \
                     break; \

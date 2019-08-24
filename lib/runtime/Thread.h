@@ -24,8 +24,9 @@
 
 #define main_threadid 0x0
 #define gc_threadid 0x1
+#define jit_threadid 0x2
 
-struct jit_ctx;
+struct jit_context;
 
 enum ThreadState {
     THREAD_CREATED      =0x000,
@@ -127,7 +128,7 @@ public:
             *sp, *fp;
     Method *current;
     Frame *callStack;
-    jit_ctx *jctx;
+    jit_context *jctx;
     size_t stack_lmt;
     Cache cache, pc;
 #ifdef SHARP_PROF_
@@ -136,7 +137,7 @@ public:
     /* tsig_t */ int signal;
 
     static int32_t tid;
-    static List<Thread*> threads;
+    static _List<Thread*> threads;
 #ifdef WIN32_
     static std::mutex threadsMonitor;
     std::mutex mutex;

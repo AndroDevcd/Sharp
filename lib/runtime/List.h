@@ -9,9 +9,9 @@
 #include "oo/Exception.h"
 
 template <class T>
-class List {
+class _List {
 public:
-    List(){
+    _List(){
         init();
     }
 
@@ -171,7 +171,7 @@ public:
         len=0;
     }
 
-    unsigned long size() { return len; }
+    unsigned long  long size() { return len; }
 
     void pop_back() {
         __shrink();
@@ -215,20 +215,20 @@ public:
         _Data[_X] = repl;
     }
 
-    void addAll(List<T>& list) {
+    void addAll(_List<T>& list) {
         free();
         for(unsigned int i = 0; i < list.size(); i++) {
             push_back(list.get(i));
         }
     }
 
-    void appendAll(List<T>& list) {
+    void appendAll(_List<T>& list) {
         for(unsigned int i = 0; i < list.size(); i++) {
             push_back(list.get(i));
         }
     }
 
-    void addAll(list<T> &list) {
+    void addAll(std::list<T> &list) {
         free();
         for(T& t : list) {
             push_back(t);

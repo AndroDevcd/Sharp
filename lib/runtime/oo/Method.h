@@ -12,10 +12,11 @@
 #include "../List.h"
 
 struct line_table;
+struct jit_context;
 
 struct SwitchTable { // for every value there will be a corresponding address
-    List<int64_t> values;
-    List<int64_t> addresses;
+    _List<int64_t> values;
+    _List<int64_t> addresses;
 
     int64_t defaultAddress; // -1 if not present
 
@@ -31,7 +32,7 @@ struct SwitchTable { // for every value there will be a corresponding address
     }
 };
 
-#define JIT_LIMIT 25000
+#define JIT_IR_LIMIT 25000
 
 /**
  * The JIT will not waste time JIT'ing functions with only 5 instructions
@@ -39,6 +40,7 @@ struct SwitchTable { // for every value there will be a corresponding address
 #define JIT_IR_MIN 5
 
 typedef int64_t* Cache;
+typedef void (*fptr)(jit_context *);
 
 /**
  * This is the representation of a method in its barest form
@@ -47,7 +49,7 @@ typedef int64_t* Cache;
  */
 struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUCT DATA USED BY THE JIT */
     int64_t* jit_labels;
-    unsigned long address;          /* refrence id to the the address space */
+    int64_t address;          /* refrence id to the the address space */
 
     int64_t* bytecode;
     int stackSize;                 /* inital stack space required for frame */
@@ -62,13 +64,13 @@ struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUC
     int isStatic;
     long delegateAddress;
     int stackEqulizer;
-    List<ExceptionTable> exceptions;
-    List<FinallyTable> finallyBlocks;
-    List<line_table> lineNumbers;
-    List<SwitchTable> switchTable;
-    int isjit;
-    int64_t jit_addr; // index of jit function
+    _List<ExceptionTable> exceptions;
+    _List<FinallyTable> finallyBlocks;
+    _List<line_table> lineNumbers;
+    _List<SwitchTable> switchTable;
     /**
+     * Below are all the jit related fields
+     *
      * This will contain the total number of calls to a single function.
      * It is called long calls because it holds the calls made to a function as well as
      * "back calls" as explained below
@@ -92,6 +94,9 @@ struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUC
      */
     int16_t longCalls;
     int8_t jitAttempts; // we only allow 3 attempts to JIT a method
+    int isjit;
+    bool compiling; // are we compiling the function?
+    fptr jit_call;
 
 
     void free() {
@@ -103,7 +108,8 @@ struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUC
         finallyBlocks.free();
         isjit=0;
         longCalls=0;
-        jit_addr=0;
+        jit_call=0;
+        compiling=false;
         jitAttempts=0;
         for(long i = 0; i < switchTable.size(); i++) {
             SwitchTable &st = switchTable.get(i);
@@ -133,8 +139,11 @@ struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUC
     void init() {
         name.init();
         fullName.init();
+        isjit=false;
+        longCalls=0;
+        jit_call=0;
+        compiling=false;
         jitAttempts=0;
-        jit_addr=0;
         sourceFile=0;
         exceptions.init();
         lineNumbers.init();
@@ -153,8 +162,6 @@ struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUC
         returnVal = 0;
         stackEqulizer = 0;
         delegateAddress = -1;
-        isjit = 0;
-        longCalls=0;
     }
 };
 

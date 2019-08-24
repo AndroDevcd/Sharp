@@ -2,7 +2,7 @@
 // Created by BraxtonN on 8/9/2018.
 //
 
-#include "jit.h"
+#include "jit.h.old"
 #include "Opcode.h"
 #include "Thread.h"
 #include "../util/KeyPair.h"
@@ -17,6 +17,9 @@
 #include <cstdint>
 #ifdef WIN32_
 #include <conio.h>
+#endif
+#ifdef POSIX_
+#include "termios.h"
 #endif
 
 using namespace asmjit;
@@ -343,6 +346,43 @@ void performInitialCompile()
             env->methods[i].isjit=false;
     }
 }
+
+/**
+ * CodeHolder code = ...;
+
+// Text section is always provided as the first section.
+Section* text = code.textSection(); // or code.sectionById(0);
+
+// To create another section use `code.newSection()`.
+Section* data;
+Error err = code.newSection(&data,
+  ".data",  // Section name
+  SIZE_MAX, // Name length if the name is not null terminated (or SIZE_MAX).
+  0,        // Section flags, see Section::Flags.
+  8);       // Section alignment, must be power of 2.
+
+// When you switch sections in Assembler, Builder, or Compiler the cursor
+// will always move to the end of that section. When you create an Assembler
+// the cursor would be placed at the end of the first (.text) section, which
+// is initially empty.
+x86::Assembler a(&code);
+Label L_Data = a.newLabel();
+
+a.mov(x86::eax, x86::ebx); // Emits in .text section.
+
+a.section(data);           // Switches to the end of .data section.
+a.bind(L_Data);            // Binds label in this .data section
+a.db(0x01);                // Emits byte in .data section.
+
+a.section(text);           // Switches to the end of .text section.
+a.add(x86::ebx, x86::eax); // Emits in .text section.
+
+// References a label bound in .data section in .text section. This
+// would create a LabelLink even when the L_Data is already bound,
+// because the reference crosses sections. See below...
+a.lea(x86::rsi, x86::ptr(L_Data));
+
+ */
 
 /**
  * JIT compiler function used to compile function from scratch
@@ -2276,7 +2316,7 @@ int compile(Method *method) {
                 jit_func jfunc;
                 jfunc.func = jitfn;
                 jfunc.serial = method->address;
-                method->jit_addr=functions.size();
+//                method->jit_addr=functions.size();
                 method->isjit = 1;
                 functions.push_back(jfunc);
             }

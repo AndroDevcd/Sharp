@@ -20,7 +20,7 @@
 #include "../util/File.h"
 #include "../Modules/std.kernel/cmath.h"
 #include "../Modules/std.kernel/clist.h"
-#include "jit.h"
+#include "Jit.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -47,6 +47,7 @@ int CreateVirtualMachine(std::string exe)
 
     Thread::Startup();
     GarbageCollector::startup();
+    Jit::startup();
 #ifdef WIN32_
     env->gui = new Gui();
     env->gui->setupMain();
@@ -163,7 +164,7 @@ int CreateVirtualMachine(std::string exe)
      */
     for(unsigned long i = 0; i < manifest.classes-AUX_CLASSES; i++) {
         env->globalHeap[i].object = GarbageCollector::self->newObject(&env->classes[i]);
-        env->globalHeap[i].object->generation = gc_perm;
+        env->globalHeap[i].object->gc_info = gc_perm;
     }
 
     return 0;
@@ -230,15 +231,17 @@ void executeMethod(int64_t address, Thread* thread, bool inJit) {
     thread->pc = thread->cache;
 
     if(!method->isjit) {
-        if(method->longCalls >= JIT_LIMIT)
+        if(method->longCalls >= JIT_IR_LIMIT)
         {
-            try_jit(method);
+            if(!method->compiling && method->jitAttempts < JIT_MAX_ATTEMPTS)
+                Jit::sendMessage(method);
         } else method->longCalls++;
     }
 
     if(method->isjit) {
         thread->callStack[thread->calls].isjit = true;
-        jit_call(method, thread);
+        thread->jctx->caller = method;
+        method->jit_call(thread->jctx);
     } else if(inJit || thread->calls==1) {
         thread->exec();
     }
@@ -252,7 +255,7 @@ void VirtualMachine::destroy() {
 
     Thread::shutdown();
     GarbageCollector::shutdown();
-    jit_shutdown();
+    Jit::shutdown();
 
 #ifdef WIN32_
     if(env->gui != NULL)
@@ -741,7 +744,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 else if(signal==0xb6)
                     registers[i64ebx] = delete_file(path);
                 else if(signal==0xb7) {
-                    List<native_string> files;
+                    _List<native_string> files;
                     get_file_list(path, files);
 
                     thread_self->sp++;

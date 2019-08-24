@@ -33,6 +33,7 @@ from the older version with the updated runtime system and vise versa. Any other
 
     # QoL Improvements
         * Updated the Assembler to allow for high level assembly programming with the newly added instructions
+        * Added the JIT back to the language for significant performance boots (64bit windows is ony supported as of now)
 
     # New Additions
         * Multiple compiler options changes

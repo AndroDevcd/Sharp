@@ -18,11 +18,11 @@
 #include "Environment.h"
 
 options c_options;
-int startApplication(string e, List<native_string> &pArgs);
+int startApplication(string e, _List<native_string> &pArgs);
 
-void init_main(List <native_string>& list1);
+void init_main(_List <native_string>& list1);
 
-void createStringArray(Object *object, List<native_string> &lst);
+void createStringArray(Object *object, _List<native_string> &lst);
 
 unsigned long long getMemBytes(const char *argv, bool &setLimit);
 
@@ -67,7 +67,7 @@ int runtimeStart(int argc, const char* argv[])
     }
 
     string executable ="";
-    List<native_string> pArgs;
+    _List<native_string> pArgs;
 
     /**
      * We start off with allowing 64 megabytes of memory to be under
@@ -244,7 +244,7 @@ unsigned long long getMemBytes(const char *str, bool &setLimit) {
     return 0;
 }
 
-int startApplication(string exe, List<native_string>& pArgs) {
+int startApplication(string exe, _List<native_string>& pArgs) {
     int result;
     if((result = CreateVirtualMachine(exe)) != 0) {
         fprintf(stderr, "Sharp VM init failed with code: %d\n", result);
@@ -268,7 +268,7 @@ int startApplication(string exe, List<native_string>& pArgs) {
     return 1;
 }
 
-void init_main(List <native_string>& pArgs) {
+void init_main(_List <native_string>& pArgs) {
     Thread *main = Thread::threads.get(main_threadid);
     Object* object = &(++main->sp)->object;
 
@@ -279,7 +279,7 @@ void init_main(List <native_string>& pArgs) {
     pArgs.free();
 }
 
-void createStringArray(Object *object, List<native_string> &args) {
+void createStringArray(Object *object, _List<native_string> &args) {
     int16_t MIN_ARGS = 4;
     int64_t size = MIN_ARGS+args.size();
     int64_t iter=0;
@@ -289,7 +289,7 @@ void createStringArray(Object *object, List<native_string> &args) {
     native_string str(ss.str());
 
     object->object = GarbageCollector::self->newObjectArray(size);
-    object->object->generation = gc_perm;
+    object->object->gc_info = gc_perm;
 
     GarbageCollector::self->createStringArray(&object->object->node[iter++], manifest.application);
     GarbageCollector::self->createStringArray(&object->object->node[iter++], manifest.version);

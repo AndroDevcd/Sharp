@@ -25,7 +25,7 @@ string getstring(File::buffer& exe);
 
 int64_t getlong(File::buffer& exe);
 
-void getField(File::buffer& exe, List<KeyPair<int64_t, Field*>> &fieldMap, Field* field);
+void getField(File::buffer& exe, _List<KeyPair<int64_t, Field*>> &fieldMap, Field* field);
 
 void getMethod(File::buffer& exe, ClassObject *parent, Method* method);
 
@@ -33,7 +33,7 @@ ClassObject *findClass(int64_t superClass);
 
 int64_t geti64(File::buffer& exe) ;
 
-void parse_source_file(List<native_string> &list, native_string str);
+void parse_source_file(_List<native_string> &list, native_string str);
 
 int Process_Exe(std::string exe)
 {
@@ -130,9 +130,9 @@ int Process_Exe(std::string exe)
             throw std::runtime_error("file `" + exe + "` may be corrupt");
 
         /* Data section */
-        List<KeyPair<int64_t, ClassObject*>> mSuperClasses;
-        List<KeyPair<int64_t, ClassObject*>> mBaseClasses;
-        List<KeyPair<int64_t, Field*>> mFields;
+        _List<KeyPair<int64_t, ClassObject*>> mSuperClasses;
+        _List<KeyPair<int64_t, ClassObject*>> mBaseClasses;
+        _List<KeyPair<int64_t, Field*>> mFields;
         int64_t fileRefptr=0;
 
         manifest.classes += AUX_CLASSES;
@@ -547,7 +547,7 @@ int Process_Exe(std::string exe)
     return 0;
 }
 
-void parse_source_file(List<native_string> &list, native_string str) {
+void parse_source_file(_List<native_string> &list, native_string str) {
     list.init();
 
     native_string line;
@@ -592,7 +592,7 @@ ClassObject *findClass(int64_t superClass) {
     return NULL;
 }
 
-void getField(File::buffer& exe, List<KeyPair<int64_t, Field*>> &fieldMap, Field* field) {
+void getField(File::buffer& exe, _List<KeyPair<int64_t, Field*>> &fieldMap, Field* field) {
     field->name.init();
     field->name = getstring(exe);
     field->serial = getlong(exe);

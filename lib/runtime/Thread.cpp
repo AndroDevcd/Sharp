@@ -13,7 +13,8 @@
 #include "Manifest.h"
 #include "oo/Object.h"
 #include "../util/time.h"
-#include "jit.h"
+#include "JitAssembler.h"
+#include "Jit.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -23,7 +24,7 @@
 
 int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
-List<Thread*> Thread::threads;
+_List<Thread*> Thread::threads;
 size_t dStackSz = STACK_SIZE, iStackSz = interp_STACK_SIZE;
 
 #ifdef WIN32_
@@ -86,7 +87,7 @@ int32_t Thread::Create(int32_t methodAddress) {
     thread->currentThread.object=NULL;
     thread->args.object=NULL;
     thread->calls=0;
-    thread->jctx=new jit_ctx();
+    thread->jctx=new jit_context();
     thread->starting=0;
     thread->exceptionObject.object=0;
     thread->current = NULL;
@@ -133,7 +134,7 @@ void Thread::Create(string name) {
     this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*iStackSz);
     this->signal = 0;
     this->suspended = false;
-    this->jctx=new jit_ctx();
+    this->jctx=new jit_context();
     this->exited = false;
     this->priority=THREAD_PRIORITY_HIGH;
     this->throwable.init();
@@ -171,7 +172,7 @@ void Thread::CreateDaemon(string name) {
     this->id = Thread::tid++;
     this->rand = new Random();
     this->dataStack = NULL;
-    this->jctx=new jit_ctx();
+    this->jctx=new jit_context();
     this->callStack = NULL;
     this->currentThread.object=NULL;
     this->args.object=NULL;
@@ -1354,7 +1355,7 @@ void Thread::setup() {
     terminated = false;
     exitVal = 0;
     starting = 0;
-    jit_tls_setup();
+    Jit::tlsSetup();
 
 
     if(dataStack==NULL) {
@@ -1385,7 +1386,6 @@ void Thread::setup() {
             this->dataStack[i].var=0;
         }
     } else {
-        jit_setup();
         GarbageCollector::self->addMemory(sizeof(StackElement)*stack_lmt);
     }
 }

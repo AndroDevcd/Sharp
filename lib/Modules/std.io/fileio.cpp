@@ -153,7 +153,7 @@ long delete_file(native_string &path)
     return remove(path.str().c_str());
 }
 
-void get_file_list(native_string &path, List<native_string> &files) {
+void get_file_list(native_string &path, _List<native_string> &files) {
     DIR *dir;
     struct dirent *ent;
     if ((dir = opendir (path.str().c_str())) != NULL) {

@@ -22,7 +22,7 @@ void create_file(native_string &path);
 
 long delete_file(native_string &path);
 
-void get_file_list(native_string &path, List<native_string> &list);
+void get_file_list(native_string &path, _List<native_string> &list);
 
 long make_dir(native_string &path);
 

@@ -37,9 +37,12 @@ void* __malloc(unsigned long long bytes)
             lowmem:
             throw Exception("out of memory");
         } else {
-            gc = true;
-            GarbageCollector::self->collect(GC_LOW);
-            goto alloc_bytes;
+            gc=true;
+            if(GarbageCollector::self != nullptr) {
+                GarbageCollector::self->collect(GC_LOW);
+                goto alloc_bytes;
+            } else
+                throw Exception("out of memory");
         }
     } else {
         return ptr;
@@ -60,8 +63,11 @@ void* __calloc(unsigned long long n, unsigned long long bytes)
             throw Exception("out of memory");
         } else {
             gc=true;
-            GarbageCollector::self->collect(GC_LOW);
-            goto alloc_bytes;
+            if(GarbageCollector::self != nullptr) {
+                GarbageCollector::self->collect(GC_LOW);
+                goto alloc_bytes;
+            } else
+                throw Exception("out of memory");
         }
     } else {
         return ptr;
@@ -82,8 +88,11 @@ void* __realloc(void *ptr, unsigned long long bytes, unsigned long long old)
             throw Exception("out of memory");
         } else {
             gc=true;
-            GarbageCollector::self->collect(GC_LOW);
-            goto alloc_bytes;
+            if(GarbageCollector::self != nullptr) {
+                GarbageCollector::self->collect(GC_LOW);
+                goto alloc_bytes;
+            } else
+                throw Exception("out of memory");
         }
     } else {
         return rmap;
@@ -126,7 +135,7 @@ void GarbageCollector::releaseObject(Object *object) {
     if(object != nullptr && object->object != nullptr)
     {
         object->object->refCount--;
-        switch(GENERATION(object->object->generation)) {
+        switch(GENERATION(object->object->gc_info)) {
             case gc_young:
                 yObjs++;
                 break;
@@ -253,28 +262,28 @@ void GarbageCollector::collectGarbage() {
             break;
         }
 
-        if(GENERATION(object->generation) <= gc_old) {
+        if(GENERATION(object->gc_info) <= gc_old) {
             // free object
-            if(MARKED(object->generation) && object->refCount == 0) {
+            if(MARKED(object->gc_info) && object->refCount == 0) {
                 object = sweep(object);
                 continue;
-            } else if(MARKED(object->generation) && object->refCount > 0){
-                switch(GENERATION(object->generation)) {
+            } else if(MARKED(object->gc_info) && object->refCount > 0){
+                switch(GENERATION(object->gc_info)) {
                     case gc_young:
                         freedYoung--;
                         transferredAdult++;
-                        object->generation=gc_adult;
+                        object->gc_info=gc_adult;
                         break;
                     case gc_adult:
                         freedAdult--;
                         transferredOld++;
-                        object->generation=gc_old;
+                        object->gc_info=gc_old;
                         break;
                     case gc_old:
                         break;
                 }
             } else {
-                MARK(object->generation, 1);
+                MARK(object->gc_info, 1);
             }
         }
 

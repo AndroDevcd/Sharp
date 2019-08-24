@@ -48,7 +48,7 @@ public:
     static GarbageCollector *self;
     recursive_mutex mutex;
     Thread *tself;
-    List<CollectionPolicy> messageQueue;
+    _List<CollectionPolicy> messageQueue;
 
     static void initilize();
     static void startup();
@@ -227,7 +227,7 @@ private:
 #define MARK(g, enable) (g ^= (-(unsigned long)enable ^ g) & (1UL << 3))
 
 #define UPDATE_GC(object) \
-    switch(GENERATION(object->generation)) { \
+    switch(GENERATION(object->gc_info)) { \
         case gc_young: \
             freedYoung++; \
             break; \

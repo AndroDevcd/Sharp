@@ -9,7 +9,6 @@ Sharp versions;
 #ifndef MAKE_COMPILER
     #include "lib/runtime/main.h"
 #include "lib/runtime/VirtualMachine.h"
-#include "lib/runtime/jit.h"
 
 #endif
 

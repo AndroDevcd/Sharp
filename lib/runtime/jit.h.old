@@ -2,8 +2,8 @@
 // Created by BraxtonN on 8/9/2018.
 //
 
-#ifndef SHARP_JIT_H
-#define SHARP_JIT_H
+#ifndef SHARP_JIT_H_OLD
+#define SHARP_JIT_H_OLD
 
 #define ASMJIT_EMBED 1
 
@@ -137,4 +137,4 @@ int compile(Method *);
 
 void releaseMem();
 
-#endif //SHARP_JIT_H
+#endif //SHARP_JIT_H_OLD
