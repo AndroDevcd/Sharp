@@ -54,7 +54,7 @@ protected:
     void initialize();
 
     X86Gp ctx, ctx32;                  // total registers used in jit
-    X86Gp tmp, value;
+    X86Gp tmp, tmp32, value;
     X86Gp fnPtr, arg;
     X86Gp regPtr, threadPtr;
     X86Gp bp, sp;

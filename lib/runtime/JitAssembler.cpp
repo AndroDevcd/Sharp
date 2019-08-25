@@ -209,13 +209,13 @@ int JitAssembler::compile(Method *func) {
             ir = func->bytecode[i];
             if((i+1) < func->cacheSize)
                 irTail = func->bytecode[i+1];
+            if(i==0)
+                threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
 
             assembler.bind(labels[i]);
             switch(GET_OP(ir)) {
                 default: {
                     assembler.nop();                    // by far one of the easiest instructions yet
-                    if(i==0)
-                        threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
                     break;
                 }
             }
@@ -264,28 +264,28 @@ int JitAssembler::compile(Method *func) {
         Label thread_chk_end = assembler.newLabel();
         Label ifFalse = assembler.newLabel();
 
-        assembler.mov(ctx, threadPtr);                                       // Suspend our thread?
-        assembler.mov(tmp, Lthread[thread_signal]);
-        assembler.sar(tmp, ((int)tsig_suspend));
-        assembler.and_(tmp, 1);
-        assembler.test(tmp, tmp);
+        assembler.mov(ctx, threadPtr);                                      // Suspend our thread?
+        assembler.mov(tmp32, Lthread[thread_signal]);
+        assembler.sar(tmp32, ((int)tsig_suspend));
+        assembler.and_(tmp32, 1);
+        assembler.test(tmp32, tmp32);
         assembler.je(isThreadKilled);
 
         assembler.call((x86int_t)Thread::suspendSelf);
         assembler.bind(isThreadKilled);
 
         assembler.mov(ctx, threadPtr);                                      // has it been shut down??
-        assembler.mov(tmp, Lthread[thread_state]);
-        assembler.cmp(tmp, THREAD_KILLED);
+        assembler.mov(tmp32, Lthread[thread_state]);
+        assembler.cmp(tmp32, THREAD_KILLED);
         assembler.jne(hasException);
-        assembler.jmp(lbl_func_end);
+        assembler.jmp(lbl_func_end); // verified
 
         assembler.bind(hasException);
         assembler.mov(ctx, threadPtr);                                    // Do we have an exception to catch?
-        assembler.mov(tmp, Lthread[thread_signal]);
-        assembler.sar(tmp, ((int)tsig_except));
-        assembler.and_(tmp, 1);
-        assembler.test(tmp, tmp);
+        assembler.mov(tmp32, Lthread[thread_signal]);
+        assembler.sar(tmp32, ((int)tsig_except));
+        assembler.and_(tmp32, 1);
+        assembler.test(tmp32, tmp32);
         assembler.je(thread_chk_end);                                    // at this point no need to check any more events
 
         updatePc(assembler);
@@ -302,8 +302,9 @@ int JitAssembler::compile(Method *func) {
         assembler.call((x86int_t)JitAssembler::jitGetPc);
 
         assembler.mov(value, labelsPtr);                              // reset pc to find location in function to jump to
-        assembler.imul(tmp, (size_t)sizeof(int64_t));
-        assembler.mov(fnPtr, x86::ptr(tmp));
+        assembler.imul(tmp, (size_t)sizeof(x86int_t));
+        assembler.add(value, tmp);
+        assembler.mov(fnPtr, x86::ptr(value));
         assembler.jmp(fnPtr);
 
         assembler.bind(thread_chk_end);
