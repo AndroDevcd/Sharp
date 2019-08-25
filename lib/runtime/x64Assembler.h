@@ -17,9 +17,12 @@ public:
     }
 
 private:
-    X86Mem getMemPtr(int64_t addr) override {
-        return x86::qword_ptr(x86::rax, addr);
-    }
+    X86Mem getMemPtr(x86int_t addr) override;
+    X86Mem getMemPtr(X86Gp reg, x86int_t addr) override ;
+    X86Mem getMemPtr(X86Gp reg) override ;
+    x86int_t getRegisterSize() override ;
+
+    void initializeRegisters() override ;
 };
 
 

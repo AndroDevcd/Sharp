@@ -209,6 +209,42 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t stati
         throw Exception(Environment::NullptrException, "");
 }
 
+bool returnMethod(Thread* thread) {
+    if(thread->calls <= 1) {
+#ifdef SHARP_PROF_
+        tprof->endtm=Clock::realTimeInNSecs();
+                tprof->profile();
+#endif
+        return true;
+    }
+
+    Frame *frame = thread->callStack+(thread->calls--);
+
+    if(thread->current->finallyBlocks.len > 0) {
+        if(vm->executeFinally(thread_self->current)) {
+            return false;
+        }
+    }
+
+    thread->current = frame->last;
+    thread->cache = thread->current->bytecode;
+
+   thread->pc = frame->pc;
+   thread->sp = frame->sp;
+   thread->fp = frame->fp;
+
+#ifdef SHARP_PROF_
+    tprof->profile();
+#endif
+    /**
+     * We need to return back to the JIT context
+     */
+    if(frame->isjit)
+        return true;
+
+    return false;
+}
+
 void executeMethod(int64_t address, Thread* thread, bool inJit) {
 
     Method *method = env->methods+address;
@@ -238,9 +274,17 @@ void executeMethod(int64_t address, Thread* thread, bool inJit) {
         } else method->longCalls++;
     }
 
+    __os_sleep(3);
     if(method->isjit) {
         thread->callStack[thread->calls].isjit = true;
         thread->jctx->caller = method;
+        cout << "thread->jctx=" << (int64_t)thread->jctx << endl;
+        cout << "thread=" << (int64_t)thread << endl;
+        cout << "method=" << (int64_t)method << endl;
+        cout << "method->jit_lables=" << (int64_t)method->jit_labels << endl;
+        cout << "regs[]=" << (int64_t)&registers << endl;
+        cout << "thread->pc=" << (int64_t)thread->pc << endl;
+        cout << std::flush;
         method->jit_call(thread->jctx);
     } else if(inJit || thread->calls==1) {
         thread->exec();

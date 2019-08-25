@@ -39,6 +39,8 @@ else()
             "lib/util/jit/asmjit/src/asmjit/x86/*.cpp"
             "lib/util/jit/asmjit/src/asmjit/base/*.h"
             "lib/util/jit/asmjit/src/asmjit/base/*.cpp"
+            "lib/runtime/jit.cpp.old"
+            "lib/runtime/jit.h.old"
     )
     #            "lib/runtime/jit.cpp.old"
     #            "lib/runtime/jit.h.old"

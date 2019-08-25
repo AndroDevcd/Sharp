@@ -835,38 +835,8 @@ void Thread::exec() {
                 registers[*(pc+1)]=GET_Da(*pc);
                 _brh_inc(2)
             RET: // tested
-                if(calls <= 1) {
-#ifdef SHARP_PROF_
-                tprof->endtm=Clock::realTimeInNSecs();
-                tprof->profile();
-#endif
+                if(returnMethod(this))
                     return;
-                }
-
-                Frame *frame = callStack+(calls--);
-
-                if(current->finallyBlocks.len > 0) {
-                    if(vm->executeFinally(thread_self->current)) {
-                        _brh
-                    }
-                }
-
-                current = frame->last;
-                cache = current->bytecode;
-
-                pc = frame->pc;
-                sp = frame->sp;
-                fp = frame->fp;
-
-#ifdef SHARP_PROF_
-            tprof->profile();
-#endif
-                /**
-                 * We need to return back to the JIT context
-                 */
-                if(frame->isjit)
-                    return;
-
                 LONG_CALL();
                 _brh
             HLT: // tested

@@ -380,6 +380,7 @@ int Process_Exe(std::string exe)
                     method->returnVal = getlong(buffer);
                     method->delegateAddress = geti64(buffer);
                     method->stackEqulizer = geti64(buffer);
+                    if(method->address==302) method->isjit = true;
 
                     long len = getlong(buffer);
                     line_table lt;

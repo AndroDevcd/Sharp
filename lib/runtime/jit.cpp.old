@@ -172,7 +172,7 @@ enum ConstKind {
 // low level constant manager
 struct Constants {
     List<Data64> constants;
-    List<ConstKind> constantKinds;
+    _List<ConstKind> constantKinds;
     List<Label> constantLabels;
 
     Constants()

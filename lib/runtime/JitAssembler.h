@@ -29,6 +29,13 @@ typedef void (*fptr)(jit_context *);
 #define offset_end(e) e
 #define relative_offset(obj, start, end) ((int64_t)&obj->offset_end(end)-(int64_t)&obj->offset_start(start))
 
+#ifdef ASMJIT_ARCH_X64
+typedef int64_t x86int_t;
+#else
+#define ASMJIT_ARCH_X86
+typedef int32_t x86int_t;
+#endif
+
 class JitAssembler {
 public:
     JitAssembler()
@@ -45,8 +52,20 @@ public:
 protected:
     void initialize();
 
+    X86Gp ctx;                  // total registers used in jit
+    X86Gp tmp, value;
+    X86Gp fnPtr, arg;
+    X86Gp regPtr, threadPtr;
+    X86Gp bp, sp;
+
+    X86Xmm vec0, vec1;          // floating point registers
+
 private:
-    virtual X86Mem getMemPtr(int64_t addr) = 0;
+    virtual X86Mem getMemPtr(x86int_t addr) = 0;
+    virtual X86Mem getMemPtr(X86Gp reg, x86int_t addr) = 0;
+    virtual X86Mem getMemPtr(X86Gp reg) = 0;
+    virtual x86int_t getRegisterSize() = 0;
+    virtual void initializeRegisters() = 0;
 
     void setupContextFields();
     void setupThreadFields();
@@ -55,6 +74,8 @@ private:
     void setupMethodFields();
     void setupSharpObjectFields();
     int compile(Method*);
+    void incPc(X86Assembler &assembler);
+    FILE* getLogFile();
 
     JitRuntime rt;
     _List<fptr> functions;
@@ -65,6 +86,114 @@ private:
     X86Mem Lmethod[1];          // memory layout of struct Method {}
     X86Mem Lsharp_object[4];    // memory layout of struct SharpObject {}
 };
+
+enum ConstKind {
+    kConst64,
+    kConstFloat
+};
+
+struct Constants {
+    _List<Data64> constants;
+    _List<ConstKind> constantKinds;
+    _List<Label> constantLabels;
+
+    Constants()
+            :
+            constants(),
+            constantKinds(),
+            constantLabels()
+    {}
+
+    ~Constants() {
+        constants.free();
+        constantLabels.free();
+    }
+
+    x86int_t createConstant(X86Assembler& cc, x86int_t const0) {
+        x86int_t idx = _64ConstIndex(const0);
+
+        if(idx == -1) {
+            Data64 const_;
+            const_.setI64(const0);
+            constants.push_back(const_);
+            constantKinds.add(kConst64);
+            constantLabels.add(cc.newLabel());
+            return constants.size();
+        }
+
+        return idx;
+    }
+
+    x86int_t createConstant(X86Assembler& cc, double const0) {
+        x86int_t idx = _floatConstIndex(const0);
+
+        if(idx == -1) {
+
+            Data64 const_;
+            const_.setF64(const0);
+            constants.push_back(const_);
+            constantKinds.add(kConstFloat);
+            constantLabels.add(cc.newLabel());
+            return constants.size() - 1;
+        }
+
+        return idx;
+    }
+
+    x86int_t constantSize() {
+        return constants.size();
+    }
+
+    x86int_t _64ConstIndex(x86int_t const0) {
+        for(x86int_t i = 0; i < constants.size(); i++) {
+            Data64 &const_ = constants.get(i);
+            ConstKind kind = constantKinds.get(i);
+
+            if(kind == kConst64 && const_.sq[0] == const0) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    x86int_t _floatConstIndex(double const0) {
+        for(x86int_t i = 0; i < constants.size(); i++) {
+            Data64 &const_ = constants.get(i);
+            ConstKind kind = constantKinds.get(i);
+
+            if(kind == kConstFloat && const_.df[0] == const0) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    Data64& getConstant(x86int_t idx) {
+        return constants.get(idx);
+    }
+
+    Label& getConstantLabel(x86int_t idx) {
+        return constantLabels.get(idx);
+    }
+
+    void emitConstants(X86Assembler& cc) {
+
+        for(x86int_t i = 0; i < constantLabels.size(); i++) {
+            cc.bind(constantLabels.get(i));
+            Data64 &const0 = constants.get(i);
+            ConstKind kind = constantKinds.get(i);
+
+            if(kind == kConst64) {
+                cc.dint64(const0.sq[0]);
+            } else if(kind == kConstFloat) {
+                cc.dmm(const0);
+            }
+        }
+    }
+};
+
 
 
 // struct jit_context {} fields

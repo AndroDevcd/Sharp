@@ -2,22 +2,26 @@
 // Created by braxtonn on 8/21/2019.
 //
 
+#include <fstream>
 #include "JitAssembler.h"
 #include "Thread.h"
 #include "Manifest.h"
 #include "main.h"
 #include "Environment.h"
 #include "Jit.h"
+#include "Opcode.h"
+#include "VirtualMachine.h"
 
 void JitAssembler::shutdown() {
 
-    for(int64_t i = 0; i < functions.len; i++) {
+    for(x86int_t i = 0; i < functions.len; i++) {
         rt.release(functions.get(i));
     }
     functions.free();
 }
 
 void JitAssembler::initialize() {
+    initializeRegisters();
     setupContextFields();
     setupThreadFields();
     setupStackElementFields();
@@ -79,7 +83,7 @@ void JitAssembler::setupSharpObjectFields() {
 
 int JitAssembler::performInitialCompile() {
     int error;
-    for(int64_t i = 0; i < manifest.methods; i++) {
+    for(x86int_t i = 0; i < manifest.methods; i++) {
         if(c_options.jit && (c_options.slowBoot || env->methods[i].isjit)) {
             // we want to compile it
             env->methods[i].isjit=false;
@@ -115,7 +119,186 @@ int JitAssembler::tryJit(Method* func) {
 }
 
 int JitAssembler::compile(Method *func) {
-    // TODO: write
+    if(func->bytecode != NULL && func->cacheSize >= JIT_IR_MIN)
+    {
+        int error = jit_error_ok;
+
+        // make it easier for the JIT Compiler
+        func->jit_labels = (x86int_t *)malloc(sizeof(x86int_t)*func->cacheSize);
+        if(!func->jit_labels)
+            return jit_error_mem;
+        else
+            std::memset(func->jit_labels, 0, sizeof(x86int_t)*func->cacheSize);
+
+        CodeHolder code;
+        code.init(rt.getCodeInfo());
+
+        FileLogger logger(getLogFile());
+        code.setLogger(&logger);                // Initialize logger temporarily to ensure quality of code
+
+        X86Assembler assembler(&code);                  // Create and attach X86Assembler to `code`.
+        Constants constant_pool;
+
+        string msg = "; method " + func->fullName.str() + "\n";
+        assembler.comment(msg.c_str(), msg.size());
+        assembler.comment("; starting save state", 21);
+
+        assembler.push(bp);
+        assembler.mov(bp, sp);
+
+        assembler.push(fnPtr);                          // Store used registers (windows x86 convention)
+        assembler.push(arg);
+        assembler.push(regPtr);
+        assembler.push(threadPtr);
+
+        // function body
+
+        // allocate space for the stack
+        x86int_t storedRegs = getRegisterSize() * 4;
+        int ptrSize      = sizeof(jit_context*), paddr = storedRegs + ptrSize;
+        int labelsSize   = sizeof(x86int_t*), laddr = paddr + labelsSize;
+        int o2Size       = sizeof(Object*), o2addr = laddr + o2Size;
+        x86int_t stackSize = ptrSize + labelsSize + o2Size;
+        assembler.sub(sp, (stackSize));
+
+        Label labels[func->cacheSize];                       // Each opcode has its own label but not all labels will be used
+        for(x86int_t i = 0; i < func->cacheSize; i++) {       // Iterate through all the addresses to create labels for each address
+            labels[i] = assembler.newLabel();
+        }
+
+        X86Mem ctxPtr = getMemPtr(bp, -(paddr));              // store memory location of ctx pointer in the stack
+        X86Mem o2Ptr = getMemPtr(bp, -(o2addr));              // store memory location of o2 pointer in the stack
+        X86Mem labelsPtr = getMemPtr(bp, -(laddr));           // store memory location of labels* pointer in the stack
+
+        assembler.mov(ctxPtr, ctx);                           // send ctx to stack from ctx register via [ESP + paddr].
+
+        // zero out registers & memory
+        assembler.xor_(fnPtr, fnPtr);
+        assembler.xor_(arg, arg);
+        assembler.mov(o2Ptr, 0);
+        assembler.mov(labelsPtr, 0);
+
+        assembler.mov(regPtr, Ljit_context[jit_context_regs]);
+        assembler.mov(threadPtr, Ljit_context[jit_context_self]);
+
+        // context->caller->jit_lables
+        assembler.mov(ctx, Ljit_context[jit_context_caller]);
+        assembler.mov(ctx, getMemPtr(ctx, 0));
+
+        Label lbl_code_start = assembler.newNamedLabel("code_start", 10);
+        Label lbl_init_addr_tbl = assembler.newNamedLabel("init_addr_tbl", 13);
+        Label lbl_func_end = assembler.newNamedLabel("func_end", 8);
+        Label lbl_data_sec = assembler.newNamedLabel(".data", 5);
+        Label lbl_thread_chk = assembler.newNamedLabel(".thread_check", 13);
+
+        assembler.mov(labelsPtr, ctx);
+
+        X86Mem tmp_ptr = getMemPtr(ctx, 0);
+        assembler.mov(ctx, tmp_ptr);                    // if(ctx->func->jit_labels[0]==0)
+        assembler.test(ctx, ctx);                       //      goto lbl_;
+        assembler.jne(lbl_code_start);
+        assembler.jmp(lbl_init_addr_tbl);
+        assembler.bind(lbl_code_start);
+        // user code start
+
+
+        int64_t ir, irTail;
+        X86Mem lconstMem, tmpMem;
+        for(int64_t i = 0; i < func->cacheSize; i++) {
+            if (error) break;
+            ir = func->bytecode[i];
+            if((i+1) < func->cacheSize)
+                irTail = func->bytecode[i+1];
+
+            assembler.bind(labels[i]);
+            switch(GET_OP(ir)) {
+                default: {
+                    assembler.nop();                   // by far one of the easiest instructions yet
+                    break;
+                }
+            }
+        }
+
+        assembler.jmp(lbl_func_end);                    // if we reach the end of our function we dont want to set the labels again
+        assembler.bind(lbl_init_addr_tbl);
+        assembler.nop();
+        // labeles[] setting here
+        assembler.comment("; setting label values", 22);
+        assembler.mov(tmp, labelsPtr);
+        X86Mem ptrIdx = getMemPtr(tmp);
+        X86Mem lbl;
+        for(int64_t i = 0; i < func->cacheSize; i++) {
+            lbl = x86::ptr(labels[i]);
+            assembler.lea(ctx, lbl);
+            assembler.mov(ptrIdx, ctx);
+
+            if((i + 1) < func->cacheSize)                       // omit unessicary add instruction
+                assembler.add(tmp, (x86int_t )sizeof(x86int_t));
+        }
+
+        assembler.nop();
+        assembler.jmp(lbl_code_start);                         // jump back to top to execute user code
+
+        // end of function
+        assembler.bind(lbl_func_end);
+        assembler.mov(ctx, threadPtr);
+        assembler.call((x86int_t)returnMethod);
+        incPc(assembler);
+
+        assembler.add(sp, (stackSize));
+        assembler.pop(threadPtr);
+        assembler.pop(regPtr);
+        assembler.pop(arg);
+        assembler.pop(fnPtr);
+        assembler.pop(bp);
+
+        assembler.ret();
+
+        assembler.bind(lbl_thread_chk);
+        // todo: write thread check section
+
+
+        assembler.nop();
+        assembler.nop();
+        assembler.nop();
+        assembler.align(kAlignData, 64);              // Align 64
+        assembler.bind(lbl_data_sec);                 // emit constants to be used
+        assembler.comment("; data section start", 20);
+        constant_pool.emitConstants(assembler);
+
+
+        fptr fn;
+        Error err = rt.add(&fn, &code);   // Add the generated code to the runtime.
+        if (err) {
+            cout << "jit code error " << err << endl;
+            error =  jit_error_compile;
+        }
+        else {
+            func->isjit = true;
+            func->jit_call = fn;
+            functions.push_back(fn);
+        }
+
+        func->compiling = false;
+        return error;
+    }
+
     func->compiling = false;
     return jit_error_compile;
+}
+
+void JitAssembler::incPc(X86Assembler &assembler) {
+    assembler.mov(ctx, threadPtr);                       // increment PC from thread
+    assembler.mov(value, Lthread[thread_pc]);
+    assembler.lea(value, x86::ptr(value, sizeof(int64_t)));
+    assembler.mov(Lthread[thread_pc], value);
+}
+
+FILE *JitAssembler::getLogFile() {
+    ofstream outfile ("JIT.s");        // Quickly create file
+    outfile.close();
+
+    FILE * pFile;                           // out logging file
+    pFile = fopen ("JIT.s" , "rw+");
+    return pFile;
 }

@@ -35,9 +35,9 @@ struct SwitchTable { // for every value there will be a corresponding address
 #define JIT_IR_LIMIT 25000
 
 /**
- * The JIT will not waste time JIT'ing functions with only 5 instructions
+ * The JIT will not waste time JIT'ing functions with only 5 instructions or less
  */
-#define JIT_IR_MIN 5
+#define JIT_IR_MIN 1
 
 typedef int64_t* Cache;
 typedef void (*fptr)(jit_context *);
