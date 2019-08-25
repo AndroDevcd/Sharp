@@ -161,7 +161,7 @@ int JitAssembler::compile(Method *func) {
         x86int_t stackSize = ptrSize + labelsSize + o2Size;
         assembler.sub(sp, (stackSize));
 
-        Label labels[func->cacheSize];                       // Each opcode has its own label but not all labels will be used
+        Label labels[func->cacheSize];                        // Each opcode has its own label but not all labels will be used
         for(x86int_t i = 0; i < func->cacheSize; i++) {       // Iterate through all the addresses to create labels for each address
             labels[i] = assembler.newLabel();
         }
@@ -202,9 +202,9 @@ int JitAssembler::compile(Method *func) {
         // user code start
 
 
-        int64_t ir, irTail;
+        x86int_t ir, irTail;
         X86Mem lconstMem, tmpMem;
-        for(int64_t i = 0; i < func->cacheSize; i++) {
+        for(x86int_t i = 0; i < func->cacheSize; i++) {
             if (error) break;
             ir = func->bytecode[i];
             if((i+1) < func->cacheSize)
@@ -213,12 +213,16 @@ int JitAssembler::compile(Method *func) {
             assembler.bind(labels[i]);
             switch(GET_OP(ir)) {
                 default: {
-                    assembler.nop();                   // by far one of the easiest instructions yet
+                    assembler.nop();                    // by far one of the easiest instructions yet
+                    if(i==0)
+                        threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
                     break;
                 }
             }
         }
 
+        assembler.mov(arg, (func->cacheSize-1));
+        updatePc(assembler);
         assembler.jmp(lbl_func_end);                    // if we reach the end of our function we dont want to set the labels again
         assembler.bind(lbl_init_addr_tbl);
         assembler.nop();
@@ -242,7 +246,7 @@ int JitAssembler::compile(Method *func) {
         // end of function
         assembler.bind(lbl_func_end);
         assembler.mov(ctx, threadPtr);
-        assembler.call((x86int_t)returnMethod);
+        assembler.call((x86int_t)returnMethod);               // we need to update the PC just before this call
         incPc(assembler);
 
         assembler.add(sp, (stackSize));
@@ -254,8 +258,56 @@ int JitAssembler::compile(Method *func) {
 
         assembler.ret();
 
-        assembler.bind(lbl_thread_chk);
-        // todo: write thread check section
+        assembler.bind(lbl_thread_chk);                                     // we need to update the PC just before this addr jump as well as save the return back addr in fnPtr
+        Label isThreadKilled = assembler.newLabel();
+        Label hasException = assembler.newLabel();
+        Label thread_chk_end = assembler.newLabel();
+        Label ifFalse = assembler.newLabel();
+
+        assembler.mov(ctx, threadPtr);                                       // Suspend our thread?
+        assembler.mov(tmp, Lthread[thread_signal]);
+        assembler.sar(tmp, ((int)tsig_suspend));
+        assembler.and_(tmp, 1);
+        assembler.test(tmp, tmp);
+        assembler.je(isThreadKilled);
+
+        assembler.call((x86int_t)Thread::suspendSelf);
+        assembler.bind(isThreadKilled);
+
+        assembler.mov(ctx, threadPtr);                                      // has it been shut down??
+        assembler.mov(tmp, Lthread[thread_state]);
+        assembler.cmp(tmp, THREAD_KILLED);
+        assembler.jne(hasException);
+        assembler.jmp(lbl_func_end);
+
+        assembler.bind(hasException);
+        assembler.mov(ctx, threadPtr);                                    // Do we have an exception to catch?
+        assembler.mov(tmp, Lthread[thread_signal]);
+        assembler.sar(tmp, ((int)tsig_except));
+        assembler.and_(tmp, 1);
+        assembler.test(tmp, tmp);
+        assembler.je(thread_chk_end);                                    // at this point no need to check any more events
+
+        updatePc(assembler);
+
+        assembler.mov(ctx, Lthread[thread_current]);
+        assembler.call((x86int_t)JitAssembler::jitTryCatch);
+
+        assembler.cmp(tmp, 1);
+        assembler.je(ifFalse);
+        assembler.jmp(lbl_func_end);
+        assembler.bind(ifFalse);
+
+        assembler.mov(ctx, threadPtr);
+        assembler.call((x86int_t)JitAssembler::jitGetPc);
+
+        assembler.mov(value, labelsPtr);                              // reset pc to find location in function to jump to
+        assembler.imul(tmp, (size_t)sizeof(int64_t));
+        assembler.mov(fnPtr, x86::ptr(tmp));
+        assembler.jmp(fnPtr);
+
+        assembler.bind(thread_chk_end);
+        assembler.jmp(fnPtr);                                         // dynamically jump to last address in out function
 
 
         assembler.nop();
@@ -285,6 +337,40 @@ int JitAssembler::compile(Method *func) {
 
     func->compiling = false;
     return jit_error_compile;
+}
+
+void
+JitAssembler::threadStatusCheck(X86Assembler &assembler, Label &retLbl, Label &lbl_thread_sec, x86int_t irAddr) {
+    assembler.lea(fnPtr, x86::ptr(retLbl)); // set return addr
+
+    assembler.mov(arg, irAddr);             // set PC index
+    assembler.mov(ctx, threadPtr);
+    assembler.mov(ctx32, Lthread[thread_signal]);
+    assembler.cmp(ctx32, 0);
+    assembler.jne(lbl_thread_sec);
+}
+
+/**
+ * You must pass the index of opcode you are processing in order to
+ * successfully update the pc in thread.
+ *
+ * This will simply update the pc to whatever opcode index you specify.
+ * @param assembler
+ */
+void JitAssembler::updatePc(X86Assembler &assembler) {
+    assembler.mov(ctx, threadPtr);
+    assembler.mov(tmp, Lthread[thread_cache]);
+    assembler.imul(arg, (size_t)sizeof(x86int_t));
+    assembler.add(tmp, arg);
+    assembler.mov(Lthread[thread_pc], tmp);
+}
+
+x86int_t JitAssembler::jitGetPc(Thread *thread) {
+    return thread->pc-thread->cache;
+}
+
+int JitAssembler::jitTryCatch(Method *method) {
+    return vm->TryCatch(method, &thread_self->exceptionObject) ? 1 : 0;
 }
 
 void JitAssembler::incPc(X86Assembler &assembler) {

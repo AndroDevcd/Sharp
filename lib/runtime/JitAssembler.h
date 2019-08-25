@@ -24,17 +24,18 @@ struct jit_context {
 
 typedef void (*fptr)(jit_context *);
 
-// Jit helpers for field addressing
-#define offset_start(s) s
-#define offset_end(e) e
-#define relative_offset(obj, start, end) ((int64_t)&obj->offset_end(end)-(int64_t)&obj->offset_start(start))
-
 #ifdef ASMJIT_ARCH_X64
 typedef int64_t x86int_t;
 #else
 #define ASMJIT_ARCH_X86
 typedef int32_t x86int_t;
 #endif
+
+// Jit helper macros
+#define offset_start(s) s
+#define offset_end(e) e
+#define relative_offset(obj, start, end) ((x86int_t)&obj->offset_end(end)-(x86int_t)&obj->offset_start(start))
+#define is_op(x) (GET_OP(x64)==(x))
 
 class JitAssembler {
 public:
@@ -52,7 +53,7 @@ public:
 protected:
     void initialize();
 
-    X86Gp ctx;                  // total registers used in jit
+    X86Gp ctx, ctx32;                  // total registers used in jit
     X86Gp tmp, value;
     X86Gp fnPtr, arg;
     X86Gp regPtr, threadPtr;
@@ -61,6 +62,9 @@ protected:
     X86Xmm vec0, vec1;          // floating point registers
 
 private:
+    static int jitTryCatch(Method *method);
+    static x86int_t jitGetPc(Thread *thread);
+
     virtual X86Mem getMemPtr(x86int_t addr) = 0;
     virtual X86Mem getMemPtr(X86Gp reg, x86int_t addr) = 0;
     virtual X86Mem getMemPtr(X86Gp reg) = 0;
@@ -75,6 +79,8 @@ private:
     void setupSharpObjectFields();
     int compile(Method*);
     void incPc(X86Assembler &assembler);
+    void updatePc(X86Assembler &assembler);
+    void threadStatusCheck(X86Assembler &assembler, Label &retLbl, Label &lbl_thread_sec, x86int_t irAddr);
     FILE* getLogFile();
 
     JitRuntime rt;

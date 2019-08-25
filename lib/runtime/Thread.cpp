@@ -220,15 +220,16 @@ Thread *Thread::getThread(int32_t id) {
 }
 
 void Thread::suspendSelf() {
-    thread_self->suspended = true;
-    sendSignal(thread_self->signal, tsig_suspend, 0);
+    return;
+//    thread_self->suspended = true;
+//    sendSignal(thread_self->signal, tsig_suspend, 0);
 
     /*
 	 * We call wait upon suspend. This function will
 	 * sleep the thread most of the time. unsuspendThread() or
 	 * resumeAllThreads() should be called to revive thread.
 	 */
-    thread_self->wait();
+//    thread_self->wait();
 }
 
 void Thread::wait() {

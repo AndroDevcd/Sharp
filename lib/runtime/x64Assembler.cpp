@@ -11,11 +11,12 @@ using namespace asmjit::x86;
 void x64Assembler::initializeRegisters() {
     /* x86 Windows standard convention is followed */
     ctx   = rcx;           // registers ctx, value, and tmp are volitle and must be stored on the stack if deemed to be preserved
+    ctx32   = ecx;
 
     tmp       = rax;
     value     = rdx;
-    fnPtr     = r12;       // registers fnPtr, arg, regPtr, & threadPtr must be saved
-    arg       = r13;       // each time a jit function procedure starts to ensure the saftey of the program state
+    fnPtr     = r12;       // registers fnPtr, arg, regPtr, & threadPtr are non volitile and do not have to be saved
+    arg       = r13;
     regPtr    = r14;
     threadPtr = r15;
 

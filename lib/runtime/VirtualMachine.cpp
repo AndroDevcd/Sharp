@@ -284,6 +284,8 @@ void executeMethod(int64_t address, Thread* thread, bool inJit) {
         cout << "method->jit_lables=" << (int64_t)method->jit_labels << endl;
         cout << "regs[]=" << (int64_t)&registers << endl;
         cout << "thread->pc=" << (int64_t)thread->pc << endl;
+        cout << "thread->signal=" << (int64_t)thread->signal << endl;
+        cout << "thread->cache=" << (int64_t)thread->cache << endl;
         cout << std::flush;
         method->jit_call(thread->jctx);
     } else if(inJit || thread->calls==1) {
