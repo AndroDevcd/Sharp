@@ -2993,7 +2993,7 @@ void restorePrivateRegisters(X86Assembler &cc) {
  */
 void global_jit_sysInterrupt(int32_t signal) {
     try {
-        VirtualMachine::sysInterrupt(signal);
+        vm->sysInterrupt(signal);
     } catch(Exception &e) {
         __srt_cxxa_prepare_throw(e);
     }

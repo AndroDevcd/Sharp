@@ -42,7 +42,7 @@ public class Runtime {
     }
 
     public static def __srt_init_(object[] args) : var {
-        asm("nop");
+        asm("hlt");
     }
 
 //    /**

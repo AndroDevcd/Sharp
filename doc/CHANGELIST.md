@@ -47,7 +47,7 @@ from the older version with the updated runtime system and vise versa. Any other
         * Added anomyous functions to the language
 
     # Known Issues
-        *
+        * Returning/jumping out of scope of a lock(){} code section results in a deadlock on that object
 
     Backwards compatibility support tested Version: ()
 

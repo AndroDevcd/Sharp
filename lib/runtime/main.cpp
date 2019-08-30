@@ -16,6 +16,7 @@
 #include "memory/GarbageCollector.h"
 #include "Manifest.h"
 #include "Environment.h"
+#include "JitAssembler.h"
 
 options c_options;
 int startApplication(string e, _List<native_string> &pArgs);
@@ -27,7 +28,7 @@ void createStringArray(Object *object, _List<native_string> &lst);
 unsigned long long getMemBytes(const char *argv, bool &setLimit);
 
 void version() {
-    cout << progname << " " << progvers << endl;
+    cout << progname << " " << progvers << ":jit v" << JIT_VERSION << endl;
 }
 
 void error(string message) {

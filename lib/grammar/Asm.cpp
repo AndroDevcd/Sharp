@@ -1238,7 +1238,17 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
 
                 assembler.push_i64(SET_Di(i64, op_JNE, i2.high_bytes));
             }    else if(instruction_is("tls_movl")) {
-                expect_int();
+                if(current() == "<") {
+                    npos++;
+                    string local = expect_identifier();
+
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                        tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
+                    }
+                    expect(">");
+                } else {
+                    expect_int();
+                }
 
                 assembler.push_i64(SET_Di(i64, op_TLS_MOVL, i2.high_bytes));
             } else if(instruction_is("dup")) {

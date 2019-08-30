@@ -15,6 +15,7 @@ using namespace asmjit;
 
 class Thread;
 class Method;
+struct Constants;
 
 struct jit_context {
     Thread* self;
@@ -35,7 +36,7 @@ typedef int32_t x86int_t;
 #define offset_start(s) s
 #define offset_end(e) e
 #define relative_offset(obj, start, end) ((x86int_t)&obj->offset_end(end)-(x86int_t)&obj->offset_start(start))
-#define is_op(x) (GET_OP(x64)==(x))
+#define is_op(ir, x) (GET_OP(ir)==(x))
 
 class JitAssembler {
 public:
@@ -49,6 +50,7 @@ public:
     void shutdown();
     int performInitialCompile();
     int tryJit(Method*);
+    static void jitSysInt(x86int_t signal);
 
 protected:
     void initialize();
@@ -64,6 +66,7 @@ protected:
 private:
     static int jitTryCatch(Method *method);
     static x86int_t jitGetPc(Thread *thread);
+    static void __srt_cxx_prepare_throw(Exception &e);
 
     virtual X86Mem getMemPtr(x86int_t addr) = 0;
     virtual X86Mem getMemPtr(X86Gp reg, x86int_t addr) = 0;
@@ -81,6 +84,9 @@ private:
     void incPc(X86Assembler &assembler);
     void updatePc(X86Assembler &assembler);
     void threadStatusCheck(X86Assembler &assembler, Label &retLbl, Label &lbl_thread_sec, x86int_t irAddr);
+    void checkMasterShutdown(X86Assembler &assembler, int64_t pc, const Label &lbl_funcend);
+    void emitConstant(X86Assembler &assembler, Constants &cpool, double _const);
+    void loadRegister(X86Assembler &assembler, X86Xmm &vec, x86int_t addr);
     FILE* getLogFile();
 
     JitRuntime rt;
@@ -243,5 +249,8 @@ struct Constants {
 
 // handy macros to use
 #define JIT_MAX_ATTEMPTS 3
+
+// version of out jit compiler
+#define JIT_VERSION 2
 
 #endif //SHARP_JITASSEMBLER_H

@@ -8,6 +8,7 @@
     - The class with ? should be processed at compile time to assign objects that follow this rule alike
 - Allow for importing of star (*) 
     - import std.*; imports all of the standard library
+- Add functionality for AOT Compiler for functions and Inject them directly in the exe
 - Have automatic lookup for enums
 - Allow for expression in first argument of for loop --done
 - Add asm volatile() argument to allow optimzer to modify the injected code

@@ -398,7 +398,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
     switch (signal) {
         case 0x9f:
             /* does nothing nop equivalent */
-            throw Exception("");
+//            throw Exception("");
             return;
         case 0xc7:
             __snprintf((int) registers[i64egx], registers[i64ebx], (int) registers[i64ecx]);
