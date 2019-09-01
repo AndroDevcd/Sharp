@@ -13,9 +13,9 @@ void x64Assembler::initializeRegisters() {
     ctx   = rcx;           // registers ctx, value, and tmp are volitle and must be stored on the stack if deemed to be preserved
     ctx32 = ecx;
 
-    tmp       = rax;
+    tmp       = rax;        // tmp acts as a return value from functions
     tmp32     = eax;
-    value     = rdx;
+    value     = rdx;        // value acts as the second argument for function params
     fnPtr     = r12;       // registers fnPtr, arg, regPtr, & threadPtr are non volitile and do not have to be saved
     arg       = r13;
     regPtr    = r14;
@@ -28,6 +28,8 @@ void x64Assembler::initializeRegisters() {
     // floating point calculation regs
     vec0 = xmm0;
     vec1 = xmm1;
+
+    /* Argument registers are as follows for Windows: (ctx, value) */
 }
 
 X86Mem x64Assembler::getMemPtr(x86int_t addr) {

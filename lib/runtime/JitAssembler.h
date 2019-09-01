@@ -16,6 +16,8 @@ using namespace asmjit;
 class Thread;
 class Method;
 struct Constants;
+struct SharpObject;
+struct StackElement;
 
 struct jit_context {
     Thread* self;
@@ -67,6 +69,9 @@ private:
     static int jitTryCatch(Method *method);
     static x86int_t jitGetPc(Thread *thread);
     static void __srt_cxx_prepare_throw(Exception &e);
+    static SharpObject* jitNewObject(x86int_t size);
+    static void jitSetObject0(SharpObject* o, StackElement *sp);
+    static void test(x86int_t proc);
 
     virtual X86Mem getMemPtr(x86int_t addr) = 0;
     virtual X86Mem getMemPtr(X86Gp reg, x86int_t addr) = 0;
@@ -86,7 +91,7 @@ private:
     void threadStatusCheck(X86Assembler &assembler, Label &retLbl, Label &lbl_thread_sec, x86int_t irAddr);
     void checkMasterShutdown(X86Assembler &assembler, int64_t pc, const Label &lbl_funcend);
     void emitConstant(X86Assembler &assembler, Constants &cpool, double _const);
-    void loadRegister(X86Assembler &assembler, X86Xmm &vec, x86int_t addr);
+    void movRegister(X86Assembler &assembler, X86Xmm &vec, x86int_t addr, bool store = true);
     FILE* getLogFile();
 
     JitRuntime rt;

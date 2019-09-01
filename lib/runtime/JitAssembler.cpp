@@ -11,6 +11,7 @@
 #include "Jit.h"
 #include "Opcode.h"
 #include "VirtualMachine.h"
+#include "register.h"
 
 void JitAssembler::shutdown() {
 
@@ -158,7 +159,8 @@ int JitAssembler::compile(Method *func) {
         int ptrSize      = sizeof(jit_context*), paddr = storedRegs + ptrSize;
         int labelsSize   = sizeof(x86int_t*), laddr = paddr + labelsSize;
         int o2Size       = sizeof(Object*), o2addr = laddr + o2Size;
-        x86int_t stackSize = ptrSize + labelsSize + o2Size + 0x80 + 8; // 0x80 128 byte red zone for stack information
+        int tmpIntSize       = sizeof(x86int_t), tmpIntaddr = o2addr + tmpIntSize;
+        x86int_t stackSize = ptrSize + labelsSize + o2Size + tmpIntSize + 0x80; // 0x80 128 byte red zone for stack information
         assembler.sub(sp, (stackSize));
 
         Label labels[func->cacheSize];                        // Each opcode has its own label but not all labels will be used
@@ -169,6 +171,7 @@ int JitAssembler::compile(Method *func) {
         X86Mem ctxPtr = getMemPtr(bp, -(paddr));              // store memory location of ctx pointer in the stack
         X86Mem o2Ptr = getMemPtr(bp, -(o2addr));              // store memory location of o2 pointer in the stack
         X86Mem labelsPtr = getMemPtr(bp, -(laddr));           // store memory location of labels* pointer in the stack
+        X86Mem tmpInt = getMemPtr(bp, -(tmpIntaddr));           // store memory location of tmiInt for temporary stored integers in the stack
 
         assembler.mov(ctxPtr, ctx);                           // send ctx to stack from ctx register via [ESP + paddr].
 
@@ -177,6 +180,7 @@ int JitAssembler::compile(Method *func) {
         assembler.xor_(arg, arg);
         assembler.mov(o2Ptr, 0);
         assembler.mov(labelsPtr, 0);
+        assembler.mov(tmpInt, 0);
 
         assembler.mov(regPtr, Ljit_context[jit_context_regs]);
         assembler.mov(threadPtr, Ljit_context[jit_context_self]);
@@ -237,7 +241,7 @@ int JitAssembler::compile(Method *func) {
                     i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
 
                     emitConstant(assembler, constant_pool, num);
-                    loadRegister(assembler, vec0, irTail);
+                    movRegister(assembler, vec0, irTail);
                     break;
                 }
                 case op_RET: {
@@ -254,11 +258,36 @@ int JitAssembler::compile(Method *func) {
                     assembler.jmp(lbl_func_end);
                     break;
                 }
+                case op_NEWARRAY: { // not tested
+                    movRegister(assembler, vec0, GET_Da(ir), false);
+                    assembler.cvttsd2si(ctx, vec0); // double to int
+                    assembler.call((x86int_t)JitAssembler::jitNewObject);
+                    assembler.mov(tmpInt, tmp);
+
+                    Label int_end = assembler.newLabel();
+                    threadStatusCheck(assembler, int_end, lbl_thread_chk, i);
+                    assembler.bind(int_end);
+                    checkMasterShutdown(assembler, i, lbl_func_end);
+
+                    assembler.mov(ctx, threadPtr);
+                    assembler.mov(value, Lthread[thread_sp]);
+                    assembler.lea(value, x86::ptr(value, sizeof(StackElement)));
+                    assembler.mov(Lthread[thread_sp], value);
+
+                    assembler.mov(ctx, tmpInt);
+                    assembler.call((x86int_t)JitAssembler::jitSetObject0);
+                    break;
+                }
                 default: {
                     assembler.nop();                    // by far one of the easiest instructions yet
                     break;
                 }
             }
+
+            assembler.nop(); // instruction differentation for now
+            assembler.nop();
+            assembler.nop();
+            assembler.nop();
         }
 
         assembler.mov(arg, (func->cacheSize-1));
@@ -298,6 +327,7 @@ int JitAssembler::compile(Method *func) {
 
         assembler.ret();
 
+        // Thread State Check
         assembler.bind(lbl_thread_chk);                                     // we need to update the PC just before this addr jump as well as save the return back addr in fnPtr
         Label isThreadKilled = assembler.newLabel();
         Label hasException = assembler.newLabel();
@@ -380,6 +410,11 @@ int JitAssembler::compile(Method *func) {
     return jit_error_compile;
 }
 
+// REMEMBER!!! dont forget to check state of used registers befote and after this call as they might be different than what they werr before
+void JitAssembler::test(x86int_t proc) {
+    cout << "register ebx" << registers[i64ebx] << endl << std::flush;
+}
+
 void JitAssembler::emitConstant(X86Assembler &assembler, Constants &cpool, double _const) {
     if(_const == 0) {
         assembler.pxor(vec0, vec0);
@@ -390,18 +425,22 @@ void JitAssembler::emitConstant(X86Assembler &assembler, Constants &cpool, doubl
     }
 }
 
-void JitAssembler::loadRegister(X86Assembler &assembler, X86Xmm &vec, x86int_t addr) {
+void JitAssembler::movRegister(X86Assembler &assembler, X86Xmm &vec, x86int_t addr, bool store) {
     assembler.mov(ctx, regPtr);        // move the contex var into register
     if(addr != 0) {
         assembler.add(ctx, (int64_t )(sizeof(double) * addr));
     }
-    assembler.movsd(x86::qword_ptr(ctx), vec);
+
+    if(store)
+        assembler.movsd(x86::qword_ptr(ctx), vec);  // store into register
+    else
+        assembler.movsd(vec, x86::qword_ptr(ctx)); // get value from register
 }
 
 void JitAssembler::checkMasterShutdown(X86Assembler &assembler, int64_t pc, const Label &lbl_funcend) {
     using namespace asmjit::x86;
 
-    assembler.mov(ctx32, (x86int_t)&masterShutdown);
+    assembler.movzx(ctx32, (x86int_t)&masterShutdown);
     assembler.cmp(ctx32, 0);
     Label ifFalse = assembler.newLabel();
     assembler.je(ifFalse);
@@ -417,6 +456,19 @@ void JitAssembler::jitSysInt(x86int_t signal) {
     } catch(Exception &e) {
         __srt_cxx_prepare_throw(e);
     }
+}
+
+SharpObject* JitAssembler::jitNewObject(x86int_t size) {
+    try {
+        return GarbageCollector::self->newObject(size);
+    } catch(Exception &e) {
+        __srt_cxx_prepare_throw(e);
+        return NULL;
+    }
+}
+
+void JitAssembler::jitSetObject0(SharpObject* o, StackElement *sp) {
+    sp->object = o;
 }
 
 void JitAssembler::__srt_cxx_prepare_throw(Exception &e) {
