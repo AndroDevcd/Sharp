@@ -120,294 +120,349 @@ int JitAssembler::tryJit(Method* func) {
 }
 
 int JitAssembler::compile(Method *func) {
-    if(func->bytecode != NULL && func->cacheSize >= JIT_IR_MIN)
+    int error = jit_error_ok;
+    if(func->bytecode != NULL)
     {
-        int error = jit_error_ok;
-
-        // make it easier for the JIT Compiler
-        func->jit_labels = (x86int_t *)malloc(sizeof(x86int_t)*func->cacheSize);
-        if(!func->jit_labels)
-            return jit_error_mem;
-        else
-            std::memset(func->jit_labels, 0, sizeof(x86int_t)*func->cacheSize);
-
-        CodeHolder code;
-        code.init(rt.getCodeInfo());
-
-        FileLogger logger(getLogFile());
-        code.setLogger(&logger);                // Initialize logger temporarily to ensure quality of code
-
-        X86Assembler assembler(&code);                  // Create and attach X86Assembler to `code`.
-        Constants constant_pool;
-
-        string msg = "; method " + func->fullName.str() + "\n";
-        assembler.comment(msg.c_str(), msg.size());
-        assembler.comment("; starting save state", 21);
-
-        assembler.push(bp);
-        assembler.mov(bp, sp);
-
-        assembler.push(fnPtr);                          // Store used registers (windows x86 convention)
-        assembler.push(arg);
-        assembler.push(regPtr);
-        assembler.push(threadPtr);
-
-        // function body
-
-        // allocate space for the stack
-        x86int_t storedRegs = getRegisterSize() * 4;
-        int ptrSize      = sizeof(jit_context*), paddr = storedRegs + ptrSize;
-        int labelsSize   = sizeof(x86int_t*), laddr = paddr + labelsSize;
-        int o2Size       = sizeof(Object*), o2addr = laddr + o2Size;
-        int tmpIntSize       = sizeof(x86int_t), tmpIntaddr = o2addr + tmpIntSize;
-        x86int_t stackSize = ptrSize + labelsSize + o2Size + tmpIntSize + 0x80; // 0x80 128 byte red zone for stack information
-        assembler.sub(sp, (stackSize));
-
-        Label labels[func->cacheSize];                        // Each opcode has its own label but not all labels will be used
-        for(x86int_t i = 0; i < func->cacheSize; i++) {       // Iterate through all the addresses to create labels for each address
-            labels[i] = assembler.newLabel();
-        }
-
-        X86Mem ctxPtr = getMemPtr(bp, -(paddr));              // store memory location of ctx pointer in the stack
-        X86Mem o2Ptr = getMemPtr(bp, -(o2addr));              // store memory location of o2 pointer in the stack
-        X86Mem labelsPtr = getMemPtr(bp, -(laddr));           // store memory location of labels* pointer in the stack
-        X86Mem tmpInt = getMemPtr(bp, -(tmpIntaddr));           // store memory location of tmiInt for temporary stored integers in the stack
-
-        assembler.mov(ctxPtr, ctx);                           // send ctx to stack from ctx register via [ESP + paddr].
-
-        // zero out registers & memory
-        assembler.xor_(fnPtr, fnPtr);
-        assembler.xor_(arg, arg);
-        assembler.mov(o2Ptr, 0);
-        assembler.mov(labelsPtr, 0);
-        assembler.mov(tmpInt, 0);
-
-        assembler.mov(regPtr, Ljit_context[jit_context_regs]);
-        assembler.mov(threadPtr, Ljit_context[jit_context_self]);
-
-        // context->caller->jit_lables
-        assembler.mov(ctx, Ljit_context[jit_context_caller]);
-        assembler.mov(ctx, getMemPtr(ctx, 0));
-
-        Label lbl_code_start = assembler.newNamedLabel("code_start", 10);
-        Label lbl_init_addr_tbl = assembler.newNamedLabel("init_addr_tbl", 13);
-        Label lbl_func_end = assembler.newNamedLabel("func_end", 8);
-        Label lbl_data_sec = assembler.newNamedLabel(".data", 5);
-        Label lbl_thread_chk = assembler.newNamedLabel(".thread_check", 13);
-
-        assembler.mov(labelsPtr, ctx);
-
-        X86Mem tmp_ptr = getMemPtr(ctx, 0);
-        assembler.mov(ctx, tmp_ptr);                    // if(ctx->func->jit_labels[0]==0)
-        assembler.test(ctx, ctx);                       //      goto lbl_;
-        assembler.jne(lbl_code_start);
-        assembler.jmp(lbl_init_addr_tbl);
-        assembler.bind(lbl_code_start);
-        // user code start
-
-
-        x86int_t ir, irTail;
-        X86Mem lconstMem, tmpMem;
-        for(x86int_t i = 0; i < func->cacheSize; i++) {
-            if (error) break;
-            ir = func->bytecode[i];
-            if((i+1) < func->cacheSize)
-                irTail = func->bytecode[i+1];
-
-            if(is_op(ir, op_JNE) || is_op(ir, op_GOTO) || is_op(ir, op_BRH)
-               || is_op(ir, op_IFE) || is_op(ir, op_IFNE)) {
-                threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
+        if(func->cacheSize >= JIT_IR_MIN)
+        {
+            // make it easier for the JIT Compiler
+            func->jit_labels = (x86int_t *)malloc(sizeof(x86int_t)*func->cacheSize);
+            if(!func->jit_labels) {
+                error = jit_error_mem;
+                goto finish;
             }
-            stringstream ss;
-            ss <<  "instr " << i;
-            string s = ss.str();
-            assembler.comment(s.c_str(), s.size());
-            assembler.bind(labels[i]);
-            switch(GET_OP(ir)) {
-                case op_NOP:
-                    assembler.nop();
-                    break;
-                case op_INT: {
-                    assembler.mov(ctx32, GET_Da(ir));
-                    assembler.call((x86int_t) JitAssembler::jitSysInt); // TODO: check stack address before and after call for allognment
-                    Label int_end = assembler.newLabel();
-                    threadStatusCheck(assembler, int_end, lbl_thread_chk, i);
-                    assembler.bind(int_end);
-                    checkMasterShutdown(assembler, i, lbl_func_end);
-                    break;
-                }
-                case op_MOVI: {                  // registers[*(pc+1)]=GET_Da(*pc);
-                    x86int_t num = GET_Da(ir);
-                    i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
+            else
+                std::memset(func->jit_labels, 0, sizeof(x86int_t)*func->cacheSize);
 
-                    emitConstant(assembler, constant_pool, num);
-                    movRegister(assembler, vec0, irTail);
-                    break;
-                }
-                case op_RET: {
-                    assembler.mov(arg, i);
-                    updatePc(assembler);
-                    assembler.jmp(lbl_func_end);
-                    break;
-                }
-                case op_HLT: {
-                    assembler.mov(ctx, threadPtr);
-                    assembler.mov(Lthread[thread_state], THREAD_KILLED); // kill ourselves
-                    assembler.mov(regPtr, i);
-                    updatePc(assembler);
-                    assembler.jmp(lbl_func_end);
-                    break;
-                }
-                case op_NEWARRAY: { // not tested
-                    movRegister(assembler, vec0, GET_Da(ir), false);
-                    assembler.cvttsd2si(ctx, vec0); // double to int
-                    assembler.call((x86int_t)JitAssembler::jitNewObject);
-                    assembler.mov(tmpInt, tmp);
+            CodeHolder code;
+            code.init(rt.getCodeInfo());
 
-                    Label int_end = assembler.newLabel();
-                    threadStatusCheck(assembler, int_end, lbl_thread_chk, i);
-                    assembler.bind(int_end);
-                    checkMasterShutdown(assembler, i, lbl_func_end);
+            FileLogger logger(getLogFile());
+            code.setLogger(&logger);                // Initialize logger temporarily to ensure quality of code
 
-                    assembler.mov(ctx, threadPtr);
-                    assembler.mov(value, Lthread[thread_sp]);
-                    assembler.lea(value, x86::ptr(value, sizeof(StackElement)));
-                    assembler.mov(Lthread[thread_sp], value);
+            X86Assembler assembler(&code);                  // Create and attach X86Assembler to `code`.
+            Constants constant_pool;
 
-                    assembler.mov(ctx, tmpInt);
-                    assembler.call((x86int_t)JitAssembler::jitSetObject0);
-                    break;
-                }
-                default: {
-                    assembler.nop();                    // by far one of the easiest instructions yet
-                    break;
-                }
+            string msg = "; method " + func->fullName.str() + "\n";
+            assembler.comment(msg.c_str(), msg.size());
+            assembler.comment("; starting save state", 21);
+
+            assembler.push(bp);
+            assembler.mov(bp, sp);
+
+            assembler.push(fnPtr);                          // Store used registers (windows x86 convention)
+            assembler.push(arg);
+            assembler.push(regPtr);
+            assembler.push(threadPtr);
+
+            // function body
+
+            // allocate space for the stack
+            x86int_t storedRegs = getRegisterSize() * 4;
+            int ptrSize      = sizeof(jit_context*), paddr = storedRegs + ptrSize;
+            int labelsSize   = sizeof(x86int_t*), laddr = paddr + labelsSize;
+            int o2Size       = sizeof(Object*), o2addr = laddr + o2Size;
+            int tmpIntSize       = sizeof(x86int_t), tmpIntaddr = o2addr + tmpIntSize;
+            x86int_t stackSize = ptrSize + labelsSize + o2Size + tmpIntSize + 0x80; // 0x80 128 byte red zone for stack information
+            assembler.sub(sp, (stackSize));
+
+            Label labels[func->cacheSize];                        // Each opcode has its own label but not all labels will be used
+            for(x86int_t i = 0; i < func->cacheSize; i++) {       // Iterate through all the addresses to create labels for each address
+                labels[i] = assembler.newLabel();
             }
 
-            assembler.nop(); // instruction differentation for now
+            X86Mem ctxPtr = getMemPtr(bp, -(paddr));              // store memory location of ctx pointer in the stack
+            X86Mem o2Ptr = getMemPtr(bp, -(o2addr));              // store memory location of o2 pointer in the stack
+            X86Mem labelsPtr = getMemPtr(bp, -(laddr));           // store memory location of labels* pointer in the stack
+            X86Mem tmpInt = getMemPtr(bp, -(tmpIntaddr));           // store memory location of tmiInt for temporary stored integers in the stack
+
+            assembler.mov(ctxPtr, ctx);                           // send ctx to stack from ctx register via [ESP + paddr].
+
+            // zero out registers & memory
+            assembler.xor_(fnPtr, fnPtr);
+            assembler.xor_(arg, arg);
+            assembler.mov(o2Ptr, 0);
+            assembler.mov(labelsPtr, 0);
+            assembler.mov(tmpInt, 0);
+
+            assembler.mov(regPtr, Ljit_context[jit_context_regs]);
+            assembler.mov(threadPtr, Ljit_context[jit_context_self]);
+
+            // context->caller->jit_lables
+            assembler.mov(ctx, Ljit_context[jit_context_caller]);
+            assembler.mov(ctx, getMemPtr(ctx, 0));
+
+            Label lbl_code_start = assembler.newNamedLabel("code_start", 10);
+            Label lbl_init_addr_tbl = assembler.newNamedLabel("init_addr_tbl", 13);
+            Label lbl_func_end = assembler.newNamedLabel("func_end", 8);
+            Label lbl_data_sec = assembler.newNamedLabel(".data", 5);
+            Label lbl_thread_chk = assembler.newNamedLabel(".thread_check", 13);
+
+            assembler.mov(labelsPtr, ctx);
+
+            X86Mem tmp_ptr = getMemPtr(ctx, 0);
+            assembler.mov(ctx, tmp_ptr);                    // if(ctx->func->jit_labels[0]==0)
+            assembler.test(ctx, ctx);                       //      goto lbl_;
+            assembler.jne(lbl_code_start);
+            assembler.jmp(lbl_init_addr_tbl);
+            assembler.bind(lbl_code_start);
+            // user code start
+
+
+            x86int_t ir, irTail;
+            X86Mem lconstMem, tmpMem;
+            for(x86int_t i = 0; i < func->cacheSize; i++) {
+                if (error) break;
+                ir = func->bytecode[i];
+                if((i+1) < func->cacheSize)
+                    irTail = func->bytecode[i+1];
+
+                if(is_op(ir, op_JNE) || is_op(ir, op_GOTO) || is_op(ir, op_BRH)
+                   || is_op(ir, op_IFE) || is_op(ir, op_IFNE)) {
+                    threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
+                }
+                stringstream ss;
+                ss <<  "instr " << i;
+                string s = ss.str();
+                assembler.comment(s.c_str(), s.size());
+                assembler.bind(labels[i]);
+                switch(GET_OP(ir)) {
+                    case op_NOP:
+                        assembler.nop();
+                        break;
+                    case op_INT: {
+                        assembler.mov(ctx32, GET_Da(ir));
+                        assembler.call((x86int_t) JitAssembler::jitSysInt); // TODO: check stack address before and after call for allognment
+                        checkSystemState(lbl_func_end, i, assembler, lbl_thread_chk);
+                        break;
+                    }
+                    case op_MOVI: {                  // registers[*(pc+1)]=GET_Da(*pc);
+                        x86int_t num = GET_Da(ir);
+                        i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
+
+                        emitConstant(assembler, constant_pool, num);
+                        movRegister(assembler, vec0, irTail);
+                        break;
+                    }
+                    case op_RET: {
+                        assembler.mov(arg, i);
+                        updatePc(assembler);
+                        assembler.jmp(lbl_func_end);
+                        break;
+                    }
+                    case op_HLT: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(Lthread[thread_state], THREAD_KILLED); // kill ourselves
+                        assembler.mov(regPtr, i);
+                        updatePc(assembler);
+                        assembler.jmp(lbl_func_end);
+                        break;
+                    }
+                    case op_NEWARRAY: { // not tested
+                        movRegister(assembler, vec0, GET_Da(ir), false);
+                        assembler.cvttsd2si(ctx, vec0); // double to int
+                        assembler.call((x86int_t)JitAssembler::jitNewObject);
+                        assembler.mov(tmpInt, tmp);
+
+                        checkSystemState(lbl_func_end, i, assembler, lbl_thread_chk);
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(value, Lthread[thread_sp]);
+                        assembler.lea(value, x86::ptr(value, sizeof(StackElement)));
+                        assembler.mov(Lthread[thread_sp], value);
+
+                        assembler.mov(ctx, tmpInt);
+                        assembler.call((x86int_t)JitAssembler::jitSetObject0);
+                        break;
+                    }
+                    case op_CAST: {
+                        movRegister(assembler, vec0, GET_Da(ir), false);
+                        assembler.cvttsd2si(value, vec0); // double to int
+                        assembler.mov(ctx, o2Ptr);
+
+                        assembler.call((x86int_t)JitAssembler::jitCast);
+                        checkSystemState(lbl_func_end, i, assembler, lbl_thread_chk);
+                        break;
+                    }
+                    case op_VARCAST: {
+                        assembler.mov(ctx, o2Ptr);
+                        assembler.mov(value, (x86int_t )GET_Da(ir));
+
+                        assembler.call((x86int_t)JitAssembler::jitCastVar);
+                        checkSystemState(lbl_func_end, i, assembler, lbl_thread_chk);
+                        break;
+                    }
+                    default: {
+                        assembler.nop();                    // by far one of the easiest instructions yet
+                        break;
+                    }
+                }
+
+                assembler.nop(); // instruction differentation for now
+                assembler.nop();
+                assembler.nop();
+                assembler.nop();
+            }
+
+            assembler.mov(arg, (func->cacheSize-1));
+            updatePc(assembler);
+            assembler.jmp(lbl_func_end);                    // if we reach the end of our function we dont want to set the labels again
+            assembler.bind(lbl_init_addr_tbl);
+            assembler.nop();
+            // labeles[] setting here
+            assembler.comment("; setting label values", 22);
+            assembler.mov(tmp, labelsPtr);
+            X86Mem ptrIdx = getMemPtr(tmp);
+            X86Mem lbl;
+            for(int64_t i = 0; i < func->cacheSize; i++) {
+                lbl = x86::ptr(labels[i]);
+                assembler.lea(ctx, lbl);
+                assembler.mov(ptrIdx, ctx);
+
+                if((i + 1) < func->cacheSize)                       // omit unessicary add instruction
+                    assembler.add(tmp, (x86int_t )sizeof(x86int_t));
+            }
+
+            assembler.nop();
+            assembler.jmp(lbl_code_start);                         // jump back to top to execute user code
+
+            // end of function
+            assembler.bind(lbl_func_end);
+            assembler.mov(ctx, threadPtr);
+            assembler.call((x86int_t)returnMethod);               // we need to update the PC just before this call
+            incPc(assembler);
+
+            assembler.add(sp, (stackSize));
+            assembler.pop(threadPtr);
+            assembler.pop(regPtr);
+            assembler.pop(arg);
+            assembler.pop(fnPtr);
+            assembler.pop(bp);
+
+            assembler.ret();
+
+            // Thread State Check
+            assembler.bind(lbl_thread_chk);                                     // we need to update the PC just before this addr jump as well as save the return back addr in fnPtr
+            Label isThreadKilled = assembler.newLabel();
+            Label hasException = assembler.newLabel();
+            Label thread_chk_end = assembler.newLabel();
+            Label ifFalse = assembler.newLabel();
+
+            assembler.mov(ctx, threadPtr);                                      // Suspend our thread?
+            assembler.mov(tmp32, Lthread[thread_signal]);
+            assembler.sar(tmp32, ((int)tsig_suspend));
+            assembler.and_(tmp32, 1);
+            assembler.test(tmp32, tmp32);
+            assembler.je(isThreadKilled);
+
+            assembler.call((x86int_t)Thread::suspendSelf);
+            assembler.bind(isThreadKilled);
+
+            assembler.mov(ctx, threadPtr);                                      // has it been shut down??
+            assembler.mov(tmp32, Lthread[thread_state]);
+            assembler.cmp(tmp32, THREAD_KILLED);
+            assembler.jne(hasException);
+            assembler.jmp(lbl_func_end); // verified
+
+            assembler.bind(hasException);
+            assembler.mov(ctx, threadPtr);                                    // Do we have an exception to catch?
+            assembler.mov(tmp32, Lthread[thread_signal]);
+            assembler.sar(tmp32, ((int)tsig_except));
+            assembler.and_(tmp32, 1);
+            assembler.test(tmp32, tmp32);
+            assembler.je(thread_chk_end);                                    // at this point no need to check any more events
+
+            updatePc(assembler);
+
+            assembler.mov(ctx, Lthread[thread_current]);
+            assembler.call((x86int_t)JitAssembler::jitTryCatch);
+
+            assembler.cmp(tmp, 1);
+            assembler.je(ifFalse);
+            assembler.jmp(lbl_func_end);
+            assembler.bind(ifFalse);
+
+            assembler.mov(ctx, threadPtr);
+            assembler.call((x86int_t)JitAssembler::jitGetPc);
+
+            assembler.mov(value, labelsPtr);                              // reset pc to find location in function to jump to
+            assembler.imul(tmp, (size_t)sizeof(x86int_t));
+            assembler.add(value, tmp);
+            assembler.mov(fnPtr, x86::ptr(value));
+            assembler.jmp(fnPtr);
+
+            assembler.bind(thread_chk_end);
+            assembler.jmp(fnPtr);                                         // dynamically jump to last address in out function
+
+
             assembler.nop();
             assembler.nop();
             assembler.nop();
+            assembler.align(kAlignData, 64);              // Align 64
+            assembler.bind(lbl_data_sec);                 // emit constants to be used
+            assembler.comment("; data section start", 20);
+            constant_pool.emitConstants(assembler);
+
+
+            fptr fn;
+            Error err = rt.add(&fn, &code);   // Add the generated code to the runtime.
+            if (err) {
+                cout << "jit code error " << err << endl;
+                error =  jit_error_compile;
+            }
+            else {
+                func->isjit = true;
+                func->jit_call = fn;
+                functions.push_back(fn);
+            }
+        } else {
+            error = jit_error_size;
         }
-
-        assembler.mov(arg, (func->cacheSize-1));
-        updatePc(assembler);
-        assembler.jmp(lbl_func_end);                    // if we reach the end of our function we dont want to set the labels again
-        assembler.bind(lbl_init_addr_tbl);
-        assembler.nop();
-        // labeles[] setting here
-        assembler.comment("; setting label values", 22);
-        assembler.mov(tmp, labelsPtr);
-        X86Mem ptrIdx = getMemPtr(tmp);
-        X86Mem lbl;
-        for(int64_t i = 0; i < func->cacheSize; i++) {
-            lbl = x86::ptr(labels[i]);
-            assembler.lea(ctx, lbl);
-            assembler.mov(ptrIdx, ctx);
-
-            if((i + 1) < func->cacheSize)                       // omit unessicary add instruction
-                assembler.add(tmp, (x86int_t )sizeof(x86int_t));
-        }
-
-        assembler.nop();
-        assembler.jmp(lbl_code_start);                         // jump back to top to execute user code
-
-        // end of function
-        assembler.bind(lbl_func_end);
-        assembler.mov(ctx, threadPtr);
-        assembler.call((x86int_t)returnMethod);               // we need to update the PC just before this call
-        incPc(assembler);
-
-        assembler.add(sp, (stackSize));
-        assembler.pop(threadPtr);
-        assembler.pop(regPtr);
-        assembler.pop(arg);
-        assembler.pop(fnPtr);
-        assembler.pop(bp);
-
-        assembler.ret();
-
-        // Thread State Check
-        assembler.bind(lbl_thread_chk);                                     // we need to update the PC just before this addr jump as well as save the return back addr in fnPtr
-        Label isThreadKilled = assembler.newLabel();
-        Label hasException = assembler.newLabel();
-        Label thread_chk_end = assembler.newLabel();
-        Label ifFalse = assembler.newLabel();
-
-        assembler.mov(ctx, threadPtr);                                      // Suspend our thread?
-        assembler.mov(tmp32, Lthread[thread_signal]);
-        assembler.sar(tmp32, ((int)tsig_suspend));
-        assembler.and_(tmp32, 1);
-        assembler.test(tmp32, tmp32);
-        assembler.je(isThreadKilled);
-
-        assembler.call((x86int_t)Thread::suspendSelf);
-        assembler.bind(isThreadKilled);
-
-        assembler.mov(ctx, threadPtr);                                      // has it been shut down??
-        assembler.mov(tmp32, Lthread[thread_state]);
-        assembler.cmp(tmp32, THREAD_KILLED);
-        assembler.jne(hasException);
-        assembler.jmp(lbl_func_end); // verified
-
-        assembler.bind(hasException);
-        assembler.mov(ctx, threadPtr);                                    // Do we have an exception to catch?
-        assembler.mov(tmp32, Lthread[thread_signal]);
-        assembler.sar(tmp32, ((int)tsig_except));
-        assembler.and_(tmp32, 1);
-        assembler.test(tmp32, tmp32);
-        assembler.je(thread_chk_end);                                    // at this point no need to check any more events
-
-        updatePc(assembler);
-
-        assembler.mov(ctx, Lthread[thread_current]);
-        assembler.call((x86int_t)JitAssembler::jitTryCatch);
-
-        assembler.cmp(tmp, 1);
-        assembler.je(ifFalse);
-        assembler.jmp(lbl_func_end);
-        assembler.bind(ifFalse);
-
-        assembler.mov(ctx, threadPtr);
-        assembler.call((x86int_t)JitAssembler::jitGetPc);
-
-        assembler.mov(value, labelsPtr);                              // reset pc to find location in function to jump to
-        assembler.imul(tmp, (size_t)sizeof(x86int_t));
-        assembler.add(value, tmp);
-        assembler.mov(fnPtr, x86::ptr(value));
-        assembler.jmp(fnPtr);
-
-        assembler.bind(thread_chk_end);
-        assembler.jmp(fnPtr);                                         // dynamically jump to last address in out function
-
-
-        assembler.nop();
-        assembler.nop();
-        assembler.nop();
-        assembler.align(kAlignData, 64);              // Align 64
-        assembler.bind(lbl_data_sec);                 // emit constants to be used
-        assembler.comment("; data section start", 20);
-        constant_pool.emitConstants(assembler);
-
-
-        fptr fn;
-        Error err = rt.add(&fn, &code);   // Add the generated code to the runtime.
-        if (err) {
-            cout << "jit code error " << err << endl;
-            error =  jit_error_compile;
-        }
-        else {
-            func->isjit = true;
-            func->jit_call = fn;
-            functions.push_back(fn);
-        }
-
-        func->compiling = false;
-        return error;
+    } else {
+        error = jit_error_compile;
     }
 
+    finish:
     func->compiling = false;
-    return jit_error_compile;
+    return error;
+}
+
+/*
+ * Very expensive procedure so use it sparingly
+ */
+void
+JitAssembler::checkSystemState(const Label &lbl_func_end, x86int_t pc, X86Assembler &assembler, Label &lbl_thread_chk) {
+    Label thread_check_end = assembler.newLabel();
+    threadStatusCheck(assembler, thread_check_end, lbl_thread_chk, pc);
+    assembler.bind(thread_check_end);
+    checkMasterShutdown(assembler, pc, lbl_func_end);
+}
+
+void JitAssembler::jitCast(Object *obj, x86int_t klass) {
+    try {
+        if(obj!=NULL) {
+            obj->castObject(klass);
+        } else {
+            Exception nptr(Environment::NullptrException, "");
+            __srt_cxx_prepare_throw(nptr);
+        }
+    }catch(Exception &e) {
+        __srt_cxx_prepare_throw(e);
+    }
+}
+
+void JitAssembler::jitCastVar(Object *obj, int array) {
+    if(obj!=NULL && obj->object != NULL) {
+        if(obj->object->HEAD == NULL) {
+            stringstream ss;
+            ss << "illegal cast to var" << (array ? "[]" : "");
+            Exception err(Environment::ClassCastException, ss.str());
+            __srt_cxx_prepare_throw(err);
+        }
+    } else {
+        Exception nptr(Environment::NullptrException, "");
+        __srt_cxx_prepare_throw(nptr);
+    }
 }
 
 // REMEMBER!!! dont forget to check state of used registers befote and after this call as they might be different than what they werr before

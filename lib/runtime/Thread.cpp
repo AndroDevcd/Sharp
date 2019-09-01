@@ -785,6 +785,7 @@ void Thread::exec() {
     ClassObject *klass;
     SharpObject* o=NULL;
     Method* f;
+    fptr jitFn;
     Object* o2=NULL;
     void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
     Method* finnallyMethod;
@@ -1025,7 +1026,9 @@ void Thread::exec() {
             tprof->hit(env->methods+GET_Da(*pc));
 #endif
                 CALLSTACK_CHECK
-                executeMethod(GET_Da(*pc), this);
+                if((jitFn = executeMethod(GET_Da(*pc), this)) != NULL) {
+                    jitFn(jctx);
+                }
                 THREAD_EXECEPT();
                 _brh_NOINCREMENT
             CALLD:
@@ -1038,7 +1041,9 @@ void Thread::exec() {
                     throw Exception(ss.str());
                 }
                 CALLSTACK_CHECK
-                executeMethod(val, this);
+                if((jitFn = executeMethod(val, this)) != NULL) {
+                    jitFn(jctx);
+                }
                 THREAD_EXECEPT();
                 _brh_NOINCREMENT
             NEWCLASS:

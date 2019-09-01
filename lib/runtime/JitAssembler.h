@@ -9,6 +9,7 @@
 
 #include "../util/jit/asmjit/src/asmjit/asmjit.h"
 #include "List.h"
+#include "oo/Object.h"
 
 using namespace asmjit;
 
@@ -52,7 +53,6 @@ public:
     void shutdown();
     int performInitialCompile();
     int tryJit(Method*);
-    static void jitSysInt(x86int_t signal);
 
 protected:
     void initialize();
@@ -71,7 +71,10 @@ private:
     static void __srt_cxx_prepare_throw(Exception &e);
     static SharpObject* jitNewObject(x86int_t size);
     static void jitSetObject0(SharpObject* o, StackElement *sp);
+    static void jitSysInt(x86int_t signal);
     static void test(x86int_t proc);
+    static void jitCast(Object *o2, x86int_t klass);
+    static void jitCastVar(Object *o2, int);
 
     virtual X86Mem getMemPtr(x86int_t addr) = 0;
     virtual X86Mem getMemPtr(X86Gp reg, x86int_t addr) = 0;
@@ -92,6 +95,7 @@ private:
     void checkMasterShutdown(X86Assembler &assembler, int64_t pc, const Label &lbl_funcend);
     void emitConstant(X86Assembler &assembler, Constants &cpool, double _const);
     void movRegister(X86Assembler &assembler, X86Xmm &vec, x86int_t addr, bool store = true);
+    void checkSystemState(const Label &lbl_func_end, x86int_t pc, X86Assembler &assembler, Label &lbl_thread_chk);
     FILE* getLogFile();
 
     JitRuntime rt;

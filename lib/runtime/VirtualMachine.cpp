@@ -184,6 +184,7 @@ int64_t executeSwitch(Thread* thread, int64_t constant) {
 void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t staticAddr) {
     SharpObject* o2 = staticAddr!=0 ? env->globalHeap[staticAddr].object :  (thread->sp-args)->object.object;
     ClassObject* klass;
+    fptr jitFn;
 
     if(o2!=NULL) {
         klass = o2->k;
@@ -192,7 +193,10 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t stati
             for (long i = 0; i < klass->methodCount; i++) {
                 if (env->methods[klass->methods[i]].delegateAddress == address) {
                     if((thread->calls+1) >= thread->stack_lmt) throw Exception(Environment::StackOverflowErr, "");
-                    executeMethod(env->methods[klass->methods[i]].address, thread);
+
+                    if((jitFn = executeMethod(env->methods[klass->methods[i]].address, thread)) != NULL) {
+                        jitFn(thread->jctx);
+                    }
                     return;
                 }
             }
@@ -245,7 +249,7 @@ bool returnMethod(Thread* thread) {
     return false;
 }
 
-void executeMethod(int64_t address, Thread* thread, bool inJit) {
+fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
 
     Method *method = env->methods+address;
     StackElement *equlizer=thread->sp-method->stackEqulizer;
@@ -287,10 +291,11 @@ void executeMethod(int64_t address, Thread* thread, bool inJit) {
         cout << "thread->signal=" << (int64_t)thread->signal << endl;
         cout << "thread->cache=" << (int64_t)thread->cache << endl;
         cout << std::flush;
-        method->jit_call(thread->jctx);
+        return method->jit_call;
     } else if(inJit || thread->calls==1) {
         thread->exec();
     }
+    return NULL;
 }
 
 void VirtualMachine::destroy() {
@@ -326,13 +331,16 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     thread_self->state = THREAD_RUNNING;
     thread_self->stbase = (int64_t)&arg;
     thread_self->stfloor = thread_self->stbase - thread_self->stack;
+    fptr jitFn;
 
     try {
         thread_self->setup();
         /*
          * Call main method
          */
-        executeMethod(thread_self->main->address, thread_self);
+        if((jitFn = executeMethod(thread_self->main->address, thread_self)) != NULL) {
+            jitFn(thread_self->jctx);
+        }
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();

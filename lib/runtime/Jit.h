@@ -13,6 +13,7 @@
 #define jit_error_mem      304           // not enough memory
 #define jit_error_max_attm 305           // maximum compile attempts reached
 #define jit_error_unsupp   306           // unsupported OS or processor
+#define jit_error_size     307           // the function trying to be compiled is too small
 #define jit_error_ok       0             // the result you want
 
 class Jit {

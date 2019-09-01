@@ -521,10 +521,26 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_register();
                 assembler.push_i64(SET_Di(i64, op_NEWARRAY, i2.high_bytes));
             } else if(instruction_is("cast")) {
-                expect("<");
-                expect_class();
-                expect(">");
+                if(current() == "<") {
+                    expect("<");
+                    expect_class();
+                    itmp = i2;
+                    expect(">");
+                    expect(",");
+                    expect_register();
+                    assembler.push_i64(SET_Di(i64, op_MOVI, itmp.high_bytes), i2.high_bytes);
+                } else
+                    expect_register();
+
                 assembler.push_i64(SET_Di(i64, op_CAST, i2.high_bytes));
+            } else if(instruction_is("var_cast")) {
+                i2.high_bytes = 0;
+                if(current() == "[") {
+                    expect("[");
+                    expect("]");
+                    i2.high_bytes = 1;
+                }
+                assembler.push_i64(SET_Di(i64, op_VARCAST, i2.high_bytes));
             } else if(instruction_is("mov8")) {
                 expect_register();
                 itmp = i2;
