@@ -138,7 +138,7 @@ int Process_Exe(std::string exe)
         manifest.classes += AUX_CLASSES;
         env->classes =(ClassObject*)malloc(sizeof(ClassObject)*manifest.classes);
         env->methods = (Method*)malloc(sizeof(Method)*manifest.methods);
-        env->strings = (String*)malloc(sizeof(String)*(manifest.strings+1));
+        env->strings = (runtime::String*)malloc(sizeof(runtime::String)*(manifest.strings+1));
         env->globalHeap = (Object*)malloc(sizeof(Object)*manifest.classes);
         env->sourceFiles = (native_string*)malloc(sizeof(native_string)*manifest.sourceFiles);
         env->strings[manifest.strings].value.init();

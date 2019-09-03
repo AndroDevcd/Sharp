@@ -5,11 +5,13 @@
 #ifndef SHARP_JITASSEMBLER_H
 #define SHARP_JITASSEMBLER_H
 
-#define ASMJIT_EMBED 1
+#define ASMJIT_BUILD_X86  1
+#define ASMJIT_STATIC   1
 
 #include "../util/jit/asmjit/src/asmjit/asmjit.h"
 #include "List.h"
 #include "oo/Object.h"
+#include "../../stdimports.h"
 
 using namespace asmjit;
 
@@ -28,11 +30,22 @@ struct jit_context {
 
 typedef void (*fptr)(jit_context *);
 
-#ifdef ASMJIT_ARCH_X64
+enum os {
+    win=0x0ffa,
+    linux=0x0ffb,
+};
+
+#if ASMJIT_ARCH_BITS == 64
 typedef int64_t x86int_t;
 #else
-#define ASMJIT_ARCH_X86
 typedef int32_t x86int_t;
+#endif
+
+#ifdef WIN32_
+#define OS_id win
+#endif
+#ifdef POSIX_
+#define OS_id linux
 #endif
 
 // Jit helper macros
@@ -57,13 +70,14 @@ public:
 protected:
     void initialize();
 
-    X86Gp ctx, ctx32;                  // total registers used in jit
-    X86Gp tmp, tmp32, value;
-    X86Gp fnPtr, arg;
-    X86Gp regPtr, threadPtr;
-    X86Gp bp, sp;
+    x86::Gp ctx, ctx32;                  // total registers used in jit
+    x86::Gp tmp, tmp32, tmp16, tmp8;
+    x86::Gp value;
+    x86::Gp fnPtr, arg;
+    x86::Gp regPtr, threadPtr;
+    x86::Gp bp, sp;
 
-    X86Xmm vec0, vec1;          // floating point registers
+    x86::Xmm vec0, vec1;          // floating point registers
 
 private:
     static int jitTryCatch(Method *method);
@@ -75,10 +89,11 @@ private:
     static void test(x86int_t proc);
     static void jitCast(Object *o2, x86int_t klass);
     static void jitCastVar(Object *o2, int);
+    static void jit64BitCast(x86int_t,x86int_t);
 
-    virtual X86Mem getMemPtr(x86int_t addr) = 0;
-    virtual X86Mem getMemPtr(X86Gp reg, x86int_t addr) = 0;
-    virtual X86Mem getMemPtr(X86Gp reg) = 0;
+    virtual x86::Mem getMemPtr(x86int_t addr) = 0;
+    virtual x86::Mem getMemPtr(x86::Gp reg, x86int_t addr) = 0;
+    virtual x86::Mem getMemPtr(x86::Gp reg) = 0;
     virtual x86int_t getRegisterSize() = 0;
     virtual void initializeRegisters() = 0;
 
@@ -89,23 +104,23 @@ private:
     void setupMethodFields();
     void setupSharpObjectFields();
     int compile(Method*);
-    void incPc(X86Assembler &assembler);
-    void updatePc(X86Assembler &assembler);
-    void threadStatusCheck(X86Assembler &assembler, Label &retLbl, Label &lbl_thread_sec, x86int_t irAddr);
-    void checkMasterShutdown(X86Assembler &assembler, int64_t pc, const Label &lbl_funcend);
-    void emitConstant(X86Assembler &assembler, Constants &cpool, double _const);
-    void movRegister(X86Assembler &assembler, X86Xmm &vec, x86int_t addr, bool store = true);
-    void checkSystemState(const Label &lbl_func_end, x86int_t pc, X86Assembler &assembler, Label &lbl_thread_chk);
+    void incPc(x86::Assembler &assembler);
+    void updatePc(x86::Assembler &assembler);
+    void threadStatusCheck(x86::Assembler &assembler, Label &retLbl, Label &lbl_thread_sec, x86int_t irAddr);
+    void checkMasterShutdown(x86::Assembler &assembler, int64_t pc, const Label &lbl_funcend);
+    void emitConstant(x86::Assembler &assembler, Constants &cpool, x86::Xmm xmm, double _const);
+    void movRegister(x86::Assembler &assembler, x86::Xmm &vec, x86int_t addr, bool store = true);
+    void checkSystemState(const Label &lbl_func_end, x86int_t pc, x86::Assembler &assembler, Label &lbl_thread_chk);
     FILE* getLogFile();
 
     JitRuntime rt;
     _List<fptr> functions;
-    X86Mem Ljit_context[3];     // memory layout of struct jit_context {}
-    X86Mem Lthread[13];         // memory layout of class Thread {}
-    X86Mem Lstack_element[2];   // memory layout of struct StackElement {}
-    X86Mem Lframe[4];           // memory layout of struct Frame {}
-    X86Mem Lmethod[1];          // memory layout of struct Method {}
-    X86Mem Lsharp_object[4];    // memory layout of struct SharpObject {}
+    x86::Mem Ljit_context[3];     // memory layout of struct jit_context {}
+    x86::Mem Lthread[13];         // memory layout of class Thread {}
+    x86::Mem Lstack_element[2];   // memory layout of struct StackElement {}
+    x86::Mem Lframe[4];           // memory layout of struct Frame {}
+    x86::Mem Lmethod[1];          // memory layout of struct Method {}
+    x86::Mem Lsharp_object[4];    // memory layout of struct SharpObject {}
 };
 
 enum ConstKind {
@@ -130,7 +145,7 @@ struct Constants {
         constantLabels.free();
     }
 
-    x86int_t createConstant(X86Assembler& cc, x86int_t const0) {
+    x86int_t createConstant(x86::Assembler& cc, x86int_t const0) {
         x86int_t idx = _64ConstIndex(const0);
 
         if(idx == -1) {
@@ -145,7 +160,7 @@ struct Constants {
         return idx;
     }
 
-    x86int_t createConstant(X86Assembler& cc, double const0) {
+    x86int_t createConstant(x86::Assembler& cc, double const0) {
         x86int_t idx = _floatConstIndex(const0);
 
         if(idx == -1) {
@@ -199,7 +214,7 @@ struct Constants {
         return constantLabels.get(idx);
     }
 
-    void emitConstants(X86Assembler& cc) {
+    void emitConstants(x86::Assembler& cc) {
 
         for(x86int_t i = 0; i < constantLabels.size(); i++) {
             cc.bind(constantLabels.get(i));

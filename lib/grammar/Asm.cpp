@@ -589,7 +589,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect(",");
                 expect_register();
 
-                assembler.push_i64(SET_Ci(i64, op_MOV32, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+                assembler.push_i64(SET_Ci(i64, op_MOVU32, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
             } else if(instruction_is("movu64")) {
                 expect_register();
                 itmp = i2;

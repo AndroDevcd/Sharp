@@ -135,12 +135,12 @@ int JitAssembler::compile(Method *func) {
                 std::memset(func->jit_labels, 0, sizeof(x86int_t)*func->cacheSize);
 
             CodeHolder code;
-            code.init(rt.getCodeInfo());
+            code.init(rt.codeInfo());
 
             FileLogger logger(getLogFile());
             code.setLogger(&logger);                // Initialize logger temporarily to ensure quality of code
 
-            X86Assembler assembler(&code);                  // Create and attach X86Assembler to `code`.
+            x86::Assembler assembler(&code);                  // Create and attach x86::Assembler to `code`.
             Constants constant_pool;
 
             string msg = "; method " + func->fullName.str() + "\n";
@@ -171,10 +171,10 @@ int JitAssembler::compile(Method *func) {
                 labels[i] = assembler.newLabel();
             }
 
-            X86Mem ctxPtr = getMemPtr(bp, -(paddr));              // store memory location of ctx pointer in the stack
-            X86Mem o2Ptr = getMemPtr(bp, -(o2addr));              // store memory location of o2 pointer in the stack
-            X86Mem labelsPtr = getMemPtr(bp, -(laddr));           // store memory location of labels* pointer in the stack
-            X86Mem tmpInt = getMemPtr(bp, -(tmpIntaddr));           // store memory location of tmiInt for temporary stored integers in the stack
+            x86::Mem ctxPtr = getMemPtr(bp, -(paddr));              // store memory location of ctx pointer in the stack
+            x86::Mem o2Ptr = getMemPtr(bp, -(o2addr));              // store memory location of o2 pointer in the stack
+            x86::Mem labelsPtr = getMemPtr(bp, -(laddr));           // store memory location of labels* pointer in the stack
+            x86::Mem tmpInt = getMemPtr(bp, -(tmpIntaddr));           // store memory location of tmiInt for temporary stored integers in the stack
 
             assembler.mov(ctxPtr, ctx);                           // send ctx to stack from ctx register via [ESP + paddr].
 
@@ -200,7 +200,7 @@ int JitAssembler::compile(Method *func) {
 
             assembler.mov(labelsPtr, ctx);
 
-            X86Mem tmp_ptr = getMemPtr(ctx, 0);
+            x86::Mem tmp_ptr = getMemPtr(ctx, 0);
             assembler.mov(ctx, tmp_ptr);                    // if(ctx->func->jit_labels[0]==0)
             assembler.test(ctx, ctx);                       //      goto lbl_;
             assembler.jne(lbl_code_start);
@@ -210,7 +210,7 @@ int JitAssembler::compile(Method *func) {
 
 
             x86int_t ir, irTail;
-            X86Mem lconstMem, tmpMem;
+            x86::Mem lconstMem, tmpMem;
             for(x86int_t i = 0; i < func->cacheSize; i++) {
                 if (error) break;
                 ir = func->bytecode[i];
@@ -240,7 +240,7 @@ int JitAssembler::compile(Method *func) {
                         x86int_t num = GET_Da(ir);
                         i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
 
-                        emitConstant(assembler, constant_pool, num);
+                        emitConstant(assembler, constant_pool, vec0, num);
                         movRegister(assembler, vec0, irTail);
                         break;
                     }
@@ -292,6 +292,75 @@ int JitAssembler::compile(Method *func) {
                         checkSystemState(lbl_func_end, i, assembler, lbl_thread_chk);
                         break;
                     }
+                    case op_MOV8: {
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+                        assembler.movsx(tmp32, tmp8);
+                        assembler.cvtsi2sd(vec0, tmp16);
+
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        break;
+                    }
+                    case op_MOV16: {
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+                        assembler.cwde();
+                        assembler.cvtsi2sd(vec0, tmp16);
+
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        break;
+                    }
+                    case op_MOV32:
+                    case op_MOV64: {
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+
+                        if(is_op(ir, op_MOV32)) {
+                            assembler.cvttsd2si(tmp, vec0); // double to int
+                            assembler.mov(tmp, tmp32); // set lower 32 bits
+                            assembler.cvtsi2sd(vec0, tmp32);
+                        }
+
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        break;
+                    }
+                    case op_MOVU8: {
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+                        assembler.movzx(tmp, tmp8); // set lower 32 bits
+                        assembler.cvtsi2sd(vec0, tmp);
+
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        break;
+                    }
+                    case op_MOVU16: {
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+                        assembler.movzx(tmp, tmp16); // set lower 32 bits
+                        assembler.cvtsi2sd(vec0, tmp);
+
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        break;
+                    }
+                    case op_MOVU32: { // broken
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+                        assembler.mov(ctx32, tmp32);
+                        assembler.cvtsi2sd(vec0, ctx);
+
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        break;
+                    }
+                    case op_MOVU64: {
+                        assembler.mov(ctx, GET_Ca(ir));
+                        assembler.mov(value, GET_Cb(ir));
+                        assembler.call((int64_t)JitAssembler::jit64BitCast);
+                        break;
+                    }
                     default: {
                         assembler.nop();                    // by far one of the easiest instructions yet
                         break;
@@ -312,8 +381,8 @@ int JitAssembler::compile(Method *func) {
             // labeles[] setting here
             assembler.comment("; setting label values", 22);
             assembler.mov(tmp, labelsPtr);
-            X86Mem ptrIdx = getMemPtr(tmp);
-            X86Mem lbl;
+            x86::Mem ptrIdx = getMemPtr(tmp);
+            x86::Mem lbl;
             for(int64_t i = 0; i < func->cacheSize; i++) {
                 lbl = x86::ptr(labels[i]);
                 assembler.lea(ctx, lbl);
@@ -431,7 +500,7 @@ int JitAssembler::compile(Method *func) {
  * Very expensive procedure so use it sparingly
  */
 void
-JitAssembler::checkSystemState(const Label &lbl_func_end, x86int_t pc, X86Assembler &assembler, Label &lbl_thread_chk) {
+JitAssembler::checkSystemState(const Label &lbl_func_end, x86int_t pc, x86::Assembler &assembler, Label &lbl_thread_chk) {
     Label thread_check_end = assembler.newLabel();
     threadStatusCheck(assembler, thread_check_end, lbl_thread_chk, pc);
     assembler.bind(thread_check_end);
@@ -470,17 +539,22 @@ void JitAssembler::test(x86int_t proc) {
     cout << "register ebx" << registers[i64ebx] << endl << std::flush;
 }
 
-void JitAssembler::emitConstant(X86Assembler &assembler, Constants &cpool, double _const) {
+// had a hard time with this one so willl do this for now
+void JitAssembler::jit64BitCast(x86int_t dest, x86int_t src) {
+    registers[dest] = (int64_t)registers[src];
+}
+
+void JitAssembler::emitConstant(x86::Assembler &assembler, Constants &cpool, x86::Xmm xmm, double _const) {
     if(_const == 0) {
-        assembler.pxor(vec0, vec0);
+        assembler.pxor(xmm, xmm);
     } else { \
         x86int_t idx = cpool.createConstant(assembler, _const);
-        X86Mem lconst = x86::ptr(cpool.getConstantLabel(idx));
-        assembler.movsd(vec0, lconst);
+        x86::Mem lconst = x86::ptr(cpool.getConstantLabel(idx));
+        assembler.movsd(xmm, lconst);
     }
 }
 
-void JitAssembler::movRegister(X86Assembler &assembler, X86Xmm &vec, x86int_t addr, bool store) {
+void JitAssembler::movRegister(x86::Assembler &assembler, x86::Xmm &vec, x86int_t addr, bool store) {
     assembler.mov(ctx, regPtr);        // move the contex var into register
     if(addr != 0) {
         assembler.add(ctx, (int64_t )(sizeof(double) * addr));
@@ -492,7 +566,7 @@ void JitAssembler::movRegister(X86Assembler &assembler, X86Xmm &vec, x86int_t ad
         assembler.movsd(vec, x86::qword_ptr(ctx)); // get value from register
 }
 
-void JitAssembler::checkMasterShutdown(X86Assembler &assembler, int64_t pc, const Label &lbl_funcend) {
+void JitAssembler::checkMasterShutdown(x86::Assembler &assembler, int64_t pc, const Label &lbl_funcend) {
     using namespace asmjit::x86;
 
     assembler.movzx(ctx32, (x86int_t)&masterShutdown);
@@ -537,7 +611,7 @@ void JitAssembler::__srt_cxx_prepare_throw(Exception &e) {
 }
 
 void
-JitAssembler::threadStatusCheck(X86Assembler &assembler, Label &retLbl, Label &lbl_thread_sec, x86int_t irAddr) {
+JitAssembler::threadStatusCheck(x86::Assembler &assembler, Label &retLbl, Label &lbl_thread_sec, x86int_t irAddr) {
     assembler.lea(fnPtr, x86::ptr(retLbl)); // set return addr
 
     assembler.mov(arg, irAddr);             // set PC index
@@ -554,7 +628,7 @@ JitAssembler::threadStatusCheck(X86Assembler &assembler, Label &retLbl, Label &l
  * This will simply update the pc to whatever opcode index you specify.
  * @param assembler
  */
-void JitAssembler::updatePc(X86Assembler &assembler) {
+void JitAssembler::updatePc(x86::Assembler &assembler) {
     assembler.mov(ctx, threadPtr);
     assembler.mov(tmp, Lthread[thread_cache]);
     assembler.imul(arg, (size_t)sizeof(x86int_t));
@@ -570,7 +644,7 @@ int JitAssembler::jitTryCatch(Method *method) {
     return vm->TryCatch(method, &thread_self->exceptionObject) ? 1 : 0;
 }
 
-void JitAssembler::incPc(X86Assembler &assembler) {
+void JitAssembler::incPc(x86::Assembler &assembler) {
     assembler.mov(ctx, threadPtr);                       // increment PC from thread
     assembler.mov(value, Lthread[thread_pc]);
     assembler.lea(value, x86::ptr(value, sizeof(int64_t)));

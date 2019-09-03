@@ -51,7 +51,7 @@ public:
     ClassObject* classes;
 
     native_string* sourceFiles;
-    String* strings;
+    runtime::String* strings;
     Method* methods;
 #ifdef WIN32_
     Gui* gui;

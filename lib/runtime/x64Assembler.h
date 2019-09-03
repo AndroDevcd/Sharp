@@ -17,9 +17,9 @@ public:
     }
 
 private:
-    X86Mem getMemPtr(x86int_t addr) override ;
-    X86Mem getMemPtr(X86Gp reg, x86int_t addr) override ;
-    X86Mem getMemPtr(X86Gp reg) override ;
+    x86::Mem getMemPtr(x86int_t addr) override ;
+    x86::Mem getMemPtr(x86::Gp reg, x86int_t addr) override ;
+    x86::Mem getMemPtr(x86::Gp reg) override ;
     x86int_t getRegisterSize() override ;
     void initializeRegisters() override ;
 };

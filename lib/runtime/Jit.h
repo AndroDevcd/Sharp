@@ -25,9 +25,9 @@ public:
     {
         messageQueue.init();
 
-        if (ASMJIT_ARCH_X64) {
+        if (ASMJIT_ARCH_BITS == 64) {
             // currently only running on windows
-            if(static_cast<bool>(ASMJIT_OS_WINDOWS)) {
+            if(OS_id==win) {
                 x64Asm = new x64Assembler();
             } else
                 error = jit_error_unsupp;

@@ -37,8 +37,8 @@ else()
             "lib/util/jit/asmjit/src/asmjit/*.h"
             "lib/util/jit/asmjit/src/asmjit/x86/*.h"
             "lib/util/jit/asmjit/src/asmjit/x86/*.cpp"
-            "lib/util/jit/asmjit/src/asmjit/base/*.h"
-            "lib/util/jit/asmjit/src/asmjit/base/*.cpp"
+            "lib/util/jit/asmjit/src/asmjit/core/*.h"
+            "lib/util/jit/asmjit/src/asmjit/core/*.cpp"
             "lib/runtime/jit.cpp.old"
             "lib/runtime/jit.h.old"
     )

@@ -15,6 +15,8 @@ void x64Assembler::initializeRegisters() {
 
     tmp       = rax;        // tmp acts as a return value from functions
     tmp32     = eax;
+    tmp16     = ax;
+    tmp8      = al;
     value     = rdx;        // value acts as the second argument for function params
     fnPtr     = r12;       // registers fnPtr, arg, regPtr, & threadPtr are non volitile and do not have to be saved
     arg       = r13;
@@ -32,15 +34,15 @@ void x64Assembler::initializeRegisters() {
     /* Argument registers are as follows for Windows: (ctx, value) */
 }
 
-X86Mem x64Assembler::getMemPtr(x86int_t addr) {
+x86::Mem x64Assembler::getMemPtr(x86int_t addr) {
     return x86::qword_ptr(ctx, addr);
 }
 
-X86Mem x64Assembler::getMemPtr(X86Gp reg, x86int_t addr) {
+x86::Mem x64Assembler::getMemPtr(x86::Gp reg, x86int_t addr) {
     return x86::qword_ptr(reg, addr);
 }
 
-X86Mem x64Assembler::getMemPtr(X86Gp reg) {
+x86::Mem x64Assembler::getMemPtr(x86::Gp reg) {
     return x86::qword_ptr(reg);
 }
 
