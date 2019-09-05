@@ -339,6 +339,10 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
          * Call main method
          */
         if((jitFn = executeMethod(thread_self->main->address, thread_self)) != NULL) {
+            cout << "sp " << (long long)thread_self->sp << " -1 = ";
+            thread_self->sp--;
+            cout << (long long)(thread_self->sp) << endl;
+            thread_self->sp++;
             jitFn(thread_self->jctx);
         }
     } catch (Exception &e) {

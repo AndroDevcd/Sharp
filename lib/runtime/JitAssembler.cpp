@@ -361,6 +361,144 @@ int JitAssembler::compile(Method *func) {
                         assembler.call((int64_t)JitAssembler::jit64BitCast);
                         break;
                     }
+                    case op_RSTORE: {
+                        movRegister(assembler, vec0, GET_Da(ir), false);
+                        assembler.mov(ctx, threadPtr);
+                        assembler.add(Lthread[thread_sp], (int64_t)sizeof(StackElement));
+                        assembler.mov(tmp, Lthread[thread_sp]);
+                        assembler.movsd(getMemPtr(tmp), vec0);
+                        break;
+                    }
+                    case op_ADD: {
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        movRegister(assembler, vec1, GET_Cb(ir), false);
+                        assembler.addsd(vec0, vec1);
+
+                        i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
+                        movRegister(assembler, vec0, irTail);
+                        break;
+                    }
+                    case op_SUB: {
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        movRegister(assembler, vec1, GET_Cb(ir), false);
+                        assembler.subsd(vec0, vec1);
+
+                        i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
+                        movRegister(assembler, vec0, irTail);
+                        break;
+                    }
+                    case op_MUL: {
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        movRegister(assembler, vec1, GET_Cb(ir), false);
+                        assembler.mulsd(vec0, vec1);
+
+                        i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
+                        movRegister(assembler, vec0, irTail);
+                        break;
+                    }
+                    case op_DIV: {
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        movRegister(assembler, vec1, GET_Cb(ir), false);
+                        assembler.divsd(vec0, vec1);
+
+                        i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
+                        movRegister(assembler, vec0, irTail);
+                        break;
+                    }
+                    case op_MOD: {
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        assembler.cvttsd2si(assembler.zax(), vec0); // double to int
+
+                        movRegister(assembler, vec1, GET_Cb(ir), false);
+                        assembler.cvttsd2si(assembler.zcx(), vec1); // double to int
+
+                        assembler.cqo();
+                        assembler.idiv(assembler.zcx());
+                        assembler.mov(assembler.zax(), assembler.zdx());
+                        assembler.cvtsi2sd(vec0, assembler.zax());
+
+                        i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
+                        movRegister(assembler, vec0, irTail);
+                        break;
+                    }
+                    case op_IADD: { // registers[GET_Ca(*pc)]+=GET_Cb(*pc);
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+
+                        emitConstant(assembler, constant_pool, vec1, GET_Cb(ir));
+                        assembler.addsd(vec1, vec0);
+                        movRegister(assembler, vec1, GET_Ca(ir));
+                        break;
+                    }
+                    case op_ISUB: { // registers[GET_Ca(*pc)]+=GET_Cb(*pc);
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+
+                        emitConstant(assembler, constant_pool, vec1, GET_Cb(ir));
+                        assembler.subsd(vec1, vec0);
+                        movRegister(assembler, vec1, GET_Ca(ir));
+                        break;
+                    }
+                    case op_IMUL: { // registers[GET_Ca(*pc)]+=GET_Cb(*pc);
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+
+                        emitConstant(assembler, constant_pool, vec1, GET_Cb(ir));
+                        assembler.mulsd(vec1, vec0);
+                        movRegister(assembler, vec1, GET_Ca(ir));
+                        break;
+                    }
+                    case op_IDIV: { // registers[GET_Ca(*pc)]+=GET_Cb(*pc);
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+
+                        emitConstant(assembler, constant_pool, vec1, GET_Cb(ir));
+                        assembler.divsd(vec1, vec0);
+                        movRegister(assembler, vec1, GET_Ca(ir));
+                        break;
+                    }
+                    case op_IMOD: {
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        assembler.cvttsd2si(assembler.zax(), vec0); // double to int
+
+                        emitConstant(assembler, constant_pool, vec1, GET_Cb(ir));
+                        assembler.cvttsd2si(assembler.zcx(), vec1); // double to int
+
+                        assembler.cqo();
+                        assembler.idiv(assembler.zcx());
+                        assembler.mov(assembler.zax(), assembler.zdx());
+                        assembler.cvtsi2sd(vec0, assembler.zax());
+
+                        i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        break;
+                    }
+                    case op_POP: {// --sp;
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(tmp, Lthread[thread_sp]);
+                        assembler.lea(tmp, x86::ptr(tmp, -((int64_t)sizeof(StackElement))));
+                        assembler.mov(Lthread[thread_sp], tmp);
+                        break;
+                    }
+                    case op_INC: { // registers[GET_Da(*pc)]++;
+                        movRegister(assembler, vec0, GET_Da(ir), false);
+
+                        emitConstant(assembler, constant_pool, vec1, 1);
+                        assembler.addsd(vec1, vec0);
+
+                        movRegister(assembler, vec1, GET_Da(ir));
+                        break;
+                    }
+                    case op_DEC: { // registers[GET_Da(*pc)]--;
+                        movRegister(assembler, vec0, GET_Da(ir), false);
+
+                        emitConstant(assembler, constant_pool, vec1, 1);
+                        assembler.subsd(vec1, vec0);
+
+                        movRegister(assembler, vec1, GET_Da(ir));
+                        break;
+                    }
+                    case op_MOVR: { // registers[GET_Ca(*pc)]=registers[GET_Cb(*pc)];
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        break;
+                    }
                     default: {
                         assembler.nop();                    // by far one of the easiest instructions yet
                         break;
@@ -536,10 +674,10 @@ void JitAssembler::jitCastVar(Object *obj, int array) {
 
 // REMEMBER!!! dont forget to check state of used registers befote and after this call as they might be different than what they werr before
 void JitAssembler::test(x86int_t proc) {
-    cout << "register ebx" << registers[i64ebx] << endl << std::flush;
+    cout << "ebx " << registers[i64ebx] << endl << std::flush;
 }
 
-// had a hard time with this one so willl do this for now
+// had a hard time with this one so will do this for now
 void JitAssembler::jit64BitCast(x86int_t dest, x86int_t src) {
     registers[dest] = (int64_t)registers[src];
 }
