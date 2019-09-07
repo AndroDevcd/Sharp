@@ -162,7 +162,7 @@ int JitAssembler::compile(Method *func) {
             int ptrSize      = sizeof(jit_context*), paddr = storedRegs + ptrSize;
             int labelsSize   = sizeof(x86int_t*), laddr = paddr + labelsSize;
             int o2Size       = sizeof(Object*), o2addr = laddr + o2Size;
-            int tmpIntSize       = sizeof(x86int_t), tmpIntaddr = o2addr + tmpIntSize;
+            int tmpIntSize   = sizeof(x86int_t), tmpIntaddr = o2addr + tmpIntSize; // NOTE: make sure the stack is alligned to 16 bits if I add or subtract a stack variable
             x86int_t stackSize = ptrSize + labelsSize + o2Size + tmpIntSize + 0x80; // 0x80 128 byte red zone for stack information
             assembler.sub(sp, (stackSize));
 
@@ -499,6 +499,122 @@ int JitAssembler::compile(Method *func) {
                         movRegister(assembler, vec0, GET_Ca(ir));
                         break;
                     }
+                    case op_BRH: { //  pc=cache+(int64_t)registers[i64adx];
+                        movRegister(assembler, vec0, i64adx, false);
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+
+                        jmpToLabel(assembler, tmp, value, labelsPtr);
+                        break;
+                    }
+                    case op_IFNE:
+                    case op_IFE: {
+                        Label ifTrue = assembler.newLabel();
+                        movRegister(assembler, vec0, i64cmt, false);
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+                        assembler.cmp(tmp, 0);
+                        if(is_op(ir, op_IFE))
+                            assembler.je(ifTrue);
+                        else
+                            assembler.jne(ifTrue);
+
+                        movRegister(assembler, vec0, i64adx, false);
+                        assembler.cvttsd2si(value, vec0); // double to int
+
+                        jmpToLabel(assembler, value, tmp, labelsPtr);
+                        assembler.bind(ifTrue);
+                        break;
+                    }
+                    case op_ISTOREL: {              // (fp+GET_Da(*pc))->var = *(pc+1);
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_fp]);
+
+                        if(GET_Da(ir) != 0) {
+                            assembler.add(ctx, (x86int_t)(sizeof(StackElement) * GET_Da(ir)));
+                        }
+
+                        i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
+                        emitConstant(assembler, constant_pool, vec0, irTail);
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
+                    case op_LOADL: {                   // registers[GET_Ca(*pc)]=(fp+GET_Cb(*pc))->var;
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_fp]);
+                        if(GET_Cb(ir) != 0) {
+                            assembler.add(ctx, (x86int_t )(sizeof(StackElement) * GET_Cb(ir)));
+                        }
+
+                        assembler.movsd(vec0, Lstack_element[stack_element_var]);
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        break;
+                    }
+                    case op_JNE:
+                    case op_JE: { // if(registers[i64cmt]==0) { pc=cache+GET_Da(*pc); _brh_NOINCREMENT }
+                        tmpMem = qword_ptr(regPtr, (int64_t )(sizeof(double) * i64cmt));
+                        assembler.pxor(vec0, vec0);
+                        assembler.ucomisd(vec0, tmpMem);
+                        Label ifEnd = assembler.newLabel();
+                        assembler.jp(ifEnd);
+                        if(is_op(ir, op_JNE))
+                            assembler.jne(ifEnd);
+                        else
+                            assembler.je(ifEnd);
+                        assembler.jmp(labels[GET_Da(ir)]);
+
+                        assembler.bind(ifEnd);
+
+                        break;
+                    }
+                    case op_IADDL: {                        // (fp+GET_Cb(*pc))->var+=GET_Ca(*pc);
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_fp]);
+                        if(GET_Cb(ir) != 0) {
+                            assembler.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(ir)));
+                        }
+
+                        assembler.movsd(vec1, getMemPtr(ctx));
+                        emitConstant(assembler, constant_pool, vec0, GET_Ca(ir));
+                        assembler.addsd(vec0, vec1);
+
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
+                    case op_ADDL: {                        // (fp+GET_Cb(*pc))->var+=registers[GET_Ca(*pc)];
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_fp]);
+                        if(GET_Cb(ir) != 0) {
+                            assembler.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(ir)));
+                        }
+
+                        assembler.mov(tmp, ctx);
+                        assembler.movsd(vec1, getMemPtr(ctx));
+
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        assembler.addsd(vec0, vec1);
+                        assembler.mov(ctx, tmp);
+
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
+                    case op_LT: {                     // registers[i64cmt]=registers[GET_Ca(*pc)]<registers[GET_Cb(*pc)];
+
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+                        assembler.comisd(vec0, vec1);
+
+                        Label ifFalse = assembler.newLabel();
+                        Label ifEnd = assembler.newLabel();
+                        assembler.jbe(ifFalse);
+                        emitConstant(assembler, constant_pool, vec0, 1);
+                        assembler.jmp(ifEnd);
+                        assembler.bind(ifFalse);
+
+                        assembler.pxor(vec0, vec0);
+                        assembler.bind(ifEnd);
+
+                        movRegister(assembler, vec0, i64cmt);
+                        break;
+                    }
                     default: {
                         assembler.nop();                    // by far one of the easiest instructions yet
                         break;
@@ -506,6 +622,7 @@ int JitAssembler::compile(Method *func) {
                 }
 
                 assembler.nop(); // instruction differentation for now
+                assembler.nop();
                 assembler.nop();
                 assembler.nop();
                 assembler.nop();
@@ -674,7 +791,7 @@ void JitAssembler::jitCastVar(Object *obj, int array) {
 
 // REMEMBER!!! dont forget to check state of used registers befote and after this call as they might be different than what they werr before
 void JitAssembler::test(x86int_t proc) {
-    cout << "ebx " << registers[i64ebx] << endl << std::flush;
+    cout << "fp+3->var " << (thread_self->fp+3)->var << endl << std::flush;
 }
 
 // had a hard time with this one so will do this for now
@@ -690,6 +807,21 @@ void JitAssembler::emitConstant(x86::Assembler &assembler, Constants &cpool, x86
         x86::Mem lconst = x86::ptr(cpool.getConstantLabel(idx));
         assembler.movsd(xmm, lconst);
     }
+}
+
+void JitAssembler::jmpToLabel(x86::Assembler &assembler, const x86::Gp &idx, const x86::Gp &dest, x86::Mem &labelsPtr) {
+using namespace asmjit::x86;
+
+assembler.mov(dest, labelsPtr);      // were just using these registers because we can, makes life so much easier
+assembler.cmp(idx, 0);
+Label ifTrue = assembler.newLabel();
+assembler.je(ifTrue);
+assembler.imul(idx, (size_t)sizeof(x86int_t));      // offset = labelAddr*sizeof(int64_t)
+assembler.add(dest, idx);
+assembler.bind(ifTrue);
+
+assembler.mov(dest, x86::ptr(dest));
+assembler.jmp(dest);
 }
 
 void JitAssembler::movRegister(x86::Assembler &assembler, x86::Xmm &vec, x86int_t addr, bool store) {

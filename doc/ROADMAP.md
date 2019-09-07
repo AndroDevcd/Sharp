@@ -10,7 +10,7 @@
     - import std.*; imports all of the standard library
 - Add functionality for AOT Compiler for functions and Inject them directly in the exe
 - Have automatic lookup for enums
-- Allow for expression in first argument of for loop --done
+- Allow for expression in first argument of for loop --`done`
 - Add asm volatile() argument to allow optimzer to modify the injected code
 - standard asm() code will not be modified by compiler unlexss there needs to be a
   address readjustment due to code being removed above the asm() block
@@ -18,7 +18,7 @@ from changing the source code
 - Limit naming of declirations such as fields named as methods or classes
 - Figure out weird bug with Unixfile system processing char when normalizing file path
 - remove static call functionality for delegate functions
-- Add support for inline anaonymous functions -- done
+- Add support for inline anaonymous functions -- `done`
     - Syntax:
 ```javascript
 def foo() {

@@ -196,7 +196,7 @@ int _bootstrap(int argc, const char* argv[])
                 rt_error("invalid error limit set " + lmt);
             }
         }
-        else if(opt("-objdmp")){
+        else if(opt("-objdmp") || opt("-d")){
             c_options.objDump = true;
         }
         else if(string(argv[i]).at(0) == '-'){
@@ -307,7 +307,7 @@ void help() {
     cout <<               "    -errlmt<count>    set max errors the compiler allows before quitting"    << endl;
     cout <<               "    -v<version>       set the application version"                           << endl;
     cout <<               "    -unsafe -u        allow unsafe code"                                     << endl;
-    cout <<               "    -objdmp           create dump file for generated assembly"               << endl;
+    cout <<               "    -objdmp -d        create dump file for generated assembly"               << endl;
     cout <<               "    -target           target the specified platform of sharp to run on"      << endl;
     cout <<               "    -release -r       generate a release build exe"                          << endl;
     cout <<               "    --hw              display help message for warning options"              << endl;
@@ -8717,7 +8717,13 @@ void RuntimeEngine::generate() {
     {
         Method* method = allMethods.get(i);
 
-        if(method->code.size() == 0 || GET_OP(method->code.__asm64.last()) != op_RET) {
+        if(method->code.size() == 0 || GET_OP(method->code.__asm64.last()) != op_RET || (GET_OP(method->code.__asm64.last()) == op_RET && method->code.size() > 1)) {
+            if(method->code.size() > 1 && GET_OP(method->code.__asm64.last()) != op_RET) {
+                if(GET_OP(method->code.__asm64.get(method->code.size()-2)) != op_MOVI) {
+                    continue;
+                }
+            }
+
             if(method->isConstructor) {
                 method->code.push_i64(SET_Di(i64, op_MOVL, 0));
                 method->code.push_i64(SET_Ei(i64, op_RETURNOBJ));

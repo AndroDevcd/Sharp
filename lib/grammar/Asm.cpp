@@ -1153,7 +1153,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect(",");
                 expect_int();
 
-                assembler.push_i64(SET_Di(i64, op_ISTORE, itmp.high_bytes), i2.high_bytes);
+                assembler.push_i64(SET_Di(i64, op_ISTOREL, itmp.high_bytes), i2.high_bytes);
             } else if(instruction_is("pushnil")) {
                 assembler.push_i64(SET_Ei(i64, op_PUSHNIL));
             } else if(instruction_is("ipushl")) {

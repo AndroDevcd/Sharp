@@ -30,6 +30,7 @@ from the older version with the updated runtime system and vise versa. Any other
         * Function pointers were not allowed to be created at global scope or local scope
         * `thread_local` will now be allowed on function pointers
         * Function pointers should now properly work on generic classes
+        * Fixed several errors in the Sharp compiler assembler for writing inline assembly
 
     # QoL Improvements
         * Updated the Assembler to allow for high level assembly programming with the newly added instructions

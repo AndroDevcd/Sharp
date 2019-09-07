@@ -43,8 +43,8 @@ public class Runtime {
 
     public static def __srt_init_(object[] args) : var {
         asm(
+            "istorel 3,#445"
             "movi #5, %ebx"
-            "inc %ebx"
         );
     }
 

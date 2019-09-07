@@ -111,6 +111,7 @@ private:
     void emitConstant(x86::Assembler &assembler, Constants &cpool, x86::Xmm xmm, double _const);
     void movRegister(x86::Assembler &assembler, x86::Xmm &vec, x86int_t addr, bool store = true);
     void checkSystemState(const Label &lbl_func_end, x86int_t pc, x86::Assembler &assembler, Label &lbl_thread_chk);
+    void jmpToLabel(x86::Assembler &assembler, const x86::Gp &idx, const x86::Gp &dest, x86::Mem &labelsPtr);
     FILE* getLogFile();
 
     JitRuntime rt;
