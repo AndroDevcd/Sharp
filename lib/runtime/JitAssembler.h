@@ -84,8 +84,11 @@ private:
     static x86int_t jitGetPc(Thread *thread);
     static void __srt_cxx_prepare_throw(Exception &e);
     static SharpObject* jitNewObject(x86int_t size);
+    static SharpObject* jitNewClass0(int64_t classid);
     static void jitSetObject0(SharpObject* o, StackElement *sp);
     static void jitSetObject1(StackElement*, StackElement*);
+    static void jitSetObject2(Object *dest, Object *src);
+    static void jitDelete(Object* o);
     static void jitSysInt(x86int_t signal);
     static void test(x86int_t proc);
     static void jitCast(Object *o2, x86int_t klass);
@@ -94,6 +97,7 @@ private:
     static void jitPut(int reg);
     static void jitPutC(int op0);
     static void jitGet(int op0);
+    static void jitNullPtrException();
 
     virtual x86::Mem getMemPtr(x86int_t addr) = 0;
     virtual x86::Mem getMemPtr(x86::Gp reg, x86int_t addr) = 0;

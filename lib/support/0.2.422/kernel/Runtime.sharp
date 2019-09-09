@@ -43,10 +43,8 @@ public class Runtime {
 
     public static def __srt_init_(object[] args) : var {
         asm(
-            "movi #1, %ebx "
-            "newarray %ebx "
-            "movsl 100 "
-            "sizeof %ecx"
+            "movl 0 "
+            "del"
         );
     }
 

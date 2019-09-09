@@ -228,7 +228,7 @@ int JitAssembler::compile(Method *func) {
                     threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
                 }
                 stringstream ss;
-                ss <<  "instr " << i;
+                ss <<  "; instr " << i;
                 string s = ss.str();
                 assembler.comment(s.c_str(), s.size());
                 assembler.bind(labels[i]);
@@ -270,7 +270,7 @@ int JitAssembler::compile(Method *func) {
                         assembler.call((x86int_t)JitAssembler::jitNewObject);
                         assembler.mov(tmpInt, tmp);
 
-                        checkSystemState(lbl_func_end, i, assembler, lbl_thread_chk);
+                        threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
 
                         assembler.mov(ctx, threadPtr);
                         assembler.mov(value, Lthread[thread_sp]);
@@ -505,6 +505,51 @@ int JitAssembler::compile(Method *func) {
                         movRegister(assembler, vec0, GET_Ca(ir));
                         break;
                     }
+                    case op_IALOAD: {
+                        /*
+                         *
+                         *
+                         *  o = sp->object.object;
+                            if(o != NULL && o->HEAD != NULL) {
+                                registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
+                            } else throw Exception(Environment::NullptrException, "");
+                         */
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_sp]);
+                        assembler.lea(ctx, Lstack_element[stack_element_object]);
+                        assembler.mov(ctx, qword_ptr(ctx));
+
+                        assembler.cmp(ctx, 0);
+                        Label isNull = assembler.newLabel(), end = assembler.newLabel();
+                        assembler.je(isNull);
+
+                        assembler.mov(ctx, qword_ptr(ctx)); // o->HEAD != NULL
+                        assembler.cmp(ctx, 0);
+                        assembler.je(isNull);
+                        assembler.mov(value, ctx);
+
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+                        assembler.cvttsd2si(tmp, vec1); // double to int
+                        assembler.mov(ctx, value);
+                        Label isZero = assembler.newLabel();
+                        assembler.cmp(tmp, 0);
+                        assembler.je(isZero);
+                        assembler.imul(tmp, (size_t)sizeof(double));
+                        assembler.add(ctx, tmp);
+                        assembler.bind(isZero);
+
+                        assembler.movsd(vec0, qword_ptr(ctx));
+
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        assembler.jmp(end);
+                        assembler.bind(isNull); // were not doing exceptions right now
+                        assembler.call((x86int_t)JitAssembler::jitNullPtrException);
+                        assembler.mov(arg, i);
+                        assembler.jmp(lbl_func_end);
+
+                        assembler.bind(end);
+                        break;
+                    }
                     case op_BRH: { //  pc=cache+(int64_t)registers[i64adx];
                         movRegister(assembler, vec0, i64adx, false);
                         assembler.cvttsd2si(tmp, vec0); // double to int
@@ -642,7 +687,7 @@ int JitAssembler::compile(Method *func) {
                     case op_POPL: { // (fp+GET_Da(*pc))->object = (sp--)->object.object;
                         assembler.mov(ctx, threadPtr);
 
-                        assembler.mov(tmp, Lthread[thread_sp]); 
+                        assembler.mov(tmp, Lthread[thread_sp]);
                         assembler.lea(value, ptr(tmp, (x86int_t)-sizeof(StackElement)));
                         assembler.mov(Lthread[thread_sp], value); // sp--
 
@@ -652,7 +697,7 @@ int JitAssembler::compile(Method *func) {
                         if(GET_Da(ir) != 0) {
                             assembler.add(ctx, (x86int_t)(sizeof(StackElement) * GET_Da(ir))); // fp+GET_DA(*pc)
                         }
-                        
+
                         assembler.call((x86int_t)JitAssembler::jitSetObject1);
                         break;
                     }
@@ -768,6 +813,45 @@ int JitAssembler::compile(Method *func) {
                     }
                     case op_GOTO: {// $                             // pc = cache+GET_Da(*pc);
                         assembler.jmp(labels[GET_Da(ir)]);
+                        break;
+                    }
+                    case op_LOADPC: {
+                        assembler.movsd(vec0, i);
+                        movRegister(assembler, vec0, GET_Da(ir));
+                        break;
+                    }
+                    case op_PUSHOBJ: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(tmp, Lthread[thread_sp]);
+                        assembler.lea(tmp, x86::ptr(tmp, sizeof(StackElement)));
+                        assembler.mov(Lthread[thread_sp], tmp);
+                        assembler.mov(ctx, tmp);
+                        assembler.lea(tmp, Lstack_element[stack_element_object]);
+
+                        assembler.mov(ctx, tmp);
+                        assembler.mov(value, o2Ptr);
+                        assembler.call((x86int_t)JitAssembler::jitSetObject2);
+                        break;
+                    }
+                    case op_DEL: {
+                        assembler.mov(ctx, o2Ptr);
+                        assembler.call((x86int_t)JitAssembler::jitDelete);
+                        break;
+                    }
+                    case op_NEWCLASS: { // untested
+                        assembler.mov(ctx, GET_Da(ir)); // double to int
+                        assembler.call((x86int_t)JitAssembler::jitNewClass0);
+                        assembler.mov(tmpInt, tmp);
+
+                        threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(value, Lthread[thread_sp]);
+                        assembler.lea(value, x86::ptr(value, sizeof(StackElement)));
+                        assembler.mov(Lthread[thread_sp], value);
+
+                        assembler.mov(ctx, tmpInt);
+                        assembler.call((x86int_t)JitAssembler::jitSetObject0);
                         break;
                     }
                     default: {
@@ -962,8 +1046,16 @@ void JitAssembler::jitGet(int reg) {
 
 // REMEMBER!!! dont forget to check state of used registers befote and after this call as they might be different than what they werr before
 void JitAssembler::test(x86int_t proc) {
-    // (fp+GET_Da(*pc))->object = (sp--)->object.object;
-    cout << "(sp+0) " << (int64_t)&(thread_self->sp->object) << endl << std::flush;
+    /*
+     *  o = sp->object.object;
+        if(o != NULL && o->HEAD != NULL) {
+            registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
+        } else throw Exception(Environment::NullptrException, "");
+     */
+    cout << "(obj) " << (int64_t)&((thread_self->sp+1)->object) << endl << std::flush;
+    cout << "(sp+1) " << (int64_t)((thread_self->sp+1)) << endl << std::flush;
+    if((thread_self->sp+1)->object.object)
+        cout << "(obj size) " << (int64_t)&((thread_self->sp+1)->object.object->size) << endl << std::flush;
 }
 
 // had a hard time with this one so will do this for now
@@ -1038,12 +1130,34 @@ SharpObject* JitAssembler::jitNewObject(x86int_t size) {
     }
 }
 
+SharpObject* JitAssembler::jitNewClass0(int64_t classid) {
+    try {
+        return GarbageCollector::self->newObject(&env->classes[classid]);
+    } catch(Exception &e) {
+        __srt_cxx_prepare_throw(e);
+        return NULL;
+    }
+}
+
+void JitAssembler::jitNullPtrException() {
+    Exception nptr(Environment::NullptrException, "");
+    __srt_cxx_prepare_throw(nptr);
+}
+
 void JitAssembler::jitSetObject0(SharpObject* o, StackElement *sp) {
     sp->object = o;
 }
 
 void JitAssembler::jitSetObject1(StackElement *dest, StackElement *src) {
     dest->object = src->object;
+}
+
+void JitAssembler::jitSetObject2(Object *dest, Object *src) {
+    dest->object = src->object;
+}
+
+void JitAssembler::jitDelete(Object* o) {
+    GarbageCollector::self->releaseObject(o);
 }
 
 void JitAssembler::__srt_cxx_prepare_throw(Exception &e) {
