@@ -34,7 +34,7 @@ def main() {
 }  
 ```  
   
-Sharp's syntax is minimalistic simple and easy to use  
+Sharp's syntax is minimalistic simple and easy to use  with low friction when switching between different code styles
   
 ```javascript  
 mod app;  
@@ -59,31 +59,34 @@ def main() {
       x++;  
    }  
   
-   fn someComputation = use -> num: {  
+   fn someComputation = def ?(var num) {  
       // we are in a completly seperate code space  
       // this code space knows nothing of the x variable  
       // unless explicitly passed in  
   
       print("num = " + num);  
    };  
+   someComputation(num);
 }  
 ```  
 
-Although being an object oriented language, sharp makes it very easy for using classes for simple operations
-by effectivley elimminating the need to create constructors for initalizing any given class.
+The above code is a simple illustration of how Sharp's low friction syntax allows you to evolve your code overtime as your requirements change
+from local code, to anonymous function, to a globally accessed static function and more.
+Although being an object oriented language, sharp makes object oriented development more efficient for more simple operations
+by removing the burden of having to create constructors for every class in your code.
 
 ```javascript
 mod app;  
 
 class Vehicle {
-    string licensePlate; // licensePlate, make, & model are all string types
+    string licensePlate; // Vehicle will cast as out base type
     int wheels = 4; // wheels has a default value of 4
 }
   
-class Truck : Vehicle {
+class Truck base Vehicle {
     string make, model;
     Color color;
-    int modelYear = 1997; // modelYear has a default value of 1997
+    int modelYear = 1997;
 }
 
 def main() {  
@@ -93,8 +96,8 @@ def main() {
             color = Color.SPACE_GREY,
             modelYear = 2020,
             licensePlate = "ZSY 7CH9"
-            // wheels = default // wheels is already set to default value of 4 so we dont need this statement
-        }; // no need for constructor in Vehicle or Truck as we create this object inline and assign the values
+            // wheels = 4 // wheels is already set to default value of 4 so we dont need this statement
+        }; // Object Truck is created inline and assigned the values instead of calling a constructor
     
         /**
         * The above code translates to      
@@ -110,12 +113,13 @@ def main() {
         *
         */
   
-   fn draw = use -> car: {  
+   fn draw = def ?(Truck veh) {  
       // we want to draw the provided vehicle
      // to the screen
       
-      drawObject(car);
+      drawObject(veh);
    };  
+   draw(car);
 }  
 ```
   
