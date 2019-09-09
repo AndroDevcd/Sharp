@@ -12,6 +12,12 @@
 #include "Opcode.h"
 #include "VirtualMachine.h"
 #include "register.h"
+#ifdef WIN32_
+#include <conio.h>
+#endif
+#ifdef POSIX_
+#include "termios.h"
+#endif
 
 void JitAssembler::shutdown() {
 
@@ -596,15 +602,21 @@ int JitAssembler::compile(Method *func) {
                         assembler.movsd(Lstack_element[stack_element_var], vec0);
                         break;
                     }
+                    case op_GT:
+                    case op_GTE:
+                    case op_LTE:
                     case op_LT: {                     // registers[i64cmt]=registers[GET_Ca(*pc)]<registers[GET_Cb(*pc)];
 
-                        movRegister(assembler, vec0, GET_Ca(ir), false);
-                        movRegister(assembler, vec0, GET_Cb(ir), false);
+                        movRegister(assembler, (is_op(ir, op_LT) || is_op(ir, op_LTE)) ? vec0 : vec1, GET_Ca(ir), false);
+                        movRegister(assembler, (is_op(ir, op_LT) || is_op(ir, op_LTE)) ? vec1 : vec0, GET_Cb(ir), false);
                         assembler.comisd(vec0, vec1);
 
                         Label ifFalse = assembler.newLabel();
                         Label ifEnd = assembler.newLabel();
-                        assembler.jbe(ifFalse);
+                        if(is_op(ir, op_LT) || is_op(ir, op_GT))
+                            assembler.jae(ifFalse);
+                        else
+                            assembler.ja(ifFalse);
                         emitConstant(assembler, constant_pool, vec0, 1);
                         assembler.jmp(ifEnd);
                         assembler.bind(ifFalse);
@@ -613,6 +625,149 @@ int JitAssembler::compile(Method *func) {
                         assembler.bind(ifEnd);
 
                         movRegister(assembler, vec0, i64cmt);
+                        break;
+                    }
+                    case op_MOVL: { // o2 = &(fp+GET_Da(*pc))->object;
+                        assembler.mov(ctx, threadPtr); // ctx->current
+                        assembler.mov(ctx, Lthread[thread_fp]); // ctx->current->fp
+
+                        if(GET_Da(ir) != 0) {
+                            assembler.add(ctx, (x86int_t)(GET_Da(ir)*sizeof(StackElement)));
+                        }
+
+                        assembler.lea(ctx, Lstack_element[stack_element_object]);
+                        assembler.mov(o2Ptr, ctx);
+                        break;
+                    }
+                    case op_POPL: { // (fp+GET_Da(*pc))->object = (sp--)->object.object;
+                        assembler.mov(ctx, threadPtr);
+
+                        assembler.mov(tmp, Lthread[thread_sp]); 
+                        assembler.lea(value, ptr(tmp, (x86int_t)-sizeof(StackElement)));
+                        assembler.mov(Lthread[thread_sp], value); // sp--
+
+                        assembler.mov(value, tmp);
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_fp]);
+                        if(GET_Da(ir) != 0) {
+                            assembler.add(ctx, (x86int_t)(sizeof(StackElement) * GET_Da(ir))); // fp+GET_DA(*pc)
+                        }
+                        
+                        assembler.call((x86int_t)JitAssembler::jitSetObject1);
+                        break;
+                    }
+                    case op_IPOPL: { // (fp+GET_Da(*pc))->var = (sp--)->var;
+                        assembler.mov(ctx, threadPtr);
+
+                        assembler.mov(tmp, Lthread[thread_sp]);
+                        assembler.lea(value, ptr(tmp, (x86int_t)-sizeof(StackElement)));
+                        assembler.mov(Lthread[thread_sp], value); // sp--
+
+                        assembler.mov(ctx, tmp);
+                        assembler.movsd(vec0, Lstack_element[stack_element_var]);
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_fp]);
+
+                        if(GET_Da(ir) != 0) {
+                            assembler.add(ctx, (x86int_t)(sizeof(StackElement) * GET_Da(ir)));
+                        }
+
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
+                    case op_IPUSHL: { // (++sp)->var = (fp+GET_Da(*pc))->var;
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_fp]);
+
+                        if(GET_Da(ir) != 0) {
+                            assembler.add(ctx, (int64_t)(sizeof(StackElement) * GET_Da(ir)));
+                        }
+
+                        assembler.movsd(vec0, Lstack_element[stack_element_var]);
+
+                        assembler.mov(ctx, threadPtr);
+
+                        assembler.mov(tmp, Lthread[thread_sp]);
+                        assembler.lea(tmp, ptr(tmp, (x86int_t)sizeof(StackElement)));
+                        assembler.mov(Lthread[thread_sp], tmp); // sp++
+
+                        assembler.mov(ctx, tmp);
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+
+                        break;
+                    }
+                    case op_MOVSL: { // o2 = &((sp+GET_Da(*pc))->object);
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_sp]);
+
+                        if(GET_Da(ir) != 0) {
+                            assembler.add(ctx, (int64_t)(sizeof(StackElement) * GET_Da(ir))); // sp+GET_DA(*pc)
+                        }
+
+                        assembler.lea(ctx, Lstack_element[stack_element_object]);
+                        assembler.mov(o2Ptr, ctx);
+                        break;
+                    }
+                    case op_MOVBI: { // registers[i64bmr]=GET_Da(*pc) + exponent(*(pc+1)); pc++;
+                        int64_t highBytes = GET_Da(ir);
+                        i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
+                        assembler.mov(ctx, irTail);
+                        assembler.call((int64_t)exponent);
+                        emitConstant(assembler, constant_pool, vec1,  highBytes);
+
+                        assembler.addsd(vec0, vec1);
+                        movRegister(assembler, vec0, i64bmr);
+                        break;
+                    }
+                    case op_SIZEOF: {
+                        /**
+                         *
+                            if(o2==NULL || o2->object == NULL)
+                                registers[GET_Da(*pc)] = 0;
+                            else
+                                registers[GET_Da(*pc)]=o2->object->size;
+                         */
+                        assembler.mov(ctx, o2Ptr);
+                        assembler.cmp(ctx, 0);
+                        Label ifTrue = assembler.newLabel(), end = assembler.newLabel(), ifFalse = assembler.newLabel();
+                        assembler.jne(ifTrue);
+                        assembler.bind(ifFalse);
+                        emitConstant(assembler, constant_pool, vec0,  0);
+
+                        movRegister(assembler, vec0, GET_Da(ir));
+                        assembler.jmp(end);
+                        assembler.bind(ifTrue);
+
+                        assembler.mov(ctx, qword_ptr(ctx));
+                        assembler.cmp(ctx, 0);
+                        assembler.je(ifFalse);
+
+                        assembler.mov(ctx, Lsharp_object[sharp_object_size]);
+                        assembler.cvtsi2sd(vec0, ctx);
+                        movRegister(assembler, vec0, GET_Da(ir));
+
+                        assembler.bind(end);
+                        break;
+                    }
+                    case op_PUT: {                            // cout << registers[GET_Da(*pc)];
+                        assembler.mov(ctx, GET_Da(ir));
+                        assembler.call((int64_t)JitAssembler::jitPut);
+                        break;
+                    }
+                    case op_PUTC: {                            // printf("%c", (char)registers[GET_Da(*pc)]);
+                        assembler.mov(ctx, GET_Da(ir));
+                        assembler.call((int64_t)JitAssembler::jitPutC);
+                        break;
+                    }
+                    case op_GET: {
+                        assembler.mov(ctx, GET_Da(ir));
+                        assembler.call((int64_t)JitAssembler::jitGet);
+                        break;
+                    }
+                    case op_GOTO: {// $                             // pc = cache+GET_Da(*pc);
+                        assembler.jmp(labels[GET_Da(ir)]);
                         break;
                     }
                     default: {
@@ -789,9 +944,26 @@ void JitAssembler::jitCastVar(Object *obj, int array) {
     }
 }
 
+
+void JitAssembler::jitPut(int reg) {
+    cout << registers[reg];
+}
+
+void JitAssembler::jitPutC(int reg) {
+    printf("%c", (char)registers[reg]);
+}
+
+void JitAssembler::jitGet(int reg) {
+    if(registers[i64cmt])
+        registers[reg] = getche();
+    else
+        registers[reg] = getch();
+}
+
 // REMEMBER!!! dont forget to check state of used registers befote and after this call as they might be different than what they werr before
 void JitAssembler::test(x86int_t proc) {
-    cout << "fp+3->var " << (thread_self->fp+3)->var << endl << std::flush;
+    // (fp+GET_Da(*pc))->object = (sp--)->object.object;
+    cout << "(sp+0) " << (int64_t)&(thread_self->sp->object) << endl << std::flush;
 }
 
 // had a hard time with this one so will do this for now
@@ -868,6 +1040,10 @@ SharpObject* JitAssembler::jitNewObject(x86int_t size) {
 
 void JitAssembler::jitSetObject0(SharpObject* o, StackElement *sp) {
     sp->object = o;
+}
+
+void JitAssembler::jitSetObject1(StackElement *dest, StackElement *src) {
+    dest->object = src->object;
 }
 
 void JitAssembler::__srt_cxx_prepare_throw(Exception &e) {

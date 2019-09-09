@@ -789,7 +789,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                     assembler.push_i64(SET_Di(i64, op_MOVBI, itmp.high_bytes), i2.high_bytes);
                 }
 
-            } else if(instruction_is("_sizeof")) {
+            } else if(instruction_is("sizeof")) {
                 expect_register();
 
                 assembler.push_i64(SET_Di(i64, op_SIZEOF, i2.high_bytes));
@@ -797,7 +797,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_register();
 
                 assembler.push_i64(SET_Di(i64, op_PUT, i2.high_bytes));
-            } else if(instruction_is("_putc")) {
+            } else if(instruction_is("putc")) {
                 expect_register();
 
                 assembler.push_i64(SET_Di(i64, op_PUTC, i2.high_bytes));

@@ -62,8 +62,8 @@ struct SharpObject
      * layout
      * 0000 4 bits consisting of "gc mark' and 'generation'
      *
-     * 0            000
-     * ^-- mark     ^-- generation
+     *  000             0
+     *  ^-- generation  ^-- mark
      */
     unsigned int gc_info : 4; /* gc stuff */
     SharpObject *next, *prev; /* linked list pointers */

@@ -54,7 +54,7 @@ public class ConsoleHandler {
          if(isCharacter) {
              asm(
                  "  loadl %ebx,0               // get local 'char'  "
-                 "  _putc %ebx                                      "
+                 "  putc %ebx                                      "
                  "  ret                                             "
              );
          } else {

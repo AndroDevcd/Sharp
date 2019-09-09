@@ -8718,8 +8718,8 @@ void RuntimeEngine::generate() {
         Method* method = allMethods.get(i);
 
         if(method->code.size() == 0 || GET_OP(method->code.__asm64.last()) != op_RET || (GET_OP(method->code.__asm64.last()) == op_RET && method->code.size() > 1)) {
-            if(method->code.size() > 1 && GET_OP(method->code.__asm64.last()) != op_RET) {
-                if(GET_OP(method->code.__asm64.get(method->code.size()-2)) != op_MOVI) {
+            if(method->code.size() > 1 && GET_OP(method->code.__asm64.last()) == op_RET) {
+                if(GET_OP(method->code.__asm64.get(method->code.size()-2)) != op_MOVI && GET_OP(method->code.__asm64.get(method->code.size()-2)) != op_MOVBI) {
                     continue;
                 }
             }
