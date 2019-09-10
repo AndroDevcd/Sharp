@@ -878,6 +878,18 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 assembler.push_i64(SET_Ei(i64, op_LOCK));
             } else if(instruction_is("_ulock")) {
                 assembler.push_i64(SET_Ei(i64, op_ULOCK));
+            } else if(instruction_is("skp")) {
+                expect_int();
+
+                assembler.push_i64(SET_Di(i64, op_SKIP, i2.high_bytes));
+            } else if(instruction_is("skpe")) {
+                expect_int();
+
+                assembler.push_i64(SET_Di(i64, op_SKPE, i2.high_bytes));
+            } else if(instruction_is("skpne")) {
+                expect_int();
+
+                assembler.push_i64(SET_Di(i64, op_SKNE, i2.high_bytes));
             } else if(instruction_is("exp")) {
                 expect_register();
 
@@ -1242,6 +1254,14 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 expect_int();
 
                 assembler.push_i64(SET_Ci(i64, op_ISADD, itmp.high_bytes, (itmp.high_bytes<0), i2.high_bytes));
+            }  else if(instruction_is("cmp")) {
+
+                expect_register();
+                itmp = i2;
+                expect(",");
+                expect_int();
+
+                assembler.push_i64(SET_Ci(i64, op_CMP, itmp.high_bytes, (itmp.high_bytes<0), i2.high_bytes));
             }   else if(instruction_is("je")) {
 
                 expect_int();

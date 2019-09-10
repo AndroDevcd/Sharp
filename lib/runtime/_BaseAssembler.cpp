@@ -934,6 +934,85 @@ int _BaseAssembler::compile(Method *func) {
                         assembler.mov(o2Ptr, value);
                         break;
                     }
+                    case op_NEWOBJARRAY: {
+                        assembler.mov(ctx, GET_Da(ir)); // double to int
+                        assembler.call((x86int_t)_BaseAssembler::jitNewObject2);
+                        assembler.mov(tmpInt, tmp);
+
+                        threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(value, Lthread[thread_sp]);
+                        assembler.lea(value, x86::ptr(value, sizeof(StackElement)));
+                        assembler.mov(Lthread[thread_sp], value);
+
+                        assembler.mov(ctx, tmpInt);
+                        assembler.call((x86int_t)_BaseAssembler::jitSetObject0);
+                        break;
+                    }
+                    case op_NOT: {
+                        Label ifTrue = assembler.newLabel(), end = assembler.newLabel();
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+
+                        assembler.cmp(tmp, 0);
+                        assembler.ja(ifTrue);
+                        assembler.mov(tmp, 1);
+                        assembler.jmp(end);
+
+                        assembler.bind(ifTrue);
+                        assembler.mov(tmp, 0);
+                        assembler.bind(end);
+
+                        assembler.cvtsi2sd(vec0, tmp); // int to Double
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        break;
+                    }
+
+                    case op_SKIP: {
+                        if(GET_Da(ir) > 0) {
+                            assembler.jmp(labels[i+GET_Da(ir)+1]);
+                        } else
+                            assembler.nop();
+                        break;
+                    }
+                    case op_SKNE:
+                    case op_SKPE: {
+                        tmpMem = getMemPtr(regPtr, (int64_t )(sizeof(double) * i64cmt));
+                        assembler.pxor(vec0, vec0);
+                        assembler.ucomisd(vec0, tmpMem);
+                        Label ifEnd = assembler.newLabel();
+                        assembler.jp(ifEnd);
+                        if(is_op(ir, op_SKPE))
+                            assembler.je(ifEnd);
+                        else
+                            assembler.jne(ifEnd);
+                        assembler.jmp(labels[i+GET_Da(ir)]);
+
+                        assembler.bind(ifEnd);
+
+                        break;
+                    }
+                    case op_CMP: {
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+
+                        emitConstant(assembler, constant_pool, vec1, GET_Cb(ir));
+                        assembler.ucomisd(vec0, vec1);
+                        Label end = assembler.newLabel(), ifTrue = assembler.newLabel(), ifFalse = assembler.newLabel();
+                        assembler.jp(ifFalse);
+                        assembler.je(ifTrue);
+
+                        assembler.bind(ifFalse);
+                        assembler.pxor(vec0, vec0);
+                        assembler.jmp(end);
+
+                        assembler.bind(ifTrue);
+                        emitConstant(assembler, constant_pool, vec0, 1);
+                        assembler.bind(end);
+
+                        movRegister(assembler, vec0, i64cmt);
+                        break;
+                    }
                     default: {
                         assembler.nop();                    // by far one of the easiest instructions yet
                         break;
@@ -1249,6 +1328,15 @@ void _BaseAssembler::jitSysInt(x86int_t signal) {
 SharpObject* _BaseAssembler::jitNewObject(x86int_t size) {
     try {
         return GarbageCollector::self->newObject(size);
+    } catch(Exception &e) {
+        __srt_cxx_prepare_throw(e);
+        return NULL;
+    }
+}
+
+SharpObject* _BaseAssembler::jitNewObject2(x86int_t size) {
+    try {
+        return GarbageCollector::self->newObjectArray(size);
     } catch(Exception &e) {
         __srt_cxx_prepare_throw(e);
         return NULL;

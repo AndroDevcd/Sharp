@@ -84,6 +84,7 @@ private:
     static x86int_t jitGetPc(Thread *thread);
     static void __srt_cxx_prepare_throw(Exception &e);
     static SharpObject* jitNewObject(x86int_t size);
+    static SharpObject* jitNewObject2(x86int_t size);
     static SharpObject* jitNewClass0(int64_t classid);
     static void jitSetObject0(SharpObject* o, StackElement *sp);
     static void jitSetObject1(StackElement*, StackElement*);
