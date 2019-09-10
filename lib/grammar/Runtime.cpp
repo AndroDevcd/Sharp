@@ -9363,7 +9363,7 @@ void RuntimeEngine::createDumpFile() {
                 }
                 case op_ULOCK:
                 {
-                    ss<<"ulck";
+                    ss<<"_ulck";
                     _ostream << ss.str();
                     break;
                 }

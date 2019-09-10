@@ -875,9 +875,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
 
                 assembler.push_i64(SET_Ci(i64, op_TNE, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
             } else if(instruction_is("_lock")) {
-                expect_register();
-
-                assembler.push_i64(SET_Di(i64, op_LOCK, i2.high_bytes));
+                assembler.push_i64(SET_Ei(i64, op_LOCK));
             } else if(instruction_is("_ulock")) {
                 assembler.push_i64(SET_Ei(i64, op_ULOCK));
             } else if(instruction_is("exp")) {

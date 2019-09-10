@@ -99,11 +99,11 @@ struct SharpObject
 struct Object {
     SharpObject* object;
 
-    void monitorLock();
+    static void monitorLock(Object*);
 
-    void monitorUnLock() {
-        if(object && object->mutex != NULL) {
-            object->mutex->unlock();
+    static void monitorUnLock(Object *o) {
+        if(o->object->mutex != NULL) {
+            o->object->mutex->unlock();
         }
     }
 

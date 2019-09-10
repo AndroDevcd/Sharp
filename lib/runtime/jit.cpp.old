@@ -3016,12 +3016,10 @@ void global_jit_dump(Profiler* prof) {
  * Prepare an exception to be thrown at a low level
  */
  void __srt_cxxa_prepare_throw(Exception &e) {
-    thread_self->throwable = e.getThrowable();
-    Object *eobj = &thread_self->exceptionObject;
-
-    VirtualMachine::fillStackTrace(eobj);
-    thread_self->throwable.throwable = eobj->object->k;
-    sendSignal(thread_self->signal, tsig_except, 1);
+     Thread *thread = thread_self;
+    thread->throwable = e.getThrowable();
+    thread->throwable.throwable = thread->exceptionObject.object->k;
+    sendSignal(thread->signal, tsig_except, 1);
  }
 
  void __srt_cxxa_throw_nullptr() {

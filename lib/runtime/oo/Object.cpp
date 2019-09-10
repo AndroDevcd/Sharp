@@ -34,28 +34,25 @@ void Object::castObject(int64_t classPtr) {
     }
 }
 
-void Object::monitorLock() {
-    if(object != nullptr) {
-
-        if(object->mutex==NULL) {
-            Thread::threadsMonitor.lock(); // protection from thread race condition
-            if(object->mutex!=NULL) {
-                Thread::threadsMonitor.unlock();
-                goto _lck;
-            }
+void Object::monitorLock(Object *o) {
+    if(o->object->mutex==NULL) {
+        Thread::threadsMonitor.lock(); // protection from thread race condition
+        if(o->object->mutex!=NULL) {
+            Thread::threadsMonitor.unlock();
+            goto _lck;
+        }
 #ifdef WIN32_
-            object->mutex = new recursive_mutex();
+        o->object->mutex = new recursive_mutex();
 #endif
 #ifdef POSIX_
-            object->mutex = new recursive_mutex();
+        o->object->mutex = new recursive_mutex();
 #endif
 
-            Thread::threadsMonitor.unlock();
-        }
-
-        _lck:
-        object->mutex->lock();
+        Thread::threadsMonitor.unlock();
     }
+
+    _lck:
+    o->object->mutex->lock();
 }
 
 void SharpObject::print() {

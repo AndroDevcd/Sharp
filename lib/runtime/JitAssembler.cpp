@@ -545,7 +545,7 @@ int JitAssembler::compile(Method *func) {
                         assembler.bind(isNull); // were not doing exceptions right now
                         assembler.call((x86int_t)JitAssembler::jitNullPtrException);
                         assembler.mov(arg, i);
-                        assembler.jmp(lbl_func_end);
+                        assembler.jmp(lbl_thread_chk);
 
                         assembler.bind(end);
                         break;
@@ -855,7 +855,7 @@ int JitAssembler::compile(Method *func) {
                         break;
                     }
                     case op_MOVN: {
-                        checkO2Node(assembler, o2Ptr, lbl_func_end);
+                        checkO2Node(assembler, o2Ptr, lbl_thread_chk, i);
 
                         if(GET_Da(ir) > 0)
                             assembler.add(ctx, (x86int_t)(GET_Da(ir)*sizeof(Object)));
@@ -891,6 +891,47 @@ int JitAssembler::compile(Method *func) {
                         assembler.bind(ifEnd);
 
                         movRegister(assembler, vec0, i64cmt);
+                        break;
+                    }
+                    case op_LOCK: {
+                        checkO2(assembler, o2Ptr, lbl_thread_chk, i);
+
+                        assembler.mov(ctx, o2Ptr);
+                        assembler.call((int64_t)Object::monitorLock);
+                        break;
+                    }
+                    case op_ULOCK: {
+                        checkO2(assembler, o2Ptr, lbl_thread_chk, i);
+
+                        assembler.mov(ctx, o2Ptr);
+                        assembler.call((int64_t)Object::monitorUnLock);
+                        break;
+                    }
+                    case op_EXP: {
+                        movRegister(assembler, vec0, GET_Da(ir), false);
+                        assembler.cvttsd2si(ctx, vec0); // double to int
+
+                        assembler.call((x86int_t)exponent);
+
+                        movRegister(assembler, vec0, i64bmr);
+                        break;
+                    }
+                    case op_MOVG: {
+                        Object* o = env->globalHeap+GET_Da(ir);
+                        assembler.mov(ctxPtr, (x86int_t)o);
+                        break;
+                    }
+                    case op_MOVND: {
+                        checkO2Node(assembler, o2Ptr, lbl_thread_chk, i);
+                        assembler.mov(value, ctx);
+
+                        movRegister(assembler, vec0, GET_Da(ir), false);
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+
+                        assembler.imul(tmp, (x86int_t)sizeof(Object));
+                        assembler.add(value, tmp);
+
+                        assembler.mov(o2Ptr, value);
                         break;
                     }
                     default: {
@@ -1029,7 +1070,7 @@ int JitAssembler::compile(Method *func) {
     return error;
 }
 
-void JitAssembler::checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_func_end) const {
+void JitAssembler::checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &thread_check, x86int_t pc) {
     assembler.mov(ctx, o2Ptr);
     assembler.cmp(ctx, 0); // 02==NULL
     Label nullCheckPassed = assembler.newLabel();
@@ -1045,8 +1086,32 @@ void JitAssembler::checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Ptr,
     assembler.jne(nullCheckPassed);
 
     assembler.bind(nullCheckFailed);
+    assembler.mov(arg, pc);
+    updatePc(assembler);
     assembler.call((x86int_t) jitNullPtrException);
-    assembler.jmp(lbl_func_end);
+    assembler.mov(arg, -1);
+    assembler.jmp(thread_check);
+    assembler.bind(nullCheckPassed);
+}
+
+void JitAssembler::checkO2(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_check, x86int_t pc) {
+    assembler.mov(ctx, o2Ptr);
+    assembler.cmp(ctx, 0); // 02==NULL
+    Label nullCheckPassed = assembler.newLabel();
+    Label nullCheckFailed = assembler.newLabel();
+    assembler.je(nullCheckFailed);
+
+    assembler.mov(ctx, qword_ptr(ctx));
+    assembler.cmp(ctx, 0);
+    assembler.je(nullCheckFailed);
+    assembler.jmp(nullCheckPassed);
+
+    assembler.bind(nullCheckFailed);
+    assembler.mov(arg, pc);
+    updatePc(assembler);
+    assembler.call((x86int_t) jitNullPtrException);
+    assembler.mov(arg, -1);
+    assembler.jmp(lbl_thread_check);
     assembler.bind(nullCheckPassed);
 }
 
@@ -1134,18 +1199,18 @@ void JitAssembler::emitConstant(x86::Assembler &assembler, Constants &cpool, x86
 }
 
 void JitAssembler::jmpToLabel(x86::Assembler &assembler, const x86::Gp &idx, const x86::Gp &dest, x86::Mem &labelsPtr) {
-using namespace asmjit::x86;
+    using namespace asmjit::x86;
 
-assembler.mov(dest, labelsPtr);      // were just using these registers because we can, makes life so much easier
-assembler.cmp(idx, 0);
-Label ifTrue = assembler.newLabel();
-assembler.je(ifTrue);
-assembler.imul(idx, (size_t)sizeof(x86int_t));      // offset = labelAddr*sizeof(int64_t)
-assembler.add(dest, idx);
-assembler.bind(ifTrue);
+    assembler.mov(dest, labelsPtr);      // were just using these registers because we can, makes life so much easier
+    assembler.cmp(idx, 0);
+    Label ifTrue = assembler.newLabel();
+    assembler.je(ifTrue);
+    assembler.imul(idx, (size_t)sizeof(x86int_t));      // offset = labelAddr*sizeof(int64_t)
+    assembler.add(dest, idx);
+    assembler.bind(ifTrue);
 
-assembler.mov(dest, x86::ptr(dest));
-assembler.jmp(dest);
+    assembler.mov(dest, x86::ptr(dest));
+    assembler.jmp(dest);
 }
 
 void JitAssembler::movRegister(x86::Assembler &assembler, x86::Xmm &vec, x86int_t addr, bool store) {
@@ -1249,11 +1314,17 @@ JitAssembler::threadStatusCheck(x86::Assembler &assembler, Label &retLbl, Label 
  * @param assembler
  */
 void JitAssembler::updatePc(x86::Assembler &assembler) {
+    Label end = assembler.newLabel();
+
+    assembler.cmp(arg, -1);
+    assembler.je(end);
     assembler.mov(ctx, threadPtr);
     assembler.mov(tmp, Lthread[thread_cache]);
     assembler.imul(arg, (size_t)sizeof(x86int_t));
     assembler.add(tmp, arg);
     assembler.mov(Lthread[thread_pc], tmp);
+    assembler.bind(end);
+    assembler.mov(arg, 0);
 }
 
 x86int_t JitAssembler::jitGetPc(Thread *thread) {

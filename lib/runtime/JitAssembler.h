@@ -120,7 +120,8 @@ private:
     void movRegister(x86::Assembler &assembler, x86::Xmm &vec, x86int_t addr, bool store = true);
     void checkSystemState(const Label &lbl_func_end, x86int_t pc, x86::Assembler &assembler, Label &lbl_thread_chk);
     void jmpToLabel(x86::Assembler &assembler, const x86::Gp &idx, const x86::Gp &dest, x86::Mem &labelsPtr);
-    void checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_func_end) const;
+    void checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_func_end, x86int_t pc);
+    void checkO2(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread, x86int_t);
     FILE* getLogFile();
 
     JitRuntime rt;

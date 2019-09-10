@@ -1068,10 +1068,10 @@ void Thread::exec() {
                 registers[i64cmt]=registers[GET_Ca(*pc)]!=registers[GET_Cb(*pc)];
                 _brh
             LOCK:
-                CHECK_NULLOBJ(o2->monitorLock();)
+                CHECK_NULL2(Object::monitorLock(o2);)
                 _brh
             ULOCK:
-                CHECK_NULLOBJ(o2->monitorUnLock();)
+                CHECK_NULL2(Object::monitorUnLock(o2);)
                 _brh
             EXP:
                 registers[i64bmr] = exponent(registers[GET_Da(*pc)]);
