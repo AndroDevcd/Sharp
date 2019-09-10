@@ -5,13 +5,13 @@
 #ifndef SHARP_X64ASSEMBLER_H
 #define SHARP_X64ASSEMBLER_H
 
-#include "JitAssembler.h"
+#include "_BaseAssembler.h"
 
-class x64Assembler : public JitAssembler {
+class x64Assembler : public _BaseAssembler {
 public:
     x64Assembler()
     :
-            JitAssembler()
+            _BaseAssembler()
     {
         initialize();
     }

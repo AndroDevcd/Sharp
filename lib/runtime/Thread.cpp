@@ -13,7 +13,7 @@
 #include "Manifest.h"
 #include "oo/Object.h"
 #include "../util/time.h"
-#include "JitAssembler.h"
+#include "_BaseAssembler.h"
 #include "Jit.h"
 
 #ifdef WIN32_

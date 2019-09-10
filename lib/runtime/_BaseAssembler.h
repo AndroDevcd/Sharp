@@ -54,9 +54,9 @@ typedef int32_t x86int_t;
 #define relative_offset(obj, start, end) ((x86int_t)&obj->offset_end(end)-(x86int_t)&obj->offset_start(start))
 #define is_op(ir, x) (GET_OP(ir)==(x))
 
-class JitAssembler {
+class _BaseAssembler {
 public:
-    JitAssembler()
+    _BaseAssembler()
     :
         rt()
     {

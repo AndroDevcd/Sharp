@@ -16,7 +16,7 @@
 #include "memory/GarbageCollector.h"
 #include "Manifest.h"
 #include "Environment.h"
-#include "JitAssembler.h"
+#include "_BaseAssembler.h"
 
 options c_options;
 int startApplication(string e, _List<native_string> &pArgs);

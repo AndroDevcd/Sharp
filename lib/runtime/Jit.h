@@ -60,7 +60,7 @@ public:
      */
     static void sendMessage(Method* func);
 
-    JitAssembler* getAssembler();
+    _BaseAssembler* getAssembler();
 private:
     Thread *tSelf;
     recursive_mutex mutex;
