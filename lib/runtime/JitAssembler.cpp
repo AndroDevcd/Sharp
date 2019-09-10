@@ -863,10 +863,34 @@ int JitAssembler::compile(Method *func) {
                         break;
                     }
                     case op_SLEEP: {
-                        movRegister(assembler, vec0, GET_Da(ir));
+                        movRegister(assembler, vec0, GET_Da(ir), false);
                         assembler.cvttsd2si(ctx, vec0); // double to int
 
-                        cc.call((x86int_t)__os_sleep);
+                        assembler.call((x86int_t)__os_sleep);
+                        break;
+                    }
+                    case op_TEST:
+                    case op_TNE: {
+                        movRegister(assembler, vec1, GET_Ca(ir), false);
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+
+                        assembler.ucomisd(vec0, vec1);
+
+                        Label ifFalse = assembler.newLabel();
+                        Label ifEnd = assembler.newLabel();
+                        assembler.jp(ifFalse);
+                        if(is_op(ir, op_TEST))
+                            assembler.jne(ifFalse);
+                        else
+                            assembler.je(ifFalse);
+                        emitConstant(assembler, constant_pool, vec0, 1);
+                        assembler.jmp(ifEnd);
+                        assembler.bind(ifFalse);
+
+                        assembler.pxor(vec0, vec0);
+                        assembler.bind(ifEnd);
+
+                        movRegister(assembler, vec0, i64cmt);
                         break;
                     }
                     default: {
@@ -1088,10 +1112,10 @@ void JitAssembler::test(x86int_t proc) {
             registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
         } else throw Exception(Environment::NullptrException, "");
      */
-    cout << "(obj) " << (int64_t)&((thread_self->sp+1)->object) << endl << std::flush;
-    cout << "(sp+1) " << (int64_t)((thread_self->sp+1)) << endl << std::flush;
-    if((thread_self->sp+1)->object.object)
-        cout << "(obj size) " << (int64_t)&((thread_self->sp+1)->object.object->size) << endl << std::flush;
+    cout << "(ebx) " << registers[i64ebx] << endl << std::flush;
+    cout << "(ecx) " << registers[i64ecx] << endl << std::flush;
+    cout << "(&ecx) " << (int64_t)&registers[i64ecx] << endl << std::flush;
+    cout << "(&ebx) " << (int64_t)&registers[i64ebx] << endl << std::flush;
 }
 
 // had a hard time with this one so will do this for now

@@ -7811,63 +7811,67 @@ func:@302 [std.kernel#Runtime.__srt_init_] in file: lib\support\0.2.422\/kernel/
 
 
 __srt_init_:
-line: 44 [0x0] 0:	movl 0
-         [0x1] 1:	movn #2
-         [0x2] 2:	movi #0, ebx
-         [0x4] 4:	return_val ebx
-         [0x5] 5:	ret
+line: 44 [0x0] 0:	movi #5, ebx
+         [0x2] 2:	movi #5, ecx
+         [0x4] 4:	test ebx, ecx
+         [0x5] 5:	put cmt
+         [0x6] 6:	tne ebx, ecx
+         [0x7] 7:	put cmt
+         [0x8] 8:	movi #0, ebx
+         [0xa] 10:	return_val ebx
+         [0xb] 11:	ret
 
-func:@303 [std.kernel#Runtime.nativeExit] in file: lib\support\0.2.422\/kernel//Runtime.sharp:93:33: note:  
+func:@303 [std.kernel#Runtime.nativeExit] in file: lib\support\0.2.422\/kernel//Runtime.sharp:97:33: note:  
 		    public static def nativeExit() {
 		                                ^
 
 
 nativeExit:
-line: 93 [0x0] 0:	int 0xa9
+line: 97 [0x0] 0:	int 0xa9
          [0x1] 1:	ret
 
-func:@304 [std.kernel#Runtime.gc] in file: lib\support\0.2.422\/kernel//Runtime.sharp:99:25: note:  
+func:@304 [std.kernel#Runtime.gc] in file: lib\support\0.2.422\/kernel//Runtime.sharp:103:25: note:  
 		    public static def gc() {
 		                        ^
 
 
 gc:
-line: 99 [0x0] 0:	int 0xa1
-         [0x1] 1:	ret
+line: 103 [0x0] 0:	int 0xa1
+          [0x1] 1:	ret
 
-func:@305 [std.kernel#Runtime.memoryLimit] in file: lib\support\0.2.422\/kernel//Runtime.sharp:105:34: note:  
+func:@305 [std.kernel#Runtime.memoryLimit] in file: lib\support\0.2.422\/kernel//Runtime.sharp:109:34: note:  
 		    public static def memoryLimit() : var {
 		                                 ^
 
 
 memoryLimit:
-line: 105 [0x0] 0:	istorel 0, fp+0
-line: 107 [0x2] 2:	int 0xaa
+line: 109 [0x0] 0:	istorel 0, fp+0
+line: 111 [0x2] 2:	int 0xaa
           [0x3] 3:	smovr_2 cmt, fp+0
-line: 110 [0x4] 4:	loadl ebx, fp+0
+line: 114 [0x4] 4:	loadl ebx, fp+0
           [0x5] 5:	return_val ebx
           [0x6] 6:	ret
 
-func:@306 [std.kernel#Runtime.managedMemory] in file: lib\support\0.2.422\/kernel//Runtime.sharp:114:36: note:  
+func:@306 [std.kernel#Runtime.managedMemory] in file: lib\support\0.2.422\/kernel//Runtime.sharp:118:36: note:  
 		    public static def managedMemory() : var {
 		                                   ^
 
 
 managedMemory:
-line: 114 [0x0] 0:	istorel 0, fp+0
-line: 116 [0x2] 2:	int 0xab
+line: 118 [0x0] 0:	istorel 0, fp+0
+line: 120 [0x2] 2:	int 0xab
           [0x3] 3:	smovr_2 cmt, fp+0
-line: 119 [0x4] 4:	loadl ebx, fp+0
+line: 123 [0x4] 4:	loadl ebx, fp+0
           [0x5] 5:	return_val ebx
           [0x6] 6:	ret
 
-func:@307 [std.kernel#Runtime.freeMemory] in file: lib\support\0.2.422\/kernel//Runtime.sharp:123:33: note:  
+func:@307 [std.kernel#Runtime.freeMemory] in file: lib\support\0.2.422\/kernel//Runtime.sharp:127:33: note:  
 		    public static def freeMemory() : var {
 		                                ^
 
 
 freeMemory:
-line: 123 [0x0] 0:	call @306 // <std.kernel#Runtime.managedMemory()>
+line: 127 [0x0] 0:	call @306 // <std.kernel#Runtime.managedMemory()>
           [0x1] 1:	call @305 // <std.kernel#Runtime.memoryLimit()>
           [0x2] 2:	loadval ebx
           [0x3] 3:	loadval ecx
@@ -7877,76 +7881,76 @@ line: 123 [0x0] 0:	call @306 // <std.kernel#Runtime.managedMemory()>
           [0x8] 8:	return_val ebx
           [0x9] 9:	ret
 
-func:@308 [std.kernel#Runtime.copy] in file: lib\support\0.2.422\/kernel//Runtime.sharp:127:27: note:  
+func:@308 [std.kernel#Runtime.copy] in file: lib\support\0.2.422\/kernel//Runtime.sharp:131:27: note:  
 		    public static def copy(object[] data, var len) : object[] {
 		                          ^
 
 
 copy:
-line: 127 [0x0] 0:	pushl 0
+line: 131 [0x0] 0:	pushl 0
           [0x1] 1:	ipushl #1
           [0x2] 2:	int 0xc0
           [0x3] 3:	popl 0
           [0x4] 4:	ret
 
-func:@309 [std.kernel#Runtime.copy2] in file: lib\support\0.2.422\/kernel//Runtime.sharp:136:28: note:  
+func:@309 [std.kernel#Runtime.copy2] in file: lib\support\0.2.422\/kernel//Runtime.sharp:140:28: note:  
 		    public static def copy2(object[] data, var indexLen, var len) : object[] {
 		                           ^
 
 
 copy2:
-line: 136 [0x0] 0:	pushl 0
+line: 140 [0x0] 0:	pushl 0
           [0x1] 1:	ipushl #1
           [0x2] 2:	ipushl #2
           [0x3] 3:	int 0xc1
           [0x4] 4:	popl 0
           [0x5] 5:	ret
 
-func:@310 [std.kernel#Runtime.copy3] in file: lib\support\0.2.422\/kernel//Runtime.sharp:146:28: note:  
+func:@310 [std.kernel#Runtime.copy3] in file: lib\support\0.2.422\/kernel//Runtime.sharp:150:28: note:  
 		    public static def copy3(object[] data, var startIndex, var stopIndex) : object[] {
 		                           ^
 
 
 copy3:
-line: 146 [0x0] 0:	pushl 0
+line: 150 [0x0] 0:	pushl 0
           [0x1] 1:	ipushl #1
           [0x2] 2:	ipushl #2
           [0x3] 3:	int 0xc3
           [0x4] 4:	popl 0
           [0x5] 5:	ret
 
-func:@311 [std.kernel#Runtime.copy4] in file: lib\support\0.2.422\/kernel//Runtime.sharp:156:28: note:  
+func:@311 [std.kernel#Runtime.copy4] in file: lib\support\0.2.422\/kernel//Runtime.sharp:160:28: note:  
 		    public static def copy4(object[] data, var startIndex, var stopIndex) : object[] {
 		                           ^
 
 
 copy4:
-line: 156 [0x0] 0:	pushl 0
+line: 160 [0x0] 0:	pushl 0
           [0x1] 1:	ipushl #1
           [0x2] 2:	ipushl #2
           [0x3] 3:	int 0xc4
           [0x4] 4:	popl 0
           [0x5] 5:	ret
 
-func:@312 [std.kernel#Runtime.realloc] in file: lib\support\0.2.422\/kernel//Runtime.sharp:166:30: note:  
+func:@312 [std.kernel#Runtime.realloc] in file: lib\support\0.2.422\/kernel//Runtime.sharp:170:30: note:  
 		    public static def realloc(object[] data, var size) {
 		                             ^
 
 
 realloc:
-line: 166 [0x0] 0:	pushl 0
+line: 170 [0x0] 0:	pushl 0
           [0x1] 1:	ipushl #1
           [0x2] 2:	int 0xc6
           [0x3] 3:	ret
 
-func:@313 [std.kernel#Runtime.sizeOf] in file: lib\support\0.2.422\/kernel//Runtime.sharp:174:29: note:  
+func:@313 [std.kernel#Runtime.sizeOf] in file: lib\support\0.2.422\/kernel//Runtime.sharp:178:29: note:  
 		    public static def sizeOf(object data) : var {
 		                            ^
 
 
 sizeOf:
-line: 174 [0x0] 0:	pushl 0
-line: 197 [0x1] 1:	int 0xc2
+line: 178 [0x0] 0:	pushl 0
+line: 201 [0x1] 1:	int 0xc2
           [0x2] 2:	return_val ebx
           [0x3] 3:	ret
           [0x4] 4:	pushl 1
@@ -7954,25 +7958,25 @@ line: 197 [0x1] 1:	int 0xc2
           [0x6] 6:	return_val ebx
           [0x7] 7:	ret
 
-func:@314 [std.kernel#Runtime._snprintf] in file: lib\support\0.2.422\/kernel//Runtime.sharp:183:32: note:  
+func:@314 [std.kernel#Runtime._snprintf] in file: lib\support\0.2.422\/kernel//Runtime.sharp:187:32: note:  
 		    public static def _snprintf(var fmt, var data, var precision) : var[] {
 		                               ^
 
 
 _snprintf:
-line: 183 [0x0] 0:	movl 3
+line: 187 [0x0] 0:	movl 3
           [0x1] 1:	del
-line: 184 [0x2] 2:	loadl egx, fp+0
+line: 188 [0x2] 2:	loadl egx, fp+0
           [0x3] 3:	loadl ebx, fp+1
           [0x4] 4:	loadl ecx, fp+2
           [0x5] 5:	int 0xc7
           [0x6] 6:	movl 3
           [0x7] 7:	popobj
-line: 192 [0x8] 8:	movl 3
+line: 196 [0x8] 8:	movl 3
           [0x9] 9:	returnobj
           [0xa] 10:	ret
 
-func:@315 [std.kernel#Runtime.sizeOf] in file: lib\support\0.2.422\/kernel//Runtime.sharp:197:29: note:  
+func:@315 [std.kernel#Runtime.sizeOf] in file: lib\support\0.2.422\/kernel//Runtime.sharp:201:29: note:  
 		    public static def sizeOf(object[] data) : var {
 		                            ^
 
@@ -7982,50 +7986,50 @@ sizeOf:
         [0x2] 2:	return_val ebx
         [0x3] 3:	ret
 
-func:@316 [std.kernel#Runtime.sedateGc] in file: lib\support\0.2.422\/kernel//Runtime.sharp:207:31: note:  
+func:@316 [std.kernel#Runtime.sedateGc] in file: lib\support\0.2.422\/kernel//Runtime.sharp:211:31: note:  
 		    public static def sedateGc() {
 		                              ^
 
 
 sedateGc:
-line: 207 [0x0] 0:	int 0xf1
+line: 211 [0x0] 0:	int 0xf1
           [0x1] 1:	ret
 
-func:@317 [std.kernel#Runtime.selfCollect] in file: lib\support\0.2.422\/kernel//Runtime.sharp:214:34: note:  
+func:@317 [std.kernel#Runtime.selfCollect] in file: lib\support\0.2.422\/kernel//Runtime.sharp:218:34: note:  
 		    public static def selfCollect() : var {
 		                                 ^
 
 
 selfCollect:
-line: 214 [0x0] 0:	int 0xf0
+line: 218 [0x0] 0:	int 0xf0
           [0x1] 1:	return_val cmt
           [0x2] 2:	ret
 
-func:@318 [std.kernel#Runtime.wakeGc] in file: lib\support\0.2.422\/kernel//Runtime.sharp:222:29: note:  
+func:@318 [std.kernel#Runtime.wakeGc] in file: lib\support\0.2.422\/kernel//Runtime.sharp:226:29: note:  
 		    public static def wakeGc() {
 		                            ^
 
 
 wakeGc:
-line: 222 [0x0] 0:	int 0xf2
+line: 226 [0x0] 0:	int 0xf2
           [0x1] 1:	ret
 
-func:@319 [std.kernel#Runtime.killGc] in file: lib\support\0.2.422\/kernel//Runtime.sharp:229:29: note:  
+func:@319 [std.kernel#Runtime.killGc] in file: lib\support\0.2.422\/kernel//Runtime.sharp:233:29: note:  
 		    public static def killGc() {
 		                            ^
 
 
 killGc:
-line: 229 [0x0] 0:	int 0xf3
+line: 233 [0x0] 0:	int 0xf3
           [0x1] 1:	ret
 
-func:@320 [std.kernel#Runtime.isGcAwake] in file: lib\support\0.2.422\/kernel//Runtime.sharp:236:32: note:  
+func:@320 [std.kernel#Runtime.isGcAwake] in file: lib\support\0.2.422\/kernel//Runtime.sharp:240:32: note:  
 		    public static def isGcAwake() : var {
 		                               ^
 
 
 isGcAwake:
-line: 236 [0x0] 0:	int 0xf4
+line: 240 [0x0] 0:	int 0xf4
           [0x1] 1:	return_val cmt
           [0x2] 2:	ret
 
