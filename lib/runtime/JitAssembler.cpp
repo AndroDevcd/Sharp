@@ -854,6 +854,21 @@ int JitAssembler::compile(Method *func) {
                         assembler.call((x86int_t)JitAssembler::jitSetObject0);
                         break;
                     }
+                    case op_MOVN: {
+                        checkO2Node(assembler, o2Ptr, lbl_func_end);
+
+                        if(GET_Da(ir) > 0)
+                            assembler.add(ctx, (x86int_t)(GET_Da(ir)*sizeof(Object)));
+                        assembler.mov(o2Ptr, ctx);
+                        break;
+                    }
+                    case op_SLEEP: {
+                        movRegister(assembler, vec0, GET_Da(ir));
+                        assembler.cvttsd2si(ctx, vec0); // double to int
+
+                        cc.call((x86int_t)__os_sleep);
+                        break;
+                    }
                     default: {
                         assembler.nop();                    // by far one of the easiest instructions yet
                         break;
@@ -988,6 +1003,27 @@ int JitAssembler::compile(Method *func) {
     finish:
     func->compiling = false;
     return error;
+}
+
+void JitAssembler::checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_func_end) const {
+    assembler.mov(ctx, o2Ptr);
+    assembler.cmp(ctx, 0); // 02==NULL
+    Label nullCheckPassed = assembler.newLabel();
+    Label nullCheckFailed = assembler.newLabel();
+    assembler.je(nullCheckFailed);
+
+    assembler.mov(ctx, qword_ptr(ctx));
+    assembler.cmp(ctx, 0);
+    assembler.je(nullCheckFailed);
+
+    assembler.mov(ctx, Lsharp_object[sharp_object_node]);
+    assembler.cmp(ctx, 0);
+    assembler.jne(nullCheckPassed);
+
+    assembler.bind(nullCheckFailed);
+    assembler.call((x86int_t) jitNullPtrException);
+    assembler.jmp(lbl_func_end);
+    assembler.bind(nullCheckPassed);
 }
 
 /*

@@ -33,7 +33,34 @@ def foo() {
     calc(x,y);
 }
 ```
+- modify syntax to allow for a much more user friendly and easy design for type creation and
+variable assignments
 
+```javascript
+
+class House {
+    rooms : int;
+    address := "";
+    hasBasement : bool;
+    value : int = 0; // variables are now written as follows <identifier> `:` [<uType>] [`=` <value>] `;`
+}
+
+def foo(num : var) {
+    x := 9; // value is inferred type set to var
+    y := num; // same concept as above
+    z : int = num; 
+    
+    // we now change the inferred fn pointer assign symbol from to `:=` from `=` 
+    fn calc := def ?(x : var, y : var) : var {
+        c = 10; // could not resolve c out of scope
+        return Math.sqrt(x)+y;
+    };
+    
+    // regular typed fn pointer assignments stay the same
+    fn calc2(var) = def ?(z : var) { };
+    calc(x,y);
+}
+```
 - the concept of  the use statement is that the use directive
 creates an inline anonymous function to be used directly with your 
 code. The inline function has no notion of the surrounding scope
