@@ -43,9 +43,8 @@ public class Runtime {
 
     public static def __srt_init_(object[] args) : var {
         asm(
-            "movi 5,ebx"
-            "cmp ebx, 4"
-            "skpe 1"
+            "movi 100, ebx"
+            "new_string 1"
             "nop nop"
         );
     }

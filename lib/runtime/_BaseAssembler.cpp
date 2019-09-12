@@ -125,7 +125,7 @@ int _BaseAssembler::tryJit(Method* func) {
     return error;
 }
 
-int _BaseAssembler::compile(Method *func) {
+int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code to check the sp overflow just like thread status check is written
     int error = jit_error_ok;
     if(func->bytecode != NULL)
     {
@@ -1013,6 +1013,137 @@ int _BaseAssembler::compile(Method *func) {
                         movRegister(assembler, vec0, i64cmt);
                         break;
                     }
+                    case op_AND: {
+                        Label isFalse = assembler.newLabel(), isTrue = assembler.newLabel(),
+                                end = assembler.newLabel(), next = assembler.newLabel();
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+
+                        emitConstant(assembler, constant_pool, vec1, 0);
+                        assembler.ucomisd(vec0, vec1);
+                        assembler.jp(next);
+                        assembler.je(isFalse);
+
+                        assembler.bind(next);
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+                        assembler.ucomisd(vec0, vec1);
+                        assembler.jp(isTrue);
+                        assembler.jne(isTrue);
+
+                        assembler.bind(isFalse);
+                        emitConstant(assembler, constant_pool, vec0, 0);
+                        assembler.jmp(end);
+                        assembler.bind(isTrue);
+                        emitConstant(assembler, constant_pool, vec0, 1);
+                        assembler.bind(end);
+
+                        movRegister(assembler, vec0, i64cmt);
+                        break;
+                    }
+                    case op_UAND:
+                    case op_OR:
+                    case op_XOR: {
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+                        assembler.cvttsd2si(ctx, vec0); // double to int
+                        if(is_op(ir, op_UAND))
+                            assembler.and_(tmp, ctx);
+                        else if(is_op(ir, op_OR))
+                            assembler.or_(tmp, ctx);
+                        else if(is_op(ir, op_XOR))
+                            assembler.xor_(tmp, ctx);
+
+                        assembler.cvtsi2sd(vec0, tmp); // int to Double
+                        movRegister(assembler, vec0, i64cmt);
+                        break;
+                    }
+                    case op_THROW: {
+                        assembler.mov(arg, i);
+                        updatePc(assembler);
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.call((int64_t)_BaseAssembler::jitThrow);
+
+                        assembler.mov(arg, -1); // we don't need to update pc again
+                        assembler.jne(lbl_thread_chk);
+                        break;
+                    }
+                    case op_CHECKNULL: {
+                        assembler.mov(ctx, o2Ptr);
+                        assembler.cmp(ctx, 0); // 02==NULL
+                        Label nullCheckPassed = assembler.newLabel();
+                        Label nullCheckFailed = assembler.newLabel();
+                        Label end = assembler.newLabel();
+                        assembler.je(nullCheckFailed);
+
+                        assembler.mov(ctx, qword_ptr(ctx));
+                        assembler.cmp(ctx, 0);
+                        assembler.je(nullCheckFailed);
+                        assembler.jmp(nullCheckPassed);
+
+                        assembler.bind(nullCheckFailed);
+                        emitConstant(assembler, constant_pool, vec0, 1);
+                        assembler.jmp(end);
+
+                        assembler.bind(nullCheckPassed);
+                        emitConstant(assembler, constant_pool, vec0, 0);
+
+                        assembler.bind(end);
+                        movRegister(assembler, vec0, i64cmt);
+                        break;
+                    }
+                    case op_RETURNOBJ: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_fp]);
+                        assembler.lea(ctx, Lstack_element[stack_element_object]);
+
+                        assembler.mov(value, o2Ptr);
+                        assembler.call((int64_t)_BaseAssembler::jitSetObject2);
+                        break;
+                    }
+                    case op_NEWCLASSARRAY: {
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        assembler.cvttsd2si(ctx, vec0); // double to int
+                        assembler.mov(value, GET_Cb(ir));
+                        assembler.call((x86int_t)_BaseAssembler::jitNewClass1);
+                        assembler.mov(tmpInt, tmp);
+
+                        threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(value, Lthread[thread_sp]);
+                        assembler.lea(value, x86::ptr(value, sizeof(StackElement)));
+                        assembler.mov(Lthread[thread_sp], value);
+
+                        assembler.mov(ctx, tmpInt);
+                        assembler.call((x86int_t)_BaseAssembler::jitSetObject0);
+                        break;
+                    }
+                    case op_NEWSTRING: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(value, GET_Da(ir));
+                        assembler.call((x86int_t)_BaseAssembler::jitNewString);
+
+                        threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
+                        break;
+                    }
+                    case op_SUBL: { // untested
+                        assembler.mov(ctx, threadPtr); // ctx->current
+                        assembler.mov(ctx, Lthread[thread_fp]); // ctx->current->fp
+                        if(GET_Cb(ir) != 0) {
+                            assembler.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(ir)));
+                        }
+
+                        assembler.mov(value, ctx);
+                        assembler.movsd(vec0, getMemPtr(ctx));
+
+                        movRegister(assembler, vec1, GET_Ca(ir), false);
+                        assembler.subsd(vec0, vec1);
+                        assembler.mov(ctx, value);
+
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
                     default: {
                         assembler.nop();                    // by far one of the easiest instructions yet
                         break;
@@ -1343,7 +1474,7 @@ SharpObject* _BaseAssembler::jitNewObject2(x86int_t size) {
     }
 }
 
-SharpObject* _BaseAssembler::jitNewClass0(int64_t classid) {
+SharpObject* _BaseAssembler::jitNewClass0(x86int_t classid) {
     try {
         return GarbageCollector::self->newObject(&env->classes[classid]);
     } catch(Exception &e) {
@@ -1352,9 +1483,33 @@ SharpObject* _BaseAssembler::jitNewClass0(int64_t classid) {
     }
 }
 
+SharpObject* _BaseAssembler::jitNewClass1(x86int_t size, x86int_t classid) {
+    try {
+        return GarbageCollector::self->newObject(&env->classes[classid]);
+    } catch(Exception &e) {
+        __srt_cxx_prepare_throw(e);
+        return NULL;
+    }
+}
+
+void _BaseAssembler::jitNewString(Thread* thread, int64_t strid) {
+    try {
+        GarbageCollector::self->createStringArray(&(++thread->sp)->object,
+                                                  env->getStringById(strid));
+    } catch(Exception &e) {
+        __srt_cxx_prepare_throw(e);
+    }
+}
+
 void _BaseAssembler::jitNullPtrException() {
     Exception nptr(Environment::NullptrException, "");
     __srt_cxx_prepare_throw(nptr);
+}
+
+void _BaseAssembler::jitThrow(Thread *thread) {
+    thread->exceptionObject = thread->sp->object;
+    Exception e("", false);
+    __srt_cxx_prepare_throw(e);
 }
 
 void _BaseAssembler::jitSetObject0(SharpObject* o, StackElement *sp) {
@@ -1366,7 +1521,7 @@ void _BaseAssembler::jitSetObject1(StackElement *dest, StackElement *src) {
 }
 
 void _BaseAssembler::jitSetObject2(Object *dest, Object *src) {
-    dest->object = src->object;
+    *dest = src;
 }
 
 void _BaseAssembler::jitDelete(Object* o) {

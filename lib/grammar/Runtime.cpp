@@ -9523,7 +9523,7 @@ void RuntimeEngine::createDumpFile() {
                 case op_NEWCLASSARRAY:
                 {
                     ss<<"new_classarray ";
-                    ss<< GET_Ca(x64);
+                    ss<< Asm::registrerToString(GET_Ca(x64));
                     ss<< " ";
                     ss << " // "; ss << find_class(GET_Cb(x64)) << "[]";
                     _ostream << ss.str();

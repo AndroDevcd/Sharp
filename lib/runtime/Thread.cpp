@@ -1135,7 +1135,7 @@ void Thread::exec() {
                 throw Exception("", false);
                 _brh
             CHECKNULL:
-                CHECK_NULL(registers[i64cmt]=o2->object==NULL;)
+                registers[i64cmt]=o2 == NULL || o2->object==NULL;
                 _brh
             RETURNOBJ:
                 fp->object=o2;

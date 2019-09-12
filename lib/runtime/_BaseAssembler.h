@@ -85,7 +85,9 @@ private:
     static void __srt_cxx_prepare_throw(Exception &e);
     static SharpObject* jitNewObject(x86int_t size);
     static SharpObject* jitNewObject2(x86int_t size);
-    static SharpObject* jitNewClass0(int64_t classid);
+    static SharpObject* jitNewClass0(x86int_t classid);
+    static SharpObject* jitNewClass1(x86int_t size, x86int_t classid);
+    static void jitNewString(Thread* thread, int64_t strid);
     static void jitSetObject0(SharpObject* o, StackElement *sp);
     static void jitSetObject1(StackElement*, StackElement*);
     static void jitSetObject2(Object *dest, Object *src);
@@ -99,6 +101,7 @@ private:
     static void jitPutC(int op0);
     static void jitGet(int op0);
     static void jitNullPtrException();
+    static void jitThrow(Thread *thread);
 
     virtual x86::Mem getMemPtr(x86int_t addr) = 0;
     virtual x86::Mem getMemPtr(x86::Gp reg, x86int_t addr) = 0;

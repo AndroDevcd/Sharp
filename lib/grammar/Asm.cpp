@@ -987,7 +987,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 assembler.push_i64(SET_Ei(i64, op_CHECKNULL));
             } else if(instruction_is("return_obj")) {
                 assembler.push_i64(SET_Ei(i64, op_RETURNOBJ));
-            } else if(instruction_is("newclass_array")) {
+            } else if(instruction_is("new_classarry")) {
                 expect_register();
                 itmp = i2;
                 expect(",");
