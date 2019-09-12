@@ -11,7 +11,7 @@ import std.io;
  * garbage collector requests and the entry-point to
  * your application
  */
-public class Runtime {
+public class Runtime { // TODO: implement hashMap "https://www.geeksforgeeks.org/implementing-hash-table-open-addressing-linear-probing-cpp/"
 
     private static var MINIMUM_ARGS = 4;
     private static string[] userArgs = null;
@@ -43,8 +43,8 @@ public class Runtime {
 
     public static def __srt_init_(object[] args) : var {
         asm(
-            "movi 100, ebx"
-            "new_string 1"
+            "movi 1, ebx"
+            "subl ebx, 1"
             "nop nop"
         );
     }

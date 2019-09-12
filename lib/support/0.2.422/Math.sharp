@@ -60,7 +60,7 @@ public class Math {
     
     public static def log10(var n) : var { return CMath.log10(n); }
     
-    public static def pow(var n) : var { return CMath.pow(n); }
+    public static def pow(var n, var exp) : var { return CMath.pow(n, exp); }
     
     public static def sqrt(var n) : var { return CMath.sqrt(n); }
     

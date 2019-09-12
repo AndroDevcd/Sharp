@@ -278,7 +278,11 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
         } else method->longCalls++;
     }
 
-    __os_sleep(3);
+    for(;;) {
+        __os_sleep(1);
+        if(method->isjit)
+            break;
+    }
     if(method->isjit) {
         thread->callStack[thread->calls].isjit = true;
         thread->jctx->caller = method;

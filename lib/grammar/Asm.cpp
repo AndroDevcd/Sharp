@@ -118,9 +118,15 @@ void Asm::expect_int() {
         npos++;
     }
 
-    if(current().getId() == INTEGER_LITERAL || current().getId() == HEX_LITERAL) {
+    if(current() == "-" || current().getId() == INTEGER_LITERAL || current().getId() == HEX_LITERAL) {
         double x;
-        string int_string = RuntimeEngine::invalidateUnderscores(current().getToken());
+        string int_string;
+        if(current() == "-") {
+            npos++;
+            int_string = RuntimeEngine::invalidateUnderscores("-" + current().getToken());
+        } else {
+            int_string = RuntimeEngine::invalidateUnderscores(current().getToken());
+        }
 
         if(all_integers(int_string) || hex_int(int_string)) {
             x = std::strtoll (int_string.c_str(), NULL, 0);

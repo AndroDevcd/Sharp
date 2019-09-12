@@ -19,4 +19,8 @@ class integer {
     public def getValue() : var {
         return (value);
     }
+
+    def delegate::hash() : var {
+        return value;
+    }
 }

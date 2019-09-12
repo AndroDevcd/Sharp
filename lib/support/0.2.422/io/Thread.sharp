@@ -1,6 +1,7 @@
 mod std.io;
 
 import std;
+import std.kernel;
 import std.kernel.vm;
 
 /**

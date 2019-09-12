@@ -1127,11 +1127,11 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
                         break;
                     }
-                    case op_SUBL: { // untested
+                    case op_SUBL: {
                         assembler.mov(ctx, threadPtr); // ctx->current
                         assembler.mov(ctx, Lthread[thread_fp]); // ctx->current->fp
                         if(GET_Cb(ir) != 0) {
-                            assembler.add(ctx, (int64_t )(sizeof(StackElement) * GET_Cb(ir)));
+                            assembler.add(ctx, (x86int_t )(sizeof(StackElement) * GET_Cb(ir)));
                         }
 
                         assembler.mov(value, ctx);

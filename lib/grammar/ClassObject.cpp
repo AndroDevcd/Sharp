@@ -91,7 +91,15 @@ Method *ClassObject::getDelegatePost(string name, List<Param>& params, bool useB
         }
     }
 
-    if(useBase && base != NULL)
+    for(long long i = 0; i < interfaces.size(); i++) {
+        ClassObject *itf = interfaces.get(i);
+        Method *fn;
+        if((fn = itf->getDelegatePost(name, params, useBase, nativeSupport, find))!= NULL) {
+            return fn;
+        }
+    }
+
+    if(useBase && base != NULL && !(isInterface() && base->fullName == "std#Object"))
         return base->getDelegatePost(name, params, useBase, nativeSupport);
 
     return NULL;
@@ -458,7 +466,7 @@ List<Method *> ClassObject::getDelegatePosts(bool ubase) {
 List<Method *> ClassObject::getDelegates() {
     List<Method*> delegates;
 
-    for(int i = 0; i < functions.size(); i++) {
+    for(long long i = 0; i < functions.size(); i++) {
         Method *func = getFunction(i);
         if(func->delegate)
             delegates.add(func);

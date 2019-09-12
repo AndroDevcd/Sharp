@@ -368,4 +368,25 @@ public class string {
         public def delegate::toString() : string {
             return new string(data);
         }
+
+        def delegate::hash() : var {
+            var hash;
+
+            if(data != null) {
+                hash = data[0] + Math.pow(data[0]*31, sizeof(data)-1);
+
+                if(sizeof(data) >= 1) {
+                    hash += Math.pow(data[1]*31, sizeof(data)-2);
+
+                    for(var i = 2; i < sizeof(data); i++) {
+                        if(i < 15) {
+                            hash += data[i];
+                        } else
+                            break;
+                    }
+                }
+            }
+
+            return hash;
+        }
 }

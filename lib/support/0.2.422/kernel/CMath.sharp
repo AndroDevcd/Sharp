@@ -79,8 +79,8 @@ public class CMath {
         return __cmath(n, 0xD);
     }
 
-    public static def pow(var n) : var {
-        return __cmath(n, 0xE);
+    public static def pow(var n, var exp) : var {
+        return __cmath(n, exp,  0xE);
     }
 
     public static def sqrt(var n) : var {

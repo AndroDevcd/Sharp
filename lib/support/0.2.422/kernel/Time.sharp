@@ -1,6 +1,4 @@
-mod std.kernel.vm;
-
-import std.kernel;
+mod std.kernel;
 
 /**
 * Time class for sleeping and getting current time

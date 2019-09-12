@@ -31,6 +31,7 @@ from the older version with the updated runtime system and vise versa. Any other
         * `thread_local` will now be allowed on function pointers
         * Function pointers should now properly work on generic classes
         * Fixed several errors in the Sharp compiler assembler for writing inline assembly
+        * Fixed compiler bug preventing implementation of delegate function through multiple interfaces
 
     # QoL Improvements
         * Updated the Assembler to allow for high level assembly programming with the newly added instructions

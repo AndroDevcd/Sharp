@@ -1,10 +1,12 @@
 mod std;
 
+import std.kernel;
+
 /**                          
 * Created by bknun on 7/4/2018            
 * Description:                             
 */
-class Object : Printable {
+class Object : Printable, Unique {
 
     public def operator==(object o) : var {
         return ((object)self)==o;
@@ -12,5 +14,14 @@ class Object : Printable {
 
     public def delegate::toString() : string {
         return new string("");
+    }
+
+    def delegate::hash() : var {
+        /* not implemented */
+        return 0;
+    }
+
+    def delegate::guid() : var {
+        return Time.nanoTime();
     }
 }
