@@ -27,7 +27,7 @@ code_start:
 ; instr 0
 L0:
 L1:
-movsd xmm0, [L17]
+movsd xmm0, [L22]
 mov rcx, r14
 add rcx, 24
 movsd qword [rcx], xmm0
@@ -38,23 +38,11 @@ nop
 nop
 ; instr 2
 L2:
-mov rcx, r15
-mov rcx, qword [rcx+16]
-add rcx, 16
-mov rax, rcx
-mov rcx, r14
-add rcx, 24
-movsd xmm0, qword [rcx]
-mov rcx, rax
-movsd qword [rcx], xmm0
-nop
-nop
-nop
-nop
-nop
-; instr 3
 L3:
-nop
+movsd xmm0, [L23]
+mov rcx, r14
+add rcx, 32
+movsd qword [rcx], xmm0
 nop
 nop
 nop
@@ -62,15 +50,10 @@ nop
 nop
 ; instr 4
 L4:
-nop
-nop
-nop
-nop
-nop
-nop
-; instr 5
 L5:
-nop
+movsd xmm0, [L24]
+mov rcx, r14
+movsd qword [rcx], xmm0
 nop
 nop
 nop
@@ -78,7 +61,24 @@ nop
 nop
 ; instr 6
 L6:
-nop
+mov rcx, r14
+add rcx, 24
+movsd xmm0, qword [rcx]
+cvttsd2si rcx, xmm0
+call 4661164
+mov qword [rbp-64], rax
+lea r12, [L6]
+mov r13, 6
+mov rcx, r15
+mov ecx, qword [rcx+80]
+cmp ecx, 0
+jne .thread_check
+mov rcx, r15
+mov rdx, qword [rcx+16]
+lea rdx, [rdx+16]
+mov qword [rcx+16], rdx
+mov rcx, qword [rbp-64]
+call 4662264
 nop
 nop
 nop
@@ -86,33 +86,10 @@ nop
 nop
 ; instr 7
 L7:
-mov rcx, qword [rbp-56]
-cmp rcx, 0
-je L19
-jmp L18
-L19:
-mov r13, 7
-cmp r13, -1
-je L20
 mov rcx, r15
-mov rax, qword [rcx+64]
-imul r13, 8
-add rax, r13
-mov qword [rcx+72], rax
-L20:
-mov r13, 0
-call 4660490
-mov r13, -1
-jmp .thread_check
-L18:
-mov rcx, r15
-mov rax, qword [rcx+16]
-lea rdx, [rax-16]
-mov qword [rcx+16], rdx
-mov rcx, rax
-lea rdx, qword [rcx+8]
-mov rcx, qword [rbp-56]
-call 4660936
+mov rcx, qword [rcx+16]
+lea rcx, qword [rcx+8]
+mov qword [rbp-56], rcx
 nop
 nop
 nop
@@ -120,11 +97,50 @@ nop
 nop
 ; instr 8
 L8:
-L9:
-pxor xmm0, xmm0
+mov rcx, qword [rbp-56]
+cmp rcx, 0
+je L26
+mov rcx, qword [rcx]
+cmp rcx, 0
+je L26
+mov rcx, qword [rcx]
+cmp rcx, 0
+jne L25
+L26:
+mov r13, 8
+cmp r13, -1
+je L27
+mov rcx, r15
+mov rax, qword [rcx+64]
+imul r13, 8
+add rax, r13
+mov qword [rcx+72], rax
+L27:
+mov r13, 0
+call 4661910
+mov r13, -1
+jmp .thread_check
+L25:
+mov rdx, rcx
+mov rcx, r14
+movsd xmm0, qword [rcx]
+cvttsd2si rax, xmm0
+imul rax, 8
+add rdx, rax
 mov rcx, r14
 add rcx, 24
-movsd qword [rcx], xmm0
+movsd xmm0, qword [rcx]
+movsd qword [rdx], xmm0
+mov rcx, qword [rbp-56]
+call 4659992
+nop
+nop
+nop
+nop
+nop
+; instr 9
+L9:
+nop
 nop
 nop
 nop
@@ -140,15 +156,51 @@ nop
 nop
 ; instr 11
 L11:
-mov r13, 11
+nop
+nop
+nop
+nop
+nop
+nop
+; instr 12
+L12:
+nop
+nop
+nop
+nop
+nop
+nop
+; instr 13
+L13:
+L14:
+pxor xmm0, xmm0
+mov rcx, r14
+add rcx, 24
+movsd qword [rcx], xmm0
+nop
+nop
+nop
+nop
+nop
+; instr 15
+L15:
+nop
+nop
+nop
+nop
+nop
+nop
+; instr 16
+L16:
+mov r13, 16
 cmp r13, -1
-je L21
+je L28
 mov rcx, r15
 mov rax, qword [rcx+64]
 imul r13, 8
 add rax, r13
 mov qword [rcx+72], rax
-L21:
+L28:
 mov r13, 0
 jmp func_end
 nop
@@ -156,15 +208,15 @@ nop
 nop
 nop
 nop
-mov r13, 11
+mov r13, 16
 cmp r13, -1
-je L22
+je L29
 mov rcx, r15
 mov rax, qword [rcx+64]
 imul r13, 8
 add rax, r13
 mov qword [rcx+72], rax
-L22:
+L29:
 mov r13, 0
 jmp func_end
 init_addr_tbl:
@@ -206,6 +258,21 @@ mov qword [rax], rcx
 add rax, 8
 lea rcx, [L11]
 mov qword [rax], rcx
+add rax, 8
+lea rcx, [L12]
+mov qword [rax], rcx
+add rax, 8
+lea rcx, [L13]
+mov qword [rax], rcx
+add rax, 8
+lea rcx, [L14]
+mov qword [rax], rcx
+add rax, 8
+lea rcx, [L15]
+mov qword [rax], rcx
+add rax, 8
+lea rcx, [L16]
+mov qword [rax], rcx
 nop
 jmp code_start
 func_end:
@@ -228,44 +295,44 @@ mov eax, qword [rcx+80]
 sar eax, 2
 and eax, 1
 test eax, eax
-je L23
+je L30
 call 4231688
-L23:
+L30:
 mov rcx, r15
 mov eax, qword [rcx+136]
 cmp eax, 3
-jne L24
+jne L31
 short jmp func_end
-L24:
+L31:
 mov rcx, r15
 mov eax, qword [rcx+80]
 sar eax, 1
 and eax, 1
 test eax, eax
-je L25
+je L32
 cmp r13, -1
-je L27
+je L34
 mov rcx, r15
 mov rax, qword [rcx+64]
 imul r13, 8
 add rax, r13
 mov qword [rcx+72], rax
-L27:
+L34:
 mov r13, 0
 mov rcx, qword [rcx+32]
-call 4661740
+call 4663160
 cmp rax, 1
-je L26
+je L33
 jmp func_end
-L26:
+L33:
 mov rcx, r15
-call 4661704
+call 4663124
 mov rdx, qword [rbp-48]
 imul rax, 8
 add rdx, rax
 mov r12, [rdx]
 jmp r12
-L25:
+L32:
 jmp r12
 nop
 nop
@@ -273,5 +340,9 @@ nop
 align 64
 .data:
 ; data section start
-L17:
+L22:
+db 0000000000001440
+L23:
+db 0000000000E8C940
+L24:
 db 000000000000F03F

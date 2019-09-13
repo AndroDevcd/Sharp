@@ -1256,6 +1256,57 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.movsd(Lstack_element[stack_element_var], vec0);
                         break;
                     }
+                    case op_SMOVR_2: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_fp]);
+                        if(GET_Cb(ir) != 0) {
+                            assembler.add(ctx, (x86int_t )(sizeof(StackElement) * GET_Cb(ir)));
+                        }
+
+                        assembler.mov(tmp, ctx);
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        assembler.mov(ctx, tmp);
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
+                    case op_ANDL: {
+                        assembler.mov(ctx, threadPtr); // ctx->current
+                        assembler.mov(ctx, Lthread[thread_fp]); // ctx->current->fp
+                        if(GET_Cb(ir) != 0) {
+                            assembler.add(ctx, (x86int_t )(sizeof(StackElement) * GET_Cb(ir)));
+                        }
+
+                        assembler.mov(value, ctx);
+                        assembler.movsd(vec0, getMemPtr(ctx));
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        assembler.cvttsd2si(ctx, vec0); // double to int
+                        if(is_op(ir, op_ANDL))
+                            assembler.and_(tmp, ctx);
+                        else if(is_op(ir, op_ORL))
+                            assembler.or_(tmp, ctx);
+                        else if(is_op(ir, op_XORL))
+                            assembler.xor_(tmp, ctx);
+
+                        assembler.cvtsi2sd(vec0, tmp); // int to Double
+                        assembler.mov(ctx, value);
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
+                    case op_RMOV: {
+                        checkO2Head(assembler, o2Ptr, lbl_thread_chk, i);
+                        assembler.mov(value, ctx);
+
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+                        assembler.imul(tmp, (x86int_t)sizeof(double));
+                        assembler.add(value, tmp);
+
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+                        assembler.movsd(getMemPtr(value), vec0);
+                        break;
+                    }
                     default: {
                         assembler.nop();                    // by far one of the easiest instructions yet
                         break;
@@ -1542,10 +1593,8 @@ void _BaseAssembler::test(x86int_t proc) {
             registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
         } else throw Exception(Environment::NullptrException, "");
      */
-    cout << "(ebx) " << registers[i64ebx] << endl << std::flush;
-    cout << "(ecx) " << registers[i64ecx] << endl << std::flush;
-    cout << "(&ecx) " << (int64_t)&registers[i64ecx] << endl << std::flush;
-    cout << "(&ebx) " << (int64_t)&registers[i64ebx] << endl << std::flush;
+    Object* o = (Object*)proc;
+    cout << "(obj->HEAD[1]) " << o->object->HEAD[1] << endl << std::flush;
 }
 
 // had a hard time with this one so will do this for now
