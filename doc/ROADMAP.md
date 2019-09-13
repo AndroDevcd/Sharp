@@ -123,3 +123,13 @@ def foo(??name) {
 
 }
 ```
+
+- add new options for bootstrap compiler object dumping
+    - "-obj" to dump object file (file will be outputted with no debugging info and mangled
+    - "-obj:d" for demangling code to show names
+    - "-obj:x" for displaying the compiled high level assembly syntax i.e. "mov fp+2, %ebx"
+    - "-obj:i" for debugging info i.e "line numbers, file locations, and address locations i.e [0x34a]
+    - Allod for the user to chain together options i.e "-obj:ix"
+
+- Create new syntax for Assembler in SHarp compiler to be more like a modern assembly language
+- Create a "CodeAst" Block structure when compiling to allow for insightful data as well as code optimization

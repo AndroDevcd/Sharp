@@ -1120,6 +1120,23 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
                 }
 
                 assembler.push_i64(SET_Ci(i64, op_SMOVR_2, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
+            } else if(instruction_is("smovr")) {
+                expect_register();
+                itmp = i2;
+                expect(",");
+                if(current() == "<") {
+                    npos++;
+                    string local = expect_identifier();
+
+                    if(instance->scopeMap.last().getLocalField(local) == NULL || (i2.high_bytes = instance->scopeMap.last().getLocalField(local)->value.address) == -1)  {
+                        tk->getErrors()->createNewError(COULD_NOT_RESOLVE, current(), " `" + local + "`");
+                    }
+                    expect(">");
+                } else {
+                    expect_int();
+                }
+
+                assembler.push_i64(SET_Ci(i64, op_SMOVR, abs(itmp.high_bytes), (itmp.high_bytes<0), i2.high_bytes));
             } else if(instruction_is("andl")) {
                 expect_register();
                 itmp = i2;

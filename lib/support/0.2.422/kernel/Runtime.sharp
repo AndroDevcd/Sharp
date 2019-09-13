@@ -44,8 +44,9 @@ public class Runtime { // TODO: implement hashMap "https://www.geeksforgeeks.org
     public static def __srt_init_(object[] args) : var {
         asm(
             "movi 1, ebx"
-            "subl ebx, 1"
-            "nop nop"
+            "smovr ebx,1"
+            " nop nop nop nop "
+            "popobj"
         );
     }
 

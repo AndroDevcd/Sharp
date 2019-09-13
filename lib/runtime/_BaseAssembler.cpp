@@ -420,8 +420,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         assembler.cqo();
                         assembler.idiv(assembler.zcx());
-                        assembler.mov(assembler.zax(), assembler.zdx());
-                        assembler.cvtsi2sd(vec0, assembler.zax());
+                        assembler.cvtsi2sd(vec0, assembler.zdx());
 
                         i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
                         movRegister(assembler, vec0, irTail);
@@ -468,8 +467,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         assembler.cqo();
                         assembler.idiv(assembler.zcx());
-                        assembler.mov(assembler.zax(), assembler.zdx());
-                        assembler.cvtsi2sd(vec0, assembler.zax());
+                        assembler.cvtsi2sd(vec0, assembler.zdx());
 
                         i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
                         movRegister(assembler, vec0, GET_Ca(ir));
@@ -894,14 +892,14 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         break;
                     }
                     case op_LOCK: {
-                        checkO2(assembler, o2Ptr, lbl_thread_chk, i);
+                        checkO2Object(assembler, o2Ptr, lbl_thread_chk, i);
 
                         assembler.mov(ctx, o2Ptr);
                         assembler.call((int64_t)Object::monitorLock);
                         break;
                     }
                     case op_ULOCK: {
-                        checkO2(assembler, o2Ptr, lbl_thread_chk, i);
+                        checkO2Object(assembler, o2Ptr, lbl_thread_chk, i);
 
                         assembler.mov(ctx, o2Ptr);
                         assembler.call((int64_t)Object::monitorUnLock);
@@ -1127,7 +1125,9 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
                         break;
                     }
-                    case op_SUBL: {
+                    case op_SUBL:
+                    case op_MULL:
+                    case op_DIVL:  {
                         assembler.mov(ctx, threadPtr); // ctx->current
                         assembler.mov(ctx, Lthread[thread_fp]); // ctx->current->fp
                         if(GET_Cb(ir) != 0) {
@@ -1138,9 +1138,121 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.movsd(vec0, getMemPtr(ctx));
 
                         movRegister(assembler, vec1, GET_Ca(ir), false);
-                        assembler.subsd(vec0, vec1);
+                        if(is_op(ir, op_SUBL))
+                            assembler.subsd(vec0, vec1);
+                        else if(is_op(ir, op_MULL))
+                            assembler.mulsd(vec0, vec1);
+                        else if(is_op(ir, op_DIVL))
+                            assembler.divsd(vec0, vec1);
                         assembler.mov(ctx, value);
 
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
+                    case op_MODL: {                        // (fp+GET_Cb(*pc))->modul(registers[GET_Ca(*pc)]);
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_fp]);
+                        if(GET_Cb(ir) != 0) {
+                            assembler.add(ctx, (x86int_t )(sizeof(StackElement) * GET_Cb(ir)));
+                        }
+
+                        assembler.mov(fnPtr, ctx);
+                        assembler.movsd(vec0, getMemPtr(ctx));
+                        assembler.cvttsd2si(assembler.zax(), vec0);
+
+                        movRegister(assembler, vec1, GET_Ca(ir), false);
+                        assembler.cvttsd2si(assembler.zcx(), vec1);
+
+                        assembler.cqo();
+                        assembler.idiv(assembler.zcx());
+                        assembler.cvtsi2sd(vec0, assembler.zdx()); // int to Double
+
+                        assembler.mov(ctx, fnPtr);
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
+                    case op_ISUBL:
+                    case op_IMULL:
+                    case op_IDIVL: {                        // (fp+GET_Cb(*pc))->var-=GET_Ca(*pc);
+                        assembler.mov(ctx, threadPtr); // ctx->current
+                        assembler.mov(ctx, Lthread[thread_fp]); // ctx->current->fp
+                        if(GET_Cb(ir) != 0) {
+                            assembler.add(ctx, (x86int_t )(sizeof(StackElement) * GET_Cb(ir)));
+                        }
+
+                        assembler.movsd(vec0, getMemPtr(ctx));
+                        emitConstant(assembler, constant_pool, vec1, GET_Ca(ir));
+                        if(is_op(ir, op_ISUBL))
+                            assembler.subsd(vec0, vec1);
+                        else if(is_op(ir, op_IMULL))
+                            assembler.mulsd(vec0, vec1);
+                        else if(is_op(ir, op_IDIVL))
+                            assembler.divsd(vec0, vec1);
+
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
+                    case op_IMODL: {                        // (fp+GET_Cb(*pc))->var*=GET_Ca(*pc);
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_fp]);
+                        if(GET_Cb(ir) != 0) {
+                            assembler.add(ctx, (x86int_t )(sizeof(StackElement) * GET_Cb(ir)));
+                        }
+
+                        assembler.mov(fnPtr, ctx);
+                        assembler.movsd(vec0, getMemPtr(ctx));
+                        assembler.cvttsd2si(assembler.zax(), vec0);
+
+                        emitConstant(assembler, constant_pool, vec1, GET_Ca(ir));
+                        assembler.cvttsd2si(assembler.zcx(), vec1);
+
+                        assembler.cqo();
+                        assembler.idiv(assembler.zcx());
+                        assembler.cvtsi2sd(vec0, assembler.zdx()); // int to Double
+
+                        assembler.mov(ctx, fnPtr);
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
+                    case op_IALOAD_2: { // registers[GET_Ca(*pc)] = o2->object->HEAD[(int64_t)registers[GET_Cb(*pc)]];
+                        checkO2Head(assembler, o2Ptr, lbl_thread_chk, i);
+                        assembler.mov(value, ctx);
+
+                        movRegister(assembler, vec0, GET_Cb(ir), false);
+                        assembler.cvttsd2si(tmp, vec0);
+
+                        assembler.imul(tmp, (x86int_t )sizeof(double));
+                        assembler.mov(ctx, value);
+                        assembler.add(value, tmp);
+                        assembler.movsd(vec0, getMemPtr(value));
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        break;
+                    }
+                    case op_POPOBJ: {
+                        checkO2(assembler, o2Ptr, lbl_thread_chk, i);
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(tmp, Lthread[thread_sp]);
+                        assembler.lea(value, ptr(tmp, ((x86int_t)-sizeof(StackElement))));
+                        assembler.mov(Lthread[thread_sp], value);
+
+                        assembler.mov(ctx, tmp);
+                        assembler.lea(value, Lstack_element[stack_element_object]);
+                        assembler.mov(ctx, o2Ptr);
+
+                        assembler.call((int64_t)_BaseAssembler::jitSetObject2);
+                        break;
+                    }
+                    case op_SMOVR: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_sp]);
+                        if(GET_Cb(ir) != 0) {
+                            assembler.add(ctx, (x86int_t )(sizeof(StackElement) * GET_Cb(ir)));
+                        }
+
+                        assembler.mov(tmp, ctx);
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        assembler.mov(ctx, tmp);
                         assembler.movsd(Lstack_element[stack_element_var], vec0);
                         break;
                     }
@@ -1280,6 +1392,23 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
     return error;
 }
 
+void _BaseAssembler::checkO2(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_chk, x86int_t pc) {
+    assembler.mov(ctx, o2Ptr);
+    assembler.cmp(ctx, 0); // 02==NULL
+    Label nullCheckPassed = assembler.newLabel();
+    Label nullCheckFailed = assembler.newLabel();
+    assembler.je(nullCheckFailed);
+    assembler.jmp(nullCheckPassed);
+
+    assembler.bind(nullCheckFailed);
+    assembler.mov(arg, pc);
+    updatePc(assembler);
+    assembler.call((x86int_t) jitNullPtrException);
+    assembler.mov(arg, -1);
+    assembler.jmp(lbl_thread_chk);
+    assembler.bind(nullCheckPassed);
+}
+
 void _BaseAssembler::checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &thread_check, x86int_t pc) {
     assembler.mov(ctx, o2Ptr);
     assembler.cmp(ctx, 0); // 02==NULL
@@ -1304,7 +1433,33 @@ void _BaseAssembler::checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Pt
     assembler.bind(nullCheckPassed);
 }
 
-void _BaseAssembler::checkO2(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_check, x86int_t pc) {
+
+void _BaseAssembler::checkO2Head(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &thread_check, x86int_t pc) {
+    assembler.mov(ctx, o2Ptr);
+    assembler.cmp(ctx, 0); // 02==NULL
+    Label nullCheckPassed = assembler.newLabel();
+    Label nullCheckFailed = assembler.newLabel();
+    assembler.je(nullCheckFailed);
+
+    assembler.mov(ctx, qword_ptr(ctx));
+    assembler.cmp(ctx, 0);
+    assembler.je(nullCheckFailed);
+
+    assembler.mov(ctx, qword_ptr(ctx));
+    assembler.cmp(ctx, 0);
+    assembler.jne(nullCheckPassed);
+
+    assembler.bind(nullCheckFailed);
+    assembler.mov(arg, pc);
+    updatePc(assembler);
+    assembler.call((x86int_t) jitNullPtrException);
+    assembler.mov(arg, -1);
+    assembler.jmp(thread_check);
+    assembler.bind(nullCheckPassed);
+}
+
+void _BaseAssembler::checkO2Object(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_check,
+                                   x86int_t pc) {
     assembler.mov(ctx, o2Ptr);
     assembler.cmp(ctx, 0); // 02==NULL
     Label nullCheckPassed = assembler.newLabel();

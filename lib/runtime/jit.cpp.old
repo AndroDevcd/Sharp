@@ -1818,7 +1818,6 @@ int compile(Method *method) {
                     break;
                 }
                 case op_MODL: {                        // (fp+GET_Cb(*pc))->modul(registers[GET_Ca(*pc)]);
-                    cc.comment("; mod", 6);
                     cc.mov(ctx, threadReg); // ctx->current
                     cc.mov(ctx, thread_fields[jit_field_id_thread_fp]); // ctx->current->fp
                     if(GET_Cb(x64) != 0) {
@@ -1947,7 +1946,6 @@ int compile(Method *method) {
                     break;
                 }
                 case op_SMOVR: {
-                    cc.comment("; smovr", 7);
                     cc.mov(ctx, threadReg); // ctx->current
                     cc.mov(ctx, thread_fields[jit_field_id_thread_sp]); // ctx->current->fp
                     if(GET_Cb(x64) != 0) {
