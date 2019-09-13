@@ -3,10 +3,10 @@ This file contains all the various changes made to sharp.
 For each stable build of sharp pushed to master there will be a corresponding version.
 
 Backwards Compatibility:
-For backwards compatibility support only the version posted below each release is the gaurnteed supported version and beyond,
-any other version below that is considered deprecated and no longer supported. Backwards compatibility is only in reference
-to the ability to interchange the runtime system and the compiler between versions; meaning if the compiler of the new version is buggy you can use the compiler
-from the older version with the updated runtime system and vise versa. Any other compatibilty issues/changes will be otherwise noted in the release notes specifially.
+For backwards compatibility support only the version posted below each release is the guaranteed supported version and above,
+any other versions below that is considered deprecated and no longer supported. Backwards compatibility is only in reference
+to the ability to run older code that has been compiled by the older framework and can be successfully ran on the new system
+Any other compatibility issues/changes will be otherwise noted in the release notes specifically.
 
 ##### Version 0.2.422 (August 12, 2019)
     # Bug Fixes
@@ -51,7 +51,7 @@ from the older version with the updated runtime system and vise versa. Any other
     # Known Issues
         * Returning/jumping out of scope of a lock(){} code section results in a deadlock on that object
 
-    Backwards compatibility support tested Version: ()
+    Backwards compatibility support tested Version: (0.2.422+)
 
 ##### Version 0.2.422 (August 12, 2019)
     # Bug Fixes

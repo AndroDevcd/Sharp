@@ -41,6 +41,7 @@ struct i64_t {
 #define data_string 0x1e
 #define data_byte 0x05
 #define I64_BYTES 8
+#define min_file_vers 2
 #define file_vers 3
 
 #define data_compress_threshold 0x1388f

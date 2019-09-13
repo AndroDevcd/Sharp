@@ -116,7 +116,7 @@ int Process_Exe(std::string exe)
             if(__bitFlag == eoh) {
                 if(!manifestFlag)
                     throw std::runtime_error("missing manifest flag");
-                if(manifest.fvers != file_vers)
+                if(!(manifest.fvers >= min_file_vers && manifest.fvers <= file_vers))
                     throw std::runtime_error("unknown file version");
 
                 if(hdr_cnt != hsz || manifest.target > mvers)
