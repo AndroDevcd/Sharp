@@ -7827,19 +7827,19 @@ func:@303 [std.kernel#Runtime.__srt_init_] in file: lib/support/0.2.422//kernel/
 
 
 __srt_init_:
-line: 44 [0x0] 0:	movi #5, ebx
-         [0x2] 2:	movi #13264, ecx
-         [0x4] 4:	movi #1, adx
-         [0x6] 6:	newarry ebx
-         [0x7] 7:	movsl #0
-         [0x8] 8:	rmov adx, ebx
+line: 44 [0x0] 0:	movi #1, adx
+         [0x2] 2:	istore 3
+         [0x3] 3:	isadd 2, sp+0
+         [0x4] 4:	smov ebx, sp+0
+         [0x5] 5:	put ebx
+         [0x6] 6:	int 0x9f
+         [0x7] 7:	nop
+         [0x8] 8:	nop
          [0x9] 9:	nop
          [0xa] 10:	nop
-         [0xb] 11:	nop
-         [0xc] 12:	nop
-         [0xd] 13:	movi #0, ebx
-         [0xf] 15:	return_val ebx
-         [0x10] 16:	ret
+         [0xb] 11:	movi #0, ebx
+         [0xd] 13:	return_val ebx
+         [0xe] 14:	ret
 
 func:@304 [std.kernel#Runtime.nativeExit] in file: lib/support/0.2.422//kernel//Runtime.sharp:98:33: note:  
 		    public static def nativeExit() {

@@ -23,6 +23,9 @@ void x64Assembler::initializeRegisters() {
     regPtr    = r14;
     threadPtr = r15;
 
+    fnArg3    = r8;        // additional function argument regs
+    fnArg4    = r9;
+
     // stack manip registers
     bp = rbp;
     sp = rsp;
@@ -31,7 +34,7 @@ void x64Assembler::initializeRegisters() {
     vec0 = xmm0;
     vec1 = xmm1;
 
-    /* Argument registers are as follows for Windows: (ctx, value) */
+    /* Argument registers are as follows for Windows: (ctx, value, fnArg3, fnArg4) */
 }
 
 x86::Mem x64Assembler::getMemPtr(x86int_t addr) {

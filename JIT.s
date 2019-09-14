@@ -7,18 +7,20 @@ push r12
 push r13
 push r14
 push r15
+push r8
+push r9
 sub rsp, 160
-mov qword [rbp-40], rcx
+mov qword [rbp-56], rcx
 xor r12, r12
 xor r13, r13
-mov qword [rbp-56], 0
-mov qword [rbp-48], 0
+mov qword [rbp-72], 0
 mov qword [rbp-64], 0
+mov qword [rbp-80], 0
 mov r14, qword [rcx+8]
 mov r15, qword [rcx]
 mov rcx, qword [rcx+16]
 mov rcx, qword [rcx]
-mov qword [rbp-48], rcx
+mov qword [rbp-64], rcx
 mov rcx, qword [rcx]
 test rcx, rcx
 jne code_start
@@ -27,9 +29,8 @@ code_start:
 ; instr 0
 L0:
 L1:
-movsd xmm0, [L22]
+movsd xmm0, [L20]
 mov rcx, r14
-add rcx, 24
 movsd qword [rcx], xmm0
 nop
 nop
@@ -38,10 +39,25 @@ nop
 nop
 ; instr 2
 L2:
+movsd xmm0, [L21]
+mov rcx, r15
+mov rdx, qword [rcx+16]
+lea rdx, [rdx+16]
+mov qword [rcx+16], rdx
+mov rcx, rdx
+movsd qword [rcx], xmm0
+nop
+nop
+nop
+nop
+nop
+; instr 3
 L3:
-movsd xmm0, [L23]
-mov rcx, r14
-add rcx, 32
+mov rcx, r15
+mov rcx, qword [rcx+16]
+movsd xmm1, qword [rcx]
+movsd xmm0, [L22]
+addsd xmm0, xmm1
 movsd qword [rcx], xmm0
 nop
 nop
@@ -50,10 +66,21 @@ nop
 nop
 ; instr 4
 L4:
-L5:
-movsd xmm0, [L24]
+mov rcx, r15
+mov rcx, qword [rcx+16]
+movsd xmm0, qword [rcx]
 mov rcx, r14
+add rcx, 24
 movsd qword [rcx], xmm0
+nop
+nop
+nop
+nop
+nop
+; instr 5
+L5:
+mov rcx, 3
+call 4664200
 nop
 nop
 nop
@@ -61,24 +88,21 @@ nop
 nop
 ; instr 6
 L6:
-mov rcx, r14
-add rcx, 24
-movsd xmm0, qword [rcx]
-cvttsd2si rcx, xmm0
-call 4661164
-mov qword [rbp-64], rax
-lea r12, [L6]
+mov ecx, 159
+call 4665642
+lea r12, [L23]
 mov r13, 6
 mov rcx, r15
 mov ecx, qword [rcx+80]
 cmp ecx, 0
 jne .thread_check
-mov rcx, r15
-mov rdx, qword [rcx+16]
-lea rdx, [rdx+16]
-mov qword [rcx+16], rdx
-mov rcx, qword [rbp-64]
-call 4662264
+L23:
+movzx ecx, [6242096]
+cmp ecx, 0
+je L24
+mov r13, 6
+jmp func_end
+L24:
 nop
 nop
 nop
@@ -86,10 +110,7 @@ nop
 nop
 ; instr 7
 L7:
-mov rcx, r15
-mov rcx, qword [rcx+16]
-lea rcx, qword [rcx+8]
-mov qword [rbp-56], rcx
+nop
 nop
 nop
 nop
@@ -97,42 +118,7 @@ nop
 nop
 ; instr 8
 L8:
-mov rcx, qword [rbp-56]
-cmp rcx, 0
-je L26
-mov rcx, qword [rcx]
-cmp rcx, 0
-je L26
-mov rcx, qword [rcx]
-cmp rcx, 0
-jne L25
-L26:
-mov r13, 8
-cmp r13, -1
-je L27
-mov rcx, r15
-mov rax, qword [rcx+64]
-imul r13, 8
-add rax, r13
-mov qword [rcx+72], rax
-L27:
-mov r13, 0
-call 4661910
-mov r13, -1
-jmp .thread_check
-L25:
-mov rdx, rcx
-mov rcx, r14
-movsd xmm0, qword [rcx]
-cvttsd2si rax, xmm0
-imul rax, 8
-add rdx, rax
-mov rcx, r14
-add rcx, 24
-movsd xmm0, qword [rcx]
-movsd qword [rdx], xmm0
-mov rcx, qword [rbp-56]
-call 4659992
+nop
 nop
 nop
 nop
@@ -156,23 +142,7 @@ nop
 nop
 ; instr 11
 L11:
-nop
-nop
-nop
-nop
-nop
-nop
-; instr 12
 L12:
-nop
-nop
-nop
-nop
-nop
-nop
-; instr 13
-L13:
-L14:
 pxor xmm0, xmm0
 mov rcx, r14
 add rcx, 24
@@ -182,25 +152,32 @@ nop
 nop
 nop
 nop
-; instr 15
-L15:
+; instr 13
+L13:
+mov rcx, r15
+mov rcx, qword [rcx+24]
+mov rax, rcx
+mov rcx, r14
+add rcx, 24
+movsd xmm0, qword [rcx]
+mov rcx, rax
+movsd qword [rcx], xmm0
 nop
 nop
 nop
 nop
 nop
-nop
-; instr 16
-L16:
-mov r13, 16
+; instr 14
+L14:
+mov r13, 14
 cmp r13, -1
-je L28
+je L25
 mov rcx, r15
 mov rax, qword [rcx+64]
 imul r13, 8
 add rax, r13
 mov qword [rcx+72], rax
-L28:
+L25:
 mov r13, 0
 jmp func_end
 nop
@@ -208,21 +185,21 @@ nop
 nop
 nop
 nop
-mov r13, 16
+mov r13, 14
 cmp r13, -1
-je L29
+je L26
 mov rcx, r15
 mov rax, qword [rcx+64]
 imul r13, 8
 add rax, r13
 mov qword [rcx+72], rax
-L29:
+L26:
 mov r13, 0
 jmp func_end
 init_addr_tbl:
 nop
 ; setting label values
-mov rax, qword [rbp-48]
+mov rax, qword [rbp-64]
 lea rcx, [L0]
 mov qword [rax], rcx
 add rax, 8
@@ -267,12 +244,6 @@ mov qword [rax], rcx
 add rax, 8
 lea rcx, [L14]
 mov qword [rax], rcx
-add rax, 8
-lea rcx, [L15]
-mov qword [rax], rcx
-add rax, 8
-lea rcx, [L16]
-mov qword [rax], rcx
 nop
 jmp code_start
 func_end:
@@ -283,6 +254,8 @@ mov rdx, qword [rcx+72]
 lea rdx, [rdx+8]
 mov qword [rcx+72], rdx
 add rsp, 160
+pop r9
+pop r8
 pop r15
 pop r14
 pop r13
@@ -295,44 +268,44 @@ mov eax, qword [rcx+80]
 sar eax, 2
 and eax, 1
 test eax, eax
-je L30
+je L27
 call 4231688
-L30:
+L27:
 mov rcx, r15
 mov eax, qword [rcx+136]
 cmp eax, 3
-jne L31
+jne L28
 short jmp func_end
-L31:
+L28:
 mov rcx, r15
 mov eax, qword [rcx+80]
 sar eax, 1
 and eax, 1
 test eax, eax
-je L32
+je L29
 cmp r13, -1
-je L34
+je L31
 mov rcx, r15
 mov rax, qword [rcx+64]
 imul r13, 8
 add rax, r13
 mov qword [rcx+72], rax
-L34:
+L31:
 mov r13, 0
 mov rcx, qword [rcx+32]
-call 4663160
+call 4667810
 cmp rax, 1
-je L33
+je L30
 jmp func_end
-L33:
+L30:
 mov rcx, r15
-call 4663124
-mov rdx, qword [rbp-48]
+call 4667774
+mov rdx, qword [rbp-64]
 imul rax, 8
 add rdx, rax
 mov r12, [rdx]
 jmp r12
-L32:
+L29:
 jmp r12
 nop
 nop
@@ -340,9 +313,9 @@ nop
 align 64
 .data:
 ; data section start
-L22:
-db 0000000000001440
-L23:
-db 0000000000E8C940
-L24:
+L20:
 db 000000000000F03F
+L21:
+db 0000000000000840
+L22:
+db 0000000000000040

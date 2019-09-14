@@ -76,6 +76,7 @@ protected:
     x86::Gp fnPtr, arg;
     x86::Gp regPtr, threadPtr;
     x86::Gp bp, sp;
+    x86::Gp fnArg3, fnArg4;
 
     x86::Xmm vec0, vec1;          // floating point registers
 
@@ -88,15 +89,19 @@ private:
     static SharpObject* jitNewClass0(x86int_t classid);
     static SharpObject* jitNewClass1(x86int_t size, x86int_t classid);
     static void jitNewString(Thread* thread, int64_t strid);
+    static void jitPushNil(Thread* thread);
     static void jitSetObject0(SharpObject* o, StackElement *sp);
     static void jitSetObject1(StackElement*, StackElement*);
     static void jitSetObject2(Object *dest, Object *src);
+    static void jitInvokeDelegate(x86int_t address, x86int_t args, Thread* thread, x86int_t staticAddr);
     static void jitDelete(Object* o);
     static void jitSysInt(x86int_t signal);
     static void test(x86int_t proc);
     static void jitCast(Object *o2, x86int_t klass);
     static void jitCastVar(Object *o2, int);
     static void jit64BitCast(x86int_t,x86int_t);
+    static fptr jitCall(Thread *thread, int64_t addr);
+    static fptr jitCallDynamic(Thread *thread, int64_t addr);
     static void jitPut(int reg);
     static void jitPutC(int op0);
     static void jitGet(int op0);

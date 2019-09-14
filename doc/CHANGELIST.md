@@ -50,6 +50,7 @@ Any other compatibility issues/changes will be otherwise noted in the release no
 
     # Known Issues
         * Returning/jumping out of scope of a lock(){} code section results in a deadlock on that object
+        * The speed and memory profiler does not work with the JIT system as of now ans will be added in a later update
 
     Backwards compatibility support tested Version: (0.2.422+)
 

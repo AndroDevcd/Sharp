@@ -125,7 +125,7 @@ int _BaseAssembler::tryJit(Method* func) {
     return error;
 }
 
-int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code to check the sp overflow just like thread status check is written
+int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code to check the sp overflow just like thread status check is written as well as the function call stack check for stack overslow on calls
     int error = jit_error_ok;
     if(func->bytecode != NULL)
     {
@@ -160,11 +160,13 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
             assembler.push(arg);
             assembler.push(regPtr);
             assembler.push(threadPtr);
+            assembler.push(fnArg3);
+            assembler.push(fnArg4);
 
             // function body
 
             // allocate space for the stack
-            x86int_t storedRegs = getRegisterSize() * 4;
+            x86int_t storedRegs = getRegisterSize() * 6;
             int ptrSize      = sizeof(jit_context*), paddr = storedRegs + ptrSize;
             int labelsSize   = sizeof(x86int_t*), laddr = paddr + labelsSize;
             int o2Size       = sizeof(Object*), o2addr = laddr + o2Size;
@@ -916,7 +918,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                     }
                     case op_MOVG: {
                         Object* o = env->globalHeap+GET_Da(ir);
-                        assembler.mov(ctxPtr, (x86int_t)o);
+                        assembler.mov(o2Ptr, (x86int_t)o);
                         break;
                     }
                     case op_MOVND: {
@@ -1269,7 +1271,9 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.movsd(Lstack_element[stack_element_var], vec0);
                         break;
                     }
-                    case op_ANDL: {
+                    case op_ANDL:
+                    case op_ORL:
+                    case op_XORL: {
                         assembler.mov(ctx, threadPtr); // ctx->current
                         assembler.mov(ctx, Lthread[thread_fp]); // ctx->current->fp
                         if(GET_Cb(ir) != 0) {
@@ -1305,6 +1309,179 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         movRegister(assembler, vec0, GET_Cb(ir), false);
                         assembler.movsd(getMemPtr(value), vec0);
+                        break;
+                    }
+                    case op_SMOV: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_sp]);
+                        if(GET_Cb(ir) != 0) {
+                            assembler.add(ctx, (x86int_t )(sizeof(StackElement) * GET_Cb(ir)));
+                        }
+
+                        assembler.movsd(vec0, getMemPtr(ctx));
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        break;
+                    }
+                    case op_LOADPC_2: {
+                        emitConstant(assembler, constant_pool, vec0, i+GET_Cb(ir));
+                        movRegister(assembler, vec0, GET_Ca(ir));
+                        break;
+                    }
+                    case op_RETURNVAL: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_fp]);
+
+                        assembler.mov(tmp, ctx);
+                        movRegister(assembler, vec0, GET_Da(ir), false);
+                        assembler.mov(ctx, tmp);
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
+                    case op_PUSHNIL: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.call((x86int_t)_BaseAssembler::jitPushNil);
+                        break;
+                    }
+                    case op_PUSHL: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_fp]);
+
+                        if(GET_Da(ir) != 0) {
+                            assembler.add(ctx, (x86int_t)(sizeof(StackElement) * GET_Da(ir)));
+                        }
+
+                        assembler.lea(value, Lstack_element[stack_element_object]);
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(tmp, Lthread[thread_sp]);
+                        assembler.lea(tmp, ptr(tmp, (x86int_t)sizeof(StackElement)));
+                        assembler.mov(Lthread[thread_sp], tmp); // sp++
+
+                        assembler.mov(ctx, tmp);
+                        assembler.lea(ctx, Lstack_element[stack_element_object]);
+                        assembler.call((x86int_t)_BaseAssembler::jitSetObject2);
+                        break;
+                    }
+                    case op_ITEST: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(tmp, Lthread[thread_sp]);
+                        assembler.lea(value, ptr(tmp, (x86int_t)-sizeof(StackElement)));
+                        assembler.mov(Lthread[thread_sp], value); // sp--
+
+                        assembler.mov(fnPtr, tmp);
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(tmp, Lthread[thread_sp]);
+                        assembler.lea(value, ptr(tmp, (x86int_t)-sizeof(StackElement)));
+                        assembler.mov(Lthread[thread_sp], value); // sp--
+
+                        assembler.cmp(fnPtr, tmp);
+                        Label ifFalse = assembler.newLabel(), end = assembler.newLabel();
+                        assembler.je(ifFalse);
+                        emitConstant(assembler, constant_pool, vec0, 1);
+                        assembler.jmp(end);
+
+                        assembler.bind(ifFalse);
+                        emitConstant(assembler, constant_pool, vec0, 0);
+
+                        assembler.bind(end);
+                        movRegister(assembler, vec0, GET_Da(ir));
+                        break;
+                    }
+                    case op_INVOKE_DELEGATE: {
+                        assembler.mov(ctx, GET_Ca(ir));
+                        assembler.mov(value, GET_Cb(ir));
+                        assembler.mov(fnArg3, threadPtr);
+                        assembler.mov(fnArg4, 0);
+                        assembler.call((x86int_t)_BaseAssembler::jitInvokeDelegate);
+                        threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
+                        break;
+                    }
+                    case op_INVOKE_DELEGATE_STATIC: {
+                        assembler.mov(ctx, GET_Ca(ir));
+                        assembler.mov(value, GET_Cb(ir));
+                        assembler.mov(fnArg3, threadPtr);
+                        i++; assembler.bind(labels[i]);
+                        assembler.mov(fnArg4, irTail);
+                        assembler.call((x86int_t)_BaseAssembler::jitInvokeDelegate);
+                        threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
+                        break;
+                    }
+                    case op_ISADD: {
+                        assembler.mov(ctx, threadPtr); // ctx->current
+                        assembler.mov(ctx, Lthread[thread_sp]); // ctx->current->fp
+                        if(GET_Cb(ir) != 0) {
+                            assembler.add(ctx, (x86int_t )(sizeof(StackElement) * GET_Cb(ir)));
+                        }
+
+                        assembler.movsd(vec1, getMemPtr(ctx));
+
+                        emitConstant(assembler, constant_pool, vec0, GET_Ca(ir));
+                        assembler.addsd(vec0, vec1);
+
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
+                    case op_ISTORE: { // (++sp)->var = GET_Da(*pc);
+
+                        emitConstant(assembler, constant_pool, vec0, GET_Da(ir));
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(value, Lthread[thread_sp]);
+                        assembler.lea(value, ptr(value, (x86int_t )sizeof(StackElement)));
+                        assembler.mov(Lthread[thread_sp], value);
+
+                        assembler.mov(ctx, value);
+                        assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        break;
+                    }
+                    case op_SWITCH: {
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(value, GET_Da(ir));
+                        assembler.call((x86int_t)executeSwitch);
+
+                        jmpToLabel(assembler, tmp, value, labelsPtr);
+                        break;
+                    }
+                    case op_CALL: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(value, GET_Da(ir));
+                        assembler.call((x86int_t) _BaseAssembler::jitCall);
+                        assembler.cmp(tmp, 0);
+                        Label ifTrue = assembler.newLabel();
+                        assembler.je(ifTrue);
+                        assembler.mov(ctx, ctxPtr);
+                        assembler.call(tmp);
+                        assembler.bind(ifTrue);
+                        threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
+                        break;
+                    }
+                    case op_CALLD: {
+                        movRegister(assembler, vec0, GET_Da(ir), false);
+                        assembler.cvttsd2si(value, vec0); // double to int
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.call((x86int_t) _BaseAssembler::jitCall);
+                        assembler.cmp(tmp, 0);
+                        Label ifTrue = assembler.newLabel();
+                        assembler.je(ifTrue);
+                        assembler.mov(ctx, ctxPtr);
+                        assembler.call(tmp);
+                        assembler.bind(ifTrue);
+                        threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
+                        break;
+                    }
+                    case op_LOADVAL: { // registers[GET_Da(*pc)]=(sp--)->var;
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(tmp, Lthread[thread_sp]);
+                        assembler.lea(value, ptr(tmp, ((x86int_t)-sizeof(StackElement))));
+                        assembler.mov(Lthread[thread_sp], value);
+
+                        assembler.mov(ctx, tmp);
+                        assembler.movsd(vec0, Lstack_element[stack_element_var]);
+
+                        movRegister(assembler, vec0, GET_Da(ir));
                         break;
                     }
                     default: {
@@ -1349,6 +1526,8 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
             incPc(assembler);
 
             assembler.add(sp, (stackSize));
+            assembler.pop(fnArg4);
+            assembler.pop(fnArg3);
             assembler.pop(threadPtr);
             assembler.pop(regPtr);
             assembler.pop(arg);
@@ -1569,6 +1748,45 @@ void _BaseAssembler::jitCastVar(Object *obj, int array) {
     }
 }
 
+fptr _BaseAssembler::jitCall(Thread *thread, int64_t addr) {
+#ifdef SHARP_PROF_
+    thread->tprof->hit(env->methods+addr);
+#endif
+
+    try {
+        if ((thread->calls + 1) >= thread->stack_lmt) {
+            throw Exception(Environment::StackOverflowErr, "");
+        }
+        return executeMethod(addr, thread, true);
+    } catch(Exception &e) {
+        __srt_cxx_prepare_throw(e);
+    }
+
+    return NULL;
+}
+
+fptr _BaseAssembler::jitCallDynamic(Thread *thread, int64_t addr) {
+#ifdef SHARP_PROF_
+    thread->tprof->hit(env->methods+addr);
+#endif
+
+    try {
+        if(addr <= 0 || addr >= manifest.methods) {
+            stringstream ss;
+            ss << "invalid call to pointer of " << addr;
+            throw Exception(ss.str());
+        }
+        if ((thread->calls + 1) >= thread->stack_lmt) {
+            throw Exception(Environment::StackOverflowErr, "");
+        }
+
+        return executeMethod(addr, thread, true);
+    } catch(Exception &e) {
+        __srt_cxx_prepare_throw(e);
+    }
+
+    return NULL;
+}
 
 void _BaseAssembler::jitPut(int reg) {
     cout << registers[reg];
@@ -1583,6 +1801,14 @@ void _BaseAssembler::jitGet(int reg) {
         registers[reg] = getche();
     else
         registers[reg] = getch();
+}
+
+void _BaseAssembler::jitInvokeDelegate(x86int_t address, x86int_t args, Thread* thread, x86int_t staticAddr) {
+    try {
+        invokeDelegate(address, args, thread, staticAddr);
+    } catch(Exception &e) {
+        __srt_cxx_prepare_throw(e);
+    }
 }
 
 // REMEMBER!!! dont forget to check state of used registers befote and after this call as they might be different than what they werr before
@@ -1703,6 +1929,10 @@ void _BaseAssembler::jitNewString(Thread* thread, int64_t strid) {
     } catch(Exception &e) {
         __srt_cxx_prepare_throw(e);
     }
+}
+
+void _BaseAssembler::jitPushNil(Thread* thread) {
+    GarbageCollector::self->releaseObject(&(++thread->sp)->object);
 }
 
 void _BaseAssembler::jitNullPtrException() {

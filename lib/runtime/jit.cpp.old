@@ -2091,14 +2091,14 @@ int compile(Method *method) {
                     cc.mov(ctx, threadReg); // ctx->current
 
                     cc.mov(val, thread_fields[jit_field_id_thread_sp]); // ctx->current->sp
-                    cc.lea(delegate, ptr(val, (int32_t)-sizeof(StackElement)));
+                    cc.lea(delegate, ptr(val, (x86int_t)-sizeof(StackElement)));
                     cc.mov(thread_fields[jit_field_id_thread_sp], delegate); // sp--
 
                     cc.add(val, (size_t)sizeof(double));
 
 
                     cc.mov(tmp, thread_fields[jit_field_id_thread_sp]); // ctx->current->sp
-                    cc.lea(delegate, ptr(tmp, (int32_t)-sizeof(StackElement)));
+                    cc.lea(delegate, ptr(tmp, (x86int_t)-sizeof(StackElement)));
                     cc.mov(thread_fields[jit_field_id_thread_sp], delegate); // sp--
 
                     cc.add(tmp, (size_t)sizeof(double));

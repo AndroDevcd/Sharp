@@ -1246,7 +1246,7 @@ void Asm::parse(Assembler &assembler, RuntimeEngine *instance, string& code, Ast
 
                 assembler.push_i64(SET_Di(i64, op_IPOPL, i2.high_bytes));
             } else if(instruction_is("itest")) {
-                expect_int();
+                expect_register();
 
                 assembler.push_i64(SET_Di(i64, op_ITEST, i2.high_bytes));
             }  else if(instruction_is("inv_del")) {
