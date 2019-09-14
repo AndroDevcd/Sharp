@@ -1485,8 +1485,8 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         break;
                     }
                     default: {
-                        assembler.nop();                    // by far one of the easiest instructions yet
-                        break;
+                        error = jit_error_compile;
+                        goto finish;
                     }
                 }
 
@@ -1749,9 +1749,6 @@ void _BaseAssembler::jitCastVar(Object *obj, int array) {
 }
 
 fptr _BaseAssembler::jitCall(Thread *thread, int64_t addr) {
-#ifdef SHARP_PROF_
-    thread->tprof->hit(env->methods+addr);
-#endif
 
     try {
         if ((thread->calls + 1) >= thread->stack_lmt) {
@@ -1766,9 +1763,6 @@ fptr _BaseAssembler::jitCall(Thread *thread, int64_t addr) {
 }
 
 fptr _BaseAssembler::jitCallDynamic(Thread *thread, int64_t addr) {
-#ifdef SHARP_PROF_
-    thread->tprof->hit(env->methods+addr);
-#endif
 
     try {
         if(addr <= 0 || addr >= manifest.methods) {

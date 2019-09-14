@@ -4,6 +4,7 @@ import std;
 
 
 def main(string[] args) {
+    print("in main");
     ArrayList<var> black_list = new ArrayList<var>();
     var count = string.parseInt(args[0]);
 

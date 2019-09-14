@@ -817,6 +817,9 @@ void Thread::exec() {
                 return;
 
             interp:
+            if(current->address == 303){
+                int i = 0;
+            }
             DISPATCH();
             _NOP: // tested
                 _brh
