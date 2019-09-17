@@ -174,27 +174,27 @@ struct StackElement;
 
 struct Frame {
 public:
-    Frame(Method* last, Cache pc, StackElement* sp,
+    Frame(Method* current, Cache pc, StackElement* sp,
           StackElement* fp, bool jit)
     {
-        this->last=last;
+        this->current=current;
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
         this->isjit=jit;
     }
 
-    void init(Method* last, Cache pc, StackElement* sp,
+    void init(Method* current, Cache pc, StackElement* sp,
               StackElement* fp, bool jit)
     {
-        this->last=last;
+        this->current=current;
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
         this->isjit=jit;
     }
 
-    Method *last;                   /* Last method */
+    Method *current;
     Cache pc;
     StackElement* sp;
     StackElement* fp;

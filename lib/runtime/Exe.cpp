@@ -13,6 +13,7 @@
 #include "oo/ClassObject.h"
 #include "oo/Object.h"
 #include "../util/zip/zlib.h"
+#include "main.h"
 
 Manifest manifest;
 Meta metaData;
@@ -380,8 +381,10 @@ int Process_Exe(std::string exe)
                     method->returnVal = getlong(buffer);
                     method->delegateAddress = geti64(buffer);
                     method->stackEqulizer = geti64(buffer);
-                    if(method->address==303) method->isjit = true;
-                    if(method->address==7) method->isjit = true;
+                    if(c_options.jit) {
+//                        if(method->address==303) method->isjit = true;
+                        if(method->address==7) method->isjit = true;
+                    }
 
                     long len = getlong(buffer);
                     line_table lt;

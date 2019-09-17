@@ -71,7 +71,7 @@ public:
 
     int exitVal;
 
-    static void fillMethodCall(Frame &frame, stringstream &ss);
+    static void fillMethodCall(Method* func, Frame &frameInfo, stringstream &ss);
 
     static void __snprintf(int cfmt, double val, int precision);
 };

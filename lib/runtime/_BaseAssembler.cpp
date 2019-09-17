@@ -69,10 +69,10 @@ void _BaseAssembler::setupStackElementFields() {
 
 void _BaseAssembler::setupFrameFields() {
     Frame frame(0,0,0,0,false);
-    Lframe[frame_last] = getMemPtr(relative_offset((&frame), last, last));
-    Lframe[frame_pc] = getMemPtr(relative_offset((&frame), last, pc));
-    Lframe[frame_sp] = getMemPtr(relative_offset((&frame), last, sp));
-    Lframe[frame_fp] = getMemPtr(relative_offset((&frame), last, fp));
+    Lframe[frame_current] = getMemPtr(relative_offset((&frame), current, current));
+    Lframe[frame_pc] = getMemPtr(relative_offset((&frame), current, pc));
+    Lframe[frame_sp] = getMemPtr(relative_offset((&frame), current, sp));
+    Lframe[frame_fp] = getMemPtr(relative_offset((&frame), current, fp));
 }
 
 void _BaseAssembler::setupMethodFields() {
@@ -113,6 +113,7 @@ int _BaseAssembler::performInitialCompile() {
 
 int _BaseAssembler::tryJit(Method* func) {
     int error = jit_error_ok;
+//    cout << "compiling " << func->fullName.str() << endl;
     if(!func->isjit && func->jitAttempts < JIT_MAX_ATTEMPTS)
     {
         if((error = compile(func)) != jit_error_ok)
@@ -122,6 +123,7 @@ int _BaseAssembler::tryJit(Method* func) {
     } else if(func->jitAttempts >= JIT_MAX_ATTEMPTS)
         error = jit_error_max_attm;
 
+//    cout << "error " << error << endl;
     return error;
 }
 
@@ -371,10 +373,11 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                     }
                     case op_RSTORE: {
                         movRegister(assembler, vec0, GET_Da(ir), false);
+
                         assembler.mov(ctx, threadPtr);
-                        assembler.add(Lthread[thread_sp], (int64_t)sizeof(StackElement));
-                        assembler.mov(tmp, Lthread[thread_sp]);
-                        assembler.movsd(getMemPtr(tmp), vec0);
+                        assembler.add(Lthread[thread_sp], (x86int_t)sizeof(StackElement));
+                        assembler.mov(value, Lthread[thread_sp]); // sp++
+                        assembler.movsd(getMemPtr(value), vec0);
                         break;
                     }
                     case op_ADD: {
@@ -440,7 +443,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         movRegister(assembler, vec0, GET_Ca(ir), false);
 
                         emitConstant(assembler, constant_pool, vec1, GET_Cb(ir));
-                        assembler.subsd(vec1, vec0);
+                        assembler.subsd(vec0, vec1);
                         movRegister(assembler, vec1, GET_Ca(ir));
                         break;
                     }
@@ -471,15 +474,12 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.idiv(assembler.zcx());
                         assembler.cvtsi2sd(vec0, assembler.zdx());
 
-                        i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
                         movRegister(assembler, vec0, GET_Ca(ir));
                         break;
                     }
                     case op_POP: {// --sp;
                         assembler.mov(ctx, threadPtr);
-                        assembler.mov(tmp, Lthread[thread_sp]);
-                        assembler.lea(tmp, x86::ptr(tmp, -((int64_t)sizeof(StackElement))));
-                        assembler.mov(Lthread[thread_sp], tmp);
+                        assembler.sub(Lthread[thread_sp], (int64_t)sizeof(StackElement));
                         break;
                     }
                     case op_INC: { // registers[GET_Da(*pc)]++;
@@ -495,7 +495,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         movRegister(assembler, vec0, GET_Da(ir), false);
 
                         emitConstant(assembler, constant_pool, vec1, 1);
-                        assembler.subsd(vec1, vec0);
+                        assembler.subsd(vec0, vec1);
 
                         movRegister(assembler, vec1, GET_Da(ir));
                         break;
@@ -543,8 +543,11 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         movRegister(assembler, vec0, GET_Ca(ir));
                         assembler.jmp(end);
                         assembler.bind(isNull); // were not doing exceptions right now
-                        assembler.call((x86int_t)_BaseAssembler::jitNullPtrException);
+
                         assembler.mov(arg, i);
+                        updatePc(assembler);
+                        assembler.call((x86int_t)_BaseAssembler::jitNullPtrException);
+                        assembler.mov(arg, -1);
                         assembler.jmp(lbl_thread_chk);
 
                         assembler.bind(end);
@@ -705,8 +708,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.mov(ctx, threadPtr);
 
                         assembler.mov(tmp, Lthread[thread_sp]);
-                        assembler.lea(value, ptr(tmp, (x86int_t)-sizeof(StackElement)));
-                        assembler.mov(Lthread[thread_sp], value); // sp--
+                        assembler.sub(Lthread[thread_sp], (x86int_t)sizeof(StackElement));
 
                         assembler.mov(ctx, tmp);
                         assembler.movsd(vec0, Lstack_element[stack_element_var]);
@@ -734,9 +736,8 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         assembler.mov(ctx, threadPtr);
 
-                        assembler.mov(tmp, Lthread[thread_sp]);
-                        assembler.lea(tmp, ptr(tmp, (x86int_t)sizeof(StackElement)));
-                        assembler.mov(Lthread[thread_sp], tmp); // sp++
+                        assembler.add(Lthread[thread_sp], (x86int_t)sizeof(StackElement));
+                        assembler.mov(tmp, Lthread[thread_sp]); // sp++
 
                         assembler.mov(ctx, tmp);
                         assembler.movsd(Lstack_element[stack_element_var], vec0);
@@ -822,13 +823,11 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                     }
                     case op_PUSHOBJ: {
                         assembler.mov(ctx, threadPtr);
-                        assembler.mov(tmp, Lthread[thread_sp]);
-                        assembler.lea(tmp, x86::ptr(tmp, sizeof(StackElement)));
-                        assembler.mov(Lthread[thread_sp], tmp);
-                        assembler.mov(ctx, tmp);
-                        assembler.lea(tmp, Lstack_element[stack_element_object]);
 
-                        assembler.mov(ctx, tmp);
+                        assembler.add(Lthread[thread_sp], (x86int_t)sizeof(StackElement));
+                        assembler.mov(ctx, Lthread[thread_sp]); // sp++
+                        assembler.lea(ctx, Lstack_element[stack_element_object]);
+
                         assembler.mov(value, o2Ptr);
                         assembler.call((x86int_t)_BaseAssembler::jitSetObject2);
                         break;
@@ -847,7 +846,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         assembler.mov(ctx, threadPtr);
                         assembler.mov(value, Lthread[thread_sp]);
-                        assembler.lea(value, x86::ptr(value, sizeof(StackElement)));
+                        assembler.lea(value, x86::ptr(value, (x86int_t )sizeof(StackElement)));
                         assembler.mov(Lthread[thread_sp], value);
 
                         assembler.mov(ctx, tmpInt);
@@ -1224,7 +1223,6 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.cvttsd2si(tmp, vec0);
 
                         assembler.imul(tmp, (x86int_t )sizeof(double));
-                        assembler.mov(ctx, value);
                         assembler.add(value, tmp);
                         assembler.movsd(vec0, getMemPtr(value));
                         movRegister(assembler, vec0, GET_Ca(ir));
@@ -1427,9 +1425,9 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         emitConstant(assembler, constant_pool, vec0, GET_Da(ir));
 
                         assembler.mov(ctx, threadPtr);
-                        assembler.mov(value, Lthread[thread_sp]);
-                        assembler.lea(value, ptr(value, (x86int_t )sizeof(StackElement)));
-                        assembler.mov(Lthread[thread_sp], value);
+
+                        assembler.add(Lthread[thread_sp], (x86int_t)sizeof(StackElement));
+                        assembler.mov(value, Lthread[thread_sp]); // sp++
 
                         assembler.mov(ctx, value);
                         assembler.movsd(Lstack_element[stack_element_var], vec0);
@@ -1445,6 +1443,9 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         break;
                     }
                     case op_CALL: {
+                        assembler.mov(arg, i);
+                        updatePc(assembler);
+
                         assembler.mov(ctx, threadPtr);
                         assembler.mov(value, GET_Da(ir));
                         assembler.call((x86int_t) _BaseAssembler::jitCall);
@@ -1458,11 +1459,14 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         break;
                     }
                     case op_CALLD: {
+                        assembler.mov(arg, i);
+                        updatePc(assembler);
+
                         movRegister(assembler, vec0, GET_Da(ir), false);
                         assembler.cvttsd2si(value, vec0); // double to int
 
                         assembler.mov(ctx, threadPtr);
-                        assembler.call((x86int_t) _BaseAssembler::jitCall);
+                        assembler.call((x86int_t) _BaseAssembler::jitCallDynamic);
                         assembler.cmp(tmp, 0);
                         Label ifTrue = assembler.newLabel();
                         assembler.je(ifTrue);
@@ -1475,8 +1479,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                     case op_LOADVAL: { // registers[GET_Da(*pc)]=(sp--)->var;
                         assembler.mov(ctx, threadPtr);
                         assembler.mov(tmp, Lthread[thread_sp]);
-                        assembler.lea(value, ptr(tmp, ((x86int_t)-sizeof(StackElement))));
-                        assembler.mov(Lthread[thread_sp], value);
+                        assembler.sub(Lthread[thread_sp], (x86int_t)sizeof(StackElement));
 
                         assembler.mov(ctx, tmp);
                         assembler.movsd(vec0, Lstack_element[stack_element_var]);
@@ -1484,17 +1487,53 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         movRegister(assembler, vec0, GET_Da(ir));
                         break;
                     }
+                    case op_CHECKLEN: {
+                        /*
+                         *
+                CHECK_NULL2(
+                        if((registers[GET_Da(*pc)]<o2->object->size) &&!(registers[GET_Da(*pc)]<0)) { _brh }
+                        else {
+                            stringstream ss;
+                            ss << "Access to Object at: " << registers[GET_Da(*pc)] << " size is " << o2->object->size;
+                            throw Exception(Environment::IndexOutOfBoundsException, ss.str());
+                        }
+                )
+                         */
+
+                        checkO2(assembler, o2Ptr, lbl_thread_chk, i, true);
+                        assembler.mov(fnPtr, Lsharp_object[sharp_object_size]);
+
+                        movRegister(assembler, vec0, GET_Da(ir), false);
+                        assembler.cvttsd2si(value, vec0); // double to int
+
+                        Label isInvalid = assembler.newLabel(), end = assembler.newLabel();
+                        assembler.cmp(value, 0);
+                        assembler.jb(isInvalid);
+                        assembler.cmp(value, fnPtr);
+                        assembler.jae(isInvalid);
+
+                        assembler.jmp(end);
+                        assembler.bind(isInvalid);
+
+                        assembler.mov(arg, i);
+                        updatePc(assembler);
+
+                        assembler.cvttsd2si(value, vec0); // double to int
+                        assembler.mov(ctx, fnPtr);
+                        assembler.call((x86int_t) _BaseAssembler::jitIndexOutOfBoundsException);
+                        assembler.mov(arg, -1);
+                        assembler.jmp(lbl_thread_chk);
+                        assembler.bind(end);
+                        break;
+                    }
                     default: {
+                        cout << "unknown opcode " << GET_OP(ir) << endl;
                         error = jit_error_compile;
                         goto finish;
                     }
                 }
 
-                assembler.nop(); // instruction differentation for now
-                assembler.nop();
-                assembler.nop();
-                assembler.nop();
-                assembler.nop();
+                assembler.nop(); // instruction differentiation for now
             }
 
             assembler.mov(arg, (func->cacheSize-1));
@@ -1622,13 +1661,21 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
     return error;
 }
 
-void _BaseAssembler::checkO2(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_chk, x86int_t pc) {
+void _BaseAssembler::checkO2(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_chk, x86int_t pc, bool checkContents) {
     assembler.mov(ctx, o2Ptr);
     assembler.cmp(ctx, 0); // 02==NULL
     Label nullCheckPassed = assembler.newLabel();
     Label nullCheckFailed = assembler.newLabel();
     assembler.je(nullCheckFailed);
-    assembler.jmp(nullCheckPassed);
+
+    if(checkContents) {
+
+        assembler.mov(ctx, qword_ptr(ctx));
+        assembler.cmp(ctx, 0);
+        assembler.jne(nullCheckPassed);
+    } else {
+        assembler.jmp(nullCheckPassed);
+    }
 
     assembler.bind(nullCheckFailed);
     assembler.mov(arg, pc);
@@ -1813,8 +1860,11 @@ void _BaseAssembler::test(x86int_t proc) {
             registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
         } else throw Exception(Environment::NullptrException, "");
      */
-    Object* o = (Object*)proc;
-    cout << "(obj->HEAD[1]) " << o->object->HEAD[1] << endl << std::flush;
+    cout << "(adx) " << registers[i64adx] << endl << std::flush;
+    if(((Object*)proc)->object)
+    cout << "(sz) " << ((Object*)proc)->object->size << endl << std::flush;
+    else
+    cout << "(null o2) " << endl << std::flush;
 }
 
 // had a hard time with this one so will do this for now
@@ -1934,6 +1984,13 @@ void _BaseAssembler::jitNullPtrException() {
     __srt_cxx_prepare_throw(nptr);
 }
 
+void _BaseAssembler::jitIndexOutOfBoundsException(x86int_t size, x86int_t index) {
+    stringstream ss;
+    ss << "Access to Object at: " << index << " size is " << size;
+    Exception outOfBounds(Environment::IndexOutOfBoundsException, ss.str());
+    __srt_cxx_prepare_throw(outOfBounds);
+}
+
 void _BaseAssembler::jitThrow(Thread *thread) {
     thread->exceptionObject = thread->sp->object;
     Exception e("", false);
@@ -1991,7 +2048,7 @@ void _BaseAssembler::updatePc(x86::Assembler &assembler) {
     assembler.je(end);
     assembler.mov(ctx, threadPtr);
     assembler.mov(tmp, Lthread[thread_cache]);
-    assembler.imul(arg, (size_t)sizeof(x86int_t));
+    assembler.imul(arg, (size_t)sizeof(x86int_t*));
     assembler.add(tmp, arg);
     assembler.mov(Lthread[thread_pc], tmp);
     assembler.bind(end);

@@ -107,6 +107,7 @@ private:
     static void jitGet(int op0);
     static void jitNullPtrException();
     static void jitThrow(Thread *thread);
+    static void jitIndexOutOfBoundsException(x86int_t size, x86int_t index);
 
     virtual x86::Mem getMemPtr(x86int_t addr) = 0;
     virtual x86::Mem getMemPtr(x86::Gp reg, x86int_t addr) = 0;
@@ -132,7 +133,7 @@ private:
     void checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_func_end, x86int_t pc);
     void checkO2Head(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &thread_check, x86int_t pc);
     void checkO2Object(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread, x86int_t);
-    void checkO2(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_chk, x86int_t pc);
+    void checkO2(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_chk, x86int_t pc, bool checkContents = false);
     FILE* getLogFile();
 
     JitRuntime rt;
@@ -279,10 +280,10 @@ struct Constants {
 #define stack_element_object 1
 
 // struct Frame {} fields
-#define frame_last 0
-#define frame_pc   1
-#define frame_sp   2
-#define frame_fp   3
+#define frame_current 0
+#define frame_pc      1
+#define frame_sp      2
+#define frame_fp      3
 
 // struct Method {} fields
 #define method_bytecode 0

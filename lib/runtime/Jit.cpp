@@ -129,5 +129,5 @@ _BaseAssembler *Jit::getAssembler() {
 void Jit::tlsSetup() {
     Thread* thread = thread_self;
     thread->jctx->regs = registers;
-    thread->jctx->self = thread_self;
+    thread->jctx->self = thread;
 }

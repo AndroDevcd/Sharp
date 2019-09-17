@@ -48,10 +48,6 @@ void Thread::Startup() {
             sizeof(Thread)*1);
     main->main = &env->methods[manifest.entryMethod];
     main->Create("Main");
-#ifdef WIN32_
-    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
-    SetPriorityClass(GetCurrentThread(), HIGH_PRIORITY_CLASS);
-#endif
     setupSigHandler();
 }
 
@@ -817,7 +813,7 @@ void Thread::exec() {
                 return;
 
             interp:
-            if(current->address == 303){
+            if(current->address == 796){
                 int i = 0;
             }
             DISPATCH();
@@ -1183,6 +1179,7 @@ void Thread::exec() {
                 _brh
             LOADL:
                 registers[GET_Ca(*pc)]=(fp+GET_Cb(*pc))->var;
+                double e = registers[i64ebx];
                 _brh
             IALOAD_2:
                 CHECK_INULLOBJ(
@@ -1326,9 +1323,8 @@ void Thread::interrupt() {
 
 void Thread::setup() {
     current = NULL;
-    calls=0;
-    sendSignal(signal, tsig_suspend, 0);
-    sendSignal(signal, tsig_except, 0);
+    calls=-1;
+    signal=tsig_empty;
     suspended = false;
     exited = false;
     terminated = false;

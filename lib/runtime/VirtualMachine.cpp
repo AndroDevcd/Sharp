@@ -214,7 +214,7 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t stati
 }
 
 bool returnMethod(Thread* thread) {
-    if(thread->calls <= 1) {
+    if(thread->calls <= 0) {
 #ifdef SHARP_PROF_
         tprof->endtm=Clock::realTimeInNSecs();
                 tprof->profile();
@@ -222,7 +222,8 @@ bool returnMethod(Thread* thread) {
         return true;
     }
 
-    Frame *frame = thread->callStack+(thread->calls--);
+    Frame *frameInfo = thread->callStack+(thread->calls);
+    Frame *returnAddress = thread->callStack+(thread->calls-1);
 
     if(thread->current->finallyBlocks.len > 0) {
         if(vm->executeFinally(thread_self->current)) {
@@ -230,41 +231,41 @@ bool returnMethod(Thread* thread) {
         }
     }
 
-    thread->current = frame->last;
+    thread->current = returnAddress->current;
     thread->cache = thread->current->bytecode;
 
-   thread->pc = frame->pc;
-   thread->sp = frame->sp;
-   thread->fp = frame->fp;
-
+   thread->pc = frameInfo->pc;
+   thread->sp = frameInfo->sp;
+   thread->fp = frameInfo->fp;
+    thread->calls--;
 #ifdef SHARP_PROF_
     tprof->profile();
 #endif
     /**
      * We need to return back to the JIT context
      */
-    if(frame->isjit)
+    if(returnAddress->isjit)
         return true;
 
     return false;
 }
-
+bool calledMain = false;
 fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
 
     Method *method = env->methods+address;
     StackElement *equlizer=thread->sp-method->stackEqulizer;
 
-    if(thread->calls==0) {
-        thread->callStack[0].init(NULL, 0,0,0, false);
+    if(thread->calls == -1) {
+        thread->callStack[++thread->calls].init(method, 0,0,0, false);
     } else {
-        thread->callStack[thread->calls+1]
-            .init(thread->current, thread->pc, equlizer, thread->fp, 0);
+        thread->callStack[++thread->calls]
+            .init(method, thread->pc, equlizer, thread->fp, false);
     }
-    thread->calls++;
 
+    if(method->address==7) calledMain = true;
     thread->current = method;
     thread->cache = method->bytecode;
-    thread->fp = thread->calls==1 ? thread->fp :
+    thread->fp = thread->calls==0 ? thread->fp :
                       ((method->returnVal) ? equlizer : (equlizer+1));
     thread->sp += (method->stackSize - method->paramSize);
     THREAD_STACK_CHECK2(thread, address);
@@ -273,7 +274,7 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
     if(!method->isjit) {
         if(method->longCalls >= JIT_IR_LIMIT)
         {
-            if(!method->compiling && method->jitAttempts < JIT_MAX_ATTEMPTS)
+            if(calledMain && !method->compiling && method->jitAttempts < JIT_MAX_ATTEMPTS)
                 Jit::sendMessage(method);
         } else method->longCalls++;
     }
@@ -281,17 +282,9 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
     if(method->isjit) {
         thread->callStack[thread->calls].isjit = true;
         thread->jctx->caller = method;
-        cout << "thread->jctx=" << (int64_t)thread->jctx << endl;
-        cout << "thread=" << (int64_t)thread << endl;
-        cout << "method=" << (int64_t)method << endl;
-        cout << "method->jit_lables=" << (int64_t)method->jit_labels << endl;
-        cout << "regs[]=" << (int64_t)&registers << endl;
-        cout << "thread->pc=" << (int64_t)thread->pc << endl;
-        cout << "thread->signal=" << (int64_t)thread->signal << endl;
-        cout << "thread->cache=" << (int64_t)thread->cache << endl;
-        cout << std::flush;
         return method->jit_call;
-    } else if(inJit || thread->calls==1) {
+    } else if(inJit || thread->calls==0) {
+        startAddress=0;
         thread->exec();
     }
     return NULL;
@@ -330,7 +323,14 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     thread_self->state = THREAD_RUNNING;
     thread_self->stbase = (int64_t)&arg;
     thread_self->stfloor = thread_self->stbase - thread_self->stack;
+
     fptr jitFn;
+    if(thread_self->id == main_threadid) {
+#ifdef WIN32_
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+        SetPriorityClass(GetCurrentThread(), HIGH_PRIORITY_CLASS);
+#endif
+    }
 
     try {
         thread_self->setup();
@@ -884,26 +884,28 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 }
 
 
-int VirtualMachine::returnMethod() {
-    if(thread_self->calls <= 1)
+int VirtualMachine::returnMethod() { // TOTO: change call structure to not hold the last function Info but the current called function on the frame
+    Thread *thread = thread_self;
+    if(thread->calls <= 0)
         return 1;
 
-    Frame *frame = thread_self->callStack+(thread_self->calls);
+    Frame *frameInfo = thread->callStack+(thread->calls);
+    Frame *returnAddress = thread->callStack+(thread->calls-1);
     
-    if(thread_self->current->finallyBlocks.size() > 0) {
+    if(thread->current->finallyBlocks.size() > 0) {
 
-        if(executeFinally(thread_self->current))
+        if(executeFinally(thread->current))
             return 3;
     }
 
-    thread_self->current = frame->last;
-    thread_self->cache = frame->last->bytecode;
+    thread->current = returnAddress->current;
+    thread->cache = thread->current->bytecode;
 
-    thread_self->pc = frame->pc;
-    thread_self->sp = frame->sp;
-    thread_self->fp = frame->fp;
-    thread_self->calls--;
-    return frame->isjit ? 2 : 0;
+    thread->pc = frameInfo->pc;
+    thread->sp = frameInfo->sp;
+    thread->fp = frameInfo->fp;
+    thread->calls--;
+    return returnAddress->isjit ? 2 : 0;
 }
 
 void VirtualMachine::Throw() {
@@ -924,7 +926,7 @@ void VirtualMachine::Throw() {
     }
 
     int result = thread_self->calls;
-    while(thread_self->calls >= 1) {
+    while(thread_self->calls >= 0) {
         result = returnMethod();
         if(result==1)
             break;
@@ -999,20 +1001,18 @@ void VirtualMachine::fillStackTrace(Object *exceptionObject) {
     }
 }
 
-void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
-    if(frame.last == NULL) return;
-
+void VirtualMachine::fillMethodCall(Method* func, Frame &frameInfo, stringstream &ss) {
     ss << "\tSource ";
-    if(frame.last->sourceFile != -1 && frame.last->sourceFile < manifest.sourceFiles) {
-        ss << "\""; ss << env->sourceFiles[frame.last->sourceFile].str() << "\"";
+    if(func->sourceFile != -1 && func->sourceFile < manifest.sourceFiles) {
+        ss << "\""; ss << env->sourceFiles[func->sourceFile].str() << "\"";
     }
     else
         ss << "\"Unknown File\"";
 
     long long x, line=-1, ptr=-1;
-    for(x = 0; x < frame.last->lineNumbers.size(); x++)
+    for(x = 0; x < func->lineNumbers.size(); x++)
     {
-        if(frame.last->lineNumbers.get(x).pc >= (frame.pc-frame.last->bytecode)) {
+        if(func->lineNumbers.get(x).pc >= (frameInfo.pc-func->bytecode)) {
             if(x > 0)
                 ptr = x-1;
             else
@@ -1020,24 +1020,24 @@ void VirtualMachine::fillMethodCall(Frame &frame, stringstream &ss) {
             break;
         }
 
-        if(!((x+1) < frame.last->lineNumbers.size())) {
+        if(!((x+1) < func->lineNumbers.size())) {
             ptr = x;
         }
     }
 
     Thread * t = thread_self;
     if(ptr != -1) {
-        ss << ", line " << (line = frame.last->lineNumbers.get(ptr).line_number);
+        ss << ", line " << (line = func->lineNumbers.get(ptr).line_number);
     } else
         ss << ", line ?";
 
-    ss << ", in "; ss << frame.last->fullName.str() << "()" << (frame.isjit ? "[native]" : "") << " [0x" << std::hex
-                      << frame.last->address << "] $0x" << (frame.pc-frame.last->bytecode)  << std::dec;
+    ss << ", in "; ss << func->fullName.str() << "()" << (frameInfo.isjit ? "[native]" : "") << " [0x" << std::hex
+                      << func->address << "] $0x" << (frameInfo.pc == 0 ? 0 : (frameInfo.pc-func->bytecode))  << std::dec;
 
-    ss << " fp; " << frame.fp-thread_self->dataStack << " sp: " << frame.sp-thread_self->dataStack;
+    ss << " fp; " << (frameInfo.fp == 0 ? 0 : frameInfo.fp-thread_self->dataStack) << " sp: " << (frameInfo.sp == 0 ? 0 : frameInfo.sp-thread_self->dataStack);
 
     if(line != -1 && metaData.sourceFiles.size() > 0) {
-        ss << getPrettyErrorLine(line, frame.last->sourceFile);
+        ss << getPrettyErrorLine(line, func->sourceFile);
     }
 
     ss << "\n";
@@ -1049,23 +1049,26 @@ void VirtualMachine::fillStackTrace(native_string &str) {
 
     stringstream ss;
     unsigned int iter = 0;
-    if(thread_self->calls <= EXCEPTION_PRINT_MAX) {
+    if((thread_self->calls+1) <= EXCEPTION_PRINT_MAX) {
 
         for(long i = 0; i < thread_self->calls+1; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
-            fillMethodCall(thread_self->callStack[i], ss);
+            fillMethodCall(thread_self->callStack[i].current, thread_self->callStack[i+1], ss);
         }
     } else {
-        for(long i = thread_self->calls-EXCEPTION_PRINT_MAX; i < thread_self->calls ; i++) {
+        for(long long i = (thread_self->calls+1)-EXCEPTION_PRINT_MAX -1; i < thread_self->calls+1; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
-            fillMethodCall(thread_self->callStack[i], ss);
+            fillMethodCall(thread_self->callStack[i].current, thread_self->callStack[i+1], ss);
         }
+
+        Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp,0);
+        fillMethodCall(thread_self->current, frame, ss);
     }
 
-    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp,0);
-    fillMethodCall(frame, ss);
+//    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp,0);
+//    fillMethodCall(frame, ss);
 
     str = ss.str();
 }

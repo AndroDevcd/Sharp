@@ -35,9 +35,7 @@ def main(string[] args) : var {
         tmp++;
     }
     now = getUtcTimeInMills();
-
     println("var loop(ms) " + (now-past));
-
     past = getUtcTimeInMills();
     for(int i = 0; i < 50000000; i++)
     {
