@@ -46,6 +46,14 @@ public class ConsoleHandler {
         );
      }
 
+     public static def flush()
+     {
+        asm(
+            "  int 0xd0            // flush the stdout                         "
+            "  ret                                                             "
+        );
+     }
+
      /**
      * print a single character to the console
      */

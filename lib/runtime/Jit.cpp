@@ -76,7 +76,7 @@ void Jit::run() {
             Sleep(1);
 #endif
 #ifdef POSIX_
-            usleep(2*999);
+            usleep(1*999);
 #endif
             if(!messageQueue.empty()) goto message;
         } while(!hasSignal(tSelf->signal, tsig_suspend) && tSelf->state == THREAD_RUNNING);

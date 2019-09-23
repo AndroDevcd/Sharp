@@ -137,7 +137,7 @@ def test_calls(var loops) {
  */
 def main(string[] args) : var {
     var past = getUtcTimeInMills(), now;
-    test_calls(20);
+    test_calls(100);
 
     label:
     now = getUtcTimeInMills();

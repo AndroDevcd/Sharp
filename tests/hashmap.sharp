@@ -1,0 +1,54 @@
+mod app;
+
+import std;
+import std.kernel;
+import std.io;
+
+object lck = new string("hi");
+
+def main(string[] args) : var {
+    string msg = "Hello World!";
+    string msg2 = "Jello World!";
+    string.fmt('l');
+    println(" msg " + msg.hash() + " msg2 " + msg2.hash());
+
+// TODO:  finish JIT instructions
+// TODO:  finish JIT safety checks
+// TODO:  perform house cleaning and prepare for release
+//    HashMap<integer, var> hm = new HashMap<integer, var>(25000);
+//    ArrayList<integer> hm = new ArrayList<integer>();
+//    hm.setPayloadClass(PayloadClass.PAYLOAD_LARGE);
+//    for(var i = 0; i < 15000000; i++) {
+//        hm.add(new integer(i));
+//
+//        if((i % 100000) == 0) {
+//            Runtime.gc();
+//        }
+//    }
+
+    Thread t = new Thread("foo", def ?(object[] arg) : var {
+        lock(lck) {
+            println("Thread 1: Holding lock 1...");
+            for(var i = 0; i < 1_000_000_000_000; i++) {
+            }
+        }
+            println("Thread 1: releasing lock 1...");
+    });
+    t.start(null);
+
+    Thread.sleep(15000);
+    t.interrupt();
+
+            println("Main Thread trying to lock object");
+            flush();
+    lock(lck) {
+            println("Main Threadlock successful!!");
+    }
+
+    println("removing");
+//    hm.remove(new integer(123453));
+    println("removing");
+//    println("hello world %= " + hm.get(new integer(123453)));
+    println("removing");
+}
+

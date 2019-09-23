@@ -2783,8 +2783,6 @@ Opcode RuntimeEngine::operandToShftOp(token_entity operand)
 void RuntimeEngine::shiftNative(token_entity operand, Expression& out, Expression &left, Expression &right, Ast* pAst) {
     out.type = expression_var;
     right.type = expression_var;
-    right.func=false;
-    right.literal = false;
 
     if(left.type == expression_var) {
         equals(left, right);
@@ -7537,7 +7535,7 @@ void RuntimeEngine::resolveEnumDecl(Ast* ast) {
 
     if(base != NULL && base->isInterface()) {
         stringstream err;
-        err << "support class for enums found to b an interface";
+        err << "support class for enums found to be an interface";
         errors->createNewError(GENERIC, ast->line, ast->col, err.str());
     } else {
         if(base != NULL)
@@ -7548,6 +7546,7 @@ void RuntimeEngine::resolveEnumDecl(Ast* ast) {
             errors->createNewError(GENERIC, ast->line, ast->col, err.str());
         }
     }
+
     addScope(Scope(CLASS_SCOPE, klass));
     for(long i = 0; i < block->getSubAstCount(); i++) {
         trunk = block->getSubAst(i);
@@ -7630,12 +7629,13 @@ void RuntimeEngine::resolveClassEnumDecl(Ast* ast) {
                 break;
             case ast_interface_decl: /* ignore */
                 break;
-            case ast_generic_class_decl: /* ignore */
-                break;
             case ast_enum_decl: /* ignore */
                 resolveEnumDecl(trunk);
                 break;
             case ast_enum_identifier: /* ignore */
+                break;
+            case ast_generic_class_decl:
+                resolveGenericClassDecl(trunk, false, true);
                 break;
             default:
                 /* ignore */
@@ -7707,7 +7707,7 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField, bool for
                 break;
             case ast_enum_decl: /* ignore */
                 if(forEnum)
-                    resolveEnumDecl(ast);
+                    resolveEnumDecl(trunk);
                 break;
             case ast_func_prototype:
                 break;
@@ -8134,6 +8134,9 @@ void RuntimeEngine::parseGenericClassDecl(Ast *ast, bool isInterface)
             case ast_delegate_post_decl: /* Will be parsed later */
                 break;
             case ast_delegate_decl: /* Will be parsed later */
+                break;
+            case ast_enum_decl: /* Will be parsed later */
+                parseEnumDecl(ast);
                 break;
             case ast_interface_decl:
                 parseClassDecl(ast, true);
@@ -10088,6 +10091,18 @@ void RuntimeEngine::traverseGenericClass(ClassObject *klass, List<Expression> &u
         traverseMethod(klass, constr, pAst);
     }
 
+
+    for(long i = 0; i < klass->childClassCount(); i++) {
+        ClassObject *enums = klass->getChildClass(i);
+        if(enums->isEnum()) {
+
+            for(long i = 0; i < enums->fieldCount(); i++) {
+                Field *field = enums->getField(i);
+                traverseField(enums, field, pAst);
+            }
+        }
+    }
+
     for(long i = 0; i < klass->functionCount(); i++) {
         Method *func = klass->getFunction(i);
         traverseMethod(klass, func, pAst);
@@ -10193,9 +10208,6 @@ void RuntimeEngine::traverseField(ClassObject *klass, Field *field, Ast* pAst) {
 
         if(field->isArray && !utype->utype.array) {
             // we are fine field will just stay an array
-        } else if(field->isArray && utype->utype.array) {
-            // error
-            errors->createNewError(GENERIC, pAst, "Array-arrays are not supported.");
         } else if(!field->isArray) {
             field->isArray = utype->utype.array;
         }
@@ -10266,6 +10278,8 @@ void RuntimeEngine::analyzeGenericClass(ClassObject *generic)
                 break;
             case ast_generic_class_decl: /* ignore */
                 break;
+            case ast_enum_decl:
+                break;
             case ast_func_prototype:
                 resolvePrototypeDecl(ast);
                 break;
@@ -10305,6 +10319,9 @@ void RuntimeEngine::resolveAllEnums() {
                     break;
                 case ast_class_decl:
                     resolveClassEnumDecl(ast);
+                    break;
+                case ast_generic_class_decl:
+                    resolveGenericClassDecl(ast, false, true);
                     break;
                 default:
                     /* ignore */

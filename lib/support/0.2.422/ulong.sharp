@@ -54,9 +54,20 @@ public class ulong base integer {
     public def operator=(var num) : var {
         return (value=(_uint64)num);
     }
-    
+
     public def operator=(integer num) : ulong {
-        return new ulong(operator=(num.value));
+        operator=(num.value);
+        return self;
+    }
+
+    public def operator=(Enum num) : ulong {
+       operator=(num.getValue());
+       return self;
+    }
+
+    public def operator+=(var num) : var {
+        value=(_uint64)(value+num);
+        return (value);
     }
     
     public def operator==(var num) : var {

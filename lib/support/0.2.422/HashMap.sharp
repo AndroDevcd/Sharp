@@ -1,0 +1,184 @@
+mod std;
+
+/**
+ * Created by braxtonn on 9/18/2019.
+ */
+public class HashMap <K,V> {
+
+    Entry<K,V>[] data;
+    var threshold = 0.75;
+    var maxSize = 96;
+    var size;
+
+    /**
+    * payloadType represents the size of the expected DATA
+    * that will be processed by the ArrayList<> class
+    *
+    * The higher the  class the more efficient the Array List will be with
+    * allocating memory to be used and filled.
+    * The lower the class the less efficient and memory hungry the allocations will
+    * be at higher data volumes
+    *
+    * On the contrary however, smaller payload classes are said to be more efficient in the beginning of
+    * adding items to the array as it will require less allocations to do so. For Instance a
+    * ArrayList<var> with a size of 5k elements will make theoretically 100 allocations than a ArrayList class that
+    * holds a higher payload class which might make 300 allocations in the beginning.
+    *
+    * Payload classes are as follows:
+    * - PAYLOAD_SMALL   This is for lists expected to be less than 250k elements
+    * - PAYLOAD_MEDIUM  This is for lists expected to be less than 5M elements
+    * - PAYLOAD_LARGE   This is for lists expected to be 10M+ elements
+    */
+    private PayloadClass payloadClass;
+
+    public static const var DEFAULT_CAPACITY = 128;
+
+    public HashMap(var initialCapacity) {
+        data = new Entry<K,V>[initialCapacity];
+        setThreshold(0.75);
+        payloadClass = PayloadClass.PAYLOAD_SMALL;
+    }
+
+    public HashMap() {
+        data = new Entry<K,V>[DEFAULT_CAPACITY];
+        payloadClass = PayloadClass.PAYLOAD_MEDIUM;
+    }
+
+    def setThreshold(var threshold) {
+        self->threshold = threshold;
+        maxSize = (sizeof(data) * threshold);
+    }
+
+    /**
+    * Resets the working payload class
+    * this function allows you to change the speed/memory
+    * performance of how your data is being processed
+    */
+    public def setPayloadClass(PayloadClass pc) {
+        payloadClass = pc;
+    }
+
+    def hashCode(K key) : var {
+        return key.hash() % sizeof(data);
+    }
+
+    def resize() {
+        Entry<K,V>[] oldData = data;
+        data = new Entry<K,V>[sizeof(oldData) + (sizeof(oldData) >> payloadClass.getValue())];
+        maxSize = sizeof(data) * threshold;
+        size = 0; // we are re adding all the data anyway
+
+        for(var i = 0; i < sizeof(oldData); i++)
+        {
+            if(oldData[i] != null) {
+                Entry<K,V> entry = oldData[i];
+                while(entry != null) {
+                    add(entry);
+                    entry = entry.next;
+                }
+                oldData[i] = null;
+            }
+        }
+
+        oldData = null;
+    }
+
+    public def get(K key) : V {
+        var index = hashCode(key);
+        var initialHash = -1;
+        V nullValue;
+
+        if(data[index] == null) {
+            return nullValue;
+        } else {
+            Entry<K,V> entry = data[index];
+            while(entry != null && entry.key != key
+                && entry.next != null)
+                entry = entry.next;
+
+            if (entry == null)
+                return nullValue;
+            else
+                return entry.value;
+        }
+    }
+
+    public def add(K key, V value) {
+        var index = hashCode(key);
+        if(data[index] == null) {
+            size++;
+            data[index] =  new Entry<K,V>(key, value);
+        } else {
+            Entry<K,V> entry = data[index];
+            while(entry.next != null)
+                entry = entry.next;
+            if(entry.key == key)
+                entry.value = value;
+            else {
+                entry.next = new Entry<K,V>(key, value);
+            }
+        }
+
+        if(size >= maxSize)
+            resize();
+    }
+
+
+    private def add(Entry<K,V> entryData) {
+        var index = hashCode(entryData.key);
+        entryData.next = null;
+
+        if(data[index] == null) {
+            size++;
+            data[index] = entryData;
+        } else {
+            Entry<K,V> entry = data[index];
+            while(entry.next != null)
+                entry = entry.next;
+            entry.next = entryData;
+        }
+    }
+
+    public def remove(K key) : var {
+        var index = hashCode(key);
+        if(data[index] == null) {
+            Entry<K,V> prevEntry;
+            Entry<K,V> entry = data[index];
+            while(entry != null && entry.key != key) {
+                prevEntry = entry;
+                entry = entry.next;
+            }
+
+            if(entry.key == key) {
+                if(prevEntry == null) {
+                    Entry<K,V> nextEntry = entry.next;
+                    data[index] = nextEntry;
+                } else {
+                    Entry<K,V> nextEntry = entry.next;
+                    prevEntry.next = nextEntry;
+                    entry = null;
+                }
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+// terrible terrible hack so I dont have to deal with the compiler
+class Entry<K, V> {
+    protected K key;
+    protected V value;
+    protected Entry<K, V> next;
+
+    public Entry(K key, V value) {
+        self->key = key;
+        self->value = value;
+    }
+
+    public def delegate::toString() : string {
+        return "key " + key + " value " + value;
+    }
+}

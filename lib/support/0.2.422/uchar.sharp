@@ -46,9 +46,20 @@ public class uchar base integer {
     public def operator=(var num) : var {
         return (value=(_uint8)num);
     }
-    
+
     public def operator=(integer num) : uchar {
-        return new uchar(operator=(num.value));
+        operator=(num.value);
+        return self;
+    }
+
+    public def operator=(Enum num) : uchar {
+       operator=(num.getValue());
+       return self;
+    }
+
+    public def operator+=(var num) : var {
+        value=(_uint8)(value+num);
+        return (value);
     }
     
     public def operator==(var num) : var {

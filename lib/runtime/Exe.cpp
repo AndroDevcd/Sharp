@@ -382,7 +382,7 @@ int Process_Exe(std::string exe)
                     method->delegateAddress = geti64(buffer);
                     method->stackEqulizer = geti64(buffer);
                     if(c_options.jit) {
-//                        if(method->address==303) method->isjit = true;
+                        if(method->address==316) method->isjit = true;
                         if(method->address==7) method->isjit = true;
                     }
 

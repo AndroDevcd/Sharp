@@ -36,6 +36,8 @@ Any other compatibility issues/changes will be otherwise noted in the release no
     # QoL Improvements
         * Updated the Assembler to allow for high level assembly programming with the newly added instructions
         * Added the JIT back to the language with significant performance boots (64bit windows is ony supported as of now)
+        * Memory footprint/allocation performance of objects in Sharp were optimized (72 bytes -> 48 bytes)
+        * Mutex locks are now released on objects when they are destroyed by the GC
 
     # New Additions
         * Multiple compiler options changes
@@ -47,10 +49,12 @@ Any other compatibility issues/changes will be otherwise noted in the release no
             * Added to x64 VM Instruction `popobj_2` for direct stack object assignment
             * Added to x64 VM Instruction `swap` for stack swapping
         * Added anomyous functions to the language
+        * Added new thread syncronization system to prevent threads from shutting down with active mutex locks causing deadlocks on threads
 
     # Known Issues
         * Returning/jumping out of scope of a lock(){} code section results in a deadlock on that object
-        * The speed and memory profiler does not work with the JIT system as of now ans will be added in a later update
+        * The speed and memory profiler does not work with the JIT system as of now and will be added in a later update
+        * Sub classes do not work in Generic classes
 
     Backwards compatibility support tested Version: (0.2.422+)
 

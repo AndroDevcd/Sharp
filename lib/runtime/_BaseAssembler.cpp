@@ -86,6 +86,7 @@ void _BaseAssembler::setupSharpObjectFields() {
     Lsharp_object[sharp_object_node] = getMemPtr(relative_offset((&o), HEAD, node));
     Lsharp_object[sharp_object_k] = getMemPtr(relative_offset((&o), HEAD, k));
     Lsharp_object[sharp_object_size] = getMemPtr(relative_offset((&o), HEAD, size));
+    Lsharp_object[sharp_object_type] = x86::byte_ptr(ctx, relative_offset((&o), HEAD, type));
 }
 
 int _BaseAssembler::performInitialCompile() {
@@ -444,7 +445,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         emitConstant(assembler, constant_pool, vec1, GET_Cb(ir));
                         assembler.subsd(vec0, vec1);
-                        movRegister(assembler, vec1, GET_Ca(ir));
+                        movRegister(assembler, vec0, GET_Ca(ir));
                         break;
                     }
                     case op_IMUL: { // registers[GET_Ca(*pc)]+=GET_Cb(*pc);
@@ -459,8 +460,8 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         movRegister(assembler, vec0, GET_Ca(ir), false);
 
                         emitConstant(assembler, constant_pool, vec1, GET_Cb(ir));
-                        assembler.divsd(vec1, vec0);
-                        movRegister(assembler, vec1, GET_Ca(ir));
+                        assembler.divsd(vec0, vec1);
+                        movRegister(assembler, vec0, GET_Ca(ir));
                         break;
                     }
                     case op_IMOD: {
@@ -497,7 +498,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         emitConstant(assembler, constant_pool, vec1, 1);
                         assembler.subsd(vec0, vec1);
 
-                        movRegister(assembler, vec1, GET_Da(ir));
+                        movRegister(assembler, vec0, GET_Da(ir));
                         break;
                     }
                     case op_MOVR: { // registers[GET_Ca(*pc)]=registers[GET_Cb(*pc)];
@@ -505,7 +506,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         movRegister(assembler, vec0, GET_Ca(ir));
                         break;
                     }
-                    case op_IALOAD: {
+                    case op_IALOAD: { // change
                         /*
                          *
                          *
@@ -523,13 +524,14 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         Label isNull = assembler.newLabel(), end = assembler.newLabel();
                         assembler.je(isNull);
 
-                        assembler.mov(ctx, qword_ptr(ctx)); // o->HEAD != NULL
-                        assembler.cmp(ctx, 0);
-                        assembler.je(isNull);
-                        assembler.mov(value, ctx);
+                        assembler.mov(tmp, 0);
+                        assembler.mov(tmp8, Lsharp_object[sharp_object_type]);
+                        assembler.cmp(tmp8, _stype_var);
+                        assembler.jne(isNull);
+                        assembler.mov(value, Lsharp_object[sharp_object_HEAD]);
 
                         movRegister(assembler, vec0, GET_Cb(ir), false);
-                        assembler.cvttsd2si(tmp, vec1); // double to int
+                        assembler.cvttsd2si(tmp, vec0); // double to int
                         assembler.mov(ctx, value);
                         Label isZero = assembler.newLabel();
                         assembler.cmp(tmp, 0);
@@ -837,7 +839,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.call((x86int_t)_BaseAssembler::jitDelete);
                         break;
                     }
-                    case op_NEWCLASS: { // untested
+                    case op_NEWCLASS: {
                         assembler.mov(ctx, GET_Da(ir)); // double to int
                         assembler.call((x86int_t)_BaseAssembler::jitNewClass0);
                         assembler.mov(tmpInt, tmp);
@@ -896,6 +898,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         checkO2Object(assembler, o2Ptr, lbl_thread_chk, i);
 
                         assembler.mov(ctx, o2Ptr);
+                        assembler.mov(value, threadPtr);
                         assembler.call((int64_t)Object::monitorLock);
                         break;
                     }
@@ -903,6 +906,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         checkO2Object(assembler, o2Ptr, lbl_thread_chk, i);
 
                         assembler.mov(ctx, o2Ptr);
+                        assembler.mov(value, threadPtr);
                         assembler.call((int64_t)Object::monitorUnLock);
                         break;
                     }
@@ -1223,8 +1227,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.cvttsd2si(tmp, vec0);
 
                         assembler.imul(tmp, (x86int_t )sizeof(double));
-                        assembler.add(value, tmp);
-                        assembler.movsd(vec0, getMemPtr(value));
+                        assembler.movsd(vec0, x86::qword_ptr(value, tmp));
                         movRegister(assembler, vec0, GET_Ca(ir));
                         break;
                     }
@@ -1303,10 +1306,9 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         movRegister(assembler, vec0, GET_Ca(ir), false);
                         assembler.cvttsd2si(tmp, vec0); // double to int
                         assembler.imul(tmp, (x86int_t)sizeof(double));
-                        assembler.add(value, tmp);
 
                         movRegister(assembler, vec0, GET_Cb(ir), false);
-                        assembler.movsd(getMemPtr(value), vec0);
+                        assembler.movsd(x86::qword_ptr(value, tmp), vec0);
                         break;
                     }
                     case op_SMOV: {
@@ -1518,7 +1520,6 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.mov(arg, i);
                         updatePc(assembler);
 
-                        assembler.cvttsd2si(value, vec0); // double to int
                         assembler.mov(ctx, fnPtr);
                         assembler.call((x86int_t) _BaseAssembler::jitIndexOutOfBoundsException);
                         assembler.mov(arg, -1);
@@ -1526,8 +1527,106 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.bind(end);
                         break;
                     }
+                    case op_SHL: { // registers[*(pc+1)]=(int64_t)registers[GET_Ca(*pc)]<<(int64_t)registers[GET_Cb(*pc)];
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+                        movRegister(assembler, vec1, GET_Cb(ir), false);
+                        assembler.cvttsd2si(value, vec1); // double to int
+
+                        assembler.mov(assembler.zcx(), value);
+                        assembler.sal(tmp, x86::cl);
+
+                        assembler.cvtsi2sd(vec0, tmp); // int to Double
+                        i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
+                        movRegister(assembler, vec0, irTail);
+                        break;
+                    }
+                    case op_SHR: { // registers[*(pc+1)]=(int64_t)registers[GET_Ca(*pc)]>>(int64_t)registers[GET_Cb(*pc)];
+                        movRegister(assembler, vec0, GET_Ca(ir), false);
+                        assembler.cvttsd2si(tmp, vec0); // double to int
+                        movRegister(assembler, vec1, GET_Cb(ir), false);
+                        assembler.cvttsd2si(value, vec1); // double to int
+
+                        assembler.mov(assembler.zcx(), value);
+                        assembler.sar(tmp, x86::cl);
+
+                        assembler.cvtsi2sd(vec0, tmp); // int to Double
+                        i++; assembler.bind(labels[i]); // we wont use it but we need to bind it anyway
+                        movRegister(assembler, vec0, irTail);
+                        break;
+                    }
+                    case op_TLS_MOVL: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_dataStack]);
+
+                        if (GET_Da(ir) != 0) {
+                            assembler.add(ctx, (x86int_t) (sizeof(StackElement) * GET_Da(ir)));
+                        }
+
+                        assembler.lea(value, Lstack_element[stack_element_object]);
+                        assembler.mov(o2Ptr, value);
+                        break;
+                    }
+                    case op_DUP: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_sp]);
+                        assembler.lea(value, Lstack_element[stack_element_object]);
+
+                        assembler.add(Lthread[thread_sp], (x86int_t) sizeof(StackElement));
+                        assembler.add(ctx, (x86int_t) sizeof(StackElement)); // sp++
+                        assembler.lea(ctx, Lstack_element[stack_element_object]);
+
+                        assembler.call((x86int_t) _BaseAssembler::jitSetObject2);
+                        break;
+                    }
+                    case op_POPOBJ_2: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(tmp, Lthread[thread_sp]);
+                        assembler.lea(value, ptr(tmp, (x86int_t) -sizeof(StackElement)));
+                        assembler.mov(Lthread[thread_sp], value); // sp--
+                        assembler.mov(ctx, tmp);
+                        assembler.lea(value, Lstack_element[stack_element_object]);
+                        assembler.mov(o2Ptr, value);
+                        break;
+                    }
+                    case op_SWAP: {
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(tmp, Lthread[thread_sp]);
+                        assembler.mov(value, Lthread[thread_dataStack]);
+
+                        assembler.sub(tmp, value);
+                        Label ifTrue = assembler.newLabel();
+                        assembler.cmp(tmp, 2);
+                        assembler.jae(ifTrue);
+
+                        assembler.mov(arg, i);
+                        updatePc(assembler);
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.call((x86int_t) _BaseAssembler::jitIllegalStackSwapException);
+                        assembler.mov(arg, -1);
+                        assembler.jmp(lbl_thread_chk);
+                        assembler.bind(ifTrue);
+
+                        assembler.mov(ctx, threadPtr);
+                        assembler.mov(ctx, Lthread[thread_sp]);
+                        assembler.lea(tmp, Lstack_element[stack_element_object]);
+                        assembler.mov(fnPtr, qword_ptr(tmp));
+
+                        assembler.sub(ctx, (x86int_t) sizeof(StackElement));
+                        assembler.lea(value, Lstack_element[stack_element_object]);
+                        assembler.mov(tmpInt, value);
+
+                        assembler.mov(ctx, tmp);
+                        assembler.call((x86int_t) _BaseAssembler::jitSetObject2);
+
+                        assembler.mov(ctx, tmpInt);
+                        assembler.mov(value, fnPtr);
+                        assembler.call((x86int_t) _BaseAssembler::jitSetObject3);
+                        break;
+                    }
                     default: {
-                        cout << "unknown opcode " << GET_OP(ir) << endl;
+                        cout << "unknown opcode " << GET_OP(ir) << " please contact the developer immediately!" << endl;
                         error = jit_error_compile;
                         goto finish;
                     }
@@ -1697,9 +1796,13 @@ void _BaseAssembler::checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Pt
     assembler.cmp(ctx, 0);
     assembler.je(nullCheckFailed);
 
+    assembler.mov(tmp, 0);
+    assembler.mov(tmp8, Lsharp_object[sharp_object_type]);
+    assembler.cmp(tmp8, _stype_struct);
+    assembler.jne(nullCheckFailed);
+
     assembler.mov(ctx, Lsharp_object[sharp_object_node]);
-    assembler.cmp(ctx, 0);
-    assembler.jne(nullCheckPassed);
+    assembler.jmp(nullCheckPassed);
 
     assembler.bind(nullCheckFailed);
     assembler.mov(arg, pc);
@@ -1722,9 +1825,13 @@ void _BaseAssembler::checkO2Head(x86::Assembler &assembler, const x86::Mem &o2Pt
     assembler.cmp(ctx, 0);
     assembler.je(nullCheckFailed);
 
-    assembler.mov(ctx, qword_ptr(ctx));
-    assembler.cmp(ctx, 0);
-    assembler.jne(nullCheckPassed);
+    assembler.mov(tmp, 0);
+    assembler.mov(tmp8, Lsharp_object[sharp_object_type]);
+    assembler.cmp(tmp8, _stype_var);
+    assembler.jne(nullCheckFailed);
+
+    assembler.mov(ctx, Lsharp_object[sharp_object_HEAD]);
+    assembler.jmp(nullCheckPassed);
 
     assembler.bind(nullCheckFailed);
     assembler.mov(arg, pc);
@@ -1783,7 +1890,7 @@ void _BaseAssembler::jitCast(Object *obj, x86int_t klass) {
 
 void _BaseAssembler::jitCastVar(Object *obj, int array) {
     if(obj!=NULL && obj->object != NULL) {
-        if(obj->object->HEAD == NULL) {
+        if(obj->object->type != _stype_var) {
             stringstream ss;
             ss << "illegal cast to var" << (array ? "[]" : "");
             Exception err(Environment::ClassCastException, ss.str());
@@ -1796,7 +1903,6 @@ void _BaseAssembler::jitCastVar(Object *obj, int array) {
 }
 
 fptr _BaseAssembler::jitCall(Thread *thread, int64_t addr) {
-
     try {
         if ((thread->calls + 1) >= thread->stack_lmt) {
             throw Exception(Environment::StackOverflowErr, "");
@@ -1853,18 +1959,10 @@ void _BaseAssembler::jitInvokeDelegate(x86int_t address, x86int_t args, Thread* 
 }
 
 // REMEMBER!!! dont forget to check state of used registers befote and after this call as they might be different than what they werr before
-void _BaseAssembler::test(x86int_t proc) {
-    /*
-     *  o = sp->object.object;
-        if(o != NULL && o->HEAD != NULL) {
-            registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
-        } else throw Exception(Environment::NullptrException, "");
-     */
-    cout << "(adx) " << registers[i64adx] << endl << std::flush;
-    if(((Object*)proc)->object)
-    cout << "(sz) " << ((Object*)proc)->object->size << endl << std::flush;
-    else
-    cout << "(null o2) " << endl << std::flush;
+void _BaseAssembler::test(x86int_t proc, x86int_t xtra) {
+
+//    cout << "(shr) " << proc << endl << std::flush;
+//    cout << "(ebx) " << registers[i64ebx] << " (egx) " << registers[i64egx] << endl << std::flush;
 }
 
 // had a hard time with this one so will do this for now
@@ -1991,6 +2089,13 @@ void _BaseAssembler::jitIndexOutOfBoundsException(x86int_t size, x86int_t index)
     __srt_cxx_prepare_throw(outOfBounds);
 }
 
+void _BaseAssembler::jitIllegalStackSwapException(Thread *thread) {
+    stringstream ss;
+    ss << "Illegal stack swap while sp is ( " << (x86int_t )(thread->sp-thread->dataStack) << ") ";
+    Exception outOfBounds(Environment::ThreadStackException, ss.str());
+    __srt_cxx_prepare_throw(outOfBounds);
+}
+
 void _BaseAssembler::jitThrow(Thread *thread) {
     thread->exceptionObject = thread->sp->object;
     Exception e("", false);
@@ -2009,6 +2114,10 @@ void _BaseAssembler::jitSetObject2(Object *dest, Object *src) {
     *dest = src;
 }
 
+void _BaseAssembler::jitSetObject3(Object *dest, SharpObject *src) {
+    *dest = src;
+}
+
 void _BaseAssembler::jitDelete(Object* o) {
     GarbageCollector::self->releaseObject(o);
 }
@@ -2018,8 +2127,12 @@ void _BaseAssembler::__srt_cxx_prepare_throw(Exception &e) {
     self->throwable = e.getThrowable();
     Object *eobj = &self->exceptionObject;
 
-    VirtualMachine::fillStackTrace(eobj);
-    self->throwable.throwable = eobj->object->k;
+    if(eobj->object == NULL) {
+        VirtualMachine::fillStackTrace(self->throwable.stackTrace);
+    } else {
+        VirtualMachine::fillStackTrace(eobj);
+        self->throwable.throwable = eobj->object->k;
+    }
     sendSignal(self->signal, tsig_except, 1);
 }
 

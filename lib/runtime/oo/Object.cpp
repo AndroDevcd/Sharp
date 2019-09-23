@@ -34,27 +34,6 @@ void Object::castObject(int64_t classPtr) {
     }
 }
 
-void Object::monitorLock(Object *o) {
-    if(o->object->mutex==NULL) {
-        Thread::threadsMonitor.lock(); // protection from thread race condition
-        if(o->object->mutex!=NULL) {
-            Thread::threadsMonitor.unlock();
-            goto _lck;
-        }
-#ifdef WIN32_
-        o->object->mutex = new recursive_mutex();
-#endif
-#ifdef POSIX_
-        o->object->mutex = new recursive_mutex();
-#endif
-
-        Thread::threadsMonitor.unlock();
-    }
-
-    _lck:
-    o->object->mutex->lock();
-}
-
 void SharpObject::print() {
     cout << "Object @0x" << this << endl;
     cout << "size " << size << endl;
@@ -62,9 +41,9 @@ void SharpObject::print() {
     cout << "generation " << GENERATION(gc_info) << endl;
     if(k != NULL) cout << "class: " << k->name.str() << endl;
 
-    if(HEAD != NULL) {
+    if(type==_stype_var) {
         cout << "HEAD[]" << endl;
-    } else if(node != NULL){
+    } else if(type==_stype_struct){
         for(long i = 0; i < size; i++) {
             cout << '\t' << this << " -> #" << i << " ";
             if(node[i].object == NULL) {

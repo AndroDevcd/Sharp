@@ -45,9 +45,20 @@ public class char base integer {
     public def operator=(var num) : var {
         return (value=(_int8)num);
     }
-    
+
     public def operator=(integer num) : char {
-        return new char(operator=(num.value));
+        operator=(num.value);
+        return self;
+    }
+
+    public def operator=(Enum num) : char {
+       operator=(num.getValue());
+       return self;
+    }
+
+    public def operator+=(var num) : var {
+        value=(_int8)(value+num);
+        return (value);
     }
     
     public def operator==(var num) : var {

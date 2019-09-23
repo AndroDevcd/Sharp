@@ -3,7 +3,7 @@ mod std;
 /**
  * Created by BraxtonN on 6/11/2018.
  */
-class integer {
+public class integer {
     protected var value;
     // maximum possible value the compiler can process for ints
     public static var MAX = 36028797018963967;
@@ -22,5 +22,17 @@ class integer {
 
     def delegate::hash() : var {
         return value;
+    }
+
+    public def operator!=(integer num) : var {
+        return (value!=num.value);
+    }
+
+    public def operator==(integer num) : var {
+        return (value==num.value);
+    }
+
+    public def delegate::toString() : string {
+        return "" + value;
     }
 }

@@ -49,7 +49,7 @@ void help() {
     cout <<               "    -sort<id>              sort by time(tm), avg time(avgt), calls(calls), or ir(ir)." << endl;
 #endif
     cout <<               "    -showversion           print the version number and continue." << endl;
-    cout <<               "    -Maxlmt<size:type>     set the maximum memory allowed to the virtual machine." << endl;
+    cout <<               "    -(maxlmt/mem)<size:type>     set the maximum memory allowed to the virtual machine." << endl;
     cout <<               "    -stack<size:type>      set the default physical stack size allowed to threads." << endl;
     cout <<               "    -istack<size:type>     set the default internal 'fictional' stack size allowed to threads." << endl;
     cout <<               "    -gthreshold<size:type> set the minimum memory allowed to trigger the garbage collector." << endl;
@@ -127,7 +127,7 @@ int runtimeStart(int argc, const char* argv[])
             }
         }
 #endif
-        else if(opt("-maxlmt")){
+        else if(opt("-maxlmt") || opt("-mem")){
             if(i+1 >= argc)
                 error("maximum memory limit required after option `-Maxlmt`");
             else {

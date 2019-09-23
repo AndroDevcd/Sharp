@@ -63,7 +63,7 @@
 #define THREAD_STACK_CHECK2(self, x)  if(((self->sp-self->dataStack)+2) >= self->stack_lmt || (((int64_t)(&x) - self->stfloor) <= 60000)) throw Exception(Environment::StackOverflowErr, "");
 
 #ifndef SHARP_PROF_
-#define _brh_NOINCREMENT SAFTEY_CHECK /*if(!startAddress) DISPATCH() else*/ goto *opcodeStart;
+#define _brh_NOINCREMENT SAFTEY_CHECK if(!startAddress) DISPATCH() else goto *opcodeStart;
 #else
 #define _brh_NOINCREMENT SAFTEY_CHECK irCount++; if(irCount == 0) overflow++; goto *opcodeStart;
 #endif
@@ -72,8 +72,8 @@
 
 #define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
 #define CHECK_NULL2(x) if(o2==NULL|o2->object == NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
-#define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->node==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
-#define CHECK_INULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->HEAD==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->type != _stype_struct) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_INULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->type != _stype_var) { throw Exception(Environment::NullptrException, ""); } else { x }
 
 #define _initOpcodeTable \
         static void* opcode_table[] = { \

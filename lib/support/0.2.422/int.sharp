@@ -14,6 +14,11 @@ public class int base integer {
         return (_int32)(value+num);
     }
 
+    public def operator+=(var num) : var {
+        value=(_int32)(value+num);
+        return (value);
+    }
+
     public def operator+(integer num) : int {
         return new int(operator+(num.value));
     }
@@ -48,7 +53,13 @@ public class int base integer {
     }
 
     public def operator=(integer num) : int {
-        return new int(operator=(num.value));
+        operator=(num.value);
+        return self;
+    }
+
+    public def operator=(Enum num) : int {
+       operator=(num.getValue());
+       return self;
     }
 
     public def operator==(var num) : var {

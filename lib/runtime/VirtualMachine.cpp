@@ -21,6 +21,7 @@
 #include "../Modules/std.kernel/cmath.h"
 #include "../Modules/std.kernel/clist.h"
 #include "Jit.h"
+#include "main.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -216,8 +217,8 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t stati
 bool returnMethod(Thread* thread) {
     if(thread->calls <= 0) {
 #ifdef SHARP_PROF_
-        tprof->endtm=Clock::realTimeInNSecs();
-                tprof->profile();
+        thread->tprof->endtm=Clock::realTimeInNSecs();
+                thread->tprof->profile();
 #endif
         return true;
     }
@@ -239,7 +240,7 @@ bool returnMethod(Thread* thread) {
    thread->fp = frameInfo->fp;
     thread->calls--;
 #ifdef SHARP_PROF_
-    tprof->profile();
+    thread->tprof->profile();
 #endif
     /**
      * We need to return back to the JIT context
@@ -249,7 +250,7 @@ bool returnMethod(Thread* thread) {
 
     return false;
 }
-bool calledMain = false;
+
 fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
 
     Method *method = env->methods+address;
@@ -262,7 +263,6 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
             .init(method, thread->pc, equlizer, thread->fp, false);
     }
 
-    if(method->address==7) calledMain = true;
     thread->current = method;
     thread->cache = method->bytecode;
     thread->fp = thread->calls==0 ? thread->fp :
@@ -274,7 +274,7 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
     if(!method->isjit) {
         if(method->longCalls >= JIT_IR_LIMIT)
         {
-            if(calledMain && !method->compiling && method->jitAttempts < JIT_MAX_ATTEMPTS)
+            if(!method->compiling && method->jitAttempts < JIT_MAX_ATTEMPTS)
                 Jit::sendMessage(method);
         } else method->longCalls++;
     }
@@ -325,12 +325,12 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     thread_self->stfloor = thread_self->stbase - thread_self->stack;
 
     fptr jitFn;
-    if(thread_self->id == main_threadid) {
-#ifdef WIN32_
-        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
-        SetPriorityClass(GetCurrentThread(), HIGH_PRIORITY_CLASS);
-#endif
-    }
+//    if(thread_self->id == main_threadid) {
+//#ifdef WIN32_
+////        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+////        SetPriorityClass(GetCurrentThread(), HIGH_PRIORITY_CLASS);
+//#endif
+//    }
 
     try {
         thread_self->setup();
@@ -874,6 +874,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         case 0xc2:
             registers[i64ebx] = GarbageCollector::_sizeof((thread_self->sp--)->object.object);
             return;
+        case 0xd0:
+            cout << std::flush;
+            break;
         default: {
             // unsupported
             stringstream ss;
@@ -916,9 +919,9 @@ void VirtualMachine::Throw() {
 
     if (!hasSignal(thread_self->signal, tsig_except))
     {
-        thread_self->throwable.throwable = thread_self->exceptionObject.object->k;
-        fillStackTrace(&thread_self->exceptionObject);
-        sendSignal(thread_self->signal, tsig_except, 1);
+            thread_self->throwable.throwable = thread_self->exceptionObject.object->k;
+            fillStackTrace(&thread_self->exceptionObject);
+            sendSignal(thread_self->signal, tsig_except, 1);
     }
 
     if(TryCatch(thread_self->current, &thread_self->exceptionObject)) {
@@ -944,6 +947,8 @@ void VirtualMachine::Throw() {
 
 bool VirtualMachine::TryCatch(Method *method, Object *exceptionObject) {
     int64_t pc = PC(thread_self);
+
+    if(exceptionObject->object==NULL) return false;
 
     if(method->exceptions.size() > 0) {
         ExceptionTable *tbl=NULL;
@@ -979,7 +984,7 @@ void VirtualMachine::fillStackTrace(Object *exceptionObject) {
     fillStackTrace(str);
     thread_self->throwable.stackTrace = str;
 
-    if(exceptionObject->object->k != NULL) {
+    if(exceptionObject->object && exceptionObject->object->k != NULL) {
 
         Object* stackTrace = env->findField("stackTrace", exceptionObject->object);
         Object* message = env->findField("message", exceptionObject->object);
@@ -1031,10 +1036,14 @@ void VirtualMachine::fillMethodCall(Method* func, Frame &frameInfo, stringstream
     } else
         ss << ", line ?";
 
-    ss << ", in "; ss << func->fullName.str() << "()" << (frameInfo.isjit ? "[native]" : "") << " [0x" << std::hex
-                      << func->address << "] $0x" << (frameInfo.pc == 0 ? 0 : (frameInfo.pc-func->bytecode))  << std::dec;
+    ss << ", in "; ss << func->fullName.str() << "()";
 
-    ss << " fp; " << (frameInfo.fp == 0 ? 0 : frameInfo.fp-thread_self->dataStack) << " sp: " << (frameInfo.sp == 0 ? 0 : frameInfo.sp-thread_self->dataStack);
+    if(c_options.debugMode) {
+        ss << (frameInfo.isjit ? "[native]" : "") << " [0x" << std::hex
+           << func->address << "] $0x" << (frameInfo.pc == 0 ? 0 : (frameInfo.pc-func->bytecode))  << std::dec;
+
+        ss << " fp; " << (frameInfo.fp == 0 ? 0 : frameInfo.fp-thread_self->dataStack) << " sp: " << (frameInfo.sp == 0 ? 0 : frameInfo.sp-thread_self->dataStack);
+    }
 
     if(line != -1 && metaData.sourceFiles.size() > 0) {
         ss << getPrettyErrorLine(line, func->sourceFile);

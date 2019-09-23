@@ -625,6 +625,7 @@ void Thread::exit() {
         }
     }
 
+    GarbageCollector::self->reconcileLocks(this);
     free(this->callStack); callStack = NULL;
     this->state = THREAD_KILLED;
     this->signal = tsig_empty;
@@ -790,9 +791,8 @@ void Thread::exec() {
     tprof->init(stack_lmt);
     tprof->starttm=Clock::realTimeInNSecs();
     for(size_t i = 0; i < manifest.methods; i++) {
-        tprof->functions.push_back();
-        tprof->functions.last().init();
-        tprof->functions.last() = funcProf(env->methods+i);
+        funcProf prof = funcProf(env->methods+i);
+        tprof->functions.push_back(prof);
     }
 #endif
 
@@ -813,7 +813,7 @@ void Thread::exec() {
                 return;
 
             interp:
-            if(current->address == 796){
+            if(signal){
                 int i = 0;
             }
             DISPATCH();
@@ -836,6 +836,9 @@ void Thread::exec() {
                 registers[*(pc+1)]=GET_Da(*pc);
                 _brh_inc(2)
             RET: // tested
+                if(current->address==7 || current->address==313) {
+                    int i = 0;
+                }
                 if(returnMethod(this))
                     return;
                 LONG_CALL();
@@ -853,7 +856,7 @@ void Thread::exec() {
                 _brh
             VARCAST:
                 CHECK_NULL2(
-                        if(o2->object->HEAD == NULL) {
+                        if(o2->object->type != _stype_var) {
                             stringstream ss;
                             ss << "illegal cast to var" << (GET_Da(*pc) ? "[]" : "");
                             throw Exception(Environment::ClassCastException, ss.str());
@@ -933,7 +936,7 @@ void Thread::exec() {
                 _brh
             IALOAD: // tested
                 o = sp->object.object;
-                if(o != NULL && o->HEAD != NULL) {
+                if(o != NULL && o->type != _stype_var) {
                     registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
                 } else throw Exception(Environment::NullptrException, "");
                 _brh
@@ -1067,10 +1070,10 @@ void Thread::exec() {
                 registers[i64cmt]=registers[GET_Ca(*pc)]!=registers[GET_Cb(*pc)];
                 _brh
             LOCK:
-                CHECK_NULL2(Object::monitorLock(o2);)
+                CHECK_NULL2(Object::monitorLock(o2, thread_self);)
                 _brh
             ULOCK:
-                CHECK_NULL2(Object::monitorUnLock(o2);)
+                CHECK_NULL2(Object::monitorUnLock(o2, thread_self);)
                 _brh
             EXP:
                 registers[i64bmr] = exponent(registers[GET_Da(*pc)]);
@@ -1236,8 +1239,8 @@ void Thread::exec() {
                 (++sp)->object = (fp+GET_Da(*pc))->object;
                 STACK_CHECK _brh
             ITEST:
-                o2 = &(sp--)->object;
-                registers[GET_Da(*pc)] = o2->object == (sp--)->object.object;
+                Object *obj = &(sp--)->object;
+                registers[GET_Da(*pc)] = obj->object == (sp--)->object.object;
                 _brh
             INVOKE_DELEGATE:
                 invokeDelegate(GET_Ca(*pc), GET_Cb(*pc), this, 0);
@@ -1269,7 +1272,7 @@ void Thread::exec() {
                 o2 = &(dataStack+GET_Da(*pc))->object;
                 _brh
             DUP:
-                Object* obj = &sp->object;
+                obj = &sp->object;
                 (++sp)->object = obj;
                 _brh
             POPOBJ_2:
@@ -1277,11 +1280,14 @@ void Thread::exec() {
                 _brh
             SWAP:
                 if((sp-dataStack) >= 2) {
-                    obj = &sp->object;
+                    o = sp->object.object;
                     (sp)->object = (sp-1)->object;
-                    (sp-1)->object = *obj;
-                } else
-                    throw Exception("illegal stack swap");
+                    (sp-1)->object = o;
+                } else {
+                    stringstream ss;
+                    ss << "Illegal stack swap while sp is ( " << (x86int_t )(sp - dataStack) << ") ";
+                    throw Exception(Environment::ThreadStackException, ss.str());
+                }
                 _brh
 
 
@@ -1296,6 +1302,7 @@ void Thread::exec() {
 
     exception_catch:
     if(state == THREAD_KILLED) {
+        sendSignal(thread_self->signal, tsig_except, 1);
         vm->fillStackTrace(throwable.stackTrace);
         return;
     }

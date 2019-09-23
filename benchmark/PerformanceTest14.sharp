@@ -18,18 +18,18 @@ import std;
  */
 def main(string[] args) : var {
     var[] arry = new var[10000000];
-    var past = System.getUtcTimeInMills(), now;
+    var past = getUtcTimeInMills(), now;
     var val;
     for(var i = 0; i < sizeof(arry); i++) {
         val = arry[i];
     }
-    now = System.getUtcTimeInMills();
-    System.println("for (" + (now-past) + ") ms");
+    now = getUtcTimeInMills();
+    println("for (" + (now-past) + ") ms");
 
-    past = System.getUtcTimeInMills();
+    past = getUtcTimeInMills();
     foreach(var n : arry) {
         val = n;
     }
-    now = System.getUtcTimeInMills();
-    System.println("foreach (" + (now-past) + ") ms");
+    now = getUtcTimeInMills();
+    println("foreach (" + (now-past) + ") ms");
 }

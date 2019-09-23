@@ -53,9 +53,20 @@ public class short base integer {
     public def operator=(var num) : var {
         return (value=(_int16)num);
     }
-    
+
     public def operator=(integer num) : short {
-        return new short(operator=(num.value));
+        operator=(num.value);
+        return self;
+    }
+
+    public def operator=(Enum num) : short {
+       operator=(num.getValue());
+       return self;
+    }
+
+    public def operator+=(var num) : var {
+        value=(_int16)(value+num);
+        return (value);
     }
     
     public def operator==(var num) : var {

@@ -80,7 +80,7 @@ public:
      * for freeing that data himself
      */
     void remove(unsigned long long _X) {
-        if(_X>=len || len==0){
+        if(_X>=len || len<=0){
             stringstream ss;
             ss << "index out of bounds list::remove() _X: " << _X
                << " length: " << len << endl;
@@ -242,6 +242,15 @@ public:
             }
         }
         return false;
+    }
+
+    long long indexof(bool (*pfind)(void*, T element), void* data) {
+        for(unsigned int i = 0; i < len; i++) {
+            if(pfind(data, _Data[i])){
+                return i;
+            }
+        }
+        return -1;
     }
 
     long long indexof(T data) {

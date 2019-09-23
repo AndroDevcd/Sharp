@@ -129,6 +129,7 @@ void GarbageCollector::initilize() {
     self->oObjs=0;
     self->isShutdown=false;
     self->messageQueue.init();
+    self->locks.init();
 }
 
 void GarbageCollector::releaseObject(Object *object) {
@@ -160,9 +161,20 @@ void GarbageCollector::shutdown() {
         cout << "Total managed bytes left " << self->managedBytes << endl;
         cout << "Objects left over young: " << self->youngObjects << " adult: " << self->adultObjects
                                           << " old: " << self->oldObjects << endl;
+        unsigned long long noRef = 0;
+        SharpObject *p = self->_Mheap;
+        while(p) {
+            if(p->refCount<=0) {
+                noRef++;
+                cout << "non referenced object " << self->_sizeof(p) << endl;
+            }
+            p = p->next;
+        }
+        cout << "non referenced objects " << noRef << endl;
         //cout << "heap size: " << self->heapSize << endl;
         cout << std::flush << endl;
 #endif
+        self->locks.free();
         // im no longer freeing memory due to multiple memory references on objects when clearing
         std::free(self->_Mheap);
         std::free(self); self = nullptr;
@@ -255,7 +267,6 @@ void GarbageCollector::collect(CollectionPolicy policy) {
 void GarbageCollector::collectGarbage() {
 
     yObjs = 0;
-
     SharpObject *object = self->_Mheap->next;
     while(object != NULL) {
         if(tself->state == THREAD_KILLED) {
@@ -272,12 +283,12 @@ void GarbageCollector::collectGarbage() {
                     case gc_young:
                         freedYoung--;
                         transferredAdult++;
-                        object->gc_info=gc_adult;
+                        SET_GENERATION(object->gc_info, gc_adult);
                         break;
                     case gc_adult:
                         freedAdult--;
                         transferredOld++;
-                        object->gc_info=gc_old;
+                        SET_GENERATION(object->gc_info, gc_old);
                         break;
                     case gc_old:
                         break;
@@ -337,6 +348,7 @@ void GarbageCollector::run() {
 #endif
             if(sleep) sedateSelf();
             if(!messageQueue.empty()) goto message;
+            if(GC_LOW_MEM()) break;
         } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()))
                 && !hasSignal(tself->signal, tsig_suspend) && tself->state == THREAD_RUNNING);
 
@@ -393,9 +405,9 @@ unsigned long long GarbageCollector::_sizeof(SharpObject *object) {
     unsigned long long size =0;
     if(object != nullptr) {
 
-        if(object->HEAD != nullptr) {
+        if(object->type == _stype_var) {
             size += sizeof(double)*object->size;
-        } else if(object->node != nullptr) {
+        } else if(object->type == _stype_struct) {
             for(unsigned long i = 0; i < object->size; i++) {
                 SharpObject *o = object->node[i].object;
 
@@ -419,10 +431,10 @@ unsigned long long GarbageCollector::_sizeof(SharpObject *object) {
 SharpObject* GarbageCollector::sweep(SharpObject *object) {
     if(object != nullptr) {
 
-        if(object->HEAD != nullptr) {
+        if(object->type == _stype_var) {
             freedBytes += sizeof(double)*object->size;
             std::free(object->HEAD); object->HEAD = NULL;
-        } else if(object->node != nullptr) {
+        } else if(object->type == _stype_struct) {
             for(unsigned long i = 0; i < object->size; i++) {
                 SharpObject *o = object->node[i].object;
 
@@ -440,8 +452,8 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
             std::free(object->node); object->node = NULL;
         }
 
-        if(object->mutex != NULL)
-            delete (object->mutex);
+//        if(object->mutex != NULL)
+//            delete (object->mutex);
 
         UPDATE_GC(object)
 
@@ -453,6 +465,8 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
 
         SharpObject* tmp = object->next;
         erase(object);
+        if(HAS_LOCK(object->gc_info))
+            dropLock(object);
         std::free(object);
         return tmp;
     }
@@ -467,6 +481,7 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
     object->init(size);
 
     object->HEAD = (double*)__calloc(size, sizeof(double));
+    object->type = _stype_var;
 
     /* track the allocation amount */
     std::lock_guard<recursive_mutex> gd(mutex);
@@ -484,6 +499,8 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
 
         if(k->fieldCount > 0) {
             object->node = (Object*)__malloc(sizeof(Object)*k->fieldCount);
+            object->type = _stype_struct;
+
             for(unsigned int i = 0; i < object->size; i++) {
                 /**
                  * We want to set the class variables and arrays
@@ -517,6 +534,8 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size) {
     object->init(size);
 
     object->node = (Object*)__malloc(sizeof(Object)*size);
+    object->type = _stype_struct;
+
     for(unsigned int i = 0; i < object->size; i++)
         object->node[i].object = nullptr;
     
@@ -537,6 +556,8 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
 
         if(size > 0) {
             object->node = (Object*)__malloc(sizeof(Object)*size);
+            object->type = _stype_struct;
+
             for(unsigned int i = 0; i < object->size; i++)
                 object->node[i].object = nullptr;
         }
@@ -621,15 +642,8 @@ void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
             managedBytes += (sizeof(Object)*(sz-o->size));
 
 
-        if(sz > o->size) {
-            size_t i = o->size;
-            Object* p = &o->node[i];
-            while(i < sz) {
-                p->object= nullptr;
-                p++;
-                i++;
-            }
-        }
+        if(sz > o->size)
+            std::memset(o->node+o->size, 0, sizeof(Object)*(sz-o->size));
         o->size = sz;
     }
 }
@@ -670,6 +684,76 @@ void GarbageCollector::sedateSelf() {
     if(self->state == THREAD_SUSPENDED)
         self->state = THREAD_RUNNING;
     self->suspended = false;
+}
+
+bool isLocker(void *o, mutex_t* mut) {
+    return (SharpObject*)o == mut->object;
+}
+
+void GarbageCollector::lock(SharpObject *o, Thread* thread) {
+    if(o) {
+        mutex_t *mut;
+        mutex.lock();
+        long long idx = locks.indexof(isLocker, o);
+        if(idx != -1)
+            mut = locks.get(idx);
+        else {
+            managedBytes += sizeof(mutex_t)+sizeof(recursive_mutex);
+            mut = new mutex_t(o, new recursive_mutex(), -1);
+            locks.add(mut);
+            SET_LOCK(o->gc_info, 1);
+        }
+        mutex.unlock();
+        if(mut->threadid != thread->id) {
+            mut->mutex->lock();
+            mut->threadid = thread->id;
+        }
+    }
+}
+
+void GarbageCollector::unlock(SharpObject *o, Thread* thread) {
+    if(o) {
+        mutex_t *mut=0;
+        mutex.lock();
+        long long idx = locks.indexof(isLocker, o);
+        if(idx != -1)
+            mut = locks.get(idx);
+        mutex.unlock();
+        if(mut && mut->threadid==thread->id) {
+            mut->threadid = -1;
+            mut->mutex->unlock();
+        } 
+    }
+}
+
+void GarbageCollector::reconcileLocks(Thread* thread) {
+
+    mutex.lock();
+    for(long long i = 0; i < locks.size(); i++) {
+        mutex_t *mut = locks.get(i);
+        if(mut->threadid==thread->id) {
+            mut->threadid = -1;
+            mut->mutex->unlock();
+        }
+    }
+    mutex.unlock();
+}
+
+void GarbageCollector::dropLock(SharpObject *o) {
+    if(o) {
+        mutex.lock();
+        long long idx = locks.indexof(isLocker, o);
+        if(idx != -1) {
+            mutex_t *mut = locks.get(idx);
+            if(mut->threadid!= -1)
+                mut->mutex->unlock();
+            managedBytes -= sizeof(mutex_t) + sizeof(recursive_mutex);
+            delete mut->mutex;
+            delete mut;
+            locks.remove(idx);
+        }
+        mutex.unlock();
+    }
 }
 
 void GarbageCollector::sedate() {

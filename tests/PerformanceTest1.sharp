@@ -2,9 +2,7 @@ mod app;
 
 import std;
 
-public class Application {
-
-    /**
+ /**
     * Cost per million performance improvements
     * #1: 40.782s
     * #2: 36.089s
@@ -16,12 +14,11 @@ public class Application {
         var n = string.parseInt(args[0]);
 
         NBodySystem bodies = new NBodySystem();
-        System.println(bodies.energy());
+        println(bodies.energy());
         for (var i=0; i<n; ++i)
            bodies.advance(0.01);
-        System.println(bodies.energy());
+        println(bodies.energy());
     }
-}
 
 class NBodySystem {
    private static const var LENGTH = 5;

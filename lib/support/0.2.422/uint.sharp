@@ -54,9 +54,20 @@ public class uint base integer {
     public def operator=(var num) : var {
         return (value=(_uint32)num);
     }
-    
+
     public def operator=(integer num) : uint {
-        return new uint(operator=(num.value));
+        operator=(num.value);
+        return self;
+    }
+
+    public def operator+=(var num) : var {
+        value=(_uint32)(value+num);
+        return (value);
+    }
+
+    public def operator=(Enum num) : uint {
+       operator=(num.getValue());
+       return self;
     }
     
     public def operator==(var num) : var {

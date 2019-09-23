@@ -124,7 +124,7 @@ public class string {
         }
 
         public static def precision( var prec ) {
-            if(prec < 0)
+            if(prec < 0 || prec > 16)
                 throw new IllegalArgumentException("invalid precision: " + prec);
             precision = prec;
         }
@@ -373,20 +373,20 @@ public class string {
             var hash;
 
             if(data != null) {
-                hash = data[0] + Math.pow(data[0]*31, sizeof(data)-1);
+                hash = data[0] + (Math.sqrt(data[0]*31) * Math.pow(sizeof(data)-1, 4) << 6);
 
                 if(sizeof(data) >= 1) {
-                    hash += Math.pow(data[1]*31, sizeof(data)-2);
+                    hash += (Math.sqrt(data[1]*31) * Math.pow(sizeof(data)-1, 2) << 8);
 
                     for(var i = 2; i < sizeof(data); i++) {
-                        if(i < 15) {
-                            hash += data[i];
+                        if(i < 32) {
+                            hash += Math.pow(data[i], 2);
                         } else
                             break;
                     }
                 }
             }
 
-            return hash;
+            return (_int64)hash;
         }
 }

@@ -54,13 +54,24 @@ public class long base integer {
     public def operator=(var num) : var {
         return (value=(_int64)num);
     }
-    
+
     public def operator=(integer num) : long {
-        return new long(operator=(num.value));
+        operator=(num.value);
+        return self;
+    }
+
+    public def operator=(Enum num) : long {
+       operator=(num.getValue());
+       return self;
     }
     
     public def operator==(var num) : var {
         return (value==num);
+    }
+
+    public def operator+=(var num) : var {
+        value=(_int64)(value+num);
+        return (value);
     }
     
     public def operator==(integer num) : var {

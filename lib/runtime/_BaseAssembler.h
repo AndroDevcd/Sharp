@@ -93,10 +93,11 @@ private:
     static void jitSetObject0(SharpObject* o, StackElement *sp);
     static void jitSetObject1(StackElement*, StackElement*);
     static void jitSetObject2(Object *dest, Object *src);
+    static void jitSetObject3(Object *dest, SharpObject *src);
     static void jitInvokeDelegate(x86int_t address, x86int_t args, Thread* thread, x86int_t staticAddr);
     static void jitDelete(Object* o);
     static void jitSysInt(x86int_t signal);
-    static void test(x86int_t proc);
+    static void test(x86int_t proc, x86int_t xtra);
     static void jitCast(Object *o2, x86int_t klass);
     static void jitCastVar(Object *o2, int);
     static void jit64BitCast(x86int_t,x86int_t);
@@ -108,6 +109,7 @@ private:
     static void jitNullPtrException();
     static void jitThrow(Thread *thread);
     static void jitIndexOutOfBoundsException(x86int_t size, x86int_t index);
+    static void jitIllegalStackSwapException(Thread*);
 
     virtual x86::Mem getMemPtr(x86int_t addr) = 0;
     virtual x86::Mem getMemPtr(x86::Gp reg, x86int_t addr) = 0;
@@ -143,7 +145,7 @@ private:
     x86::Mem Lstack_element[2];   // memory layout of struct StackElement {}
     x86::Mem Lframe[4];           // memory layout of struct Frame {}
     x86::Mem Lmethod[1];          // memory layout of struct Method {}
-    x86::Mem Lsharp_object[4];    // memory layout of struct SharpObject {}
+    x86::Mem Lsharp_object[5];    // memory layout of struct SharpObject {}
 };
 
 enum ConstKind {
@@ -293,6 +295,7 @@ struct Constants {
 #define sharp_object_node 1
 #define sharp_object_k    2
 #define sharp_object_size 3
+#define sharp_object_type 4
 
 // handy macros to use
 #define JIT_MAX_ATTEMPTS 3
