@@ -146,8 +146,8 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
             CodeHolder code;
             code.init(rt.codeInfo());
 
-            FileLogger logger(getLogFile());
-            code.setLogger(&logger);                // Initialize logger temporarily to ensure quality of code
+//            FileLogger logger(getLogFile());
+//            code.setLogger(&logger);                // Initialize logger temporarily to ensure quality of code
 
             x86::Assembler assembler(&code);                  // Create and attach x86::Assembler to `code`.
             Constants constant_pool;
@@ -1649,7 +1649,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                     }
                 }
 
-                assembler.nop(); // instruction differentiation for now
+//                assembler.nop(); // instruction differentiation for now
             }
 
             assembler.mov(arg, (func->cacheSize-1));
