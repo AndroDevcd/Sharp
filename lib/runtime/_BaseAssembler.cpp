@@ -284,6 +284,8 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         assembler.mov(ctx, tmpInt);
                         assembler.call((x86int_t)_BaseAssembler::jitSetObject0);
+
+                        stackChech(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_CAST: {
@@ -379,6 +381,8 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.add(Lthread[thread_sp], (x86int_t)sizeof(StackElement));
                         assembler.mov(value, Lthread[thread_sp]); // sp++
                         assembler.movsd(getMemPtr(value), vec0);
+
+                        stackChech(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_ADD: {
@@ -744,6 +748,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.mov(ctx, tmp);
                         assembler.movsd(Lstack_element[stack_element_var], vec0);
 
+                        stackChech(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_MOVSL: { // o2 = &((sp+GET_Da(*pc))->object);
@@ -832,6 +837,8 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         assembler.mov(value, o2Ptr);
                         assembler.call((x86int_t)_BaseAssembler::jitSetObject2);
+
+                        stackChech(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_DEL: {
@@ -853,6 +860,8 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         assembler.mov(ctx, tmpInt);
                         assembler.call((x86int_t)_BaseAssembler::jitSetObject0);
+
+                        stackChech(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_MOVN: {
@@ -951,6 +960,8 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         assembler.mov(ctx, tmpInt);
                         assembler.call((x86int_t)_BaseAssembler::jitSetObject0);
+
+                        stackChech(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_NOT: {
@@ -1120,6 +1131,8 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         assembler.mov(ctx, tmpInt);
                         assembler.call((x86int_t)_BaseAssembler::jitSetObject0);
+
+                        stackChech(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_NEWSTRING: {
@@ -1128,6 +1141,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.call((x86int_t)_BaseAssembler::jitNewString);
 
                         threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
+                        stackChech(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_SUBL:
@@ -1340,6 +1354,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                     case op_PUSHNIL: {
                         assembler.mov(ctx, threadPtr);
                         assembler.call((x86int_t)_BaseAssembler::jitPushNil);
+                        stackChech(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_PUSHL: {
@@ -1360,6 +1375,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.mov(ctx, tmp);
                         assembler.lea(ctx, Lstack_element[stack_element_object]);
                         assembler.call((x86int_t)_BaseAssembler::jitSetObject2);
+                        stackChech(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_ITEST: {
@@ -1433,6 +1449,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         assembler.mov(ctx, value);
                         assembler.movsd(Lstack_element[stack_element_var], vec0);
+                        stackChech(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_SWITCH: {
@@ -1760,6 +1777,25 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
     return error;
 }
 
+void _BaseAssembler::stackChech(x86::Assembler &assembler, const Label &lbl_thread_chk, x86int_t pc) {
+    assembler.mov(ctx, threadPtr);
+    assembler.mov(value, Lthread[thread_sp]);
+    assembler.mov(tmp, Lthread[thread_dataStack]);
+    assembler.mov(fnPtr, Lthread[thread_stack_lmt]);
+    assembler.sub(value, tmp);
+    assembler.sar(value, 4);
+    assembler.add(value, 1);
+    assembler.cmp(value, fnPtr);
+    Label end = assembler.newLabel();
+    assembler.jb(end);
+    assembler.mov(arg, pc);
+    updatePc(assembler);
+    assembler.call((x86int_t) jitStackOverflowException);
+    assembler.mov(arg, -1);
+    assembler.jmp(lbl_thread_chk);
+    assembler.bind(end);
+}
+
 void _BaseAssembler::checkO2(x86::Assembler &assembler, const x86::Mem &o2Ptr, const Label &lbl_thread_chk, x86int_t pc, bool checkContents) {
     assembler.mov(ctx, o2Ptr);
     assembler.cmp(ctx, 0); // 02==NULL
@@ -1905,7 +1941,9 @@ void _BaseAssembler::jitCastVar(Object *obj, int array) {
 fptr _BaseAssembler::jitCall(Thread *thread, int64_t addr) {
     try {
         if ((thread->calls + 1) >= thread->stack_lmt) {
-            throw Exception(Environment::StackOverflowErr, "");
+            Exception e(Environment::StackOverflowErr, "");
+            __srt_cxx_prepare_throw(e);
+            return NULL;
         }
         return executeMethod(addr, thread, true);
     } catch(Exception &e) {
@@ -1921,10 +1959,12 @@ fptr _BaseAssembler::jitCallDynamic(Thread *thread, int64_t addr) {
         if(addr <= 0 || addr >= manifest.methods) {
             stringstream ss;
             ss << "invalid call to pointer of " << addr;
-            throw Exception(ss.str());
+            Exception e(ss.str());
+            __srt_cxx_prepare_throw(e);
         }
         if ((thread->calls + 1) >= thread->stack_lmt) {
-            throw Exception(Environment::StackOverflowErr, "");
+            Exception e(Environment::StackOverflowErr, "");
+            __srt_cxx_prepare_throw(e);
         }
 
         return executeMethod(addr, thread, true);
@@ -2057,7 +2097,7 @@ SharpObject* _BaseAssembler::jitNewClass0(x86int_t classid) {
 
 SharpObject* _BaseAssembler::jitNewClass1(x86int_t size, x86int_t classid) {
     try {
-        return GarbageCollector::self->newObject(&env->classes[classid]);
+        return GarbageCollector::self->newObjectArray(size, &env->classes[classid]);
     } catch(Exception &e) {
         __srt_cxx_prepare_throw(e);
         return NULL;
@@ -2079,6 +2119,11 @@ void _BaseAssembler::jitPushNil(Thread* thread) {
 
 void _BaseAssembler::jitNullPtrException() {
     Exception nptr(Environment::NullptrException, "");
+    __srt_cxx_prepare_throw(nptr);
+}
+
+void _BaseAssembler::jitStackOverflowException() {
+    Exception nptr(Environment::StackOverflowErr, "");
     __srt_cxx_prepare_throw(nptr);
 }
 

@@ -41,56 +41,55 @@ public class Runtime { // TODO: implement hashMap "https://www.geeksforgeeks.org
     public static def initializeTLS() {
     }
 
-    public static def __srt_init_(object[] args) : var {
-        asm(
-            "new_class <std#Exception>"
-            "new_class <std.kernel#Runtime>"
-            "swap"
-            " nop nop nop nop "
-        );
-    }
+//    public static def __srt_init_(object[] args) : var {
+//        asm(
+//            "movi 1, ebx"
+//            "newarray ebx"
+//            " nop nop nop nop "
+//        );
+//    }
 
     /**
     * This is the entry point of your application
     */
-//    public static def __srt_init_(object[] args) : var {
-//
-//        Manifest.applicationName = "" + (var[])args[0];
-//        Manifest.version = "" + (var[])args[1];
-//        Manifest.platform = "" + (var[])args[2];
-//        Manifest.OS = "" + (var[])args[3];
-//
-//        /**
-//        * Build config must be setup first before we do anything
-//        */
-//        initializeRTE();
-//        initializeTLS();
-//        Thread.setupMainThread();
-//        userArgs = new string[sizeof(args) - MINIMUM_ARGS];
-//
-////        println("application " + BuildConfig.applicationName);
-////        println("version " + BuildConfig.version);
-////        println("platform " + BuildConfig.platform);
-////        println("os " + BuildConfig.OS);
-//
-//        // set user args to be passed
-//        var iter;
-//        for(var i = MINIMUM_ARGS; i < sizeof(args); i++) {
-//            userArgs[iter++] = new string((var[])args[i]);
-//        }
-//
-//         var ret;
-//        // user defined main
-//        if(main != 0) {
-//            ret = main(userArgs);
-//            print("\nProgram finished with exit code " + ret);
-//        } else if(main2 != 0)
-//            main2(userArgs);
-//        else
-//            main3();
-//
-//        return ret;
-//    }
+    public static def __srt_init_(object[] args) : var {
+
+        Manifest.applicationName = "" + (var[])args[0];
+        Manifest.version = "" + (var[])args[1];
+        Manifest.platform = "" + (var[])args[2];
+        Manifest.OS = "" + (var[])args[3];
+
+        /**
+        * Build config must be setup first before we do anything
+        */
+        initializeRTE();
+        initializeTLS();
+        Thread.setupMainThread();
+        userArgs = new string[sizeof(args) - MINIMUM_ARGS];
+
+//        println("application " + BuildConfig.applicationName);
+//        println("version " + BuildConfig.version);
+//        println("platform " + BuildConfig.platform);
+//        println("os " + BuildConfig.OS);
+
+        // set user args to be passed
+        var iter;
+        for(var i = MINIMUM_ARGS; i < sizeof(args); i++) {
+            userArgs[iter++] = new string((var[])args[i]);
+        }
+
+         var ret;
+        // user defined main
+        if(main != 0) {
+            ret = main(userArgs);
+            print("\nProgram finished with exit code " + ret);
+        } else if(main2 != 0)
+            main2(userArgs);
+        else
+            main3();
+
+        return ret;
+    }
 
     public static def nativeExit() {
         asm(

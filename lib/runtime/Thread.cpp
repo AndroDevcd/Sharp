@@ -279,7 +279,7 @@ int Thread::start(int32_t id, size_t stacksz) {
 #ifdef WIN32_
     thread->thread = CreateThread(
             NULL,                   // default security attributes
-            (thread->stack + STACK_OVERFLOW_BUF),                      // use default stack size
+            (thread->stack),                      // use default stack size
             &vm->InterpreterThreadStart,       // thread function caller
             thread,                 // thread self when thread is created
             0,                      // use default creation flags
@@ -1182,7 +1182,6 @@ void Thread::exec() {
                 _brh
             LOADL:
                 registers[GET_Ca(*pc)]=(fp+GET_Cb(*pc))->var;
-                double e = registers[i64ebx];
                 _brh
             IALOAD_2:
                 CHECK_INULLOBJ(

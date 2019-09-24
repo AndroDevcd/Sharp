@@ -19,8 +19,8 @@
 // minimum size required left after local memory objects are allocated on the stack
 #define interp_STACK_start_MIN 0xff
 #define STACK_SIZE MB_TO_BYTES(1)
-#define STACK_MIN KB_TO_BYTES(80)
-#define STACK_OVERFLOW_BUF KB_TO_BYTES(50) // ERY LARGE OVERFLOW BUFFER FOR jit STACK OFERFLOW CATCHES
+#define STACK_MIN KB_TO_BYTES(50)
+#define STACK_OVERFLOW_BUF KB_TO_BYTES(10) // VERY LARGE OVERFLOW BUFFER FOR jit STACK OFERFLOW CATCHES
 
 #define main_threadid 0x0
 #define gc_threadid 0x1

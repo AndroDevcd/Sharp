@@ -255,6 +255,7 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
 
     Method *method = env->methods+address;
     StackElement *equlizer=thread->sp-method->stackEqulizer;
+    THREAD_STACK_CHECK2(thread, address);
 
     if(thread->calls == -1) {
         thread->callStack[++thread->calls].init(method, 0,0,0, false);
@@ -268,7 +269,6 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
     thread->fp = thread->calls==0 ? thread->fp :
                       ((method->returnVal) ? equlizer : (equlizer+1));
     thread->sp += (method->stackSize - method->paramSize);
-    THREAD_STACK_CHECK2(thread, address);
     thread->pc = thread->cache;
 
     if(!method->isjit) {
@@ -325,12 +325,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     thread_self->stfloor = thread_self->stbase - thread_self->stack;
 
     fptr jitFn;
-//    if(thread_self->id == main_threadid) {
-//#ifdef WIN32_
-////        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
-////        SetPriorityClass(GetCurrentThread(), HIGH_PRIORITY_CLASS);
-//#endif
-//    }
+    Thread::setPriority(thread_self, THREAD_PRIORITY_HIGH);
 
     try {
         thread_self->setup();

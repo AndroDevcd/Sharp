@@ -12,37 +12,16 @@ def main(string[] args) : var {
     string.fmt('l');
     println(" msg " + msg.hash() + " msg2 " + msg2.hash());
 
-// TODO:  finish JIT instructions
-// TODO:  finish JIT safety checks
-// TODO:  perform house cleaning and prepare for release
-//    HashMap<integer, var> hm = new HashMap<integer, var>(25000);
-//    ArrayList<integer> hm = new ArrayList<integer>();
-//    hm.setPayloadClass(PayloadClass.PAYLOAD_LARGE);
-//    for(var i = 0; i < 15000000; i++) {
-//        hm.add(new integer(i));
-//
-//        if((i % 100000) == 0) {
-//            Runtime.gc();
-//        }
-//    }
+// TODO:  perform house cleaning and prepar34e for release
+    HashMap<integer, var> hm = new HashMap<integer, var>(25000);
+//    ArrayList<int> hm = new ArrayList<int>();
+    hm.setPayloadClass(PayloadClass.PAYLOAD_SMALL);
+    for(var i = 0; i < 9900000; i++) {
+        hm.add(new integer(i), i);
 
-    Thread t = new Thread("foo", def ?(object[] arg) : var {
-        lock(lck) {
-            println("Thread 1: Holding lock 1...");
-            for(var i = 0; i < 1_000_000_000_000; i++) {
-            }
+        if((i % 100000) == 0) {
+            Runtime.gc();
         }
-            println("Thread 1: releasing lock 1...");
-    });
-    t.start(null);
-
-    Thread.sleep(15000);
-    t.interrupt();
-
-            println("Main Thread trying to lock object");
-            flush();
-    lock(lck) {
-            println("Main Threadlock successful!!");
     }
 
     println("removing");

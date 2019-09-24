@@ -64,17 +64,31 @@ public class HashMap <K,V> {
 
     def resize() {
         Entry<K,V>[] oldData = data;
-        data = new Entry<K,V>[sizeof(oldData) + (sizeof(oldData) >> payloadClass.getValue())];
+        data = new Entry<K,V>[sizeof(oldData) + ((sizeof(oldData) >> payloadClass.getValue()) * 2)];
         maxSize = sizeof(data) * threshold;
         size = 0; // we are re adding all the data anyway
 
         for(var i = 0; i < sizeof(oldData); i++)
         {
             if(oldData[i] != null) {
-                Entry<K,V> entry = oldData[i];
+                Entry<K,V> entry = oldData[i], next;
                 while(entry != null) {
-                    add(entry);
-                    entry = entry.next;
+                    next = entry.next;
+                    var index = hashCode(entry.key);
+                    entry.next = null;
+
+                    if(data[index] == null) {
+                        size++;
+                        data[index] = entry;
+                    } else {
+                        size++;
+                        Entry<K,V> subEntry = data[index];
+                        while(subEntry.next != null)
+                            subEntry = subEntry.next;
+                        subEntry.next = entry;
+                    }
+
+                    entry = next;
                 }
                 oldData[i] = null;
             }
@@ -103,19 +117,32 @@ public class HashMap <K,V> {
         }
     }
 
+    var largest;
     public def add(K key, V value) {
         var index = hashCode(key);
         if(data[index] == null) {
             size++;
-            data[index] =  new Entry<K,V>(key, value);
+            data[index] =  new Entry<K,V>{key, value};
         } else {
             Entry<K,V> entry = data[index];
-            while(entry.next != null)
+            var ct;
+            size++;
+            while(entry.next != null) {
                 entry = entry.next;
+                ct++;
+            }
+            if(ct > largest) { // test code for file as its not ready yet
+                largest=ct;
+                println(" " + ct);
+                println(" sz " + size);
+                println(" index " + index);
+                println(" key " + key);
+                println(" hash " + key.hash());
+            }
             if(entry.key == key)
                 entry.value = value;
             else {
-                entry.next = new Entry<K,V>(key, value);
+                entry.next = new Entry<K,V>{key, value};
             }
         }
 

@@ -55,6 +55,7 @@ Any other compatibility issues/changes will be otherwise noted in the release no
         * Returning/jumping out of scope of a lock(){} code section results in a deadlock on that object
         * The speed and memory profiler does not work with the JIT system as of now and will be added in a later update
         * Sub classes do not work in Generic classes
+        * The new library class added to the standard library `HashMap` is extreemly slow and buggy 
 
     Backwards compatibility support tested Version: (0.2.422+)
 
