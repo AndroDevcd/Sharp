@@ -9,6 +9,7 @@ echo "installing standard lbrary..."
 
 cd lib/support/0.2.581/
 sudo mkdir /usr/include/sharp/
+sudo cp  *.sharp /usr/include/sharp/
 sudo cp -r */ /usr/include/sharp/
 
 cd ../../../

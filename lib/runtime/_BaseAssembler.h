@@ -5,8 +5,9 @@
 #ifndef SHARP_JITASSEMBLER_H
 #define SHARP_JITASSEMBLER_H
 
-#define ASMJIT_BUILD_X86  1
+#define ASMJIT_BUILD_HOST  1
 #define ASMJIT_STATIC   1
+#define ASMJIT_BUILD_RELEASE 1
 
 #include "../util/jit/asmjit/src/asmjit/asmjit.h"
 #include "List.h"
