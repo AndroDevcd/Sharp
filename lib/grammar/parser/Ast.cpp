@@ -50,7 +50,7 @@ void Ast::addEntity(token_entity entity)
 void Ast::addAst(Ast _ast)
 {
     numAsts++;
-    sub_asts.push_back();
+    sub_asts.__new();
     sub_asts.last().copy(&_ast);
 }
 
@@ -231,7 +231,7 @@ void Ast::copy(Ast *ast) {
         this->parent = this;
 
         for(long i = 0; i < ast->sub_asts.size(); i++) {
-            sub_asts.push_back();
+            sub_asts.__new();
             sub_asts.last().copy(&ast->sub_asts.get(i));
         }
 

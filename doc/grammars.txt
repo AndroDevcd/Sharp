@@ -80,6 +80,15 @@ A value consists of an <expression>
 <value-list>:
 [ '(' <value> (',' <value>)* ')']           i.e. (2, "hello") ('t')
 
+<field-initlization>:
+<utype-naked> '=' <expression>      i.e. name = "john" time = getUTCTimeInMills();
+
+<qualifying-field-initlization-list>:
+[ <field-initlization> (',' <field-initilization>)* ]
+
+<expression-list>:
+[ <expression> (',' <expression>)* ]           i.e. <value-list> without '(' and ')'
+
 <uTypeArgOpt>:
 <uType> [<identifier>]
 
@@ -134,6 +143,9 @@ expression '[' expression ']' [<dot-notation-call-expr>] expression
     | 'base' '->' <dot-notation-call-expr>
     |  <dot-notation-call-expr>                 // ast_dot_not_e
     | new uType [([<value-list>] | [VectorArray>])] // TODO: add array creation
+    | new uType { <expression-list> }               // new_class_field_expression
+    | new uType { <qualifying-field-initlization-list> } // new_class_field_init
+    | def ? <uTypeArg-list> [: <uType>] <block>     // ast_anonymous_function
     | sizeof '(' expression ')'
     | free '(' expression ')'
     | malloc '(' uType, expression ')'
@@ -176,7 +188,7 @@ Import Declaration:
 import <modulename> ;
 
 Prototype Declaration:
-fn <identifier = name> <uTypeArg-list-opt> [: <uType>] ;
+fn <identifier = name> [<uTypeArg-list-opt> [: <uType>]] [`=` <expression>];
 
 Class Declaration:
 `[<accesstype>] class <identifier = name> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
@@ -219,6 +231,7 @@ Operator Declaration:
 
 Variable Declaration statement:
 `[<accesstype>] [<storagelocality>] <uType> <identifier = name> [ <assign-expr> <value>] [, <variable-decl>] ;`
+
 
 Single Line comment Declaration:
 `//`

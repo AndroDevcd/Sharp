@@ -16,18 +16,19 @@
 #include "memory/GarbageCollector.h"
 #include "Manifest.h"
 #include "Environment.h"
+#include "_BaseAssembler.h"
 
 options c_options;
-int startApplication(string e, List<native_string> &pArgs);
+int startApplication(string e, _List<native_string> &pArgs);
 
-void init_main(List <native_string>& list1);
+void init_main(_List <native_string>& list1);
 
-void createStringArray(Object *object, List<native_string> &lst);
+void createStringArray(Object *object, _List<native_string> &lst);
 
 unsigned long long getMemBytes(const char *argv, bool &setLimit);
 
 void version() {
-    cout << progname << " " << progvers << endl;
+    cout << progname << " " << progvers << ":jit v" << JIT_VERSION << endl;
 }
 
 void error(string message) {
@@ -48,7 +49,7 @@ void help() {
     cout <<               "    -sort<id>              sort by time(tm), avg time(avgt), calls(calls), or ir(ir)." << endl;
 #endif
     cout <<               "    -showversion           print the version number and continue." << endl;
-    cout <<               "    -Maxlmt<size:type>     set the maximum memory allowed to the virtual machine." << endl;
+    cout <<               "    -(maxlmt/mem)<size:type>     set the maximum memory allowed to the virtual machine." << endl;
     cout <<               "    -stack<size:type>      set the default physical stack size allowed to threads." << endl;
     cout <<               "    -istack<size:type>     set the default internal 'fictional' stack size allowed to threads." << endl;
     cout <<               "    -gthreshold<size:type> set the minimum memory allowed to trigger the garbage collector." << endl;
@@ -67,7 +68,7 @@ int runtimeStart(int argc, const char* argv[])
     }
 
     string executable ="";
-    List<native_string> pArgs;
+    _List<native_string> pArgs;
 
     /**
      * We start off with allowing 64 megabytes of memory to be under
@@ -126,7 +127,7 @@ int runtimeStart(int argc, const char* argv[])
             }
         }
 #endif
-        else if(opt("-maxlmt")){
+        else if(opt("-maxlmt") || opt("-mem")){
             if(i+1 >= argc)
                 error("maximum memory limit required after option `-Maxlmt`");
             else {
@@ -182,7 +183,7 @@ int runtimeStart(int argc, const char* argv[])
             native_string arg;
             while(i < argc) {
                 arg = string(argv[i++]);
-                pArgs.push_back();
+                pArgs.__new();
 
                 pArgs.get(pArgs.size()-1).init();
                 pArgs.get(pArgs.size()-1) = arg;
@@ -244,7 +245,7 @@ unsigned long long getMemBytes(const char *str, bool &setLimit) {
     return 0;
 }
 
-int startApplication(string exe, List<native_string>& pArgs) {
+int startApplication(string exe, _List<native_string>& pArgs) {
     int result;
     if((result = CreateVirtualMachine(exe)) != 0) {
         fprintf(stderr, "Sharp VM init failed with code: %d\n", result);
@@ -268,7 +269,7 @@ int startApplication(string exe, List<native_string>& pArgs) {
     return 1;
 }
 
-void init_main(List <native_string>& pArgs) {
+void init_main(_List <native_string>& pArgs) {
     Thread *main = Thread::threads.get(main_threadid);
     Object* object = &(++main->sp)->object;
 
@@ -279,7 +280,7 @@ void init_main(List <native_string>& pArgs) {
     pArgs.free();
 }
 
-void createStringArray(Object *object, List<native_string> &args) {
+void createStringArray(Object *object, _List<native_string> &args) {
     int16_t MIN_ARGS = 4;
     int64_t size = MIN_ARGS+args.size();
     int64_t iter=0;
@@ -289,7 +290,7 @@ void createStringArray(Object *object, List<native_string> &args) {
     native_string str(ss.str());
 
     object->object = GarbageCollector::self->newObjectArray(size);
-    object->object->generation = gc_perm;
+    object->object->gc_info = gc_perm;
 
     GarbageCollector::self->createStringArray(&object->object->node[iter++], manifest.application);
     GarbageCollector::self->createStringArray(&object->object->node[iter++], manifest.version);

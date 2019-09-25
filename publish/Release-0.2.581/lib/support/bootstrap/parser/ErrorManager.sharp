@@ -1,0 +1,439 @@
+mod app;
+
+import std;
+
+/**
+ * Created by BraxtonN on 6/8/2018.
+ */
+class ErrorManager {
+    private static Map<CompilerError, string> predefinedErrors = new Map<CompilerError, string>();
+    private ArrayList<ParseError> errors, rawErrors, warnings;
+    private ArrayList<ArrayList<ParseError> > possibleErrors;
+    private ParseError lastError, lastCheckedError;
+    private var errorsFound, protectedMode, directReport, aggressiveErrors;
+    private ArrayList<string> lines;
+    private string filename;
+
+    public ErrorManager(ArrayList<string> lines, string file, var asIs, var aggressive)
+    {
+        self->possibleErrors = new ArrayList<ArrayList<ParseError> >();
+        self->errors = new ArrayList<ParseError>();
+        self->rawErrors = new ArrayList<ParseError>();
+        self->warnings = new ArrayList<ParseError>();
+        self->directReport = asIs;
+        self->lines = new ArrayList<string>();
+        self->aggressiveErrors = aggressive;
+
+        self->lines.addAll(lines);
+        lastError = new ParseError();
+        lastCheckedError = new ParseError();
+        filename = file;
+    }
+
+    public def printErrors() {
+        if(!directReport) {
+            string errStr;
+            if(errorsFound) {
+                if(aggressiveErrors) {
+                    errStr = getErrors(rawErrors);
+                    if(!errStr.empty()) println(errStr);
+                }
+                else {
+                    errStr = getErrors(errors);
+                    if(!errStr.empty()) println(errStr);
+                }
+            }
+
+            errStr = getErrors(warnings);
+            if(!errStr.empty()) println(errStr);
+        }
+    }
+
+
+    def getErrors(ArrayList<ParseError> errors) : string {
+        string sb = "";
+
+        ParseError[] errs =  errors.toArray();
+        foreach(ParseError error : errs) {
+            if(error.warning) {
+                sb += filename + ":" + error.line + ":" + error.col + ": warning S60" +
+                    ((var)error.id) + ":  " + error.error + "\n";
+            } else {
+                sb += filename + ":" + error.line + ":" + error.col + ": error S60" +
+                    ((var)error.id) + ":  " + error.error + "\n";
+            }
+
+            sb += "\t" + getLine(error.line) + "\n\t";
+
+            for(var i = 0; i < error.col-1; i++)
+                sb += " ";
+            sb += "^\n";
+        }
+
+        return sb;
+    }
+
+    def printError(ParseError error) {
+
+        if(error.warning) {
+            print(filename + ":" + error.line + ":" + error.col + ": warning S60" +
+                ((var)error.id) + ":  " + error.error + "\n");
+        } else {
+            print(filename + ":" + error.line + ":" + error.col + ": error S60" +
+                ((var)error.id) + ":  " + error.error + "\n");
+        }
+
+        print("\t" + getLine(error.line) + "\n\t");
+
+        for(var i = 0; i < error.col-1; i++)
+            print(" ");
+        print("^\n");
+    }
+
+    def getLine(var line) : string {
+        if((line-1) >= lines.size())
+            return new string("End of File");
+        else
+            return lines.get(line-1);
+    }
+
+    public def getErrorCount() : var {
+        return errors.size();
+    }
+
+    public def getWarningCount() : var {
+        return warnings.size();
+    }
+
+    public def getRawErrorCount() : var {
+        return rawErrors.size();
+    }
+
+    public def hasErrors() : var {
+        return errorsFound && rawErrors.size() != 0;
+    }
+
+    public def enableProtectedMode() {
+        protectedMode = true;
+        possibleErrors.add(new ArrayList<ParseError>());
+    }
+
+    public def dumpProtectedErrors() {
+        possibleErrors.popBack();
+        if(possibleErrors.size() == 0) {
+            protectedMode = false;
+        }
+    }
+
+    public def fail() {
+        if(possibleErrors.size() > 0) {
+            ArrayList<ParseError> lst = possibleErrors.last();
+            ParseError[] errs = lst.toArray();
+
+            foreach(ParseError err : errs) {
+                if(directReport) {
+                    printError(err);
+
+                    errors.add(err);
+                    rawErrors.add(err);
+                    lastError = err;
+                } else if(aggressiveErrors || shouldReport(null, lastError, err)) {
+                    errors.add(err);
+                    rawErrors.add(err);
+                    lastError = err;
+                }
+            }
+
+            if(!lst.empty())
+                errorsFound = true;
+            lastCheckedError = new ParseError();
+            dumpProtectedErrors();
+        }
+    }
+
+    public def pass() {
+        lastCheckedError = new ParseError();
+        dumpProtectedErrors();
+    }
+
+    public def createNewError(CompilerError err, TokenEntity token, string msg) {
+        string predefinedMessage = predefinedErrors.get(err);
+        ParseError newErr = new ParseError(false, err, predefinedMessage, token, msg);
+        ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
+
+        if(shouldReport(token, lastError, newErr) || aggressiveErrors || directReport) {
+
+            if(protectedMode) {
+                possibleErrors.last().add(newErr);
+                lastCheckedError = newErr;
+                return;
+            } else if(directReport)
+                printError(newErr);
+
+            errorsFound = true;
+            errors.add(newErr);
+            rawErrors.add(newErr);
+            self->lastError = newErr;
+        } else {
+            rawErrors.add(newErr);
+        }
+    }
+
+    public def createNewError(CompilerError err, var line, var col, string msg) {
+        string predefinedMessage = predefinedErrors.get(err);
+        ParseError newErr = new ParseError(false, err, predefinedMessage, line, col, msg);
+        ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
+
+        if(shouldReport(null, lastError, newErr) || aggressiveErrors || directReport) {
+            if(protectedMode) {
+                possibleErrors.last().add(newErr);
+                lastCheckedError = newErr;
+                return;
+            } else if(directReport)
+                printError(newErr);
+
+            errorsFound = true;
+            errors.add(newErr);
+            rawErrors.add(newErr);
+            self->lastError = newErr;
+        } else {
+            rawErrors.add(newErr);
+        }
+    }
+
+    public def createNewError(CompilerError err, var line, var col) {
+        createNewError(err, line, col, "");
+    }
+
+    public def createNewWarning(CompilerError err, var line, var col, string msg) {
+        string predefinedMessage = predefinedErrors.get(err);
+        ParseError newErr = new ParseError(false, err, predefinedMessage, line, col, msg);
+        ParseError lastError;
+        if(warnings.size() > 0)
+            lastError = warnings.last();
+        else
+            lastError = protectedMode ? lastCheckedError : self->lastError;
+
+        if(warnings.size() == 0 || shouldReportWarning(null, lastError, newErr)) {
+            if(directReport)
+                printError(newErr);
+
+            warnings.add(newErr);
+        }
+    }
+
+    def shouldReport(TokenEntity token, ParseError lastErr, ParseError newErr) : var
+    {
+        if(lastErr.error != newErr.error && !(lastErr.line == newErr.line && lastErr.col == newErr.col)
+            && !lastErr.error.find(newErr.error) && !hasError(errors, newErr))
+        {
+            if(token != null && !(token == TokenId.SINGLE || token == TokenId.CHAR_LITERAL
+                || token == TokenId.STRING_LITERAL || token == TokenId.INTEGER_LITERAL)) {
+                return !lastErr.error.find(token.getToken());
+            }
+
+            return true;
+        }
+    }
+
+    def shouldReportWarning(TokenEntity token, ParseError lastErr, ParseError newErr) : var
+    {
+        if(lastErr.error != newErr.error && !(lastErr.line == newErr.line && lastErr.col == newErr.col)
+            && !lastErr.error.find(newErr.error))
+        {
+            if(token != null && !(token == TokenId.SINGLE || token == TokenId.CHAR_LITERAL
+                || token == TokenId.STRING_LITERAL || token == TokenId.INTEGER_LITERAL)) {
+                return !lastErr.error.find(token.getToken());
+            }
+
+            return true;
+        }
+    }
+
+    def hasError(ArrayList<ParseError> errs, ParseError err) : var {
+        ParseError[] lst = errs.toArray();
+        foreach(ParseError e : lst) {
+            if(e.error == err.error)
+                return true;
+        }
+
+        return false;
+    }
+
+
+    public def createNewError(CompilerError err, Ast ast, string msg) {
+        string predefinedMessage = predefinedErrors.get(err);
+        ParseError newErr = new ParseError(false, err, predefinedMessage, ast.line, ast.col, msg);
+        ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
+
+        if(shouldReport(null, lastError, newErr) || aggressiveErrors || directReport) {
+            if(protectedMode) {
+                possibleErrors.last().add(newErr);
+                lastCheckedError = newErr;
+                return;
+            } else if(directReport)
+                printError(newErr);
+
+            errorsFound = true;
+            errors.add(newErr);
+            rawErrors.add(newErr);
+            self->lastError = newErr;
+        } else {
+            rawErrors.add(newErr);
+        }
+    }
+
+    public def createNewWarning(CompilerError err, Ast ast, string msg) {
+        string predefinedMessage = predefinedErrors.get(err);
+        ParseError newErr = new ParseError(false, err, predefinedMessage, ast.line, ast.col, msg);
+        ParseError lastError;
+        if(warnings.size() > 0)
+            lastError = warnings.last();
+        else
+            lastError = protectedMode ? lastCheckedError : self->lastError;
+
+        if(warnings.size() == 0 || shouldReportWarning(null, lastError, newErr)) {
+            if(directReport)
+                printError(newErr);
+
+            warnings.add(newErr);
+        }
+    }
+
+    public static def initErrors() {
+        predefinedErrors.put(CompilerError.UNEXPECTED_SYMBOL, "unexpected symbol");
+
+        predefinedErrors.put(CompilerError.ILLEGAL_NUMBER_FORMAT, "illegal number format mismatch");
+
+        predefinedErrors.put(CompilerError.UNEXPECTED_EOF, "unexpected end of file");
+
+        predefinedErrors.put(CompilerError.EXPECTED_STRING_LITERAL_EOF, "expected string literal before end of file");
+
+        predefinedErrors.put(CompilerError.ILLEGAL_STRING_FORMAT, "illegal string format");
+
+        predefinedErrors.put(CompilerError.EXPECTED_CHAR_LITERAL_EOF, "expected character literal before end of file");
+
+        predefinedErrors.put(CompilerError.ILLEGAL_CHAR_LITERAL_FORMAT, "illegal character literal format");
+
+        predefinedErrors.put(CompilerError.GENERIC, "");
+
+        predefinedErrors.put(CompilerError.ILLEGAL_ACCESS_DECLARATION, "illegal specification of access specifier(s)");
+
+        predefinedErrors.put(CompilerError.ILLEGAL_BRACKET_MISMATCH, "illegal symbol mismatch, unexpected bracket");
+
+        predefinedErrors.put(CompilerError.MISSING_BRACKET, "missing bracket");
+
+        predefinedErrors.put(CompilerError.INVALID_ACCESS_SPECIFIER, "invalid access specifier");
+
+        predefinedErrors.put(CompilerError.MULTIPLE_DEFINITION, "multiple definition of");
+
+        predefinedErrors.put(CompilerError.PREVIOUSLY_DEFINED, "");
+
+        predefinedErrors.put(CompilerError.DUPLICATE_CLASS, "duplicate class:");
+
+        predefinedErrors.put(CompilerError.REDUNDANT_TOKEN, "redundant token");
+
+        predefinedErrors.put(CompilerError.INTERNAL_ERROR, "internal runtime error");
+
+        predefinedErrors.put(CompilerError.COULD_NOT_RESOLVE, "could not resolve symbol");
+
+        predefinedErrors.put(CompilerError.EXPECTED_REFRENCE_OF_TYPE, "expected refrence of type");
+
+        predefinedErrors.put(CompilerError.INVALID_CAST, "invalid cAst of type");
+
+        predefinedErrors.put(CompilerError.REDUNDANT_CAST, "redundant cAst of type");
+
+        predefinedErrors.put(CompilerError.REDUNDANT_IMPORT, "redundant self import of module");
+
+        predefinedErrors.put(CompilerError.UNEXPECTED_TOKEN, "unexpected token");
+
+        predefinedErrors.put(CompilerError.INVALID_ACCESS, "invalid access of");
+
+        predefinedErrors.put(CompilerError.SYMBOL_ALREADY_DEFINED, "");
+
+        predefinedErrors.put(CompilerError.INVALID_PARAM, "invalid param of type");
+
+        predefinedErrors.put(CompilerError.INCOMPATIBLE_TYPES, "incompatible types");
+
+        predefinedErrors.put(CompilerError.DUPlICATE_DECLIRATION, "duplicate declaration of");
+    }
+}
+
+class ParseError {
+
+   public ParseError() {
+      id = CompilerError.NO_ERR;
+   }
+
+   public ParseError(CompilerError err, string msg, var l, var c,
+            string additional) {
+      id = err;
+      if(additional != null && additional.size() != 0)
+        error = msg + additional;
+      else error = msg;
+      line = l;
+      col = c;
+      warning = false;
+   }
+
+   public ParseError(var warning, CompilerError err, string msg, var l, var c,
+            string additional) {
+      id = err;
+      if(additional != null && additional.size() != 0)
+        error = msg + additional;
+      else error = msg;
+      line = l;
+      col = c;
+      self->warning = warning;
+   }
+
+   public ParseError(var warning, CompilerError err, string msg, TokenEntity entity,
+            string additional) {
+      id = err;
+      if(additional != null && additional.size() != 0)
+        error = msg + additional;
+      else error = msg;
+      line = entity.getLine();
+      col = entity.getCol();
+      self->warning = warning;
+   }
+
+   public CompilerError id;
+   public string error = "";
+   public var line;
+   public var col;
+   public var warning;
+}
+
+enum CompilerError {
+    UNEXPECTED_SYMBOL = 0,
+    ILLEGAL_NUMBER_FORMAT = 1,
+    UNEXPECTED_EOF = 2,
+    EXPECTED_STRING_LITERAL_EOF = 3,
+    ILLEGAL_STRING_FORMAT = 4,
+    EXPECTED_CHAR_LITERAL_EOF = 5,
+    ILLEGAL_CHAR_LITERAL_FORMAT = 6,
+    GENERIC = 7,
+    ILLEGAL_ACCESS_DECLARATION = 8,
+    ILLEGAL_BRACKET_MISMATCH = 9,
+    MISSING_BRACKET = 10,
+    INVALID_ACCESS_SPECIFIER = 11,
+    MULTIPLE_DEFINITION = 12,
+    PREVIOUSLY_DEFINED = 13,
+    DUPLICATE_CLASS = 14,
+    REDUNDANT_TOKEN = 15,
+    INTERNAL_ERROR = 16,
+    COULD_NOT_RESOLVE = 17,
+    EXPECTED_REFRENCE_OF_TYPE = 18,
+    INVALID_CAST = 19,
+    REDUNDANT_CAST = 20,
+    REDUNDANT_IMPORT = 21,
+    UNEXPECTED_TOKEN = 22,
+    INVALID_ACCESS = 23,
+    SYMBOL_ALREADY_DEFINED = 24,
+    INVALID_PARAM = 25,
+    INCOMPATIBLE_TYPES = 26,
+    DUPlICATE_DECLIRATION = 27,
+
+    NO_ERR = 999
+};

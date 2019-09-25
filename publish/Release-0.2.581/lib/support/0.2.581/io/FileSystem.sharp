@@ -1,0 +1,397 @@
+mod std.io;
+
+import std;
+
+/**
+ * FileSystem serves as the abstract base level class for the underlying
+ * filesystem residing on the host OS. This class contains a set of delegates
+ * that must be implemented that are OS dependant.
+ */
+public class FileSystem {
+
+    /**
+    * Get current path seperator based on os
+    *
+    * linux /
+    * windows \\
+    */
+    public def delegate::getPathSeparator() : var;
+
+    /**
+    * Make sure we know that our path has the correct
+    * path seperators to be accessed
+    */
+    public def delegate::normalize(string path) : string;
+
+     /**
+      * Resolve the given abstract pathname into absolute form.  Invoked by the
+      * getAbsolutePath method in the File class.
+      */
+     public def resolve(File f) : string {
+        /* native code */
+        var[] path = f.getPath().toArray();
+
+        /*
+        * This will perform the os call to request the
+        * full path of the given abstract pathname
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb0               "
+            "popl <path>            "
+        );
+
+        if(path == null) {
+            throw new IOException("file could not be resolved: " + f.getPath());
+        }
+
+        return "" + path;
+     }
+
+
+    /* Constants for file attributes */
+    public static const var FILE_EXISTS    = 0x01;
+    public static const var FILE_REGULAR   = 0x02;
+    public static const var FILE_DIRECTORY = 0x04;
+    public static const var FILE_HIDDEN    = 0x08;
+
+     /**
+      * Return the simple boolean attributes for the file or directory denoted
+      * by the given abstract pathname, or zero if it does not exist or some
+      * other I/O error occurs.
+      */
+     public def delegate::getFileAttributes(File f) : var;
+
+     /* Constants for file access flags */
+     public static const var ACCESS_READ    = 0x04;
+     public static const var ACCESS_WRITE   = 0x02;
+     public static const var ACCESS_EXECUTE = 0x01;
+     public static const var ACCESS_OK      = 0x00;
+
+     /**
+      * Check whether the file or directory denoted by the given abstract
+      * pathname may be accessed by this process.  The second argument specifies
+      * which access, ACCESS_READ, ACCESS_WRITE or ACCESS_EXECUTE, to check.
+      * Return false if access is denied or an I/O error occurs
+      */
+     public def delegate::checkAccess(File f, var access) : var;
+
+     /**
+      * Set on or off the access permission (to owner only or to all) to the file
+      * or directory denoted by the given abstract pathname, based on the parameters
+      * enable, access and oweronly.
+      */
+     public def setPermission(File f, var access, var enable, var owneronly) : var {
+        // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file attributes of the given abstract pathname
+        */
+        asm(
+            "pushl <path>           "
+            "loadl %ebx,<access>    "
+            "loadl %egx,<enable>    "
+            "loadl %ecx,<owneronly> "
+            "int 0xbc               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
+     }
+
+     /**
+      * Return the time at which the file or directory denoted by the given
+      * abstract pathname was last modified, or zero if it does not exist or
+      * some other I/O error occurs.
+      */
+     public def getLastModifiedTime(File f) : var {
+        // native code
+        var[] path = f.getAbsolutePath().toArray();
+        var time;
+
+        /*
+        * This will perform the os call to request the
+        * file attributes of the given abstract pathname
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb3               "
+            "smovr_2 %ebx,<time>    "
+        );
+
+        return time;
+     }
+
+     /**
+      * Return the length in bytes of the file denoted by the given abstract
+      * pathname, or zero if it does not exist, is a directory, or some other
+      * I/O error occurs.
+      */
+     public def getLength(File f) : var {
+        // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        var size;
+
+        /*
+        * This will perform the os call to request the
+        * file attributes of the given abstract pathname
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb4               "
+            "smovr_2 %ebx,<size>    "
+        );
+
+        return size;
+     }
+
+
+    /**
+     * Create a new empty file with the given pathname.  Return
+     * true if the file was created and false if a
+     * file or directory with the given pathname already exists.  Throw an
+     * IOErr if an I/O error occurs.
+     */
+    public def createFile(string pathname) {
+        // native code here
+        var[] path = pathname.toArray();
+
+        /*
+        * This will perform the os call to request the
+        * file to be created
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb5               "
+        );
+    }
+
+    /**
+     * Delete the file or directory denoted by the given abstract pathname,
+     * returning true if and only if the operation succeeds.
+     */
+    private def deleteDirectory(File f) : var {
+        // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb9               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
+    }
+
+    /**
+     * Delete the file or directory denoted by the given abstract pathname,
+     * returning true if and only if the operation succeeds.
+     */
+    public def delete(File f) : var {
+        // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        var result;
+
+        if(f.isDirectory())
+            return deleteDirectory(f);
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb6               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
+    }
+
+    /**
+     * List the elements of the directory denoted by the given abstract
+     * pathname.  Return an array of strings naming the elements of the
+     * directory if successful; otherwise, return null.
+     */
+    public def list(File f) : string[] {
+        // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        object[] out;
+        string[] files;
+
+        if(!f.isDirectory())
+            return null;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <path>           "
+            "int 183               "
+            "popl <out>             "
+        );
+
+        if(out != null) {
+            files = new string[sizeof(out)];
+            var iter = 0;
+            foreach(object file : out) {
+                files[iter++] = new string((var[])file);
+            }
+        }
+
+        return files;
+    }
+
+    /**
+     * Create a new directory denoted by the given abstract pathname,
+     * returning true if and only if the operation succeeds.
+     */
+    public def createDirectory(File f) : var {
+        // native code here
+        var[] path = f.getPath().toArray();
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xb8               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
+    }
+
+    /**
+     * Rename the file or directory denoted by the first abstract pathname to
+     * the second abstract pathname, returning true if and only if
+     * the operation succeeds.
+     */
+    public def rename(File f1, File f2) : var {
+        // native code here
+        var[] path = f1.getAbsolutePath().toArray();
+        var[] rename = f2.getName().toArray();
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <rename>         "
+            "pushl <path>           "
+            "int 0xba               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
+    }
+
+
+    public static def read(File file, StreamBuffer io) {
+        var[] path = file.getAbsolutePath().toArray();
+        var[] raw = null;
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <path>           "
+            "int 0xbf               "
+            "popl <raw>             "
+        );
+
+        io.begin();
+        if(raw != null)
+            io + ("" + raw);
+    }
+
+
+    public static def write(File file, StreamBuffer io) : var {
+        var[] path = file.getAbsolutePath().toArray();
+        var[] raw = io.toString().toArray();
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <raw>            "
+            "pushl <path>           "
+            "int 0xbd               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
+    }
+
+    /**
+     * Set the last-modified time of the file or directory denoted by the
+     * given abstract pathname, returning true if and only if the
+     * operation succeeds.
+     */
+    public def setLastModifiedTime(File f, var time) : var {
+        // native code here
+        var[] path = f.getAbsolutePath().toArray();
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "pushl <path>           "
+            "loadl %ebx,<time>      "
+            "int 0xbb               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
+    }
+
+    /**
+     * Mark the file or directory denoted by the given abstract pathname as
+     * read-only, returning true if and only if the operation
+     * succeeds.
+     */
+    public def setReadOnly(File f) : var {
+        setPermission(f, ACCESS_WRITE, false, true);
+        return setPermission(f, ACCESS_READ, true, true);
+    }
+
+    /* -- Disk usage -- */
+    public static const var SPACE_TOTAL  = 0;
+    public static const var SPACE_FREE   = 1;
+    public static const var SPACE_USABLE = 2;
+
+    public def getSpace(File f, var request) : var {
+        // native code here
+        var result;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm(
+            "loadl %ebx,<request>   "
+            "int 0xbe               "
+            "smovr_2 %ebx,<result>  "
+        );
+
+        return result;
+    }
+}

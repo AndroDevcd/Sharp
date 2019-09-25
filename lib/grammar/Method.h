@@ -128,6 +128,34 @@ public:
         this->modifiers.addAll(modifiers);
     }
 
+    void init() {
+        name = "";
+        owner = NULL;
+        klass = NULL;
+        type = UNDEFINED;
+        module = "";
+        note.init();
+        array = false;
+        code.init();
+        sourceFileLink = 0;
+        localVariables = 0;
+        isConstructor = false;
+        address = -1;
+        delegate = false;
+        delegatePost = false;
+        delegateAddress = DELEGATE_ADDRESS_DEFAULT;
+        key = "";
+        ast = NULL;
+        dynamicPointer = false;
+        this->finallyBlocks.init();
+        this->unique_address_table.init();
+        this->exceptions.init();
+        this->line_table.init();
+        this->modifiers.init();
+        this->params.init();
+        this->assembly_table.init();
+    }
+
     ClassObject* getParentClass() { return owner; }
     string getName() { return name; }
     string getFullName();

@@ -20,15 +20,29 @@ import std;
  * up to clean up thousands of bytes of memory
  */
 def main(string[] args) : var {
-    for(var i = 0; i < 5000000; i++)
+    var past = getUtcTimeInMills(),now, tmp;
+    for(var i = 0; i < 50000000; i++)
     {
         new Exception();
     } // 1.650s
-    /*
-     * Exception e = new Exception();
-     * for(var i = 0; i < 5000000; i++)
-     * {
-     *     Exception p = e;
-     * } // 514ms
-    */
+
+    now = getUtcTimeInMills();
+    println("new object(ms) " + (now-past));
+    past = getUtcTimeInMills();
+    for(var i = 0; i < 50000000; i++)
+    {
+        new Exception{};
+    } // 1.650s
+
+    now = getUtcTimeInMills();
+    println("new object inline(ms) " + (now-past));
+    past = getUtcTimeInMills();
+
+   Exception e = new Exception();
+   for(var i = 0; i < 5000000; i++)
+   {
+       Exception p = e;
+   } // 514ms
+    now = getUtcTimeInMills();
+    println("object assignment(ms) " + (now-past));
 }

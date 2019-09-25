@@ -9,9 +9,9 @@
 #include "oo/Exception.h"
 
 template <class T>
-class List {
+class _List {
 public:
-    List(){
+    _List(){
         init();
     }
 
@@ -45,7 +45,7 @@ public:
         _Data[len-1]=data;
     }
 
-    void push_back() {
+    void __new() {
         __expand();
     }
 
@@ -80,7 +80,7 @@ public:
      * for freeing that data himself
      */
     void remove(unsigned long long _X) {
-        if(_X>=len || len==0){
+        if(_X>=len || len<=0){
             stringstream ss;
             ss << "index out of bounds list::remove() _X: " << _X
                << " length: " << len << endl;
@@ -171,7 +171,7 @@ public:
         len=0;
     }
 
-    unsigned long size() { return len; }
+    unsigned long  long size() { return len; }
 
     void pop_back() {
         __shrink();
@@ -215,20 +215,20 @@ public:
         _Data[_X] = repl;
     }
 
-    void addAll(List<T>& list) {
+    void addAll(_List<T>& list) {
         free();
         for(unsigned int i = 0; i < list.size(); i++) {
             push_back(list.get(i));
         }
     }
 
-    void appendAll(List<T>& list) {
+    void appendAll(_List<T>& list) {
         for(unsigned int i = 0; i < list.size(); i++) {
             push_back(list.get(i));
         }
     }
 
-    void addAll(list<T> &list) {
+    void addAll(std::list<T> &list) {
         free();
         for(T& t : list) {
             push_back(t);
@@ -242,6 +242,15 @@ public:
             }
         }
         return false;
+    }
+
+    long long indexof(bool (*pfind)(void*, T element), void* data) {
+        for(unsigned int i = 0; i < len; i++) {
+            if(pfind(data, _Data[i])){
+                return i;
+            }
+        }
+        return -1;
     }
 
     long long indexof(T data) {

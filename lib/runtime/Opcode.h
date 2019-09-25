@@ -50,7 +50,7 @@
     }
 
 #define LONG_CALL() \
-    if(current->longCalls < JIT_LIMIT) \
+    if(current->longCalls < JIT_IR_LIMIT) \
         current->longCalls++;
 
 #define THREAD_EXECEPT() \
@@ -60,7 +60,7 @@
 #define STACK_CHECK  if(((sp-dataStack)+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
 #define CALLSTACK_CHECK  if((calls+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
 #define THREAD_STACK_CHECK(self)  if(((self->sp-self->dataStack)+2) >= self->stack_lmt) throw Exception(Environment::StackOverflowErr, "");
-#define THREAD_STACK_CHECK2(self, x)  if(((self->sp-self->dataStack)+2) >= self->stack_lmt || (((int64_t)(&x) - self->stfloor) <= 60000)) throw Exception(Environment::StackOverflowErr, "");
+#define THREAD_STACK_CHECK2(self, x)  if(((self->sp-self->dataStack)+2) >= self->stack_lmt || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(Environment::StackOverflowErr, "");
 
 #ifndef SHARP_PROF_
 #define _brh_NOINCREMENT SAFTEY_CHECK /*if(!startAddress) DISPATCH() else*/ goto *opcodeStart;
@@ -72,8 +72,8 @@
 
 #define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
 #define CHECK_NULL2(x) if(o2==NULL|o2->object == NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
-#define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->node==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
-#define CHECK_INULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->HEAD==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->type != _stype_struct) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_INULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->type != _stype_var) { throw Exception(Environment::NullptrException, ""); } else { x }
 
 #define _initOpcodeTable \
         static void* opcode_table[] = { \
@@ -194,7 +194,10 @@
             &&CMP,                                 \
             &&CALLD,                                 \
             &&VARCAST,                                 \
-            &&TLS_MOVL                                 \
+            &&TLS_MOVL,                                 \
+            &&DUP,                                      \
+            &&POPOBJ_2,                                  \
+            &&SWAP                                     \
         };
 
 enum Opcode {
@@ -315,7 +318,10 @@ enum Opcode {
     op_CMP                      =0x72,
     op_CALLD                    =0x73,
     op_VARCAST                  =0x74,
-    op_TLS_MOVL                 =0x75
+    op_TLS_MOVL                 =0x75,
+    op_DUP                      =0x76,
+    op_POPOBJ_2                 =0x77,
+    op_SWAP                     =0x78
 };
 
 #endif //SHARP_OPCODE_H

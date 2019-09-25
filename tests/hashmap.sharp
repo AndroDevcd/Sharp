@@ -1,0 +1,33 @@
+mod app;
+
+import std;
+import std.kernel;
+import std.io;
+
+object lck = new string("hi");
+
+def main(string[] args) : var {
+    string msg = "Hello World!";
+    string msg2 = "Jello World!";
+    string.fmt('l');
+    println(" msg " + msg.hash() + " msg2 " + msg2.hash());
+
+// TODO:  perform house cleaning and prepar34e for release
+    HashMap<integer, var> hm = new HashMap<integer, var>(25000);
+//    ArrayList<int> hm = new ArrayList<int>();
+    hm.setPayloadClass(PayloadClass.PAYLOAD_SMALL);
+    for(var i = 0; i < 9900000; i++) {
+        hm.add(new integer(i), i);
+
+        if((i % 100000) == 0) {
+            Runtime.gc();
+        }
+    }
+
+    println("removing");
+//    hm.remove(new integer(123453));
+    println("removing");
+//    println("hello world %= " + hm.get(new integer(123453)));
+    println("removing");
+}
+

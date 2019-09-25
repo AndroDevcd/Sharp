@@ -42,7 +42,7 @@ void Profiler::dump() {
     ss << endl << endl;
 
     funcProf tmp;
-    size_t i, j, iter=40, doSort = 0;
+    long long i, j, iter=40, doSort = 0;
     for(i = 0; i < functions.size(); ++i) {
 
         for(j = i + 1; j < functions.size(); ++j)

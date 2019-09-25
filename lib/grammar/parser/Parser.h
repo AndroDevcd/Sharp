@@ -284,6 +284,12 @@ private:
     bool unary(Ast *pAst);
 
     bool binary(Ast *pAst);
+
+    void parse_expression_list(Ast *pAst);
+
+    void parse_field_init_list(Ast *pAst);
+
+    bool parse_field_initialization(Ast *pAst);
 };
 
 #define _SHARP_CERROR_LIMIT c_options.error_limit

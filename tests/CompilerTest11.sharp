@@ -1,0 +1,52 @@
+mod app;
+
+import std;
+
+def foo() {
+print("hello");
+}
+
+
+def foo2(fn k(var), var g) {
+    k(9);
+}
+
+thread_local fn thread_ptr = def ?(ArrayList<var> lst)
+    {
+        // do work
+        print("work");
+    };
+
+class Generic<T> {
+    public static thread_local fn tls_ptr = def ?(ArrayList<T> lst)
+                               {
+                                   // do work
+                                   print("generic work");
+                               };
+    public fn inst_ptr = def ?(ArrayList<T> lst)
+                                {
+                                    // do work
+                                    print("instance work");
+                                };
+}
+
+def main(string[] args) : var {
+    fn withArgs (bool,int) = def ?(bool isTrue, int value) { };
+    foo2(def ?(var v) { print("v = " + v); }, 0);
+    fn ptr = foo;
+    ptr();
+    thread_ptr(null);
+    Generic<var>.tls_ptr(null);
+    Generic<var> gen = new Generic<var>();
+    gen.inst_ptr(null);
+
+    fn someComputation = def ?(int num, int x, int y): var {
+          // we are in a completly seperate code space
+          // this code space knows nothing of the x variable
+          // unless explicitly passed in
+
+          print("num = " + num);
+    };
+    someComputation(55, 1, 2);
+    return 0;
+}

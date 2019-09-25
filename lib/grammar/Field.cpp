@@ -33,6 +33,54 @@ bool Field::operator==(Field& f)
     return false;
 }
 
-List<Param> Field::getParams() {
+List<Param>& Field::getParams() {
     return proto==NULL ? params : proto->getParams();
+}
+
+void Field::free() {
+    klass = NULL;
+    owner = NULL;
+
+    name.clear();
+    fullName.clear();
+    modifiers.free();
+    key.clear();
+    params.free();
+    if(defValExpr != NULL) {
+        defValExpr->free();
+        delete defValExpr;
+    }
+}
+
+void Field::operator=(Field f)
+{
+    free();
+
+    type = f.type;
+    klass = f.klass;
+    serial = f.serial;
+    name = f.name;
+    fullName = f.fullName;
+    owner = f.owner;
+    modifiers.addAll(f.modifiers);
+    isArray = f.isArray;
+    nullType = f.nullType;
+    address=f.address;
+    local=f.local;
+    key=f.key;
+    ast=f.ast;
+    proto=f.proto;
+    prototype=f.prototype;
+    returnType=f.returnType;
+    params.addAll(f.params);
+    isEnum=f.isEnum;
+    constant_value=f.constant_value;
+    locality=f.locality;
+    thread_address=f.thread_address;
+    defaultValue = f.defaultValue;
+    if(f.defaultValue) {
+        defValExpr = new Expression();
+        *defValExpr = *f.defValExpr;
+    } else
+        defValExpr = NULL;
 }

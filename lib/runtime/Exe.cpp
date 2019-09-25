@@ -13,6 +13,7 @@
 #include "oo/ClassObject.h"
 #include "oo/Object.h"
 #include "../util/zip/zlib.h"
+#include "main.h"
 
 Manifest manifest;
 Meta metaData;
@@ -25,7 +26,7 @@ string getstring(File::buffer& exe);
 
 int64_t getlong(File::buffer& exe);
 
-void getField(File::buffer& exe, List<KeyPair<int64_t, Field*>> &fieldMap, Field* field);
+void getField(File::buffer& exe, _List<KeyPair<int64_t, Field*>> &fieldMap, Field* field);
 
 void getMethod(File::buffer& exe, ClassObject *parent, Method* method);
 
@@ -33,7 +34,7 @@ ClassObject *findClass(int64_t superClass);
 
 int64_t geti64(File::buffer& exe) ;
 
-void parse_source_file(List<native_string> &list, native_string str);
+void parse_source_file(_List<native_string> &list, native_string str);
 
 int Process_Exe(std::string exe)
 {
@@ -116,7 +117,7 @@ int Process_Exe(std::string exe)
             if(__bitFlag == eoh) {
                 if(!manifestFlag)
                     throw std::runtime_error("missing manifest flag");
-                if(manifest.fvers != file_vers)
+                if(!(manifest.fvers >= min_file_vers && manifest.fvers <= file_vers))
                     throw std::runtime_error("unknown file version");
 
                 if(hdr_cnt != hsz || manifest.target > mvers)
@@ -130,15 +131,15 @@ int Process_Exe(std::string exe)
             throw std::runtime_error("file `" + exe + "` may be corrupt");
 
         /* Data section */
-        List<KeyPair<int64_t, ClassObject*>> mSuperClasses;
-        List<KeyPair<int64_t, ClassObject*>> mBaseClasses;
-        List<KeyPair<int64_t, Field*>> mFields;
+        _List<KeyPair<int64_t, ClassObject*>> mSuperClasses;
+        _List<KeyPair<int64_t, ClassObject*>> mBaseClasses;
+        _List<KeyPair<int64_t, Field*>> mFields;
         int64_t fileRefptr=0;
 
         manifest.classes += AUX_CLASSES;
         env->classes =(ClassObject*)malloc(sizeof(ClassObject)*manifest.classes);
         env->methods = (Method*)malloc(sizeof(Method)*manifest.methods);
-        env->strings = (String*)malloc(sizeof(String)*(manifest.strings+1));
+        env->strings = (runtime::String*)malloc(sizeof(runtime::String)*(manifest.strings+1));
         env->globalHeap = (Object*)malloc(sizeof(Object)*manifest.classes);
         env->sourceFiles = (native_string*)malloc(sizeof(native_string)*manifest.sourceFiles);
         env->strings[manifest.strings].value.init();
@@ -380,6 +381,10 @@ int Process_Exe(std::string exe)
                     method->returnVal = getlong(buffer);
                     method->delegateAddress = geti64(buffer);
                     method->stackEqulizer = geti64(buffer);
+//                    if(c_options.jit) {
+//                        if(method->address==316) method->isjit = true;
+//                        if(method->address==7) method->isjit = true;
+//                    }
 
                     long len = getlong(buffer);
                     line_table lt;
@@ -392,7 +397,7 @@ int Process_Exe(std::string exe)
                     len = getlong(buffer);
                     long addressLen, valuesLen;
                     for(long i = 0; i < len; i++) {
-                        method->switchTable.push_back();
+                        method->switchTable.__new();
                         method->switchTable.last().init();
                         SwitchTable &st = method->switchTable.last();
 
@@ -419,7 +424,7 @@ int Process_Exe(std::string exe)
                         et.className=getstring(buffer);
                         et.local=geti64(buffer);
                         et.start_pc=geti64(buffer);
-                        method->exceptions.push_back();
+                        method->exceptions.__new();
 
                         ExceptionTable &e = method->exceptions.get(method->exceptions.size()-1);
                         e.init();
@@ -519,7 +524,7 @@ int Process_Exe(std::string exe)
                         break;
 
                     case data_file: {
-                        metaData.sourceFiles.push_back();
+                        metaData.sourceFiles.__new();
                         source_file &sf = metaData.sourceFiles.get(
                                 metaData.sourceFiles.size()-1);
 
@@ -547,14 +552,14 @@ int Process_Exe(std::string exe)
     return 0;
 }
 
-void parse_source_file(List<native_string> &list, native_string str) {
+void parse_source_file(_List<native_string> &list, native_string str) {
     list.init();
 
     native_string line;
     for(unsigned int i = 0; i < str.len; i++) {
         if(str.chars[i] == '\n')
         {
-            list.push_back();
+            list.__new();
             list.last().init();
             list.last() = line;
 
@@ -564,7 +569,7 @@ void parse_source_file(List<native_string> &list, native_string str) {
         }
     }
 
-    list.push_back();
+    list.__new();
     list.last().init();
     list.last() = line;
 
@@ -592,7 +597,7 @@ ClassObject *findClass(int64_t superClass) {
     return NULL;
 }
 
-void getField(File::buffer& exe, List<KeyPair<int64_t, Field*>> &fieldMap, Field* field) {
+void getField(File::buffer& exe, _List<KeyPair<int64_t, Field*>> &fieldMap, Field* field) {
     field->name.init();
     field->name = getstring(exe);
     field->serial = getlong(exe);

@@ -5,10 +5,12 @@
 #ifndef SHARP_GARBAGECOLLECTOR_H
 #define SHARP_GARBAGECOLLECTOR_H
 
+#include <map>
 #include <vector>
 #include <mutex>
 #include "../../../stdimports.h"
 #include "../List.h"
+#include "../../util/KeyPair.h"
 
 #ifndef WIN32_
 #include <mutex>
@@ -41,6 +43,21 @@ struct SharpObject;
 class ClassObject;
 class Thread;
 
+struct mutex_t // TODO: add thread mutex lock protection and close all locked objects
+{
+    SharpObject* object;
+    recursive_mutex *mutex;
+    long threadid;
+    
+    mutex_t(SharpObject *o, recursive_mutex *mut, long threadid) 
+    : 
+        object(o),
+        mutex(mut),
+        threadid(threadid)
+    {
+    }
+};
+
 #define heap (_Mheap)
 
 class GarbageCollector {
@@ -48,7 +65,7 @@ public:
     static GarbageCollector *self;
     recursive_mutex mutex;
     Thread *tself;
-    List<CollectionPolicy> messageQueue;
+    _List<CollectionPolicy> messageQueue;
 
     static void initilize();
     static void startup();
@@ -156,6 +173,18 @@ public:
     static unsigned long long _sizeof(SharpObject *object);
 
     /**
+     * Lock an object to be thread safe
+     *
+     */
+    void lock(SharpObject *, Thread*);
+    void unlock(SharpObject *, Thread*);
+    
+    /**
+     * Thread sycronization protection for destroyed threads with pending locks
+     */
+    void reconcileLocks(Thread*);
+
+    /**
      * This will keep track of our different generations and the
      * objects that are living in them.
      *
@@ -195,6 +224,7 @@ private:
 #ifdef SHARP_PROF_
     unsigned long x;
 #endif
+    _List<mutex_t*> locks;
     SharpObject* _Mheap, *tail;
     unsigned long long heapSize;
     bool sleep;
@@ -212,22 +242,28 @@ private:
     void erase(SharpObject *pObject);
 
     void sedateSelf();
+
+    void dropLock(SharpObject *);
 };
 
 #define GC_COLLECT_YOUNG() ( yObjs >= 1 )
 #define GC_COLLECT_ADULT() ( aObjs >= 10 )
 #define GC_COLLECT_OLD() ( oObjs >= 10 )
+#define GC_LOW_MEM() ( managedBytes >= (0.85 * memoryLimit) )
 #define GC_COLLECT_MEM() ( managedBytes >= memoryThreshold )
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))
 
-// generation macros
+// gc info macros
 #define GENERATION_MASK 0x7
 #define GENERATION(g) (g & GENERATION_MASK)
-#define MARKED(g) ((g >> 3))
+#define MARKED(g) ((g >> 3) & 1UL)
+#define HAS_LOCK(g) ((g >> 4))
 #define MARK(g, enable) (g ^= (-(unsigned long)enable ^ g) & (1UL << 3))
+#define SET_LOCK(g, enable) (g ^= (-(unsigned long)enable ^ g) & (1UL << 4))
+#define SET_GENERATION(inf, gen) (inf = (gen | (MARKED(inf) << 3) | (HAS_LOCK(inf) << 4)))
 
 #define UPDATE_GC(object) \
-    switch(GENERATION(object->generation)) { \
+    switch(GENERATION(object->gc_info)) { \
         case gc_young: \
             freedYoung++; \
             break; \

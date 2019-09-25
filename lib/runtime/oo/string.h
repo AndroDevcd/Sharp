@@ -195,11 +195,12 @@ private:
     }
 };
 
+namespace runtime {
 /* native String Refrence */
-class String {
-public:
-    int64_t id;
-    native_string value;
-};
-
+    class String {
+    public:
+        int64_t id;
+        native_string value;
+    };
+}
 #endif //SHARP_STRING_H

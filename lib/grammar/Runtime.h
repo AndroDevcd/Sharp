@@ -92,7 +92,7 @@ public:
     bool isVar() { return type==VAR; }
     bool dynamicObject() { return type==OBJECT; }
     bool isEnum() { return isField && field.isEnum; }
-    List<Param> getParams() {
+    List<Param>& getParams() {
         if(method)
             return method->getParams();
         else if(isField)
@@ -164,6 +164,7 @@ enum expression_type {
     expression_null=14,
     expression_generic=15, // special case for generic utypes
     expression_prototype=16,
+    expression_anon_func=17,
     expression_unknown=0x900f
 };
 
@@ -265,6 +266,10 @@ struct Expression {
     bool isProtoType() {
         return type == expression_prototype ||
                (utype.isField && utype.field.prototype);
+    }
+
+    bool isAnonymousFunction() {
+        return type == expression_anon_func;
     }
 
     bool isArray() {
@@ -409,7 +414,8 @@ struct Scope {
             uniqueLabelSerial(0),
             reachable(true),
             last_statement(0),
-            switches(0)
+            switches(0),
+            classInitialization(false)
     {
         locals.init();
         label_map.init();
@@ -431,7 +437,8 @@ struct Scope {
             uniqueLabelSerial(0),
             reachable(true),
             last_statement(0),
-            switches(0)
+            switches(0),
+            classInitialization(false)
     {
         locals.init();
         label_map.init();
@@ -453,7 +460,8 @@ struct Scope {
             uniqueLabelSerial(0),
             reachable(true),
             last_statement(0),
-            switches(0)
+            switches(0),
+            classInitialization(false)
     {
         locals.init();
         label_map.init();
@@ -539,7 +547,7 @@ struct Scope {
     List<KeyPair<std::string, std::string>> loopAddressTable;
     int blocks;
     long loops, trys, switches, uniqueLabelSerial, last_statement;
-    bool self, base, reachable;
+    bool self, base, reachable, classInitialization;
 
     void free() {
         locals.free();
@@ -607,7 +615,8 @@ public:
             preprocessed(false),
             resolvedGenerics(false),
             resolvedMethods(false),
-            threadLocals(0)
+            threadLocals(0),
+            anonymousFunctions(0)
     {
         this->parsers.addAll(parsers);
         uniqueSerialId = 0;
@@ -706,6 +715,7 @@ private:
     unsigned long methods;
     unsigned long classSize;
     unsigned long threadLocals;
+    unsigned long anonymousFunctions;
     Method* main;
     List<Method*> allMethods;
     Block *currentBlock;
@@ -836,7 +846,7 @@ private:
 
     void analyzeImportDecl(Ast *pAst);
 
-    void createNewWarning(error_type error, int line, int col, string xcmnts);
+    void createNewWarning(error_type error, int type, int line, int col, string xcmnts);
 
     void analyzeClassDecl(Ast *ast);
 
@@ -1219,11 +1229,11 @@ private:
 
     void resolvePrototypeDecl(Ast *ast);
 
-    void parseProtypeDecl(Ast *pAst);
+    void parseProtypeDecl(Ast *pAst, bool global);
 
     void parseFieldReturnType(Expression &expression, Field &field);
 
-    void parseFuncPrototype(Ast *ast, Field *field);
+    void parseFuncPrototype(Ast *ast, Field *field, Block *block = NULL, bool argument = false);
 
     Method *fieldToFunction(Field *field, Expression &code);
 
@@ -1248,6 +1258,19 @@ private:
     StorageLocality strtostl(string locality);
 
     int64_t checkstl(StorageLocality locality);
+
+    void parseFieldInitalizers(List<KeyPair<Expression, Expression>> &fieldInits, Ast *pAst, Expression expression);
+
+    void parseExpressionList(List<KeyPair<Expression, Expression>> &fieldInits, Ast *pAst,
+                             Expression utype, List<Field*>& fields);
+
+    void parsePrototypeDecl(Block &block, Ast *pAst);
+
+    Expression parseAnonymousFunction(Ast *pAst);
+
+    void resolveAllPrototypes();
+
+    void resolvePrototypeInClassDecl(Ast *ast);
 };
 
 
@@ -1276,7 +1299,7 @@ private:
 #define unique_label_id(x) "$$L" << (x)
 
 #define progname "bootstrap"
-#define progvers "0.2.422"
+#define progvers "0.2.581"
 
 struct options {
     ~options()
@@ -1373,6 +1396,17 @@ struct options {
      */
     List<string> libraries;
 };
+
+// WARNING SWITCHES
+#define __WGENERAL 0
+#define __WACCESS 1
+#define __WAMBIG 2
+#define __WDECL 3
+#define __WMAIN 4
+#define __WCAST 5
+#define __WINIT 6
+
+extern bool warning_map[];
 
 #define TLS_LIMIT 0x5F5E0F
 

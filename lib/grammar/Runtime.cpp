@@ -42,7 +42,24 @@ options c_options;
 List<string> origFiles;
 
 void help();
+void help_warn();
 void get_full_file_list(native_string &path, List<native_string> &files);
+
+/**
+ * This array represents the map of all the warning types that are enabled/disabled
+ * once a warning is fired it will refrence this map to check if it should fired
+ *
+ * all warnings will always be enabled by default
+ */
+bool warning_map[] = {
+        true,    // general warnings
+        true,    // waccess
+        true,   // wambig
+        true,   // wdecl
+        true,   // wmain
+        true,   // wcast
+        true    // winit
+};
 
 int _bootstrap(int argc, const char* argv[])
 {
@@ -84,8 +101,12 @@ int _bootstrap(int argc, const char* argv[])
         else if(opt("-O")){
             c_options.optimize = true;
         }
-        else if(opt("-h") || opt("-?")){
+        else if(opt("--h") || opt("-?")){
             help();
+            exit(0);
+        }
+        else if(opt("--hw")){
+            help_warn();
             exit(0);
         }
         else if(opt("-R") || opt("-release")){
@@ -129,6 +150,24 @@ int _bootstrap(int argc, const char* argv[])
         else if(opt("-w")){
             c_options.warnings = false;
         }
+        else if(opt("-waccess")){
+            warning_map[__WACCESS] = false;
+        }
+        else if(opt("-wambig")){
+            warning_map[__WAMBIG] = false;
+        }
+        else if(opt("-wdecl")){
+            warning_map[__WDECL] = false;
+        }
+        else if(opt("-wmain")){
+            warning_map[__WMAIN] = false;
+        }
+        else if(opt("-wwcast")){
+            warning_map[__WCAST] = false;
+        }
+        else if(opt("-winit")){
+            warning_map[__WINIT] = false;
+        }
         else if(opt("-v")){
             if(i+1 >= argc)
                 rt_error("file version required after option `-v`");
@@ -157,7 +196,7 @@ int _bootstrap(int argc, const char* argv[])
                 rt_error("invalid error limit set " + lmt);
             }
         }
-        else if(opt("-objdmp")){
+        else if(opt("-objdmp") || opt("-d")){
             c_options.objDump = true;
         }
         else if(string(argv[i]).at(0) == '-'){
@@ -242,7 +281,7 @@ void get_full_file_list(native_string &path, List<native_string> &files) {
             }
 
             if(ends_with(file.str(), ".sharp")) {
-                files.push_back();
+                files.__new();
                 files.last().init();
                 files.last() = file;
             }
@@ -264,16 +303,30 @@ void help() {
     cout <<               "    -a                enable aggressive error reporting"                     << endl;
     cout <<               "    -s                strip debugging info"                                 << endl;
     cout <<               "    -O                optimize executable"                                   << endl;
-    cout <<               "    -L<path>          library directory path"                                << endl;
-    cout <<               "    -w                disable all warnings"                                  << endl;
+    cout <<               "    -L <path>         library directory path"                                << endl;
     cout <<               "    -errlmt<count>    set max errors the compiler allows before quitting"    << endl;
     cout <<               "    -v<version>       set the application version"                           << endl;
     cout <<               "    -unsafe -u        allow unsafe code"                                     << endl;
-    cout <<               "    -objdmp           create dump file for generated assembly"               << endl;
+    cout <<               "    -objdmp -d        create dump file for generated assembly"               << endl;
     cout <<               "    -target           target the specified platform of sharp to run on"      << endl;
-    cout <<               "    -werror           enable warnings as errors"                             << endl;
     cout <<               "    -release -r       generate a release build exe"                          << endl;
+    cout <<               "    --hw              display help message for warning options"              << endl;
     cout <<               "    --h -?            display this help message"                             << endl;
+}
+
+void help_warn() {
+    cout << "Usage: sharpc " << "{OPTIONS} SOURCE FILE(S)" << std::endl;
+    cout << "Source file must have a .sharp extion to be compiled.\n" << endl;
+    cout << "Please note that not all warnings will be able to be disabled individually.\n" << endl;
+    cout << "[-options]\n\n    -w                disable all warnings"                                  << endl;
+    cout <<               "    -winit            disable class initialization warnings"                 << endl;
+    cout <<               "    -waccess          disable access modifier warnings (public, static, etc.)"                      << endl;
+    cout <<               "    -wambig           disable ambiguous symbol warnings"                     << endl;
+    cout <<               "    -wdecl            disable object declaration warnings"                   << endl;
+    cout <<               "    -wmain            disable multiple main method warnings"                 << endl;
+    cout <<               "    -wcast            disable type cast warnings"                            << endl;
+    cout <<               "    -werror           enable warnings as errors"                             << endl;
+    cout <<               "    --hw              display this help message"                             << endl;
 }
 
 void rt_error(string message) {
@@ -445,6 +498,7 @@ void RuntimeEngine::compile()
         inlineFields();
         resolveAllInterfaces();
         resolveAllDelegates();
+        resolveAllPrototypes();
 
         // TODO: make checkSupportClasses() to check on vital support classes to make sure things are as they should be
         // TODO: inforce const on variables
@@ -489,6 +543,8 @@ void RuntimeEngine::compile()
                         addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
                         analyzeVarDecl(ast);
                         removeScope();
+                        break;
+                    case ast_func_prototype:
                         break;
                     default:
                         stringstream err;
@@ -823,7 +879,7 @@ bool RuntimeEngine::validateLocalField(std::string name, Ast* pAst) {
             errors->createNewError(DUPlICATE_DECLIRATION, pAst, " local variable `" + field->value.name + "`");
             return false;
         } else {
-            createNewWarning(GENERIC, pAst->line, pAst->col, " local variable `" + field->value.name + "` hides previous declaration in higher scope");
+            createNewWarning(GENERIC, __WDECL, pAst->line, pAst->col, " local variable `" + field->value.name + "` hides previous declaration in higher scope");
             return true;
         }
     } else {
@@ -1523,6 +1579,42 @@ void RuntimeEngine::parseLabelDecl(Block& block, Ast* pAst) {
     parseStatement(block, pAst->getSubAst(ast_statement)->getSubAst(0));
 }
 
+void RuntimeEngine::parsePrototypeDecl(Block& block, Ast* pAst) {
+    List<AccessModifier> modifiers;
+    int startpos=0;
+
+    parseAccessDecl(pAst, modifiers, startpos);
+
+    if(modifiers.find(mCONST)) {
+        errors->createNewError(GENERIC, pAst, "modifier `const` is not allowed for function prototypes");
+    }
+    string name =  pAst->getEntity(startpos).getToken();
+    if(Parser::isstorage_type(token_entity(name, IDENTIFIER, 0, 0))) {
+        startpos++;
+        if(!modifiers.find(STATIC))
+            modifiers.add(STATIC);
+    }
+
+    name = pAst->getEntity(++startpos).getToken();
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
+                                   pAst->line, pAst->col);
+    Field f = Field(NULL, uniqueSerialId++, name, currentScope()->klass, modifiers, note, pAst->findEntity("thread_local") ? stl_thread : stl_local,
+                    pAst->findEntity("thread_local") ? threadLocals++ : 0);
+
+    f.address = currentScope()->currentFunction->localVariables++;
+    f.owner = currentScope()->klass;
+    if(!pAst->findEntity("thread_local")) {
+        f.local=true;
+    }
+
+    if(validateLocalField(name, pAst)) {
+        parseFuncPrototype(pAst, &f, &block);
+
+        currentScope()->locals.__new().set(currentScope()->blocks, f);
+        Expression fieldExpr = fieldToExpression(pAst, f);
+    }
+}
+
 void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
     List<AccessModifier> modifiers;
     int startpos=0, index = 1;
@@ -1564,7 +1656,7 @@ void RuntimeEngine::parseVarDecl(Block& block, Ast* pAst) {
         Expression fieldExpr = fieldToExpression(pAst, f);
 
 //        if(f.isObjectInMemory())
-//            block.code.__asm64.push_back(SET_Di(i64, op_MOVL, f.address));
+//            block.code.__asm64.__new(SET_Di(i64, op_MOVL, f.address));
 
         if(pAst->hasSubAst(ast_value)) {
             Expression expression = parseValue(pAst->getSubAst(ast_value)), out(pAst);
@@ -1652,7 +1744,7 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
         case ast_expression: {
             Expression expr(pAst);
             expr = parseExpression(pAst);
-            if(expr.func && expr.type != expression_void ||
+            if((expr.func && expr.type != expression_void) ||
                 expr.newExpression) {
                 expr.code.push_i64(SET_Ei(i64, op_POP));
             }
@@ -1701,6 +1793,9 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
             break;
         case ast_var_decl:
             parseVarDecl(block, pAst); // done
+            break;
+        case ast_func_prototype:
+            parsePrototypeDecl(block, pAst); // done
             break;
         default: {
             stringstream err;
@@ -1835,10 +1930,6 @@ void RuntimeEngine::parseOperatorDecl(Ast* pAst) {
         } else {
             addScope(Scope(INSTANCE_BLOCK, currentScope()->klass, method));
             method->localVariables++;
-        }
-
-        if(!method->hasModifier(PUBLIC)) {
-            createNewWarning(GENERIC, pAst->line, pAst->col, "operator function `" + method->getName() + "` cannot be static");
         }
 
         KeyPair<int, Field> local;
@@ -1996,7 +2087,13 @@ bool RuntimeEngine::equals(Expression& left, Expression& right, string msg) {
         case expression_field:
             if(left.trueType() == VAR) {
                 // add var
-                if(right.trueType() == OBJECT || right.trueType() == CLASS) {
+                if(right.type == expression_anon_func) {
+                    if(!left.utype.field.prototype) {
+                        errors->createNewError(GENERIC, right.link->line,  right.link->col, "expression of type `var` is not compatible with expression `" + right.typeToString() + "` " + msg);
+                        return false;
+                    }
+                    return true;
+                } else if(right.trueType() == OBJECT || right.trueType() == CLASS) {
                     if(left.trueType() == OBJECT) {
                         return true;
                     } else if(isNativeIntegerClass(right.getClass())) {
@@ -2686,8 +2783,6 @@ Opcode RuntimeEngine::operandToShftOp(token_entity operand)
 void RuntimeEngine::shiftNative(token_entity operand, Expression& out, Expression &left, Expression &right, Ast* pAst) {
     out.type = expression_var;
     right.type = expression_var;
-    right.func=false;
-    right.literal = false;
 
     if(left.type == expression_var) {
         equals(left, right);
@@ -3205,6 +3300,30 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
             if(left.utype.field.local) {
 
                 equals(left, right);
+                if(left.isProtoType()) {
+                    if(operand == "=") {
+
+                        if(right.isProtoType() || right.isAnonymousFunction()) {
+                            if(!prototypeEquals(&left.utype.field, right.utype.getParams(), right.utype.getReturnType())) {
+                                errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `fn*" + paramsToString(left.utype.field.params) +
+                                     (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
+                                     + "` and `fn*" + paramsToString(right.utype.getParams()) +
+                                       (right.utype.getReturnType()==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(right.utype.getReturnType())) + "` are not compatible");
+                            } else {
+                                out.utype = left.utype;
+                                out.type=left.type;
+                            }
+                        } else {
+                            errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `fn*" + paramsToString(left.utype.field.params) +
+                                  (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
+                                  + "` and `fn*" + paramsToString(right.utype.getParams()) +
+                                    (right.utype.getReturnType()==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(right.utype.getReturnType())) + "` are not compatible");
+                        }
+                    } else {
+                        errors->createNewError(GENERIC, right.link->line,  right.link->col, " operator `" + operand.getToken() + "` is not allowed on funtion pointers");
+                    }
+                }
+
                 if(operand == "=") {
                     if(right.literal && isWholeNumber(right.intValue)) {
                         out.code.push_i64(SET_Di(i64, op_ISTOREL, left.utype.field.address), right.intValue);
@@ -3246,19 +3365,24 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
                 if(left.isProtoType()) {
                     if(operand == "=") {
 
-                        if(right.isProtoType()) {
+                        if(right.isProtoType() || right.isAnonymousFunction()) {
                             if(!prototypeEquals(&left.utype.field, right.utype.getParams(), right.utype.getReturnType())) {
                                 errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `fn*" + paramsToString(left.utype.field.params) +
-                                                       (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
-                                                       + "` and `" + right.typeToString() + "` are not compatible");
+                                        (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
+                                        + "` and `fn*" + paramsToString(right.utype.getParams()) +
+                                        (right.utype.getReturnType()==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(right.utype.getReturnType())) + "` are not compatible");
+                            } else {
+                                out.utype = left.utype;
+                                out.type=left.type;
                             }
                         } else {
                             errors->createNewError(GENERIC, right.link->line,  right.link->col, "Expressions of type `fn*" + paramsToString(left.utype.field.params) +
-                                    (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
-                                    + "` and `" + right.typeToString() + "` are not compatible");
+                                 (left.utype.field.returnType==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(left.utype.field.returnType))
+                                 + "` and `fn*" + paramsToString(right.utype.getParams()) +
+                                 (right.utype.getReturnType()==TYPEVOID ? "" : ": " + ResolvedReference::typeToString(right.utype.getReturnType())) + "` are not compatible");
                         }
                     } else {
-                        errors->createNewError(GENERIC, right.link->line,  right.link->col, " operator `" + operand.getToken() + "` is not allowed");
+                        errors->createNewError(GENERIC, right.link->line,  right.link->col, " operator `" + operand.getToken() + "` is not allowed on funtion pointers");
                     }
                 }
 
@@ -4081,12 +4205,27 @@ Expression RuntimeEngine::fieldToExpression(Ast *pAst, Field& field) {
     if(field.isObjectInMemory()) {
         if(field.hasThreadLocality()) {
             fieldExpr.code.push_i64(SET_Di(i64, op_TLS_MOVL, field.thread_address));
-        } else {
+        } else if(field.local) {
             fieldExpr.code.push_i64(SET_Di(i64, op_MOVL, field.address));
+        } else {
+            if(field.isStatic())
+                fieldExpr.code.push_i64(SET_Di(i64, op_MOVG, field.owner->address));
+            else
+                fieldExpr.code.push_i64(SET_Di(i64, op_MOVL, 0));
+            fieldExpr.code.push_i64(SET_Di(i64, op_MOVN, field.address));
         }
     } else {
-        //fieldExpr.code.push_i64(SET_Ci(i64, op_MOVR, i64adx, 0, fp));
-        fieldExpr.code.push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, field.address));
+        if(field.hasThreadLocality()) {
+            fieldExpr.code.push_i64(SET_Di(i64, op_TLS_MOVL, field.thread_address));
+        } else if(field.local){
+            fieldExpr.code.push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, field.address));
+        } else {
+            if(field.isStatic())
+                fieldExpr.code.push_i64(SET_Di(i64, op_MOVG, field.owner->address));
+            else
+                fieldExpr.code.push_i64(SET_Di(i64, op_MOVL, 0));
+            fieldExpr.code.push_i64(SET_Di(i64, op_MOVN, field.address));
+        }
     }
     return fieldExpr;
 }
@@ -4120,7 +4259,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
     }
 
     if(field->hasThreadLocality() && (field->type != CLASS && field->type != OBJECT && field->type != TYPEGENERIC)) {
-        errors->createNewError(GENERIC, ast, "field (" + field->fullName + ") of `thread_local` status must be of type {object or class}");
+        errors->createNewError(GENERIC, ast, "error assigning of type `" + ResolvedReference::typeToString(field->type) + "` to field (" + field->fullName + ") of `thread_local` status must be of type {object or class}");
     }
 
     if(ast->hasSubAst(ast_value)) {
@@ -4129,6 +4268,12 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
         fieldExpr.code.free();
         equals(fieldExpr, expression);
         operand=ast->getEntity(ast->getEntityCount()-1);
+
+        if(!field->isStatic()) {
+            field->defaultValue = true;
+            field->defValExpr = new Expression();
+            *field->defValExpr = expression;
+        }
 
         if(!isFieldInlined(field)) {
             if(field->isStatic()) {
@@ -4219,7 +4364,7 @@ void RuntimeEngine::analyzeVarDecl(Ast *ast) {
 void RuntimeEngine::analyzeImportDecl(Ast *pAst) {
     string import = parseModuleName(pAst);
     if(import == currentModule) {
-        createNewWarning(REDUNDANT_IMPORT, pAst->line, pAst->col, " '" + import + "'");
+        createNewWarning(REDUNDANT_IMPORT, __WGENERAL, pAst->line, pAst->col, " '" + import + "'");
     } else {
         if(!modules.find(import)) {
             errors->createNewError(COULD_NOT_RESOLVE, pAst->line, pAst->col,
@@ -4233,12 +4378,14 @@ void RuntimeEngine::analyzeImportDecl(Ast *pAst) {
     }
 }
 
-void RuntimeEngine::createNewWarning(error_type error, int line, int col, string xcmnts) {
+void RuntimeEngine::createNewWarning(error_type error, int type, int line, int col, string xcmnts) {
     if(c_options.warnings) {
-        if(c_options.werrors){
-            errors->createNewError(error, line, col, xcmnts);
-        } else {
-            errors->createNewWarning(error, line, col, xcmnts);
+        if(warning_map[type]) {
+            if(c_options.werrors){
+                errors->createNewError(error, line, col, xcmnts);
+            } else {
+                errors->createNewWarning(error, line, col, xcmnts);
+            }
         }
     }
 }
@@ -4474,6 +4621,11 @@ bool RuntimeEngine::preprocess()
                     parseVarDecl(ast, true);
                     removeScope();
                     break;
+                case ast_func_prototype:
+                    addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
+                    parseProtypeDecl(ast, true);
+                    removeScope();
+                    break;
                 default:
                     stringstream err;
                     err << ": unknown ast type: " << ast->getType();
@@ -4669,6 +4821,58 @@ void RuntimeEngine::resolveClassBases() {
     }
 }
 
+void RuntimeEngine::resolveAllPrototypes() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        activeParser = parsers.get(i);
+        errors = new ErrorManager(activeParser->lines, activeParser->sourcefile, true, c_options.aggressive_errors);
+        currentModule = "$unknown";
+
+        addScope(Scope(GLOBAL_SCOPE, NULL));
+        for(int x = 0; x < activeParser->treesize(); x++) {
+            Ast* ast = activeParser->ast_at(x);
+            SEMTEX_CHECK_ERRORS
+
+            if(x==0) {
+                if(ast->getType() == ast_module_decl) {
+                    add_module(currentModule = parseModuleName(ast));
+                    continue;
+                }
+            }
+
+            switch(ast->getType()) {
+                case ast_class_decl:
+                    resolvePrototypeInClassDecl(ast);
+                    break;
+                case ast_func_prototype:
+                    addScope(Scope(CLASS_SCOPE, getClass(currentModule, globalClass, classes)));
+                    resolvePrototypeDecl(ast);
+                    removeScope();
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+        }
+
+        if(errors->hasErrors()){
+            report:
+
+            errorCount+= errors->getErrorCount();
+            unfilteredErrorCount+= errors->getUnfilteredErrorCount();
+
+            failedParsers.addif(activeParser->sourcefile);
+            succeededParsers.removefirst(activeParser->sourcefile);
+        } else {
+            succeededParsers.addif(activeParser->sourcefile);
+            failedParsers.removefirst(activeParser->sourcefile);
+        }
+
+        errors->free();
+        delete (errors); this->errors = NULL;
+        removeScope();
+    }
+}
+
 void RuntimeEngine::resolveAllFields() {
     for(unsigned long i = 0; i < parsers.size(); i++) {
         activeParser = parsers.get(i);
@@ -4709,6 +4913,8 @@ void RuntimeEngine::resolveAllFields() {
                         resolveMethodDecl(ast, true);
                         removeScope();
                     }
+                    break;
+                case ast_func_prototype:
                     break;
                 default:
                     /* ignore */
@@ -4937,8 +5143,14 @@ ReferencePointer RuntimeEngine::parseReferencePtr(Ast *ast, bool getAst) {
 
         if(!failed && resolvedGenerics && resolvedMethods && ast->hasSubAst(ast_utype_list) && ast->getSubAst(idx++)->getType() == ast_utype_list){
             List<Expression> utypes;
+
+            bool classInitOld = currentScope()->classInitialization, baseOld = currentScope()->base;
+            currentScope()->classInitialization  = false;
+            currentScope()->base  = false;
             parseUtypeList(ast->getSubAst(idx-1), utypes);
             findAndCreateGenericClass(ptr.module, id, utypes, parent, ast);
+            currentScope()->classInitialization = classInitOld;
+            currentScope()->base = baseOld;
         }
 
         if(hash && !hashfound && !last) {
@@ -5135,6 +5347,7 @@ string Expression::typeToString() {
         case expression_unknown:
             return "?";
         case expression_prototype:
+        case expression_anon_func:
             return utype.method->getFullName();
         case expression_class:
             return utype.typeToString() + (utype.array ? "[]" : "");
@@ -5653,7 +5866,7 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                         resolveFieldHeiarchy(&ref.field, reference, expression, ast);
                     } else {
 
-                        resolveClassHeiarchy(ref.klass, reference, expression, ast);
+                        resolveClassHeiarchy(ref.klass, reference, expression, ast, true, !currentScope()->classInitialization);
                     }
                 } else {
                     if((klass = getClass(reference.module, starter_name, classes)) != NULL) {
@@ -5721,7 +5934,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
             } else {
 
                 // scope_class? | scope_instance_block? | scope_static_block?
-                if(currentScope()->type != CLASS_SCOPE && currentScope()->getLocalField(refrence.referenceName) != NULL) {
+                if(!currentScope()->classInitialization && currentScope()->type != CLASS_SCOPE && currentScope()->getLocalField(refrence.referenceName) != NULL) {
                     field = &currentScope()->getLocalField(refrence.referenceName)->value;
                     expression.utype.type = CLASSFIELD;
                     expression.utype.field = *field;
@@ -5734,8 +5947,12 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                                 expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
                             } else
                                 expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
-                        } else
-                            expression.code.push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, field->address));
+                        } else {
+                            if(field->hasThreadLocality()) {
+                                expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+                            } else
+                                expression.code.push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, field->address));
+                        }
                     }
                     else {
                         if(field->hasThreadLocality()) {
@@ -5770,9 +5987,9 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                             expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
                         }
                     }
-                } else if((fn = currentScope()->klass->getFunctionByName(refrence.referenceName, ambiguous)) != NULL) {
+                } else if(!currentScope()->classInitialization && (fn = currentScope()->klass->getFunctionByName(refrence.referenceName, ambiguous)) != NULL) {
                     if(ambiguous)
-                        createNewWarning(GENERIC, pAst->line, pAst->col, "reference to function name is ambiguous");
+                        createNewWarning(GENERIC, __WAMBIG, pAst->line, pAst->col, "reference to function name is ambiguous");
                     expression.utype.type = VAR;
                     expression.utype.method = fn;
                     expression.utype.isMethod = true;
@@ -5782,7 +5999,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                                                         (refrence.module == "" ? "" : "in module {" + refrence.module + "} ") + " must be static");
                     }
                     expression.code.push_i64(SET_Di(i64, op_MOVI, fn->address), i64ebx);
-                } else {
+                } else if(!currentScope()->classInitialization) {
                     if((klass = tryClassResolve(refrence.module, refrence.referenceName, pAst)) != NULL) {
                         // global class ?
                         expression.utype.type = CLASS;
@@ -5868,6 +6085,14 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                         expression.utype.referenceName = refrence.referenceName;
                         expression.type = expression_unresolved;
                     }
+                } else {
+                    /* Un resolvable */
+                    errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + refrence.referenceName + "` " +
+                                                                                                                                                     (refrence.module == "" ? "" : "in module {" + refrence.module + "} "));
+
+                    expression.utype.type = UNDEFINED;
+                    expression.utype.referenceName = refrence.referenceName;
+                    expression.type = expression_unresolved;
                 }
             }
         } else if(refrence.singleRefrenceModule()){
@@ -5883,9 +6108,9 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                 Method *fn;
                 bool ambiguous = false;
                 ClassObject* global = getClass(refrence.module, globalClass, globals);
-                if(global != NULL && (fn = global->getFunctionByName(refrence.referenceName, ambiguous)) != NULL) {
+                if(!currentScope()->classInitialization && global != NULL && (fn = global->getFunctionByName(refrence.referenceName, ambiguous)) != NULL) {
                     if(ambiguous)
-                        createNewWarning(GENERIC, pAst->line, pAst->col, "reference to function name is ambiguous");
+                        createNewWarning(GENERIC, __WAMBIG, pAst->line, pAst->col, "reference to function name is ambiguous");
                     expression.utype.type = VAR;
                     expression.utype.method = fn;
                     expression.utype.isMethod = true;
@@ -5916,7 +6141,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
 
                 // class?
                 if((klass = tryClassResolve(refrence.module, starter_name, pAst)) != NULL) {
-                    resolveClassHeiarchy(klass, refrence, expression, pAst);
+                    resolveClassHeiarchy(klass, refrence, expression, pAst, true, !currentScope()->classInitialization);
                     return;
                 } else {
                     /* un resolvable */
@@ -5936,7 +6161,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                 p = refrence;
                 string methodName = p.referenceName;
 
-                if(splitMethodUtype(p.referenceName, p)) {
+                if(!currentScope()->classInitialization && splitMethodUtype(p.referenceName, p)) {
                     // accessor
                     resolveUtype(p, expression, pAst);
 
@@ -5944,7 +6169,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                         klass = expression.type == expression_class ? expression.utype.klass : expression.utype.field.klass;
                         if((fn = klass->getFunctionByName(refrence.referenceName, ambiguous)) != NULL) {
                             if(ambiguous)
-                                createNewWarning(GENERIC, pAst->line, pAst->col, "reference to function name is ambiguous");
+                                createNewWarning(GENERIC, __WAMBIG, pAst->line, pAst->col, "reference to function name is ambiguous");
                             expression.utype.type = VAR;
                             expression.utype.method = fn;
                             expression.utype.isMethod = true;
@@ -5962,7 +6187,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                 // scope_class? | scope_instance_block? | scope_static_block?
                 if(refrence.module != "") {
                     if((klass = tryClassResolve(refrence.module, starter_name, pAst)) != NULL) {
-                        resolveClassHeiarchy(klass, refrence, expression, pAst);
+                        resolveClassHeiarchy(klass, refrence, expression, pAst, true, !currentScope()->classInitialization);
                         return;
                     } else {
                         errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + starter_name + "` " +
@@ -5974,7 +6199,7 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     }
                 }
 
-                if(currentScope()->type != CLASS_SCOPE && currentScope()->getLocalField(starter_name) != NULL) {
+                if(!currentScope()->classInitialization && currentScope()->type != CLASS_SCOPE && currentScope()->getLocalField(starter_name) != NULL) {
                     field = &currentScope()->getLocalField(starter_name)->value;
 
                     /**
@@ -6016,10 +6241,10 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     return;
                 } else {
                     if((klass = tryClassResolve(refrence.module, starter_name, pAst)) != NULL) {
-                        resolveClassHeiarchy(klass, refrence, expression, pAst);
+                        resolveClassHeiarchy(klass, refrence, expression, pAst, true, !currentScope()->classInitialization);
                         return;
                     } else if((klass = currentScope()->klass->getChildClass(starter_name)) != NULL) {
-                        resolveClassHeiarchy(klass, refrence, expression, pAst);
+                        resolveClassHeiarchy(klass, refrence, expression, pAst, true, !currentScope()->classInitialization);
                         return;
                     } else {
                         errors->createNewError(COULD_NOT_RESOLVE, pAst->getSubAst(ast_type_identifier)->line, pAst->getSubAst(ast_type_identifier)->col, " `" + starter_name + "` " +
@@ -6159,31 +6384,115 @@ void RuntimeEngine::resolvePrototypeDecl(Ast* ast) {
     parseAccessDecl(ast, modifiers, startpos);
 
     if(modifiers.find(mCONST)) {
-        errors->createNewError(GENERIC, ast, "modifier `const` is not allowed for function protypes");
+        errors->createNewError(GENERIC, ast, "modifier `const` is not allowed for function pointers");
     }
 
-    string name =  ast->getEntity(++startpos).getToken();
-    Field* field = currentScope()->klass->getField(name);
-    parseFuncPrototype(ast, field);
+    string name =  ast->getEntity(startpos).getToken();
+    if(Parser::isstorage_type(token_entity(name, IDENTIFIER, 0, 0))) {
+        startpos++;
+    }
 
+    name = ast->getEntity(++startpos).getToken();
+    Field* field = currentScope()->klass->getField(name);
     field->owner = currentScope()->klass;
     field->address = field->owner->getFieldAddress(field);
+    field->thread_address = checkstl(field->locality);
+    parseFuncPrototype(ast, field);
+
 }
 
-void RuntimeEngine::parseFuncPrototype(Ast *ast, Field *field) {
+void RuntimeEngine::parseFuncPrototype(Ast *ast, Field *field, Block *block, bool argument) {
     field->prototype=true;
     field->type = VAR;
 
-    List<Param> params;
-    parseMethodParams(params, parseUtypeArgList(ast->getSubAst(ast_utype_arg_list_opt)), ast->getSubAst(ast_utype_arg_list_opt));
+    if(ast->getSubAst(ast_utype_arg_list_opt)) {
+        List<Param> params;
+        parseMethodParams(params, parseUtypeArgList(ast->getSubAst(ast_utype_arg_list_opt)), ast->getSubAst(ast_utype_arg_list_opt));
 
-    field->params.addAll(params);
-    Expression utype(ast);
+        field->params.addAll(params);
+    }
+
     if(ast->hasSubAst(ast_method_return_type)) {
+        Expression utype(ast);
         utype = parseUtype(ast->getSubAst(ast_method_return_type));
         parseFieldReturnType(utype, *field);
     } else
         field->returnType = TYPEVOID;
+
+    Expression value(ast), out(ast);
+    if(ast->hasSubAst(ast_value)) {
+        value = parseValue(ast->getSubAst(ast_value));
+        if(field->hasThreadLocality()) {
+            out.code.push_i64(SET_Di(i64, op_MOVI, 1), i64ebx);
+            out.code.push_i64(SET_Di(i64, op_NEWARRAY, i64ebx));
+            out.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+            out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+        }
+
+        if(value.type == expression_anon_func || value.utype.isMethod) {
+            token_entity operand("=", SINGLE, 0,0, ASSIGN);
+            if(!ast->getSubAst(ast_utype_arg_list_opt)) {
+                List<Param>& params = value.utype.method->getParams();
+                for(long i = 0; i < params.size(); i++) {
+                    field->params.add(Param(params.get(i)));
+                }
+                field->returnType = value.utype.method->type;
+                field->key = value.utype.method->key;
+                field->klass = value.utype.method->klass;
+            }
+
+            Expression fieldExpr = fieldToExpression(ast, *field);
+            assignValue(operand, out, fieldExpr, value, ast);
+        } else if(value.type == expression_field && value.utype.field.prototype) {
+            if(currentScope()->type == STATIC_BLOCK || currentScope()->type == INSTANCE_BLOCK) {
+                token_entity operand("=", SINGLE, 0,0, ASSIGN);
+                Expression fieldExpr = fieldToExpression(ast, *field);
+                assignValue(operand, out, fieldExpr, value, ast);
+            } else {
+                errors->createNewError(GENERIC, value.link->line,  value.link->col, "Assignment of function pointer `" + field->fullName + "` does not allow field assignment in current scope");
+            }
+        } else {
+            errors->createNewError(GENERIC, value.link->line,  value.link->col, "Expression of type `" + value.typeToString() + "` cannot be assigned to function pointer `" + field->fullName + "`");
+        }
+    } else {
+
+        if (!ast->findEntity("thread_local")) {
+            if(field->local)
+               out.code.push_i64(SET_Di(i64, op_ISTOREL, field->address), 0);
+        } else {
+
+            out.code.push_i64(SET_Di(i64, op_MOVI, 1), i64ebx);
+            out.code.push_i64(SET_Di(i64, op_NEWARRAY, i64ebx));
+            out.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
+            out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+            out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64adx);
+            out.code.push_i64(SET_Di(i64, op_MOVI, 0), i64ebx);
+            out.code.push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx));
+        }
+    }
+
+    if(!argument) {
+        if(field->isStatic()) {
+            if(field->hasThreadLocality())
+                initializeTLSInserts.__asm64.appendAll(out.code.__asm64);
+            else
+                staticMainInserts.__asm64.appendAll(out.code.__asm64);
+        } else {
+
+            if(currentScope()->type == CLASS_SCOPE || currentScope()->type == GLOBAL_SCOPE) {
+                /*
+                 * We want to inject the value into all constructors
+                 */
+                for (unsigned int i = 0; i < currentScope()->klass->constructorCount(); i++) {
+                    Method *method = currentScope()->klass->getConstructor(i);
+                    readjustAddresses(method, out.code.size());
+                    method->code.inject(0, out.code);
+                }
+            } else if(block != NULL){
+                block->code.inject(block->code.size(), out.code);
+            }
+        }
+    }
 }
 
 void RuntimeEngine::resolveEnumVarDecl(Ast* ast) {
@@ -6408,8 +6717,13 @@ void RuntimeEngine::parseMethodParams(List<Param>& params, KeyPair<List<string>,
     for(unsigned int i = 0; i < fields.key.size(); i++) {
         if(containsParam(params, fields.key.get(i))) {
             errors->createNewError(SYMBOL_ALREADY_DEFINED, pAst->line, pAst->col, "symbol `" + fields.key.get(i) + "` already defined in the scope");
-        } else
-            params.add(Param(fieldMapToField(fields.key.get(i), fields.value.get(i), pAst)));
+        } else {
+            stringstream name;
+            name << fields.key.get(i);
+            if(name.str() == "" && pAst->getType() == ast_utype_arg_list_opt)
+                name << "arg" << i;
+            params.add(Param(fieldMapToField(name.str(), fields.value.get(i), pAst)));
+        }
     }
 }
 
@@ -6433,7 +6747,7 @@ KeyPair<List<string>, List<ResolvedReference>> RuntimeEngine::parseUtypeArgList(
 
     for(unsigned int i = 0; i < ast->getSubAstCount(); i++) {
         if(ast->getSubAst(i)->getType()==ast_func_prototype) {
-            parseFuncPrototype(ast->getSubAst(i), &utype_arg.value.prototype);
+            parseFuncPrototype(ast->getSubAst(i), &utype_arg.value.prototype, NULL, true);
             utype_arg.key=ast->getSubAst(i)->getEntity(1).getToken();
             utype_arg.value.isProtoType=true;
             utype_arg.value.type=VAR;
@@ -6484,7 +6798,7 @@ void RuntimeEngine::resolveMethodDecl(Ast* ast, bool global) {
 
     if(parseAccessDecl(ast, modifiers, startpos)){
         if(global)
-            createNewWarning(GENERIC, ast->line, ast->col, "access modifiers ignored on global functions");
+            createNewWarning(GENERIC, __WACCESS, ast->line, ast->col, "access modifiers ignored on global functions");
         parseMethodAccessModifiers(modifiers, ast);
         if(global) {
             modifiers.free();
@@ -7083,6 +7397,42 @@ void RuntimeEngine::resolveClassBase(Ast* ast) {
     removeScope();
 }
 
+void RuntimeEngine::resolvePrototypeInClassDecl(Ast* ast) {
+    Ast* block = ast->getSubAst(ast_block), *trunk;
+    List<AccessModifier> modifiers;
+    ClassObject* klass;
+    int startpos=1;
+
+    parseAccessDecl(ast, modifiers, startpos);
+    string name =  ast->getEntity(startpos).getToken();
+
+    if(currentScope()->type == GLOBAL_SCOPE) {
+        klass = getClass(currentModule, name, classes);
+    }
+    else {
+        klass = currentScope()->klass->getChildClass(name);
+    }
+
+    addScope(Scope(CLASS_SCOPE, klass));
+    for(long i = 0; i < block->getSubAstCount(); i++) {
+        trunk = block->getSubAst(i);
+        CHECK_ERRORS
+
+        switch(trunk->getType()) {
+            case ast_class_decl:
+                resolvePrototypeInClassDecl(trunk);
+                break;
+            case ast_func_prototype:
+                resolvePrototypeDecl(trunk);
+                break;
+            default:
+                /* ignore */
+                break;
+        }
+    }
+    removeScope();
+}
+
 void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
     Ast* block = ast->getSubAst(ast_block), *trunk;
     List<AccessModifier> modifiers;
@@ -7142,7 +7492,7 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
                 break;
             case ast_generic_interface_decl:
             case ast_generic_class_decl:
-                if(!resolvedGenerics || (!resolvedMethods && resolvedGenerics))
+                if(resolvedFields)
                     resolveGenericClassDecl(trunk, inlineField, forEnum);
                 break;
             case ast_enum_decl: /* ignore */
@@ -7150,8 +7500,6 @@ void RuntimeEngine::resolveClassDecl(Ast* ast, bool inlineField, bool forEnum) {
                     resolveEnumDecl(trunk);
                 break;
             case ast_func_prototype:
-                if(!forEnum && resolvedGenerics && resolvedFields)
-                    resolvePrototypeDecl(trunk);
                 break;
             default:
                 stringstream err;
@@ -7187,7 +7535,7 @@ void RuntimeEngine::resolveEnumDecl(Ast* ast) {
 
     if(base != NULL && base->isInterface()) {
         stringstream err;
-        err << "support class for enums found to b an interface";
+        err << "support class for enums found to be an interface";
         errors->createNewError(GENERIC, ast->line, ast->col, err.str());
     } else {
         if(base != NULL)
@@ -7198,6 +7546,7 @@ void RuntimeEngine::resolveEnumDecl(Ast* ast) {
             errors->createNewError(GENERIC, ast->line, ast->col, err.str());
         }
     }
+
     addScope(Scope(CLASS_SCOPE, klass));
     for(long i = 0; i < block->getSubAstCount(); i++) {
         trunk = block->getSubAst(i);
@@ -7280,12 +7629,13 @@ void RuntimeEngine::resolveClassEnumDecl(Ast* ast) {
                 break;
             case ast_interface_decl: /* ignore */
                 break;
-            case ast_generic_class_decl: /* ignore */
-                break;
             case ast_enum_decl: /* ignore */
                 resolveEnumDecl(trunk);
                 break;
             case ast_enum_identifier: /* ignore */
+                break;
+            case ast_generic_class_decl:
+                resolveGenericClassDecl(trunk, false, true);
                 break;
             default:
                 /* ignore */
@@ -7357,7 +7707,9 @@ void RuntimeEngine::resolveGenericClassDecl(Ast* ast, bool inlineField, bool for
                 break;
             case ast_enum_decl: /* ignore */
                 if(forEnum)
-                    resolveEnumDecl(ast);
+                    resolveEnumDecl(trunk);
+                break;
+            case ast_func_prototype:
                 break;
             default:
                 stringstream err;
@@ -7616,7 +7968,7 @@ void RuntimeEngine::parseClassDecl(Ast *ast, bool isInterface)
             case ast_method_decl: /* Will be parsed later */
                 break;
             case ast_func_prototype:
-                parseProtypeDecl(ast);
+                parseProtypeDecl(ast, false);
                 break;
             case ast_operator_decl: /* Will be parsed later */
                 break;
@@ -7770,6 +8122,9 @@ void RuntimeEngine::parseGenericClassDecl(Ast *ast, bool isInterface)
             case ast_var_decl:
                 parseVarDecl(ast);
                 break;
+            case ast_func_prototype:
+                parseProtypeDecl(ast, false);
+                break;
             case ast_method_decl: /* Will be parsed later */
                 break;
             case ast_operator_decl: /* Will be parsed later */
@@ -7779,6 +8134,9 @@ void RuntimeEngine::parseGenericClassDecl(Ast *ast, bool isInterface)
             case ast_delegate_post_decl: /* Will be parsed later */
                 break;
             case ast_delegate_decl: /* Will be parsed later */
+                break;
+            case ast_enum_decl: /* Will be parsed later */
+                parseEnumDecl(ast);
                 break;
             case ast_interface_decl:
                 parseClassDecl(ast, true);
@@ -7807,7 +8165,7 @@ void RuntimeEngine::parseVarDecl(Ast *ast, bool global)
     if(parseAccessDecl(ast, modifiers, startpos)){
         if(global) {
             if(!modifiers.find(mCONST))
-                createNewWarning(GENERIC, ast->line, ast->col, "access modifiers ignored on global variables");
+                createNewWarning(GENERIC, __WACCESS, ast->line, ast->col, "access modifiers ignored on global variables");
         }
         parseVarAccessModifiers(modifiers, ast);
         if(global) {
@@ -8007,23 +8365,23 @@ string i64_tostr(int64_t i64)
 }
 
 std::string RuntimeEngine::generate_manifest() {
-    stringstream manifest;
+    stringstream _manifest;
 
-    manifest << (char)manif;
-    manifest << ((char)0x02); manifest << c_options.out << ((char)nil);
-    manifest << ((char)0x4); manifest << c_options.vers << ((char)nil);
-    manifest << ((char)0x5); manifest << c_options.debug ? 1 : 0;
-    manifest << ((char)0x6); manifest << i64_tostr(main->address) << ((char)nil);
-    manifest << ((char)0x7); manifest << i64_tostr(methods) << ((char)nil);
-    manifest << ((char)0x8); manifest << i64_tostr(classSize) << ((char)nil);
-    manifest << ((char)0x9 ); manifest << file_vers << ((char)nil);
-    manifest << ((char)0x0c); manifest << i64_tostr(stringMap.size()) << ((char)nil);
-    manifest << ((char)0x0e); manifest << c_options.target << ((char)nil);
-    manifest << ((char)0x0f); manifest << sourceFiles.size() << ((char)nil);
-    manifest << ((char)0x1b); manifest << i64_tostr(threadLocals) << ((char)nil);
-    manifest << '\n' << (char)eoh;
+    _manifest << (char)manif;
+    _manifest << ((char)0x02); _manifest << c_options.out << ((char)nil);
+    _manifest << ((char)0x4); _manifest << c_options.vers << ((char)nil);
+    _manifest << ((char)0x5); _manifest << (c_options.debug ? 1 : 0);
+    _manifest << ((char)0x6); _manifest << i64_tostr(main->address) << ((char)nil);
+    _manifest << ((char)0x7); _manifest << i64_tostr(methods) << ((char)nil);
+    _manifest << ((char)0x8); _manifest << i64_tostr(classSize) << ((char)nil);
+    _manifest << ((char)0x9 ); _manifest << file_vers << ((char)nil);
+    _manifest << ((char)0x0c); _manifest << i64_tostr(stringMap.size()) << ((char)nil);
+    _manifest << ((char)0x0e); _manifest << c_options.target << ((char)nil);
+    _manifest << ((char)0x0f); _manifest << sourceFiles.size() << ((char)nil);
+    _manifest << ((char)0x1b); _manifest << i64_tostr(threadLocals) << ((char)nil);
+    _manifest << '\n' << (char)eoh;
 
-    return manifest.str();
+    return _manifest.str();
 }
 
 std::string RuntimeEngine::generate_header() {
@@ -8362,7 +8720,13 @@ void RuntimeEngine::generate() {
     {
         Method* method = allMethods.get(i);
 
-        if(method->code.size() == 0 || GET_OP(method->code.__asm64.last()) != op_RET) {
+        if(method->code.size() == 0 || GET_OP(method->code.__asm64.last()) != op_RET || (GET_OP(method->code.__asm64.last()) == op_RET && method->code.size() > 1)) {
+            if(method->code.size() > 1 && GET_OP(method->code.__asm64.last()) == op_RET) {
+                if(GET_OP(method->code.__asm64.get(method->code.size()-2)) != op_MOVI && GET_OP(method->code.__asm64.get(method->code.size()-2)) != op_MOVBI) {
+                    continue;
+                }
+            }
+
             if(method->isConstructor) {
                 method->code.push_i64(SET_Di(i64, op_MOVL, 0));
                 method->code.push_i64(SET_Ei(i64, op_RETURNOBJ));
@@ -9002,7 +9366,7 @@ void RuntimeEngine::createDumpFile() {
                 }
                 case op_ULOCK:
                 {
-                    ss<<"ulck";
+                    ss<<"_ulck";
                     _ostream << ss.str();
                     break;
                 }
@@ -9162,7 +9526,7 @@ void RuntimeEngine::createDumpFile() {
                 case op_NEWCLASSARRAY:
                 {
                     ss<<"new_classarray ";
-                    ss<< GET_Ca(x64);
+                    ss<< Asm::registrerToString(GET_Ca(x64));
                     ss<< " ";
                     ss << " // "; ss << find_class(GET_Cb(x64)) << "[]";
                     _ostream << ss.str();
@@ -9461,6 +9825,24 @@ void RuntimeEngine::createDumpFile() {
                     _ostream << ss.str();
                     break;
                 }
+                case op_DUP:
+                {
+                    ss<<"dup ";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_POPOBJ_2:
+                {
+                    ss<<"popobj2 ";
+                    _ostream << ss.str();
+                    break;
+                }
+                case op_SWAP:
+                {
+                    ss<<"swap ";
+                    _ostream << ss.str();
+                    break;
+                }
                 default:
                     ss << "? (" << GET_OP(x64) << ")";
                     _ostream << ss.str();
@@ -9709,6 +10091,18 @@ void RuntimeEngine::traverseGenericClass(ClassObject *klass, List<Expression> &u
         traverseMethod(klass, constr, pAst);
     }
 
+
+    for(long i = 0; i < klass->childClassCount(); i++) {
+        ClassObject *enums = klass->getChildClass(i);
+        if(enums->isEnum()) {
+
+            for(long i = 0; i < enums->fieldCount(); i++) {
+                Field *field = enums->getField(i);
+                traverseField(enums, field, pAst);
+            }
+        }
+    }
+
     for(long i = 0; i < klass->functionCount(); i++) {
         Method *func = klass->getFunction(i);
         traverseMethod(klass, func, pAst);
@@ -9807,16 +10201,13 @@ void RuntimeEngine::traverseField(ClassObject *klass, Field *field, Ast* pAst) {
         if(field->hasThreadLocality()) {
             field->thread_address = threadLocals++;
             if(field->type != CLASS && field->type != OBJECT) {
-                errors->createNewError(GENERIC, pAst, "field (" + field->fullName + ") of `thread_local` status must be of type {object or class}");
+                errors->createNewError(GENERIC, pAst, "error assigning of type `" + ResolvedReference::typeToString(field->type) + "` to field (" + field->fullName + ") of `thread_local` status must be of type {object or class}");
             }
         }
 
 
         if(field->isArray && !utype->utype.array) {
             // we are fine field will just stay an array
-        } else if(field->isArray && utype->utype.array) {
-            // error
-            errors->createNewError(GENERIC, pAst, "Array-arrays are not supported.");
         } else if(!field->isArray) {
             field->isArray = utype->utype.array;
         }
@@ -9865,6 +10256,7 @@ void RuntimeEngine::analyzeGenericClass(ClassObject *generic)
 
         switch(ast->getType()) {
             case ast_class_decl:
+                resolvePrototypeInClassDecl(ast);
                 analyzeClassDecl(ast);
                 break;
             case ast_var_decl:
@@ -9885,6 +10277,11 @@ void RuntimeEngine::analyzeGenericClass(ClassObject *generic)
                 parseMethodDecl(ast, true);
                 break;
             case ast_generic_class_decl: /* ignore */
+                break;
+            case ast_enum_decl:
+                break;
+            case ast_func_prototype:
+                resolvePrototypeDecl(ast);
                 break;
             default: {
                 stringstream err;
@@ -9922,6 +10319,9 @@ void RuntimeEngine::resolveAllEnums() {
                     break;
                 case ast_class_decl:
                     resolveClassEnumDecl(ast);
+                    break;
+                case ast_generic_class_decl:
+                    resolveGenericClassDecl(ast, false, true);
                     break;
                 default:
                     /* ignore */
@@ -10239,22 +10639,50 @@ void RuntimeEngine::resolveGenericMethodsReturn(Ast *ast, long &operators, long 
 
 }
 
-void RuntimeEngine::parseProtypeDecl(Ast *ast) {
+void RuntimeEngine::parseProtypeDecl(Ast *ast, bool global) {
     List<AccessModifier> modifiers;
     int startpos=0;
 
 
     if(parseAccessDecl(ast, modifiers, startpos)){
+        if(global) {
+            if(!modifiers.find(mCONST))
+                createNewWarning(GENERIC, __WACCESS, ast->line, ast->col, "access modifiers ignored on global variables");
+        }
+
         parseVarAccessModifiers(modifiers, ast);
+        if(global) {
+            if(modifiers.find(mCONST)) {
+                modifiers.free();
+                modifiers.add(PUBLIC);
+                modifiers.add(STATIC);
+                modifiers.add(mCONST);
+            } else {
+                modifiers.free();
+                modifiers.add(PUBLIC);
+                modifiers.add(STATIC);
+            }
+        }
     } else {
-        modifiers.add(PRIVATE);
+        if(global) {
+            modifiers.add(PUBLIC);
+            modifiers.add(STATIC);
+        } else
+            modifiers.add(PRIVATE);
     }
 
-    string name =  ast->getEntity(++startpos).getToken();
+    string name =  ast->getEntity(startpos).getToken();
+    StorageLocality locality = stl_local;
+    if(Parser::isstorage_type(token_entity(name, IDENTIFIER, 0, 0))) {
+        locality = strtostl(name);
+        startpos++;
+    }
+
+    name = ast->getEntity(++startpos).getToken();
     RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(ast->line),
                                    ast->line, ast->col);
 
-    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note, stl_local, 0))) {
+    if(!currentScope()->klass->addField(Field(NULL, uniqueSerialId++, name, NULL, modifiers, note, locality, 0))) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                      "field `" + name + "` is already defined in the scope");
         printNote(note, "field `" + name + "` previously defined here");

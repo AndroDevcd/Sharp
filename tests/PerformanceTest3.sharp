@@ -2,17 +2,34 @@ mod app;
 
 import std;
 
-public class Application { // start of every program must be named Application
 
-    public static def main(string[] args) : var {
-        ArrayList<var> black_list = new ArrayList<var>();
+def main(string[] args) {
+    println("in main");
+    ArrayList<var> black_list = new ArrayList<var>();
+    var count = string.parseInt(args[0]);
 
-        for(var i = 0; i < 100000; i++) {
-            black_list.add(i);
-            // there
-        }
+    println("starting loops");
+    var past = getUtcTimeInMills(),now, tmp;
+    for(var i = 0; i < count; i++) {
+        black_list.add(i);
+        // there
+    }
+    black_list = null;
+    now = getUtcTimeInMills();
+    println("list.add()(ms) " + (now-past));
+    past = getUtcTimeInMills();
 
+    for(var i = 0; i < count; i++) {
     }
 
+    now = getUtcTimeInMills();
+    println("basic for loop(ms) " + (now-past));
+    past = getUtcTimeInMills();
+
+    for(int i = 0; i < count; i++) {
+    }
+
+    now = getUtcTimeInMills();
+    println("int for loop(ms) " + (now-past));
 }
 

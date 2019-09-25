@@ -71,7 +71,7 @@ public:
 
     int exitVal;
 
-    static void fillMethodCall(Frame &frame, stringstream &ss);
+    static void fillMethodCall(Method* func, Frame &frameInfo, stringstream &ss);
 
     static void __snprintf(int cfmt, double val, int precision);
 };
@@ -81,7 +81,8 @@ extern Environment* env;
 extern bool masterShutdown;
 
 int CreateVirtualMachine(std::string);
-void executeMethod(int64_t address, Thread* thread, bool inJit = false);
+fptr executeMethod(int64_t address, Thread* thread, bool inJit = false);
+bool returnMethod(Thread* thread);
 void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t staticAddr);
 int64_t executeSwitch(Thread* thread, int64_t constant);
 

@@ -29,11 +29,12 @@ public:
         _Data[len-1]=data;
     }
 
-    void push_back() {
+    T& __new() {
         __expand();
+        return _Data[len-1];
     }
 
-    void insert(long long pos, T& data) {
+    void insert(unsigned long long pos, T& data) {
         if(pos>len || pos < 0) {
             stringstream ss;
             ss << "index out of bounds list::insert() _X: " << pos
@@ -45,11 +46,11 @@ public:
             push_back(data);
         } else {
             T* result = new T[len+1];
-            long long newLen=len+1;
-            for(long long i = 0; i < pos; i++)
+            unsigned long long newLen=len+1;
+            for(unsigned long long i = 0; i < pos; i++)
                 result[i] = _Data[i];
             result[pos] = data;
-            for(long long i = pos + 1; i < newLen; i++)
+            for(unsigned long long i = pos + 1; i < newLen; i++)
                 result[i] = _Data[i - 1];
 
             free();
@@ -81,10 +82,10 @@ public:
             __shrink();
         } else {
             T* result = new T[len-1];
-            long long newLen=len-1,iter=0;
-            for(long long i = 0; i < _X; i++)
+            unsigned long long newLen=len-1,iter=0;
+            for(unsigned long long i = 0; i < _X; i++)
                 result[iter++] = _Data[i];
-            for(long long i = _X+1; i < len; i++)
+            for(unsigned long long i = _X+1; i < len; i++)
                 result[iter++] = _Data[i];
 
             free();
@@ -100,7 +101,7 @@ public:
      * for freeing that data himself
      */
     void remove(T& _X) {
-        for(unsigned long i = 0; i < len; i++) {
+        for(unsigned long long i = 0; i < len; i++) {
             if(_X == _Data[i]) {
                 remove(i);
                 return;
@@ -108,7 +109,7 @@ public:
         }
     }
 
-    T at(unsigned long _X) {
+    T at(unsigned long long _X) {
         if(_X>=len){
             stringstream ss;
             ss << "index out of bounds list::get() _X: " << _X
@@ -118,7 +119,7 @@ public:
         return _Data[_X];
     }
 
-    T& get(unsigned long _X) {
+    T& get(unsigned long long _X) {
         if(_X>=len || _X < 0){
             stringstream ss;
             ss << "index out of bounds list::get() _X: " << _X
@@ -144,14 +145,14 @@ public:
         len=0;
     }
 
-    unsigned long size() { return len; }
+    unsigned long long size() { return len; }
 
     void pop_back() {
         __shrink();
     }
 
     void addif(T _V) {
-        for(unsigned int i = 0; i < len; i++) {
+        for(unsigned long long i = 0; i < len; i++) {
             if(_V == _Data[i])
                 return;
         }
@@ -159,8 +160,8 @@ public:
     }
 
     void removefirst(T _V) {
-        unsigned int iter = -1;
-        for(unsigned int i = 0; i < len; i++) {
+        unsigned long long iter = -1;
+        for(unsigned long long i = 0; i < len; i++) {
             if(_V == _Data[i]){
                 iter = i;
                 break;
@@ -176,7 +177,7 @@ public:
      * Programmer must be responsible
      * for freeing that data himself
      */
-    void replace(unsigned long _X, T repl) {
+    void replace(unsigned long long _X, T repl) {
         if(_X>=len || _X < 0){
             stringstream ss;
             ss << "index out of bounds list::replaceat() _X: " << _X
@@ -188,13 +189,13 @@ public:
 
     void addAll(List<T>& list) {
         free();
-        for(unsigned int i = 0; i < list.size(); i++) {
+        for(unsigned long long i = 0; i < list.size(); i++) {
             push_back(list.get(i));
         }
     }
 
     void appendAll(List<T>& list) {
-        for(unsigned int i = 0; i < list.size(); i++) {
+        for(unsigned long long i = 0; i < list.size(); i++) {
             push_back(list.get(i));
         }
     }
@@ -207,7 +208,7 @@ public:
     }
 
     bool find(T data) {
-        for(unsigned int i = 0; i < len; i++) {
+        for(unsigned long long i = 0; i < len; i++) {
             if(data == _Data[i]){
                 return true;
             }
@@ -215,8 +216,8 @@ public:
         return false;
     }
 
-    long long indexof(T data) {
-        for(unsigned int i = 0; i < len; i++) {
+    unsigned long long indexof(T data) {
+        for(unsigned long long i = 0; i < len; i++) {
             if(data == _Data[i]){
                 return i;
             }
@@ -231,7 +232,7 @@ private:
     void __expand() {
         try{
             T* newbuf = new T[len+1];
-            for(long i = 0; i < len; i++) {
+            for(unsigned long long i = 0; i < len; i++) {
                 newbuf[i] = _Data[i];
             }
             delete[] _Data;
@@ -252,7 +253,7 @@ private:
             }
 
             T* newbuf = new T[len-1];
-			for (long i = 0; i < len-1; i++) {
+			for (unsigned long long i = 0; i < len-1; i++) {
 				newbuf[i] = _Data[i];
 			}
             delete[] _Data;
@@ -264,7 +265,7 @@ private:
         }
     }
 
-    unsigned  long len;
+    unsigned  long long len;
     T* _Data;
 };
 

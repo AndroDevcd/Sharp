@@ -1,0 +1,13 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 7/20/2018.
+ *
+ * Unique serves as a nice way to uniquely
+ * identify your objects wether it be through a hash value or
+ * a ever-changing unique id
+ */
+interface Unique {
+    def delegate::hash() : var;
+    def delegate::guid() : var;
+}

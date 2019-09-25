@@ -13,7 +13,8 @@
 #include "Manifest.h"
 #include "oo/Object.h"
 #include "../util/time.h"
-#include "jit.h"
+#include "_BaseAssembler.h"
+#include "Jit.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -23,7 +24,7 @@
 
 int32_t Thread::tid = 0;
 thread_local Thread* thread_self = NULL;
-List<Thread*> Thread::threads;
+_List<Thread*> Thread::threads;
 size_t dStackSz = STACK_SIZE, iStackSz = interp_STACK_SIZE;
 
 #ifdef WIN32_
@@ -47,10 +48,6 @@ void Thread::Startup() {
             sizeof(Thread)*1);
     main->main = &env->methods[manifest.entryMethod];
     main->Create("Main");
-#ifdef WIN32_
-    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
-    SetPriorityClass(GetCurrentThread(), HIGH_PRIORITY_CLASS);
-#endif
     setupSigHandler();
 }
 
@@ -86,7 +83,7 @@ int32_t Thread::Create(int32_t methodAddress) {
     thread->currentThread.object=NULL;
     thread->args.object=NULL;
     thread->calls=0;
-    thread->jctx=new jit_ctx();
+    thread->jctx=new jit_context();
     thread->starting=0;
     thread->exceptionObject.object=0;
     thread->current = NULL;
@@ -133,7 +130,7 @@ void Thread::Create(string name) {
     this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*iStackSz);
     this->signal = 0;
     this->suspended = false;
-    this->jctx=new jit_ctx();
+    this->jctx=new jit_context();
     this->exited = false;
     this->priority=THREAD_PRIORITY_HIGH;
     this->throwable.init();
@@ -171,7 +168,7 @@ void Thread::CreateDaemon(string name) {
     this->id = Thread::tid++;
     this->rand = new Random();
     this->dataStack = NULL;
-    this->jctx=new jit_ctx();
+    this->jctx=new jit_context();
     this->callStack = NULL;
     this->currentThread.object=NULL;
     this->args.object=NULL;
@@ -219,15 +216,16 @@ Thread *Thread::getThread(int32_t id) {
 }
 
 void Thread::suspendSelf() {
-    thread_self->suspended = true;
-    sendSignal(thread_self->signal, tsig_suspend, 0);
+    return;
+//    thread_self->suspended = true;
+//    sendSignal(thread_self->signal, tsig_suspend, 0);
 
     /*
 	 * We call wait upon suspend. This function will
 	 * sleep the thread most of the time. unsuspendThread() or
 	 * resumeAllThreads() should be called to revive thread.
 	 */
-    thread_self->wait();
+//    thread_self->wait();
 }
 
 void Thread::wait() {
@@ -281,7 +279,7 @@ int Thread::start(int32_t id, size_t stacksz) {
 #ifdef WIN32_
     thread->thread = CreateThread(
             NULL,                   // default security attributes
-            (thread->stack + STACK_OVERFLOW_BUF),                      // use default stack size
+            (thread->stack),                      // use default stack size
             &vm->InterpreterThreadStart,       // thread function caller
             thread,                 // thread self when thread is created
             0,                      // use default creation flags
@@ -627,6 +625,7 @@ void Thread::exit() {
         }
     }
 
+    GarbageCollector::self->reconcileLocks(this);
     free(this->callStack); callStack = NULL;
     this->state = THREAD_KILLED;
     this->signal = tsig_empty;
@@ -783,6 +782,7 @@ void Thread::exec() {
     ClassObject *klass;
     SharpObject* o=NULL;
     Method* f;
+    fptr jitFn;
     Object* o2=NULL;
     void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
     Method* finnallyMethod;
@@ -791,9 +791,8 @@ void Thread::exec() {
     tprof->init(stack_lmt);
     tprof->starttm=Clock::realTimeInNSecs();
     for(size_t i = 0; i < manifest.methods; i++) {
-        tprof->functions.push_back();
-        tprof->functions.last().init();
-        tprof->functions.last() = funcProf(env->methods+i);
+        funcProf prof = funcProf(env->methods+i);
+        tprof->functions.push_back(prof);
     }
 #endif
 
@@ -834,38 +833,11 @@ void Thread::exec() {
                 registers[*(pc+1)]=GET_Da(*pc);
                 _brh_inc(2)
             RET: // tested
-                if(calls <= 1) {
-#ifdef SHARP_PROF_
-                tprof->endtm=Clock::realTimeInNSecs();
-                tprof->profile();
-#endif
-                    return;
+                if(current->address==7 || current->address==313) {
+                    int i = 0;
                 }
-
-                Frame *frame = callStack+(calls--);
-
-                if(current->finallyBlocks.len > 0) {
-                    if(vm->executeFinally(thread_self->current)) {
-                        _brh
-                    }
-                }
-
-                current = frame->last;
-                cache = current->bytecode;
-
-                pc = frame->pc;
-                sp = frame->sp;
-                fp = frame->fp;
-
-#ifdef SHARP_PROF_
-            tprof->profile();
-#endif
-                /**
-                 * We need to return back to the JIT context
-                 */
-                if(frame->isjit)
+                if(returnMethod(this))
                     return;
-
                 LONG_CALL();
                 _brh
             HLT: // tested
@@ -881,7 +853,7 @@ void Thread::exec() {
                 _brh
             VARCAST:
                 CHECK_NULL2(
-                        if(o2->object->HEAD == NULL) {
+                        if(o2->object->type != _stype_var) {
                             stringstream ss;
                             ss << "illegal cast to var" << (GET_Da(*pc) ? "[]" : "");
                             throw Exception(Environment::ClassCastException, ss.str());
@@ -961,7 +933,7 @@ void Thread::exec() {
                 _brh
             IALOAD: // tested
                 o = sp->object.object;
-                if(o != NULL && o->HEAD != NULL) {
+                if(o != NULL && o->type != _stype_var) {
                     registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
                 } else throw Exception(Environment::NullptrException, "");
                 _brh
@@ -1053,7 +1025,9 @@ void Thread::exec() {
             tprof->hit(env->methods+GET_Da(*pc));
 #endif
                 CALLSTACK_CHECK
-                executeMethod(GET_Da(*pc), this);
+                if((jitFn = executeMethod(GET_Da(*pc), this)) != NULL) {
+                    jitFn(jctx);
+                }
                 THREAD_EXECEPT();
                 _brh_NOINCREMENT
             CALLD:
@@ -1066,7 +1040,9 @@ void Thread::exec() {
                     throw Exception(ss.str());
                 }
                 CALLSTACK_CHECK
-                executeMethod(val, this);
+                if((jitFn = executeMethod(val, this)) != NULL) {
+                    jitFn(jctx);
+                }
                 THREAD_EXECEPT();
                 _brh_NOINCREMENT
             NEWCLASS:
@@ -1091,10 +1067,10 @@ void Thread::exec() {
                 registers[i64cmt]=registers[GET_Ca(*pc)]!=registers[GET_Cb(*pc)];
                 _brh
             LOCK:
-                CHECK_NULLOBJ(o2->monitorLock();)
+                CHECK_NULL2(Object::monitorLock(o2, thread_self);)
                 _brh
             ULOCK:
-                CHECK_NULLOBJ(o2->monitorUnLock();)
+                CHECK_NULL2(Object::monitorUnLock(o2, thread_self);)
                 _brh
             EXP:
                 registers[i64bmr] = exponent(registers[GET_Da(*pc)]);
@@ -1158,7 +1134,7 @@ void Thread::exec() {
                 throw Exception("", false);
                 _brh
             CHECKNULL:
-                CHECK_NULL(registers[i64cmt]=o2->object==NULL;)
+                registers[i64cmt]=o2 == NULL || o2->object==NULL;
                 _brh
             RETURNOBJ:
                 fp->object=o2;
@@ -1259,8 +1235,8 @@ void Thread::exec() {
                 (++sp)->object = (fp+GET_Da(*pc))->object;
                 STACK_CHECK _brh
             ITEST:
-                o2 = &(sp--)->object;
-                registers[GET_Da(*pc)] = o2->object == (sp--)->object.object;
+                Object *obj = &(sp--)->object;
+                registers[GET_Da(*pc)] = obj->object == (sp--)->object.object;
                 _brh
             INVOKE_DELEGATE:
                 invokeDelegate(GET_Ca(*pc), GET_Cb(*pc), this, 0);
@@ -1291,6 +1267,24 @@ void Thread::exec() {
             TLS_MOVL:
                 o2 = &(dataStack+GET_Da(*pc))->object;
                 _brh
+            DUP:
+                obj = &sp->object;
+                (++sp)->object = obj;
+                _brh
+            POPOBJ_2:
+                o2 = &(sp--)->object;
+                _brh
+            SWAP:
+                if((sp-dataStack) >= 2) {
+                    o = sp->object.object;
+                    (sp)->object = (sp-1)->object;
+                    (sp-1)->object = o;
+                } else {
+                    stringstream ss;
+                    ss << "Illegal stack swap while sp is ( " << (x86int_t )(sp - dataStack) << ") ";
+                    throw Exception(Environment::ThreadStackException, ss.str());
+                }
+                _brh
 
 
 
@@ -1304,6 +1298,7 @@ void Thread::exec() {
 
     exception_catch:
     if(state == THREAD_KILLED) {
+        sendSignal(thread_self->signal, tsig_except, 1);
         vm->fillStackTrace(throwable.stackTrace);
         return;
     }
@@ -1331,15 +1326,14 @@ void Thread::interrupt() {
 
 void Thread::setup() {
     current = NULL;
-    calls=0;
-    sendSignal(signal, tsig_suspend, 0);
-    sendSignal(signal, tsig_except, 0);
+    calls=-1;
+    signal=tsig_empty;
     suspended = false;
     exited = false;
     terminated = false;
     exitVal = 0;
     starting = 0;
-    jit_tls_setup();
+    Jit::tlsSetup();
 
 
     if(dataStack==NULL) {
@@ -1370,7 +1364,6 @@ void Thread::setup() {
             this->dataStack[i].var=0;
         }
     } else {
-        jit_setup();
         GarbageCollector::self->addMemory(sizeof(StackElement)*stack_lmt);
     }
 }

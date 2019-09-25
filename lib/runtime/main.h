@@ -13,7 +13,7 @@ void error(string message);
 
 #define progname "sharp"
 #define rev "r5"
-#define progvers "2.3.46" rev
+#define progvers "2.3.63" rev
 
 #ifdef SHARP_PROF_
 enum profilerSort {
@@ -33,7 +33,7 @@ struct options {
      * speeds of 25-50%+ faster than the original 
      * program speed
      */
-    bool jit = false; // diabled by default for now
+    bool jit = true;
 
     /**
      * Slow boot allows you to not care about the initial startup time
@@ -41,7 +41,7 @@ struct options {
      * the JIT to imediatley compile all functions at startup-time to allow
      * for faster processing at runtime once completed.
      */
-    bool slowBoot = false;
+    bool slowBoot = true;
 
 #ifdef SHARP_PROF_
     int sortBy = profilerSort::tm;

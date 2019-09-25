@@ -78,9 +78,13 @@ void Parser::parse()
             }
             parse_importdecl(NULL);
         }
-        else if(isvariable_decl(current()))
+        else if(isvariable_decl(current()) || (isstorage_type(current()) && isvariable_decl(peek(1))))
         {
             parse_variabledecl(NULL);
+        }
+        else if(isprototype_decl(current()) || (isstorage_type(current()) && isprototype_decl(peek(1))))
+        {
+            parse_prototypedecl(NULL);
         }
         else
         {
@@ -284,11 +288,11 @@ token_entity Parser::peek(int forward)
 }
 
 bool Parser::isvariable_decl(token_entity token) {
-    return isnative_type(token.getToken()) || isstorage_type(token);
+    return isnative_type(token.getToken());
 }
 
 bool Parser::isprototype_decl(token_entity token) {
-    return token.getId() == IDENTIFIER && token.getToken() == "fn";
+    return (token.getId() == IDENTIFIER && token.getToken() == "fn");
 }
 
 bool Parser::ismethod_decl(token_entity token) {
@@ -390,17 +394,17 @@ bool Parser::isspecial_native_type(string type) {
 
 bool Parser::isaccess_decl(token_entity token) {
     return
-            token.getId() == IDENTIFIER && token.getToken() == "protected" ||
-            token.getId() == IDENTIFIER && token.getToken() == "private" ||
-            token.getId() == IDENTIFIER && token.getToken() == "static" ||
-            token.getId() == IDENTIFIER && token.getToken() == "const" ||
-            token.getId() == IDENTIFIER && token.getToken() == "public";
+            (token.getId() == IDENTIFIER && token.getToken() == "protected") ||
+            (token.getId() == IDENTIFIER && token.getToken() == "private") ||
+            (token.getId() == IDENTIFIER && token.getToken() == "static") ||
+            (token.getId() == IDENTIFIER && token.getToken() == "const") ||
+            (token.getId() == IDENTIFIER && token.getToken() == "public");
 }
 
 bool Parser::isstorage_type(token_entity token) {
     return
-            token.getId() == IDENTIFIER && token.getToken() == "local" ||
-            token.getId() == IDENTIFIER && token.getToken() == "thread_local" ;
+            (token.getId() == IDENTIFIER && token.getToken() == "local") ||
+            (token.getId() == IDENTIFIER && token.getToken() == "thread_local") ;
 }
 
 void Parser::parse_accesstypes() {
@@ -507,7 +511,7 @@ void Parser::parse_interfaceblock(Ast *pAst) {
             errors->createNewError(GENERIC, current(), "unexpected import declaration");
             parse_importdecl(pAst);
         }
-        else if(isvariable_decl(current()))
+        else if(isvariable_decl(current()) || (isstorage_type(current()) && isvariable_decl(peek(1))))
         {
             if(access_types.size() > 0)
             {
@@ -516,7 +520,7 @@ void Parser::parse_interfaceblock(Ast *pAst) {
             errors->createNewError(GENERIC, current(), "unexpected variable declaration");
             parse_variabledecl(pAst);
         }
-        else if(isprototype_decl(current()))
+        else if(isprototype_decl(current()) || (isstorage_type(current()) && isprototype_decl(peek(1))))
         {
             if(access_types.size() > 0)
             {
@@ -657,11 +661,11 @@ void Parser::parse_classblock(Ast *pAst) {
             errors->createNewError(GENERIC, current(), "unexpected import declaration");
             parse_importdecl(pAst);
         }
-        else if(isvariable_decl(current()))
+        else if(isvariable_decl(current()) || (isstorage_type(current()) && isvariable_decl(peek(1))))
         {
             parse_variabledecl(pAst);
         }
-        else if(isprototype_decl(current()))
+        else if(isprototype_decl(current()) || (isstorage_type(current()) && isprototype_decl(peek(1))))
         {
             parse_prototypedecl(pAst);
         }
@@ -810,20 +814,33 @@ void Parser::parse_prototypedecl(Ast *pAst, bool semicolon) {
         pAst->addEntity(access_types.get(i));
     }
     remove_accesstypes();
-
-    if(pAst->getEntityCount()>0)
+    if(isstorage_type(current())) {
+        pAst->addEntity(current());
+    } else if(pAst->getEntityCount()>0)
         pushback();
 
-    if(!isprototype_decl(current()))
+    if(!isprototype_decl(current())) {
         advance();
+    }
     expect_token(
             pAst, "fn", "`fn`");
 
     expectidentifier(pAst);
 
-    parse_utypearg_list_opt(pAst);
-    parse_methodreturn_type(pAst); // assign-expr operators must return void
-    parse_prototype_valueassignment(pAst);
+    if(peek(1).getTokenType() == LEFTPAREN) {
+        parse_utypearg_list_opt(pAst);
+        parse_methodreturn_type(pAst); // assign-expr operators must return void
+    }
+
+    if(semicolon) {
+
+        if(peek(1).getTokenType() != ASSIGN && !pAst->hasSubAst(ast_utype_arg_list_opt)) {
+            errors->createNewError(GENERIC, current(), "expected `=` or `(` after function pointer was declared");
+        } else
+            parse_prototype_valueassignment(pAst);
+    }
+    else if(isassign_exprsymbol(peek(1).getToken()))
+        errors->createNewError(GENERIC, current(), "operator `" + peek(1).getToken() + "` on function pointer is not allowed here");
 
     if(semicolon)
         expect(SEMICOLON, "`;`");
@@ -942,6 +959,74 @@ void Parser::parse_valuelist(Ast *pAst) {
     }
 
     expect(RIGHTPAREN, pAst, "`)`");
+}
+
+void Parser::parse_expression_list(Ast *pAst) {
+    pAst = get_ast(pAst, ast_expression_list);
+
+    expect(LEFTCURLY, pAst, "`{`");
+
+    if(peek(1).getTokenType() != RIGHTCURLY)
+    {
+        parse_expression(pAst);
+
+        _pExpr:
+        if(peek(1).getTokenType() == COMMA)
+        {
+            expect(COMMA, pAst, "`,`");
+            if(!parse_expression(pAst)){
+                errors->createNewError(GENERIC, pAst->getLastSubAst(), "expected expression");
+            }
+            goto _pExpr;
+        }
+    }
+
+    expect(RIGHTCURLY, pAst, "`}");
+}
+
+bool Parser::parse_field_initialization(Ast *pAst) {
+    pAst = get_ast(pAst, ast_field_init);
+
+    if(peek(1).getToken() == "base") {
+        advance();
+        expect_token(pAst, "base", "`base`");
+        expect(PTR, pAst, "`->`");
+    }
+
+    if(parse_utype_naked(pAst) && peek(1).getTokenType() == ASSIGN) {
+        expect(ASSIGN, pAst, "`=`");
+
+        if(!parse_expression(pAst)){
+            errors->createNewError(GENERIC, pAst->getLastSubAst(), "expected expression");
+        }
+        return true;
+    }
+
+    return false;
+}
+
+void Parser::parse_field_init_list(Ast *pAst) {
+    pAst = get_ast(pAst, ast_field_init_list);
+
+    cout << "field init list" << endl;
+    expect(LEFTCURLY, pAst, "`{`");
+
+    if(peek(1).getTokenType() != RIGHTCURLY)
+    {
+        parse_field_initialization(pAst);
+
+        _pField:
+        if(peek(1).getTokenType() == COMMA)
+        {
+            expect(COMMA, pAst, "`,`");
+            if(!parse_field_initialization(pAst)){
+                errors->createNewError(GENERIC, pAst->getLastSubAst(), "expected field initializer");
+            }
+            goto _pField;
+        }
+    }
+
+    expect(RIGHTCURLY, pAst, "`}");
 }
 
 bool Parser::isassign_exprsymbol(string token) {
@@ -1335,6 +1420,21 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
         else if(peek(1).getTokenType() == LEFTPAREN) {
             parse_valuelist(pAst);
             newClass = true;
+        } else if(peek(1).getTokenType() == LEFTCURLY) {
+            if(peek(2).getId() == IDENTIFIER) {
+                if(peek(2).getToken() == "base") {
+                    parse_field_init_list(pAst);
+                } else if(peek(3).getTokenType() == ASSIGN){
+                    parse_field_init_list(pAst);
+                } else {
+                    parse_expression_list(pAst);
+                }
+            } else {
+                parse_expression_list(pAst);
+            }
+        } else {
+            errors->createNewError(GENERIC, current(), "expected '[' or '(' or '{' after new expression");
+            return true;
         }
 
         pAst = pAst->encapsulate(ast_new_e);
@@ -1344,6 +1444,20 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
             }
                 return true;
         }
+    }
+
+    if(peek(1).getToken() == "def" && peek(2).getToken() == "?")
+    {
+        pAst = get_ast(pAst, ast_anonymous_function);
+
+        advance();
+        expect_token(pAst, "def", "");
+        expect(QUESMK, pAst, "`?`");
+
+        parse_utypearg_list(pAst);
+        parse_methodreturn_type(pAst);
+        parse_block(pAst);
+        return true;
     }
 
     if(peek(1).getToken() == "sizeof")
@@ -2214,12 +2328,12 @@ bool Parser::parse_statement(Ast* pAst) {
         expect(SEMICOLON, pAst2, "`;`");
         return true;
     }
-    else if(isvariable_decl(current()))
+    else if(isvariable_decl(current()) || (isstorage_type(current()) && isvariable_decl(peek(1))))
     {
         parse_variabledecl(pAst);
         return true;
     }
-    else if(isprototype_decl(current()))
+    else if(isprototype_decl(current()) || (isstorage_type(current()) && isprototype_decl(peek(1))))
     {
         if(access_types.size() > 0)
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());

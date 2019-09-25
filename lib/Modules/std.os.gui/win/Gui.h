@@ -92,7 +92,7 @@ private:
     bool createPolygon(Poly *poly);
     Window* getContextFast(wnd_id);
     Window* getWindow(wnd_id);
-    List<Window> windows;
+    _List<Window> windows;
     Window *ctx;
 
 };

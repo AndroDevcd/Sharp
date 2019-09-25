@@ -1,0 +1,130 @@
+mod std.io;
+
+import std;
+
+/**
+* IOStream represents an abstract representation of a stream
+* or "buffer" of data. This class is responsible for reading and
+* writing to a file. this class uses the file class to perform the IO
+* operation and does not catch any exception occurred as a result of the
+* reading and writing operations performed.
+*
+* This class uses a buffered concept to write to files in 1 payload as writing
+* single bytes to a file is expensive. In order to successfully write to a file
+* the IOStream class must be closed to send and flush the buffer. Once an IO buffer
+* is closed it can be reused however it is not recommended as the buffer will be empty
+*/
+public class IOStream {
+    private StreamBuffer iobuf;
+    private File file;
+    private var direction;
+    private IOStream.StreamReader reader;
+
+    public static var READ = 1;
+    public static var WRITE = 0;
+
+
+    class StreamReader {
+        private var pos;
+        private StreamBuffer iobuf = new StreamBuffer();
+
+        protected StreamReader(StreamBuffer buf) {
+            iobuf = buf;
+        }
+
+        public def next() : var {
+            if(pos >= iobuf.size())
+                return -1;
+            return iobuf.at(pos++);
+        }
+
+        public def nextLine() : string {
+            var start = pos;
+            do {
+                if(char.isNewLine(iobuf.at(pos++)))
+                    break;
+            }while(true);
+
+            return iobuf.substring(start, pos-1);
+        }
+    }
+
+    private IOStream() {} // to prevent user from calling this
+
+    public IOStream(File file, var direction) {
+        self->file = file;
+        self->direction = direction;
+        iobuf = new StreamBuffer();
+
+        if(direction==READ) {
+            reader = new IOStream.StreamReader(iobuf);
+            File.readAllText(file, iobuf);
+        }
+    }
+
+    public def close() {
+        if(direction==WRITE) {
+            File.write(file, iobuf);
+        }
+        iobuf.end();
+    }
+
+    /**
+    * A buffer can be read 1 char at a time from a file through
+    * the use of this function
+    */
+    public def nextChar() : var {
+        if(direction == READ)
+            return reader.next();
+        else
+            throw new IllegalStateException("illegal read on IOStream");
+    }
+
+    /**
+    * A buffer can be read 1 line at a time from a file through
+    * the use of this function
+    */
+    public def nextLine() : string {
+        if(direction == READ)
+            return reader.nextLine();
+        else
+            throw new IllegalStateException("illegal read on IOStream");
+    }
+
+    public def size() : var {
+        return iobuf.size();
+    }
+
+    public def write(string data) {
+        if(direction == READ)
+            throw new IllegalStateException("illegal write on IOStream");
+        iobuf + data;
+    }
+
+    public def write(var n) {
+        if(direction == READ)
+            throw new IllegalStateException("illegal write on IOStream");
+        iobuf + string.parse(n);
+    }
+
+    public def writeChar(var n) {
+        if(direction == READ)
+            throw new IllegalStateException("illegal write on IOStream");
+        iobuf + n;
+    }
+
+    public def clear() {
+        iobuf.end();
+    }
+
+    public def toString() : string {
+        return iobuf.toString();
+    }
+
+    public def write(var[] data) {
+        if(direction == READ)
+            throw new IllegalStateException("illegal write on IOStream");
+        iobuf + data;
+    }
+
+}

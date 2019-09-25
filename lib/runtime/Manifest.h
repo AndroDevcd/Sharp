@@ -32,7 +32,7 @@ extern Manifest manifest;
 
 struct source_file{
     long id;
-    List<native_string> source_line;
+    _List<native_string> source_line;
 
     void free() {
         for(unsigned int i = 0; i < source_line.size(); i++)
@@ -54,7 +54,7 @@ public:
     {
     }
 
-    List<source_file> sourceFiles;
+    _List<source_file> sourceFiles;
 
     std::string getLine(long line, long sourceFile);
     bool hasLine(long line, long sourceFile);

@@ -14,58 +14,63 @@
 struct Object;
 struct ClassObject;
 
+enum sharp_type
+{
+    _stype_var = 0x1a,
+    _stype_struct = 0x1b,
+    _stype_none = 0x7f
+};
+
 struct SharpObject
 {
-    void init(unsigned long size)
+    void init(int64_t size)
     {
         HEAD=NULL;
-        node=NULL;
         k=NULL;
         next=NULL;
         prev=NULL;
-        mutex=NULL;
+//        mutex=NULL;
         this->size=size;
+        type = _stype_none;
         refCount=0;
-        generation = 0x000; /* generation young */
+        gc_info = 0x000; /* generation young */
     }
-    void init(unsigned long size, ClassObject* k)
+    void init(int64_t size, ClassObject* k)
     {
         HEAD=NULL;
-        node=NULL;
         next=NULL;
         prev=NULL;
         this->k=k;
-        mutex=NULL;
+//        mutex=NULL;
         this->size=size;
+        type = _stype_none;
         refCount=0;
-        generation = 0x000; /* generation young */
+        gc_info = 0x000; /* generation young */
     }
 
     void print();
 
-    double *HEAD;        /* data */
-    Object *node;        /* structured data */
+    union {
+        double *HEAD;        /* data */
+        Object *node;        /* structured data */
+    };
 
     /* info */
     ClassObject* k;
     int64_t size;
-    long int refCount : 32;
-#ifdef WIN32_
-    recursive_mutex* mutex;
-#endif
-#ifdef POSIX_
-    recursive_mutex* mutex;
-#endif
+    int32_t refCount;
+    int8_t type;
+
     /**
      * collection generation
      *
      * layout
-     * 0000 4 bits consisting of "gc mark' and 'generation'
+     * 0000 0000 8 bits consisting of "gc mark', 'generation', and 'lock'
      *
-     * 0            000
-     * ^-- mark     ^-- generation
+     *  000             0           0           000
+     *  ^-- generation  ^-- mark    ^--- lock   ^--- unused
      */
-    unsigned int generation : 4; /* gc stuff */
+    int8_t gc_info; /* gc stuff */
     SharpObject *next, *prev; /* linked list pointers */
 };
 
@@ -73,7 +78,7 @@ struct SharpObject
     if(obj != NULL) { \
         obj->refCount--; \
         if(obj->refCount <= 0) { \
-            switch(GENERATION((obj)->generation)) { \
+            switch(GENERATION((obj)->gc_info)) { \
                 case gc_young: \
                     GarbageCollector::self->yObjs++; \
                     break; \
@@ -99,12 +104,12 @@ struct SharpObject
 struct Object {
     SharpObject* object;
 
-    void monitorLock();
+    static void monitorLock(Object *o, Thread *t) {
+        GarbageCollector::self->lock(o ? o->object : NULL, t);
+    }
 
-    void monitorUnLock() {
-        if(object && object->mutex != NULL) {
-            object->mutex->unlock();
-        }
+    static void monitorUnLock(Object *o, Thread *t) {
+        GarbageCollector::self->unlock(o ? o->object : NULL, t);
     }
 
     CXX11_INLINE void operator=(Object &o) {

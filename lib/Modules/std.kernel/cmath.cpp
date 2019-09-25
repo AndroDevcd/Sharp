@@ -6,7 +6,6 @@
 #include "cmath.h"
 
 double __cmath(double n, double n2, int proc) {
-
     switch(proc) {
         case 0x0:
             return sin(n);

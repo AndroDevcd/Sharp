@@ -1,0 +1,102 @@
+mod std;
+
+public class bool base integer {
+    public bool(var num) {
+        value = num ? 1 : 0;
+    }
+
+    public bool(integer num) {
+        value = num.value ? 1 : 0;
+    }
+
+    public def operator+(var num) : var {
+        return (value+num) ? 1 : 0;
+    }
+
+    public def operator-(var num) : var {
+        return (value-num) ? 1 : 0;
+    }
+
+    public def operator!=(var num) : var {
+        return (value!=num);
+    }
+
+    public def operator!=(integer num) : var {
+        return (value!=num.value);
+    }
+
+    public def operator*(var num) : var {
+        return (value*num);
+    }
+
+    public def operator/(var num) : var {
+        return (value/num);
+    }
+
+    public def operator=(var num) : var {
+        return (value=num ? 1 : 0);
+    }
+
+    public def operator=(integer num) : bool {
+        operator=(num.value);
+        return self;
+    }
+
+    public def operator=(Enum num) : bool {
+       operator=(num.getValue());
+       return self;
+    }
+
+    public def operator+=(var num) : var {
+        value=operator+(num);
+        return (value);
+    }
+
+    public def operator==(var num) : var {
+        return (value==num);
+    }
+
+    public def operator<(var num) : var {
+        return (value<num);
+    }
+
+    public def operator>(var num) : var {
+        return (value>num);
+    }
+
+    public def operator<=(var num) : var {
+        return (value<=num);
+    }
+
+    public def operator>=(var num) : var {
+        return (value>=num);
+    }
+
+    public def operator++(var num) : var { // post inc i++
+        var before = value;
+        value=!value;
+        return before;
+    }
+
+    public def operator++() : var { // pre inc ++i
+        return (value=!value);
+    }
+
+    public def operator--(var num) : var {
+        var before = value;
+        value=!value;
+        return before;
+    }
+
+    public def operator--() : var {
+        return (value=!value);
+    }
+
+    public def value() : var {
+        return (value);
+    }
+
+    public def delegate::toString() : string {
+        return "" + (value ? "true" : "false");
+    }
+}

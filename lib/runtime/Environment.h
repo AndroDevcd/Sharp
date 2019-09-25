@@ -46,12 +46,10 @@ public:
     static ClassObject *ClassCastException;
 
     Object* globalHeap;         /* Mainly static classes/variables etc */
-    Object* throwable;          /* Used for crashes */
-
     ClassObject* classes;
 
     native_string* sourceFiles;
-    String* strings;
+    runtime::String* strings;
     Method* methods;
 #ifdef WIN32_
     Gui* gui;

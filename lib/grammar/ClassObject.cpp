@@ -26,13 +26,13 @@ bool ClassObject::addChildClass(ClassObject *klass) {
 }
 
 Method* ClassObject::getConstructor(int p) {
-    return &constructors.get(p);
+    return constructors.get(p);
 }
 
 Method *ClassObject::getConstructor(List<Param>& params, bool useBase, bool nativeSupport, bool ambiguousProtect, bool find) {
     for(unsigned long i = 0; i < constructors.size(); i++) {
-        if(Param::match(constructors.get(i).getParams(), params, nativeSupport, ambiguousProtect, find))
-            return &constructors.get(i);
+        if(Param::match(constructors.get(i)->getParams(), params, nativeSupport, ambiguousProtect, find))
+            return constructors.get(i);
     }
 
     if(useBase && base != NULL)
@@ -45,14 +45,15 @@ bool ClassObject::addConstructor(Method constr) {
     if(getConstructor(constr.getParams(), false, false, true, false) != NULL)
         return false;
 
-    constructors.push_back(constr);
+    Method* m = new Method(constr);
+    constructors.push_back(m);
     return true;
 }
 
 size_t ClassObject::functionCount(bool ignore) {
     size_t count = 0;
     for(unsigned int i = 0; i < functions.size(); i++) {
-        Method& function = functions.get(i);
+        Method& function = *functions.get(i);
         if(ignore || !function.delegatePost) {
             count++;
         }
@@ -61,16 +62,16 @@ size_t ClassObject::functionCount(bool ignore) {
 }
 
 Method* ClassObject::getFunction(int p) {
-    return &functions.get(p);
+    return functions.get(p);
 }
 
 Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase, bool nativeSupport, bool skipdelegates, bool ambiguousProtect, bool find) {
     for(unsigned long i = 0; i < functions.size(); i++) {
-        if(Param::match(functions.get(i).getParams(), params, nativeSupport, ambiguousProtect, find) && name == functions.get(i).getName()) {
-            if(skipdelegates && !functions.get(i).delegate)
-                return &functions.get(i);
+        if(Param::match(functions.get(i)->getParams(), params, nativeSupport, ambiguousProtect, find) && name == functions.get(i)->getName()) {
+            if(skipdelegates && !functions.get(i)->delegate)
+                return functions.get(i);
             else
-                return &functions.get(i);
+                return functions.get(i);
 
         }
     }
@@ -83,14 +84,22 @@ Method *ClassObject::getFunction(string name, List<Param>& params, bool useBase,
 
 Method *ClassObject::getDelegatePost(string name, List<Param>& params, bool useBase, bool nativeSupport, bool find) {
     for(unsigned long i = 0; i < functions.size(); i++) {
-        if(Param::match(functions.get(i).getParams(), params, nativeSupport, true, find) && name == functions.get(i).getName()) {
-            if(functions.get(i).delegatePost)
-                return &functions.get(i);
+        if(Param::match(functions.get(i)->getParams(), params, nativeSupport, true, find) && name == functions.get(i)->getName()) {
+            if(functions.get(i)->delegatePost)
+                return functions.get(i);
 
         }
     }
 
-    if(useBase && base != NULL)
+    for(long long i = 0; i < interfaces.size(); i++) {
+        ClassObject *itf = interfaces.get(i);
+        Method *fn;
+        if((fn = itf->getDelegatePost(name, params, useBase, nativeSupport, find))!= NULL) {
+            return fn;
+        }
+    }
+
+    if(useBase && base != NULL && !(isInterface() && base->fullName == "std#Object"))
         return base->getDelegatePost(name, params, useBase, nativeSupport);
 
     return NULL;
@@ -118,7 +127,7 @@ Method *ClassObject::getDelegateFunction(string name, List<Param>& params, bool 
 
 Method *ClassObject::getFunction(string name, int64_t _offset) {
     for(unsigned int i = 0; i < functions.size(); i++) {
-        Method& function = functions.get(i);
+        Method& function = *functions.get(i);
         if(name == function.getName()) {
             if(_offset == 0)
                 return &function;
@@ -134,7 +143,8 @@ bool ClassObject::addFunction(Method function) {
     if(getFunction(function.getName(), function.getParams(), false, false, false, true, false) != NULL)
         return false;
 
-    functions.push_back(function);
+    Method* m = new Method(function);
+    functions.push_back(m);
     return true;
 }
 
@@ -143,13 +153,13 @@ size_t ClassObject::fieldCount() {
 }
 
 Field* ClassObject::getField(int p) {
-    return &fields.get(p);
+    return fields.get(p);
 }
 
 Field* ClassObject::getField(string name, bool useBase) {
     for(unsigned long i = 0; i < fields.size(); i++) {
-        if(fields.get(i).name == name)
-            return &fields.get(i);
+        if(fields.get(i)->name == name)
+            return fields.get(i);
     }
 
     if(useBase && base != NULL)
@@ -161,7 +171,7 @@ Field* ClassObject::getField(string name, bool useBase) {
 long ClassObject::getFieldIndex(string name) {
     long iter = 0;
     for(unsigned int i = 0; i < fields.size(); i++) {
-        Field& field = fields.get(i);
+        Field& field = *fields.get(i);
         if(field.name == name)
             return iter;
         iter++;
@@ -177,7 +187,9 @@ bool ClassObject::addField(Field field) {
     stringstream ss;
     ss << this->fullName << "." << field.name;
     field.fullName = ss .str();
-    fields.push_back(field);
+
+    Field* f = new Field(field);
+    fields.push_back(f);
     return true;
 }
 
@@ -202,10 +214,10 @@ void ClassObject::free() {
     name.clear();
     fullName.clear();
     module_name.clear();
-    RuntimeEngine::freeList(constructors);
-    RuntimeEngine::freeList(functions);
-    RuntimeEngine::freeList(overloads);
-    RuntimeEngine::freeList(fields);
+    RuntimeEngine::freeListPtr(constructors);
+    RuntimeEngine::freeListPtr(functions);
+    RuntimeEngine::freeListPtr(overloads);
+    RuntimeEngine::freeListPtr(fields);
     RuntimeEngine::freeListPtr(childClasses);
     RuntimeEngine::freeListPtr(interfaces);
 }
@@ -215,13 +227,13 @@ size_t ClassObject::overloadCount() {
 }
 
 OperatorOverload *ClassObject::getOverload(size_t p) {
-    return &overloads.get(p);
+    return overloads.get(p);
 }
 
 OperatorOverload *ClassObject::getOverload(Operator op, List<Param> &params, bool useBase, bool nativeSupport, bool ambiguousProtect, bool find) {
     for(unsigned long i = 0; i < overloads.size(); i++) {
-        if(Param::match(overloads.get(i).getParams(), params, nativeSupport, ambiguousProtect, find) && op == overloads.get(i).getOperator())
-            return &overloads.get(i);
+        if(Param::match(overloads.get(i)->getParams(), params, nativeSupport, ambiguousProtect, find) && op == overloads.get(i)->getOperator())
+            return overloads.get(i);
     }
 
 
@@ -233,7 +245,7 @@ OperatorOverload *ClassObject::getOverload(Operator op, List<Param> &params, boo
 
 OperatorOverload *ClassObject::getOverload(Operator op, int64_t _offset) {
     for(unsigned int i = 0; i < overloads.size(); i++) {
-        OperatorOverload& oper = overloads.get(i);
+        OperatorOverload& oper = *overloads.get(i);
         if(op == oper.getOperator()) {
             if(_offset == 0)
                 return &oper;
@@ -249,7 +261,8 @@ bool ClassObject::addOperatorOverload(OperatorOverload overload) {
     if(getOverload(overload.getOperator(), overload.getParams(), false, false, true, false) != NULL)
         return false;
 
-    overloads.push_back(overload);
+    OperatorOverload* m = new OperatorOverload(overload);
+    overloads.push_back(m);
     return true;
 }
 
@@ -317,7 +330,7 @@ int ClassObject::baseClassDepth(ClassObject *pObject) {
 
 bool ClassObject::hasOverload(Operator op) {
     for(unsigned int i = 0; i < overloads.size(); i++) {
-        if(op == overloads.get(i).getOperator())
+        if(op == overloads.get(i)->getOperator())
             return true;
     }
 
@@ -326,7 +339,7 @@ bool ClassObject::hasOverload(Operator op) {
 
 OperatorOverload *ClassObject::getPostIncOverload() {
     for(unsigned int i = 0; i < overloads.size(); i++) {
-        OperatorOverload& oper = overloads.get(i);
+        OperatorOverload& oper = *overloads.get(i);
         if(oper_INC == oper.getOperator()) {
             if(oper.getParams().size() == 1 && oper.getParams().last().field.isVar() && !oper.getParams().last().field.isArray) {
                 return &oper;
@@ -339,7 +352,7 @@ OperatorOverload *ClassObject::getPostIncOverload() {
 
 OperatorOverload *ClassObject::getPostDecOverload() {
     for(unsigned int i = 0; i < overloads.size(); i++) {
-        OperatorOverload& oper = overloads.get(i);
+        OperatorOverload& oper = *overloads.get(i);
         if(oper_DEC == oper.getOperator()) {
             if(oper.getParams().size() == 1 && oper.getParams().last().field.isVar() && !oper.getParams().last().field.isArray) {
                 return &oper;
@@ -352,7 +365,7 @@ OperatorOverload *ClassObject::getPostDecOverload() {
 
 OperatorOverload *ClassObject::getPreIncOverload() {
     for(unsigned int i = 0; i < overloads.size(); i++) {
-        OperatorOverload& oper = overloads.get(i);
+        OperatorOverload& oper = *overloads.get(i);
         if(oper_INC == oper.getOperator()) {
             if(oper.getParams().size() == 0) {
                 return &oper;
@@ -365,7 +378,7 @@ OperatorOverload *ClassObject::getPreIncOverload() {
 
 OperatorOverload *ClassObject::getPreDecOverload() {
     for(unsigned int i = 0; i < overloads.size(); i++) {
-        OperatorOverload& oper = overloads.get(i);
+        OperatorOverload& oper = *overloads.get(i);
         if(oper_DEC == oper.getOperator()) {
             if(oper.getParams().size() == 0) {
                 return &oper;
@@ -453,7 +466,7 @@ List<Method *> ClassObject::getDelegatePosts(bool ubase) {
 List<Method *> ClassObject::getDelegates() {
     List<Method*> delegates;
 
-    for(int i = 0; i < functions.size(); i++) {
+    for(long long i = 0; i < functions.size(); i++) {
         Method *func = getFunction(i);
         if(func->delegate)
             delegates.add(func);
@@ -480,9 +493,9 @@ Expression *ClassObject::getGenericType(string &key) {
 Method *ClassObject::getFunctionByName(string name, bool &ambiguous) {
     Method *func = NULL;
     for(size_t i = 0; i < functions.size(); i++) {
-        if(name == functions.get(i).getName()) {
+        if(name == functions.get(i)->getName()) {
             if(func == NULL)
-                func = &functions.get(i);
+                func = functions.get(i);
             else
                 ambiguous = true;
         }

@@ -97,7 +97,7 @@ public:
     int64_t starttm, endtm;
     size_t lastHit;
     std::vector<funcProf> calls;
-    List<funcProf> functions;
+    _List<funcProf> functions;
 
     void dump();
 

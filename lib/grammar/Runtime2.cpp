@@ -290,6 +290,15 @@ bool RuntimeEngine::expressionListToParams(List<Param> &params, List<Expression>
             field.prototype = true;
             field.returnType = expression->utype.method->type;
             field.proto=expression->utype.method;
+            field.params.addAll(expression->utype.method->getParams());
+
+            /* Native string is a char array */
+            params.add(Param(field));
+        }  else if(expression->type == expression_anon_func) {
+            field = Field(VAR, 0, "", NULL, mods, note, stl_local, 0);
+            field.prototype = true;
+            field.returnType = expression->utype.method->type;
+            field.proto=expression->utype.method;
 
             /* Native string is a char array */
             params.add(Param(field));
@@ -528,6 +537,9 @@ void RuntimeEngine::pushExpressionToStack(Expression& expression, Expression& ou
         case expression_prototype:
             out.code.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
             break;
+        case expression_anon_func:
+            out.code.push_i64(SET_Di(i64, op_ISTORE, expression.utype.method->address));
+            break;
         case expression_field:
             if(expression.utype.field.isVar() && !expression.utype.field.isArray) {
                 if(expression.utype.field.local) {
@@ -614,12 +626,17 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                     if(f->prototype) {
                         Expression e, tmp;
 
-                        if(staticCall || f->isStatic()) {
-                            e.code.push_i64(SET_Di(i64, op_MOVG, klass->address));
+                        if(f->hasThreadLocality()) {
+                            e.code.push_i64(SET_Di(i64, op_TLS_MOVL, f->thread_address));
                         } else {
-                            e.inject(expression);
+
+                            if(staticCall || f->isStatic()) {
+                                e.code.push_i64(SET_Di(i64, op_MOVG, klass->address));
+                            } else {
+                                e.inject(expression);
+                            }
+                            e.code.push_i64(SET_Di(i64, op_MOVN, f->address));
                         }
-                        e.code.push_i64(SET_Di(i64, op_MOVN, f->address));
                         expression.code.free();
 
                         tmp = fieldToExpression(NULL, *f); tmp.code.free();
@@ -679,11 +696,15 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                         } else if((f = currentScope()->klass->getField(ptr.referenceName, true)) != NULL) {
                             if(f->prototype) {
                                 Expression e, tmp;
-                                if(f->isStatic())
-                                    e.code.push_i64(SET_Di(i64, op_MOVG, f->owner->address));
-                                else
-                                    e.code.push_i64(SET_Di(i64, op_MOVL, 0));
-                                e.code.push_i64(SET_Di(i64, op_MOVN, f->address));
+                                if(f->hasThreadLocality()) {
+                                    e.code.push_i64(SET_Di(i64, op_TLS_MOVL, f->thread_address));
+                                } else {
+                                    if(f->isStatic())
+                                        e.code.push_i64(SET_Di(i64, op_MOVG, f->owner->address));
+                                    else
+                                        e.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                                    e.code.push_i64(SET_Di(i64, op_MOVN, f->address));
+                                }
                                 tmp = fieldToExpression(NULL, *f); tmp.code.free();
                                 pushExpressionToRegister(tmp, e, i64ebx);
                                 fn = fieldToFunction(f, e);
@@ -952,7 +973,7 @@ Method* RuntimeEngine::resolveContextMethodUtype(ClassObject* classContext, Ast*
 
     if(fn != NULL) {
         if(fn->isStatic()) {
-            createNewWarning(GENERIC, pAst->line, pAst->col, "instance access to static function");
+            createNewWarning(GENERIC, __WGENERAL, pAst->line, pAst->col, "instance access to static function");
         }
         verifyMethodAccess(fn, pAst);
 
@@ -1123,6 +1144,9 @@ void RuntimeEngine::pushExpressionToRegisterNoInject(Expression& expr, Expressio
                 else
                     out.code.push_i64(SET_Ci(i64, op_MOVR, reg,0, i64ebx));
             }
+            break;
+        case expression_anon_func:
+            out.code.push_i64(SET_Di(i64, op_MOVI, expr.utype.method->address), reg);
             break;
         case expression_field:
             if(expr.utype.field.isVar() && !expr.utype.field.isArray) {
@@ -1494,6 +1518,8 @@ Expression RuntimeEngine::parsePrimaryExpression(Ast* ast) {
             return parseArrayExpression(ast);
         case ast_post_inc_e:
             return parsePostInc(ast);
+        case ast_anonymous_function:
+            return parseAnonymousFunction(ast);
         default:
             stringstream err;
             err << ": unknown ast type: " << ast->getType();
@@ -1821,7 +1847,7 @@ Method* RuntimeEngine::resolveBaseMethodUtype(Ast* utype, Ast* valueList, Expres
 
         if(fn->delegatePost) {
             if(fn->isStatic()) {
-                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()), fn->klass->address);
+                out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, fn->address, 0, expressions.size()), fn->owner->address);
             } else
                 out.code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, fn->address, 0, expressions.size()));
         } else
@@ -2062,7 +2088,7 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
         expression.utype.array = true;
         parseNewArrayExpression(expression, utype, pAst->getSubAst(ast_array_expression));
     }
-    else {
+    else if(pAst->hasSubAst(ast_value_list)) {
         // ast_value_list
         if(pAst->hasSubAst(ast_value_list))
             expressions = parseValueList(pAst->getSubAst(ast_value_list));
@@ -2130,12 +2156,206 @@ Expression RuntimeEngine::parseNewExpression(Ast* pAst) {
                 errors->createNewError(COULD_NOT_RESOLVE, utype.link->line, utype.link->col, " `" + utype.utype.typeToString() + "`");
         }
     }
+    else if(pAst->hasSubAst(ast_field_init_list) || pAst->hasSubAst(ast_expression_list)) {
+        List<KeyPair<Expression, Expression>> fieldInitializers;
+
+        expression.type = expression_lclass;
+        expression.utype = utype.utype;
+
+        if(utype.type == expression_class) {
+            List<Field*> fields;
+            ClassObject *klass = utype.utype.klass;
+            addFields:
+            for(long i = 0; i < klass->fieldCount(); i++) {
+                fields.add(klass->getField(i));
+            }
+
+            if(klass->getBaseClass() != NULL) {
+                klass = klass->getBaseClass();
+                goto addFields;
+            }
+
+            if(pAst->hasSubAst(ast_field_init_list))
+                parseFieldInitalizers(fieldInitializers, pAst, utype);
+            else
+                parseExpressionList(fieldInitializers, pAst, utype, fields);
+
+
+                for(long i = 0; i < fields.size(); i++) {
+                Field* f = fields.get(i);
+                if(f->defaultValue) {
+                    bool found = false;
+                    for(long j = 0; j < fieldInitializers.size(); j++) {
+                        KeyPair<Expression, Expression> &instField = fieldInitializers.get(j);
+                        if(instField.key.type == expression_field
+                            && instField.key.utype.field.serial == f->serial) {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if(!found) {
+                        fieldInitializers.__new().set(fieldToExpression(pAst, *f), *f->defValExpr);
+                    }
+                }
+            }
+            fields.free();
+
+            expression.code.push_i64(SET_Di(i64, op_NEWCLASS, utype.utype.klass->address));
+            for(long i = 0; i < fieldInitializers.size(); i++) {
+                expression.code.push_i64(SET_Ei(i64, op_DUP));
+            }
+
+            for(long i = 0; i < fieldInitializers.size(); i++) {
+                KeyPair<Expression, Expression> &instField = fieldInitializers.get(i);
+
+                if(instField.key.type == expression_field) {
+                    if(equals(instField.key, instField.value)) {
+                        token_entity operand("=", SINGLE, utype.link->col, utype.link->line, ASSIGN);
+                        Field &field = instField.key.utype.field;
+                        Expression &fieldExpr = instField.key, &valueExpr = instField.value;
+                        Expression out;
+                        fieldExpr.code.free();
+
+
+                        if(!utype.utype.klass->match(field.owner) && !utype.utype.klass->hasBaseClass(field.owner)) {
+                            errors->createNewError(GENERIC, utype.link->line, utype.link->col, " field `" + field.fullName + "` was not found in `" + utype.typeToString() + "`");
+                        }
+
+                        if(!field.isStatic()) {
+                            if(field.isConst() && field.defaultValue) {
+                                errors->createNewError(GENERIC, utype.link->line, utype.link->col, " cannot assign a value to constant field `" + utype.utype.typeToString() + "`");
+                            }
+
+                            if((fieldExpr.utype.field.type != CLASS && valueExpr.type == expression_string)
+                                || (valueExpr.type == expression_var && fieldExpr.utype.field.type == OBJECT && !valueExpr.isArray())
+                                || (fieldExpr.utype.field.isObjectInMemory() && equalsNoErr(fieldExpr, valueExpr))
+                                || (!fieldExpr.utype.field.isObjectInMemory() && fieldExpr.trueType() == VAR)) {
+                                fieldExpr.code.__asm64.push_back(SET_Ei(i64, op_SWAP));
+                            } else if(valueExpr.type == expression_null) {
+                                expression.code.push_i64(SET_Ei(i64, op_POP));
+                                continue;
+                            }
+
+                            fieldExpr.code.__asm64.push_back(SET_Ei(i64, op_POPOBJ_2));
+                            fieldExpr.code.__asm64.push_back(SET_Di(i64, op_MOVN, field.address));
+
+                            if(field.isConst()) {
+                                if(valueExpr.literal || (valueExpr.type == expression_field && valueExpr.utype.field.isConst())
+                                   || valueExpr.isEnum() || field.type == CLASS || valueExpr.type == expression_string) {
+                                    /* good to go */
+                                } else {
+                                    errors->createNewError(GENERIC, pAst, "constant field cannot be assigned to non-constant expression of type `" + valueExpr.typeToString() + "`");
+                                }
+                            }
+
+                            if(field.isObjectInMemory()) {
+                                if(field.type==CLASS && field.klass->getModuleName() == "std" && field.klass->getName() == "string"
+                                   && valueExpr.type == expression_string && !field.isArray) {
+                                    constructNewNativeClass("string", "std", valueExpr, out, true);
+                                    fieldExpr.code.__asm64.insert(0, SET_Ei(i64, op_SWAP));
+                                    out.inject(fieldExpr);
+                                    out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+                                } else if(field.type==CLASS && field.klass->getModuleName() == "std" &&
+                                          (field.klass->getName() == "int" || field.klass->getName() == "bool"
+                                           || field.klass->getName() == "char" || field.klass->getName() == "long"
+                                           || field.klass->getName() == "short" || field.klass->getName() == "string"
+                                           || field.klass->getName() == "uchar" || field.klass->getName() == "ulong"
+                                           || field.klass->getName() == "ushort")
+                                          && valueExpr.type == expression_var && !field.isArray) {
+                                    constructNewNativeClass(field.klass->getName(), "std", valueExpr, out, true);
+                                    fieldExpr.code.__asm64.insert(0, SET_Ei(i64, op_SWAP));
+                                    out.inject(fieldExpr);
+                                    out.code.push_i64(SET_Ei(i64, op_POPOBJ));
+                                } else
+                                    assignValue(operand, out, fieldExpr, valueExpr, pAst);
+                            } else {
+                                assignValue(operand, out, fieldExpr, valueExpr, pAst);
+                            }
+
+                        } else {
+                            errors->createNewError(GENERIC, utype.link->line, utype.link->col, " attempt to initialize static field `" + field.fullName + "` for instance object");
+                        }
+
+                        if(out.func && out.type != expression_void)
+                            out.code.push_i64(SET_Ei(i64, op_POP));
+                        expression.code.inject(expression.code.size(), out.code);
+                    }
+                } else {
+                    errors->createNewError(GENERIC, utype.link->line, utype.link->col, " object of type `" + instField.key.utype.typeToString() + "` is not a field of instantiated class");
+                }
+            }
+
+
+        }
+        else if(utype.type == expression_native) {
+            // native creation
+            if(pAst->hasSubAst(ast_value_list)) {
+                errors->createNewError(GENERIC, utype.link->line, utype.link->col, " native type `" + utype.utype.typeToString() + "` cannot be instantiated as an object");
+            }
+            expression.type = expression_native;
+            expression.utype = utype.utype;
+        } else {
+            if(utype.utype.type != UNDEFINED)
+                errors->createNewError(COULD_NOT_RESOLVE, utype.link->line, utype.link->col, " `" + utype.utype.typeToString() + "`");
+        }
+
+        for(long i = 0; i < fieldInitializers.size(); i++) {
+            fieldInitializers.get(i).key.free();
+            fieldInitializers.get(i).value.free();
+        }
+        fieldInitializers.free();
+    }
+    else {
+        errors->createNewError(GENERIC, utype.link->line, utype.link->col, " could not resolve new expression type. Please contact developer for more information.");
+    }
 
     freeList(params);
     freeList(expressions);
     expression.newExpression = true;
     expression.link = pAst;
     return expression;
+}
+
+void RuntimeEngine::parseFieldInitalizers(List<KeyPair<Expression, Expression>> &fieldInits, Ast *pAst,
+                                          Expression utype) {
+    Ast *fieldInitList = pAst->getSubAst(ast_field_init_list), *branch;
+
+    for(long i = 0; i < fieldInitList->getSubAstCount(); i++)
+    {
+        KeyPair<Expression, Expression> &iField = fieldInits.__new();
+        branch = fieldInitList->getSubAst(i);
+
+        addScope(Scope(INSTANCE_BLOCK, utype.utype.klass));
+        currentScope()->classInitialization  = true;
+
+        if(branch->getEntity(0).getToken() == "base") {
+            bool old = currentScope()->base;
+            currentScope()->base  = true;
+            iField.key = parseUtype(branch->getSubAst(ast_utype));
+            currentScope()->base = old;
+        } else {
+            iField.key = parseUtype(branch->getSubAst(ast_utype));
+        }
+
+        removeScope();
+
+        iField.value = parseExpression(branch->getSubAst(ast_expression));
+    }
+}
+
+void RuntimeEngine::parseExpressionList(List<KeyPair<Expression, Expression>> &fieldInits, Ast *pAst,
+                         Expression utype, List<Field*>& fields) {
+    Ast *expressionList = pAst->getSubAst(ast_expression_list), *branch;
+
+    for(long i = 0; i < expressionList->getSubAstCount(); i++)
+    {
+        KeyPair<Expression, Expression> &iField = fieldInits.__new();
+        branch = expressionList->getSubAst(i);
+
+        iField.key = fieldToExpression(branch, *fields.get(i));
+        iField.value = parseExpression(branch);
+    }
 }
 
 Expression RuntimeEngine::parseSizeOfExpression(Ast* pAst) {
@@ -2261,6 +2481,68 @@ void RuntimeEngine::postIncClass(Expression& out, token_entity op, ClassObject* 
         errors->createNewError(GENERIC, op.getLine(), op.getColumn(), "use of class `" + klass->getName() + "` must return an int to use `" + op.getToken() + "` operator");
         out.type = expression_var;
     }
+}
+
+Expression RuntimeEngine::parseAnonymousFunction(Ast* pAst) {
+    List<AccessModifier> modifiers;
+    Expression expression(pAst);
+
+    modifiers.add(PRIVATE);
+    modifiers.add(STATIC);
+
+    List<Param> params;
+    stringstream ss;
+    ss << "anonFunc#" << anonymousFunctions++;
+    string name =  ss.str();
+    parseMethodParams(params, parseUtypeArgList(pAst->getSubAst(ast_utype_arg_list)), pAst->getSubAst(ast_utype_arg_list));
+
+    RuntimeNote note = RuntimeNote(activeParser->sourcefile, activeParser->getErrors()->getLine(pAst->line),
+                                   pAst->line, pAst->col);
+
+    Expression utype(pAst);
+    Method method = Method(name, currentModule, currentScope()->klass, params, modifiers, NULL, note, sourceFiles.indexof(activeParser->sourcefile), false, false);
+    if(pAst->hasSubAst(ast_method_return_type)) {
+        utype = parseUtype(pAst->getSubAst(ast_method_return_type));
+        parseMethodReturnType(utype, method);
+    } else
+        method.type = TYPEVOID;
+
+    method.ast = pAst;
+    method.address = methods++;
+    if(!currentScope()->klass->addFunction(method)) {
+        errors->createNewError(PREVIOUSLY_DEFINED, pAst->line, pAst->col,
+                                     "function `" + name + "` is already defined in the scope");
+        printNote(currentScope()->klass->getFunction(name, params)->note, "function `" + name + "` previously defined here");
+    }
+
+    Method* func = currentScope()->klass->getFunction(name, params, false, false, false, true);
+    if(func != NULL) {
+        addScope(Scope(STATIC_BLOCK, currentScope()->klass, func));
+
+        KeyPair<int, Field> local;
+        for(unsigned int i = 0; i < params.size(); i++) {
+
+            params.get(i).field.address=func->localVariables++;
+            params.get(i).field.local=true;
+            local.set(currentScope()->blocks, params.get(i).field);
+            currentScope()->locals.add(local);
+        }
+
+        Block fblock;
+        parseBlock(pAst->getSubAst(ast_block), fblock);
+
+        resolveAllBranches(fblock);
+        reorderFinallyBlocks(func);
+        func->code.__asm64.appendAll(fblock.code.__asm64);
+        func->assembly_table.addAll(fblock.assembly_table);
+        removeScope();
+    }
+
+    expression.type=expression_anon_func;
+    expression.utype.type=method.type;
+    expression.utype.isMethod=true;
+    expression.utype.method=func;
+    return expression;
 }
 
 Expression RuntimeEngine::parsePostInc(Ast* pAst) {
@@ -2603,7 +2885,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
     }
 
     if(expression.utype.type != UNDEFINED && utype.utype.type == expression.utype.type)
-        createNewWarning(GENERIC, utype.link->line, utype.link->col, "redundant cast of type `" + expression.typeToString() + "` to `" + utype.typeToString() + "`");
+        createNewWarning(GENERIC, __WCAST, utype.link->line, utype.link->col, "redundant cast of type `" + expression.typeToString() + "` to `" + utype.typeToString() + "`");
 
     if(Parser::isspecial_native_type(utype.utype.referenceName)) {
         utype.utype.type = VAR;
@@ -2690,7 +2972,7 @@ void RuntimeEngine::parseNativeCast(Expression& utype, Expression& expression, E
             }
         }
         else if(expression.trueType() == VAR) {
-            createNewWarning(GENERIC, utype.link->line, utype.link->col, "redundant cast of type `var` to `var`");
+            createNewWarning(GENERIC, __WCAST, utype.link->line, utype.link->col, "redundant cast of type `var` to `var`");
             return;
         }
     } else if(utype.trueType() == OBJECT) {
@@ -3533,7 +3815,7 @@ void RuntimeEngine::checkMainMethodSignature(Method method, bool global) {
                         printNote(mainNote, "method `main` previously defined here");
                     }
                 } else
-                    createNewWarning(GENERIC, method.ast->line, method.ast->col, "main method might not be executed");
+                    createNewWarning(GENERIC, __WMAIN, method.ast->line, method.ast->col, "main method might not be executed");
             }
 
             params.free();
@@ -3549,7 +3831,7 @@ void RuntimeEngine::checkMainMethodSignature(Method method, bool global) {
                         printNote(mainNote, "method `main` previously defined here");
                     }
                 } else
-                    createNewWarning(GENERIC, method.ast->line, method.ast->col, "main method might not be executed");
+                    createNewWarning(GENERIC, __WMAIN, method.ast->line, method.ast->col, "main method might not be executed");
             }
         }
     }
