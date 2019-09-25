@@ -257,7 +257,7 @@ public class FileSystem {
      */
     public def createDirectory(File f) : var {
         // native code here
-        var[] path = f.getAbsolutePath().toArray();
+        var[] path = f.getPath().toArray();
         var result;
 
         /*

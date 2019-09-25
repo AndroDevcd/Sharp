@@ -101,11 +101,11 @@ int _bootstrap(int argc, const char* argv[])
         else if(opt("-O")){
             c_options.optimize = true;
         }
-        else if(opt("-h") || opt("-?")){
+        else if(opt("--h") || opt("-?")){
             help();
             exit(0);
         }
-        else if(opt("-hw")){
+        else if(opt("--hw")){
             help_warn();
             exit(0);
         }

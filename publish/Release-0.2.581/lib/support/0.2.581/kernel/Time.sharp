@@ -1,0 +1,84 @@
+mod std.kernel;
+
+/**
+* Time class for sleeping and getting current time
+*
+* As per doccumentation on Threads, it it important to note that
+* when sleep() is called and an interrupt signal is sent to the sleeping thread
+* the thread will not die until the sleeping is over
+*/
+public class Time {
+
+    private static def nativeTime() : var {
+        var now;
+
+        asm
+        (
+            "int 0xa3           // get current time in nanoseconds "
+            "smovr_2 bmr,0      // set now to current nanotime "
+        );
+        return now;
+    }
+
+    public static def nanoTime() : var {
+        return nativeTime();
+    }
+
+    public static def timeToMicro(var nano) : var {
+        return nano/1000;
+    }
+
+    public static def timeToMills(var nano) : var {
+        return timeToMicro(nano)/1000;
+    }
+
+    public static def timeToSecs(var nano) : var {
+        return timeToMills(nano)/1000;
+    }
+
+    public static def millsTime() : var {
+        return timeToMills(nativeTime());
+    }
+
+
+    public static def sleep(TimeUnit timeUnit, var time) {
+        sleep((var)timeUnit, time);
+    }
+
+    public static def sleep(var timeUnit, var time) {
+
+        if(timeUnit == TimeUnit.SECONDS) {
+            time = adjustTime(time*1000000);
+        } else if(timeUnit == TimeUnit.MILLISECONDS) {
+            time = adjustTime(time*1000);
+        } else if(timeUnit == TimeUnit.MICROSECONDS) {
+            time = adjustTime(time);
+        }
+
+        asm
+        (
+            "loadl ebx,1        // load time into ebx register     "
+            "int 0xac           // call sleep to os                "
+        );
+    }
+    /**
+     * Windows only allows you to sleep for no less than 1 millisecond
+     *
+     * We need to adjust the time to make sure the user will not be
+     * waiting for 5 seconds instead of 5ms
+     */
+    private static def adjustTime(var usec) : var {
+
+        if(Manifest.isWindows()) {
+            return usec/1000;
+        }
+
+        return usec;
+    }
+}
+
+public enum TimeUnit {
+    SECONDS = 0,
+    MILLISECONDS = 1,
+    MICROSECONDS = 2
+};

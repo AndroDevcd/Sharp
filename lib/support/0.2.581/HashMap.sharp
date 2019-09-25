@@ -125,20 +125,20 @@ public class HashMap <K,V> {
             data[index] =  new Entry<K,V>{key, value};
         } else {
             Entry<K,V> entry = data[index];
-            var ct;
+//            var ct;
             size++;
             while(entry.next != null) {
                 entry = entry.next;
                 ct++;
             }
-            if(ct > largest) { // test code for file as its not ready yet
-                largest=ct;
-                println(" " + ct);
-                println(" sz " + size);
-                println(" index " + index);
-                println(" key " + key);
-                println(" hash " + key.hash());
-            }
+//            if(ct > largest) { // test code for file as its not ready yet
+//                largest=ct;
+//                println(" " + ct);
+//                println(" sz " + size);
+//                println(" index " + index);
+//                println(" key " + key);
+//                println(" hash " + key.hash());
+//            }
             if(entry.key == key)
                 entry.value = value;
             else {

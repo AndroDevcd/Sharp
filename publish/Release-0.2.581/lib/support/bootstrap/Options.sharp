@@ -1,0 +1,92 @@
+mod app;
+
+import std;
+
+/**                          
+* Created by bknun on 6/12/2018            
+* Description:                             
+*/
+class Options {
+    /*
+     * Activate aggressive error reporting for the compiler.
+     */
+    public static var aggressiveErrors = false;
+
+    /*
+     * Only compile all the files
+     */
+    public static var compile = false;
+
+    /*
+     * Output file to write to
+     */
+    public static string out = "out";
+
+    /*
+     * Application version
+     */
+    public static string version = "1.0";
+
+    /*
+     * Disable warnings
+     */
+    public static var warnings = true;
+
+    /*
+     * Optimize code
+     */
+    public static var optimize = false;
+
+    /*
+     * Set code to be debuggable (flag only used in manifest creation)
+     */
+    public static var debug = true;
+
+    /*
+     * Strip debugging info (if-applicable)
+     */
+    public static var strip = false;
+
+    /*
+     * Enable warnings as errors
+     */
+    public static var werrors = false;
+
+    /*
+     * Allow unsafe code
+     */
+    public static var unsafe = false;
+
+    /*
+     * Easter egg to enable magic mode
+     */
+    public static var magic = false;
+
+    /*
+     * Easter egg to enable debug mode
+     *
+     * Allows you to see a little information
+     * on what the compiler is doing
+     */
+    public static var debugMode = false;
+
+    /*
+     * Dump object code
+     */
+    public static var objDump = false;
+
+    /*
+     * Maximum errors the compiler will allow
+     */
+    public static var maxErrors = 1000;
+
+    /*
+     * Machine platform target to run on
+     */
+    public static var target = Platform.ALPHA;
+
+    /*
+     * List of user defined library paths
+     */
+    public static ArrayList<string> libraries = new ArrayList<string>();
+}

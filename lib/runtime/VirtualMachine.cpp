@@ -187,7 +187,7 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t stati
     ClassObject* klass;
     fptr jitFn;
 
-    if(o2!=NULL) {
+    if(o2!=NULL && o2->type == _stype_struct) {
         klass = o2->k;
         if (klass != NULL) {
             search:

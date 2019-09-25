@@ -496,10 +496,10 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
     if(k != nullptr) {
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
         object->init(k->fieldCount, k);
+        object->type = _stype_struct;
 
         if(k->fieldCount > 0) {
             object->node = (Object*)__malloc(sizeof(Object)*k->fieldCount);
-            object->type = _stype_struct;
 
             for(unsigned int i = 0; i < object->size; i++) {
                 /**
@@ -508,6 +508,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
                  */
                 if(k->fields[i].type == VAR && !k->fields[i].isArray) {
                     object->node[i].object = newObject(1);
+                    object->node[i].object->type = _stype_var;
                     object->node[i].object->refCount++;
                 } else {
                     object->node[i].object = nullptr;
@@ -553,10 +554,10 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
         
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
         object->init(size, k);
+        object->type = _stype_struct;
 
         if(size > 0) {
             object->node = (Object*)__malloc(sizeof(Object)*size);
-            object->type = _stype_struct;
 
             for(unsigned int i = 0; i < object->size; i++)
                 object->node[i].object = nullptr;

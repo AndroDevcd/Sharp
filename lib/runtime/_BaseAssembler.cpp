@@ -285,7 +285,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.mov(ctx, tmpInt);
                         assembler.call((x86int_t)_BaseAssembler::jitSetObject0);
 
-                        stackChech(assembler, lbl_thread_chk, i);
+                        stackCheck(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_CAST: {
@@ -294,7 +294,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.mov(ctx, o2Ptr);
 
                         assembler.call((x86int_t)_BaseAssembler::jitCast);
-                        checkSystemState(lbl_func_end, i, assembler, lbl_thread_chk);
+                        threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
                         break;
                     }
                     case op_VARCAST: {
@@ -382,7 +382,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.mov(value, Lthread[thread_sp]); // sp++
                         assembler.movsd(getMemPtr(value), vec0);
 
-                        stackChech(assembler, lbl_thread_chk, i);
+                        stackCheck(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_ADD: {
@@ -697,11 +697,9 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.mov(ctx, threadPtr);
 
                         assembler.mov(tmp, Lthread[thread_sp]);
-                        assembler.lea(value, ptr(tmp, (x86int_t)-sizeof(StackElement)));
-                        assembler.mov(Lthread[thread_sp], value); // sp--
+                        assembler.sub(Lthread[thread_sp], (x86int_t)sizeof(StackElement));
 
                         assembler.mov(value, tmp);
-                        assembler.mov(ctx, threadPtr);
                         assembler.mov(ctx, Lthread[thread_fp]);
                         if(GET_Da(ir) != 0) {
                             assembler.add(ctx, (x86int_t)(sizeof(StackElement) * GET_Da(ir))); // fp+GET_DA(*pc)
@@ -748,7 +746,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.mov(ctx, tmp);
                         assembler.movsd(Lstack_element[stack_element_var], vec0);
 
-                        stackChech(assembler, lbl_thread_chk, i);
+                        stackCheck(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_MOVSL: { // o2 = &((sp+GET_Da(*pc))->object);
@@ -838,7 +836,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.mov(value, o2Ptr);
                         assembler.call((x86int_t)_BaseAssembler::jitSetObject2);
 
-                        stackChech(assembler, lbl_thread_chk, i);
+                        stackCheck(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_DEL: {
@@ -854,14 +852,13 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
 
                         assembler.mov(ctx, threadPtr);
-                        assembler.mov(value, Lthread[thread_sp]);
-                        assembler.lea(value, x86::ptr(value, (x86int_t )sizeof(StackElement)));
-                        assembler.mov(Lthread[thread_sp], value);
+                        assembler.add(Lthread[thread_sp], (x86int_t)sizeof(StackElement));
+                        assembler.mov(value, Lthread[thread_sp]); // sp++
 
                         assembler.mov(ctx, tmpInt);
                         assembler.call((x86int_t)_BaseAssembler::jitSetObject0);
 
-                        stackChech(assembler, lbl_thread_chk, i);
+                        stackCheck(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_MOVN: {
@@ -961,7 +958,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.mov(ctx, tmpInt);
                         assembler.call((x86int_t)_BaseAssembler::jitSetObject0);
 
-                        stackChech(assembler, lbl_thread_chk, i);
+                        stackCheck(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_NOT: {
@@ -1132,7 +1129,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.mov(ctx, tmpInt);
                         assembler.call((x86int_t)_BaseAssembler::jitSetObject0);
 
-                        stackChech(assembler, lbl_thread_chk, i);
+                        stackCheck(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_NEWSTRING: {
@@ -1141,7 +1138,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.call((x86int_t)_BaseAssembler::jitNewString);
 
                         threadStatusCheck(assembler, labels[i], lbl_thread_chk, i);
-                        stackChech(assembler, lbl_thread_chk, i);
+                        stackCheck(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_SUBL:
@@ -1250,8 +1247,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         assembler.mov(ctx, threadPtr);
                         assembler.mov(tmp, Lthread[thread_sp]);
-                        assembler.lea(value, ptr(tmp, ((x86int_t)-sizeof(StackElement))));
-                        assembler.mov(Lthread[thread_sp], value);
+                        assembler.sub(Lthread[thread_sp], (x86int_t)sizeof(StackElement));
 
                         assembler.mov(ctx, tmp);
                         assembler.lea(value, Lstack_element[stack_element_object]);
@@ -1354,7 +1350,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                     case op_PUSHNIL: {
                         assembler.mov(ctx, threadPtr);
                         assembler.call((x86int_t)_BaseAssembler::jitPushNil);
-                        stackChech(assembler, lbl_thread_chk, i);
+                        stackCheck(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_PUSHL: {
@@ -1375,7 +1371,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.mov(ctx, tmp);
                         assembler.lea(ctx, Lstack_element[stack_element_object]);
                         assembler.call((x86int_t)_BaseAssembler::jitSetObject2);
-                        stackChech(assembler, lbl_thread_chk, i);
+                        stackCheck(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_ITEST: {
@@ -1449,7 +1445,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         assembler.mov(ctx, value);
                         assembler.movsd(Lstack_element[stack_element_var], vec0);
-                        stackChech(assembler, lbl_thread_chk, i);
+                        stackCheck(assembler, lbl_thread_chk, i);
                         break;
                     }
                     case op_SWITCH: {
@@ -1649,7 +1645,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                     }
                 }
 
-//                assembler.nop(); // instruction differentiation for now
+                assembler.nop(); // instruction differentiation for now
             }
 
             assembler.mov(arg, (func->cacheSize-1));
@@ -1777,7 +1773,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
     return error;
 }
 
-void _BaseAssembler::stackChech(x86::Assembler &assembler, const Label &lbl_thread_chk, x86int_t pc) {
+void _BaseAssembler::stackCheck(x86::Assembler &assembler, const Label &lbl_thread_chk, x86int_t pc) {
     assembler.mov(ctx, threadPtr);
     assembler.mov(value, Lthread[thread_sp]);
     assembler.mov(tmp, Lthread[thread_dataStack]);
@@ -2001,7 +1997,7 @@ void _BaseAssembler::jitInvokeDelegate(x86int_t address, x86int_t args, Thread* 
 // REMEMBER!!! dont forget to check state of used registers befote and after this call as they might be different than what they werr before
 void _BaseAssembler::test(x86int_t proc, x86int_t xtra) {
 
-//    cout << "(shr) " << proc << endl << std::flush;
+    cout << "op " << proc << " (sp) " << (long long)thread_self->sp << endl << std::flush;
 //    cout << "(ebx) " << registers[i64ebx] << " (egx) " << registers[i64egx] << endl << std::flush;
 }
 

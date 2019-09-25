@@ -1,0 +1,162 @@
+mod std;
+
+import std.kernel;
+
+/**
+* Created by bknun on 6/7/2018
+* Description:
+* Legacy c++ based object list handler is now deprecated use ArrayList instead
+*/
+public class VarList base CListVar {
+    private static const var DEFAULT_CAPACITY = 10;
+
+    /**
+     * Constructs an empty list.
+     * with a default capacity of 10
+     */
+    public VarList() {
+        /* data will be set to default capacity */
+        mData = new var[DEFAULT_CAPACITY];
+    }
+
+    /**
+     * Returns the number of elements in this list.
+     */
+    public def size() : var {
+        return size;
+    }
+
+    /**
+     * Returns true if this list contains no elements.
+     *
+     */
+    public def empty() : var {
+        return size == 0;
+    }
+
+    /**
+     * Returns an array containing all of the elements in this list
+     * in proper sequence (from first to last element).
+     *
+     */
+    public def toArray() : var[] {
+        if(size == 0) return null;
+        return ((var[]) copyOf(mData, size));
+    }
+
+    /**
+     * Returns the element at the specified position in this list.
+     *
+     */
+    public def get(var index) : var {
+        if (index >= size)
+            throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
+
+        return mData[index];
+    }
+
+    /**
+     * Returns the last element in this list.
+     *
+     */
+    public def last() : var {
+        return get(size()-1);
+    }
+
+    /**
+     * Replaces the element at the specified position in this list with
+     * the specified element.
+     *
+     */
+    public def set(var index, var element) : var {
+        if (index >= size)
+            throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
+
+        var oldValue = mData[index];
+        mData[index] = element;
+        return oldValue;
+    }
+
+
+    /**
+     * Shrink the list to hold more data
+     */
+    private def shrink() {
+        base->CListVar.shrink();
+    }
+
+    /**
+      * Appends the specified elements inside the provided list to the end of this list.
+      *
+      * @param e elements to be appended to this list
+      * @return <tt>true</tt> (as specified by {@link Collection#add})
+      */
+     public def add(VarList lst) {
+        var[] arry = lst.toArray();
+        foreach(var data : arry) {
+            base->CListVar.add(data);
+        }
+     }
+
+    /**
+      * Appends the specified element to the end of this list.
+      *
+      * @param e element to be appended to this list
+      * @return <tt>true</tt> (as specified by {@link Collection#add})
+      */
+     public def add(var num) {
+         base->CListVar.add(num);
+     }
+
+
+    /**
+      * Shifts the list back 1 element
+      *
+      * @param e element to be appended to this list
+      * @return <tt>true</tt> (as specified by {@link Collection#add})
+      */
+     public def popBack() {
+         shrink();
+     }
+
+    /**
+     * Inserts the specified element at the specified position in this
+     * list. Shifts the element currently at that position (if any) and
+     * any subsequent elements to the right (adds one to their indices).
+     *
+     */
+     public def insert(var pos, var value) {
+         base->CListVar.insert(pos, value);
+     }
+
+    /**
+     * Removes the element at the specified position in this list.
+     * Shifts any subsequent elements to the left (subtracts one from their
+     * indices).
+     *
+     */
+     public def remove(var pos) {
+         base->CListVar.remove(pos);
+     }
+
+     /**
+      * Removes all of the elements from this list.  The list will
+      * be empty after this call returns.
+      */
+     public def clear() {
+         // clear to let GC do its work
+         // we need to reset the size though so the
+         // clist lib can work
+         mData = new var[DEFAULT_CAPACITY];
+     }
+
+    /**
+     * Constructs an IndexOutOfBoundsException detail message.
+     * Of the many possible refactorings of the error handling code,
+     * this "outlining" performs best with both server and client VMs.
+     */
+    private def outOfBoundsMsg(var index) : string {
+        return "Index: " + index + ", size: " + sizeof(mData);
+    }
+
+}

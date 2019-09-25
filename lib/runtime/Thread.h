@@ -129,7 +129,7 @@ public:
     Method *current;
     Frame *callStack;
     jit_context *jctx;
-    size_t stack_lmt;
+    int64_t stack_lmt;
     Cache cache, pc;
 #ifdef SHARP_PROF_
     Profiler *tprof;

@@ -813,9 +813,6 @@ void Thread::exec() {
                 return;
 
             interp:
-            if(signal){
-                int i = 0;
-            }
             DISPATCH();
             _NOP: // tested
                 _brh
