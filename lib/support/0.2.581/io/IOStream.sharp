@@ -15,7 +15,7 @@ import std;
 * is closed it can be reused however it is not recommended as the buffer will be empty
 */
 public class IOStream {
-    private StreamBuffer iobuf;
+    private string data;
     private File file;
     private var direction;
     private IOStream.StreamReader reader;
@@ -26,26 +26,29 @@ public class IOStream {
 
     class StreamReader {
         private var pos;
-        private StreamBuffer iobuf = new StreamBuffer();
+        private string mData;
 
-        protected StreamReader(StreamBuffer buf) {
-            iobuf = buf;
+        protected StreamReader(string contents) {
+            mData = contents;
         }
 
         public def next() : var {
-            if(pos >= iobuf.size())
+            if(pos >= mData.size())
                 return -1;
-            return iobuf.at(pos++);
+            return mData.at(pos++);
         }
 
         public def nextLine() : string {
             var start = pos;
+            var ch;
             do {
-                if(char.isNewLine(iobuf.at(pos++)))
+                ch = next();
+                if(ch==-1) break;
+                else if(char.isNewLine(ch))
                     break;
             }while(true);
 
-            return iobuf.substring(start, pos-1);
+            return mData.substring(start, pos-1);
         }
     }
 
@@ -54,19 +57,21 @@ public class IOStream {
     public IOStream(File file, var direction) {
         self->file = file;
         self->direction = direction;
-        iobuf = new StreamBuffer();
+        self->data = new string();
 
         if(direction==READ) {
-            reader = new IOStream.StreamReader(iobuf);
-            File.readAllText(file, iobuf);
+            println("path = " + self->file.getName());
+            flush();
+            File.readAllText(file, data);
+            reader = new IOStream.StreamReader(data);
         }
     }
 
     public def close() {
         if(direction==WRITE) {
-            File.write(file, iobuf);
+            File.write(file, data);
         }
-        iobuf.end();
+        data = "";
     }
 
     /**
@@ -92,39 +97,39 @@ public class IOStream {
     }
 
     public def size() : var {
-        return iobuf.size();
+        return data.size();
     }
 
     public def write(string data) {
         if(direction == READ)
             throw new IllegalStateException("illegal write on IOStream");
-        iobuf + data;
+        self->data += data;
     }
 
     public def write(var n) {
         if(direction == READ)
             throw new IllegalStateException("illegal write on IOStream");
-        iobuf + string.parse(n);
+        data += string.parse(n);
     }
 
     public def writeChar(var n) {
         if(direction == READ)
             throw new IllegalStateException("illegal write on IOStream");
-        iobuf + n;
+        data += n;
     }
 
     public def clear() {
-        iobuf.end();
+        data = "";
     }
 
     public def toString() : string {
-        return iobuf.toString();
+        return new string(data);
     }
 
     public def write(var[] data) {
         if(direction == READ)
             throw new IllegalStateException("illegal write on IOStream");
-        iobuf + data;
+        self->data += data;
     }
 
 }

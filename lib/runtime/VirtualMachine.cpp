@@ -506,7 +506,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             return;
         case 0xe8: {
             SharpObject* str = (thread_self->sp--)->object.object;
-            if(str != NULL && str->HEAD != NULL) {
+            if(str != NULL && str->type == _stype_var) {
                 native_string cmd;
                 for(long i = 0; i < str->size; i++)
                     cmd += str->HEAD[i];
@@ -547,7 +547,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             Object *arry = &thread_self->sp->object;
             SharpObject *o = arry->object;
 
-            if(o != NULL && o->HEAD!=NULL) {
+            if(o != NULL && o->type == _stype_var) {
                 native_string path, absolute;
                 for(long i = 0; i < o->size; i++) {
                     path += o->HEAD[i];
@@ -584,7 +584,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->HEAD != NULL) { // var[]
+                } else if(o->type == _stype_var) { // var[]
                     data = GarbageCollector::self->newObject(len);
                     std::memcpy(data.object->HEAD, o->HEAD, sizeof(double)*len);
 
@@ -629,12 +629,12 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->HEAD != NULL) { // var[]
+                } else if(o->type == _stype_var) { // var[]
                     data = GarbageCollector::self->newObject(len);
                     std::memcpy(data.object->HEAD, o->HEAD, sizeof(double)*indexLen);
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->node != NULL) { // object? maybe...
+                } else if(o->type == _stype_struct && o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObjectArray(len);
                     for(size_t i = 0; i < indexLen; i++) {
                         data.object->node[i] = o->node[i];
@@ -676,12 +676,12 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->HEAD != NULL) { // var[]
+                } else if(o->type == _stype_var) { // var[]
                     data = GarbageCollector::self->newObject(sz+1);
                     std::memcpy(data.object->HEAD, &o->HEAD[startIndex], sizeof(double)*data.object->size);
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->node != NULL) { // object? maybe...
+                } else if(o->type == _stype_struct && o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObjectArray(sz+1);
 
                     for(size_t i = startIndex; i < o->size; i++) {
@@ -725,7 +725,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->HEAD != NULL) { // var[]
+                } else if(o->type == _stype_var) { // var[]
                     data = GarbageCollector::self->newObject(sz+1);
 
                     for(size_t i = endIndex; i > 0; i--) {
@@ -735,7 +735,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->node != NULL) { // object? maybe...
+                } else if(o->type == _stype_struct && o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObjectArray(sz+1);
 
                     for(size_t i = endIndex; i > 0; i--) {
@@ -769,9 +769,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                         throw Exception(Environment::NullptrException, "");
 
                     GarbageCollector::self->reallocObject(o, len);
-                } else if(o->HEAD != NULL) { // var[]
+                } else if(o->type == _stype_var) { // var[]
                     GarbageCollector::self->realloc(o, len);
-                } else if(o->node != NULL) { // object? maybe...
+                } else if(o->type == _stype_struct && o->node != NULL) { // object? maybe...
                     GarbageCollector::self->reallocObject(o, len);
                 }
 
@@ -794,7 +794,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             Object *arry = &(thread_self->sp--)->object;
             SharpObject *o = arry->object;
 
-            if(o != NULL && o->HEAD!=NULL) {
+            if(o != NULL && o->type==_stype_var) {
                 native_string path;
                 for(long i = 0; i < o->size; i++) {
                     path += o->HEAD[i];
@@ -815,7 +815,6 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     _List<native_string> files;
                     get_file_list(path, files);
 
-                    thread_self->sp++;
                     if(files.size()>0) {
                         *arry = GarbageCollector::self->newObjectArray(files.size());
                         o = arry->object;
@@ -842,12 +841,12 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     File::buffer buf;
                     File::read_alltext(path.str().c_str(), buf);
                     native_string str;
+                    arry = &(++thread_self->sp)->object;
 
                     if(str.injectBuff(buf)) {
                         throw Exception("out of memory");
                     }
 
-                    thread_self->sp++;
                     if(str.len > 0) {
                         GarbageCollector::self->createStringArray(arry, str);
                     } else {
@@ -863,7 +862,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             SharpObject *o = (thread_self->sp--)->object.object;
             SharpObject *o2 = (thread_self->sp--)->object.object;
 
-            if (o != NULL && o->HEAD != NULL && o2 != NULL && o2->HEAD != NULL) {
+            if (o != NULL && o->type == _stype_var && o2 != NULL && o2->type == _stype_var) {
                 native_string path, rename;
                 for (long i = 0; i < o->size; i++) {
                     path += o->HEAD[i];
@@ -1010,7 +1009,7 @@ void VirtualMachine::fillStackTrace(Object *exceptionObject) {
         if(message != NULL) {
             if(thread_self->throwable.native)
                 GarbageCollector::self->createStringArray(message, thread_self->throwable.message);
-            else if(message->object != NULL && message->object->HEAD != NULL) {
+            else if(message->object != NULL && message->object->type == _stype_var) {
                 stringstream ss;
                 for(unsigned long i = 0; i < message->object->size; i++) {
                     ss << (char) message->object->HEAD[i];

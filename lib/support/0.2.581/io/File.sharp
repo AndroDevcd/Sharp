@@ -450,12 +450,12 @@ public class File {
         return createTempFile(prefix, suffix, null);
     }
 
-    public static def readAllText(File file, StreamBuffer io) {
-        fs.read(file, io);
+    public static def readAllText(File file, string data) {
+        fs.read(file, data);
     }
 
-    public static def write(File file, StreamBuffer io) {
-        fs.write(file, io);
+    public static def write(File file, string data) {
+        fs.write(file, data);
     }
 
     private static def getFileSystem() : FileSystem {

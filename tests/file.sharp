@@ -1,0 +1,30 @@
+mod app;
+
+import std;
+import std.kernel;
+import std.io;
+
+def main() {
+    File file = new File(new string("README1.md"));
+
+    println("file " + file.getPath() + " being created  ");
+    file.create();
+
+println("file created " + file.getPath());
+    file.setWritable(true);
+println("file writeable " + file.getPath());
+    IOStream ostream = new IOStream(file, IOStream.WRITE);
+println("file iostream " + file.getPath());
+    ostream.write("Hello, World!\n");
+println("file " + file.getPath());
+    ostream.close();
+
+println("file " + file.getPath());
+    IOStream istream = new IOStream(file, IOStream.READ);
+    var _char;
+
+
+            println(istream.nextLine());
+
+    istream.close();
+}

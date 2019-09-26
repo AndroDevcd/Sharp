@@ -61,7 +61,7 @@ void __clist_shrink() {
     SharpObject *lst = (self->sp--)->object.object;
 
     if(lst != NULL && lst->k != NULL && lst->size >= 2) {
-        if(lst->node[0].object != NULL && lst->node[0].object->HEAD != NULL
+        if(lst->node[0].object != NULL && lst->node[0].object->type == _stype_var
            && lst->node[1].object != NULL) {
 
             __shrink(lst);
@@ -74,7 +74,7 @@ void __clist_add() {
     SharpObject *lst = (self->sp--)->object.object;
 
     if(lst != NULL && lst->k != NULL && lst->size >= 2) {
-        if (lst->node[0].object != NULL && lst->node[0].object->HEAD != NULL
+        if (lst->node[0].object != NULL && lst->node[0].object->type == _stype_var
             && lst->node[1].object != NULL) {
             double* size = lst->node[0].object->HEAD;
             SharpObject* data = lst->node[1].object;

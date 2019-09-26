@@ -299,7 +299,7 @@ public class FileSystem {
     }
 
 
-    public static def read(File file, StreamBuffer io) {
+    public static def read(File file, string data) {
         var[] path = file.getAbsolutePath().toArray();
         var[] raw = null;
         var result;
@@ -314,15 +314,13 @@ public class FileSystem {
             "popl <raw>             "
         );
 
-        io.begin();
-        if(raw != null)
-            io + ("" + raw);
+        data = raw;
     }
 
 
-    public static def write(File file, StreamBuffer io) : var {
-        var[] path = file.getAbsolutePath().toArray();
-        var[] raw = io.toString().toArray();
+    public static def write(File file, string data) : var {
+        var[] path = file.getPath().toArray();
+        var[] raw = data.toArray();
         var result;
 
         /*

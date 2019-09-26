@@ -142,10 +142,13 @@ public:
 
         if(buf.size()>0) {
             len = buf.size();
-            chars = (char*)malloc(sizeof(char)*buf.size());
+            if(len) {
+                chars = (char*)malloc(sizeof(char)*buf.size());
+                if(chars==NULL)return 1;
 
-            if(chars==NULL)return 1;
-            std::memcpy(chars, buf.data(), sizeof(char)*len);
+                std::memcpy(chars, buf.data(), sizeof(char)*len);
+            } else
+                chars = NULL;
         } else {
             free();
         }

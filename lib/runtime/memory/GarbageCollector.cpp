@@ -610,7 +610,7 @@ void GarbageCollector::erase(SharpObject *p) {
 }
 
 void GarbageCollector::realloc(SharpObject *o, size_t sz) {
-    if(o != NULL && o->HEAD != NULL) {
+    if(o != NULL && o->type == _stype_var) {
         o->HEAD = (double*)__realloc(o->HEAD, sizeof(double)*sz, sizeof(double)*o->size);
 
         std::lock_guard<recursive_mutex> gd(mutex);
