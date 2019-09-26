@@ -11,6 +11,7 @@
 #include "oo/Method.h"
 #include "profiler.h"
 #include "../Modules/std/Random.h"
+#include "architecture.h"
 
 #define MAX_THREADS 0xffba
 
@@ -26,7 +27,9 @@
 #define gc_threadid 0x1
 #define jit_threadid 0x2
 
+#ifdef BUILD_JIT
 struct jit_context;
+#endif
 
 enum ThreadState {
     THREAD_CREATED      =0x000,
@@ -69,8 +72,11 @@ public:
             signal(tsig_empty),
             throwable(),
             callStack(),
-            dataStack(NULL),
-            jctx(NULL)
+            dataStack(NULL)
+
+#ifdef BUILD_JIT
+            ,jctx(NULL)
+#endif
 
     {
         exceptionObject.object=0;
@@ -128,7 +134,9 @@ public:
             *sp, *fp;
     Method *current;
     Frame *callStack;
+#ifdef BUILD_JIT
     jit_context *jctx;
+#endif
     int64_t stack_lmt;
     Cache cache, pc;
 #ifdef SHARP_PROF_

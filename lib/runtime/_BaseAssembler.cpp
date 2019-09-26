@@ -2,8 +2,10 @@
 // Created by braxtonn on 8/21/2019.
 //
 
-#include <fstream>
 #include "_BaseAssembler.h"
+#ifdef BUILD_JIT
+
+#include <fstream>
 #include "Thread.h"
 #include "Manifest.h"
 #include "main.h"
@@ -2232,3 +2234,5 @@ FILE *_BaseAssembler::getLogFile() {
     pFile = fopen ("JIT.s" , "rw+");
     return pFile;
 }
+
+#endif

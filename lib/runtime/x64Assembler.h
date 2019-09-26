@@ -7,6 +7,7 @@
 
 #include "_BaseAssembler.h"
 
+#ifdef BUILD_JIT
 class x64Assembler : public _BaseAssembler {
 public:
     x64Assembler()
@@ -23,6 +24,6 @@ private:
     x86int_t getRegisterSize() override ;
     void initializeRegisters() override ;
 };
-
+#endif
 
 #endif //SHARP_X64ASSEMBLER_H

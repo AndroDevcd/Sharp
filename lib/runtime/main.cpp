@@ -28,7 +28,7 @@ void createStringArray(Object *object, _List<native_string> &lst);
 unsigned long long getMemBytes(const char *argv, bool &setLimit);
 
 void version() {
-    cout << progname << " " << progvers << ":jit v" << JIT_VERSION << endl;
+    cout << progname << " " << progvers << endl;
 }
 
 void error(string message) {

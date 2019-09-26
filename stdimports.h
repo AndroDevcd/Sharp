@@ -14,7 +14,6 @@
 #include <cstdio>
 #include <cstring>
 
-
 using namespace std;
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
@@ -56,6 +55,8 @@ using namespace std;
 #ifndef DEBUGGING
 #define DEBUGGING
 #endif
+
+typedef void (*fptr)(void *);
 
 struct Sharp {
     /**

@@ -5,14 +5,17 @@
 #ifndef SHARP_JITASSEMBLER_H
 #define SHARP_JITASSEMBLER_H
 
+#include "architecture.h"
+#ifdef BUILD_JIT
+
 #define ASMJIT_BUILD_HOST  1
 #define ASMJIT_STATIC   1
 #define ASMJIT_BUILD_RELEASE 1
 
+#include "../../stdimports.h"
 #include "../util/jit/asmjit/src/asmjit/asmjit.h"
 #include "List.h"
 #include "oo/Object.h"
-#include "../../stdimports.h"
 
 using namespace asmjit;
 
@@ -29,18 +32,10 @@ struct jit_context {
     Method* caller; // current method we are executing only used in initalization of the call
 };
 
-typedef void (*fptr)(jit_context *);
-
 enum os {
     win=0x0ffa,
     linux=0x0ffb,
 };
-
-#if ASMJIT_ARCH_BITS == 64
-typedef int64_t x86int_t;
-#else
-typedef int32_t x86int_t;
-#endif
 
 #ifdef WIN32_
 #define OS_id win
@@ -306,4 +301,5 @@ struct Constants {
 // version of out jit compiler
 #define JIT_VERSION 2
 
+#endif
 #endif //SHARP_JITASSEMBLER_H

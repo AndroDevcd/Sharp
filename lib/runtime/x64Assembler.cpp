@@ -3,7 +3,7 @@
 //
 
 #include "x64Assembler.h"
-#include "../util/jit/asmjit/src/asmjit/asmjit.h"
+#ifdef BUILD_JIT
 
 using namespace asmjit;
 using namespace asmjit::x86;
@@ -52,3 +52,5 @@ x86::Mem x64Assembler::getMemPtr(x86::Gp reg) {
 x86int_t x64Assembler::getRegisterSize() {
     return 8;
 }
+
+#endif

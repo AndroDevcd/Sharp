@@ -83,7 +83,10 @@ int32_t Thread::Create(int32_t methodAddress) {
     thread->currentThread.object=NULL;
     thread->args.object=NULL;
     thread->calls=0;
+
+#ifdef BUILD_JIT
     thread->jctx=new jit_context();
+#endif
     thread->starting=0;
     thread->exceptionObject.object=0;
     thread->current = NULL;
@@ -130,7 +133,9 @@ void Thread::Create(string name) {
     this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*iStackSz);
     this->signal = 0;
     this->suspended = false;
+#ifdef BUILD_JIT
     this->jctx=new jit_context();
+#endif
     this->exited = false;
     this->priority=THREAD_PRIORITY_HIGH;
     this->throwable.init();
@@ -168,7 +173,10 @@ void Thread::CreateDaemon(string name) {
     this->id = Thread::tid++;
     this->rand = new Random();
     this->dataStack = NULL;
+
+#ifdef BUILD_JIT
     this->jctx=new jit_context();
+#endif
     this->callStack = NULL;
     this->currentThread.object=NULL;
     this->args.object=NULL;
@@ -492,7 +500,10 @@ void Thread::term() {
     delete tprof;
 #endif
     this->name.free();
+
+#ifdef BUILD_JIT
     delete jctx;
+#endif
 }
 
 int Thread::join(int32_t id) {
@@ -1026,7 +1037,10 @@ void Thread::exec() {
 #endif
                 CALLSTACK_CHECK
                 if((jitFn = executeMethod(GET_Da(*pc), this)) != NULL) {
+
+#ifdef BUILD_JIT
                     jitFn(jctx);
+#endif
                 }
                 THREAD_EXECEPT();
                 _brh_NOINCREMENT
@@ -1041,7 +1055,10 @@ void Thread::exec() {
                 }
                 CALLSTACK_CHECK
                 if((jitFn = executeMethod(val, this)) != NULL) {
+
+#ifdef BUILD_JIT
                     jitFn(jctx);
+#endif
                 }
                 THREAD_EXECEPT();
                 _brh_NOINCREMENT
@@ -1333,8 +1350,9 @@ void Thread::setup() {
     terminated = false;
     exitVal = 0;
     starting = 0;
+#ifdef BUILD_JIT
     Jit::tlsSetup();
-
+#endif
 
     if(dataStack==NULL) {
         dataStack = (StackElement*)__malloc(sizeof(StackElement)*stack_lmt);

@@ -6,6 +6,7 @@
 #include "main.h"
 #include "Thread.h"
 #include "Environment.h"
+#ifdef BUILD_JIT
 
 Jit *Jit::self = nullptr;
 
@@ -131,3 +132,4 @@ void Jit::tlsSetup() {
     thread->jctx->regs = registers;
     thread->jctx->self = thread;
 }
+#endif

@@ -12,7 +12,10 @@
 #include "../List.h"
 
 struct line_table;
+
+#ifdef BUILD_JIT
 struct jit_context;
+#endif
 
 struct SwitchTable { // for every value there will be a corresponding address
     _List<int64_t> values;
@@ -40,7 +43,7 @@ struct SwitchTable { // for every value there will be a corresponding address
 #define JIT_IR_MIN 1
 
 typedef int64_t* Cache;
-typedef void (*fptr)(jit_context *);
+typedef void (*fptr)(void *);
 
 /**
  * This is the representation of a method in its barest form

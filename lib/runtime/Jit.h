@@ -8,6 +8,7 @@
 #include "x64Assembler.h"
 #include "../../stdimports.h"
 #include <mutex>
+#ifdef BUILD_JIT
 
 #define jit_error_compile  1             // error compiling the source
 #define jit_error_mem      304           // not enough memory
@@ -68,6 +69,6 @@ private:
     x64Assembler* x64Asm;
     int error;
 };
-
+#endif
 
 #endif //SHARP_JIT_H

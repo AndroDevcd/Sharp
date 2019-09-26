@@ -48,7 +48,10 @@ int CreateVirtualMachine(std::string exe)
 
     Thread::Startup();
     GarbageCollector::startup();
+
+#ifdef BUILD_JIT
     Jit::startup();
+#endif
 #ifdef WIN32_
     env->gui = new Gui();
     env->gui->setupMain();
@@ -196,7 +199,10 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t stati
                     if((thread->calls+1) >= thread->stack_lmt) throw Exception(Environment::StackOverflowErr, "");
 
                     if((jitFn = executeMethod(env->methods[klass->methods[i]].address, thread)) != NULL) {
+
+#ifdef BUILD_JIT
                         jitFn(thread->jctx);
+#endif
                     }
                     return;
                 }
@@ -271,6 +277,7 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
     thread->sp += (method->stackSize - method->paramSize);
     thread->pc = thread->cache;
 
+#ifdef BUILD_JIT
     if(!method->isjit) {
         if(method->longCalls >= JIT_IR_LIMIT)
         {
@@ -278,15 +285,22 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
                 Jit::sendMessage(method);
         } else method->longCalls++;
     }
+#endif
 
+
+#ifdef BUILD_JIT
     if(method->isjit) {
         thread->callStack[thread->calls].isjit = true;
         thread->jctx->caller = method;
         return method->jit_call;
-    } else if(inJit || thread->calls==0) {
+    } else
+#endif
+
+        if(inJit || thread->calls==0) {
         startAddress=0;
         thread->exec();
     }
+
     return NULL;
 }
 
@@ -298,7 +312,10 @@ void VirtualMachine::destroy() {
 
     Thread::shutdown();
     GarbageCollector::shutdown();
+
+#ifdef BUILD_JIT
     Jit::shutdown();
+#endif
 
 #ifdef WIN32_
     if(env->gui != NULL)
@@ -333,7 +350,10 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
          * Call main method
          */
         if((jitFn = executeMethod(thread_self->main->address, thread_self)) != NULL) {
+
+#ifdef BUILD_JIT
             jitFn(thread_self->jctx);
+#endif
         }
     } catch (Exception &e) {
         //    if(thread_self->exceptionThrown) {
