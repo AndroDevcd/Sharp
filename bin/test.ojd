@@ -3947,13 +3947,14 @@ func:@198 [std.io#IOStream.IOStream] in file: lib/support/0.2.581//io//IOStream.
 
 IOStream:
         [0x0] 0:	new_class @46 // std#string
-        [0x1] 1:	call @592 // <std#string.string()>
-        [0x2] 2:	movl 0
-        [0x3] 3:	movn #0
-        [0x4] 4:	popobj
-        [0x5] 5:	movl 0
-        [0x6] 6:	returnobj
-        [0x7] 7:	ret
+        [0x1] 1:	newstr @37 // ""
+        [0x2] 2:	call @552 // <std#string.string(var[])>
+        [0x3] 3:	movl 0
+        [0x4] 4:	movn #0
+        [0x5] 5:	popobj
+        [0x6] 6:	movl 0
+        [0x7] 7:	returnobj
+        [0x8] 8:	ret
 
 func:@199 [std.io#IOStream.IOStream] in file: lib/support/0.2.581//io//IOStream.sharp:57:20: note:  
 		    public IOStream(File file, var direction) {
@@ -3962,47 +3963,48 @@ func:@199 [std.io#IOStream.IOStream] in file: lib/support/0.2.581//io//IOStream.
 
 IOStream:
         [0x0] 0:	new_class @46 // std#string
-        [0x1] 1:	call @592 // <std#string.string()>
-        [0x2] 2:	movl 0
-        [0x3] 3:	movn #0
-        [0x4] 4:	popobj
-line: 57 [0x5] 5:	pushl 1
-         [0x6] 6:	movl 0
-         [0x7] 7:	movn #1
-         [0x8] 8:	popobj
-line: 58 [0x9] 9:	loadl ebx, fp+2
-         [0xa] 10:	nop
-         [0xb] 11:	rstore ebx
-         [0xc] 12:	movl 0
-         [0xd] 13:	movn #2
-         [0xe] 14:	movi #0, adx
-         [0x10] 16:	loadval ecx
-         [0x11] 17:	rmov adx, ecx
-line: 60 [0x12] 18:	ipushl #2
-         [0x13] 19:	movg @20 // @std.io#IOStream
-         [0x14] 20:	movn #4
-         [0x15] 21:	iaload_2 egx, adx
-         [0x16] 22:	loadval ebx
-         [0x17] 23:	test ebx, egx
-         [0x18] 24:	jne 39
-line: 61 [0x19] 25:	pushl 1
-         [0x1a] 26:	movl 0
-         [0x1b] 27:	movn #0
-         [0x1c] 28:	pushobj
-         [0x1d] 29:	call @171 // <std.io#File.readAllText(std.io#File,std#string)>
-line: 62 [0x1e] 30:	new_class @21 // std.io#IOStream.StreamReader
-         [0x1f] 31:	movl 0
-         [0x20] 32:	movn #0
-         [0x21] 33:	pushobj
-         [0x22] 34:	call @194 // <std.io#IOStream.StreamReader.StreamReader(std#string)>
-         [0x23] 35:	movl 0
-         [0x24] 36:	movn #3
-         [0x25] 37:	popobj
-         [0x26] 38:	nop
+        [0x1] 1:	newstr @37 // ""
+        [0x2] 2:	call @552 // <std#string.string(var[])>
+        [0x3] 3:	movl 0
+        [0x4] 4:	movn #0
+        [0x5] 5:	popobj
+line: 57 [0x6] 6:	pushl 1
+         [0x7] 7:	movl 0
+         [0x8] 8:	movn #1
+         [0x9] 9:	popobj
+line: 58 [0xa] 10:	loadl ebx, fp+2
+         [0xb] 11:	nop
+         [0xc] 12:	rstore ebx
+         [0xd] 13:	movl 0
+         [0xe] 14:	movn #2
+         [0xf] 15:	movi #0, adx
+         [0x11] 17:	loadval ecx
+         [0x12] 18:	rmov adx, ecx
+line: 60 [0x13] 19:	ipushl #2
+         [0x14] 20:	movg @20 // @std.io#IOStream
+         [0x15] 21:	movn #4
+         [0x16] 22:	iaload_2 egx, adx
+         [0x17] 23:	loadval ebx
+         [0x18] 24:	test ebx, egx
+         [0x19] 25:	jne 40
+line: 61 [0x1a] 26:	pushl 1
+         [0x1b] 27:	movl 0
+         [0x1c] 28:	movn #0
+         [0x1d] 29:	pushobj
+         [0x1e] 30:	call @171 // <std.io#File.readAllText(std.io#File,std#string)>
+line: 62 [0x1f] 31:	new_class @21 // std.io#IOStream.StreamReader
+         [0x20] 32:	movl 0
+         [0x21] 33:	movn #0
+         [0x22] 34:	pushobj
+         [0x23] 35:	call @194 // <std.io#IOStream.StreamReader.StreamReader(std#string)>
+         [0x24] 36:	movl 0
+         [0x25] 37:	movn #3
+         [0x26] 38:	popobj
          [0x27] 39:	nop
-         [0x28] 40:	movl 0
-         [0x29] 41:	returnobj
-         [0x2a] 42:	ret
+         [0x28] 40:	nop
+         [0x29] 41:	movl 0
+         [0x2a] 42:	returnobj
+         [0x2b] 43:	ret
 
 func:@200 [std.io#IOStream.close] in file: lib/support/0.2.581//io//IOStream.sharp:67:21: note:  
 		    public def close() {

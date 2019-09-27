@@ -1984,9 +1984,6 @@ void RuntimeEngine::parseConstructorDecl(Ast* pAst) {
         resolveAllBranches(fblock);
         reorderFinallyBlocks(method);
 
-        if(method->address==199) {
-            int i = 0;
-        }
         method->code.__asm64.addAll(fblock.code.__asm64);
         removeScope();
     }

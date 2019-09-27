@@ -15,7 +15,7 @@ import std;
 * is closed it can be reused however it is not recommended as the buffer will be empty
 */
 public class IOStream {
-    private string data = new string();
+    private string data = "";
     private File file;
     private var direction;
     private IOStream.StreamReader reader;
