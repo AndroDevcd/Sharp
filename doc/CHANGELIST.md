@@ -27,6 +27,7 @@ Any other compatibility issues/changes will be otherwise noted in the release no
 ##### Version 0.2.422 (August 12, 2019)
     # Bug Fixes
         * Fixed several null checks incorrectly being applied to objects and could have lead to a seg fault
+        * Fixed major control flow statement bug when setting default values on class variables causing seg faults
 
     # QoL Improvements
         *
