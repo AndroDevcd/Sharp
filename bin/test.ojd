@@ -1,7 +1,7 @@
 Object Dump file:
 ################################
 
-Optimizer: Did optimize 1 result -> 2924
+Optimizer: Did optimize 1 result -> 2921
 
 
 @0 app#__SRT_Global fields: 0 methods: 7
@@ -108,16 +108,12 @@ Optimizer: Did optimize 1 result -> 2924
 "README1.md"
 "file "
 " being created  "
-"file created "
-"file writeable "
-"file iostream "
 "Hello, World!\n"
 "true"
 "false"
 "file path cannot be null"
 "Negative time"
 "file could not be resolved: "
-"path = "
 "illegal read on IOStream"
 "illegal write on IOStream"
 "invalid thread priority "
@@ -228,77 +224,41 @@ line: 9 [0x7] 7:	newstr @41 // "file "
         [0xe] 14:	call @603 // <std#__SRT_Global.println(std#string)>
 line: 10 [0xf] 15:	pushl 0
          [0x10] 16:	call @151 // <std.io#File.create()>
-line: 12 [0x11] 17:	new_class @46 // std#string
-         [0x12] 18:	newstr @43 // "file created "
-         [0x13] 19:	call @552 // <std#string.string(var[])>
-         [0x14] 20:	pushl 0
-         [0x15] 21:	call @141 // <std.io#File.getPath()>
-         [0x16] 22:	call @566 // <std#string.$operator+(std#Printable)>
-         [0x17] 23:	call @603 // <std#__SRT_Global.println(std#string)>
-line: 13 [0x18] 24:	pushl 0
-         [0x19] 25:	istore 1
-         [0x1a] 26:	call @159 // <std.io#File.setWritable(var)>
-         [0x1b] 27:	pop
-line: 14 [0x1c] 28:	new_class @46 // std#string
-         [0x1d] 29:	newstr @44 // "file writeable "
-         [0x1e] 30:	call @552 // <std#string.string(var[])>
-         [0x1f] 31:	pushl 0
-         [0x20] 32:	call @141 // <std.io#File.getPath()>
-         [0x21] 33:	call @566 // <std#string.$operator+(std#Printable)>
-         [0x22] 34:	call @603 // <std#__SRT_Global.println(std#string)>
-line: 15 [0x23] 35:	new_class @20 // std.io#IOStream
-         [0x24] 36:	pushl 0
-         [0x25] 37:	movg @20 // @std.io#IOStream
-         [0x26] 38:	movn #5
-         [0x27] 39:	movi #0, adx
-         [0x29] 41:	iaload_2 ebx, adx
-         [0x2a] 42:	rstore ebx
-         [0x2b] 43:	call @199 // <std.io#IOStream.IOStream(std.io#File,var)>
-         [0x2c] 44:	popl 1
-         [0x2d] 45:	new_class @46 // std#string
-line: 16 [0x2e] 46:	newstr @45 // "file iostream "
-         [0x2f] 47:	call @552 // <std#string.string(var[])>
-         [0x30] 48:	pushl 0
-         [0x31] 49:	call @141 // <std.io#File.getPath()>
-         [0x32] 50:	call @566 // <std#string.$operator+(std#Printable)>
-         [0x33] 51:	call @603 // <std#__SRT_Global.println(std#string)>
-line: 17 [0x34] 52:	pushl 1
-         [0x35] 53:	new_class @46 // std#string
-         [0x36] 54:	newstr @46 // "Hello, World!\n"
-         [0x37] 55:	call @552 // <std#string.string(var[])>
-         [0x38] 56:	call @204 // <std.io#IOStream.write(std#string)>
-line: 18 [0x39] 57:	new_class @46 // std#string
-         [0x3a] 58:	newstr @41 // "file "
-         [0x3b] 59:	call @552 // <std#string.string(var[])>
-         [0x3c] 60:	pushl 0
-         [0x3d] 61:	call @141 // <std.io#File.getPath()>
-         [0x3e] 62:	call @566 // <std#string.$operator+(std#Printable)>
-         [0x3f] 63:	call @603 // <std#__SRT_Global.println(std#string)>
-line: 19 [0x40] 64:	pushl 1
-         [0x41] 65:	call @200 // <std.io#IOStream.close()>
-line: 21 [0x42] 66:	new_class @46 // std#string
-         [0x43] 67:	newstr @41 // "file "
-         [0x44] 68:	call @552 // <std#string.string(var[])>
-         [0x45] 69:	pushl 0
-         [0x46] 70:	call @141 // <std.io#File.getPath()>
-         [0x47] 71:	call @566 // <std#string.$operator+(std#Printable)>
-         [0x48] 72:	call @603 // <std#__SRT_Global.println(std#string)>
-line: 22 [0x49] 73:	new_class @20 // std.io#IOStream
-         [0x4a] 74:	pushl 0
-         [0x4b] 75:	movg @20 // @std.io#IOStream
-         [0x4c] 76:	movn #4
-         [0x4d] 77:	movi #0, adx
-         [0x4f] 79:	iaload_2 ebx, adx
-         [0x50] 80:	rstore ebx
-         [0x51] 81:	call @199 // <std.io#IOStream.IOStream(std.io#File,var)>
-         [0x52] 82:	popl 2
-         [0x53] 83:	istorel 0, fp+3
-line: 23 [0x55] 85:	pushl 2
-line: 26 [0x56] 86:	call @202 // <std.io#IOStream.nextLine()>
-         [0x57] 87:	call @603 // <std#__SRT_Global.println(std#string)>
-line: 28 [0x58] 88:	pushl 2
-         [0x59] 89:	call @200 // <std.io#IOStream.close()>
-         [0x5a] 90:	ret
+line: 12 [0x11] 17:	pushl 0
+         [0x12] 18:	istore 1
+         [0x13] 19:	call @159 // <std.io#File.setWritable(var)>
+         [0x14] 20:	pop
+line: 13 [0x15] 21:	new_class @20 // std.io#IOStream
+         [0x16] 22:	pushl 0
+         [0x17] 23:	movg @20 // @std.io#IOStream
+         [0x18] 24:	movn #5
+         [0x19] 25:	movi #0, adx
+         [0x1b] 27:	iaload_2 ebx, adx
+         [0x1c] 28:	rstore ebx
+         [0x1d] 29:	call @199 // <std.io#IOStream.IOStream(std.io#File,var)>
+         [0x1e] 30:	popl 1
+         [0x1f] 31:	pushl 1
+line: 14 [0x20] 32:	new_class @46 // std#string
+         [0x21] 33:	newstr @43 // "Hello, World!\n"
+         [0x22] 34:	call @552 // <std#string.string(var[])>
+         [0x23] 35:	call @204 // <std.io#IOStream.write(std#string)>
+line: 15 [0x24] 36:	pushl 1
+         [0x25] 37:	call @200 // <std.io#IOStream.close()>
+line: 17 [0x26] 38:	new_class @20 // std.io#IOStream
+         [0x27] 39:	pushl 0
+         [0x28] 40:	movg @20 // @std.io#IOStream
+         [0x29] 41:	movn #4
+         [0x2a] 42:	movi #0, adx
+         [0x2c] 44:	iaload_2 ebx, adx
+         [0x2d] 45:	rstore ebx
+         [0x2e] 46:	call @199 // <std.io#IOStream.IOStream(std.io#File,var)>
+         [0x2f] 47:	popl 2
+         [0x30] 48:	pushl 2
+line: 18 [0x31] 49:	call @202 // <std.io#IOStream.nextLine()>
+         [0x32] 50:	call @603 // <std#__SRT_Global.println(std#string)>
+line: 19 [0x33] 51:	pushl 2
+         [0x34] 52:	call @200 // <std.io#IOStream.close()>
+         [0x35] 53:	ret
 
 func:@8 [std#bool.bool] in file: lib/support/0.2.581//bool.sharp:4:16: note:  
 		    public bool(var num) {
@@ -734,10 +694,10 @@ line: 99 [0x0] 0:	new_class @46 // std#string
          [0x7] 7:	iaload_2 cmt, adx
          [0x8] 8:	loadpc_2 adx, pc+6 // adx = 14
          [0x9] 9:	ifne
-         [0xa] 10:	newstr @47 // "true"
+         [0xa] 10:	newstr @44 // "true"
          [0xb] 11:	movi #1, cmt
          [0xd] 13:	skpe 2 // pc = 15
-         [0xe] 14:	newstr @48 // "false"
+         [0xe] 14:	newstr @45 // "false"
          [0xf] 15:	call @565 // <std#string.$operator+(var[])>
          [0x10] 16:	movsl #0
          [0x11] 17:	returnobj
@@ -2629,7 +2589,7 @@ line: 25 [0x0] 0:	movl 1
          [0x1] 1:	checknull
          [0x2] 2:	jne 8
 line: 26 [0x3] 3:	new_class @35 // std#NullptrException
-         [0x4] 4:	newstr @49 // "file path cannot be null"
+         [0x4] 4:	newstr @46 // "file path cannot be null"
          [0x5] 5:	call @396 // <std#NullptrException.NullptrException(var[])>
          [0x6] 6:	throw 
          [0x7] 7:	nop
@@ -2656,7 +2616,7 @@ line: 31 [0x0] 0:	movl 1
          [0x1] 1:	checknull
          [0x2] 2:	jne 8
 line: 32 [0x3] 3:	new_class @35 // std#NullptrException
-         [0x4] 4:	newstr @49 // "file path cannot be null"
+         [0x4] 4:	newstr @46 // "file path cannot be null"
          [0x5] 5:	call @396 // <std#NullptrException.NullptrException(var[])>
          [0x6] 6:	throw 
          [0x7] 7:	nop
@@ -3175,7 +3135,7 @@ line: 266 [0x0] 0:	movi #0, egx
           [0x6] 6:	movr cmt, ebx
           [0x7] 7:	jne 13
 line: 266 [0x8] 8:	new_class @11 // std#IllegalArgumentException
-          [0x9] 9:	newstr @50 // "Negative time"
+          [0x9] 9:	newstr @47 // "Negative time"
           [0xa] 10:	call @85 // <std#IllegalArgumentException.IllegalArgumentException(var[])>
           [0xb] 11:	throw 
           [0xc] 12:	nop
@@ -3479,7 +3439,7 @@ line: 43 [0x7] 7:	movl 2
          [0x9] 9:	jne 20
 line: 44 [0xa] 10:	new_class @19 // std.io#IOException
          [0xb] 11:	new_class @46 // std#string
-         [0xc] 12:	newstr @51 // "file could not be resolved: "
+         [0xc] 12:	newstr @48 // "file could not be resolved: "
          [0xd] 13:	call @552 // <std#string.string(var[])>
          [0xe] 14:	pushl 1
          [0xf] 15:	call @141 // <std.io#File.getPath()>
@@ -3986,9 +3946,14 @@ func:@198 [std.io#IOStream.IOStream] in file: lib/support/0.2.581//io//IOStream.
 
 
 IOStream:
-        [0x0] 0:	movl 0
-        [0x1] 1:	returnobj
-        [0x2] 2:	ret
+        [0x0] 0:	new_class @46 // std#string
+        [0x1] 1:	call @592 // <std#string.string()>
+        [0x2] 2:	movl 0
+        [0x3] 3:	movn #0
+        [0x4] 4:	popobj
+        [0x5] 5:	movl 0
+        [0x6] 6:	returnobj
+        [0x7] 7:	ret
 
 func:@199 [std.io#IOStream.IOStream] in file: lib/support/0.2.581//io//IOStream.sharp:57:20: note:  
 		    public IOStream(File file, var direction) {
@@ -3996,67 +3961,56 @@ func:@199 [std.io#IOStream.IOStream] in file: lib/support/0.2.581//io//IOStream.
 
 
 IOStream:
-line: 57 [0x0] 0:	pushl 1
-         [0x1] 1:	movl 0
-         [0x2] 2:	movn #1
-         [0x3] 3:	popobj
-line: 58 [0x4] 4:	loadl ebx, fp+2
-         [0x5] 5:	nop
-         [0x6] 6:	rstore ebx
-         [0x7] 7:	movl 0
-         [0x8] 8:	movn #2
-         [0x9] 9:	movi #0, adx
-         [0xb] 11:	loadval ecx
-         [0xc] 12:	rmov adx, ecx
-line: 59 [0xd] 13:	new_class @46 // std#string
-         [0xe] 14:	call @592 // <std#string.string()>
-         [0xf] 15:	movl 0
-         [0x10] 16:	movn #0
-         [0x11] 17:	popobj
-line: 61 [0x12] 18:	ipushl #2
+        [0x0] 0:	new_class @46 // std#string
+        [0x1] 1:	call @592 // <std#string.string()>
+        [0x2] 2:	movl 0
+        [0x3] 3:	movn #0
+        [0x4] 4:	popobj
+line: 57 [0x5] 5:	pushl 1
+         [0x6] 6:	movl 0
+         [0x7] 7:	movn #1
+         [0x8] 8:	popobj
+line: 58 [0x9] 9:	loadl ebx, fp+2
+         [0xa] 10:	nop
+         [0xb] 11:	rstore ebx
+         [0xc] 12:	movl 0
+         [0xd] 13:	movn #2
+         [0xe] 14:	movi #0, adx
+         [0x10] 16:	loadval ecx
+         [0x11] 17:	rmov adx, ecx
+line: 60 [0x12] 18:	ipushl #2
          [0x13] 19:	movg @20 // @std.io#IOStream
          [0x14] 20:	movn #4
-         [0x15] 21:	movi #0, adx
-         [0x17] 23:	iaload_2 egx, adx
-         [0x18] 24:	loadval ebx
-         [0x19] 25:	test ebx, egx
-         [0x1a] 26:	jne 51
-line: 62 [0x1b] 27:	new_class @46 // std#string
-         [0x1c] 28:	newstr @52 // "path = "
-         [0x1d] 29:	call @552 // <std#string.string(var[])>
-         [0x1e] 30:	movl 0
-         [0x1f] 31:	movn #1
-         [0x20] 32:	pushobj
-         [0x21] 33:	call @139 // <std.io#File.getName()>
-         [0x22] 34:	call @566 // <std#string.$operator+(std#Printable)>
-         [0x23] 35:	call @603 // <std#__SRT_Global.println(std#string)>
-line: 63 [0x24] 36:	call @608 // <std#__SRT_Global.flush()>
-line: 64 [0x25] 37:	pushl 1
-         [0x26] 38:	movl 0
-         [0x27] 39:	movn #0
-         [0x28] 40:	pushobj
-         [0x29] 41:	call @171 // <std.io#File.readAllText(std.io#File,std#string)>
-line: 65 [0x2a] 42:	new_class @21 // std.io#IOStream.StreamReader
-         [0x2b] 43:	movl 0
-         [0x2c] 44:	movn #0
-         [0x2d] 45:	pushobj
-         [0x2e] 46:	call @194 // <std.io#IOStream.StreamReader.StreamReader(std#string)>
-         [0x2f] 47:	movl 0
-         [0x30] 48:	movn #3
-         [0x31] 49:	popobj
-         [0x32] 50:	nop
-         [0x33] 51:	nop
-         [0x34] 52:	movl 0
-         [0x35] 53:	returnobj
-         [0x36] 54:	ret
+         [0x15] 21:	iaload_2 egx, adx
+         [0x16] 22:	loadval ebx
+         [0x17] 23:	test ebx, egx
+         [0x18] 24:	jne 39
+line: 61 [0x19] 25:	pushl 1
+         [0x1a] 26:	movl 0
+         [0x1b] 27:	movn #0
+         [0x1c] 28:	pushobj
+         [0x1d] 29:	call @171 // <std.io#File.readAllText(std.io#File,std#string)>
+line: 62 [0x1e] 30:	new_class @21 // std.io#IOStream.StreamReader
+         [0x1f] 31:	movl 0
+         [0x20] 32:	movn #0
+         [0x21] 33:	pushobj
+         [0x22] 34:	call @194 // <std.io#IOStream.StreamReader.StreamReader(std#string)>
+         [0x23] 35:	movl 0
+         [0x24] 36:	movn #3
+         [0x25] 37:	popobj
+         [0x26] 38:	nop
+         [0x27] 39:	nop
+         [0x28] 40:	movl 0
+         [0x29] 41:	returnobj
+         [0x2a] 42:	ret
 
-func:@200 [std.io#IOStream.close] in file: lib/support/0.2.581//io//IOStream.sharp:70:21: note:  
+func:@200 [std.io#IOStream.close] in file: lib/support/0.2.581//io//IOStream.sharp:67:21: note:  
 		    public def close() {
 		                    ^
 
 
 close:
-line: 70 [0x0] 0:	movl 0
+line: 67 [0x0] 0:	movl 0
          [0x1] 1:	movn #2
          [0x2] 2:	movi #0, adx
          [0x4] 4:	iaload_2 ebx, adx
@@ -4067,7 +4021,7 @@ line: 70 [0x0] 0:	movl 0
          [0x9] 9:	loadval ebx
          [0xa] 10:	test ebx, egx
          [0xb] 11:	jne 20
-line: 71 [0xc] 12:	movl 0
+line: 68 [0xc] 12:	movl 0
          [0xd] 13:	movn #1
          [0xe] 14:	pushobj
          [0xf] 15:	movl 0
@@ -4076,20 +4030,20 @@ line: 71 [0xc] 12:	movl 0
          [0x12] 18:	call @172 // <std.io#File.write(std.io#File,std#string)>
          [0x13] 19:	nop
          [0x14] 20:	nop
-line: 73 [0x15] 21:	movl 0
+line: 70 [0x15] 21:	movl 0
          [0x16] 22:	movn #0
          [0x17] 23:	pushobj
          [0x18] 24:	newstr @37 // ""
          [0x19] 25:	call @571 // <std#string.$operator=(var[])>
          [0x1a] 26:	ret
 
-func:@201 [std.io#IOStream.nextChar] in file: lib/support/0.2.581//io//IOStream.sharp:81:24: note:  
+func:@201 [std.io#IOStream.nextChar] in file: lib/support/0.2.581//io//IOStream.sharp:78:24: note:  
 		    public def nextChar() : var {
 		                       ^
 
 
 nextChar:
-line: 81 [0x0] 0:	movl 0
+line: 78 [0x0] 0:	movl 0
          [0x1] 1:	movn #2
          [0x2] 2:	movi #0, adx
          [0x4] 4:	iaload_2 ebx, adx
@@ -4100,7 +4054,7 @@ line: 81 [0x0] 0:	movl 0
          [0x9] 9:	loadval ebx
          [0xa] 10:	test ebx, egx
          [0xb] 11:	jne 20
-line: 82 [0xc] 12:	movl 0
+line: 79 [0xc] 12:	movl 0
          [0xd] 13:	movn #3
          [0xe] 14:	pushobj
          [0xf] 15:	call @195 // <std.io#IOStream.StreamReader.next()>
@@ -4108,8 +4062,8 @@ line: 82 [0xc] 12:	movl 0
          [0x11] 17:	return_val ebx
          [0x12] 18:	ret
          [0x13] 19:	goto @25
-line: 84 [0x14] 20:	new_class @12 // std#IllegalStateException
-         [0x15] 21:	newstr @53 // "illegal read on IOStream"
+line: 81 [0x14] 20:	new_class @12 // std#IllegalStateException
+         [0x15] 21:	newstr @49 // "illegal read on IOStream"
          [0x16] 22:	call @88 // <std#IllegalStateException.IllegalStateException(var[])>
          [0x17] 23:	throw 
          [0x18] 24:	nop
@@ -4118,13 +4072,13 @@ line: 84 [0x14] 20:	new_class @12 // std#IllegalStateException
          [0x1c] 28:	return_val ebx
          [0x1d] 29:	ret
 
-func:@202 [std.io#IOStream.nextLine] in file: lib/support/0.2.581//io//IOStream.sharp:92:24: note:  
+func:@202 [std.io#IOStream.nextLine] in file: lib/support/0.2.581//io//IOStream.sharp:89:24: note:  
 		    public def nextLine() : string {
 		                       ^
 
 
 nextLine:
-line: 92 [0x0] 0:	movl 0
+line: 89 [0x0] 0:	movl 0
          [0x1] 1:	movn #2
          [0x2] 2:	movi #0, adx
          [0x4] 4:	iaload_2 ebx, adx
@@ -4135,7 +4089,7 @@ line: 92 [0x0] 0:	movl 0
          [0x9] 9:	loadval ebx
          [0xa] 10:	test ebx, egx
          [0xb] 11:	jne 20
-line: 93 [0xc] 12:	movl 0
+line: 90 [0xc] 12:	movl 0
          [0xd] 13:	movn #3
          [0xe] 14:	pushobj
          [0xf] 15:	call @196 // <std.io#IOStream.StreamReader.nextLine()>
@@ -4143,8 +4097,8 @@ line: 93 [0xc] 12:	movl 0
          [0x11] 17:	returnobj
          [0x12] 18:	ret
          [0x13] 19:	goto @25
-line: 95 [0x14] 20:	new_class @12 // std#IllegalStateException
-         [0x15] 21:	newstr @53 // "illegal read on IOStream"
+line: 92 [0x14] 20:	new_class @12 // std#IllegalStateException
+         [0x15] 21:	newstr @49 // "illegal read on IOStream"
          [0x16] 22:	call @88 // <std#IllegalStateException.IllegalStateException(var[])>
          [0x17] 23:	throw 
          [0x18] 24:	nop
@@ -4154,13 +4108,13 @@ line: 95 [0x14] 20:	new_class @12 // std#IllegalStateException
          [0x1c] 28:	returnobj
          [0x1d] 29:	ret
 
-func:@203 [std.io#IOStream.size] in file: lib/support/0.2.581//io//IOStream.sharp:99:20: note:  
+func:@203 [std.io#IOStream.size] in file: lib/support/0.2.581//io//IOStream.sharp:96:20: note:  
 		    public def size() : var {
 		                   ^
 
 
 size:
-line: 99 [0x0] 0:	movl 0
+line: 96 [0x0] 0:	movl 0
          [0x1] 1:	movn #0
          [0x2] 2:	pushobj
          [0x3] 3:	call @588 // <std#string.size()>
@@ -4168,13 +4122,13 @@ line: 99 [0x0] 0:	movl 0
          [0x5] 5:	return_val ebx
          [0x6] 6:	ret
 
-func:@204 [std.io#IOStream.write] in file: lib/support/0.2.581//io//IOStream.sharp:103:21: note:  
+func:@204 [std.io#IOStream.write] in file: lib/support/0.2.581//io//IOStream.sharp:100:21: note:  
 		    public def write(string data) {
 		                    ^
 
 
 write:
-line: 103 [0x0] 0:	movl 0
+line: 100 [0x0] 0:	movl 0
           [0x1] 1:	movn #2
           [0x2] 2:	movi #0, adx
           [0x4] 4:	iaload_2 ebx, adx
@@ -4185,13 +4139,13 @@ line: 103 [0x0] 0:	movl 0
           [0x9] 9:	loadval ebx
           [0xa] 10:	test ebx, egx
           [0xb] 11:	jne 17
-line: 104 [0xc] 12:	new_class @12 // std#IllegalStateException
-          [0xd] 13:	newstr @54 // "illegal write on IOStream"
+line: 101 [0xc] 12:	new_class @12 // std#IllegalStateException
+          [0xd] 13:	newstr @50 // "illegal write on IOStream"
           [0xe] 14:	call @88 // <std#IllegalStateException.IllegalStateException(var[])>
           [0xf] 15:	throw 
           [0x10] 16:	nop
           [0x11] 17:	nop
-line: 105 [0x12] 18:	movl 0
+line: 102 [0x12] 18:	movl 0
           [0x13] 19:	movn #0
           [0x14] 20:	pushobj
           [0x15] 21:	pushl 1
@@ -4199,13 +4153,13 @@ line: 105 [0x12] 18:	movl 0
           [0x17] 23:	pop
           [0x18] 24:	ret
 
-func:@205 [std.io#IOStream.write] in file: lib/support/0.2.581//io//IOStream.sharp:109:21: note:  
+func:@205 [std.io#IOStream.write] in file: lib/support/0.2.581//io//IOStream.sharp:106:21: note:  
 		    public def write(var n) {
 		                    ^
 
 
 write:
-line: 109 [0x0] 0:	movl 0
+line: 106 [0x0] 0:	movl 0
           [0x1] 1:	movn #2
           [0x2] 2:	movi #0, adx
           [0x4] 4:	iaload_2 ebx, adx
@@ -4216,13 +4170,13 @@ line: 109 [0x0] 0:	movl 0
           [0x9] 9:	loadval ebx
           [0xa] 10:	test ebx, egx
           [0xb] 11:	jne 17
-line: 110 [0xc] 12:	new_class @12 // std#IllegalStateException
-          [0xd] 13:	newstr @54 // "illegal write on IOStream"
+line: 107 [0xc] 12:	new_class @12 // std#IllegalStateException
+          [0xd] 13:	newstr @50 // "illegal write on IOStream"
           [0xe] 14:	call @88 // <std#IllegalStateException.IllegalStateException(var[])>
           [0xf] 15:	throw 
           [0x10] 16:	nop
           [0x11] 17:	nop
-line: 111 [0x12] 18:	movl 0
+line: 108 [0x12] 18:	movl 0
           [0x13] 19:	movn #0
           [0x14] 20:	pushobj
           [0x15] 21:	ipushl #1
@@ -4231,13 +4185,13 @@ line: 111 [0x12] 18:	movl 0
           [0x18] 24:	pop
           [0x19] 25:	ret
 
-func:@206 [std.io#IOStream.writeChar] in file: lib/support/0.2.581//io//IOStream.sharp:115:25: note:  
+func:@206 [std.io#IOStream.writeChar] in file: lib/support/0.2.581//io//IOStream.sharp:112:25: note:  
 		    public def writeChar(var n) {
 		                        ^
 
 
 writeChar:
-line: 115 [0x0] 0:	movl 0
+line: 112 [0x0] 0:	movl 0
           [0x1] 1:	movn #2
           [0x2] 2:	movi #0, adx
           [0x4] 4:	iaload_2 ebx, adx
@@ -4248,13 +4202,13 @@ line: 115 [0x0] 0:	movl 0
           [0x9] 9:	loadval ebx
           [0xa] 10:	test ebx, egx
           [0xb] 11:	jne 17
-line: 116 [0xc] 12:	new_class @12 // std#IllegalStateException
-          [0xd] 13:	newstr @54 // "illegal write on IOStream"
+line: 113 [0xc] 12:	new_class @12 // std#IllegalStateException
+          [0xd] 13:	newstr @50 // "illegal write on IOStream"
           [0xe] 14:	call @88 // <std#IllegalStateException.IllegalStateException(var[])>
           [0xf] 15:	throw 
           [0x10] 16:	nop
           [0x11] 17:	nop
-line: 117 [0x12] 18:	movl 0
+line: 114 [0x12] 18:	movl 0
           [0x13] 19:	movn #0
           [0x14] 20:	pushobj
           [0x15] 21:	ipushl #1
@@ -4262,26 +4216,26 @@ line: 117 [0x12] 18:	movl 0
           [0x17] 23:	pop
           [0x18] 24:	ret
 
-func:@207 [std.io#IOStream.clear] in file: lib/support/0.2.581//io//IOStream.sharp:121:21: note:  
+func:@207 [std.io#IOStream.clear] in file: lib/support/0.2.581//io//IOStream.sharp:118:21: note:  
 		    public def clear() {
 		                    ^
 
 
 clear:
-line: 121 [0x0] 0:	movl 0
+line: 118 [0x0] 0:	movl 0
           [0x1] 1:	movn #0
           [0x2] 2:	pushobj
           [0x3] 3:	newstr @37 // ""
           [0x4] 4:	call @571 // <std#string.$operator=(var[])>
           [0x5] 5:	ret
 
-func:@208 [std.io#IOStream.toString] in file: lib/support/0.2.581//io//IOStream.sharp:125:24: note:  
+func:@208 [std.io#IOStream.toString] in file: lib/support/0.2.581//io//IOStream.sharp:122:24: note:  
 		    public def toString() : string {
 		                       ^
 
 
 toString:
-line: 125 [0x0] 0:	new_class @46 // std#string
+line: 122 [0x0] 0:	new_class @46 // std#string
           [0x1] 1:	movl 0
           [0x2] 2:	movn #0
           [0x3] 3:	pushobj
@@ -4290,13 +4244,13 @@ line: 125 [0x0] 0:	new_class @46 // std#string
           [0x6] 6:	returnobj
           [0x7] 7:	ret
 
-func:@209 [std.io#IOStream.write] in file: lib/support/0.2.581//io//IOStream.sharp:129:21: note:  
+func:@209 [std.io#IOStream.write] in file: lib/support/0.2.581//io//IOStream.sharp:126:21: note:  
 		    public def write(var[] data) {
 		                    ^
 
 
 write:
-line: 129 [0x0] 0:	movl 0
+line: 126 [0x0] 0:	movl 0
           [0x1] 1:	movn #2
           [0x2] 2:	movi #0, adx
           [0x4] 4:	iaload_2 ebx, adx
@@ -4307,13 +4261,13 @@ line: 129 [0x0] 0:	movl 0
           [0x9] 9:	loadval ebx
           [0xa] 10:	test ebx, egx
           [0xb] 11:	jne 17
-line: 130 [0xc] 12:	new_class @12 // std#IllegalStateException
-          [0xd] 13:	newstr @54 // "illegal write on IOStream"
+line: 127 [0xc] 12:	new_class @12 // std#IllegalStateException
+          [0xd] 13:	newstr @50 // "illegal write on IOStream"
           [0xe] 14:	call @88 // <std#IllegalStateException.IllegalStateException(var[])>
           [0xf] 15:	throw 
           [0x10] 16:	nop
           [0x11] 17:	nop
-line: 131 [0x12] 18:	movl 0
+line: 128 [0x12] 18:	movl 0
           [0x13] 19:	movn #0
           [0x14] 20:	pushobj
           [0x15] 21:	pushl 1
@@ -4549,7 +4503,7 @@ line: 89 [0x0] 0:	movi #6, egx
          [0xd] 13:	jne 23
 line: 90 [0xe] 14:	new_class @11 // std#IllegalArgumentException
          [0xf] 15:	new_class @46 // std#string
-         [0x10] 16:	newstr @55 // "invalid thread priority "
+         [0x10] 16:	newstr @51 // "invalid thread priority "
          [0x11] 17:	call @552 // <std#string.string(var[])>
          [0x12] 18:	ipushl #1
          [0x13] 19:	call @572 // <std#string.$operator+(var)>
@@ -4812,7 +4766,7 @@ line: 149 [0x5] 5:	nop
 line: 150 [0xd] 13:	movl 0
           [0xe] 14:	movn #10
           [0xf] 15:	pushobj
-          [0x10] 16:	newstr @56 // "main"
+          [0x10] 16:	newstr @52 // "main"
           [0x11] 17:	call @571 // <std#string.$operator=(var[])>
 line: 151 [0x12] 18:	movi #1, ebx
           [0x14] 20:	nop
@@ -5700,7 +5654,7 @@ line: 21 [0xc] 12:	ipushl #2
          [0x11] 17:	pop
          [0x12] 18:	goto @23
 line: 24 [0x13] 19:	pushl 0
-         [0x14] 20:	newstr @57 // "null"
+         [0x14] 20:	newstr @53 // "null"
          [0x15] 21:	call @280 // <std.kernel#ConsoleHandler.__print_(var[])>
          [0x16] 22:	nop
          [0x17] 23:	nop
@@ -5856,7 +5810,7 @@ isWindows:
 line: 11 [0x0] 0:	movg @29 // @std.kernel#Manifest
          [0x1] 1:	movn #0
          [0x2] 2:	pushobj
-         [0x3] 3:	newstr @58 // "win"
+         [0x3] 3:	newstr @54 // "win"
          [0x4] 4:	call @569 // <std#string.$operator==(var[])>
          [0x5] 5:	loadval ebx
          [0x6] 6:	return_val ebx
@@ -5871,7 +5825,7 @@ isLinux:
 line: 15 [0x0] 0:	movg @29 // @std.kernel#Manifest
          [0x1] 1:	movn #0
          [0x2] 2:	pushobj
-         [0x3] 3:	newstr @59 // "posix"
+         [0x3] 3:	newstr @55 // "posix"
          [0x4] 4:	call @569 // <std#string.$operator==(var[])>
          [0x5] 5:	loadval ebx
          [0x6] 6:	return_val ebx
@@ -6922,7 +6876,7 @@ line: 83 [0x6f] 111:	movg @30 // @std.kernel#Runtime
          [0x77] 119:	calld ebx
          [0x78] 120:	ipopl 3
 line: 84 [0x79] 121:	new_class @46 // std#string
-         [0x7a] 122:	newstr @60 // "\nProgram finished with exit code "
+         [0x7a] 122:	newstr @56 // "\nProgram finished with exit code "
          [0x7b] 123:	call @552 // <std#string.string(var[])>
          [0x7c] 124:	ipushl #3
          [0x7d] 125:	call @572 // <std#string.$operator+(var)>
@@ -10263,23 +10217,23 @@ func:@511 [std#strbuf.strbuf] in file: lib/support/0.2.581//strbuf.sharp:18:22: 
 
 
 strbuf:
-line: 19 [0x0] 0:	movi #128, ebx
-         [0x2] 2:	nop
-         [0x3] 3:	rstore ebx
-         [0x4] 4:	movl 0
-         [0x5] 5:	movn #2
-         [0x6] 6:	movi #0, adx
-         [0x8] 8:	loadval ecx
-         [0x9] 9:	rmov adx, ecx
-         [0xa] 10:	movi #255, ebx
-         [0xc] 12:	nop
-         [0xd] 13:	rstore ebx
-         [0xe] 14:	movl 0
-         [0xf] 15:	movn #1
-         [0x10] 16:	movi #0, adx
-         [0x12] 18:	loadval ecx
-         [0x13] 19:	rmov adx, ecx
-         [0x14] 20:	pushl 0
+        [0x0] 0:	movi #128, ebx
+        [0x2] 2:	nop
+        [0x3] 3:	rstore ebx
+        [0x4] 4:	movl 0
+        [0x5] 5:	movn #2
+        [0x6] 6:	movi #0, adx
+        [0x8] 8:	loadval ecx
+        [0x9] 9:	rmov adx, ecx
+        [0xa] 10:	movi #255, ebx
+        [0xc] 12:	nop
+        [0xd] 13:	rstore ebx
+        [0xe] 14:	movl 0
+        [0xf] 15:	movn #1
+        [0x10] 16:	movi #0, adx
+        [0x12] 18:	loadval ecx
+        [0x13] 19:	rmov adx, ecx
+line: 19 [0x14] 20:	pushl 0
          [0x15] 21:	call @512 // <std#strbuf.setdefault()>
          [0x16] 22:	movl 0
          [0x17] 23:	returnobj
@@ -10324,31 +10278,31 @@ func:@513 [std#strbuf.strbuf] in file: lib/support/0.2.581//strbuf.sharp:30:22: 
 
 
 strbuf:
-line: 31 [0x0] 0:	movi #128, ebx
-         [0x2] 2:	nop
-         [0x3] 3:	rstore ebx
-         [0x4] 4:	movl 0
-         [0x5] 5:	movn #2
-line: 32 [0x6] 6:	movi #0, adx
-         [0x8] 8:	loadval ecx
-         [0x9] 9:	rmov adx, ecx
-line: 34 [0xa] 10:	movi #255, ebx
-         [0xc] 12:	nop
-         [0xd] 13:	rstore ebx
-         [0xe] 14:	movl 0
-         [0xf] 15:	movn #1
-         [0x10] 16:	movi #0, adx
-         [0x12] 18:	loadval ecx
-         [0x13] 19:	rmov adx, ecx
-         [0x14] 20:	movl 1
+        [0x0] 0:	movi #128, ebx
+        [0x2] 2:	nop
+        [0x3] 3:	rstore ebx
+        [0x4] 4:	movl 0
+        [0x5] 5:	movn #2
+        [0x6] 6:	movi #0, adx
+        [0x8] 8:	loadval ecx
+        [0x9] 9:	rmov adx, ecx
+        [0xa] 10:	movi #255, ebx
+        [0xc] 12:	nop
+        [0xd] 13:	rstore ebx
+        [0xe] 14:	movl 0
+        [0xf] 15:	movn #1
+        [0x10] 16:	movi #0, adx
+        [0x12] 18:	loadval ecx
+        [0x13] 19:	rmov adx, ecx
+line: 31 [0x14] 20:	movl 1
          [0x15] 21:	checknull
-line: 35 [0x16] 22:	jne 10
-         [0x17] 23:	pushl 0
+         [0x16] 22:	jne 26
+line: 32 [0x17] 23:	pushl 0
          [0x18] 24:	call @512 // <std#strbuf.setdefault()>
-         [0x19] 25:	goto @41
-         [0x1a] 26:	pushl 1
+         [0x19] 25:	goto @57
+line: 34 [0x1a] 26:	pushl 1
          [0x1b] 27:	istore 0
-line: 36 [0x1c] 28:	movl 1
+         [0x1c] 28:	movl 1
          [0x1d] 29:	sizeof ebx
          [0x1e] 30:	rstore ebx
          [0x1f] 31:	call @614 // <std#__SRT_Global.memcpy(object,var,var)>
@@ -10357,7 +10311,7 @@ line: 36 [0x1c] 28:	movl 1
          [0x22] 34:	movl 0
          [0x23] 35:	movn #0
          [0x24] 36:	popobj
-         [0x25] 37:	movl 1
+line: 35 [0x25] 37:	movl 1
          [0x26] 38:	sizeof ebx
          [0x27] 39:	nop
          [0x28] 40:	rstore ebx
@@ -10366,7 +10320,7 @@ line: 36 [0x1c] 28:	movl 1
          [0x2b] 43:	movi #0, adx
          [0x2d] 45:	loadval ecx
          [0x2e] 46:	rmov adx, ecx
-         [0x2f] 47:	movl 0
+line: 36 [0x2f] 47:	movl 0
          [0x30] 48:	movn #3
          [0x31] 49:	nop
          [0x32] 50:	iaload_2 ebx, adx
@@ -10387,25 +10341,25 @@ func:@514 [std#strbuf.strbuf] in file: lib/support/0.2.581//strbuf.sharp:41:22: 
 
 
 strbuf:
-line: 42 [0x0] 0:	movi #128, ebx
-         [0x2] 2:	nop
-line: 43 [0x3] 3:	rstore ebx
-         [0x4] 4:	movl 0
-         [0x5] 5:	movn #2
-         [0x6] 6:	movi #0, adx
-         [0x8] 8:	loadval ecx
-         [0x9] 9:	rmov adx, ecx
-         [0xa] 10:	movi #255, ebx
-         [0xc] 12:	nop
-         [0xd] 13:	rstore ebx
-         [0xe] 14:	movl 0
-         [0xf] 15:	movn #1
-         [0x10] 16:	movi #0, adx
-         [0x12] 18:	loadval ecx
-         [0x13] 19:	rmov adx, ecx
-         [0x14] 20:	pushl 0
+        [0x0] 0:	movi #128, ebx
+        [0x2] 2:	nop
+        [0x3] 3:	rstore ebx
+        [0x4] 4:	movl 0
+        [0x5] 5:	movn #2
+        [0x6] 6:	movi #0, adx
+        [0x8] 8:	loadval ecx
+        [0x9] 9:	rmov adx, ecx
+        [0xa] 10:	movi #255, ebx
+        [0xc] 12:	nop
+        [0xd] 13:	rstore ebx
+        [0xe] 14:	movl 0
+        [0xf] 15:	movn #1
+        [0x10] 16:	movi #0, adx
+        [0x12] 18:	loadval ecx
+        [0x13] 19:	rmov adx, ecx
+line: 42 [0x14] 20:	pushl 0
          [0x15] 21:	call @512 // <std#strbuf.setdefault()>
-         [0x16] 22:	pushl 0
+line: 43 [0x16] 22:	pushl 0
          [0x17] 23:	ipushl #1
          [0x18] 24:	call @520 // <std#strbuf.append(var)>
          [0x19] 25:	pop
@@ -10419,44 +10373,44 @@ func:@515 [std#strbuf.strbuf] in file: lib/support/0.2.581//strbuf.sharp:47:22: 
 
 
 strbuf:
-line: 48 [0x0] 0:	movi #128, ebx
-         [0x2] 2:	nop
-line: 49 [0x3] 3:	rstore ebx
-         [0x4] 4:	movl 0
-         [0x5] 5:	movn #2
-         [0x6] 6:	movi #0, adx
-         [0x8] 8:	loadval ecx
-         [0x9] 9:	rmov adx, ecx
-line: 51 [0xa] 10:	movi #255, ebx
-         [0xc] 12:	nop
-         [0xd] 13:	rstore ebx
-         [0xe] 14:	movl 0
-line: 52 [0xf] 15:	movn #1
-         [0x10] 16:	movi #0, adx
-line: 53 [0x12] 18:	loadval ecx
-         [0x13] 19:	rmov adx, ecx
-         [0x14] 20:	pushl 0
+        [0x0] 0:	movi #128, ebx
+        [0x2] 2:	nop
+        [0x3] 3:	rstore ebx
+        [0x4] 4:	movl 0
+        [0x5] 5:	movn #2
+        [0x6] 6:	movi #0, adx
+        [0x8] 8:	loadval ecx
+        [0x9] 9:	rmov adx, ecx
+        [0xa] 10:	movi #255, ebx
+        [0xc] 12:	nop
+        [0xd] 13:	rstore ebx
+        [0xe] 14:	movl 0
+        [0xf] 15:	movn #1
+        [0x10] 16:	movi #0, adx
+        [0x12] 18:	loadval ecx
+        [0x13] 19:	rmov adx, ecx
+line: 48 [0x14] 20:	pushl 0
          [0x15] 21:	call @512 // <std#strbuf.setdefault()>
-         [0x16] 22:	movl 1
+line: 49 [0x16] 22:	movl 1
          [0x17] 23:	checknull
          [0x18] 24:	not cmt, cmt
-         [0x19] 25:	jne 50
-         [0x1a] 26:	movl 1
-line: 54 [0x1b] 27:	sizeof ebx
+         [0x19] 25:	jne 59
+line: 51 [0x1a] 26:	movl 1
+         [0x1b] 27:	sizeof ebx
          [0x1c] 28:	newarry ebx
          [0x1d] 29:	popl 2
          [0x1e] 30:	istorel 0, fp+3
-         [0x20] 32:	istore 0
-         [0x21] 33:	movl 1
+line: 52 [0x20] 32:	istore 0
+line: 53 [0x21] 33:	movl 1
          [0x22] 34:	smov ebx, sp+0
          [0x23] 35:	sizeof egx
          [0x24] 36:	lt ebx, egx
-         [0x25] 37:	jne 44
-line: 57 [0x26] 38:	movnd ebx
+         [0x25] 37:	jne 53
+         [0x26] 38:	movnd ebx
          [0x27] 39:	pushobj
          [0x28] 40:	popl 4
          [0x29] 41:	pushl 4
-         [0x2a] 42:	call @128 // <std#integer.getValue()>
+line: 54 [0x2a] 42:	call @128 // <std#integer.getValue()>
          [0x2b] 43:	loadval ebx
          [0x2c] 44:	rstore ebx
          [0x2d] 45:	movl 2
@@ -10466,9 +10420,9 @@ line: 57 [0x26] 38:	movnd ebx
          [0x31] 49:	loadval egx
          [0x32] 50:	rmov ebx, egx
          [0x33] 51:	isadd 1, sp+0
-         [0x34] 52:	goto @20
+         [0x34] 52:	goto @33
          [0x35] 53:	pop
-         [0x36] 54:	pushl 0
+line: 57 [0x36] 54:	pushl 0
          [0x37] 55:	pushl 2
          [0x38] 56:	call @522 // <std#strbuf.append(var[])>
          [0x39] 57:	pop
@@ -10484,23 +10438,23 @@ func:@516 [std#strbuf.strbuf] in file: lib/support/0.2.581//strbuf.sharp:63:22: 
 
 
 strbuf:
-line: 64 [0x0] 0:	movi #128, ebx
-         [0x2] 2:	nop
-         [0x3] 3:	rstore ebx
-         [0x4] 4:	movl 0
-         [0x5] 5:	movn #2
-         [0x6] 6:	movi #0, adx
-         [0x8] 8:	loadval ecx
-         [0x9] 9:	rmov adx, ecx
-         [0xa] 10:	movi #255, ebx
-         [0xc] 12:	nop
-         [0xd] 13:	rstore ebx
-         [0xe] 14:	movl 0
-         [0xf] 15:	movn #1
-         [0x10] 16:	movi #0, adx
-         [0x12] 18:	loadval ecx
-         [0x13] 19:	rmov adx, ecx
-         [0x14] 20:	pushl 0
+        [0x0] 0:	movi #128, ebx
+        [0x2] 2:	nop
+        [0x3] 3:	rstore ebx
+        [0x4] 4:	movl 0
+        [0x5] 5:	movn #2
+        [0x6] 6:	movi #0, adx
+        [0x8] 8:	loadval ecx
+        [0x9] 9:	rmov adx, ecx
+        [0xa] 10:	movi #255, ebx
+        [0xc] 12:	nop
+        [0xd] 13:	rstore ebx
+        [0xe] 14:	movl 0
+        [0xf] 15:	movn #1
+        [0x10] 16:	movi #0, adx
+        [0x12] 18:	loadval ecx
+        [0x13] 19:	rmov adx, ecx
+line: 64 [0x14] 20:	pushl 0
          [0x15] 21:	pushl 1
          [0x16] 22:	call @577 // <std#string.toArray()>
          [0x17] 23:	call @513 // <std#strbuf.strbuf(var[])>
@@ -10515,31 +10469,31 @@ func:@517 [std#strbuf.strbuf] in file: lib/support/0.2.581//strbuf.sharp:68:22: 
 
 
 strbuf:
-line: 69 [0x0] 0:	movi #128, ebx
-         [0x2] 2:	nop
-         [0x3] 3:	rstore ebx
-         [0x4] 4:	movl 0
-         [0x5] 5:	movn #2
-line: 70 [0x6] 6:	movi #0, adx
-         [0x8] 8:	loadval ecx
-         [0x9] 9:	rmov adx, ecx
-line: 72 [0xa] 10:	movi #255, ebx
-         [0xc] 12:	nop
-         [0xd] 13:	rstore ebx
-         [0xe] 14:	movl 0
-         [0xf] 15:	movn #1
-         [0x10] 16:	movi #0, adx
-         [0x12] 18:	loadval ecx
-         [0x13] 19:	rmov adx, ecx
-         [0x14] 20:	movl 1
+        [0x0] 0:	movi #128, ebx
+        [0x2] 2:	nop
+        [0x3] 3:	rstore ebx
+        [0x4] 4:	movl 0
+        [0x5] 5:	movn #2
+        [0x6] 6:	movi #0, adx
+        [0x8] 8:	loadval ecx
+        [0x9] 9:	rmov adx, ecx
+        [0xa] 10:	movi #255, ebx
+        [0xc] 12:	nop
+        [0xd] 13:	rstore ebx
+        [0xe] 14:	movl 0
+        [0xf] 15:	movn #1
+        [0x10] 16:	movi #0, adx
+        [0x12] 18:	loadval ecx
+        [0x13] 19:	rmov adx, ecx
+line: 69 [0x14] 20:	movl 1
          [0x15] 21:	checknull
-line: 73 [0x16] 22:	jne 10
-         [0x17] 23:	pushl 0
+         [0x16] 22:	jne 26
+line: 70 [0x17] 23:	pushl 0
          [0x18] 24:	call @512 // <std#strbuf.setdefault()>
-         [0x19] 25:	goto @41
-         [0x1a] 26:	pushl 1
+         [0x19] 25:	goto @57
+line: 72 [0x1a] 26:	pushl 1
          [0x1b] 27:	ipushl #2
-line: 74 [0x1c] 28:	movl 1
+         [0x1c] 28:	movl 1
          [0x1d] 29:	sizeof ebx
          [0x1e] 30:	rstore ebx
          [0x1f] 31:	call @614 // <std#__SRT_Global.memcpy(object,var,var)>
@@ -10548,7 +10502,7 @@ line: 74 [0x1c] 28:	movl 1
          [0x22] 34:	movl 0
          [0x23] 35:	movn #0
          [0x24] 36:	popobj
-         [0x25] 37:	movl 1
+line: 73 [0x25] 37:	movl 1
          [0x26] 38:	sizeof ebx
          [0x27] 39:	nop
          [0x28] 40:	rstore ebx
@@ -10557,7 +10511,7 @@ line: 74 [0x1c] 28:	movl 1
          [0x2b] 43:	movi #0, adx
          [0x2d] 45:	loadval ecx
          [0x2e] 46:	rmov adx, ecx
-         [0x2f] 47:	movl 0
+line: 74 [0x2f] 47:	movl 0
          [0x30] 48:	movn #3
          [0x31] 49:	nop
          [0x32] 50:	iaload_2 ebx, adx
@@ -10578,30 +10532,30 @@ func:@518 [std#strbuf.strbuf] in file: lib/support/0.2.581//strbuf.sharp:79:22: 
 
 
 strbuf:
-line: 80 [0x0] 0:	movi #128, ebx
-         [0x2] 2:	nop
-         [0x3] 3:	rstore ebx
-         [0x4] 4:	movl 0
-         [0x5] 5:	movn #2
-line: 81 [0x6] 6:	movi #0, adx
-         [0x8] 8:	loadval ecx
-         [0x9] 9:	rmov adx, ecx
-line: 83 [0xa] 10:	movi #255, ebx
-         [0xc] 12:	nop
-         [0xd] 13:	rstore ebx
-         [0xe] 14:	movl 0
-         [0xf] 15:	movn #1
-         [0x10] 16:	movi #0, adx
-         [0x12] 18:	loadval ecx
-         [0x13] 19:	rmov adx, ecx
-         [0x14] 20:	movl 1
+        [0x0] 0:	movi #128, ebx
+        [0x2] 2:	nop
+        [0x3] 3:	rstore ebx
+        [0x4] 4:	movl 0
+        [0x5] 5:	movn #2
+        [0x6] 6:	movi #0, adx
+        [0x8] 8:	loadval ecx
+        [0x9] 9:	rmov adx, ecx
+        [0xa] 10:	movi #255, ebx
+        [0xc] 12:	nop
+        [0xd] 13:	rstore ebx
+        [0xe] 14:	movl 0
+        [0xf] 15:	movn #1
+        [0x10] 16:	movi #0, adx
+        [0x12] 18:	loadval ecx
+        [0x13] 19:	rmov adx, ecx
+line: 80 [0x14] 20:	movl 1
          [0x15] 21:	checknull
-line: 84 [0x16] 22:	jne 10
-         [0x17] 23:	pushl 0
+         [0x16] 22:	jne 26
+line: 81 [0x17] 23:	pushl 0
          [0x18] 24:	call @512 // <std#strbuf.setdefault()>
-         [0x19] 25:	goto @39
-         [0x1a] 26:	pushl 1
-line: 85 [0x1b] 27:	ipushl #2
+         [0x19] 25:	goto @55
+line: 83 [0x1a] 26:	pushl 1
+         [0x1b] 27:	ipushl #2
          [0x1c] 28:	ipushl #3
          [0x1d] 29:	call @614 // <std#__SRT_Global.memcpy(object,var,var)>
          [0x1e] 30:	movsl #0
@@ -10609,7 +10563,7 @@ line: 85 [0x1b] 27:	ipushl #2
          [0x20] 32:	movl 0
          [0x21] 33:	movn #0
          [0x22] 34:	popobj
-         [0x23] 35:	movl 1
+line: 84 [0x23] 35:	movl 1
          [0x24] 36:	sizeof ebx
          [0x25] 37:	nop
          [0x26] 38:	rstore ebx
@@ -10618,7 +10572,7 @@ line: 85 [0x1b] 27:	ipushl #2
          [0x29] 41:	movi #0, adx
          [0x2b] 43:	loadval ecx
          [0x2c] 44:	rmov adx, ecx
-         [0x2d] 45:	movl 0
+line: 85 [0x2d] 45:	movl 0
          [0x2e] 46:	movn #3
          [0x2f] 47:	nop
          [0x30] 48:	iaload_2 ebx, adx
@@ -10646,7 +10600,7 @@ line: 91 [0x0] 0:	movl 0
          [0x4] 4:	gte ebx, egx
          [0x5] 5:	jne 11
 line: 92 [0x6] 6:	new_class @43 // std#RuntimeErr
-         [0x7] 7:	newstr @61 // "Index out of bounds exception"
+         [0x7] 7:	newstr @57 // "Index out of bounds exception"
          [0x8] 8:	call @475 // <std#RuntimeErr.RuntimeErr(var[])>
          [0x9] 9:	throw 
          [0xa] 10:	nop
@@ -10919,14 +10873,14 @@ line: 150 [0x0] 0:	movl 0
           [0x5] 5:	jne 22
 line: 151 [0x6] 6:	new_class @43 // std#RuntimeErr
           [0x7] 7:	new_class @46 // std#string
-          [0x8] 8:	newstr @62 // "Index out of bounds Array: size "
+          [0x8] 8:	newstr @58 // "Index out of bounds Array: size "
           [0x9] 9:	call @552 // <std#string.string(var[])>
           [0xa] 10:	movl 0
           [0xb] 11:	movn #0
           [0xc] 12:	sizeof ebx
           [0xd] 13:	rstore ebx
           [0xe] 14:	call @572 // <std#string.$operator+(var)>
-          [0xf] 15:	newstr @63 // " at index pos "
+          [0xf] 15:	newstr @59 // " at index pos "
           [0x10] 16:	call @565 // <std#string.$operator+(var[])>
           [0x11] 17:	ipushl #1
           [0x12] 18:	call @572 // <std#string.$operator+(var)>
@@ -10997,7 +10951,7 @@ line: 164 [0x0] 0:	movi #0, egx
           [0x4] 4:	jne 14
 line: 165 [0x5] 5:	new_class @11 // std#IllegalArgumentException
           [0x6] 6:	new_class @46 // std#string
-          [0x7] 7:	newstr @64 // "invalid precision: "
+          [0x7] 7:	newstr @60 // "invalid precision: "
           [0x8] 8:	call @552 // <std#string.string(var[])>
           [0x9] 9:	ipushl #0
           [0xa] 10:	call @572 // <std#string.$operator+(var)>
@@ -11039,7 +10993,7 @@ line: 173 [0xa] 10:	pushl 2
           [0xf] 15:	ret
           [0x10] 16:	goto @24
 line: 175 [0x11] 17:	pushl 2
-          [0x12] 18:	newstr @57 // "null"
+          [0x12] 18:	newstr @53 // "null"
           [0x13] 19:	call @575 // <std#string.$operator+=(var[])>
           [0x14] 20:	movsl #0
           [0x15] 21:	returnobj
@@ -11090,7 +11044,7 @@ line: 183 [0x19] 25:	pushl 2
           [0x1e] 30:	ret
           [0x1f] 31:	goto @39
 line: 185 [0x20] 32:	pushl 2
-          [0x21] 33:	newstr @57 // "null"
+          [0x21] 33:	newstr @53 // "null"
           [0x22] 34:	call @575 // <std#string.$operator+=(var[])>
           [0x23] 35:	movsl #0
           [0x24] 36:	returnobj
@@ -11346,7 +11300,7 @@ line: 260 [0x13] 19:	pushl 0
           [0x19] 25:	ret
           [0x1a] 26:	goto @34
 line: 262 [0x1b] 27:	pushl 0
-          [0x1c] 28:	newstr @57 // "null"
+          [0x1c] 28:	newstr @53 // "null"
           [0x1d] 29:	call @522 // <std#strbuf.append(var[])>
           [0x1e] 30:	movsl #0
           [0x1f] 31:	returnobj
@@ -11528,11 +11482,11 @@ line: 299 [0x17] 23:	loadl egx, fp+1
           [0x1a] 26:	jne 40
 line: 300 [0x1b] 27:	new_class @11 // std#IllegalArgumentException
           [0x1c] 28:	new_class @46 // std#string
-          [0x1d] 29:	newstr @65 // "stopIndex: "
+          [0x1d] 29:	newstr @61 // "stopIndex: "
           [0x1e] 30:	call @552 // <std#string.string(var[])>
           [0x1f] 31:	ipushl #2
           [0x20] 32:	call @572 // <std#string.$operator+(var)>
-          [0x21] 33:	newstr @66 // " cannot be less than startIndex: "
+          [0x21] 33:	newstr @62 // " cannot be less than startIndex: "
           [0x22] 34:	call @565 // <std#string.$operator+(var[])>
           [0x23] 35:	ipushl #1
           [0x24] 36:	call @572 // <std#string.$operator+(var)>
@@ -11594,7 +11548,7 @@ line: 319 [0x1b] 27:	pushl 0
           [0x22] 34:	jne 48
 line: 320 [0x23] 35:	new_class @11 // std#IllegalArgumentException
           [0x24] 36:	new_class @46 // std#string
-          [0x25] 37:	newstr @67 // "illegal char in string: "
+          [0x25] 37:	newstr @63 // "illegal char in string: "
           [0x26] 38:	call @552 // <std#string.string(var[])>
           [0x27] 39:	new_class @8 // std#char
           [0x28] 40:	pushl 0
@@ -12124,7 +12078,7 @@ line: 67 [0x0] 0:	movl 0
          [0x4] 4:	gte ebx, egx
          [0x5] 5:	jne 11
 line: 68 [0x6] 6:	new_class @43 // std#RuntimeErr
-         [0x7] 7:	newstr @61 // "Index out of bounds exception"
+         [0x7] 7:	newstr @57 // "Index out of bounds exception"
          [0x8] 8:	call @475 // <std#RuntimeErr.RuntimeErr(var[])>
          [0x9] 9:	throw 
          [0xa] 10:	nop
@@ -12285,14 +12239,14 @@ line: 112 [0x0] 0:	movl 0
           [0x5] 5:	jne 22
 line: 113 [0x6] 6:	new_class @43 // std#RuntimeErr
           [0x7] 7:	new_class @46 // std#string
-          [0x8] 8:	newstr @62 // "Index out of bounds Array: size "
+          [0x8] 8:	newstr @58 // "Index out of bounds Array: size "
           [0x9] 9:	call @552 // <std#string.string(var[])>
           [0xa] 10:	movl 0
           [0xb] 11:	movn #0
           [0xc] 12:	sizeof ebx
           [0xd] 13:	rstore ebx
           [0xe] 14:	call @572 // <std#string.$operator+(var)>
-          [0xf] 15:	newstr @63 // " at index pos "
+          [0xf] 15:	newstr @59 // " at index pos "
           [0x10] 16:	call @565 // <std#string.$operator+(var[])>
           [0x11] 17:	ipushl #1
           [0x12] 18:	call @572 // <std#string.$operator+(var)>
@@ -12371,7 +12325,7 @@ line: 126 [0x0] 0:	movi #0, egx
           [0xd] 13:	jne 23
 line: 127 [0xe] 14:	new_class @11 // std#IllegalArgumentException
           [0xf] 15:	new_class @46 // std#string
-          [0x10] 16:	newstr @64 // "invalid precision: "
+          [0x10] 16:	newstr @60 // "invalid precision: "
           [0x11] 17:	call @552 // <std#string.string(var[])>
           [0x12] 18:	ipushl #0
           [0x13] 19:	call @572 // <std#string.$operator+(var)>
@@ -12413,7 +12367,7 @@ line: 135 [0xa] 10:	pushl 2
           [0xf] 15:	ret
           [0x10] 16:	goto @24
 line: 137 [0x11] 17:	pushl 2
-          [0x12] 18:	newstr @57 // "null"
+          [0x12] 18:	newstr @53 // "null"
           [0x13] 19:	call @561 // <std#string.append(var[])>
           [0x14] 20:	movsl #0
           [0x15] 21:	returnobj
@@ -12464,7 +12418,7 @@ line: 145 [0x19] 25:	pushl 2
           [0x1e] 30:	ret
           [0x1f] 31:	goto @39
 line: 147 [0x20] 32:	pushl 2
-          [0x21] 33:	newstr @57 // "null"
+          [0x21] 33:	newstr @53 // "null"
           [0x22] 34:	call @561 // <std#string.append(var[])>
           [0x23] 35:	movsl #0
           [0x24] 36:	returnobj
@@ -12705,7 +12659,7 @@ line: 214 [0x11] 17:	pushl 0
           [0x18] 24:	ret
           [0x19] 25:	goto @33
 line: 216 [0x1a] 26:	pushl 0
-          [0x1b] 27:	newstr @57 // "null"
+          [0x1b] 27:	newstr @53 // "null"
           [0x1c] 28:	call @561 // <std#string.append(var[])>
           [0x1d] 29:	movsl #0
           [0x1e] 30:	returnobj
@@ -12882,11 +12836,11 @@ line: 253 [0x17] 23:	loadl egx, fp+1
           [0x1a] 26:	jne 40
 line: 254 [0x1b] 27:	new_class @11 // std#IllegalArgumentException
           [0x1c] 28:	new_class @46 // std#string
-          [0x1d] 29:	newstr @65 // "stopIndex: "
+          [0x1d] 29:	newstr @61 // "stopIndex: "
           [0x1e] 30:	call @552 // <std#string.string(var[])>
           [0x1f] 31:	ipushl #2
           [0x20] 32:	call @572 // <std#string.$operator+(var)>
-          [0x21] 33:	newstr @66 // " cannot be less than startIndex: "
+          [0x21] 33:	newstr @62 // " cannot be less than startIndex: "
           [0x22] 34:	call @565 // <std#string.$operator+(var[])>
           [0x23] 35:	ipushl #1
           [0x24] 36:	call @572 // <std#string.$operator+(var)>
@@ -12949,7 +12903,7 @@ line: 273 [0x1b] 27:	pushl 0
           [0x22] 34:	jne 48
 line: 274 [0x23] 35:	new_class @11 // std#IllegalArgumentException
           [0x24] 36:	new_class @46 // std#string
-          [0x25] 37:	newstr @67 // "illegal char in string: "
+          [0x25] 37:	newstr @63 // "illegal char in string: "
           [0x26] 38:	call @552 // <std#string.string(var[])>
           [0x27] 39:	new_class @8 // std#char
           [0x28] 40:	pushl 0

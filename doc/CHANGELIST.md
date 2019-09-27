@@ -22,6 +22,22 @@ Any other compatibility issues/changes will be otherwise noted in the release no
         *
 
     Backwards compatibility support tested Version: ()
+    
+    
+##### Version 0.2.422 (August 12, 2019)
+    # Bug Fixes
+        * Fixed several null checks incorrectly being applied to objects and could have lead to a seg fault
+
+    # QoL Improvements
+        *
+
+    # New Additions
+        *
+
+    # Known Issues
+        *
+
+    Backwards compatibility support tested Version: ()
 
 ##### Version 0.2.581 (September 25, 2019)
     # Bug Fixes

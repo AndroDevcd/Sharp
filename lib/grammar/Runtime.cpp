@@ -1977,12 +1977,17 @@ void RuntimeEngine::parseConstructorDecl(Ast* pAst) {
         }
 
         Block fblock;
+        fblock.code.__asm64.addAll(method->code.__asm64);
 
         parseBlock(pAst->getSubAst(ast_block), fblock);
 
         resolveAllBranches(fblock);
         reorderFinallyBlocks(method);
-        method->code.__asm64.appendAll(fblock.code.__asm64);
+
+        if(method->address==199) {
+            int i = 0;
+        }
+        method->code.__asm64.addAll(fblock.code.__asm64);
         removeScope();
     }
 }

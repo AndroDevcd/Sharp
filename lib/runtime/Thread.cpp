@@ -824,6 +824,34 @@ void Thread::exec() {
                 return;
 
             interp:
+            // main IOStream ostream = new IOStream(file, IOStream.WRITE);
+            if(current->address==7 && PC(this) >= 0x1c) {
+                int i = 0;
+            }
+            // IOStream() self->file = file;
+            if(current->address==199 && PC(this) >= 0x5) {
+                int i = 0;
+            }
+            // File.readAllText(file, data);
+            if(current->address==199 && PC(this) >= 0x21) {
+                int i = 0;
+            }
+            // readAllText() fs.read(file, data);
+            if(current->address==171 && PC(this) >= 0x0) {
+                int i = 0;
+            }
+            // read() var[] path = file.getAbsolutePath().toArray();
+            if(current->address==185 && PC(this) >= 0x0) {
+                int i = 0;
+            }
+            // getAbsolutePath()  return fs.resolve(self);
+            if(current->address==142 && PC(this) >= 0x1) { // starting getFS then pass file to func
+                int i = 0;
+            }
+            // resolve()  var[] path = f.getPath().toArray();
+            if(current->address==175 && PC(this) >= 0x0) {
+                int i = 0;
+            }
             DISPATCH();
             _NOP: // tested
                 _brh
