@@ -708,6 +708,12 @@ void printRegs() {
         cout << "fp.var [" << i << "] = " << thread_self->dataStack[i].var << ";" << endl;
     }
 }
+
+void printStack() {
+    native_string str;
+    vm->fillStackTrace(str);
+    cout << " stack\n" << str.str() << endl << std::flush;
+}
 #endif
 
 double exponent(int64_t n){
@@ -844,9 +850,6 @@ void Thread::exec() {
                 registers[*(pc+1)]=GET_Da(*pc);
                 _brh_inc(2)
             RET: // tested
-                if(current->address==7 || current->address==313) {
-                    int i = 0;
-                }
                 if(returnMethod(this))
                     return;
                 LONG_CALL();

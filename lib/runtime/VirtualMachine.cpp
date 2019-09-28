@@ -328,6 +328,7 @@ void VirtualMachine::destroy() {
 }
 
 extern void printRegs();
+extern void printStack();
 
 #ifdef WIN32_
 DWORD WINAPI
