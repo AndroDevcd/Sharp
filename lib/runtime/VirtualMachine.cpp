@@ -575,7 +575,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                 if(o->k != NULL) { // class?
 
-                    if(o->node == NULL)
+                    if(o->type != _stype_struct || o->node == NULL)
                         throw Exception(Environment::NullptrException, "");
                     data = GarbageCollector::self->newObjectArray(len, o->k);
 
@@ -591,7 +591,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->node != NULL) { // object? maybe...
+                } else if(o->type == _stype_struct && o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObject(len);
                     for(size_t i = 0; i < len; i++) {
                         data.object->node[i] = o->node[i];
@@ -620,7 +620,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 }
 
                 if(o->k != NULL) { // class?
-                    if(o->node == NULL)
+                    if(o->type != _stype_struct || o->node == NULL)
                         throw Exception(Environment::NullptrException, "");
                     data = GarbageCollector::self->newObjectArray(len, o->k);
 
@@ -666,7 +666,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 }
 
                 if(o->k != NULL) { // class?
-                    if(o->node == NULL)
+                    if(o->type != _stype_struct || o->node == NULL)
                         throw Exception(Environment::NullptrException, "");
                     data = GarbageCollector::self->newObjectArray(sz+1, o->k);
 

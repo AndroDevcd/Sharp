@@ -626,7 +626,7 @@ void GarbageCollector::realloc(SharpObject *o, size_t sz) {
 }
 
 void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
-    if(o != NULL && o->node != NULL) {
+    if(o != NULL && o->type == _stype_struct && o->node != NULL) {
         if(sz < o->size) {
             for(size_t i = sz; i < o->size; i++) {
                 if(o->node[i].object != nullptr) {
