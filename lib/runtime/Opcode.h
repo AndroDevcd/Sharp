@@ -63,7 +63,7 @@
 #define THREAD_STACK_CHECK2(self, x)  if(((self->sp-self->dataStack)+2) >= self->stack_lmt || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(Environment::StackOverflowErr, "");
 
 #ifndef SHARP_PROF_
-#define _brh_NOINCREMENT SAFTEY_CHECK /*if(!startAddress) DISPATCH() else*/ goto *opcodeStart;
+#define _brh_NOINCREMENT SAFTEY_CHECK if(!startAddress) DISPATCH() else goto *opcodeStart;
 #else
 #define _brh_NOINCREMENT SAFTEY_CHECK irCount++; if(irCount == 0) overflow++; goto *opcodeStart;
 #endif

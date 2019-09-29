@@ -1,0 +1,4760 @@
+Object Dump file:
+################################
+
+
+@0 application#Start fields: 3 methods: 2
+@1 application#Callback fields: 0 methods: 0
+@2 application#Event fields: 0 methods: 0
+@3 application#Callee fields: 0 methods: 2
+@4 std.io#UnixFileSystem fields: 1 methods: 4
+@5 std#IllegalArgumentException fields: 0 methods: 0
+@6 std#Exception fields: 0 methods: 0
+@7 std#Throwable fields: 2 methods: 2
+@8 std.internal.vm#Time fields: 0 methods: 8
+@9 std.internal.vm#Time.TimeUnit fields: 0 methods: 8
+@10 std.internal#Runtime fields: 2 methods: 7
+@11 std#Array fields: 0 methods: 4
+@12 std#string fields: 1 methods: 11
+@13 std#System fields: 1 methods: 16
+@14 std.internal#BuildConfig fields: 4 methods: 2
+@15 std.io#File fields: 4 methods: 35
+@16 std.io#FileSystem fields: 11 methods: 15
+@17 std.io#IOStream fields: 6 methods: 6
+@18 std.io#IOStream.StreamReader fields: 6 methods: 6
+@19 std#IllegalStateException fields: 0 methods: 0
+@20 std#IndexOutOfBoundsException fields: 0 methods: 0
+@21 std.io#StreamBuffer fields: 5 methods: 7
+@22 std.io#WinFileSystem fields: 10 methods: 4
+@23 std.internal#ConsoleHandler fields: 0 methods: 4
+@24 std#NullptrException fields: 0 methods: 0
+@25 std#RuntimeErr fields: 0 methods: 0
+@26 std.io#IOException fields: 0 methods: 0
+
+""
+"README1.md"
+"file "
+" being created  "
+" read only "
+" absolute path is "
+" has read access "
+" has write access "
+"yes"
+"no"
+" exists"
+" dosent exist!"
+"Hello, World!"
+" what is your name ?"
+" hello "
+" is a directory "
+" is a file "
+" is a hidden "
+" last modified time "
+" size is  "
+" being deleted  "
+" setting time to "
+"tests/tmp"
+" has files  "
+"file: "
+"/"
+"folder is being deleted  "
+" total disk space  "
+" total free disk space  "
+" total usable disk space  "
+"Event Called!"
+"success I am Called!"
+"\nProgram finished with exit code "
+"Index out of bounds exception"
+"Index out of bounds Array: size "
+" at index pos "
+"null"
+"0"
+"-"
+"invalid char in string: "
+"win"
+"posix"
+"file path cannot be null"
+"Negative time"
+"file could not be resolved: "
+"illegal read on IOStream"
+"illegal write on IOStream"
+"Access to buffer at: "
+"  size: "
+
+
+func:@0 [application#Start.foo] in file: tests/CompilerTest4.sharp:10:12: note:  
+		    def foo() : string[] {
+		           ^
+
+
+foo:
+[0x0] 0:	movi #5, ebx
+[0x2] 2:	newobj_arry ebx
+[0x3] 3:	popl 1
+[0x4] 4:	movl 1
+[0x5] 5:	movi #12, cmt
+[0x7] 7:	cast cmt
+[0x8] 8:	returnobj
+[0x9] 9:	ret
+
+func:@1 [application#Start.main] in file: tests/CompilerTest4.sharp:16:27: note:  
+		    public static def main(string[] args) : var {
+		                          ^
+
+
+main:
+[0x0] 0:	new_class @15 // std.io#File
+[0x1] 1:	new_class @12 // std#string
+[0x2] 2:	newstr @1 // "README1.md"
+[0x3] 3:	call @47 // <std#string.string(var[])>
+[0x4] 4:	call @90 // <std.io#File.File(std#string)>
+[0x5] 5:	popl 1
+[0x6] 6:	new_class @12 // std#string
+[0x7] 7:	newstr @2 // "file "
+[0x8] 8:	call @47 // <std#string.string(var[])>
+[0x9] 9:	pushl 1
+[0xa] 10:	call @92 // <std.io#File.getName()>
+[0xb] 11:	call @54 // <std#string.$operator+(std#string)>
+[0xc] 12:	newstr @3 // " being created  "
+[0xd] 13:	call @53 // <std#string.$operator+(var[])>
+[0xe] 14:	call @76 // <std#System.println(std#string)>
+[0xf] 15:	pushl 1
+[0x10] 16:	call @104 // <std.io#File.createNewFile()>
+[0x11] 17:	new_class @12 // std#string
+[0x12] 18:	newstr @2 // "file "
+[0x13] 19:	call @47 // <std#string.string(var[])>
+[0x14] 20:	pushl 1
+[0x15] 21:	call @92 // <std.io#File.getName()>
+[0x16] 22:	call @54 // <std#string.$operator+(std#string)>
+[0x17] 23:	newstr @4 // " read only "
+[0x18] 24:	call @53 // <std#string.$operator+(var[])>
+[0x19] 25:	pushl 1
+[0x1a] 26:	call @110 // <std.io#File.setReadOnly()>
+[0x1b] 27:	call @58 // <std#string.$operator+(var)>
+[0x1c] 28:	call @76 // <std#System.println(std#string)>
+[0x1d] 29:	new_class @12 // std#string
+[0x1e] 30:	newstr @2 // "file "
+[0x1f] 31:	call @47 // <std#string.string(var[])>
+[0x20] 32:	pushl 1
+[0x21] 33:	call @92 // <std.io#File.getName()>
+[0x22] 34:	call @54 // <std#string.$operator+(std#string)>
+[0x23] 35:	newstr @5 // " absolute path is "
+[0x24] 36:	call @53 // <std#string.$operator+(var[])>
+[0x25] 37:	pushl 1
+[0x26] 38:	call @95 // <std.io#File.getAbsolutePath()>
+[0x27] 39:	call @54 // <std#string.$operator+(std#string)>
+[0x28] 40:	call @76 // <std#System.println(std#string)>
+[0x29] 41:	new_class @12 // std#string
+[0x2a] 42:	newstr @2 // "file "
+[0x2b] 43:	call @47 // <std#string.string(var[])>
+[0x2c] 44:	pushl 1
+[0x2d] 45:	call @92 // <std.io#File.getName()>
+[0x2e] 46:	call @54 // <std#string.$operator+(std#string)>
+[0x2f] 47:	newstr @6 // " has read access "
+[0x30] 48:	call @53 // <std#string.$operator+(var[])>
+[0x31] 49:	pushl 1
+[0x32] 50:	call @96 // <std.io#File.isReadable()>
+[0x33] 51:	call @58 // <std#string.$operator+(var)>
+[0x34] 52:	call @76 // <std#System.println(std#string)>
+[0x35] 53:	new_class @12 // std#string
+[0x36] 54:	newstr @2 // "file "
+[0x37] 55:	call @47 // <std#string.string(var[])>
+[0x38] 56:	pushl 1
+[0x39] 57:	call @92 // <std.io#File.getName()>
+[0x3a] 58:	call @54 // <std#string.$operator+(std#string)>
+[0x3b] 59:	newstr @7 // " has write access "
+[0x3c] 60:	call @53 // <std#string.$operator+(var[])>
+[0x3d] 61:	pushl 1
+[0x3e] 62:	call @97 // <std.io#File.isWriteable()>
+[0x3f] 63:	call @58 // <std#string.$operator+(var)>
+[0x40] 64:	call @76 // <std#System.println(std#string)>
+[0x41] 65:	nop
+[0x42] 66:	nop
+[0x43] 67:	nop
+[0x44] 68:	nop
+[0x45] 69:	nop
+[0x46] 70:	new_class @12 // std#string
+[0x47] 71:	newstr @2 // "file "
+[0x48] 72:	call @47 // <std#string.string(var[])>
+[0x49] 73:	pushl 1
+[0x4a] 74:	call @92 // <std.io#File.getName()>
+[0x4b] 75:	call @54 // <std#string.$operator+(std#string)>
+[0x4c] 76:	newstr @7 // " has write access "
+[0x4d] 77:	call @53 // <std#string.$operator+(var[])>
+[0x4e] 78:	pushl 1
+[0x4f] 79:	call @97 // <std.io#File.isWriteable()>
+[0x50] 80:	movi #1, egx
+[0x52] 82:	loadval ebx
+[0x53] 83:	test ebx, egx
+[0x54] 84:	loadpc_2 adx, pc+4 // adx = 88
+[0x55] 85:	ifne
+[0x56] 86:	newstr @8 // "yes"
+[0x57] 87:	skip @1 // pc = 88
+[0x58] 88:	newstr @9 // "no"
+[0x59] 89:	nop
+[0x5a] 90:	call @53 // <std#string.$operator+(var[])>
+[0x5b] 91:	call @76 // <std#System.println(std#string)>
+[0x5c] 92:	nop
+[0x5d] 93:	nop
+[0x5e] 94:	nop
+[0x5f] 95:	nop
+[0x60] 96:	nop
+[0x61] 97:	pushl 1
+[0x62] 98:	call @98 // <std.io#File.exists()>
+[0x63] 99:	loadval cmt
+[0x64] 100:	movi #113, adx
+[0x66] 102:	ifne
+[0x67] 103:	new_class @12 // std#string
+[0x68] 104:	newstr @2 // "file "
+[0x69] 105:	call @47 // <std#string.string(var[])>
+[0x6a] 106:	pushl 1
+[0x6b] 107:	call @92 // <std.io#File.getName()>
+[0x6c] 108:	call @54 // <std#string.$operator+(std#string)>
+[0x6d] 109:	newstr @10 // " exists"
+[0x6e] 110:	call @53 // <std#string.$operator+(var[])>
+[0x6f] 111:	call @76 // <std#System.println(std#string)>
+[0x70] 112:	goto @122
+[0x71] 113:	new_class @12 // std#string
+[0x72] 114:	newstr @2 // "file "
+[0x73] 115:	call @47 // <std#string.string(var[])>
+[0x74] 116:	pushl 1
+[0x75] 117:	call @92 // <std.io#File.getName()>
+[0x76] 118:	call @54 // <std#string.$operator+(std#string)>
+[0x77] 119:	newstr @11 // " dosent exist!"
+[0x78] 120:	call @53 // <std#string.$operator+(var[])>
+[0x79] 121:	call @76 // <std#System.println(std#string)>
+[0x7a] 122:	movl 1
+[0x7b] 123:	_lck 
+[0x7c] 124:	pushl 1
+[0x7d] 125:	istore 1
+[0x7e] 126:	call @112 // <std.io#File.setWritable(var)>
+[0x7f] 127:	pop
+[0x80] 128:	new_class @17 // std.io#IOStream
+[0x81] 129:	pushl 1
+[0x82] 130:	istore 0
+[0x83] 131:	call @148 // <std.io#IOStream.IOStream(std.io#File,var)>
+[0x84] 132:	popl 2
+[0x85] 133:	pushl 2
+[0x86] 134:	newstr @12 // "Hello, World!"
+[0x87] 135:	call @154 // <std.io#IOStream.write(var[])>
+[0x88] 136:	pushl 2
+[0x89] 137:	call @149 // <std.io#IOStream.close()>
+[0x8a] 138:	new_class @17 // std.io#IOStream
+[0x8b] 139:	pushl 1
+[0x8c] 140:	istore 1
+[0x8d] 141:	call @148 // <std.io#IOStream.IOStream(std.io#File,var)>
+[0x8e] 142:	popl 3
+[0x8f] 143:	istorel 0, fp+4
+[0x91] 145:	pushl 3
+[0x92] 146:	call @150 // <std.io#IOStream.nextChar()>
+[0x93] 147:	loadval ebx
+[0x94] 148:	smovr_2 ebx, fp+4
+[0x95] 149:	rstore ebx
+[0x96] 150:	movi #-1, egx
+[0x98] 152:	loadval ebx
+[0x99] 153:	tne ebx, egx
+[0x9a] 154:	movi #160, adx
+[0x9c] 156:	ifne
+[0x9d] 157:	ipushl #4
+[0x9e] 158:	call @78 // <std#System.printChar(var)>
+[0x9f] 159:	goto @145
+[0xa0] 160:	pushl 3
+[0xa1] 161:	call @149 // <std.io#IOStream.close()>
+[0xa2] 162:	movl 1
+[0xa3] 163:	ulck
+[0xa4] 164:	newstr @13 // " what is your name ?"
+[0xa5] 165:	call @72 // <std#System.println(var[])>
+[0xa6] 166:	call @74 // <std#System.readLine()>
+[0xa7] 167:	popl 5
+[0xa8] 168:	new_class @12 // std#string
+[0xa9] 169:	newstr @14 // " hello "
+[0xaa] 170:	call @47 // <std#string.string(var[])>
+[0xab] 171:	pushl 5
+[0xac] 172:	call @54 // <std#string.$operator+(std#string)>
+[0xad] 173:	call @76 // <std#System.println(std#string)>
+[0xae] 174:	new_class @12 // std#string
+[0xaf] 175:	newstr @2 // "file "
+[0xb0] 176:	call @47 // <std#string.string(var[])>
+[0xb1] 177:	pushl 1
+[0xb2] 178:	call @92 // <std.io#File.getName()>
+[0xb3] 179:	call @54 // <std#string.$operator+(std#string)>
+[0xb4] 180:	newstr @15 // " is a directory "
+[0xb5] 181:	call @53 // <std#string.$operator+(var[])>
+[0xb6] 182:	pushl 1
+[0xb7] 183:	call @99 // <std.io#File.isDirectory()>
+[0xb8] 184:	call @58 // <std#string.$operator+(var)>
+[0xb9] 185:	call @76 // <std#System.println(std#string)>
+[0xba] 186:	new_class @12 // std#string
+[0xbb] 187:	newstr @2 // "file "
+[0xbc] 188:	call @47 // <std#string.string(var[])>
+[0xbd] 189:	pushl 1
+[0xbe] 190:	call @92 // <std.io#File.getName()>
+[0xbf] 191:	call @54 // <std#string.$operator+(std#string)>
+[0xc0] 192:	newstr @16 // " is a file "
+[0xc1] 193:	call @53 // <std#string.$operator+(var[])>
+[0xc2] 194:	pushl 1
+[0xc3] 195:	call @100 // <std.io#File.isFile()>
+[0xc4] 196:	call @58 // <std#string.$operator+(var)>
+[0xc5] 197:	call @76 // <std#System.println(std#string)>
+[0xc6] 198:	new_class @12 // std#string
+[0xc7] 199:	newstr @2 // "file "
+[0xc8] 200:	call @47 // <std#string.string(var[])>
+[0xc9] 201:	pushl 1
+[0xca] 202:	call @92 // <std.io#File.getName()>
+[0xcb] 203:	call @54 // <std#string.$operator+(std#string)>
+[0xcc] 204:	newstr @17 // " is a hidden "
+[0xcd] 205:	call @53 // <std#string.$operator+(var[])>
+[0xce] 206:	pushl 1
+[0xcf] 207:	call @101 // <std.io#File.isHidden()>
+[0xd0] 208:	call @58 // <std#string.$operator+(var)>
+[0xd1] 209:	call @76 // <std#System.println(std#string)>
+[0xd2] 210:	new_class @12 // std#string
+[0xd3] 211:	newstr @2 // "file "
+[0xd4] 212:	call @47 // <std#string.string(var[])>
+[0xd5] 213:	pushl 1
+[0xd6] 214:	call @92 // <std.io#File.getName()>
+[0xd7] 215:	call @54 // <std#string.$operator+(std#string)>
+[0xd8] 216:	newstr @18 // " last modified time "
+[0xd9] 217:	call @53 // <std#string.$operator+(var[])>
+[0xda] 218:	pushl 1
+[0xdb] 219:	call @102 // <std.io#File.lastModified()>
+[0xdc] 220:	call @58 // <std#string.$operator+(var)>
+[0xdd] 221:	call @76 // <std#System.println(std#string)>
+[0xde] 222:	new_class @12 // std#string
+[0xdf] 223:	newstr @2 // "file "
+[0xe0] 224:	call @47 // <std#string.string(var[])>
+[0xe1] 225:	pushl 1
+[0xe2] 226:	call @92 // <std.io#File.getName()>
+[0xe3] 227:	call @54 // <std#string.$operator+(std#string)>
+[0xe4] 228:	newstr @19 // " size is  "
+[0xe5] 229:	call @53 // <std#string.$operator+(var[])>
+[0xe6] 230:	pushl 1
+[0xe7] 231:	call @103 // <std.io#File.length()>
+[0xe8] 232:	call @58 // <std#string.$operator+(var)>
+[0xe9] 233:	call @76 // <std#System.println(std#string)>
+[0xea] 234:	new_class @12 // std#string
+[0xeb] 235:	newstr @2 // "file "
+[0xec] 236:	call @47 // <std#string.string(var[])>
+[0xed] 237:	pushl 1
+[0xee] 238:	call @92 // <std.io#File.getName()>
+[0xef] 239:	call @54 // <std#string.$operator+(std#string)>
+[0xf0] 240:	newstr @20 // " being deleted  "
+[0xf1] 241:	call @53 // <std#string.$operator+(var[])>
+[0xf2] 242:	call @76 // <std#System.println(std#string)>
+[0xf3] 243:	new_class @12 // std#string
+[0xf4] 244:	newstr @2 // "file "
+[0xf5] 245:	call @47 // <std#string.string(var[])>
+[0xf6] 246:	pushl 1
+[0xf7] 247:	call @92 // <std.io#File.getName()>
+[0xf8] 248:	call @54 // <std#string.$operator+(std#string)>
+[0xf9] 249:	newstr @21 // " setting time to "
+[0xfa] 250:	call @53 // <std#string.$operator+(var[])>
+[0xfb] 251:	pushl 1
+[0xfc] 252:	call @26 // <std.internal.vm#Time.nanoTime()>
+[0xfd] 253:	call @29 // <std.internal.vm#Time.timeToSecs(var)>
+[0xfe] 254:	call @109 // <std.io#File.setLastModified(var)>
+[0xff] 255:	call @58 // <std#string.$operator+(var)>
+[0x100] 256:	call @76 // <std#System.println(std#string)>
+[0x101] 257:	new_class @15 // std.io#File
+[0x102] 258:	new_class @12 // std#string
+[0x103] 259:	newstr @22 // "tests/tmp"
+[0x104] 260:	call @47 // <std#string.string(var[])>
+[0x105] 261:	call @90 // <std.io#File.File(std#string)>
+[0x106] 262:	popl 6
+[0x107] 263:	pushl 6
+[0x108] 264:	call @107 // <std.io#File.mkdir()>
+[0x109] 265:	pop
+[0x10a] 266:	new_class @12 // std#string
+[0x10b] 267:	newstr @2 // "file "
+[0x10c] 268:	call @47 // <std#string.string(var[])>
+[0x10d] 269:	pushl 6
+[0x10e] 270:	call @94 // <std.io#File.getPath()>
+[0x10f] 271:	call @54 // <std#string.$operator+(std#string)>
+[0x110] 272:	newstr @23 // " has files  "
+[0x111] 273:	call @53 // <std#string.$operator+(var[])>
+[0x112] 274:	call @76 // <std#System.println(std#string)>
+[0x113] 275:	pushl 6
+[0x114] 276:	call @106 // <std.io#File.list()>
+[0x115] 277:	popl 7
+[0x116] 278:	istore 0
+[0x117] 279:	movl 7
+[0x118] 280:	smov ebx, sp+0
+[0x119] 281:	sizeof egx
+[0x11a] 282:	lt ebx, egx
+[0x11b] 283:	movi #327, adx
+[0x11d] 285:	ifne
+[0x11e] 286:	movnd ebx
+[0x11f] 287:	pushobj
+[0x120] 288:	popl 8
+[0x121] 289:	new_class @12 // std#string
+[0x122] 290:	newstr @24 // "file: "
+[0x123] 291:	call @47 // <std#string.string(var[])>
+[0x124] 292:	pushl 8
+[0x125] 293:	call @54 // <std#string.$operator+(std#string)>
+[0x126] 294:	call @76 // <std#System.println(std#string)>
+[0x127] 295:	new_class @15 // std.io#File
+[0x128] 296:	pushl 6
+[0x129] 297:	call @94 // <std.io#File.getPath()>
+[0x12a] 298:	newstr @25 // "/"
+[0x12b] 299:	call @53 // <std#string.$operator+(var[])>
+[0x12c] 300:	pushl 8
+[0x12d] 301:	call @54 // <std#string.$operator+(std#string)>
+[0x12e] 302:	call @90 // <std.io#File.File(std#string)>
+[0x12f] 303:	popl 9
+[0x130] 304:	new_class @12 // std#string
+[0x131] 305:	newstr @2 // "file "
+[0x132] 306:	call @47 // <std#string.string(var[])>
+[0x133] 307:	pushl 9
+[0x134] 308:	call @92 // <std.io#File.getName()>
+[0x135] 309:	call @54 // <std#string.$operator+(std#string)>
+[0x136] 310:	newstr @15 // " is a directory "
+[0x137] 311:	call @53 // <std#string.$operator+(var[])>
+[0x138] 312:	pushl 9
+[0x139] 313:	call @99 // <std.io#File.isDirectory()>
+[0x13a] 314:	call @58 // <std#string.$operator+(var)>
+[0x13b] 315:	call @76 // <std#System.println(std#string)>
+[0x13c] 316:	new_class @12 // std#string
+[0x13d] 317:	newstr @24 // "file: "
+[0x13e] 318:	call @47 // <std#string.string(var[])>
+[0x13f] 319:	pushl 9
+[0x140] 320:	call @94 // <std.io#File.getPath()>
+[0x141] 321:	call @54 // <std#string.$operator+(std#string)>
+[0x142] 322:	call @76 // <std#System.println(std#string)>
+[0x143] 323:	smov ebx, sp+0
+[0x144] 324:	inc ebx
+[0x145] 325:	smovr ebx, sp+0
+[0x146] 326:	goto @279
+[0x147] 327:	pop
+[0x148] 328:	newstr @26 // "folder is being deleted  "
+[0x149] 329:	call @72 // <std#System.println(var[])>
+[0x14a] 330:	new_class @12 // std#string
+[0x14b] 331:	newstr @2 // "file "
+[0x14c] 332:	call @47 // <std#string.string(var[])>
+[0x14d] 333:	pushl 1
+[0x14e] 334:	call @92 // <std.io#File.getName()>
+[0x14f] 335:	call @54 // <std#string.$operator+(std#string)>
+[0x150] 336:	newstr @19 // " size is  "
+[0x151] 337:	call @53 // <std#string.$operator+(var[])>
+[0x152] 338:	pushl 1
+[0x153] 339:	call @103 // <std.io#File.length()>
+[0x154] 340:	call @58 // <std#string.$operator+(var)>
+[0x155] 341:	call @76 // <std#System.println(std#string)>
+[0x156] 342:	new_class @12 // std#string
+[0x157] 343:	newstr @2 // "file "
+[0x158] 344:	call @47 // <std#string.string(var[])>
+[0x159] 345:	pushl 1
+[0x15a] 346:	call @92 // <std.io#File.getName()>
+[0x15b] 347:	call @54 // <std#string.$operator+(std#string)>
+[0x15c] 348:	newstr @27 // " total disk space  "
+[0x15d] 349:	call @53 // <std#string.$operator+(var[])>
+[0x15e] 350:	pushl 1
+[0x15f] 351:	call @118 // <std.io#File.getTotalSpace()>
+[0x160] 352:	call @58 // <std#string.$operator+(var)>
+[0x161] 353:	call @76 // <std#System.println(std#string)>
+[0x162] 354:	new_class @12 // std#string
+[0x163] 355:	newstr @2 // "file "
+[0x164] 356:	call @47 // <std#string.string(var[])>
+[0x165] 357:	pushl 1
+[0x166] 358:	call @92 // <std.io#File.getName()>
+[0x167] 359:	call @54 // <std#string.$operator+(std#string)>
+[0x168] 360:	newstr @28 // " total free disk space  "
+[0x169] 361:	call @53 // <std#string.$operator+(var[])>
+[0x16a] 362:	pushl 1
+[0x16b] 363:	call @119 // <std.io#File.getFreeSpace()>
+[0x16c] 364:	call @58 // <std#string.$operator+(var)>
+[0x16d] 365:	call @76 // <std#System.println(std#string)>
+[0x16e] 366:	new_class @12 // std#string
+[0x16f] 367:	newstr @2 // "file "
+[0x170] 368:	call @47 // <std#string.string(var[])>
+[0x171] 369:	pushl 1
+[0x172] 370:	call @92 // <std.io#File.getName()>
+[0x173] 371:	call @54 // <std#string.$operator+(std#string)>
+[0x174] 372:	newstr @29 // " total usable disk space  "
+[0x175] 373:	call @53 // <std#string.$operator+(var[])>
+[0x176] 374:	pushl 1
+[0x177] 375:	call @120 // <std.io#File.getUsableSpace()>
+[0x178] 376:	call @58 // <std#string.$operator+(var)>
+[0x179] 377:	call @76 // <std#System.println(std#string)>
+[0x17a] 378:	movi #0, ebx
+[0x17c] 380:	return_val ebx
+[0x17d] 381:	ret
+
+func:@2 [application#Start.Start] in file: tests/CompilerTest4.sharp:7:13: note:  
+		public class Start {
+		            ^
+
+
+Start:
+[0x0] 0:	movi #8, ebx
+[0x2] 2:	nop
+[0x3] 3:	rstore ebx
+[0x4] 4:	movl 0
+[0x5] 5:	movn #0
+[0x6] 6:	movi #0, adx
+[0x8] 8:	loadval ecx
+[0x9] 9:	rmov adx, ecx
+[0xa] 10:	movl 0
+[0xb] 11:	returnobj
+[0xc] 12:	ret
+
+func:@3 [application#Callback.Callback] in file: tests/CompilerTest4.sharp:85:6: note:  
+		class Callback {
+		     ^
+
+
+Callback:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@4 [application#Event.Event] in file: tests/CompilerTest4.sharp:90:10: note:  
+		interface Event {
+		         ^
+
+
+Event:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@5 [application#Callee.event] in file: tests/CompilerTest4.sharp:96:24: note:  
+		    public def delegate::event() {
+		                       ^
+
+
+event:
+[0x0] 0:	newstr @30 // "Event Called!"
+[0x1] 1:	call @70 // <std#System.print(var[])>
+[0x2] 2:	ret
+
+func:@6 [application#Callee.work] in file: tests/CompilerTest4.sharp:100:24: note:  
+		    public def delegate::work() {
+		                       ^
+
+
+work:
+[0x0] 0:	newstr @31 // "success I am Called!"
+[0x1] 1:	call @70 // <std#System.print(var[])>
+[0x2] 2:	ret
+
+func:@7 [application#Callee.Callee] in file: tests/CompilerTest4.sharp:94:6: note:  
+		class Callee base Callback : Event {
+		     ^
+
+
+Callee:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@8 [std.io#UnixFileSystem.UnixFileSystem] in file: lib/support/0.2.0/io/UnixFileSystem.sharp:11:26: note:  
+		    public UnixFileSystem() {
+		                         ^
+
+
+UnixFileSystem:
+[0x0] 0:	movi #47, ebx
+[0x2] 2:	nop
+[0x3] 3:	rstore ebx
+[0x4] 4:	movl 0
+[0x5] 5:	movn #11
+[0x6] 6:	movi #0, adx
+[0x8] 8:	loadval ecx
+[0x9] 9:	rmov adx, ecx
+[0xa] 10:	movl 0
+[0xb] 11:	returnobj
+[0xc] 12:	ret
+
+func:@9 [std.io#UnixFileSystem.getPathSeparator] in file: lib/support/0.2.0/io/UnixFileSystem.sharp:15:24: note:  
+		    public def delegate::getPathSeparator() : var {
+		                       ^
+
+
+getPathSeparator:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #11
+[0x2] 2:	movi #0, adx
+[0x4] 4:	iaload_2 ebx, adx
+[0x5] 5:	return_val ebx
+[0x6] 6:	ret
+
+func:@10 [std.io#UnixFileSystem.normalize] in file: lib/support/0.2.0/io/UnixFileSystem.sharp:23:24: note:  
+		    public def delegate::normalize(string pathname) : string {
+		                       ^
+
+
+normalize:
+[0x0] 0:	movl 1
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@11 [std.io#UnixFileSystem.getFileAttributes] in file: lib/support/0.2.0/io/UnixFileSystem.sharp:52:25: note:  
+		     public def delegate::getFileAttributes(File f) : var {
+		                        ^
+
+
+getFileAttributes:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 2
+[0x4] 4:	istorel 0, fp+3
+[0x6] 6:	pushl 2
+[0x7] 7:	int 0xb2
+[0x8] 8:	smovr_2 ebx, fp+3
+[0x9] 9:	loadl ebx, fp+3
+[0xa] 10:	return_val ebx
+[0xb] 11:	ret
+
+func:@12 [std.io#UnixFileSystem.checkAccess] in file: lib/support/0.2.0/io/UnixFileSystem.sharp:76:25: note:  
+		     public def delegate::checkAccess(File f, var access) : var {
+		                        ^
+
+
+checkAccess:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 3
+[0x4] 4:	istorel 0, fp+4
+[0x6] 6:	pushl 3
+[0x7] 7:	loadl ebx, fp+2
+[0x8] 8:	int 0xb1
+[0x9] 9:	smovr_2 ebx, fp+4
+[0xa] 10:	loadl ebx, fp+4
+[0xb] 11:	return_val ebx
+[0xc] 12:	ret
+
+func:@13 [std#IllegalArgumentException.IllegalArgumentException] in file: lib/support/0.2.0/IllegalArgumentException.sharp:8:38: note:  
+		      public IllegalArgumentException(var[] message) {
+		                                     ^
+
+
+IllegalArgumentException:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @16 // <std#Exception.Exception(var[])>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@14 [std#IllegalArgumentException.IllegalArgumentException] in file: lib/support/0.2.0/IllegalArgumentException.sharp:12:38: note:  
+		      public IllegalArgumentException(string message) {
+		                                     ^
+
+
+IllegalArgumentException:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @17 // <std#Exception.Exception(std#string)>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@15 [std#IllegalArgumentException.IllegalArgumentException] in file: lib/support/0.2.0/IllegalArgumentException.sharp:6:13: note:  
+		public class IllegalArgumentException base Exception {
+		            ^
+
+
+IllegalArgumentException:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@16 [std#Exception.Exception] in file: lib/support/0.2.0/Exception.sharp:8:21: note:  
+		    public Exception(var[] msg) {
+		                    ^
+
+
+Exception:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @19 // <std#Throwable.Throwable(var[])>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@17 [std#Exception.Exception] in file: lib/support/0.2.0/Exception.sharp:12:21: note:  
+		    public Exception(string msg) {
+		                    ^
+
+
+Exception:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @20 // <std#Throwable.Throwable(std#string)>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@18 [std#Exception.Exception] in file: lib/support/0.2.0/Exception.sharp:6:13: note:  
+		public class Exception base Throwable {
+		            ^
+
+
+Exception:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@19 [std#Throwable.Throwable] in file: lib/support/0.2.0/Throwable.sharp:12:21: note:  
+		    public Throwable(var[] message) {
+		                    ^
+
+
+Throwable:
+[0x0] 0:	pushl 1
+[0x1] 1:	movl 0
+[0x2] 2:	movn #0
+[0x3] 3:	popobj
+[0x4] 4:	movl 0
+[0x5] 5:	returnobj
+[0x6] 6:	ret
+
+func:@20 [std#Throwable.Throwable] in file: lib/support/0.2.0/Throwable.sharp:16:21: note:  
+		    public Throwable(string message) {
+		                    ^
+
+
+Throwable:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @62 // <std#string.toArray()>
+[0x2] 2:	movl 0
+[0x3] 3:	movn #0
+[0x4] 4:	popobj
+[0x5] 5:	movl 0
+[0x6] 6:	returnobj
+[0x7] 7:	ret
+
+func:@21 [std#Throwable.getStackTrace] in file: lib/support/0.2.0/Throwable.sharp:20:29: note:  
+		    public def getStackTrace() : string {
+		                            ^
+
+
+getStackTrace:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #1
+[0x2] 2:	checknull
+[0x3] 3:	movr ebx, cmt
+[0x4] 4:	movi #11, adx
+[0x6] 6:	ifne
+[0x7] 7:	newstr @0 // ""
+[0x8] 8:	movl 0
+[0x9] 9:	movn #1
+[0xa] 10:	popobj
+[0xb] 11:	new_class @12 // std#string
+[0xc] 12:	movl 0
+[0xd] 13:	movn #1
+[0xe] 14:	pushobj
+[0xf] 15:	call @47 // <std#string.string(var[])>
+[0x10] 16:	movsl #0
+[0x11] 17:	returnobj
+[0x12] 18:	ret
+
+func:@22 [std#Throwable.getMessage] in file: lib/support/0.2.0/Throwable.sharp:28:26: note:  
+		    public def getMessage() : string {
+		                         ^
+
+
+getMessage:
+[0x0] 0:	new_class @12 // std#string
+[0x1] 1:	movl 0
+[0x2] 2:	movn #0
+[0x3] 3:	pushobj
+[0x4] 4:	call @47 // <std#string.string(var[])>
+[0x5] 5:	movsl #0
+[0x6] 6:	returnobj
+[0x7] 7:	ret
+
+func:@23 [std#Throwable.Throwable] in file: lib/support/0.2.0/Throwable.sharp:8:13: note:  
+		public class Throwable {
+		            ^
+
+
+Throwable:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@24 [std.internal.vm#Time.TimeUnit.TimeUnit] in file: lib/support/0.2.0/internal/Time.sharp:7:19: note:  
+		    class TimeUnit {
+		                  ^
+
+
+TimeUnit:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@25 [std.internal.vm#Time.nativeTime] in file: lib/support/0.2.0/internal/Time.sharp:13:34: note:  
+		    private static def nativeTime() : var {
+		                                 ^
+
+
+nativeTime:
+[0x0] 0:	istorel 0, fp+0
+[0x2] 2:	int 0xa3
+[0x3] 3:	smovr_2 bmr, fp+0
+[0x4] 4:	loadl ebx, fp+0
+[0x5] 5:	return_val ebx
+[0x6] 6:	ret
+
+func:@26 [std.internal.vm#Time.nanoTime] in file: lib/support/0.2.0/internal/Time.sharp:24:31: note:  
+		    public static def nanoTime() : var {
+		                              ^
+
+
+nanoTime:
+[0x0] 0:	call @25 // <std.internal.vm#Time.nativeTime()>
+[0x1] 1:	loadval ebx
+[0x2] 2:	return_val ebx
+[0x3] 3:	ret
+
+func:@27 [std.internal.vm#Time.timeToMicro] in file: lib/support/0.2.0/internal/Time.sharp:28:34: note:  
+		    public static def timeToMicro(var nano) : var {
+		                                 ^
+
+
+timeToMicro:
+[0x0] 0:	movi #1000, egx
+[0x2] 2:	loadl ebx, fp+0
+[0x3] 3:	div ebx, egx -> ebx
+[0x5] 5:	return_val ebx
+[0x6] 6:	ret
+
+func:@28 [std.internal.vm#Time.timeToMills] in file: lib/support/0.2.0/internal/Time.sharp:32:34: note:  
+		    public static def timeToMills(var nano) : var {
+		                                 ^
+
+
+timeToMills:
+[0x0] 0:	istore 1000
+[0x1] 1:	ipushl #0
+[0x2] 2:	call @27 // <std.internal.vm#Time.timeToMicro(var)>
+[0x3] 3:	loadval ebx
+[0x4] 4:	loadval ecx
+[0x5] 5:	div ebx, ecx -> ebx
+[0x7] 7:	return_val ebx
+[0x8] 8:	ret
+
+func:@29 [std.internal.vm#Time.timeToSecs] in file: lib/support/0.2.0/internal/Time.sharp:36:33: note:  
+		    public static def timeToSecs(var nano) : var {
+		                                ^
+
+
+timeToSecs:
+[0x0] 0:	istore 1000
+[0x1] 1:	ipushl #0
+[0x2] 2:	call @28 // <std.internal.vm#Time.timeToMills(var)>
+[0x3] 3:	loadval ebx
+[0x4] 4:	loadval ecx
+[0x5] 5:	div ebx, ecx -> ebx
+[0x7] 7:	return_val ebx
+[0x8] 8:	ret
+
+func:@30 [std.internal.vm#Time.millsTime] in file: lib/support/0.2.0/internal/Time.sharp:40:32: note:  
+		    public static def millsTime() : var {
+		                               ^
+
+
+millsTime:
+[0x0] 0:	call @25 // <std.internal.vm#Time.nativeTime()>
+[0x1] 1:	call @28 // <std.internal.vm#Time.timeToMills(var)>
+[0x2] 2:	loadval ebx
+[0x3] 3:	return_val ebx
+[0x4] 4:	ret
+
+func:@31 [std.internal.vm#Time.sleep] in file: lib/support/0.2.0/internal/Time.sharp:44:28: note:  
+		    public static def sleep(var timeUnit, var time) {
+		                           ^
+
+
+sleep:
+[0x0] 0:	ipushl #0
+[0x1] 1:	movi #0, egx
+[0x3] 3:	loadval ebx
+[0x4] 4:	test ebx, egx
+[0x5] 5:	movr ebx, cmt
+[0x6] 6:	movi #19, adx
+[0x8] 8:	ifne
+[0x9] 9:	movi #1000000, egx
+[0xb] 11:	loadl ebx, fp+1
+[0xc] 12:	mul ebx, egx -> ebx
+[0xe] 14:	rstore ebx
+[0xf] 15:	call @32 // <std.internal.vm#Time.adjustTime(var)>
+[0x10] 16:	loadval ebx
+[0x11] 17:	smovr_2 ebx, fp+1
+[0x12] 18:	goto @50
+[0x13] 19:	ipushl #0
+[0x14] 20:	movi #1, egx
+[0x16] 22:	loadval ebx
+[0x17] 23:	test ebx, egx
+[0x18] 24:	movi #36, adx
+[0x1a] 26:	ifne
+[0x1b] 27:	movi #1000, egx
+[0x1d] 29:	loadl ebx, fp+1
+[0x1e] 30:	mul ebx, egx -> ebx
+[0x20] 32:	rstore ebx
+[0x21] 33:	call @32 // <std.internal.vm#Time.adjustTime(var)>
+[0x22] 34:	loadval ebx
+[0x23] 35:	smovr_2 ebx, fp+1
+[0x24] 36:	goto @50
+[0x25] 37:	ipushl #0
+[0x26] 38:	movi #2, egx
+[0x28] 40:	loadval ebx
+[0x29] 41:	test ebx, egx
+[0x2a] 42:	movi #49, adx
+[0x2c] 44:	ifne
+[0x2d] 45:	ipushl #1
+[0x2e] 46:	call @32 // <std.internal.vm#Time.adjustTime(var)>
+[0x2f] 47:	loadval ebx
+[0x30] 48:	smovr_2 ebx, fp+1
+[0x31] 49:	goto @50
+[0x32] 50:	loadl ebx, fp+1
+[0x33] 51:	int 0xac
+[0x34] 52:	ret
+
+func:@32 [std.internal.vm#Time.adjustTime] in file: lib/support/0.2.0/internal/Time.sharp:66:34: note:  
+		    private static def adjustTime(var usec) : var {
+		                                 ^
+
+
+adjustTime:
+[0x0] 0:	call @87 // <std.internal#BuildConfig.isWindows()>
+[0x1] 1:	loadval cmt
+[0x2] 2:	movi #12, adx
+[0x4] 4:	ifne
+[0x5] 5:	movi #1000, egx
+[0x7] 7:	loadl ebx, fp+0
+[0x8] 8:	div ebx, egx -> ebx
+[0xa] 10:	return_val ebx
+[0xb] 11:	ret
+[0xc] 12:	loadl ebx, fp+0
+[0xd] 13:	return_val ebx
+[0xe] 14:	ret
+
+func:@33 [std.internal.vm#Time.Time] in file: lib/support/0.2.0/internal/Time.sharp:5:13: note:  
+		public class Time {
+		            ^
+
+
+Time:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@34 [std.internal#Runtime.setupClasses] in file: lib/support/0.2.0/internal/Runtime.sharp:24:36: note:  
+		    private static def setupClasses() {
+		                                   ^
+
+
+setupClasses:
+[0x0] 0:	movg @10 // @std.internal#Runtime
+[0x1] 1:	movn #1
+[0x2] 2:	del
+[0x3] 3:	new_class @23 // std.internal#ConsoleHandler
+[0x4] 4:	call @183 // <std.internal#ConsoleHandler.ConsoleHandler()>
+[0x5] 5:	movg @13 // @std#System
+[0x6] 6:	movn #0
+[0x7] 7:	popobj
+[0x8] 8:	call @126 // <std.io#File.getFileSystem()>
+[0x9] 9:	movg @15 // @std.io#File
+[0xa] 10:	movn #0
+[0xb] 11:	popobj
+[0xc] 12:	movg @15 // @std.io#File
+[0xd] 13:	movn #0
+[0xe] 14:	pushobj
+[0xf] 15:	invoke_delegate 2, 0
+[0x10] 16:	nop
+[0x11] 17:	movg @15 // @std.io#File
+[0x12] 18:	movn #2
+[0x13] 19:	movi #0, adx
+[0x15] 21:	loadval ecx
+[0x16] 22:	rmov adx, ecx
+[0x17] 23:	new_class @12 // std#string
+[0x18] 24:	newstr @0 // ""
+[0x19] 25:	call @47 // <std#string.string(var[])>
+[0x1a] 26:	movi #1, ebx
+[0x1c] 28:	newarry ebx
+[0x1d] 29:	movg @15 // @std.io#File
+[0x1e] 30:	movn #2
+[0x1f] 31:	movi #0, adx
+[0x21] 33:	chklen adx
+[0x22] 34:	iaload_2 ebx, adx
+[0x23] 35:	movsl #0
+[0x24] 36:	movi #0, adx
+[0x26] 38:	rmov adx, ebx
+[0x27] 39:	call @53 // <std#string.$operator+(var[])>
+[0x28] 40:	movg @15 // @std.io#File
+[0x29] 41:	movn #3
+[0x2a] 42:	popobj
+[0x2b] 43:	ret
+
+func:@35 [std.internal#Runtime.__srt_init_] in file: lib/support/0.2.0/internal/Runtime.sharp:30:34: note:  
+		    public static def __srt_init_(object[] args) : var {
+		                                 ^
+
+
+__srt_init_:
+[0x0] 0:	new_class @12 // std#string
+[0x1] 1:	newstr @0 // ""
+[0x2] 2:	call @47 // <std#string.string(var[])>
+[0x3] 3:	pushl 0
+[0x4] 4:	movi #0, ebx
+[0x6] 6:	movsl #0
+[0x7] 7:	chklen ebx
+[0x8] 8:	movnd ebx
+[0x9] 9:	pop
+[0xa] 10:	pushobj
+[0xb] 11:	call @53 // <std#string.$operator+(var[])>
+[0xc] 12:	movg @14 // @std.internal#BuildConfig
+[0xd] 13:	movn #1
+[0xe] 14:	popobj
+[0xf] 15:	new_class @12 // std#string
+[0x10] 16:	newstr @0 // ""
+[0x11] 17:	call @47 // <std#string.string(var[])>
+[0x12] 18:	pushl 0
+[0x13] 19:	movi #1, ebx
+[0x15] 21:	movsl #0
+[0x16] 22:	chklen ebx
+[0x17] 23:	movnd ebx
+[0x18] 24:	pop
+[0x19] 25:	pushobj
+[0x1a] 26:	call @53 // <std#string.$operator+(var[])>
+[0x1b] 27:	movg @14 // @std.internal#BuildConfig
+[0x1c] 28:	movn #3
+[0x1d] 29:	popobj
+[0x1e] 30:	new_class @12 // std#string
+[0x1f] 31:	newstr @0 // ""
+[0x20] 32:	call @47 // <std#string.string(var[])>
+[0x21] 33:	pushl 0
+[0x22] 34:	movi #2, ebx
+[0x24] 36:	movsl #0
+[0x25] 37:	chklen ebx
+[0x26] 38:	movnd ebx
+[0x27] 39:	pop
+[0x28] 40:	pushobj
+[0x29] 41:	call @53 // <std#string.$operator+(var[])>
+[0x2a] 42:	movg @14 // @std.internal#BuildConfig
+[0x2b] 43:	movn #2
+[0x2c] 44:	popobj
+[0x2d] 45:	new_class @12 // std#string
+[0x2e] 46:	newstr @0 // ""
+[0x2f] 47:	call @47 // <std#string.string(var[])>
+[0x30] 48:	pushl 0
+[0x31] 49:	movi #3, ebx
+[0x33] 51:	movsl #0
+[0x34] 52:	chklen ebx
+[0x35] 53:	movnd ebx
+[0x36] 54:	pop
+[0x37] 55:	pushobj
+[0x38] 56:	call @53 // <std#string.$operator+(var[])>
+[0x39] 57:	movg @14 // @std.internal#BuildConfig
+[0x3a] 58:	movn #0
+[0x3b] 59:	popobj
+[0x3c] 60:	call @34 // <std.internal#Runtime.setupClasses()>
+[0x3d] 61:	istore 4
+[0x3e] 62:	movl 0
+[0x3f] 63:	sizeof ebx
+[0x40] 64:	loadval ecx
+[0x41] 65:	sub ebx, ecx -> ebx
+[0x43] 67:	new_classarray ebx  // std#string[]
+[0x44] 68:	movg @10 // @std.internal#Runtime
+[0x45] 69:	movn #1
+[0x46] 70:	popobj
+[0x47] 71:	istorel 0, fp+1
+[0x49] 73:	istorel 4, fp+2
+[0x4b] 75:	movl 0
+[0x4c] 76:	sizeof ebx
+[0x4d] 77:	movr egx, ebx
+[0x4e] 78:	loadl ebx, fp+2
+[0x4f] 79:	lt ebx, egx
+[0x50] 80:	movi #105, adx
+[0x52] 82:	ifne
+[0x53] 83:	new_class @12 // std#string
+[0x54] 84:	pushl 0
+[0x55] 85:	loadl ebx, fp+2
+[0x56] 86:	movsl #0
+[0x57] 87:	chklen ebx
+[0x58] 88:	movnd ebx
+[0x59] 89:	pop
+[0x5a] 90:	pushobj
+[0x5b] 91:	call @47 // <std#string.string(var[])>
+[0x5c] 92:	movg @10 // @std.internal#Runtime
+[0x5d] 93:	movn #1
+[0x5e] 94:	pushobj
+[0x5f] 95:	loadl ebx, fp+1
+[0x60] 96:	iaddl 1, @1
+[0x61] 97:	movsl #0
+[0x62] 98:	chklen ebx
+[0x63] 99:	movnd ebx
+[0x64] 100:	pop
+[0x65] 101:	popobj
+[0x66] 102:	loadl ebx, fp+2
+[0x67] 103:	iaddl 1, @2
+[0x68] 104:	goto @75
+[0x69] 105:	movg @10 // @std.internal#Runtime
+[0x6a] 106:	movn #1
+[0x6b] 107:	pushobj
+[0x6c] 108:	call @1 // <application#Start.main(std#string[])>
+[0x6d] 109:	loadval ebx
+[0x6e] 110:	smovr_2 ebx, fp+3
+[0x6f] 111:	new_class @12 // std#string
+[0x70] 112:	newstr @32 // "\nProgram finished with exit code "
+[0x71] 113:	call @47 // <std#string.string(var[])>
+[0x72] 114:	ipushl #3
+[0x73] 115:	call @58 // <std#string.$operator+(var)>
+[0x74] 116:	call @71 // <std#System.print(std#string)>
+[0x75] 117:	loadl ebx, fp+3
+[0x76] 118:	return_val ebx
+[0x77] 119:	ret
+
+func:@36 [std.internal#Runtime.nativeExit] in file: lib/support/0.2.0/internal/Runtime.sharp:62:33: note:  
+		    public static def nativeExit() {
+		                                ^
+
+
+nativeExit:
+[0x0] 0:	int 0xa9
+[0x1] 1:	ret
+
+func:@37 [std.internal#Runtime.gc] in file: lib/support/0.2.0/internal/Runtime.sharp:68:25: note:  
+		    public static def gc() {
+		                        ^
+
+
+gc:
+[0x0] 0:	int 0xa1
+[0x1] 1:	ret
+
+func:@38 [std.internal#Runtime.memoryLimit] in file: lib/support/0.2.0/internal/Runtime.sharp:74:34: note:  
+		    public static def memoryLimit() : var {
+		                                 ^
+
+
+memoryLimit:
+[0x0] 0:	istorel 0, fp+0
+[0x2] 2:	int 0xaa
+[0x3] 3:	smovr_2 cmt, fp+0
+[0x4] 4:	loadl ebx, fp+0
+[0x5] 5:	return_val ebx
+[0x6] 6:	ret
+
+func:@39 [std.internal#Runtime.managedMemory] in file: lib/support/0.2.0/internal/Runtime.sharp:83:36: note:  
+		    public static def managedMemory() : var {
+		                                   ^
+
+
+managedMemory:
+[0x0] 0:	istorel 0, fp+0
+[0x2] 2:	int 0xab
+[0x3] 3:	smovr_2 cmt, fp+0
+[0x4] 4:	loadl ebx, fp+0
+[0x5] 5:	return_val ebx
+[0x6] 6:	ret
+
+func:@40 [std.internal#Runtime.freeMemory] in file: lib/support/0.2.0/internal/Runtime.sharp:92:33: note:  
+		    public static def freeMemory() : var {
+		                                ^
+
+
+freeMemory:
+[0x0] 0:	call @39 // <std.internal#Runtime.managedMemory()>
+[0x1] 1:	call @38 // <std.internal#Runtime.memoryLimit()>
+[0x2] 2:	loadval ebx
+[0x3] 3:	loadval ecx
+[0x4] 4:	sub ebx, ecx -> ebx
+[0x6] 6:	return_val ebx
+[0x7] 7:	ret
+
+func:@41 [std.internal#Runtime.Runtime] in file: lib/support/0.2.0/internal/Runtime.sharp:13:13: note:  
+		public class Runtime {
+		            ^
+
+
+Runtime:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@42 [std#Array.copyOf] in file: lib/support/0.2.0/Array.sharp:8:29: note:  
+		    public static def copyOf(var[] data, var len) : var[] {
+		                            ^
+
+
+copyOf:
+[0x0] 0:	loadl ebx, fp+1
+[0x1] 1:	newarry ebx
+[0x2] 2:	popl 2
+[0x3] 3:	istorel 0, fp+3
+[0x5] 5:	loadl ebx, fp+1
+[0x6] 6:	movr egx, ebx
+[0x7] 7:	loadl ebx, fp+3
+[0x8] 8:	lt ebx, egx
+[0x9] 9:	movi #29, adx
+[0xb] 11:	ifne
+[0xc] 12:	pushl 0
+[0xd] 13:	loadl ebx, fp+3
+[0xe] 14:	movsl #0
+[0xf] 15:	chklen ebx
+[0x10] 16:	iaload_2 ebx, ebx
+[0x11] 17:	pop
+[0x12] 18:	rstore ebx
+[0x13] 19:	pushl 2
+[0x14] 20:	loadl ebx, fp+3
+[0x15] 21:	movsl #0
+[0x16] 22:	chklen ebx
+[0x17] 23:	pop
+[0x18] 24:	loadval egx
+[0x19] 25:	rmov ebx, egx
+[0x1a] 26:	loadl ebx, fp+3
+[0x1b] 27:	iaddl 1, @3
+[0x1c] 28:	goto @5
+[0x1d] 29:	movl 2
+[0x1e] 30:	returnobj
+[0x1f] 31:	ret
+
+func:@43 [std#Array.copyOf] in file: lib/support/0.2.0/Array.sharp:18:29: note:  
+		    public static def copyOf(object[] data, var len) : object[] {
+		                            ^
+
+
+copyOf:
+[0x0] 0:	loadl ebx, fp+1
+[0x1] 1:	newobj_arry ebx
+[0x2] 2:	popl 2
+[0x3] 3:	istorel 0, fp+3
+[0x5] 5:	loadl ebx, fp+1
+[0x6] 6:	movr egx, ebx
+[0x7] 7:	loadl ebx, fp+3
+[0x8] 8:	lt ebx, egx
+[0x9] 9:	movi #29, adx
+[0xb] 11:	ifne
+[0xc] 12:	pushl 0
+[0xd] 13:	loadl ebx, fp+3
+[0xe] 14:	movsl #0
+[0xf] 15:	chklen ebx
+[0x10] 16:	movnd ebx
+[0x11] 17:	pop
+[0x12] 18:	pushobj
+[0x13] 19:	pushl 2
+[0x14] 20:	loadl ebx, fp+3
+[0x15] 21:	movsl #0
+[0x16] 22:	chklen ebx
+[0x17] 23:	movnd ebx
+[0x18] 24:	pop
+[0x19] 25:	popobj
+[0x1a] 26:	loadl ebx, fp+3
+[0x1b] 27:	iaddl 1, @3
+[0x1c] 28:	goto @5
+[0x1d] 29:	movl 2
+[0x1e] 30:	returnobj
+[0x1f] 31:	ret
+
+func:@44 [std#Array.expand] in file: lib/support/0.2.0/Array.sharp:29:29: note:  
+		    public static def expand(var[] data, var len) : var[] {
+		                            ^
+
+
+expand:
+[0x0] 0:	loadl ebx, fp+1
+[0x1] 1:	newarry ebx
+[0x2] 2:	popl 2
+[0x3] 3:	istorel 0, fp+3
+[0x5] 5:	movl 0
+[0x6] 6:	sizeof ebx
+[0x7] 7:	movr egx, ebx
+[0x8] 8:	loadl ebx, fp+3
+[0x9] 9:	lt ebx, egx
+[0xa] 10:	movi #30, adx
+[0xc] 12:	ifne
+[0xd] 13:	pushl 0
+[0xe] 14:	loadl ebx, fp+3
+[0xf] 15:	movsl #0
+[0x10] 16:	chklen ebx
+[0x11] 17:	iaload_2 ebx, ebx
+[0x12] 18:	pop
+[0x13] 19:	rstore ebx
+[0x14] 20:	pushl 2
+[0x15] 21:	loadl ebx, fp+3
+[0x16] 22:	movsl #0
+[0x17] 23:	chklen ebx
+[0x18] 24:	pop
+[0x19] 25:	loadval egx
+[0x1a] 26:	rmov ebx, egx
+[0x1b] 27:	loadl ebx, fp+3
+[0x1c] 28:	iaddl 1, @3
+[0x1d] 29:	goto @5
+[0x1e] 30:	movl 2
+[0x1f] 31:	returnobj
+[0x20] 32:	ret
+
+func:@45 [std#Array.expand] in file: lib/support/0.2.0/Array.sharp:39:29: note:  
+		    public static def expand(object[] data, var len) : object[] {
+		                            ^
+
+
+expand:
+[0x0] 0:	loadl ebx, fp+1
+[0x1] 1:	newobj_arry ebx
+[0x2] 2:	popl 2
+[0x3] 3:	istorel 0, fp+3
+[0x5] 5:	movl 0
+[0x6] 6:	sizeof ebx
+[0x7] 7:	movr egx, ebx
+[0x8] 8:	loadl ebx, fp+3
+[0x9] 9:	lt ebx, egx
+[0xa] 10:	movi #30, adx
+[0xc] 12:	ifne
+[0xd] 13:	pushl 0
+[0xe] 14:	loadl ebx, fp+3
+[0xf] 15:	movsl #0
+[0x10] 16:	chklen ebx
+[0x11] 17:	movnd ebx
+[0x12] 18:	pop
+[0x13] 19:	pushobj
+[0x14] 20:	pushl 2
+[0x15] 21:	loadl ebx, fp+3
+[0x16] 22:	movsl #0
+[0x17] 23:	chklen ebx
+[0x18] 24:	movnd ebx
+[0x19] 25:	pop
+[0x1a] 26:	popobj
+[0x1b] 27:	loadl ebx, fp+3
+[0x1c] 28:	iaddl 1, @3
+[0x1d] 29:	goto @5
+[0x1e] 30:	movl 2
+[0x1f] 31:	returnobj
+[0x20] 32:	ret
+
+func:@46 [std#Array.Array] in file: lib/support/0.2.0/Array.sharp:6:13: note:  
+		public class Array {
+		            ^
+
+
+Array:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@47 [std#string.string] in file: lib/support/0.2.0/string.sharp:10:22: note:  
+		        public string( var[] immstr )
+		                     ^
+
+
+string:
+[0x0] 0:	movl 1
+[0x1] 1:	checknull
+[0x2] 2:	movr ebx, cmt
+[0x3] 3:	movi #10, adx
+[0x5] 5:	ifne
+[0x6] 6:	movl 0
+[0x7] 7:	movn #0
+[0x8] 8:	del
+[0x9] 9:	goto @14
+[0xa] 10:	pushl 0
+[0xb] 11:	pushl 1
+[0xc] 12:	call @51 // <std#string.append(var[])>
+[0xd] 13:	pop
+[0xe] 14:	movl 0
+[0xf] 15:	returnobj
+[0x10] 16:	ret
+
+func:@48 [std#string.string] in file: lib/support/0.2.0/string.sharp:20:22: note:  
+		        public string( var[] immstr, var offset, var length )
+		                     ^
+
+
+string:
+[0x0] 0:	movl 1
+[0x1] 1:	checknull
+[0x2] 2:	movr ebx, cmt
+[0x3] 3:	movi #10, adx
+[0x5] 5:	ifne
+[0x6] 6:	movl 0
+[0x7] 7:	movn #0
+[0x8] 8:	del
+[0x9] 9:	goto @44
+[0xa] 10:	loadl ebx, fp+2
+[0xb] 11:	smovr_2 ebx, fp+4
+[0xc] 12:	movl 1
+[0xd] 13:	sizeof ebx
+[0xe] 14:	movr egx, ebx
+[0xf] 15:	loadl ebx, fp+4
+[0x10] 16:	lt ebx, egx
+[0x11] 17:	movi #44, adx
+[0x13] 19:	ifne
+[0x14] 20:	istore 0
+[0x15] 21:	loadl ebx, fp+3
+[0x16] 22:	isubl #1, @3
+[0x17] 23:	loadval ecx
+[0x18] 24:	gte ebx, ecx
+[0x19] 25:	movr ebx, cmt
+[0x1a] 26:	movi #40, adx
+[0x1c] 28:	ifne
+[0x1d] 29:	pushl 0
+[0x1e] 30:	pushl 1
+[0x1f] 31:	loadl ebx, fp+4
+[0x20] 32:	movsl #0
+[0x21] 33:	chklen ebx
+[0x22] 34:	iaload_2 ebx, ebx
+[0x23] 35:	pop
+[0x24] 36:	rstore ebx
+[0x25] 37:	call @50 // <std#string.append(var)>
+[0x26] 38:	pop
+[0x27] 39:	goto @41
+[0x28] 40:	goto @44
+[0x29] 41:	loadl ebx, fp+4
+[0x2a] 42:	iaddl 1, @4
+[0x2b] 43:	goto @12
+[0x2c] 44:	movl 0
+[0x2d] 45:	returnobj
+[0x2e] 46:	ret
+
+func:@49 [std#string.replace] in file: lib/support/0.2.0/string.sharp:35:27: note:  
+		        public def replace( var pos, var replaceChar ) : string
+		                          ^
+
+
+replace:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #0
+[0x2] 2:	sizeof ebx
+[0x3] 3:	movr egx, ebx
+[0x4] 4:	loadl ebx, fp+1
+[0x5] 5:	gte ebx, egx
+[0x6] 6:	movr ebx, cmt
+[0x7] 7:	movi #14, adx
+[0x9] 9:	ifne
+[0xa] 10:	new_class @25 // std#RuntimeErr
+[0xb] 11:	newstr @33 // "Index out of bounds exception"
+[0xc] 12:	call @187 // <std#RuntimeErr.RuntimeErr(var[])>
+[0xd] 13:	throw 
+[0xe] 14:	ipushl #2
+[0xf] 15:	movl 0
+[0x10] 16:	movn #0
+[0x11] 17:	pushobj
+[0x12] 18:	loadl ebx, fp+1
+[0x13] 19:	movsl #0
+[0x14] 20:	chklen ebx
+[0x15] 21:	pop
+[0x16] 22:	loadval egx
+[0x17] 23:	rmov ebx, egx
+[0x18] 24:	movl 0
+[0x19] 25:	returnobj
+[0x1a] 26:	ret
+
+func:@50 [std#string.append] in file: lib/support/0.2.0/string.sharp:45:19: note:  
+		        def append(var char) : string
+		                  ^
+
+
+append:
+[0x0] 0:	movi #1, ebx
+[0x2] 2:	newarry ebx
+[0x3] 3:	movsl #0
+[0x4] 4:	loadl ebx, fp+1
+[0x5] 5:	movi #0, adx
+[0x7] 7:	rmov adx, ebx
+[0x8] 8:	popl 2
+[0x9] 9:	pushl 0
+[0xa] 10:	pushl 2
+[0xb] 11:	call @51 // <std#string.append(var[])>
+[0xc] 12:	movsl #0
+[0xd] 13:	returnobj
+[0xe] 14:	ret
+
+func:@51 [std#string.append] in file: lib/support/0.2.0/string.sharp:51:19: note:  
+		        def append(var[] immstr) : string
+		                  ^
+
+
+append:
+[0x0] 0:	movl 1
+[0x1] 1:	sizeof ebx
+[0x2] 2:	rstore ebx
+[0x3] 3:	movl 0
+[0x4] 4:	movn #0
+[0x5] 5:	sizeof ebx
+[0x6] 6:	loadval ecx
+[0x7] 7:	add ebx, ecx -> ebx
+[0x9] 9:	newarry ebx
+[0xa] 10:	popl 2
+[0xb] 11:	istorel 0, fp+3
+[0xd] 13:	istorel 0, fp+4
+[0xf] 15:	movl 0
+[0x10] 16:	movn #0
+[0x11] 17:	sizeof ebx
+[0x12] 18:	movr egx, ebx
+[0x13] 19:	loadl ebx, fp+4
+[0x14] 20:	lt ebx, egx
+[0x15] 21:	movi #45, adx
+[0x17] 23:	ifne
+[0x18] 24:	movl 0
+[0x19] 25:	movn #0
+[0x1a] 26:	pushobj
+[0x1b] 27:	loadl ebx, fp+4
+[0x1c] 28:	movsl #0
+[0x1d] 29:	chklen ebx
+[0x1e] 30:	iaload_2 ebx, ebx
+[0x1f] 31:	pop
+[0x20] 32:	mov16 ebx, ebx
+[0x21] 33:	rstore ebx
+[0x22] 34:	pushl 2
+[0x23] 35:	loadl ebx, fp+3
+[0x24] 36:	iaddl 1, @3
+[0x25] 37:	movsl #0
+[0x26] 38:	chklen ebx
+[0x27] 39:	pop
+[0x28] 40:	loadval egx
+[0x29] 41:	rmov ebx, egx
+[0x2a] 42:	loadl ebx, fp+4
+[0x2b] 43:	iaddl 1, @4
+[0x2c] 44:	goto @15
+[0x2d] 45:	istorel 0, fp+5
+[0x2f] 47:	movl 1
+[0x30] 48:	sizeof ebx
+[0x31] 49:	movr egx, ebx
+[0x32] 50:	loadl ebx, fp+5
+[0x33] 51:	lt ebx, egx
+[0x34] 52:	movi #74, adx
+[0x36] 54:	ifne
+[0x37] 55:	pushl 1
+[0x38] 56:	loadl ebx, fp+5
+[0x39] 57:	movsl #0
+[0x3a] 58:	chklen ebx
+[0x3b] 59:	iaload_2 ebx, ebx
+[0x3c] 60:	pop
+[0x3d] 61:	mov16 ebx, ebx
+[0x3e] 62:	rstore ebx
+[0x3f] 63:	pushl 2
+[0x40] 64:	loadl ebx, fp+3
+[0x41] 65:	iaddl 1, @3
+[0x42] 66:	movsl #0
+[0x43] 67:	chklen ebx
+[0x44] 68:	pop
+[0x45] 69:	loadval egx
+[0x46] 70:	rmov ebx, egx
+[0x47] 71:	loadl ebx, fp+5
+[0x48] 72:	iaddl 1, @5
+[0x49] 73:	goto @47
+[0x4a] 74:	pushl 2
+[0x4b] 75:	movl 0
+[0x4c] 76:	movn #0
+[0x4d] 77:	popobj
+[0x4e] 78:	movl 0
+[0x4f] 79:	returnobj
+[0x50] 80:	ret
+
+func:@52 [std#string.at] in file: lib/support/0.2.0/string.sharp:69:22: note:  
+		        public def at( var pos ) : var
+		                     ^
+
+
+at:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #0
+[0x2] 2:	sizeof ebx
+[0x3] 3:	movr egx, ebx
+[0x4] 4:	loadl ebx, fp+1
+[0x5] 5:	gte ebx, egx
+[0x6] 6:	movr ebx, cmt
+[0x7] 7:	movi #25, adx
+[0x9] 9:	ifne
+[0xa] 10:	new_class @25 // std#RuntimeErr
+[0xb] 11:	new_class @12 // std#string
+[0xc] 12:	newstr @34 // "Index out of bounds Array: size "
+[0xd] 13:	call @47 // <std#string.string(var[])>
+[0xe] 14:	movl 0
+[0xf] 15:	movn #0
+[0x10] 16:	sizeof ebx
+[0x11] 17:	rstore ebx
+[0x12] 18:	call @58 // <std#string.$operator+(var)>
+[0x13] 19:	newstr @35 // " at index pos "
+[0x14] 20:	call @53 // <std#string.$operator+(var[])>
+[0x15] 21:	ipushl #1
+[0x16] 22:	call @58 // <std#string.$operator+(var)>
+[0x17] 23:	call @188 // <std#RuntimeErr.RuntimeErr(std#string)>
+[0x18] 24:	throw 
+[0x19] 25:	movl 0
+[0x1a] 26:	movn #0
+[0x1b] 27:	pushobj
+[0x1c] 28:	loadl ebx, fp+1
+[0x1d] 29:	movsl #0
+[0x1e] 30:	chklen ebx
+[0x1f] 31:	iaload_2 ebx, ebx
+[0x20] 32:	pop
+[0x21] 33:	return_val ebx
+[0x22] 34:	ret
+
+func:@53 [std#string.$operator+] in file: lib/support/0.2.0/string.sharp:79:28: note:  
+		        public def operator+( var[] immstr ) : string
+		                           ^
+
+
+$operator+:
+[0x0] 0:	new_class @12 // std#string
+[0x1] 1:	movl 0
+[0x2] 2:	movn #0
+[0x3] 3:	pushobj
+[0x4] 4:	call @47 // <std#string.string(var[])>
+[0x5] 5:	popl 2
+[0x6] 6:	pushl 2
+[0x7] 7:	pushl 1
+[0x8] 8:	call @51 // <std#string.append(var[])>
+[0x9] 9:	movsl #0
+[0xa] 10:	returnobj
+[0xb] 11:	ret
+
+func:@54 [std#string.$operator+] in file: lib/support/0.2.0/string.sharp:85:28: note:  
+		        public def operator+( string str ) : string
+		                           ^
+
+
+$operator+:
+[0x0] 0:	new_class @12 // std#string
+[0x1] 1:	movl 0
+[0x2] 2:	movn #0
+[0x3] 3:	pushobj
+[0x4] 4:	call @47 // <std#string.string(var[])>
+[0x5] 5:	popl 2
+[0x6] 6:	movl 1
+[0x7] 7:	checknull
+[0x8] 8:	not cmt, cmt
+[0x9] 9:	movr ebx, cmt
+[0xa] 10:	movi #21, adx
+[0xc] 12:	ifne
+[0xd] 13:	pushl 2
+[0xe] 14:	pushl 1
+[0xf] 15:	call @62 // <std#string.toArray()>
+[0x10] 16:	call @51 // <std#string.append(var[])>
+[0x11] 17:	movsl #0
+[0x12] 18:	returnobj
+[0x13] 19:	ret
+[0x14] 20:	goto @27
+[0x15] 21:	pushl 2
+[0x16] 22:	newstr @36 // "null"
+[0x17] 23:	call @51 // <std#string.append(var[])>
+[0x18] 24:	movsl #0
+[0x19] 25:	returnobj
+[0x1a] 26:	ret
+
+func:@55 [std#string.$operator==] in file: lib/support/0.2.0/string.sharp:94:28: note:  
+		        public def operator==( string str ) : var
+		                           ^
+
+
+$operator==:
+[0x0] 0:	movl 1
+[0x1] 1:	sizeof ebx
+[0x2] 2:	rstore ebx
+[0x3] 3:	movl 0
+[0x4] 4:	movn #0
+[0x5] 5:	sizeof ebx
+[0x6] 6:	movr egx, ebx
+[0x7] 7:	loadval ebx
+[0x8] 8:	tne ebx, egx
+[0x9] 9:	movr ebx, cmt
+[0xa] 10:	movi #17, adx
+[0xc] 12:	ifne
+[0xd] 13:	movi #0, ebx
+[0xf] 15:	return_val ebx
+[0x10] 16:	ret
+[0x11] 17:	istorel 0, fp+2
+[0x13] 19:	istore 0
+[0x14] 20:	movl 0
+[0x15] 21:	movn #0
+[0x16] 22:	smov ebx, sp+0
+[0x17] 23:	sizeof egx
+[0x18] 24:	lt ebx, egx
+[0x19] 25:	movi #51, adx
+[0x1b] 27:	ifne
+[0x1c] 28:	iaload_2 ebx, ebx
+[0x1d] 29:	smovr_2 ebx, fp+3
+[0x1e] 30:	ipushl #3
+[0x1f] 31:	pushl 1
+[0x20] 32:	loadl ebx, fp+2
+[0x21] 33:	iaddl 1, @2
+[0x22] 34:	rstore ebx
+[0x23] 35:	call @52 // <std#string.at(var)>
+[0x24] 36:	loadval egx
+[0x25] 37:	loadval ebx
+[0x26] 38:	tne ebx, egx
+[0x27] 39:	movr ebx, cmt
+[0x28] 40:	movi #47, adx
+[0x2a] 42:	ifne
+[0x2b] 43:	movi #0, ebx
+[0x2d] 45:	return_val ebx
+[0x2e] 46:	ret
+[0x2f] 47:	smov ebx, sp+0
+[0x30] 48:	inc ebx
+[0x31] 49:	smovr ebx, sp+0
+[0x32] 50:	goto @20
+[0x33] 51:	pop
+[0x34] 52:	movi #1, ebx
+[0x36] 54:	return_val ebx
+[0x37] 55:	ret
+
+func:@56 [std#string.$operator==] in file: lib/support/0.2.0/string.sharp:110:28: note:  
+		        public def operator==( var[] str ) : var
+		                           ^
+
+
+$operator==:
+[0x0] 0:	movl 1
+[0x1] 1:	sizeof ebx
+[0x2] 2:	rstore ebx
+[0x3] 3:	movl 0
+[0x4] 4:	movn #0
+[0x5] 5:	sizeof ebx
+[0x6] 6:	movr egx, ebx
+[0x7] 7:	loadval ebx
+[0x8] 8:	tne ebx, egx
+[0x9] 9:	movr ebx, cmt
+[0xa] 10:	movi #17, adx
+[0xc] 12:	ifne
+[0xd] 13:	movi #0, ebx
+[0xf] 15:	return_val ebx
+[0x10] 16:	ret
+[0x11] 17:	istorel 0, fp+2
+[0x13] 19:	istore 0
+[0x14] 20:	movl 0
+[0x15] 21:	movn #0
+[0x16] 22:	smov ebx, sp+0
+[0x17] 23:	sizeof egx
+[0x18] 24:	lt ebx, egx
+[0x19] 25:	movi #53, adx
+[0x1b] 27:	ifne
+[0x1c] 28:	iaload_2 ebx, ebx
+[0x1d] 29:	smovr_2 ebx, fp+3
+[0x1e] 30:	ipushl #3
+[0x1f] 31:	pushl 1
+[0x20] 32:	loadl ebx, fp+2
+[0x21] 33:	iaddl 1, @2
+[0x22] 34:	movsl #0
+[0x23] 35:	chklen ebx
+[0x24] 36:	iaload_2 ebx, ebx
+[0x25] 37:	pop
+[0x26] 38:	movr egx, ebx
+[0x27] 39:	loadval ebx
+[0x28] 40:	tne ebx, egx
+[0x29] 41:	movr ebx, cmt
+[0x2a] 42:	movi #49, adx
+[0x2c] 44:	ifne
+[0x2d] 45:	movi #0, ebx
+[0x2f] 47:	return_val ebx
+[0x30] 48:	ret
+[0x31] 49:	smov ebx, sp+0
+[0x32] 50:	inc ebx
+[0x33] 51:	smovr ebx, sp+0
+[0x34] 52:	goto @20
+[0x35] 53:	pop
+[0x36] 54:	movi #1, ebx
+[0x38] 56:	return_val ebx
+[0x39] 57:	ret
+
+func:@57 [std#string.$operator=] in file: lib/support/0.2.0/string.sharp:126:28: note:  
+		        public def operator=( var[] immstr )
+		                           ^
+
+
+$operator=:
+[0x0] 0:	pushl 1
+[0x1] 1:	movl 1
+[0x2] 2:	sizeof ebx
+[0x3] 3:	rstore ebx
+[0x4] 4:	call @42 // <std#Array.copyOf(var[],var)>
+[0x5] 5:	movl 0
+[0x6] 6:	movn #0
+[0x7] 7:	popobj
+[0x8] 8:	ret
+
+func:@58 [std#string.$operator+] in file: lib/support/0.2.0/string.sharp:131:28: note:  
+		        public def operator+( var num ) : string
+		                           ^
+
+
+$operator+:
+[0x0] 0:	new_class @12 // std#string
+[0x1] 1:	movl 0
+[0x2] 2:	movn #0
+[0x3] 3:	pushobj
+[0x4] 4:	call @47 // <std#string.string(var[])>
+[0x5] 5:	popl 2
+[0x6] 6:	pushl 2
+[0x7] 7:	ipushl #1
+[0x8] 8:	call @63 // <std#string.parse(var)>
+[0x9] 9:	call @62 // <std#string.toArray()>
+[0xa] 10:	call @51 // <std#string.append(var[])>
+[0xb] 11:	pop
+[0xc] 12:	movl 2
+[0xd] 13:	returnobj
+[0xe] 14:	ret
+
+func:@59 [std#string.$operator+=] in file: lib/support/0.2.0/string.sharp:139:28: note:  
+		        public def operator+=( var num ) : string
+		                           ^
+
+
+$operator+=:
+[0x0] 0:	pushl 0
+[0x1] 1:	ipushl #1
+[0x2] 2:	call @63 // <std#string.parse(var)>
+[0x3] 3:	call @62 // <std#string.toArray()>
+[0x4] 4:	call @51 // <std#string.append(var[])>
+[0x5] 5:	movsl #0
+[0x6] 6:	returnobj
+[0x7] 7:	ret
+
+func:@60 [std#string.$operator+=] in file: lib/support/0.2.0/string.sharp:144:28: note:  
+		        public def operator+=( var[] immstr ) : string
+		                           ^
+
+
+$operator+=:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @51 // <std#string.append(var[])>
+[0x3] 3:	movsl #0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@61 [std#string.$operator+=] in file: lib/support/0.2.0/string.sharp:149:28: note:  
+		        public def operator+=( string str ) : string
+		                           ^
+
+
+$operator+=:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	call @51 // <std#string.append(var[])>
+[0x4] 4:	movsl #0
+[0x5] 5:	returnobj
+[0x6] 6:	ret
+
+func:@62 [std#string.toArray] in file: lib/support/0.2.0/string.sharp:154:27: note:  
+		        public def toArray() : var[]
+		                          ^
+
+
+toArray:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	movl 0
+[0x4] 4:	movn #0
+[0x5] 5:	sizeof ebx
+[0x6] 6:	rstore ebx
+[0x7] 7:	call @42 // <std#Array.copyOf(var[],var)>
+[0x8] 8:	movsl #0
+[0x9] 9:	returnobj
+[0xa] 10:	ret
+
+func:@63 [std#string.parse] in file: lib/support/0.2.0/string.sharp:159:32: note:  
+		        public static def parse( var number ) : string
+		                               ^
+
+
+parse:
+[0x0] 0:	loadl ebx, fp+0
+[0x1] 1:	mov64 ebx, ebx
+[0x2] 2:	smovr_2 ebx, fp+0
+[0x3] 3:	ipushl #0
+[0x4] 4:	movi #0, egx
+[0x6] 6:	loadval ebx
+[0x7] 7:	test ebx, egx
+[0x8] 8:	movr ebx, cmt
+[0x9] 9:	movi #18, adx
+[0xb] 11:	ifne
+[0xc] 12:	new_class @12 // std#string
+[0xd] 13:	newstr @37 // "0"
+[0xe] 14:	call @47 // <std#string.string(var[])>
+[0xf] 15:	movsl #0
+[0x10] 16:	returnobj
+[0x11] 17:	ret
+[0x12] 18:	new_class @12 // std#string
+[0x13] 19:	newstr @0 // ""
+[0x14] 20:	call @47 // <std#string.string(var[])>
+[0x15] 21:	popl 1
+[0x16] 22:	new_class @12 // std#string
+[0x17] 23:	newstr @0 // ""
+[0x18] 24:	call @47 // <std#string.string(var[])>
+[0x19] 25:	popl 2
+[0x1a] 26:	istorel 0, fp+3
+[0x1c] 28:	istore 0
+[0x1d] 29:	loadl ebx, fp+0
+[0x1e] 30:	mov64 ebx, ebx
+[0x1f] 31:	loadval ecx
+[0x20] 32:	lt ebx, ecx
+[0x21] 33:	movr ebx, cmt
+[0x22] 34:	movi #42, adx
+[0x24] 36:	ifne
+[0x25] 37:	movi #-1, ebx
+[0x27] 39:	mull ebx, @0
+[0x28] 40:	istorel 1, fp+3
+[0x2a] 42:	istore 0
+[0x2b] 43:	loadl ebx, fp+0
+[0x2c] 44:	mov64 ebx, ebx
+[0x2d] 45:	loadval ecx
+[0x2e] 46:	gt ebx, ecx
+[0x2f] 47:	movi #67, adx
+[0x31] 49:	ifne
+[0x32] 50:	pushl 1
+[0x33] 51:	istore 48
+[0x34] 52:	movi #10, egx
+[0x36] 54:	loadl ebx, fp+0
+[0x37] 55:	mod ebx, egx -> ebx
+[0x39] 57:	loadval ecx
+[0x3a] 58:	add ebx, ecx -> ebx
+[0x3c] 60:	rstore ebx
+[0x3d] 61:	call @50 // <std#string.append(var)>
+[0x3e] 62:	pop
+[0x3f] 63:	movi #10, ebx
+[0x41] 65:	divl ebx, @0
+[0x42] 66:	goto @42
+[0x43] 67:	loadl ebx, fp+3
+[0x44] 68:	movr cmt, ebx
+[0x45] 69:	movi #76, adx
+[0x47] 71:	ifne
+[0x48] 72:	pushl 2
+[0x49] 73:	newstr @38 // "-"
+[0x4a] 74:	call @51 // <std#string.append(var[])>
+[0x4b] 75:	pop
+[0x4c] 76:	istore 1
+[0x4d] 77:	pushl 1
+[0x4e] 78:	call @62 // <std#string.toArray()>
+[0x4f] 79:	movsl #0
+[0x50] 80:	sizeof ebx
+[0x51] 81:	pop
+[0x52] 82:	loadval ecx
+[0x53] 83:	sub ebx, ecx -> ebx
+[0x55] 85:	smovr_2 ebx, fp+4
+[0x56] 86:	movi #0, egx
+[0x58] 88:	loadl ebx, fp+4
+[0x59] 89:	gte ebx, egx
+[0x5a] 90:	movi #102, adx
+[0x5c] 92:	ifne
+[0x5d] 93:	pushl 2
+[0x5e] 94:	pushl 1
+[0x5f] 95:	ipushl #4
+[0x60] 96:	call @52 // <std#string.at(var)>
+[0x61] 97:	call @50 // <std#string.append(var)>
+[0x62] 98:	pop
+[0x63] 99:	loadl ebx, fp+4
+[0x64] 100:	isubl #1, @4
+[0x65] 101:	goto @86
+[0x66] 102:	movl 2
+[0x67] 103:	returnobj
+[0x68] 104:	ret
+
+func:@64 [std#string.substring] in file: lib/support/0.2.0/string.sharp:186:29: note:  
+		        public def substring(var startIndex) : string {
+		                            ^
+
+
+substring:
+[0x0] 0:	pushl 0
+[0x1] 1:	call @68 // <std#string.size()>
+[0x2] 2:	loadval egx
+[0x3] 3:	loadl ebx, fp+1
+[0x4] 4:	gte ebx, egx
+[0x5] 5:	skpe 4 // pc = 9
+[0x6] 6:	movi #0, egx
+[0x8] 8:	loadl ebx, fp+1
+[0x9] 9:	lt ebx, egx
+[0xa] 10:	movi #19, adx
+[0xc] 12:	ifne
+[0xd] 13:	new_class @12 // std#string
+[0xe] 14:	newstr @0 // ""
+[0xf] 15:	call @47 // <std#string.string(var[])>
+[0x10] 16:	movsl #0
+[0x11] 17:	returnobj
+[0x12] 18:	ret
+[0x13] 19:	new_class @12 // std#string
+[0x14] 20:	newstr @0 // ""
+[0x15] 21:	call @47 // <std#string.string(var[])>
+[0x16] 22:	popl 2
+[0x17] 23:	loadl ebx, fp+1
+[0x18] 24:	smovr_2 ebx, fp+3
+[0x19] 25:	pushl 0
+[0x1a] 26:	call @68 // <std#string.size()>
+[0x1b] 27:	loadval egx
+[0x1c] 28:	loadl ebx, fp+3
+[0x1d] 29:	lt ebx, egx
+[0x1e] 30:	movi #42, adx
+[0x20] 32:	ifne
+[0x21] 33:	pushl 2
+[0x22] 34:	pushl 0
+[0x23] 35:	ipushl #3
+[0x24] 36:	call @52 // <std#string.at(var)>
+[0x25] 37:	call @50 // <std#string.append(var)>
+[0x26] 38:	pop
+[0x27] 39:	loadl ebx, fp+3
+[0x28] 40:	iaddl 1, @3
+[0x29] 41:	goto @25
+[0x2a] 42:	movl 2
+[0x2b] 43:	returnobj
+[0x2c] 44:	ret
+
+func:@65 [std#string.parseInt] in file: lib/support/0.2.0/string.sharp:199:35: note:  
+		        public static def parseInt(string s) : var {
+		                                  ^
+
+
+parseInt:
+[0x0] 0:	istorel 0, fp+1
+[0x2] 2:	istorel 0, fp+2
+[0x4] 4:	istorel 0, fp+3
+[0x6] 6:	pushl 0
+[0x7] 7:	call @68 // <std#string.size()>
+[0x8] 8:	loadval ebx
+[0x9] 9:	smovr_2 ebx, fp+4
+[0xa] 10:	pushl 0
+[0xb] 11:	istore 0
+[0xc] 12:	call @52 // <std#string.at(var)>
+[0xd] 13:	movi #45, egx
+[0xf] 15:	loadval ebx
+[0x10] 16:	test ebx, egx
+[0x11] 17:	movr ebx, cmt
+[0x12] 18:	movi #25, adx
+[0x14] 20:	ifne
+[0x15] 21:	istorel 1, fp+3
+[0x17] 23:	istorel 1, fp+1
+[0x19] 25:	loadl ebx, fp+4
+[0x1a] 26:	movr egx, ebx
+[0x1b] 27:	loadl ebx, fp+1
+[0x1c] 28:	lt ebx, egx
+[0x1d] 29:	movi #75, adx
+[0x1f] 31:	ifne
+[0x20] 32:	pushl 0
+[0x21] 33:	ipushl #1
+[0x22] 34:	call @52 // <std#string.at(var)>
+[0x23] 35:	call @67 // <std#string.isDigit(var)>
+[0x24] 36:	loadval ebx
+[0x25] 37:	not ebx, ebx
+[0x26] 38:	movr cmt, ebx
+[0x27] 39:	movi #60, adx
+[0x29] 41:	ifne
+[0x2a] 42:	new_class @5 // std#IllegalArgumentException
+[0x2b] 43:	new_class @12 // std#string
+[0x2c] 44:	newstr @39 // "invalid char in string: "
+[0x2d] 45:	call @47 // <std#string.string(var[])>
+[0x2e] 46:	movi #1, ebx
+[0x30] 48:	newarry ebx
+[0x31] 49:	pushl 0
+[0x32] 50:	ipushl #1
+[0x33] 51:	call @52 // <std#string.at(var)>
+[0x34] 52:	loadval ebx
+[0x35] 53:	movsl #0
+[0x36] 54:	movi #0, adx
+[0x38] 56:	rmov adx, ebx
+[0x39] 57:	call @53 // <std#string.$operator+(var[])>
+[0x3a] 58:	call @14 // <std#IllegalArgumentException.IllegalArgumentException(std#string)>
+[0x3b] 59:	throw 
+[0x3c] 60:	movi #10, ebx
+[0x3e] 62:	mull ebx, @2
+[0x3f] 63:	istore 48
+[0x40] 64:	pushl 0
+[0x41] 65:	loadl ebx, fp+1
+[0x42] 66:	iaddl 1, @1
+[0x43] 67:	rstore ebx
+[0x44] 68:	call @52 // <std#string.at(var)>
+[0x45] 69:	loadval ebx
+[0x46] 70:	loadval ecx
+[0x47] 71:	sub ebx, ecx -> ebx
+[0x49] 73:	addl ebx, @2
+[0x4a] 74:	goto @25
+[0x4b] 75:	loadl ebx, fp+3
+[0x4c] 76:	movr cmt, ebx
+[0x4d] 77:	movi #83, adx
+[0x4f] 79:	ifne
+[0x50] 80:	loadl ebx, fp+2
+[0x51] 81:	imul ebx, #-1
+[0x52] 82:	smovr_2 ebx, fp+2
+[0x53] 83:	loadl ebx, fp+2
+[0x54] 84:	return_val ebx
+[0x55] 85:	ret
+
+func:@66 [std#string.startsWith] in file: lib/support/0.2.0/string.sharp:227:31: note:  
+		         public def startsWith(string prefix, var toffset) : var {
+		                              ^
+
+
+startsWith:
+[0x0] 0:	loadl ebx, fp+2
+[0x1] 1:	smovr_2 ebx, fp+3
+[0x2] 2:	istorel 0, fp+4
+[0x4] 4:	pushl 1
+[0x5] 5:	call @68 // <std#string.size()>
+[0x6] 6:	loadval ebx
+[0x7] 7:	smovr_2 ebx, fp+5
+[0x8] 8:	movi #0, egx
+[0xa] 10:	loadl ebx, fp+2
+[0xb] 11:	lt ebx, egx
+[0xc] 12:	skpe 11 // pc = 23
+[0xd] 13:	loadl ebx, fp+5
+[0xe] 14:	movr egx, ebx
+[0xf] 15:	pushl 0
+[0x10] 16:	call @68 // <std#string.size()>
+[0x11] 17:	loadval ebx
+[0x12] 18:	sub ebx, egx -> ebx
+[0x14] 20:	loadval egx
+[0x15] 21:	loadl ebx, fp+2
+[0x16] 22:	gt ebx, egx
+[0x17] 23:	movr ebx, cmt
+[0x18] 24:	movi #31, adx
+[0x1a] 26:	ifne
+[0x1b] 27:	movi #0, ebx
+[0x1d] 29:	return_val ebx
+[0x1e] 30:	ret
+[0x1f] 31:	movi #0, egx
+[0x21] 33:	loadl ebx, fp+5
+[0x22] 34:	gte ebx, egx
+[0x23] 35:	movr ebx, cmt
+[0x24] 36:	dec ebx
+[0x25] 37:	movr cmt, ebx
+[0x26] 38:	movi #63, adx
+[0x28] 40:	ifne
+[0x29] 41:	pushl 0
+[0x2a] 42:	loadl ebx, fp+3
+[0x2b] 43:	iaddl 1, @3
+[0x2c] 44:	rstore ebx
+[0x2d] 45:	call @52 // <std#string.at(var)>
+[0x2e] 46:	pushl 1
+[0x2f] 47:	loadl ebx, fp+4
+[0x30] 48:	iaddl 1, @4
+[0x31] 49:	rstore ebx
+[0x32] 50:	call @52 // <std#string.at(var)>
+[0x33] 51:	loadval egx
+[0x34] 52:	loadval ebx
+[0x35] 53:	tne ebx, egx
+[0x36] 54:	movr ebx, cmt
+[0x37] 55:	movi #62, adx
+[0x39] 57:	ifne
+[0x3a] 58:	movi #0, ebx
+[0x3c] 60:	return_val ebx
+[0x3d] 61:	ret
+[0x3e] 62:	goto @31
+[0x3f] 63:	movi #1, ebx
+[0x41] 65:	return_val ebx
+[0x42] 66:	ret
+
+func:@67 [std#string.isDigit] in file: lib/support/0.2.0/string.sharp:243:35: note:  
+		        private static def isDigit(var c) : var {
+		                                  ^
+
+
+isDigit:
+[0x0] 0:	movi #48, egx
+[0x2] 2:	loadl ebx, fp+0
+[0x3] 3:	gte ebx, egx
+[0x4] 4:	skne 7 // pc = 11
+[0x5] 5:	istore 1
+[0x6] 6:	movi #57, egx
+[0x8] 8:	loadl ebx, fp+0
+[0x9] 9:	lte ebx, egx
+[0xa] 10:	movr ebx, cmt
+[0xb] 11:	loadval ecx
+[0xc] 12:	and ecx, ebx
+[0xd] 13:	return_val ebx
+[0xe] 14:	ret
+
+func:@68 [std#string.size] in file: lib/support/0.2.0/string.sharp:247:24: note:  
+		        public def size() : var
+		                       ^
+
+
+size:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #0
+[0x2] 2:	sizeof ebx
+[0x3] 3:	return_val ebx
+[0x4] 4:	ret
+
+func:@69 [std#string.string] in file: lib/support/0.2.0/string.sharp:6:13: note:  
+		public class string {
+		            ^
+
+
+string:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@70 [std#System.print] in file: lib/support/0.2.0/System.sharp:20:28: note:  
+		    public static def print(var[] data) {
+		                           ^
+
+
+print:
+[0x0] 0:	movg @13 // @std#System
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	call @179 // <std.internal#ConsoleHandler.printData(var[])>
+[0x5] 5:	ret
+
+func:@71 [std#System.print] in file: lib/support/0.2.0/System.sharp:24:28: note:  
+		    public static def print(string str) {
+		                           ^
+
+
+print:
+[0x0] 0:	movg @13 // @std#System
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	call @62 // <std#string.toArray()>
+[0x5] 5:	call @179 // <std.internal#ConsoleHandler.printData(var[])>
+[0x6] 6:	ret
+
+func:@72 [std#System.println] in file: lib/support/0.2.0/System.sharp:28:30: note:  
+		    public static def println(var[] data) {
+		                             ^
+
+
+println:
+[0x0] 0:	movg @13 // @std#System
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	call @179 // <std.internal#ConsoleHandler.printData(var[])>
+[0x5] 5:	istore 10
+[0x6] 6:	call @78 // <std#System.printChar(var)>
+[0x7] 7:	ret
+
+func:@73 [std#System.println] in file: lib/support/0.2.0/System.sharp:33:30: note:  
+		    public static def println(var data) {
+		                             ^
+
+
+println:
+[0x0] 0:	ipushl #0
+[0x1] 1:	call @77 // <std#System.print(var)>
+[0x2] 2:	istore 10
+[0x3] 3:	call @78 // <std#System.printChar(var)>
+[0x4] 4:	ret
+
+func:@74 [std#System.readLine] in file: lib/support/0.2.0/System.sharp:38:31: note:  
+		    public static def readLine() : string {
+		                              ^
+
+
+readLine:
+[0x0] 0:	istorel 0, fp+0
+[0x2] 2:	new_class @12 // std#string
+[0x3] 3:	newstr @0 // ""
+[0x4] 4:	call @47 // <std#string.string(var[])>
+[0x5] 5:	popl 1
+[0x6] 6:	call @75 // <std#System.readChar()>
+[0x7] 7:	loadval ebx
+[0x8] 8:	smovr_2 ebx, fp+0
+[0x9] 9:	ipushl #0
+[0xa] 10:	movi #13, egx
+[0xc] 12:	loadval ebx
+[0xd] 13:	tne ebx, egx
+[0xe] 14:	skne 11 // pc = 25
+[0xf] 15:	istore 1
+[0x10] 16:	ipushl #0
+[0x11] 17:	movi #10, egx
+[0x13] 19:	loadval ebx
+[0x14] 20:	tne ebx, egx
+[0x15] 21:	movr ebx, cmt
+[0x16] 22:	loadval ecx
+[0x17] 23:	and ecx, ebx
+[0x18] 24:	movr cmt, ebx
+[0x19] 25:	movi #43, adx
+[0x1b] 27:	ifne
+[0x1c] 28:	pushl 1
+[0x1d] 29:	movi #1, ebx
+[0x1f] 31:	newarry ebx
+[0x20] 32:	movsl #0
+[0x21] 33:	loadl ebx, fp+0
+[0x22] 34:	movi #0, adx
+[0x24] 36:	rmov adx, ebx
+[0x25] 37:	call @60 // <std#string.$operator+=(var[])>
+[0x26] 38:	pop
+[0x27] 39:	call @75 // <std#System.readChar()>
+[0x28] 40:	loadval ebx
+[0x29] 41:	smovr_2 ebx, fp+0
+[0x2a] 42:	goto @9
+[0x2b] 43:	movl 1
+[0x2c] 44:	returnobj
+[0x2d] 45:	ret
+
+func:@75 [std#System.readChar] in file: lib/support/0.2.0/System.sharp:50:31: note:  
+		    public static def readChar() : var {
+		                              ^
+
+
+readChar:
+[0x0] 0:	movg @13 // @std#System
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	call @181 // <std.internal#ConsoleHandler.read()>
+[0x4] 4:	loadval ebx
+[0x5] 5:	return_val ebx
+[0x6] 6:	ret
+
+func:@76 [std#System.println] in file: lib/support/0.2.0/System.sharp:54:30: note:  
+		    public static def println(string str) {
+		                             ^
+
+
+println:
+[0x0] 0:	movg @13 // @std#System
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	call @62 // <std#string.toArray()>
+[0x5] 5:	call @179 // <std.internal#ConsoleHandler.printData(var[])>
+[0x6] 6:	istore 10
+[0x7] 7:	call @78 // <std#System.printChar(var)>
+[0x8] 8:	ret
+
+func:@77 [std#System.print] in file: lib/support/0.2.0/System.sharp:59:28: note:  
+		    public static def print(var data) {
+		                           ^
+
+
+print:
+[0x0] 0:	movg @13 // @std#System
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	ipushl #0
+[0x4] 4:	istore 0
+[0x5] 5:	call @182 // <std.internal#ConsoleHandler.__print_stdout_(var,var)>
+[0x6] 6:	ret
+
+func:@78 [std#System.printChar] in file: lib/support/0.2.0/System.sharp:63:32: note:  
+		    public static def printChar(var data) {
+		                               ^
+
+
+printChar:
+[0x0] 0:	pushobj
+[0x1] 1:	ipushl #0
+[0x2] 2:	istore 1
+[0x3] 3:	call @182 // <std.internal#ConsoleHandler.__print_stdout_(var,var)>
+[0x4] 4:	ret
+
+func:@79 [std#System.getUtcTimeInMills] in file: lib/support/0.2.0/System.sharp:67:40: note:  
+		    public static def getUtcTimeInMills() : var {
+		                                       ^
+
+
+getUtcTimeInMills:
+[0x0] 0:	call @30 // <std.internal.vm#Time.millsTime()>
+[0x1] 1:	loadval ebx
+[0x2] 2:	return_val ebx
+[0x3] 3:	ret
+
+func:@80 [std#System.getNanoTime] in file: lib/support/0.2.0/System.sharp:71:34: note:  
+		    public static def getNanoTime() : var {
+		                                 ^
+
+
+getNanoTime:
+[0x0] 0:	call @26 // <std.internal.vm#Time.nanoTime()>
+[0x1] 1:	loadval ebx
+[0x2] 2:	return_val ebx
+[0x3] 3:	ret
+
+func:@81 [std#System.exit] in file: lib/support/0.2.0/System.sharp:75:27: note:  
+		    public static def exit() {
+		                          ^
+
+
+exit:
+[0x0] 0:	call @36 // <std.internal#Runtime.nativeExit()>
+[0x1] 1:	ret
+
+func:@82 [std#System.gc] in file: lib/support/0.2.0/System.sharp:79:25: note:  
+		    public static def gc() {
+		                        ^
+
+
+gc:
+[0x0] 0:	call @37 // <std.internal#Runtime.gc()>
+[0x1] 1:	ret
+
+func:@83 [std#System.freeMemory] in file: lib/support/0.2.0/System.sharp:83:33: note:  
+		    public static def freeMemory() : var {
+		                                ^
+
+
+freeMemory:
+[0x0] 0:	call @40 // <std.internal#Runtime.freeMemory()>
+[0x1] 1:	loadval ebx
+[0x2] 2:	return_val ebx
+[0x3] 3:	ret
+
+func:@84 [std#System.getMaxMemory] in file: lib/support/0.2.0/System.sharp:87:35: note:  
+		    public static def getMaxMemory() : var {
+		                                  ^
+
+
+getMaxMemory:
+[0x0] 0:	call @38 // <std.internal#Runtime.memoryLimit()>
+[0x1] 1:	loadval ebx
+[0x2] 2:	return_val ebx
+[0x3] 3:	ret
+
+func:@85 [std#System.getManagedMemory] in file: lib/support/0.2.0/System.sharp:91:39: note:  
+		    public static def getManagedMemory() : var {
+		                                      ^
+
+
+getManagedMemory:
+[0x0] 0:	call @39 // <std.internal#Runtime.managedMemory()>
+[0x1] 1:	loadval ebx
+[0x2] 2:	return_val ebx
+[0x3] 3:	ret
+
+func:@86 [std#System.System] in file: lib/support/0.2.0/System.sharp:16:13: note:  
+		public class System {
+		            ^
+
+
+System:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@87 [std.internal#BuildConfig.isWindows] in file: lib/support/0.2.0/internal/BuildConfig.sharp:11:32: note:  
+		    public static def isWindows() : var {
+		                               ^
+
+
+isWindows:
+[0x0] 0:	movg @14 // @std.internal#BuildConfig
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	newstr @40 // "win"
+[0x4] 4:	call @56 // <std#string.$operator==(var[])>
+[0x5] 5:	loadval ebx
+[0x6] 6:	return_val ebx
+[0x7] 7:	ret
+
+func:@88 [std.internal#BuildConfig.isLinux] in file: lib/support/0.2.0/internal/BuildConfig.sharp:15:30: note:  
+		    public static def isLinux() : var {
+		                             ^
+
+
+isLinux:
+[0x0] 0:	movg @14 // @std.internal#BuildConfig
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	newstr @41 // "posix"
+[0x4] 4:	call @56 // <std#string.$operator==(var[])>
+[0x5] 5:	loadval ebx
+[0x6] 6:	return_val ebx
+[0x7] 7:	ret
+
+func:@89 [std.internal#BuildConfig.BuildConfig] in file: lib/support/0.2.0/internal/BuildConfig.sharp:5:13: note:  
+		public class BuildConfig {
+		            ^
+
+
+BuildConfig:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@90 [std.io#File.File] in file: lib/support/0.2.0/io/File.sharp:13:16: note:  
+		    public File(string path) {
+		               ^
+
+
+File:
+[0x0] 0:	movl 1
+[0x1] 1:	checknull
+[0x2] 2:	movr ebx, cmt
+[0x3] 3:	movi #10, adx
+[0x5] 5:	ifne
+[0x6] 6:	new_class @24 // std#NullptrException
+[0x7] 7:	newstr @42 // "file path cannot be null"
+[0x8] 8:	call @184 // <std#NullptrException.NullptrException(var[])>
+[0x9] 9:	throw 
+[0xa] 10:	movg @15 // @std.io#File
+[0xb] 11:	movn #0
+[0xc] 12:	pushobj
+[0xd] 13:	pushl 1
+[0xe] 14:	invoke_delegate 3, 1
+[0xf] 15:	movl 0
+[0x10] 16:	movn #1
+[0x11] 17:	popobj
+[0x12] 18:	movl 0
+[0x13] 19:	returnobj
+[0x14] 20:	ret
+
+func:@91 [std.io#File.File] in file: lib/support/0.2.0/io/File.sharp:19:16: note:  
+		    public File(var[] path) {
+		               ^
+
+
+File:
+[0x0] 0:	movl 1
+[0x1] 1:	checknull
+[0x2] 2:	movr ebx, cmt
+[0x3] 3:	movi #10, adx
+[0x5] 5:	ifne
+[0x6] 6:	new_class @24 // std#NullptrException
+[0x7] 7:	newstr @42 // "file path cannot be null"
+[0x8] 8:	call @184 // <std#NullptrException.NullptrException(var[])>
+[0x9] 9:	throw 
+[0xa] 10:	movg @15 // @std.io#File
+[0xb] 11:	movn #0
+[0xc] 12:	pushobj
+[0xd] 13:	new_class @12 // std#string
+[0xe] 14:	newstr @0 // ""
+[0xf] 15:	call @47 // <std#string.string(var[])>
+[0x10] 16:	pushl 1
+[0x11] 17:	call @53 // <std#string.$operator+(var[])>
+[0x12] 18:	invoke_delegate 3, 1
+[0x13] 19:	movl 0
+[0x14] 20:	movn #1
+[0x15] 21:	popobj
+[0x16] 22:	movl 0
+[0x17] 23:	returnobj
+[0x18] 24:	ret
+
+func:@92 [std.io#File.getName] in file: lib/support/0.2.0/io/File.sharp:25:23: note:  
+		    public def getName() : string {
+		                      ^
+
+
+getName:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #1
+[0x2] 2:	checknull
+[0x3] 3:	skpe 9 // pc = 12
+[0x4] 4:	movl 0
+[0x5] 5:	movn #1
+[0x6] 6:	pushobj
+[0x7] 7:	call @68 // <std#string.size()>
+[0x8] 8:	movi #0, egx
+[0xa] 10:	loadval ebx
+[0xb] 11:	test ebx, egx
+[0xc] 12:	movr ebx, cmt
+[0xd] 13:	movi #22, adx
+[0xf] 15:	ifne
+[0x10] 16:	new_class @12 // std#string
+[0x11] 17:	newstr @0 // ""
+[0x12] 18:	call @47 // <std#string.string(var[])>
+[0x13] 19:	movsl #0
+[0x14] 20:	returnobj
+[0x15] 21:	ret
+[0x16] 22:	new_class @12 // std#string
+[0x17] 23:	newstr @0 // ""
+[0x18] 24:	call @47 // <std#string.string(var[])>
+[0x19] 25:	popl 1
+[0x1a] 26:	istorel 0, fp+2
+[0x1c] 28:	istore 1
+[0x1d] 29:	movl 0
+[0x1e] 30:	movn #1
+[0x1f] 31:	pushobj
+[0x20] 32:	call @68 // <std#string.size()>
+[0x21] 33:	loadval ebx
+[0x22] 34:	loadval ecx
+[0x23] 35:	sub ebx, ecx -> ebx
+[0x25] 37:	smovr_2 ebx, fp+3
+[0x26] 38:	movi #0, egx
+[0x28] 40:	loadl ebx, fp+3
+[0x29] 41:	gt ebx, egx
+[0x2a] 42:	movi #72, adx
+[0x2c] 44:	ifne
+[0x2d] 45:	movl 0
+[0x2e] 46:	movn #1
+[0x2f] 47:	pushobj
+[0x30] 48:	ipushl #3
+[0x31] 49:	call @52 // <std#string.at(var)>
+[0x32] 50:	movg @15 // @std.io#File
+[0x33] 51:	movn #2
+[0x34] 52:	movi #0, adx
+[0x36] 54:	chklen adx
+[0x37] 55:	iaload_2 egx, adx
+[0x38] 56:	loadval ebx
+[0x39] 57:	test ebx, egx
+[0x3a] 58:	movr ebx, cmt
+[0x3b] 59:	movi #69, adx
+[0x3d] 61:	ifne
+[0x3e] 62:	movi #1, egx
+[0x40] 64:	loadl ebx, fp+3
+[0x41] 65:	add ebx, egx -> ebx
+[0x43] 67:	smovr_2 ebx, fp+2
+[0x44] 68:	goto @72
+[0x45] 69:	loadl ebx, fp+3
+[0x46] 70:	isubl #1, @3
+[0x47] 71:	goto @38
+[0x48] 72:	loadl ebx, fp+2
+[0x49] 73:	smovr_2 ebx, fp+4
+[0x4a] 74:	movl 0
+[0x4b] 75:	movn #1
+[0x4c] 76:	pushobj
+[0x4d] 77:	call @68 // <std#string.size()>
+[0x4e] 78:	loadval egx
+[0x4f] 79:	loadl ebx, fp+4
+[0x50] 80:	lt ebx, egx
+[0x51] 81:	movi #105, adx
+[0x53] 83:	ifne
+[0x54] 84:	movi #1, ebx
+[0x56] 86:	newarry ebx
+[0x57] 87:	movl 0
+[0x58] 88:	movn #1
+[0x59] 89:	pushobj
+[0x5a] 90:	ipushl #4
+[0x5b] 91:	call @52 // <std#string.at(var)>
+[0x5c] 92:	loadval ebx
+[0x5d] 93:	movsl #0
+[0x5e] 94:	movi #0, adx
+[0x60] 96:	rmov adx, ebx
+[0x61] 97:	popl 5
+[0x62] 98:	pushl 1
+[0x63] 99:	pushl 5
+[0x64] 100:	call @60 // <std#string.$operator+=(var[])>
+[0x65] 101:	pop
+[0x66] 102:	loadl ebx, fp+4
+[0x67] 103:	iaddl 1, @4
+[0x68] 104:	goto @74
+[0x69] 105:	movl 1
+[0x6a] 106:	returnobj
+[0x6b] 107:	ret
+
+func:@93 [std.io#File.getParentFile] in file: lib/support/0.2.0/io/File.sharp:47:29: note:  
+		    public def getParentFile() : File {
+		                            ^
+
+
+getParentFile:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #1
+[0x2] 2:	checknull
+[0x3] 3:	skpe 9 // pc = 12
+[0x4] 4:	movl 0
+[0x5] 5:	movn #1
+[0x6] 6:	pushobj
+[0x7] 7:	call @68 // <std#string.size()>
+[0x8] 8:	movi #0, egx
+[0xa] 10:	loadval ebx
+[0xb] 11:	test ebx, egx
+[0xc] 12:	movr ebx, cmt
+[0xd] 13:	movi #19, adx
+[0xf] 15:	ifne
+[0x10] 16:	movl 0
+[0x11] 17:	del
+[0x12] 18:	ret
+[0x13] 19:	new_class @12 // std#string
+[0x14] 20:	newstr @0 // ""
+[0x15] 21:	call @47 // <std#string.string(var[])>
+[0x16] 22:	popl 1
+[0x17] 23:	istorel 0, fp+2
+[0x19] 25:	istore 1
+[0x1a] 26:	movl 0
+[0x1b] 27:	movn #1
+[0x1c] 28:	pushobj
+[0x1d] 29:	call @68 // <std#string.size()>
+[0x1e] 30:	loadval ebx
+[0x1f] 31:	loadval ecx
+[0x20] 32:	sub ebx, ecx -> ebx
+[0x22] 34:	smovr_2 ebx, fp+3
+[0x23] 35:	movi #0, egx
+[0x25] 37:	loadl ebx, fp+3
+[0x26] 38:	gt ebx, egx
+[0x27] 39:	movi #65, adx
+[0x29] 41:	ifne
+[0x2a] 42:	movl 0
+[0x2b] 43:	movn #1
+[0x2c] 44:	pushobj
+[0x2d] 45:	ipushl #3
+[0x2e] 46:	call @52 // <std#string.at(var)>
+[0x2f] 47:	movg @15 // @std.io#File
+[0x30] 48:	movn #2
+[0x31] 49:	movi #0, adx
+[0x33] 51:	chklen adx
+[0x34] 52:	iaload_2 egx, adx
+[0x35] 53:	loadval ebx
+[0x36] 54:	test ebx, egx
+[0x37] 55:	movr ebx, cmt
+[0x38] 56:	movi #62, adx
+[0x3a] 58:	ifne
+[0x3b] 59:	loadl ebx, fp+3
+[0x3c] 60:	smovr_2 ebx, fp+2
+[0x3d] 61:	goto @65
+[0x3e] 62:	loadl ebx, fp+3
+[0x3f] 63:	isubl #1, @3
+[0x40] 64:	goto @35
+[0x41] 65:	istorel 0, fp+4
+[0x43] 67:	loadl ebx, fp+2
+[0x44] 68:	movr egx, ebx
+[0x45] 69:	loadl ebx, fp+4
+[0x46] 70:	lt ebx, egx
+[0x47] 71:	movi #95, adx
+[0x49] 73:	ifne
+[0x4a] 74:	movi #1, ebx
+[0x4c] 76:	newarry ebx
+[0x4d] 77:	movl 0
+[0x4e] 78:	movn #1
+[0x4f] 79:	pushobj
+[0x50] 80:	ipushl #4
+[0x51] 81:	call @52 // <std#string.at(var)>
+[0x52] 82:	loadval ebx
+[0x53] 83:	movsl #0
+[0x54] 84:	movi #0, adx
+[0x56] 86:	rmov adx, ebx
+[0x57] 87:	popl 5
+[0x58] 88:	pushl 1
+[0x59] 89:	pushl 5
+[0x5a] 90:	call @60 // <std#string.$operator+=(var[])>
+[0x5b] 91:	pop
+[0x5c] 92:	loadl ebx, fp+4
+[0x5d] 93:	iaddl 1, @4
+[0x5e] 94:	goto @67
+[0x5f] 95:	new_class @15 // std.io#File
+[0x60] 96:	pushl 1
+[0x61] 97:	call @90 // <std.io#File.File(std#string)>
+[0x62] 98:	movsl #0
+[0x63] 99:	returnobj
+[0x64] 100:	ret
+
+func:@94 [std.io#File.getPath] in file: lib/support/0.2.0/io/File.sharp:69:23: note:  
+		    public def getPath() : string {
+		                      ^
+
+
+getPath:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #1
+[0x2] 2:	returnobj
+[0x3] 3:	ret
+
+func:@95 [std.io#File.getAbsolutePath] in file: lib/support/0.2.0/io/File.sharp:86:31: note:  
+		    public def getAbsolutePath() : string {
+		                              ^
+
+
+getAbsolutePath:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	call @128 // <std.io#FileSystem.resolve(std.io#File)>
+[0x5] 5:	movsl #0
+[0x6] 6:	returnobj
+[0x7] 7:	ret
+
+func:@96 [std.io#File.isReadable] in file: lib/support/0.2.0/io/File.sharp:95:26: note:  
+		    public def isReadable() : var {
+		                         ^
+
+
+isReadable:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	istore 4
+[0x5] 5:	invoke_delegate 5, 2
+[0x6] 6:	movi #0, egx
+[0x8] 8:	loadval ebx
+[0x9] 9:	test ebx, egx
+[0xa] 10:	movr ebx, cmt
+[0xb] 11:	return_val ebx
+[0xc] 12:	ret
+
+func:@97 [std.io#File.isWriteable] in file: lib/support/0.2.0/io/File.sharp:104:27: note:  
+		    public def isWriteable() : var {
+		                          ^
+
+
+isWriteable:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	istore 2
+[0x5] 5:	invoke_delegate 5, 2
+[0x6] 6:	movi #0, egx
+[0x8] 8:	loadval ebx
+[0x9] 9:	test ebx, egx
+[0xa] 10:	movr ebx, cmt
+[0xb] 11:	return_val ebx
+[0xc] 12:	ret
+
+func:@98 [std.io#File.exists] in file: lib/support/0.2.0/io/File.sharp:113:22: note:  
+		    public def exists() : var {
+		                     ^
+
+
+exists:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	istore 0
+[0x5] 5:	invoke_delegate 5, 2
+[0x6] 6:	movi #0, egx
+[0x8] 8:	loadval ebx
+[0x9] 9:	test ebx, egx
+[0xa] 10:	movr ebx, cmt
+[0xb] 11:	return_val ebx
+[0xc] 12:	ret
+
+func:@99 [std.io#File.isDirectory] in file: lib/support/0.2.0/io/File.sharp:122:27: note:  
+		    public def isDirectory() : var {
+		                          ^
+
+
+isDirectory:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	invoke_delegate 4, 1
+[0x5] 5:	loadval ebx
+[0x6] 6:	rstore ebx
+[0x7] 7:	movi #4, ebx
+[0x9] 9:	loadval ecx
+[0xa] 10:	uand ecx, ebx
+[0xb] 11:	movr ebx, cmt
+[0xc] 12:	rstore ebx
+[0xd] 13:	movi #0, egx
+[0xf] 15:	loadval ebx
+[0x10] 16:	tne ebx, egx
+[0x11] 17:	movr ebx, cmt
+[0x12] 18:	return_val ebx
+[0x13] 19:	ret
+
+func:@100 [std.io#File.isFile] in file: lib/support/0.2.0/io/File.sharp:133:22: note:  
+		    public def isFile() : var {
+		                     ^
+
+
+isFile:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	invoke_delegate 4, 1
+[0x5] 5:	loadval ebx
+[0x6] 6:	rstore ebx
+[0x7] 7:	movi #2, ebx
+[0x9] 9:	loadval ecx
+[0xa] 10:	uand ecx, ebx
+[0xb] 11:	movr ebx, cmt
+[0xc] 12:	rstore ebx
+[0xd] 13:	movi #0, egx
+[0xf] 15:	loadval ebx
+[0x10] 16:	tne ebx, egx
+[0x11] 17:	movr ebx, cmt
+[0x12] 18:	return_val ebx
+[0x13] 19:	ret
+
+func:@101 [std.io#File.isHidden] in file: lib/support/0.2.0/io/File.sharp:145:24: note:  
+		    public def isHidden() : var {
+		                       ^
+
+
+isHidden:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	invoke_delegate 4, 1
+[0x5] 5:	loadval ebx
+[0x6] 6:	rstore ebx
+[0x7] 7:	movi #8, ebx
+[0x9] 9:	loadval ecx
+[0xa] 10:	uand ecx, ebx
+[0xb] 11:	movr ebx, cmt
+[0xc] 12:	rstore ebx
+[0xd] 13:	movi #0, egx
+[0xf] 15:	loadval ebx
+[0x10] 16:	tne ebx, egx
+[0x11] 17:	movr ebx, cmt
+[0x12] 18:	return_val ebx
+[0x13] 19:	ret
+
+func:@102 [std.io#File.lastModified] in file: lib/support/0.2.0/io/File.sharp:154:28: note:  
+		    public def lastModified() : var {
+		                           ^
+
+
+lastModified:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	call @130 // <std.io#FileSystem.getLastModifiedTime(std.io#File)>
+[0x5] 5:	loadval ebx
+[0x6] 6:	return_val ebx
+[0x7] 7:	ret
+
+func:@103 [std.io#File.length] in file: lib/support/0.2.0/io/File.sharp:163:22: note:  
+		    public def length() : var {
+		                     ^
+
+
+length:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	call @131 // <std.io#FileSystem.getLength(std.io#File)>
+[0x5] 5:	loadval ebx
+[0x6] 6:	return_val ebx
+[0x7] 7:	ret
+
+func:@104 [std.io#File.createNewFile] in file: lib/support/0.2.0/io/File.sharp:178:29: note:  
+		    public def createNewFile() {
+		                            ^
+
+
+createNewFile:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	movl 0
+[0x4] 4:	movn #1
+[0x5] 5:	pushobj
+[0x6] 6:	call @132 // <std.io#FileSystem.createFile(std#string)>
+[0x7] 7:	ret
+
+func:@105 [std.io#File.delete] in file: lib/support/0.2.0/io/File.sharp:188:22: note:  
+		    public def delete() : var {
+		                     ^
+
+
+delete:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	call @134 // <std.io#FileSystem.delete(std.io#File)>
+[0x5] 5:	movi #0, egx
+[0x7] 7:	loadval ebx
+[0x8] 8:	test ebx, egx
+[0x9] 9:	movr ebx, cmt
+[0xa] 10:	return_val ebx
+[0xb] 11:	ret
+
+func:@106 [std.io#File.list] in file: lib/support/0.2.0/io/File.sharp:204:20: note:  
+		    public def list() : string[] {
+		                   ^
+
+
+list:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	call @135 // <std.io#FileSystem.list(std.io#File)>
+[0x5] 5:	movsl #0
+[0x6] 6:	returnobj
+[0x7] 7:	ret
+
+func:@107 [std.io#File.mkdir] in file: lib/support/0.2.0/io/File.sharp:212:21: note:  
+		    public def mkdir() : var {
+		                    ^
+
+
+mkdir:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	call @136 // <std.io#FileSystem.createDirectory(std.io#File)>
+[0x5] 5:	movi #0, egx
+[0x7] 7:	loadval ebx
+[0x8] 8:	test ebx, egx
+[0x9] 9:	movr ebx, cmt
+[0xa] 10:	return_val ebx
+[0xb] 11:	ret
+
+func:@108 [std.io#File.renameTo] in file: lib/support/0.2.0/io/File.sharp:231:24: note:  
+		    public def renameTo(File dest) : var {
+		                       ^
+
+
+renameTo:
+[0x0] 0:	movl 1
+[0x1] 1:	checknull
+[0x2] 2:	movr ebx, cmt
+[0x3] 3:	movi #9, adx
+[0x5] 5:	ifne
+[0x6] 6:	new_class @24 // std#NullptrException
+[0x7] 7:	call @186 // <std#NullptrException.NullptrException()>
+[0x8] 8:	throw 
+[0x9] 9:	movg @15 // @std.io#File
+[0xa] 10:	movn #0
+[0xb] 11:	pushobj
+[0xc] 12:	pushl 0
+[0xd] 13:	pushl 1
+[0xe] 14:	call @137 // <std.io#FileSystem.rename(std.io#File,std.io#File)>
+[0xf] 15:	loadval ebx
+[0x10] 16:	smovr_2 ebx, fp+2
+[0x11] 17:	ipushl #2
+[0x12] 18:	movi #0, egx
+[0x14] 20:	loadval ebx
+[0x15] 21:	test ebx, egx
+[0x16] 22:	movr ebx, cmt
+[0x17] 23:	movi #33, adx
+[0x19] 25:	ifne
+[0x1a] 26:	movl 0
+[0x1b] 27:	movl 1
+[0x1c] 28:	pushobj
+[0x1d] 29:	call @94 // <std.io#File.getPath()>
+[0x1e] 30:	movl 0
+[0x1f] 31:	movn #1
+[0x20] 32:	popobj
+[0x21] 33:	ipushl #2
+[0x22] 34:	movi #0, egx
+[0x24] 36:	loadval ebx
+[0x25] 37:	test ebx, egx
+[0x26] 38:	movr ebx, cmt
+[0x27] 39:	return_val ebx
+[0x28] 40:	ret
+
+func:@109 [std.io#File.setLastModified] in file: lib/support/0.2.0/io/File.sharp:254:31: note:  
+		    public def setLastModified(var time) : var {
+		                              ^
+
+
+setLastModified:
+[0x0] 0:	movi #0, egx
+[0x2] 2:	loadl ebx, fp+1
+[0x3] 3:	lt ebx, egx
+[0x4] 4:	movr ebx, cmt
+[0x5] 5:	mov32 ebx, ebx
+[0x6] 6:	movr cmt, ebx
+[0x7] 7:	movi #14, adx
+[0x9] 9:	ifne
+[0xa] 10:	new_class @5 // std#IllegalArgumentException
+[0xb] 11:	newstr @43 // "Negative time"
+[0xc] 12:	call @13 // <std#IllegalArgumentException.IllegalArgumentException(var[])>
+[0xd] 13:	throw 
+[0xe] 14:	movg @15 // @std.io#File
+[0xf] 15:	movn #0
+[0x10] 16:	pushobj
+[0x11] 17:	pushl 0
+[0x12] 18:	ipushl #1
+[0x13] 19:	call @140 // <std.io#FileSystem.setLastModifiedTime(std.io#File,var)>
+[0x14] 20:	loadval ebx
+[0x15] 21:	return_val ebx
+[0x16] 22:	ret
+
+func:@110 [std.io#File.setReadOnly] in file: lib/support/0.2.0/io/File.sharp:267:27: note:  
+		    public def setReadOnly() : var {
+		                          ^
+
+
+setReadOnly:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	call @141 // <std.io#FileSystem.setReadOnly(std.io#File)>
+[0x5] 5:	movi #0, egx
+[0x7] 7:	loadval ebx
+[0x8] 8:	test ebx, egx
+[0x9] 9:	movr ebx, cmt
+[0xa] 10:	return_val ebx
+[0xb] 11:	ret
+
+func:@111 [std.io#File.setWritable] in file: lib/support/0.2.0/io/File.sharp:276:27: note:  
+		    public def setWritable(var writable, var ownerOnly) : var {
+		                          ^
+
+
+setWritable:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	istore 2
+[0x5] 5:	ipushl #1
+[0x6] 6:	ipushl #2
+[0x7] 7:	call @129 // <std.io#FileSystem.setPermission(std.io#File,var,var,var)>
+[0x8] 8:	loadval ebx
+[0x9] 9:	return_val ebx
+[0xa] 10:	ret
+
+func:@112 [std.io#File.setWritable] in file: lib/support/0.2.0/io/File.sharp:285:27: note:  
+		    public def setWritable(var writable) : var {
+		                          ^
+
+
+setWritable:
+[0x0] 0:	pushl 0
+[0x1] 1:	ipushl #1
+[0x2] 2:	istore 1
+[0x3] 3:	call @111 // <std.io#File.setWritable(var,var)>
+[0x4] 4:	loadval ebx
+[0x5] 5:	return_val ebx
+[0x6] 6:	ret
+
+func:@113 [std.io#File.setReadable] in file: lib/support/0.2.0/io/File.sharp:294:27: note:  
+		    public def setReadable(var readable, var ownerOnly) : var {
+		                          ^
+
+
+setReadable:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	istore 4
+[0x5] 5:	ipushl #1
+[0x6] 6:	ipushl #2
+[0x7] 7:	call @129 // <std.io#FileSystem.setPermission(std.io#File,var,var,var)>
+[0x8] 8:	loadval ebx
+[0x9] 9:	return_val ebx
+[0xa] 10:	ret
+
+func:@114 [std.io#File.setReadable] in file: lib/support/0.2.0/io/File.sharp:303:27: note:  
+		    public def setReadable(var readable) : var {
+		                          ^
+
+
+setReadable:
+[0x0] 0:	pushl 0
+[0x1] 1:	ipushl #1
+[0x2] 2:	istore 1
+[0x3] 3:	call @113 // <std.io#File.setReadable(var,var)>
+[0x4] 4:	loadval ebx
+[0x5] 5:	return_val ebx
+[0x6] 6:	ret
+
+func:@115 [std.io#File.setExecutable] in file: lib/support/0.2.0/io/File.sharp:312:29: note:  
+		    public def setExecutable(var executable, var ownerOnly) : var {
+		                            ^
+
+
+setExecutable:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	istore 1
+[0x5] 5:	ipushl #1
+[0x6] 6:	ipushl #2
+[0x7] 7:	call @129 // <std.io#FileSystem.setPermission(std.io#File,var,var,var)>
+[0x8] 8:	loadval ebx
+[0x9] 9:	return_val ebx
+[0xa] 10:	ret
+
+func:@116 [std.io#File.setExecutable] in file: lib/support/0.2.0/io/File.sharp:321:29: note:  
+		    public def setExecutable(var executable) : var {
+		                            ^
+
+
+setExecutable:
+[0x0] 0:	pushl 0
+[0x1] 1:	ipushl #1
+[0x2] 2:	istore 1
+[0x3] 3:	call @115 // <std.io#File.setExecutable(var,var)>
+[0x4] 4:	loadval ebx
+[0x5] 5:	return_val ebx
+[0x6] 6:	ret
+
+func:@117 [std.io#File.canExecute] in file: lib/support/0.2.0/io/File.sharp:330:26: note:  
+		    public def canExecute() : var {
+		                         ^
+
+
+canExecute:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	istore 1
+[0x5] 5:	invoke_delegate 5, 2
+[0x6] 6:	loadval ebx
+[0x7] 7:	return_val ebx
+[0x8] 8:	ret
+
+func:@118 [std.io#File.getTotalSpace] in file: lib/support/0.2.0/io/File.sharp:342:29: note:  
+		    public def getTotalSpace() : var {
+		                            ^
+
+
+getTotalSpace:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	istore 0
+[0x5] 5:	call @142 // <std.io#FileSystem.getSpace(std.io#File,var)>
+[0x6] 6:	loadval ebx
+[0x7] 7:	return_val ebx
+[0x8] 8:	ret
+
+func:@119 [std.io#File.getFreeSpace] in file: lib/support/0.2.0/io/File.sharp:351:28: note:  
+		    public def getFreeSpace() : var {
+		                           ^
+
+
+getFreeSpace:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	istore 1
+[0x5] 5:	call @142 // <std.io#FileSystem.getSpace(std.io#File,var)>
+[0x6] 6:	loadval ebx
+[0x7] 7:	return_val ebx
+[0x8] 8:	ret
+
+func:@120 [std.io#File.getUsableSpace] in file: lib/support/0.2.0/io/File.sharp:374:30: note:  
+		    public def getUsableSpace() : var {
+		                             ^
+
+
+getUsableSpace:
+[0x0] 0:	movg @15 // @std.io#File
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	pushl 0
+[0x4] 4:	istore 2
+[0x5] 5:	call @142 // <std.io#FileSystem.getSpace(std.io#File,var)>
+[0x6] 6:	loadval ebx
+[0x7] 7:	return_val ebx
+[0x8] 8:	ret
+
+func:@121 [std.io#File.generateTempFile] in file: lib/support/0.2.0/io/File.sharp:381:39: note:  
+		    private static def generateTempFile(string prefix, string suffix, File dir) : File
+		                                      ^
+
+
+generateTempFile:
+[0x0] 0:	movl 0
+[0x1] 1:	del
+[0x2] 2:	ret
+
+func:@122 [std.io#File.createTempFile] in file: lib/support/0.2.0/io/File.sharp:402:37: note:  
+		    public static def createTempFile(string prefix, string suffix,
+		                                    ^
+
+
+createTempFile:
+[0x0] 0:	movl 0
+[0x1] 1:	del
+[0x2] 2:	ret
+
+func:@123 [std.io#File.createTempFile] in file: lib/support/0.2.0/io/File.sharp:436:37: note:  
+		    public static def createTempFile(string prefix, string suffix) : File
+		                                    ^
+
+
+createTempFile:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	pushnil 
+[0x3] 3:	call @122 // <std.io#File.createTempFile(std#string,std#string,std.io#File)>
+[0x4] 4:	movsl #0
+[0x5] 5:	returnobj
+[0x6] 6:	ret
+
+func:@124 [std.io#File.readAllText] in file: lib/support/0.2.0/io/File.sharp:441:34: note:  
+		    public static def readAllText(File file, StreamBuffer io) {
+		                                 ^
+
+
+readAllText:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @138 // <std.io#FileSystem.read(std.io#File,std.io#StreamBuffer)>
+[0x3] 3:	ret
+
+func:@125 [std.io#File.write] in file: lib/support/0.2.0/io/File.sharp:445:28: note:  
+		    public static def write(File file, StreamBuffer io) {
+		                           ^
+
+
+write:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @139 // <std.io#FileSystem.write(std.io#File,std.io#StreamBuffer)>
+[0x3] 3:	pop
+[0x4] 4:	ret
+
+func:@126 [std.io#File.getFileSystem] in file: lib/support/0.2.0/io/File.sharp:449:37: note:  
+		    private static def getFileSystem() : FileSystem {
+		                                    ^
+
+
+getFileSystem:
+[0x0] 0:	call @87 // <std.internal#BuildConfig.isWindows()>
+[0x1] 1:	loadval cmt
+[0x2] 2:	movi #11, adx
+[0x4] 4:	ifne
+[0x5] 5:	new_class @22 // std.io#WinFileSystem
+[0x6] 6:	call @174 // <std.io#WinFileSystem.WinFileSystem()>
+[0x7] 7:	movsl #0
+[0x8] 8:	returnobj
+[0x9] 9:	ret
+[0xa] 10:	goto @16
+[0xb] 11:	new_class @4 // std.io#UnixFileSystem
+[0xc] 12:	call @8 // <std.io#UnixFileSystem.UnixFileSystem()>
+[0xd] 13:	movsl #0
+[0xe] 14:	returnobj
+[0xf] 15:	ret
+
+func:@127 [std.io#File.File] in file: lib/support/0.2.0/io/File.sharp:6:13: note:  
+		public class File {
+		            ^
+
+
+File:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@128 [std.io#FileSystem.resolve] in file: lib/support/0.2.0/io/FileSystem.sharp:28:24: note:  
+		     public def resolve(File f) : string {
+		                       ^
+
+
+resolve:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @94 // <std.io#File.getPath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 2
+[0x4] 4:	pushl 2
+[0x5] 5:	int 0xb0
+[0x6] 6:	popl 2
+[0x7] 7:	movl 2
+[0x8] 8:	checknull
+[0x9] 9:	movr ebx, cmt
+[0xa] 10:	movi #22, adx
+[0xc] 12:	ifne
+[0xd] 13:	new_class @26 // std.io#IOException
+[0xe] 14:	new_class @12 // std#string
+[0xf] 15:	newstr @44 // "file could not be resolved: "
+[0x10] 16:	call @47 // <std#string.string(var[])>
+[0x11] 17:	pushl 1
+[0x12] 18:	call @94 // <std.io#File.getPath()>
+[0x13] 19:	call @54 // <std#string.$operator+(std#string)>
+[0x14] 20:	call @191 // <std.io#IOException.IOException(std#string)>
+[0x15] 21:	throw 
+[0x16] 22:	new_class @12 // std#string
+[0x17] 23:	newstr @0 // ""
+[0x18] 24:	call @47 // <std#string.string(var[])>
+[0x19] 25:	pushl 2
+[0x1a] 26:	call @53 // <std#string.$operator+(var[])>
+[0x1b] 27:	movsl #0
+[0x1c] 28:	returnobj
+[0x1d] 29:	ret
+
+func:@129 [std.io#FileSystem.setPermission] in file: lib/support/0.2.0/io/FileSystem.sharp:82:30: note:  
+		     public def setPermission(File f, var access, var enable, var owneronly) : var {
+		                             ^
+
+
+setPermission:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 5
+[0x4] 4:	istorel 0, fp+6
+[0x6] 6:	pushl 5
+[0x7] 7:	loadl ebx, fp+2
+[0x8] 8:	loadl egx, fp+3
+[0x9] 9:	loadl ecx, fp+4
+[0xa] 10:	int 0xbc
+[0xb] 11:	smovr_2 ebx, fp+6
+[0xc] 12:	loadl ebx, fp+6
+[0xd] 13:	return_val ebx
+[0xe] 14:	ret
+
+func:@130 [std.io#FileSystem.getLastModifiedTime] in file: lib/support/0.2.0/io/FileSystem.sharp:108:36: note:  
+		     public def getLastModifiedTime(File f) : var {
+		                                   ^
+
+
+getLastModifiedTime:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 2
+[0x4] 4:	istorel 0, fp+3
+[0x6] 6:	pushl 2
+[0x7] 7:	int 0xb3
+[0x8] 8:	smovr_2 ebx, fp+3
+[0x9] 9:	loadl ebx, fp+3
+[0xa] 10:	return_val ebx
+[0xb] 11:	ret
+
+func:@131 [std.io#FileSystem.getLength] in file: lib/support/0.2.0/io/FileSystem.sharp:131:26: note:  
+		     public def getLength(File f) : var {
+		                         ^
+
+
+getLength:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 2
+[0x4] 4:	istorel 0, fp+3
+[0x6] 6:	pushl 2
+[0x7] 7:	int 0xb4
+[0x8] 8:	smovr_2 ebx, fp+3
+[0x9] 9:	loadl ebx, fp+3
+[0xa] 10:	return_val ebx
+[0xb] 11:	ret
+
+func:@132 [std.io#FileSystem.createFile] in file: lib/support/0.2.0/io/FileSystem.sharp:156:26: note:  
+		    public def createFile(string pathname) {
+		                         ^
+
+
+createFile:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @62 // <std#string.toArray()>
+[0x2] 2:	popl 2
+[0x3] 3:	pushl 2
+[0x4] 4:	int 0xb5
+[0x5] 5:	ret
+
+func:@133 [std.io#FileSystem.deleteDirectory] in file: lib/support/0.2.0/io/FileSystem.sharp:174:32: note:  
+		    private def deleteDirectory(File f) : var {
+		                               ^
+
+
+deleteDirectory:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 2
+[0x4] 4:	istorel 0, fp+3
+[0x6] 6:	pushl 2
+[0x7] 7:	int 0xb9
+[0x8] 8:	smovr_2 ebx, fp+3
+[0x9] 9:	loadl ebx, fp+3
+[0xa] 10:	return_val ebx
+[0xb] 11:	ret
+
+func:@134 [std.io#FileSystem.delete] in file: lib/support/0.2.0/io/FileSystem.sharp:196:22: note:  
+		    public def delete(File f) : var {
+		                     ^
+
+
+delete:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 2
+[0x4] 4:	istorel 0, fp+3
+[0x6] 6:	pushl 1
+[0x7] 7:	call @99 // <std.io#File.isDirectory()>
+[0x8] 8:	loadval cmt
+[0x9] 9:	movi #18, adx
+[0xb] 11:	ifne
+[0xc] 12:	pushl 0
+[0xd] 13:	pushl 1
+[0xe] 14:	call @133 // <std.io#FileSystem.deleteDirectory(std.io#File)>
+[0xf] 15:	loadval ebx
+[0x10] 16:	return_val ebx
+[0x11] 17:	ret
+[0x12] 18:	pushl 2
+[0x13] 19:	int 0xb6
+[0x14] 20:	smovr_2 ebx, fp+3
+[0x15] 21:	loadl ebx, fp+3
+[0x16] 22:	return_val ebx
+[0x17] 23:	ret
+
+func:@135 [std.io#FileSystem.list] in file: lib/support/0.2.0/io/FileSystem.sharp:222:20: note:  
+		    public def list(File f) : string[] {
+		                   ^
+
+
+list:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 2
+[0x4] 4:	movl 3
+[0x5] 5:	del
+[0x6] 6:	movl 4
+[0x7] 7:	del
+[0x8] 8:	pushl 1
+[0x9] 9:	call @99 // <std.io#File.isDirectory()>
+[0xa] 10:	loadval ebx
+[0xb] 11:	not ebx, ebx
+[0xc] 12:	movr cmt, ebx
+[0xd] 13:	movi #19, adx
+[0xf] 15:	ifne
+[0x10] 16:	movl 0
+[0x11] 17:	del
+[0x12] 18:	ret
+[0x13] 19:	pushl 2
+[0x14] 20:	int 0xb7
+[0x15] 21:	popl 3
+[0x16] 22:	movl 3
+[0x17] 23:	checknull
+[0x18] 24:	not cmt, cmt
+[0x19] 25:	movr ebx, cmt
+[0x1a] 26:	movi #62, adx
+[0x1c] 28:	ifne
+[0x1d] 29:	movl 3
+[0x1e] 30:	sizeof ebx
+[0x1f] 31:	new_classarray ebx  // std#string[]
+[0x20] 32:	popl 4
+[0x21] 33:	istorel 0, fp+5
+[0x23] 35:	istore 0
+[0x24] 36:	movl 3
+[0x25] 37:	smov ebx, sp+0
+[0x26] 38:	sizeof egx
+[0x27] 39:	lt ebx, egx
+[0x28] 40:	movi #61, adx
+[0x2a] 42:	ifne
+[0x2b] 43:	movnd ebx
+[0x2c] 44:	pushobj
+[0x2d] 45:	popl 6
+[0x2e] 46:	new_class @12 // std#string
+[0x2f] 47:	pushl 6
+[0x30] 48:	call @47 // <std#string.string(var[])>
+[0x31] 49:	pushl 4
+[0x32] 50:	loadl ebx, fp+5
+[0x33] 51:	iaddl 1, @5
+[0x34] 52:	movsl #0
+[0x35] 53:	chklen ebx
+[0x36] 54:	movnd ebx
+[0x37] 55:	pop
+[0x38] 56:	popobj
+[0x39] 57:	smov ebx, sp+0
+[0x3a] 58:	inc ebx
+[0x3b] 59:	smovr ebx, sp+0
+[0x3c] 60:	goto @36
+[0x3d] 61:	pop
+[0x3e] 62:	movl 4
+[0x3f] 63:	returnobj
+[0x40] 64:	ret
+
+func:@136 [std.io#FileSystem.createDirectory] in file: lib/support/0.2.0/io/FileSystem.sharp:256:31: note:  
+		    public def createDirectory(File f) : var {
+		                              ^
+
+
+createDirectory:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 2
+[0x4] 4:	istorel 0, fp+3
+[0x6] 6:	pushl 2
+[0x7] 7:	int 0xb8
+[0x8] 8:	smovr_2 ebx, fp+3
+[0x9] 9:	loadl ebx, fp+3
+[0xa] 10:	return_val ebx
+[0xb] 11:	ret
+
+func:@137 [std.io#FileSystem.rename] in file: lib/support/0.2.0/io/FileSystem.sharp:279:22: note:  
+		    public def rename(File f1, File f2) : var {
+		                     ^
+
+
+rename:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 3
+[0x4] 4:	pushl 2
+[0x5] 5:	call @92 // <std.io#File.getName()>
+[0x6] 6:	call @62 // <std#string.toArray()>
+[0x7] 7:	popl 4
+[0x8] 8:	istorel 0, fp+5
+[0xa] 10:	pushl 4
+[0xb] 11:	pushl 3
+[0xc] 12:	int 0xba
+[0xd] 13:	smovr_2 ebx, fp+5
+[0xe] 14:	loadl ebx, fp+5
+[0xf] 15:	return_val ebx
+[0x10] 16:	ret
+
+func:@138 [std.io#FileSystem.read] in file: lib/support/0.2.0/io/FileSystem.sharp:300:27: note:  
+		    public static def read(File file, StreamBuffer io) {
+		                          ^
+
+
+read:
+[0x0] 0:	pushl 0
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 2
+[0x4] 4:	movl 3
+[0x5] 5:	del
+[0x6] 6:	istorel 0, fp+4
+[0x8] 8:	pushl 2
+[0x9] 9:	int 0xbf
+[0xa] 10:	popl 3
+[0xb] 11:	pushl 1
+[0xc] 12:	call @172 // <std.io#StreamBuffer.begin()>
+[0xd] 13:	pushl 1
+[0xe] 14:	new_class @12 // std#string
+[0xf] 15:	newstr @0 // ""
+[0x10] 16:	call @47 // <std#string.string(var[])>
+[0x11] 17:	pushl 3
+[0x12] 18:	call @53 // <std#string.$operator+(var[])>
+[0x13] 19:	call @169 // <std.io#StreamBuffer.$operator+(std#string)>
+[0x14] 20:	pop
+[0x15] 21:	ret
+
+func:@139 [std.io#FileSystem.write] in file: lib/support/0.2.0/io/FileSystem.sharp:320:28: note:  
+		    public static def write(File file, StreamBuffer io) : var {
+		                           ^
+
+
+write:
+[0x0] 0:	pushl 0
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 2
+[0x4] 4:	pushl 1
+[0x5] 5:	call @164 // <std.io#StreamBuffer.toString()>
+[0x6] 6:	call @62 // <std#string.toArray()>
+[0x7] 7:	popl 3
+[0x8] 8:	istorel 0, fp+4
+[0xa] 10:	pushl 3
+[0xb] 11:	pushl 2
+[0xc] 12:	int 0xbd
+[0xd] 13:	smovr_2 ebx, fp+4
+[0xe] 14:	loadl ebx, fp+4
+[0xf] 15:	return_val ebx
+[0x10] 16:	ret
+
+func:@140 [std.io#FileSystem.setLastModifiedTime] in file: lib/support/0.2.0/io/FileSystem.sharp:344:35: note:  
+		    public def setLastModifiedTime(File f, var time) : var {
+		                                  ^
+
+
+setLastModifiedTime:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 3
+[0x4] 4:	istorel 0, fp+4
+[0x6] 6:	pushl 3
+[0x7] 7:	loadl ebx, fp+2
+[0x8] 8:	int 0xbb
+[0x9] 9:	smovr_2 ebx, fp+4
+[0xa] 10:	loadl ebx, fp+4
+[0xb] 11:	return_val ebx
+[0xc] 12:	ret
+
+func:@141 [std.io#FileSystem.setReadOnly] in file: lib/support/0.2.0/io/FileSystem.sharp:368:27: note:  
+		    public def setReadOnly(File f) : var {
+		                          ^
+
+
+setReadOnly:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	istore 2
+[0x3] 3:	istore 0
+[0x4] 4:	istore 1
+[0x5] 5:	call @129 // <std.io#FileSystem.setPermission(std.io#File,var,var,var)>
+[0x6] 6:	pop
+[0x7] 7:	pushl 0
+[0x8] 8:	pushl 1
+[0x9] 9:	istore 4
+[0xa] 10:	istore 1
+[0xb] 11:	istore 1
+[0xc] 12:	call @129 // <std.io#FileSystem.setPermission(std.io#File,var,var,var)>
+[0xd] 13:	loadval ebx
+[0xe] 14:	return_val ebx
+[0xf] 15:	ret
+
+func:@142 [std.io#FileSystem.getSpace] in file: lib/support/0.2.0/io/FileSystem.sharp:378:24: note:  
+		    public def getSpace(File f, var request) : var {
+		                       ^
+
+
+getSpace:
+[0x0] 0:	istorel 0, fp+3
+[0x2] 2:	loadl ebx, fp+2
+[0x3] 3:	int 0xbe
+[0x4] 4:	smovr_2 ebx, fp+3
+[0x5] 5:	loadl ebx, fp+3
+[0x6] 6:	return_val ebx
+[0x7] 7:	ret
+
+func:@143 [std.io#FileSystem.FileSystem] in file: lib/support/0.2.0/io/FileSystem.sharp:8:13: note:  
+		public class FileSystem {
+		            ^
+
+
+FileSystem:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@144 [std.io#IOStream.StreamReader.StreamReader] in file: lib/support/0.2.0/io/IOStream.sharp:19:31: note:  
+		        protected StreamReader(StreamBuffer buf) {
+		                              ^
+
+
+StreamReader:
+[0x0] 0:	pushl 1
+[0x1] 1:	movl 0
+[0x2] 2:	movn #1
+[0x3] 3:	popobj
+[0x4] 4:	movl 0
+[0x5] 5:	returnobj
+[0x6] 6:	ret
+
+func:@145 [std.io#IOStream.StreamReader.next] in file: lib/support/0.2.0/io/IOStream.sharp:23:24: note:  
+		        public def next() : var {
+		                       ^
+
+
+next:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #1
+[0x2] 2:	pushobj
+[0x3] 3:	call @166 // <std.io#StreamBuffer.size()>
+[0x4] 4:	loadval egx
+[0x5] 5:	movl 0
+[0x6] 6:	movn #0
+[0x7] 7:	movi #0, adx
+[0x9] 9:	chklen adx
+[0xa] 10:	iaload_2 ebx, adx
+[0xb] 11:	gte ebx, egx
+[0xc] 12:	movr ebx, cmt
+[0xd] 13:	movi #20, adx
+[0xf] 15:	ifne
+[0x10] 16:	movi #-1, ebx
+[0x12] 18:	return_val ebx
+[0x13] 19:	ret
+[0x14] 20:	movl 0
+[0x15] 21:	movn #1
+[0x16] 22:	pushobj
+[0x17] 23:	movl 0
+[0x18] 24:	movn #0
+[0x19] 25:	movi #0, adx
+[0x1b] 27:	chklen adx
+[0x1c] 28:	iaload_2 ebx, adx
+[0x1d] 29:	inc ebx
+[0x1e] 30:	rmov adx, ebx
+[0x1f] 31:	dec ebx
+[0x20] 32:	rstore ebx
+[0x21] 33:	call @165 // <std.io#StreamBuffer.at(var)>
+[0x22] 34:	loadval ebx
+[0x23] 35:	return_val ebx
+[0x24] 36:	ret
+
+func:@146 [std.io#IOStream.StreamReader.StreamReader] in file: lib/support/0.2.0/io/IOStream.sharp:15:23: note:  
+		    class StreamReader {
+		                      ^
+
+
+StreamReader:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@147 [std.io#IOStream.IOStream] in file: lib/support/0.2.0/io/IOStream.sharp:30:21: note:  
+		    private IOStream() {} // to prevent user from calling this
+		                    ^
+
+
+IOStream:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@148 [std.io#IOStream.IOStream] in file: lib/support/0.2.0/io/IOStream.sharp:32:20: note:  
+		    public IOStream(File file, var direction) {
+		                   ^
+
+
+IOStream:
+[0x0] 0:	pushl 1
+[0x1] 1:	movl 0
+[0x2] 2:	movn #1
+[0x3] 3:	popobj
+[0x4] 4:	loadl ebx, fp+2
+[0x5] 5:	nop
+[0x6] 6:	rstore ebx
+[0x7] 7:	movl 0
+[0x8] 8:	movn #2
+[0x9] 9:	movi #0, adx
+[0xb] 11:	loadval ecx
+[0xc] 12:	rmov adx, ecx
+[0xd] 13:	new_class @21 // std.io#StreamBuffer
+[0xe] 14:	call @162 // <std.io#StreamBuffer.StreamBuffer()>
+[0xf] 15:	movl 0
+[0x10] 16:	movn #0
+[0x11] 17:	popobj
+[0x12] 18:	ipushl #2
+[0x13] 19:	movi #1, egx
+[0x15] 21:	loadval ebx
+[0x16] 22:	test ebx, egx
+[0x17] 23:	movr ebx, cmt
+[0x18] 24:	movi #40, adx
+[0x1a] 26:	ifne
+[0x1b] 27:	new_class @18 // std.io#IOStream.StreamReader
+[0x1c] 28:	movl 0
+[0x1d] 29:	movn #0
+[0x1e] 30:	pushobj
+[0x1f] 31:	call @144 // <std.io#IOStream.StreamReader.StreamReader(std.io#StreamBuffer)>
+[0x20] 32:	movl 0
+[0x21] 33:	movn #3
+[0x22] 34:	popobj
+[0x23] 35:	pushl 1
+[0x24] 36:	movl 0
+[0x25] 37:	movn #0
+[0x26] 38:	pushobj
+[0x27] 39:	call @124 // <std.io#File.readAllText(std.io#File,std.io#StreamBuffer)>
+[0x28] 40:	movl 0
+[0x29] 41:	returnobj
+[0x2a] 42:	ret
+
+func:@149 [std.io#IOStream.close] in file: lib/support/0.2.0/io/IOStream.sharp:43:21: note:  
+		    public def close() {
+		                    ^
+
+
+close:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #2
+[0x2] 2:	movi #0, adx
+[0x4] 4:	iaload_2 ebx, adx
+[0x5] 5:	rstore ebx
+[0x6] 6:	movi #0, egx
+[0x8] 8:	loadval ebx
+[0x9] 9:	test ebx, egx
+[0xa] 10:	movr ebx, cmt
+[0xb] 11:	movi #21, adx
+[0xd] 13:	ifne
+[0xe] 14:	movl 0
+[0xf] 15:	movn #1
+[0x10] 16:	pushobj
+[0x11] 17:	movl 0
+[0x12] 18:	movn #0
+[0x13] 19:	pushobj
+[0x14] 20:	call @125 // <std.io#File.write(std.io#File,std.io#StreamBuffer)>
+[0x15] 21:	movl 0
+[0x16] 22:	movn #0
+[0x17] 23:	pushobj
+[0x18] 24:	call @163 // <std.io#StreamBuffer.end()>
+[0x19] 25:	ret
+
+func:@150 [std.io#IOStream.nextChar] in file: lib/support/0.2.0/io/IOStream.sharp:50:24: note:  
+		    public def nextChar() : var {
+		                       ^
+
+
+nextChar:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #2
+[0x2] 2:	movi #0, adx
+[0x4] 4:	iaload_2 ebx, adx
+[0x5] 5:	rstore ebx
+[0x6] 6:	movi #1, egx
+[0x8] 8:	loadval ebx
+[0x9] 9:	test ebx, egx
+[0xa] 10:	movr ebx, cmt
+[0xb] 11:	movi #22, adx
+[0xd] 13:	ifne
+[0xe] 14:	movl 0
+[0xf] 15:	movn #3
+[0x10] 16:	pushobj
+[0x11] 17:	call @145 // <std.io#IOStream.StreamReader.next()>
+[0x12] 18:	loadval ebx
+[0x13] 19:	return_val ebx
+[0x14] 20:	ret
+[0x15] 21:	goto @26
+[0x16] 22:	new_class @19 // std#IllegalStateException
+[0x17] 23:	newstr @45 // "illegal read on IOStream"
+[0x18] 24:	call @155 // <std#IllegalStateException.IllegalStateException(var[])>
+[0x19] 25:	throw 
+[0x1a] 26:	movi #0, ebx
+[0x1c] 28:	return_val ebx
+[0x1d] 29:	ret
+
+func:@151 [std.io#IOStream.size] in file: lib/support/0.2.0/io/IOStream.sharp:57:20: note:  
+		    public def size() : var {
+		                   ^
+
+
+size:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	call @166 // <std.io#StreamBuffer.size()>
+[0x4] 4:	loadval ebx
+[0x5] 5:	return_val ebx
+[0x6] 6:	ret
+
+func:@152 [std.io#IOStream.write] in file: lib/support/0.2.0/io/IOStream.sharp:61:21: note:  
+		    public def write(string data) {
+		                    ^
+
+
+write:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #2
+[0x2] 2:	movi #0, adx
+[0x4] 4:	iaload_2 ebx, adx
+[0x5] 5:	rstore ebx
+[0x6] 6:	movi #1, egx
+[0x8] 8:	loadval ebx
+[0x9] 9:	test ebx, egx
+[0xa] 10:	movr ebx, cmt
+[0xb] 11:	movi #18, adx
+[0xd] 13:	ifne
+[0xe] 14:	new_class @19 // std#IllegalStateException
+[0xf] 15:	newstr @46 // "illegal write on IOStream"
+[0x10] 16:	call @155 // <std#IllegalStateException.IllegalStateException(var[])>
+[0x11] 17:	throw 
+[0x12] 18:	movl 0
+[0x13] 19:	movn #0
+[0x14] 20:	pushobj
+[0x15] 21:	pushl 1
+[0x16] 22:	call @169 // <std.io#StreamBuffer.$operator+(std#string)>
+[0x17] 23:	pop
+[0x18] 24:	ret
+
+func:@153 [std.io#IOStream.clear] in file: lib/support/0.2.0/io/IOStream.sharp:67:21: note:  
+		    public def clear() {
+		                    ^
+
+
+clear:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #0
+[0x2] 2:	pushobj
+[0x3] 3:	call @163 // <std.io#StreamBuffer.end()>
+[0x4] 4:	ret
+
+func:@154 [std.io#IOStream.write] in file: lib/support/0.2.0/io/IOStream.sharp:71:21: note:  
+		    public def write(var[] data) {
+		                    ^
+
+
+write:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #2
+[0x2] 2:	movi #0, adx
+[0x4] 4:	iaload_2 ebx, adx
+[0x5] 5:	rstore ebx
+[0x6] 6:	movi #1, egx
+[0x8] 8:	loadval ebx
+[0x9] 9:	test ebx, egx
+[0xa] 10:	movr ebx, cmt
+[0xb] 11:	movi #18, adx
+[0xd] 13:	ifne
+[0xe] 14:	new_class @19 // std#IllegalStateException
+[0xf] 15:	newstr @46 // "illegal write on IOStream"
+[0x10] 16:	call @155 // <std#IllegalStateException.IllegalStateException(var[])>
+[0x11] 17:	throw 
+[0x12] 18:	movl 0
+[0x13] 19:	movn #0
+[0x14] 20:	pushobj
+[0x15] 21:	new_class @12 // std#string
+[0x16] 22:	newstr @0 // ""
+[0x17] 23:	call @47 // <std#string.string(var[])>
+[0x18] 24:	pushl 1
+[0x19] 25:	call @53 // <std#string.$operator+(var[])>
+[0x1a] 26:	call @169 // <std.io#StreamBuffer.$operator+(std#string)>
+[0x1b] 27:	pop
+[0x1c] 28:	ret
+
+func:@155 [std#IllegalStateException.IllegalStateException] in file: lib/support/0.2.0/IllegalStateException.sharp:8:35: note:  
+		      public IllegalStateException(var[] message) {
+		                                  ^
+
+
+IllegalStateException:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @16 // <std#Exception.Exception(var[])>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@156 [std#IllegalStateException.IllegalStateException] in file: lib/support/0.2.0/IllegalStateException.sharp:12:35: note:  
+		      public IllegalStateException(string message) {
+		                                  ^
+
+
+IllegalStateException:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @17 // <std#Exception.Exception(std#string)>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@157 [std#IllegalStateException.IllegalStateException] in file: lib/support/0.2.0/IllegalStateException.sharp:6:13: note:  
+		public class IllegalStateException base Exception {
+		            ^
+
+
+IllegalStateException:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@158 [std#IndexOutOfBoundsException.IndexOutOfBoundsException] in file: lib/support/0.2.0/IndexOutOfBoundsException.sharp:8:39: note:  
+		      public IndexOutOfBoundsException(var[] message) {
+		                                      ^
+
+
+IndexOutOfBoundsException:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @16 // <std#Exception.Exception(var[])>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@159 [std#IndexOutOfBoundsException.IndexOutOfBoundsException] in file: lib/support/0.2.0/IndexOutOfBoundsException.sharp:12:39: note:  
+		      public IndexOutOfBoundsException(string message) {
+		                                      ^
+
+
+IndexOutOfBoundsException:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @17 // <std#Exception.Exception(std#string)>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@160 [std#IndexOutOfBoundsException.IndexOutOfBoundsException] in file: lib/support/0.2.0/IndexOutOfBoundsException.sharp:6:13: note:  
+		public class IndexOutOfBoundsException base Exception {
+		            ^
+
+
+IndexOutOfBoundsException:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@161 [std.io#StreamBuffer.StreamBuffer] in file: lib/support/0.2.0/io/StreamBuffer.sharp:23:24: note:  
+		    public StreamBuffer(string data) {
+		                       ^
+
+
+StreamBuffer:
+[0x0] 0:	pushl 0
+[0x1] 1:	call @172 // <std.io#StreamBuffer.begin()>
+[0x2] 2:	pushl 0
+[0x3] 3:	pushl 1
+[0x4] 4:	call @169 // <std.io#StreamBuffer.$operator+(std#string)>
+[0x5] 5:	pop
+[0x6] 6:	movl 0
+[0x7] 7:	returnobj
+[0x8] 8:	ret
+
+func:@162 [std.io#StreamBuffer.StreamBuffer] in file: lib/support/0.2.0/io/StreamBuffer.sharp:29:24: note:  
+		    public StreamBuffer() {
+		                       ^
+
+
+StreamBuffer:
+[0x0] 0:	pushl 0
+[0x1] 1:	call @172 // <std.io#StreamBuffer.begin()>
+[0x2] 2:	movl 0
+[0x3] 3:	returnobj
+[0x4] 4:	ret
+
+func:@163 [std.io#StreamBuffer.end] in file: lib/support/0.2.0/io/StreamBuffer.sharp:33:19: note:  
+		    public def end() {
+		                  ^
+
+
+end:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #2
+[0x2] 2:	del
+[0x3] 3:	movi #0, ebx
+[0x5] 5:	nop
+[0x6] 6:	rstore ebx
+[0x7] 7:	movl 0
+[0x8] 8:	movn #3
+[0x9] 9:	movi #0, adx
+[0xb] 11:	loadval ecx
+[0xc] 12:	rmov adx, ecx
+[0xd] 13:	movi #0, ebx
+[0xf] 15:	nop
+[0x10] 16:	rstore ebx
+[0x11] 17:	movl 0
+[0x12] 18:	movn #4
+[0x13] 19:	movi #0, adx
+[0x15] 21:	loadval ecx
+[0x16] 22:	rmov adx, ecx
+[0x17] 23:	ret
+
+func:@164 [std.io#StreamBuffer.toString] in file: lib/support/0.2.0/io/StreamBuffer.sharp:42:24: note:  
+		    public def toString() : string {
+		                       ^
+
+
+toString:
+[0x0] 0:	new_class @12 // std#string
+[0x1] 1:	newstr @0 // ""
+[0x2] 2:	call @47 // <std#string.string(var[])>
+[0x3] 3:	popl 1
+[0x4] 4:	istorel 0, fp+2
+[0x6] 6:	movl 0
+[0x7] 7:	movn #4
+[0x8] 8:	movi #0, adx
+[0xa] 10:	chklen adx
+[0xb] 11:	iaload_2 egx, adx
+[0xc] 12:	loadl ebx, fp+2
+[0xd] 13:	lt ebx, egx
+[0xe] 14:	movi #38, adx
+[0x10] 16:	ifne
+[0x11] 17:	pushl 1
+[0x12] 18:	movi #1, ebx
+[0x14] 20:	newarry ebx
+[0x15] 21:	movl 0
+[0x16] 22:	movn #2
+[0x17] 23:	pushobj
+[0x18] 24:	loadl ebx, fp+2
+[0x19] 25:	movsl #0
+[0x1a] 26:	chklen ebx
+[0x1b] 27:	iaload_2 ebx, ebx
+[0x1c] 28:	pop
+[0x1d] 29:	movsl #0
+[0x1e] 30:	movi #0, adx
+[0x20] 32:	rmov adx, ebx
+[0x21] 33:	call @60 // <std#string.$operator+=(var[])>
+[0x22] 34:	pop
+[0x23] 35:	loadl ebx, fp+2
+[0x24] 36:	iaddl 1, @2
+[0x25] 37:	goto @6
+[0x26] 38:	movl 1
+[0x27] 39:	returnobj
+[0x28] 40:	ret
+
+func:@165 [std.io#StreamBuffer.at] in file: lib/support/0.2.0/io/StreamBuffer.sharp:50:18: note:  
+		    public def at(var pos) : var {
+		                 ^
+
+
+at:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #4
+[0x2] 2:	movi #0, adx
+[0x4] 4:	chklen adx
+[0x5] 5:	iaload_2 egx, adx
+[0x6] 6:	loadl ebx, fp+1
+[0x7] 7:	gte ebx, egx
+[0x8] 8:	skpe 7 // pc = 15
+[0x9] 9:	movi #0, egx
+[0xb] 11:	loadl ebx, fp+1
+[0xc] 12:	lt ebx, egx
+[0xd] 13:	movr ebx, cmt
+[0xe] 14:	movi #34, adx
+[0x10] 16:	ifne
+[0x11] 17:	new_class @20 // std#IndexOutOfBoundsException
+[0x12] 18:	new_class @12 // std#string
+[0x13] 19:	newstr @47 // "Access to buffer at: "
+[0x14] 20:	call @47 // <std#string.string(var[])>
+[0x15] 21:	ipushl #1
+[0x16] 22:	call @58 // <std#string.$operator+(var)>
+[0x17] 23:	newstr @48 // "  size: "
+[0x18] 24:	call @53 // <std#string.$operator+(var[])>
+[0x19] 25:	movl 0
+[0x1a] 26:	movn #4
+[0x1b] 27:	movi #0, adx
+[0x1d] 29:	iaload_2 ebx, adx
+[0x1e] 30:	rstore ebx
+[0x1f] 31:	call @58 // <std#string.$operator+(var)>
+[0x20] 32:	call @159 // <std#IndexOutOfBoundsException.IndexOutOfBoundsException(std#string)>
+[0x21] 33:	throw 
+[0x22] 34:	movl 0
+[0x23] 35:	movn #2
+[0x24] 36:	pushobj
+[0x25] 37:	loadl ebx, fp+1
+[0x26] 38:	movsl #0
+[0x27] 39:	chklen ebx
+[0x28] 40:	iaload_2 ebx, ebx
+[0x29] 41:	pop
+[0x2a] 42:	return_val ebx
+[0x2b] 43:	ret
+
+func:@166 [std.io#StreamBuffer.size] in file: lib/support/0.2.0/io/StreamBuffer.sharp:57:20: note:  
+		    public def size() : var {
+		                   ^
+
+
+size:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #4
+[0x2] 2:	movi #0, adx
+[0x4] 4:	iaload_2 ebx, adx
+[0x5] 5:	return_val ebx
+[0x6] 6:	ret
+
+func:@167 [std.io#StreamBuffer.isEmpty] in file: lib/support/0.2.0/io/StreamBuffer.sharp:61:23: note:  
+		    public def isEmpty() : var {
+		                      ^
+
+
+isEmpty:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #4
+[0x2] 2:	movi #0, adx
+[0x4] 4:	iaload_2 ebx, adx
+[0x5] 5:	rstore ebx
+[0x6] 6:	movi #0, egx
+[0x8] 8:	loadval ebx
+[0x9] 9:	test ebx, egx
+[0xa] 10:	movr ebx, cmt
+[0xb] 11:	return_val ebx
+[0xc] 12:	ret
+
+func:@168 [std.io#StreamBuffer.$operator+] in file: lib/support/0.2.0/io/StreamBuffer.sharp:65:24: note:  
+		    public def operator+(var data) : StreamBuffer {
+		                       ^
+
+
+$operator+:
+[0x0] 0:	pushl 0
+[0x1] 1:	loadl ebx, fp+1
+[0x2] 2:	mov16 ebx, ebx
+[0x3] 3:	rstore ebx
+[0x4] 4:	call @173 // <std.io#StreamBuffer.pushBack(var)>
+[0x5] 5:	movl 0
+[0x6] 6:	returnobj
+[0x7] 7:	ret
+
+func:@169 [std.io#StreamBuffer.$operator+] in file: lib/support/0.2.0/io/StreamBuffer.sharp:70:24: note:  
+		    public def operator+(string data) : StreamBuffer {
+		                       ^
+
+
+$operator+:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @62 // <std#string.toArray()>
+[0x2] 2:	popl 2
+[0x3] 3:	istore 0
+[0x4] 4:	movl 2
+[0x5] 5:	smov ebx, sp+0
+[0x6] 6:	sizeof egx
+[0x7] 7:	lt ebx, egx
+[0x8] 8:	movi #22, adx
+[0xa] 10:	ifne
+[0xb] 11:	iaload_2 ebx, ebx
+[0xc] 12:	smovr_2 ebx, fp+3
+[0xd] 13:	pushl 0
+[0xe] 14:	loadl ebx, fp+3
+[0xf] 15:	mov16 ebx, ebx
+[0x10] 16:	rstore ebx
+[0x11] 17:	call @173 // <std.io#StreamBuffer.pushBack(var)>
+[0x12] 18:	smov ebx, sp+0
+[0x13] 19:	inc ebx
+[0x14] 20:	smovr ebx, sp+0
+[0x15] 21:	goto @4
+[0x16] 22:	pop
+[0x17] 23:	movl 0
+[0x18] 24:	returnobj
+[0x19] 25:	ret
+
+func:@170 [std.io#StreamBuffer.$operator=] in file: lib/support/0.2.0/io/StreamBuffer.sharp:77:24: note:  
+		    public def operator=(StreamBuffer buf) : StreamBuffer {
+		                       ^
+
+
+$operator=:
+[0x0] 0:	pushl 0
+[0x1] 1:	call @172 // <std.io#StreamBuffer.begin()>
+[0x2] 2:	istore 0
+[0x3] 3:	movl 1
+[0x4] 4:	movn #2
+[0x5] 5:	smov ebx, sp+0
+[0x6] 6:	sizeof egx
+[0x7] 7:	lt ebx, egx
+[0x8] 8:	movi #22, adx
+[0xa] 10:	ifne
+[0xb] 11:	iaload_2 ebx, ebx
+[0xc] 12:	smovr_2 ebx, fp+2
+[0xd] 13:	pushl 0
+[0xe] 14:	loadl ebx, fp+2
+[0xf] 15:	mov16 ebx, ebx
+[0x10] 16:	rstore ebx
+[0x11] 17:	call @173 // <std.io#StreamBuffer.pushBack(var)>
+[0x12] 18:	smov ebx, sp+0
+[0x13] 19:	inc ebx
+[0x14] 20:	smovr ebx, sp+0
+[0x15] 21:	goto @3
+[0x16] 22:	pop
+[0x17] 23:	movl 0
+[0x18] 24:	returnobj
+[0x19] 25:	ret
+
+func:@171 [std.io#StreamBuffer.$operator=] in file: lib/support/0.2.0/io/StreamBuffer.sharp:85:24: note:  
+		    public def operator=(string data) : StreamBuffer {
+		                       ^
+
+
+$operator=:
+[0x0] 0:	pushl 0
+[0x1] 1:	call @172 // <std.io#StreamBuffer.begin()>
+[0x2] 2:	pushl 1
+[0x3] 3:	call @62 // <std#string.toArray()>
+[0x4] 4:	popl 2
+[0x5] 5:	istore 0
+[0x6] 6:	movl 2
+[0x7] 7:	smov ebx, sp+0
+[0x8] 8:	sizeof egx
+[0x9] 9:	lt ebx, egx
+[0xa] 10:	movi #24, adx
+[0xc] 12:	ifne
+[0xd] 13:	iaload_2 ebx, ebx
+[0xe] 14:	smovr_2 ebx, fp+3
+[0xf] 15:	pushl 0
+[0x10] 16:	loadl ebx, fp+3
+[0x11] 17:	mov16 ebx, ebx
+[0x12] 18:	rstore ebx
+[0x13] 19:	call @173 // <std.io#StreamBuffer.pushBack(var)>
+[0x14] 20:	smov ebx, sp+0
+[0x15] 21:	inc ebx
+[0x16] 22:	smovr ebx, sp+0
+[0x17] 23:	goto @6
+[0x18] 24:	pop
+[0x19] 25:	movl 0
+[0x1a] 26:	returnobj
+[0x1b] 27:	ret
+
+func:@172 [std.io#StreamBuffer.begin] in file: lib/support/0.2.0/io/StreamBuffer.sharp:94:21: note:  
+		    public def begin() {
+		                    ^
+
+
+begin:
+[0x0] 0:	movi #512, ebx
+[0x2] 2:	newarry ebx
+[0x3] 3:	movl 0
+[0x4] 4:	movn #2
+[0x5] 5:	popobj
+[0x6] 6:	movi #512, ebx
+[0x8] 8:	nop
+[0x9] 9:	rstore ebx
+[0xa] 10:	movl 0
+[0xb] 11:	movn #3
+[0xc] 12:	movi #0, adx
+[0xe] 14:	loadval ecx
+[0xf] 15:	rmov adx, ecx
+[0x10] 16:	movi #0, ebx
+[0x12] 18:	nop
+[0x13] 19:	rstore ebx
+[0x14] 20:	movl 0
+[0x15] 21:	movn #4
+[0x16] 22:	movi #0, adx
+[0x18] 24:	loadval ecx
+[0x19] 25:	rmov adx, ecx
+[0x1a] 26:	ret
+
+func:@173 [std.io#StreamBuffer.pushBack] in file: lib/support/0.2.0/io/StreamBuffer.sharp:100:24: note:  
+		    public def pushBack(var _char) {
+		                       ^
+
+
+pushBack:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #2
+[0x2] 2:	checknull
+[0x3] 3:	movr ebx, cmt
+[0x4] 4:	movi #9, adx
+[0x6] 6:	ifne
+[0x7] 7:	pushl 0
+[0x8] 8:	call @172 // <std.io#StreamBuffer.begin()>
+[0x9] 9:	movl 0
+[0xa] 10:	movn #3
+[0xb] 11:	movi #0, adx
+[0xd] 13:	chklen adx
+[0xe] 14:	iaload_2 egx, adx
+[0xf] 15:	movl 0
+[0x10] 16:	movn #4
+[0x11] 17:	movi #0, adx
+[0x13] 19:	chklen adx
+[0x14] 20:	iaload_2 ebx, adx
+[0x15] 21:	gte ebx, egx
+[0x16] 22:	movr ebx, cmt
+[0x17] 23:	movi #55, adx
+[0x19] 25:	ifne
+[0x1a] 26:	movi #128, ebx
+[0x1c] 28:	nop
+[0x1d] 29:	rstore ebx
+[0x1e] 30:	movl 0
+[0x1f] 31:	movn #3
+[0x20] 32:	movi #0, adx
+[0x22] 34:	chklen adx
+[0x23] 35:	iaload_2 ebx, adx
+[0x24] 36:	movi #0, adx
+[0x26] 38:	loadval ecx
+[0x27] 39:	add ebx, ecx -> ecx
+[0x29] 41:	rmov adx, ecx
+[0x2a] 42:	movl 0
+[0x2b] 43:	movn #2
+[0x2c] 44:	pushobj
+[0x2d] 45:	movl 0
+[0x2e] 46:	movn #3
+[0x2f] 47:	movi #0, adx
+[0x31] 49:	iaload_2 ebx, adx
+[0x32] 50:	rstore ebx
+[0x33] 51:	call @44 // <std#Array.expand(var[],var)>
+[0x34] 52:	movl 0
+[0x35] 53:	movn #2
+[0x36] 54:	popobj
+[0x37] 55:	ipushl #1
+[0x38] 56:	movl 0
+[0x39] 57:	movn #2
+[0x3a] 58:	pushobj
+[0x3b] 59:	movl 0
+[0x3c] 60:	movn #4
+[0x3d] 61:	movi #0, adx
+[0x3f] 63:	chklen adx
+[0x40] 64:	iaload_2 ebx, adx
+[0x41] 65:	inc ebx
+[0x42] 66:	rmov adx, ebx
+[0x43] 67:	dec ebx
+[0x44] 68:	movsl #0
+[0x45] 69:	chklen ebx
+[0x46] 70:	pop
+[0x47] 71:	loadval egx
+[0x48] 72:	rmov ebx, egx
+[0x49] 73:	ret
+
+func:@174 [std.io#WinFileSystem.WinFileSystem] in file: lib/support/0.2.0/io/WinFileSystem.sharp:22:25: note:  
+		    public WinFileSystem() {
+		                        ^
+
+
+WinFileSystem:
+[0x0] 0:	movi #92, ebx
+[0x2] 2:	nop
+[0x3] 3:	rstore ebx
+[0x4] 4:	movl 0
+[0x5] 5:	movn #11
+[0x6] 6:	movi #0, adx
+[0x8] 8:	loadval ecx
+[0x9] 9:	rmov adx, ecx
+[0xa] 10:	movl 0
+[0xb] 11:	returnobj
+[0xc] 12:	ret
+
+func:@175 [std.io#WinFileSystem.getPathSeparator] in file: lib/support/0.2.0/io/WinFileSystem.sharp:26:24: note:  
+		    public def delegate::getPathSeparator() : var {
+		                       ^
+
+
+getPathSeparator:
+[0x0] 0:	movl 0
+[0x1] 1:	movn #11
+[0x2] 2:	movi #0, adx
+[0x4] 4:	iaload_2 ebx, adx
+[0x5] 5:	return_val ebx
+[0x6] 6:	ret
+
+func:@176 [std.io#WinFileSystem.normalize] in file: lib/support/0.2.0/io/WinFileSystem.sharp:34:24: note:  
+		    public def delegate::normalize(string pathname) : string {
+		                       ^
+
+
+normalize:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @68 // <std#string.size()>
+[0x2] 2:	loadval ebx
+[0x3] 3:	smovr_2 ebx, fp+2
+[0x4] 4:	new_class @12 // std#string
+[0x5] 5:	newstr @0 // ""
+[0x6] 6:	call @47 // <std#string.string(var[])>
+[0x7] 7:	popl 3
+[0x8] 8:	istorel 0, fp+4
+[0xa] 10:	istorel 0, fp+5
+[0xc] 12:	loadl ebx, fp+2
+[0xd] 13:	movr egx, ebx
+[0xe] 14:	loadl ebx, fp+5
+[0xf] 15:	lt ebx, egx
+[0x10] 16:	movi #66, adx
+[0x12] 18:	ifne
+[0x13] 19:	pushl 1
+[0x14] 20:	ipushl #5
+[0x15] 21:	call @52 // <std#string.at(var)>
+[0x16] 22:	loadval ebx
+[0x17] 23:	smovr_2 ebx, fp+6
+[0x18] 24:	ipushl #6
+[0x19] 25:	movi #47, egx
+[0x1b] 27:	loadval ebx
+[0x1c] 28:	test ebx, egx
+[0x1d] 29:	movr ebx, cmt
+[0x1e] 30:	movi #52, adx
+[0x20] 32:	ifne
+[0x21] 33:	pushl 3
+[0x22] 34:	movi #2, ebx
+[0x24] 36:	newarry ebx
+[0x25] 37:	movsl #0
+[0x26] 38:	movi #92, ebx
+[0x28] 40:	movi #0, adx
+[0x2a] 42:	rmov adx, ebx
+[0x2b] 43:	movsl #0
+[0x2c] 44:	movi #92, ebx
+[0x2e] 46:	movi #1, adx
+[0x30] 48:	rmov adx, ebx
+[0x31] 49:	call @60 // <std#string.$operator+=(var[])>
+[0x32] 50:	pop
+[0x33] 51:	goto @63
+[0x34] 52:	pushl 3
+[0x35] 53:	movi #1, ebx
+[0x37] 55:	newarry ebx
+[0x38] 56:	movsl #0
+[0x39] 57:	loadl ebx, fp+6
+[0x3a] 58:	movi #0, adx
+[0x3c] 60:	rmov adx, ebx
+[0x3d] 61:	call @60 // <std#string.$operator+=(var[])>
+[0x3e] 62:	pop
+[0x3f] 63:	loadl ebx, fp+5
+[0x40] 64:	iaddl 1, @5
+[0x41] 65:	goto @12
+[0x42] 66:	movl 3
+[0x43] 67:	returnobj
+[0x44] 68:	ret
+
+func:@177 [std.io#WinFileSystem.getFileAttributes] in file: lib/support/0.2.0/io/WinFileSystem.sharp:57:25: note:  
+		     public def delegate::getFileAttributes(File f) : var {
+		                        ^
+
+
+getFileAttributes:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 2
+[0x4] 4:	istorel 0, fp+3
+[0x6] 6:	pushl 2
+[0x7] 7:	int 0xb2
+[0x8] 8:	smovr_2 ebx, fp+3
+[0x9] 9:	loadl ebx, fp+3
+[0xa] 10:	return_val ebx
+[0xb] 11:	ret
+
+func:@178 [std.io#WinFileSystem.checkAccess] in file: lib/support/0.2.0/io/WinFileSystem.sharp:81:25: note:  
+		     public def delegate::checkAccess(File f, var access) : var {
+		                        ^
+
+
+checkAccess:
+[0x0] 0:	pushl 1
+[0x1] 1:	call @95 // <std.io#File.getAbsolutePath()>
+[0x2] 2:	call @62 // <std#string.toArray()>
+[0x3] 3:	popl 3
+[0x4] 4:	istorel 0, fp+4
+[0x6] 6:	ipushl #2
+[0x7] 7:	movi #1, egx
+[0x9] 9:	loadval ebx
+[0xa] 10:	test ebx, egx
+[0xb] 11:	movr ebx, cmt
+[0xc] 12:	movi #19, adx
+[0xe] 14:	ifne
+[0xf] 15:	movi #-1, ebx
+[0x11] 17:	return_val ebx
+[0x12] 18:	ret
+[0x13] 19:	pushl 3
+[0x14] 20:	loadl ebx, fp+2
+[0x15] 21:	int 0xb1
+[0x16] 22:	smovr_2 ebx, fp+4
+[0x17] 23:	loadl ebx, fp+4
+[0x18] 24:	return_val ebx
+[0x19] 25:	ret
+
+func:@179 [std.internal#ConsoleHandler.printData] in file: lib/support/0.2.0/internal/ConsoleHandler.sharp:9:25: note:  
+		    public def printData(var[] data)
+		                        ^
+
+
+printData:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @180 // <std.internal#ConsoleHandler.__print_(var[])>
+[0x3] 3:	ret
+
+func:@180 [std.internal#ConsoleHandler.__print_] in file: lib/support/0.2.0/internal/ConsoleHandler.sharp:18:26: note:  
+		     private def __print_(var[] message)
+		                         ^
+
+
+__print_:
+[0x0] 0:	movl 1
+[0x1] 1:	checknull
+[0x2] 2:	not cmt, cmt
+[0x3] 3:	movr ebx, cmt
+[0x4] 4:	movi #27, adx
+[0x6] 6:	ifne
+[0x7] 7:	istore 0
+[0x8] 8:	movl 1
+[0x9] 9:	smov ebx, sp+0
+[0xa] 10:	sizeof egx
+[0xb] 11:	lt ebx, egx
+[0xc] 12:	movi #25, adx
+[0xe] 14:	ifne
+[0xf] 15:	iaload_2 ebx, ebx
+[0x10] 16:	smovr_2 ebx, fp+2
+[0x11] 17:	pushl 0
+[0x12] 18:	ipushl #2
+[0x13] 19:	istore 1
+[0x14] 20:	call @182 // <std.internal#ConsoleHandler.__print_stdout_(var,var)>
+[0x15] 21:	smov ebx, sp+0
+[0x16] 22:	inc ebx
+[0x17] 23:	smovr ebx, sp+0
+[0x18] 24:	goto @8
+[0x19] 25:	pop
+[0x1a] 26:	goto @30
+[0x1b] 27:	pushl 0
+[0x1c] 28:	newstr @36 // "null"
+[0x1d] 29:	call @180 // <std.internal#ConsoleHandler.__print_(var[])>
+[0x1e] 30:	ret
+
+func:@181 [std.internal#ConsoleHandler.read] in file: lib/support/0.2.0/internal/ConsoleHandler.sharp:29:21: note:  
+		     public def read() : var
+		                    ^
+
+
+read:
+[0x0] 0:	istorel 0, fp+1
+[0x2] 2:	get ebx
+[0x3] 3:	return_val ebx
+[0x4] 4:	ret
+
+func:@182 [std.internal#ConsoleHandler.__print_stdout_] in file: lib/support/0.2.0/internal/ConsoleHandler.sharp:42:32: note:  
+		     public def __print_stdout_(var char, var isCharacter)
+		                               ^
+
+
+__print_stdout_:
+[0x0] 0:	loadl ebx, fp+2
+[0x1] 1:	movr cmt, ebx
+[0x2] 2:	movi #9, adx
+[0x4] 4:	ifne
+[0x5] 5:	loadl ebx, fp+1
+[0x6] 6:	_putc ebx
+[0x7] 7:	ret
+[0x8] 8:	goto @12
+[0x9] 9:	loadl ebx, fp+1
+[0xa] 10:	put ebx
+[0xb] 11:	ret
+
+func:@183 [std.internal#ConsoleHandler.ConsoleHandler] in file: lib/support/0.2.0/internal/ConsoleHandler.sharp:8:13: note:  
+		public class ConsoleHandler {
+		            ^
+
+
+ConsoleHandler:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@184 [std#NullptrException.NullptrException] in file: lib/support/0.2.0/NullptrException.sharp:8:23: note:  
+		      NullptrException(var[] message) {
+		                      ^
+
+
+NullptrException:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @16 // <std#Exception.Exception(var[])>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@185 [std#NullptrException.NullptrException] in file: lib/support/0.2.0/NullptrException.sharp:12:23: note:  
+		      NullptrException(string message) {
+		                      ^
+
+
+NullptrException:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @17 // <std#Exception.Exception(std#string)>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@186 [std#NullptrException.NullptrException] in file: lib/support/0.2.0/NullptrException.sharp:6:13: note:  
+		public class NullptrException base Exception {
+		            ^
+
+
+NullptrException:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@187 [std#RuntimeErr.RuntimeErr] in file: lib/support/0.2.0/RuntimeErr.sharp:10:24: note:  
+		      public RuntimeErr(var[] message) {
+		                       ^
+
+
+RuntimeErr:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @16 // <std#Exception.Exception(var[])>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@188 [std#RuntimeErr.RuntimeErr] in file: lib/support/0.2.0/RuntimeErr.sharp:14:24: note:  
+		      public RuntimeErr(string message) {
+		                       ^
+
+
+RuntimeErr:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @17 // <std#Exception.Exception(std#string)>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@189 [std#RuntimeErr.RuntimeErr] in file: lib/support/0.2.0/RuntimeErr.sharp:8:13: note:  
+		public class RuntimeErr base Exception {
+		            ^
+
+
+RuntimeErr:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+
+func:@190 [std.io#IOException.IOException] in file: lib/support/0.2.0/io/IOException.sharp:10:25: note:  
+		      public IOException(var[] message) {
+		                        ^
+
+
+IOException:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @16 // <std#Exception.Exception(var[])>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@191 [std.io#IOException.IOException] in file: lib/support/0.2.0/io/IOException.sharp:14:25: note:  
+		      public IOException(string message) {
+		                        ^
+
+
+IOException:
+[0x0] 0:	pushl 0
+[0x1] 1:	pushl 1
+[0x2] 2:	call @17 // <std#Exception.Exception(std#string)>
+[0x3] 3:	movl 0
+[0x4] 4:	returnobj
+[0x5] 5:	ret
+
+func:@192 [std.io#IOException.IOException] in file: lib/support/0.2.0/io/IOException.sharp:8:13: note:  
+		public class IOException base Exception {
+		            ^
+
+
+IOException:
+[0x0] 0:	movl 0
+[0x1] 1:	returnobj
+[0x2] 2:	ret
+

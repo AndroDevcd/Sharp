@@ -82,7 +82,7 @@ public class Dictionary<TKey, TValue> {
       *
       */
      public def get(TKey key) : TValue {
-        TKey[] keys = getKeys();
+        TKey[] keys = self->keys.data();
         var index;
         foreach(TKey k : keys) {
             if(k == key)
@@ -115,8 +115,8 @@ public class Dictionary<TKey, TValue> {
       * index out of bounds exception is thrown
       *
       */
-     public def keyAt(var index) : TValue {
-        return values.get(index);
+     public def keyAt(var index) : TKey {
+        return keys.get(index);
      }
 
      /**
@@ -143,7 +143,7 @@ public class Dictionary<TKey, TValue> {
       *
       */
      public def getAll(TKey key) : TValue[] {
-        TKey[] keys = getKeys();
+        TKey[] keys = self->keys.data();
         ArrayList<TValue> tmp = new ArrayList<TValue>();
         var index;
         foreach(TKey k : keys) {
@@ -178,14 +178,14 @@ public class Dictionary<TKey, TValue> {
       */
      public def remove(TKey key) {
         var index;
-        TKey[] k = keys.toArray();
+        TKey[] k = keys.data();
         for(var i = 0; i < keys.size(); i++) {
             if(key == k[i]) {
                 keys.remove(i);
                 values.remove(i);
 
                 i--;
-                k = keys.toArray();
+                k = keys.data();
             }
         }
      }
@@ -207,7 +207,7 @@ public class Dictionary<TKey, TValue> {
       *
       */
      public def indexof(TKey key) : var {
-        TKey[] keys = getKeys();
+        TKey[] keys = self->keys.data();
         var index;
         foreach(TKey k : keys) {
             if(k == key)

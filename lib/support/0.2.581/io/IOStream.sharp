@@ -31,6 +31,11 @@ public class IOStream {
         protected StreamReader(string contents) {
             mData = contents;
         }
+        
+        public def update(string contents) {
+			mData = contents;
+			pos=0;
+        }
 
         public def next() : var {
             if(pos >= mData.size())
@@ -63,6 +68,27 @@ public class IOStream {
             reader = new IOStream.StreamReader(data);
         }
     }
+    
+    public IOStream(File file, var direction, var getContents) {
+        self->file = file;
+        self->direction = direction;
+
+        if(direction==READ && getContents) {
+            File.readAllText(file, data);
+            reader = new IOStream.StreamReader(data);
+        }
+    }
+
+	public def updateFile(File file) {
+        self->file = file;
+	} 
+	
+	public def read() {
+		if(direction==READ) {
+            File.readAllText(file, data);
+            reader.update(data);
+        }
+	}
 
     public def close() {
         if(direction==WRITE) {
@@ -121,6 +147,14 @@ public class IOStream {
 
     public def toString() : string {
         return new string(data);
+    }
+    
+    public def getData() : string {
+		return data;
+    }
+    
+    public def getFile() : File {
+		return file;
     }
 
     public def write(var[] data) {

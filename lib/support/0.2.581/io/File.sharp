@@ -56,6 +56,12 @@ public class File {
         return name;
     }
 
+	public def updatePath(string path) {
+        if(path == null)
+            throw new NullptrException("file path cannot be null");
+        self->path = fs.normalize(path);
+    }
+
     public def getParentFile() : File {
         if(path == null || path.size()==0) {
             return null;
