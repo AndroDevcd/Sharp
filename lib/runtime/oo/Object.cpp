@@ -7,29 +7,42 @@
 #include "../Environment.h"
 #include "../register.h"
 #include "../Thread.h"
+#include "../Exe.h"
+#include "../Manifest.h"
 
 void Object::castObject(int64_t classPtr) {
-    ClassObject* k = env->findClassBySerial(classPtr);
-
-    stringstream nonclass;
-    nonclass << "attempt to perform invalid cast to [" << k->name.str() << "] on non-class object ";
+    ClassObject* type =NULL, *base = NULL;
 
     if(this->object == NULL)
         throw Exception(Environment::ClassCastException, "invalid cast on null object");
-    if(this->object->k == NULL)
+
+    if(classPtr < manifest.classes && classPtr > 0) {
+        type = &env->classes[classPtr];
+        base = &env->classes[CLASS(object->info)];
+    } else {
+        stringstream msg;
+        msg << "class not found @address:" << classPtr;
+
+        throw Exception(msg.str());
+    }
+
+    stringstream nonclass;
+    nonclass << "attempt to perform invalid cast to [" << type->name.str() << "] on non-class object ";
+
+    if(!IS_CLASS(this->object->info))
         throw Exception(Environment::ClassCastException, nonclass.str());
 
-    if(k->serial!= this->object->k->serial && !this->object->k->hasBaseClass(k)) {
+    if(type->serial!= base->serial && !base->hasBaseClass(type)) {
         // validate we have all our interfaces checked
-        for(int i = 0; i < this->object->k->interfaceCount; i++) {
-            ClassObject* _interface = env->findClassBySerial(this->object->k->interfaces[i]);
-            if(_interface->serial==k->serial || _interface->hasBaseClass(k))
+        for(int i = 0; i < base->interfaceCount; i++) {
+            ClassObject* _interface = &env->classes[base->interfaces[i]];
+            if(_interface->serial==type->serial || _interface->hasBaseClass(type))
                 return;
         }
 
         stringstream ss;
-        ss << "illegal cast of class '" << this->object->k->name.str() << "' to '";
-        ss << k->name.str() << "'";
+        ss << "illegal cast of class '" << base->name.str() << "' to '";
+        ss << type->name.str() << "'";
         throw Exception(Environment::ClassCastException, ss.str());
     }
 }
@@ -38,12 +51,13 @@ void SharpObject::print() {
     cout << "Object @0x" << this << endl;
     cout << "size " << size << endl;
     cout << "refrences " << refCount << endl;
-    cout << "generation " << GENERATION(gc_info) << endl;
-    if(k != NULL) cout << "class: " << k->name.str() << endl;
+    cout << "generation " << GENERATION(info) << endl;
+    ClassObject *k = &env->classes[CLASS(info)];
+    if(IS_CLASS(info)) cout << "class: " << k->name.str() << endl;
 
-    if(type==_stype_var) {
+    if(TYPE(info)==_stype_var) {
         cout << "HEAD[]" << endl;
-    } else if(type==_stype_struct){
+    } else if(TYPE(info)==_stype_struct){
         for(long i = 0; i < size; i++) {
             cout << '\t' << this << " -> #" << i << " ";
             if(node[i].object == NULL) {

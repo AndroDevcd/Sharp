@@ -19,6 +19,7 @@ void x64Assembler::initializeRegisters() {
     tmp8      = al;
     value     = rdx;        // value acts as the second argument for function params
     fnPtr     = r12;       // registers fnPtr, arg, regPtr, & threadPtr are non volitile and do not have to be saved
+    fnPtr32   = r12d;
     arg       = r13;
     regPtr    = r14;
     threadPtr = r15;

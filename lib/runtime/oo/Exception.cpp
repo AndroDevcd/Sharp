@@ -17,9 +17,9 @@ void Throwable::drop() {
 
 Exception::Exception(const char *msg, bool native)
         :
-        throwable(Environment::RuntimeErr, msg, native),
         runtime_error(msg)
 {
+    throwable.init(Environment::RuntimeErr, msg, native);
     pushException();
 }
 

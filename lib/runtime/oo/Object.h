@@ -10,42 +10,42 @@
 #endif
 
 #include "../memory/GarbageCollector.h"
+#include "../oo/ClassObject.h"
 
 struct Object;
 struct ClassObject;
 
 enum sharp_type
 {
-    _stype_var = 0x1a,
-    _stype_struct = 0x1b,
-    _stype_none = 0x7f
+    _stype_var = 0x1,
+    _stype_struct = 0x2,
+    _stype_none = 0x4
 };
 
 struct SharpObject
 {
-    void init(int64_t size)
+    void init(uint32_t size)
     {
+        info=0;
         HEAD=NULL;
-        k=NULL;
         next=NULL;
         prev=NULL;
 //        mutex=NULL;
         this->size=size;
-        type = _stype_none;
+        SET_INFO(info, 0, _stype_none, gc_young); /* generation young */
         refCount=0;
-        gc_info = 0x000; /* generation young */
     }
-    void init(int64_t size, ClassObject* k)
+    void init(uint32_t size, ClassObject* k)
     {
+        info=0;
         HEAD=NULL;
         next=NULL;
         prev=NULL;
-        this->k=k;
 //        mutex=NULL;
         this->size=size;
-        type = _stype_none;
         refCount=0;
-        gc_info = 0x000; /* generation young */
+        SET_INFO(info, k->serial, _stype_none, gc_young); /* generation young */
+        SET_CLASS_BIT(info, 1);
     }
 
     void print();
@@ -56,21 +56,28 @@ struct SharpObject
     };
 
     /* info */
-    ClassObject* k;
-    int64_t size;
-    int32_t refCount;
-    int8_t type;
+    uint32_t size;
+    uint32_t refCount;
 
     /**
-     * collection generation
+     * Information package
+     *
+     * This variable represent all of the crucial data for the object that is mainly used by the garbage collector
+     * as well as the JIT runtime.
+     *
+     * It is important to understand that this type of information is the only type of data that can be packed into this
+     * integer. The data should be treated as "read-only" data as the garbage collector should be the only thread to manipulate
+     * and modify the contents of the information. Therefore allowing no mutex requirement to be involved when acting on the
+     * packaged information.
      *
      * layout
-     * 0000 0000 8 bits consisting of "gc mark', 'generation', and 'lock'
+     * 0000 0000 0000 0000 0000 0000 0000 0000 32 bits consisting of "class", "type", "gc mark', 'generation', and 'lock'
      *
-     *  000             0           0           000
-     *  ^-- generation  ^-- mark    ^--- lock   ^--- unused
+     *  low-end bits                                                                high-end bits
+     *  0000 0000 0000 0000 0000 0000   000        0                00              0           0
+     *  ^-- class address               ^--type    ^-- class bit    ^-- generation  ^-- mark    ^--- lock
      */
-    int8_t gc_info; /* gc stuff */
+    uint32_t info;
     SharpObject *next, *prev; /* linked list pointers */
 };
 
@@ -78,7 +85,7 @@ struct SharpObject
     if(obj != NULL) { \
         obj->refCount--; \
         if(obj->refCount <= 0) { \
-            switch(GENERATION((obj)->gc_info)) { \
+            switch(GENERATION((obj)->info)) { \
                 case gc_young: \
                     GarbageCollector::self->yObjs++; \
                     break; \

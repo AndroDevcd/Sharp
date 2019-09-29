@@ -7532,7 +7532,8 @@ void RuntimeEngine::resolveEnumDecl(Ast* ast) {
         klass = currentScope()->klass->getChildClass(name);
     }
 
-    klass->address = classSize++;
+    if(klass->address == -1)
+        klass->address = classSize++;
     ClassObject *base = tryClassResolve("std", "Enum", ast);
 
     if(base != NULL && base->isInterface()) {
@@ -8506,8 +8507,13 @@ std::string RuntimeEngine::class_to_stream(ClassObject& klass) {
     return kstream.str();
 }
 
+bool swapClass(ClassObject *c1, ClassObject *c2) {
+    return c1->address > c2->address;
+}
+
 std::string RuntimeEngine::generate_data_section() {
     stringstream data_sec;
+    classes.linearSort(swapClass);
     for(int64_t i = 0; i < classes.size(); i++) {
         data_sec << class_to_stream(*classes.get(i)) << endl;
     }

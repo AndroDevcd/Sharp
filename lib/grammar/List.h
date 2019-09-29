@@ -225,6 +225,22 @@ public:
         return -1;
     }
 
+    void linearSort(bool (*swap)(T e1, T e2)) {
+        for(unsigned int i = 0; i < len; i++) {
+
+            for (unsigned int j = 0; j < len; j++) {
+                if((j + 1) < len) {
+                    if (swap(_Data[j], _Data[j+1])) {
+                        T tmp = _Data[j];
+                        _Data[j] = _Data[j+1];
+                        _Data[j+1] = tmp;
+                    }
+                }
+            }
+        }
+
+    }
+
     bool empty() { return len==0; }
 
 private:

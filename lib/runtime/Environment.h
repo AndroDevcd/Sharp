@@ -32,7 +32,6 @@ public:
     void DropLocals();
     ClassObject* findClass(string name);
     ClassObject* tryFindClass(string name);
-    ClassObject* findClassBySerial(int64_t id);
     //void checkClassCast()
 
     // TODO: create the aux classes to be used internally

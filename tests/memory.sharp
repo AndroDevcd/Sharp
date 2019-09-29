@@ -1,0 +1,104 @@
+mod app;
+
+import std;
+import std.kernel;
+import std.io;
+
+/*
+* The purposes of this file is to provide a place to test the memory usage of Sharp
+* in an attempt to improve memory effenciency within the language
+*
+* All tests will be preformed on a 64bit Windows machine
+*/
+def main() {
+    string.fmt('L');
+    bigArray();
+    baseLine();
+}
+
+var[] array;
+def varArray() {
+    array = new var[10_000_000];
+}
+
+int[] iarray;
+def intArray() {
+    iarray = new int[10_000_000];
+}
+
+ArrayList<int> lst = new ArrayList<int>();
+def listArray() {
+    lst.setPayloadClass(PayloadClass.PAYLOAD_LARGE);
+    for(var i = 0; i < 15_000_000; i++) {
+        lst.add(new int(i));
+    }
+}
+
+ArrayList<Thread> tlst = new ArrayList<Thread>();
+def threadArray() {
+    tlst.setPayloadClass(PayloadClass.PAYLOAD_LARGE);
+    for(var i = 0; i < 60000; i++) {
+        tlst.add(new Thread("thread #" + i, def ?(object[] args) : var { return 0; }));
+    }
+}
+
+class BigClass {
+    string name = "lots and lots and lots of words!!!";
+    string name2 = "lots and lots and lots of words!!!";
+    string name3 = "lots and lots and lots of words!!!";
+    var a,b,c,d,e,f,g;
+    var[] array = new var[100];
+    BigClass[] bcArray = new BigClass[10];
+}
+
+ArrayList<BigClass> bclst = new ArrayList<BigClass>();
+def bigArray() {
+    bclst.setPayloadClass(PayloadClass.PAYLOAD_LARGE);
+    for(var i = 0; i < 1000000; i++) {
+        bclst.add(new BigClass());
+    }
+}
+
+/*
+* This function will act as a baseline for all the coming memory tests
+* This will be our control to see what is the initial memory that Sharp holds
+* without allocating any objects at the user level
+*/
+def baseLine() {
+    println("managed mem: " + Runtime.managedMemory());
+    Thread.sleep(120000); // sleep for 2 minutes
+}
+
+/*
+* This function will do nothing but hold a bunch of comments
+* regarding the results of the memory tests, Every-time there is
+* a new optimization there will be a new respecting results function
+*/
+def results0() {
+    /*
+    * baseline()
+    * task manager Mem: 6.9 mb
+    * managed Mem: 3008440
+    *
+    * varArray()
+    * task manager Mem: 7.2 mb
+    * managed Mem: 83008496
+    *
+    * intArray()
+    * task manager Mem: 7.2 mb
+    * managed Mem: 83008504
+    *
+    * listArray()
+    * task manager Mem: 3,806 mb
+    * managed Mem: 2763165280
+    *
+    * threadArray()
+    * task manager Mem: 442.6 mb
+    * managed Mem: 77236424
+    *
+    * bigArray()
+    * task manager Mem: 6,306.1 mb
+    * managed Mem: 3184723408
+    *
+    */
+}

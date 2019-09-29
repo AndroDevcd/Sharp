@@ -358,11 +358,13 @@ bool Gui::createPolygon(Poly *poly) {
     Thread* self = thread_self;
     SharpObject *polygonObject = (self->sp)->object.object;
 
-    if(polygonObject && polygonObject->k) {
-        if(polygonObject->k->name == "std.os.gui#Polygon") {
+    if(polygonObject && IS_CLASS(polygonObject->info)) {
+        ClassObject *k = &env->classes[CLASS(polygonObject->info)];
+        if(k->name == "std.os.gui#Polygon") {
             Object *points = env->findField("points", polygonObject);
             if(points && points->object) {
-                if(points->object->k && points->object->k->name == "std.os.gui#Point") {
+                ClassObject *k2 = &env->classes[CLASS(points->object->info)];
+                if(IS_CLASS(points->object->info) && k2->name == "std.os.gui#Point") {
                     poly->size = (int)points->object->size;
                     poly->pts = new POINT[poly->size];
 

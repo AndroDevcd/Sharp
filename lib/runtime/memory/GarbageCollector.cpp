@@ -136,7 +136,7 @@ void GarbageCollector::releaseObject(Object *object) {
     if(object != nullptr && object->object != nullptr)
     {
         object->object->refCount--;
-        switch(GENERATION(object->object->gc_info)) {
+        switch(GENERATION(object->object->info)) {
             case gc_young:
                 yObjs++;
                 break;
@@ -273,28 +273,28 @@ void GarbageCollector::collectGarbage() {
             break;
         }
 
-        if(GENERATION(object->gc_info) <= gc_old) {
+        if(GENERATION(object->info) <= gc_old) {
             // free object
-            if(MARKED(object->gc_info) && object->refCount == 0) {
+            if(MARKED(object->info) && object->refCount == 0) {
                 object = sweep(object);
                 continue;
-            } else if(MARKED(object->gc_info) && object->refCount > 0){
-                switch(GENERATION(object->gc_info)) {
+            } else if(MARKED(object->info) && object->refCount > 0){
+                switch(GENERATION(object->info)) {
                     case gc_young:
                         freedYoung--;
                         transferredAdult++;
-                        SET_GENERATION(object->gc_info, gc_adult);
+                        SET_GENERATION(object->info, gc_adult);
                         break;
                     case gc_adult:
                         freedAdult--;
                         transferredOld++;
-                        SET_GENERATION(object->gc_info, gc_old);
+                        SET_GENERATION(object->info, gc_old);
                         break;
                     case gc_old:
                         break;
                 }
             } else {
-                MARK(object->gc_info, 1);
+                MARK(object->info, 1);
             }
         }
 
@@ -405,9 +405,9 @@ unsigned long long GarbageCollector::_sizeof(SharpObject *object) {
     unsigned long long size =0;
     if(object != nullptr) {
 
-        if(object->type == _stype_var) {
+        if(TYPE(object->info) == _stype_var) {
             size += sizeof(double)*object->size;
-        } else if(object->type == _stype_struct) {
+        } else if(TYPE(object->info) == _stype_struct) {
             for(unsigned long i = 0; i < object->size; i++) {
                 SharpObject *o = object->node[i].object;
 
@@ -431,10 +431,10 @@ unsigned long long GarbageCollector::_sizeof(SharpObject *object) {
 SharpObject* GarbageCollector::sweep(SharpObject *object) {
     if(object != nullptr) {
 
-        if(object->type == _stype_var) {
+        if(TYPE(object->info) == _stype_var) {
             freedBytes += sizeof(double)*object->size;
             std::free(object->HEAD); object->HEAD = NULL;
-        } else if(object->type == _stype_struct) {
+        } else if(TYPE(object->info) == _stype_struct) {
             for(unsigned long i = 0; i < object->size; i++) {
                 SharpObject *o = object->node[i].object;
 
@@ -465,7 +465,7 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
 
         SharpObject* tmp = object->next;
         erase(object);
-        if(HAS_LOCK(object->gc_info))
+        if(HAS_LOCK(object->info))
             dropLock(object);
         std::free(object);
         return tmp;
@@ -481,7 +481,7 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
     object->init(size);
 
     object->HEAD = (double*)__calloc(size, sizeof(double));
-    object->type = _stype_var;
+    SET_TYPE(object->info, _stype_var);
 
     /* track the allocation amount */
     std::lock_guard<recursive_mutex> gd(mutex);
@@ -496,7 +496,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
     if(k != nullptr) {
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
         object->init(k->fieldCount, k);
-        object->type = _stype_struct;
+        SET_TYPE(object->info, _stype_struct);
 
         if(k->fieldCount > 0) {
             object->node = (Object*)__malloc(sizeof(Object)*k->fieldCount);
@@ -508,7 +508,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
                  */
                 if(k->fields[i].type == VAR && !k->fields[i].isArray) {
                     object->node[i].object = newObject(1);
-                    object->node[i].object->type = _stype_var;
+                    SET_TYPE(object->node[i].object->info, _stype_var);
                     object->node[i].object->refCount++;
                 } else {
                     object->node[i].object = nullptr;
@@ -535,7 +535,7 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size) {
     object->init(size);
 
     object->node = (Object*)__malloc(sizeof(Object)*size);
-    object->type = _stype_struct;
+    SET_TYPE(object->info, _stype_struct);
 
     for(unsigned int i = 0; i < object->size; i++)
         object->node[i].object = nullptr;
@@ -554,7 +554,7 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
         
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
         object->init(size, k);
-        object->type = _stype_struct;
+        SET_TYPE(object->info, _stype_struct);
 
         if(size > 0) {
             object->node = (Object*)__malloc(sizeof(Object)*size);
@@ -610,7 +610,7 @@ void GarbageCollector::erase(SharpObject *p) {
 }
 
 void GarbageCollector::realloc(SharpObject *o, size_t sz) {
-    if(o != NULL && o->type == _stype_var) {
+    if(o != NULL && TYPE(o->info) == _stype_var) {
         o->HEAD = (double*)__realloc(o->HEAD, sizeof(double)*sz, sizeof(double)*o->size);
 
         std::lock_guard<recursive_mutex> gd(mutex);
@@ -626,7 +626,7 @@ void GarbageCollector::realloc(SharpObject *o, size_t sz) {
 }
 
 void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
-    if(o != NULL && o->type == _stype_struct && o->node != NULL) {
+    if(o != NULL && TYPE(o->info) == _stype_struct && o->node != NULL) {
         if(sz < o->size) {
             for(size_t i = sz; i < o->size; i++) {
                 if(o->node[i].object != nullptr) {
@@ -702,7 +702,7 @@ void GarbageCollector::lock(SharpObject *o, Thread* thread) {
             managedBytes += sizeof(mutex_t)+sizeof(recursive_mutex);
             mut = new mutex_t(o, new recursive_mutex(), -1);
             locks.add(mut);
-            SET_LOCK(o->gc_info, 1);
+            SET_LOCK(o->info, 1);
         }
         mutex.unlock();
         if(mut->threadid != thread->id) {

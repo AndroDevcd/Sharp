@@ -625,6 +625,7 @@ void Thread::exit() {
     }
 
     if(dataStack != NULL) {
+        GarbageCollector::self->freeMemory(sizeof(StackElement) * stack_lmt);
         StackElement *p = dataStack;
         for(size_t i = 0; i < stack_lmt; i++)
         {
@@ -637,7 +638,10 @@ void Thread::exit() {
     }
 
     GarbageCollector::self->reconcileLocks(this);
-    free(this->callStack); callStack = NULL;
+    if(callStack) {
+        free(this->callStack); callStack = NULL;
+        GarbageCollector::self->freeMemory(sizeof(Frame) * stack_lmt);
+    }
     this->state = THREAD_KILLED;
     this->signal = tsig_empty;
     this->exited = true;
@@ -867,7 +871,7 @@ void Thread::exec() {
                 _brh
             VARCAST:
                 CHECK_NULL2(
-                        if(o2->object->type != _stype_var) {
+                        if(TYPE(o2->object->info) != _stype_var) {
                             stringstream ss;
                             ss << "illegal cast to var" << (GET_Da(*pc) ? "[]" : "");
                             throw Exception(Environment::ClassCastException, ss.str());
@@ -947,7 +951,7 @@ void Thread::exec() {
                 _brh
             IALOAD: // tested
                 o = sp->object.object;
-                if(o != NULL && o->type != _stype_var) {
+                if(o != NULL && TYPE(o->info) != _stype_var) {
                     registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
                 } else throw Exception(Environment::NullptrException, "");
                 _brh
@@ -1161,7 +1165,7 @@ void Thread::exec() {
                 _brh
             NEWCLASSARRAY:
                 (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Ca(*pc)],
-                                                                    env->findClassBySerial(GET_Cb(*pc)));
+                                                                    &env->classes[GET_Cb(*pc)]);
                 STACK_CHECK _brh
             NEWSTRING:
                 GarbageCollector::self->createStringArray(&(++sp)->object, env->getStringById(GET_Da(*pc)));
@@ -1370,7 +1374,7 @@ void Thread::setup() {
         setPriority(this, priority);
 
         if(currentThread.object != nullptr
-           && currentThread.object->k != nullptr) {
+           && IS_CLASS(currentThread.object->info)) {
             Object *threadName = env->findField("name", currentThread.object);
 
             if(threadName != NULL) { // reset thread name

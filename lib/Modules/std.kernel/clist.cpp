@@ -60,8 +60,8 @@ void __clist_shrink() {
     Thread *self = thread_self;
     SharpObject *lst = (self->sp--)->object.object;
 
-    if(lst != NULL && lst->k != NULL && lst->size >= 2) {
-        if(lst->node[0].object != NULL && lst->node[0].object->type == _stype_var
+    if(lst != NULL && IS_CLASS(lst->info) && lst->size >= 2) {
+        if(lst->node[0].object != NULL && TYPE(lst->node[0].object->info) == _stype_var
            && lst->node[1].object != NULL) {
 
             __shrink(lst);
@@ -73,8 +73,8 @@ void __clist_add() {
     Thread *self = thread_self;
     SharpObject *lst = (self->sp--)->object.object;
 
-    if(lst != NULL && lst->k != NULL && lst->size >= 2) {
-        if (lst->node[0].object != NULL && lst->node[0].object->type == _stype_var
+    if(lst != NULL && IS_CLASS(lst->info) && lst->size >= 2) {
+        if (lst->node[0].object != NULL && TYPE(lst->node[0].object->info) == _stype_var
             && lst->node[1].object != NULL) {
             double* size = lst->node[0].object->HEAD;
             SharpObject* data = lst->node[1].object;
@@ -98,7 +98,7 @@ void __clist_insert() {
     Thread *self = thread_self;
     SharpObject *lst = (self->sp--)->object.object;
 
-    if(lst != NULL && lst->k != NULL && lst->size >= 2) {
+    if(lst != NULL && IS_CLASS(lst->info) && lst->size >= 2) {
         if (lst->node[0].object != NULL && lst->node[0].object->HEAD != NULL
             && lst->node[1].object != NULL) {
             SharpObject* size = lst->node[0].object;
@@ -128,7 +128,7 @@ void __clist_remove() {
     Thread *self = thread_self;
     SharpObject *lst = (self->sp--)->object.object;
 
-    if(lst != NULL && lst->k != NULL && lst->size >= 2) {
+    if(lst != NULL && IS_CLASS(lst->info) && lst->size >= 2) {
         if (lst->node[0].object != NULL && lst->node[0].object->HEAD != NULL
             && lst->node[1].object != NULL) {
             SharpObject* size = lst->node[0].object;

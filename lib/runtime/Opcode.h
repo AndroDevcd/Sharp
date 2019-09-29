@@ -72,8 +72,8 @@
 
 #define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
 #define CHECK_NULL2(x) if(o2==NULL|o2->object == NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
-#define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->type != _stype_struct) { throw Exception(Environment::NullptrException, ""); } else { x }
-#define CHECK_INULLOBJ(x) if(o2==NULL || o2->object == NULL || o2->object->type != _stype_var) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL || TYPE(o2->object->info) != _stype_struct) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_INULLOBJ(x) if(o2==NULL || o2->object == NULL || TYPE(o2->object->info) != _stype_var) { throw Exception(Environment::NullptrException, ""); } else { x }
 
 #define _initOpcodeTable \
         static void* opcode_table[] = { \

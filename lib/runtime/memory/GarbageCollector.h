@@ -158,6 +158,17 @@ public:
          mutex.unlock();
      }
 
+
+    /**
+     * Removed tracked memory from managed memory
+     * @param bytes
+     */
+    CXX11_INLINE void freeMemory(size_t bytes) {
+        mutex.lock();
+        managedBytes -= bytes;
+        mutex.unlock();
+    }
+
     CXX11_INLINE bool spaceAvailable(unsigned long long bytes) {
         return (bytes+managedBytes) < memoryLimit;
     }
@@ -253,17 +264,25 @@ private:
 #define GC_COLLECT_MEM() ( managedBytes >= memoryThreshold )
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))
 
-// gc info macros
-#define GENERATION_MASK 0x7
-#define GENERATION(g) (g & GENERATION_MASK)
-#define MARKED(g) ((g >> 3) & 1UL)
-#define HAS_LOCK(g) ((g >> 4))
-#define MARK(g, enable) (g ^= (-(unsigned long)enable ^ g) & (1UL << 3))
-#define SET_LOCK(g, enable) (g ^= (-(unsigned long)enable ^ g) & (1UL << 4))
-#define SET_GENERATION(inf, gen) (inf = (gen | (MARKED(inf) << 3) | (HAS_LOCK(inf) << 4)))
+// object info macros
+#define GENERATION_MASK 0x3
+#define CLASS_MASK 0xffffff
+#define TYPE_MASK 0x7
+#define GENERATION(inf) ((inf >> 28) & GENERATION_MASK)
+#define CLASS(inf) (inf & CLASS_MASK)
+#define TYPE(inf) ((uint32_t)(inf >> 24) & TYPE_MASK)
+#define MARKED(inf) ((inf >> 30) & 1UL)
+#define HAS_LOCK(inf) ((inf >> 31))
+#define IS_CLASS(inf) ((inf >> 27) & 1UL)
+#define MARK(inf, enable) (inf ^= (-(unsigned long)enable ^ inf) & (1UL << 30))
+#define SET_LOCK(inf, enable) (inf ^= (-(unsigned long)enable ^ inf) & (1UL << 31))
+#define SET_CLASS_BIT(inf, enable) (inf ^= (-(unsigned long)enable ^ inf) & (1UL << 27))
+#define SET_GENERATION(inf, gen) (inf = (uint32_t)(CLASS(inf) | (TYPE(inf) << 24) | (IS_CLASS(inf) << 27) | (gen << 28) | (MARKED(inf) << 30) | (HAS_LOCK(inf) << 31)))
+#define SET_TYPE(inf, type) (inf = (uint32_t)(CLASS(inf) | (type << 24) | ((inf >> 27) << 27)))
+#define SET_INFO(inf, k, type, gen) (inf = (uint32_t)(k | (type << 24) |  (gen << 27)))
 
 #define UPDATE_GC(object) \
-    switch(GENERATION(object->gc_info)) { \
+    switch(GENERATION(object->info)) { \
         case gc_young: \
             freedYoung++; \
             break; \

@@ -69,7 +69,7 @@ protected:
     x86::Gp ctx, ctx32;                  // total registers used in jit
     x86::Gp tmp, tmp32, tmp16, tmp8;
     x86::Gp value;
-    x86::Gp fnPtr, arg;
+    x86::Gp fnPtr, fnPtr32, arg;
     x86::Gp regPtr, threadPtr;
     x86::Gp bp, sp;
     x86::Gp fnArg3, fnArg4;
@@ -143,7 +143,7 @@ private:
     x86::Mem Lstack_element[2];   // memory layout of struct StackElement {}
     x86::Mem Lframe[4];           // memory layout of struct Frame {}
     x86::Mem Lmethod[1];          // memory layout of struct Method {}
-    x86::Mem Lsharp_object[5];    // memory layout of struct SharpObject {}
+    x86::Mem Lsharp_object[4];    // memory layout of struct SharpObject {}
 };
 
 enum ConstKind {
@@ -291,9 +291,8 @@ struct Constants {
 // struct SharpObject {} fields
 #define sharp_object_HEAD 0
 #define sharp_object_node 1
-#define sharp_object_k    2
-#define sharp_object_size 3
-#define sharp_object_type 4
+#define sharp_object_size 2
+#define sharp_object_info 3
 
 // handy macros to use
 #define JIT_MAX_ATTEMPTS 3

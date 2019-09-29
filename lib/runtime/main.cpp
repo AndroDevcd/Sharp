@@ -290,7 +290,7 @@ void createStringArray(Object *object, _List<native_string> &args) {
     native_string str(ss.str());
 
     object->object = GarbageCollector::self->newObjectArray(size);
-    object->object->gc_info = gc_perm;
+    SET_GENERATION(object->object->info, gc_perm);
 
     GarbageCollector::self->createStringArray(&object->object->node[iter++], manifest.application);
     GarbageCollector::self->createStringArray(&object->object->node[iter++], manifest.version);

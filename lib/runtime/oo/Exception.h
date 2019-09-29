@@ -30,7 +30,7 @@ public:
         native = false;
     }
 
-    Throwable(ClassObject* throwable, string message, bool native)
+    Throwable(ClassObject* throwable, const std::string &message, bool native)
             :
             throwable(throwable),
             native(native)
@@ -38,6 +38,16 @@ public:
         this->message.init();
         this->stackTrace.init();
         this->message=message;
+    }
+
+    void init(ClassObject* throwable, const char* message, bool native) {
+        this->throwable = throwable;
+        this->native = native;
+        this->message.init();
+        this->stackTrace.init();
+
+        string m(message);
+        this->message = m;
     }
 
     void operator=(Throwable& t) {

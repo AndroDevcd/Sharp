@@ -86,9 +86,8 @@ void _BaseAssembler::setupSharpObjectFields() {
     SharpObject o;
     Lsharp_object[sharp_object_HEAD] = getMemPtr(relative_offset((&o), HEAD, HEAD));
     Lsharp_object[sharp_object_node] = getMemPtr(relative_offset((&o), HEAD, node));
-    Lsharp_object[sharp_object_k] = getMemPtr(relative_offset((&o), HEAD, k));
-    Lsharp_object[sharp_object_size] = getMemPtr(relative_offset((&o), HEAD, size));
-    Lsharp_object[sharp_object_type] = x86::byte_ptr(ctx, relative_offset((&o), HEAD, type));
+    Lsharp_object[sharp_object_size] = x86::dword_ptr(ctx, relative_offset((&o), HEAD, size));
+    Lsharp_object[sharp_object_info] = x86::dword_ptr(ctx, relative_offset((&o), HEAD, info));
 }
 
 int _BaseAssembler::performInitialCompile() {
@@ -530,8 +529,10 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         Label isNull = assembler.newLabel(), end = assembler.newLabel();
                         assembler.je(isNull);
 
-                        assembler.mov(tmp, 0);
-                        assembler.mov(tmp8, Lsharp_object[sharp_object_type]);
+                        assembler.mov(tmp32, Lsharp_object[sharp_object_info]);
+                        assembler.shr(tmp32, 24);
+                        assembler.mov(tmp32, tmp32);
+                        assembler.and_(tmp32, TYPE_MASK);
                         assembler.cmp(tmp8, _stype_var);
                         assembler.jne(isNull);
                         assembler.mov(value, Lsharp_object[sharp_object_HEAD]);
@@ -798,6 +799,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
                         assembler.je(ifFalse);
 
                         assembler.mov(ctx, Lsharp_object[sharp_object_size]);
+                        assembler.mov(ctx32, ctx32);
                         assembler.cvtsi2sd(vec0, ctx);
                         movRegister(assembler, vec0, GET_Da(ir));
 
@@ -1519,6 +1521,7 @@ int _BaseAssembler::compile(Method *func) { // TODO: IMPORTANT!!!!! write code t
 
                         checkO2(assembler, o2Ptr, lbl_thread_chk, i, true);
                         assembler.mov(fnPtr, Lsharp_object[sharp_object_size]);
+                        assembler.mov(fnPtr32, fnPtr32);
 
                         movRegister(assembler, vec0, GET_Da(ir), false);
                         assembler.cvttsd2si(value, vec0); // double to int
@@ -1830,8 +1833,10 @@ void _BaseAssembler::checkO2Node(x86::Assembler &assembler, const x86::Mem &o2Pt
     assembler.cmp(ctx, 0);
     assembler.je(nullCheckFailed);
 
-    assembler.mov(tmp, 0);
-    assembler.mov(tmp8, Lsharp_object[sharp_object_type]);
+    assembler.mov(tmp32, Lsharp_object[sharp_object_info]);
+    assembler.shr(tmp32, 24);
+    assembler.mov(tmp32, tmp32);
+    assembler.and_(tmp32, TYPE_MASK);
     assembler.cmp(tmp8, _stype_struct);
     assembler.jne(nullCheckFailed);
 
@@ -1859,8 +1864,10 @@ void _BaseAssembler::checkO2Head(x86::Assembler &assembler, const x86::Mem &o2Pt
     assembler.cmp(ctx, 0);
     assembler.je(nullCheckFailed);
 
-    assembler.mov(tmp, 0);
-    assembler.mov(tmp8, Lsharp_object[sharp_object_type]);
+    assembler.mov(tmp32, Lsharp_object[sharp_object_info]);
+    assembler.shr(tmp32, 24);
+    assembler.mov(tmp32, tmp32);
+    assembler.and_(tmp32, TYPE_MASK);
     assembler.cmp(tmp8, _stype_var);
     assembler.jne(nullCheckFailed);
 
@@ -1924,7 +1931,7 @@ void _BaseAssembler::jitCast(Object *obj, x86int_t klass) {
 
 void _BaseAssembler::jitCastVar(Object *obj, int array) {
     if(obj!=NULL && obj->object != NULL) {
-        if(obj->object->type != _stype_var) {
+        if(TYPE(obj->object->info) != _stype_var) {
             stringstream ss;
             ss << "illegal cast to var" << (array ? "[]" : "");
             Exception err(Environment::ClassCastException, ss.str());
@@ -2174,7 +2181,7 @@ void _BaseAssembler::__srt_cxx_prepare_throw(Exception &e) {
         VirtualMachine::fillStackTrace(self->throwable.stackTrace);
     } else {
         VirtualMachine::fillStackTrace(eobj);
-        self->throwable.throwable = eobj->object->k;
+        self->throwable.throwable = &env->classes[CLASS(eobj->object->info)];
     }
     sendSignal(self->signal, tsig_except, 1);
 }

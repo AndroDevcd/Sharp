@@ -28,9 +28,12 @@ Any other compatibility issues/changes will be otherwise noted in the release no
     # Bug Fixes
         * Fixed several null checks incorrectly being applied to objects and could have lead to a seg fault
         * Fixed major control flow statement bug when setting default values on class variables causing seg faults
+        * Fixed seg fault on out of memory exception event
+        * Fixed bug in JIT when creating an array of classes
 
     # QoL Improvements
-        *
+        * Improved the speed and efficency of casting via class address lookups
+        * Further improved memory footprint/allocation performance of objects in Sharp. Objecects are now fully optimized (48 bytes -> 40 bytes)
 
     # New Additions
         *

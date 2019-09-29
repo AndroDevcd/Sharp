@@ -305,7 +305,8 @@ private:
                 stringstream ss;
                 ss << "index out of bounds list::expand() _X: " << len
                    << " max: " << max << endl;
-                throw Exception(ss.str());
+                string s = ss.str();
+                throw Exception(s);
             }
 
             if(_Data==NULL){

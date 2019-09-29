@@ -168,7 +168,7 @@ int CreateVirtualMachine(std::string exe)
      */
     for(unsigned long i = 0; i < manifest.classes-AUX_CLASSES; i++) {
         env->globalHeap[i].object = GarbageCollector::self->newObject(&env->classes[i]);
-        env->globalHeap[i].object->gc_info = gc_perm;
+        SET_GENERATION(env->globalHeap[i].object->info, gc_perm);
     }
 
     return 0;
@@ -190,8 +190,8 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t stati
     ClassObject* klass;
     fptr jitFn;
 
-    if(o2!=NULL && o2->type == _stype_struct) {
-        klass = o2->k;
+    if(o2!=NULL && TYPE(o2->info) == _stype_struct) {
+        klass = &env->classes[CLASS(o2->info)];
         if (klass != NULL) {
             search:
             for (long i = 0; i < klass->methodCount; i++) {
@@ -507,7 +507,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             return;
         case 0xe8: {
             SharpObject* str = (thread_self->sp--)->object.object;
-            if(str != NULL && str->type == _stype_var) {
+            if(str != NULL && TYPE(str->info) == _stype_var) {
                 native_string cmd;
                 for(long i = 0; i < str->size; i++)
                     cmd += str->HEAD[i];
@@ -548,7 +548,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             Object *arry = &thread_self->sp->object;
             SharpObject *o = arry->object;
 
-            if(o != NULL && o->type == _stype_var) {
+            if(o != NULL && TYPE(o->info) == _stype_var) {
                 native_string path, absolute;
                 for(long i = 0; i < o->size; i++) {
                     path += o->HEAD[i];
@@ -573,11 +573,11 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     throw Exception(ss.str());
                 }
 
-                if(o->k != NULL) { // class?
+                if(IS_CLASS(o->info)) { // class?
 
-                    if(o->type != _stype_struct || o->node == NULL)
+                    if(TYPE(o->info) != _stype_struct || o->node == NULL)
                         throw Exception(Environment::NullptrException, "");
-                    data = GarbageCollector::self->newObjectArray(len, o->k);
+                    data = GarbageCollector::self->newObjectArray(len, &env->classes[CLASS(o->info)]);
 
                     for(size_t i = 0; i < len; i++) {
                         data.object->node[i] = o->node[i];
@@ -585,13 +585,13 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->type == _stype_var) { // var[]
+                } else if(TYPE(o->info) == _stype_var) { // var[]
                     data = GarbageCollector::self->newObject(len);
                     std::memcpy(data.object->HEAD, o->HEAD, sizeof(double)*len);
 
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->type == _stype_struct && o->node != NULL) { // object? maybe...
+                } else if(TYPE(o->info) == _stype_struct && o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObject(len);
                     for(size_t i = 0; i < len; i++) {
                         data.object->node[i] = o->node[i];
@@ -619,10 +619,10 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     throw Exception(ss.str());
                 }
 
-                if(o->k != NULL) { // class?
-                    if(o->type != _stype_struct || o->node == NULL)
+                if(IS_CLASS(o->info)) { // class?
+                    if(TYPE(o->info) != _stype_struct || o->node == NULL)
                         throw Exception(Environment::NullptrException, "");
-                    data = GarbageCollector::self->newObjectArray(len, o->k);
+                    data = GarbageCollector::self->newObjectArray(len, &env->classes[CLASS(o->info)]);
 
                     for(size_t i = 0; i < indexLen; i++) {
                         data.object->node[i] = o->node[i];
@@ -630,12 +630,12 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->type == _stype_var) { // var[]
+                } else if(TYPE(o->info) == _stype_var) { // var[]
                     data = GarbageCollector::self->newObject(len);
                     std::memcpy(data.object->HEAD, o->HEAD, sizeof(double)*indexLen);
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->type == _stype_struct && o->node != NULL) { // object? maybe...
+                } else if(TYPE(o->info) == _stype_struct && o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObjectArray(len);
                     for(size_t i = 0; i < indexLen; i++) {
                         data.object->node[i] = o->node[i];
@@ -665,10 +665,10 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     throw Exception(ss.str());
                 }
 
-                if(o->k != NULL) { // class?
-                    if(o->type != _stype_struct || o->node == NULL)
+                if(IS_CLASS(o->info)) { // class?
+                    if(TYPE(o->info) != _stype_struct || o->node == NULL)
                         throw Exception(Environment::NullptrException, "");
-                    data = GarbageCollector::self->newObjectArray(sz+1, o->k);
+                    data = GarbageCollector::self->newObjectArray(sz+1, &env->classes[CLASS(o->info)]);
 
                     for(size_t i = startIndex; i < o->size; i++) {
                         data.object->node[idx++] = o->node[i];
@@ -677,12 +677,12 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->type == _stype_var) { // var[]
+                } else if(TYPE(o->info) == _stype_var) { // var[]
                     data = GarbageCollector::self->newObject(sz+1);
                     std::memcpy(data.object->HEAD, &o->HEAD[startIndex], sizeof(double)*data.object->size);
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->type == _stype_struct && o->node != NULL) { // object? maybe...
+                } else if(TYPE(o->info) == _stype_struct && o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObjectArray(sz+1);
 
                     for(size_t i = startIndex; i < o->size; i++) {
@@ -714,10 +714,10 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     throw Exception(ss.str());
                 }
 
-                if(o->k != NULL) { // class?
+                if(IS_CLASS(o->info)) { // class?
                     if(o->node == NULL)
                         throw Exception(Environment::NullptrException, "");
-                    data = GarbageCollector::self->newObjectArray(sz+1, o->k);
+                    data = GarbageCollector::self->newObjectArray(sz+1, &env->classes[CLASS(o->info)]);
 
                     for(size_t i = endIndex; i > 0; i--) {
                         data.object->node[idx++] = o->node[i];
@@ -726,7 +726,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->type == _stype_var) { // var[]
+                } else if(TYPE(o->info) == _stype_var) { // var[]
                     data = GarbageCollector::self->newObject(sz+1);
 
                     for(size_t i = endIndex; i > 0; i--) {
@@ -736,7 +736,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                     *arry = data.object;
                     data.object->refCount = 1;
-                } else if(o->type == _stype_struct && o->node != NULL) { // object? maybe...
+                } else if(TYPE(o->info) == _stype_struct && o->node != NULL) { // object? maybe...
                     data = GarbageCollector::self->newObjectArray(sz+1);
 
                     for(size_t i = endIndex; i > 0; i--) {
@@ -764,15 +764,15 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     throw Exception(ss.str());
                 }
 
-                if(o->k != NULL) { // class?
+                if(IS_CLASS(o->info)) { // class?
 
                     if(o->node == NULL)
                         throw Exception(Environment::NullptrException, "");
 
                     GarbageCollector::self->reallocObject(o, len);
-                } else if(o->type == _stype_var) { // var[]
+                } else if(TYPE(o->info) == _stype_var) { // var[]
                     GarbageCollector::self->realloc(o, len);
-                } else if(o->type == _stype_struct && o->node != NULL) { // object? maybe...
+                } else if(TYPE(o->info) == _stype_struct && o->node != NULL) { // object? maybe...
                     GarbageCollector::self->reallocObject(o, len);
                 }
 
@@ -795,7 +795,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             Object *arry = &(thread_self->sp--)->object;
             SharpObject *o = arry->object;
 
-            if(o != NULL && o->type==_stype_var) {
+            if(o != NULL && TYPE(o->info)==_stype_var) {
                 native_string path;
                 for(long i = 0; i < o->size; i++) {
                     path += o->HEAD[i];
@@ -863,7 +863,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             SharpObject *o = (thread_self->sp--)->object.object;
             SharpObject *o2 = (thread_self->sp--)->object.object;
 
-            if (o != NULL && o->type == _stype_var && o2 != NULL && o2->type == _stype_var) {
+            if (o != NULL && TYPE(o->info) == _stype_var && o2 != NULL && TYPE(o2->info) == _stype_var) {
                 native_string path, rename;
                 for (long i = 0; i < o->size; i++) {
                     path += o->HEAD[i];
@@ -934,7 +934,7 @@ void VirtualMachine::Throw() {
 
     if (!hasSignal(thread_self->signal, tsig_except))
     {
-            thread_self->throwable.throwable = thread_self->exceptionObject.object->k;
+            thread_self->throwable.throwable = &env->classes[CLASS(thread_self->exceptionObject.object->info)];
             fillStackTrace(&thread_self->exceptionObject);
             sendSignal(thread_self->signal, tsig_except, 1);
     }
@@ -999,7 +999,7 @@ void VirtualMachine::fillStackTrace(Object *exceptionObject) {
     fillStackTrace(str);
     thread_self->throwable.stackTrace = str;
 
-    if(exceptionObject->object && exceptionObject->object->k != NULL) {
+    if(exceptionObject->object && IS_CLASS(exceptionObject->object->info)) {
 
         Object* stackTrace = env->findField("stackTrace", exceptionObject->object);
         Object* message = env->findField("message", exceptionObject->object);
@@ -1010,7 +1010,7 @@ void VirtualMachine::fillStackTrace(Object *exceptionObject) {
         if(message != NULL) {
             if(thread_self->throwable.native)
                 GarbageCollector::self->createStringArray(message, thread_self->throwable.message);
-            else if(message->object != NULL && message->object->type == _stype_var) {
+            else if(message->object != NULL && TYPE(message->object->info) == _stype_var) {
                 stringstream ss;
                 for(unsigned long i = 0; i < message->object->size; i++) {
                     ss << (char) message->object->HEAD[i];

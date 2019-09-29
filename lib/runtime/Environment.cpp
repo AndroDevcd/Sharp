@@ -27,18 +27,6 @@ ClassObject *Environment::findClass(string name) {
     throw Exception("class not found `" + name + "'");
 }
 
-ClassObject *Environment::findClassBySerial(int64_t id) {
-    for (uint64_t i = 0; i < manifest.classes; i++) {
-        if (env->classes[i].serial == id)
-            return &env->classes[i];
-    }
-
-    stringstream msg;
-    msg << "class not found @serial:" << id;
-
-    throw Exception(msg.str());
-}
-
 void Environment::shutdown() {
     for(unsigned int i = 0; i < manifest.methods; i++) {
         this->methods[i].free();
@@ -88,11 +76,11 @@ native_string& Environment::getStringById(int64_t ref) {
 }
 
 Object* Environment::findField(std::string name, SharpObject *object) {
-    if(object == NULL || object->k == NULL)
+    if(object == NULL || !IS_CLASS(object->info))
         return NULL;
 
     int64_t index;
-    if((index = object->k->fieldindex(name)) != -1) {
+    if((index = env->classes[CLASS(object->info)].fieldindex(name)) != -1) {
         return &object->node[index];
     }
 
