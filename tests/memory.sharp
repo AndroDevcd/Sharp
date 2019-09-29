@@ -76,6 +76,8 @@ def baseLine() {
 */
 def results0() {
     /*
+    * sizeof(SharpObject) = 48
+    *
     * baseline()
     * task manager Mem: 6.9 mb
     * managed Mem: 3008440
@@ -99,6 +101,37 @@ def results0() {
     * bigArray()
     * task manager Mem: 6,306.1 mb
     * managed Mem: 3184723408
+    *
+    */
+}
+
+def results1() {
+    /*
+    * sizeof(SharpObject) = 40
+    *
+    * baseline()
+    * task manager Mem: 9.3 mb
+    * managed Mem: 3006888
+    *
+    * varArray()
+    * task manager Mem: 9.4 mb
+    * managed Mem: 83006928
+    *
+    * intArray()
+    * task manager Mem: 85.6 mb
+    * managed Mem: 83006928
+    *
+    * listArray()
+    * task manager Mem: 3,120.1 mb
+    * managed Mem: 2403162936
+    *
+    * threadArray()
+    * task manager Mem: 268.2 mb
+    * managed Mem: 67965336
+    *
+    * bigArray()
+    * task manager Mem: 3,380.4 mb
+    * managed Mem: 2898071952
     *
     */
 }
