@@ -1,0 +1,220 @@
+mod std;
+
+/**                          
+* Created by bknun on 6/7/2018            
+* Description:                             
+*/
+public class Dictionary<TKey, TValue> {
+    private ArrayList<TKey> keys;
+    private ArrayList<TValue> values;
+
+    public Dictionary() {
+        keys = new ArrayList<TKey>();
+        values = new ArrayList<TValue>();
+    }
+
+    /**
+     * Returns the number of entries (distinct keys) in this dictionary.
+     *
+     */
+    public def size() : var {
+        return keys.size();
+    }
+
+    /**
+     * Tests if this dictionary maps no keys to value. The general contract
+     * for the empty method is that the result is true if and only
+     * if this dictionary contains no entries.
+     *
+     */
+    public def empty() : var {
+        return keys.empty();
+    }
+
+    /**
+      * Returns an array of the keys in this dictionary. The general
+      * contract for the keys method is that an array of type <keys> object
+      * is returned that will be a reference to all the keys in the dictionary.
+      *
+      */
+     public def getKeys() : TKey[] {
+        return keys.toArray();
+     }
+
+     /**
+      * Returns the last key in the list. The general
+      * contract for the lastKey method is that if there is anything
+      * residing in the list the data will be returned. Otherwise
+      * an exception is thrown
+      *
+      */
+      public def lastKey() : TKey {
+        return keys.last();
+      }
+
+     /**
+      * Returns the last value in the list. The general
+      * contract for the lastValue method is that if there is anything
+      * residing in the list the data will be returned. Otherwise
+      * an exception is thrown
+      *
+      */
+      public def lastValue() : TValue {
+        return values.last();
+      }
+
+     /**
+      * Returns an array of the values in this dictionary. The general
+      * contract for the elements method is that an array of type <value> object
+      * is returned that will be a reference to all the values in the dictionary.
+      *
+      */
+     public def elements() : TValue[] {
+        return values.toArray();
+     }
+
+     /**
+      * Returns the first value to which the key is mapped in this dictionary.
+      * The general contract for the get method is that if this
+      * dictionary contains an entry for the specified key, the associated
+      * value is returned; otherwise, null or 0 is returned in respect to
+      * the type of values you are holding;
+      *
+      */
+     public def get(TKey key) : TValue {
+        TKey[] keys = self->keys.data();
+        var index;
+        foreach(TKey k : keys) {
+            if(k == key)
+                return values.get(index);
+            index++;
+        }
+
+        TValue nilValue;
+        return nilValue; // the compiler will handle the rest
+     }
+
+     /**
+      * Returns the value to witch the index is mapped to.
+      * The general contract for the valueAt method is that if this
+      * dictionary contains at lease the number of entries that can support
+      * the given index, the associated value is returned; otherwise, an
+      * index out of bounds exception is thrown
+      *
+      */
+     public def valueAt(var index) : TValue {
+        return values.get(index);
+     }
+
+
+     /**
+      * Returns the key to witch the index is mapped to.
+      * The general contract for the keyAt method is that if this
+      * dictionary contains at lease the number of entries that can support
+      * the given index, the associated key is returned; otherwise, an
+      * index out of bounds exception is thrown
+      *
+      */
+     public def keyAt(var index) : TKey {
+        return keys.get(index);
+     }
+
+     /**
+      * Drops the last key and value residing in the dictionary
+      * The general contract for the drop method is that if this
+      * dictionary contains at lease 1 entry that can be deleted,
+      * the entry in question is deleted the associated key is returned; otherwise, an
+      * index out of bounds exception is thrown
+      *
+      */
+     public def drop() {
+        if(keys.empty())
+            throw new IllegalArgumentException("cannot delete key from empty list");
+
+        values.popBack();
+        keys.popBack();
+     }
+
+     /**
+      * Returns all the values to which the key is mapped in this dictionary.
+      * The general contract for the get method is that if this
+      * dictionary contains an entry for the specified key, the associated
+      * value is returned; otherwise, null is returned
+      *
+      */
+     public def getAll(TKey key) : TValue[] {
+        TKey[] keys = self->keys.data();
+        ArrayList<TValue> tmp = new ArrayList<TValue>();
+        var index;
+        foreach(TKey k : keys) {
+            if(k == key)
+                tmp.add(values.get(index));
+            index++;
+        }
+
+        return tmp.toArray();
+     }
+
+     /**
+      * Maps the specified key to the specified
+      * value in this dictionary.
+      *
+      * Unlike Map if this dictionary already contains an entry for the specified
+      * key, the new value is simply appended to the list of keys and values.
+      * Dictionary supports multiple values pointed to a specified key
+      * so the user never has to worry about replacing the current value in the key
+      *
+      */
+     public def put(TKey key, TValue value) {
+          keys.add(key);
+          values.add(value);
+     }
+
+     /**
+      * Removes all the entries with the key (and its corresponding value)
+      * from this dictionary. This method does nothing
+      * if the key is not in this dictionary.
+      *
+      */
+     public def remove(TKey key) {
+        var index;
+        TKey[] k = keys.data();
+        for(var i = 0; i < keys.size(); i++) {
+            if(key == k[i]) {
+                keys.remove(i);
+                values.remove(i);
+
+                i--;
+                k = keys.data();
+            }
+        }
+     }
+
+     /**
+      * Removes the entries at the specified index.
+      * This method cal an index out of bounds exception if the
+      * index does not exist
+      *
+      */
+     public def removeAt(var index) {
+        keys.remove(index);
+        values.remove(index);
+     }
+
+     /**
+      * Finds the index of the first key from this dictionary. This method return -1(invalid)
+      * if the key is not in this dictionary.
+      *
+      */
+     public def indexof(TKey key) : var {
+        TKey[] keys = self->keys.data();
+        var index;
+        foreach(TKey k : keys) {
+            if(k == key)
+                return index;
+            index++;
+        }
+
+        return -1;
+     }
+}

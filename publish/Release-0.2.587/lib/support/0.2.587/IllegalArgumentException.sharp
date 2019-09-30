@@ -1,0 +1,15 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 5/24/2018.
+ */
+public class IllegalArgumentException base Exception {
+
+      public IllegalArgumentException(var[] message) {
+        base->Exception(message);
+      }
+
+      public IllegalArgumentException(string message) {
+        base->Exception(message);
+      }
+}

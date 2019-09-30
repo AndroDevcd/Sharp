@@ -5,17 +5,12 @@ import std.kernel;
 import std.io;
 
 def main() {
-    File file = new File(new string("README1.md"));
+    File file = new File(new string("C:\\Sharp\\test.txt"));
 
-    println("file " + file.getPath() + " being created  ");
-    file.create();
-
-    file.setWritable(true);
-    IOStream ostream = new IOStream(file, IOStream.WRITE);
-    ostream.write("Hello, World!\n");
+    IOStream ostream = new IOStream(file, IOStream.READ);
+    for(var i =0; i < 100000000; i++)
+    {
+        var tmp = string.parseInt(ostream.getData());
+    }
     ostream.close();
-
-    IOStream istream = new IOStream(file, IOStream.READ);
-    println(istream.nextLine());
-    istream.close();
 }
