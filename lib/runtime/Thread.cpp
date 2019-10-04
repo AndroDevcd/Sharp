@@ -637,13 +637,14 @@ void Thread::exit() {
         }
     }
 
-    GarbageCollector::self->reconcileLocks(this);
     if(callStack) {
         free(this->callStack); callStack = NULL;
         GarbageCollector::self->freeMemory(sizeof(Frame) * stack_lmt);
     }
     this->state = THREAD_KILLED;
     this->signal = tsig_empty;
+
+    GarbageCollector::self->reconcileLocks(this);
     this->exited = true;
 }
 
@@ -951,7 +952,7 @@ void Thread::exec() {
                 _brh
             IALOAD: // tested
                 o = sp->object.object;
-                if(o != NULL && TYPE(o->info) != _stype_var) {
+                if(o != NULL && TYPE(o->info) == _stype_var) {
                     registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
                 } else throw Exception(Environment::NullptrException, "");
                 _brh
@@ -1075,7 +1076,7 @@ void Thread::exec() {
                 STACK_CHECK _brh
             MOVN:
                 CHECK_NULLOBJ(
-                        if(GET_Da(*pc) >= o2->object->size)
+                        if(GET_Da(*pc) >= o2->object->size || GET_Da(*pc) < 0)
                             throw Exception("movn");
 
                         o2 = &o2->object->node[GET_Da(*pc)];
@@ -1103,11 +1104,6 @@ void Thread::exec() {
                 o2 = env->globalHeap+GET_Da(*pc);
                 _brh
             MOVND:
-                if(o2 != NULL && o2->object != NULL) {
-                    if(o2->object->size <= registers[GET_Da(*pc)]) {
-                        throw Exception("movnd");
-                    }
-                }
                 CHECK_NULLOBJ(o2 = &o2->object->node[(int64_t)registers[GET_Da(*pc)]];)
                 _brh
             NEWOBJARRAY:

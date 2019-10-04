@@ -19,16 +19,16 @@ enum TokenType
     PLUS,
     MINUS,
     MULT,
-    _DIV,               //
-    _MOD,               // %
+    DIV,               //
+    MOD,               // %
     COLON,              // :
     SEMICOLON,
     DUB_QUOTE,           // "
     SING_QUOTE,          // '
     COMMA,
     NEWLINE,
-    _LTE,               // <=
-    _GTE,               // >=
+    LTE,               // <=
+    GTE,               // >=
     EQEQ,               // ==
     PLUSEQ,
     MINUSEQ,
@@ -49,13 +49,13 @@ enum TokenType
     OROR,               // ||
     XOR,                // ^
     NOT,                // !
-    ASSIGN,             // =
+    EQUALS,             // =
     LEFT_BRACE,          // [
     RIGHT_BRACE,         // ]
     QUESMK,             // ?
     PTR,                // ->
-    _INC,               // ++
-    _DEC,               // --
+    INC,               // ++
+    DEC,               // --
     DOLLAR,             // $
     _EOF = 9999,        // end of file
 

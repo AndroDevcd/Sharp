@@ -162,7 +162,7 @@ int _bootstrap(int argc, const char* argv[])
         else if(opt("-wmain")){
             warning_map[__WMAIN] = false;
         }
-        else if(opt("-wwcast")){
+        else if(opt("-wcast")){
             warning_map[__WCAST] = false;
         }
         else if(opt("-winit")){
@@ -490,9 +490,9 @@ void RuntimeEngine::compile()
         resolveAllFields();
         resolveAllMethods();
         resolveClassBases();
+        resolveAllEnums();
         resolveAllGenericMethodsParams();
         resolveAllGenericMethodsReturns();
-        resolveAllEnums();
         inheritObjectClass();
         resolveAllGlobalFields();
         inlineFields();
@@ -2251,6 +2251,7 @@ void RuntimeEngine::addClass(token_entity operand, ClassObject* klass, Expressio
     OperatorOverload* overload;
     right.literal = false;
 
+    if(klass==NULL) goto err;
     eList.push_back(right);
     expressionListToParams(params, eList);
     if(right.charLiteral && klass->getName() == "string" && klass->getModuleName() == "std") {
@@ -2303,6 +2304,7 @@ void RuntimeEngine::addClass(token_entity operand, ClassObject* klass, Expressio
         out.func=true;
         out.code.push_i64(SET_Di(i64, op_CALL, overload->address));
     } else {
+        err:
         errors->createNewError(GENERIC, pAst->line,  pAst->col, "Binary operator `$operator" + operand.getToken() + "` was not found and cannot be applied to expression of type `"
                                                           + left.typeToString() + "` and `" + right.typeToString() + "`");
     }

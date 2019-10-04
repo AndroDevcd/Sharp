@@ -236,7 +236,7 @@ public class FileSystem {
         */
         asm(
             "pushl <path>           "
-            "int 183               "
+            "int 0xb7               "
             "popl <out>             "
         );
 

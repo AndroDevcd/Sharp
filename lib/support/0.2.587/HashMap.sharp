@@ -68,29 +68,15 @@ public class HashMap <K,V> {
         maxSize = sizeof(data) * threshold;
         size = 0; // we are re adding all the data anyway
 
-        for(var i = 0; i < sizeof(oldData); i++)
+        foreach(Entry<K,V> e : oldData)
         {
-            if(oldData[i] != null) {
-                Entry<K,V> entry = oldData[i], next;
-                while(entry != null) {
-                    next = entry.next;
-                    var index = hashCode(entry.key);
-                    entry.next = null;
-
-                    if(data[index] == null) {
-                        size++;
-                        data[index] = entry;
-                    } else {
-                        size++;
-                        Entry<K,V> subEntry = data[index];
-                        while(subEntry.next != null)
-                            subEntry = subEntry.next;
-                        subEntry.next = entry;
-                    }
-
-                    entry = next;
-                }
-                oldData[i] = null;
+            while(e != null)
+            {
+                Entry<K,V> next = e.next;
+                var index = hashCode(e.key);
+                e.next = data[index];
+                data[index] = e;
+                e = next;
             }
         }
 
@@ -122,48 +108,32 @@ public class HashMap <K,V> {
         var index = hashCode(key);
         if(data[index] == null) {
             size++;
-            data[index] =  new Entry<K,V>{key, value};
+            data[index] =  new Entry<K,V>(key, value);
         } else {
             Entry<K,V> entry = data[index];
-//            var ct;
+            var ct;
             size++;
             while(entry.next != null) {
                 entry = entry.next;
                 ct++;
             }
-//            if(ct > largest) { // test code for file as its not ready yet
-//                largest=ct;
-//                println(" " + ct);
-//                println(" sz " + size);
-//                println(" index " + index);
-//                println(" key " + key);
-//                println(" hash " + key.hash());
-//            }
+            if(ct > largest) { // test code for file as its not ready yet
+                largest=ct;
+                println(" " + ct);
+                println(" sz " + size);
+                println(" index " + index);
+                println(" key " + key);
+                println(" hash " + key.hash());
+            }
             if(entry.key == key)
                 entry.value = value;
             else {
-                entry.next = new Entry<K,V>{key, value};
+                entry.next = new Entry<K,V>(key, value);
             }
         }
 
         if(size >= maxSize)
             resize();
-    }
-
-
-    private def add(Entry<K,V> entryData) {
-        var index = hashCode(entryData.key);
-        entryData.next = null;
-
-        if(data[index] == null) {
-            size++;
-            data[index] = entryData;
-        } else {
-            Entry<K,V> entry = data[index];
-            while(entry.next != null)
-                entry = entry.next;
-            entry.next = entryData;
-        }
     }
 
     public def remove(K key) : var {

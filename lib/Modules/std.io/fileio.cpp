@@ -156,15 +156,25 @@ long delete_file(native_string &path)
 void get_file_list(native_string &path, _List<native_string> &files) {
     DIR *dir;
     struct dirent *ent;
+#ifdef WIN32_
+    string div = "\\";
+#endif
+#ifdef POSIX_
+    string div = "/";
+#endif
     if ((dir = opendir (path.str().c_str())) != NULL) {
         /* print all the files and directories within directory */
         while ((ent = readdir (dir)) != NULL) {
             if (!ent->d_name || ent->d_name[0] == '.') continue;
             native_string file;
-            file = path.str() + "/" + string(ent->d_name);
+            if(path.len > 0 && !(path.chars[path.len-1] == '\\' || path.chars[path.len-1] == '/'))
+                file = path.str() + div + string(ent->d_name);
+            else
+                file = path.str() + string(ent->d_name);
+
 
             if(stat(file.str().c_str(), &result) == 0 && S_ISDIR(result.st_mode)) {
-                native_string folder(file.str() + "/");
+                native_string folder(file.str() + div);
                 get_file_list(folder, files);
                 continue;
             }

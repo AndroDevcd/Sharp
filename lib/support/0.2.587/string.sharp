@@ -42,7 +42,7 @@ public class string {
 
         public string(string str )
         {
-            self->string(str.toArray());
+            self->string(str.data);
         }
 
         public string( var[] immstr, var offset )
@@ -108,6 +108,26 @@ public class string {
             return self;
         }
 
+
+        public def append(var[] immstr, var len) : string
+        {
+            if(immstr == null || len <= 0 || len > sizeof(immstr)) return self;
+
+            var iter=sizeof(data);
+
+            if(data == null)
+                data = new var[len];
+            else
+                realloc(data, sizeof(data) + len);
+
+            for(var i = 0; i < len; i++)
+            {
+                data[iter++] = (_int16)immstr[i];
+            }
+
+            return self;
+        }
+
         public def at( var pos ) : var
         {
             if(pos >= sizeof(data)) {
@@ -141,8 +161,10 @@ public class string {
         public def operator+( Printable o ) : string
         {
             string s = new string(data);
-            var[] tmp = o.toString().data;
-            if(o != null && tmp != null)
+            var[] tmp;
+            if(o != null) tmp =  o.toString().data;
+
+            if(tmp != null)
                 return s.append(tmp);
             else
                 return s.append("null");
@@ -289,18 +311,15 @@ public class string {
          * specified index starts with the specified prefix.
          *
          */
-        public def startsWith(string prefix, var toffset) : var {
-            var to = toffset;
-            var po = 0;
-            var pc = prefix.size();
+        public def startsWith(string prefix) : var {
             // Note: toffset might be near -1>>>1.
-            if ((toffset < 0) || (toffset > size() - pc)) {
+            if (prefix == null || (sizeof(prefix.data) > sizeof(data))) {
                 return false;
             }
-            while ((--pc) >= 0) {
-                if (at(to++) != prefix.at(po++)) {
+            for(var i = 0; i < sizeof(prefix.data); i++)
+            {
+                if(data[i]!=prefix.data[i])
                     return false;
-                }
             }
             return true;
         }
@@ -336,16 +355,16 @@ public class string {
 
         public static def toLower(string s) : string {
             string newstr = new string();
-            var[] chs = s.toArray();
+            var[] chs = s.getData();
             foreach(var c : chs) {
-                newstr += char.toLower(c);
+                newstr.append(char.toLower(c));
             }
             return newstr;
         }
 
         public static def toUpper(string s) : string {
             string newstr = new string();
-            var[] chs = s.toArray();
+            var[] chs = s.getData();
             foreach(var c : chs) {
                 newstr += char.toUpper(c);
             }

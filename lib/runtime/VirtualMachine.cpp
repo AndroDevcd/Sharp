@@ -815,9 +815,11 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 else if(signal==0xb7) {
                     _List<native_string> files;
                     get_file_list(path, files);
+                    arry = &(++thread_self->sp)->object;
 
                     if(files.size()>0) {
                         *arry = GarbageCollector::self->newObjectArray(files.size());
+
                         o = arry->object;
 
                         for(long i = 0; i < files.size(); i++) {
@@ -1075,7 +1077,7 @@ void VirtualMachine::fillStackTrace(native_string &str) {
     unsigned int iter = 0;
     if((thread_self->calls+1) <= EXCEPTION_PRINT_MAX) {
 
-        for(long i = 0; i < thread_self->calls+1; i++) {
+        for(long i = 0; i < thread_self->calls; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
             fillMethodCall(thread_self->callStack[i].current, thread_self->callStack[i+1], ss);
@@ -1086,10 +1088,10 @@ void VirtualMachine::fillStackTrace(native_string &str) {
                 break;
             fillMethodCall(thread_self->callStack[i].current, thread_self->callStack[i+1], ss);
         }
-
-        Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp,0);
-        fillMethodCall(thread_self->current, frame, ss);
     }
+
+    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp,0);
+    fillMethodCall(thread_self->current, frame, ss);
 
 //    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp,0);
 //    fillMethodCall(frame, ss);

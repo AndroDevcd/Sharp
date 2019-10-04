@@ -7,12 +7,18 @@ import std;
  */
 class ErrorManager {
     private static Map<CompilerError, string> predefinedErrors = new Map<CompilerError, string>();
+    private static ErrorManager em = new ErrorManager();
+
     private ArrayList<ParseError> errors, rawErrors, warnings;
     private ArrayList<ArrayList<ParseError> > possibleErrors;
     private ParseError lastError, lastCheckedError;
     private var errorsFound, protectedMode, directReport, aggressiveErrors;
     private ArrayList<string> lines;
     private string filename;
+
+    private ErrorManager() {
+        initErrors();
+    }
 
     public ErrorManager(ArrayList<string> lines, string file, var asIs, var aggressive)
     {
@@ -156,12 +162,12 @@ class ErrorManager {
         dumpProtectedErrors();
     }
 
-    public def createNewError(CompilerError err, TokenEntity token, string msg) {
+    public def createNewError(CompilerError err, Token token, string msg) {
         string predefinedMessage = predefinedErrors.get(err);
         ParseError newErr = new ParseError(false, err, predefinedMessage, token, msg);
         ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
 
-        if(shouldReport(token, lastError, newErr) || aggressiveErrors || directReport) {
+        if(aggressiveErrors || directReport || shouldReport(token, lastError, newErr)) {
 
             if(protectedMode) {
                 possibleErrors.last().add(newErr);
@@ -184,7 +190,7 @@ class ErrorManager {
         ParseError newErr = new ParseError(false, err, predefinedMessage, line, col, msg);
         ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
 
-        if(shouldReport(null, lastError, newErr) || aggressiveErrors || directReport) {
+        if(aggressiveErrors || directReport || shouldReport(null, lastError, newErr)) {
             if(protectedMode) {
                 possibleErrors.last().add(newErr);
                 lastCheckedError = newErr;
@@ -222,7 +228,7 @@ class ErrorManager {
         }
     }
 
-    def shouldReport(TokenEntity token, ParseError lastErr, ParseError newErr) : var
+    def shouldReport(Token token, ParseError lastErr, ParseError newErr) : var
     {
         if(lastErr.error != newErr.error && !(lastErr.line == newErr.line && lastErr.col == newErr.col)
             && !lastErr.error.find(newErr.error) && !hasError(errors, newErr))
@@ -236,7 +242,7 @@ class ErrorManager {
         }
     }
 
-    def shouldReportWarning(TokenEntity token, ParseError lastErr, ParseError newErr) : var
+    def shouldReportWarning(Token token, ParseError lastErr, ParseError newErr) : var
     {
         if(lastErr.error != newErr.error && !(lastErr.line == newErr.line && lastErr.col == newErr.col)
             && !lastErr.error.find(newErr.error))
@@ -261,44 +267,44 @@ class ErrorManager {
     }
 
 
-    public def createNewError(CompilerError err, Ast ast, string msg) {
-        string predefinedMessage = predefinedErrors.get(err);
-        ParseError newErr = new ParseError(false, err, predefinedMessage, ast.line, ast.col, msg);
-        ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
+//    public def createNewError(CompilerError err, Ast ast, string msg) {
+//        string predefinedMessage = predefinedErrors.get(err);
+//        ParseError newErr = new ParseError(false, err, predefinedMessage, ast.line, ast.col, msg);
+//        ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
+//
+//        if(aggressiveErrors || directReport || shouldReport(null, lastError, newErr)) {
+//            if(protectedMode) {
+//                possibleErrors.last().add(newErr);
+//                lastCheckedError = newErr;
+//                return;
+//            } else if(directReport)
+//                printError(newErr);
+//
+//            errorsFound = true;
+//            errors.add(newErr);
+//            rawErrors.add(newErr);
+//            self->lastError = newErr;
+//        } else {
+//            rawErrors.add(newErr);
+//        }
+//    }
 
-        if(shouldReport(null, lastError, newErr) || aggressiveErrors || directReport) {
-            if(protectedMode) {
-                possibleErrors.last().add(newErr);
-                lastCheckedError = newErr;
-                return;
-            } else if(directReport)
-                printError(newErr);
-
-            errorsFound = true;
-            errors.add(newErr);
-            rawErrors.add(newErr);
-            self->lastError = newErr;
-        } else {
-            rawErrors.add(newErr);
-        }
-    }
-
-    public def createNewWarning(CompilerError err, Ast ast, string msg) {
-        string predefinedMessage = predefinedErrors.get(err);
-        ParseError newErr = new ParseError(false, err, predefinedMessage, ast.line, ast.col, msg);
-        ParseError lastError;
-        if(warnings.size() > 0)
-            lastError = warnings.last();
-        else
-            lastError = protectedMode ? lastCheckedError : self->lastError;
-
-        if(warnings.size() == 0 || shouldReportWarning(null, lastError, newErr)) {
-            if(directReport)
-                printError(newErr);
-
-            warnings.add(newErr);
-        }
-    }
+//    public def createNewWarning(CompilerError err, Ast ast, string msg) {
+//        string predefinedMessage = predefinedErrors.get(err);
+//        ParseError newErr = new ParseError(false, err, predefinedMessage, ast.line, ast.col, msg);
+//        ParseError lastError;
+//        if(warnings.size() > 0)
+//            lastError = warnings.last();
+//        else
+//            lastError = protectedMode ? lastCheckedError : self->lastError;
+//
+//        if(warnings.size() == 0 || shouldReportWarning(null, lastError, newErr)) {
+//            if(directReport)
+//                printError(newErr);
+//
+//            warnings.add(newErr);
+//        }
+//    }
 
     public static def initErrors() {
         predefinedErrors.put(CompilerError.UNEXPECTED_SYMBOL, "unexpected symbol");
@@ -387,7 +393,7 @@ class ParseError {
       self->warning = warning;
    }
 
-   public ParseError(var warning, CompilerError err, string msg, TokenEntity entity,
+   public ParseError(var warning, CompilerError err, string msg, Token entity,
             string additional) {
       id = err;
       if(additional != null && additional.size() != 0)

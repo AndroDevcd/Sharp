@@ -238,7 +238,7 @@ void Optimizer::optimize(Method *method) {
         optimizeRedundantGoto();
         optimizeLocalPops();
         optimizeRedundantMovICall();
-        //optimizeFrag1();
+//        //optimizeFrag1();
         optimizeRedundantSelfInitilization();
         optimizeLocalPush();
         optimizeRedundantMovICall2();
@@ -259,19 +259,19 @@ void Optimizer::optimize(Method *method) {
         optimizeSmovr();
         optimizeCheckLen();
         optimizeRedundantLoadStore();
-
+//
         optimizeRegister(i64ebx); /* most commonly used register in the language */
         optimizeRegister(i64egx);
         optimizeRegister(i64adx);
-        /**
-         * must be last or the entire program will be rendered unstable
-         * and will most likely fatally crash with (SEGV) signal
-         * DO NOT reorder these optimizations
-         */
+//        /**
+//         * must be last or the entire program will be rendered unstable
+//         * and will most likely fatally crash with (SEGV) signal
+//         * DO NOT reorder these optimizations
+//         */
         optimizeJumpBranches();
         optimizeLoadLocal_4();
         optimizeReturnVal();
-        optimizeNot();
+//        optimizeNot(); // for some reason or another this breaks my my code so fuck-it... LoL
 
         //optimizeNops(); this is the devil! i don't ever think this will work smh
     }catch(std::exception &e) {

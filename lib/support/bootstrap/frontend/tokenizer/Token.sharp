@@ -6,14 +6,21 @@ import std;
 * Created by bknun on 6/13/2018            
 * Description:                             
 */
-class TokenEntity {
-    public TokenEntity() {
+class Token {
+
+    private var line;
+    private var col;
+    private TokenId id;
+    private TokenType type;
+    private string token;
+
+    public Token() {
         token = "";
         type = TokenType.NONE;
         id = TokenId.NOENTITY;
     }
 
-    public TokenEntity(string tok, TokenId id, TokenType type, var col, var line) {
+    public Token(string tok, TokenId id, TokenType type, var col, var line) {
         self->token = tok;
         self->type = type;
         self->id = id;
@@ -22,7 +29,7 @@ class TokenEntity {
     }
 
 
-    public TokenEntity(string tok, TokenId id, var col, var line) {
+    public Token(string tok, TokenId id, var col, var line) {
         self->token = tok;
         self->type = TokenType.NONE;
         self->id = id;
@@ -50,7 +57,7 @@ class TokenEntity {
         return self->token != token;
     }
 
-    public def operator==(TokenEntity entity) : var {
+    public def operator==(Token entity) : var {
         return id==entity.id && token == entity.token;
     }
 
@@ -67,7 +74,7 @@ class TokenEntity {
     }
 
     public def getToken() : string {
-        return new string(token);
+        return token;
     }
 
     public def getCol() : var {
@@ -85,12 +92,6 @@ class TokenEntity {
     public def delegate::toString() : string {
         return token + ": " + line + "," + col;
     }
-
-    private var line;
-    private var col;
-    private TokenId id;
-    private TokenType type;
-    private string token = "";
 }
 
 enum TokenId

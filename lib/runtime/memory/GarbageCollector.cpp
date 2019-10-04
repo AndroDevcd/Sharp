@@ -441,11 +441,7 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
                 /**
                  * If the object still has references we just drop it and move on
                  */
-                if(o != nullptr && o->refCount <= 1) {
-                    sweep(o);
-                } else {
-                    DEC_REF(o);
-                }
+                DEC_REF(o);
             }
 
             freedBytes += sizeof(Object)*object->size;
@@ -499,7 +495,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
         SET_TYPE(object->info, _stype_struct);
 
         if(k->fieldCount > 0) {
-            object->node = (Object*)__malloc(sizeof(Object)*k->fieldCount);
+            object->node = (Object*)__calloc(k->fieldCount, sizeof(Object));
 
             for(unsigned int i = 0; i < object->size; i++) {
                 /**
@@ -508,10 +504,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
                  */
                 if(k->fields[i].type == VAR && !k->fields[i].isArray) {
                     object->node[i].object = newObject(1);
-                    SET_TYPE(object->node[i].object->info, _stype_var);
                     object->node[i].object->refCount++;
-                } else {
-                    object->node[i].object = nullptr;
                 }
             }
 
@@ -534,11 +527,8 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size) {
     SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
     object->init(size);
 
-    object->node = (Object*)__malloc(sizeof(Object)*size);
+    object->node = (Object*)__calloc(size, sizeof(Object));
     SET_TYPE(object->info, _stype_struct);
-
-    for(unsigned int i = 0; i < object->size; i++)
-        object->node[i].object = nullptr;
     
     /* track the allocation amount */
     std::lock_guard<recursive_mutex> gd(mutex);
@@ -556,12 +546,8 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
         object->init(size, k);
         SET_TYPE(object->info, _stype_struct);
 
-        if(size > 0) {
-            object->node = (Object*)__malloc(sizeof(Object)*size);
-
-            for(unsigned int i = 0; i < object->size; i++)
-                object->node[i].object = nullptr;
-        }
+        if(size > 0)
+            object->node = (Object*)__calloc(size, sizeof(Object));
 
         /* track the allocation amount */
         std::lock_guard<recursive_mutex> gd(mutex);

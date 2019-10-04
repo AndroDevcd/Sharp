@@ -1152,6 +1152,7 @@ bool Parser::parse_array_expression(Ast* pAst) {
     } else {
         if (peek(2).getTokenType() == LEFTCURLY) {
             pushback();
+            errors->pass();
             return false;
         } else {
             this->dumpstate();

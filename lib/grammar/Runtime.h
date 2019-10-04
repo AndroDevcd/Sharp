@@ -61,6 +61,12 @@ public:
     string typeToString() {
         if(isMethod)
             return "method";
+        else if(type==CLASSFIELD) {
+            if(field.type==CLASS)
+                return field.klass->getFullName();
+            else
+                return typeToString(field.type);
+        }
         else if(type==CLASS || klass != NULL)
             return isField ? field.klass->getFullName() : (klass==NULL ? "?" : klass->getFullName());
         else if(type==OBJECT)
@@ -75,12 +81,6 @@ public:
             return "void";
         else if(type==UNDEFINED)
             return "undefined";
-        else if(type==CLASSFIELD) {
-            if(field.type==CLASS)
-                return field.klass->getFullName();
-            else
-                return typeToString(field.type);
-        }
         else
             return "unresolved";
     }

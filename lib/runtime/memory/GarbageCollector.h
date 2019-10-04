@@ -257,7 +257,7 @@ private:
     void dropLock(SharpObject *);
 };
 
-#define GC_COLLECT_YOUNG() ( yObjs >= 1 )
+#define GC_COLLECT_YOUNG() ( yObjs >= 20 )
 #define GC_COLLECT_ADULT() ( aObjs >= 10 )
 #define GC_COLLECT_OLD() ( oObjs >= 10 )
 #define GC_LOW_MEM() ( managedBytes >= (0.85 * memoryLimit) )

@@ -35,7 +35,7 @@ class Options {
     /*
      * Optimize code
      */
-    public static var optimize = false;
+    public static Optimization optimizeLevel = Optimization.NONE;
 
     /*
      * Set code to be debuggable (flag only used in manifest creation)
@@ -53,11 +53,6 @@ class Options {
     public static var werrors = false;
 
     /*
-     * Allow unsafe code
-     */
-    public static var unsafe = false;
-
-    /*
      * Easter egg to enable magic mode
      */
     public static var magic = false;
@@ -71,9 +66,9 @@ class Options {
     public static var debugMode = false;
 
     /*
-     * Dump object code
+     * Dump generated assembly code
      */
-    public static var objDump = false;
+    public static var asmDump = false;
 
     /*
      * Maximum errors the compiler will allow
@@ -90,3 +85,56 @@ class Options {
      */
     public static ArrayList<string> libraries = new ArrayList<string>();
 }
+
+const var ASM_DEMANGLE = 0;
+const var ASM_SYNTAX = 1;
+const var ASM_DEBUG_INFO = 2;
+
+// WARNING SWITCHES
+const var __WGENERAL = 0;
+const var __WACCESS = 1;
+const var __WAMBIG = 2;
+const var __WDECL = 3;
+const var __WMAIN = 4;
+const var __WCAST = 5;
+const var __WINIT = 6;
+
+var[] asmDumpOptions = new var[]
+{
+    false, // de-mangle
+    false, // reformat to syntax
+    false // show debug info
+};
+
+var[] warningOptions = new var[]
+{
+    true,    // general warnings
+    true,    // waccess
+    true,   // wambig
+    true,   // wdecl
+    true,   // wmain
+    true,   // wcast
+    true    // winit
+};
+
+enum Optimization {
+    NONE = 0,
+
+    /*
+    * This optimization consists of the most basic level of optimization where
+    * no code is changed at the "user" level. Meaning all code written at the language
+    * level remain in place and code at the virtual machine level is replaced with more high performance
+    * instructions
+    *
+    */
+    BASIC = 1,
+
+    /*
+    * This optimization consists of the highest level of optimization available for your code
+    * Code under this optimization will be changed at both the "user" level and vm level. Meaning that code written at the language
+    * level may not exist at the lower level/ may be heavily modified and code at the virtual machine level is replaced with more high performance
+    * instructions
+    *
+    */
+    HIGH_PERFORMANCE = 2
+};

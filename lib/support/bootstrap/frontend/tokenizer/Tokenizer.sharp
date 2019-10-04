@@ -8,33 +8,105 @@ import std;
 */
 class Tokenizer {
 
-    public Tokenizer(string tokens, string file)
+    private ArrayList<Token> tokens;
+    private ErrorManager errors;
+    private ArrayList<string> lines;
+    private string text;
+    private var[] data;
+    private var cursor, start;
+    private var current;
+    private var line;
+    private var isEnd;
+    private var col;
+    private string file;
+
+    private Tokenizer(){ /* Dont call */ }
+
+    public Tokenizer(string text, string file)
     {
         line = 1;
         self->file = file;
-        entities = new ArrayList<TokenEntity>();
         lines = new ArrayList<string>();
 
-        if(!tokens.empty())
-            self->tokens = tokens;
+        if(!text.empty()) {
+            self->text = text;
+            self->data = text.getData();
+        }
         else {
             line = 0;
         }
 
+        tokens = new ArrayList<Token>(sizeof(data) > 60 ? (sizeof(data) / 6) : 10);
         parse();
     }
 
     def parse() {
-        if(tokens.empty())
+        if(text.empty())
             return;
 
         addLines();
         errors = new ErrorManager(lines, file, true, Options.aggressiveErrors);
-        current = tokens.at(0);
+        current = text.at(0);
 
-        while(!isEnd()) {
+        while(!isEnd) {
             start = cursor;
             switch (current) {
+              case '_':
+              case 'a':
+              case 'b':
+              case 'c':
+              case 'd':
+              case 'e':
+              case 'f':
+              case 'g':
+              case 'h':
+              case 'i':
+              case 'j':
+              case 'k':
+              case 'l':
+              case 'm':
+              case 'n':
+              case 'o':
+              case 'p':
+              case 'q':
+              case 'r':
+              case 's':
+              case 't':
+              case 'u':
+              case 'v':
+              case 'w':
+              case 'x':
+              case 'y':
+              case 'z':
+              case 'A':
+              case 'B':
+              case 'C':
+              case 'D':
+              case 'E':
+              case 'F':
+              case 'G':
+              case 'H':
+              case 'I':
+              case 'J':
+              case 'K':
+              case 'L':
+              case 'M':
+              case 'N':
+              case 'O':
+              case 'P':
+              case 'Q':
+              case 'R':
+              case 'S':
+              case 'T':
+              case 'U':
+              case 'V':
+              case 'W':
+              case 'X':
+              case 'Y':
+              case 'Z':
+                parseIdentifier();
+                break;
+
               case '(': addToken(TokenType.LEFT_PAREN); break;
               case ')': addToken(TokenType.RIGHT_PAREN); break;
               case '{': addToken(TokenType.LEFT_CURLY); break;
@@ -49,18 +121,18 @@ class Tokenizer {
               case '?': addToken(TokenType.QUESMK); break;
               case '$': addToken(TokenType.DOLLAR); break;
               case '!': addToken(match('=') ? TokenType.NOTEQ : TokenType.NOT); break;
-              case '=': addToken(match('=') ? TokenType.EQEQ : TokenType.ASSIGN); break;
+              case '=': addToken(match('=') ? TokenType.EQEQ : TokenType.EQUALS); break;
               case '<':
                 if(match('<'))
                     addToken(TokenType.SHL);
                 else
-                    addToken(match('=') ? TokenType._LTE : TokenType.LESSTHAN);
+                    addToken(match('=') ? TokenType.LTE : TokenType.LESSTHAN);
                 break;
               case '>':
                 if(match('>'))
                     addToken(TokenType.SHR);
                 else
-                    addToken(match('=') ? TokenType._GTE : TokenType.GREATERTHAN);
+                    addToken(match('=') ? TokenType.GTE : TokenType.GREATERTHAN);
                 break;
 
               case '&':
@@ -76,12 +148,12 @@ class Tokenizer {
                     addToken(match('|') ? TokenType.OROR : TokenType.OR);
                 break;
               case '^': addToken(match('=') ? TokenType.XOREQ : TokenType.XOR); break;
-              case '%': addToken(match('=') ? TokenType.MODEQ : TokenType._MOD); break;
+              case '%': addToken(match('=') ? TokenType.MODEQ : TokenType.MOD); break;
               case '+':
                 if(match('='))
                     addToken(TokenType.PLUSEQ);
                 else
-                    addToken(match('+') ? TokenType._INC : TokenType.PLUS);
+                    addToken(match('+') ? TokenType.INC : TokenType.PLUS);
                 break;
               case '-':
                 if(match('='))
@@ -89,7 +161,7 @@ class Tokenizer {
                 else if(match('>'))
                     addToken(TokenType.PTR);
                 else
-                    addToken(match('-') ? TokenType._DEC : TokenType.MINUS);
+                    addToken(match('-') ? TokenType.DEC : TokenType.MINUS);
                 break;
               case '*': addToken(peek(1)=='=' ? TokenType.MULTEQ : TokenType.MULT); break;
               case ' ':
@@ -100,10 +172,10 @@ class Tokenizer {
               case '/':
                 if (match('/')) {
                   // A comment goes until the end of the line.
-                  while (!char.isNewLine(peek(1)) && !isEnd()) advance();
+                  while (!char.isNewLine(peek(1)) && !isEnd) advance();
                 } else if(match('*')) {
                   // A multiline comment goes until the [*/].
-                  while(!isEnd() && !(current == '*' && peek(1) == '/'))
+                  while(!isEnd && !(current == '*' && peek(1) == '/'))
                   {
                       if(char.isNewLine(current)){
                           newline();
@@ -116,7 +188,7 @@ class Tokenizer {
                     if(match('='))
                         addToken(TokenType.DIVEQ);
                     else
-                        addToken(TokenType._DIV);
+                        addToken(TokenType.DIV);
                 }
                 break;
 
@@ -128,40 +200,49 @@ class Tokenizer {
                 parseString();
                 break;
 
-              default:
-                if(char.isDigit(current)) {
+              case '\'':
+                parseChar();
+                break;
+
+              case '0':
+              case '1':
+              case '2':
+              case '3':
+              case '4':
+              case '5':
+              case '6':
+              case '7':
+              case '8':
+              case '9':
                     parseNumber();
-                } else if (char.isAlpha(current) || current == '_') {
-                    parseIdentifier();
-                } else if(current == '\'') {
-                    parseChar();
-                } else
-                    errors.createNewError(CompilerError.UNEXPECTED_SYMBOL, line, col, " `" + new char(current) + "`");
+                break;
+
+              default:
+                errors.createNewError(CompilerError.UNEXPECTED_SYMBOL, line, col, " `" + new char(current) + "`");
                 break;
             }
 
             advance();
         }
 
-        TokenEntity[] arry = entities.toArray();
-        foreach(TokenEntity token : arry) {
-            println(" token: " + token.getToken()
-                + " - " + token.getId() + " line " + token.getLine()
-                + " col " + token.getCol());
-        }
+//        Token[] arry = tokens.toArray();
+//        foreach(Token token : arry) {
+//            println(" token: " + token.getToken()
+//                + " - " + token.getId() + " line " + token.getLine()
+//                + " col " + token.getCol());
+//        }
+        println("errors " + errors.getRawErrorCount());
 
         end:
-        entities.add(new TokenEntity("eof", TokenId.SINGLE, TokenType._EOF, 0, line));
+        tokens.add(new Token("eof", TokenId.SINGLE, TokenType._EOF, 0, line));
     }
 
     private def addToken(TokenId id) {
-      string text = tokens.substring(start, cursor);
-      entities.add(new TokenEntity(text, id, col, line));
+      tokens.add(new Token(text.substring(start, cursor), id, col, line));
     }
 
     private def addToken(TokenType type) {
-      string text = tokens.substring(start, cursor);
-      entities.add(new TokenEntity(text, TokenId.SINGLE, type, col, line));
+      tokens.add(new Token(text.substring(start, cursor), TokenId.SINGLE, type, col, line));
     }
 
     private def match(var c) : var {
@@ -187,7 +268,7 @@ class Tokenizer {
         var escaped       = false;
         var hasCharacter  = false;
 
-        while (!isEnd())
+        while (!isEnd)
         {
             if (!escaped && ('\\' == current))
             {
@@ -229,7 +310,7 @@ class Tokenizer {
             advance();
         }
 
-        if (isEnd())
+        if (isEnd)
         {
             errors.createNewError(CompilerError.UNEXPECTED_EOF, line, col);
             return;
@@ -246,7 +327,7 @@ class Tokenizer {
         }
         else
         {
-            entities.add(new TokenEntity(getEscapedString(tokens.substring(start, cursor-1)), TokenId.CHAR_LITERAL, col, line));
+            tokens.add(new Token(getEscapedString(text.substring(start, cursor-1)), TokenId.CHAR_LITERAL, col, line));
         }
 
     }
@@ -254,14 +335,84 @@ class Tokenizer {
     private def parseIdentifier() {
         var hasletter = false;
 
-        while(!isEnd() && (char.isAlphaNum(current) || current == '_'))
+        while(!isEnd)
         {
-            if(char.isAlpha(current))
-                hasletter = true;
+            switch(current) {
+                case '_':
+                case 'a':
+                case 'b':
+                case 'c':
+                case 'd':
+                case 'e':
+                case 'f':
+                case 'g':
+                case 'h':
+                case 'i':
+                case 'j':
+                case 'k':
+                case 'l':
+                case 'm':
+                case 'n':
+                case 'o':
+                case 'p':
+                case 'q':
+                case 'r':
+                case 's':
+                case 't':
+                case 'u':
+                case 'v':
+                case 'w':
+                case 'x':
+                case 'y':
+                case 'z':
+                case 'A':
+                case 'B':
+                case 'C':
+                case 'D':
+                case 'E':
+                case 'F':
+                case 'G':
+                case 'H':
+                case 'I':
+                case 'J':
+                case 'K':
+                case 'L':
+                case 'M':
+                case 'N':
+                case 'O':
+                case 'P':
+                case 'Q':
+                case 'R':
+                case 'S':
+                case 'T':
+                case 'U':
+                case 'V':
+                case 'W':
+                case 'X':
+                case 'Y':
+                case 'Z':
+                    hasletter = true;
+                    break;
+
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    break;
+                default:
+                    goto save;
+            }
 
             advance();
         }
 
+        save:
         cursor--;
         if(!hasletter)
             errors.createNewError(CompilerError.GENERIC, line, col, " expected at least 1 letter in identifier");
@@ -274,7 +425,7 @@ class Tokenizer {
             var underscoreAllowed = false;
 
             col += 2; cursor += 2;
-            while(!isEnd() && (isHexNum(current) || current == '_')) {
+            while(!isEnd && (isHexNum(current) || current == '_')) {
                 if(isHexNum(current))
                     underscoreAllowed = true;
                 else {
@@ -311,10 +462,10 @@ class Tokenizer {
             var postESignFound    = false;
             var underscoreAllowed = false;
 
-            while(!isEnd())
+            while(!isEnd)
             {
                if('_' == current) {
-                   if(!underscoreAllowed || peek(-1) == '.')
+                   if(!underscoreAllowed || data[cursor-1] == '.')
                    {
                        errors.createNewError(CompilerError.ILLEGAL_NUMBER_FORMAT, line, col, ", unexpected or illegally placed underscore");
                        return;
@@ -381,7 +532,6 @@ class Tokenizer {
     }
 
     private def parseString() {
-        string message = "";
         if (tokensLeft() < 2)
         {
             errors.createNewError(CompilerError.EXPECTED_STRING_LITERAL_EOF, line, col);
@@ -390,7 +540,7 @@ class Tokenizer {
         }
         advance();
         if(current == '\"') {
-            entities.add(new TokenEntity("", TokenId.STRING_LITERAL, col, line));
+            tokens.add(new Token("", TokenId.STRING_LITERAL, col, line));
             return;
         }
 
@@ -398,7 +548,7 @@ class Tokenizer {
         var escapedFound = false;
         var escaped = false;
 
-        while (!isEnd())
+        while (!isEnd)
         {
             if(char.isNewLine(current))
             {
@@ -432,7 +582,7 @@ class Tokenizer {
             advance();
         }
 
-        if (isEnd())
+        if (isEnd)
         {
             errors.createNewError(CompilerError.UNEXPECTED_EOF, line, col);
             return;
@@ -442,12 +592,8 @@ class Tokenizer {
         if (!escapedFound)
             addToken(TokenId.STRING_LITERAL);
         else
-            entities.add(new TokenEntity(getEscapedString(tokens.substring(start, cursor)), TokenId.STRING_LITERAL, col, line));
+            tokens.add(new Token(getEscapedString(text.substring(start, cursor)), TokenId.STRING_LITERAL, col, line));
         cursor++;
-    }
-
-    def isEnd() : var {
-        return (cursor>=tokens.size());
     }
 
     def isWhitespace(var c) : var {
@@ -458,48 +604,51 @@ class Tokenizer {
     }
 
     def getEscapedString(string msg) : string {
-        string escapedMessage = "";
+        var[] tmp = new var[msg.size()];
+        var[] str = msg.getData();
+
         char c = 0;
-        for(var i = 0; i < msg.size(); i++)
+        var iter;
+        for(var i = 0; i < sizeof(str); i++)
         {
-            if(msg.at(i) == '\\')
+            if(str[i] == '\\')
             {
-                switch(msg.at(i+1)) {
+                switch(str[i+1]) {
                     case 'n':
-                        escapedMessage += '\n';
+                        data[iter++] =  '\n';
                         break;
                     case 't':
-                        escapedMessage += '\t';
+                        data[iter++] = '\t';
                         break;
                     case 'b':
-                        escapedMessage += '\b';
+                        data[iter++] = '\b';
                         break;
                     case 'v':
-                        escapedMessage += '\v';
+                        data[iter++] = '\v';
                         break;
                     case 'r':
-                        escapedMessage += '\r';
+                        data[iter++] = '\r';
                         break;
                     case 'f':
-                        escapedMessage += '\f';
+                        data[iter++] = '\f';
                         break;
                     case '0':
-                        escapedMessage += '\0';
+                        data[iter++] = '\0';
                         break;
                     case 'a':
-                        escapedMessage += '\a';
+                        data[iter++] = '\a';
                         break;
                     default:
-                        escapedMessage += c.char(msg.at(i+1));
+                        data[iter++] = str[i+1];
                         break;
                 }
 
                 i++;
             }
             else
-                escapedMessage += c.char(msg.at(i));
+                data[iter++] = str[i];
         }
-        return escapedMessage;
+        return new string().append(data, iter);
     }
 
     def isSign(var c) : var {
@@ -514,37 +663,22 @@ class Tokenizer {
     def advance() {
         col++;
         cursor++;
-        if(cursor < tokens.size())
-            current = tokens.at(cursor);
+        if(cursor < sizeof(data))
+            current = data[cursor];
+        else isEnd = true;
     }
 
     def peekEnd(var chars) : var {
-        return (cursor+chars) >= tokens.size();
+        return (cursor+chars) >= sizeof(data);
     }
 
     def tokensLeft() : var {
-        return tokens.size() - cursor;
+        return sizeof(data) - cursor;
     }
 
     def peek(var chars) : var {
-        return ((cursor+chars) >= tokens.size() || (cursor+chars) < 0)
-            ? tokens.at(tokens.size()-1) : tokens.at(cursor+chars);
-    }
-
-    def isSymbol(var c) : var {
-        return (('+' == c) || ('-' == c) ||
-                ('*' == c) || ('/' == c) ||
-                ('^' == c) || ('<' == c) ||
-                ('>' == c) || ('=' == c) ||
-                (',' == c) || ('!' == c) ||
-                ('(' == c) || (')' == c) ||
-                ('[' == c) || (']' == c) ||
-                ('{' == c) || ('}' == c) ||
-                ('%' == c) || (':' == c) ||
-                ('?' == c) || ('&' == c) ||
-                ('|' == c) || (';' == c) ||
-                ('!' == c) || ('.' == c) ||
-                ('#' == c) || ('$' == c));
+        return ((cursor+chars) >= sizeof(data) || (cursor+chars) < 0)
+            ? data[sizeof(data)-1] : data[cursor+chars];
     }
 
     public def getErrors() : ErrorManager {
@@ -552,7 +686,7 @@ class Tokenizer {
     }
 
     public def getData() : string {
-        return tokens;
+        return text;
     }
 
     public def getLines() : ArrayList<string> {
@@ -563,29 +697,29 @@ class Tokenizer {
         return file;
     }
 
-    public def get(var pos) : TokenEntity {
-        return entities.get(pos);
+    public def get(var pos) : Token {
+        return tokens.get(pos);
     }
 
-    public def last() : TokenEntity {
-        return entities.last(); // EOF returned
+    public def last() : Token {
+        return tokens.last(); // EOF returned
     }
 
-    public def getTokens() : TokenEntity[] {
-        return entities.data();
+    public def getTokens() : Token[] {
+        return tokens.data();
     }
 
     public def size() : var {
-        return entities.size();
+        return tokens.size();
     }
 
     def addLines() {
-        var[] raw = tokens.getData();
+        var[] raw = text.getData();
 
         start = 0;
         for(var i = 0; i < sizeof(raw); i++) {
             if(raw[i] == '\n') {
-                lines.add(tokens.substring(start, i==0 || start==i ? i : i-1));
+                lines.add(text.substring(start, i==0 || start==i ? i : i-1));
                 start = i+1;
             }
         }
@@ -594,18 +728,8 @@ class Tokenizer {
             lines.add(new string(raw));
     }
 
-    def isHexNum(var c) : var {
+    private static def isHexNum(var c) : var {
         return (char.isDigit(c) || ((c >= 65) && (c <= 72)) ||
                        ((c >= 97) && (c <= 104)));
     }
-
-    private ArrayList<TokenEntity> entities;
-    private ErrorManager errors;
-    private ArrayList<string> lines;
-    private string tokens = "";
-    private var cursor, start;
-    private var current;
-    private var line;
-    private var col;
-    private string file = "";
 }

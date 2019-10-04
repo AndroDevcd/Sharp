@@ -3,7 +3,6 @@ mod app;
 import std;
 import std.io;
 import std.kernel;
-import std.kernel.vm;
 
 /**                          
 * Created by bknun on 6/5/2018            
@@ -12,7 +11,7 @@ import std.kernel.vm;
 public class Runtime {
 
     private static string programName = "sharpc";
-    private static string programVers = "0.3.21";
+    private static string programVers = "0.3.0";
 
     public static def bootstrap(string[] args) : var {
         if(args == null) {
@@ -20,9 +19,7 @@ public class Runtime {
             return 1;
         }
 
-        string s = "";
-        s.string(" ");
-        ErrorManager.initErrors();
+//        ErrorManager.initErrors();
         ArrayList<string> files = new ArrayList<string>();
         for(var i = 0; i < sizeof(args); i++) {
 
@@ -50,15 +47,22 @@ public class Runtime {
                 printVersion();
                 exit();
             }
-            else if(arg == "-O"){
-                Options.optimize = true;
+            else if(arg == "-O" || arg == "-O1"){
+                Options.optimizeLevel = Optimization.BASIC;
+            }
+            else if(arg == "-O2"){
+                Options.optimizeLevel = Optimization.HIGH_PERFORMANCE;
             }
             else if(arg == "-h" || arg == "-?"){
                 help();
                 exit();
             }
+            else if(arg == "--hw"){
+                helpWarning();
+                exit();
+            }
             else if(arg == "-R" || arg == "-release"){
-                Options.optimize = true;
+                Options.optimizeLevel = Optimization.HIGH_PERFORMANCE;
                 Options.debug = false;
                 Options.strip = true;
             }
@@ -69,7 +73,7 @@ public class Runtime {
             else if(arg == "-magic"){
                 Options.magic = true;
             }
-            else if(arg == "-debug") {
+            else if(arg == "-dbg") {
                 Options.debugMode = true;
             }
             else if(arg == "-showversion"){
@@ -81,16 +85,15 @@ public class Runtime {
                     error("file version required after option `-target`");
                 else {
                     string target = args[++i];
-                    if(integerString(target))
+                    if(integerString(target)) {
                         Options.target = string.parseInt(target);
-                    else {
-                        if(string.toLower(target) == "base") {
-                            Options.target = Platform.BASE;
-                        } else if(string.toLower(target) == "alpha") {
+                        checkTarget();
+                    } else {
+                        if(string.toLower(target) == "alpha") {
                             Options.target = Platform.ALPHA;
                         }
                         else {
-                            error("unknown target " + target);
+                            error("unknown platform target " + target);
                         }
                     }
                 }
@@ -98,14 +101,29 @@ public class Runtime {
             else if(arg == "-w"){
                 Options.warnings = false;
             }
+            else if(arg == "-waccess"){
+                warningOptions[__WACCESS] = false;
+            }
+            else if(arg == "-wambig"){
+                warningOptions[__WAMBIG] = false;
+            }
+            else if(arg == "-wdecl"){
+                warningOptions[__WDECL] = false;
+            }
+            else if(arg == "-wmain"){
+                warningOptions[__WMAIN] = false;
+            }
+            else if(arg == "-wcast"){
+                warningOptions[__WCAST] = false;
+            }
+            else if(arg == "-winit"){
+                warningOptions[__WINIT] = false;
+            }
             else if(arg == "-v"){
                 if(i+1 >= sizeof(args))
                     error("file version required after option `-v`");
                 else
                     Options.version = args[++i];
-            }
-            else if(arg == "-u" || arg == "-unsafe"){
-                Options.unsafe = true;
             }
             else if(arg == "-werror"){
                 Options.werrors = true;
@@ -127,8 +145,33 @@ public class Runtime {
                     error("invalid error limit set " + lmt);
                 }
             }
-            else if(arg == "-objdmp"){
-                Options.objDump = true;
+            else if(arg.startsWith("-asmd")){
+                Options.asmDump = true;
+
+                if(arg.startsWith("-asmd:")) {
+                    if(arg.size() > 6 && arg.size() <= 9) {
+                        var[] arry = arg.substring(7).getData();
+                        for(var j = 0; j < sizeof(arry); j++)
+                        {
+                            switch(arry[j]) {
+                                case 'd':
+                                    asmDumpOptions[ASM_DEMANGLE] = true;
+                                    break;
+                                case 's':
+                                    asmDumpOptions[ASM_SYNTAX] = true;
+                                    break;
+                                case 'i':
+                                    asmDumpOptions[ASM_DEBUG_INFO] = true;
+                                    break;
+                                default:
+                                    error("invalid option `" + arg + "`, try bootstrap -h");
+                                    break;
+                            }
+                        }
+                    } else {
+                        error("invalid option `" + arg + "`, try bootstrap -h");
+                    }
+                }
             }
             else if(arg.at(0) == '-'){
                 error("invalid option `" + arg + "`, try bootstrap -h");
@@ -136,12 +179,13 @@ public class Runtime {
             else {
                 // add the source files
                 do {
-                    if(args[i].at(0) == '-')
+                    arg = args[i];
+                    if(arg.at(0) == '-')
                         goto parseArg;
 
-                    if(!contains(files, args[i]))
-                        files.add(args[i++]);
-                    else i++;
+                    if(!contains(files, arg))
+                        files.add(arg);
+                    i++;
                 }while(i<sizeof(args));
                 break;
             }
@@ -154,29 +198,44 @@ public class Runtime {
 
         string path = "";
         if(Manifest.isWindows()) {
-            path = "C:/Sharp/include";
+            path = "C:\\Sharp\\include";
         } else {
             path = "/usr/include/sharp/";
         }
 
-        File includes = new File(path);
-        string[] supportFiles = includes.list();
+        File stlFiles = new File(path);
+        string[] supportFiles;
 
-        foreach(string file : supportFiles) {
-            files.add(file);
+        try {
+            supportFiles = stlFiles.list();
+            foreach(string file : supportFiles) {
+                files.add(file);
+            }
+        } catch(IOException io) {
+            /* support files not found */
+            println("warning: could not find support library files in path `" + path + "`, do you have them installed?");
         }
 
+
         for(var i = 0; i < Options.libraries.size(); i++) {
-            includes = new File(Options.libraries.get(i));
-            supportFiles = includes.list();
+            stlFiles.updatePath(Options.libraries.get(i));
+
+            try {
+                supportFiles = stlFiles.list();
+            } catch(IOException io) {
+                /* support files not found */
+                error("could not access library files in path `" + path + "`");
+            }
 
             foreach(string file : supportFiles) {
                 files.add(file);
             }
         }
 
+        File file = new File("no_file");
         for(var i = 0; i < files.size(); i++) {
-            if(!(new File(files.get(i)).exists()))
+            file.updatePath(files.get(i));
+            if(!(file.exists()))
                 error("file `" + files.get(i) + "` doesnt exist!");
 
             if(!files.get(i).endsWith(".sharp"))
@@ -188,9 +247,10 @@ public class Runtime {
     }
 
     static def contains(ArrayList<string> files, string file) : var {
-        string[] lst = files.toArray();
-        foreach(string f : lst) {
-            if(f == file)
+        string[] lst = files.data();
+        var size = files.size();
+        for(var i = 0; i < size; i++) {
+            if(lst[i] == file)
                 return true;
         }
 
@@ -200,20 +260,19 @@ public class Runtime {
     static def exec_runtime(ArrayList<string> files) {
 
         File testFile = new File(files.get(0));
-
+//
         IOStream istream = new IOStream(testFile, IOStream.READ);
-        var _char, iter;
-        string tokens = istream.toString();
-
-        istream.close();
+        string tokens = istream.getData();
+//
+//        istream.close();
         Tokenizer tokenizer = new Tokenizer(tokens, files.get(0));
-        Parser parser = new Parser(tokenizer);
-        parser.getErrors().printErrors();
+//        Parser parser = new Parser(tokenizer);
+//        parser.getErrors().printErrors();
     }
 
 
     private static def integerString(string str) : var {
-        var[] chs = str.toArray();
+        var[] chs = str.getData();
         foreach(var c : chs) {
             if(!char.isDigit(c))
                 return false;
@@ -221,8 +280,18 @@ public class Runtime {
         return true;
     }
 
+    private static def checkTarget() {
+        switch(Options.target) {
+            case Platform.ALPHA:
+                return;
+            default:
+                error("invalid platform target `" + Options.target + "`");
+                break;
+        }
+    }
+
     private static def error(string message) {
-        println("bootstrap:  error: " + message);
+        println("sharpc:  error: " + message);
         exit();
     }
 
@@ -239,7 +308,8 @@ public class Runtime {
         println(              "    -c                compile only and do not generate exe"              );
         println(              "    -a                enable aggressive error reporting"                 );
         println(              "    -s                strip debugging info"                              );
-        println(              "    -O                optimize executable"                               );
+        println(              "    -O -O1            optimize code level 1"                             );
+        println(              "    -O2               optimize code level 2"                             );
         println(              "    -L<path>          library directory path"                            );
         println(              "    -w                disable all warnings"                              );
         println(              "    -errlmt<count>    set max errors the compiler allows before quitting");
@@ -247,8 +317,36 @@ public class Runtime {
         println(              "    -unsafe -u        allow unsafe code"                                 );
         println(              "    -objdmp           create dump file for generated assembly"           );
         println(              "    -target           target the specified platform of sharp to run on"  );
-        println(              "    -target           target the specified platform of sharp to run on"  );
         println(              "    -release -r       generate a release build exe"                      );
+        println(              "    --asmd            display assembly dump message for output options"  );
+        println(              "    --hw              display help message for warning options"          );
         println(              "    --h -?            display this help message"                         );
+    }
+
+    private static def helpWarning() {
+        println( "Usage: sharpc {OPTIONS} SOURCE FILE(S)");
+        println( "Source file must have a .sharp extion to be compiled.\n");
+        println( "Please note that not all warnings will be able to be disabled individually.\n");
+        println( "[-options]\n\n    -w                disable all warnings"                                     );
+        println(               "    -winit            disable class initialization warnings"                    );
+        println(               "    -waccess          disable access modifier warnings (public, static, etc.)"  );
+        println(               "    -wambig           disable ambiguous symbol warnings"                        );
+        println(               "    -wdecl            disable object declaration warnings"                      );
+        println(               "    -wmain            disable multiple main method warnings"                    );
+        println(               "    -wcast            disable type cast warnings"                               );
+        println(               "    -werror           enable warnings as errors"                                );
+        println(               "    --hw              display this help message"                                );
+    }
+
+    private static def helpAssemblyDump() {
+        println( "Usage: sharpc {OPTIONS} SOURCE FILE(S)");
+        println( "Source file must have a .sharp extion to be compiled.\n");
+        println( "Please note that default output format will be printed as-is with no debugging information, syntax reformatting, or address information.\n");
+        println( "All compiler options for `-asmd` can be chained together i.e. (-asmd:is, -asmd:dsi, etc.)\n");
+        println( "[-options]\n\n    -asmd             dump raw generated assembly into file (outputted w/default output setting)"   );
+        println(               "    -asmd:d           de-mangle source to show names"                                               );
+        println(               "    -asmd:s           reformat code to show sharp assembly syntax"                                  );
+        println(               "    -asmd:i           display debug information i.e (line numbers, file names, etc.)"               );
+        println(               "    --asmd            display this help message"                                                    );
     }
 }

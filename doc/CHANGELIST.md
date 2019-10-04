@@ -23,8 +23,24 @@ Any other compatibility issues/changes will be otherwise noted in the release no
 
     Backwards compatibility support tested Version: ()
     
+##### Version 0.2.422 (August 12, 2019)
+    # Bug Fixes
+        * Fixed several compiler seg faults
+        * Fixed several null pointer exceptions with file sys stl
+        * Fixed exception system not correctly showing where the code broke 
+
+    # QoL Improvements
+        * Compiler v2 development has begun. Sharp will now be oficially bootstrapped and quickly become a more stable and faster language.
+
+    # New Additions
+        *
+
+    # Known Issues
+        *
+
+    Backwards compatibility support tested Version: ()
     
-##### Version 0.2.587 (August 12, 2019)
+##### Version 0.2.587 (September 30, 2019)
     # Bug Fixes
         * Fixed several null checks incorrectly being applied to objects and could have lead to a seg fault
         * Fixed major control flow statement bug when setting default values on class variables causing seg faults

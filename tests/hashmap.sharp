@@ -15,13 +15,9 @@ def main(string[] args) : var {
 // TODO:  perform house cleaning and prepar34e for release
     HashMap<integer, var> hm = new HashMap<integer, var>(25000);
 //    ArrayList<int> hm = new ArrayList<int>();
-    hm.setPayloadClass(PayloadClass.PAYLOAD_SMALL);
-    for(var i = 0; i < 9900000; i++) {
+    hm.setPayloadClass(PayloadClass.PAYLOAD_MEDIUM);
+    for(var i = 0; i < 990000; i++) {
         hm.add(new integer(i), i);
-
-        if((i % 100000) == 0) {
-            Runtime.gc();
-        }
     }
 
     println("removing");
