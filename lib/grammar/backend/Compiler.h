@@ -120,6 +120,8 @@ private:
     void parseVariableAccessFlags(List<AccessFlag> &flags, Ast *ast);
     ClassObject* addChildClassObject(string name, List<AccessFlag> &flags, ClassObject* owner, Ast* ast);
     void removeScope();
+    void preProccessImportDecl(Ast *branch, List<string> &imports);
+    void preproccessImports();
     void preProccessEnumDecl(Ast *ast);
     void preProccessEnumVar(Ast *ast);
     AccessFlag strToAccessFlag(string str);

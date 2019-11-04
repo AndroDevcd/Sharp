@@ -1,8 +1,7 @@
-mod app;
+mod app.time;
 
 import std;
 import std.kernel;
-import std.*;
 
  class Apple<T, k> {
     public num: var = 9;

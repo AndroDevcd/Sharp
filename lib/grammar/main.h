@@ -14,9 +14,10 @@ class main {
 
 
 #define progname "sharpc"
-#define progvers "0.2.587"
+#define progvers "0.2.805"
 
 int _bootstrap(int argc, const char* argv[]);
+bool startsWith(string &str, string &prefix);
 
 extern options c_options;
 #define opt(v) strcmp(argv[i], v) == 0

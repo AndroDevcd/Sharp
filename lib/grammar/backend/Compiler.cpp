@@ -476,6 +476,82 @@ void Compiler::removeScope() {
     currScope.pop_back();
 }
 
+void Compiler::preProccessImportDecl(Ast *branch, List<string> &imports) {
+    bool star = false;
+    stringstream ss;
+    for(long i = 0; i < branch->getEntityCount(); i++) {
+        if(branch->getEntity(i).getToken() != "*") {
+            ss << branch->getEntity(i).getToken();
+        } else
+            star = true;
+    }
+
+    string mod = ss.str();
+    if(star) {
+        bool found = false;
+        for(long i = 0; i < modules.size(); i++) {
+            if(startsWith(modules.get(i), mod)) {
+                found = true;
+                if(imports.find(modules.at(i))) {
+                    createNewWarning(GENERIC, __WGENERAL, branch->line, branch->col, "module `" + modules.at(i) + "` has already been imported.");
+                } else
+                    imports.add(modules.at(i));
+            }
+        }
+
+        if(!found) {
+            errors->createNewError(GENERIC, branch->line, branch->col, "modules under prefix `" + mod +
+                                                                       "*` could not be found");
+        }
+    } else {
+        if(modules.find(mod)) {
+            if(imports.find(mod)) {
+                createNewWarning(GENERIC, __WGENERAL, branch->line, branch->col, "module `" + mod + "` has already been imported.");
+            } else
+                imports.add(mod);
+        }
+        else {
+            errors->createNewError(GENERIC, branch->line, branch->col, "module `" + mod +
+                                                                       "` could not be found");
+        }
+    }
+}
+
+void Compiler::preproccessImports() {
+    KeyPair<string, List<string>> resolveMap;
+    List<string> imports;
+
+    for(unsigned long x = 0; x < current->size(); x++)
+    {
+        Ast *branch = current->astAt(x);
+        if(x == 0)
+        {
+            if(branch->getType() == ast_module_decl) {
+                imports.push_back(currModule);
+                // add class for global methods
+                continue;
+            } else {
+                /* ignore */
+            }
+        }
+        switch(branch->getType()) {
+            case ast_import_decl: /* ignore for now */
+                preProccessImportDecl(branch, imports);
+                break;
+            default:
+                /* ignore */
+                break;
+        }
+
+        CHECK_CMP_ERRORS(return;)
+    }
+
+
+    importMap.__new().key = current->sourcefile;
+    importMap.last().value.init();
+    importMap.last().value.addAll(imports);
+}
+
 bool Compiler::preprocess() {
 
     bool success = true;
@@ -484,8 +560,6 @@ bool Compiler::preprocess() {
         errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors);
 
         currModule = "$unknown";
-        KeyPair<string, List<string>> resolveMap;
-        List<string> imports;
 
         sourceFiles.addif(current->sourcefile);
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
@@ -496,14 +570,12 @@ bool Compiler::preprocess() {
             {
                 if(branch->getType() == ast_module_decl) {
                     modules.addif(currModule = parseModuleDecl(branch));
-                    imports.push_back(currModule);
                     // add class for global methods
                     createGlobalClass();
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
                     modules.addif(currModule = "__srt_undefined");
-                    imports.push_back(currModule);
                     // add class for global methods
                     createGlobalClass();
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
@@ -550,8 +622,9 @@ bool Compiler::preprocess() {
             CHECK_CMP_ERRORS(return false;)
         }
 
-        resolveMap.set(current->sourcefile, imports);
-        importMap.push_back(resolveMap);
+        // Post-PreProcessing functions
+        preproccessImports();
+
         if(errors->hasErrors()){
             report:
 

@@ -23,7 +23,7 @@ Any other compatibility issues/changes will be otherwise noted in the release no
 
     Backwards compatibility support tested Version: ()
     
-##### Version 0.2.422 (August 12, 2019)
+##### Version 0.2.805 (August 12, 2019)
     # Bug Fixes
         * Fixed several compiler seg faults
         * Fixed several null pointer exceptions with file sys stl
