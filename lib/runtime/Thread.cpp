@@ -48,7 +48,6 @@ void Thread::Startup() {
             sizeof(Thread)*1);
     main->main = &env->methods[manifest.entryMethod];
     main->Create("Main");
-    setupSigHandler();
 }
 
 /**
@@ -130,7 +129,7 @@ void Thread::Create(string name) {
     this->exceptionObject.object=0;
     this->rand = new Random();
     this->id = Thread::tid++;
-    this->dataStack = (StackElement*)__malloc(sizeof(StackElement)*iStackSz);
+    this->dataStack = (StackElement*)__calloc(iStackSz, sizeof(StackElement));
     this->signal = 0;
     this->suspended = false;
 #ifdef BUILD_JIT
@@ -152,11 +151,6 @@ void Thread::Create(string name) {
 #ifdef SHARP_PROF_
     this->tprof = new Profiler();
 #endif
-
-    for(unsigned long i = 0; i < iStackSz; i++) {
-        this->dataStack[i].object.object = NULL;
-        this->dataStack[i].var=0;
-    }
 
     pushThread(this);
 }
@@ -1386,6 +1380,7 @@ void Thread::setup() {
         }
     } else {
         GarbageCollector::self->addMemory(sizeof(StackElement)*stack_lmt);
+        setupSigHandler();
     }
 }
 

@@ -8,7 +8,7 @@
 #include <list>
 #include "../../../stdimports.h"
 #include "../../util/KeyPair.h"
-#include "tokenizer/tokenentity.h"
+#include "tokenizer/token.h"
 #include "../List.h"
 
 enum error_type
@@ -82,7 +82,7 @@ public:
         this->warning = warning;
     }
 
-    ParseError(KeyPair<error_type, string> err, token_entity token, string addon = "")
+    ParseError(KeyPair<error_type, string> err, Token token, string addon = "")
     {
         id = err.key;
         error = (err.value + addon);
@@ -121,7 +121,7 @@ public:
             lines(),
             teCursor(-1),
             _err(false),
-            cm(false),
+            protectedMode(false),
             filname(file_name),
             asis(asis),
             aggressive(aggressiveRoporting)
@@ -139,14 +139,14 @@ public:
     uint64_t getErrorCount() { return errors->size(); }
     uint64_t getWarningCount() { return warnings->size(); }
     uint64_t getUnfilteredErrorCount() { return unfilteredErrors->size(); }
-    int createNewError(error_type err, token_entity token, string xcmts = "");
+    int createNewError(error_type err, Token token, string xcmts = "");
     int createNewError(error_type err, Ast* pAst, string xcmts = "");
     void createNewError(error_type err, int line, int col, string xcmts = "");
     void createNewWarning(error_type err, int line, int col, string xcmts);
     void createNewWarning(error_type err, Ast* pAst, string xcmts);
     bool hasErrors();
     bool hasWarnings() { return warnings; }
-    void enableErrorCheckMode();
+    void enterProtectedMode();
     void fail();
     void pass();
     void enableAggressive() { aggressive = true; }
@@ -167,10 +167,10 @@ private:
     int64_t  teCursor;
     ParseError lastError;
     ParseError lastCheckedError;
-    bool _err, cm;
+    bool _err, protectedMode;
     bool asis, aggressive;
 
-    bool shouldReport(token_entity *token, const ParseError &last_err, const ParseError &e) const;
+    bool shouldReport(Token *token, const ParseError &last_err, const ParseError &e) const;
 
     string getErrors(list<ParseError> *errors);
 
@@ -179,7 +179,7 @@ private:
 
     bool hasError(list <ParseError> *e, const ParseError &parseerror1) const;
 
-    bool shouldReportWarning(token_entity *token, const ParseError &last_err, const ParseError &e) const;
+    bool shouldReportWarning(Token *token, const ParseError &last_err, const ParseError &e) const;
 };
 
 

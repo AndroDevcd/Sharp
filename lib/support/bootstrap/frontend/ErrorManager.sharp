@@ -8,6 +8,7 @@ import std;
 class ErrorManager {
     private static Map<CompilerError, string> predefinedErrors = new Map<CompilerError, string>();
     private static ErrorManager em = new ErrorManager();
+    private static ParseError emptyError = new ParseError();
 
     private ArrayList<ParseError> errors, rawErrors, warnings;
     private ArrayList<ArrayList<ParseError> > possibleErrors;
@@ -31,8 +32,8 @@ class ErrorManager {
         self->aggressiveErrors = aggressive;
 
         self->lines.addAll(lines);
-        lastError = new ParseError();
-        lastCheckedError = new ParseError();
+        lastError = emptyError;
+        lastCheckedError = emptyError;
         filename = file;
     }
 
@@ -124,42 +125,38 @@ class ErrorManager {
         possibleErrors.add(new ArrayList<ParseError>());
     }
 
-    public def dumpProtectedErrors() {
-        possibleErrors.popBack();
-        if(possibleErrors.size() == 0) {
-            protectedMode = false;
+    public def popErrorStack() {
+        if(possibleErrors.size() > 0)
+        {
+            if(possibleErrors.size() == 1)
+                protectedMode = false;
+            possibleErrors.popBack();
         }
     }
 
-    public def fail() {
+    public def reportStack() {
         if(possibleErrors.size() > 0) {
             ArrayList<ParseError> lst = possibleErrors.last();
             ParseError[] errs = lst.toArray();
 
             foreach(ParseError err : errs) {
                 if(directReport) {
+                    errorsFound = true;
                     printError(err);
 
                     errors.add(err);
                     rawErrors.add(err);
                     lastError = err;
                 } else if(aggressiveErrors || shouldReport(null, lastError, err)) {
+                    errorsFound = true;
                     errors.add(err);
                     rawErrors.add(err);
                     lastError = err;
                 }
             }
 
-            if(!lst.empty())
-                errorsFound = true;
-            lastCheckedError = new ParseError();
-            dumpProtectedErrors();
+            popErrorStack();
         }
-    }
-
-    public def pass() {
-        lastCheckedError = new ParseError();
-        dumpProtectedErrors();
     }
 
     public def createNewError(CompilerError err, Token token, string msg) {
@@ -167,15 +164,13 @@ class ErrorManager {
         ParseError newErr = new ParseError(false, err, predefinedMessage, token, msg);
         ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
 
-        if(aggressiveErrors || directReport || shouldReport(token, lastError, newErr)) {
-
-            if(protectedMode) {
-                possibleErrors.last().add(newErr);
-                lastCheckedError = newErr;
-                return;
-            } else if(directReport)
-                printError(newErr);
-
+        if(protectedMode) {
+            lastCheckedError = newErr;
+            possibleErrors.last().add(newErr);
+            return;
+        } else if(directReport)
+            printError(newErr);
+        else if(aggressiveErrors || shouldReport(token, lastError, newErr)) {
             errorsFound = true;
             errors.add(newErr);
             rawErrors.add(newErr);
@@ -190,14 +185,13 @@ class ErrorManager {
         ParseError newErr = new ParseError(false, err, predefinedMessage, line, col, msg);
         ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
 
-        if(aggressiveErrors || directReport || shouldReport(null, lastError, newErr)) {
-            if(protectedMode) {
-                possibleErrors.last().add(newErr);
-                lastCheckedError = newErr;
-                return;
-            } else if(directReport)
-                printError(newErr);
-
+        if(protectedMode) {
+            lastCheckedError = newErr;
+            possibleErrors.last().add(newErr);
+            return;
+        } else if(directReport)
+            printError(newErr);
+        else if(aggressiveErrors || shouldReport(null, lastError, newErr)) {
             errorsFound = true;
             errors.add(newErr);
             rawErrors.add(newErr);
@@ -267,44 +261,43 @@ class ErrorManager {
     }
 
 
-//    public def createNewError(CompilerError err, Ast ast, string msg) {
-//        string predefinedMessage = predefinedErrors.get(err);
-//        ParseError newErr = new ParseError(false, err, predefinedMessage, ast.line, ast.col, msg);
-//        ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
-//
-//        if(aggressiveErrors || directReport || shouldReport(null, lastError, newErr)) {
-//            if(protectedMode) {
-//                possibleErrors.last().add(newErr);
-//                lastCheckedError = newErr;
-//                return;
-//            } else if(directReport)
-//                printError(newErr);
-//
-//            errorsFound = true;
-//            errors.add(newErr);
-//            rawErrors.add(newErr);
-//            self->lastError = newErr;
-//        } else {
-//            rawErrors.add(newErr);
-//        }
-//    }
+    public def createNewError(CompilerError err, Ast ast, string msg) {
+        string predefinedMessage = predefinedErrors.get(err);
+        ParseError newErr = new ParseError(false, err, predefinedMessage, ast.line, ast.col, msg);
+        ParseError lastError = protectedMode ? lastCheckedError : self->lastError;
 
-//    public def createNewWarning(CompilerError err, Ast ast, string msg) {
-//        string predefinedMessage = predefinedErrors.get(err);
-//        ParseError newErr = new ParseError(false, err, predefinedMessage, ast.line, ast.col, msg);
-//        ParseError lastError;
-//        if(warnings.size() > 0)
-//            lastError = warnings.last();
-//        else
-//            lastError = protectedMode ? lastCheckedError : self->lastError;
-//
-//        if(warnings.size() == 0 || shouldReportWarning(null, lastError, newErr)) {
-//            if(directReport)
-//                printError(newErr);
-//
-//            warnings.add(newErr);
-//        }
-//    }
+        if(protectedMode) {
+            lastCheckedError = newErr;
+            possibleErrors.last().add(newErr);
+            return;
+        } else if(directReport)
+            printError(newErr);
+        else if(aggressiveErrors || shouldReport(null, lastError, newErr)) {
+            errorsFound = true;
+            errors.add(newErr);
+            rawErrors.add(newErr);
+            self->lastError = newErr;
+        } else {
+            rawErrors.add(newErr);
+        }
+    }
+
+    public def createNewWarning(CompilerError err, Ast ast, string msg) {
+        string predefinedMessage = predefinedErrors.get(err);
+        ParseError newErr = new ParseError(false, err, predefinedMessage, ast.line, ast.col, msg);
+        ParseError lastError;
+        if(warnings.size() > 0)
+            lastError = warnings.last();
+        else
+            lastError = protectedMode ? lastCheckedError : self->lastError;
+
+        if(warnings.size() == 0 || shouldReportWarning(null, lastError, newErr)) {
+            if(directReport)
+                printError(newErr);
+
+            warnings.add(newErr);
+        }
+    }
 
     public static def initErrors() {
         predefinedErrors.put(CompilerError.UNEXPECTED_SYMBOL, "unexpected symbol");

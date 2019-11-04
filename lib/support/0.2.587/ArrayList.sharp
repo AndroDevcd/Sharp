@@ -1,5 +1,7 @@
 mod std;
 
+import std.kernel;
+
 /**                          
 * Created by bknun on 6/7/2018            
 * Description:                             
@@ -151,10 +153,7 @@ public class ArrayList<T> {
      * required by the system
      */
     private def expand() {
-        if(size >= sizeof(mData)) {
-            // resize
-            realloc(mData, sizeof(mData) + (sizeof(mData) >> payloadClass.getValue()) + RESIZE_CAPACITY);
-        }
+        realloc(mData, sizeof(mData) + (sizeof(mData) >> payloadClass.getValue()) + RESIZE_CAPACITY);
     }
 
     /**
@@ -166,8 +165,7 @@ public class ArrayList<T> {
 
             if(sizeof(mData) == 0 || size == 0) {
                 clear();
-            } else
-                realloc(mData, sizeof(mData)-1);
+            }
         }
     }
 
@@ -178,10 +176,9 @@ public class ArrayList<T> {
       * @return <tt>true</tt> (as specified by {@link Collection#add})
       */
      public def addAll(ArrayList<T> lst) {
-        T[] arry = lst.toArray();
-        foreach(T data : arry) {
-            add(data);
-        }
+        T[] arry = lst.data();
+        mData = (T[])copyOf(arry, sizeof(arry));
+        size = sizeof(mData);
      }
 
     /**
@@ -191,7 +188,8 @@ public class ArrayList<T> {
       * @return <tt>true</tt> (as specified by {@link Collection#add})
       */
      public def add(T e) {
-         expand();
+        if(size >= sizeof(mData))
+            expand();
          mData[size++] = e;
      }
 
@@ -219,7 +217,8 @@ public class ArrayList<T> {
          if(size == 0) {
              add(value);
          } else {
-            expand();
+            if(size >= sizeof(mData))
+                expand();
             size++;
              for(var i = size - 1; i > pos; i--)
                 mData[i] = mData[i-1];
@@ -268,7 +267,7 @@ public class ArrayList<T> {
       */
      public def clear() {
          // clear to let GC do its work
-         if(size != 0 && sizeof(mData) > DEFAULT_CAPACITY) {
+         if(sizeof(mData) > DEFAULT_CAPACITY) {
              mData = new T[DEFAULT_CAPACITY];
          }
 

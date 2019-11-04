@@ -11,9 +11,9 @@
 #include "ParserState.h"
 #include "Ast.h"
 
-class Parser {
+class parser {
 public:
-    Parser(tokenizer *tokenizer)
+    parser(tokenizer *tokenizer)
     :
     toks(tokenizer),
         cursor(0),
@@ -103,7 +103,7 @@ private:
 
     void parse_classblock(Ast *pAst);
 
-    Ast *get_ast(Ast *pAst, ast_types typ);
+    Ast *get_ast(Ast *pAst, ast_type typ);
 
     void pushback();
 
@@ -290,6 +290,8 @@ private:
     void parse_field_init_list(Ast *pAst);
 
     bool parse_field_initialization(Ast *pAst);
+
+    void addAccessTypes(Ast *ast) const;
 };
 
 #define _SHARP_CERROR_LIMIT c_options.error_limit

@@ -7,7 +7,7 @@
 
 #include <list>
 #include "../../../../stdimports.h"
-#include "tokenentity.h"
+#include "token.h"
 #include "../ErrorManager.h"
 #include "../../List.h"
 

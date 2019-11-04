@@ -4,7 +4,7 @@
 
 Sharp versions;
 #ifdef MAKE_COMPILER
-    #include "lib/grammar/Runtime.h"
+    #include "lib/grammar/main.h"
 #endif
 #ifndef MAKE_COMPILER
     #include "lib/runtime/main.h"

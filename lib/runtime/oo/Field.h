@@ -7,7 +7,7 @@
 
 #include "../../../stdimports.h"
 #include "string.h"
-#include "../../grammar/FieldType.h"
+#include "../../grammar/DataType.h"
 
 class ClassObject;
 
@@ -55,5 +55,7 @@ public:
         name.free();
     }
 };
+
+
 
 #endif //SHARP_FIELD_H

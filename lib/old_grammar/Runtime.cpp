@@ -3709,12 +3709,16 @@ Expression RuntimeEngine::parseEqualExpression(Ast* pAst) {
         case expression_field:
             if(left.utype.field.isVar() ) {
                 // add var
-                if(right.type == expression_null || operand.getTokenType() == ASSIGN
-                        || (right.trueType() == CLASS && hasOverload(operand, left, right.getClass(), pAst))) {
-                    if(right.trueType() == CLASS && hasOverload(operand, left, right.getClass(), pAst))
-                        assignValue(operand, out, right, left, pAst);
-                    else
-                        assignValue(operand, out, left, right, pAst);
+                if(left.utype.isArray() || right.utype.isEnum()) {
+                    if(right.type == expression_null || operand.getTokenType() == ASSIGN
+                       || (right.trueType() == CLASS && hasOverload(operand, left, right.getClass(), pAst))) {
+                        if(right.trueType() == CLASS && hasOverload(operand, left, right.getClass(), pAst))
+                            assignValue(operand, out, right, left, pAst);
+                        else
+                            assignValue(operand, out, left, right, pAst);
+                    } else {
+                        assignNative(operand, out, left, right, pAst);
+                    }
                 } else {
                     assignNative(operand, out, left, right, pAst);
                 }
@@ -4214,8 +4218,9 @@ Expression RuntimeEngine::fieldToExpression(Ast *pAst, Field& field) {
         } else {
             if(field.isStatic())
                 fieldExpr.code.push_i64(SET_Di(i64, op_MOVG, field.owner->address));
-            else
+            else {
                 fieldExpr.code.push_i64(SET_Di(i64, op_MOVL, 0));
+            }
             fieldExpr.code.push_i64(SET_Di(i64, op_MOVN, field.address));
         }
     } else {
@@ -4587,7 +4592,7 @@ bool RuntimeEngine::preprocess()
             SEMTEX_CHECK_ERRORS
 
             if(x == 0 && ast->getType() == ast_module_decl) {
-                add_module(currentModule = parseModuleName(ast));
+                add_module(currentModule = parseModuleDecl(ast));
                 imports.push_back(currentModule);
                 // add class for global methods
                 createGlobalClass();
@@ -5503,10 +5508,12 @@ void RuntimeEngine::resolveClassHeiarchy(ClassObject* klass, ReferencePointer& r
                     expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
                 } else {
                     if (requreMovg && refrenceTrys <= 1) {
-                        if (field->isStatic())
+                        if (field->isStatic()) {
                             expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                        else
+                        }
+                        else {
                             expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                        }
                     }
                     // for now we are just generating code for x.x.f not Main.x...thats static access
                     if (isFieldInlined(field) && !field->isEnum) {
@@ -5619,8 +5626,9 @@ void RuntimeEngine::resolveSelfUtype(Scope* scope, ReferencePointer& reference, 
                     } else {
                         if(field->isStatic())
                             expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                        else
+                        else {
                             expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                        }
                         expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
                     }
                 }
@@ -5681,8 +5689,9 @@ void RuntimeEngine::resolveSelfUtype(Scope* scope, ReferencePointer& reference, 
                     } else {
                         if(field->isStatic())
                             expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                        else
+                        else {
                             expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                        }
                         expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
                     }
 
@@ -5758,8 +5767,9 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                 } else {
                     if(expression.utype.field.isStatic())
                         expression.code.push_i64(SET_Di(i64, op_MOVG, expression.utype.field.owner->address));
-                    else
+                    else {
                         expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                    }
                     expression.code.push_i64(SET_Di(i64, op_MOVN, expression.utype.field.address));
                 }
             } else {
@@ -5861,8 +5871,10 @@ void RuntimeEngine::resolveBaseUtype(Scope* scope, ReferencePointer& reference, 
                         } else {
                             if(ref.field.isStatic())
                                 expression.code.push_i64(SET_Di(i64, op_MOVG, ref.field.owner->address));
-                            else
+                            else {
                                 expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+
+                            }
                             expression.code.push_i64(SET_Di(i64, op_MOVN, ref.field.address)); // gain access to field in object
                         }
 
@@ -5949,8 +5961,9 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                         if(field->isObjectInMemory()) {
                             if(field->hasThreadLocality()) {
                                 expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
-                            } else
+                            } else {
                                 expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
+                            }
                         } else {
                             if(field->hasThreadLocality()) {
                                 expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
@@ -5961,8 +5974,9 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                     else {
                         if(field->hasThreadLocality()) {
                             expression.code.push_i64(SET_Di(i64, op_TLS_MOVL, field->thread_address));
-                        } else
+                        } else {
                             expression.code.push_i64(SET_Di(i64, op_MOVL, field->address));
+                        }
                     }
                 }
                 else if((field = currentScope()->klass->getField(refrence.referenceName, true)) != NULL) {
@@ -5986,8 +6000,9 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                         } else {
                             if(field->isStatic())
                                 expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                            else
+                            else {
                                 expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                            }
                             expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
                         }
                     }
@@ -6059,8 +6074,9 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
                                 } else {
                                     if (field->isStatic())
                                         expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                                    else
+                                    else {
                                         expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                                    }
                                     expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
                                 }
                             }
@@ -6075,8 +6091,9 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
 
                             if(field->isStatic())
                                 expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                            else
+                            else {
                                 expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                            }
                             expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
 
                             return;
@@ -6237,8 +6254,9 @@ void RuntimeEngine::resolveUtype(ReferencePointer& refrence, Expression& express
 
                         if (field->isStatic())
                             expression.code.push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                        else
+                        else {
                             expression.code.push_i64(SET_Di(i64, op_MOVL, 0));
+                        }
                         expression.code.push_i64(SET_Di(i64, op_MOVN, field->address));
                     }
                     resolveFieldHeiarchy(field, refrence, expression, pAst);

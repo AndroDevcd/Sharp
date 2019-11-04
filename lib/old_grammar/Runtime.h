@@ -581,7 +581,7 @@ struct Scope {
 
 class RuntimeEngine {
 public:
-    RuntimeEngine(const string exportFile, List<Parser*> &parsers)
+    RuntimeEngine(const string exportFile, List<parser*> &parsers)
     :
             exportFile(exportFile),
             modules(),
@@ -624,7 +624,7 @@ public:
 
         for(int i = 0; i < parsers.size(); i++)
         {
-            Parser *p = parsers.get(i);
+            parser *p = parsers.get(i);
             if(!p->parsed) {
                 return;
             }
@@ -671,7 +671,7 @@ public:
     bool panic;
 
     List<Scope> scopeMap;
-    Parser* activeParser;
+    parser* activeParser;
 
     void generate();
 
@@ -698,7 +698,7 @@ public:
 
 private:
     bool preprocessed;
-    List<Parser*> parsers;
+    List<parser*> parsers;
     List<string> modules;
     List<string> sourceFiles;
     List<ClassObject*> generics;
@@ -842,7 +842,7 @@ private:
 
     void resolveAllMethods();
 
-    Method *getMainMethod(Parser *p);
+    Method *getMainMethod(parser *p);
 
     void analyzeImportDecl(Ast *pAst);
 

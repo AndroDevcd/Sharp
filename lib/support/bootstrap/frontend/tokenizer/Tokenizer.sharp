@@ -45,7 +45,7 @@ class Tokenizer {
             return;
 
         addLines();
-        errors = new ErrorManager(lines, file, true, Options.aggressiveErrors);
+        errors = new ErrorManager(lines, file, false, Options.aggressiveErrors);
         current = text.at(0);
 
         while(!isEnd) {
@@ -116,12 +116,12 @@ class Tokenizer {
               case ',': addToken(TokenType.COMMA); break;
               case '.': addToken(TokenType.DOT); break;
               case ';': addToken(TokenType.SEMICOLON); break;
-              case ':': addToken(TokenType.COLON); break;
               case '#': addToken(TokenType.HASH); break;
               case '?': addToken(TokenType.QUESMK); break;
               case '$': addToken(TokenType.DOLLAR); break;
               case '!': addToken(match('=') ? TokenType.NOTEQ : TokenType.NOT); break;
               case '=': addToken(match('=') ? TokenType.EQEQ : TokenType.EQUALS); break;
+              case ':':  addToken(match('=') ? TokenType.INFER : TokenType.COLON); break;
               case '<':
                 if(match('<'))
                     addToken(TokenType.SHL);
@@ -234,7 +234,7 @@ class Tokenizer {
         println("errors " + errors.getRawErrorCount());
 
         end:
-        tokens.add(new Token("eof", TokenId.SINGLE, TokenType._EOF, 0, line));
+        tokens.add(new Token("eof", TokenId.SINGLE, TokenType.EOF, 0, line));
     }
 
     private def addToken(TokenId id) {
@@ -606,6 +606,7 @@ class Tokenizer {
     def getEscapedString(string msg) : string {
         var[] tmp = new var[msg.size()];
         var[] str = msg.getData();
+        string sb = "";
 
         char c = 0;
         var iter;
@@ -615,40 +616,40 @@ class Tokenizer {
             {
                 switch(str[i+1]) {
                     case 'n':
-                        data[iter++] =  '\n';
+                        tmp[iter++] =  '\n';
                         break;
                     case 't':
-                        data[iter++] = '\t';
+                        tmp[iter++] = '\t';
                         break;
                     case 'b':
-                        data[iter++] = '\b';
+                        tmp[iter++] = '\b';
                         break;
                     case 'v':
-                        data[iter++] = '\v';
+                        tmp[iter++] = '\v';
                         break;
                     case 'r':
-                        data[iter++] = '\r';
+                        tmp[iter++] = '\r';
                         break;
                     case 'f':
-                        data[iter++] = '\f';
+                        tmp[iter++] = '\f';
                         break;
                     case '0':
-                        data[iter++] = '\0';
+                        tmp[iter++] = '\0';
                         break;
                     case 'a':
-                        data[iter++] = '\a';
+                        tmp[iter++] = '\a';
                         break;
                     default:
-                        data[iter++] = str[i+1];
+                        tmp[iter++] = str[i+1];
                         break;
                 }
 
                 i++;
             }
             else
-                data[iter++] = str[i];
+                tmp[iter++] = str[i];
         }
-        return new string().append(data, iter);
+        return sb.string(tmp, iter);
     }
 
     def isSign(var c) : var {

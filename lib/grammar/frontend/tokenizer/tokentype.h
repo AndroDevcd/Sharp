@@ -1,39 +1,34 @@
-mod app;
+//
+// Created by bknun on 11/13/2017.
+//
 
-//import as std (
-//    std.io,
-//    std.*
-//)
+#ifndef SHARP_TOKENTYPE_H
+#define SHARP_TOKENTYPE_H
 
-/**                          
-* Created by bknun on 6/13/2018            
-* Description:                             
-*/
-
-enum TokenType
+enum token_type
 {
     NUMBER,
     LETTER,
     UNDERSCORE,
-    LEFT_PAREN,
-    RIGHT_PAREN,
-    LEFT_CURLY,
-    RIGHT_CURLY,
+    LEFTPAREN,
+    RIGHTPAREN,
+    LEFTCURLY,
+    RIGHTCURLY,
     HASH,               // #
     DOT,                // .
     PLUS,
     MINUS,
     MULT,
-    DIV,               //
-    MOD,               // %
+    _DIV,               //
+    _MOD,               // %
     COLON,              // :
     SEMICOLON,
-    DUB_QUOTE,           // "
-    SING_QUOTE,          // '
+    DUBQUOTE,           // "
+    SINGQUOTE,          // '
     COMMA,
     NEWLINE,
-    LTE,               // <=
-    GTE,               // >=
+    _LTE,               // <=
+    _GTE,               // >=
     EQEQ,               // ==
     PLUSEQ,
     MINUSEQ,
@@ -55,15 +50,17 @@ enum TokenType
     XOR,                // ^
     NOT,                // !
     EQUALS,             // =
-    INFER,             // :=
-    LEFT_BRACE,          // [
-    RIGHT_BRACE,         // ]
+    INFER,              // :=
+    LEFTBRACE,          // [
+    RIGHTBRACE,         // ]
     QUESMK,             // ?
     PTR,                // ->
-    INC,               // ++
-    DEC,               // --
+    _INC,               // ++
+    _DEC,               // --
     DOLLAR,             // $
-    EOF = 9999,        // end of file
+    _EOF = 0xfff9,      // end of file
 
     NONE                // not a type
 };
+
+#endif //SHARP_TOKENTYPE_H

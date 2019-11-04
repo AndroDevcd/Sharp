@@ -47,6 +47,12 @@ def main(string[] args) : var {
 
           print("num = " + num);
     };
+
+    $look:
     someComputation(55, 1, 2);
     return 0;
+}
+
+def foop(int, string) {
+
 }

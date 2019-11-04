@@ -6,7 +6,7 @@
 #define SHARP_ASM_H
 
 #include "Assembler.h"
-#include "parser/tokenizer/tokenentity.h"
+#include "parser/tokenizer/token.h"
 #include "Method.h"
 #include "../runtime/oo/string.h"
 

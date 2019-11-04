@@ -216,16 +216,6 @@ public:
         return false;
     }
 
-    long long count(T data) {
-        long long num=0;
-        for(unsigned long long i = 0; i < len; i++) {
-            if(data == _Data[i]){
-                num++;
-            }
-        }
-        return num;
-    }
-
     unsigned long long indexof(T data) {
         for(unsigned long long i = 0; i < len; i++) {
             if(data == _Data[i]){

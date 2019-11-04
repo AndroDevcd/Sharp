@@ -13,12 +13,19 @@ def main(string[] args) : var {
     println(" msg " + msg.hash() + " msg2 " + msg2.hash());
 
 // TODO:  perform house cleaning and prepar34e for release
-    HashMap<integer, var> hm = new HashMap<integer, var>(25000);
-//    ArrayList<int> hm = new ArrayList<int>();
-    hm.setPayloadClass(PayloadClass.PAYLOAD_MEDIUM);
-    for(var i = 0; i < 990000; i++) {
-        hm.add(new integer(i), i);
+//    HashMap<integer, var> hm = new HashMap<integer, var>(25000);
+    ArrayList<int> hm = new ArrayList<int>();
+    hm.setPayloadClass(PayloadClass.PAYLOAD_LARGE);
+    for(var i = 0; i < 9900000; i++) {
+        hm.add(new int(i));
     }
+//
+    var past = Time.millsTime(), now;
+    for(var i = 0; i < 9900000; i++) {
+        if(i == hm.get(i)){}
+    }
+    now = Time.millsTime();
+    println("time " + (now-past) + "ms");
 
     println("removing");
 //    hm.remove(new integer(123453));

@@ -3379,7 +3379,6 @@ Expression RuntimeEngine::parseNotExpression(Ast* pAst) {
             } else if(expression.utype.field.type == CLASS) {
                 if(expression.utype.field.local)
                     expression.code.push_i64(SET_Di(i64, op_MOVL, expression.utype.field.address));
-                notClass(expression, expression.utype.field.klass, pAst);
             } else {
                 errors->createNewError(GENERIC, pAst->line, pAst->col, "field must evaluate to an int to use `!` operator");
             }

@@ -5,7 +5,7 @@
 #ifndef SHARP_ACCESSMODIFIER_H
 #define SHARP_ACCESSMODIFIER_H
 
-enum AccessModifier
+enum AccessFlag
 {
     /*
      * Class, Interface, Field, and Method access modifiers
@@ -14,13 +14,16 @@ enum AccessModifier
     PRIVATE=1,
     PROTECTED=2,
 
+    LOCAL = 3, /* Only the file created can access the object */
+
     /*
      * Field access modifiers
      */
-    mCONST=3,
-    STATIC=4, /* Methods can use this modifier */
+    flg_CONST=4,
+    STATIC=5, /* Methods can use this modifier */
 
-    mUNDEFINED=6
+
+    flg_UNDEFINED=6
 };
 
 #endif //SHARP_ACCESSMODIFIER_H

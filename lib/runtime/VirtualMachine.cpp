@@ -13,7 +13,7 @@
 #include "Environment.h"
 #include "../util/time.h"
 #include "Opcode.h"
-#include "../grammar/FieldType.h"
+#include "../grammar/DataType.h"
 #include "oo/Field.h"
 #include "Manifest.h"
 #include "../Modules/std.io/fileio.h"
@@ -563,12 +563,11 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             size_t len = (thread_self->sp--)->var;
             Object *arry = &thread_self->sp->object;
             SharpObject *o = arry->object;
-            Object data; data.object = NULL;
 
             if(o != NULL) {
                 if(len > o->size || len < 0) {
                     stringstream ss;
-                    ss << "invalid call to native System.copy() len: " << len
+                    ss << "invalid call to native Runtime.copy() len: " << len
                        << ", array size: " << o->size;
                     throw Exception(ss.str());
                 }
@@ -577,27 +576,21 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                     if(TYPE(o->info) != _stype_struct || o->node == NULL)
                         throw Exception(Environment::NullptrException, "");
-                    data = GarbageCollector::self->newObjectArray(len, &env->classes[CLASS(o->info)]);
+                    *arry = GarbageCollector::self->newObjectArray(len, &env->classes[CLASS(o->info)]);
 
                     for(size_t i = 0; i < len; i++) {
-                        data.object->node[i] = o->node[i];
+                        arry->object->node[i] = o->node[i];
                     }
 
-                    *arry = data.object;
-                    data.object->refCount = 1;
                 } else if(TYPE(o->info) == _stype_var) { // var[]
-                    data = GarbageCollector::self->newObject(len);
-                    std::memcpy(data.object->HEAD, o->HEAD, sizeof(double)*len);
+                    *arry = GarbageCollector::self->newObject(len);
+                    std::memcpy(arry->object->HEAD, o->HEAD, sizeof(double)*len);
 
-                    *arry = data.object;
-                    data.object->refCount = 1;
                 } else if(TYPE(o->info) == _stype_struct && o->node != NULL) { // object? maybe...
-                    data = GarbageCollector::self->newObject(len);
+                    *arry = GarbageCollector::self->newObject(len);
                     for(size_t i = 0; i < len; i++) {
-                        data.object->node[i] = o->node[i];
+                        arry->object->node[i] = o->node[i];
                     }
-                    *arry = data.object;
-                    data.object->refCount = 1;
                 }
 
             } else
@@ -614,7 +607,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             if(o != NULL) {
                 if(indexLen > o->size || len < 0 || indexLen < 0 ) {
                     stringstream ss;
-                    ss << "invalid call to native System.copy2() index-len: " << indexLen
+                    ss << "invalid call to native Runtime.copy2() index-len: " << indexLen
                        << ", array size: " << o->size;
                     throw Exception(ss.str());
                 }
@@ -660,7 +653,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 if(startIndex > o->size || startIndex < 0 || endIndex < 0
                    || endIndex > o->size || endIndex < startIndex) {
                     stringstream ss;
-                    ss << "invalid call to native System.memcpy() startIndex: " << startIndex
+                    ss << "invalid call to native Runtime.memcpy() startIndex: " << startIndex
                        << " endIndex: " << endIndex << ", array size: " << o->size;
                     throw Exception(ss.str());
                 }
@@ -709,7 +702,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 if(startIndex > o->size || startIndex < 0 || endIndex < 0
                    || endIndex > o->size || endIndex < startIndex) {
                     stringstream ss;
-                    ss << "invalid call to native System.reverse() startIndex: " << startIndex
+                    ss << "invalid call to native Runtime.reverse() startIndex: " << startIndex
                        << " endIndex: " << endIndex << ", array size: " << o->size;
                     throw Exception(ss.str());
                 }
@@ -759,7 +752,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             if(o != NULL) {
                 if(len <= 0) {
                     stringstream ss;
-                    ss << "invalid call to native System.realloc() len: " << len
+                    ss << "invalid call to native Runtime.realloc() len: " << len
                        << ", array size: " << o->size;
                     throw Exception(ss.str());
                 }

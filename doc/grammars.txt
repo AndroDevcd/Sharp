@@ -39,16 +39,16 @@ A character literal consists of: `'<letter>'` or `'\<letter>'`
 <literal>:
 A literal consists of (<number-literal>, <string-literal>, <character-literal>, or <boolean-literal>)
 
-<modulename>:
+<dot-notation-format>:
 A module-name is a <identifier> that connects a class to a specific module or directory.
 <identifier>[(.<identifier>...)]#
 
 <refrence-pointer>:
 A refrence ptr is a specific pointer to any given variable, function, or class within an entity.
-[<modulename>#]<identifier>*[< <refrence-identifier-list> >](.<identifier>[< <refrence-identifier-list> >])
+[<dot-notation-format>#]<identifier>*[< <refrence-identifier-list> >](.<identifier>[< <refrence-identifier-list> >])
 
 <refrence-identifier>:
-A reference identifier is an identifier that may be an <identifier> or <refrence-pointer>
+A reference identifier is an identifier that may be a <refrence-pointer>
 
 <refrence-identifier-list>:
 <refrence-identifier> [,<refrence-identifier>...]
@@ -182,10 +182,10 @@ A single line comment consists of a line starting with `//` and ending in a new 
 A single line comment can be put anywhere in a line.
 
 Module Declaration:
-mod <modulename> ;
+mod <identifier>[(`.`<identifier>)+] ;
 
 Import Declaration:
-import <modulename> ;
+import <identifier>[(`.` [`*` | <identifier>] )+];
 
 Prototype Declaration:
 fn <identifier = name> [<uTypeArg-list-opt> [: <uType>]] [`=` <expression>];
@@ -194,7 +194,7 @@ Class Declaration:
 `[<accesstype>] class <identifier = name> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
 
 Generic Class Declaration:
-`[<accesstype>] class <identifier = name> < <identifier-list> > [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
+`[<accesstype>] class <identifier = name> `<` <identifier-list> `>` [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
 
 interface Declaration:
 `[<accesstype>] interface <identifier = name> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`

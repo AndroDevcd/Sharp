@@ -1,0 +1,75 @@
+mod app;
+
+import std;
+import std.kernel;
+import std.*;
+
+ class Apple<T, k> {
+    public num: var = 9;
+    thread_local x := 8;
+
+}
+
+/**
+ * Created by BraxtonN on 10/18/2019.
+ */
+//class syntax base string : List, List<ArrayList<T> > {
+//    number : _int16 = 10, x, y , yy = 9929383;
+//    number2 := 11, c = 9;
+//
+//    fn ptr(size : _int32, data : object, int);
+//
+//    enum E {
+//        a,
+//        b,
+//        c,
+//        d
+//    };
+//
+//    def operator+(c : int)
+//    {
+//
+//    }
+//
+//    interface iface {
+//
+//    }
+//
+//    def delegate::foop();
+//    def delegate::foop2() {
+//
+//    }
+//
+//    def foo(x : int)
+//    {
+//
+//    }
+//}
+//
+//number : _int16 = 10, x, y , yy = 9929383;
+//    number2 := 11, c = 9;
+//
+//    fn ptr := foo;
+//
+//    enum E {
+//        a,
+//        b,
+//        c,
+//        d
+//    };
+//
+//    interface iface {
+//
+//    }
+//
+//
+//    def foo(x : int)
+//    {
+//
+//    }
+//
+//class string<T> {
+//    def foop(lst : ArrayList<T>) : List<T> {
+//
+//    }
+//}

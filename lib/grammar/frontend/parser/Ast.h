@@ -6,10 +6,10 @@
 #define SHARP_AST_H
 
 #include <list>
-#include "tokenizer/tokenentity.h"
-#include "../List.h"
+#include "../tokenizer/token.h"
+#include "../../List.h"
 
-enum ast_types
+enum ast_type
 {
     ast_class_decl,
     ast_generic_class_decl,
@@ -21,12 +21,12 @@ enum ast_types
     ast_module_decl,
     ast_method_decl,
     ast_enum_decl,
-    ast_delegate_post_decl,
     ast_delegate_decl,
+    ast_delegate_impl,
     ast_construct_decl,
     ast_label_decl,
     ast_operator_decl,
-    ast_var_decl,
+    ast_variable_decl,
     ast_switch_declarator,
     ast_value,
     ast_value_list,
@@ -36,7 +36,7 @@ enum ast_types
     ast_field_init,
     ast_utype_arg_list,
     ast_utype_arg_list_opt,
-    ast_reference_identifier_list,
+    ast_reference_pointer_list,
     ast_utype_list,
     ast_identifier_list,
     ast_enum_identifier_list,
@@ -79,6 +79,7 @@ enum ast_types
     ast_refrence_pointer,
     ast_modulename,
     ast_literal,
+    ast_access_type,
 
     /**
      * Encapsulated ast's to make processing expressions easier
@@ -113,14 +114,13 @@ enum ast_types
 
 class Ast {
 public:
-    Ast(Ast* parent, ast_types type, int line, int col)
+    Ast(ast_type type, int line, int col)
     :
-    type(type),
-            parent(parent),
-            line(line),
-            col(col),
-            numEntities(0),
-    numAsts(0)
+        type(type),
+        line(line),
+        col(col),
+        numEntities(0),
+        numAsts(0)
     {
         sub_asts.init();
         entities.init();
@@ -129,7 +129,6 @@ public:
     Ast()
             :
             type(ast_none),
-            parent(NULL),
             line(0),
             col(0),
             numEntities(0),
@@ -139,10 +138,9 @@ public:
         entities.init();
     }
 
-    Ast(Ast* parent, Ast *cpy)
+    Ast(Ast *cpy)
             :
             type(ast_none),
-            parent(parent),
             line(0),
             col(0),
             numEntities(0),
@@ -153,44 +151,42 @@ public:
         copy(cpy);
     }
 
-    Ast* encapsulate(ast_types at);
+    Ast* encapsulate(ast_type at);
 
-    ast_types getType();
-    Ast*  getParent();
+    ast_type getType();
     long getSubAstCount();
     Ast *getSubAst(long at);
     Ast *getLastSubAst();
-    Ast *getSubAst(ast_types at);
-    Ast *getNextSubAst(ast_types at);
-    bool hasSubAst(ast_types at);
+    Ast *getSubAst(ast_type at);
+    Ast *getNextSubAst(ast_type at);
+    bool hasSubAst(ast_type at);
     bool hasEntity(token_type t);
     bool findEntity(string t);
     void freeSubAsts();
     long getEntityCount();
-    token_entity getEntity(long at);
-    token_entity getEntity(token_type t);
+    Token getEntity(long at);
+    Token getEntity(token_type t);
 
-    void addEntity(token_entity entity);
-    void addAst(Ast _ast);
-    void addAstFirst(Ast _ast);
+    void addToken(Token entity);
+    void addAst(Ast* _ast);
+    void addAstFirst(Ast* _ast);
     void copy(Ast *ast);
     void free();
 
     void freeEntities();
     void freeLastSub();
-    void freeAst(ast_types type);
+    void freeAst(ast_type type);
     void freeLastEntity();
 
     int line, col;
     long numEntities, numAsts;
 
-    void setAstType(ast_types types);
+    void setAstType(ast_type types);
 
-    List<Ast> sub_asts;
+    List<Ast*> sub_asts;
 private:
-    ast_types type;
-    Ast *parent;
-    List<token_entity> entities;
+    ast_type type;
+    List<Token> entities;
 };
 
 

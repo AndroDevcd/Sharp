@@ -28,12 +28,14 @@ Any other compatibility issues/changes will be otherwise noted in the release no
         * Fixed several compiler seg faults
         * Fixed several null pointer exceptions with file sys stl
         * Fixed exception system not correctly showing where the code broke 
+        * Fixed major bugs in the compiler
 
     # QoL Improvements
         * Compiler v2 development has begun. Sharp will now be oficially bootstrapped and quickly become a more stable and faster language.
 
     # New Additions
-        *
+        * Removed 'local' keyword from the language
+        * Made several changes to the syntax
 
     # Known Issues
         *

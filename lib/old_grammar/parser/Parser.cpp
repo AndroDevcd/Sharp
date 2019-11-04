@@ -18,7 +18,7 @@
 #define current() \
     (*_current)
 
-void Parser::parse()
+void parser::parse()
 {
     if(toks->getEntities().size() == 0)
         return;
@@ -89,7 +89,7 @@ void Parser::parse()
         else
         {
             // save parser state
-            errors->enableErrorCheckMode();
+            errors->enterProtectedMode();
             pushback();
 
             unsigned long old = cursor+1;
@@ -133,16 +133,16 @@ void Parser::parse()
         return;
 }
 
-ErrorManager* Parser::getErrors()
+ErrorManager* parser::getErrors()
 {
     return errors;
 }
 
-bool Parser::isend() {
+bool parser::isend() {
     return current().getTokenType() == _EOF;
 }
 
-void Parser::parse_interfacedecl(Ast* _ast) { // 1
+void parser::parse_interfacedecl(Ast* _ast) { // 1
     _ast = get_ast(_ast, ast_interface_decl);
 
     for(int i = 0; i < access_types.size(); i++) {
@@ -172,12 +172,10 @@ void Parser::parse_interfacedecl(Ast* _ast) { // 1
     parse_interfaceblock(_ast);
 }
 
-void Parser::parse_classdecl(Ast* _ast) { // 1
+void parser::parse_classdecl(Ast* _ast) { // 1
     _ast = get_ast(_ast, ast_class_decl);
 
-    for(int i = 0; i < access_types.size(); i++) {
-        _ast->addEntity(access_types.get(i));
-    }
+    addAccessTypes(_ast);
     _ast->addEntity(current());
 
 
@@ -209,7 +207,8 @@ void Parser::parse_classdecl(Ast* _ast) { // 1
     parse_classblock(_ast);
 }
 
-void Parser::parse_enumblock(Ast *_ast) {
+
+void parser::parse_enumblock(Ast *_ast) {
     _ast = get_ast(_ast, ast_enum_identifier_list);
 
     expect(LEFTCURLY, "`{`");
@@ -227,7 +226,7 @@ void Parser::parse_enumblock(Ast *_ast) {
     expect(SEMICOLON, "`;`");
 }
 
-void Parser::parse_enumidentifier(Ast *_ast) {
+void parser::parse_enumidentifier(Ast *_ast) {
     _ast = get_ast(_ast, ast_enum_identifier);
 
     expectidentifier(_ast);
@@ -239,7 +238,7 @@ void Parser::parse_enumidentifier(Ast *_ast) {
     }
 }
 
-void Parser::parse_enumdecl(Ast* _ast) { // 1
+void parser::parse_enumdecl(Ast* _ast) { // 1
     _ast = get_ast(_ast, ast_enum_decl);
 
     for(int i = 0; i < access_types.size(); i++) {
@@ -252,7 +251,7 @@ void Parser::parse_enumdecl(Ast* _ast) { // 1
     parse_enumblock(_ast);
 }
 
-void Parser::parse_importdecl(Ast* _ast) {
+void parser::parse_importdecl(Ast* _ast) {
     _ast = get_ast(_ast, ast_import_decl);
     _ast->addEntity(current());
 
@@ -265,7 +264,7 @@ void Parser::parse_importdecl(Ast* _ast) {
     expect(SEMICOLON, "`;`");
 }
 
-void Parser::parse_moduledecl(Ast* _ast) {
+void parser::parse_moduledecl(Ast* _ast) {
     _ast = get_ast(_ast, ast_module_decl);
     _ast->addEntity(current());
 
@@ -278,7 +277,7 @@ void Parser::parse_moduledecl(Ast* _ast) {
         return;
 }
 
-token_entity Parser::peek(int forward)
+token_entity parser::peek(int forward)
 {
 
     if(cursor+forward >= toks->getEntities().size())
@@ -287,97 +286,97 @@ token_entity Parser::peek(int forward)
         return toks->getEntities().get(cursor+forward);
 }
 
-bool Parser::isvariable_decl(token_entity token) {
+bool parser::isvariable_decl(token_entity token) {
     return isnative_type(token.getToken());
 }
 
-bool Parser::isprototype_decl(token_entity token) {
+bool parser::isprototype_decl(token_entity token) {
     return (token.getId() == IDENTIFIER && token.getToken() == "fn");
 }
 
-bool Parser::ismethod_decl(token_entity token) {
+bool parser::ismethod_decl(token_entity token) {
     return token.getId() == IDENTIFIER && token.getToken() == "def";
 }
 
-bool Parser::isenum_decl(token_entity token) {
+bool parser::isenum_decl(token_entity token) {
     return token.getId() == IDENTIFIER && token.getToken() == "enum";
 }
 
-Ast* Parser::ast_at(long p)
+Ast* parser::ast_at(long p)
 {
     return &(*std::next(tree->begin(), p));
 }
 
-bool Parser::ismodule_decl(token_entity entity) {
+bool parser::ismodule_decl(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "mod";
 }
 
-bool Parser::isclass_decl(token_entity entity) {
+bool parser::isclass_decl(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "class";
 }
 
-bool Parser::isinterface_decl(token_entity entity) {
+bool parser::isinterface_decl(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "interface";
 }
 
-bool Parser::isimport_decl(token_entity entity) {
+bool parser::isimport_decl(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "import";
 }
 
-bool Parser::isreturn_stmnt(token_entity entity) {
+bool parser::isreturn_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "return";
 }
 
-bool Parser::isswitch_stmnt(token_entity entity) {
+bool parser::isswitch_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "switch";
 }
 
-bool Parser::isif_stmnt(token_entity entity) {
+bool parser::isif_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "if";
 }
 
-bool Parser::iswhile_stmnt(token_entity entity) {
+bool parser::iswhile_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "while";
 }
 
-bool Parser::isfor_stmnt(token_entity entity) {
+bool parser::isfor_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "for";
 }
 
-bool Parser::islock_stmnt(token_entity entity) {
+bool parser::islock_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "lock";
 }
 
-bool Parser::isforeach_stmnt(token_entity entity) {
+bool parser::isforeach_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "foreach";
 }
 
-bool Parser::isassembly_stmnt(token_entity entity) {
+bool parser::isassembly_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "asm";
 }
 
-bool Parser::isdowhile_stmnt(token_entity entity) {
+bool parser::isdowhile_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "do";
 }
 
-bool Parser::istrycatch_stmnt(token_entity entity) {
+bool parser::istrycatch_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "try";
 }
 
-bool Parser::isthrow_stmnt(token_entity entity) {
+bool parser::isthrow_stmnt(token_entity entity) {
     return entity.getId() == IDENTIFIER && entity.getToken() == "throw";
 }
 
-bool Parser::isswitch_declarator(token_entity entity) {
+bool parser::isswitch_declarator(token_entity entity) {
     return entity.getId() == IDENTIFIER && (entity.getToken() == "case" || entity.getToken() == "default");
 }
 
-bool Parser::isconstructor_decl() {
+bool parser::isconstructor_decl() {
     return current().getId() == IDENTIFIER && !iskeyword(current().getToken()) &&
            peek(1).getTokenType() == LEFTPAREN;
 }
 
-bool Parser::isnative_type(string type) {
+bool parser::isnative_type(string type) {
     return type == "var" || type == "object"
            || type == "_int8" || type == "_int16"
            || type == "_int32" || type == "_int64"
@@ -385,14 +384,14 @@ bool Parser::isnative_type(string type) {
            || type == "_uint32" || type == "_uint64";
 }
 
-bool Parser::isspecial_native_type(string type) {
+bool parser::isspecial_native_type(string type) {
     return type == "_int8" || type == "_int16"
            || type == "_int32" || type == "_int64"
             || type == "_uint8" || type == "_uint16"
                || type == "_uint32" || type == "_uint64";
 }
 
-bool Parser::isaccess_decl(token_entity token) {
+bool parser::isaccess_decl(token_entity token) {
     return
             (token.getId() == IDENTIFIER && token.getToken() == "protected") ||
             (token.getId() == IDENTIFIER && token.getToken() == "private") ||
@@ -401,13 +400,13 @@ bool Parser::isaccess_decl(token_entity token) {
             (token.getId() == IDENTIFIER && token.getToken() == "public");
 }
 
-bool Parser::isstorage_type(token_entity token) {
+bool parser::isstorage_type(token_entity token) {
     return
             (token.getId() == IDENTIFIER && token.getToken() == "local") ||
             (token.getId() == IDENTIFIER && token.getToken() == "thread_local") ;
 }
 
-void Parser::parse_accesstypes() {
+void parser::parse_accesstypes() {
     remove_accesstypes();
 
     while(isaccess_decl(current()))
@@ -417,11 +416,11 @@ void Parser::parse_accesstypes() {
     }
 }
 
-void Parser::remove_accesstypes() {
+void parser::remove_accesstypes() {
     access_types.free();
 }
 
-void Parser::expect(token_type ty, Ast* pAst, const char *expectedstr) {
+void parser::expect(token_type ty, Ast* pAst, const char *expectedstr) {
     advance();
 
     if(current().getTokenType() == ty)
@@ -435,7 +434,7 @@ void Parser::expect(token_type ty, Ast* pAst, const char *expectedstr) {
 }
 
 
-bool Parser::expectidentifier(Ast* pAst) {
+bool parser::expectidentifier(Ast* pAst) {
     advance();
 
     if(current().getId() == IDENTIFIER && !iskeyword(current().getToken()))
@@ -451,7 +450,7 @@ bool Parser::expectidentifier(Ast* pAst) {
 }
 
 
-void Parser::expect_token(Ast *pAst, string token, const char *message) {
+void parser::expect_token(Ast *pAst, string token, const char *message) {
     if(current().getToken() != token)
     {
         errors->createNewError(GENERIC, current(), "expected " + std::string(message));
@@ -460,7 +459,7 @@ void Parser::expect_token(Ast *pAst, string token, const char *message) {
     }
 }
 
-bool Parser::expect(token_type type, const char *expectedstr) {
+bool parser::expect(token_type type, const char *expectedstr) {
     advance();
 
     if(current().getTokenType() == type)
@@ -473,7 +472,7 @@ bool Parser::expect(token_type type, const char *expectedstr) {
     return false;
 }
 
-void Parser::parse_interfaceblock(Ast *pAst) {
+void parser::parse_interfaceblock(Ast *pAst) {
     expect(LEFTCURLY, "`{` after interface declaration");
     pAst = get_ast(pAst, ast_block);
 
@@ -619,7 +618,7 @@ void Parser::parse_interfaceblock(Ast *pAst) {
     expect(RIGHTCURLY, "`}` at end of interface declaration");
 }
 
-void Parser::parse_classblock(Ast *pAst) {
+void parser::parse_classblock(Ast *pAst) {
     expect(LEFTCURLY, "`{` after class declaration");
     pAst = get_ast(pAst, ast_block);
 
@@ -751,7 +750,7 @@ void Parser::parse_classblock(Ast *pAst) {
  * @param pAst
  * @return
  */
-Ast * Parser::get_ast(Ast *pAst, ast_types typ) {
+Ast * parser::get_ast(Ast *pAst, ast_type typ) {
     if(pAst == NULL)
     {
         tree->push_back(Ast(NULL, typ, current().getLine(), current().getColumn()));
@@ -766,7 +765,7 @@ Ast * Parser::get_ast(Ast *pAst, ast_types typ) {
     }
 }
 
-void Parser::pushback() {
+void parser::pushback() {
     if(cursor > 0) {
         _current = &toks->getEntities().get(cursor-1);
         cursor--;
@@ -774,7 +773,7 @@ void Parser::pushback() {
 }
 
 int partialdecl = 0;
-void Parser::parse_variabledecl(Ast *pAst) {
+void parser::parse_variabledecl(Ast *pAst) {
     pAst = get_ast(pAst, ast_var_decl);
 
     if(partialdecl ==0) {
@@ -807,7 +806,7 @@ void Parser::parse_variabledecl(Ast *pAst) {
         expect(SEMICOLON, "`;`");
 }
 
-void Parser::parse_prototypedecl(Ast *pAst, bool semicolon) {
+void parser::parse_prototypedecl(Ast *pAst, bool semicolon) {
     pAst = get_ast(pAst, ast_func_prototype);
 
     for(int i = 0; i < access_types.size(); i++) {
@@ -846,7 +845,7 @@ void Parser::parse_prototypedecl(Ast *pAst, bool semicolon) {
         expect(SEMICOLON, "`;`");
 }
 
-void Parser::parse_valueassignment(Ast *pAst) {
+void parser::parse_valueassignment(Ast *pAst) {
     advance();
     if(isassign_exprsymbol(current().getToken()))
     {
@@ -857,7 +856,7 @@ void Parser::parse_valueassignment(Ast *pAst) {
         pushback();
 }
 
-void Parser::parse_prototype_valueassignment(Ast *pAst) {
+void parser::parse_prototype_valueassignment(Ast *pAst) {
     advance();
     if(isassign_exprsymbol(current().getToken()))
     {
@@ -871,7 +870,7 @@ void Parser::parse_prototype_valueassignment(Ast *pAst) {
         pushback();
 }
 
-bool Parser::parse_literal(Ast *pAst) {
+bool parser::parse_literal(Ast *pAst) {
     pAst = get_ast(pAst, ast_literal);
 
     token_entity e = peek(1);
@@ -889,7 +888,7 @@ bool Parser::parse_literal(Ast *pAst) {
     }
 }
 
-void Parser::parse_assembly_block(Ast *pAst) {
+void parser::parse_assembly_block(Ast *pAst) {
     pAst = get_ast(pAst, ast_assembly_block);
 
     if(peek(1).getId() == STRING_LITERAL) {
@@ -905,7 +904,7 @@ void Parser::parse_assembly_block(Ast *pAst) {
     }
 }
 
-bool Parser::parse_utype(Ast *pAst) {
+bool parser::parse_utype(Ast *pAst) {
     pAst = get_ast(pAst, ast_utype);
 
     if(parse_type_identifier(pAst))
@@ -926,7 +925,7 @@ bool Parser::parse_utype(Ast *pAst) {
     return false;
 }
 
-bool Parser::parse_utype_naked(Ast *pAst) {
+bool parser::parse_utype_naked(Ast *pAst) {
     pAst = get_ast(pAst, ast_utype);
 
     if(parse_type_identifier(pAst)) {
@@ -938,7 +937,7 @@ bool Parser::parse_utype_naked(Ast *pAst) {
     return false;
 }
 
-void Parser::parse_valuelist(Ast *pAst) {
+void parser::parse_valuelist(Ast *pAst) {
     pAst = get_ast(pAst, ast_value_list);
 
     expect(LEFTPAREN, pAst, "`(`");
@@ -961,7 +960,7 @@ void Parser::parse_valuelist(Ast *pAst) {
     expect(RIGHTPAREN, pAst, "`)`");
 }
 
-void Parser::parse_expression_list(Ast *pAst) {
+void parser::parse_expression_list(Ast *pAst) {
     pAst = get_ast(pAst, ast_expression_list);
 
     expect(LEFTCURLY, pAst, "`{`");
@@ -984,7 +983,7 @@ void Parser::parse_expression_list(Ast *pAst) {
     expect(RIGHTCURLY, pAst, "`}");
 }
 
-bool Parser::parse_field_initialization(Ast *pAst) {
+bool parser::parse_field_initialization(Ast *pAst) {
     pAst = get_ast(pAst, ast_field_init);
 
     if(peek(1).getToken() == "base") {
@@ -1005,7 +1004,7 @@ bool Parser::parse_field_initialization(Ast *pAst) {
     return false;
 }
 
-void Parser::parse_field_init_list(Ast *pAst) {
+void parser::parse_field_init_list(Ast *pAst) {
     pAst = get_ast(pAst, ast_field_init_list);
 
     cout << "field init list" << endl;
@@ -1029,7 +1028,7 @@ void Parser::parse_field_init_list(Ast *pAst) {
     expect(RIGHTCURLY, pAst, "`}");
 }
 
-bool Parser::isassign_exprsymbol(string token) {
+bool parser::isassign_exprsymbol(string token) {
     return token == "+=" || token == "-="||
            token == "*=" || token == "/="||
            token == "&=" || token == "|="||
@@ -1037,7 +1036,7 @@ bool Parser::isassign_exprsymbol(string token) {
            token == "=";
 }
 
-bool Parser::isexprsymbol(string token) {
+bool parser::isexprsymbol(string token) {
     return token == "[" || token == "++" ||
            token == "--" || token == "*" ||
            token == "/" || token == "%" ||
@@ -1052,7 +1051,7 @@ bool Parser::isexprsymbol(string token) {
            isassign_exprsymbol(token);
 }
 
-bool Parser::isoverride_operator(string token) {
+bool parser::isoverride_operator(string token) {
     return isassign_exprsymbol(token) ||
            token == "++" ||token == "--" ||
            token == "*" || token == "/" ||
@@ -1067,7 +1066,7 @@ bool Parser::isoverride_operator(string token) {
             ;
 }
 
-bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
+bool parser::parse_dot_notation_call_expr(Ast *pAst) {
     pAst = get_ast(pAst, ast_dotnotation_call_expr);
 
     if(peek(1).getTokenType() == DOT)
@@ -1098,7 +1097,7 @@ bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
                 expect(RIGHTBRACE, pAst, "`]`");
 
                 if(peek(1).getTokenType() == DOT) {
-                    errors->enableErrorCheckMode();
+                    errors->enterProtectedMode();
                     this->retainstate(pAst);
                     if(!parse_dot_notation_call_expr(pAst))
                     {
@@ -1111,7 +1110,7 @@ bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
                 }
             }
             else {
-                errors->enableErrorCheckMode();
+                errors->enterProtectedMode();
                 this->retainstate(pAst);
                 if(!parse_dot_notation_call_expr(pAst))
                 {
@@ -1131,11 +1130,11 @@ bool Parser::parse_dot_notation_call_expr(Ast *pAst) {
     return true;
 }
 
-bool Parser::parse_array_expression(Ast* pAst) {
+bool parser::parse_array_expression(Ast* pAst) {
     pAst = get_ast(pAst, ast_array_expression);
 
     this->retainstate(pAst);
-    errors->enableErrorCheckMode();
+    errors->enterProtectedMode();
     expect(LEFTBRACE, pAst, "`[`");
 
     if(peek(1).getTokenType() != RIGHTBRACE) {
@@ -1169,7 +1168,7 @@ bool Parser::parse_array_expression(Ast* pAst) {
 
 }
 
-bool Parser::match(int num_args, ...) {
+bool parser::match(int num_args, ...) {
     va_list ap;
     bool found = false;
 
@@ -1185,7 +1184,7 @@ bool Parser::match(int num_args, ...) {
     return found;
 }
 
-bool Parser::binary(Ast *pAst) {
+bool parser::binary(Ast *pAst) {
     bool parsed = shift(pAst);
 
     while(match(5, AND, XOR, OR, ANDAND, OROR)) {
@@ -1202,7 +1201,7 @@ bool Parser::binary(Ast *pAst) {
     return parsed;
 }
 
-bool Parser::shift(Ast *pAst) {
+bool parser::shift(Ast *pAst) {
     bool parsed = equality(pAst);
 
     while(match(2, SHL, SHR)) {
@@ -1219,7 +1218,7 @@ bool Parser::shift(Ast *pAst) {
     return parsed;
 }
 
-bool Parser::equality(Ast *pAst) {
+bool parser::equality(Ast *pAst) {
     bool parsed = comparason(pAst);
 
     while(match(2, EQEQ, NOTEQ)) {
@@ -1236,7 +1235,7 @@ bool Parser::equality(Ast *pAst) {
     return parsed;
 }
 
-bool Parser::comparason(Ast *pAst) {
+bool parser::comparason(Ast *pAst) {
     bool parsed = addition(pAst);
 
     while(match(4, GREATERTHAN, _GTE, LESSTHAN, _LTE)) {
@@ -1253,7 +1252,7 @@ bool Parser::comparason(Ast *pAst) {
     return parsed;
 }
 
-bool Parser::addition(Ast *pAst) {
+bool parser::addition(Ast *pAst) {
     bool parsed = multiplication(pAst);
 
     while(match(2, MINUS, PLUS)) {
@@ -1270,7 +1269,7 @@ bool Parser::addition(Ast *pAst) {
     return parsed;
 }
 
-bool Parser::multiplication(Ast *pAst) {
+bool parser::multiplication(Ast *pAst) {
     bool parsed = unary(pAst);
 
     while(match(3, _DIV, _MOD, MULT)) {
@@ -1287,7 +1286,7 @@ bool Parser::multiplication(Ast *pAst) {
     return parsed;
 }
 
-bool Parser::unary(Ast *pAst) {
+bool parser::unary(Ast *pAst) {
     if(match(1, MINUS)) {
         advance();
         pAst->addEntity(current());
@@ -1309,7 +1308,7 @@ bool Parser::unary(Ast *pAst) {
     }
 
     this->retainstate(pAst);
-    errors->enableErrorCheckMode();
+    errors->enterProtectedMode();
     if(!parse_primaryexpr(pAst))
     {
         errors->pass();
@@ -1324,11 +1323,11 @@ bool Parser::unary(Ast *pAst) {
 }
 
 
-bool Parser::parse_primaryexpr(Ast *pAst) {
+bool parser::parse_primaryexpr(Ast *pAst) {
     pAst = get_ast(pAst, ast_primary_expr);
 
 
-    errors->enableErrorCheckMode();
+    errors->enterProtectedMode();
     this->retainstate(pAst);
     if(parse_literal(pAst))
     {
@@ -1340,7 +1339,7 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
     pAst = this->rollback();
     errors->pass();
 
-    errors->enableErrorCheckMode();
+    errors->enterProtectedMode();
     if(peek(1).getTokenType() == DOT) {
         advance();
         pAst->addEntity(current());
@@ -1393,7 +1392,7 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
     }
 
     this->retainstate(pAst);
-    errors->enableErrorCheckMode();
+    errors->enterProtectedMode();
     if(parse_dot_notation_call_expr(pAst)) {
         this->dumpstate();
         errors->fail();
@@ -1477,7 +1476,7 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
     if(peek(1).getTokenType() == LEFTPAREN)
     {
         this->retainstate(pAst);
-        errors->enableErrorCheckMode();
+        errors->enterProtectedMode();
 
         advance();
         pAst->addEntity(current());
@@ -1520,7 +1519,7 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
 
         if(!isexprsymbol(peek(1).getToken())) {
             this->retainstate(pAst);
-            errors->enableErrorCheckMode();
+            errors->enterProtectedMode();
             if(parse_dot_notation_call_expr(pAst)) {
                 this->dumpstate();
                 errors->fail();
@@ -1555,7 +1554,7 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
 
 
         if(!isexprsymbol(peek(1).getToken())){
-            errors->enableErrorCheckMode();
+            errors->enterProtectedMode();
             this->retainstate(pAst);
             if(!parse_dot_notation_call_expr(pAst)) {
                 this->rollbacklast();
@@ -1587,7 +1586,7 @@ bool Parser::parse_primaryexpr(Ast *pAst) {
     return false;
 }
 
-bool Parser::parse_expression(Ast *pAst) {
+bool parser::parse_expression(Ast *pAst) {
     pAst = get_ast(pAst, ast_expression);
     CHECK_ERRORS_RETURN(false)
 
@@ -1655,12 +1654,12 @@ bool Parser::parse_expression(Ast *pAst) {
     return parsed;
 }
 
-bool Parser::parse_value(Ast *pAst) {
+bool parser::parse_value(Ast *pAst) {
     pAst = get_ast(pAst, ast_value);
     return parse_expression(pAst);
 }
 
-bool Parser::parse_utypearg(Ast* pAst) {
+bool parser::parse_utypearg(Ast* pAst) {
     pAst = get_ast(pAst, ast_utype_arg);
 
     if(parse_utype(pAst))
@@ -1673,12 +1672,12 @@ bool Parser::parse_utypearg(Ast* pAst) {
     return false;
 }
 
-bool Parser::parse_utypearg_opt(Ast* pAst) {
+bool parser::parse_utypearg_opt(Ast* pAst) {
     pAst = get_ast(pAst, ast_utype_arg_opt);
 
     if(parse_utype(pAst))
     {
-        errors->enableErrorCheckMode();
+        errors->enterProtectedMode();
         if(!expectidentifier(pAst)) {
             errors->pass();
             pushback();
@@ -1692,7 +1691,7 @@ bool Parser::parse_utypearg_opt(Ast* pAst) {
     return false;
 }
 
-void Parser::parse_vectorarray(Ast* pAst) {
+void parser::parse_vectorarray(Ast* pAst) {
     pAst = get_ast(pAst, ast_vector_array);
     expect(LEFTCURLY, pAst, "`{`");
 
@@ -1711,7 +1710,7 @@ void Parser::parse_vectorarray(Ast* pAst) {
     expect(RIGHTCURLY, pAst, "`}`");
 }
 
-void Parser::parse_utypearg_list_opt(Ast* pAst) {
+void parser::parse_utypearg_list_opt(Ast* pAst) {
     pAst = get_ast(pAst, ast_utype_arg_list_opt);
     expect(LEFTPAREN, pAst, "`(`");
 
@@ -1737,7 +1736,7 @@ void Parser::parse_utypearg_list_opt(Ast* pAst) {
     expect(RIGHTPAREN, pAst, "`)`");
 }
 
-void Parser::parse_utypearg_list(Ast* pAst) {
+void parser::parse_utypearg_list(Ast* pAst) {
     pAst = get_ast(pAst, ast_utype_arg_list);
     expect(LEFTPAREN, pAst, "`(`");
 
@@ -1763,7 +1762,7 @@ void Parser::parse_utypearg_list(Ast* pAst) {
     expect(RIGHTPAREN, pAst, "`)`");
 }
 
-void Parser::parse_block(Ast* pAst) {
+void parser::parse_block(Ast* pAst) {
     bool curly = false;
     if(peek(1).getToken() == "{") {
         expect(LEFTCURLY, "`{`");
@@ -1810,7 +1809,7 @@ void Parser::parse_block(Ast* pAst) {
         expect(RIGHTCURLY, "`}`");
 }
 
-void Parser::parse_switch_declarator(Ast* pAst) {
+void parser::parse_switch_declarator(Ast* pAst) {
     pAst = get_ast(pAst, ast_switch_declarator);
     advance();
     pAst->addEntity(current()); // case | default
@@ -1829,7 +1828,7 @@ void Parser::parse_switch_declarator(Ast* pAst) {
         goto retry;
     } else {
         advance();
-        errors->enableErrorCheckMode();
+        errors->enterProtectedMode();
         this->retainstate(pAst);
         if(!parse_statement(pAst))
         {
@@ -1844,7 +1843,7 @@ void Parser::parse_switch_declarator(Ast* pAst) {
     }
 }
 
-void Parser::parse_switchblock(Ast* pAst) {
+void parser::parse_switchblock(Ast* pAst) {
     pAst = get_ast(pAst, ast_switch_block);
 
     expect(LEFTCURLY, "`{`");
@@ -1863,7 +1862,7 @@ void Parser::parse_switchblock(Ast* pAst) {
     expect(RIGHTCURLY, "`}`");
 }
 
-void Parser::parse_operatordecl(Ast *pAst) {
+void parser::parse_operatordecl(Ast *pAst) {
     pAst = get_ast(pAst, ast_operator_decl);
 
 
@@ -1892,8 +1891,8 @@ void Parser::parse_operatordecl(Ast *pAst) {
     parse_block(pAst);
 }
 
-void Parser::parse_delegatedecl(Ast *pAst) {
-    pAst = get_ast(pAst, ast_delegate_decl);
+void parser::parse_delegatedecl(Ast *pAst) {
+    pAst = get_ast(pAst, ast_delegate_impl);
 
 
     for(int i = 0; i < access_types.size(); i++) {
@@ -1906,8 +1905,8 @@ void Parser::parse_delegatedecl(Ast *pAst) {
     expect_token(
             pAst, "delegate", "`delegate`");
 
-    expect(COLON, pAst, "`:`");
-    expect(COLON, pAst, "`:`");
+    expect(COLON, pAst, ":");
+    expect(COLON, pAst, ":");
     expectidentifier(pAst);
 
     parse_utypearg_list(pAst);
@@ -1918,12 +1917,12 @@ void Parser::parse_delegatedecl(Ast *pAst) {
         remove_accesstypes();
         parse_block(pAst);
     } else {
-        expect(SEMICOLON, pAst, "`;`");
-        pAst->setAstType(ast_delegate_post_decl);
+        expect(SEMICOLON, pAst, ";");
+        pAst->setAstType(ast_delegate_decl);
     }
 }
 
-void Parser::parse_constructor(Ast *pAst) {
+void parser::parse_constructor(Ast *pAst) {
     pAst = get_ast(pAst, ast_construct_decl);
 
     for(int i = 0; i < access_types.size(); i++) {
@@ -1938,7 +1937,7 @@ void Parser::parse_constructor(Ast *pAst) {
     parse_block(pAst);
 }
 
-void Parser::parse_methoddecl(Ast *pAst) {
+void parser::parse_methoddecl(Ast *pAst) {
     pAst = get_ast(pAst, ast_method_decl);
 
     for(int i = 0; i < access_types.size(); i++) {
@@ -1958,7 +1957,7 @@ void Parser::parse_methoddecl(Ast *pAst) {
 
 }
 
-void Parser::parse_methodreturn_type(Ast *pAst) {
+void parser::parse_methodreturn_type(Ast *pAst) {
     if(peek(1).getTokenType() == COLON)
     {
         pAst = get_ast(pAst, ast_method_return_type);
@@ -1969,7 +1968,7 @@ void Parser::parse_methodreturn_type(Ast *pAst) {
     }
 }
 
-void Parser::parse_returnstmnt(Ast *pAst) {
+void parser::parse_returnstmnt(Ast *pAst) {
     pAst = get_ast(pAst, ast_return_stmnt);
 
     pAst->addEntity(current());
@@ -1980,7 +1979,7 @@ void Parser::parse_returnstmnt(Ast *pAst) {
     expect(SEMICOLON, pAst, "`;`");
 }
 
-void Parser::parse_assemblystmnt(Ast *pAst) {
+void parser::parse_assemblystmnt(Ast *pAst) {
     pAst = get_ast(pAst, ast_assembly_statement);
 
     expect_token(pAst, "asm", "`asm`");
@@ -1991,7 +1990,7 @@ void Parser::parse_assemblystmnt(Ast *pAst) {
     expect(SEMICOLON, pAst, "`;`");
 }
 
-void Parser::parse_forstmnt(Ast *pAst) {
+void parser::parse_forstmnt(Ast *pAst) {
     pAst = get_ast(pAst, ast_for_statement);
 
     expect_token(pAst, "for", "`for`");
@@ -2020,7 +2019,7 @@ void Parser::parse_forstmnt(Ast *pAst) {
     parse_block(pAst);
 }
 
-void Parser::parse_foreachstmnt(Ast *pAst) {
+void parser::parse_foreachstmnt(Ast *pAst) {
     pAst = get_ast(pAst, ast_foreach_statement);
 
     expect_token(pAst, "foreach", "`foreach`");
@@ -2036,7 +2035,7 @@ void Parser::parse_foreachstmnt(Ast *pAst) {
     parse_block(pAst);
 }
 
-void Parser::parse_whilestmnt(Ast *pAst) {
+void parser::parse_whilestmnt(Ast *pAst) {
     pAst = get_ast(pAst, ast_while_statement);
 
     expect_token(pAst, "while", "`while`");
@@ -2048,7 +2047,7 @@ void Parser::parse_whilestmnt(Ast *pAst) {
     parse_block(pAst);
 }
 
-void Parser::parse_lockstmnt(Ast *pAst) {
+void parser::parse_lockstmnt(Ast *pAst) {
     pAst = get_ast(pAst, ast_lock_statement);
 
     expect_token(pAst, "lock", "`lock`");
@@ -2060,7 +2059,7 @@ void Parser::parse_lockstmnt(Ast *pAst) {
     parse_block(pAst);
 }
 
-void Parser::parse_dowhilestmnt(Ast *pAst) {
+void parser::parse_dowhilestmnt(Ast *pAst) {
     pAst = get_ast(pAst, ast_do_while_statement);
 
     expect_token(pAst, "do", "`do`");
@@ -2076,7 +2075,7 @@ void Parser::parse_dowhilestmnt(Ast *pAst) {
 
 }
 
-void Parser::parse_ifstmnt(Ast *pAst) {
+void parser::parse_ifstmnt(Ast *pAst) {
     pAst = get_ast(pAst, ast_if_statement);
 
     expect_token(pAst, "if", "`if`");
@@ -2121,7 +2120,7 @@ void Parser::parse_ifstmnt(Ast *pAst) {
     }
 }
 
-void Parser::parse_switchstmnt(Ast *pAst) {
+void parser::parse_switchstmnt(Ast *pAst) {
     pAst = get_ast(pAst, ast_switch_statement);
 
     expect_token(pAst, "switch", "`switch`");
@@ -2133,7 +2132,7 @@ void Parser::parse_switchstmnt(Ast *pAst) {
     parse_switchblock(pAst);
 }
 
-void Parser::parse_catchclause(Ast *pAst) {
+void parser::parse_catchclause(Ast *pAst) {
     pAst = get_ast(pAst, ast_catch_clause);
 
     advance();
@@ -2146,7 +2145,7 @@ void Parser::parse_catchclause(Ast *pAst) {
     parse_block(pAst);
 }
 
-void Parser::parse_finallyblock(Ast *pAst) {
+void parser::parse_finallyblock(Ast *pAst) {
     pAst = get_ast(pAst, ast_finally_block);
 
     advance();
@@ -2154,7 +2153,7 @@ void Parser::parse_finallyblock(Ast *pAst) {
     parse_block(pAst);
 }
 
-void Parser::parse_trycatch(Ast *pAst) {
+void parser::parse_trycatch(Ast *pAst) {
     pAst = get_ast(pAst, ast_trycatch_statement);
 
     expect_token(pAst, "try", "`try`");
@@ -2169,7 +2168,7 @@ void Parser::parse_trycatch(Ast *pAst) {
     }
 }
 
-void Parser::parse_throwstmnt(Ast *pAst) {
+void parser::parse_throwstmnt(Ast *pAst) {
     pAst = get_ast(pAst, ast_throw_statement);
 
     expect_token(pAst, "throw", "`throw`");
@@ -2177,7 +2176,7 @@ void Parser::parse_throwstmnt(Ast *pAst) {
     expect(SEMICOLON, pAst, "`;`");
 }
 
-void Parser::parse_labeldecl(Ast *pAst) {
+void parser::parse_labeldecl(Ast *pAst) {
     pAst = get_ast(pAst, ast_label_decl);
 
     pushback();
@@ -2194,7 +2193,7 @@ void Parser::parse_labeldecl(Ast *pAst) {
 }
 
 int commas=0;
-bool Parser::parse_statement(Ast* pAst) {
+bool parser::parse_statement(Ast* pAst) {
     pAst = get_ast(pAst, ast_statement);
     CHECK_ERRORS_RETURN(false)
 
@@ -2384,7 +2383,7 @@ bool Parser::parse_statement(Ast* pAst) {
     else
     {
         // save parser state
-        errors->enableErrorCheckMode();
+        errors->enterProtectedMode();
         this->retainstate(pAst);
         pushback();
 
@@ -2416,7 +2415,7 @@ bool Parser::parse_statement(Ast* pAst) {
         pAst = this->rollback();
         pushback();
 
-        errors->enableErrorCheckMode();
+        errors->enterProtectedMode();
         this->retainstate(pAst);
         if(!parse_expression(pAst))
         {
@@ -2442,7 +2441,7 @@ bool Parser::parse_statement(Ast* pAst) {
     return false;
 }
 
-void Parser::parse_modulename(Ast* pAst, bool &parsedGeneric, bool keepLocal)
+void parser::parse_modulename(Ast* pAst, bool &parsedGeneric, bool keepLocal)
 {
     if(!keepLocal)
         pAst = get_ast(pAst, ast_modulename);
@@ -2491,7 +2490,7 @@ void Parser::parse_modulename(Ast* pAst, bool &parsedGeneric, bool keepLocal)
  * statement to process. This alleviates your console getting flooded with a bunch of unnessicary "unexpected symbol" complaints.
  *
  */
-void Parser::parse_all(Ast *pAst) {
+void parser::parse_all(Ast *pAst) {
 
     if(isaccess_decl(current()))
     {
@@ -2546,7 +2545,7 @@ void Parser::parse_all(Ast *pAst) {
 }
 
 
-bool Parser::iskeyword(string key) {
+bool parser::iskeyword(string key) {
     return key == "mod" || key == "true"
            || key == "false" || key == "class"
            || key == "static" || key == "protected"
@@ -2564,11 +2563,10 @@ bool Parser::iskeyword(string key) {
            || key == "_int32" || key == "_int64" || key == "_uint8"
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
            || key == "delegate" || key == "interface" || key == "lock" || key == "enum"
-           || key == "switch" || key == "default" || key == "fn" || key == "local"
-           || key == "thread_local";
+           || key == "switch" || key == "default" || key == "fn" || key == "thread_local";
 }
 
-bool Parser::parse_type_identifier(Ast *pAst) {
+bool parser::parse_type_identifier(Ast *pAst) {
     pAst = get_ast(pAst, ast_type_identifier);
     advance();
 
@@ -2580,7 +2578,7 @@ bool Parser::parse_type_identifier(Ast *pAst) {
         return true;
     }
 
-    errors->enableErrorCheckMode();
+    errors->enterProtectedMode();
     if(!parse_reference_pointer(pAst)){
         errors->pass();
     }
@@ -2593,7 +2591,7 @@ bool Parser::parse_type_identifier(Ast *pAst) {
     return false;
 }
 
-bool Parser::parse_template_decl(Ast *pAst) {
+bool parser::parse_template_decl(Ast *pAst) {
     if(peek(1).getTokenType() == LESSTHAN) {
         advance();
         Ast tmp(pAst->getParent(), pAst);
@@ -2630,7 +2628,7 @@ bool Parser::parse_template_decl(Ast *pAst) {
     return false;
 }
 
-void Parser::parse_reference_identifier_list(Ast *ast) {
+void parser::parse_reference_identifier_list(Ast *ast) {
     ast = get_ast(ast, ast_reference_identifier_list);
 
     parse_reference_pointer(ast);
@@ -2643,7 +2641,7 @@ void Parser::parse_reference_identifier_list(Ast *ast) {
     }
 }
 
-void Parser::parse_utype_list(Ast *ast) {
+void parser::parse_utype_list(Ast *ast) {
     ast = get_ast(ast, ast_utype_list);
 
     parse_utype(ast);
@@ -2656,7 +2654,7 @@ void Parser::parse_utype_list(Ast *ast) {
     }
 }
 
-bool Parser::parse_reference_pointer(Ast *pAst) {
+bool parser::parse_reference_pointer(Ast *pAst) {
     pAst = get_ast(pAst, ast_refrence_pointer);
 
     advance();
@@ -2711,7 +2709,7 @@ bool Parser::parse_reference_pointer(Ast *pAst) {
     return true;
 }
 
-void Parser::free() {
+void parser::free() {
     this->cursor = 0;
     this->toks = NULL;
     this->_current = NULL;
@@ -2739,12 +2737,12 @@ void Parser::free() {
     }
 }
 
-void Parser::retainstate(Ast* pAst) {
+void parser::retainstate(Ast* pAst) {
     state.add(ParserState(pAst, cursor, ast_cursor));
     rStateCursor++;
 }
 
-void Parser::dumpstate() {
+void parser::dumpstate() {
     if(rStateCursor >= 0)
     {
         state.pop_back();
@@ -2752,7 +2750,7 @@ void Parser::dumpstate() {
     }
 }
 
-Ast* Parser::rollbacklast() {
+Ast* parser::rollbacklast() {
     if(rStateCursor >= 0)
     {
         ParserState* ps = &state.last();
@@ -2776,7 +2774,7 @@ Ast* Parser::rollbacklast() {
     return NULL;
 }
 
-Ast* Parser::popBacklast() {
+Ast* parser::popBacklast() {
     if(rStateCursor >= 0)
     {
         ParserState* ps = &state.last();
@@ -2792,7 +2790,7 @@ Ast* Parser::popBacklast() {
     return NULL;
 }
 
-Ast* Parser::rollback() {
+Ast* parser::rollback() {
     if(rStateCursor >= 0)
     {
         ParserState* ps = &state.last();
@@ -2811,19 +2809,19 @@ Ast* Parser::rollback() {
     return NULL;
 }
 
-bool Parser::isexprkeyword(string token) {
+bool parser::isexprkeyword(string token) {
     return (token == "class");
 }
 
-tokenizer *Parser::getTokenizer() const {
+tokenizer *parser::getTokenizer() const {
     return toks;
 }
 
-const string &Parser::getData() const {
+const string &parser::getData() const {
     return data;
 }
 
-void Parser::parse_identifier_list(Ast *pAst) {
+void parser::parse_identifier_list(Ast *pAst) {
     pAst = get_ast(pAst, ast_identifier_list);
 
     expectidentifier(pAst);
