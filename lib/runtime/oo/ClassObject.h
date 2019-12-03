@@ -64,7 +64,7 @@ public:
 
     void init();
 
-    bool hasBaseClass(ClassObject *pObject);
+    bool isClassRelated(ClassObject *klass);
 };
 
 #endif //SHARP_CLASSOBJECT_H

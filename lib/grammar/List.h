@@ -147,16 +147,29 @@ public:
 
     unsigned long long size() { return len; }
 
+    bool singular() { return len == 1; }
+
     void pop_back() {
         __shrink();
     }
 
-    void addif(T _V) {
+    bool addif(T _V) {
         for(unsigned long long i = 0; i < len; i++) {
             if(_V == _Data[i])
-                return;
+                return false;
         }
+
         push_back(_V);
+        return true;
+    }
+
+    bool sameElements(List<T> &list) {
+        for(unsigned long long i = 0; i < len; i++) {
+            if(list._Data[i] != _Data[i])
+                return false;
+        }
+
+        return true;
     }
 
     void removefirst(T _V) {
@@ -191,6 +204,13 @@ public:
         free();
         for(unsigned long long i = 0; i < list.size(); i++) {
             push_back(list.get(i));
+        }
+    }
+
+    void addAllUnique(List<T>& list) {
+        free();
+        for(unsigned long long i = 0; i < list.size(); i++) {
+            addif(list.get(i));
         }
     }
 

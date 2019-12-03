@@ -32,11 +32,11 @@ void Object::castObject(int64_t classPtr) {
     if(!IS_CLASS(this->object->info))
         throw Exception(Environment::ClassCastException, nonclass.str());
 
-    if(type->serial!= base->serial && !base->hasBaseClass(type)) {
+    if(type->serial!= base->serial && !base->isClassRelated(type)) {
         // validate we have all our interfaces checked
         for(int i = 0; i < base->interfaceCount; i++) {
             ClassObject* _interface = &env->classes[base->interfaces[i]];
-            if(_interface->serial==type->serial || _interface->hasBaseClass(type))
+            if(_interface->serial==type->serial || _interface->isClassRelated(type))
                 return;
         }
 

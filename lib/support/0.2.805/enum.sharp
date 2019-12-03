@@ -1,0 +1,53 @@
+mod std;
+
+/**
+ * Created by braxtonn on 11/19/2019.
+ *
+ * This class acts as the base level
+ * support class for enums in the language.
+ * This class provides  core functionality and is
+ * required to compile you sharp program if you utilize
+ * enums.
+ */
+class _enum_ {
+    static enums : _enum_[];
+    static name : _int8[];
+    static value : _int64;
+
+    public _enum_(val : var) {
+        value = val;
+    }
+
+    public def operator!=(e : _enum_) : var {
+        return value!=e.value;
+    }
+
+    public def operator!=(num : var) : var {
+        return value!=num;
+    }
+
+    public def operator==(e : _enum_) : var {
+        return value==e.value;
+    }
+
+    public def operator==(num : var) : var {
+        return value==num;
+    }
+
+//    public Enum(e : Enum) {
+//        value = e.value;
+//        name = (var[])copyOf(e.name, sizeof(e.name));
+//    }
+
+//    public def getName() : string {
+//        return "" + name;
+//    }
+
+    public def get_value() : var {
+        return value;
+    }
+
+//    public def delegate::toString() : string {
+//        return getName();
+//    }
+}

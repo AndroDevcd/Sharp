@@ -11,7 +11,12 @@
 
 enum function_type
 {
+    fn_normal,
     fn_constructor,
+    fn_prototype,
+    fn_op_overload,
+    fn_delegate_impl,
+    fn_delegate,
     fn_undefined
 };
 
@@ -20,17 +25,22 @@ public:
     Method()
     :
         DataEntity(),
-        type(fn_undefined),
-        generic(false)
+        fnType(fn_undefined),
+        utype(NULL),
+        overload(' ')
     {
+        type = METHOD;
         params.init();
     }
 
-    Method(string& name, string& module, ClassObject* owner, List<Field*> params, List<AccessFlag> flags, Meta &meta)
+    Method(string& name, string& module, ClassObject* owner, List<Field*> &params, List<AccessFlag> &flags, Meta &meta)
             :
             DataEntity(),
-            generic(false)
+            fnType(fn_undefined),
+            utype(NULL),
+            overload(' ')
     {
+        this->type = METHOD;
         this->params.init();
         this->name=name;
         this->module=module;
@@ -41,10 +51,12 @@ public:
     }
 
     void free();
+    string toString();
+    static string paramsToString(List<Field*> &params);
 
-
-    bool generic;
-    function_type type;
+    function_type fnType;
+    char overload;
+    Utype* utype;
     List<Field*> params;
 };
 

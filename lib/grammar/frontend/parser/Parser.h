@@ -38,6 +38,7 @@ public:
     const string &getData() const;
     tokenizer *getTokenizer() const;
     static bool isStorageType(Token &t);
+    static bool isNativeType(string t);
 
     bool parsed, panic;
     List<string> lines;
@@ -65,7 +66,6 @@ private:
     bool isSwitchDeclarator(Token &t);
     bool isConstructorDecl();
     bool isKeyword(string s);
-    bool isNativeType(string t);
     bool isExprSymbol(string token);
     bool isOverrideOperator(string t);
     bool isAssignExprSymbol(string t);
@@ -80,6 +80,7 @@ private:
     void parseIdentifierList(Ast*);
     void addAccessTypes(Ast*);
     bool parseReferencePointer(Ast*);
+    void parseUtypeList(Ast*);
     void parseReferencePointerList(Ast*);
     void parseClassBlock(Ast*);
     void parseInterfaceBlock(Ast*);

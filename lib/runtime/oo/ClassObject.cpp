@@ -46,11 +46,11 @@ void ClassObject::init() {
     methodCount = 0;
 }
 
-bool ClassObject::hasBaseClass(ClassObject *pObject) {
-    if(pObject == NULL)
+bool ClassObject::isClassRelated(ClassObject *k) {
+    if(k == NULL)
         return false;
-    if(this->serial==pObject->serial)
+    if(this->serial==k->serial)
         return true;
 
-    return base == NULL ? false : base->hasBaseClass(pObject);
+    return super == NULL ? false : super->isClassRelated(k);
 }

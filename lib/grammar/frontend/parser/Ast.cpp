@@ -30,7 +30,7 @@ long Ast::getEntityCount()
     return entities.size();
 }
 
-Token Ast::getEntity(long at)
+Token &Ast::getEntity(long at)
 {
     return entities.get(at);
 }
@@ -152,7 +152,7 @@ Ast *Ast::getSubAst(ast_type at) {
 Token Ast::getEntity(token_type t) {
     for(unsigned int i = 0; i < entities.size(); i++) {
         if(entities.at(i).getType() == t)
-            return entities.at(i);
+            return entities.get(i);
     }
     return Token();
 }
@@ -174,7 +174,7 @@ Ast* Ast::encapsulate(ast_type at) {
 
     Ast *branch = new Ast(at, this->line, this->col);
 
-    for(long int i = 0; i < sub_asts.size()-1; i++) {
+    for(long int i = 0; i < sub_asts.size(); i++) {
         branch->addAst(sub_asts.get(i));
     }
 

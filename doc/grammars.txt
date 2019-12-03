@@ -196,6 +196,9 @@ Class Declaration:
 Generic Class Declaration:
 `[<accesstype>] class <identifier = name> `<` <identifier-list> `>` [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
 
+Generic Interface Declaration:
+`[<accesstype>] interface <identifier = name> `<` <identifier-list> `>` [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
+
 interface Declaration:
 `[<accesstype>] interface <identifier = name> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
 

@@ -7,22 +7,22 @@
 
 enum DataType
 {
-    _INT8,
-    _INT16,
-    _INT32,
-    _INT64,
-    _UINT8,
-    _UINT16,
-    _UINT32,
-    _UINT64,
-    FNPTR,
-    VAR,
-    OBJECT,
-    CLASS,
-    METHOD,
-    _VOID_,
-    _GENERIC,
-    UNDEFINED
+    _INT8=0,
+    _INT16=1,
+    _INT32=2,
+    _INT64=3,
+    _UINT8=4,
+    _UINT16=5,
+    _UINT32=6,
+    _UINT64=7,
+    FNPTR=8,
+    VAR=9,
+    OBJECT=10,
+    CLASS=11,
+    METHOD=12,
+    _VOID = 13,
+    UNTYPED=14,
+    UNDEFINED=15
 };
 
 enum StorageLocality

@@ -87,7 +87,7 @@ public:
 
     token_id getId();
     void setId(token_id id);
-    string getToken();
+    string &getToken();
     int getColumn();
     int getLine();
     bool isSingle();

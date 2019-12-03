@@ -1,0 +1,12 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 7/20/2018.
+ *
+ * Pritable serves as the base level interface for all methods in
+ * Sharp. Printable is inherited by the Object class to allow
+ * for printing of any object.
+ */
+interface printable {
+//    def delegate::toString() : string;
+}

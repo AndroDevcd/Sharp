@@ -487,17 +487,17 @@ void RuntimeEngine::compile()
         }
 
         resolveAllGenerics();
-        resolveAllFields();
-        resolveAllMethods();
+        resolveAllFields(); <impl> done
+        resolveAllMethods(); <impl> done
         resolveClassBases();
         resolveAllEnums();
         resolveAllGenericMethodsParams();
         resolveAllGenericMethodsReturns();
         inheritObjectClass();
         resolveAllGlobalFields();
-        inlineFields();
+        inlineFields(); <impl>
         resolveAllInterfaces();
-        resolveAllDelegates();
+        resolveAllDelegates(); <impl> done
         resolveAllPrototypes();
 
         // TODO: make checkSupportClasses() to check on vital support classes to make sure things are as they should be

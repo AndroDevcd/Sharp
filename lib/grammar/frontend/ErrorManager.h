@@ -122,7 +122,7 @@ public:
             teCursor(-1),
             _err(false),
             protectedMode(false),
-            filname(file_name),
+            filename(file_name),
             asis(asis),
             aggressive(aggressiveRoporting)
     {
@@ -154,7 +154,7 @@ public:
     void free();
     string getLine(int line);
 
-    string filname;
+    string filename;
     List<string> lines;
 private:
     KeyPair<error_type, string> getErrorById(error_type);

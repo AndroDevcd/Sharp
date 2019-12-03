@@ -31,11 +31,18 @@ Any other compatibility issues/changes will be otherwise noted in the release no
         * Fixed major bugs in the compiler
 
     # QoL Improvements
-        * Compiler v2 development has begun. Sharp will now be oficially bootstrapped and quickly become a more stable and faster language.
+        * Compiler v2 development has begun. This compiler comes with several bug fixes as well as several other updates and improvementas listed below.
+            * New compiler comes with:
+                ** Better error messages
+                ** Improved performance
+                ** Cleaner design for less internal bugs
+                ** All code meitted is now properly execution safe and should not cause seg faults
+                ** New language design for a better seamless experiance 
 
     # New Additions
-        * Removed 'local' keyword from the language
+        * Implemented 'local' keyword in the language
         * Made several changes to the syntax
+        * Completly new standard library re-written from scratch
 
     # Known Issues
         *

@@ -1,12 +1,44 @@
 mod app.time;
 
 import std;
-import std.kernel;
 
- class Apple<T, k> {
-    public num: var = 9;
+class l {
+class Gen<K> {
+    k : K;
+}
+}
+
+class K {
+
+}
+
+ class Apple<T, K> base l.Gen<K> {
+    public static const z : _int8 = Apple<var, _object_>.class;
+    tKey := k;
+    public num := z;
+    thread_local x := 8;
+    kKey : K;
+
+    def foo(ll : T) {}
+}
+
+ class A base Apple<var[], Apple<var, var> > {
+    public num := z;
+    public z := 7;
+    public fn ptr := fooStatic;
     thread_local x := 8;
 
+    enum E {
+        N1 = Apple<var, _object_>.class,
+        N2 = 1,
+        N3 = 2
+    };
+
+    static def fooStatic() {
+    }
+
+    def foo(l : Apple<var, var>) {
+    }
 }
 
 /**

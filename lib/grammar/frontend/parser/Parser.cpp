@@ -68,14 +68,6 @@ void parser::parse() {
         {
             parseEnumDecl(NULL);
         }
-        else if(isImportDecl(current()))
-        {
-            if(access_types.size() > 0)
-            {
-                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-            }
-            parseImportDecl(NULL);
-        }
         else if((isVariableDecl(current()) && (*peek(1) == ":" || *peek(1) == ":=")) ||
                 (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":="))))
         {
@@ -129,7 +121,6 @@ void parser::parseMethodDecl(Ast *ast) {
 
     addAccessTypes(branch);
     access_types.free();
-    branch->addToken(current());
 
     expectIdentifier(branch);
 
@@ -148,10 +139,10 @@ void parser::parseDelegateDecl(Ast *ast) {
     addAccessTypes(branch);
     access_types.free();
 
-    expect(branch, "delegate");
+    expect(branch, "delegate", false);
 
-    expect(branch, ":");
-    expect(branch, ":");
+    expect(branch, ":", false);
+    expect(branch, ":", false);
     expectIdentifier(branch);
 
     parseUtypeArgList(branch);
@@ -161,8 +152,8 @@ void parser::parseDelegateDecl(Ast *ast) {
     {
         parseBlock(branch);
     } else {
-        expect(ast, ";");
-        ast->setAstType(ast_delegate_decl);
+        expect(branch, ";");
+        branch->setAstType(ast_delegate_decl);
     }
 }
 
@@ -683,7 +674,7 @@ void parser::parseOperatorDecl(Ast *ast) {
 
 void parser::parseInterfaceBlock(Ast* ast) {
     Ast *branch = getBranch(ast, ast_block);
-    expect(ast, "{");
+    expect(branch, "{");
 
     int brackets = 1;
     while(!isEnd() && brackets > 0)
@@ -985,7 +976,7 @@ void parser::parseVariableDecl(Ast* ast) {
 
     if(ast == NULL || ast->getType() != ast_variable_decl) {
         if(*peek(1) == ":") {
-            advance();
+            expect(branch, ":");
             parseUtype(branch);
 
             if(*peek(1) == "=") {
@@ -993,7 +984,7 @@ void parser::parseVariableDecl(Ast* ast) {
                 parseExpression(branch);
             }
         } else if(*peek(1) == ":=") {
-            advance();
+            expect(branch, ":=");
             parseExpression(branch);
         }
     } else {
@@ -1566,14 +1557,17 @@ void parser::parsePrototypeDecl(Ast *ast, bool semicolon) {
     access_types.free();
 
     if(isStorageType(current())) {
-        branch->addToken(current());
+        if(!semicolon) {
+
+        } else
+            branch->addToken(current());
     } else
         _current--;
 
     expect(branch, "fn", false);
     expectIdentifier(branch);
 
-    if(peek(1)->getType() == LEFTPAREN) {
+    if(!semicolon || peek(1)->getType() == LEFTPAREN) {
         parseUtypeArgListOpt(branch);
         parseMethodReturnType(branch); // assign-expr operators must return void
     }
@@ -1581,7 +1575,7 @@ void parser::parsePrototypeDecl(Ast *ast, bool semicolon) {
     if(semicolon) {
 
         if((*peek(1) != "=" && *peek(1) != ":=") && !branch->hasSubAst(ast_utype_arg_list_opt)) {
-            errors->createNewError(GENERIC, current(), "expected `=` or `(` after function pointer was declared");
+            errors->createNewError(GENERIC, current(), "expected `=` or `:=` after function pointer was declared");
         } else {
             if(!branch->hasSubAst(ast_utype_arg_list_opt) && *peek(1) == "=") {
                 errors->createNewError(GENERIC, current(), "function signature required with `=` operator, use `:=` instead to infer the type");
@@ -1602,8 +1596,10 @@ void parser::parseUtypeArgListOpt(Ast* ast) {
 
     if(peek(1)->getType() != RIGHTPAREN)
     {
-        if(isPrototypeDecl(*peek(1)))
+        if(isPrototypeDecl(*peek(1))) {
+            advance();
             parsePrototypeDecl(branch, false);
+        }
         else
             parseUtypeArgOpt(branch);
         _puTypeArgOpt:
@@ -1611,8 +1607,10 @@ void parser::parseUtypeArgListOpt(Ast* ast) {
         {
             expect(branch, ",");
 
-            if(isPrototypeDecl(*peek(1)))
+            if(isPrototypeDecl(*peek(1))){
+                advance();
                 parsePrototypeDecl(branch, false);
+            }
             else
                 parseUtypeArgOpt(branch);
             goto _puTypeArgOpt;
@@ -1624,28 +1622,32 @@ void parser::parseUtypeArgListOpt(Ast* ast) {
 
 void parser::parseUtypeArgList(Ast* ast) {
     Ast* branch = getBranch(ast, ast_utype_arg_list);
-    expect(ast, "(");
+    expect(branch, "(");
 
     if(peek(1)->getType() != RIGHTPAREN)
     {
-        if(isPrototypeDecl(*peek(1)))
-            parsePrototypeDecl(ast, false);
+        if(isPrototypeDecl(*peek(1))){
+            advance();
+            parsePrototypeDecl(branch, false);
+        }
         else
-            parseUtypeArg(ast);
+            parseUtypeArg(branch);
         _puTypeArg:
         if(peek(1)->getType() == COMMA)
         {
-            expect(ast, ",");
+            expect(branch, ",");
 
-            if(isPrototypeDecl(*peek(1)))
-                parsePrototypeDecl(ast, false);
+            if(isPrototypeDecl(*peek(1))){
+                advance();
+                parsePrototypeDecl(branch, false);
+            }
             else
-                parseUtypeArg(ast);
+                parseUtypeArg(branch);
             goto _puTypeArg;
         }
     }
 
-    expect(ast, ")");
+    expect(branch, ")");
 }
 
 bool parser::parsePrimaryExpr(Ast* ast) {
@@ -1673,11 +1675,9 @@ bool parser::parsePrimaryExpr(Ast* ast) {
     old=_current;
     if(parseUtype(branch))
     {
-        if(peek(1)->getType() == DOT)
+        if(peek(1)->getType() == DOT && *peek(2) == "class")
         {
             expect(branch, ".");
-            advance();
-
             expect(branch, "class");
 
             errors->fail();
@@ -2097,7 +2097,8 @@ bool parser::parseReferencePointer(Ast *ast) {
     } else
         _current--;
 
-    expectIdentifier(branch);
+    if(!expectIdentifier(branch))
+        return false;
 
     while(peek(1)->getType() == DOT && *peek(2) != "class") {
         expect(branch, ".");
@@ -2112,7 +2113,7 @@ bool parser::parseReferencePointer(Ast *ast) {
 
     if(peek(1)->getToken() == "<") {
         expect(branch, "<");
-        parseReferencePointerList(ast->getType() == ast_refrence_pointer ? ast : branch);
+        parseUtypeList(ast->getType() == ast_refrence_pointer ? ast : branch);
         expect(branch, ">");
     }
 
@@ -2123,7 +2124,7 @@ bool parser::parseReferencePointer(Ast *ast) {
 
         if(peek(1)->getToken() == "<") {
             expect(branch, "<");
-            parseReferencePointerList(ast->getType() == ast_refrence_pointer ? ast : branch);
+            parseUtypeList(ast->getType() == ast_refrence_pointer ? ast : branch);
             expect(branch, ">");
         }
     }
@@ -2299,6 +2300,17 @@ void parser::parseReferencePointerList(Ast *ast) {
         expect(branch, ",");
 
         parseReferencePointer(branch);
+    }
+}
+
+void parser::parseUtypeList(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_utype_list);
+
+    parseUtype(branch);
+    while(peek(1)->getType() == COMMA) {
+        expect(branch, ",");
+
+        parseUtype(branch);
     }
 }
 

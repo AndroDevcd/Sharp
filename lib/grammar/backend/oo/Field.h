@@ -10,6 +10,7 @@
 class Param;
 class Method;
 class Expression;
+class Utype;
 
 class Field : public DataEntity {
 public:
@@ -19,10 +20,10 @@ public:
         key(""),
         isArray(false),
         nullField(false),
-        fnSignature(NULL),
         dvExpression(NULL),
-        klass(NULL),
-        locality(stl_stack)
+        utype(NULL),
+        locality(stl_stack),
+        inlineCheck(false)
     {
     }
 
@@ -34,11 +35,10 @@ public:
         key(""),
         isArray(false),
         nullField(false),
-        fnSignature(NULL),
         dvExpression(NULL),
-        klass(NULL)
+        utype(NULL),
+        inlineCheck(false)
     {
-
         this->type = type;
         this->guid = guid;
         this->name = name;
@@ -48,15 +48,18 @@ public:
 
     void free();
     bool equals(Field& f);
+    bool isRelated(Field &f);
+    bool isEnum();
+    string toString();
 
 public:
     string key;
     bool isArray;
     bool nullField;
+    bool inlineCheck;
     StorageLocality locality;
-    Method* fnSignature;
     Expression* dvExpression;
-    ClassObject *klass;
+    Utype *utype;
 };
 
 

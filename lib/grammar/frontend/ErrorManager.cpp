@@ -98,10 +98,10 @@ void initalizeErrors()
 
 void ErrorManager::printError(ParseError &err) {
     if(err.warning)
-        cout << filname << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
+        cout << filename << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
              << endl;
     else
-        cout << filname << ":" << err.line << ":" << err.col << ": error S80" << err.id << ":  " << err.error.c_str()
+        cout << filename << ":" << err.line << ":" << err.col << ": error S80" << err.id << ":  " << err.error.c_str()
              << endl;
 
     cout << '\t' << getLine(err.line) << endl << '\t';
@@ -117,10 +117,10 @@ string ErrorManager::getErrors(list<ParseError>* errors)
     for(const ParseError &err : *errors)
     {
         if(err.warning)
-            errorlist << filname << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
+            errorlist << filename << ":" << err.line << ":" << err.col << ": warning S60" << err.id << ":  " << err.error.c_str()
                       << endl;
         else
-            errorlist << filname << ":" << err.line << ":" << err.col << ": error S80" << err.id << ":  " << err.error.c_str()
+            errorlist << filename << ":" << err.line << ":" << err.col << ": error S80" << err.id << ":  " << err.error.c_str()
                       << endl;
 
         errorlist << '\t' << getLine(err.line) << endl << '\t';

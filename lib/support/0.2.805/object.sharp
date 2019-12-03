@@ -1,0 +1,28 @@
+mod std;
+
+/**
+ * Created by braxtonn on 11/19/2019.
+ *
+ * Object is the "god" class of all classes and enums in
+ * Sharp. This class represents a common link shared between
+ * each class allowing you to manipulate classes without not
+ * needing to know its true makeup.
+ */
+class _object_ : printable, unique {
+//    public def operator==(o : object) : var {
+//        return ((object)self)==o;
+//    }
+
+//    public def delegate::toString() : string {
+//        return new string("");
+//    }
+
+    def delegate::hash() : _int64 {
+        /* must be implemented at a higher level */
+//        return 0;
+    }
+
+    def delegate::guid() : _int64 {
+//        return 0;//Time.nanoTime();
+    }
+}

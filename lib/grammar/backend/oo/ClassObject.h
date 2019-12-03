@@ -7,9 +7,11 @@
 
 
 #include "../DataEntity.h"
+#include "../Compiler.h"
 
 class Method;
 class Field;
+class Utype;
 
 enum class_type
 {
@@ -26,15 +28,23 @@ public:
     :
         DataEntity(),
         super(NULL),
-        classType(class_normal)
+        classType(class_normal),
+        processed(false),
+        globalClass(false),
+        genericOwner(NULL)
     {
-        constructors.init();
+        fields.init();
+        classes.init();
         keys.init();
+        functions.init();
+        keyTypes.init();
+        interfaces.init();
         this->flags.addAll(flags);
         this->meta.copy(meta);
         this->name=name;
         this->module=mod;
         this->guid=guid;
+        type = CLASS;
     }
 
     bool match(ClassObject* klass) {
@@ -45,20 +55,46 @@ public:
 
     Method* getConstructor(List<Field*> params, bool checkBase);
     Field* getField(string& name, bool checkBase);
-    List<Method*>& getConstructors() { return constructors; }
     int getClassType() { return classType; }
     void setClassType(int type) { classType = type; }
-    void addConstructor(Method* method) {
-        constructors.add(method);
-    }
+    void setSuperClass(ClassObject* sup) { super = sup; }
+    ClassObject* getSuperClass() { return super; }
+    bool isClassRelated(ClassObject *klass);
+    bool isProcessed() { return processed; }
+    void setIsProcessed(bool isProcessed) { processed = isProcessed; }
+    bool isGlobalClass() { return globalClass; }
+    void setGlobalClass(bool glob) { globalClass = glob; }
+    bool getFunctionByName(string name, List<Method*> &functions, bool checkBase = false);
+    long getFieldAddress(Field* field);
+    long getFieldIndex(string &name);
     void addClass(ClassObject* k) {
         classes.add(k);
     }
     void addField(Field* f) {
         fields.add(f);
     }
+    void addFunction(Method* f) {
+        functions.add(f);
+    }
     void addKeys(List<string> &keys) {
         this->keys.addAll(keys);
+    }
+    void addKeyTypes(List<Utype*> &keyTypes) {
+        this->keyTypes.addAll(keyTypes);
+    }
+
+    List<string>& getKeys() { return keys; }
+    List<Utype*>& getKeyTypes() { return keyTypes; }
+    List<ClassObject*> & getChildClasses() { return classes; }
+    ClassObject* getGenericOwner() { return genericOwner; }
+    void setGenericOwner(ClassObject* owner) { genericOwner = owner; }
+    void setInterfaces(List<ClassObject*> &interfaces) { this->interfaces.addAll(interfaces); }
+    List<ClassObject*> &getInterfaces() { return interfaces; }
+    void getAllFunctionsByType(function_type ftype, List<Method*> &results) {
+        for(long long i = 0; i < functions.size(); i++) {
+            if(functions.get(i)->fnType == ftype)
+                results.add(functions.get(i));
+        }
     }
 
     ClassObject* getChildClass(string name) {
@@ -70,22 +106,50 @@ public:
         return NULL;
     }
 
+    /**
+     * This method is expected to be used exclusivley for the purposes of creating a generic class
+     * methods and more will not be copied over as they are expected to be created later
+     * @param k
+     */
+    void transfer(ClassObject *k) {
+        free();
+        this->super = k->super;
+        this->processed = k->processed;
+        this->globalClass = k->globalClass;
+        this->classType = k->classType;
+        this->classes.addAll(k->classes);
+        this->fullName = k->fullName;
+        this->name = k->name;
+        this->type = k->type;
+        this->module = k->module;
+        this->address = k->address;
+        this->guid = k->guid;
+        this->flags.addAll(k->flags);
+        this->owner = k->owner;
+        this->ast = k->ast;
+        this->keys.addAll(k->keys);
+    }
+
 private:
+    bool processed;
+    bool globalClass;
     int classType;
-    List<Method*> constructors;
+    List<Method*> functions;
     List<ClassObject*> classes;
+    List<ClassObject*> interfaces;
     List<Field*> fields;
     List<string> keys;
-    ClassObject* super;
+    List<Utype*> keyTypes;
+    ClassObject* super, *genericOwner;
 };
 
-#define CLASS_GENERIC_MASK 0x1
-#define CLASS_INTERFACE_MASK 0x2
+#define CLASS_GENERIC_MASK 0x2
+#define CLASS_INTERFACE_MASK 0x1
 #define CLASS_ENUM_MASK 0x4
 
 #define IS_CLASS_NORM(x) (x == 0)
-#define IS_CLASS_GENERIC(x) ((x >> 1) & CLASS_GENERIC_MASK)
-#define IS_CLASS_ENUM(x) ((x >> 2) & 1UL)
-#define IS_CLASS_INTERFACE(x) (x & CLASS_INTERFACE_MASK)
+#define IS_CLASS_GENERIC(x) (((x >> 1) & 1UL) == 1)
+#define IS_CLASS_ENUM(x) (((x >> 2) & 1UL) == 1)
+#define IS_CLASS_INTERFACE(x) (((x & CLASS_INTERFACE_MASK) & 1UL) == 1)
 
 #endif //SHARP_CLASSOBJECT_H

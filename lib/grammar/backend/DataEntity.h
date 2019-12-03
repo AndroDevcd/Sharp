@@ -55,16 +55,14 @@ struct Meta {
  */
 class DataEntity {
 public:
-
-protected:
     DataEntity()
         :
-        type(UNDEFINED),
+        type(UNTYPED),
         name(""),
         fullName(""),
         meta(),
-        address(-1),
-        guid(-1),
+        address(-109912),
+        guid(-109913),
         owner(NULL),
         ast(NULL),
         module("")
@@ -73,8 +71,8 @@ protected:
     }
 
     void release() { flags.free(); }
+    bool isVar() { return type <= VAR; }
 
-public:
     DataType type;
     string name;
     string fullName;

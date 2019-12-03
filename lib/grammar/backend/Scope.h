@@ -8,10 +8,15 @@
 #include "oo/Method.h"
 
 enum BlockType {
-    GLOBAL_SCOPE,
-    CLASS_SCOPE,
-    INSTANCE_BLOCK,
-    STATIC_BLOCK
+    GLOBAL_SCOPE=0,
+    CLASS_SCOPE=1,
+    INSTANCE_BLOCK=2,
+    STATIC_BLOCK=3
+};
+
+struct Local {
+    long address;
+    Field* field;
 };
 
 struct Scope {
@@ -22,6 +27,7 @@ struct Scope {
         klass(NULL),
         currentFunction(NULL)
     {
+        locals.init();
     }
 
     Scope(ClassObject* klass, BlockType bt)
@@ -30,8 +36,22 @@ struct Scope {
             klass(klass),
             currentFunction(NULL)
     {
+        locals.init();
     }
 
+
+    Local* getLocalField(string name) {
+        if(locals.size() == 0) return NULL;
+
+        for(long long i = locals.size()-1; i >= 0; i--) {
+            if(locals.at(i).field->name == name) {
+                return &locals.get(i);
+            }
+        }
+        return NULL;
+    }
+
+    List<Local> locals;
     BlockType type;
     ClassObject* klass;
     Method* currentFunction;
