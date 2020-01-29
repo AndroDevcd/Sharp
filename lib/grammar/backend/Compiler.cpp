@@ -12,6 +12,7 @@
 #include "../../runtime/register.h"
 #include "Expression.h"
 #include "Literal.h"
+#include "../../runtime/oo/Method.h"
 
 string globalClass = "__SRT_Global";
 long Compiler::guid = 0;
@@ -242,6 +243,7 @@ void Compiler::preProccessGenericClassDecl(Ast* ast, bool isInterface) {
     }
 
     string className = ast->getEntity(0).getToken();
+    className += "<>";
     List<string> identifierList;
     parseIdentifierList(ast, identifierList);
 
@@ -456,7 +458,7 @@ int64_t Compiler::checkstl(StorageLocality locality) {
     if(locality == stl_thread)
         return threadLocals++;
     else
-        return 0;
+        return invalidAddr;
 }
 
 void Compiler::removeScope() {
@@ -547,14 +549,15 @@ void Compiler::validateAccess(Field *field, Ast* pAst) {
             errors->createNewError(GENERIC, pAst, " invalid access to localized field `" + field->fullName + "`");
         }
     } else if(field->flags.find(PRIVATE)) {
-        if(field->owner == currentScope()->klass || field->owner == currentScope()->klass->getSuperClass()) {
+        if(field->owner == currentScope()->klass) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to private field `" + field->fullName + "`");
         }
     } else if(field->flags.find(PROTECTED)) {
-        if(currentScope()->klass->isClassRelated(field->owner) || field->owner == currentScope()->klass) {
+        if(currentScope()->klass->isClassRelated(field->owner) || field->owner == currentScope()->klass
+                || (field->flags.find(STATIC) && field->owner->isGlobalClass() && field->module == currentScope()->klass->module)) {
         } else {
-            errors->createNewError(GENERIC, pAst, " invalid access to protected method `" + field->fullName + "`");
+            errors->createNewError(GENERIC, pAst, " invalid access to protected field `" + field->fullName + "`");
         }
     } else {
         // access granted
@@ -580,6 +583,31 @@ void Compiler::validateAccess(ClassObject *klass, Ast* pAst) {
            || scope->klass->module == klass->module) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to protected class `" + klass->fullName + "`");
+        }
+    } else {
+        // access granted
+    }
+}
+
+void Compiler::validateAccess(Method *function, Ast* pAst) {
+    if(function->flags.find(LOCAL)) {
+        Scope *scope = currentScope();
+        if(scope->klass->meta.file == function->meta.file) {
+        } else {
+            errors->createNewError(GENERIC, pAst, " invalid access to localized method `" + function->toString() + "`");
+        }
+    } else if(function->flags.find(PRIVATE)) {
+        Scope *scope = currentScope();
+        if(function->owner == scope->klass) {
+        } else {
+            errors->createNewError(GENERIC, pAst, " invalid access to private method `" + function->toString() + "`");
+        }
+    } else if(function->flags.find(PROTECTED)) {
+        Scope *scope = currentScope();
+        if(scope->klass->isClassRelated(function->owner) || function->owner == scope->klass
+           || (function->flags.find(STATIC) && function->owner->isGlobalClass() && function->module == currentScope()->klass->module)) {
+        } else {
+            errors->createNewError(GENERIC, pAst, " invalid access to protected method `" + function->toString() + "`");
         }
     } else {
         // access granted
@@ -732,6 +760,9 @@ void Compiler::parseCharLiteral(Expression* expr, Token &token) {
         expr->utype->setResolvedType(new Literal(token.getToken().at(0)));
         expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, token.getToken().at(0)), i64ebx);
     }
+
+    IrCode &inj = expr->utype->getCode().getInjector(stackInjector);
+    inj.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
 }
 
 string Compiler::invalidateUnderscores(string str) {
@@ -767,6 +798,9 @@ void Compiler::parseIntegerLiteral(Expression* expr, Token &token) {
             errors->createNewError(GENERIC, token.getLine(), token.getColumn(), ss.str());
         }
         expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, value), i64ebx);
+
+        expr->utype->getCode().getInjector(stackInjector)
+                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
     }else {
         value = std::strtod (int_string.c_str(), NULL);
         if((int64_t )value > DA_MAX || (int64_t )value < DA_MIN) {
@@ -776,7 +810,9 @@ void Compiler::parseIntegerLiteral(Expression* expr, Token &token) {
         }
 
         expr->utype->getCode().push_i64(SET_Di(i64, op_MOVBI, ((int64_t)value)), abs(getLowBytes(value)));
-        expr->utype->getCode().push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64bmr));
+
+        expr->utype->getCode().getInjector(stackInjector)
+                .push_i64(SET_Di(i64, op_RSTORE, i64bmr));
     }
 
     expr->utype->setResolvedType(new Literal(value));
@@ -797,6 +833,8 @@ void Compiler::parseHexLiteral(Expression* expr, Token &token) {
         errors->createNewError(GENERIC, token.getLine(), token.getColumn(), ss.str());
     }
     expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, value), i64ebx);
+    expr->utype->getCode().getInjector(stackInjector)
+            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
 
     expr->utype->setResolvedType(new Literal(value));
 }
@@ -807,7 +845,10 @@ void Compiler::parseStringLiteral(Expression* expr, Token &token) {
     expr->utype->setArrayType(true);
 
     stringMap.addif(token.getToken());
-    expr->utype->setResolvedType(new Literal(token.getToken(), stringMap.indexof(token.getToken())));
+    unsigned long long index =  stringMap.indexof(token.getToken());
+
+    expr->utype->setResolvedType(new Literal(token.getToken(), index));
+    expr->utype->getCode().push_i64(SET_Di(i64, op_NEWSTRING, index));
 }
 
 void Compiler::parseBoolLiteral(Expression* expr, Token &token) {
@@ -816,6 +857,8 @@ void Compiler::parseBoolLiteral(Expression* expr, Token &token) {
     expr->utype->setArrayType(false);
     expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, (token.getToken() == "true" ? 1 : 0)), i64ebx);
 
+    expr->utype->getCode().getInjector(stackInjector)
+            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
     expr->utype->setResolvedType(new Literal(token.getToken() == "true" ? 1 : 0));
 }
 
@@ -850,7 +893,7 @@ void Compiler::compileUtypeClass(Expression* expr, Ast* ast) {
     expr->utype->setType(utype_literal);
     expr->utype->setArrayType(false);
 
-    if(utype->isClass()) {
+    if(utype->getType() == utype_class) {
         expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, utype->getResolvedType()->address), i64ebx);
         expr->utype->setResolvedType(new Literal(utype->getResolvedType()->address));
     } else {
@@ -859,6 +902,8 @@ void Compiler::compileUtypeClass(Expression* expr, Ast* ast) {
                                ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier)->col, "expected class");
     }
 
+    expr->utype->getCode().getInjector(stackInjector)
+            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
     expr->ast = ast;
 }
 
@@ -873,14 +918,50 @@ void Compiler::expressionsToParams(List<Expression> &expressions, List<Field*> &
     for(long i = 0; i < expressions.size(); i++) {
         Expression &e = expressions.get(i);
         params.add(new Field());
-        if(e.type == exp_null)
+        params.get(i)->inlineCheck = true;
+
+        if(e.type == exp_null) {
             params.get(i)->nullField = true;
+            params.get(i)->utype = new Utype(OBJECT);
+            params.get(i)->type = OBJECT;
+
+            // yet another line of nasty dirty code...smh...
+            params.get(i)->utype->getCode().inject(0, e.utype->getCode());
+            params.get(i)->utype->getCode().getInjector(stackInjector).inject(0, e.utype->getCode().getInjector(stackInjector));
+            freePtr(e.utype);
+        }
+        else if(e.type == exp_var && e.utype->getType() == utype_literal) {
+            if(((Literal*) e.utype->getResolvedType())->literalType == string_literal) {
+                params.get(i)->utype = new Utype(_INT8);
+                params.get(i)->type = _INT8;
+            } else {
+                params.get(i)->utype = new Utype(VAR);
+                params.get(i)->type = VAR;
+            }
+
+            // yet another line of nasty dirty code...smh...
+            params.get(i)->utype->getCode().inject(0, e.utype->getCode());
+            params.get(i)->utype->getCode().getInjector(stackInjector).inject(0, e.utype->getCode().getInjector(stackInjector));
+            freePtr(e.utype);
+        }
+        else if(e.type == exp_var && e.utype->getType() == utype_method) {
+            params.get(i)->utype = new Utype(VAR);
+            params.get(i)->type = VAR;
+
+            // yet another line of nasty dirty code...smh...
+            params.get(i)->utype->getCode().inject(0, e.utype->getCode());
+            params.get(i)->utype->getCode().getInjector(stackInjector).inject(0, e.utype->getCode().getInjector(stackInjector));
+            freePtr(e.utype);
+        }
         else {
             params.get(i)->isArray = e.utype->isArray();
             params.get(i)->utype = e.utype;
+            params.get(i)->type = e.utype->getResolvedType() ? e.utype->getResolvedType()->type : UNDEFINED;
         }
         e.utype = NULL;
     }
+
+    freeList(expressions);
 }
 
 Method* // TODO: Circle back around to this as it is in its primitive stae there might beissues with how it searches the mehtods with _int64 _int8 etc.
@@ -893,7 +974,9 @@ Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* a
     if(!funcs.empty()) {
         for(long long i = 0; i < funcs.size(); i++) {
             if(simpleParameterMatch(funcs.get(i)->params, params)) {
-                return funcs.get(i);
+                resolvedFunction = funcs.get(i);
+                funcs.free();
+                return resolvedFunction;
             }
         }
 
@@ -904,19 +987,33 @@ Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* a
         }
     }
 
+    funcs.free();
     if(!matches.empty()) {
-        if(matches.size() > 1 && containsParamType(params, VAR)) {
-            createNewWarning(GENERIC, __WAMBIG, ast->line, ast->col, "call to method `" + name + "` may be ambiguous");
+        resolvedFunction = matches.get(0);
+        if(matches.size() > 1) {
+            long uniqueMethods = 0;
+            for(long i = 0; i < matches.size(); i++) {
+                uniqueMethods++;
+
+                for( long x = 0; x < matches.size(); x++) {
+                    if(simpleParameterMatch(matches.get(i)->params, matches.get(x)->params)) {
+                        uniqueMethods--;
+                    }
+                }
+            }
+
+            if(uniqueMethods > 1)
+                createNewWarning(GENERIC, __WAMBIG, ast->line, ast->col, "call to method `" + name + "` may be ambiguous");
         }
 
-        return matches.get(0);
+        matches.free();
+        return resolvedFunction;
     }
 
-    funcs.free();
     return NULL;
 }
 
-Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, List<Field*> &params, Ast* ast) {
+Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *expr, List<Field*> &params, Ast* ast) {
     Method *resolvedMethod = NULL;
     string name = ptr.classes.get(0);
 
@@ -935,13 +1032,52 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, List<Field*>
         } else if(currentScope()->getLocalField(name) != NULL) {
             Field* field = currentScope()->getLocalField(name)->field;
             if(field->utype && field->utype->getType() == utype_method_prototype) {
-                return (Method*)field->utype->getResolvedType();
+                resolvedMethod =  (Method*)field->utype->getResolvedType();
+
+
+                expr->utype->getCode().getInjector(fnPtrInjector)
+                        .free()
+                        .push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, field->address));
+                if(!complexParameterMatch(resolvedMethod->params, params)) {
+                    errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` does not match provided parameter arguments");
+                }
+                return resolvedMethod;
+            } else {
+                errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` is not a function pointer");
             }
         } else if(currentScope()->klass->getField(name, true) != NULL) {
 
             Field* field = currentScope()->klass->getField(name, true);
+            compileFieldType(field);
+
             if(field->utype && field->utype->getType() == utype_method_prototype) {
-                return (Method*)field->utype->getResolvedType();
+                resolvedMethod =  (Method*)field->utype->getResolvedType();
+
+                expr->utype->getCode().getInjector(fnPtrInjector)
+                        .free();
+
+                if(field->flags.find(STATIC)) {
+                    expr->utype->getCode().getInjector(fnPtrInjector)
+                            .push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                } else {
+                    if(currentScope()->type == STATIC_BLOCK)
+                        errors->createNewError(GENERIC, ast->line, ast->col, " illegal access to field `" + field->toString() + "` in static context");
+
+                    expr->utype->getCode().getInjector(fnPtrInjector)
+                            .push_i64(SET_Di(i64, op_MOVL, 0));
+                }
+
+                expr->utype->getCode().getInjector(fnPtrInjector)
+                        .push_i64(SET_Di(i64, op_MOVN, field->address))
+                        .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
+                        .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx));
+
+                if(!complexParameterMatch(resolvedMethod->params, params)) {
+                    errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` does not match provided parameter arguments");
+                }
+                return resolvedMethod;
+            } else {
+                errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` is not a function pointer");
             }
         } else if(currentScope()->klass->isClassRelated(findClass("std", "_enum_", classes))) {
             ClassObject *klass = currScope.get(currScope.size()-2)->klass;
@@ -951,8 +1087,26 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, List<Field*>
                 return resolvedMethod;
             else if(klass->getField(name, true) != NULL) {
                 Field* field = klass->getField(name, true);
+                compileFieldType(field);
+                
                 if(field->utype && field->utype->getType() == utype_method_prototype) {
-                    return (Method*)field->utype->getResolvedType();
+                    resolvedMethod =  (Method*)field->utype->getResolvedType();
+
+                    if(!complexParameterMatch(resolvedMethod->params, params)) {
+                        errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` does not match provided parameter arguments");
+                    }
+                    expr->utype->getCode().getInjector(fnPtrInjector)
+                            .free()
+                            .push_i64(SET_Di(i64, op_MOVG, field->owner->address))
+                            .push_i64(SET_Di(i64, op_MOVN, field->address))
+                            .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
+                            .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx));
+
+                    if(!field->flags.find(STATIC))
+                        errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` must be static to be used in static context");
+                    return resolvedMethod;
+                } else {
+                    errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` is not a function pointer");
                 }
             }
         }
@@ -962,44 +1116,1206 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, List<Field*>
     return NULL;
 }
 
+bool Compiler::isUtypeClass(Utype* utype, string mod, int names, ...) {
+    if(utype) {
+        va_list ap;
+        bool found = false;
+
+        va_start(ap, names);
+        for (size_t loop = 0; loop < names; ++loop) {
+            if(utype->getClass() && utype->getClass()->name == va_arg(ap, string)
+               && utype->getClass()->module == mod) {
+                va_end(ap);
+                return true;
+            }
+        }
+
+        va_end(ap);
+    }
+    return false;
+}
 Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
     Method *resolvedMethod = NULL;
     ReferencePointer ptr;
     List<Expression> expressions;
     List<Field*> params;
+    bool singularCall = false;
 
     compileTypeIdentifier(ptr, ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier));
     compileExpressionList(expressions, ast->getSubAst(ast_value_list));
     expressionsToParams(expressions, params);
 
     if(ptr.classes.singular()) {
-        freeList(expressions);
-        return compileSingularMethodUtype(ptr, params, ast);
+        singularCall = true;
+        resolvedMethod =  compileSingularMethodUtype(ptr, expr, params, ast);
+
+        compileMethodReturnType(resolvedMethod, resolvedMethod->ast);
+        if(resolvedMethod && currentScope()->type == STATIC_BLOCK && !resolvedMethod->flags.find(STATIC)) {
+            errors->createNewError(GENERIC, ast->line, ast->col, " call to instance function `" + resolvedMethod->toString() + "` inside static context");
+        }
     } else {
         string name = ptr.classes.get(ptr.classes.size() - 1);
         ptr.classes.pop_back();
 
-        Utype *utype = new Utype();
+        Utype *utype = expr->utype;
         resolveUtype(ptr, utype, ast);
         if(utype->isClass()) {
             ClassObject* klass = utype->getClass();
             // TODO: add overload need to see how it comes in later
-            if((resolvedMethod = findFunction(klass, name, params, ast, true)) != NULL)
-                return resolvedMethod;
-            else if(klass->getField(name, true) != NULL) {
-                Field *field = klass->getField(name, true);
-                if(field->type == FNPTR)
-                    return (Method*)field->utype->getResolvedType();
-                errors->createNewError(GENERIC, ast->line, ast->col, " symbol `" + name + "` is not a function or pointer");
+            if(klass != NULL && (resolvedMethod = findFunction(klass, name, params, ast, true)) != NULL) {
+                compileMethodReturnType(resolvedMethod, resolvedMethod->ast);
+                if(!resolvedMethod->flags.find(STATIC)) {
+                    utype->getCode().inject(stackInjector);
+                } else
+                    utype->getCode().free();
             }
+            else if(klass != NULL && klass->getField(name, true) != NULL) {
+                Field *field = klass->getField(name, true);
+                compileFieldType(field);
+
+                if(field->type == FNPTR) {
+                    resolvedMethod = (Method *) field->utype->getResolvedType();
+                    compileMethodReturnType(resolvedMethod, resolvedMethod->ast); // probably unessicary but we do it anyway
+
+                    utype->getCode().getInjector(stackInjector).free();
+                    utype->getCode().getInjector(fnPtrInjector).inject(0, utype->getCode());
+                    utype->getCode().getInjector(fnPtrInjector).push_i64(SET_Di(i64, op_MOVN, field->address))
+                            .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
+                            .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx));
+                    utype->getCode().ir64.free();
+
+                    if(!complexParameterMatch(resolvedMethod->params, params)) {
+                        errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` does not match provided parameter arguments");
+                    }
+                }
+                else
+                    errors->createNewError(GENERIC, ast->line, ast->col,
+                                           " symbol `" + name + "` is not a function or pointer");
+            } else
+                errors->createNewError(GENERIC, ast->line, ast->col,
+                                       " symbol `" + name + "` is not a function or pointer");
         } else if(utype->getType() == utype_field) {
-            errors->createNewError(GENERIC, ast->line, ast->col, " field `" + utype->toString() + "` is not a class");
+            errors->createNewError(GENERIC, ast->line, ast->col, " field `" + utype->toString() + "` is not a data structure");
         } else {
             errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col, " `" + ptr.classes.get(0) +  Method::paramsToString(params) + "`");
         }
+
+        if(resolvedMethod && utype->getType() == utype_class && !resolvedMethod->flags.find(STATIC)) {
+            errors->createNewError(GENERIC, ast->line, ast->col, " call to instance function `" + resolvedMethod->toString() + "` via static context");
+        }
     }
 
+    if(resolvedMethod) {
+        IrCode &code = expr->utype->getCode();
+
+        validateAccess(resolvedMethod, ast);
+        if(!resolvedMethod->flags.find(STATIC) && resolvedMethod->fnType != fn_prototype) {
+            if(singularCall) {
+                code.push_i64(SET_Di(i64, op_MOVL, 0));
+                code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+            }
+        }
+
+        for(long i = 0; i < params.size(); i++) {
+            Field *param = resolvedMethod->params.get(i);
+            if(isUtypeConvertableToNativeClass(param->utype, params.get(i)->utype)) {
+                convertUtypeToNativeClass(param->utype, params.get(i)->utype, expressions.get(i).type, code, ast);
+            } else {
+                params.get(i)->utype->getCode().inject(stackInjector);
+                code.inject(code.size(), params.get(i)->utype->getCode());
+            }
+        }
+
+        if(resolvedMethod->fnType == fn_delegate) {
+            if(resolvedMethod->flags.find(STATIC)) {
+                code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, resolvedMethod->address, 0, params.size()), resolvedMethod->owner->address);
+            } else
+                code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, resolvedMethod->address, 0, params.size()));
+        } else {
+            if(resolvedMethod->fnType != fn_prototype)
+                code.push_i64(SET_Di(i64, op_CALL, resolvedMethod->address));
+            else {
+                code.inject(fnPtrInjector);
+                code.push_i64(SET_Di(i64, op_CALLD, i64ebx));
+            }
+        }
+    }
+
+    ptr.free();
+    freeListPtr(params);
     return resolvedMethod;
+}
+
+/*
+ * DEBUG: This is a debug function made to print the generated contents of a n expression's code
+ */
+void Compiler::printExpressionCode(Expression *expr) {
+    cout << "\n\n\n==== Expression Code ===\n";
+    cout << codeToString(expr->utype->getCode());
+    cout << "\n=========\n" << std::flush;
+}
+
+/*
+ * DEBUG: This is a debug function made to get the name of a register
+ */
+string Compiler::registerToString(int64_t r) {
+    switch(r) {
+        case i64adx:
+            return "adx";
+        case i64cx:
+            return "cx";
+        case i64cmt:
+            return "cmt";
+        case i64ebx:
+            return "ebx";
+        case i64ecx:
+            return "ecx";
+        case i64ecf:
+            return "ecf";
+        case i64edf:
+            return "edf";
+        case i64ehf:
+            return "ehf";
+        case i64bmr:
+            return "bmr";
+        case i64egx:
+            return "egx";
+        default: {
+            stringstream ss;
+            ss << "? (" << r << ")";
+            return ss.str();
+        }
+    }
+}
+
+/*
+ * DEBUG: This is a debug function made to find a class for better code readability
+ */
+string Compiler::find_class(int64_t id) {
+    for(unsigned int i = 0; i < classes.size(); i++) {
+        if(classes.get(i)->address == id)
+            return classes.get(i)->fullName;
+        else {
+            ClassObject &klass = *classes.get(i);
+            for(unsigned int x = 0; x < klass.getChildClasses().size(); x++) {
+                if(klass.getChildClasses().get(x)->address == id)
+                    return klass.getChildClasses().get(x)->fullName;
+            }
+        }
+    }
+    return "";
+}
+
+/*
+ * DEBUG: This is a debug function made to allow early testing in compiler code generation
+ */
+string Compiler::codeToString(IrCode &code) {
+    stringstream ss;
+    for(unsigned int x = 0; x < code.size(); x++) {
+        int64_t x64=code.ir64.get(x);
+
+        switch(GET_OP(x64)) {
+            case op_NOP:
+            {
+                ss<<"nop";
+                
+                break;
+            }
+            case op_INT:
+            {
+                ss<<"int 0x" << std::hex << GET_Da(x64);
+                
+                break;
+            }
+            case op_MOVI:
+            {
+                ss<<"movi #" << GET_Da(x64) << ", ";
+                ss<< registerToString(code.ir64.get(++x)) ;
+                
+                break;
+            }
+            case op_RET:
+            {
+                ss<<"ret";
+                
+                break;
+            }
+            case op_HLT:
+            {
+                ss<<"hlt";
+                
+                break;
+            }
+            case op_NEWARRAY:
+            {
+                ss<<"newarry ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_CAST:
+            {
+                ss<<"cast ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_VARCAST:
+            {
+                ss<<"vcast ";
+                ss<< GET_Da(x64);
+                
+                break;
+            }
+            case op_MOV8:
+            {
+                ss<<"mov8 ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_MOV16:
+            {
+                ss<<"mov16 ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_MOV32:
+            {
+                ss<<"mov32 ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_MOV64:
+            {
+                ss<<"mov64 ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            } case op_MOVU8:
+            {
+                ss<<"movu8 ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_MOVU16:
+            {
+                ss<<"movu16 ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_MOVU32:
+            {
+                ss<<"movu32 ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_MOVU64:
+            {
+                ss<<"movu64 ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_RSTORE:
+            {
+                ss<<"rstore ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_ADD:
+            {
+                ss<<"add ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                ss<< " -> ";
+                ss<< registerToString(code.ir64.get(++x));
+                
+                break;
+            }
+            case op_SUB:
+            {
+                ss<<"sub ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                ss<< " -> ";
+                ss<< registerToString(code.ir64.get(++x));
+                
+                break;
+            }
+            case op_MUL:
+            {
+                ss<<"mul ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                ss<< " -> ";
+                ss<< registerToString(code.ir64.get(++x));
+                
+                break;
+            }
+            case op_DIV:
+            {
+                ss<<"div ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                ss<< " -> ";
+                ss<< registerToString(code.ir64.get(++x));
+                
+                break;
+            }
+            case op_MOD:
+            {
+                ss<<"mod ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                ss<< " -> ";
+                ss<< registerToString(code.ir64.get(++x));
+                
+                break;
+            }
+            case op_IADD:
+            {
+                ss<<"iadd ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", #";
+                ss<< GET_Cb(x64);
+                
+                break;
+            }
+            case op_ISUB:
+            {
+                ss<<"isub ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", #";
+                ss<< GET_Cb(x64);
+                
+                break;
+            }
+            case op_IMUL:
+            {
+                ss<<"imul ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", #";
+                ss<< GET_Cb(x64);
+                
+                break;
+            }
+            case op_IDIV:
+            {
+                ss<<"idiv ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", #";
+                ss<< GET_Cb(x64);
+                
+                break;
+            }
+            case op_IMOD:
+            {
+                ss<<"imod ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", #";
+                ss<< GET_Cb(x64);
+                
+                break;
+            }
+            case op_POP:
+            {
+                ss<<"pop";
+                
+                break;
+            }
+            case op_INC:
+            {
+                ss<<"inc ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_DEC:
+            {
+                ss<<"dec ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_MOVR:
+            {
+                ss<<"movr ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_IALOAD:
+            {
+                ss<<"iaload ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_BRH:
+            {
+                ss<<"brh";
+                
+                break;
+            }
+            case op_IFE:
+            {
+                ss<<"ife";
+                
+                break;
+            }
+            case op_IFNE:
+            {
+                ss<<"ifne";
+                
+                break;
+            }
+            case op_JE:
+            {
+                ss<<"je " << GET_Da(x64);
+                
+                break;
+            }
+            case op_JNE:
+            {
+                ss<<"jne " << GET_Da(x64);
+                
+                break;
+            }
+            case op_LT:
+            {
+                ss<<"lt ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_GT:
+            {
+                ss<<"gt ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_LTE:
+            {
+                ss<<"lte ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_GTE:
+            {
+                ss<<"gte ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_MOVL:
+            {
+                ss<<"movl " << GET_Da(x64);
+                
+                break;
+            }
+            case op_POPL:
+            {
+                ss<<"popl " << GET_Da(x64);
+                
+                break;
+            }
+            case op_MOVSL:
+            {
+                ss<<"movsl #";
+                ss<< GET_Da(x64);
+                
+                break;
+            }
+            case op_MOVBI:
+            {
+                ss<<"movbi #" << GET_Da(x64) << ", #";
+                ss<< code.ir64.get(++x);
+                
+                break;
+            }
+            case op_SIZEOF:
+            {
+                ss<<"sizeof ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_PUT:
+            {
+                ss<<"put ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_PUTC:
+            {
+                ss<<"_putc ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_CHECKLEN:
+            {
+                ss<<"chklen ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_GOTO:
+            {
+                ss<<"goto @" << GET_Da(x64);
+                
+                break;
+            }
+            case op_LOADPC:
+            {
+                ss<<"loadpc ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_PUSHOBJ:
+            {
+                ss<<"pushobj";
+                
+                break;
+            }
+            case op_DEL:
+            {
+                ss<<"del";
+                
+                break;
+            }
+            case op_CALL:
+            {
+                ss<<"call @" << GET_Da(x64) << " // <";
+                //ss << find_method(GET_Da(x64)) << ">";
+                
+                break;
+            }
+            case op_CALLD:
+            {
+                ss<<"calld ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_NEWCLASS:
+            {
+                ss<<"new_class @" << GET_Da(x64);
+                ss << " // "; ss << find_class(GET_Da(x64));
+                
+                break;
+            }
+            case op_MOVN:
+            {
+                ss<<"movn #" << GET_Da(x64);
+                
+                break;
+            }
+            case op_SLEEP:
+            {
+                ss<<"sleep ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_TEST:
+            {
+                ss<<"test ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_TNE:
+            {
+                ss<<"tne ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_LOCK:
+            {
+                ss<<"_lck ";
+                
+                break;
+            }
+            case op_ULOCK:
+            {
+                ss<<"_ulck";
+                
+                break;
+            }
+            case op_EXP:
+            {
+                ss<<"exp ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_MOVG:
+            {
+                ss<<"movg @"<< GET_Da(x64);
+                ss << " // @"; ss << find_class(GET_Da(x64));
+                
+                break;
+            }
+            case op_MOVND:
+            {
+                ss<<"movnd ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_NEWOBJARRAY:
+            {
+                ss<<"newobj_arry ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_NOT: //c
+            {
+                ss<<"not ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_SKIP:// d
+            {
+                ss<<"skip @";
+                ss<< GET_Da(x64);
+                ss << " // pc = " << (x + GET_Da(x64));
+                
+                break;
+            }
+            case op_LOADVAL:
+            {
+                ss<<"loadval ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_SHL:
+            {
+                ss<<"shl ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                ss<< " -> ";
+                ss<< registerToString(code.ir64.get(++x));
+                
+                break;
+            }
+            case op_SHR:
+            {
+                ss<<"shr ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                ss<< " -> ";
+                ss<< registerToString(code.ir64.get(++x));
+                
+                break;
+            }
+            case op_SKPE:
+            {
+                ss<<"skpe ";
+                ss<<GET_Da(x64);
+                ss << " // pc = " << (x + GET_Da(x64));
+                
+                break;
+            }
+            case op_SKNE:
+            {
+                ss<<"skne ";
+                ss<<GET_Da(x64);
+                ss << " // pc = " << (x + GET_Da(x64));
+                
+                break;
+            }
+            case op_CMP:
+            {
+                ss<<"cmp ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< GET_Cb(x64);
+                
+                break;
+            }
+            case op_AND:
+            {
+                ss<<"and ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_UAND:
+            {
+                ss<<"uand ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_OR:
+            {
+                ss<<"or ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_XOR:
+            {
+                ss<<"xor ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_THROW:
+            {
+                ss<<"throw ";
+                
+                break;
+            }
+            case op_CHECKNULL:
+            {
+                ss<<"checknull";
+                
+                break;
+            }
+            case op_RETURNOBJ:
+            {
+                ss<<"returnobj";
+                
+                break;
+            }
+            case op_NEWCLASSARRAY:
+            {
+                ss<<"new_classarray ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< " ";
+                ss << " // "; ss << find_class(GET_Cb(x64)) << "[]";
+                
+                break;
+            }
+            case op_NEWSTRING:
+            {
+                ss<<"newstr @" << GET_Da(x64) << " // ";
+                //ss << getString(GET_Da(x64));
+                
+                break;
+            }
+            case op_ADDL:
+            {
+                ss<<"addl ";
+                ss<< registerToString(GET_Ca(x64)) << ", @";
+                ss<<GET_Cb(x64);
+                
+                break;
+            }
+            case op_SUBL:
+            {
+                ss<<"subl ";
+                ss<< registerToString(GET_Ca(x64)) << ", @";
+                ss<<GET_Cb(x64);
+                
+                break;
+            }
+            case op_MULL:
+            {
+                ss<<"mull ";
+                ss<< registerToString(GET_Ca(x64)) << ", @";
+                ss<<GET_Cb(x64);
+                
+                break;
+            }
+            case op_DIVL:
+            {
+                ss<<"divl ";
+                ss<< registerToString(GET_Ca(x64)) << ", @";
+                ss<<GET_Cb(x64);
+                
+                break;
+            }
+            case op_MODL:
+            {
+                ss<<"modl #";
+                ss<< registerToString(GET_Ca(x64)) << ", @";
+                ss<<GET_Cb(x64);
+                
+                break;
+            }
+            case op_IADDL:
+            {
+                ss<<"iaddl ";
+                ss<< GET_Ca(x64) << ", @";
+                ss<<GET_Cb(x64);
+                
+                break;
+            }
+            case op_ISUBL:
+            {
+                ss<<"isubl #";
+                ss<< GET_Ca(x64) << ", @";
+                ss<<GET_Cb(x64);
+                
+                break;
+            }
+            case op_IMULL:
+            {
+                ss<<"imull #";
+                ss<< GET_Ca(x64) << ", @";
+                ss<<GET_Cb(x64);
+                
+                break;
+            }
+            case op_IDIVL:
+            {
+                ss<<"idivl #";
+                ss<< GET_Ca(x64) << ", @";
+                ss<<GET_Cb(x64);
+                
+                break;
+            }
+            case op_IMODL:
+            {
+                ss<<"imodl #";
+                ss<< GET_Ca(x64) << ", @";
+                ss<<GET_Cb(x64);
+                
+                break;
+            }
+            case op_LOADL:
+            {
+                ss<<"loadl ";
+                ss<< registerToString(GET_Ca(x64)) << ", fp+";
+                ss<<GET_Cb(x64);
+                
+                break;
+            }
+            case op_IALOAD_2:
+            {
+                ss<<"iaload_2 ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_POPOBJ:
+            {
+                ss<<"popobj";
+                
+                break;
+            }
+            case op_SMOVR:
+            {
+                ss<<"smovr ";
+                ss<< registerToString(GET_Ca(x64)) << ", sp+";
+                if(GET_Cb(x64)<0) ss<<"[";
+                ss<<GET_Cb(x64);
+                if(GET_Cb(x64)<0) ss<<"]";
+                
+                break;
+            }
+            case op_SMOVR_2:
+            {
+                ss<<"smovr_2 ";
+                ss<< registerToString(GET_Ca(x64)) << ", fp+";
+                if(GET_Cb(x64)<0) ss<<"[";
+                ss<<GET_Cb(x64);
+                if(GET_Cb(x64)<0) ss<<"]";
+                
+                break;
+            }
+            case op_ANDL:
+            {
+                ss<<"andl ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< GET_Cb(x64);
+                
+                break;
+            }
+            case op_ORL:
+            {
+                ss<<"orl ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< GET_Cb(x64);
+                
+                break;
+            }
+            case op_XORL:
+            {
+                ss<<"xorl ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< GET_Cb(x64);
+                
+                break;
+            }
+            case op_RMOV:
+            {
+                ss<<"rmov ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_SMOV:
+            {
+                ss<<"smov ";
+                ss<< registerToString(GET_Ca(x64)) << ", sp+";
+                if(GET_Cb(x64)<0) ss<<"[";
+                ss<<GET_Cb(x64);
+                if(GET_Cb(x64)<0) ss<<"]";
+                
+                break;
+            }
+            case op_LOADPC_2:
+            {
+                ss<<"loadpc_2 ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", pc+";
+                ss<< GET_Cb(x64);
+                ss<< " // " << registerToString(GET_Ca(x64))
+                  << " = " << (x + GET_Cb(x64));
+                
+                break;
+            }
+            case op_RETURNVAL:
+            {
+                ss<<"return_val ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_ISTORE:
+            {
+                ss<<"istore ";
+                ss<< GET_Da(x64);
+                
+                break;
+            }
+            case op_ISTOREL:
+            {
+                ss<<"istorel ";
+                ss<< code.ir64.get(++x) << ", fp+";
+                ss<<GET_Da(x64);
+                
+                break;
+            }
+            case op_IPUSHL:
+            {
+                ss<<"ipushl #";
+                ss<< GET_Da(x64);
+                
+                break;
+            }
+            case op_PUSHL:
+            {
+                ss<<"pushl ";
+                ss<< GET_Da(x64);
+                
+                break;
+            }
+            case op_PUSHNIL:
+            {
+                ss<<"pushnil ";
+                
+                break;
+            }
+            case op_GET:
+            {
+                ss<<"get ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_ITEST:
+            {
+                ss<<"itest ";
+                ss<< registerToString(GET_Da(x64));
+                
+                break;
+            }
+            case op_INVOKE_DELEGATE:
+            {
+                ss<<"invoke_delegate ";
+                ss<< GET_Ca(x64);
+                ss<< ", ";
+                ss<< GET_Cb(x64);
+                
+                break;
+            }
+            case op_INVOKE_DELEGATE_STATIC:
+            {
+                ss<<"invoke_delegate_static ";
+                ss<< registerToString(GET_Ca(x64));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(x64));
+                
+                break;
+            }
+            case op_ISADD:
+            {
+                ss<<"isadd ";
+                ss<< GET_Ca(x64) << ", sp+";
+                if(GET_Cb(x64)<0) ss<<"[";
+                ss<<GET_Cb(x64);
+                if(GET_Cb(x64)<0) ss<<"]";
+                
+                break;
+            }
+            case op_IPOPL:
+            {
+                ss<<"ipopl ";
+                ss<< GET_Da(x64);
+                
+                break;
+            }
+            case op_SWITCH:
+            {
+                ss<<"switch ";
+                ss<< GET_Da(x64);
+                //ss<< " // " << getSwitchTable(method, GET_Da(x64));
+                
+                break;
+            }
+            case op_TLS_MOVL:
+            {
+                ss<<"tls_movl ";
+                ss<< GET_Da(x64);
+                
+                break;
+            }
+            case op_DUP:
+            {
+                ss<<"dup ";
+                
+                break;
+            }
+            case op_POPOBJ_2:
+            {
+                ss<<"popobj2 ";
+                
+                break;
+            }
+            case op_SWAP:
+            {
+                ss<<"swap ";
+                
+                break;
+            }
+            default:
+                ss << "? (" << GET_OP(x64) << ")";
+                
+                break;
+        }
+
+        ss << "\n";
+    }
+
+    return ss.str();
+}
+
+void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, expression_type paramType, IrCode &code, Ast *ast) {
+    List<Field*> params;
+    List<AccessFlag> flags;
+    Method *constructor; // TODO: take note that I may not be doing pre equals validation on the param before I call this function
+
+    flags.add(PUBLIC);
+    Meta meta(current->getErrors()->getLine(ast->getEntity(0).getLine()), current->sourcefile,
+              ast->getEntity(0).getLine(), ast->getEntity(0).getColumn());
+
+    params.add(new Field(paramUtype->getResolvedType()->type, 0, "", currentScope()->klass, flags, meta, stl_stack, 0));
+    params.get(0)->utype = paramUtype;
+
+    if((constructor = clazz->getClass()->getConstructor(params, false)) != NULL) {
+        validateAccess(constructor, ast);
+
+        code.push_i64(SET_Di(i64, op_NEWCLASS, clazz->getClass()->address));
+
+        paramUtype->getCode().inject(stackInjector);
+        code.inject(code.size(), paramUtype->getCode());
+        code.push_i64(SET_Di(i64, op_CALL, constructor->address));
+    } else {
+        errors->createNewError(GENERIC, ast->line,  ast->col, "Support class `" + clazz->toString() + "` does not have constructor for type `"
+                                                                          + paramUtype->toString() + "`");
+    }
+
+    params.get(0)->utype = NULL;
+    freeListPtr(params);
+}
+
+bool Compiler::isUtypeConvertableToNativeClass(Utype *dest, Utype *src) {
+    DataType  type = src->getResolvedType()->type;
+
+    if(isUtypeClass(dest, "std", 1, "string") && src->getResolvedType()->type == _INT8 && src->isArray()) {
+        return true;
+    } else if(isUtypeClass(dest, "std", 8, "int", "char", "bool", "short", "uchar", "ushort", "long", "ulong")) {
+        return !src->isArray() && (type == VAR || (type >= _INT8 && type <= _UINT64));
+    }
+
+    return false;
 }
 
 expression_type Compiler::utypeToExpressionType(Utype *utype) {
@@ -1025,19 +2341,23 @@ expression_type Compiler::utypeToExpressionType(Utype *utype) {
 
 void Compiler::compileDotNotationCall(Expression* expr, Ast* ast) {
 
+    expr->ast = ast;
     if(ast->hasSubAst(ast_dot_fn_e)) {
         Ast* branch = ast->getSubAst(ast_dot_fn_e);
         Method* method = compileMethodUtype(expr, branch);
 
         if(method) {
-            
+            expr->utype->setAssignable(true);
+            expr->type = utypeToExpressionType(method->utype);
+            expr->utype->setResolvedType(method->utype->getResolvedType());
+            expr->utype->setType(method->utype->getType());
+            expr->utype->setArrayType(method->utype->isArray());
+            if(method->utype->getType() == utype_native) expr->utype->setAssignable(true);
         }
     } else {
-        Utype* utype = compileUtype(ast->getSubAst(ast_utype));
-        expr->utype->setArrayType(utype->isArray());
-        expr->utype->setType(utype->getType());
-        expr->utype->setResolvedType(utype->getResolvedType());
-        expr->type = utypeToExpressionType(utype);
+        expr->free();
+        expr->utype = compileUtype(ast->getSubAst(ast_utype));
+        expr->type = utypeToExpressionType(expr->utype);
     }
 }
 
@@ -1084,10 +2404,14 @@ void Compiler::resolvePrototypeField(Ast* ast) {
         prototype->guid = guid++;
         prototype->ast = ast;
         prototype->flags.add(PUBLIC);
+        prototype->flags.add(STATIC);
         field->utype = new Utype();
         field->utype->setResolvedType(prototype);
         field->utype->setType(utype_method_prototype);
         field->type = FNPTR;
+        if (field->locality == stl_stack) {
+            field->address = field->owner->getFieldAddress(field);
+        }
 
         Meta meta(current->getErrors()->getLine(ast->getEntity(0).getLine()), current->sourcefile,
                   ast->getEntity(0).getLine(), ast->getEntity(0).getColumn());
@@ -1101,12 +2425,16 @@ void Compiler::resolvePrototypeField(Ast* ast) {
             prototype->params.addAll(params);
 
             if(ast->hasSubAst(ast_method_return_type)) {
+                if(ast->findEntity("nil"))
+                    goto void_;
+
                 Utype* utype = compileUtype(ast->getSubAst(ast_method_return_type));
                 if(utype->getType() != utype_native && utype->getType() != utype_class) {
                     this->errors->createNewError(GENERIC, ast->line, ast->col, " illegal use of symbol `" + utype->toString() + "` as a return type");
             }
                 prototype->utype = utype;
             } else {
+                void_:
                 prototype->utype = new Utype();
                 prototype->utype->setType(utype_native);
 
@@ -1148,7 +2476,7 @@ void Compiler::resolveFieldType(Field* field, Utype *utype, Ast* ast, bool typeI
 
     field->isArray = utype->isArray();
     if(utype->getType() == utype_class) {
-        if(!typeInference) {
+        if(!typeInference || utype->isAassignable()) {
             field->type = CLASS;
             field->utype = utype;
         } else
@@ -1160,7 +2488,7 @@ void Compiler::resolveFieldType(Field* field, Utype *utype, Ast* ast, bool typeI
         } else
             this->errors->createNewError(GENERIC, ast->line, ast->col, " illegal use of function `" + utype->toString() + "` as a type");
     } else if(utype->getType() == utype_native) {
-        if(!typeInference) {
+        if(!typeInference || utype->isAassignable()) {
             field->type = utype->getResolvedType()->type;
             field->utype = utype;
         } else
@@ -1218,8 +2546,14 @@ void Compiler::resolveField(Ast* ast) {
             resolveFieldType(field, utype, ast);
         } else if (ast->hasEntity(INFER)) {
             Expression expr;
+            BlockType oldScope = currentScope()->type;
+            if(field->flags.find(STATIC))
+                currentScope()->type = STATIC_BLOCK;
             compileExpression(&expr, ast->getSubAst(ast_expression));
+            if(field->flags.find(STATIC))
+                currentScope()->type = oldScope;
 
+            printExpressionCode(&expr);
             freePtr(field->utype); field->utype = NULL;
             resolveFieldType(field, expr.utype, ast, true);
         }
@@ -1238,33 +2572,7 @@ void Compiler::resolveField(Ast* ast) {
                     xtraField->address = xtraField->owner->getFieldAddress(xtraField);
 
                 if(xtraField->type == UNTYPED) {
-                    xtraField->utype = new Utype();
-                    xtraField->utype->setArrayType(field->utype->isArray());
-                    xtraField->utype->setType(field->utype->getType());
-
-                    if (field->utype->getResolvedType() != NULL) {
-                        switch (field->utype->getType()) {
-                            case utype_native:
-                                xtraField->utype->setResolvedType(new DataEntity());
-                                xtraField->utype->getResolvedType()->ast = field->utype->getResolvedType()->ast;
-                                xtraField->utype->getResolvedType()->owner = field->utype->getResolvedType()->owner;
-                                xtraField->utype->getResolvedType()->flags.addAll(field->utype->getResolvedType()->flags);
-                                xtraField->utype->getResolvedType()->address = field->utype->getResolvedType()->address;
-                                xtraField->utype->getResolvedType()->module = field->utype->getResolvedType()->module;
-                                xtraField->utype->getResolvedType()->meta.copy(field->utype->getResolvedType()->meta);
-                                xtraField->utype->getResolvedType()->fullName = field->utype->getResolvedType()->fullName;
-                                xtraField->utype->getResolvedType()->name = field->utype->getResolvedType()->name;
-                                xtraField->utype->getResolvedType()->type = field->utype->getResolvedType()->type;
-                                break;
-                            case utype_class:
-                                xtraField->utype->setResolvedType(field->utype->getResolvedType());
-                                break;
-                            default:
-                                xtraField->utype->setType(utype_unresolved);
-                                xtraField->utype->setResolvedType(new DataEntity());
-                                break;
-                        }
-                    }
+                    resolveFieldType(xtraField, field->utype, ast, false);
                 }
             }
         }
@@ -1587,20 +2895,7 @@ void Compiler::resolveOperatorOverload(Ast* ast) {
     method->address = methodSize++;
     method->overload = op.at(0);
 
-    if(ast->hasSubAst(ast_method_return_type)) {
-        Utype* utype = compileUtype(ast->getSubAst(ast_method_return_type)->getSubAst(ast_utype));
-        method->utype = utype;
-    } else {
-        method->utype = new Utype();
-        method->utype->setType(utype_native);
-
-        DataEntity *_void = new DataEntity();
-        _void->owner = method->owner;
-        _void->type = _VOID;
-        _void->meta.copy(meta);
-
-        method->utype->setResolvedType(_void);
-    }
+    compileMethodReturnType(method, ast, true);
 
     if(!addFunction(currentScope()->klass, method, &simpleParameterMatch)) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
@@ -1700,21 +2995,7 @@ void Compiler::resolveDelegateImpl(Ast* ast) {
     method->fnType = fn_delegate_impl;
     method->address = methodSize++;
 
-    if(ast->hasSubAst(ast_method_return_type)) {
-        Utype* utype = compileUtype(ast->getSubAst(ast_method_return_type)->getSubAst(ast_utype));
-        method->utype = utype;
-    } else {
-        method->utype = new Utype();
-        method->utype->setType(utype_native);
-
-        DataEntity *_void = new DataEntity();
-        _void->owner = method->owner;
-        _void->type = _VOID;
-        _void->meta.copy(meta);
-
-        method->utype->setResolvedType(_void);
-    }
-
+    compileMethodReturnType(method, ast, true);
     checkMainMethodSignature(method);
     if(!addFunction(currentScope()->klass, method, &simpleParameterMatch)) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
@@ -1763,9 +3044,13 @@ void Compiler::resolveDelegate(Ast* ast) {
     method->address = delegateGUID++;
 
     if(ast->hasSubAst(ast_method_return_type)) {
+        if(ast->findEntity("nil"))
+            goto void_;
+
         Utype* utype = compileUtype(ast->getSubAst(ast_method_return_type)->getSubAst(ast_utype));
         method->utype = utype;
     } else {
+        void_:
         method->utype = new Utype();
         method->utype->setType(utype_native);
 
@@ -1785,6 +3070,51 @@ void Compiler::resolveDelegate(Ast* ast) {
 
         method->free();
         delete method;
+    }
+}
+
+void Compiler::compileMethodReturnType(Method* fun, Ast *ast, bool wait) {
+    if(fun->utype == NULL) {
+        if (ast->hasSubAst(ast_method_return_type)) {
+            if (ast->findEntity("nil"))
+                goto void_;
+
+            // todo: dont just let anything be the return type
+            Utype *utype = compileUtype(ast->getSubAst(ast_method_return_type)->getSubAst(ast_utype));
+            fun->utype = utype;
+        } else if (!ast->findEntity(":=")) {
+            void_:
+            fun->utype = new Utype();
+            fun->utype->setType(utype_native);
+
+            DataEntity *_void = new DataEntity();
+            _void->owner = fun->owner;
+            _void->type = _VOID;
+            _void->meta.copy(fun->meta);
+
+            fun->utype->setResolvedType(_void);
+        } else if (ast->findEntity(":=")) {
+            if (!wait) {
+                Expression e;
+                compileExpression(&e, ast->getSubAst(ast_expression));
+                if(e.utype->getType() == utype_field) {
+                    fun->utype = ((Field*)e.utype->getResolvedType())->utype;
+                } else if(e.utype->getType() == utype_class) {
+                    fun->utype = e.utype;
+                } else if(e.utype->getType() == utype_method) {
+                    fun->utype = new Utype(VAR);
+                } else if(e.utype->getType() == utype_native) {
+                    fun->utype = e.utype;
+                } else if(e.utype->getType() == utype_literal) {
+                    fun->utype = new Utype(e.utype->getResolvedType()->type, e.utype->isArray());;
+                } else {
+                    this->errors->createNewError(GENERIC, ast->line, ast->col, " function `" + fun->fullName + "` cannot infer type `" + e.utype->toString() + "`");
+                }
+            }
+        } else {
+            this->errors->createNewError(GENERIC, ast->line, ast->col,
+                                         "unable to process function `" + fun->toString() + "`");
+        }
     }
 }
 
@@ -1824,20 +3154,7 @@ void Compiler::resolveMethod(Ast* ast) {
     method->fnType = fn_normal;
     method->address = methodSize++;
 
-    if(ast->hasSubAst(ast_method_return_type)) {
-        Utype* utype = compileUtype(ast->getSubAst(ast_method_return_type)->getSubAst(ast_utype));
-        method->utype = utype;
-    } else {
-        method->utype = new Utype();
-        method->utype->setType(utype_native);
-
-        DataEntity *_void = new DataEntity();
-        _void->owner = method->owner;
-        _void->type = _VOID;
-        _void->meta.copy(meta);
-
-        method->utype->setResolvedType(_void);
-    }
+    compileMethodReturnType(method, ast, true);
 
     checkMainMethodSignature(method);
     if(!addFunction(currentScope()->klass, method, &simpleParameterMatch)) {
@@ -1938,6 +3255,9 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
     subscriber->getAllFunctionsByType(fn_delegate_impl, subscribedMethods);
     ClassObject* contracter;
 
+    if(subscriber->guid == 20) {
+        int i = 0;
+    }
     // we want to add all the delegates we need to validate
     if((contracter = subscriber->getSuperClass()) != NULL) {
         contracter->getAllFunctionsByType(fn_delegate, contractedMethods);
@@ -1947,7 +3267,7 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
         contracter = subscriber->getInterfaces().get(i);
         contracter->getAllFunctionsByType(fn_delegate, contractedMethods);
 
-        if(contracter->getSuperClass() != NULL) {
+        if(contracter->getSuperClass() != NULL && !(contracter->getSuperClass()->name == "_object_" && contracter->getSuperClass()->module =="std")) {
             for(;;) {
 
                 contracter = contracter->getSuperClass();
@@ -1959,6 +3279,14 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
         }
     }
 
+    // we do this to ensure no bugs will come from searching methods
+    for(long long i = 0;   i < contractedMethods.size(); i++) {
+        compileMethodReturnType(contractedMethods.get(i), contractedMethods.get(i)->ast);
+    }
+
+    for(long long i = 0;   i < subscribedMethods.size(); i++) {
+        compileMethodReturnType(subscribedMethods.get(i), subscribedMethods.get(i)->ast);
+    }
 
     // First check that all subscribed methods have a contract attached to them
     for(long long i = 0; i < subscribedMethods.size(); i++) {
@@ -2345,11 +3673,15 @@ void Compiler::inlineVariableValue(IrCode &code, Field *field) {
     double value = getInlinedFieldValue(field);
     code.free();
 
-    if(isDClassNumberEncodable(value))
+    if(isDClassNumberEncodable(value)) {
         code.push_i64(SET_Di(i64, op_MOVI, value), i64ebx);
+        code.getInjector(stackInjector)
+                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+    }
     else {
         code.push_i64(SET_Di(i64, op_MOVBI, ((int64_t)value)), abs(getLowBytes(value)));
-        code.push_i64(SET_Ci(i64, op_MOVR, i64ebx,0, i64bmr));
+        code.getInjector(stackInjector)
+                .push_i64(SET_Di(i64, op_RSTORE, i64bmr));
     }
 }
 
@@ -2395,8 +3727,13 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
                 } else {
                     utype->getCode().push_i64(SET_Di(i64, op_MOVL, field->address));
                 }
+
+                utype->getCode().getInjector(stackInjector)
+                        .push_i64(SET_Ei(i64, op_PUSHOBJ));
             } else {
                 utype->getCode().push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, field->address));
+                utype->getCode().getInjector(stackInjector)
+                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
             }
         }
         else {
@@ -2405,12 +3742,14 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             } else {
                 utype->getCode().push_i64(SET_Di(i64, op_MOVL, field->address));
             }
+
+            utype->getCode().getInjector(stackInjector)
+                    .push_i64(SET_Ei(i64, op_PUSHOBJ));
         }
     } else if((resolvedUtype = currentScope()->klass->getField(name, true)) != NULL) {
         Field* field = (Field*)resolvedUtype;
         if(currentScope()->type == STATIC_BLOCK && !field->flags.find(STATIC)) {
-            errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col,
-                                   "cannot get field `" + name + "` from self in static context");
+            errors->createNewError(GENERIC, ast->line, ast->col, "cannot get field `" + name + "` from self in static context");
         }
 
         compileFieldType(field);
@@ -2432,15 +3771,24 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
                     utype->getCode().push_i64(SET_Di(i64, op_MOVL, 0));
                 utype->getCode().push_i64(SET_Di(i64, op_MOVN, field->address));
             }
+
+            if(field->isVar()) {
+
+                utype->getCode().getInjector(stackInjector)
+                        .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
+                        .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx))
+                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+            } else
+                utype->getCode().getInjector(stackInjector)
+                    .push_i64(SET_Ei(i64, op_PUSHOBJ));
         }
     }  else if(IS_CLASS_ENUM(currentScope()->klass->getClassType()) && (resolvedUtype = currScope.get(currScope.size() - 2)->klass->getField(name, true)) != NULL) {
         Field* field = (Field*)resolvedUtype;
         if(currentScope()->type == STATIC_BLOCK && !field->flags.find(STATIC)) {
-            errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col,
-                                   "cannot get field `" + name + "` from self in static context");
+            errors->createNewError(GENERIC, ast->line, ast->col, "cannot get field `" + name + "` from self in static context");
         }
 
-        compileFieldType(field);
+        compileFieldType(field); // TODO: this might pose a problem make sure gatting variable values at the low level is being genetrated properly might cause seg faults if not
 
         utype->setType(utype_field);
         utype->setResolvedType(field);
@@ -2459,6 +3807,15 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
                     utype->getCode().push_i64(SET_Di(i64, op_MOVL, 0));
                 utype->getCode().push_i64(SET_Di(i64, op_MOVN, field->address));
             }
+
+            if(field->isVar()) {
+                utype->getCode().getInjector(stackInjector)
+                        .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
+                        .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx))
+                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+            } else
+                utype->getCode().getInjector(stackInjector)
+                    .push_i64(SET_Ei(i64, op_PUSHOBJ));
         }
     } else if((resolvedUtype = resolveEnum(name)) != NULL) {
         validateAccess((Field*)resolvedUtype, ast);
@@ -2468,6 +3825,9 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
 
         utype->getCode().push_i64(SET_Di(i64, op_MOVG, resolvedUtype->owner->address));
         utype->getCode().push_i64(SET_Di(i64, op_MOVN, resolvedUtype->address));
+
+        utype->getCode().getInjector(stackInjector)
+                .push_i64(SET_Ei(i64, op_PUSHOBJ));
         return;
     } else if((resolvedUtype = resolveClass(ptr.mod, name, ast)) != NULL) {
         utype->setType(utype_class);
@@ -2485,8 +3845,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             helpfulMessage << "have you forgotten your type parameters? Were you possibly looking for class `"
                            << resolvedClasses.get(0)->fullName << "` it requires " << resolvedClasses.get(0)->getKeys().size()
                            << " generic types.";
-            errors->createNewError(COULD_NOT_RESOLVE, ast->getSubAst(ast_type_identifier)->line,
-                                   ast->getSubAst(ast_type_identifier)->col,
+            errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col,
                                    " `" + name + "` " +
                                    helpfulMessage.str());
         } else {
@@ -2521,8 +3880,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
 
             helpfulMessage << "\n\t}\n";
 
-            errors->createNewError(COULD_NOT_RESOLVE, ast->getSubAst(ast_type_identifier)->line,
-                                   ast->getSubAst(ast_type_identifier)->col,
+            errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col,
                                    " `" + name + "` " +
                                    helpfulMessage.str());
         }
@@ -2546,22 +3904,20 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
 
         helpfulMessage << "\n\t}\n";
 
-        errors->createNewError(COULD_NOT_RESOLVE, ast->getSubAst(ast_type_identifier)->line,
-                               ast->getSubAst(ast_type_identifier)->col,
+        errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col,
                                " `" + name + "` " +
                                helpfulMessage.str());
     } else if(currentScope()->klass->getFunctionByName(name, functions)) {
-        if(functions.size() > 1)
-            createNewWarning(GENERIC, __WAMBIG, ast->line, ast->col, "reference to function `" + functions.get(0)->name + "` is ambiguous");
 
         utype->setType(utype_method);
         utype->setResolvedType(functions.get(0));
         utype->setArrayType(false);
         if(!functions.get(0)->flags.find(STATIC)) {
-            errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, " cannot get address from non static function `"
-                                                                                                                                 + name + "` ");
+            errors->createNewError(GENERIC, ast->line, ast->col, " cannot get address from non static function `" + name + "` ");
         }
         utype->getCode().push_i64(SET_Di(i64, op_MOVI, functions.get(0)->address), i64ebx);
+        utype->getCode().getInjector(stackInjector)
+                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
     } else {
         ClassObject* global = resolveClass(currModule, globalClass, ast);
         functions.free();
@@ -2587,6 +3943,16 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
                         utype->getCode().push_i64(SET_Di(i64, op_MOVL, 0));
                     utype->getCode().push_i64(SET_Di(i64, op_MOVN, field->address));
                 }
+
+                if(field->isVar()) {
+
+                    utype->getCode().getInjector(stackInjector)
+                            .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
+                            .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx))
+                            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                } else
+                    utype->getCode().getInjector(stackInjector)
+                        .push_i64(SET_Ei(i64, op_PUSHOBJ));
             }
         } else if(global->getFunctionByName(name, functions)) {
             if(functions.size() > 1)
@@ -2596,16 +3962,15 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             utype->setResolvedType(functions.get(0));
             utype->setArrayType(false);
             if(!functions.get(0)->flags.find(STATIC)) {
-                errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, " cannot get address from non static function `"
-                                                                                                                                     + name + "` ");
+                errors->createNewError(GENERIC, ast->line, ast->col, " cannot get address from non static function `" + name + "` ");
             }
             utype->getCode().push_i64(SET_Di(i64, op_MOVI, functions.get(0)->address), i64ebx);
+            utype->getCode().getInjector(stackInjector)
+                    .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
             return;
         }
 
-        errors->createNewError(COULD_NOT_RESOLVE, ast->getSubAst(ast_type_identifier)->line,
-                               ast->getSubAst(ast_type_identifier)->col,
-                               " `" + name + "` ");
+        errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col, " `" + name + "` ");
     }
 }
 
@@ -2616,7 +3981,12 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
 void Compiler::compileFieldType(Field *field) {
     if(field->type == UNTYPED) {
         currScope.add(new Scope(field->owner, field->owner->isGlobalClass() ? GLOBAL_SCOPE : CLASS_SCOPE));
-        resolveField(field->ast);
+        if(field->ast->getType() == ast_func_prototype) {
+            resolvePrototypeField(field->ast);
+            field->inlineCheck = true;
+        }
+        else
+            resolveField(field->ast);
         removeScope();
     }
 
@@ -2631,6 +4001,7 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, ReferencePointer& ptr, Uty
     bool requiresStatic = utype->getType() == utype_field;
     string name = "";
 
+    List<Method*> functions;
     Field* resolvedField = NULL;
     ClassObject *resolvedClass, *klass = utype->getType() == utype_field ? ((ClassObject*)((Field*)data)->utype->getResolvedType()) : (ClassObject*)data;
     bool lastReference;
@@ -2668,11 +4039,8 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, ReferencePointer& ptr, Uty
                     utype->getCode().free();
                     utype->getCode().push_i64(SET_Di(i64, op_TLS_MOVL, resolvedField->address));
                 } else {
-                    if (i == 1) {
-                        if (resolvedField->flags.find(STATIC))
-                            utype->getCode().push_i64(SET_Di(i64, op_MOVG, resolvedField->owner->address));
-                        else
-                            utype->getCode().push_i64(SET_Di(i64, op_MOVL, 0));
+                    if (resolvedField->flags.find(STATIC)) {
+                        utype->getCode().free().push_i64(SET_Di(i64, op_MOVG, resolvedField->owner->address));
                     }
 
                     if (isFieldInlined(resolvedField) && !resolvedField->isEnum()) {
@@ -2685,6 +4053,16 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, ReferencePointer& ptr, Uty
                     utype->setType(utype_field);
                     utype->setResolvedType(resolvedField);
                     utype->setArrayType(resolvedField->isArray);
+
+                    if(resolvedField->isVar()) {
+
+                        utype->getCode().getInjector(stackInjector)
+                                .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
+                                .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx))
+                                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                    } else
+                        utype->getCode().getInjector(stackInjector)
+                            .push_i64(SET_Ei(i64, op_PUSHOBJ));
                 }
 
                 switch(resolvedField->type) {
@@ -2704,8 +4082,27 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, ReferencePointer& ptr, Uty
                         requiresStatic = false;
                         break;
                 }
-        }  else {
-            errors->createNewError(COULD_NOT_RESOLVE, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, " `" + name + "` " +
+        } else if(klass->getFunctionByName(name, functions)) {
+
+            if(!lastReference) {
+                errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col,
+                                       "invalid dot notation access on function `" + name + "`");
+            }
+            utype->setType(utype_method);
+            utype->setResolvedType(functions.get(0));
+            utype->setArrayType(false);
+
+            if(!functions.get(0)->flags.find(STATIC)) {
+                errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, " function pointer `" + name + "` " +
+                                                                                                                                     "in module {" + ptr.mod + "} " + " must be static");
+            }
+
+            utype->getCode().free();
+            utype->getCode().push_i64(SET_Di(i64, op_MOVI, functions.get(0)->address), i64ebx);
+            utype->getCode().getInjector(stackInjector)
+                    .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+        } else {
+            errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col, " `" + name + "` " +
                                                       (ptr.mod == "" ? "" : "in module {" + ptr.mod + "} "));
             return;
         }
@@ -2713,6 +4110,7 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, ReferencePointer& ptr, Uty
 }
 
 void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
+
     if(ptr.classes.singular() && ptr.mod == "") {
         resolveSingularUtype(ptr, utype, ast);
     } else if(ptr.classes.singular() && ptr.mod != "") {
@@ -2730,7 +4128,7 @@ void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
             if(functions.size() > 1)
                 createNewWarning(GENERIC, __WAMBIG, ast->line, ast->col, "reference to function `" + functions.get(0)->name + "` is ambiguous");
             utype->setType(utype_method);
-            utype->setResolvedType(resolvedUtype);
+            utype->setResolvedType(functions.get(0));
             utype->setArrayType(false);
 
             if(!functions.get(0)->flags.find(STATIC)) {
@@ -2738,6 +4136,8 @@ void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
                                                 "in module {" + ptr.mod + "} " + " must be static");
             }
             utype->getCode().push_i64(SET_Di(i64, op_MOVI, functions.get(0)->address), i64ebx);
+            utype->getCode().getInjector(stackInjector)
+                    .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
         } else {
             errors->createNewError(COULD_NOT_RESOLVE, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, " `" + name + "` " +
                                                       "in module {" + ptr.mod + "} ");
@@ -2747,10 +4147,7 @@ void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
         string name = ptr.classes.get(0);
         List<Method*> functions;
 
-        if((resolvedUtype = resolveClass(ptr.mod, name, ast)) != NULL) {
-            utype->setType(utype_class);
-            resolveClassHeiarchy(resolvedUtype, ptr, utype, ast);
-        } else if(currentScope()->type != CLASS_SCOPE && currentScope()->getLocalField(name) != NULL) {
+        if(currentScope()->type != CLASS_SCOPE && currentScope()->getLocalField(name) != NULL) {
             resolvedUtype = currentScope()->getLocalField(name)->field;
 
             /**
@@ -2795,34 +4192,15 @@ void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
             validateAccess((Field*)resolvedUtype, ast);
             resolveClassHeiarchy(((Field*)resolvedUtype)->utype->getResolvedType(), ptr, utype, ast);
             return;
+        } else if((resolvedUtype = resolveClass(ptr.mod, name, ast)) != NULL) {
+            utype->setType(utype_class);
+            utype->getCode().push_i64(SET_Di(i64, op_MOVG, resolvedUtype->address));
+            resolveClassHeiarchy(resolvedUtype, ptr, utype, ast);
         } else if((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL) {
+            utype->getCode().push_i64(SET_Di(i64, op_MOVG, resolvedUtype->address));
             resolveClassHeiarchy(resolvedUtype, ptr, utype, ast);
             return;
         } else {
-            name = ptr.classes.last();
-            ptr.classes.pop_back();
-
-            resolveUtype(ptr, utype, ast);
-            if(utype->getType() == utype_class || (utype->getType() == utype_field && utype->getResolvedType()->type == CLASS)) {
-                DataEntity* klass = utype->getType() == utype_class? utype->getResolvedType() : ((Field*)utype->getResolvedType())->utype->getResolvedType();
-                // TODO: look into adding function overloads as well
-                if(((ClassObject*)klass)->getFunctionByName(name, functions)) {
-                    if(functions.size() > 1)
-                        createNewWarning(GENERIC, __WAMBIG, ast->line, ast->col, "reference to function `" + functions.get(0)->name + "` is ambiguous");
-                    utype->setType(utype_method);
-                    utype->setResolvedType(resolvedUtype);
-                    utype->setArrayType(false);
-
-                    if(!functions.get(0)->flags.find(STATIC)) {
-                        errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, " function pointer `" + name + "` " +
-                                                                                                                                             "in module {" + ptr.mod + "} " + " must be static");
-                    }
-                    utype->getCode().push_i64(SET_Di(i64, op_MOVI, functions.get(0)->address), i64ebx);
-                    return;
-                }
-            }
-            utype->getCode().free();
-
             errors->createNewError(COULD_NOT_RESOLVE, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, " `" + name + "` " +
                                                       (ptr.mod == "" ? "" : "in module {" + ptr.mod + "} "));
         }
@@ -2895,7 +4273,7 @@ ClassObject* Compiler::compileGenericClassReference(string &mod, string &name, C
         }
     }
 
-    ClassObject *generic = parent != NULL ? parent->getChildClass(name) : findClass(mod, name, generics);
+    ClassObject *generic = parent != NULL ? parent->getChildClass(name + "<>") : findClass(mod, name + "<>", generics);
     if(generic && utypes.size() == generic->getKeys().size()) {
         stringstream ss;
 
@@ -3109,6 +4487,8 @@ void Compiler::resolveSuperClass(Ast *ast, ClassObject* currentClass) {
     Ast* block = ast->getSubAst(ast_block), *branch;
 
     string name =  ast->getEntity(0).getToken();
+    if(ast->getType() == ast_generic_class_decl || ast->getType() == ast_generic_interface_decl)
+        name += "<>";
 
     if(currentClass == NULL) {
         if (globalScope()) {
@@ -3435,6 +4815,9 @@ void Compiler::inlineEnumField(Ast* ast) {
         field->inlineCheck = true;
 
         if(ast->hasSubAst(ast_expression)) {
+            BlockType oldScope = currentScope()->type;
+            if(field->flags.find(STATIC))
+                currentScope()->type = STATIC_BLOCK;
             Expression expr;
             compileExpression(&expr, ast->getSubAst(ast_expression));
 
@@ -3473,6 +4856,9 @@ void Compiler::inlineEnumField(Ast* ast) {
             } else
                 errors->createNewError(GENERIC, ast,
                                        "enum value must evaluate to an integer, the expression assigned to enum `" + field->name + "` was found to be non-numeric");
+
+            if(field->flags.find(STATIC))
+                currentScope()->type = oldScope;
         } else {
             inlinedFields.add(KeyPair<Field*, double>(field, guid++));
         }
@@ -3826,12 +5212,12 @@ bool Compiler::preprocess() {
 
 void Compiler::compile() {
 
-    if(preprocess() && postProcess()) {
-        processingStage = COMPILING;
-        // TODO: write compileUnprocessedClasses() to be called for everything else and free unprocessedClasses list
-
-        cout << "ready to compile!!!";
-    }
+//    if(preprocess() && postProcess()) {
+//        processingStage = COMPILING;
+//        // TODO: write compileUnprocessedClasses() to be called for everything else and free unprocessedClasses list
+//
+//        cout << "ready to compile!!!";
+//    }
 }
 
 string Compiler::parseModuleDecl(Ast *ast) {
@@ -3923,6 +5309,8 @@ bool Compiler::complexParameterMatch(List<Field*> &params, List<Field*> &compara
             if(!params.get(i)->isRelated(*comparator.get(i)))
                 return false;
         }
+
+        return true;
     }
 
     return false;

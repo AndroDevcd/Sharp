@@ -7,6 +7,9 @@
 #include "oo/ClassObject.h"
 #include "Literal.h"
 
+string stackInjector = "stack-injector";
+string fnPtrInjector = "fnPtr-injector";
+
 void Utype::free() {
 
     if(type == utype_native && resolvedType) {
@@ -17,69 +20,74 @@ void Utype::free() {
         ((Literal*)resolvedType)->free();
         delete resolvedType;
     }
-    type = utype_unresolved;
-    resolvedType = NULL;
-    array = false;
+    code.free();
+}
+
+void Utype::softFree() {
     code.free();
 }
 
 string Utype::toString() {
     stringstream ss;
-    if(type == utype_native) {
-        switch(resolvedType->type) {
-            case _INT8:
-                ss << "_int8";
-                break;
-            case _INT16:
-                ss << "_int16";
-                break;
-            case _INT32:
-                ss << "_int32";
-                break;
-            case _INT64:
-                ss << "_int64";
-                break;
-            case _UINT8:
-                ss << "_uint8";
-                break;
-            case _UINT16:
-                ss << "_uint16";
-                break;
-            case _UINT32:
-                ss << "_uint32";
-                break;
-            case _UINT64:
-                ss << "_uint64";
-                break;
-            case VAR:
-                ss << "var";
-                break;
-            case OBJECT:
-                ss << "object";
-                break;
-            case _VOID:
-                ss << "void";
-                break;
-            case FNPTR:
-                ss << ((Method*)resolvedType)->toString();
-                break;
-            default:
-                ss << "<error>";
-                break;
-        }
-    } else if(type == utype_class) {
-        ss << resolvedType->fullName;
-    } else if(type == utype_field) {
-        ss << ((Field*)resolvedType)->toString();
-    } else if(type == utype_method || type == utype_method_prototype) {
-        ss << ((Method*)resolvedType)->toString();
-    } else if(type == utype_literal) {
-        if(((Literal*)resolvedType)->literalType == numeric_literal)
-            ss << "[literal: " << ((Literal*)resolvedType)->numericData << "]";
-        else
-            ss << "[literal: " << ((Literal*)resolvedType)->stringData << "]";
+    if(resolvedType == NULL) {
+        ss << "?";
     } else {
-        ss << "unresolved";
+        if (type == utype_native) {
+            switch (resolvedType->type) {
+                case _INT8:
+                    ss << "_int8";
+                    break;
+                case _INT16:
+                    ss << "_int16";
+                    break;
+                case _INT32:
+                    ss << "_int32";
+                    break;
+                case _INT64:
+                    ss << "_int64";
+                    break;
+                case _UINT8:
+                    ss << "_uint8";
+                    break;
+                case _UINT16:
+                    ss << "_uint16";
+                    break;
+                case _UINT32:
+                    ss << "_uint32";
+                    break;
+                case _UINT64:
+                    ss << "_uint64";
+                    break;
+                case VAR:
+                    ss << "var";
+                    break;
+                case OBJECT:
+                    ss << "object";
+                    break;
+                case _VOID:
+                    ss << "void";
+                    break;
+                case FNPTR:
+                    ss << ((Method *) resolvedType)->toString();
+                    break;
+                default:
+                    ss << "<error>";
+                    break;
+            }
+        } else if (type == utype_class) {
+            ss << resolvedType->fullName;
+        } else if (type == utype_field) {
+            ss << ((Field *) resolvedType)->toString();
+        } else if (type == utype_method || type == utype_method_prototype) {
+            ss << ((Method *) resolvedType)->toString();
+        } else if (type == utype_literal) {
+            if (((Literal *) resolvedType)->literalType == numeric_literal)
+                ss << "[literal: " << ((Literal *) resolvedType)->numericData << "]";
+            else
+                ss << "[literal: " << ((Literal *) resolvedType)->stringData << "]";
+        } else {
+            ss << "unresolved";
+        }
     }
 
     if(array) ss << "[]";
@@ -93,6 +101,7 @@ Utype::Utype(ClassObject *k, bool isArray)
             resolvedType(k)
     {
         code.init();
+        code.addinjector(stackInjector);
     }
 
 Utype::Utype(DataType type, bool isArray)
@@ -103,6 +112,7 @@ Utype::Utype(DataType type, bool isArray)
     {
         resolvedType->type = type;
         code.init();
+        code.addinjector(stackInjector);
     }
 
 bool Utype::equals(Utype *utype) {

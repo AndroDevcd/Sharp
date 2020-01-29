@@ -126,10 +126,23 @@ void parser::parseMethodDecl(Ast *ast) {
 
     parseUtypeArgList(branch);
 
-    parseMethodReturnType(branch);
+    if(peek(1)->getType() == COLON) {
+        parseMethodReturnType(branch);
 
-    parseBlock(branch);
-
+        if(peek(1)->getType() == EQUALS) {
+            expect(branch, "=", true);
+            parseExpression(branch);
+            expect(branch, ";", false);
+        } else {
+            parseBlock(branch);
+        }
+    } else if(peek(1)->getType() == INFER) {
+        expect(branch, ":=", true);
+        parseExpression(branch);
+        expect(branch, ";", false);
+    } else {
+        parseBlock(branch);
+    }
 }
 
 void parser::parseDelegateDecl(Ast *ast) {
@@ -147,13 +160,30 @@ void parser::parseDelegateDecl(Ast *ast) {
 
     parseUtypeArgList(branch);
 
-    parseMethodReturnType(branch); // assign-expr operators must return void
-    if(peek(1)->getType() == LEFTCURLY)
-    {
-        parseBlock(branch);
-    } else {
+    if(*peek(1) == ";") {
         expect(branch, ";");
         branch->setAstType(ast_delegate_decl);
+    } else {
+        if(peek(1)->getType() == COLON) {
+            parseMethodReturnType(branch);
+
+            if(peek(1)->getType() == EQUALS) {
+                expect(branch, "=", true);
+                parseExpression(branch);
+                expect(branch, ";", false);
+            } else if(*peek(1) == ";") {
+                expect(branch, ";");
+                branch->setAstType(ast_delegate_decl);
+            } else {
+                parseBlock(branch);
+            }
+        } else if(peek(1)->getType() == INFER) {
+            expect(branch, ":=", true);
+            parseExpression(branch);
+            expect(branch, ";", false);
+        } else {
+            parseBlock(branch);
+        }
     }
 }
 
@@ -202,6 +232,41 @@ void parser::parseBlock(Ast* ast) {
 
     if(curly)
         expect(branch, "}");
+}
+
+void parser::parseLambdaBlock(Ast* ast) {
+    Ast* branch = getBranch(ast, ast_block);
+
+    expect(branch, "->");
+    while(!isEnd())
+    {
+        CHECK_ERRLMT(return;)
+
+        advance();
+        if (current().getType() == RIGHTCURLY)
+        {
+            _current--;
+            break;
+        }
+        else if(current().getType() == LEFTCURLY)
+        {
+            _current--;
+            parseBlock(branch);
+        }
+        else if(current().getType() == _EOF)
+        {
+            errors->createNewError(UNEXPECTED_EOF, current());
+            break;
+        }
+        else {
+            if(!parseStatement(branch))
+                break;
+        }
+
+        access_types.free();
+    }
+
+    expect(branch, "}");
 }
 
 void parser::parseReturnStatement(Ast *ast) {
@@ -667,9 +732,24 @@ void parser::parseOperatorDecl(Ast *ast) {
         branch->addToken(current());
 
     parseUtypeArgList(branch);
-    parseMethodReturnType(branch); // assign-expr operators must return void
 
-    parseBlock(branch);
+    if(peek(1)->getType() == COLON) {
+        parseMethodReturnType(branch);
+
+        if(peek(1)->getType() == EQUALS) {
+            expect(branch, "=", true);
+            parseExpression(branch);
+            expect(branch, ";", false);
+        } else {
+            parseBlock(branch);
+        }
+    } else if(peek(1)->getType() == INFER) {
+        expect(branch, ":=", true);
+        parseExpression(branch);
+        expect(branch, ";", false);
+    } else {
+        parseBlock(branch);
+    }
 }
 
 void parser::parseInterfaceBlock(Ast* ast) {
@@ -1081,13 +1161,6 @@ bool parser::parseExpression(Ast* ast) {
         return true;
     }
 
-    if(peek(1)->getType() == LEFTCURLY)
-    {
-        Ast *exprAst = getBranch(branch, ast_vect_e);
-        parseVectorArray(exprAst);
-        return true;
-    }
-
     Token* old = _current;
     if(parsePrimaryExpr(branch)) {
         if(!isExprSymbol(peek(1)->getToken()))
@@ -1103,6 +1176,13 @@ bool parser::parseExpression(Ast* ast) {
         else {
             branch->freeLastSub();
         }
+    }
+
+    if(peek(1)->getType() == LEFTCURLY)
+    {
+        Ast *exprAst = getBranch(branch, ast_vect_e);
+        parseVectorArray(exprAst);
+        return true;
     }
 
     /* expression <assign-expr> expression */
@@ -1533,8 +1613,10 @@ void parser::parseMethodReturnType(Ast *ast) {
         Ast* branch = getBranch(ast, ast_method_return_type);
         advance();
 
-        branch->addToken(current());
-        parseUtype(branch);
+        if(*peek(1) == "nil") {
+            branch->addToken(current());
+        } else
+            parseUtype(branch);
     }
 }
 
@@ -1790,6 +1872,32 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         parseMethodReturnType(newAst);
         parseBlock(newAst);
         return true;
+    }
+
+    if(peek(1)->getToken() == "{")
+    {
+        errors->enterProtectedMode();
+        old=_current;
+        advance();
+
+        if(peek(1)->getToken() == "->") {
+            Ast* newAst = getBranch(branch, ast_anonymous_function);
+            errors->fail();
+            parseLambdaBlock(newAst);
+            return true;
+        } else {
+            Ast* newAst = getBranch(branch, ast_anonymous_function);
+            parseIdentifierList(newAst);
+            if(peek(1)->getToken() == "->") {
+                errors->fail();
+                parseLambdaBlock(newAst);
+                return true;
+            } else {
+                branch->freeLastSub();
+                errors->pass();
+                _current=old;
+            }
+        }
     }
 
     if(peek(1)->getToken() == "sizeof")
@@ -2241,7 +2349,7 @@ bool parser::isKeyword(string key) {
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
            || key == "delegate" || key == "interface" || key == "lock" || key == "enum"
            || key == "switch" || key == "default" || key == "fn" || key == "local"
-           || key == "thread_local";
+           || key == "thread_local" || key == "nil";
 }
 
 void parser::parseAccessTypes() {

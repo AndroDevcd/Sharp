@@ -31,6 +31,7 @@ enum ast_type
     ast_expression_list,
     ast_field_init_list,
     ast_anonymous_function,
+    ast_lambda_function,
     ast_field_init,
     ast_utype_arg_list,
     ast_utype_arg_list_opt,

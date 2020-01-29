@@ -33,7 +33,7 @@ public:
             stringData(data),
             numericData(address)
     {
-        type = VAR;
+        type = _INT8;
     }
 
     explicit Literal(double data)

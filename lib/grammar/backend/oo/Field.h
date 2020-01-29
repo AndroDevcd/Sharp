@@ -23,7 +23,8 @@ public:
         dvExpression(NULL),
         utype(NULL),
         locality(stl_stack),
-        inlineCheck(false)
+        inlineCheck(false),
+        local(false)
     {
     }
 
@@ -37,13 +38,15 @@ public:
         nullField(false),
         dvExpression(NULL),
         utype(NULL),
-        inlineCheck(false)
+        inlineCheck(false),
+        local(false)
     {
         this->type = type;
         this->guid = guid;
         this->name = name;
         this->address = addr;
         this->owner = owner;
+        this->flags.addAll(flags);
     }
 
     void free();
@@ -57,6 +60,7 @@ public:
     bool isArray;
     bool nullField;
     bool inlineCheck;
+    bool local;
     StorageLocality locality;
     Expression* dvExpression;
     Utype *utype;

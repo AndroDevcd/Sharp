@@ -26,6 +26,10 @@ public:
         init();
     }
 
+    ~Expression() {
+        free();
+    }
+
     void init();
     void free();
 

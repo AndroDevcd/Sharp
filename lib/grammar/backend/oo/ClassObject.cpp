@@ -80,16 +80,18 @@ Method* ClassObject::getConstructor(List<Field*> params, bool checkBase) {
     return NULL;
 }
 
-bool ClassObject::isClassRelated(ClassObject *klass) {
+bool ClassObject::isClassRelated(ClassObject *klass, bool interfaceCheck) {
     if(klass == NULL) return false;
     if(match(klass)) return true;
 
-    for(long long i = 0; i < interfaces.size(); i++) {
-        if(interfaces.get(i)->isClassRelated(klass))
-            return true;
+    if(interfaceCheck) {
+        for (long long i = 0; i < interfaces.size(); i++) {
+            if (interfaces.get(i)->isClassRelated(klass, false))
+                return true;
+        }
     }
 
-    return super == NULL ? false : super->isClassRelated(klass);
+    return super == NULL ? false : super->isClassRelated(klass, interfaceCheck);
 }
 
 bool ClassObject::getFunctionByName(string name, List<Method*> &funcs, bool checkBase) {

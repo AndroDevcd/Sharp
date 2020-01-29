@@ -2,43 +2,63 @@ mod app.time;
 
 import std;
 
-class l {
-class Gen<K> {
-    k : K;
-}
-}
 
 class K {
+    apples := foop(9);
+    fn k (var);
+    thread_local num : var;
+    l := Y;
+    static Y : K;
+    foopeepop := {1, 2, 3, 4, 5, 6, 7 ,8};
+   // f := { -> return 6; };
 
+    def foop(v : var) := l;
+    //def test(time : int) := Y.l.k(9);
+    //def foopee() : nil {
+    //
+    //}
+}
+
+
+enum EE {
+    _a ,
+    _b
+};
+
+
+
+
+
+class l {
+    fn k (var);
+class Gen<K> {
+//    k := 889;
+}
 }
 
  class Apple<T, K> base l.Gen<K> {
-    public static const z : _int8 = Apple<var, _object_>.class;
-    tKey := k;
-    public num := z;
-    thread_local x := 8;
-    kKey : K;
+//    public static const z : _int8 = Apple<var, _object_>.class;
+//    tKey := k;
+//    public num := z;
+//    thread_local x := 8;
+//    kKey : K;
 
     def foo(ll : T) {}
+    public static def fooStatic(i : _int64) : var;
 }
 
  class A base Apple<var[], Apple<var, var> > {
-    public num := z;
-    public z := 7;
-    public fn ptr := fooStatic;
-    thread_local x := 8;
+//    public num := z;
+//    public z := 7;
+//    public fn ptr := fooStatic;
+//    thread_local x := 8;
 
-    enum E {
-        N1 = Apple<var, _object_>.class,
-        N2 = 1,
-        N3 = 2
-    };
+//    enum E {
+//        N1 = Apple<var, _object_>.class,
+//        N2 = 1,
+//        N3 = 2
+//    };
 
-    static def fooStatic() {
-    }
-
-    def foo(l : Apple<var, var>) {
-    }
 }
 
 /**

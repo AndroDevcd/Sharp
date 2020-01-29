@@ -4,3 +4,5 @@
 
 #include "DataEntity.h"
 #include "../frontend/parser/Ast.h"
+
+long invalidAddr = -109912;

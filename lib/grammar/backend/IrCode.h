@@ -43,24 +43,26 @@ public:
 
     bool add(string injector, int64_t i64) {
         if(has_injector(injector)) {
-            get_injector(injector).ir64.push_back(i64);
+            getInjector(injector).ir64.push_back(i64);
             return true;
         }
         return false;
     }
 
-    void push_i64(int64_t i64){
+    IrCode& push_i64(int64_t i64){
         ir64.push_back(i64);
+        return *this;
     }
-    void push_i64(int64_t i64, int64_t xtra){
+    IrCode& push_i64(int64_t i64, int64_t xtra){
         ir64.push_back(i64);
         ir64.push_back(xtra);
+        return *this;
     }
 
     List<int64_t> ir64;
     KeyPair<List<string>, List<IrCode>> injectors;
 
-    void free() {
+    IrCode& free() {
         ir64.free();
         injectors.key.free();
 
@@ -68,6 +70,7 @@ public:
             injectors.value.at(i).free();
         }
         injectors.value.free();
+        return *this;
     }
 
     void injecti64(int64_t i, int64_t i64) {
@@ -76,7 +79,7 @@ public:
         ir64.insert(i, i64);
     }
 
-    void inject(int64_t i, IrCode &assembler) {
+    void inject(int64_t i, IrCode& assembler) {
         if(i < 0) return;
 
         int64_t start = i, iter = 0;
@@ -88,20 +91,35 @@ public:
         }
     }
 
+    void inject(string injector) {
+        IrCode& assembler = getInjector(injector);
+
+        int64_t start = ir64.size(), iter = 0;
+        for(;;) {
+            if(iter >= assembler.ir64.size())
+                break;
+
+            ir64.insert(start++, assembler.ir64.get(iter++));
+        }
+
+        assembler.free();
+    }
+
     int64_t size() {
         return ir64.size();
     }
 
-private:
-
-
-    IrCode& get_injector(string key) {
+    IrCode& getInjector(string key) {
         for(unsigned int i = 0; i < injectors.key.size(); i++) {
             if(injectors.key.at(i) == key)
                 return injectors.value.get(i);
         }
-        return injectors.value.get(0);
+
+        addinjector(key);
+        return injectors.value.last();
     }
+
+private:
 
     void remove_injector(string key) {
         for(unsigned int i = 0; i < injectors.key.size(); i++) {

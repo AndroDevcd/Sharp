@@ -146,6 +146,7 @@ expression '[' expression ']' [<dot-notation-call-expr>] expression
     | new uType { <expression-list> }               // new_class_field_expression
     | new uType { <qualifying-field-initlization-list> } // new_class_field_init
     | def ? <uTypeArg-list> [: <uType>] <block>     // ast_anonymous_function
+    | { [<identifier-list>}* -> <lambda-block> }    // lambda ananoymous function
     | sizeof '(' expression ')'
     | free '(' expression ')'
     | malloc '(' uType, expression ')'
@@ -208,6 +209,9 @@ enum Declaration:
 <block>:
 { <statements>* }
 
+<lambda-block>:
+ <statements>*
+
 <switch-block>:
  { <switch-declarator>* }
 
@@ -224,7 +228,7 @@ Class Constructor Declaration:
 `[<accesstype>] <identifier = name> <uTypeArg-list> <block>
 
 Method Declaration:
-`[<accesstype>] def <identifier = name> <uTypeArg-list> [: <uType>] <block>
+`[<accesstype>] def <identifier = name> <uTypeArg-list> [: <uType>] [ <block> | <infer-expr> ]
 
 Delegate Method Declaration:
 `[<accesstype>] def delegate::<identifier = name> <uTypeArg-list> [: <uType>]
@@ -233,7 +237,7 @@ Operator Declaration:
 `[<accesstype>] def operator <override-operator> <uTypeArg-list> [: <uType>] <block>
 
 Variable Declaration statement:
-`[<accesstype>] [<storagelocality>] <uType> <identifier = name> [ <assign-expr> <value>] [, <variable-decl>] ;`
+`[<accesstype>] [<storagelocality>] <identifier = name> [: <uType>] [ <infer-expr> | <assign-expr> <value>] [, <variable-decl>] ;`
 
 
 Single Line comment Declaration:

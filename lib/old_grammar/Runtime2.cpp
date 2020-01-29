@@ -447,7 +447,7 @@ void RuntimeEngine::pushAuthenticExpressionToStackNoInject(Expression& expressio
             out.code.push_i64(SET_Di(i64, op_NEWSTRING, expression.intValue));
             break;
         case expression_null:
-            out.code.push_i64(SET_Ei(i64, op_PUSHNIL));
+            out.code.push_i64F(SET_Ei(i64, op_PUSHNIL));
             break;
         case expression_objectclass:
             if(expression.newExpression) {
@@ -767,7 +767,7 @@ Method* RuntimeEngine::resolveMethodUtype(Ast* utype, Ast* valueLst, Expression 
                 out.code.push_i64(SET_Di(i64, op_NEWARRAY, i64egx));
                 out.code.push_i64(SET_Di(i64, op_MOVSL, 0));
                 out.code.push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
-            } else if(isExpressionConvertableToNativeClass(&fn->getParam(i).field, expressions.get(i))) {
+            } else if(isExpressionConvertableToNativeClass(&fn->getParam(i).field, expressions.get(i))) { b
                 ClassObject *k = fn->getParam(i).field.klass;
                 Expression fExpr = fieldToExpression(utype, fn->getParam(i).field);
                 constructNewNativeClass(k->getName(), k->getModuleName(), expressions.get(i), out, false);

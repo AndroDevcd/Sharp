@@ -10392,9 +10392,9 @@ double RuntimeEngine::constantExpressionToValue(Ast *pAst, Expression &constExpr
 bool RuntimeEngine::isExpressionConvertableToNativeClass(Field *f, Expression &exp) {
     if(f->type==CLASS && f->klass->getModuleName() == "std" &&
            (f->klass->getName() == "int" || f->klass->getName() == "bool"
-            || f->klass->getName() == "char" || f->klass->getName() == "long"
-            || f->klass->getName() == "short" || f->klass->getName() == "string"
-            || f->klass->getName() == "uchar" || f->klass->getName() == "ulong"
+            || f->klass->getName() == "char"  || f->klass->getName() ==  "long"
+            || f->klass->getName() == "short" || f->klass->getName() ==  "string"
+            || f->klass->getName() == "uchar" || f->klass->getName() ==  "ulong"
             || f->klass->getName() == "ushort")) {
         if(f->klass->getName() == "string") {
             return exp.type == expression_string || (exp.trueType() == VAR && exp.isArray());

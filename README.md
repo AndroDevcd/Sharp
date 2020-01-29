@@ -24,13 +24,15 @@ Considering that sharp is an Object oriented programming language it is immediat
   
 ```javascript  
 mod app;  
-  
-def foo(object[] args) : var {  
-   print("I ran a thread!");  
-}  
-  
+ 
 def main() {  
-   new Thread("foo", foo).start();  
+   create_thread(
+       "MyThread",
+       main = { args ->  
+          print("I ran a thread!"); 
+          return 0; 
+        }  
+   ).start();
 }  
 ```  
   

@@ -13,7 +13,7 @@ void Expression::init() {
 
 void Expression::free() {
     if(utype) {
-        utype->free();
-        delete utype;
+        utype->softFree();
+        utype = NULL;
     }
 }

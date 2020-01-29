@@ -44,6 +44,7 @@ struct Meta {
     }
 };
 
+extern long invalidAddr;
 
 /**
  * This class represents any subset of data such as:
@@ -61,7 +62,7 @@ public:
         name(""),
         fullName(""),
         meta(),
-        address(-109912),
+        address(invalidAddr),
         guid(-109913),
         owner(NULL),
         ast(NULL),
@@ -72,6 +73,20 @@ public:
 
     void release() { flags.free(); }
     bool isVar() { return type <= VAR; }
+    void copy(DataEntity *de) {
+        type = de->type;
+        name = de->name;
+        fullName = de->fullName;
+        meta.copy(de->meta);
+        module = de->module;
+        flags = de->flags;
+        owner = de->owner;
+        type = de->type;
+        type = de->type;
+        flags.addAll(de->flags);
+        owner = de->owner;
+        ast = de->ast;
+    }
 
     DataType type;
     string name;

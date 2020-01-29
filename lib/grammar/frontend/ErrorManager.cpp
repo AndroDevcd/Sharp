@@ -167,7 +167,7 @@ int ErrorManager::createNewError(error_type err, Token token, string xcmts) {
         this->lastError = e;
         return 1;
     }
-    else {
+    else if(!protectedMode) {
         unfilteredErrors->push_back(e);
     }
 
@@ -229,7 +229,7 @@ void ErrorManager::createNewError(error_type err, int l, int c, string xcmts) {
         unfilteredErrors->push_back(e);
         lastError = e;
     }
-    else {
+    else if(!protectedMode) {
         unfilteredErrors->push_back(e);
     }
 }
@@ -400,7 +400,7 @@ int ErrorManager::createNewError(error_type err, Ast *pAst, string xcmts) {
         lastError = e;
         return 1;
     }
-    else {
+    else if(!protectedMode) {
         unfilteredErrors->push_back(e);
     }
 

@@ -25,6 +25,8 @@ string Method::toString() {
 
     if(utype) {
         ss << " : " << utype->toString();
+    } else {
+        ss << " : <untyped>";
     }
     return ss.str();
 }

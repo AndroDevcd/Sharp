@@ -20,6 +20,8 @@ enum utype_struct
     utype_unresolved
 };
 
+extern string stackInjector;
+extern string fnPtrInjector;
 class Utype {
 public:
     Utype()
@@ -27,8 +29,10 @@ public:
         code(),
         resolvedType(NULL),
         type(utype_unresolved),
-        array(false)
+        array(false),
+        assignable(false)
     {
+        code.addinjector(stackInjector);
     }
 
     Utype(ClassObject* k, bool isArray = false);
@@ -39,18 +43,21 @@ public:
     utype_struct getType() { return type; }
     void setArrayType(bool isArray) { array = isArray; }
     bool isArray() { return array; }
+    void setAssignable(bool isAassignable) { assignable = isAassignable; }
+    bool isAassignable() { return assignable; }
     bool isClass();
     ClassObject* getClass();
     DataEntity* getResolvedType() { return resolvedType; }
     IrCode& getCode() { return code; }
     void free();
+    void softFree();
     string toString();
     bool equals(Utype *utype);
 
 private:
     utype_struct type;
     DataEntity *resolvedType;
-    bool array;
+    bool array, assignable; // assignable is only used for utype_native and class utypes due to functions returning values we allow the compiler to interporet that as a value that can be digested into a field
     IrCode code;
 };
 

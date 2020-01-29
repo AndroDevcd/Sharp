@@ -59,7 +59,7 @@ public:
     void setClassType(int type) { classType = type; }
     void setSuperClass(ClassObject* sup) { super = sup; }
     ClassObject* getSuperClass() { return super; }
-    bool isClassRelated(ClassObject *klass);
+    bool isClassRelated(ClassObject *klass, bool interfaceCheck = true);
     bool isProcessed() { return processed; }
     void setIsProcessed(bool isProcessed) { processed = isProcessed; }
     bool isGlobalClass() { return globalClass; }

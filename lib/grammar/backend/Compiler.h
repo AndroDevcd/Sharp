@@ -169,6 +169,7 @@ private:
     void removeScope();
     void inheritEnumClass();
     void resolveBaseClasses();
+    void convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, expression_type paramType, IrCode &code, Ast* ast);
     void resolveSuperClass(Ast *ast, ClassObject* currentClass = NULL);
     void parseReferencePointerList(List<ReferencePointer*> &refPtrs, Ast *ast);
     ClassObject* resolveBaseClass(Ast *ast, ClassObject* currentClass);
@@ -194,6 +195,7 @@ private:
     Method* validateDelegatesHelper(Method *method, List<Method*> &list);
     void validateDelegates(ClassObject *subscriber, Ast *ast);
     void resolveMethod(Ast* ast);
+    void compileMethodReturnType(Method* fun, Ast *ast, bool wait = false);
     void resolveDelegate(Ast* ast);
     void resolveDelegateImpl(Ast* ast);
     void resolveConstructor(Ast* ast);
@@ -212,6 +214,7 @@ private:
     ClassObject* resolveClass(string mod, string name, Ast* pAst);
     void validateAccess(ClassObject *klass, Ast* pAst);
     void validateAccess(Field *field, Ast* pAst);
+    void validateAccess(Method *function, Ast* pAst);
     bool resolveClass(List<ClassObject*> &classes, List<ClassObject*> &results, string mod, string name, Ast* pAst, bool match = false);
     void resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *ast);
     void preProccessImportDecl(Ast *branch, List<string> &imports);
@@ -232,6 +235,7 @@ private:
     void compileDotNotationCall(Expression* expr, Ast* ast);
     expression_type utypeToExpressionType(Utype *utype);
     Method* compileMethodUtype(Expression* expr, Ast* ast);
+    bool isUtypeClass(Utype* utype, string mod, int names, ...);
     void compileExpressionList(List<Expression>& lst, Ast* ast);
     void inheritObjectClassHelper(Ast *ast, ClassObject *klass);
     void compileLiteralExpression(Expression* expr, Ast* ast);
@@ -239,8 +243,13 @@ private:
     void parseIntegerLiteral(Expression* expr, Token &token);
     string invalidateUnderscores(string str);
     Method* findFunction(ClassObject *k, string name, List<Field*> &params, Ast* ast, bool checklBase = false);
-    Method* compileSingularMethodUtype(ReferencePointer &ptr, List<Field*> &params, Ast* ast);
+    Method* compileSingularMethodUtype(ReferencePointer &ptr, Expression *expr, List<Field*> &params, Ast* ast);
     bool isAllIntegers(string int_string);
+    string codeToString(IrCode &code);
+    string registerToString(int64_t r);
+    string find_class(int64_t id);
+    void printExpressionCode(Expression *expr);
+    bool isUtypeConvertableToNativeClass(Utype *dest, Utype *src);
     void parseBoolLiteral(Expression* expr, Token &token);
     void parseHexLiteral(Expression* expr, Token &token);
     void parseStringLiteral(Expression* expr, Token &token);

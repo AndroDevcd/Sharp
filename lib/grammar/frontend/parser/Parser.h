@@ -121,6 +121,7 @@ private:
     void parseEnumBlock(Ast*);
     void parseEnumIdentifier(Ast*);
     void parseBlock(Ast*);
+    void parseLambdaBlock(Ast*);
     bool parseStatement(Ast*);
     void parseReturnStatement(Ast*);
     void parseIfStatement(Ast*);
