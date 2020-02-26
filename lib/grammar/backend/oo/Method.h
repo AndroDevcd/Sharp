@@ -6,19 +6,9 @@
 #define SHARP_METHOD_H
 
 
-#include "../DataEntity.h"
+#include "../data/DataEntity.h"
 #include "Field.h"
-
-enum function_type
-{
-    fn_normal,
-    fn_constructor,
-    fn_prototype,
-    fn_op_overload,
-    fn_delegate_impl,
-    fn_delegate,
-    fn_undefined
-};
+#include "FunctionType.h"
 
 class Method : public DataEntity {
 public:

@@ -1,7 +1,0 @@
-mod app;
-
-import std;
-
-def main() {
-	System.println("Hello, world!");
-}

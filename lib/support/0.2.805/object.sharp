@@ -8,10 +8,10 @@ mod std;
  * each class allowing you to manipulate classes without not
  * needing to know its true makeup.
  */
-class _object_ : printable, unique {
-//    public def operator==(o : object) : var {
-//        return ((object)self)==o;
-//    }
+stable class _object_ : printable, unique {
+    public def operator==(o : object) : var {
+        return ((object)self)==o;
+    }
 
 //    public def delegate::toString() : string {
 //        return new string("");
@@ -19,10 +19,10 @@ class _object_ : printable, unique {
 
     def delegate::hash() : _int64 {
         /* must be implemented at a higher level */
-//        return 0;
+        return 0;
     }
 
     def delegate::guid() : _int64 {
-//        return 0;//Time.nanoTime();
+        return 0;//Time.nanoTime();
     }
 }

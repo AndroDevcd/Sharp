@@ -5,7 +5,7 @@
 #ifndef SHARP_FIELD_H
 #define SHARP_FIELD_H
 
-#include "../DataEntity.h"
+#include "../data/DataEntity.h"
 
 class Param;
 class Method;
@@ -24,7 +24,9 @@ public:
         utype(NULL),
         locality(stl_stack),
         inlineCheck(false),
-        local(false)
+        local(false),
+        getter(NULL),
+        setter(NULL)
     {
     }
 
@@ -39,7 +41,9 @@ public:
         dvExpression(NULL),
         utype(NULL),
         inlineCheck(false),
-        local(false)
+        local(false),
+        getter(NULL),
+        setter(NULL)
     {
         this->type = type;
         this->guid = guid;
@@ -63,6 +67,7 @@ public:
     bool local;
     StorageLocality locality;
     Expression* dvExpression;
+    Method* getter, *setter;
     Utype *utype;
 };
 

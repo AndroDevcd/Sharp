@@ -14,7 +14,7 @@ void Token::setId(token_id id)
     this->id = id;
 }
 
-string &Token::getToken()
+string &Token::getValue()
 {
     return tok;
 }

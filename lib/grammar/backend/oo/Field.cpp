@@ -10,12 +10,6 @@
 
 void Field::free() {
     release();
-    if(utype)
-    {
-        utype->free();
-        delete utype;
-    }
-
     if(dvExpression)
     {
         dvExpression->free();
@@ -24,15 +18,29 @@ void Field::free() {
 }
 
 bool Field::equals(Field &f) {
+    if(f.type == ANY)
+        return true;
+
     if(f.type == this->type && f.isArray == this->isArray) {
         if(type == CLASS)
             return (utype != NULL && f.utype != NULL && utype->getType() == f.utype->getType() &&
                     ((ClassObject*)utype->getResolvedType())->match((ClassObject*)f.utype->getResolvedType()));
         else {
             if(type==FNPTR) {
-                return utype != NULL && f.utype != NULL && utype->getType() == f.utype->getType() &&
-                       Compiler::simpleParameterMatch(((Method*)this->utype->getResolvedType())->params,
-                                                      ((Method*)f.utype->getResolvedType())->params);
+                Method *compareFun = (Method*)f.utype->getResolvedType();
+                if(compareFun->fnType == fn_lambda) {
+                    if(compareFun->utype != NULL)
+                        return utype != NULL && f.utype != NULL && utype->getType() == f.utype->getType() &&
+                               Compiler::simpleParameterMatch(((Method*)this->utype->getResolvedType())->params,
+                                                              compareFun->params);
+                    else
+                        return Compiler::simpleParameterMatch(((Method*)this->utype->getResolvedType())->params,
+                                                              compareFun->params);
+                } else {
+                    return utype != NULL && f.utype != NULL && utype->getType() == f.utype->getType() &&
+                           Compiler::simpleParameterMatch(((Method *) this->utype->getResolvedType())->params,
+                                                          compareFun->params);
+                }
             }
             return true;
         }
@@ -49,8 +57,11 @@ string Field::toString() {
     stringstream ss;
     if(fullName != "")
         ss << fullName << ": ";
+
     if(type == UNTYPED)
         ss << "<untyped>";
+    else if(type == ANY)
+        ss << "Any?";
     else if(utype)
         ss << utype->toString();
     else

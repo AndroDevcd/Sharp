@@ -53,16 +53,20 @@ private:
     bool isModuleDecl(Token &t);
     bool isImportDecl(Token &t);
     bool isClassDecl(Token &t);
+    bool isMutateDecl(Token &t);
     bool isInterfaceDecl(Token &t);
     bool isPrototypeDecl(Token &t);
     bool isVariableDecl(Token &t);
     bool isMethodDecl(Token &t);
+    bool isInitDecl(Token& token);
     bool isEnumDecl(Token &t);
+    bool isStaticDecl(Token &t);
     bool isReturnStatement(Token &t);
     bool isIfStatement(Token &t);
     bool isSwitchStatement(Token &t);
     bool isAssemblyStatement(Token &t);
     bool isForStatement(Token &t);
+    bool isAliasDeclaration(Token &t);
     bool isSwitchDeclarator(Token &t);
     bool isConstructorDecl();
     bool isKeyword(string s);
@@ -76,6 +80,7 @@ private:
     void parseModuleDecl(Ast*);
     void parseImportDecl(Ast*);
     void parseClassDecl(Ast*);
+    void parseMutateDecl(Ast*);
     void parseInterfaceDecl(Ast*);
     void parseIdentifierList(Ast*);
     void addAccessTypes(Ast*);
@@ -85,6 +90,8 @@ private:
     void parseClassBlock(Ast*);
     void parseInterfaceBlock(Ast*);
     void parseVariableDecl(Ast*);
+    void parseGetter(Ast *ast);
+    void parseSetter(Ast *ast);
     bool parseTypeIdentifier(Ast*);
     bool parseUtype(Ast*);
     bool parseUtypeNaked(Ast*);
@@ -101,17 +108,20 @@ private:
     bool parsePrimaryExpr(Ast*);
     bool parseLiteral(Ast*);
     bool parseDotNotCallExpr(Ast*);
-    void parseExpressionList(Ast*);
+    void parseExpressionList(Ast*,string,string);
     void parseFieldInitList(Ast*);
     bool parseUtypeArg(Ast*);
     bool parseUtypeArgOpt(Ast*);
+    bool parseLambdaArg(Ast*);
     void parseUtypeArgList(Ast*);
+    void parseLambdaArgList(Ast*);
     void parseUtypeArgListOpt(Ast*);
     bool parseArrayExpression(Ast*);
     bool parseFieldInitializatioin(Ast*);
     void parsePrototypeDecl(Ast*, bool semicolon = true);
     void parseMethodReturnType(Ast*);
     void parsePrototypeValueAssignment(Ast*);
+    void parseLambdaReturnType(Ast*);
     void parseMethodDecl(Ast*);
     void parseDelegateDecl(Ast*);
     void parseOperatorDecl(Ast*);
@@ -119,6 +129,7 @@ private:
     void parseAll(Ast*);
     void parseEnumDecl(Ast*);
     void parseEnumBlock(Ast*);
+    void parseInitDecl(Ast *ast);
     void parseEnumIdentifier(Ast*);
     void parseBlock(Ast*);
     void parseLambdaBlock(Ast*);
@@ -129,6 +140,7 @@ private:
     void parseSwitchBlock(Ast*);
     void parseSwitchDeclarator(Ast*);
     void parseAssemblyStmnt(Ast*);
+    void parseAliasDeclaration(Ast *ast)
     void parseAssemblyBlock(Ast*);
     void parseForStmnt(Ast*);
 

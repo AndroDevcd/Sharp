@@ -10,8 +10,9 @@
 enum BlockType {
     GLOBAL_SCOPE=0,
     CLASS_SCOPE=1,
-    INSTANCE_BLOCK=2,
-    STATIC_BLOCK=3
+    RESTRICTED_INSTANCE_BLOCK=2,
+    INSTANCE_BLOCK=3,
+    STATIC_BLOCK=4
 };
 
 struct Local {

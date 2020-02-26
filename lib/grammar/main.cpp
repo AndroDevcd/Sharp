@@ -9,6 +9,7 @@
 #include "frontend/tokenizer/tokenizer.h"
 #include "frontend/parser/Parser.h"
 #include "backend/Compiler.h"
+#include "../runtime/oo/string.h"
 
 
 /**
@@ -153,7 +154,7 @@ bool all_integers(string int_string) {
     return true;
 }
 
-bool startsWith(string &str, string &prefix)
+bool startsWith(string &str, string prefix)
 {
     if(prefix.size() > str.size())
         return false;
@@ -346,7 +347,7 @@ int _bootstrap(int argc, const char* argv[])
     }
 
 #ifdef WIN32_
-    native_string path("C:/Sharp/include");
+    native_string path("C:/Program Files/Sharp/include");
 #endif
 #ifdef POSIX_
     native_string path("/usr/include/sharp/");

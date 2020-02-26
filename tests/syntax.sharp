@@ -2,23 +2,57 @@ mod app.time;
 
 import std;
 
+alias K as KClass
 
 class K {
-    apples := foop(9);
-    fn k (var);
+    //zstr := "hi ${new var[] {i, 8, 9}}";
+    apples := fo({ count : var, element : object[] ->
+            return;
+    });//(fo()[0].Y.fo()[9].oranges[0]) ;//+ 10 - 100 * l[9];
+//    kl := get_oranges();
+
+    oranges : object[];
+        get null
+        set val -> {}
+
     thread_local num : var;
-    l := Y;
-    static Y : K;
-    foopeepop := {1, 2, 3, 4, 5, 6, 7 ,8};
+//    jk := List<var>.extFn;
+    Y : K;
+    //foopeepop := {1, 2, 3, 4, 5, 6, 7 ,8};
    // f := { -> return 6; };
 
-    def foop(v : var) := l;
+    // make sure that we are not returning anything but the class itsself
+    // warn the user returning in an init is not reccomended
+//    init apples = 9;
+
+    def fo(fn ptr(var, object[]) : nil) : var {}
+
+    def fo(fn ptr(K, object[]) : nil) : K[] {}
+    def foop(v : var) := 1;
     //def test(time : int) := Y.l.k(9);
     //def foopee() : nil {
     //
     //}
+
 }
 
+mutate List<var> {
+    public x : var[] = 0;
+    public y : var;
+}
+
+interface IInterface {
+}
+
+class BaseClass {
+}
+
+class List<T> {
+
+}
+
+def List.extFn() : var {
+}
 
 enum EE {
     _a ,
@@ -47,7 +81,7 @@ class Gen<K> {
     public static def fooStatic(i : _int64) : var;
 }
 
- class A base Apple<var[], Apple<var, var> > {
+ //class A base Apple<var[], Apple<var, var> > {
 //    public num := z;
 //    public z := 7;
 //    public fn ptr := fooStatic;
@@ -59,7 +93,7 @@ class Gen<K> {
 //        N3 = 2
 //    };
 
-}
+//}
 
 /**
  * Created by BraxtonN on 10/18/2019.

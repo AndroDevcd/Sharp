@@ -11,22 +11,22 @@
 
 enum token_id
 {
-    IDENTIFIER,
-    NATIVE_TYPE,
-    TYPE_IDENTIFIER,
-    INTEGER_LITERAL,
-    HEX_LITERAL,
-    MODULENAME,
-    STRING_LITERAL,
-    CHAR_LITERAL,
-    LITERAL,
-    VALUE,
-    ACCESSTYPE,
-    SINGLELINE_COMMENT,
-    RETURN_STATEMENT,
+    IDENTIFIER=0,
+    NATIVE_TYPE=1,
+    TYPE_IDENTIFIER=2,
+    INTEGER_LITERAL=3,
+    HEX_LITERAL=4,
+    MODULENAME=5,
+    STRING_LITERAL=6,
+    CHAR_LITERAL=7,
+    LITERAL=8,
+    VALUE=9,
+    ACCESSTYPE=10,
+    SINGLELINE_COMMENT=11,
+    RETURN_STATEMENT=12,
 
-    SINGLE, // single token
-    NOENTITY // not an entity
+    SINGLE=13, // single token
+    NOENTITY=1999 // not an entity
 };
 
 /**
@@ -64,6 +64,11 @@ public:
     {
         return this->id != id;
     }
+
+    bool operator==(const token_id& id)
+    {
+        return this->id == id;
+    }
     void operator=(const Token& token)
     {
         tok = token.tok;
@@ -87,7 +92,7 @@ public:
 
     token_id getId();
     void setId(token_id id);
-    string &getToken();
+    string &getValue();
     int getColumn();
     int getLine();
     bool isSingle();

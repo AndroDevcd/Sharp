@@ -22,7 +22,9 @@ public:
             cursor(0),
             col(0),
             line(1),
-            file(file)
+            file(file),
+            dynamicString(false),
+            brackets(0)
     {
         this->tokens.init();
         lines.init();
@@ -50,6 +52,8 @@ public:
     Token* EOF_token;
     void free();
 
+    static string tokenTypeToString(token_type);
+
 private:
     void parse();
     void parse_lines();
@@ -65,6 +69,12 @@ private:
     unsigned long cursor;
     int line;
     int col;
+    bool dynamicString;
+    long brackets;
+
+    CXX11_INLINE void saveString(const stringstream &message, bool escaped_found);
+
+    CXX11_INLINE void parseIdentifier();
 };
 
 #endif //SHARP_TOKENIZER_H

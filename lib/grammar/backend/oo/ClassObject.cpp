@@ -16,7 +16,7 @@ void ClassObject::free()
     Compiler::freeListPtr(functions);
 }
 
-Field* ClassObject::getField(string& name, bool checkBase) {
+Field* ClassObject::getField(string name, bool checkBase) {
     Field *field = NULL;
     for(long i = 0; i < fields.size(); i++) {
         field = fields.get(i);
@@ -58,6 +58,22 @@ long ClassObject::getFieldAddress(Field* field) {
     }
 }
 
+long ClassObject::totalFieldCount() {
+    if(fields.empty()) return 0;
+    ClassObject* k, *_klass = this;
+    long fieldCount=fields.size();
+
+    for(;;) {
+        k = _klass->getSuperClass();
+
+        if(k == NULL)
+            return fieldCount;
+
+        fieldCount+=k->fields.size();
+        _klass = k;
+    }
+}
+
 Method* ClassObject::getConstructor(List<Field*> params, bool checkBase) {
     Method *fun;
     List<Method*> constructors;
@@ -95,15 +111,21 @@ bool ClassObject::isClassRelated(ClassObject *klass, bool interfaceCheck) {
 }
 
 bool ClassObject::getFunctionByName(string name, List<Method*> &funcs, bool checkBase) {
-    bool found = false;
     for(size_t i = 0; i < functions.size(); i++) {
         if(name == functions.get(i)->name) {
             funcs.add(functions.get(i));
-            found = true;
         }
     }
     if(checkBase && super)
         return super->getFunctionByName(name, funcs, true);
-    return found;
+    return !funcs.empty();
+}
+
+size_t ClassObject::fieldCount() {
+    return fields.size();
+}
+
+Field *ClassObject::getField(long index) {
+    return fields.get(index);
 }
 

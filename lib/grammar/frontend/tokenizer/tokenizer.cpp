@@ -107,6 +107,12 @@ void tokenizer::parse()
         {
             if(current == '\n')
             {
+                if(dynamicString) {
+                    dynamicString = false;
+                    brackets = 0;
+                    errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", expected `}` before end of string");
+                    goto start;
+                }
                 newline();
             }
 
@@ -219,10 +225,32 @@ void tokenizer::parse()
                 tokens.add(Token(string(1, current), SINGLE, col, line, LEFTPAREN));
             else if (')' == current)
                 tokens.add(Token(string(1, current), SINGLE, col, line, RIGHTPAREN));
-            else if ('{' == current)
+            else if ('{' == current) {
+                if(dynamicString)
+                    brackets++;
                 tokens.add(Token(string(1, current), SINGLE, col, line, LEFTCURLY));
-            else if ('}' == current)
-                tokens.add(Token(string(1, current), SINGLE, col, line, RIGHTCURLY));
+            }
+            else if ('}' == current) {
+                if(dynamicString) {
+                    if(brackets == 0) {
+                        dynamicString = false;
+                        if (peek(1) == '"') {
+                            advance()
+                            advance()
+                            tokens.add(Token(string(1, ')'), SINGLE, col, line, RIGHTPAREN));
+                            goto start;
+                        } else {
+                            tokens.add(Token(string(1, ')'), SINGLE, col, line, RIGHTPAREN));
+                            tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
+                            goto process_string;
+                        }
+                    } else {
+                        tokens.add(Token(string(1, current), SINGLE, col, line, RIGHTCURLY));
+                        brackets--;
+                    }
+                } else
+                    tokens.add(Token(string(1, current), SINGLE, col, line, RIGHTCURLY));
+            }
             else if ('.' == current)
                 tokens.add(Token(string(1, current), SINGLE, col, line, DOT));
             else if ('[' == current)
@@ -249,22 +277,7 @@ void tokenizer::parse()
         }
         else if(isletter(current) || current == '_') // int, dave, etc.
         {
-            stringstream var;
-            bool hasletter = false;
-
-            while(!isend() && (isalnum(current) || current == '_'))
-            {
-                if(isletter(current))
-                    hasletter = true;
-
-                var << current;
-                advance();
-            }
-
-            if(!hasletter)
-                errors->createNewError(GENERIC, line, col, " expected at least 1 letter in identifier `" + var.str() + "`");
-            else
-                tokens.add(Token(var.str(), IDENTIFIER, col, line));
+            parseIdentifier();
             goto start;
         }
         else if(isnumber(current)) // 0xff2ea, 3.14159, 773_721_3376, etc
@@ -395,6 +408,7 @@ void tokenizer::parse()
         }
         else if('"' == current) // "Hello, World", "Name: \n", etc.
         {
+            process_string:
             stringstream message;
             if (tokensLeft() < 2)
             {
@@ -403,6 +417,12 @@ void tokenizer::parse()
                 goto start;
             }
             advance();
+
+            if(dynamicString && brackets == 0) {
+                dynamicString = false;
+                errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", expected `}` before end of string");
+                goto start;
+            }
 
             bool escaped_found = false;
             bool escaped = false;
@@ -428,14 +448,44 @@ void tokenizer::parse()
                     if ('"' == current)
                         break;
 
+                    if('$' == current) {
+                        advance();
+
+                        if('{' == current) {
+                            advance();
+                            saveString(message, escaped_found);
+                            // we gotta tokenize he rest of the data set  var to check the state where once we encounter a '}' we jump back to parsing a string
+                            dynamicString = true;
+
+                            tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
+                            tokens.add(Token(string(1, '('), SINGLE, col, line, LEFTPAREN));
+                            goto start;
+                        } else {
+                            saveString(message, escaped_found);
+
+                            message.str("");
+                            tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
+
+                            if(!isend() && (isalnum(current) || current == '_'))
+                                parseIdentifier();
+                            else
+                                errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", text preceding `$` must be alpha numeric, or '_' only");
+
+                            if('"' == current || isend()) {
+                                advance()
+                                goto start;
+                            } else
+                                tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
+                        }
+                    }
+
                     message << current;
                 }
                 else if (escaped)
                 {
-
-                    if(!isletter((char) tolower(current)) && ('\\' != current) && ('\"' != current) && ('\'' != current))
+                    if('$' != current && !isletter((char) tolower(current)) && ('\\' != current) && ('\"' != current) && ('\'' != current))
                     {
-                        errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", text preceding `\\` must be alpha, '\\', or '\"' only");
+                        errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", text preceding `\\` must be alpha, '$', '\\', or '\"' only");
                         goto start;
                     }
 
@@ -452,11 +502,7 @@ void tokenizer::parse()
                 goto start;
             }
 
-            if (!escaped_found)
-                tokens.add(Token(message.str(), STRING_LITERAL, col, line));
-            else
-                tokens.add(Token(get_escaped_string(message.str()), STRING_LITERAL, col, line));
-
+            saveString(message, escaped_found);
             advance();
             goto start;
         }
@@ -552,6 +598,147 @@ void tokenizer::parse()
 
     end:
     tokens.push_back(*EOF_token);
+}
+
+string tokenizer::tokenTypeToString(token_type type) {
+        switch(type) {
+            case NUMBER:
+                return "NUMBER";
+            case LETTER:
+                return "LETTER";
+            case UNDERSCORE:
+                return "UNDERSCORE";
+            case LEFTPAREN:
+                return "LEFTPAREN";
+            case RIGHTPAREN:
+                return "RIGHTPAREN";
+            case LEFTCURLY:
+                return "LEFTCURLY";
+            case RIGHTCURLY:
+                return "RIGHTCURLY";
+            case HASH:
+                return "HASH";
+            case DOT:
+                return "DOT";
+            case PLUS:
+                return "PLUS";
+            case MINUS:
+                return "MINUS";
+            case MULT:
+                return "MULT";
+            case _DIV:
+                return "_DIV";
+            case _MOD:
+                return "_MOD";
+            case COLON:
+                return "COLON";
+            case SEMICOLON:
+                return "SEMICOLON";
+            case DUBQUOTE:
+                return "DUBQUOTE";
+            case SINGQUOTE:
+                return "SINGQUOTE";
+            case COMMA:
+                return "COMMA";
+            case NEWLINE:
+                return "NEWLINE";
+            case _LTE:
+                return "_LTE";
+            case _GTE:
+                return "_GTE";
+            case EQEQ:
+                return "EQEQ";
+            case PLUSEQ:
+                return "PLUSEQ";
+            case MINUSEQ:
+                return "MINUSEQ";
+            case MULTEQ:
+                return "MULTEQ";
+            case DIVEQ:
+                return "DIVEQ";
+            case ANDEQ:
+                return "ANDEQ";
+            case OREQ:
+                return "OREQ";
+            case XOREQ:
+                return "XOREQ";
+            case MODEQ:
+                return "MODEQ";
+            case NOTEQ:
+                return "NOTEQ";
+            case SHL:
+                return "SHL";
+            case SHR:
+                return "SHR";
+            case LESSTHAN:
+                return "LESSTHAN";
+            case GREATERTHAN:
+                return "GREATERTHAN";
+            case AND:
+                return "AND";
+            case ANDAND:
+                return "ANDAND";
+            case OR:
+                return "OR";
+            case OROR:
+                return "OROR";
+            case XOR:
+                return "XOR";
+            case NOT:
+                return "NOT";
+            case EQUALS:
+                return "EQUALS";
+            case INFER:
+                return "INFER";
+            case LEFTBRACE:
+                return "LEFTBRACE";
+            case RIGHTBRACE:
+                return "RIGHTBRACE";
+            case QUESMK:
+                return "QUESMK";
+            case PTR:
+                return "PTR";
+            case _INC:
+                return "_INC";
+            case _DEC:
+                return "_DEC";
+            case DOLLAR:
+                return "DOLLAR";
+            case _EOF:
+                return "_EOF";
+            case NONE:
+                return "NONE";
+        }
+
+        return "?";
+}
+
+CXX11_INLINE
+void tokenizer::parseIdentifier() {
+    stringstream var;
+    bool hasletter = false;
+
+    while(!isend() && (isalnum(current) || current == '_'))
+    {
+        if(isletter(current))
+            hasletter = true;
+
+        var << current;
+        advance();
+    }
+
+    if(!hasletter)
+        errors->createNewError(GENERIC, line, col, " expected at least 1 letter in identifier `" + var.str() + "`");
+    else
+        tokens.add(Token(var.str(), IDENTIFIER, col, line));
+}
+
+CXX11_INLINE
+void tokenizer::saveString(const stringstream &message, bool escaped_found) {
+    if (!escaped_found)
+        tokens.add(Token(message.str(), STRING_LITERAL, col, line));
+    else
+        tokens.add(Token(get_escaped_string(message.str()), STRING_LITERAL, col, line));
 }
 
 string tokenizer::get_escaped_string(string msg) const {

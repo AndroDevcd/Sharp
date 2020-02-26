@@ -6,11 +6,16 @@
     - Reflection
 - Add generics option Generic<?> to have the type be forced to extend object
     - The class with ? should be processed at compile time to assign objects that follow this rule alike
-- Allow for importing of star (*) 
+    - also allow for class specification i.e `generic<?my_class>` 
+    - name it a generic qualifier since the type will not be known
+    - casts to generic qualifier will not work as the built in class is not of that type
+    - if the user tried generic qualifier cast at high level we need to process it otherwise as mentioned above will happen
+    - do not let user cast from object to generic qualifier because a specific type must be known at time of cssting
+- [X] Allow for importing of star (*) 
     - import std.*; imports all of the standard library
 - Add functionality for AOT Compiler for functions and Inject them directly in the exe
 - Have automatic lookup for enums
-- Allow for expression in first argument of for loop --`done`
+- [X] Allow for expression in first argument of for loop
 - Add asm volatile() argument to allow optimzer to modify the injected code
 - standard asm() code will not be modified by compiler unlexss there needs to be a
   address readjustment due to code being removed above the asm() block
@@ -134,3 +139,80 @@ def foo(??name) {
 
 - Create new syntax for Assembler in SHarp compiler to be more like a modern assembly language
 - Create a "CodeAst" Block structure when compiling to allow for insightful data as well as code optimization
+
+
+- add  with and apply
+with:
+```javascript
+
+class car {
+    vin : string;
+    wheels : int;
+}
+
+def main() {
+    audi := new car { "ABCD", 4 };
+    
+    // both calls are null safe
+    // with allows code to be in a block while using instance in with()
+    with(audi) as c { // default is `it`
+        c.vin = "ZYXC";
+        print("car " + c);
+    } else {
+        // if its null then do this
+    }   
+    
+    // have hem both return a value thats automatically returned on exit of scope
+    // mainly used for setting only the values in the class in apply()
+    apply(new car()) {
+        vin = "";
+        wheels = 8;
+    } else {
+        // if null do this
+    }
+}
+```
+
+- [X] add extention functions
+- [X] add keyword "ext" use case "ext class BaseClass { ... }"
+     - extention classes cant be instantiated
+- [X] make interfaces extension classes by default!
+- [X] add keyword "mutate" use case "mutate string : parcellable { ... }" you are efectivley adding new functality to the class inline
+- [X] add keyword "stable" use case "stable class string { ... '"
+
+- add reflection system
+
+- add use block
+    - use abstracts out the scope of what you are using to only use the vars provided in the use block
+    - an anonymous funcion is generated and the value returned
+    - does not worry about nor handles closures
+    - use cannot be assigned to function pointers as it returns the value not 
+        the ptr to the function.
+
+```javascript
+
+def main() {
+    x : var = 1, y = 2;
+    sum := use x, y -> (var) {
+        return x + y;
+    }
+}
+
+```
+
+- add atomic operations for natives only
+    - var, _int8-_int64 will have atomic read and writes only
+    - do not allow objects to have `atomic` keyword, suggest the user to use `atomic_reference<T>` instead
+    - create `atomic_number<T>` that takes var, _int8-_int64 to o operations
+    - create `atomic_number_array<T>` and `atomic_reference_array<T>`
+    
+- add `alias` keyword to refrence anything utype in the language
+    - syntax is `alias <utype> as <identifier>`
+    - considering it's a utype we just process it as such and return the utype including the code that is in it
+    - scope aliasis by current scope, as well as use access for aliases to be able to use them
+    
+- add closures for function calls to access local stack vars t hiher scope
+    - local vars must be an object primitives cannot be accessed
+    - create a class when building closures i.e `_str_closure#1234` and add in all the fields that the closure contains to be accessed later
+    - only store local vars in closure nothing else
+    - set the code to init the closure class just before when the lambda function was created

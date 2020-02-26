@@ -20,38 +20,142 @@ def main() {
 }    
 ```    
     
-Considering that sharp is an Object oriented programming language it is immediately familiar to Java and C++ developers.  
+The syntax in Sharp is simple, easy to read, and beautiful allowing you to focus more on what the code
+is doing rather that the syntax 
   
 ```javascript  
 mod app;  
  
+def compute() {
+    // TODO...
+}
+
 def main() {  
-   create_thread(
-       "MyThread",
-       main = { args ->  
-          print("I ran a thread!"); 
-          return 0; 
-        }  
-   ).start();
-}  
-```  
-  
-Sharp's syntax is minimalistic simple and easy to use  with low friction when switching between different code styles
-  
-```javascript  
-mod app;  
-  
-def main() {  
-   for < 10:  
-      println("im looping!");  
+    
+   for < 10:
+    compute();
 }  
 ```  
 
-The above illustration creates an **anonymous** for loop that does the tracking or loop iteration for you  
-  
-Sharp has a multi-language inspired syntax taking the beauty of languages such as JavaScript, python, Java, Go, and C#. While expressing it in a more concise way. sharp supports anonymous functions that make it easy to abstract away blocks of code without the need to have thousands of external functions in your code.  
+The language library comes standard with a comprehensive lightweight multi-threading library `task`
+that makes handling work in the background simple to put together but looks good as well.
   
 ```javascript  
+mod app; 
+
+// import the threadding library
+import std.io; 
+import std.io.task; 
+  
+def heavy_computation() {
+    // simulate heavy work being done
+    sleep(3000);
+}
+
+def lots_of_math() : int {
+    // simulate heavy work being done
+    sleep(1000);
+    return 6;
+}
+
+def main() {  
+    // here we create a background task to do some work
+   launch = { -> 
+        heavy_computation();
+   }
+
+   // launch a task that you can get the answer at a later time
+   answer := deferred_task<int>.for_result(
+       with_timeout(1500),
+       { obs : object ->
+           ((observable<int>)obs).post(lots_of_math());
+       }
+   );
+    
+   sleep(700);
+   println("you're answer is ${answer.response}"); // block main thread until answer is posted
+}  
+```  
+
+Sharp supports several convient features that improve the overall experience with programming in the language.
+
+```javascript
+mod app;
+  
+class list<T> {
+    // inferred type system using `:=`
+    size := 0;
+    data : T[];
+}
+
+/*
+* Extension functions
+*/
+def list.last() : T {
+    return data[size-1];
+}
+
+/*
+* Function pointers
+*/
+fn main_ptr := main;
+
+/*
+* inline function declarations
+*/
+count := 1;
+def inc_count() := count++;
+
+/*
+* Type aliasing
+*/
+alias var as Dollar
+
+money : Dollar = 1.52;
+
+/*
+* Anonymous arrays
+*/
+num_list := { 1, 2, 3 };
+
+/*
+* Anonymous functions
+*/
+fn total_size := { data : object[] -> (var)
+    total := 0;
+    for i < data: {
+        total += sizeof(data[i]);
+    }
+    
+    return total;
+};
+
+/*
+* Class mutations
+*
+* Class list now has the field initialSize
+* and constructor, class mutation acts just like
+* an advanced version of extention functions
+*/
+mutate class list {
+    initialSize : var = 100;
+    
+    List(data : T[]) {
+        // ...
+    }   
+}
+// and more !!
+
+def main() {  
+    
+   for < 10:
+    compute();
+}  
+```
+
+Sharp has a multi-language inspired syntax taking the beauty of languages such as JavaScript, python, Java, Go, and C#. While expressing it in a more concise way. sharp supports anonymous functions that make it easy to abstract away blocks of code without the need to declare a bunch of on-time use functions in your code.  
+  
+```javascript
 mod app;  
   
 def main() {  
@@ -61,72 +165,57 @@ def main() {
       x++;  
    }  
   
-   fn someComputation = def ?(var num) {  
+   fn someComputation = { num : var -> (nil)  
       // we are in a completly seperate code space  
       // this code space knows nothing of the x variable  
       // unless explicitly passed in  
   
       print("num = " + num);  
    };  
+
    someComputation(num);
 }  
 ```  
 
 The above code is a simple illustration of how Sharp's low friction syntax allows you to evolve your code overtime as your requirements change
 from local code, to anonymous function, to a globally accessed static function and more.
-Although being an object oriented language, sharp makes object oriented development more efficient for more simple operations
-by removing the burden of having to create constructors for every class in your code.
+Although being an object oriented language, sharp unlike other languages don't force you to explicitly follow that model of programming.
+It's understood that the old languages of today such as java, c# and more require alot of boilerplate code to be written thus taking away developer time
+. Below is just one simple way sharp can remove the menotinous task usually encountered in you day-to-day development flow.
 
 ```javascript
 mod app;  
 
+// here we create a data class o hold inforation about a vehicle
 class Vehicle {
-    string licensePlate; // Vehicle will cast as out base type
-    int wheels = 4; // wheels has a default value of 4
+    licensePlate := ""; // we dont need to specify types if we dont want to the compiler figures it out for us
+    wheels := 4; // default value of 4 wheels
 }
-  
+
+// here we abstract the vehicle class into a truck  
 class Truck base Vehicle {
-    string make, model;
-    Color color;
-    int modelYear = 1997;
+    make := "", model = "";
+    color : Color;
+    modelYear := 1997;
 }
 
 def main() {  
-   Truck car = new Truck {
+   car := new Truck {
             make = "Ford",
             model = "F-150",
             color = Color.SPACE_GREY,
-            modelYear = 2020,
+            modelYear = 2024,
             licensePlate = "ZSY 7CH9"
             // wheels = 4 // wheels is already set to default value of 4 so we dont need this statement
         }; // Object Truck is created inline and assigned the values instead of calling a constructor
     
-        /**
-        * The above code translates to      
-        * Truck tmp = new Truck();          
-        * tmp.make = ..;
-        * tmp.model = ..;
-        * tmp.color = ..;
-        * tmp.modelYear = ..;
-        * tmp.licensePlate = ..;
-        * tmp.wheels = ..;
-        *
-        * car = tmp; tmp = null;
-        *
-        */
-  
-   fn draw = def ?(Truck veh) {  
-      // we want to draw the provided vehicle
-     // to the screen
-      
-      drawObject(veh);
-   };  
-   draw(car);
+    // alternativley you can create classes like this as well
+    veh := new Vehicle {"ZSY 7CH9"}; // creates a vehicle with 4 wheels and a license plate number
 }  
 ```
   
 ##### Some thoughts on language design  
-Sharp does not force you to be object oriented if you don''t want to like other languages force you to be. Of course some things done such as creating threads require some state to be stored and persist through the lifetime of your application; However Sharp allows you to be either more expressive or object-oriented or both.
+Sharp does not force you to be object oriented if you don''t want to like other languages force you to be. Of course some things done such as creating threads require some state to be stored and persist through the lifetime of your application; However Sharp allows you to be either more expressive, functional, or object-oriented.
 
 #### Cool Stuff
 Check out the snake game I made In Sharp under the link: https://github.com/AndroDevcd/Sharp/blob/remastered/projects/snake/main.sharp

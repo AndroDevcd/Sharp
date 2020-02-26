@@ -9,8 +9,9 @@
 #include "../frontend/parser/Parser.h"
 #include "Scope.h"
 #include "ReferencePointer.h"
-#include "Utype.h"
+#include "data/Utype.h"
 #include "Expression.h"
+#include "oo/FunctionType.h"
 
 class Compiler {
 
@@ -35,7 +36,8 @@ public:
         hasMainMethod(false),
         mainMethod(NULL),
         mainSignature(0),
-        delegateGUID(0)
+        delegateGUID(0),
+        typeInference(false)
     {
         modules.init();
         sourceFiles.init();
@@ -43,6 +45,7 @@ public:
         classes.init();
         enums.init();
         generics.init();
+        warnings.init();
         currScope.init();
         importMap.init();
         stringMap.init();
@@ -113,6 +116,7 @@ private:
     long threadLocals;
     long mainSignature;
     bool hasMainMethod;
+    bool typeInference;
     long processingStage;
     string outFile;
     string lastNoteMsg;
@@ -123,6 +127,7 @@ private:
     List<string> modules;
     List<string> sourceFiles;
     List<string> noteMessages;
+    List<string> warnings;
     List<ClassObject*> classes;
     List<ClassObject*> enums;
     List<ClassObject*> generics;
@@ -131,12 +136,14 @@ private:
     List<string> stringMap;
     List<KeyPair<Field*, double>> inlinedFields;
     List<KeyPair<string, List<string>>>  importMap;
+    List<Method*> lambdas;
     parser* current;
     ErrorManager *errors;
     string currModule;
 
     bool preprocess();
     bool postProcess();
+    void preprocessMutations();
     void compile();
     void createGlobalClass();
     void inheritRespectiveClasses();
@@ -148,14 +155,18 @@ private:
     void preProcessUnprocessedClasses(long long unstableClasses);
     parser *getParserBySourceFile(string name);
     void addDefaultConstructor(ClassObject* klass, Ast* ast);
+    void inlineClassMutateFields(Ast *ast);
     void createNewWarning(error_type error, int type, int line, int col, string xcmnts);
     string parseModuleDecl(Ast* ast);
     void parseClassAccessFlags(List<AccessFlag> &flags, Ast *ast);
+    bool matchesFlag(AccessFlag flags[], int len, int startPos, AccessFlag flag);
     void inlineClassFields(Ast* ast, ClassObject* currentClass = NULL);
     void inlineField(Ast* ast);
     void inlineFieldHelper(Ast* ast);
     void inlineEnumFields(Ast* ast, ClassObject* currentClass = NULL);
     void inlineEnumField(Ast* ast);
+    void preProccessClassDeclForMutation(Ast* ast);
+    void preProcessMutation(Ast *ast, ClassObject *currentClass = NULL);
     bool isWholeNumber(double value);
     void preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* currentClass = NULL);
     void preProccessGenericClassDecl(Ast* ast, bool isInterface);
@@ -169,20 +180,21 @@ private:
     void removeScope();
     void inheritEnumClass();
     void resolveBaseClasses();
-    void convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, expression_type paramType, IrCode &code, Ast* ast);
+    __int64 dataTypeToOpcode(DataType type);
+    void convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, IrCode &code, Ast* ast);
     void resolveSuperClass(Ast *ast, ClassObject* currentClass = NULL);
     void parseReferencePointerList(List<ReferencePointer*> &refPtrs, Ast *ast);
     ClassObject* resolveBaseClass(Ast *ast, ClassObject* currentClass);
-    ClassObject *resolveClassReference(Ast *ast, ReferencePointer &ptr);
+    ClassObject *resolveClassReference(Ast *ast, ReferencePointer &ptr, bool allowGenerics = false);
     void compileReferencePtr(ReferencePointer &ptr, Ast* ast);
     ClassObject* compileGenericClassReference(string &mod, string &name, ClassObject* parent, Ast *ast);
     void compileUtypeList(Ast *ast, List<Utype *> &types);
-    Utype* compileUtype(Ast *ast);
+    Utype* compileUtype(Ast *ast, bool intanceCaptured = false);
     void resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast);
     void inlineVariableValue(IrCode &code, Field *field);
     bool isDClassNumberEncodable(double var);
     Field *resolveEnum(string name);
-    void resolveClassHeiarchy(DataEntity* data, ReferencePointer& refrence, Utype* utype, Ast* ast);
+    void resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferencePointer& refrence, Utype* utype, Ast* ast);
     int64_t getLowBytes(double var);
     DataType strToNativeType(string &str);
     double getInlinedFieldValue(Field* field);
@@ -191,10 +203,15 @@ private:
     void resolveAllFields();
     void resolveAllMethods();
     void resolveAllDelegates();
+    void resolveClassMutateFields(Ast *ast);
+    void resolveDelegateMutateMethods(Ast *ast);
     void resolveAllDelegates(Ast *ast, ClassObject* currentClass = NULL);
     Method* validateDelegatesHelper(Method *method, List<Method*> &list);
     void validateDelegates(ClassObject *subscriber, Ast *ast);
-    void resolveMethod(Ast* ast);
+    ClassObject* getExtensionFunctionClass(Ast* ast);
+    void resolveClassMutateMethods(Ast *ast);
+    void resolveMethod(Ast* ast, ClassObject *currentClass = NULL);
+    void resolveGlobalMethod(Ast* ast);
     void compileMethodReturnType(Method* fun, Ast *ast, bool wait = false);
     void resolveDelegate(Ast* ast);
     void resolveDelegateImpl(Ast* ast);
@@ -202,6 +219,14 @@ private:
     void resolveOperatorOverload(Ast* ast);
     void checkMainMethodSignature(Method* method);
     Field* compileUtypeArg(Ast* ast);
+    void compileParenExpression(Expression* expr, Ast* ast);
+    void compileArrayExpression(Expression* expr, Ast* ast);
+    void compileLambdaExpression(Expression* expr, Ast* ast);
+    Utype* compileLambdaReturnType(Ast* ast);
+    Method* findLambdaByAst(Ast *ast);
+    void compileLambdaArgList(List<Field*> &fields, Ast* ast);
+    Field* compileLambdaArg(Ast *ast);
+    void compilePostIncExpression(Expression* expr, bool compileExpression, Ast* ast);
     Field* compileFuncPrototypeArg(Ast *ast);
     bool containsParamType(List<Field*> &params, DataType type);
     void validateMethodParams(List<Field*>& params, Ast* ast);
@@ -223,27 +248,43 @@ private:
     void preProccessEnumVar(Ast *ast);
     AccessFlag strToAccessFlag(string str);
     void printNote(Meta& meta, string msg);
+    bool isLambdaFullyQualified(Method *lambda);
     ClassObject* addGlobalClassObject(string name, List<AccessFlag>& flags, Ast *ast, List<ClassObject*> &classList);
     ClassObject* findClass(string mod, string className, List<ClassObject*> &classes, bool match = false);
     void inheritEnumClassHelper(Ast *ast, ClassObject *enumClass);
     void resolveField(Ast* ast);
-    void resolveFieldType(Field* field, Utype *utype, Ast* ast, bool typeInference = false);
+    void resolveFieldType(Field* field, Utype *utype, Ast* ast);
     void resolvePrototypeField(Ast* ast);
     void compileExpression(Expression* expr, Ast* ast);
     void compilePrimaryExpression(Expression* expr, Ast* ast);
+    void compileCastExpression(Expression *expr, Ast *ast);
+    void compileSizeOfExpression(Expression* expr, Ast* ast);
+    void compileClassCast(Utype *utype, Expression *castExpr, Expression *outExpr);
     void compileUtypeClass(Expression* expr, Ast* ast);
+    void compileNativeCast(Utype *utype, Expression *castExpr, Expression *outExpr);
     void compileDotNotationCall(Expression* expr, Ast* ast);
+    void compileSelfExpression(Expression* expr, Ast* ast);
+    void compileBaseExpression(Expression* expr, Ast* ast);
+    void compileNullExpression(Expression* expr, Ast* ast);
+    void compileNewExpression(Expression* expr, Ast* ast);
+    void compileFieldInitialization(Expression* expr, List<KeyPair<Field*, bool>> &fields, Ast* ast);
+    void compileNewArrayExpression(Expression *expr, Ast *ast, Utype *arrayType);
+    void compileVectorExpression(Expression* expr, Ast* ast, Utype *compareType = NULL);
     expression_type utypeToExpressionType(Utype *utype);
     Method* compileMethodUtype(Expression* expr, Ast* ast);
+    void fullyQualifyLambda(Utype *lambdaQualifier, Utype *lambda);
     bool isUtypeClass(Utype* utype, string mod, int names, ...);
-    void compileExpressionList(List<Expression>& lst, Ast* ast);
+    void compileExpressionList(List<Expression*>& lst, Ast* ast);
     void inheritObjectClassHelper(Ast *ast, ClassObject *klass);
     void compileLiteralExpression(Expression* expr, Ast* ast);
     void parseCharLiteral(Expression* expr, Token &token);
     void parseIntegerLiteral(Expression* expr, Token &token);
     string invalidateUnderscores(string str);
-    Method* findFunction(ClassObject *k, string name, List<Field*> &params, Ast* ast, bool checklBase = false);
+    Method* findFunction(ClassObject *k, string name, List<Field*> &params, Ast* ast, bool checklBase = false, function_type type = fn_undefined);
+    bool paramsContainNonQualifiedLambda(List<Field*> &params);
+    bool isLambdaUtype(Utype *type);
     Method* compileSingularMethodUtype(ReferencePointer &ptr, Expression *expr, List<Field*> &params, Ast* ast);
+    Method* findGetterSetter(ClassObject *klass, string name, List<Field*> &params, Ast* ast);
     bool isAllIntegers(string int_string);
     string codeToString(IrCode &code);
     string registerToString(int64_t r);
@@ -255,8 +296,18 @@ private:
     void parseStringLiteral(Expression* expr, Token &token);
     bool addFunction(ClassObject *k, Method *method, bool (*paramaterMatchFun)(List<Field *> &, List<Field *> &));
     Method* findFunction(ClassObject *k, Method *method, bool (*paramaterMatchFun)(List<Field *> &, List<Field *> &));
-    void expressionsToParams(List<Expression>& expressions, List<Field*> &params);
+    void resolveGenericFieldMutations(ClassObject *unprocessedClass);
+    void expressionsToParams(List<Expression*>& expressions, List<Field*> &params);
+    bool resolveExtensionFunctions(ClassObject *unprocessedClass);
     void compileFieldType(Field *field);
+    void checkTypeInference(Ast *ast);
+    void assignFieldInitExpressionValue(Field *field, Expression *assignExpr, IrCode *resultCode, Ast *ast);
+    void resolveUnprocessedClassMutations(ClassObject *unprocessedClass);
+    void resolveGetter(Ast *ast, Field *field);
+    void resolveSetter(Ast *ast, Field *field);
+    void compileFieldGetterCode(IrCode &code, Field *field);
+
+    void compilePostAstExpressions(Expression *expr, Ast *ast, long startPos = 1);
 };
 
 enum ProcessingStage {
@@ -277,5 +328,19 @@ enum ProcessingStage {
 
 #define globalScope() \
     (currentScope()->type == GLOBAL_SCOPE)
+
+#define RETAIN_BLOCK_TYPE(bt) \
+    BlockType oldType = currentScope()->type; \
+    currentScope()->type = bt;
+
+#define RESTORE_BLOCK_TYPE() \
+    currentScope()->type = oldType;
+
+#define RETAIN_TYPE_INFERENCE(ti) \
+    bool oldTypeInference = typeInference; \
+    typeInference = ti;
+
+#define RESTORE_TYPE_INFERENCE() \
+    typeInference = oldTypeInference;
 
 #endif //SHARP_COMPILER_H

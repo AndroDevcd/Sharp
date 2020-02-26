@@ -20,9 +20,10 @@ enum DataType
     OBJECT    =10,
     CLASS     =11,
     METHOD    =12,
-    _VOID     =13,
-    UNTYPED   =14,
-    UNDEFINED =15
+    NIL       =13,
+    ANY       =14,
+    UNTYPED   =15,
+    UNDEFINED =16
 };
 
 enum StorageLocality

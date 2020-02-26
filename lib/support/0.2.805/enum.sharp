@@ -9,29 +9,31 @@ mod std;
  * required to compile you sharp program if you utilize
  * enums.
  */
-class _enum_ {
-    static enums : _enum_[];
-    static name : _int8[];
-    static value : _int64;
+stable ext class _enum_ {
+    private static enums : _enum_[];
+    private static name : _int8[];
+//        get name;
+    private static ordinal : _int64;
+//        get ordinal;
 
-    public _enum_(val : var) {
-        value = val;
+    public _enum_(ord : var) {
+        ordinal = ord;
     }
 
     public def operator!=(e : _enum_) : var {
-        return value!=e.value;
+        return ordinal!=e.ordinal;
     }
 
     public def operator!=(num : var) : var {
-        return value!=num;
+        return ordinal!=num;
     }
 
     public def operator==(e : _enum_) : var {
-        return value==e.value;
+        return ordinal==e.ordinal;
     }
 
     public def operator==(num : var) : var {
-        return value==num;
+        return ordinal==num;
     }
 
 //    public Enum(e : Enum) {
@@ -43,9 +45,6 @@ class _enum_ {
 //        return "" + name;
 //    }
 
-    public def get_value() : var {
-        return value;
-    }
 
 //    public def delegate::toString() : string {
 //        return getName();

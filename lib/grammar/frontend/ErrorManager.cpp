@@ -181,7 +181,7 @@ bool ErrorManager::shouldReport(Token *token, const ParseError &lastError,
     {
         if(token != NULL && !(token->getId() == SINGLE || token->getId() == CHAR_LITERAL ||
                               token->getId() == STRING_LITERAL || token->getId() == INTEGER_LITERAL))
-            return (lastError.error.find(token->getToken()) == std::string::npos) &&
+            return (lastError.error.find(token->getValue()) == std::string::npos) &&
                    ((lastError.line-e.line)!=-1);
 
         return true;
@@ -199,7 +199,7 @@ bool ErrorManager::shouldReportWarning(Token *token, const ParseError &lastError
     {
         if(token != NULL && !(token->getId() == SINGLE || token->getId() == CHAR_LITERAL ||
                               token->getId() == STRING_LITERAL || token->getId() == INTEGER_LITERAL))
-            return (lastError.error.find(token->getToken()) == std::string::npos) &&
+            return (lastError.error.find(token->getValue()) == std::string::npos) &&
                    ((lastError.line-e.line)!=-1);
 
         return true;

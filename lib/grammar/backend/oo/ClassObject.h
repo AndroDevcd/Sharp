@@ -6,7 +6,7 @@
 #define SHARP_CLASSOBJECT_H
 
 
-#include "../DataEntity.h"
+#include "../data/DataEntity.h"
 #include "../Compiler.h"
 
 class Method;
@@ -18,7 +18,7 @@ enum class_type
     class_normal = 0,
     class_interface = 1,
     class_generic = 2,
-    class_enum = 4,
+    class_enum = 4
 };
 
 class ClassObject : public DataEntity {
@@ -31,13 +31,17 @@ public:
         classType(class_normal),
         processed(false),
         globalClass(false),
-        genericOwner(NULL)
+        genericOwner(NULL),
+        processedExtFunctions(0),
+        processedMutations(0)
     {
         fields.init();
         classes.init();
         keys.init();
         functions.init();
+        classMutations.init();
         keyTypes.init();
+        extensionFunctions.init();
         interfaces.init();
         this->flags.addAll(flags);
         this->meta.copy(meta);
@@ -53,8 +57,10 @@ public:
 
     void free();
 
+    size_t fieldCount();
     Method* getConstructor(List<Field*> params, bool checkBase);
-    Field* getField(string& name, bool checkBase);
+    Field* getField(string name, bool checkBase);
+    Field* getField(long index);
     int getClassType() { return classType; }
     void setClassType(int type) { classType = type; }
     void setSuperClass(ClassObject* sup) { super = sup; }
@@ -67,6 +73,7 @@ public:
     bool getFunctionByName(string name, List<Method*> &functions, bool checkBase = false);
     long getFieldAddress(Field* field);
     long getFieldIndex(string &name);
+    long totalFieldCount();
     void addClass(ClassObject* k) {
         classes.add(k);
     }
@@ -90,11 +97,23 @@ public:
     void setGenericOwner(ClassObject* owner) { genericOwner = owner; }
     void setInterfaces(List<ClassObject*> &interfaces) { this->interfaces.addAll(interfaces); }
     List<ClassObject*> &getInterfaces() { return interfaces; }
+    List<Ast*> &getExtensionFunctionTree() { return extensionFunctions; }
+    List<Ast*> &getClassMutations() { return classMutations; }
     void getAllFunctionsByType(function_type ftype, List<Method*> &results) {
         for(long long i = 0; i < functions.size(); i++) {
             if(functions.get(i)->fnType == ftype)
                 results.add(functions.get(i));
         }
+    }
+
+    void getAllFunctionsByTypeAndName(function_type ftype, string name, bool checkBase, List<Method*> &results) {
+        for(long long i = 0; i < functions.size(); i++) {
+            if(functions.get(i)->fnType == ftype && functions.get(i)->name == name)
+                results.add(functions.get(i));
+        }
+
+        if(checkBase && super)
+            super->getAllFunctionsByTypeAndName(ftype, name, true, results);
     }
 
     ClassObject* getChildClass(string name) {
@@ -130,11 +149,15 @@ public:
         this->keys.addAll(k->keys);
     }
 
+    long processedExtFunctions;
+    long processedMutations;
 private:
     bool processed;
     bool globalClass;
     int classType;
     List<Method*> functions;
+    List<Ast*> extensionFunctions;
+    List<Ast*> classMutations;
     List<ClassObject*> classes;
     List<ClassObject*> interfaces;
     List<Field*> fields;

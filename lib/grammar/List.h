@@ -255,6 +255,15 @@ public:
         return -1;
     }
 
+    unsigned long long indexof(bool (*isElement)(T* e, void *e2), void *e2) {
+        for(unsigned long long i = 0; i < len; i++) {
+            if(isElement(&_Data[i], e2)){
+                return i;
+            }
+        }
+        return -1;
+    }
+
     void linearSort(bool (*swap)(T e1, T e2)) {
         for(unsigned int i = 0; i < len; i++) {
 

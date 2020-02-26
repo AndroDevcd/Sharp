@@ -4166,7 +4166,7 @@ Expression RuntimeEngine::parseExpression(Ast *ast) {
         case ast_mult_e:
         case ast_shift_e:
         case ast_less_e:
-        case ast_equal_e:
+        case ast_equal_e:F
         case ast_and_e:
         case ast_assign_e:
             return parseBinaryExpression(encap);

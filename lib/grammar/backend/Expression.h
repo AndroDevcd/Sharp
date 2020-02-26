@@ -32,10 +32,12 @@ public:
 
     void init();
     void free();
+    void freeInjectors();
+    void copyInjectors(Utype *utype);
+    void copy(Expression *expr);
 
     Utype* utype;
     expression_type type;
-    bool lValue;
     Ast* ast;
 };
 

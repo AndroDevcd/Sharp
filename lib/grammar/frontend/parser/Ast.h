@@ -12,6 +12,7 @@
 enum ast_type
 {
     ast_class_decl,
+    ast_mutate_decl,
     ast_generic_class_decl,
     ast_generic_interface_decl,
     ast_interface_decl,
@@ -19,6 +20,7 @@ enum ast_type
     ast_module_decl,
     ast_method_decl,
     ast_enum_decl,
+    ast_init_decl,
     ast_delegate_decl,
     ast_delegate_impl,
     ast_construct_decl,
@@ -27,13 +29,15 @@ enum ast_type
     ast_variable_decl,
     ast_switch_declarator,
     ast_value,
+    ast_getter,
+    ast_setter,
     ast_value_list,
     ast_expression_list,
     ast_field_init_list,
-    ast_anonymous_function,
+    ast_utype_arg_list,
     ast_lambda_function,
     ast_field_init,
-    ast_utype_arg_list,
+    ast_lambda_arg_list,
     ast_utype_arg_list_opt,
     ast_reference_pointer_list,
     ast_utype_list,
@@ -41,6 +45,8 @@ enum ast_type
     ast_enum_identifier_list,
     ast_vector_array,
     ast_utype_arg,
+    ast_lambda_arg,
+    ast_name,
     ast_utype_arg_opt,
     ast_expression,
     ast_array_expression,
@@ -68,6 +74,7 @@ enum ast_type
     ast_while_statement,
     ast_do_while_statement,
     ast_assembly_statement,
+    ast_alias_statement,
     ast_for_statement,
     ast_for_expresion_cond,
     ast_for_expresion_iter,
@@ -160,11 +167,13 @@ public:
     Ast *getNextSubAst(ast_type at);
     bool hasSubAst(ast_type at);
     bool hasEntity(token_type t);
+    bool hasEntity(string s);
     bool findEntity(string t);
     void freeSubAsts();
     long getEntityCount();
     Token &getEntity(long at);
-    Token getEntity(token_type t);
+    Token getToken(token_type t);
+    static string astTypeToString(ast_type type);
 
     void addToken(Token entity);
     void addAst(Ast* _ast);
@@ -176,6 +185,7 @@ public:
     void freeLastSub();
     void freeAst(ast_type type);
     void freeLastEntity();
+    string toString();
 
     int line, col;
     long numEntities, numAsts;
