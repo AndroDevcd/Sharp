@@ -263,6 +263,7 @@ void Compiler::preProccessVarDeclHelper(List<AccessFlag>& flags, Ast* ast) {
         currentScope()->klass->getField(name, false)->fullName = currentScope()->klass->fullName + "." + name;
     }
 }
+
 void Compiler::preProccessVarDecl(Ast* ast) {
     List<AccessFlag> flags;
 
@@ -300,6 +301,50 @@ void Compiler::preProccessVarDecl(Ast* ast) {
         for(long i = startAst; i < ast->getSubAstCount(); i++) {
             preProccessVarDeclHelper(flags, ast->getSubAst(i));
         }
+    }
+}
+
+void Compiler::preProccessAliasDecl(Ast* ast) {
+    List<AccessFlag> flags;
+
+    if(ast->hasSubAst(ast_access_type)){
+        parseVariableAccessFlags(flags, ast->getSubAst(ast_access_type));
+
+        if(globalScope()) {
+            if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
+                flags.add(PUBLIC);
+            flags.addif(STATIC);
+        } else {
+            if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
+                flags.add(PRIVATE);
+        }
+    } else {
+        if(globalScope()) {
+            flags.add(PUBLIC);
+            flags.add(STATIC);
+        } else
+            flags.add(PRIVATE);
+    }
+
+    // todo: validate flags certain ones are not allowed
+    string name = ast->getEntity(0).getValue();
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->sourcefile,
+              ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
+
+    Alias* prevAlias=NULL;
+    if((prevAlias = currentScope()->klass->getAlias(name, false)) != NULL) {
+        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                                     "alias `" + name + "` is already defined in the scope");
+        printNote(prevAlias->meta, "alias `" + name + "` previously defined here");
+    } else {
+        currentScope()->klass->getAliases().add(new Alias(guid++, name, currentScope()->klass, flags, meta));
+        if(currentScope()->klass->getField(name, false) != NULL) {
+            createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
+                             "declared alias `" + name + "` conflicts with field `" + currentScope()->klass->getField(name, false)->toString() + "`");
+        }
+
+        currentScope()->klass->getAlias(name, false)->ast = ast;
+        currentScope()->klass->getAlias(name, false)->fullName = currentScope()->klass->fullName + "." + name;
     }
 }
 
@@ -534,6 +579,9 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
             case ast_func_prototype:
                 preProccessVarDecl(branch);
                 break;
+            case ast_alias_decl:
+                preProccessAliasDecl(branch);
+                break;
             case ast_operator_decl: /* Will be parsed later */
                 break;
             case ast_construct_decl: /* Will be parsed later */
@@ -653,6 +701,22 @@ void Compiler::preproccessImports() {
     importMap.__new().key = current->sourcefile;
     importMap.last().value.init();
     importMap.last().value.addAll(imports);
+}
+
+void Compiler::validateAccess(Alias *alias, Ast* ast) {
+    if(alias->utype->getType() == utype_field)
+        validateAccess((Field*)alias->utype->getResolvedType(), ast);
+    else if(alias->utype->getType() == utype_class)
+        validateAccess((ClassObject*)alias->utype->getResolvedType(), ast);
+    else if(alias->utype->getType() == utype_method)
+        validateAccess((Method*)alias->utype->getResolvedType(), ast);
+}
+
+void Compiler::checkTypeInference(Alias *alias, Ast* ast) {
+    if(alias->utype->getType() == utype_class)
+        checkTypeInference(ast);
+    else if(alias->utype->getType() == utype_native)
+        checkTypeInference(ast);
 }
 
 void Compiler::validateAccess(Field *field, Ast* pAst) {
@@ -3671,6 +3735,8 @@ void Compiler::resolveFieldType(Field* field, Utype *utype, Ast* ast) {
         } else
             this->errors->createNewError(GENERIC, ast->line, ast->col, " illegal use of function `" + utype->toString() + "` as a type");
     } else if(utype->getType() == utype_native) {
+        if(utype->getResolvedType()->type >= NIL)
+            this->errors->createNewError(GENERIC, ast->line, ast->col, " field`" + field->fullName + "` cannot be assigned type `" + utype->toString() + "` due to invalid type assignment format");
         field->type = utype->getResolvedType()->type;
         field->utype = utype;
     } else if(utype->getType() == utype_literal) {
@@ -3701,6 +3767,27 @@ void Compiler::resolveFieldType(Field* field, Utype *utype, Ast* ast) {
         field->utype = new Utype(UNDEFINED);
         field->utype->setType(utype_unresolved);
         field->type = UNDEFINED;
+    }
+}
+
+void Compiler::resolveAlias(Ast* ast) {
+    string name = ast->getEntity(0).getValue();
+
+    if(resolveClass("", name, ast))
+        createNewWarning(GENERIC, __WDECL, ast->line, ast->col, "declared alias `" + name + "` shadows class at higher scope");
+
+    Alias *alias = currentScope()->klass->getAlias(name, false);
+    if(alias->type == UNTYPED) {
+        // wee need to do this to prevent possible stack overflow errors
+
+        RETAIN_BLOCK_TYPE(CLASS_SCOPE)
+        RETAIN_TYPE_INFERENCE(false)
+        Utype *utype = compileUtype(ast->getSubAst(ast_utype));
+        RESTORE_TYPE_INFERENCE()
+        RESTORE_BLOCK_TYPE()
+
+        alias->type = utype->getResolvedType() ? utype->getResolvedType()->type : UNDEFINED;
+        alias->utype = utype;
     }
 }
 
@@ -3904,6 +3991,9 @@ void Compiler::resolveClassFields(Ast* ast, ClassObject* currentClass) {
                 break;
             case ast_variable_decl:
                 resolveField(branch);
+                break;
+            case ast_alias_decl:
+                resolveAlias(branch);
                 break;
             case ast_func_prototype:
                 resolvePrototypeField(branch);
@@ -4988,6 +5078,9 @@ void Compiler::resolveAllFields() {
                 case ast_variable_decl:
                     resolveField(branch);
                     break;
+                case ast_alias_decl:
+                    resolveAlias(branch);
+                    break;
                 case ast_func_prototype:
                     resolvePrototypeField(branch);
                     break;
@@ -5151,6 +5244,9 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
     List<Method*> functions;
     List<ClassObject*> resolvedClasses;
 
+    if(ptr.mod != "")
+        goto globalCheck;
+
     if(currentScope()->type >= INSTANCE_BLOCK && currentScope()->getLocalField(name) != NULL) {
         Field* field = currentScope()->getLocalField(name)->field;
 
@@ -5298,7 +5394,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         utype->getCode().getInjector(stackInjector)
                 .push_i64(SET_Ei(i64, op_PUSHOBJ));
         return;
-    } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveClass(ptr.mod, name, ast)) != NULL) {
+    } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveClass("", name, ast)) != NULL) {
         utype->setType(utype_class);
         utype->setResolvedType(resolvedUtype);
         utype->setArrayType(false);
@@ -5389,11 +5485,29 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         utype->getCode().push_i64(SET_Di(i64, op_MOVI, functions.get(0)->address), i64ebx);
         utype->getCode().getInjector(stackInjector)
                 .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
-    } else {
-        ClassObject* global = resolveClass(currModule, globalClass, ast);
+    } else if((resolvedUtype = currentScope()->klass->getAlias(name, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) != NULL) {
+        Alias* alias = (Alias*)resolvedUtype;
+        compileAliasType(alias);
+
+        utype->copy(alias->utype);
+        utype->getCode().free().inject(alias->utype->getCode());
+        utype->getCode().getInjector(ptrInjector).free().inject(alias->utype->getCode().getInjector(ptrInjector));
+        utype->getCode().getInjector(ebxInjector).free().inject(alias->utype->getCode().getInjector(ebxInjector));
+        utype->getCode().getInjector(stackInjector).free().inject(alias->utype->getCode().getInjector(stackInjector));
+        validateAccess(alias, ast);
+        checkTypeInference(alias, ast);
+    }  else {
+        globalCheck:
+        ClassObject* global = resolveClass(ptr.mod == "" ? currModule : ptr.mod, globalClass, ast);
         functions.free();
 
-        if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = global->getField(name, true)) != NULL) {
+        if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveClass(ptr.mod, name, ast)) != NULL) {
+            utype->setType(utype_class);
+            utype->setResolvedType(resolvedUtype);
+            utype->setArrayType(false);
+            validateAccess((ClassObject*)resolvedUtype, ast);
+            checkTypeInference(ast);
+        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = global->getField(name, true)) != NULL) {
             Field* field = (Field*)resolvedUtype;
             compileFieldType(field);
 
@@ -5444,6 +5558,18 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             utype->getCode().push_i64(SET_Di(i64, op_MOVI, functions.get(0)->address), i64ebx);
             utype->getCode().getInjector(stackInjector)
                     .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+            return;
+        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = global->getAlias(name, true)) != NULL) {
+            Alias* alias = (Alias*)resolvedUtype;
+            compileAliasType(alias);
+
+            utype->copy(alias->utype);
+            utype->getCode().free().inject(alias->utype->getCode());
+            utype->getCode().getInjector(ptrInjector).free().inject(alias->utype->getCode().getInjector(ptrInjector));
+            utype->getCode().getInjector(ebxInjector).free().inject(alias->utype->getCode().getInjector(ebxInjector));
+            utype->getCode().getInjector(stackInjector).free().inject(alias->utype->getCode().getInjector(stackInjector));
+            validateAccess(alias, ast);
+            checkTypeInference(alias, ast);
             return;
         }
 
@@ -5502,6 +5628,20 @@ void Compiler::compileFieldType(Field *field) {
     }
 }
 
+/*
+ * The purposes of this function is to "forward" process a field's type and value if it hasn't
+ * been processed yet to prevent weird incorrect undefined errors from the compiler
+ */
+void Compiler::compileAliasType(Alias *alias) {
+    if(alias != NULL) {
+        if (alias->type == UNTYPED) {
+            currScope.add(new Scope(alias->owner, alias->owner->isGlobalClass() ? GLOBAL_SCOPE : CLASS_SCOPE));
+            resolveAlias(alias->ast);
+            removeScope();
+        }
+    }
+}
+
 void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferencePointer& ptr, Utype* utype, Ast* ast) {
     bool lastReference;
     Utype *bridgeUtype = new Utype(); // we need this so we dont loose code when free is called
@@ -5519,7 +5659,7 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
         bridgeUtype->getCode().free();
         bridgeUtype->getCode().instanceCaptured = true;
         bridgeUtype->setType(utype_unresolved);
-        resolveUtype(nextReference, bridgeUtype, ast);
+        resolveSingularUtype(nextReference, bridgeUtype, ast);
         if(utype->getType() != utype_unresolved && utype->isArray()) {
             errors->createNewError(GENERIC, ast->line, ast->col, "dot notation access on array of type `" + utype->toString() + "`");
         } else if(utype->getType() != utype_unresolved && !utype->isArray() && utype->getResolvedType()->isVar()) {
@@ -5607,106 +5747,23 @@ void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
 
     if(ptr.classes.singular() && ptr.mod == "") {
         resolveSingularUtype(ptr, utype, ast);
-    } else if(ptr.classes.singular() && ptr.mod != "") {
-        DataEntity* resolvedUtype = NULL;
-        string name = ptr.classes.get(0);
-        List<Method*> functions;
-        ClassObject* global = resolveClass(ptr.mod, globalClass, ast);
-
-        if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveClass(ptr.mod, name, ast)) != NULL) {
-            utype->setType(utype_class);
-            utype->setResolvedType(resolvedUtype);
-            utype->setArrayType(false);
-            validateAccess((ClassObject*)resolvedUtype, ast);
-            checkTypeInference(ast);
-        } else if(global != NULL && global->getFunctionByName(name, functions)) {
-            if(currentScope()->type == RESTRICTED_INSTANCE_BLOCK && !currentScope()->klass->isClassRelated(global)) {
-
-                errors->createNewError(COULD_NOT_RESOLVE, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, " `" + name + "` " +
-                              (ptr.mod == "" ? "" : "in module {" + ptr.mod + "} "));
-                return;
-            }
-            if(functions.size() > 1)
-                createNewWarning(GENERIC, __WAMBIG, ast->line, ast->col, "reference to function `" + functions.get(0)->name + "` is ambiguous");
-            utype->setType(utype_method);
-            utype->setResolvedType(functions.get(0));
-            utype->setArrayType(false);
-
-            if(!functions.get(0)->flags.find(STATIC)) {
-                errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, " function pointer `" + name + "` " +
-                        ( ptr.mod ==  "" ? "" : "in module {" + ptr.mod + "} ") + "must be static");
-            }
-            utype->getCode().push_i64(SET_Di(i64, op_MOVI, functions.get(0)->address), i64ebx);
-            utype->getCode().getInjector(stackInjector)
-                    .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
-        } else {
-            errors->createNewError(COULD_NOT_RESOLVE, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, " `" + name + "` " +
-                    ( ptr.mod ==  "" ? "" : "in module {" + ptr.mod + "} "));
-        }
     } else {
-        DataEntity* resolvedUtype = NULL;
-        string name = ptr.classes.get(0);
-        List<Method*> functions;
+        string name = ptr.classes.at(0);
+        ReferencePointer initialRefrence;
+        initialRefrence.classes.add(name);
+        initialRefrence.mod = ptr.mod;
 
-        if(currentScope()->type != CLASS_SCOPE && currentScope()->type != RESTRICTED_INSTANCE_BLOCK && currentScope()->getLocalField(name) != NULL) {
-            resolvedUtype = currentScope()->getLocalField(name)->field;
-
-            /**
-             * You cannot access a var in this manner because it
-             * is not a data structure
-             */
-            if(resolvedUtype->type != CLASS) {
-                errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col,
-                                       "field `" + name + "` is not a class");
-                return;
-            }
-            else {
-                if(((Field*)resolvedUtype)->locality == stl_thread) {
-                    utype->getCode().push_i64(SET_Di(i64, op_TLS_MOVL, resolvedUtype->address));
-                } else {
-                    utype->getCode().push_i64(SET_Di(i64, op_MOVL, resolvedUtype->address));
-                }
-            }
-
-            validateAccess((Field*)resolvedUtype, ast);
-            resolveClassHeiarchy(resolvedUtype, false, ptr, utype, ast);
-        } else if((resolvedUtype = currentScope()->klass->getField(name, true)) != NULL) {
-            Field *field = (Field*)resolvedUtype;
-            compileFieldType(field);
-            validateAccess(field, ast);
-            if(field->getter != NULL) {
-                compileFieldGetterCode(utype->getCode(), field);
-            } else {
-                if (((Field *) resolvedUtype)->locality == stl_thread) {
-                    utype->getCode().push_i64(SET_Di(i64, op_TLS_MOVL, resolvedUtype->address));
-                } else {
-                    if (currentScope()->type == STATIC_BLOCK && !resolvedUtype->flags.find(STATIC)) {
-                        errors->createNewError(GENERIC, ast->getSubAst(ast_type_identifier)->line,
-                                               ast->getSubAst(ast_type_identifier)->col,
-                                               "cannot get object `" + name + "` from self in static context");
-                    }
-
-                    if (resolvedUtype->flags.find(STATIC))
-                        utype->getCode().push_i64(SET_Di(i64, op_MOVG, resolvedUtype->owner->address));
-                    else if(!utype->getCode().instanceCaptured){
-                        utype->getCode().instanceCaptured = true;
-                        utype->getCode().push_i64(SET_Di(i64, op_MOVL, 0));
-                    }
-                    utype->getCode().push_i64(SET_Di(i64, op_MOVN, resolvedUtype->address));
-                }
-            }
-
-            validateAccess(field, ast);
-            resolveClassHeiarchy(field, false, ptr, utype, ast);
-            return;
-        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveClass(ptr.mod, name, ast)) != NULL) {
-            resolveClassHeiarchy(resolvedUtype, true, ptr, utype, ast);
-        } else if((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL) {
-            resolveClassHeiarchy(resolvedUtype, true, ptr, utype, ast);
-            return;
+        resolveSingularUtype(initialRefrence, utype, ast);
+        if(utype->getType() == utype_method || utype->getType() == utype_method_prototype) {
+            errors->createNewError(GENERIC, ast->line, ast->col, "symbol `" + utype->toString() +
+                             "` is a pointer to the respective function and this returns a var and cannot be used as a class field.");
+        } else if(utype->getType() == utype_class) {
+            resolveClassHeiarchy(utype->getResolvedType(), true, ptr, utype, ast);
+        } else if(utype->getType() == utype_field) {
+            resolveClassHeiarchy(utype->getResolvedType(), false, ptr, utype, ast);
         } else {
-            errors->createNewError(COULD_NOT_RESOLVE, ast->getSubAst(ast_type_identifier)->line, ast->getSubAst(ast_type_identifier)->col, " `" + name + "` " +
-                                                      (ptr.mod == "" ? "" : "in module {" + ptr.mod + "} "));
+            errors->createNewError(GENERIC, ast->line, ast->col, "symbol `" + utype->toString() +
+                          "` is not a class or field and cannot be used as such.");
         }
     }
 }
@@ -6697,7 +6754,6 @@ void Compiler::handleImports() {
 }
 
 bool Compiler::preprocess() {
-
     bool success = true;
     for(unsigned long i = 0; i < parsers.size(); i++) {
         current = parsers.get(i);
@@ -6727,6 +6783,7 @@ bool Compiler::preprocess() {
                                                                                "first in every file");
                 }
             }
+
             switch(branch->getType()) {
                 case ast_class_decl:
                     preProccessClassDecl(branch, false);
@@ -6752,6 +6809,9 @@ bool Compiler::preprocess() {
                     break;
                 case ast_variable_decl:
                     preProccessVarDecl(branch);
+                    break;
+                case ast_alias_decl:
+                    preProccessAliasDecl(branch);
                     break;
                 case ast_func_prototype:
                     preProccessVarDecl(branch);

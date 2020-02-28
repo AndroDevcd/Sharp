@@ -25,13 +25,5 @@ public:
     List<string> classes;
 };
 
-enum utype_rules {
-    ut_self,
-    ut_base,
-    ut_fields,
-    ut_methods,
-    ut_classes,
-};
-
 
 #endif //SHARP_REFRENCEPOINTER_H

@@ -30,7 +30,7 @@ public:
     {
     }
 
-    Field(DataType type, long guid, const string name, ClassObject* owner, List<AccessFlag>& flags,
+    Field(DataType type, long guid, string name, ClassObject* owner, List<AccessFlag>& flags,
            Meta& meta, StorageLocality stl, long addr)
         :
         DataEntity(),

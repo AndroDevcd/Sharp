@@ -391,7 +391,7 @@ void parser::parseAssemblyStmnt(Ast *ast) {
 }
 
 void parser::parseAliasDeclaration(Ast *ast) {
-    Ast* branch = getBranch(ast, ast_alias_statement);
+    Ast* branch = getBranch(ast, ast_alias_decl);
 
     access_types.free();
     if(isAccessDecl(current()))
@@ -399,10 +399,10 @@ void parser::parseAliasDeclaration(Ast *ast) {
         parseAccessTypes();
     }
 
-    expect(branch, "alias");
     parseUtype(branch);
-    expect(branch, "as");
+    expect(branch, "as", false);
     expectIdentifier(branch);
+    expect(branch, ";", false);
 }
 
 void parser::parseIfStatement(Ast *ast) {
@@ -822,9 +822,6 @@ void parser::parseInterfaceBlock(Ast* ast) {
         }
         else if(isAliasDeclaration(current()))
         {
-            if(access_types.size() > 0)
-                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-            errors->createNewError(GENERIC, current(), "unexpected alias declaration");
             parseAliasDeclaration(branch);
         }
         else if((isVariableDecl(current()) && (*peek(1) == ":" || *peek(1) == ":=")) ||
@@ -2593,7 +2590,8 @@ bool parser::isKeyword(string key) {
            || key == "delegate" || key == "interface" || key == "lock" || key == "enum"
            || key == "switch" || key == "default" || key == "fn" || key == "local"
            || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
-           || key == "mutate" || key == "init" || key == "get" || key == "set";
+           || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
+           || key == "as";
 }
 
 void parser::parseAccessTypes() {

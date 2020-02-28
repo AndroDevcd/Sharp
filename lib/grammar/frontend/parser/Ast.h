@@ -74,7 +74,7 @@ enum ast_type
     ast_while_statement,
     ast_do_while_statement,
     ast_assembly_statement,
-    ast_alias_statement,
+    ast_alias_decl,
     ast_for_statement,
     ast_for_expresion_cond,
     ast_for_expresion_iter,

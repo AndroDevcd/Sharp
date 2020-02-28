@@ -12,6 +12,7 @@
 #include "data/Utype.h"
 #include "Expression.h"
 #include "oo/FunctionType.h"
+#include "data/Alias.h"
 
 class Compiler {
 
@@ -174,7 +175,9 @@ private:
     StorageLocality strtostl(string locality);
     void preProccessVarDeclHelper(List<AccessFlag>& flags, Ast* ast);
     void preProccessVarDecl(Ast* ast);
+    void preProccessAliasDecl(Ast* ast);
     int64_t checkstl(StorageLocality locality);
+    void resolveAlias(Ast* ast);
     void parseVariableAccessFlags(List<AccessFlag> &flags, Ast *ast);
     ClassObject* addChildClassObject(string name, List<AccessFlag> &flags, ClassObject* owner, Ast* ast);
     void removeScope();
@@ -194,6 +197,7 @@ private:
     void inlineVariableValue(IrCode &code, Field *field);
     bool isDClassNumberEncodable(double var);
     Field *resolveEnum(string name);
+    void compileAliasType(Alias *alias);
     void resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferencePointer& refrence, Utype* utype, Ast* ast);
     int64_t getLowBytes(double var);
     DataType strToNativeType(string &str);
@@ -240,6 +244,8 @@ private:
     void validateAccess(ClassObject *klass, Ast* pAst);
     void validateAccess(Field *field, Ast* pAst);
     void validateAccess(Method *function, Ast* pAst);
+    void validateAccess(Alias *alias, Ast* pAst);
+    void checkTypeInference(Alias *alias, Ast* ast);
     bool resolveClass(List<ClassObject*> &classes, List<ClassObject*> &results, string mod, string name, Ast* pAst, bool match = false);
     void resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *ast);
     void preProccessImportDecl(Ast *branch, List<string> &imports);

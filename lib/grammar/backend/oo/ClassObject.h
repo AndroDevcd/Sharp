@@ -12,6 +12,7 @@
 class Method;
 class Field;
 class Utype;
+class Alias;
 
 enum class_type
 {
@@ -73,6 +74,7 @@ public:
     bool getFunctionByName(string name, List<Method*> &functions, bool checkBase = false);
     long getFieldAddress(Field* field);
     long getFieldIndex(string &name);
+    Alias* getAlias(string name, bool checkBase);
     long totalFieldCount();
     void addClass(ClassObject* k) {
         classes.add(k);
@@ -92,6 +94,7 @@ public:
 
     List<string>& getKeys() { return keys; }
     List<Utype*>& getKeyTypes() { return keyTypes; }
+    List<Alias*>& getAliases() { return aliases; }
     List<ClassObject*> & getChildClasses() { return classes; }
     ClassObject* getGenericOwner() { return genericOwner; }
     void setGenericOwner(ClassObject* owner) { genericOwner = owner; }
@@ -159,6 +162,7 @@ private:
     List<Ast*> extensionFunctions;
     List<Ast*> classMutations;
     List<ClassObject*> classes;
+    List<Alias*> aliases;
     List<ClassObject*> interfaces;
     List<Field*> fields;
     List<string> keys;

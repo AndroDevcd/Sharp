@@ -140,7 +140,7 @@ private:
     void parseSwitchBlock(Ast*);
     void parseSwitchDeclarator(Ast*);
     void parseAssemblyStmnt(Ast*);
-    void parseAliasDeclaration(Ast *ast)
+    void parseAliasDeclaration(Ast *ast);
     void parseAssemblyBlock(Ast*);
     void parseForStmnt(Ast*);
 

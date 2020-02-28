@@ -4,6 +4,7 @@
 
 #include "ClassObject.h"
 #include "../Compiler.h"
+#include "../data/Alias.h"
 
 
 void ClassObject::free()
@@ -27,6 +28,21 @@ Field* ClassObject::getField(string name, bool checkBase) {
 
     if(checkBase && super)
         return super->getField(name, true);
+
+    return NULL;
+}
+
+Alias* ClassObject::getAlias(string name, bool checkBase) {
+    Alias *alias = NULL;
+    for(long i = 0; i < aliases.size(); i++) {
+        alias = aliases.get(i);
+        if(alias->name == name) {
+            return alias;
+        }
+    }
+
+    if(checkBase && super)
+        return super->getAlias(name, true);
 
     return NULL;
 }
