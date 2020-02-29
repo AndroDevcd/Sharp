@@ -2,11 +2,9 @@ mod app.time;
 
 import std;
 
-alias K as orange;
-
 class K {
     //zstr := "hi ${new var[] {i, 8, 9}}";
-    apples := orange;//(fo()[0].Y.fo()[9].oranges[0]) ;//+ 10 - 100 * l[9];
+    apples := !K;//(fo()[0].Y.fo()[9].oranges[0]) ;//+ 10 - 100 * l[9];
 //    kl := get_oranges();
 
     oranges : object[];
@@ -25,6 +23,7 @@ class K {
     // warn the user returning in an init is not reccomended
 //    init apples = 9;
 
+    def foop() := K;
     def fo(fn ptr(var, object[]) : nil) : var {}
 
     def fo(fn ptr(K, object[]) : nil) : K[] {}

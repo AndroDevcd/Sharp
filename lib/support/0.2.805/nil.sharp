@@ -1,0 +1,25 @@
+mod std;
+
+/**
+ * Created by braxtonn on 11/19/2019.
+ *
+ * Object is the "god" class of all classes and enums in
+ * Sharp. This class represents a common link shared between
+ * each class allowing you to manipulate classes without not
+ * needing to know its true makeup.
+ */
+stable ext class _nil_ {
+    static instance : _nil_;
+        get
+        {
+            if(instance == null) {
+                instance = new _nil_{ };
+                return instance;
+            } else {
+                return instance;
+            }
+        }
+        set value -> {} // prevent the user from setting a new value
+
+//    public def delegate::to_string() := new string("nil");
+}

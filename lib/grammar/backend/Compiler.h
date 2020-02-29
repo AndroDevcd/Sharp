@@ -225,8 +225,9 @@ private:
     Field* compileUtypeArg(Ast* ast);
     void compileParenExpression(Expression* expr, Ast* ast);
     void compileArrayExpression(Expression* expr, Ast* ast);
+    void compilePreIncExpression(Expression* expr, Ast* ast);
     void compileLambdaExpression(Expression* expr, Ast* ast);
-    Utype* compileLambdaReturnType(Ast* ast);
+    void compileNotExpression(Expression* expr, Ast* ast);
     Method* findLambdaByAst(Ast *ast);
     void compileLambdaArgList(List<Field*> &fields, Ast* ast);
     Field* compileLambdaArg(Ast *ast);

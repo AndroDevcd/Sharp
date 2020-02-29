@@ -2905,110 +2905,124 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
         compileNewArrayExpression(expr, ast->getSubAst(ast_array_expression), arrayType);
     } else if(ast->hasSubAst(ast_expression_list) && ast->getSubAst(ast_expression_list)->hasEntity(LEFTPAREN)) {
         if(arrayType->getClass() && arrayType->getType() != utype_field) {
-            if(!arrayType->getClass()->flags.find(EXTENSION)) {
-                List<Expression*> expressions;
-                List<Field*> params;
-                Method *constr;
-                compileExpressionList(expressions, ast->getSubAst(ast_expression_list));
-                expressionsToParams(expressions, params);
-
-                expr->ast = ast;
-                expr->utype->copy(arrayType);
-                expr->utype->setArrayType(false);
-                expr->type = utypeToExpressionType(arrayType);
-
-                if((constr = findFunction(arrayType->getClass(), arrayType->getClass()->name, params, ast, false, fn_constructor)) == NULL) {
-                    errors->createNewError(GENERIC, ast->line, ast->col, "class `" + arrayType->toString() + "` does not contain constructor `"
-                         + arrayType->getClass()->name + Method::paramsToString(params) + "`");
-                }
-
-                if(constr != NULL) {
-                    validateAccess(constr, ast);
-                    expr->utype->getCode().push_i64(SET_Di(i64, op_NEWCLASS, expr->utype->getClass()->address));
-
-                    for(long i = 0; i < params.size(); i++) {
-                        Field *param = constr->params.get(i);
-                        if(isUtypeConvertableToNativeClass(param->utype, params.get(i)->utype)) {
-                            convertUtypeToNativeClass(param->utype, params.get(i)->utype, expr->utype->getCode(), ast);
-                        } else {
-                            params.get(i)->utype->getCode().inject(stackInjector);
-                            expr->utype->getCode().inject(params.get(i)->utype->getCode());
-                        }
-                    }
-
-                    expr->utype->getCode().push_i64(SET_Di(i64, op_CALL, constr->address));
-                }
-
-                freeListPtr(expressions);
-                freeListPtr(params);
+            if(arrayType->getClass()->flags.find(EXTENSION)) {
+                if(currentScope()->klass->match(arrayType->getClass())
+                    && (currentScope()->type == CLASS_SCOPE || currentScope()->type == INSTANCE_BLOCK
+                        || currentScope()->type == STATIC_BLOCK)) { }
+                else
+                    goto extErr;
             } else {
+                extErr:
                 errors->createNewError(GENERIC, ast->line, ast->col, "cannot instantiate extension class `" + arrayType->toString() + "`");
             }
+
+            List<Expression*> expressions;
+            List<Field*> params;
+            Method *constr;
+            compileExpressionList(expressions, ast->getSubAst(ast_expression_list));
+            expressionsToParams(expressions, params);
+
+            expr->ast = ast;
+            expr->utype->copy(arrayType);
+            expr->utype->setArrayType(false);
+            expr->type = utypeToExpressionType(arrayType);
+
+            if((constr = findFunction(arrayType->getClass(), arrayType->getClass()->name, params, ast, false, fn_constructor)) == NULL) {
+                errors->createNewError(GENERIC, ast->line, ast->col, "class `" + arrayType->toString() + "` does not contain constructor `"
+                                                                     + arrayType->getClass()->name + Method::paramsToString(params) + "`");
+            }
+
+            if(constr != NULL) {
+                validateAccess(constr, ast);
+                expr->utype->getCode().push_i64(SET_Di(i64, op_NEWCLASS, expr->utype->getClass()->address));
+
+                for(long i = 0; i < params.size(); i++) {
+                    Field *param = constr->params.get(i);
+                    if(isUtypeConvertableToNativeClass(param->utype, params.get(i)->utype)) {
+                        convertUtypeToNativeClass(param->utype, params.get(i)->utype, expr->utype->getCode(), ast);
+                    } else {
+                        params.get(i)->utype->getCode().inject(stackInjector);
+                        expr->utype->getCode().inject(params.get(i)->utype->getCode());
+                    }
+                }
+
+                expr->utype->getCode().push_i64(SET_Di(i64, op_CALL, constr->address));
+            }
+
+            freeListPtr(expressions);
+            freeListPtr(params);
         } else
             errors->createNewError(GENERIC, ast->line, ast->col, "arrayType `" + arrayType->toString() + "` must be a class");
     } else if(ast->hasSubAst(ast_field_init_list) || ast->hasSubAst(ast_expression_list)) {
         if(arrayType->getClass() && arrayType->getType() != utype_field) {
-            if(!arrayType->getClass()->flags.find(EXTENSION)) {
-                List<KeyPair<Field*, bool>> fields;
-                ClassObject *klass = arrayType->getClass();
+            if(arrayType->getClass()->flags.find(EXTENSION)) {
+                if(currentScope()->klass->match(arrayType->getClass())
+                   && (currentScope()->type == CLASS_SCOPE || currentScope()->type == INSTANCE_BLOCK
+                       || currentScope()->type == STATIC_BLOCK)) { }
+                else
+                    goto extErr2;
+            } else {
+                extErr2:
+                errors->createNewError(GENERIC, ast->line, ast->col, "cannot instantiate extension class `" + arrayType->toString() + "`");
+            }
 
-                expr->ast = ast;
-                expr->utype->copy(arrayType);
-                expr->utype->setArrayType(false);
-                expr->type = utypeToExpressionType(arrayType);
+            List<KeyPair<Field*, bool>> fields;
+            ClassObject *klass = arrayType->getClass();
 
-                addFields:
-                for(long i = 0; i < klass->fieldCount(); i++) {
-                    fields.add(KeyPair<Field*, bool>(klass->getField(i), false));
-                    compileFieldType(klass->getField(i));
-                }
+            expr->ast = ast;
+            expr->utype->copy(arrayType);
+            expr->utype->setArrayType(false);
+            expr->type = utypeToExpressionType(arrayType);
 
-                if(klass->getSuperClass() != NULL) {
-                    klass = klass->getSuperClass();
-                    goto addFields;
-                }
+            addFields:
+            for(long i = 0; i < klass->fieldCount(); i++) {
+                fields.add(KeyPair<Field*, bool>(klass->getField(i), false));
+                compileFieldType(klass->getField(i));
+            }
 
-                expr->utype->getCode().push_i64(SET_Di(i64, op_NEWCLASS, expr->utype->getClass()->address));
-                compileFieldInitialization(expr, fields,
-                        ast->getSubAst(ast_expression_list) == NULL ? ast->getSubAst(ast_field_init_list) : ast->getSubAst(ast_expression_list));
+            if(klass->getSuperClass() != NULL) {
+                klass = klass->getSuperClass();
+                goto addFields;
+            }
 
-                // for the rest of the fields we only do the main class i n question for automatic initialization
-                for(long i = 0; i < fields.size(); i++) {
-                    if(!fields.get(i).value) {
-                        fields.get(i).value = true;
-                        Field *field = fields.get(i).key;
-                        if(field->ast->hasSubAst(ast_expression) && !field->flags.find(STATIC) && field->owner->guid == arrayType->getClass()->guid) {
-                            if(field->ast->getSubAst(ast_expression)->hasSubAst(ast_primary_expr)
-                                && field->ast->getSubAst(ast_expression)->getSubAst(ast_primary_expr)->hasSubAst(ast_new_e)
-                                && field->ast->getSubAst(ast_expression)->getSubAst(ast_primary_expr)->getSubAst(ast_new_e) == ast) {
-                                errors->createNewError(GENERIC, ast->line, ast->col, "cyclic expression found while attempting to compile new expression. Expression code being assigned to field `"
-                                + field->toString() + "` will cause stack overflow error.\n\nTo fix this, I suggest you remove the default value of the field or assign the field directly in the new expression like so `new " + arrayType->getResolvedType()->name + " { ..., " + field->name + " = <your-expr> }`.");
-                            } else {
-                                Expression assignExpression;
-                                compileExpression(&assignExpression, field->ast->getSubAst(ast_expression));
+            expr->utype->getCode().push_i64(SET_Di(i64, op_NEWCLASS, expr->utype->getClass()->address));
+            compileFieldInitialization(expr, fields,
+                                       ast->getSubAst(ast_expression_list) == NULL ? ast->getSubAst(ast_field_init_list) : ast->getSubAst(ast_expression_list));
 
-                                if (isUtypeConvertableToNativeClass(field->utype, assignExpression.utype)) {
-                                    convertUtypeToNativeClass(field->utype, assignExpression.utype,
-                                                              expr->utype->getCode(), ast);
+            // for the rest of the fields we only do the main class i n question for automatic initialization
+            for(long i = 0; i < fields.size(); i++) {
+                if(!fields.get(i).value) {
+                    fields.get(i).value = true;
+                    Field *field = fields.get(i).key;
+                    if(field->ast->hasSubAst(ast_expression) && !field->flags.find(STATIC) && field->owner->guid == arrayType->getClass()->guid) {
+                        if(field->ast->getSubAst(ast_expression)->hasSubAst(ast_primary_expr)
+                           && field->ast->getSubAst(ast_expression)->getSubAst(ast_primary_expr)->hasSubAst(ast_new_e)
+                           && field->ast->getSubAst(ast_expression)->getSubAst(ast_primary_expr)->getSubAst(ast_new_e) == ast) {
+                            errors->createNewError(GENERIC, ast->line, ast->col, "cyclic expression found while attempting to compile new expression. Expression code being assigned to field `"
+                                                                                 + field->toString() + "` will cause stack overflow error.\n\nTo fix this, I suggest you remove the default value of the field or assign the field directly in the new expression like so `new " + arrayType->getResolvedType()->name + " { ..., " + field->name + " = <your-expr> }`.");
+                        } else {
+                            Expression assignExpression;
+                            compileExpression(&assignExpression, field->ast->getSubAst(ast_expression));
 
-                                    assignExpression.type = utypeToExpressionType(field->utype);
-                                    assignExpression.utype->copy(field->utype);
-                                    assignExpression.utype->getCode().free();
+                            if (isUtypeConvertableToNativeClass(field->utype, assignExpression.utype)) {
+                                convertUtypeToNativeClass(field->utype, assignExpression.utype,
+                                                          expr->utype->getCode(), ast);
 
-                                    assignFieldInitExpressionValue(field, &assignExpression, &expr->utype->getCode(),
-                                                                   ast);
-                                } else
-                                    assignFieldInitExpressionValue(field, &assignExpression, &expr->utype->getCode(),
-                                                                   ast);
-                            }
+                                assignExpression.type = utypeToExpressionType(field->utype);
+                                assignExpression.utype->copy(field->utype);
+                                assignExpression.utype->getCode().free();
+
+                                assignFieldInitExpressionValue(field, &assignExpression, &expr->utype->getCode(),
+                                                               ast);
+                            } else
+                                assignFieldInitExpressionValue(field, &assignExpression, &expr->utype->getCode(),
+                                                               ast);
                         }
                     }
                 }
-
-                compilePostAstExpressions(expr, ast, 2);
-            } else {
-                errors->createNewError(GENERIC, ast->line, ast->col, "cannot instantiate extension class `" + arrayType->toString() + "`");
             }
+
+            compilePostAstExpressions(expr, ast, 2);
         } else
             errors->createNewError(GENERIC, ast->line, ast->col, "arrayType `" + arrayType->toString() + "` must be a class");
     }
@@ -3326,19 +3340,17 @@ void Compiler::compileArrayExpression(Expression* expr, Ast* ast) {
     compilePostAstExpressions(expr, ast);
 }
 
-void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression, Ast* ast) {
-    // use restricted insance for context expressions
-    if(compileExpression)
-        this->compileExpression(expr, ast->getSubAst(ast_expression));
+void Compiler::compileNotExpression(Expression* expr, Ast* ast) {
+    this->compileExpression(expr, ast->getSubAst(ast_expression));
 
-    Token tok = ast->hasEntity(_INC) ? ast->getToken(_INC) : ast->getToken(_DEC);
-
+    Token tok = ast->getToken(NOT);
     if(expr->utype->isArray()) {
         errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "expression of type `" + expr->utype->toString() + "` must return a var to use `" +
                                                                         tok.getValue() + "` operator");
     } else if(expr->utype->getType() != utype_unresolved){
         Method *overload;
-        List<Field*> emptyParams;
+        List<Field*> params; // def operator!() { ... }
+
         switch(expr->utype->getResolvedType()->type) {
             case NIL:
                 errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "cannot use `" + tok.getValue() + "` operator on expression that returns nil");
@@ -3349,8 +3361,7 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
             case UNDEFINED:
                 break;
             case OBJECT:
-                errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "expressions of type object must be casted before using `"
-                                                                                + tok.getValue() + "` operator try `((Type)<your-expression>)++` instead");
+                errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "expressions of type object must be casted before using `!` operator, try `!((Type)<your-expression>)` instead");
                 break;
 
             case _INT8:
@@ -3363,15 +3374,100 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
             case _UINT64:
             case VAR:
                 expr->utype->getCode().inject(expr->utype->getCode().getInjector(ebxInjector));
-                if(tok == "++")
+                expr->utype->getCode().push_i64(SET_Ci(i64, op_NOT, i64ebx,0, i64ebx));
+
+                expr->freeInjectors();
+                expr->utype->getCode().getInjector(stackInjector)
+                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                break;
+
+            case CLASS:
+                if((overload = findFunction((ClassObject*)expr->utype->getResolvedType(), "operator" + tok.getValue(),
+                                            params, ast, true, fn_op_overload)) != NULL) {
+                    validateAccess(overload, ast);
+                    expr->utype->copy(overload->utype);
+
+                    expr->utype->getCode().push_i64(SET_Di(i64, op_CALL, overload->address));
+                } else {
+                    errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "call to function `" + expr->utype->toString() + "` must return an var or class to use `" + tok.getValue() + "` operator");
+                }
+
+                expr->freeInjectors();
+                if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
+                    || expr->utype->getResolvedType()->type == CLASS) {
+                    expr->utype->getCode().getInjector(ptrInjector)
+                            .push_i64(SET_Ei(i64, op_POPOBJ_2));
+                } else if (expr->utype->getResolvedType()->isVar()) {
+                    expr->utype->getCode().getInjector(ebxInjector)
+                            .push_i64(SET_Di(i64, op_LOADVAL, i64ebx));
+                }
+                break;
+        }
+    }
+
+    compilePostAstExpressions(expr, ast);
+}
+
+void Compiler::compilePreIncExpression(Expression* expr, Ast* ast) {
+    // use restricted insance for context expressions
+    this->compileExpression(expr, ast->getSubAst(ast_expression));
+
+    Token tok = ast->hasEntity(_INC) ? ast->getToken(_INC) : ast->getToken(_DEC);
+
+    if(expr->utype->isArray()) {
+        errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "expression of type `" + expr->utype->toString() + "` must return a var to use `" +
+                                                                        tok.getValue() + "` operator");
+    } else if(expr->utype->getType() != utype_unresolved){
+        Method *overload;
+        List<Field*> params; // def operator++() { ... }
+
+        switch(expr->utype->getResolvedType()->type) {
+            case NIL:
+                errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "cannot use `" + tok.getValue() + "` operator on expression that returns nil");
+                break;
+            case UNTYPED:
+                errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "the type of the expression that is returned from `" + expr->utype->toString() + "` is untyped. Mostly likely due to a compiler bug, and therefore cannot use operator `" + tok.getValue() + "`");
+                break;
+            case UNDEFINED:
+                break;
+            case OBJECT:
+                errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "expressions of type object must be casted before using `"
+                                                                                + tok.getValue() + "` operator, try `++((Type)<your-expression>)` instead");
+                break;
+
+            case _INT8:
+            case _INT16:
+            case _INT32:
+            case _INT64:
+            case _UINT8:
+            case _UINT16:
+            case _UINT32:
+            case _UINT64:
+            case VAR:
+                expr->utype->getCode().inject(expr->utype->getCode().getInjector(ebxInjector));
+                if (tok == "++")
                     expr->utype->getCode().push_i64(SET_Di(i64, op_INC, i64ebx));
                 else
                     expr->utype->getCode().push_i64(SET_Di(i64, op_DEC, i64ebx));
 
-                if(expr->utype->getResolvedType()->type <= _UINT64) {
+                if (expr->utype->getResolvedType()->type <= _UINT64) {
                     expr->utype->getCode()
                             .push_i64(SET_Ci(i64, dataTypeToOpcode(expr->utype->getResolvedType()->type), i64ebx, 0,
                                              i64ebx));
+                }
+
+                if(expr->utype->getType() == utype_field) {
+                    Field *field = (Field*)expr->utype->getResolvedType();
+
+                    if(field->local) {
+                        expr->utype->getCode().push_i64(SET_Ci(i64, op_SMOVR_2, i64ebx, 0, field->address));
+                    } else {
+                        // we know that Ptr has to still be set because we had to pull the ebx value from it
+                        // this is very dangerous but we have to assume or assumptions are correct
+                        expr->utype->getCode()
+                                .push_i64(SET_Di(i64, op_MOVI, 0), i64adx) // I'm pretty sure adx is already set to 0 but just in-case
+                                .push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
+                    }
                 }
 
                 expr->freeInjectors();
@@ -3381,13 +3477,120 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
 
             case CLASS:
                 if((overload = findFunction((ClassObject*)expr->utype->getResolvedType(), "operator" + tok.getValue(),
-                                            emptyParams, ast, true, fn_op_overload)) != NULL) {
+                                            params, ast, true, fn_op_overload)) != NULL) {
                     validateAccess(overload, ast);
                     expr->utype->copy(overload->utype);
 
                     expr->utype->getCode().push_i64(SET_Di(i64, op_CALL, overload->address));
                 } else {
                     errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "call to function `" + expr->utype->toString() + "` must return an var or class to use `" + tok.getValue() + "` operator");
+                }
+
+                expr->freeInjectors();
+                if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
+                    || expr->utype->getResolvedType()->type == CLASS) {
+                    expr->utype->getCode().getInjector(ptrInjector)
+                            .push_i64(SET_Ei(i64, op_POPOBJ_2));
+                } else if (expr->utype->getResolvedType()->isVar()) {
+                    expr->utype->getCode().getInjector(ebxInjector)
+                            .push_i64(SET_Di(i64, op_LOADVAL, i64ebx));
+                }
+                break;
+        }
+    }
+
+    compilePostAstExpressions(expr, ast);
+}
+
+void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression, Ast* ast) {
+    // use restricted insance for context expressions
+    if(compileExpression)
+        this->compileExpression(expr, ast->getSubAst(ast_expression));
+
+    Token tok = ast->hasEntity(_INC) ? ast->getToken(_INC) : ast->getToken(_DEC);
+
+    if(expr->utype->isArray()) {
+        errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "expression of type `" + expr->utype->toString() + "` must return a var to use `" +
+                                                                        tok.getValue() + "` operator");
+    } else if(expr->utype->getType() != utype_unresolved){
+        Method *overload;
+        List<Field*> params;
+        List<AccessFlag> flags;
+        flags.add(PUBLIC);
+
+        Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+                  ast->line, ast->col);
+
+        params.add(new Field(VAR, guid++, "arg0", currentScope()->klass, flags, meta, stl_stack, 0));
+
+        switch(expr->utype->getResolvedType()->type) {
+            case NIL:
+                errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "cannot use `" + tok.getValue() + "` operator on expression that returns nil");
+                break;
+            case UNTYPED:
+                errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "the type of the expression that is returned from `" + expr->utype->toString() + "` is untyped. Mostly likely due to a compiler bug, and therefore cannot use operator `" + tok.getValue() + "`");
+                break;
+            case UNDEFINED:
+                break;
+            case OBJECT:
+                errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "expressions of type object must be casted before using `"
+                                                                                + tok.getValue() + "` operator, try `((Type)<your-expression>)++` instead");
+                break;
+
+            case _INT8:
+            case _INT16:
+            case _INT32:
+            case _INT64:
+            case _UINT8:
+            case _UINT16:
+            case _UINT32:
+            case _UINT64:
+            case VAR:
+                expr->utype->getCode().inject(expr->utype->getCode().getInjector(ebxInjector));
+
+                if(expr->utype->getType() == utype_field) {
+                    Field *field = (Field*)expr->utype->getResolvedType();
+                    expr->utype->getCode().push_i64(SET_Ci(i64, op_MOVR, i64cmt, 0, i64ebx));
+
+                    if (tok == "++")
+                        expr->utype->getCode().push_i64(SET_Di(i64, op_INC, i64cmt));
+                    else
+                        expr->utype->getCode().push_i64(SET_Di(i64, op_DEC, i64cmt));
+
+                    if (expr->utype->getResolvedType()->type <= _UINT64) {
+                        expr->utype->getCode()
+                                .push_i64(SET_Ci(i64, dataTypeToOpcode(expr->utype->getResolvedType()->type), i64cmt, 0,
+                                                 i64cmt));
+                    }
+
+                    if(field->local) {
+                        expr->utype->getCode().push_i64(SET_Ci(i64, op_SMOVR_2, i64cmt, 0, field->address));
+                    } else {
+                        // we know that Ptr has to still be set because we had to pull the ebx value from it
+                        // this is very dangerous but we have to assume or assumptions are correct
+                        expr->utype->getCode()
+                              .push_i64(SET_Di(i64, op_MOVI, 0), i64adx) // I'm pretty sure adx is already set to 0 but just in-case
+                              .push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64cmt));
+                    }
+                }
+
+                expr->freeInjectors();
+                expr->utype->getCode().getInjector(stackInjector)
+                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                break;
+
+            case CLASS:
+                if((overload = findFunction((ClassObject*)expr->utype->getResolvedType(), "operator" + tok.getValue(),
+                                            params, ast, true, fn_op_overload)) != NULL) {
+                    validateAccess(overload, ast);
+                    expr->utype->copy(overload->utype);
+
+                    expr->utype->getCode()
+                           .push_i64(SET_Di(i64, op_ISTORE, 1))
+                           .push_i64(SET_Di(i64, op_CALL, overload->address)); // TODO: check if we can call ++ on a class
+                           // TODO: we need to make sure we pass the instance to the function also for preIncExpr as well
+                } else {
+                    errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "class expression `" + expr->utype->toString() + "` must overload operator `" + tok.getValue() + "` to be used");
                 }
 
                 expr->freeInjectors();
@@ -3453,26 +3656,6 @@ Method* Compiler::findLambdaByAst(Ast *ast) {
     }
 
     return NULL;
-}
-
-Utype* Compiler::compileLambdaReturnType(Ast* ast) {
-    if(ast->hasEntity("nil")) {
-        Utype *utype = new Utype();
-        utype->setType(utype_native);
-
-        Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
-                  ast->line, ast->col);
-
-        DataEntity *_void = new DataEntity();
-        _void->owner = findClass(currModule, globalClass, classes);
-        _void->type = NIL;
-        _void->meta.copy(meta);
-
-        utype->setResolvedType(_void);
-        return utype;
-    }
-
-    return compileUtype(ast->getSubAst(ast_utype));
 }
 
 void Compiler::compileLambdaExpression(Expression* expr, Ast* ast) {
@@ -3600,11 +3783,13 @@ void Compiler::compileExpression(Expression* expr, Ast* ast) {
 
     switch(branch->getType()) {
         case ast_primary_expr:
-            compilePrimaryExpression(expr, branch);
-            break;
+            return compilePrimaryExpression(expr, branch);
+        case ast_post_inc_e:
+            return compilePreIncExpression(expr, branch);
+        case ast_not_e:
+            return compileNotExpression(expr, branch);
         case ast_vect_e:
-            compileVectorExpression(expr, branch);
-            break;
+            return compileVectorExpression(expr, branch);
     }
 
     if(ast->getSubAstCount() > 1) {
@@ -4794,7 +4979,7 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
             err << "no contract found in class `" << subscriber->fullName << "` for method '"
                 << subscribedMethods.get(i)->toString() << "'";
             errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-            printNote(contract->meta, "as defined here");
+            printNote(sub->meta, "as defined here");
         }
     }
 
@@ -4814,7 +4999,7 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
                 err << "contract method `" << contract->toString() << "` does not have a subscribed method implemented in class '"
                     << subscriber->fullName << "'";
                 errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-                printNote(contract->meta, "as defined here");
+                printNote(sub->meta, "as defined here");
             }
 
             if(!(contract->flags.size() == sub->flags.size() && contract->flags.sameElements(sub->flags))) {
@@ -5487,7 +5672,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
                 .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
     } else if((resolvedUtype = currentScope()->klass->getAlias(name, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) != NULL) {
         Alias* alias = (Alias*)resolvedUtype;
-        compileAliasType(alias);
+        compileAliasType(alias); // tODO: ensure that you can do generic typing on aliases i.e alias gen_class as g_c; field := g_c<var>;
 
         utype->copy(alias->utype);
         utype->getCode().free().inject(alias->utype->getCode());

@@ -408,8 +408,6 @@ void parser::parseAliasDeclaration(Ast *ast) {
 void parser::parseIfStatement(Ast *ast) {
     Ast* branch = getBranch(ast, ast_if_statement);
 
-    expect(branch, "if");
-
     expect(branch, "(");
     parseExpression(branch);
     expect(branch, ")");

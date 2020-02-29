@@ -206,7 +206,7 @@ def main() {
     - create `atomic_number<T>` that takes var, _int8-_int64 to o operations
     - create `atomic_number_array<T>` and `atomic_reference_array<T>`
     
-- add `alias` keyword to refrence anything utype in the language
+- [X] add `alias` keyword to refrence anything utype in the language
     - syntax is `alias <utype> as <identifier>`
     - considering it's a utype we just process it as such and return the utype including the code that is in it
     - scope aliasis by current scope, as well as use access for aliases to be able to use them
@@ -216,3 +216,15 @@ def main() {
     - create a class when building closures i.e `_str_closure#1234` and add in all the fields that the closure contains to be accessed later
     - only store local vars in closure nothing else
     - set the code to init the closure class just before when the lambda function was created
+    
+    
+- Add generic functions
+```javascript
+def<T> templateFun() : T {
+    // do stuff
+}
+
+def main() {
+    templateFun<var>();
+}
+```
