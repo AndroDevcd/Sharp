@@ -1252,6 +1252,65 @@ void parser::parseVectorArray(Ast* ast) {
     expect(branch, "}");
 }
 
+void parser::parseDictionaryType(Ast* ast) {
+
+    if(*peek(1) == "as") {
+        Ast *branch = getBranch(ast, ast_dictionary_type);
+        expect(branch, "as");
+
+        expect(branch, "<");
+        parseUtype(branch);
+        expect(branch, ",");
+        parseUtype(branch);
+        expect(branch, ">");
+    }
+}
+
+void parser::parseDictExpression(Ast* ast) {
+    Ast* branch = getBranch(ast, ast_dictionary_array);
+    expect(branch, "{");
+    parseDictionaryType(branch);
+
+    if(peek(1)->getType() != COLON)
+    {
+        parseExpression(branch);
+        _pExpr:
+        if(peek(1)->getType() == COMMA)
+        {
+            expect(branch, ",");
+            parseExpression(branch);
+            goto _pExpr;
+        }
+    }
+
+    expect(branch, "}");
+
+    /*
+     * { : }++ or { : }--
+     * Just in case the user does some stupid shit... we shall support it
+     */
+    incCheck:
+    if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+    {
+        Ast* incBranch = getBranch(branch, ast_post_inc_e);
+        advance();
+        incBranch->addToken(current());
+        goto incCheck;
+    }
+    else {
+        errors->enterProtectedMode();
+        Token* old = _current;
+        if(!parseDotNotCallExpr(branch))
+        {
+            _current=old;
+            errors->pass();
+            branch->freeLastSub();
+        } else {
+            errors->fail();
+        }
+    }
+}
+
 bool parser::parseExpression(Ast* ast) {
     Ast *branch = getBranch(ast, ast_expression);
     CHECK_ERRLMT(return false;)
@@ -1285,8 +1344,29 @@ bool parser::parseExpression(Ast* ast) {
 
     if(peek(1)->getType() == LEFTCURLY)
     {
-        Ast *exprAst = getBranch(branch, ast_vect_e);
-        parseVectorArray(exprAst);
+        errors->enterProtectedMode();
+        old=_current;
+        advance();
+
+        if(*peek(1) == ":" || *peek(1) == "as") {
+            errors->fail();
+            _current--;
+            parseDictExpression(branch);
+        } else {
+            parseExpression(branch);
+            if(*peek(1) == ":") {
+                _current = old;
+                errors->pass();
+                branch->freeLastSub();
+                parseDictExpression(branch);
+            } else {
+                _current = old;
+                errors->pass();
+                branch->freeLastSub();
+                parseVectorArray(getBranch(branch, ast_vect_e));
+            }
+
+        }
         return true;
     }
 
@@ -1584,6 +1664,12 @@ bool parser::parseDotNotCallExpr(Ast* ast) {
             advance();
             incBranch->addToken(current());
             goto incCheck;
+        } else if(*peek(1) == "as")
+        {
+            Ast* castBranch = getBranch(branch, ast_cast_e);
+            expect(castBranch, "as");
+            parseUtype(castBranch);
+            return true;
         }
         else if(peek(1)->getType() == LEFTBRACE) {
             Ast* arrayBranch = getBranch(branch, ast_arry_e);
@@ -1903,14 +1989,17 @@ bool parser::parsePrimaryExpr(Ast* ast) {
     {
         errors->fail();
         branch->encapsulate(ast_literal_e);
-        branch = branch->getSubAst(ast_literal_e);
 
-        if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+        if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC) {
+            branch = branch->getSubAst(ast_literal_e);
             goto checkInc;
+        }
         else if(peek(1)->getType() == DOT)
             errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
         else if(peek(1)->getType() == LEFTBRACE)
             errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
+        else if(peek(1)->getValue() == "as")
+            goto asExpr;
         return true;
     }
     branch->freeLastSub();
@@ -1933,14 +2022,17 @@ bool parser::parsePrimaryExpr(Ast* ast) {
 
             errors->fail();
             branch->encapsulate(ast_utype_class_e);
-            branch = branch->getSubAst(ast_utype_class_e);
 
-            if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+            if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC) {
+                branch = branch->getSubAst(ast_utype_class_e);
                 goto checkInc;
+            }
             else if(peek(1)->getType() == DOT)
                 errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
             else if(peek(1)->getType() == LEFTBRACE)
                 errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
+            else if(peek(1)->getValue() == "as")
+                goto asExpr;
             return true;
         }else {
             branch->freeLastSub();
@@ -1950,7 +2042,6 @@ bool parser::parsePrimaryExpr(Ast* ast) {
     errors->pass();
     _current=old;
 
-
     if(peek(1)->getValue() == "self")
     {
         expect(branch, "self");
@@ -1958,9 +2049,23 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         if(peek(1)->getType() == PTR) {
             expect(branch, "->");
             parseDotNotCallExpr(branch);
+            branch->encapsulate(ast_self_e);
+            return true;
         }
 
         branch->encapsulate(ast_self_e);
+
+        if(peek(1)->getValue() != "as")
+            branch = branch->getSubAst(ast_self_e);
+
+        if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+            goto checkInc;
+        else if(peek(1)->getType() == DOT)
+            goto dotNot;
+        else if(peek(1)->getType() == LEFTBRACE)
+            goto arrayExpr;
+        else if(peek(1)->getValue() == "as")
+            goto asExpr;
         return true;
     }
 
@@ -2023,7 +2128,9 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         }
 
         branch->encapsulate(ast_new_e);
-        branch = branch->getSubAst(ast_new_e);
+
+        if(peek(1)->getValue() != "as")
+            branch = branch->getSubAst(ast_new_e);
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
             goto checkInc;
@@ -2031,6 +2138,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             goto dotNot;
         else if(peek(1)->getType() == LEFTBRACE)
             errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
+        else if(peek(1)->getValue() == "as")
+            goto asExpr;
         return true;
     }
 
@@ -2089,7 +2198,9 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         expect(sizeofBranch, "(");
         parseExpression(sizeofBranch);
         expect(sizeofBranch, ")");
-        branch = sizeofBranch;
+
+        if(peek(1)->getValue() != "as")
+            branch = sizeofBranch;
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
             goto checkInc;
@@ -2097,45 +2208,9 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
         else if(peek(1)->getType() == LEFTBRACE)
             errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
+        else if(peek(1)->getValue() == "as")
+            goto asExpr;
         return true;
-    }
-
-    if(peek(1)->getType() == LEFTPAREN)
-    {
-        errors->enterProtectedMode();
-        old=_current;
-
-        advance();
-        branch->addToken(current());
-
-        if(!parseUtype(branch))
-        {
-            errors->pass();
-            _current=old;
-            branch->freeLastSub();
-        } else {
-            if(peek(1)->getType() == RIGHTPAREN)
-            {
-                expect(branch, ")");
-                if(peek(1)->getType() == DOT || !parseExpression(branch))
-                {
-                    errors->pass();
-                    _current=old;
-                    branch->freeLastSub();
-                    branch->freeLastSub();
-                } else
-                {
-                    errors->fail();
-                    branch->encapsulate(ast_cast_e);
-                    return true;
-                }
-            }else {
-                errors->pass();
-                _current=old;
-                branch->freeLastSub();
-            }
-        }
-
     }
 
     if(peek(1)->getType() == LEFTPAREN)
@@ -2153,6 +2228,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             goto dotNot;
         else if(peek(1)->getType() == LEFTBRACE)
             goto arrayExpr;
+        else if(peek(1)->getValue() == "as")
+            goto asExpr;
 
         return true;
     }
@@ -2207,6 +2284,26 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             return true;
     }
 
+    asExpr:
+    if(*peek(1) == "as")
+    {
+        branch->encapsulate(ast_primary_expr);
+        branch->encapsulate(ast_expression);
+        branch->encapsulate(ast_cast_e);
+        branch = branch->getSubAst(ast_cast_e);
+        expect(branch, "as");
+        parseUtype(branch);
+
+        errors->fail();
+        if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+            errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
+        else if(peek(1)->getType() == DOT)
+            errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
+        else if(peek(1)->getType() == LEFTBRACE)
+            errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
+        return true;
+    }
+
     /* ++ or -- after the expression */
     checkInc:
     if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -2221,6 +2318,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             goto dotNot;
         else if(peek(1)->getType() == LEFTBRACE)
             goto arrayExpr;
+        else if(peek(1)->getValue() == "as")
+            goto asExpr;
         return true;
     }
 

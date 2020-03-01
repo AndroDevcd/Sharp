@@ -103,6 +103,8 @@ public:
 
     static bool simpleParameterMatch(List<Field*> &params, List<Field*> &comparator);
     static bool complexParameterMatch(List<Field*> &params, List<Field*> &comparator);
+    static bool isUtypeConvertableToNativeClass(Utype *dest, Utype *src);
+    static bool isUtypeClass(Utype* utype, string mod, int names, ...);
 
     List<string> failedParsers;
     List<string> succeededParsers;
@@ -185,6 +187,7 @@ private:
     void resolveBaseClasses();
     __int64 dataTypeToOpcode(DataType type);
     void convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, IrCode &code, Ast* ast);
+    void convertNativeClassToUtype(Utype *clazz, Utype *paramUtype, IrCode &code, Ast *ast);
     void resolveSuperClass(Ast *ast, ClassObject* currentClass = NULL);
     void parseReferencePointerList(List<ReferencePointer*> &refPtrs, Ast *ast);
     ClassObject* resolveBaseClass(Ast *ast, ClassObject* currentClass);
@@ -264,7 +267,7 @@ private:
     void resolvePrototypeField(Ast* ast);
     void compileExpression(Expression* expr, Ast* ast);
     void compilePrimaryExpression(Expression* expr, Ast* ast);
-    void compileCastExpression(Expression *expr, Ast *ast);
+    void compileCastExpression(Expression *expr, bool compileExpr, Ast *ast);
     void compileSizeOfExpression(Expression* expr, Ast* ast);
     void compileClassCast(Utype *utype, Expression *castExpr, Expression *outExpr);
     void compileUtypeClass(Expression* expr, Ast* ast);
@@ -280,7 +283,6 @@ private:
     expression_type utypeToExpressionType(Utype *utype);
     Method* compileMethodUtype(Expression* expr, Ast* ast);
     void fullyQualifyLambda(Utype *lambdaQualifier, Utype *lambda);
-    bool isUtypeClass(Utype* utype, string mod, int names, ...);
     void compileExpressionList(List<Expression*>& lst, Ast* ast);
     void inheritObjectClassHelper(Ast *ast, ClassObject *klass);
     void compileLiteralExpression(Expression* expr, Ast* ast);
@@ -297,7 +299,6 @@ private:
     string registerToString(int64_t r);
     string find_class(int64_t id);
     void printExpressionCode(Expression *expr);
-    bool isUtypeConvertableToNativeClass(Utype *dest, Utype *src);
     void parseBoolLiteral(Expression* expr, Token &token);
     void parseHexLiteral(Expression* expr, Token &token);
     void parseStringLiteral(Expression* expr, Token &token);
@@ -313,8 +314,8 @@ private:
     void resolveGetter(Ast *ast, Field *field);
     void resolveSetter(Ast *ast, Field *field);
     void compileFieldGetterCode(IrCode &code, Field *field);
-
     void compilePostAstExpressions(Expression *expr, Ast *ast, long startPos = 1);
+    void getContractedMethods(ClassObject *subscriber, List<Method *> &contractedMethods);
 };
 
 enum ProcessingStage {

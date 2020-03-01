@@ -1,0 +1,9 @@
+mod std;
+
+class list<t> {
+    data : t[];
+
+    def add_all(arry : t[]) {
+
+    }
+}

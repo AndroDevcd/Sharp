@@ -10,7 +10,7 @@ mod std;
  */
 stable class _object_ : printable, unique {
     public def operator==(o : object) : var {
-        return ((object)self)==o;
+        return (self as object)==o;
     }
 
 //    public def delegate::toString() : string {
@@ -23,6 +23,9 @@ stable class _object_ : printable, unique {
     }
 
     def delegate::guid() : _int64 {
-        return 0;//Time.nanoTime();
+        /* user must impl at higher level if constant guid is desired */
+        return 0;//global_guid++;
     }
 }
+
+//global_guid := 0;

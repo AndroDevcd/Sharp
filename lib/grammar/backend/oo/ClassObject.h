@@ -102,11 +102,22 @@ public:
     List<ClassObject*> &getInterfaces() { return interfaces; }
     List<Ast*> &getExtensionFunctionTree() { return extensionFunctions; }
     List<Ast*> &getClassMutations() { return classMutations; }
-    void getAllFunctionsByType(function_type ftype, List<Method*> &results) {
+    void getAllFunctionsByType(function_type ftype, List<Method*> &results, bool checkSuper = false) {
         for(long long i = 0; i < functions.size(); i++) {
             if(functions.get(i)->fnType == ftype)
                 results.add(functions.get(i));
         }
+
+        if(checkSuper && super != NULL)
+            super->getAllFunctionsByType(ftype, results, true);
+    }
+    bool hasInterface(ClassObject *iface) {
+        for(long i = 0; i < interfaces.size(); i++) {
+            if(iface->match(interfaces.get(i)))
+                return true;
+        }
+
+        return false;
     }
 
     void getAllFunctionsByTypeAndName(function_type ftype, string name, bool checkBase, List<Method*> &results) {

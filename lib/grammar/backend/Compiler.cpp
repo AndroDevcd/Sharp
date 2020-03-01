@@ -671,6 +671,7 @@ void Compiler::preProccessImportDecl(Ast *branch, List<string> &imports) {
 void Compiler::preproccessImports() {
     KeyPair<string, List<string>> resolveMap;
     List<string> imports;
+    imports.add("std"); // import the std lib by default
 
     for(unsigned long x = 0; x < current->size(); x++)
     {
@@ -679,7 +680,6 @@ void Compiler::preproccessImports() {
         {
             if(branch->getType() == ast_module_decl) {
                 imports.push_back(currModule = parseModuleDecl(branch));
-                // add class for global methods
                 continue;
             } else {
                 /* ignore */
@@ -1364,7 +1364,8 @@ bool Compiler::isUtypeClass(Utype* utype, string mod, int names, ...) {
 
         va_start(ap, names);
         for (size_t loop = 0; loop < names; ++loop) {
-            if(utype->getClass() && utype->getClass()->name == va_arg(ap, string)
+            string name = va_arg(ap, char*);
+            if(utype->getClass() && utype->getClass()->name == name
                && utype->getClass()->module == mod) {
                 va_end(ap);
                 return true;
@@ -1492,12 +1493,16 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
         }
 
         for(long i = 0; i < params.size(); i++) {
-            Field *param = resolvedMethod->params.get(i);
-            if(isLambdaUtype(param->utype))
-                fullyQualifyLambda(params.get(i)->utype, param->utype);
+            Field *methodParam = resolvedMethod->params.get(i);
+            if(isLambdaUtype(methodParam->utype))
+                fullyQualifyLambda(params.get(i)->utype, methodParam->utype);
 
-            if(isUtypeConvertableToNativeClass(param->utype, params.get(i)->utype)) {
-                convertUtypeToNativeClass(param->utype, params.get(i)->utype, code, ast);
+            if(isUtypeConvertableToNativeClass(methodParam->utype, params.get(i)->utype)) {
+                convertUtypeToNativeClass(methodParam->utype, params.get(i)->utype, code, ast);
+                code.inject(code.getInjector(stackInjector));
+            } else if(isUtypeConvertableToNativeClass(params.get(i)->utype, methodParam->utype)) {
+                convertNativeClassToUtype(params.get(i)->utype, methodParam->utype, code, ast);
+                code.inject(code.getInjector(stackInjector));
             } else {
                 params.get(i)->utype->getCode().inject(stackInjector);
                 code.inject(code.size(), params.get(i)->utype->getCode());
@@ -2557,19 +2562,44 @@ string Compiler::codeToString(IrCode &code) {
     return ss.str();
 }
 
+void Compiler::convertNativeClassToUtype(Utype *clazz, Utype *paramUtype, IrCode &code, Ast *ast) {
+    Field *valueField = clazz->getClass()->getField("value", true);
+
+    if(valueField) { // TODO: add support for string as well
+        compileFieldType(valueField);
+
+        code.inject(clazz->getCode());
+        code.inject(clazz->getCode().getInjector(ptrInjector));
+        code
+                .push_i64(SET_Di(i64, op_MOVN, valueField->address))
+                .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
+                .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx));
+
+        if (paramUtype->getResolvedType()->type != VAR) {
+            code
+                    .push_i64(SET_Ci(i64, dataTypeToOpcode(paramUtype->getResolvedType()->type), i64ebx, 0,
+                                     i64ebx));
+        }
+
+        code.getInjector(stackInjector)
+                .push_i64(SET_Di(i64, op_RSTORE, i64ebx)); // todo: add all stack injectors here
+    } else
+        errors->createNewError(GENERIC, ast->line, ast->col, "could not locate field `value` inside of `" + clazz->toString() + "`");
+}
+
 void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, IrCode &code, Ast *ast) {
     List<Field*> params;
     List<AccessFlag> flags;
     Method *constructor; // TODO: take note that I may not be doing pre equals validation on the param before I call this function
 
     flags.add(PUBLIC);
-    Meta meta(current->getErrors()->getLine(ast->getEntity(0).getLine()), current->sourcefile,
-              ast->getEntity(0).getLine(), ast->getEntity(0).getColumn());
+    Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+              ast->line, ast->col);
 
     params.add(new Field(paramUtype->getResolvedType()->type, 0, "", currentScope()->klass, flags, meta, stl_stack, 0));
     params.get(0)->utype = paramUtype;
 
-    if((constructor = clazz->getClass()->getConstructor(params, false)) != NULL) {
+    if((constructor = clazz->getClass()->getConstructor(params, true)) != NULL) {
         validateAccess(constructor, ast);
 
         code.push_i64(SET_Di(i64, op_NEWCLASS, clazz->getClass()->address));
@@ -2580,7 +2610,7 @@ void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, IrCode
     } else {
         errors->createNewError(GENERIC, ast->line,  ast->col, "Support class `" + clazz->toString() + "` does not have constructor for type `"
                                                                           + paramUtype->toString() + "`");
-    }
+    } // todo: add injectors for stack and ebx here
 
     params.get(0)->utype = NULL;
     freeListPtr(params);
@@ -2625,28 +2655,33 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
     List<Expression*> array;
     Ast* vectAst = ast->getSubAst(ast_vector_array);
 
-    expr->utype->setArrayType(true);
     expr->ast = ast;
     compileExpressionList(array, vectAst);
 
     if(compareType && compareType->getType() != utype_class && compareType->getType() != utype_native)
         errors->createNewError(GENERIC, ast->line, ast->col, "arrayType `" + compareType->toString() + "` must be a class or a native type");
 
-    if(array.size() > 1) {
-        Utype *utype = compareType == NULL ? array.get(0)->utype : compareType, *elementUtype;
-        expr->type = utypeToExpressionType(utype);
-        expr->utype->copy(utype);
-        if(expr->utype->getType() == utype_literal)
-            expr->utype->setType(utype_native);
-        expr->utype->setArrayType(true);
+    if(array.size() >= 1) {
+        if(compareType == NULL) compareType = array.get(0)->utype;
+        Utype *elementUtype;
+        expr->type = utypeToExpressionType(compareType);
+        expr->utype->copy(compareType);
+        if(expr->utype->getType() == utype_literal) {
+            if(((Literal*)expr->utype->getResolvedType())->literalType == string_literal) {
+                expr->utype->setResolvedType(new DataEntity(OBJECT));
+                expr->type = exp_object;
+            }
 
-        // TODO: make this convert to object[] if elements dont match up correctly and dont allow single vars to be set in the array
-        for (long i = 1; i < array.size(); i++) {
+            expr->utype->setType(utype_native);
+        }
+
+        for (long i = 0; i < array.size(); i++) {
             elementUtype = array.get(i)->utype;
             if(elementUtype->getType() == utype_method_prototype) {
                 errors->createNewError(GENERIC, ast->line, ast->col, "anonymous functions & lambdas are not allowed in array declarations");
-            } else if (!utype->isRelated(elementUtype)) {
-                errors->createNewError(GENERIC, ast->line, ast->col, "array element of type `" + elementUtype->toString() + "` is not equal to type `" + utype->toString() + "`");
+            } else if (!isUtypeConvertableToNativeClass(elementUtype, compareType) && !isUtypeConvertableToNativeClass(compareType, elementUtype)
+                     && !compareType->isRelated(elementUtype)) {
+                errors->createNewError(GENERIC, ast->line, ast->col, "array element of type `" + elementUtype->toString() + "` is not equal to type `" + compareType->toString() + "`");
             }
         }
 
@@ -2660,7 +2695,6 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
     } else {
         expr->type = utypeToExpressionType(compareType);
         expr->utype->copy(compareType);
-        expr->utype->setArrayType(true);
     }
 
     if(array.size() >= 1) {
@@ -2676,8 +2710,12 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
 
         for(long i = 0; i < array.size(); i++) {
             if(expr->type == exp_var) {
-                expr->utype->getCode().inject(array.get(i)->utype->getCode());
-                expr->utype->getCode().inject(array.get(i)->utype->getCode().getInjector(ebxInjector));
+                if(isUtypeConvertableToNativeClass(array.get(i)->utype, expr->utype)) {
+                    convertNativeClassToUtype(array.get(i)->utype, expr->utype, expr->utype->getCode(), ast);
+                } else {
+                    expr->utype->getCode().inject(array.get(i)->utype->getCode());
+                    expr->utype->getCode().inject(array.get(i)->utype->getCode().getInjector(ebxInjector));
+                }
 
                 expr->utype->getCode()
                         .push_i64(SET_Di(i64, op_MOVSL, 0)) // get our array object
@@ -2685,8 +2723,17 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
                         .push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx)); // ourArry[%adx] = %ebx
             }
             else if(expr->type == exp_class || expr->type == exp_object) {
-                expr->utype->getCode().inject(array.get(i)->utype->getCode());
-                expr->utype->getCode().inject(array.get(i)->utype->getCode().getInjector(stackInjector));
+                if(isUtypeConvertableToNativeClass(expr->utype, array.get(i)->utype)) {
+                    List<Expression*> exprs;
+                    List<Field*> params;
+                    exprs.add(array.get(i));
+
+                    expressionsToParams(exprs, params);
+                    convertUtypeToNativeClass(expr->utype, params.get(0)->utype, expr->utype->getCode(), ast);
+                } else {
+                    expr->utype->getCode().inject(array.get(i)->utype->getCode());
+                    expr->utype->getCode().inject(array.get(i)->utype->getCode().getInjector(stackInjector));
+                }
 
                 expr->utype->getCode()
                    .push_i64(SET_Di(i64, op_MOVSL, -1)) // get our array object
@@ -2707,6 +2754,7 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
 
     }
 
+    expr->utype->setArrayType(true);
 }
 
 void Compiler::compileNewArrayExpression(Expression *expr, Ast *ast, Utype *arrayType) {
@@ -3130,6 +3178,8 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
         for(long i = startPos; i < ast->getSubAstCount(); i++) {
             if(ast->getSubAst(i)->getType() == ast_post_inc_e)
                 compilePostIncExpression(expr, false, ast->getSubAst(i));
+            else if(ast->getSubAst(i)->getType() == ast_cast_e)
+                compileCastExpression(expr, false, ast->getSubAst(i));
             else if(ast->getSubAst(i)->getType() == ast_dotnotation_call_expr) {
                 if(!expr->utype->getClass())
                     errors->createNewError(GENERIC, ast->getSubAst(i)->line, ast->getSubAst(i)->col, "expression of type `" + expr->utype->toString()
@@ -3160,22 +3210,48 @@ void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression 
             if (castExpr->utype->getClass() && IS_CLASS_ENUM(castExpr->utype->getClass()->getClassType())) {
                 if(!utype->isArray()) {
                     Field *valueField = castExpr->utype->getClass()->getField("ordinal", true);
-                    compileFieldType(valueField);
 
-                    outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ptrInjector));
-                    outExpr->utype->getCode()
-                             .push_i64(SET_Di(i64, op_MOVN, valueField->address))
-                             .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                             .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx));
+                    if(valueField) {
+                        compileFieldType(valueField);
 
-                    if(utype->getResolvedType()->type != VAR) {
+                        outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ptrInjector));
                         outExpr->utype->getCode()
-                                .push_i64(SET_Ci(i64, dataTypeToOpcode(utype->getResolvedType()->type), i64ebx, 0,
-                                                 i64ebx));
-                    }
+                                .push_i64(SET_Di(i64, op_MOVN, valueField->address))
+                                .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
+                                .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx));
 
-                    outExpr->utype->getCode().getInjector(stackInjector)
-                            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                        if (utype->getResolvedType()->type != VAR) {
+                            outExpr->utype->getCode()
+                                    .push_i64(SET_Ci(i64, dataTypeToOpcode(utype->getResolvedType()->type), i64ebx, 0,
+                                                     i64ebx));
+                        }
+
+                        outExpr->utype->getCode().getInjector(stackInjector)
+                                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                    } else goto castErr;
+                } else goto castErr;
+            } else if (isUtypeClass(castExpr->utype, "std", 9, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong")) {
+                if(!utype->isArray()) {
+                    Field *valueField = castExpr->utype->getClass()->getField("value", true);
+
+                    if(valueField) {
+                        compileFieldType(valueField);
+
+                        outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ptrInjector));
+                        outExpr->utype->getCode()
+                                .push_i64(SET_Di(i64, op_MOVN, valueField->address))
+                                .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
+                                .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx));
+
+                        if (utype->getResolvedType()->type != VAR) {
+                            outExpr->utype->getCode()
+                                    .push_i64(SET_Ci(i64, dataTypeToOpcode(utype->getResolvedType()->type), i64ebx, 0,
+                                                     i64ebx));
+                        }
+
+                        outExpr->utype->getCode().getInjector(stackInjector)
+                                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                    } else goto castErr;
                 } else goto castErr;
             } else if (castExpr->utype->getResolvedType()->type == OBJECT) {
                 if(utype->isArray() && !castExpr->utype->isArray()) {
@@ -3266,24 +3342,40 @@ void Compiler::compileClassCast(Utype *utype, Expression *castExpr, Expression *
 
         outExpr->utype->getCode().getInjector(stackInjector)
                 .push_i64(SET_Ei(i64, op_PUSHOBJ));
-    } else {
+    } else if(isUtypeConvertableToNativeClass(utype, castExpr->utype)) {
+        outExpr->utype->getCode().free();
+
+        List<Expression*> exprs;
+        List<Field*> params;
+        exprs.add(castExpr);
+
+        expressionsToParams(exprs, params);
+        convertUtypeToNativeClass(utype, params.get(0)->utype, outExpr->utype->getCode(), castExpr->ast);
+    }
+    else {
         castErr:
         errors->createNewError(GENERIC, outExpr->ast->line, outExpr->ast->col, "unable to cast incompatible type of `" + castExpr->utype->toString()
                    + "` to type `" + utype->toString() + "`");
     }
 }
 
-void Compiler::compileCastExpression(Expression *expr, Ast *ast) {
+void Compiler::compileCastExpression(Expression *expr, bool compileExpr, Ast *ast) {
     RETAIN_TYPE_INFERENCE(false)
     Utype *utype = compileUtype(ast->getSubAst(ast_utype));
     RESTORE_TYPE_INFERENCE()
 
+    Expression castExpr;
+    if(compileExpr)
+        compileExpression(&castExpr, ast->getSubAst(ast_expression));
+    else {
+        castExpr.ast = ast;
+        castExpr.utype->copy(expr->utype);
+        castExpr.type = utypeToExpressionType(expr->utype);
+    }
+
     expr->ast = ast;
     expr->utype->copy(utype);
     expr->type = utypeToExpressionType(utype);
-
-    Expression castExpr;
-    compileExpression(&castExpr, ast->getSubAst(ast_expression));
 
     expr->utype->getCode().inject(castExpr.utype->getCode());
     if(expr->type != exp_undefined && utype->getType() != utype_unresolved) {
@@ -3760,7 +3852,7 @@ void Compiler::compilePrimaryExpression(Expression* expr, Ast* ast) {
         case ast_new_e:
             return compileNewExpression(expr, branch);
         case ast_cast_e:
-            return compileCastExpression(expr, branch);
+            return compileCastExpression(expr, true, branch);
         case ast_sizeof_e:
             return compileSizeOfExpression(expr, branch);
         case ast_paren_e:
@@ -4454,7 +4546,7 @@ void Compiler::resolveOperatorOverload(Ast* ast) {
             flags.add(PUBLIC);
             flags.add(STATIC);
         } else
-            flags.add(PRIVATE);
+            flags.add(PUBLIC);
     }
 
     List<Field*> params;
@@ -4504,7 +4596,7 @@ void Compiler::resolveConstructor(Ast* ast) {
             flags.add(PUBLIC);
             flags.add(STATIC);
         } else
-            flags.add(PRIVATE);
+            flags.add(PUBLIC);
     }
 
     List<Field*> params;
@@ -4522,19 +4614,28 @@ void Compiler::resolveConstructor(Ast* ast) {
     method->address = methodSize++;
     method->utype = new Utype(currentScope()->klass);
 
-    if(name == currentScope()->klass->name) {
-        if (!addFunction(currentScope()->klass, method, &simpleParameterMatch)) {
-            this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                                         "constructor `" + name + "` is already defined in the scope");
-            printNote(findFunction(currentScope()->klass, method, &simpleParameterMatch)->meta,
-                      "constructor `" + name + "` previously defined here");
-
-            method->free();
-            delete method;
+    if(name != currentScope()->klass->name) {
+        if(IS_CLASS_GENERIC(currentScope()->klass->getClassType())) {
+            stringstream adjustedName;
+            adjustedName << name << "<>";
+            if(adjustedName.str() == currentScope()->klass->getGenericOwner()->name) {
+                goto addFunc;
+            }
         }
-    } else
         errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                                     "constructor `" + name + "` must be the same name as its parent class");
+                               "constructor `" + name + "` must be the same name as its parent class");
+    }
+
+    addFunc:
+    if (!addFunction(currentScope()->klass, method, &simpleParameterMatch)) {
+        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                                     "constructor `" + name + "` is already defined in the scope");
+        printNote(findFunction(currentScope()->klass, method, &simpleParameterMatch)->meta,
+                  "constructor `" + name + "` previously defined here");
+
+        method->free();
+        delete method;
+    }
 }
 
 void Compiler::resolveDelegateImpl(Ast* ast) {
@@ -4556,7 +4657,7 @@ void Compiler::resolveDelegateImpl(Ast* ast) {
             flags.add(PUBLIC);
             flags.add(STATIC);
         } else
-            flags.add(PRIVATE);
+            flags.add(PUBLIC);
     }
 
     List<Field*> params;
@@ -4604,7 +4705,7 @@ void Compiler::resolveDelegate(Ast* ast) {
             flags.add(PUBLIC);
             flags.add(STATIC);
         } else
-            flags.add(PRIVATE);
+            flags.add(PUBLIC);
     }
 
     List<Field*> params;
@@ -4748,7 +4849,7 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
             flags.add(PUBLIC);
             flags.add(STATIC);
         } else
-            flags.add(PRIVATE);
+            flags.add(PUBLIC);
     }
 
     List<Field*> params;
@@ -4913,30 +5014,17 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
     List<Method*> subscribedMethods, contractedMethods;
 
     subscriber->getAllFunctionsByType(fn_delegate_impl, subscribedMethods);
-    ClassObject* contracter;
 
-    if(subscriber->guid == 20) {
-        int i = 0;
-    }
     // we want to add all the delegates we need to validate
-    if((contracter = subscriber->getSuperClass()) != NULL) {
-        contracter->getAllFunctionsByType(fn_delegate, contractedMethods);
-    }
+    ClassObject* currClass = subscriber;
+    while(true) {
+        getContracts:
+        if(currClass != NULL)
+            getContractedMethods(currClass, contractedMethods);
+        else
+            break;
 
-    for(long long i = 0; i < subscriber->getInterfaces().size(); i++) {
-        contracter = subscriber->getInterfaces().get(i);
-        contracter->getAllFunctionsByType(fn_delegate, contractedMethods);
-
-        if(contracter->getSuperClass() != NULL && !(contracter->getSuperClass()->name == "_object_" && contracter->getSuperClass()->module =="std")) {
-            for(;;) {
-
-                contracter = contracter->getSuperClass();
-                contracter->getAllFunctionsByType(fn_delegate, contractedMethods);
-
-                if(contracter->getSuperClass() == NULL)
-                    break;
-            }
-        }
+        currClass = currClass->getSuperClass();
     }
 
     // we do this to ensure no bugs will come from searching methods
@@ -5010,11 +5098,38 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
                 printNote(contract->meta, "as defined here");
             }
         } else {
-            stringstream err;
-            err << "contract method `" << contract->toString() << "` does not have a subscribed method implemented in class '"
-                << subscriber->fullName << "'";
-            errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-            printNote(contract->meta, "as defined here");
+            // we only want to complain if the contract method is directly inside of the super class
+            if(subscriber->getSuperClass()->match(contract->owner) || subscriber->hasInterface(contract->owner)) {
+
+                stringstream err;
+                err << "contract method `" << contract->toString() << "` does not have a subscribed method implemented in class '"
+                    << subscriber->fullName << "'";
+                errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+                printNote(contract->meta, "as defined here");
+            }
+        }
+    }
+}
+
+void Compiler::getContractedMethods(ClassObject *subscriber, List<Method *> &contractedMethods) {
+    ClassObject* contracter;
+    if((contracter = subscriber->getSuperClass()) != NULL) {
+        contracter->getAllFunctionsByType(fn_delegate, contractedMethods);
+    }
+
+    for(long long i = 0; i < subscriber->getInterfaces().size(); i++) {
+        contracter = subscriber->getInterfaces().get(i);
+        contracter->getAllFunctionsByType(fn_delegate, contractedMethods);
+
+        if(contracter->getSuperClass() != NULL && !(contracter->getSuperClass()->name == "_object_" && contracter->getSuperClass()->module =="std")) {
+            for(;;) {
+
+                contracter = contracter->getSuperClass();
+                contracter->getAllFunctionsByType(fn_delegate, contractedMethods);
+
+                if(contracter->getSuperClass() == NULL)
+                    break;
+            }
         }
     }
 }
@@ -5044,8 +5159,8 @@ void Compiler::resolveAllDelegates(Ast *ast, ClassObject* currentClass) {
         }
     }
 
-    validateDelegates(currentClass, ast);
     currScope.add(new Scope(currentClass, CLASS_SCOPE));
+    validateDelegates(currentClass, ast);
     for(long i = 0; i < block->getSubAstCount(); i++) {
         Ast* branch = block->getSubAst(i);
 
@@ -6099,11 +6214,11 @@ ClassObject* Compiler::compileGenericClassReference(string &mod, string &name, C
                 inheritObjectClassHelper(newClass->ast, newClass);
                 resolveClassMethods(newClass->ast, newClass);
                 resolveExtensionFunctions(newClass);
-                resolveAllDelegates(newClass->ast, newClass);
                 resolveUnprocessedClassMutations(newClass);
 
                 if(processingStage > POST_PROCESSING) {
                     // post processing code
+                    resolveAllDelegates(newClass->ast, newClass);
                     resolveClassFields(newClass->ast, newClass);
                     inlineClassFields(newClass->ast, newClass);
                     resolveGenericFieldMutations(newClass);
@@ -6386,8 +6501,9 @@ void Compiler::preProcessUnprocessedClasses(long long unstableClasses) {
         // bring the classes up to speed
         preProccessClassDecl(unprocessedClass->ast, IS_CLASS_INTERFACE(unprocessedClass->getClassType()), unprocessedClass);
         resolveSuperClass(unprocessedClass->ast, unprocessedClass);
+        inheritEnumClassHelper(unprocessedClass->ast, unprocessedClass);
+        inheritObjectClassHelper(unprocessedClass->ast, unprocessedClass);
         resolveClassMethods(unprocessedClass->ast, unprocessedClass);
-        resolveAllDelegates(unprocessedClass->ast, unprocessedClass);
         resolveUnprocessedClassMutations(unprocessedClass);
 
         newErrors = errors->getUnfilteredErrorCount()-currErrors;
@@ -6832,6 +6948,7 @@ void Compiler::postProcessUnprocessedClasses() {
         errors->lines.addAll(current->lines);
 
         // bring the classes up to speed
+        resolveAllDelegates(unprocessedClass->ast, unprocessedClass);
         resolveClassFields(unprocessedClass->ast, unprocessedClass);
         inlineClassFields(unprocessedClass->ast, unprocessedClass);
         resolveExtensionFunctions(unprocessedClass);
@@ -6890,14 +7007,13 @@ bool Compiler::postProcess() {
     long long unstableClasses = unProcessedClasses.size();
 
     preprocessMutations();
-    preProcessGenericClasses(unstableClasses);
     inheritRespectiveClasses();
+    preProcessGenericClasses(unstableClasses);
     resolveAllMethods();
     resolveAllDelegates();
     resolveAllFields();
     inlineFields();
     postProcessGenericClasses();
-    // TODO: analyze generic classes first then everything else
 
     return rawErrCount == 0;
 }
@@ -7294,7 +7410,8 @@ bool Compiler::simpleParameterMatch(List<Field*> &params, List<Field*> &comparat
 bool Compiler::complexParameterMatch(List<Field*> &params, List<Field*> &comparator) {
     if(params.size() == comparator.size()) {
         for(long i = 0; i < params.size(); i++) {
-            if(!params.get(i)->isRelated(*comparator.get(i)))
+            if(!params.get(i)->isRelated(*comparator.get(i)) && !isUtypeConvertableToNativeClass(params.get(i)->utype, comparator.get(i)->utype)
+                && !isUtypeConvertableToNativeClass(comparator.get(i)->utype, params.get(i)->utype))
                 return false;
         }
 

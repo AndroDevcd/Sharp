@@ -96,6 +96,8 @@ private:
     bool parseUtype(Ast*);
     bool parseUtypeNaked(Ast*);
     bool parseExpression(Ast*);
+    void parseDictExpression(Ast* ast);
+    void parseDictionaryType(Ast* ast);
     void parseVectorArray(Ast*);
     bool match(int num_args, ...);
     bool equality(Ast*);

@@ -44,6 +44,8 @@ enum ast_type
     ast_identifier_list,
     ast_enum_identifier_list,
     ast_vector_array,
+    ast_dictionary_array,
+    ast_dictionary_type,
     ast_utype_arg,
     ast_lambda_arg,
     ast_name,

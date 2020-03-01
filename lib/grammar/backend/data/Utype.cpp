@@ -75,8 +75,11 @@ string Utype::toString() {
                     ss << "<undefined>";
                     break;
             }
+
+            if(array) ss << "[]";
         } else if (type == utype_class) {
             ss << resolvedType->fullName;
+            if(array) ss << "[]";
         } else if (type == utype_field) {
             ss << ((Field *) resolvedType)->toString();
         } else if (type == utype_method || type == utype_method_prototype) {
@@ -93,7 +96,6 @@ string Utype::toString() {
         }
     }
 
-    if(array) ss << "[]";
     return ss.str();
 }
 

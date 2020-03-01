@@ -1,0 +1,29 @@
+mod std;
+
+public class integer<t> {
+    public value : t;
+
+    public integer(initial_val : var) {
+        value = initial_val;
+    }
+
+    public integer(num : integer<t>) {
+        value = num.value;
+    }
+
+    def delegate::hash() : _int64 {
+        return value;
+    }
+
+    public def operator!=(num : integer<t>) := (value!=num.value); // TODO: add func for every integer type
+    public def operator!=(num : var) := (value!=num.value);
+
+    public def operator==(num : integer<t>) := (value==num.value);
+
+//    public def delegate::to_string() : string {
+//        return "" + value;
+//    }
+}
+
+class long base integer<_int64> {}
+class int base integer<_int32> {}

@@ -228,3 +228,15 @@ def main() {
     templateFun<var>();
 }
 ```
+
+- add dictionaries
+```javascript
+
+response_messages := 
+        { 
+            200: "OK",
+            403: "Access forbidden",
+            404: "File not found",
+            500: "Internal server error"
+        } as (int, string);
+```

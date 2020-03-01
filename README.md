@@ -119,6 +119,29 @@ money : Dollar = 1.52;
 num_list := { 1, 2, 3 };
 
 /*
+* Typed Dictionaries
+*/
+response_essages := { as <int, string>
+    200 : "200 error",
+    500 : "500 Error",
+    405 : "405 Error"    
+};
+
+/*
+* Anonymous Dictionaries
+*/
+days_of_the-week := {
+    0 : "Monday",
+    1 : "Tuesday",
+    2 : "Wednesday",
+    3 : "Thursday",
+    4 : "Friday",
+    5 : "Saturday",
+    6 : "Sunday"
+};
+
+
+/*
 * Anonymous functions
 */
 fn total_size := { data : object[] -> (var)

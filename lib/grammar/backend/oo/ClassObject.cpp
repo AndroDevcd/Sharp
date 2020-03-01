@@ -103,7 +103,7 @@ Method* ClassObject::getConstructor(List<Field*> params, bool checkBase) {
         }
     }
 
-    if(checkBase) {
+    if(checkBase && super != NULL) {
         constructors.free();
         return super->getConstructor(params, true);
     }
