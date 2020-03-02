@@ -25,5 +25,13 @@ public class integer<t> {
 //    }
 }
 
+class ulong base integer<_uint64> {}
 class long base integer<_int64> {}
+class uint base integer<_uint32> {}
 class int base integer<_int32> {}
+class ushort base integer<_uint16> {}
+class short base integer<_int16> {}
+class uchar base integer<_uint8> {}
+class char base integer<_int8> {}
+class byte base uchar {}
+class bool base integer<_int8> { /* TDOO: override base class methods */ }

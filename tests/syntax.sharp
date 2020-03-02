@@ -1,7 +1,5 @@
 mod app.time;
 
-import std;
-
-class K base _object_ {
+def main() {
 
 }

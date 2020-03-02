@@ -115,7 +115,7 @@ public:
     void collect(CollectionPolicy policy);
 
     SharpObject* newObject(int64_t size); /* Array allocation */
-    SharpObject* newObject(ClassObject* k); /* Class allocation */
+    SharpObject* newObject(ClassObject* k, bool staticInit = false); /* Class allocation */
 
     SharpObject* newObjectArray(int64_t size); /* Array Object allocation */
     SharpObject* newObjectArray(int64_t size, ClassObject* k); /* Class Array allocation */

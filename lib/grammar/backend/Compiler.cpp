@@ -276,14 +276,14 @@ void Compiler::preProccessVarDecl(Ast* ast) {
             flags.addif(STATIC);
         } else {
             if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
-                flags.add(PRIVATE);
+                flags.add(PUBLIC);
         }
     } else {
         if(globalScope()) {
             flags.add(PUBLIC);
             flags.add(STATIC);
         } else
-            flags.add(PRIVATE);
+            flags.add(PUBLIC);
     }
 
     preProccessVarDeclHelper(flags, ast);
@@ -2622,7 +2622,7 @@ bool Compiler::isUtypeConvertableToNativeClass(Utype *dest, Utype *src) {
 
         if (isUtypeClass(dest, "std", 1, "string") && type == _INT8 && src->isArray()) {
             return true;
-        } else if (isUtypeClass(dest, "std", 9, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong")) {
+        } else if (isUtypeClass(dest, "std", 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint")) {
             return !src->isArray() && (type == VAR || (type >= _INT8 && type <= _UINT64));
         }
     }
@@ -2954,13 +2954,6 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
     } else if(ast->hasSubAst(ast_expression_list) && ast->getSubAst(ast_expression_list)->hasEntity(LEFTPAREN)) {
         if(arrayType->getClass() && arrayType->getType() != utype_field) {
             if(arrayType->getClass()->flags.find(EXTENSION)) {
-                if(currentScope()->klass->match(arrayType->getClass())
-                    && (currentScope()->type == CLASS_SCOPE || currentScope()->type == INSTANCE_BLOCK
-                        || currentScope()->type == STATIC_BLOCK)) { }
-                else
-                    goto extErr;
-            } else {
-                extErr:
                 errors->createNewError(GENERIC, ast->line, ast->col, "cannot instantiate extension class `" + arrayType->toString() + "`");
             }
 
@@ -3004,13 +2997,6 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
     } else if(ast->hasSubAst(ast_field_init_list) || ast->hasSubAst(ast_expression_list)) {
         if(arrayType->getClass() && arrayType->getType() != utype_field) {
             if(arrayType->getClass()->flags.find(EXTENSION)) {
-                if(currentScope()->klass->match(arrayType->getClass())
-                   && (currentScope()->type == CLASS_SCOPE || currentScope()->type == INSTANCE_BLOCK
-                       || currentScope()->type == STATIC_BLOCK)) { }
-                else
-                    goto extErr2;
-            } else {
-                extErr2:
                 errors->createNewError(GENERIC, ast->line, ast->col, "cannot instantiate extension class `" + arrayType->toString() + "`");
             }
 
@@ -4054,7 +4040,8 @@ void Compiler::resolveAlias(Ast* ast) {
         createNewWarning(GENERIC, __WDECL, ast->line, ast->col, "declared alias `" + name + "` shadows class at higher scope");
 
     Alias *alias = currentScope()->klass->getAlias(name, false);
-    if(alias->type == UNTYPED) {
+    // we need to do this in case the user tries to use an alias as a class inheritence and there was something wrong with processing it
+    if(alias->type == UNTYPED || (alias->type == UNDEFINED && processingStage <= POST_PROCESSING)) {
         // wee need to do this to prevent possible stack overflow errors
 
         RETAIN_BLOCK_TYPE(CLASS_SCOPE)
@@ -4064,6 +4051,10 @@ void Compiler::resolveAlias(Ast* ast) {
         RESTORE_BLOCK_TYPE()
 
         alias->type = utype->getResolvedType() ? utype->getResolvedType()->type : UNDEFINED;
+        if(alias->utype != NULL) {
+            alias->utype->free();
+            delete alias->utype;
+        }
         alias->utype = utype;
     }
 }
@@ -5807,6 +5798,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             utype->setArrayType(false);
             validateAccess((ClassObject*)resolvedUtype, ast);
             checkTypeInference(ast);
+            return;
         } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = global->getField(name, true)) != NULL) {
             Field* field = (Field*)resolvedUtype;
             compileFieldType(field);
@@ -5845,6 +5837,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
                                 .push_i64(SET_Ei(i64, op_PUSHOBJ));
                 }
             }
+            return;
         } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && global->getFunctionByName(name, functions)) {
             if(functions.size() > 1)
                 createNewWarning(GENERIC, __WAMBIG, ast->line, ast->col, "reference to function `" + functions.get(0)->name + "` is ambiguous");
@@ -5934,7 +5927,7 @@ void Compiler::compileFieldType(Field *field) {
  */
 void Compiler::compileAliasType(Alias *alias) {
     if(alias != NULL) {
-        if (alias->type == UNTYPED) {
+        if (alias->type == UNTYPED || (alias->type == UNDEFINED && processingStage <= POST_PROCESSING)) {
             currScope.add(new Scope(alias->owner, alias->owner->isGlobalClass() ? GLOBAL_SCOPE : CLASS_SCOPE));
             resolveAlias(alias->ast);
             removeScope();
@@ -6095,8 +6088,9 @@ Utype* Compiler::compileUtype(Ast *ast, bool instanceCaptured) {
         return utype;
     } else if(ptr.classes.singular() && ptr.mod == "" && IS_CLASS_GENERIC(currentScope()->klass->getClassType()) && currentScope()->klass->getKeys().find(ptr.classes.get(0))
             && currentScope()->klass->isProcessed()) {
-        delete utype;
-        utype = currentScope()->klass->getKeyTypes().get(currentScope()->klass->getKeys().indexof(ptr.classes.get(0)));
+        Utype *keyType = currentScope()->klass->getKeyTypes().get(currentScope()->klass->getKeys().indexof(ptr.classes.get(0)));
+        utype->copy(keyType);
+
         bool isArray = false;
         if(ast->hasEntity(LEFTBRACE) && ast->hasEntity(RIGHTBRACE)) {
             isArray = true;
@@ -6104,7 +6098,6 @@ Utype* Compiler::compileUtype(Ast *ast, bool instanceCaptured) {
 
         checkTypeInference(ast);
         if(utype->isArray() && isArray) {
-            // error
             errors->createNewError(GENERIC, ast, "Array-arrays are not supported.");
         } else if(isArray) {
             utype->setArrayType(true);
@@ -6291,39 +6284,16 @@ void Compiler::compileReferencePtr(ReferencePointer &ptr, Ast* ast) {
 }
 
 ClassObject *Compiler::resolveClassReference(Ast *ast, ReferencePointer &ptr, bool allowGenerics) {
-    if(ptr.classes.singular()) {
-        ClassObject* klass = resolveClass(ptr.mod, ptr.classes.get(0), ast);
-        if(klass == NULL) {
-            if((klass = findClass(ptr.mod, ptr.classes.get(0) + "<>", generics))) {
-                if(allowGenerics) // this is for extension functions
-                    return klass;
-                else
-                    errors->createNewError(COULD_NOT_RESOLVE, ast, " `" + ptr.classes.get(0)
-                                                               + "`. It was found to be a generic class, have you missed the key parameters to the class perhaps?");
-            } else {
-                errors->createNewError(COULD_NOT_RESOLVE, ast, " `" + ptr.classes.get(0) + "`");
-            }
-        } else {
-            return klass;
-        }
-    } else {
-        ClassObject* klass = resolveClass(ptr.mod, ptr.classes.get(0), ast);
-        if(klass == NULL) {
-            if(findClass(ptr.mod, ptr.classes.get(0) + "<>", generics)) {
-                errors->createNewError(COULD_NOT_RESOLVE, ast, " `" + ptr.classes.get(0)
-                                                                + "`. It was found to be a generic class, have you missed the key parameters to the class perhaps?");
-            } else {
-                errors->createNewError(COULD_NOT_RESOLVE, ast, " `" + ptr.classes.get(0) + "`");
-            }
-        } else {
-            Utype utype;
-            resolveClassHeiarchy(klass, true, ptr, &utype, ast);
+    Utype *utype = new Utype();
+    RETAIN_TYPE_INFERENCE(false)
+    resolveUtype(ptr, utype, ast);
+    RESTORE_TYPE_INFERENCE()
 
-            if(utype.getType() != utype_class) {
-                errors->createNewError(GENERIC, ast, "symbol `" + utype.toString() + "` is not a class");
-            } else
-                return (ClassObject*)utype.getResolvedType();
-        }
+    if(utype->getType() == utype_class) {
+        return utype->getClass();
+    } else {
+        errors->createNewError(GENERIC, ast, " attempting to inherit symbol `" + utype->toString()
+                                             + "` as a class");
     }
 
     return NULL;
@@ -7454,7 +7424,7 @@ void Compiler::createNewWarning(error_type error, int type, int line, int col, s
 void Compiler::createGlobalClass() {
     List<AccessFlag > flags;
     flags.add(PUBLIC);
-    flags.add(UNSTABLE);
+    flags.add(STABLE);
     flags.add(EXTENSION);
     ClassObject * global = findClass(currModule, globalClass, classes);
     if(global == NULL) {

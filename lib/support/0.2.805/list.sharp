@@ -1,7 +1,9 @@
 mod std;
 
 class list<t> {
+    size : var;
     data : t[];
+    static n : var;
 
     def add_all(arry : t[]) {
 

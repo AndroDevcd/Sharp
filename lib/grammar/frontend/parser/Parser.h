@@ -15,15 +15,12 @@ public:
             :
             toks(tokenizer),
             ast_cursor(-1),
-            rStateCursor(-1),
             parsed(false),
-            data(""),
             panic(false)
     {
         if(tokenizer != NULL && tokenizer->getErrors() != NULL &&
            !tokenizer->getErrors()->hasErrors())
         {
-            data = tokenizer->getData();
             access_types.init();
             tree.init();
             lines.init();
@@ -150,11 +147,9 @@ private:
     void expect(Ast* ast, string token, bool addToken = true, const char *expectedstr = nullptr);
 
     List<Ast*> tree;
-    int64_t rStateCursor;
     Token* _current;
     unsigned long ast_cursor;
     tokenizer *toks;
-    std::string data;
     List<Token> access_types;
     ErrorManager *errors;
 };

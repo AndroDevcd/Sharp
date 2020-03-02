@@ -96,7 +96,7 @@ void parser::parse() {
         access_types.free();
     }
 
-    parsed = true;
+    parsed = !panic;
 }
 
 void parser::parseInterfaceDecl(Ast *ast) {

@@ -59,17 +59,30 @@ long ClassObject::getFieldIndex(string &name) {
 }
 
 long ClassObject::getFieldAddress(Field* field) {
-    if(super == NULL) return getFieldIndex(field->name);
+    bool isStatic = field->flags.find(STATIC);
+    if(super == NULL) {
+        if(isStatic)
+            return getFieldIndex(field->name);
+        else
+            return getInstanceFieldAddress(field->name);
+    }
+
     ClassObject* k, *_klass = this;
-    long fields=0;
+    long address=0;
 
     for(;;) {
         k = _klass->getSuperClass();
 
-        if(k == NULL)
-            return fields+getFieldIndex(field->name);
+        if(k == NULL) {
+            if(isStatic)
+                return address + getFieldIndex(field->name);
+            else return address + getInstanceFieldAddress(field->name);
+        }
 
-        fields+=k->fields.size();
+        if(isStatic)
+            address+= k->fields.size();
+        else
+            address += k->getInstanceFieldCount();
         _klass = k;
     }
 }

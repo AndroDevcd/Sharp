@@ -121,7 +121,7 @@ num_list := { 1, 2, 3 };
 /*
 * Typed Dictionaries
 */
-response_essages := { as <int, string>
+response_messages := { as <int, string>
     200 : "200 error",
     500 : "500 Error",
     405 : "405 Error"    
@@ -130,7 +130,7 @@ response_essages := { as <int, string>
 /*
 * Anonymous Dictionaries
 */
-days_of_the-week := {
+days := {
     0 : "Monday",
     1 : "Tuesday",
     2 : "Wednesday",

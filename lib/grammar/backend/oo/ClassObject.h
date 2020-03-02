@@ -73,6 +73,28 @@ public:
     void setGlobalClass(bool glob) { globalClass = glob; }
     bool getFunctionByName(string name, List<Method*> &functions, bool checkBase = false);
     long getFieldAddress(Field* field);
+    long getInstanceFieldAddress(string name) {
+        long address = 0, index = getFieldIndex(name);
+        for(long i = 0; i < index; i++) {
+            if(!fields.get(i)->flags.find(STATIC)) {
+                address++;
+            }
+        }
+
+        return address;
+    }
+
+    long getInstanceFieldCount() {
+        long instanceFields = 0;
+        for(long i = 0; i < fields.size(); i++) {
+            if(!fields.get(i)->flags.find(STATIC)) {
+                instanceFields++;
+            }
+        }
+
+        return instanceFields;
+    }
+
     long getFieldIndex(string &name);
     Alias* getAlias(string name, bool checkBase);
     long totalFieldCount();

@@ -167,7 +167,7 @@ int CreateVirtualMachine(std::string exe)
      * TODO: add flag to check if class has ststic values
      */
     for(unsigned long i = 0; i < manifest.classes-AUX_CLASSES; i++) {
-        env->globalHeap[i].object = GarbageCollector::self->newObject(&env->classes[i]);
+        env->globalHeap[i].object = GarbageCollector::self->newObject(&env->classes[i], true);
         SET_GENERATION(env->globalHeap[i].object->info, gc_perm);
     }
 

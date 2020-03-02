@@ -488,14 +488,16 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
     return object;
 }
 
-SharpObject *GarbageCollector::newObject(ClassObject *k) {
+SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
     if(k != nullptr) {
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
-        object->init(k->fieldCount, k);
+        uint32_t size = staticInit ? k->fieldCount : k->instanceFields;
+
+        object->init(size, k);
         SET_TYPE(object->info, _stype_struct);
 
         if(k->fieldCount > 0) {
-            object->node = (Object*)__calloc(k->fieldCount, sizeof(Object));
+            object->node = (Object*)__calloc(size, sizeof(Object));
 
             for(unsigned int i = 0; i < object->size; i++) {
                 /**
@@ -503,8 +505,10 @@ SharpObject *GarbageCollector::newObject(ClassObject *k) {
                  * to null and initialize the var variables
                  */
                 if(k->fields[i].type == VAR && !k->fields[i].isArray) {
-                    object->node[i].object = newObject(1);
-                    object->node[i].object->refCount++;
+                    if(!staticInit || (staticInit && k->fields[i].isStatic)) {
+                        object->node[i].object = newObject(1);
+                        object->node[i].object->refCount++;
+                    }
                 }
             }
 

@@ -75,7 +75,7 @@ void get_full_file_list(native_string &path, List<native_string> &files) {
         closedir (dir);
     } else {
         /* could not open directory */
-        cout << "warning: could not find support library files in path `" << path.str() << "`, do you have them installed?" << endl;
+        cout << "warning: could not find library files in path `" << path.str() << "`, have you provided the appropriate name for the directory?" << endl;
     }
 }
 
@@ -121,7 +121,7 @@ void help_asm() {
     cout << "Usage: sharpc " << "{OPTIONS} SOURCE FILE(S)" << std::endl;
     cout << "Source file must have a .sharp extion to be compiled.\n" << endl;
     cout <<  "Please note that default output format will be printed as-is with no debugging information, syntax reformatting, or address information.\n" << endl;
-    cout <<  "All compiler options for `-asmd` can be chained together i.e. (-asmd:is, -asmd:dsi, etc.)\n"                      << endl;
+    cout <<  "All compiler options for `-asmd` can be chained together i.e. (-asmd:isd, -asmd:dsi, etc.)\n"                      << endl;
     cout <<  "[-options]\n\n    -asmd             dump raw generated assembly into file (outputted w/default output setting)"   << endl;
     cout <<                "    -asmd:d           de-mangle source to show names"                                               << endl;
     cout <<                "    -asmd:s           reformat code to show sharp assembly syntax"                                  << endl;
@@ -130,7 +130,7 @@ void help_asm() {
 }
 
 void error(string message) {
-    cout << "bootstrap:  error: " << message << endl;
+    cout << "sharpc:  error: " << message << endl;
     exit(1);
 }
 
@@ -288,18 +288,21 @@ int _bootstrap(int argc, const char* argv[])
             c_options.warnings = true;
         }
         else if(opt("-errlmt")) {
-            std::string lmt = std::string(argv[++i]);
-            if(all_integers(lmt)) {
-                c_options.error_limit = strtoul(lmt.c_str(), NULL, 0);
-
-                if(c_options.error_limit > 100000) {
-                    error("cannot set the max errors allowed higher than (100,000) - " + lmt);
-                } else if(c_options.error_limit <= 0) {
-                    error("cannot have an error limit of 0 ");
-                }
-            }
+            if(i+1 >= argc)
+                error("error limit required after option `-errlmt`");
             else {
-                error("invalid error limit set " + lmt);
+                std::string lmt = std::string(argv[++i]);
+                if (all_integers(lmt)) {
+                    c_options.error_limit = strtoul(lmt.c_str(), NULL, 0);
+
+                    if (c_options.error_limit > 100000) {
+                        error("cannot set the max errors allowed higher than (100,000) - " + lmt);
+                    } else if (c_options.error_limit <= 10) {
+                        error("cannot have an error limit less than 10 ");
+                    }
+                } else {
+                    error("invalid error limit set " + lmt);
+                }
             }
         }
         else if(opt("-asmd") || opt("-d")){
