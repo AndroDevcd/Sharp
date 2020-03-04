@@ -1,13 +1,13 @@
 mod std;
 
-public class integer<t> {
-    public value : t;
+public class integer<native_type> {
+    public value : native_type;
 
     public integer(initial_val : var) {
         value = initial_val;
     }
 
-    public integer(num : integer<t>) {
+    public integer(num : integer<native_type>) {
         value = num.value;
     }
 
@@ -15,10 +15,10 @@ public class integer<t> {
         return value;
     }
 
-    public def operator!=(num : integer<t>) := (value!=num.value); // TODO: add func for every integer type
+    public def operator!=(num : integer<native_type>) := (value!=num.value); // TODO: add func for every integer type
     public def operator!=(num : var) := (value!=num.value);
 
-    public def operator==(num : integer<t>) := (value==num.value);
+    public def operator==(num : integer<native_type>) := (value==num.value);
 
 //    public def delegate::to_string() : string {
 //        return "" + value;

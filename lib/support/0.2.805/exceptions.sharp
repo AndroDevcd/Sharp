@@ -1,0 +1,46 @@
+mod std;
+
+/**
+ * Created by BraxtonN on 5/17/2018.
+ *
+ * Class to be used as the baseline of throwing errors
+ */
+class throwable {
+    message : string;
+//      get { return message; }
+//    set {} // prevent the user from setting the value
+
+    stack_trace : string;
+//      get { new string(stackTrace); }
+//        set {} // prevent user from setting the value
+
+    public throwable(message : _int8[]) {
+//        self->message = message;
+    }
+
+    public throwable(message : string) {
+//        self->message = message.toArray();
+    }
+}
+
+/**
+ * Created by braxtonn on 3/2/2018.
+ */
+class exception base throwable { }
+
+class illegal_argument_exception base exception { }
+class illegal_state_exception base exception { }
+class out_of_bounds_exception base exception { }
+class invalid_operation_exception base exception { }
+class nullptr_exception base exception { }
+class runtime_exception base exception { }
+
+/*
+* Alises for shorter name sizee
+*/
+alias illegal_argument_exception as ill_arg_except;
+alias illegal_state_exception as ill_state_except;
+alias out_of_bounds_exception as bounds_except;
+alias invalid_operation_exception as invalid_op_except;
+alias nullptr_exception as null_except;
+alias runtime_exception as run_except;

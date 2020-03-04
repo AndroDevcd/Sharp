@@ -199,12 +199,6 @@ def main() {
 }
 
 ```
-
-- add atomic operations for natives only
-    - var, _int8-_int64 will have atomic read and writes only
-    - do not allow objects to have `atomic` keyword, suggest the user to use `atomic_reference<T>` instead
-    - create `atomic_number<T>` that takes var, _int8-_int64 to o operations
-    - create `atomic_number_array<T>` and `atomic_reference_array<T>`
     
 - [X] add `alias` keyword to refrence anything utype in the language
     - syntax is `alias <utype> as <identifier>`
@@ -233,10 +227,125 @@ def main() {
 ```javascript
 
 response_messages := 
-        { 
+        { as <int, string>
             200: "OK",
             403: "Access forbidden",
             404: "File not found",
             500: "Internal server error"
-        } as (int, string);
+        };
+```
+
+- add compiler directived
+    - @if(<expression>) // must evalueate to a literal var
+    - @typeof(<expression>, <utype>) // returns literal var
+    - @warn(<string>)
+    - @error(<string>)
+    - @elseif(<expression>)
+    - @else(<expression>)
+    - @print(<string>)
+    - @get(<expression>, <get_directive>) // returns a utype with data no expression then use currentScope()->class
+        - name
+        - fullname
+        - super_class
+        - field // throw undefined error if not found
+    - @has(<expression>, <has_directive>) // same if no expression then use currScope()
+        - field
+        - function[name, <utype-list>]
+        
+grammar
+===== Compiler Directives =====
+
+If Directive Decl:
+`@if(` <expression> `)` [<block> | <class-block>] [else [if] directive-block]*
+
+Else If Directive Decl:
+`@elseif(` <expression> `)` [else [if] directive-block]*
+
+Else Directive Decl:
+`@else` [<block> | <class-block>]
+
+Print Directive Decl:
+`@print(` <expression> `);`
+
+Error Directive Decl:
+`@error(` <expression> `);`
+
+Warn Directive Decl:
+`@warn(` <expression> `);`
+
+TypeOf Directive Decl:
+`@typeof(` <expression> `,` <utype> `);`
+
+Related TypeOf Directive Decl:
+`@rel_typeof(` <expression> `,` <utype> `);`
+
+Get Directive Decl:
+`@get(` [<expression> `,`] <get-directive> `);`
+
+<get-directive>:
+name
+    | full_name
+    | super_class
+    | owner
+    | line
+    | column
+    | file
+    | module
+    | is_array
+    | __line__ // current line in actual file
+    | __file__ // current file the directive s proccessed in
+
+
+Has Directive Decl:
+`@has(` [<expression> `,`] <has-directive> `);`
+
+<has-directive>:
+      field `,` <identifier>
+    | interface `,` <utype>
+    | base_class `,` <utype>
+    | sub_class `,` <utype>
+    | function `,` <identifier> `{` <utype-list> `}`
+    | overload `,` <override-operator> `{` <utype-list> `}`
+    | constructor `,` <identifier> `{` <utype-list> `}`
+    | delegate `,` <identifier> `{` <utype-list> `}`
+
+
+===============================
+
+
+- add base generics
+    - class generic<t base some_class> { }
+    - add support for high level casting and assignment of the objects
+    
+    
+- add where statement
+ 
+ ```javascript
+
+def main() {
+    myStr := "hello";
+    where (myStr) {
+        "hi" -> {
+        
+        }    
+        "hello" -> {
+        
+        }
+        else {
+        
+        }
+    }   
+
+    where {
+        myStr == "hi" -> {
+        
+        }
+        myStr == "hello" -> {
+            
+        }
+        else {
+        
+        }
+    }
+}
 ```

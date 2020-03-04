@@ -1,5 +1,7 @@
 mod std;
 
+import std.io;
+
 /**
  * Created by braxtonn on 11/19/2019.
  *
@@ -12,12 +14,11 @@ stable ext class _nil_ {
     static instance : _nil_;
         get
         {
-            if(instance == null) {
-                instance = new _nil_{ };
-                return instance;
-            } else {
-                return instance;
-            }
+            critical_section({ ->
+                if(instance == null)
+                    return instance = new _nil_{ };
+                else return instance;
+            });
         }
         set value -> {} // prevent the user from setting a new value
 

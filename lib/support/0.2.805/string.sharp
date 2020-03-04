@@ -1,0 +1,13 @@
+mod std;
+
+class string {
+    data : _int8[];
+
+    string(str : _int8[]) {
+
+    }
+
+    string(str : string) {
+
+    }
+}

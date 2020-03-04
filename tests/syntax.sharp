@@ -1,5 +1,21 @@
-mod app.time;
+mod main;
+
+import std.io;
+
+
+enum _k {
+    apple,
+    test
+};
+
+local class k base _k {
+}
+
+mutate _k base string {
+
+}
 
 def main() {
 
+//    k := new L.Inner<var>();
 }

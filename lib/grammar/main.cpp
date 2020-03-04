@@ -75,7 +75,7 @@ void get_full_file_list(native_string &path, List<native_string> &files) {
         closedir (dir);
     } else {
         /* could not open directory */
-        cout << "warning: could not find library files in path `" << path.str() << "`, have you provided the appropriate name for the directory?" << endl;
+        cout << "warning: could not find library files in path `" << path.str() << "`" << endl;
     }
 }
 

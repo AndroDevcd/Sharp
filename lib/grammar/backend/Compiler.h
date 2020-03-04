@@ -190,8 +190,8 @@ private:
     void convertNativeClassToUtype(Utype *clazz, Utype *paramUtype, IrCode &code, Ast *ast);
     void resolveSuperClass(Ast *ast, ClassObject* currentClass = NULL);
     void parseReferencePointerList(List<ReferencePointer*> &refPtrs, Ast *ast);
-    ClassObject* resolveBaseClass(Ast *ast, ClassObject* currentClass);
-    ClassObject *resolveClassReference(Ast *ast, ReferencePointer &ptr, bool allowGenerics = false);
+    ClassObject* resolveBaseClass(Ast *ast);
+    ClassObject *resolveClassReference(Ast *ast, ReferencePointer &ptr);
     void compileReferencePtr(ReferencePointer &ptr, Ast* ast);
     ClassObject* compileGenericClassReference(string &mod, string &name, ClassObject* parent, Ast *ast);
     void compileUtypeList(Ast *ast, List<Utype *> &types);
@@ -316,6 +316,8 @@ private:
     void compileFieldGetterCode(IrCode &code, Field *field);
     void compilePostAstExpressions(Expression *expr, Ast *ast, long startPos = 1);
     void getContractedMethods(ClassObject *subscriber, List<Method *> &contractedMethods);
+
+    void findAliasConflicts(Ast *ast, string &name);
 };
 
 enum ProcessingStage {

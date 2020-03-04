@@ -11,9 +11,9 @@ mod std;
  */
 stable ext class _enum_ {
     private static enums : _enum_[];
-    private static name : _int8[];
+    static name : _int8[];
 //        get name;
-    private static ordinal : _int64;
+    static ordinal : _int64;
 //        get ordinal;
 
     public _enum_(ord : var) {

@@ -1,0 +1,11 @@
+mod std.io;
+
+class atomic<t> {
+    data : t;
+//    get { lock data -> return data; }
+//    set value -> { lock data -> data = value; }
+
+    def get_indexed(index : _int64) : t {
+        // TODO: most likeley will be asm code
+    }
+}

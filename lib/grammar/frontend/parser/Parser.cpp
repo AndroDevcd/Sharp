@@ -818,6 +818,17 @@ void parser::parseInterfaceBlock(Ast* ast) {
             errors->createNewError(GENERIC, current(), "unexpected import declaration");
             parseImportDecl(branch);
         }
+        else if(current() == "get") {
+            if(access_types.size() > 0)
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+            errors->createNewError(GENERIC, current(), "unexpected get declaration");
+            parseGetter(ast);
+        } else if(current() == "set") {
+            if(access_types.size() > 0)
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+            errors->createNewError(GENERIC, current(), "unexpected set declaration");
+            parseSetter(ast);
+        }
         else if(isAliasDeclaration(current()))
         {
             parseAliasDeclaration(branch);
@@ -979,6 +990,13 @@ void parser::parseAll(Ast *ast) {
     {
         parseAliasDeclaration(ast);
     }
+    else if(current() == "get") {
+        _current--;
+        parseGetter(ast);
+    } else if(current() == "set") {
+        _current--;
+        parseSetter(ast);
+    }
     else if(isImportDecl(current()))
     {
         if(access_types.size() > 0)
@@ -1128,8 +1146,10 @@ void parser::parseSetter(Ast* ast) {
     }
 }
 
+long recursion = 0;
 void parser::parseVariableDecl(Ast* ast) {
     Ast *branch = getBranch(ast, ast_variable_decl);
+    recursion++;
 
     if(ast == NULL || ast->getType() != ast_variable_decl) {
         addAccessTypes(branch);
@@ -1169,11 +1189,12 @@ void parser::parseVariableDecl(Ast* ast) {
     if(peek(1)->getType() == COMMA) {
         expect(branch, ",");
 
-        parseVariableDecl(ast == NULL || ast->getType() != ast_variable_decl ? branch : ast);
+        parseVariableDecl(recursion <= 1 ? branch : ast);
 
-        if(ast == NULL || ast->getType() != ast_variable_decl)
+        if(recursion == 1)
             expect(branch, ";");
     } else {
+        if(recursion == 1)
         expect(branch, ";");
 
         if (*peek(1) == "get" || *peek(1) == "set") {
@@ -1187,6 +1208,7 @@ void parser::parseVariableDecl(Ast* ast) {
         }
     }
 
+    recursion--;
 }
 
 
@@ -2417,6 +2439,21 @@ void parser::parseClassBlock(Ast *ast) {
         else if(isInterfaceDecl(current()))
         {
             parseInterfaceDecl(branch);
+        }
+        else if(current() == "get") {
+            if(access_types.size() > 0)
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+            errors->createNewError(GENERIC, current(), "unexpected get declaration");
+
+            _current--;
+            parseGetter(ast);
+        } else if(current() == "set") {
+            if(access_types.size() > 0)
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+            errors->createNewError(GENERIC, current(), "unexpected set declaration");
+
+            _current--;
+            parseSetter(ast);
         }
         else if(isImportDecl(current()))
         {

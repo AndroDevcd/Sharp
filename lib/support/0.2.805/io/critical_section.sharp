@@ -1,0 +1,10 @@
+mod std.io;
+
+global_object := new _object_();
+def critical_section(fn block()) {
+//    lock(global_object) { block(); }
+}
+
+//def<t> critical_section(fn block(t), data: t) {
+//    lock(global_object) { block(data); }
+//}

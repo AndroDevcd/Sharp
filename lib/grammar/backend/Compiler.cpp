@@ -15,6 +15,7 @@
 #include "../../runtime/oo/Method.h"
 
 string globalClass = "__srt_global";
+string undefinedModule = "__$srt_undefined";
 long Compiler::guid = 0;
 void Compiler::generate() {
 
@@ -313,7 +314,6 @@ void Compiler::preProccessAliasDecl(Ast* ast) {
         if(globalScope()) {
             if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
                 flags.add(PUBLIC);
-            flags.addif(STATIC);
         } else {
             if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
                 flags.add(PRIVATE);
@@ -321,12 +321,21 @@ void Compiler::preProccessAliasDecl(Ast* ast) {
     } else {
         if(globalScope()) {
             flags.add(PUBLIC);
-            flags.add(STATIC);
         } else
             flags.add(PRIVATE);
     }
 
-    // todo: validate flags certain ones are not allowed
+    if(flags.find(STATIC)) {
+        flags.remove(STATIC);
+        createNewWarning(GENERIC, __WACCESS, ast->line, ast->col,
+                         "access specifier `static` is ignored on aliases");
+    }
+
+    if(flags.find(flg_CONST)) {
+        flags.remove(flg_CONST);
+        errors->createNewError(GENERIC, ast->line, ast->col, "access specifier `const` is not allowed on aliases");
+    }
+
     string name = ast->getEntity(0).getValue();
     Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->sourcefile,
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
@@ -338,11 +347,6 @@ void Compiler::preProccessAliasDecl(Ast* ast) {
         printNote(prevAlias->meta, "alias `" + name + "` previously defined here");
     } else {
         currentScope()->klass->getAliases().add(new Alias(guid++, name, currentScope()->klass, flags, meta));
-        if(currentScope()->klass->getField(name, false) != NULL) {
-            createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
-                             "declared alias `" + name + "` conflicts with field `" + currentScope()->klass->getField(name, false)->toString() + "`");
-        }
-
         currentScope()->klass->getAlias(name, false)->ast = ast;
         currentScope()->klass->getAlias(name, false)->fullName = currentScope()->klass->fullName + "." + name;
     }
@@ -369,12 +373,29 @@ void Compiler::preProccessGenericClassDecl(Ast* ast, bool isInterface) {
 
     if (ast->hasSubAst(ast_access_type)) {
         parseClassAccessFlags(flags, ast->getSubAst(ast_access_type));
+
+        if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
+            flags.add(PUBLIC);
     } else {
         flags.add(PUBLIC);
     }
 
-    if(!flags.find(STABLE))
-        flags.add(UNSTABLE);
+    if(ast->getType() == ast_generic_interface_decl) {
+        // user has specified this interface as stable
+        if(!flags.addif(STABLE)) {
+            createNewWarning(GENERIC, __WACCESS, ast->line, ast->col,
+                             "`stable` access specifier is already applied to interfaces by default");
+        }
+
+        // user has specified that this interface is an ext class
+        if(!flags.addif(EXTENSION)) {
+            createNewWarning(GENERIC, __WACCESS, ast->line, ast->col,
+                             "`extension` access specifier is already applied to interfaces by default");
+        }
+    } else {
+        if(!flags.find(STABLE))
+            flags.addif(UNSTABLE);
+    }
 
     string className = ast->getEntity(0).getValue();
     List<string> identifierList;
@@ -444,6 +465,9 @@ void Compiler::preProccessEnumDecl(Ast *ast)
 
     if(ast->hasSubAst(ast_access_type)){
         parseClassAccessFlags(flags, ast->getSubAst(ast_access_type));
+
+        if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
+            flags.add(PUBLIC);
     } else {
         flags.add(PUBLIC);
     }
@@ -452,6 +476,7 @@ void Compiler::preProccessEnumDecl(Ast *ast)
      * We do not want other users messing with enums at compile time causing issues
      */
     flags.addif(STABLE);
+    flags.addif(EXTENSION);
     string className = ast->getEntity(0).getValue();
 
     if(currentScope()->klass == NULL || globalScope()) {
@@ -519,12 +544,14 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
     if(currentClass == NULL) {
         if (ast->hasSubAst(ast_access_type)) {
             parseClassAccessFlags(flags, ast->getSubAst(ast_access_type));
+
+            if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
+                flags.add(PUBLIC);
         } else {
             flags.add(PUBLIC);
         }
 
-        if(ast->getType() == ast_interface_decl || ast->getType() == ast_generic_interface_decl) {
-
+        if(ast->getType() == ast_interface_decl) {
             // user has specified this interface as stable
             if(!flags.addif(STABLE)) {
                 createNewWarning(GENERIC, __WACCESS, ast->line, ast->col,
@@ -633,8 +660,10 @@ void Compiler::preProccessImportDecl(Ast *branch, List<string> &imports) {
     for(long i = 0; i < branch->getEntityCount(); i++) {
         if(branch->getEntity(i).getValue() != "*") {
             ss << branch->getEntity(i).getValue();
-        } else
+        } else {
             star = true;
+            break;
+        }
     }
 
     string mod = ss.str();
@@ -643,10 +672,7 @@ void Compiler::preProccessImportDecl(Ast *branch, List<string> &imports) {
         for(long i = 0; i < modules.size(); i++) {
             if(startsWith(modules.get(i), mod)) {
                 found = true;
-                if(imports.find(modules.at(i))) {
-                    createNewWarning(GENERIC, __WGENERAL, branch->line, branch->col, "module `" + modules.at(i) + "` has already been imported.");
-                } else
-                    imports.add(modules.at(i));
+                imports.addif(modules.at(i));
             }
         }
 
@@ -656,10 +682,9 @@ void Compiler::preProccessImportDecl(Ast *branch, List<string> &imports) {
         }
     } else {
         if(modules.find(mod)) {
-            if(imports.find(mod)) {
+            if(!imports.addif(mod)) {
                 createNewWarning(GENERIC, __WGENERAL, branch->line, branch->col, "module `" + mod + "` has already been imported.");
-            } else
-                imports.add(mod);
+            }
         }
         else {
             errors->createNewError(GENERIC, branch->line, branch->col, "module `" + mod +
@@ -682,7 +707,7 @@ void Compiler::preproccessImports() {
                 imports.push_back(currModule = parseModuleDecl(branch));
                 continue;
             } else {
-                /* ignore */
+                imports.push_back(currModule = undefinedModule);
             }
         }
         switch(branch->getType()) {
@@ -832,7 +857,7 @@ bool Compiler::resolveClass(List<ClassObject*> &classes, List<ClassObject*> &res
                 List<string> &lst = importMap.get(i).value;
                 for (unsigned int x = 0; x < lst.size(); x++) {
                     if ((klass = findClass(lst.get(x), name, classes, match)) != NULL) {
-                        results.add(klass);
+                        results.addif(klass);
                     }
                 }
 
@@ -4043,6 +4068,7 @@ void Compiler::resolveAlias(Ast* ast) {
     // we need to do this in case the user tries to use an alias as a class inheritence and there was something wrong with processing it
     if(alias->type == UNTYPED || (alias->type == UNDEFINED && processingStage <= POST_PROCESSING)) {
         // wee need to do this to prevent possible stack overflow errors
+        findAliasConflicts(ast, name);
 
         RETAIN_BLOCK_TYPE(CLASS_SCOPE)
         RETAIN_TYPE_INFERENCE(false)
@@ -4056,6 +4082,29 @@ void Compiler::resolveAlias(Ast* ast) {
             delete alias->utype;
         }
         alias->utype = utype;
+    }
+}
+
+void Compiler::findAliasConflicts(Ast *ast, string &name) {
+    List<Method*> functions;
+    if(currentScope()->klass->getField(name, false) != NULL) {
+        createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
+                         "declared alias `" + name + "` conflicts with field `" + currentScope()->klass->getField(name, false)->toString() + "`");
+    } else if(currentScope()->klass->getFunctionByName(name, functions)) {
+        createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
+                         "declared alias `" + name + "` conflicts with function `" + functions.get(0)->toString() + "`");
+    } else if(currentScope()->klass->getChildClass(name) != NULL) {
+        createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
+                         "declared alias `" + name + "` conflicts with child class `" + currentScope()->klass->getChildClass(name)->name + "`");
+    } else if(currentScope()->klass->getChildClass(name + "<>") != NULL) {
+        createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
+                         "declared alias `" + name + "` conflicts with child class `" + currentScope()->klass->getChildClass(name + "<>")->name + "`");
+    } else if(findClass(currModule, name, classes) != NULL) {
+        createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
+                         "declared alias `" + name + "` conflicts with class `" + findClass(currModule, name, classes)->fullName + "`");
+    } else if(findClass(currModule, name + "<>", generics) != NULL) {
+        createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
+                         "declared alias `" + name + "` conflicts with generic class `" + findClass(currModule, name + "<>", generics)->fullName + "`");
     }
 }
 
@@ -4113,7 +4162,16 @@ void Compiler::resolveField(Ast* ast) {
 
         // TODO: make sure type is valid before exiting, you cant have a method as the type for the field etc.
         if(ast->hasSubAst(ast_variable_decl)) {
+            long startAst = 0;
             for(long i = 0; i < ast->getSubAstCount(); i++) {
+                if(ast->getSubAst(i)->getType() == ast_variable_decl)
+                {
+                    startAst = i;
+                    break;
+                }
+            }
+
+            for(long i = startAst; i < ast->getSubAstCount(); i++) {
                 Ast *branch = ast->getSubAst(i);
 
                 name = branch->getEntity(0).getValue();
@@ -4797,7 +4855,7 @@ ClassObject* Compiler::getExtensionFunctionClass(Ast* ast) {
                 return resolveClass(ptr.mod, globalClass, ast);
             } else {
                 ptr.classes.pop_back();
-                return resolveClassReference(ast->getSubAst(ast_refrence_pointer), ptr, true);
+                return resolveClassReference(ast->getSubAst(ast_refrence_pointer), ptr);
             }
         }
     }
@@ -4868,7 +4926,7 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
                 flags.removefirst(STATIC);
                 name = ptr.classes.last();
                 ptr.classes.pop_back();
-                currentClass = resolveClassReference(ast->getSubAst(ast_refrence_pointer), ptr, true);
+                currentClass = resolveClassReference(ast->getSubAst(ast_refrence_pointer), ptr);
             }
         }
     } else {
@@ -5236,7 +5294,7 @@ void Compiler::resolveAllDelegates() {
 void Compiler::resolveClassMutateMethods(Ast *ast) {
     ReferencePointer ptr;
     compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
-    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
+    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr);
     if(IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
         // do nothing it's allready been processed
     } else {
@@ -5247,7 +5305,7 @@ void Compiler::resolveClassMutateMethods(Ast *ast) {
 void Compiler::resolveDelegateMutateMethods(Ast *ast) {
     ReferencePointer ptr;
     compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
-    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
+    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr);
     if(IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
         // do nothing it's allready been processed
     } else {
@@ -5327,7 +5385,7 @@ void Compiler::resolveAllMethods() {
 void Compiler::resolveClassMutateFields(Ast *ast) {
     ReferencePointer ptr;
     compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
-    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
+    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr);
     if(IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
         // do nothing it's allready been processed
     } else {
@@ -5702,7 +5760,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             stringstream helpfulMessage;
             helpfulMessage << "have you forgotten your type parameters? Were you possibly looking for class `"
                            << resolvedClasses.get(0)->fullName << "` it requires " << resolvedClasses.get(0)->getKeys().size()
-                           << " generic types.";
+                           << " generic type(s).";
             errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col,
                                    " `" + name + "` " +
                                    helpfulMessage.str());
@@ -5719,19 +5777,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
 
                 ClassObject *klass = resolvedClasses.get(i);
 
-                helpfulMessage << "\n\t\t" << klass->fullName << "<";
-                for(long x = 0; x < klass->getKeys().size(); x++) {
-                    if(x > 5) {
-                        helpfulMessage << "...";
-                        break;
-                    }
-
-                    helpfulMessage << klass->getKeys().get(x);
-                    if((x+1) < klass->getKeys().size()) {
-                        helpfulMessage << ", ";
-                    }
-                }
-                helpfulMessage << ">";
+                helpfulMessage << "\n\t\t" << klass->fullName;
                 if((i+1) < resolvedClasses.size())
                     helpfulMessage << ", ";
             }
@@ -5952,7 +5998,10 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
         bridgeUtype->getCode().free();
         bridgeUtype->getCode().instanceCaptured = true;
         bridgeUtype->setType(utype_unresolved);
+        RETAIN_TYPE_INFERENCE(true)
         resolveSingularUtype(nextReference, bridgeUtype, ast);
+        RESTORE_TYPE_INFERENCE()
+
         if(utype->getType() != utype_unresolved && utype->isArray()) {
             errors->createNewError(GENERIC, ast->line, ast->col, "dot notation access on array of type `" + utype->toString() + "`");
         } else if(utype->getType() != utype_unresolved && !utype->isArray() && utype->getResolvedType()->isVar()) {
@@ -6046,7 +6095,9 @@ void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
         initialRefrence.classes.add(name);
         initialRefrence.mod = ptr.mod;
 
+        RETAIN_TYPE_INFERENCE(false)
         resolveSingularUtype(initialRefrence, utype, ast);
+        RESTORE_TYPE_INFERENCE()
         if(utype->getType() == utype_method || utype->getType() == utype_method_prototype) {
             errors->createNewError(GENERIC, ast->line, ast->col, "symbol `" + utype->toString() +
                              "` is a pointer to the respective function and this returns a var and cannot be used as a class field.");
@@ -6137,7 +6188,12 @@ ClassObject* Compiler::compileGenericClassReference(string &mod, string &name, C
         }
     }
 
+    // TODO: add support for creating generic functions
     ClassObject *generic = parent != NULL ? parent->getChildClass(name + "<>") : findClass(mod, name + "<>", generics);
+    if(generic == NULL && parent == NULL) {
+        generic = currentScope()->klass->getChildClass(name + "<>");
+    }
+
     if(generic && utypes.size() == generic->getKeys().size()) {
         stringstream ss;
 
@@ -6259,7 +6315,7 @@ void Compiler::compileReferencePtr(ReferencePointer &ptr, Ast* ast) {
             string name = ast->getEntity(i).getValue();
             if(name != ".") {
                 if (!failed && ((i + 1) < ast->getEntityCount()) && ast->getEntity(i + 1) == "<") {
-                    RETAIN_TYPE_INFERENCE(false)
+                    RETAIN_TYPE_INFERENCE(false) // TODO
                     ClassObject *genericClass = compileGenericClassReference(
                             ptr.mod, name, parent, ast->getSubAst(genericListPos++));
                     ptr.classes.add(genericClass ? genericClass->name : "?");
@@ -6271,11 +6327,13 @@ void Compiler::compileReferencePtr(ReferencePointer &ptr, Ast* ast) {
                 } else {
                     ptr.classes.add(name);
 
-                    if (parent == NULL)
-                        parent = resolveClass(ptr.mod, name, ast);
-                    else {
-                        parent = parent->getChildClass(name);
-                        failed = parent == NULL;
+                    if(!failed) {
+                        if (parent == NULL)
+                            parent = resolveClass(ptr.mod, name, ast);
+                        else {
+                            parent = parent->getChildClass(name);
+                            failed = parent == NULL;
+                        }
                     }
                 }
             }
@@ -6283,7 +6341,7 @@ void Compiler::compileReferencePtr(ReferencePointer &ptr, Ast* ast) {
     }
 }
 
-ClassObject *Compiler::resolveClassReference(Ast *ast, ReferencePointer &ptr, bool allowGenerics) {
+ClassObject *Compiler::resolveClassReference(Ast *ast, ReferencePointer &ptr) {
     Utype *utype = new Utype();
     RETAIN_TYPE_INFERENCE(false)
     resolveUtype(ptr, utype, ast);
@@ -6292,16 +6350,15 @@ ClassObject *Compiler::resolveClassReference(Ast *ast, ReferencePointer &ptr, bo
     if(utype->getType() == utype_class) {
         return utype->getClass();
     } else {
-        errors->createNewError(GENERIC, ast, " attempting to inherit symbol `" + utype->toString()
+        errors->createNewError(GENERIC, ast, " attempting to use symbol `" + utype->toString()
                                              + "` as a class");
     }
 
     return NULL;
 }
 
-ClassObject *Compiler::resolveBaseClass(Ast *ast, ClassObject *currClass) {
+ClassObject *Compiler::resolveBaseClass(Ast *ast) {
     ClassObject* base=NULL;
-
     if(ast->hasSubAst(ast_refrence_pointer)) {
 
         ReferencePointer ptr;
@@ -6310,7 +6367,7 @@ ClassObject *Compiler::resolveBaseClass(Ast *ast, ClassObject *currClass) {
 
         if (base != NULL) {
             if ((currentScope()->klass->isClassRelated(base) ||
-                    base->isClassRelated(currClass))) {
+                    base->isClassRelated(currentScope()->klass))) {
                 errors->createNewError(GENERIC, ast->getSubAst(0)->line, ast->getSubAst(0)->col,
                                        "cyclic dependency of class `" + currentScope()->klass->fullName + "` in parent class `" +
                                        base->fullName + "`");
@@ -6340,7 +6397,6 @@ void Compiler::parseReferencePointerList(List<ReferencePointer*> &refPtrs, Ast *
 void Compiler::resolveSuperClass(Ast *ast, ClassObject* currentClass) {
     Ast* block = ast->getSubAst(ast_block), *branch;
 
-
     if(currentClass == NULL) {
         string name = ast->getEntity(0).getValue();
         if(ast->getType() == ast_generic_class_decl || ast->getType() == ast_generic_interface_decl)
@@ -6355,31 +6411,31 @@ void Compiler::resolveSuperClass(Ast *ast, ClassObject* currentClass) {
         }
     }
 
-
     currScope.add(new Scope(currentClass, CLASS_SCOPE));
+    ClassObject* base = resolveBaseClass(ast);
 
-    ClassObject* base = resolveBaseClass(ast, currentClass);
     if(base != NULL) {
         if (IS_CLASS_INTERFACE(currentClass->getClassType())) {
-            if (base != NULL && !IS_CLASS_INTERFACE(base->getClassType())) {
+            if (!IS_CLASS_INTERFACE(base->getClassType())) {
                 stringstream err;
                 err << "interface '" << currentClass->fullName << "' must inherit another interface class";
                 errors->createNewError(GENERIC, ast->line, ast->col, err.str());
                 err.str("");
-            } else
-                currentClass->setSuperClass(base);
-        } else {
-            if (currentClass->getSuperClass()) {
-                stringstream err;
-                err << "class '" << currentClass->fullName << "' already has a base class of `"
-                    << currentClass->getSuperClass()->fullName << "` and cannot Be overridden";
-                errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-                err.str("");
-            } else
-                currentClass->setSuperClass(base);
+                goto inheritInterfaces;
+            }
         }
+
+        if (currentClass->getSuperClass()) { // TODO: do we want to allow inheriting an enum???
+            stringstream err;
+            err << "class '" << currentClass->fullName << "' already has a base class of `"
+                << currentClass->getSuperClass()->fullName << "` and cannot Be overridden";
+            errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+            err.str("");
+        } else
+            currentClass->setSuperClass(base);
     }
 
+    inheritInterfaces:
     // we also want to resolve any interfaces as well
     if(ast->hasSubAst(ast_reference_pointer_list)) {
         List<ReferencePointer*> refPtrs;
@@ -6392,16 +6448,16 @@ void Compiler::resolveSuperClass(Ast *ast, ClassObject* currentClass) {
             branch = ast->getSubAst(ast_reference_pointer_list)->getSubAst(i);
             ClassObject* _interface = resolveClassReference(branch, *refPtrs.get(i));
 
-            if(_interface != NULL && !IS_CLASS_INTERFACE(_interface->getClassType())) {
-                stringstream err;
-                err << "class `" + _interface->name + "` is not an interface";
-                errors->createNewError(GENERIC, branch->line, branch->col, err.str());
-            } else if(_interface != NULL && interfaces.count(_interface) > 1){
-                stringstream err;
-                err << "duplicate interface '" << _interface->name << "'";
-                errors->createNewError(GENERIC, branch->line, branch->col, err.str());
-            } else {
-                interfaces.add(_interface);
+            if(_interface != NULL) {
+                if (!IS_CLASS_INTERFACE(_interface->getClassType())) {
+                    stringstream err;
+                    err << "class `" + _interface->name + "` is not an interface";
+                    errors->createNewError(GENERIC, branch->line, branch->col, err.str());
+                } else if (!interfaces.addif(_interface)) {
+                    stringstream err;
+                    err << "duplicate interface '" << _interface->name << "'";
+                    errors->createNewError(GENERIC, branch->line, branch->col, err.str());
+                }
             }
         }
 
@@ -6527,12 +6583,8 @@ void Compiler::resolveBaseClasses() {
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
-                    modules.addif(currModule = "__srt_undefined");
-                    // add class for global methods
-                    createGlobalClass();
+                    currModule = undefinedModule;
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
-                    errors->createNewError(GENERIC, branch->line, branch->col, "module declaration must be "
-                                                                               "first in every file");
                 }
             }
 
@@ -6824,7 +6876,7 @@ void Compiler::inlineClassFields(Ast* ast, ClassObject* currentClass) {
 void Compiler::inlineClassMutateFields(Ast *ast) {
     ReferencePointer ptr;
     compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
-    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
+    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr);
     if(IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
         // do nothing it's allready been processed
     } else {
@@ -7028,7 +7080,7 @@ bool Compiler::preprocess() {
     bool success = true;
     for(unsigned long i = 0; i < parsers.size(); i++) {
         current = parsers.get(i);
-        errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors);
+        errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors); // TOSO: add state manager for error mnager
 
         currModule = "$unknown";
 
@@ -7046,7 +7098,7 @@ bool Compiler::preprocess() {
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
-                    modules.addif(currModule = "__srt_undefined");
+                    modules.addif(currModule = undefinedModule);
                     // add class for global methods
                     createGlobalClass();
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
@@ -7130,7 +7182,7 @@ void Compiler::preProcessMutation(Ast *ast, ClassObject *currentClass) {
     if(currentClass == NULL) {
         ReferencePointer ptr;
         compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
-        currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
+        currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr);
     }
 
     if(currentClass) {
@@ -7295,8 +7347,8 @@ void Compiler::compile() {
 }
 
 string Compiler::parseModuleDecl(Ast *ast) {
-    string module = ast->getEntity(0).getValue();
-    for(long i = 1; i < ast->getEntityCount(); i++)
+    string module;
+    for(long i = 0; i < ast->getEntityCount(); i++)
     {
         module += ast->getEntity(i).getValue();
     }
