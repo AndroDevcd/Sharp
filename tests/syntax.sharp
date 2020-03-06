@@ -8,12 +8,16 @@ enum _k {
     test
 };
 
-local class k base _k {
+alias KK as l;
+
+interface KK base l.k {
+ //class k<t> {
+
+//}
 }
 
-mutate _k base string {
 
-}
+//l := k<var>.foo();
 
 def main() {
 

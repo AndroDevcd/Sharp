@@ -349,3 +349,25 @@ def main() {
     }
 }
 ```
+
+- add support for operator []
+
+```javascript
+
+class foo {
+    data : var[];
+    
+    init {
+        data = { 1, 2, 3 };
+    }    
+
+    def operator[](index : _int64) : var {
+        return data[index];
+    }
+}
+
+def main() {
+    _foo = new foo();
+    val := _foo[0];
+}
+```

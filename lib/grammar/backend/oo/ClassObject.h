@@ -152,9 +152,9 @@ public:
             super->getAllFunctionsByTypeAndName(ftype, name, true, results);
     }
 
-    ClassObject* getChildClass(string name) {
+    ClassObject* getChildClass(string name, bool match = false) {
         for(unsigned long i = 0; i < classes.size(); i++) {
-            if(classes.get(i)->name == name)
+            if(classes.get(i)->name == name || (match && classes.get(i)->name.find(name) != string::npos))
                 return classes.get(i);
         }
 

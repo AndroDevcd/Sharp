@@ -1243,6 +1243,70 @@ Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* a
     return NULL;
 }
 
+Alias *Compiler::resolveAlias(string mod, string name, Ast *ast) {
+    List<ClassObject*> globalClasses;
+    resolveClass(classes, globalClasses,  mod, globalClass, ast);
+    Alias *resolvedAlias;
+
+    for(long i = 0; i < globalClasses.size(); i++) {
+        if(currentScope()->type == RESTRICTED_INSTANCE_BLOCK && !currentScope()->klass->isClassRelated(globalClasses.get(i)))
+            continue;
+
+        if((resolvedAlias = globalClasses.get(i)->getAlias(name, false)) != NULL) {
+            return resolvedAlias;
+        }
+    }
+
+    return NULL;
+}
+
+Field *Compiler::resolveField(string name, Ast *ast) {
+    List<ClassObject*> globalClasses;
+    resolveClass(classes, globalClasses, "", globalClass, ast);
+    Field *resolvedField;
+
+    for(long i = 0; i < globalClasses.size(); i++) {
+        if(currentScope()->type == RESTRICTED_INSTANCE_BLOCK && !currentScope()->klass->isClassRelated(globalClasses.get(i)))
+            continue;
+
+        if((resolvedField = globalClasses.get(i)->getField(name, false)) != NULL)
+            return resolvedField;
+    }
+
+    return NULL;
+}
+
+Method *Compiler::resolveFunction(string name, List<Field*> &params, Ast *ast) {
+    List<ClassObject*> globalClasses;
+    resolveClass(classes, globalClasses, "", globalClass, ast);
+    Method *resolvedMethod;
+
+    for(long i = 0; i < globalClasses.size(); i++) {
+        if(currentScope()->type == RESTRICTED_INSTANCE_BLOCK && !currentScope()->klass->isClassRelated(globalClasses.get(i)))
+            continue;
+
+        if((resolvedMethod = findFunction(globalClasses.get(i), name, params, ast, false)) != NULL)
+            return resolvedMethod;
+    }
+
+    return NULL;
+}
+
+bool Compiler::resolveFunctionByName(string name, List<Method*> &functions, Ast *ast) {
+    List<ClassObject*> globalClasses;
+    resolveClass(classes, globalClasses, "", globalClass, ast);
+    Method *resolvedMethod;
+
+    for(long i = 0; i < globalClasses.size(); i++) {
+        if(currentScope()->type == RESTRICTED_INSTANCE_BLOCK && !currentScope()->klass->isClassRelated(globalClasses.get(i)))
+            continue;
+
+        globalClasses.get(i)->getFunctionByName(name, functions);
+    }
+
+    return !functions.empty();
+}
+
 Method* Compiler::findGetterSetter(ClassObject *klass, string name, List<Field*> &params, Ast* ast) {
     Method *resolvedMethod = NULL;
     if((startsWith(name, "get_") || startsWith(name, "set_"))) {
@@ -1276,19 +1340,11 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
             return resolvedMethod;
         }
     } else {
-        List<ClassObject*> globalClasses;
-        resolveClass(classes, globalClasses, "", globalClass, ast);
-
-        for(long i = 0; i < globalClasses.size(); i++) {
-            if(currentScope()->type == RESTRICTED_INSTANCE_BLOCK && !currentScope()->klass->isClassRelated(globalClasses.get(i)))
-                continue;
-
-            if((resolvedMethod = findFunction(globalClasses.get(i), name, params, ast, true)) != NULL)
-                return resolvedMethod;
-        }
 
         // TODO: check for overloads later i need to see how it comes in
-        if((resolvedMethod = findGetterSetter(currentScope()->klass, name, params, ast)) != NULL) {
+        if((resolvedMethod = resolveFunction(name, params, ast)) != NULL) {
+            return resolvedMethod;
+        } else if((resolvedMethod = findGetterSetter(currentScope()->klass, name, params, ast)) != NULL) {
             return resolvedMethod;
         }
         else if((resolvedMethod = findFunction(currentScope()->klass, name, params, ast, true)) != NULL)
@@ -4671,7 +4727,7 @@ void Compiler::resolveConstructor(Ast* ast) {
                 goto addFunc;
             }
         }
-        errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+        errors->createNewError(GENERIC, ast->line, ast->col,
                                "constructor `" + name + "` must be the same name as its parent class");
     }
 
@@ -4855,7 +4911,7 @@ ClassObject* Compiler::getExtensionFunctionClass(Ast* ast) {
                 return resolveClass(ptr.mod, globalClass, ast);
             } else {
                 ptr.classes.pop_back();
-                return resolveClassReference(ast->getSubAst(ast_refrence_pointer), ptr);
+                return resolveClassReference(ast->getSubAst(ast_refrence_pointer), ptr, true);
             }
         }
     }
@@ -4870,11 +4926,32 @@ void Compiler::resolveGlobalMethod(Ast* ast) {
         // our method is most likeley a normal global function
         resolveMethod(ast);
     } else { // looks like we have an extension function!!
+        if(resolvedClass->flags.find(STABLE))
+            errors->createNewError(GENERIC, ast->line, ast->col, "extension functions are not allowed on stable class `" + resolvedClass->fullName + "`");
+
         // god classes must update all its generic classes created under it
         if(IS_CLASS_GENERIC(resolvedClass->getClassType()) && resolvedClass->getGenericOwner() == NULL) {
             resolvedClass->getExtensionFunctionTree().add(ast);
         } else // its can be a generic class that was already created or a reg. class
             resolveMethod(ast);
+    }
+}
+
+void Compiler::resolveClassMethod(Ast* ast) {
+    ClassObject *resolvedClass = getExtensionFunctionClass(ast);
+
+    if(resolvedClass == NULL) {
+        // our method is most likeley a normal global function
+        resolveMethod(ast);
+    } else { // looks like we have an extension function!!
+        if(resolvedClass->flags.find(STABLE))
+            errors->createNewError(GENERIC, ast->line, ast->col, "extension functions are not allowed on stable class `" + resolvedClass->fullName + "`");
+
+        // god classes must update all its generic classes created under it
+        if(IS_CLASS_GENERIC(resolvedClass->getClassType()) && resolvedClass->getGenericOwner() == NULL) {
+            resolvedClass->getExtensionFunctionTree().add(ast);
+        } else // its can be a generic class that was already created or a reg. class
+            resolveMethod(ast, resolvedClass);
     }
 }
 
@@ -4903,73 +4980,36 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
 
     List<Field*> params;
     ReferencePointer ptr;
-    string name;
-    bool extensionFunction = false;
+    compileReferencePtr(ptr, ast->getSubAst(ast_refrence_pointer));
+    string name = ptr.classes.last();
 
-    if(currentClass == NULL) {
+    if(currentClass == NULL)
         currentClass = currentScope()->klass;
 
-        compileReferencePtr(ptr, ast->getSubAst(ast_refrence_pointer));
-        if (ptr.mod == "" && ptr.classes.singular()) {
-            name = ptr.classes.last();
-        } else {
-            extensionFunction = true;
-            if (!globalScope())
-                errors->createNewError(GENERIC, ast->line, ast->col,
-                                       "extension functions can only be created at global scope");
+    parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
+    validateMethodParams(params, ast->getSubAst(ast_utype_arg_list));
 
-            if (ptr.mod != "" && ptr.classes.singular()) {
-                currentClass = resolveClass(ptr.mod, globalClass, ast);
-                name = ptr.classes.last();
-                flags.addif(STATIC);
-            } else {
-                flags.removefirst(STATIC);
-                name = ptr.classes.last();
-                ptr.classes.pop_back();
-                currentClass = resolveClassReference(ast->getSubAst(ast_refrence_pointer), ptr);
-            }
-        }
-    } else {
-        extensionFunction = true;
-        compileReferencePtr(ptr, ast->getSubAst(ast_refrence_pointer));
-        name = ptr.classes.last();
+    Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+              ast->line, ast->col);
 
-        flags.removefirst(STATIC);
-        flags.addif(PUBLIC);
-        flags.removefirst(PRIVATE);
-        flags.removefirst(PROTECTED);
+    Method *method = new Method(name, currModule, currentClass, params, flags, meta);
+    method->fullName = currentClass->fullName + "." + name;
+    method->ast = ast;
+    method->fnType = fn_normal;
+    method->address = methodSize++;
+
+    compileMethodReturnType(method, ast, true);
+
+    checkMainMethodSignature(method);
+    if (!addFunction(currentClass, method, &simpleParameterMatch)) {
+        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                                     "function `" + name + "` is already defined in the scope");
+        printNote(findFunction(currentClass, method, &simpleParameterMatch)->meta,
+                  "function `" + name + "` previously defined here");
+
+        method->free();
+        delete method;
     }
-
-    if(currentClass != NULL) {
-        if(extensionFunction && currentClass->flags.find(STABLE))
-            errors->createNewError(GENERIC, ast->line, ast->col, "extension functions are not allowed on stable class `" + currentClass->fullName + "`");
-
-        parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
-        validateMethodParams(params, ast->getSubAst(ast_utype_arg_list));
-
-        Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
-                  ast->line, ast->col);
-
-        Method *method = new Method(name, currModule, currentClass, params, flags, meta);
-        method->fullName = currentClass->fullName + "." + name;
-        method->ast = ast;
-        method->fnType = fn_normal;
-        method->address = methodSize++;
-
-        compileMethodReturnType(method, ast, true);
-
-        checkMainMethodSignature(method);
-        if (!addFunction(currentClass, method, &simpleParameterMatch)) {
-            this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                                         "function `" + name + "` is already defined in the scope");
-            printNote(findFunction(currentClass, method, &simpleParameterMatch)->meta,
-                      "function `" + name + "` previously defined here");
-
-            method->free();
-            delete method;
-        }
-    } else
-        errors->createNewError(GENERIC, ast->line, ast->col, "could not locate class for extension function `" + name + "`");
 }
 
 void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
@@ -5003,7 +5043,7 @@ void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
             case ast_func_prototype:
                 break;
             case ast_method_decl:
-                resolveMethod(branch);
+                resolveClassMethod(branch);
                 break;
             case ast_operator_decl:
                 resolveOperatorOverload(branch);
@@ -5294,22 +5334,28 @@ void Compiler::resolveAllDelegates() {
 void Compiler::resolveClassMutateMethods(Ast *ast) {
     ReferencePointer ptr;
     compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
-    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr);
-    if(IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
-        // do nothing it's allready been processed
-    } else {
-        resolveClassMethods(ast, currentClass);
+    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
+
+    if(currentClass != NULL) {
+        if (IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
+            // do nothing it's allready been processed
+        } else {
+            resolveClassMethods(ast, currentClass);
+        }
     }
 }
 
 void Compiler::resolveDelegateMutateMethods(Ast *ast) {
     ReferencePointer ptr;
     compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
-    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr);
-    if(IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
-        // do nothing it's allready been processed
-    } else {
-        resolveAllDelegates(ast, currentClass);
+    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
+
+    if(currentClass != NULL) {
+        if (IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
+            // do nothing it's allready been processed
+        } else {
+            resolveAllDelegates(ast, currentClass);
+        }
     }
 }
 
@@ -5385,11 +5431,14 @@ void Compiler::resolveAllMethods() {
 void Compiler::resolveClassMutateFields(Ast *ast) {
     ReferencePointer ptr;
     compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
-    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr);
-    if(IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
-        // do nothing it's allready been processed
-    } else {
-        resolveClassFields(ast, currentClass);
+    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
+
+    if(currentClass != NULL) {
+        if (IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
+            // do nothing it's allready been processed
+        } else {
+            resolveClassFields(ast, currentClass);
+        }
     }
 }
 
@@ -5755,62 +5804,6 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         utype->setResolvedType(resolvedUtype);
         utype->setArrayType(false);
         checkTypeInference(ast);
-    } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && resolveClass(generics, resolvedClasses, ptr.mod, name + "<>", ast, true)) {
-        if(resolvedClasses.size() == 1) {
-            stringstream helpfulMessage;
-            helpfulMessage << "have you forgotten your type parameters? Were you possibly looking for class `"
-                           << resolvedClasses.get(0)->fullName << "` it requires " << resolvedClasses.get(0)->getKeys().size()
-                           << " generic type(s).";
-            errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col,
-                                   " `" + name + "` " +
-                                   helpfulMessage.str());
-        } else {
-            stringstream helpfulMessage;
-            helpfulMessage << "I found a few generic classes that match `" << name << "`. Were you possibly looking for any of these?\n";
-            helpfulMessage << "\t{";
-
-            for(int i = 0; i < resolvedClasses.size(); i++) {
-                if(i >= 4) {
-                    helpfulMessage << "...";
-                    break;
-                }
-
-                ClassObject *klass = resolvedClasses.get(i);
-
-                helpfulMessage << "\n\t\t" << klass->fullName;
-                if((i+1) < resolvedClasses.size())
-                    helpfulMessage << ", ";
-            }
-
-            helpfulMessage << "\n\t}\n";
-
-            errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col,
-                                   " `" + name + "` " +
-                                   helpfulMessage.str());
-        }
-    }  else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && resolveClass(classes, resolvedClasses, ptr.mod, name, ast, true)) {
-        stringstream helpfulMessage;
-        helpfulMessage << "I found a few classes that match `" << name << "`. Were you possibly looking for any of these?\n";
-        helpfulMessage << "\t{";
-
-        for(int i = 0; i < resolvedClasses.size(); i++) {
-            if(i >= 4) {
-                helpfulMessage << "...";
-                break;
-            }
-
-            ClassObject *klass = resolvedClasses.get(i);
-
-            helpfulMessage << "\n\t\t" << klass->fullName ;
-            if((i+1) < resolvedClasses.size())
-                helpfulMessage << ", ";
-        }
-
-        helpfulMessage << "\n\t}\n";
-
-        errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col,
-                               " `" + name + "` " +
-                               helpfulMessage.str());
     } else if(resolveExtensionFunctions(currentScope()->klass) && currentScope()->klass->getFunctionByName(name, functions, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) {
 
         utype->setType(utype_method);
@@ -5824,7 +5817,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
                 .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
     } else if((resolvedUtype = currentScope()->klass->getAlias(name, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) != NULL) {
         Alias* alias = (Alias*)resolvedUtype;
-        compileAliasType(alias); // tODO: ensure that you can do generic typing on aliases i.e alias gen_class as g_c; field := g_c<var>;
+        compileAliasType(alias);
 
         utype->copy(alias->utype);
         utype->getCode().free().inject(alias->utype->getCode());
@@ -5833,9 +5826,8 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         utype->getCode().getInjector(stackInjector).free().inject(alias->utype->getCode().getInjector(stackInjector));
         validateAccess(alias, ast);
         checkTypeInference(alias, ast);
-    }  else {
+    } else {
         globalCheck:
-        ClassObject* global = resolveClass(ptr.mod == "" ? currModule : ptr.mod, globalClass, ast);
         functions.free();
 
         if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveClass(ptr.mod, name, ast)) != NULL) {
@@ -5845,7 +5837,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             validateAccess((ClassObject*)resolvedUtype, ast);
             checkTypeInference(ast);
             return;
-        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = global->getField(name, true)) != NULL) {
+        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveField(name, ast)) != NULL) {
             Field* field = (Field*)resolvedUtype;
             compileFieldType(field);
 
@@ -5884,7 +5876,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
                 }
             }
             return;
-        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && global->getFunctionByName(name, functions)) {
+        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && resolveFunctionByName(name, functions, ast)) {
             if(functions.size() > 1)
                 createNewWarning(GENERIC, __WAMBIG, ast->line, ast->col, "reference to function `" + functions.get(0)->name + "` is ambiguous");
 
@@ -5898,18 +5890,82 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             utype->getCode().getInjector(stackInjector)
                     .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
             return;
-        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = global->getAlias(name, true)) != NULL) {
+        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveAlias("", name, ast)) != NULL) {
             Alias* alias = (Alias*)resolvedUtype;
             compileAliasType(alias);
+            validateAccess(alias, ast);
 
             utype->copy(alias->utype);
             utype->getCode().free().inject(alias->utype->getCode());
             utype->getCode().getInjector(ptrInjector).free().inject(alias->utype->getCode().getInjector(ptrInjector));
             utype->getCode().getInjector(ebxInjector).free().inject(alias->utype->getCode().getInjector(ebxInjector));
             utype->getCode().getInjector(stackInjector).free().inject(alias->utype->getCode().getInjector(stackInjector));
-            validateAccess(alias, ast);
             checkTypeInference(alias, ast);
             return;
+        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK &&
+            (resolveClass(generics, resolvedClasses, ptr.mod, name + "<>", ast, true)
+             || currentScope()->klass->getChildClass(name + "<>", true))) {
+            if(currentScope()->klass->getChildClass(name + "<>", true))
+                resolvedClasses.add(currentScope()->klass->getChildClass(name + "<>", true));
+            if(resolvedClasses.size() == 1) {
+                stringstream helpfulMessage;// TODO: support finding sub classes as well
+                helpfulMessage << "have you forgotten your type parameters? Were you possibly looking for class `"
+                               << resolvedClasses.get(0)->fullName << "`?";
+                errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col,
+                                       " `" + name + "` " +
+                                       helpfulMessage.str());
+            } else {
+                stringstream helpfulMessage;
+                helpfulMessage << "I found a few generic classes that match `" << name << "`. Were you possibly looking for any of these?\n";
+                helpfulMessage << "\t{";
+
+                for(int i = 0; i < resolvedClasses.size(); i++) {
+                    if(i >= 4) {
+                        helpfulMessage << "...";
+                        break;
+                    }
+
+                    ClassObject *klass = resolvedClasses.get(i);
+
+                    helpfulMessage << "\n\t\t" << klass->fullName;
+                    if((i+1) < resolvedClasses.size())
+                        helpfulMessage << ", ";
+                }
+
+                helpfulMessage << "\n\t}\n";
+
+                errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col,
+                                       " `" + name + "` " +
+                                       helpfulMessage.str());
+            }
+        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK &&
+            (resolveClass(classes, resolvedClasses, ptr.mod, name, ast, true)
+                || currentScope()->klass->getChildClass(name, true))) {
+            stringstream helpfulMessage;
+            helpfulMessage << "I found a few classes that match `" << name << "`. Were you possibly looking for any of these?\n";
+            helpfulMessage << "\t{"; // TODO: support finding sub classes as well
+
+            if(currentScope()->klass->getChildClass(name, true))
+                resolvedClasses.add(currentScope()->klass->getChildClass(name + "<>", true));
+
+            for(int i = 0; i < resolvedClasses.size(); i++) {
+                if(i >= 4) {
+                    helpfulMessage << "...";
+                    break;
+                }
+
+                ClassObject *klass = resolvedClasses.get(i);
+
+                helpfulMessage << "\n\t\t" << klass->fullName ;
+                if((i+1) < resolvedClasses.size())
+                    helpfulMessage << ", ";
+            }
+
+            helpfulMessage << "\n\t}\n";
+
+            errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col,
+                                   " `" + name + "` " +
+                                   helpfulMessage.str());
         }
 
         errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col, " `" + name + "` ");
@@ -5986,7 +6042,7 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
     Utype *bridgeUtype = new Utype(); // we need this so we dont loose code when free is called
 
     ClassObject *oldScope = currentScope()->klass;
-    RETAIN_BLOCK_TYPE(fromClass ? STATIC_BLOCK : RESTRICTED_INSTANCE_BLOCK)
+    RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
     if(fromClass) currentScope()->klass = (ClassObject*)data;
     for(unsigned int i = 1; i < ptr.classes.size(); i++) {
         lastReference = (i+1) >= ptr.classes.size();
@@ -6074,6 +6130,7 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
         } else {
             error:
             errors->createNewError(GENERIC, ast->line, ast->col, " resolved type `" + bridgeUtype->toString() + "` must be a field or a method");
+            break;
         }
 
         utype->copy(bridgeUtype);
@@ -6341,17 +6398,85 @@ void Compiler::compileReferencePtr(ReferencePointer &ptr, Ast* ast) {
     }
 }
 
-ClassObject *Compiler::resolveClassReference(Ast *ast, ReferencePointer &ptr) {
-    Utype *utype = new Utype();
-    RETAIN_TYPE_INFERENCE(false)
-    resolveUtype(ptr, utype, ast);
-    RESTORE_TYPE_INFERENCE()
+ClassObject *Compiler::resolveClassReference(Ast *ast, ReferencePointer &ptr, bool allowGenerics) {
+    Alias *alias;
+    if(ptr.classes.singular()) {
+        ClassObject* klass = resolveClass(ptr.mod, ptr.classes.get(0), ast);
+        if(klass == NULL) {
+            if((klass = findClass(ptr.mod, ptr.classes.get(0) + "<>", generics))) {
+                if(allowGenerics) // this is for extension functions
+                    return klass;
+                else
+                    errors->createNewError(COULD_NOT_RESOLVE, ast, " `" + ptr.classes.get(0)
+                                                                   + "`. It was found to be a generic class, have you missed the key parameters to the class perhaps?");
+            } else if((alias = currentScope()->klass->getAlias(ptr.classes.get(0), true)) != NULL
+                || (alias = resolveAlias(ptr.mod, ptr.classes.get(0), ast)) != NULL) {
+                compileAliasType(alias);
+                validateAccess(alias, ast);
 
-    if(utype->getType() == utype_class) {
-        return utype->getClass();
+                if(alias->utype->getType() == utype_class) {
+                    return alias->utype->getClass();
+                } else
+                    errors->createNewError(GENERIC, ast, "symbol `" + alias->utype->toString() + "` is not a class");
+            } else {
+                errors->createNewError(COULD_NOT_RESOLVE, ast, " `" + ptr.classes.get(0) + "`");
+            }
+        } else {
+            return klass;
+        }
     } else {
-        errors->createNewError(GENERIC, ast, " attempting to use symbol `" + utype->toString()
-                                             + "` as a class");
+        ClassObject* klass = resolveClass(ptr.mod, ptr.classes.get(0), ast);
+        if(klass == NULL) {
+            if(findClass(ptr.mod, ptr.classes.get(0) + "<>", generics)) {
+                errors->createNewError(COULD_NOT_RESOLVE, ast, " `" + ptr.classes.get(0)
+                                                               + "`. It was found to be a generic class, have you missed the key parameters to the class perhaps?");
+            } else if((alias = currentScope()->klass->getAlias(ptr.classes.get(0), true)) != NULL
+                || (alias = resolveAlias(ptr.mod, ptr.classes.get(0), ast)) != NULL) {
+                compileAliasType(alias);
+                validateAccess(alias, ast);
+
+                if(alias->utype->getType() == utype_class) {
+                    klass = alias->utype->getClass();
+                    goto resolveHeiarchy;
+                } else
+                    errors->createNewError(GENERIC, ast, "symbol `" + alias->utype->toString() + "` is not a class");
+            } else {
+                errors->createNewError(COULD_NOT_RESOLVE, ast, " `" + ptr.classes.get(0) + "`");
+            }
+        } else {
+            resolveHeiarchy:
+            Utype utype;
+            string name = ptr.classes.last();
+            ptr.classes.pop_back();
+
+            if(ptr.classes.size() > 1) {
+                RETAIN_SCOPE_CLASS(klass)
+                resolveClassHeiarchy(klass, true, ptr, &utype, ast);
+                RESTORE_SCOPE_CLASS()
+            } else {
+                utype.setType(utype_class);
+                utype.setResolvedType(klass);
+            }
+
+            if(utype.getType() == utype_class) {
+                klass = utype.getClass();
+                ClassObject *subClass;
+
+                if((subClass = klass->getChildClass(name)) != NULL) {
+                    return subClass;
+                } else if((subClass = klass->getChildClass(name + "<>")) != NULL) {
+                    if(allowGenerics) // this is for extension functions
+                        return subClass;
+                    else
+                        errors->createNewError(COULD_NOT_RESOLVE, ast, " `" + ptr.classes.get(0)
+                                                                       + "`. It was found to be a generic class, have you missed the key parameters to the class perhaps?");
+                } else {
+                    errors->createNewError(COULD_NOT_RESOLVE, ast, " `" + name + "`");
+                }
+            } else {
+                errors->createNewError(GENERIC, ast, "symbol `" + utype.toString() + "` is not a class");
+            }
+        }
     }
 
     return NULL;
@@ -6374,7 +6499,7 @@ ClassObject *Compiler::resolveBaseClass(Ast *ast) {
                 return NULL;
             }
 
-            if(IS_CLASS_INTERFACE(base->getClassType())) {
+            if(IS_CLASS_INTERFACE(base->getClassType()) && !IS_CLASS_INTERFACE(currentScope()->klass->getClassType())) {
                 errors->createNewError(GENERIC, ast->getSubAst(0)->line, ast->getSubAst(0)->col,
                                        "class `" + currentScope()->klass->fullName + "` cannot inherit interface `" +
                                        base->fullName + "` as a base class. Try this instead: `class " + currentScope()->klass->name + " base YourBaseClass : " + base->name + " { .. }`");
@@ -6876,11 +7001,14 @@ void Compiler::inlineClassFields(Ast* ast, ClassObject* currentClass) {
 void Compiler::inlineClassMutateFields(Ast *ast) {
     ReferencePointer ptr;
     compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
-    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr);
-    if(IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
-        // do nothing it's allready been processed
-    } else {
-        inlineClassFields(ast, currentClass);
+    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
+
+    if(currentClass != NULL) {
+        if (IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
+            // do nothing it's allready been processed
+        } else {
+            inlineClassFields(ast, currentClass);
+        }
     }
 }
 
@@ -7182,7 +7310,7 @@ void Compiler::preProcessMutation(Ast *ast, ClassObject *currentClass) {
     if(currentClass == NULL) {
         ReferencePointer ptr;
         compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
-        currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr);
+        currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
     }
 
     if(currentClass) {
@@ -7192,7 +7320,6 @@ void Compiler::preProcessMutation(Ast *ast, ClassObject *currentClass) {
         if(IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
             currentClass->getClassMutations().add(ast);
         } else {
-            resolveSuperClass(ast, currentClass);
             currScope.add(new Scope(currentClass, CLASS_SCOPE));
             for (long i = 0; i < block->getSubAstCount(); i++) {
                 Ast *branch = block->getSubAst(i);
@@ -7240,7 +7367,9 @@ void Compiler::preProcessMutation(Ast *ast, ClassObject *currentClass) {
                         break;
                 }
             }
+
             removeScope();
+            resolveSuperClass(ast, currentClass);
         }
     }
 }
@@ -7285,20 +7414,15 @@ void Compiler::preprocessMutations() {
             if(x == 0)
             {
                 if(branch->getType() == ast_module_decl) {
-                    modules.addif(currModule = parseModuleDecl(branch));
-                    // add class for global methods
-                    createGlobalClass();
+                    currModule = parseModuleDecl(branch);
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
-                    modules.addif(currModule = "__srt_undefined");
-                    // add class for global methods
-                    createGlobalClass();
+                    currModule = undefinedModule;
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
-                    errors->createNewError(GENERIC, branch->line, branch->col, "module declaration must be "
-                                                                               "first in every file");
                 }
             }
+
             switch(branch->getType()) {
                 case ast_class_decl:
                     preProccessClassDeclForMutation(branch);

@@ -191,7 +191,7 @@ private:
     void resolveSuperClass(Ast *ast, ClassObject* currentClass = NULL);
     void parseReferencePointerList(List<ReferencePointer*> &refPtrs, Ast *ast);
     ClassObject* resolveBaseClass(Ast *ast);
-    ClassObject *resolveClassReference(Ast *ast, ReferencePointer &ptr);
+    ClassObject *resolveClassReference(Ast *ast, ReferencePointer &ptr, bool allowenerics = false);
     void compileReferencePtr(ReferencePointer &ptr, Ast* ast);
     ClassObject* compileGenericClassReference(string &mod, string &name, ClassObject* parent, Ast *ast);
     void compileUtypeList(Ast *ast, List<Utype *> &types);
@@ -219,6 +219,7 @@ private:
     void resolveClassMutateMethods(Ast *ast);
     void resolveMethod(Ast* ast, ClassObject *currentClass = NULL);
     void resolveGlobalMethod(Ast* ast);
+    void resolveClassMethod(Ast* ast);
     void compileMethodReturnType(Method* fun, Ast *ast, bool wait = false);
     void resolveDelegate(Ast* ast);
     void resolveDelegateImpl(Ast* ast);
@@ -292,8 +293,12 @@ private:
     Method* findFunction(ClassObject *k, string name, List<Field*> &params, Ast* ast, bool checklBase = false, function_type type = fn_undefined);
     bool paramsContainNonQualifiedLambda(List<Field*> &params);
     bool isLambdaUtype(Utype *type);
+    bool resolveFunctionByName(string name, List<Method*> &functions, Ast *ast);
     Method* compileSingularMethodUtype(ReferencePointer &ptr, Expression *expr, List<Field*> &params, Ast* ast);
     Method* findGetterSetter(ClassObject *klass, string name, List<Field*> &params, Ast* ast);
+    Method *resolveFunction(string name, List<Field*> &params, Ast *ast);
+    Field *resolveField(string name, Ast *ast);
+    Alias *resolveAlias(string mod, string name, Ast *ast);
     bool isAllIntegers(string int_string);
     string codeToString(IrCode &code);
     string registerToString(int64_t r);
@@ -345,6 +350,13 @@ enum ProcessingStage {
 
 #define RESTORE_BLOCK_TYPE() \
     currentScope()->type = oldType;
+
+#define RETAIN_SCOPE_CLASS(bt) \
+    ClassObject *oldScopeClass = currentScope()->klass; \
+    currentScope()->klass = bt;
+
+#define RESTORE_SCOPE_CLASS() \
+    currentScope()->klass = oldScopeClass;
 
 #define RETAIN_TYPE_INFERENCE(ti) \
     bool oldTypeInference = typeInference; \
