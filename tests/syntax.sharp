@@ -8,7 +8,6 @@ class l<t> {
 }
 
 class Y<t> {
-    alias l<t> as kl;
 
     mutate l<var> {
         foo := io;

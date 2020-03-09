@@ -76,7 +76,7 @@ public:
     void setSuperClass(ClassObject* sup) { super = sup; }
     ClassObject* getSuperClass() { return super; }
     bool isClassRelated(ClassObject *klass, bool interfaceCheck = true);
-    bool isAtLeast(generic_processing_stage stage) { return stage >= processStage; }
+    bool isAtLeast(generic_processing_stage stage) { return processStage >= stage; }
     void setProcessStage(generic_processing_stage stage) { processStage = stage; }
     bool isGlobalClass() { return globalClass; }
     void setGlobalClass(bool glob) { globalClass = glob; }
