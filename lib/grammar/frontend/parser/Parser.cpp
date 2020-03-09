@@ -809,7 +809,7 @@ void parser::parseInterfaceBlock(Ast* ast) {
         else if(isMutateDecl(current()))
         {
             errors->createNewError(GENERIC, current(), "unexpected mutate declaration");
-            parseMutateDecl(NULL);
+            parseMutateDecl(branch);
         }
         else if(isImportDecl(current()))
         {
@@ -2107,7 +2107,11 @@ bool parser::parsePrimaryExpr(Ast* ast) {
     old=_current;
     if(parseDotNotCallExpr(branch)) {
         errors->fail();
-        branch->encapsulate(ast_dot_not_e);
+        Ast *branchToStore = branch->sub_asts.last();
+        Ast* dotNotBranch = getBranch(branch, ast_dot_not_e);
+        dotNotBranch->addAst(branchToStore);
+        branch->sub_asts.remove(branch->sub_asts.size() - 2);
+
         if(!match(3, LEFTBRACE, _INC, _DEC))
             return true;
     } else {
@@ -2120,7 +2124,6 @@ bool parser::parsePrimaryExpr(Ast* ast) {
     {
         expect(branch, "new");
         parseUtypeNaked(branch);
-        bool newClass = false;
 
         if(peek(1)->getType() == LEFTBRACE && parseArrayExpression(branch)){}
         else if(peek(1)->getType() == LEFTBRACE) {
@@ -2131,7 +2134,6 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         }
         else if(peek(1)->getType() == LEFTPAREN) {
             parseExpressionList(branch, "(", ")");
-            newClass = true;
         } else if(peek(1)->getType() == LEFTCURLY) {
             if(peek(2)->getId() == IDENTIFIER) {
                 if(peek(2)->getValue() == "base") {
@@ -2434,7 +2436,7 @@ void parser::parseClassBlock(Ast *ast) {
         }
         else if(isMutateDecl(current()))
         {
-            parseMutateDecl(NULL);
+            parseMutateDecl(branch);
         }
         else if(isInterfaceDecl(current()))
         {

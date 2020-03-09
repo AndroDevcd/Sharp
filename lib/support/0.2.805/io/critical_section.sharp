@@ -2,9 +2,53 @@ mod std.io;
 
 global_object := new _object_();
 def critical_section(fn block()) {
-//    lock(global_object) { block(); }
+    // err : exception;
+    // lock global_object -> {
+    //   try {
+    //       block();
+    //   } catch(e : exception) {
+    //       err = e;
+    //   }
+    // }
+    //
+    // if(err != null) throw err;
 }
 
 //def<t> critical_section(fn block(t), data: t) {
-//    lock(global_object) { block(data); }
+    // err : exception;
+    // lock global_object -> {
+    //   try {
+    //       block(data);
+    //   } catch(e : exception) {
+    //       err = e;
+    //   }
+    // }
+    //
+    // if(err != null) throw err;
+//}
+
+def critical_section(fn block(), lock_obj : object) {
+    // err : exception;
+    // lock lock_obj -> {
+    //   try {
+    //       block();
+    //   } catch(e : exception) {
+    //       err = e;
+    //   }
+    // }
+    //
+    // if(err != null) throw err;
+}
+
+//def<t> critical_section(fn block(t), lock_obj : object, data: t) {
+    // err : exception;
+    // lock lock_obj -> {
+    //   try {
+    //       block(data);
+    //   } catch(e : exception) {
+    //       err = e;
+    //   }
+    // }
+    //
+    // if(err != null) throw err;
 //}

@@ -22,6 +22,15 @@ enum class_type
     class_enum = 4
 };
 
+enum generic_processing_stage
+{
+    unprocessed,
+    created,
+    preprocessed,
+    postprocessed,
+    compiled
+};
+
 class ClassObject : public DataEntity {
 
 public:
@@ -30,7 +39,7 @@ public:
         DataEntity(),
         super(NULL),
         classType(class_normal),
-        processed(false),
+        processStage(unprocessed),
         globalClass(false),
         genericOwner(NULL),
         processedExtFunctions(0),
@@ -67,8 +76,8 @@ public:
     void setSuperClass(ClassObject* sup) { super = sup; }
     ClassObject* getSuperClass() { return super; }
     bool isClassRelated(ClassObject *klass, bool interfaceCheck = true);
-    bool isProcessed() { return processed; }
-    void setIsProcessed(bool isProcessed) { processed = isProcessed; }
+    bool isAtLeast(generic_processing_stage stage) { return stage >= processStage; }
+    void setProcessStage(generic_processing_stage stage) { processStage = stage; }
     bool isGlobalClass() { return globalClass; }
     void setGlobalClass(bool glob) { globalClass = glob; }
     bool getFunctionByName(string name, List<Method*> &functions, bool checkBase = false);
@@ -169,7 +178,7 @@ public:
     void transfer(ClassObject *k) {
         free();
         this->super = k->super;
-        this->processed = k->processed;
+        this->processStage = k->processStage;
         this->globalClass = k->globalClass;
         this->classType = k->classType;
         this->classes.addAll(k->classes);
@@ -188,7 +197,7 @@ public:
     long processedExtFunctions;
     long processedMutations;
 private:
-    bool processed;
+    generic_processing_stage processStage;
     bool globalClass;
     int classType;
     List<Method*> functions;

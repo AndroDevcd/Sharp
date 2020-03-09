@@ -13,6 +13,7 @@
 
 int _bootstrap(int argc, const char* argv[]);
 bool startsWith(string &str, string prefix);
+bool ends_with(std::string const & value, std::string const & ending);
 
 extern options c_options;
 #define opt(v) strcmp(argv[i], v) == 0

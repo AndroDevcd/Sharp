@@ -14,7 +14,7 @@
 - [X] Allow for importing of star (*) 
     - import std.*; imports all of the standard library
 - Add functionality for AOT Compiler for functions and Inject them directly in the exe
-- Have automatic lookup for enums
+- [X] Have automatic lookup for enums
 - [X] Allow for expression in first argument of for loop
 - Add asm volatile() argument to allow optimzer to modify the injected code
 - standard asm() code will not be modified by compiler unlexss there needs to be a
@@ -23,7 +23,7 @@ from changing the source code
 - Limit naming of declirations such as fields named as methods or classes
 - Figure out weird bug with Unixfile system processing char when normalizing file path
 - remove static call functionality for delegate functions
-- Add support for inline anaonymous functions -- `done`
+- [X] Add support for inline anaonymous functions
     - Syntax:
 ```javascript
 def foo() {
@@ -38,7 +38,7 @@ def foo() {
     calc(x,y);
 }
 ```
-- modify syntax to allow for a much more user friendly and easy design for type creation and
+- [X] modify syntax to allow for a much more user friendly and easy design for type creation and
 variable assignments
 
 ```javascript
@@ -93,12 +93,12 @@ lock(self) {
 }
 ```
 
-- support function pointers as global variables
+- [X] support function pointers as global variables
 - fix exception system problems
     * Extreemly slow
     * finally block execute has problems with returning from the function in question
 
-- give attribute local a meaning to where it forces fields and methods to only be used exclusivley
+- [X] give attribute local a meaning to where it forces fields and methods to only be used exclusivley
   for the file it was created in. All other files will be considered out of scope
   
   ```
@@ -129,7 +129,7 @@ def foo(??name) {
 }
 ```
 
-- add new options for bootstrap compiler object dumping
+- [X] add new options for bootstrap compiler object dumping
     - "-obj" to dump object file (file will be outputted with no debugging info and mangled
     - "-obj:d" for demangling code to show names
     - "-obj:x" for displaying the compiled high level assembly syntax i.e. "mov fp+2, %ebx"
@@ -139,7 +139,30 @@ def foo(??name) {
 
 - Create new syntax for Assembler in SHarp compiler to be more like a modern assembly language
 - Create a "CodeAst" Block structure when compiling to allow for insightful data as well as code optimization
+- add support for file resource pointers
+-- This allows for the user to pull down data in a file in blocks instead of all at once
+---- This will however pose a risk for threads leaving file resources open if there is a deadlock or he thread gets shut down
+---- Implement same code to close all file handles on thread shutdown
+---- Below is a proposed solution for adding this feature
 
+```javascript
+class Threa {
+    ...
+    List<File*> fileHandles;
+};
+
+void VirtualMachine::sysInterrupt(int64_t interrupt) {
+    ...
+    case INC_FILE_POINTER:
+        // do your work here
+        break; // we may have many sysInterrupts() to handle the functionality
+}
+
+```
+
+- Convert programming language to support 32 bit systems
+-- Max integer value is "2,147,483,632‬"
+--- Limit max class size, function, and field size possible
 
 - add  with and apply
 with:

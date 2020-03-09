@@ -3,17 +3,25 @@ mod main;
 import std.io;
 
 
-enum _k {
-    apple,
-    test
-};
+class l<t> {
+    io := 10;
+}
 
-alias KK as l;
+class Y<t> {
+    alias l<t> as kl;
 
-interface KK base l.k {
- //class k<t> {
+    mutate l<var> {
+        foo := io;
+    }
+}
 
-//}
+ll2 := new l<var>().foo;
+ll := new Y<var>();
+
+//static f := foo({ _ -> });
+
+def foo(fn f(var)) {
+
 }
 
 
