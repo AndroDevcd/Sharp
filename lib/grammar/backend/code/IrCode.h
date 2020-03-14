@@ -140,8 +140,8 @@ private:
     void remove_injector(string key) {
         for(unsigned int i = 0; i < injectors.key.size(); i++) {
             if(injectors.key.at(i) == key) {
-                injectors.value.remove(i);
-                injectors.key.remove(i);
+                injectors.value.removeAt(i);
+                injectors.key.removeAt(i);
                 return;
             }
         }

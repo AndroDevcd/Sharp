@@ -2110,7 +2110,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         Ast *branchToStore = branch->sub_asts.last();
         Ast* dotNotBranch = getBranch(branch, ast_dot_not_e);
         dotNotBranch->addAst(branchToStore);
-        branch->sub_asts.remove(branch->sub_asts.size() - 2);
+        branch->sub_asts.removeAt(branch->sub_asts.size() - 2);
 
         if(!match(3, LEFTBRACE, _INC, _DEC))
             return true;

@@ -236,13 +236,20 @@ def main() {
     
     
 - Add generic functions
+-- Add support for generic extension functions as well
 ```javascript
 def<T> templateFun() : T {
     // do stuff
 }
 
+def<T> T.templateFun() : T {
+    // do stuff
+}
+
 def main() {
     templateFun<var>();
+    str := "";
+    str.templateFun<string>();
 }
 ```
 
@@ -394,3 +401,50 @@ def main() {
     val := _foo[0];
 }
 ```
+
+- add string compression on output files
+--- Format oes as fllows
+
+=== Compression Cunk Begin ===
+12:Hello, World,2:hi,4:hello...
+=== Compression Chuck End ===
+
+to bring down file exe size
+
+- add builtin obfuscation of code to the lang
+-- Obfuscate classes, fields, and method names in code
+--- It will be as follows
+```javascript
+
+class car {
+    vin : string;
+    hp : _int8;
+    color : vehicle_color;
+    wheels: _int8;
+}
+
+enum vehicle_color {
+    red,
+    blue,
+    silver,
+    black,
+    pink
+}
+
+// explicitly obvuscate these fields & enum
+obfuscate {
+    car.vin,
+    car.hp,
+    vehicle_color
+}
+
+// explicitly declare to not obvuscate these fields
+obfuscate ignore {
+    car.wheels
+}
+
+```
+
+- for each field, an alias is created and the actual name is stored in the class as a random name
+- add option -obf to compiler to obfuscate everything 
+- dont perform code obvuscation until code genertion step in the compiler

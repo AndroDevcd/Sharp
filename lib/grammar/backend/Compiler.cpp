@@ -332,13 +332,13 @@ void Compiler::preProccessAliasDecl(Ast* ast) {
     }
 
     if(flags.find(STATIC)) {
-        flags.remove(STATIC);
+        flags.removeAt(STATIC);
         createNewWarning(GENERIC, __WACCESS, ast->line, ast->col,
                          "access specifier `static` is ignored on aliases");
     }
 
     if(flags.find(flg_CONST)) {
-        flags.remove(flg_CONST);
+        flags.removeAt(flg_CONST);
         errors->createNewError(GENERIC, ast->line, ast->col, "access specifier `const` is not allowed on aliases");
     }
 
@@ -677,8 +677,11 @@ void Compiler::preProccessImportDecl(Ast *branch, List<string> &imports) {
     }
 
     string mod = ss.str();
+    string baseMod = mod.substr(0, mod.size() - 1);
     if(star) {
         bool found = false;
+        if(modules.find(baseMod))
+            imports.addif(baseMod);
         for(long i = 0; i < modules.size(); i++) {
             if(startsWith(modules.get(i), mod)) {
                 found = true;
@@ -690,6 +693,7 @@ void Compiler::preProccessImportDecl(Ast *branch, List<string> &imports) {
             errors->createNewError(GENERIC, branch->line, branch->col, "modules under prefix `" + mod +
                                                                        "*` could not be found");
         }
+
     } else {
         if(modules.find(mod)) {
             if(!imports.addif(mod)) {
@@ -1290,9 +1294,6 @@ Method *Compiler::resolveFunction(string name, List<Field*> &params, Ast *ast) {
     Method *resolvedMethod;
 
     for(long i = 0; i < globalClasses.size(); i++) {
-        if(currentScope()->type == RESTRICTED_INSTANCE_BLOCK && !currentScope()->klass->isClassRelated(globalClasses.get(i)))
-            continue;
-
         if((resolvedMethod = findFunction(globalClasses.get(i), name, params, ast, false)) != NULL)
             return resolvedMethod;
     }
@@ -1348,7 +1349,7 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
     } else {
 
         // TODO: check for overloads later i need to see how it comes in
-        if((resolvedMethod = resolveFunction(name, params, ast)) != NULL) {
+        if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedMethod = resolveFunction(name, params, ast)) != NULL) {
             return resolvedMethod;
         } else if((resolvedMethod = findGetterSetter(currentScope()->klass, name, params, ast)) != NULL) {
             return resolvedMethod;
@@ -3169,8 +3170,7 @@ void Compiler::compileNullExpression(Expression* expr, Ast* ast) {
 }
 
 void Compiler::compileBaseExpression(Expression* expr, Ast* ast) {
-    ClassObject* oldScope = currentScope()->klass;;
-    currentScope()->klass = oldScope->getSuperClass();
+    RETAIN_SCOPE_CLASS(currentScope()->klass->getSuperClass())
 
     expr->ast = ast;
     if(currentScope()->klass != NULL) {
@@ -3181,11 +3181,11 @@ void Compiler::compileBaseExpression(Expression* expr, Ast* ast) {
             expr->utype = new Utype(currentScope()->klass);
         }
     } else
-        errors->createNewError(GENERIC, ast->line, ast->col, "scoped class `" + oldScope->fullName + "` does not have a base class to derive from");
+        errors->createNewError(GENERIC, ast->line, ast->col, "scoped class `" + oldScopeClass->fullName + "` does not have a base class to derive from");
 
     if(currentScope()->type == GLOBAL_SCOPE || currentScope()->type == STATIC_BLOCK)
         errors->createNewError(GENERIC, ast->line, ast->col, "illegal reference to self in static context");
-    currentScope()->klass = oldScope;
+    RESTORE_SCOPE_CLASS()
 }
 
 void Compiler::compileSelfExpression(Expression* expr, Ast* ast) {
@@ -4445,14 +4445,6 @@ void Compiler::parseMethodAccessFlags(List<AccessFlag> &flags, Ast *ast) {
 
 Field* Compiler::compileUtypeArg(Ast* ast) {
     Field *arg = new Field();
-    Utype* utype = compileUtype(ast->getSubAst(ast_utype));
-
-    if(utype && utype->getType() != utype_unresolved) {
-        arg->isArray = utype->isArray();
-        arg->type = utype->getResolvedType()->type;
-    } else
-        arg->type = UNDEFINED;
-
     Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->sourcefile,
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
     arg->meta.copy(meta);
@@ -4468,7 +4460,9 @@ Field* Compiler::compileUtypeArg(Ast* ast) {
         arg->fullName = arg->name;
     }
 
-    resolveFieldType(arg, utype, ast);
+    RETAIN_TYPE_INFERENCE(false)
+    resolveFieldType(arg, compileUtype(ast->getSubAst(ast_utype)), ast);
+    RESTORE_TYPE_INFERENCE()
     return arg;
 }
 
@@ -4505,7 +4499,7 @@ bool Compiler::containsParamType(List<Field*> &params, DataType type) {
 void Compiler::validateMethodParams(List<Field*>& params, Ast* ast) {
     for(unsigned int i = 0; i < params.size(); i++) {
         if(containsParam(params, params.get(i)->name)) {
-            errors->createNewError(SYMBOL_ALREADY_DEFINED, ast->line, ast->col, "symbol `" + params.get(i)->toString() + "` already defined in the scope");
+            errors->createNewError(SYMBOL_ALREADY_DEFINED, ast->line, ast->col, "param `" + params.get(i)->toString() + "` already defined in the scope");
         } else {
             if(params.get(i)->name == "" && ast->getType() == ast_utype_arg_list_opt) {
                 stringstream ss;
@@ -4600,7 +4594,7 @@ void Compiler::checkMainMethodSignature(Method* method) {
 
             if(simpleParameterMatch(method->params, params)) {
                 if(method->utype->getType() == utype_native && method->utype->getResolvedType()->type == VAR) { // fn main(string[]) : var;
-                    if(!hasMainMethod) {
+                    if(mainMethod == NULL) {
                         mainMethod = method;
                         mainSignature = 0;
                     } else {
@@ -4609,7 +4603,7 @@ void Compiler::checkMainMethodSignature(Method* method) {
                     }
 
                 } else if(method->utype->getType() == utype_native && method->utype->getResolvedType()->type == NIL) { // fn main(string[]);
-                    if(!hasMainMethod) {
+                    if(mainMethod == NULL) {
                         mainMethod = method;
                         mainSignature = 1;
                     } else {
@@ -4623,7 +4617,7 @@ void Compiler::checkMainMethodSignature(Method* method) {
             params.free();
             if(simpleParameterMatch(method->params, params)) {
                 if(method->utype->getType() == utype_native && method->utype->getResolvedType()->type == NIL) { // fn main();
-                    if(!hasMainMethod) {
+                    if(mainMethod == NULL) {
                         mainMethod = method;
                         mainSignature = 2;
                     } else {
@@ -4631,7 +4625,7 @@ void Compiler::checkMainMethodSignature(Method* method) {
                         printNote(mainMethod->meta, "method `main` previously defined here");
                     }
                 } else if(method->utype->getType() == utype_native && method->utype->getResolvedType()->type == VAR) { // fn main() : var;
-                    if(!hasMainMethod) {
+                    if(mainMethod == NULL) {
                         mainMethod = method;
                         mainSignature = 3;
                     } else {
@@ -4642,7 +4636,8 @@ void Compiler::checkMainMethodSignature(Method* method) {
                 } else
                     createNewWarning(GENERIC, __WMAIN, method->ast->line, method->ast->col, "main method might not be executed");
             }
-        }
+        } else
+            errors->createNewError(GENERIC, method->ast, "class `std#string` was not found when analyzing main method");
     }
 }
 
@@ -4652,22 +4647,14 @@ void Compiler::resolveOperatorOverload(Ast* ast) {
     if (ast->hasSubAst(ast_access_type)) {
         parseMethodAccessFlags(flags, ast->getSubAst(ast_access_type));
 
-        if(globalScope()) {
-            if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
-                flags.add(PUBLIC);
-            flags.addif(STATIC);
-        } else {
-            if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
-                flags.add(PRIVATE);
-        }
+        if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
+            flags.add(PUBLIC);
+
     } else {
-        if(globalScope()) {
-            flags.add(PUBLIC);
-            flags.add(STATIC);
-        } else
-            flags.add(PUBLIC);
+        flags.add(PUBLIC);
     }
 
+    // TODO: when operator[] is supported only store `[` char so that we dont break this function
     List<Field*> params;
     string name = ast->getEntity(0).getValue() + ast->getEntity(1).getValue();
     string op = ast->getEntity(1).getValue();
@@ -4685,7 +4672,6 @@ void Compiler::resolveOperatorOverload(Ast* ast) {
     method->overload = op.at(0);
 
     compileMethodReturnType(method, ast, true);
-
     if(!addFunction(currentScope()->klass, method, &simpleParameterMatch)) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                      "function `" + name + "` is already defined in the scope");
@@ -4702,20 +4688,10 @@ void Compiler::resolveConstructor(Ast* ast) {
     if (ast->hasSubAst(ast_access_type)) {
         parseMethodAccessFlags(flags, ast->getSubAst(ast_access_type));
 
-        if(globalScope()) {
-            if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
-                flags.add(PUBLIC);
-            flags.addif(STATIC);
-        } else {
-            if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
-                flags.add(PRIVATE);
-        }
+        if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
+            flags.add(PUBLIC);
     } else {
-        if(globalScope()) {
-            flags.add(PUBLIC);
-            flags.add(STATIC);
-        } else
-            flags.add(PUBLIC);
+        flags.add(PUBLIC);
     }
 
     List<Field*> params;
@@ -4741,6 +4717,7 @@ void Compiler::resolveConstructor(Ast* ast) {
                 goto addFunc;
             }
         }
+
         errors->createNewError(GENERIC, ast->line, ast->col,
                                "constructor `" + name + "` must be the same name as its parent class");
     }
@@ -4763,20 +4740,10 @@ void Compiler::resolveDelegateImpl(Ast* ast) {
     if (ast->hasSubAst(ast_access_type)) {
         parseMethodAccessFlags(flags, ast->getSubAst(ast_access_type));
 
-        if(globalScope()) {
-            if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
-                flags.add(PUBLIC);
-            flags.addif(STATIC);
-        } else {
-            if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
-                flags.add(PRIVATE);
-        }
+        if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
+            flags.add(PUBLIC);
     } else {
-        if(globalScope()) {
-            flags.add(PUBLIC);
-            flags.add(STATIC);
-        } else
-            flags.add(PUBLIC);
+        flags.add(PUBLIC);
     }
 
     List<Field*> params;
@@ -4794,7 +4761,6 @@ void Compiler::resolveDelegateImpl(Ast* ast) {
     method->address = methodSize++;
 
     compileMethodReturnType(method, ast, true);
-    checkMainMethodSignature(method);
     if(!addFunction(currentScope()->klass, method, &simpleParameterMatch)) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                      "function `" + name + "` is already defined in the scope");
@@ -4811,20 +4777,10 @@ void Compiler::resolveDelegate(Ast* ast) {
     if (ast->hasSubAst(ast_access_type)) {
         parseMethodAccessFlags(flags, ast->getSubAst(ast_access_type));
 
-        if(globalScope()) {
-            if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
-                flags.add(PUBLIC);
-            flags.addif(STATIC);
-        } else {
-            if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
-                flags.add(PRIVATE);
-        }
+        if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
+            flags.add(PUBLIC);
     } else {
-        if(globalScope()) {
-            flags.add(PUBLIC);
-            flags.add(STATIC);
-        } else
-            flags.add(PUBLIC);
+        flags.add(PUBLIC);
     }
 
     List<Field*> params;
@@ -4860,7 +4816,6 @@ void Compiler::resolveDelegate(Ast* ast) {
         method->utype->setResolvedType(_void);
     }
 
-    checkMainMethodSignature(method);
     if(!addFunction(currentScope()->klass, method, &simpleParameterMatch)) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                      "function `" + name + "` is already defined in the scope");
@@ -4877,13 +4832,47 @@ void Compiler::compileMethodReturnType(Method* fun, Ast *ast, bool wait) {
             if (ast->getSubAst(ast_method_return_type)->findEntity("nil"))
                 goto void_;
 
-            // TODO: dont just let anything be the return type
-            Utype *utype = compileUtype(ast->getSubAst(ast_method_return_type)->getSubAst(ast_utype));
-            fun->utype = utype;
+            if (!wait) {
+                RETAIN_TYPE_INFERENCE(false)
+                RETAIN_SCOPE_CLASS(fun->owner)
+                Utype *utype = compileUtype(ast->getSubAst(ast_method_return_type)->getSubAst(ast_utype));
+                RESTORE_SCOPE_CLASS()
+                RESTORE_TYPE_INFERENCE()
+
+                if (utype->getType() == utype_class) {
+                    fun->utype = utype;
+                } else if (utype->getType() == utype_method) {
+                    this->errors->createNewError(GENERIC, ast->line, ast->col,
+                                                 " illegal use of function `" + utype->toString() +
+                                                 "` as a return type");
+                } else if (utype->getType() == utype_native) {
+                    if (utype->getResolvedType()->type > NIL)
+                        this->errors->createNewError(GENERIC, ast->line, ast->col,
+                                                     " function `" + fun->fullName + "` cannot use type `" +
+                                                     utype->toString() + "` as a return type");
+                    fun->utype = utype;
+                } else if (utype->getType() == utype_field) {
+                    this->errors->createNewError(GENERIC, ast->line, ast->col,
+                                                 " illegal use of field `" + utype->toString() + "` as a return type");
+                } else
+                    this->errors->createNewError(GENERIC, ast->line, ast->col,
+                                                 " function `" + fun->fullName + "` cannot use type `" +
+                                                 utype->toString() + "` as a return type");
+
+                if (fun->utype == NULL) {
+                    fun->utype = new Utype(UNDEFINED);
+                    fun->utype->setType(utype_unresolved);
+                }
+            }
         } else if (ast->findEntity(":=")) {
             if (!wait) {
                 Expression e;
+                RETAIN_TYPE_INFERENCE(false)
+                RETAIN_SCOPE_CLASS(fun->owner)
                 compileExpression(&e, ast->getSubAst(ast_expression));
+                RESTORE_SCOPE_CLASS()
+                RESTORE_TYPE_INFERENCE()
+
                 if(e.utype->getType() == utype_field) {
                     fun->utype = ((Field*)e.utype->getResolvedType())->utype;
                 } else if(e.utype->getType() == utype_class) {
@@ -4969,21 +4958,16 @@ void Compiler::resolveClassMethod(Ast* ast) {
     }
 }
 
-// TODO: make sure extension functions can process types properly like def List.last() : T { ... }
 void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
     List<AccessFlag> flags;
 
     if (ast->hasSubAst(ast_access_type)) {
         parseMethodAccessFlags(flags, ast->getSubAst(ast_access_type));
 
-        if(globalScope()) {
-            if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
-                flags.add(PUBLIC);
-            flags.addif(STATIC);
-        } else {
-            if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
-                flags.add(PRIVATE);
-        }
+        if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
+            flags.add(PUBLIC);
+
+        if(globalScope()) flags.addif(STATIC);
     } else {
         if(globalScope()) {
             flags.add(PUBLIC);
@@ -5011,6 +4995,7 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
     method->ast = ast;
     method->fnType = fn_normal;
     method->address = methodSize++;
+    method->extensionFun = getExtensionFunctionClass(method->ast) != NULL;
 
     compileMethodReturnType(method, ast, true);
 
@@ -5089,20 +5074,20 @@ void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
 
 /**
  * As of the curent version delegates work as follows:
- * class Engine {
+ * interface engine {
  *   def delegate::run();
  * }
  *
- * class 4Cylinder : Engine {
+ * class 4cylinder : engine {
  *   def delegate::run() { ... }
  * }
  *
- * class 8Cylinder : Engine {
+ * class 8cylinder : engine {
  *   def delegate::run() { ... }
  * }
  *
  * def main() {
- *    Engine v8 = new 8Cylinder();
+ *    v8 : engine = new 8cylinder();
  *    v8.run();
  * }
  *
@@ -5300,17 +5285,13 @@ void Compiler::resolveAllDelegates() {
             Ast *branch = current->astAt(x);
 
             if (x == 0) {
-                if (branch->getType() == ast_module_decl) {
+                if(branch->getType() == ast_module_decl) {
                     currModule = parseModuleDecl(branch);
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
-                    modules.addif(currModule = "__srt_undefined");
-                    // add class for global methods
-                    createGlobalClass();
+                    currModule = undefinedModule;
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
-                    errors->createNewError(GENERIC, branch->line, branch->col, "module declaration must be "
-                                                                               "first in every file");
                 }
             }
 
@@ -5396,12 +5377,8 @@ void Compiler::resolveAllMethods() {
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
-                    modules.addif(currModule = "__srt_undefined");
-                    // add class for global methods
-                    createGlobalClass();
+                    currModule = undefinedModule;
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
-                    errors->createNewError(GENERIC, branch->line, branch->col, "module declaration must be "
-                                                                               "first in every file");
                 }
             }
 
@@ -5473,17 +5450,13 @@ void Compiler::resolveAllFields() {
             Ast *branch = current->astAt(x);
 
             if (x == 0) {
-                if (branch->getType() == ast_module_decl) {
+                if(branch->getType() == ast_module_decl) {
                     currModule = parseModuleDecl(branch);
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
-                    modules.addif(currModule = "__srt_undefined");
-                    // add class for global methods
-                    createGlobalClass();
+                    currModule = undefinedModule;
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
-                    errors->createNewError(GENERIC, branch->line, branch->col, "module declaration must be "
-                                                                               "first in every file");
                 }
             }
 
@@ -5571,7 +5544,7 @@ DataType Compiler::strToNativeType(string &str) {
 }
 
 bool Compiler::isFieldInlined(Field* field) {
-    if(field == NULL || !field->flags.find(STATIC))
+    if(field == NULL || !field->flags.find(flg_CONST))
         return false;
 
     for(unsigned int i = 0; i < inlinedFields.size(); i++) {
@@ -5618,7 +5591,7 @@ void Compiler::inlineVariableValue(IrCode &code, Field *field) {
     double value = getInlinedFieldValue(field);
     code.free();
 
-    if(isDClassNumberEncodable(value)) {
+    if(isWholeNumber(value)) {
         code.push_i64(SET_Di(i64, op_MOVI, value), i64ebx);
         code.getInjector(stackInjector)
                 .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
@@ -5658,6 +5631,49 @@ Field *Compiler::resolveEnum(string name) {
     return nullptr;
 }
 
+bool Compiler::resolveHigherScopeSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
+    bool utypeFound = false;
+
+    if(currScope.size() >= 2) {
+        DataEntity *resolvedUtype;
+        string name = ptr.classes.get(0);
+        List<Method*> functions;
+
+        // we leave global processing to the code in resolveSingularUtype()
+        RETAIN_BLOCK_TYPE(STATIC_BLOCK)
+        for (long i = currScope.size() - 2; i > 0; i--) {
+            ClassObject *currentClass = currScope.get(i)->klass;
+
+            if((resolvedUtype = currentClass->getField(name, true)) != NULL) {
+                resolveFieldUtype(utype, ast, resolvedUtype, name);
+                utypeFound = true;
+                break;
+            } else if((resolvedUtype = currentClass->getChildClass(name)) != NULL
+                     && (IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType())
+                         && ((ClassObject*)resolvedUtype)->getGenericOwner() !=  NULL)) {
+                resolveClassUtype(utype, ast, resolvedUtype);
+                utypeFound = true;
+                break;
+            }  else if((resolvedUtype = currentClass->getChildClass(name)) != NULL && !IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType())) {
+                resolveClassUtype(utype, ast, resolvedUtype);
+                utypeFound = true;
+                break;
+            } else if(resolveExtensionFunctions(currentClass) && currentClass->getFunctionByName(name, functions, true)) {
+                resolveFunctionByNameUtype(utype, ast, name, functions);
+                utypeFound = true;
+                break;
+            } else if((resolvedUtype = currentClass->getAlias(name, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) != NULL) {
+                resolveAliasUtype(utype, ast, resolvedUtype);
+                utypeFound = true;
+                break;
+            }
+        }
+        RESTORE_BLOCK_TYPE()
+    }
+
+    return utypeFound;
+}
+
 void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
     DataEntity* resolvedUtype = NULL;
     string name = ptr.classes.get(0);
@@ -5673,6 +5689,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         utype->setType(utype_field);
         utype->setResolvedType(field);
         utype->setArrayType(field->isArray);
+        utype->getCode().instanceCaptured = true;
 
         if(field->isVar()) {
             if(field->isArray || field->locality == stl_thread) {
@@ -5685,6 +5702,13 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
                             .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
                             .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
                             .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx));
+
+                        utype->getCode().getInjector(stackInjector)
+                                .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
+                                .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
+                                .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx))
+                                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                        return;
                     }
                 } else {
                     utype->getCode().push_i64(SET_Di(i64, op_MOVL, field->address));
@@ -5708,102 +5732,8 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             utype->getCode().getInjector(stackInjector)
                     .push_i64(SET_Ei(i64, op_PUSHOBJ));
         }
-    } else if((resolvedUtype = currentScope()->klass->getField(name, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) != NULL) {
-        Field* field = (Field*)resolvedUtype;
-        if(currentScope()->type == STATIC_BLOCK && !field->flags.find(STATIC)) {
-            errors->createNewError(GENERIC, ast->line, ast->col, "cannot get field `" + name + "` from self in static context");
-        }
-
-        compileFieldType(field);
-
-        utype->setType(utype_field);
-        utype->setResolvedType(field);
-        utype->setArrayType(field->isArray);
-        validateAccess(field, ast);
-
-        if(field->getter == NULL && isFieldInlined(field)) {
-            inlineVariableValue(utype->getCode(), field);
-        } else {
-            if(field->getter != NULL) {
-                if(field->locality == stl_stack && !field->flags.find(STATIC) && !utype->getCode().instanceCaptured) {
-                    utype->getCode().instanceCaptured = true;
-                    utype->getCode().push_i64(SET_Di(i64, op_MOVL, 0));
-                }
-                compileFieldGetterCode(utype->getCode(), field);
-            } else {
-                if(field->locality == stl_thread) {
-                    utype->getCode().push_i64(SET_Di(i64, op_TLS_MOVL, field->address));
-                } else {
-                    if(field->flags.find(STATIC) || field->owner->isGlobalClass())
-                        utype->getCode().push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                    else if(!utype->getCode().instanceCaptured) {
-                        utype->getCode().instanceCaptured = true;
-                        utype->getCode().push_i64(SET_Di(i64, op_MOVL, 0));
-                    }
-
-                    utype->getCode().push_i64(SET_Di(i64, op_MOVN, field->address));
-                }
-
-                if (field->isVar() && !field->isArray) {
-                    utype->getCode().getInjector(ebxInjector)
-                            .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                            .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
-                            .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx));
-
-                    utype->getCode().getInjector(stackInjector)
-                            .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                            .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
-                            .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx))
-                            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
-                } else
-                    utype->getCode().getInjector(stackInjector)
-                            .push_i64(SET_Ei(i64, op_PUSHOBJ));
-            }
-        }
-    }  else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && IS_CLASS_ENUM(currentScope()->klass->getClassType()) && currScope.size() >= 2
-            && (resolvedUtype = currScope.get(currScope.size() - 2)->klass->getField(name, true)) != NULL) {
-
-        Field* field = (Field*)resolvedUtype;
-        if(currentScope()->type == STATIC_BLOCK && !field->flags.find(STATIC)) {
-            errors->createNewError(GENERIC, ast->line, ast->col, "cannot get field `" + name + "` from self in static context");
-        }
-
-        compileFieldType(field); // TODO: this might pose a problem make sure gatting variable values at the low level is being genetrated properly might cause seg faults if not
-
-        utype->setType(utype_field);
-        utype->setResolvedType(field);
-        utype->setArrayType(field->isArray);
-        validateAccess(field, ast);
-
-        if(field->getter == NULL && isFieldInlined(field)) {
-            inlineVariableValue(utype->getCode(), field);
-        } else {
-            if(field->getter != NULL) {
-                compileFieldGetterCode(utype->getCode(), field);
-            } else {
-                if(field->locality == stl_thread) {
-                    utype->getCode().push_i64(SET_Di(i64, op_TLS_MOVL, field->address));
-                } else {
-                    utype->getCode().push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                    utype->getCode().push_i64(SET_Di(i64, op_MOVN, field->address));
-                }
-
-                if (field->isVar() && !field->isArray) {
-                    utype->getCode().getInjector(ebxInjector)
-                            .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                            .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
-                            .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx));
-
-                    utype->getCode().getInjector(stackInjector)
-                            .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                            .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
-                            .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx))
-                            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
-                } else
-                    utype->getCode().getInjector(stackInjector)
-                            .push_i64(SET_Ei(i64, op_PUSHOBJ));
-            }
-        }
+    } else if((resolvedUtype = currentScope()->klass->getField(name, true)) != NULL) {
+        resolveFieldUtype(utype, ast, resolvedUtype, name);
     } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveEnum(name)) != NULL) {
         validateAccess((Field*)resolvedUtype, ast);
         utype->setType(utype_field);
@@ -5825,40 +5755,15 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
     } else if((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL
         && (IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType())
             && ((ClassObject*)resolvedUtype)->getGenericOwner() !=  NULL)) {
-        // global class ?
-        utype->setType(utype_class);
-        utype->setResolvedType(resolvedUtype);
-        utype->setArrayType(false);
-        checkTypeInference(ast);
+        resolveClassUtype(utype, ast, resolvedUtype);
     }  else if((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL && !IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType())) {
-        // global class ?
-        utype->setType(utype_class);
-        utype->setResolvedType(resolvedUtype);
-        utype->setArrayType(false);
-        checkTypeInference(ast);
-    } else if(resolveExtensionFunctions(currentScope()->klass) && currentScope()->klass->getFunctionByName(name, functions, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) {
-
-        utype->setType(utype_method);
-        utype->setResolvedType(functions.get(0));
-        utype->setArrayType(false);
-        if(!functions.get(0)->flags.find(STATIC)) {
-            errors->createNewError(GENERIC, ast->line, ast->col, " cannot get address from non static function `" + name + "` ");
-        }
-        utype->getCode().push_i64(SET_Di(i64, op_MOVI, functions.get(0)->address), i64ebx);
-        utype->getCode().getInjector(stackInjector)
-                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+        resolveClassUtype(utype, ast, resolvedUtype);
+    } else if(resolveExtensionFunctions(currentScope()->klass) && currentScope()->klass->getFunctionByName(name, functions, true)) {
+        resolveFunctionByNameUtype(utype, ast, name, functions);
     } else if((resolvedUtype = currentScope()->klass->getAlias(name, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) != NULL) {
-        Alias* alias = (Alias*)resolvedUtype;
-        compileAliasType(alias);
-
-        utype->copy(alias->utype);
-        utype->getCode().free().inject(alias->utype->getCode());
-        utype->getCode().getInjector(ptrInjector).free().inject(alias->utype->getCode().getInjector(ptrInjector));
-        utype->getCode().getInjector(ebxInjector).free().inject(alias->utype->getCode().getInjector(ebxInjector));
-        utype->getCode().getInjector(stackInjector).free().inject(alias->utype->getCode().getInjector(stackInjector));
-        validateAccess(alias, ast);
-        checkTypeInference(alias, ast);
-    } else {
+        resolveAliasUtype(utype, ast, resolvedUtype);
+    } else if(resolveHigherScopeSingularUtype(ptr, utype, ast)) {}
+    else {
         globalCheck:
         functions.free();
 
@@ -5881,7 +5786,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             if(field->getter == NULL && isFieldInlined(field)) {
                 inlineVariableValue(utype->getCode(), field);
             } else {
-
+                // TODO: check if we are in a getter or setter function if so then get/set the actual field value
                 if(field->getter != NULL) {
                     compileFieldGetterCode(utype->getCode(), field);
                 } else {
@@ -5940,7 +5845,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             if(currentScope()->klass->getChildClass(name + "<>", true))
                 resolvedClasses.add(currentScope()->klass->getChildClass(name + "<>", true));
             if(resolvedClasses.size() == 1) {
-                stringstream helpfulMessage;// TODO: support finding sub classes as well
+                stringstream helpfulMessage;
                 helpfulMessage << "have you forgotten your type parameters? Were you possibly looking for class `"
                                << resolvedClasses.get(0)->fullName << "`?";
                 errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col,
@@ -5952,7 +5857,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
                 helpfulMessage << "\t{";
 
                 for(int i = 0; i < resolvedClasses.size(); i++) {
-                    if(i >= 4) {
+                    if(i >= 5) {
                         helpfulMessage << "...";
                         break;
                     }
@@ -5970,18 +5875,19 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
                                        " `" + name + "` " +
                                        helpfulMessage.str());
             }
+            return;
         } else if((currentScope()->type != RESTRICTED_INSTANCE_BLOCK &&
             resolveClass(classes, resolvedClasses, ptr.mod, name, ast, true))
                 || currentScope()->klass->getChildClass(name, true)) {
             stringstream helpfulMessage;
             helpfulMessage << "I found a few classes that match `" << name << "`. Were you possibly looking for any of these?\n";
-            helpfulMessage << "\t{"; // TODO: support finding sub classes as well
+            helpfulMessage << "\t{";
 
             if(currentScope()->klass->getChildClass(name, true))
                 resolvedClasses.add(currentScope()->klass->getChildClass(name + "<>", true));
 
             for(int i = 0; i < resolvedClasses.size(); i++) {
-                if(i >= 4) {
+                if(i >= 5) {
                     helpfulMessage << "...";
                     break;
                 }
@@ -5998,9 +5904,106 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col,
                                    " `" + name + "` " +
                                    helpfulMessage.str());
+            return;
         }
 
         errors->createNewError(COULD_NOT_RESOLVE, ast->line, ast->col, " `" + name + "` ");
+    }
+}
+
+void Compiler::resolveAliasUtype(Utype *utype, Ast *ast, DataEntity *resolvedAlias) {
+    Alias* alias = (Alias*)resolvedAlias;
+    compileAliasType(alias);
+
+    if(alias->utype != NULL && alias->utype->getType() == utype_field) {
+        Field *field = (Field*)alias->utype->getResolvedType();
+        if(currentScope()->type == STATIC_BLOCK && !field->flags.find(STATIC)) {
+            errors->createNewError(GENERIC, ast->line, ast->col, "cannot access field `" + field->name + "` in static context");
+        }
+    }
+
+    utype->copy(alias->utype);
+    utype->getCode().free().inject(alias->utype->getCode());
+    utype->getCode().getInjector(ptrInjector).free().inject(alias->utype->getCode().getInjector(ptrInjector));
+    utype->getCode().getInjector(ebxInjector).free().inject(alias->utype->getCode().getInjector(ebxInjector));
+    utype->getCode().getInjector(stackInjector).free().inject(alias->utype->getCode().getInjector(stackInjector));
+    validateAccess(alias, ast);
+    checkTypeInference(alias, ast);
+}
+
+void Compiler::resolveFunctionByNameUtype(Utype *utype, Ast *ast, string &name, List<Method *> &functions) {
+    if(functions.size() > 1)
+        createNewWarning(GENERIC, __WAMBIG, ast->line, ast->col, "reference to function `" + functions.get(0)->name + "` is ambiguous");
+
+    utype->setType(utype_method);
+    utype->setResolvedType(functions.get(0));
+    utype->setArrayType(false);
+    if(!functions.get(0)->flags.find(STATIC)) {
+        errors->createNewError(GENERIC, ast->line, ast->col, " cannot get address from non static function `" + name + "` ");
+    }
+    utype->getCode().push_i64(SET_Di(i64, op_MOVI, functions.get(0)->address), i64ebx);
+    utype->getCode().getInjector(stackInjector)
+            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+}
+
+void Compiler::resolveClassUtype(Utype *utype, Ast *ast, DataEntity *resolvedClass) {
+    utype->setType(utype_class);
+    utype->setResolvedType(resolvedClass);
+    utype->setArrayType(false);
+    checkTypeInference(ast);
+}
+
+void Compiler::resolveFieldUtype(Utype *utype, Ast *ast, DataEntity *resolvedField, string &name) {
+    Field* field = (Field*)resolvedField;
+    if(currentScope()->type == STATIC_BLOCK && !field->flags.find(STATIC)) {
+        errors->createNewError(GENERIC, ast->line, ast->col, "cannot access field `" + name + "` in static context");
+    }
+
+    compileFieldType(field);
+
+    utype->setType(utype_field);
+    utype->setResolvedType(field);
+    utype->setArrayType(field->isArray);
+    validateAccess(field, ast);
+
+    if(field->getter == NULL && isFieldInlined(field)) {
+        inlineVariableValue(utype->getCode(), field);
+    } else {
+        if(field->getter != NULL) {
+            if(field->locality == stl_stack && !field->flags.find(STATIC) && !utype->getCode().instanceCaptured) {
+                utype->getCode().instanceCaptured = true;
+                utype->getCode().push_i64(SET_Di(i64, op_MOVL, 0));
+            }
+            compileFieldGetterCode(utype->getCode(), field);
+        } else {
+            if(field->locality == stl_thread) {
+                utype->getCode().push_i64(SET_Di(i64, op_TLS_MOVL, field->address));
+            } else {
+                if(field->flags.find(STATIC) || field->owner->isGlobalClass())
+                    utype->getCode().push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                else if(!utype->getCode().instanceCaptured) {
+                    utype->getCode().instanceCaptured = true;
+                    utype->getCode().push_i64(SET_Di(i64, op_MOVL, 0));
+                }
+
+                utype->getCode().push_i64(SET_Di(i64, op_MOVN, field->address));
+            }
+
+            if (field->isVar() && !field->isArray) {
+                utype->getCode().getInjector(ebxInjector)
+                        .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
+                        .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
+                        .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx));
+
+                utype->getCode().getInjector(stackInjector)
+                        .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
+                        .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
+                        .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx))
+                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+            } else
+                utype->getCode().getInjector(stackInjector)
+                        .push_i64(SET_Ei(i64, op_PUSHOBJ));
+        }
     }
 }
 
@@ -6013,7 +6016,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
  * @param code
  * @param field
  */
-void Compiler::compileFieldGetterCode(IrCode &code, Field *field) {
+void Compiler::compileFieldGetterCode(IrCode &code, Field *field) { // TODO: dont call this if we are in the getter or setter code
     if(field != NULL && field->utype != NULL && field->getter) {
         if(field->isVar() && !field->isArray) {
             code.push_i64(SET_Di(i64, op_CALL, field->getter->address));
@@ -6073,9 +6076,8 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
     bool lastReference;
     Utype *bridgeUtype = new Utype(); // we need this so we dont loose code when free is called
 
-    ClassObject *oldScope = currentScope()->klass;
     RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
-    if(fromClass) currentScope()->klass = (ClassObject*)data;
+    RETAIN_SCOPE_CLASS(fromClass ? (ClassObject*)data : currentScope()->klass)
     for(unsigned int i = 1; i < ptr.classes.size(); i++) {
         lastReference = (i+1) >= ptr.classes.size();
 
@@ -6161,13 +6163,22 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
                 errors->createNewError(GENERIC, ast->line, ast->col, "symbol `" + bridgeUtype->toString() +
                                                                      "` is a pointer to the respective function and this returns a var and cannot be used as a class field.");
                 break;
+            } else {
+                utype->getCode().getInjector(ptrInjector).inject(bridgeUtype->getCode().getInjector(ptrInjector));
+                utype->getCode().getInjector(ebxInjector).inject(bridgeUtype->getCode().getInjector(ebxInjector));
+                utype->getCode().getInjector(stackInjector).inject(bridgeUtype->getCode().getInjector(stackInjector));
             }
         } else if(bridgeUtype->getType() == utype_class) {
             if(!fromClass)
                 goto error;
 
             currentScope()->klass = (ClassObject*)bridgeUtype->getResolvedType();
-            if(lastReference) checkTypeInference(ast);
+            if(lastReference) {
+                checkTypeInference(ast);
+                utype->getCode().getInjector(ptrInjector).inject(bridgeUtype->getCode().getInjector(ptrInjector));
+                utype->getCode().getInjector(ebxInjector).inject(bridgeUtype->getCode().getInjector(ebxInjector));
+                utype->getCode().getInjector(stackInjector).inject(bridgeUtype->getCode().getInjector(stackInjector));
+            }
         } else {
             error:
             errors->createNewError(GENERIC, ast->line, ast->col, " resolved type `" + bridgeUtype->toString() + "` must be a field or a method");
@@ -6177,15 +6188,15 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
         utype->copy(bridgeUtype);
     }
 
-    currentScope()->klass = oldScope;
     bridgeUtype->free();
     delete bridgeUtype;
     RESTORE_BLOCK_TYPE()
+    RESTORE_SCOPE_CLASS()
 }
 
 void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
 
-    if(ptr.classes.singular() && ptr.mod == "") {
+    if(ptr.classes.singular()) {
         resolveSingularUtype(ptr, utype, ast);
     } else {
         string name = ptr.classes.at(0);
@@ -6198,7 +6209,7 @@ void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
         RESTORE_TYPE_INFERENCE()
         if(utype->getType() == utype_method || utype->getType() == utype_method_prototype) {
             errors->createNewError(GENERIC, ast->line, ast->col, "symbol `" + utype->toString() +
-                             "` is a pointer to the respective function and this returns a var and cannot be used as a class field.");
+                             "` is a function pointer and cant be used as an instance field.");
         } else if(utype->getType() == utype_class) {
             resolveClassHeiarchy(utype->getResolvedType(), true, ptr, utype, ast);
         } else if(utype->getType() == utype_field) {
@@ -6235,8 +6246,9 @@ Utype* Compiler::compileUtype(Ast *ast, bool instanceCaptured) {
         checkTypeInference(ast);
         ptr.free();
         return utype;
-    } else if(ptr.classes.singular() && ptr.mod == "" && IS_CLASS_GENERIC(currentScope()->klass->getClassType()) && currentScope()->klass->getKeys().find(ptr.classes.get(0))
-            && currentScope()->klass->isAtLeast(created)) {
+    } else if(ptr.classes.singular() && ptr.mod == "" && IS_CLASS_GENERIC(currentScope()->klass->getClassType())
+        && currentScope()->klass->getKeys().find(ptr.classes.get(0)) && currentScope()->klass->isAtLeast(created)) {
+
         Utype *keyType = currentScope()->klass->getKeyTypes().get(currentScope()->klass->getKeys().indexof(ptr.classes.get(0)));
         utype->copy(keyType);
 
@@ -6593,6 +6605,13 @@ void Compiler::resolveSuperClass(Ast *ast, ClassObject* currentClass) {
                     err.str("");
                     goto inheritInterfaces;
                 }
+            } else if(ends_with(base->fullName, "#" + globalClass)) {
+                stringstream err;
+                err << "class '" << currentClass->fullName << "' cannot inherit god level class `"
+                    << base->fullName << "` as a base class";
+                errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+                err.str("");
+                goto inheritInterfaces;
             }
 
             if (currentClass->getSuperClass()) { // TODO: do we want to allow inheriting an enum???
@@ -6641,16 +6660,10 @@ void Compiler::resolveSuperClass(Ast *ast, ClassObject* currentClass) {
             CHECK_CMP_ERRORS(return;)
 
             switch (branch->getType()) {
-                case ast_class_decl: /* ignore */
+                case ast_class_decl:
                     resolveSuperClass(branch);
                     break;
-                case ast_interface_decl: /* ignore */
-                    resolveSuperClass(branch);
-                    break;
-                case ast_generic_class_decl: /* ignore */
-                    resolveSuperClass(branch);
-                    break;
-                case ast_generic_interface_decl: /* ignore */
+                case ast_interface_decl:
                     resolveSuperClass(branch);
                     break;
                 default:
@@ -6765,12 +6778,6 @@ void Compiler::resolveBaseClasses() {
                     resolveSuperClass(branch);
                     break;
                 case ast_interface_decl:
-                    resolveSuperClass(branch);
-                    break;
-                case ast_generic_class_decl:
-                    resolveSuperClass(branch);
-                    break;
-                case ast_generic_interface_decl:
                     resolveSuperClass(branch);
                     break;
                 default:
@@ -7074,17 +7081,13 @@ void Compiler::inlineFields() {
             Ast *branch = current->astAt(x);
 
             if (x == 0) {
-                if (branch->getType() == ast_module_decl) {
+                if(branch->getType() == ast_module_decl) {
                     currModule = parseModuleDecl(branch);
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
-                    modules.addif(currModule = "__srt_undefined");
-                    // add class for global methods
-                    createGlobalClass();
+                    currModule = undefinedModule;
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
-                    errors->createNewError(GENERIC, branch->line, branch->col, "module declaration must be "
-                                                                               "first in every file");
                 }
             }
 
@@ -7606,7 +7609,6 @@ void Compiler::createNewWarning(error_type error, int type, int line, int col, s
 void Compiler::createGlobalClass() {
     List<AccessFlag > flags;
     flags.add(PUBLIC);
-    flags.add(STABLE);
     flags.add(EXTENSION);
     ClassObject * global = findClass(currModule, globalClass, classes);
     if(global == NULL) {

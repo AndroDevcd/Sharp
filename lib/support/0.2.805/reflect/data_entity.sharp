@@ -1,0 +1,7 @@
+mod std.reflect;
+
+
+class data_entity {
+    name : string;
+
+}

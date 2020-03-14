@@ -17,7 +17,8 @@ public:
         DataEntity(),
         fnType(fn_undefined),
         utype(NULL),
-        overload(' ')
+        overload(' '),
+        extensionFun(false)
     {
         type = METHOD;
         params.init();
@@ -28,7 +29,8 @@ public:
             DataEntity(),
             fnType(fn_undefined),
             utype(NULL),
-            overload(' ')
+            overload(' '),
+            extensionFun(false)
     {
         this->type = METHOD;
         this->params.init();
@@ -46,6 +48,7 @@ public:
 
     function_type fnType;
     char overload;
+    bool extensionFun;
     Utype* utype;
     List<Field*> params;
 };

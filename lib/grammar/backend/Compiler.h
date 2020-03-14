@@ -34,7 +34,6 @@ public:
         errors(NULL),
         current(NULL),
         processingStage(0),
-        hasMainMethod(false),
         mainMethod(NULL),
         mainSignature(0),
         delegateGUID(0),
@@ -118,7 +117,6 @@ private:
     long delegateGUID;
     long threadLocals;
     long mainSignature;
-    bool hasMainMethod;
     bool typeInference;
     long processingStage;
     string outFile;
@@ -254,6 +252,7 @@ private:
     bool resolveClass(List<ClassObject*> &classes, List<ClassObject*> &results, string mod, string name, Ast* pAst, bool match = false);
     void resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *ast);
     void preProccessImportDecl(Ast *branch, List<string> &imports);
+    bool resolveHigherScopeSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *ast);
     void preproccessImports();
     void preProccessEnumDecl(Ast *ast);
     void preProccessEnumVar(Ast *ast);
@@ -323,6 +322,14 @@ private:
     void getContractedMethods(ClassObject *subscriber, List<Method *> &contractedMethods);
 
     void findAliasConflicts(Ast *ast, string &name);
+
+    void resolveFieldUtype(Utype *utype, Ast *ast, DataEntity *resolvedField, string &name);
+
+    void resolveClassUtype(Utype *utype, Ast *ast, DataEntity *resolvedClass);
+
+    void resolveFunctionByNameUtype(Utype *utype, Ast *ast, string &name, List<Method *> &functions);
+
+    void resolveAliasUtype(Utype *utype, Ast *ast, DataEntity *resolvedAlias);
 };
 
 enum ProcessingStage {

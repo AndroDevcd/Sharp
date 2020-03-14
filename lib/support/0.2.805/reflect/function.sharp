@@ -1,0 +1,6 @@
+mod std.reflect;
+
+
+class function base data_entity {
+
+}

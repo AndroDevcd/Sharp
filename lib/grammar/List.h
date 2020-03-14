@@ -64,10 +64,10 @@ public:
      * Programmer must be responsible
      * for freeing that data himself
      */
-    void remove(unsigned long long _X) {
+    void removeAt(unsigned long long _X) {
         if(_X>=len || len==0){
             stringstream ss;
-            ss << "index out of bounds list::remove() _X: " << _X
+            ss << "index out of bounds list::removeAt() _X: " << _X
                << " length: " << len << endl;
             throw std::runtime_error(ss.str());
         }
@@ -103,7 +103,7 @@ public:
     void remove(T& _X) {
         for(unsigned long long i = 0; i < len; i++) {
             if(_X == _Data[i]) {
-                remove(i);
+                removeAt(i);
                 return;
             }
         }
@@ -182,7 +182,7 @@ public:
         }
 
         if(iter != -1) {
-            remove(iter);
+            removeAt(iter);
         }
     }
 
