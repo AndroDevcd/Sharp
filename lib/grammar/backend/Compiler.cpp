@@ -4019,15 +4019,7 @@ void Compiler::resolvePrototypeField(Ast* ast) {
             prototype->params.addAll(params);
 
             if(ast->hasSubAst(ast_method_return_type)) {
-                if(ast->findEntity("nil"))
-                    goto void_;
-
-                Utype* utype = compileUtype(ast->getSubAst(ast_method_return_type));
-                if(utype->getType() != utype_native && utype->getType() != utype_class) {
-                    this->errors->createNewError(GENERIC, ast->line, ast->col, " illegal use of symbol `" + utype->toString() + "` as a return type");
-                }
-
-                prototype->utype = utype;
+                compileMethodReturnType(prototype, ast);
             } else {
                 void_:
                 prototype->utype = new Utype();
@@ -4129,14 +4121,10 @@ void Compiler::resolveFieldType(Field* field, Utype *utype, Ast* ast) {
 void Compiler::resolveAlias(Ast* ast) {
     string name = ast->getEntity(0).getValue();
 
-    if(resolveClass("", name, ast))
-        createNewWarning(GENERIC, __WDECL, ast->line, ast->col, "declared alias `" + name + "` shadows class at higher scope");
-
     Alias *alias = currentScope()->klass->getAlias(name, false);
     // we need to do this in case the user tries to use an alias as a class inheritence and there was something wrong with processing it
     if(alias->type == UNTYPED || (alias->type == UNDEFINED && processingStage <= POST_PROCESSING)) {
-        // wee need to do this to prevent possible stack overflow errors
-        findAliasConflicts(ast, name);
+        findConflicts(ast, "alias", name);
 
         RETAIN_BLOCK_TYPE(CLASS_SCOPE)
         RETAIN_TYPE_INFERENCE(false)
@@ -4153,26 +4141,29 @@ void Compiler::resolveAlias(Ast* ast) {
     }
 }
 
-void Compiler::findAliasConflicts(Ast *ast, string &name) {
+void Compiler::findConflicts(Ast *ast, string type, string &name) {
     List<Method*> functions;
-    if(currentScope()->klass->getField(name, false) != NULL) {
+    if(type != "field" && currentScope()->klass->getField(name, false) != NULL) {
         createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
-                         "declared alias `" + name + "` conflicts with field `" + currentScope()->klass->getField(name, false)->toString() + "`");
+                         "declared " + type + " `" + name + "` conflicts with field `" + currentScope()->klass->getField(name, false)->toString() + "`");
+    } else if(type != "alias" && currentScope()->klass->getAlias(name, false) != NULL) {
+        createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
+                         "declared " + type + " `" + name + "` conflicts with alias `" + currentScope()->klass->getField(name, false)->toString() + "`");
     } else if(currentScope()->klass->getFunctionByName(name, functions)) {
         createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
-                         "declared alias `" + name + "` conflicts with function `" + functions.get(0)->toString() + "`");
+                         "declared " + type + " `" + name + "` conflicts with function `" + functions.get(0)->toString() + "`");
     } else if(currentScope()->klass->getChildClass(name) != NULL) {
         createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
-                         "declared alias `" + name + "` conflicts with child class `" + currentScope()->klass->getChildClass(name)->name + "`");
+                         "declared " + type + " `" + name + "` conflicts with child class `" + currentScope()->klass->getChildClass(name)->name + "`");
     } else if(currentScope()->klass->getChildClass(name + "<>") != NULL) {
         createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
-                         "declared alias `" + name + "` conflicts with child class `" + currentScope()->klass->getChildClass(name + "<>")->name + "`");
+                         "declared " + type + " `" + name + "` conflicts with child class `" + currentScope()->klass->getChildClass(name + "<>")->name + "`");
     } else if(findClass(currModule, name, classes) != NULL) {
         createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
-                         "declared alias `" + name + "` conflicts with class `" + findClass(currModule, name, classes)->fullName + "`");
+                         "declared " + type + " `" + name + "` conflicts with class `" + findClass(currModule, name, classes)->fullName + "`");
     } else if(findClass(currModule, name + "<>", generics) != NULL) {
         createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
-                         "declared alias `" + name + "` conflicts with generic class `" + findClass(currModule, name + "<>", generics)->fullName + "`");
+                         "declared " + type + " `" + name + "` conflicts with generic class `" + findClass(currModule, name + "<>", generics)->fullName + "`");
     }
 }
 
@@ -4183,11 +4174,9 @@ void Compiler::resolveField(Ast* ast) {
         name = ast->getEntity(1).getValue();
     }
 
-    if(resolveClass("", name, ast))
-        createNewWarning(GENERIC, __WDECL, ast->line, ast->col, "declared field `" + name + "` shadows class at higher scope");
-
-   Field *field = currentScope()->klass->getField(name, false);
+    Field *field = currentScope()->klass->getField(name, false);
     if(field->type == UNTYPED) {
+        findConflicts(ast, "field", name);
         // wee need to do this to prevent possible stack overflow errors
         field->type = UNDEFINED;
         field->utype = new Utype(UNDEFINED);
@@ -4198,24 +4187,20 @@ void Compiler::resolveField(Ast* ast) {
 
         if (ast->hasEntity(COLON)) {
             Utype *utype = compileUtype(ast->getSubAst(ast_utype));
-            // very nasty thing we have to do to avoid seg fault
             freePtr(field->utype); field->utype = NULL;
             resolveFieldType(field, utype, ast);
         } else if (ast->hasEntity(INFER)) {
             Expression expr;
-            BlockType oldScope = currentScope()->type;
-            if(field->flags.find(STATIC))
-                currentScope()->type = STATIC_BLOCK;
+            RETAIN_BLOCK_TYPE(field->flags.find(STATIC) ? STATIC_BLOCK : currentScope()->type)
             RETAIN_TYPE_INFERENCE(true)
             cout << ast->toString() << std::flush;
             compileExpression(&expr, ast->getSubAst(ast_expression));
-            if(field->flags.find(STATIC))
-                currentScope()->type = oldScope;
 
             printExpressionCode(&expr);
             freePtr(field->utype); field->utype = NULL;
             resolveFieldType(field, expr.utype, ast);
-           RESTORE_TYPE_INFERENCE()
+            RESTORE_TYPE_INFERENCE()
+            RESTORE_BLOCK_TYPE()
         }
 
         if(field->type != UNTYPED) {
@@ -4228,7 +4213,6 @@ void Compiler::resolveField(Ast* ast) {
             }
         }
 
-        // TODO: make sure type is valid before exiting, you cant have a method as the type for the field etc.
         if(ast->hasSubAst(ast_variable_decl)) {
             long startAst = 0;
             for(long i = 0; i < ast->getSubAstCount(); i++) {
@@ -4333,8 +4317,8 @@ void Compiler::resolveGetter(Ast *ast, Field *field) {
               ast->line, ast->col);
 
     if(field->flags.find(flg_CONST)) {
-        createNewWarning(GENERIC, __WACCESS, ast->line, ast->col, "field `" + field->name + "` has access specifier `const`. I would not recommend adding getters to constant fields, "
-                                                                                                          "as the compiler is no longer able to inline the value.");
+        createNewWarning(GENERIC, __WACCESS, ast->line, ast->col, "field `" + field->name + "` has access specifier `const`. It is not recommended to add getters to constant fields, "
+                                                                                                          "as the compiler is no longer able to inline the value for better performance.");
     }
 
     string fnName = "get_" + field->name;
@@ -5108,7 +5092,6 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
     // we want to add all the delegates we need to validate
     ClassObject* currClass = subscriber;
     while(true) {
-        getContracts:
         if(currClass != NULL)
             getContractedMethods(currClass, contractedMethods);
         else
@@ -6064,11 +6047,9 @@ void Compiler::compileFieldType(Field *field) {
  */
 void Compiler::compileAliasType(Alias *alias) {
     if(alias != NULL) {
-        if (alias->type == UNTYPED || (alias->type == UNDEFINED && processingStage <= POST_PROCESSING)) {
-            currScope.add(new Scope(alias->owner, alias->owner->isGlobalClass() ? GLOBAL_SCOPE : CLASS_SCOPE));
-            resolveAlias(alias->ast);
-            removeScope();
-        }
+        currScope.add(new Scope(alias->owner, alias->owner->isGlobalClass() ? GLOBAL_SCOPE : CLASS_SCOPE));
+        resolveAlias(alias->ast);
+        removeScope();
     }
 }
 
@@ -6467,7 +6448,7 @@ ClassObject *Compiler::resolveClassReference(Ast *ast, ReferencePointer &ptr, bo
                                                                    + "`. It was found to be a generic class, have you missed the key parameters to the class perhaps?");
             } else if((alias = currentScope()->klass->getAlias(ptr.classes.get(0), true)) != NULL
                 || (alias = resolveAlias(ptr.mod, ptr.classes.get(0), ast)) != NULL) {
-                compileAliasType(alias);
+                compileAliasType(alias); // TODO: support local alises inside functions
                 validateAccess(alias, ast);
 
                 if(alias->utype->getType() == utype_class) {

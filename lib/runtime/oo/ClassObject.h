@@ -23,11 +23,12 @@ public:
             serial(-1),
             totalFieldCount(0),
             instanceFields(0),
+            staticFields(0),
             methodCount(0)
     {
     }
 
-    ClassObject(string name, Field* fields, unsigned long instanceFields, unsigned long fieldCount,
+    ClassObject(string name, Field* fields, unsigned long instanceFields, unsigned long staticFields, unsigned long fieldCount,
                 ClassObject* super, unsigned long id)
             :
             name(name),
@@ -37,6 +38,7 @@ public:
             serial(id),
             totalFieldCount(fieldCount),
             instanceFields(instanceFields),
+            staticFields(staticFields),
             methodCount(0),
             base(NULL)
     {
@@ -51,6 +53,7 @@ public:
         base = klass.base;
         totalFieldCount = klass.totalFieldCount;
         instanceFields = klass.instanceFields;
+        staticFields = klass.staticFields;
         methodCount = klass.methodCount;
     }
 
@@ -58,7 +61,7 @@ public:
     Field* fields;
     unsigned long *methods, *interfaces;
     ClassObject* super, *base;
-    unsigned long serial, instanceFields, totalFieldCount, methodCount, interfaceCount;
+    unsigned long serial, staticFields, instanceFields, totalFieldCount, methodCount, interfaceCount;
 
     void free();
 

@@ -92,6 +92,16 @@ public:
 
         return address;
     }
+    long getStaticFieldAddress(string name) {
+        long address = 0, index = getFieldIndex(name);
+        for(long i = 0; i < index; i++) {
+            if(fields.get(i)->flags.find(STATIC)) {
+                address++;
+            }
+        }
+
+        return address;
+    }
 
     long getInstanceFieldCount() {
         long instanceFields = 0;
@@ -102,6 +112,17 @@ public:
         }
 
         return instanceFields;
+    }
+
+    long getStaticFieldCount() {
+        long staticFields = 0;
+        for(long i = 0; i < fields.size(); i++) {
+            if(fields.get(i)->flags.find(STATIC)) {
+                staticFields++;
+            }
+        }
+
+        return staticFields;
     }
 
     long getFieldIndex(string &name);

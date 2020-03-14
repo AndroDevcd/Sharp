@@ -62,7 +62,7 @@ long ClassObject::getFieldAddress(Field* field) {
     bool isStatic = field->flags.find(STATIC);
     if(super == NULL) {
         if(isStatic)
-            return getFieldIndex(field->name);
+            return getStaticFieldAddress(field->name);
         else
             return getInstanceFieldAddress(field->name);
     }
@@ -75,14 +75,13 @@ long ClassObject::getFieldAddress(Field* field) {
 
         if(k == NULL) {
             if(isStatic)
-                return address + getFieldIndex(field->name);
+                return address + getStaticFieldAddress(field->name);
             else return address + getInstanceFieldAddress(field->name);
         }
 
         if(isStatic)
-            address+= k->fields.size();
-        else
-            address += k->getInstanceFieldCount();
+            address+= k->getStaticFieldCount();
+        else address += k->getInstanceFieldCount();
         _klass = k;
     }
 }

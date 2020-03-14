@@ -9,6 +9,9 @@ class y {
 
     class z {
          t := 9;
+            set value -> {
+
+            }
 
          class yy {
             l := lo;

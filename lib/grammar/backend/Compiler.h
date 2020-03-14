@@ -321,7 +321,7 @@ private:
     void compilePostAstExpressions(Expression *expr, Ast *ast, long startPos = 1);
     void getContractedMethods(ClassObject *subscriber, List<Method *> &contractedMethods);
 
-    void findAliasConflicts(Ast *ast, string &name);
+    void findConflicts(Ast *ast, string type, string &name);
 
     void resolveFieldUtype(Utype *utype, Ast *ast, DataEntity *resolvedField, string &name);
 

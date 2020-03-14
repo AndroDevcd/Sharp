@@ -11,11 +11,11 @@ stable ext class _nil_ {
     static instance : _nil_;
         get
         {
-            lock self -> {
-                if(instance == null)
-                    return (instance = new _nil_{ });
-                else return instance;
-            }
+            //lock self -> {
+            //    if(instance == null)
+            //        return (instance = new _nil_{ });
+            //    else return instance;
+            //}
         }
         set value -> { } // prevent the user from setting a new value
 

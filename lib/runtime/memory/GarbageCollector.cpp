@@ -491,7 +491,7 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
 SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
     if(k != nullptr) {
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
-        uint32_t size = staticInit ? k->fieldCount : k->instanceFields;
+        uint32_t size = staticInit ? k->staticFields : k->instanceFields;
 
         object->init(size, k);
         SET_TYPE(object->info, _stype_struct);
@@ -548,7 +548,7 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
         
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
         object->init(size, k);
-        SET_TYPE(object->info, _stype_struct);
+        SET_TYPE(object->info, _stype_struct); // TODO: check why I am not doing this in the init() function maybe we pass in the _stype ?
 
         if(size > 0)
             object->node = (Object*)__calloc(size, sizeof(Object));
