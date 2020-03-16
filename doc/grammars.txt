@@ -256,7 +256,7 @@ Getter Declaration:
  `get` <block>
 
 Setter Declaration:
- `set` <identifier> `->`  <lambda-return-type> <block>
+ `set` <identifier> `->` <block>
 
 Alias Declaration:
 alias <utype> as <identifier>

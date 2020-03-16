@@ -6,7 +6,7 @@
     - Reflection
 - Add generics option Generic<?> to have the type be forced to extend object
     - The class with ? should be processed at compile time to assign objects that follow this rule alike
-    - also allow for class specification i.e `generic<?my_class>` 
+    - also allow for class specification i.e `generic<t ? my_class>` 
     - name it a generic qualifier since the type will not be known
     - casts to generic qualifier will not work as the built in class is not of that type
     - if the user tried generic qualifier cast at high level we need to process it otherwise as mentioned above will happen
@@ -22,7 +22,6 @@
 from changing the source code
 - Limit naming of declirations such as fields named as methods or classes
 - Figure out weird bug with Unixfile system processing char when normalizing file path
-- remove static call functionality for delegate functions
 - [X] Add support for inline anaonymous functions
     - Syntax:
 ```javascript
@@ -117,17 +116,6 @@ lock(self) {
     foo(); // only main.sharp file has access to foo
   }
   ```
-
-- Allow for type inference on fields that could possibly be of multiple types
-```javascript
-def foo(??name) {
-    if(name is var) {
-        name = 9;
-    }
-((SomeClass)name).work();
-
-}
-```
 
 - [X] add new options for bootstrap compiler object dumping
     - "-obj" to dump object file (file will be outputted with no debugging info and mangled
@@ -265,84 +253,6 @@ response_messages :=
         };
 ```
 
-- add compiler directived
-    - @if(<expression>) // must evalueate to a literal var
-    - @typeof(<expression>, <utype>) // returns literal var
-    - @warn(<string>)
-    - @error(<string>)
-    - @elseif(<expression>)
-    - @else(<expression>)
-    - @print(<string>)
-    - @get(<expression>, <get_directive>) // returns a utype with data no expression then use currentScope()->class
-        - name
-        - fullname
-        - super_class
-        - field // throw undefined error if not found
-    - @has(<expression>, <has_directive>) // same if no expression then use currScope()
-        - field
-        - function[name, <utype-list>]
-        
-grammar
-===== Compiler Directives =====
-
-If Directive Decl:
-`@if(` <expression> `)` [<block> | <class-block>] [else [if] directive-block]*
-
-Else If Directive Decl:
-`@elseif(` <expression> `)` [else [if] directive-block]*
-
-Else Directive Decl:
-`@else` [<block> | <class-block>]
-
-Print Directive Decl:
-`@print(` <expression> `);`
-
-Error Directive Decl:
-`@error(` <expression> `);`
-
-Warn Directive Decl:
-`@warn(` <expression> `);`
-
-TypeOf Directive Decl:
-`@typeof(` <expression> `,` <utype> `);`
-
-Related TypeOf Directive Decl:
-`@rel_typeof(` <expression> `,` <utype> `);`
-
-Get Directive Decl:
-`@get(` [<expression> `,`] <get-directive> `);`
-
-<get-directive>:
-name
-    | full_name
-    | super_class
-    | owner
-    | line
-    | column
-    | file
-    | module
-    | is_array
-    | __line__ // current line in actual file
-    | __file__ // current file the directive s proccessed in
-
-
-Has Directive Decl:
-`@has(` [<expression> `,`] <has-directive> `);`
-
-<has-directive>:
-      field `,` <identifier>
-    | interface `,` <utype>
-    | base_class `,` <utype>
-    | sub_class `,` <utype>
-    | function `,` <identifier> `{` <utype-list> `}`
-    | overload `,` <override-operator> `{` <utype-list> `}`
-    | constructor `,` <identifier> `{` <utype-list> `}`
-    | delegate `,` <identifier> `{` <utype-list> `}`
-
-
-===============================
-
-
 - add base generics
     - class generic<t base some_class> { }
     - add support for high level casting and assignment of the objects
@@ -448,3 +358,15 @@ obfuscate ignore {
 - for each field, an alias is created and the actual name is stored in the class as a random name
 - add option -obf to compiler to obfuscate everything 
 - dont perform code obvuscation until code genertion step in the compiler
+
+- add support for using function pointers as utypes
+
+```javascript
+
+ptr : (int, string)(nil) = some_fun;
+
+def foo() : ()(char) {
+
+}
+
+```

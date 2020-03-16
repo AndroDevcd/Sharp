@@ -15,6 +15,8 @@ public class integer<native_type> {
         return value;
     }
 
+    def foo() {}
+
     public def operator!=(num : integer<native_type>) := (value!=num.value); // TODO: add func for every integer type
     public def operator!=(num : var) := (value!=num.value);
 

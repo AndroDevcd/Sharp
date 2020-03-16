@@ -36,11 +36,6 @@ struct options {
     string vers = "1.0";
 
     /*
-     * Disable warnings
-     */
-    bool warnings = true;
-
-    /*
      * Optimize code
      */
     bool optimize = false;

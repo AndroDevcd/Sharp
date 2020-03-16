@@ -36,14 +36,14 @@ public:
         type = _INT8;
     }
 
-    explicit Literal(double data)
+    explicit Literal(double data, DataType type = VAR)
             :
             DataEntity(),
             literalType(numeric_literal),
             stringData(""),
             numericData(data)
     {
-        type = VAR;
+        this->type = type;
     }
     void free();
 

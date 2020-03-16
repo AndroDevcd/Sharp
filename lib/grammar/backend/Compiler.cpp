@@ -248,10 +248,6 @@ void Compiler::preProccessVarDeclHelper(List<AccessFlag>& flags, Ast* ast) {
     if(parser::isStorageType(tmp)) {
         locality = strtostl(name);
         name = ast->getEntity(1).getValue();
-        if(flags.find(flg_CONST)) {
-            this->errors->createNewError(GENERIC, ast->line, ast->col,
-                                         "thread local field `" + name + "` does not allow `const` access modifier");
-        }
         flags.addif(STATIC);
     }
 
@@ -945,40 +941,40 @@ void Compiler::parseCharLiteral(Expression* expr, Token &token) {
     if(token.getValue().size() > 1) {
         switch(token.getValue().at(1)) {
             case 'n':
-                expr->utype->setResolvedType(new Literal('\n'));
+                expr->utype->setResolvedType(new Literal('\n', _INT8));
                 expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\n'), i64ebx);
                 break;
             case 't':
-                expr->utype->setResolvedType(new Literal('\t'));
+                expr->utype->setResolvedType(new Literal('\t', _INT8));
                 expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\t'), i64ebx);
                 break;
             case 'b':
-                expr->utype->setResolvedType(new Literal('\b'));
+                expr->utype->setResolvedType(new Literal('\b', _INT8));
                 expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\b'), i64ebx);
                 break;
             case 'v':
-                expr->utype->setResolvedType(new Literal('\v'));
+                expr->utype->setResolvedType(new Literal('\v', _INT8));
                 expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\v'), i64ebx);
                 break;
             case 'r':
-                expr->utype->setResolvedType(new Literal('\r'));
+                expr->utype->setResolvedType(new Literal('\r', _INT8));
                 expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\r'), i64ebx);
                 break;
             case 'f':
-                expr->utype->setResolvedType(new Literal('\f'));
+                expr->utype->setResolvedType(new Literal('\f', _INT8));
                 expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\f'), i64ebx);
                 break;
             case '\\':
-                expr->utype->setResolvedType(new Literal('\\'));
+                expr->utype->setResolvedType(new Literal('\\', _INT8));
                 expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\\'), i64ebx);
                 break;
             default:
-                expr->utype->setResolvedType(new Literal(token.getValue().at(1)));
+                expr->utype->setResolvedType(new Literal(token.getValue().at(1), _INT8));
                 expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, token.getValue().at(1)), i64ebx);
                 break;
         }
     } else {
-        expr->utype->setResolvedType(new Literal(token.getValue().at(0)));
+        expr->utype->setResolvedType(new Literal(token.getValue().at(0), _INT8));
         expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, token.getValue().at(0)), i64ebx);
     }
 
@@ -1114,15 +1110,18 @@ void Compiler::compileLiteralExpression(Expression* expr, Ast* ast) {
 
 void Compiler::compileUtypeClass(Expression* expr, Ast* ast) {
     Utype* utype = compileUtype(ast->getSubAst(ast_utype));
-    expr->type = exp_var;
-    expr->utype->setType(utype_literal);
-    expr->utype->setArrayType(false);
 
     if(utype->getType() == utype_class) {
+        expr->type = exp_var;
+        expr->utype->setType(utype_literal);
+        expr->utype->setArrayType(false);
+
         expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, utype->getResolvedType()->address), i64ebx);
         expr->utype->setResolvedType(new Literal(utype->getResolvedType()->address));
     } else {
-        expr->utype->free();
+        expr->type = exp_undefined;
+        expr->utype = new Utype();
+        utype->free();
         errors->createNewError(GENERIC, ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier)->line,
                                ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier)->col, "expected class");
     }
@@ -1381,6 +1380,7 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
             }
 
             // TODO: add getter sett here
+            // TODO: replace with function resolveFieldUtype()
             if(field->utype && field->utype->getType() == utype_method_prototype) {
                 resolvedMethod =  (Method*)field->utype->getResolvedType();
 
@@ -2695,6 +2695,15 @@ void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, IrCode
         paramUtype->getCode().inject(stackInjector);
         code.inject(paramUtype->getCode());
         code.push_i64(SET_Di(i64, op_CALL, constructor->address));
+
+        if (constructor->utype->isArray() || constructor->utype->getResolvedType()->type == OBJECT
+            || constructor->utype->getResolvedType()->type == CLASS) {
+            code.getInjector(ptrInjector)
+                    .push_i64(SET_Ei(i64, op_POPOBJ_2));
+        } else if (constructor->utype->getResolvedType()->isVar()) {
+            code.getInjector(ebxInjector)
+                    .push_i64(SET_Di(i64, op_LOADVAL, i64ebx));
+        }
     } else {
         errors->createNewError(GENERIC, ast->line,  ast->col, "Support class `" + clazz->toString() + "` does not have constructor for type `"
                                                                           + paramUtype->toString() + "`");
@@ -2711,7 +2720,7 @@ bool Compiler::isUtypeConvertableToNativeClass(Utype *dest, Utype *src) {
         if (isUtypeClass(dest, "std", 1, "string") && type == _INT8 && src->isArray()) {
             return true;
         } else if (isUtypeClass(dest, "std", 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint")) {
-            return !src->isArray() && (type == VAR || (type >= _INT8 && type <= _UINT64));
+            return !src->isArray() && (type <= VAR);
         }
     }
 
@@ -3210,7 +3219,9 @@ void Compiler::compileDotNotationCall(Expression* expr, Ast* ast) {
     expr->freeInjectors();
     if(ast->hasSubAst(ast_dot_fn_e)) {
         Ast* branch = ast->getSubAst(ast_dot_fn_e);
+        RETAIN_REQUIRED_SIGNATURE(NULL)
         Method* method = compileMethodUtype(expr, branch);
+        RESTORE_REQUIRED_SIGNATURE()
 
         if(method) {
             expr->type = utypeToExpressionType(method->utype);
@@ -3254,14 +3265,15 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
                 compilePostIncExpression(expr, false, ast->getSubAst(i));
             else if(ast->getSubAst(i)->getType() == ast_cast_e)
                 compileCastExpression(expr, false, ast->getSubAst(i));
-            else if(ast->getSubAst(i)->getType() == ast_dot_not_e) {
+            else if(ast->getSubAst(i)->getType() == ast_dot_not_e || ast->getSubAst(i)->getType() == ast_dotnotation_call_expr) {
                 if(!expr->utype->getClass())
                     errors->createNewError(GENERIC, ast->getSubAst(i)->line, ast->getSubAst(i)->col, "expression of type `" + expr->utype->toString()
                                                                                                      + "` must resolve as a class");
-
+                Ast *astToCompile = ast->getSubAst(i)->getType() == ast_dot_not_e ? ast->getSubAst(i)->getSubAst(0) : ast->getSubAst(i);
                 Expression bridgeExpr;
                 bridgeExpr.utype->getCode().instanceCaptured = true;
-                compileDotNotationCall(&bridgeExpr, ast->getSubAst(i)->getSubAst(0));
+                bridgeExpr.utype->getCode().inject(expr->utype->getCode().getInjector(ptrInjector));
+                compileDotNotationCall(&bridgeExpr, astToCompile);
 
                 expr->copy(&bridgeExpr);
                 expr->utype->getCode().inject(bridgeExpr.utype->getCode());
@@ -3448,6 +3460,11 @@ void Compiler::compileCastExpression(Expression *expr, bool compileExpr, Ast *as
         castExpr.ast = ast;
         castExpr.utype->copy(expr->utype);
         castExpr.type = utypeToExpressionType(expr->utype);
+
+        // we need to transfer the left side of the expression to the castExpression
+        castExpr.copyInjectors(expr->utype);
+        castExpr.utype->getCode().inject(expr->utype->getCode());
+        expr->utype->getCode().free();
     }
 
     expr->ast = ast;
@@ -4308,8 +4325,14 @@ void Compiler::resolveGetter(Ast *ast, Field *field) {
     List<AccessFlag> flags;
     if(field->flags.find(LOCAL))
         flags.add(LOCAL);
-    else
+
+    if(field->flags.find(PUBLIC))
         flags.add(PUBLIC);
+    else if(field->flags.find(PRIVATE))
+        flags.add(PRIVATE);
+    else if(field->flags.find(PROTECTED))
+        flags.add(PROTECTED);
+
     if(field->flags.find(STATIC))
         flags.add(STATIC);
 
@@ -4755,7 +4778,7 @@ void Compiler::resolveDelegateImpl(Ast* ast) {
     }
 }
 
-void Compiler::resolveDelegate(Ast* ast) {
+void Compiler::resolveDelegateDecl(Ast* ast) {
     List<AccessFlag> flags;
 
     if (ast->hasSubAst(ast_access_type)) {
@@ -5039,7 +5062,7 @@ void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
                     resolveDelegateImpl(branch);
                     break;
                 case ast_delegate_decl:
-                    resolveDelegate(branch);
+                    resolveDelegateDecl(branch);
                     break;
                 case ast_enum_decl:
                     break;
@@ -5742,86 +5765,22 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
     }  else if((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL && !IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType())) {
         resolveClassUtype(utype, ast, resolvedUtype);
     } else if(resolveExtensionFunctions(currentScope()->klass) && currentScope()->klass->getFunctionByName(name, functions, true)) {
-        resolveFunctionByNameUtype(utype, ast, name, functions);
+        resolveFunctionByNameUtype(utype, ast, name, functions); // TODO: add a "requiredSignature" flag in the scope to help searching for methods
     } else if((resolvedUtype = currentScope()->klass->getAlias(name, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) != NULL) {
         resolveAliasUtype(utype, ast, resolvedUtype);
-    } else if(resolveHigherScopeSingularUtype(ptr, utype, ast)) {}
+    } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && resolveHigherScopeSingularUtype(ptr, utype, ast)) {}
     else {
         globalCheck:
         functions.free();
 
         if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveClass(ptr.mod, name, ast)) != NULL) {
-            utype->setType(utype_class);
-            utype->setResolvedType(resolvedUtype);
-            utype->setArrayType(false);
-            validateAccess((ClassObject*)resolvedUtype, ast);
-            checkTypeInference(ast);
-            return;
+            return resolveClassUtype(utype, ast, resolvedUtype);
         } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveField(name, ast)) != NULL) {
-            Field* field = (Field*)resolvedUtype;
-            compileFieldType(field);
-
-            utype->setType(utype_field);
-            utype->setResolvedType(field);
-            utype->setArrayType(field->isArray);
-            validateAccess(field, ast);
-
-            if(field->getter == NULL && isFieldInlined(field)) {
-                inlineVariableValue(utype->getCode(), field);
-            } else {
-                // TODO: check if we are in a getter or setter function if so then get/set the actual field value
-                if(field->getter != NULL) {
-                    compileFieldGetterCode(utype->getCode(), field);
-                } else {
-                    if(field->locality == stl_thread) {
-                        utype->getCode().push_i64(SET_Di(i64, op_TLS_MOVL, field->address));
-                    } else {
-                        utype->getCode().push_i64(SET_Di(i64, op_MOVG, field->owner->address));
-                        utype->getCode().push_i64(SET_Di(i64, op_MOVN, field->address));
-                    }
-
-                    if (field->isVar() && !field->isArray) {
-                        utype->getCode().getInjector(ebxInjector)
-                                .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                                .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
-                                .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx));
-
-                        utype->getCode().getInjector(stackInjector)
-                                .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                                .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx))
-                                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
-                    } else
-                        utype->getCode().getInjector(stackInjector)
-                                .push_i64(SET_Ei(i64, op_PUSHOBJ));
-                }
-            }
-            return;
+            return resolveFieldUtype(utype, ast, resolvedUtype, name);
         } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && resolveFunctionByName(name, functions, ast)) {
-            if(functions.size() > 1)
-                createNewWarning(GENERIC, __WAMBIG, ast->line, ast->col, "reference to function `" + functions.get(0)->name + "` is ambiguous");
-
-            utype->setType(utype_method);
-            utype->setResolvedType(functions.get(0));
-            utype->setArrayType(false);
-            if(!functions.get(0)->flags.find(STATIC)) {
-                errors->createNewError(GENERIC, ast->line, ast->col, " cannot get address from non static function `" + name + "` ");
-            }
-            utype->getCode().push_i64(SET_Di(i64, op_MOVI, functions.get(0)->address), i64ebx);
-            utype->getCode().getInjector(stackInjector)
-                    .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
-            return;
+            return resolveFunctionByNameUtype(utype, ast, name, functions);
         } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveAlias("", name, ast)) != NULL) {
-            Alias* alias = (Alias*)resolvedUtype;
-            compileAliasType(alias);
-            validateAccess(alias, ast);
-
-            utype->copy(alias->utype);
-            utype->getCode().free().inject(alias->utype->getCode());
-            utype->getCode().getInjector(ptrInjector).free().inject(alias->utype->getCode().getInjector(ptrInjector));
-            utype->getCode().getInjector(ebxInjector).free().inject(alias->utype->getCode().getInjector(ebxInjector));
-            utype->getCode().getInjector(stackInjector).free().inject(alias->utype->getCode().getInjector(stackInjector));
-            checkTypeInference(alias, ast);
-            return;
+            return resolveAliasUtype(utype, ast, resolvedUtype);
         } else if((currentScope()->type != RESTRICTED_INSTANCE_BLOCK &&
             resolveClass(generics, resolvedClasses, ptr.mod, name + "<>", ast, true))
              || currentScope()->klass->getChildClass(name + "<>", true)) {
@@ -5915,16 +5874,31 @@ void Compiler::resolveAliasUtype(Utype *utype, Ast *ast, DataEntity *resolvedAli
 }
 
 void Compiler::resolveFunctionByNameUtype(Utype *utype, Ast *ast, string &name, List<Method *> &functions) {
-    if(functions.size() > 1)
-        createNewWarning(GENERIC, __WAMBIG, ast->line, ast->col, "reference to function `" + functions.get(0)->name + "` is ambiguous");
+    // we use this when we need a scpeific function signature to be returned
+    Method *resolvedFunction = NULL;
+    if(functions.size() > 1) {
+        if (requiredSignature != NULL) {
+            for (long i = 0; i < functions.size(); i++) {
+                if (simpleParameterMatch(functions.get(i)->params, requiredSignature->params)) {
+                    resolvedFunction = functions.get(i);
+                    break;
+                }
+            }
+        } else {
+            resolvedFunction = functions.get(0);
+            createNewWarning(GENERIC, __WAMBIG, ast->line, ast->col,
+                             "reference to function `" + functions.get(0)->name + "` is ambiguous");
+        }
+    } else
+        resolvedFunction = functions.get(0);
 
     utype->setType(utype_method);
-    utype->setResolvedType(functions.get(0));
+    utype->setResolvedType(resolvedFunction);
     utype->setArrayType(false);
     if(!functions.get(0)->flags.find(STATIC)) {
         errors->createNewError(GENERIC, ast->line, ast->col, " cannot get address from non static function `" + name + "` ");
     }
-    utype->getCode().push_i64(SET_Di(i64, op_MOVI, functions.get(0)->address), i64ebx);
+    utype->getCode().push_i64(SET_Di(i64, op_MOVI, resolvedFunction->address), i64ebx);
     utype->getCode().getInjector(stackInjector)
             .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
 }
@@ -5957,6 +5931,8 @@ void Compiler::resolveFieldUtype(Utype *utype, Ast *ast, DataEntity *resolvedFie
                 utype->getCode().instanceCaptured = true;
                 utype->getCode().push_i64(SET_Di(i64, op_MOVL, 0));
             }
+
+            utype->getCode().push_i64(SET_Ei(i64, op_PUSHOBJ));
             compileFieldGetterCode(utype->getCode(), field);
         } else {
             if(field->locality == stl_thread) {
@@ -6082,10 +6058,11 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
         }
 
         if(bridgeUtype->getType() == utype_field) {
+            Field *field = (Field*)bridgeUtype->getResolvedType();
             if(fromClass)
-                utype->getCode().push_i64(SET_Di(i64, op_MOVG, bridgeUtype->getResolvedType()->owner->address));
+                utype->getCode().push_i64(SET_Di(i64, op_MOVG, field->owner->address));
 
-            if(isFieldInlined((Field*)bridgeUtype->getResolvedType())) {
+            if(isFieldInlined(field) || field->flags.find(STATIC)) {
                 utype->getCode().free();
             }
 
@@ -6098,7 +6075,6 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
                 utype->getCode().getInjector(stackInjector).inject(bridgeUtype->getCode().getInjector(stackInjector));
             }
 
-            Field *field = (Field*)bridgeUtype->getResolvedType();
             compileFieldType(field);
 
             // if you had class K { static instance : K; } and you did { inst := K.instance.instance; }
@@ -7567,15 +7543,18 @@ void Compiler::addDefaultConstructor(ClassObject* klass, Ast* ast) {
     if(klass->getConstructor(emptyParams, false) == NULL) {
         Method* method = new Method(klass->name, currModule, klass, emptyParams, flags, meta);
 
-        method->fnType=fn_constructor;
+        method->fullName = klass->fullName + "." + klass->name;
+        method->ast = ast;
+        method->fnType = fn_constructor;
         method->address = methodSize++;
+        method->utype = new Utype(klass);
         klass->addFunction(method);
     }
 }
 
 
 void Compiler::createNewWarning(error_type error, int type, int line, int col, string xcmnts) {
-    if(c_options.warnings && !warnings.find(xcmnts)) {
+    if(warning_map[__WGENERAL] && !warnings.find(xcmnts)) {
         if(warning_map[type]) {
             if(c_options.werrors){
                 errors->createNewError(error, line, col, xcmnts);

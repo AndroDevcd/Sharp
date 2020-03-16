@@ -342,6 +342,9 @@ void tokenizer::parse()
                     }
                     else if ('.' == current)
                     {
+                        if(!isdigit(peek(1)))
+                            break;
+
                         num << current;
                         if (dot_found)
                         {
@@ -390,8 +393,9 @@ void tokenizer::parse()
                         advance();
                         continue;
                     }
-                    else if (('.' != current) && !isdigit(current))
+                    else if (('.' != current) && !isdigit(current)) {
                         break;
+                    }
                     else
                     {
                         if(isdigit(current) && !e_found)

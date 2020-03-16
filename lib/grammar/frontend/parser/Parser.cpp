@@ -1686,12 +1686,6 @@ bool parser::parseDotNotCallExpr(Ast* ast) {
             advance();
             incBranch->addToken(current());
             goto incCheck;
-        } else if(*peek(1) == "as")
-        {
-            Ast* castBranch = getBranch(branch, ast_cast_e);
-            expect(castBranch, "as");
-            parseUtype(castBranch);
-            return true;
         }
         else if(peek(1)->getType() == LEFTBRACE) {
             Ast* arrayBranch = getBranch(branch, ast_arry_e);
@@ -2099,6 +2093,18 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         parseDotNotCallExpr(branch);
 
         branch->encapsulate(ast_base_e);
+
+        if(peek(1)->getValue() != "as")
+            branch = branch->getSubAst(ast_self_e);
+
+        if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+            goto checkInc;
+        else if(peek(1)->getType() == DOT)
+            goto dotNot;
+        else if(peek(1)->getType() == LEFTBRACE)
+            goto arrayExpr;
+        else if(peek(1)->getValue() == "as")
+            goto asExpr;
         return true;
     }
 
@@ -2112,8 +2118,18 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         dotNotBranch->addAst(branchToStore);
         branch->sub_asts.removeAt(branch->sub_asts.size() - 2);
 
-        if(!match(3, LEFTBRACE, _INC, _DEC))
-            return true;
+        if(peek(1)->getValue() != "as")
+            branch = branch->getSubAst(ast_self_e);
+
+        if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+            goto checkInc;
+        else if(peek(1)->getType() == DOT)
+            goto dotNot;
+        else if(peek(1)->getType() == LEFTBRACE)
+            goto arrayExpr;
+        else if(peek(1)->getValue() == "as")
+            goto asExpr;
+        return true;
     } else {
         errors->pass();
         _current=old;
@@ -2246,6 +2262,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         parseExpression(parenBranch);
 
         expect(parenBranch, ")");
+        branch = parenBranch;
+
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
             goto checkInc;
         else if(peek(1)->getType() == DOT)
@@ -2292,10 +2310,17 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             }
             else {
                 errors->fail();
-                if(*peek(1) == "[") {
-                    branch = arrayBranch;
+                if(peek(1)->getValue() != "as")
+                    branch = branch->getSubAst(ast_self_e);
+
+                if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+                    goto checkInc;
+                else if(peek(1)->getType() == DOT)
+                    goto dotNot;
+                else if(peek(1)->getType() == LEFTBRACE)
                     goto arrayExpr;
-                }
+                else if(peek(1)->getValue() == "as")
+                    goto asExpr;
             }
 
             return true;

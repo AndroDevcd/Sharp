@@ -257,7 +257,7 @@ int _bootstrap(int argc, const char* argv[])
             }
         }
         else if(opt("-w")){
-            c_options.warnings = false;
+            warning_map[__WGENERAL] = false;
         }
         else if(opt("-waccess")){
             warning_map[__WACCESS] = false;
@@ -285,7 +285,7 @@ int _bootstrap(int argc, const char* argv[])
         }
         else if(opt("-werror")){
             c_options.werrors = true;
-            c_options.warnings = true;
+            warning_map[__WGENERAL] = true;
         }
         else if(opt("-errlmt")) {
             if(i+1 >= argc)
@@ -422,8 +422,6 @@ void compile(List<string> &files)
                     cout << "parsing " << file << endl;
 
                 currParser = new parser(currTokenizer);
-                parsers.push_back(currParser);
-
                 if(currParser->getErrors()->hasErrors())
                 {
                     currParser->getErrors()->printErrors();
@@ -433,10 +431,16 @@ void compile(List<string> &files)
                     failed++;
 
                     if(currParser->panic) {
+                        currParser->free();
+                        delete currParser;
                         panic = 1;
                         goto end;
                     }
+
+                    currParser->free();
+                    delete currParser;
                 } else {
+                    parsers.push_back(currParser);
                     succeeded++;
                 }
             }

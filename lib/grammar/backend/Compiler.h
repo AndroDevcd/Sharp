@@ -35,6 +35,7 @@ public:
         current(NULL),
         processingStage(0),
         mainMethod(NULL),
+        requiredSignature(NULL),
         mainSignature(0),
         delegateGUID(0),
         typeInference(false)
@@ -141,6 +142,7 @@ private:
     parser* current;
     ErrorManager *errors;
     string currModule;
+    Method* requiredSignature;
 
     bool preprocess();
     bool postProcess();
@@ -219,7 +221,7 @@ private:
     void resolveGlobalMethod(Ast* ast);
     void resolveClassMethod(Ast* ast);
     void compileMethodReturnType(Method* fun, Ast *ast, bool wait = false);
-    void resolveDelegate(Ast* ast);
+    void resolveDelegateDecl(Ast* ast);
     void resolveDelegateImpl(Ast* ast);
     void resolveConstructor(Ast* ast);
     void resolveOperatorOverload(Ast* ast);
@@ -320,15 +322,10 @@ private:
     void compileFieldGetterCode(IrCode &code, Field *field);
     void compilePostAstExpressions(Expression *expr, Ast *ast, long startPos = 1);
     void getContractedMethods(ClassObject *subscriber, List<Method *> &contractedMethods);
-
     void findConflicts(Ast *ast, string type, string &name);
-
     void resolveFieldUtype(Utype *utype, Ast *ast, DataEntity *resolvedField, string &name);
-
     void resolveClassUtype(Utype *utype, Ast *ast, DataEntity *resolvedClass);
-
     void resolveFunctionByNameUtype(Utype *utype, Ast *ast, string &name, List<Method *> &functions);
-
     void resolveAliasUtype(Utype *utype, Ast *ast, DataEntity *resolvedAlias);
 };
 
@@ -357,6 +354,14 @@ enum ProcessingStage {
 
 #define RESTORE_BLOCK_TYPE() \
     currentScope()->type = oldType;
+
+#define RETAIN_REQUIRED_SIGNATURE(newSig) \
+    Method *oldRequiredSig = requiredSignature; \
+    requiredSignature = newSig;
+
+#define RESTORE_REQUIRED_SIGNATURE() \
+    requiredSignature = oldRequiredSig;
+
 
 #define RETAIN_SCOPE_CLASS(bt) \
     ClassObject *oldScopeClass = currentScope()->klass; \

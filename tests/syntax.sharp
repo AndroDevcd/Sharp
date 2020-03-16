@@ -1,32 +1,20 @@
 mod main;
 
-//import std.io.*;
 
-f := 9;
+class Y {
 
-class y {
-    llp := 0;
+    y := 8;
 
-    class z {
-         t := 9;
-            set value -> {
+    lo : Y;
 
-            }
+    k := Y.color.r as int;
 
-         class yy {
-            l := lo;
-         }
-    }
-}
-
-def std#foo() : t {
+    enum color {
+        r,b,g
+    };
 
 }
-
-k := new list<var>();
-//x := k.foo();
 
 def main() {
 
-//    k := new L.Inner<var>();
 }

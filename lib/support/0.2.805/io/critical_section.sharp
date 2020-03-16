@@ -1,6 +1,6 @@
 mod std.io;
 
-global_lck := new _object_();
+//global_lck := new _object_();
 def critical_section(fn block()) {
     // err : exception;
     // lock global_lck -> {
