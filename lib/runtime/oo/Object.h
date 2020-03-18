@@ -7,6 +7,8 @@
 
 #ifndef WIN32_
 #include <mutex>
+#include <atomic>
+
 #endif
 
 #include "../memory/GarbageCollector.h"
@@ -57,7 +59,7 @@ struct SharpObject
 
     /* info */
     uint32_t size;
-    uint32_t refCount;
+    std::atomic<uint32_t> refCount;
 
     /**
      * Information package

@@ -23,7 +23,6 @@ public:
         {
             access_types.init();
             tree.init();
-            lines.init();
             parse();
         }
     }
@@ -38,7 +37,6 @@ public:
     static bool isNativeType(string t);
 
     bool parsed, panic;
-    List<string> lines;
     string sourcefile;
 
 

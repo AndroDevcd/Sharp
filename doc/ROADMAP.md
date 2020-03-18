@@ -134,7 +134,7 @@ lock(self) {
 ---- Below is a proposed solution for adding this feature
 
 ```javascript
-class Threa {
+class Thread {
     ...
     List<File*> fileHandles;
 };
@@ -367,6 +367,25 @@ ptr : (int, string)(nil) = some_fun;
 
 def foo() : ()(char) {
 
+}
+
+```
+
+- add object serialization
+
+```javascript
+mod main;
+
+class worker {
+    salary : int;
+    title: string;
+    name : string;
+}
+
+def main() {
+    john := new worker { 50_000, "Developer", "John" }
+    serialized_worker : string = serialize(john);
+    john = deserialize(serialized_worker) as worker;
 }
 
 ```
