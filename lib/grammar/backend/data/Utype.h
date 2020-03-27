@@ -14,7 +14,7 @@ enum utype_struct
     utype_field,
     utype_class,
     utype_method,
-    utype_method_prototype,
+    utype_function_ptr,
     utype_native,
     utype_literal,
     utype_unresolved

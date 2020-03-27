@@ -83,7 +83,7 @@ enum ast_type
     ast_foreach_statement,
     ast_type_identifier,
     ast_enum_identifier,
-    ast_func_prototype,
+    ast_func_ptr,
     ast_refrence_pointer,
     ast_modulename,
     ast_literal,
@@ -126,36 +126,30 @@ public:
     :
         type(type),
         line(line),
-        col(col),
-        numEntities(0),
-        numAsts(0)
+        col(col)
     {
         sub_asts.init();
-        entities.init();
+        tokens.init();
     }
 
     Ast()
             :
             type(ast_none),
             line(0),
-            col(0),
-            numEntities(0),
-            numAsts(0)
+            col(0)
     {
         sub_asts.init();
-        entities.init();
+        tokens.init();
     }
 
     Ast(Ast *cpy)
             :
             type(ast_none),
             line(0),
-            col(0),
-            numEntities(0),
-            numAsts(0)
+            col(0)
     {
         sub_asts.init();
-        entities.init();
+        tokens.init();
         copy(cpy);
     }
 
@@ -166,38 +160,32 @@ public:
     Ast *getSubAst(long at);
     Ast *getLastSubAst();
     Ast *getSubAst(ast_type at);
-    Ast *getNextSubAst(ast_type at);
     bool hasSubAst(ast_type at);
-    bool hasEntity(token_type t);
-    bool hasEntity(string s);
-    bool findEntity(string t);
+    bool hasToken(token_type t);
+    bool hasToken(string s);
     void freeSubAsts();
-    long getEntityCount();
-    Token &getEntity(long at);
+    long getTokenCount();
+    Token &getToken(long at);
     Token getToken(token_type t);
     static string astTypeToString(ast_type type);
 
     void addToken(Token entity);
     void addAst(Ast* _ast);
-    void addAstFirst(Ast* _ast);
     void copy(Ast *ast);
     void free();
 
-    void freeEntities();
+    void freeTokens();
     void freeLastSub();
-    void freeAst(ast_type type);
-    void freeLastEntity();
     string toString();
 
     int line, col;
-    long numEntities, numAsts;
 
     void setAstType(ast_type types);
 
     List<Ast*> sub_asts;
 private:
     ast_type type;
-    List<Token> entities;
+    List<Token> tokens;
 };
 
 

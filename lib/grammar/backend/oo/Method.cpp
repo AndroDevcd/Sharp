@@ -19,9 +19,11 @@ string Method::toString() {
     ss << "fn ";
     if(fnType == fn_delegate_impl || fnType == fn_delegate)
         ss << "delegate::";
-    else if(fnType == fn_prototype)
+    else if(fnType == fn_ptr)
         ss << "*";
-    ss << fullName << paramsToString(params);
+
+    if(fnType != fn_ptr) ss << fullName;
+    ss << paramsToString(params);
 
     if(utype) {
         ss << " : " << utype->toString();

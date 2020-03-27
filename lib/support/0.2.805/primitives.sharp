@@ -17,10 +17,10 @@ public class integer<native_type> {
 
     def foo() {}
 
-    public def operator!=(num : integer<native_type>) := (value!=num.value); // TODO: add func for every integer type
-    public def operator!=(num : var) := (value!=num.value);
+    public def operator!=(num : integer<native_type>) := 0; //(value!=num.value); // TODO: add func for every integer type
+    public def operator!=(num : var) := 0; //TODO: see why it is broken (value!=num.value);
 
-    public def operator==(num : integer<native_type>) := (value==num.value);
+    public def operator==(num : integer<native_type>) := 0;// (value==num.value);
 
 //    public def delegate::to_string() : string {
 //        return "" + value;

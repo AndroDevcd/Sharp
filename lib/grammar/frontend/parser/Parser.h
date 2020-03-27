@@ -14,7 +14,6 @@ public:
     parser(tokenizer *tokenizer)
             :
             toks(tokenizer),
-            ast_cursor(-1),
             parsed(false),
             panic(false)
     {
@@ -31,13 +30,12 @@ public:
     Ast* astAt(long p);
     size_t size() { return tree.size(); }
     void free();
-    const string &getData() const;
-    tokenizer *getTokenizer() const;
+    string &getData() { return toks->getData(); }
+    tokenizer *getTokenizer() { return toks; }
     static bool isStorageType(Token &t);
     static bool isNativeType(string t);
 
     bool parsed, panic;
-    string sourcefile;
 
 
 private:
@@ -50,7 +48,6 @@ private:
     bool isClassDecl(Token &t);
     bool isMutateDecl(Token &t);
     bool isInterfaceDecl(Token &t);
-    bool isPrototypeDecl(Token &t);
     bool isVariableDecl(Token &t);
     bool isMethodDecl(Token &t);
     bool isInitDecl(Token& token);
@@ -99,6 +96,7 @@ private:
     bool shift(Ast*);
     bool comparason(Ast*);
     bool multiplication(Ast*);
+    bool parseFunctionPtr(Ast* ast);
     bool addition(Ast*);
     bool unary(Ast*);
     bool binary(Ast*);
@@ -111,13 +109,11 @@ private:
     bool parseUtypeArgOpt(Ast*);
     bool parseLambdaArg(Ast*);
     void parseUtypeArgList(Ast*);
-    void parseLambdaArgList(Ast*);
     void parseUtypeArgListOpt(Ast*);
+    void parseLambdaArgList(Ast*);
     bool parseArrayExpression(Ast*);
     bool parseFieldInitializatioin(Ast*);
-    void parsePrototypeDecl(Ast*, bool semicolon = true);
     void parseMethodReturnType(Ast*);
-    void parsePrototypeValueAssignment(Ast*);
     void parseLambdaReturnType(Ast*);
     void parseMethodDecl(Ast*);
     void parseDelegateDecl(Ast*);
@@ -141,12 +137,11 @@ private:
     void parseAssemblyBlock(Ast*);
     void parseForStmnt(Ast*);
 
-    Ast* getBranch(Ast *ast, ast_type type);
+    Ast* getBranch(Ast *parent, ast_type type);
     void expect(Ast* ast, string token, bool addToken = true, const char *expectedstr = nullptr);
 
     List<Ast*> tree;
     Token* _current;
-    unsigned long ast_cursor;
     tokenizer *toks;
     List<Token> access_types;
     ErrorManager *errors;

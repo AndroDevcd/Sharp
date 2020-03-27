@@ -45,6 +45,14 @@ public:
     void free();
     string toString();
     static string paramsToString(List<Field*> &params);
+    void copy(Method *method) {
+        DataEntity::copy(method);
+        fnType = method->fnType;
+        overload = method->overload;
+        extensionFun = method->extensionFun;
+        utype = method->utype;
+        params.addAll(method->params);
+    }
 
     function_type fnType;
     char overload;

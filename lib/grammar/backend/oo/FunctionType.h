@@ -9,7 +9,7 @@ enum function_type
 {
     fn_normal,
     fn_constructor,
-    fn_prototype,
+    fn_ptr,
     fn_lambda,
     fn_op_overload,
     fn_delegate_impl,

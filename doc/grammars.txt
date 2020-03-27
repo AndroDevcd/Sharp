@@ -66,7 +66,10 @@ A reference identifier is an identifier that may be a <refrence-pointer>
 <identifier> [,<identifier>...]
 
 <typeidentifier>:
-An <nativetype> or <refrence-identifier>
+An <nativetype> or <refrence-identifier> or <function-pointer>
+
+<function-ptr>:
+'(' <Utype-list> `)` `(` [<utype>]* `)`
 
 <value>:
 A value consists of an <expression>
@@ -93,13 +96,13 @@ A value consists of an <expression>
 <uType> [<identifier>]
 
 <uTypeArg>:
-<uType> <identifier>                         i.e. object dog  Animal cat
+<identifier> : <uType>                         i.e. dog: object  cat: Animal
 
 <uTypeArg-list-opt>;
-[ '(' [param] <uTypeArgOpt> (',' [param] <uTypeArgOpt>)* ')']
+[ '(' <uTypeArgOpt> (',' <uTypeArgOpt>)* ')']
 
 <uTypeArg-list>;
-[ '(' [param] <uTypeArg> (',' [param] <uTypeArg>)* ')']      i.e (object arg1) (Double arg1, object arg2)
+[ '(' <uTypeArg> (',' <uTypeArg>)* ')']      i.e (object arg1) (Double arg1, object arg2)
 
 <VectorArray>:
 '{' <expression> (',' <expression>)* '}'      i.e. int[] numbers = new int[] { 1, 2, 3, }
@@ -194,9 +197,6 @@ mod <identifier>[(`.`<identifier>)+] ;
 
 Import Declaration:
 import <identifier>[(`.` [`*` | <identifier>] )+];
-
-Prototype Declaration:
-fn <identifier = name> [<uTypeArg-list-opt> [: <uType>]] [`=` <expression>];
 
 Class Declaration:
 `[<accesstype>] class <identifier = name> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
@@ -322,6 +322,5 @@ asm ( <string-literal>+ ) ;
      | goto identifier ;
      | identifier ':' <statement>
      | <variable-declaration>
-     | <prototype-declaration>
      | <expression>
      | <asm-decl>

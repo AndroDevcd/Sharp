@@ -22,7 +22,14 @@ void Compiler::generate() {
 }
 
 void Compiler::cleanup() {
-
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        parser* parser = parsers.get(i);
+        parser->getTokenizer()->free();
+        delete parser->getTokenizer();
+        parser->free();
+        delete(parser);
+    }
+    parsers.free();
 }
 
 AccessFlag Compiler::strToAccessFlag(string flag) {
@@ -55,27 +62,27 @@ bool Compiler::matchesFlag(AccessFlag flags[], int len, int startPos, AccessFlag
 }
 
 void Compiler::parseClassAccessFlags(List<AccessFlag> &flags, Ast *ast) {
-    if(ast->getEntityCount() > 4)
+    if(ast->getTokenCount() > 4)
         this->errors->createNewError(GENERIC, ast->line, ast->col, "class objects only allows for access "
                                                                    "specifiers (public, private, protected, local, ext, and stable)");
     else {
         long errPos=0;
         AccessFlag lastFlag = flg_UNDEFINED;
-        for(long i = 0; i < ast->getEntityCount(); i++) {
-            AccessFlag flag = strToAccessFlag(ast->getEntity(i).getValue());
+        for(long i = 0; i < ast->getTokenCount(); i++) {
+            AccessFlag flag = strToAccessFlag(ast->getToken(i).getValue());
             flags.add(flag);
 
             if(flag == flg_CONST || flag == STATIC) {
                 this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->line, ast->col,
-                                             " `" + ast->getEntity(i).getValue() + "`");
+                                             " `" + ast->getToken(i).getValue() + "`");
             } else if(flag == lastFlag) {
                 this->errors->createNewError(ILLEGAL_ACCESS_DECLARATION, ast->line, ast->col,
-                                             " duplicate access flag `" + ast->getEntity(i).getValue() + "`");
+                                             " duplicate access flag `" + ast->getToken(i).getValue() + "`");
             }
 
             if(flag==LOCAL && !globalScope()) {
                 this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->line, ast->col,
-                                             " `" + ast->getEntity(i).getValue() + "` can only be used at global scope");
+                                             " `" + ast->getToken(i).getValue() + "` can only be used at global scope");
             }
         }
 
@@ -143,9 +150,9 @@ void Compiler::parseClassAccessFlags(List<AccessFlag> &flags, Ast *ast) {
 
             if (false) {
                 error:
-                this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->getEntity(errPos).getLine(),
-                                             ast->getEntity(errPos).getColumn(),
-                                             " `" + ast->getEntity(errPos).getValue() + "`. Make sure the order is correct and you're using the appropriate modifiers.");
+                this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->getToken(errPos).getLine(),
+                                             ast->getToken(errPos).getColumn(),
+                                             " `" + ast->getToken(errPos).getValue() + "`. Make sure the order is correct and you're using the appropriate modifiers.");
             }
 
             if ((flags.find(PUBLIC) || flags.find(PRIVATE) || flags.find(PROTECTED)) && flags.find(LOCAL)) {
@@ -157,7 +164,7 @@ void Compiler::parseClassAccessFlags(List<AccessFlag> &flags, Ast *ast) {
 }
 
 ClassObject* Compiler::addChildClassObject(string name, List<AccessFlag> &flags, ClassObject* owner, Ast* ast) {
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->sourcefile,
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
     ClassObject *klass = new ClassObject(name,
@@ -185,12 +192,12 @@ ClassObject* Compiler::addChildClassObject(string name, List<AccessFlag> &flags,
 
 void Compiler::parseVariableAccessFlags(List<AccessFlag> &flags, Ast *ast) {
     long errPos=0;
-    for(long i = 0; i < ast->getEntityCount(); i++) {
-        flags.add(strToAccessFlag(ast->getEntity(i).getValue()));
+    for(long i = 0; i < ast->getTokenCount(); i++) {
+        flags.add(strToAccessFlag(ast->getToken(i).getValue()));
 
         if(flags.last() == LOCAL && !globalScope()) {
             this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->line, ast->col,
-                                         " `" + ast->getEntity(i).getValue() + "` can only be used at global scope");
+                                         " `" + ast->getToken(i).getValue() + "` can only be used at global scope");
         } else if(flags.last() > STATIC) {
             errPos = i;
             goto error;
@@ -229,8 +236,8 @@ void Compiler::parseVariableAccessFlags(List<AccessFlag> &flags, Ast *ast) {
 
     if(false) {
         error:
-        this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->getEntity(errPos).getLine(),
-                                     ast->getEntity(errPos).getColumn(), " `" + ast->getEntity(errPos).getValue() + "`");
+        this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->getToken(errPos).getLine(),
+                                     ast->getToken(errPos).getColumn(), " `" + ast->getToken(errPos).getValue() + "`");
     }
 
 }
@@ -242,16 +249,16 @@ StorageLocality Compiler::strtostl(string locality) {
 
 
 void Compiler::preProccessVarDeclHelper(List<AccessFlag>& flags, Ast* ast) {
-    string name = ast->getEntity(0).getValue();
+    string name = ast->getToken(0).getValue();
     StorageLocality locality = stl_stack;
     Token tmp(name, IDENTIFIER, 0, 0);
     if(parser::isStorageType(tmp)) {
         locality = strtostl(name);
-        name = ast->getEntity(1).getValue();
+        name = ast->getToken(1).getValue();
         flags.addif(STATIC);
     }
 
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->sourcefile,
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
     Field* prevField=NULL;
@@ -338,8 +345,8 @@ void Compiler::preProccessAliasDecl(Ast* ast) {
         errors->createNewError(GENERIC, ast->line, ast->col, "access specifier `const` is not allowed on aliases");
     }
 
-    string name = ast->getEntity(0).getValue();
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->sourcefile,
+    string name = ast->getToken(0).getValue();
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
     Alias* prevAlias=NULL;
@@ -357,8 +364,8 @@ void Compiler::preProccessAliasDecl(Ast* ast) {
 void Compiler::parseIdentifierList(Ast *ast, List<string> &idList) {
     ast = ast->getSubAst(ast_identifier_list);
 
-    for(long i = 0; i < ast->getEntityCount(); i++) {
-        string Key = ast->getEntity(i).getValue();
+    for(long i = 0; i < ast->getTokenCount(); i++) {
+        string Key = ast->getToken(i).getValue();
         if(Key != ",") {
             if(!idList.addif(Key)) {
                 stringstream err;
@@ -399,7 +406,7 @@ void Compiler::preProccessGenericClassDecl(Ast* ast, bool isInterface) {
             flags.addif(UNSTABLE);
     }
 
-    string className = ast->getEntity(0).getValue();
+    string className = ast->getToken(0).getValue();
     List<string> identifierList;
     parseIdentifierList(ast, identifierList);
 
@@ -443,8 +450,8 @@ void Compiler::preProccessEnumVar(Ast *ast) {
     flags.add(STATIC);
     flags.add(flg_CONST);
 
-    string name = ast->getEntity(0).getValue();
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->sourcefile,
+    string name = ast->getToken(0).getValue();
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
 
@@ -481,7 +488,7 @@ void Compiler::preProccessEnumDecl(Ast *ast)
      */
     flags.addif(STABLE);
     flags.addif(EXTENSION);
-    string className = ast->getEntity(0).getValue();
+    string className = ast->getToken(0).getValue();
 
     if(globalScope()) {
         currentClass = addGlobalClassObject(className, flags, ast, classes);
@@ -574,7 +581,7 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
                 flags.addif(UNSTABLE);
         }
 
-        string className = ast->getEntity(0).getValue();
+        string className = ast->getToken(0).getValue();
         if (globalScope()) {
             currentClass = addGlobalClassObject(className, flags, ast, classes);
             if(currentClass == NULL) return; // obviously the uer did something really dumb
@@ -608,9 +615,6 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
                 preProccessVarDecl(branch);
                 break;
             case ast_method_decl: /* Will be parsed later */
-                break;
-            case ast_func_prototype:
-                preProccessVarDecl(branch);
                 break;
             case ast_alias_decl:
                 preProccessAliasDecl(branch);
@@ -663,9 +667,9 @@ void Compiler::removeScope() {
 void Compiler::preProccessImportDecl(Ast *branch, List<string> &imports) {
     bool star = false;
     stringstream ss;
-    for(long i = 0; i < branch->getEntityCount(); i++) {
-        if(branch->getEntity(i).getValue() != "*") {
-            ss << branch->getEntity(i).getValue();
+    for(long i = 0; i < branch->getTokenCount(); i++) {
+        if(branch->getToken(i).getValue() != "*") {
+            ss << branch->getToken(i).getValue();
         } else {
             star = true;
             break;
@@ -733,7 +737,7 @@ void Compiler::preproccessImports() {
     }
 
 
-    importMap.__new().key = current->sourcefile;
+    importMap.__new().key = current->getTokenizer()->file;
     importMap.last().value.init();
     importMap.last().value.addAll(imports);
 }
@@ -837,7 +841,7 @@ ClassObject* Compiler::resolveClass(string mod, string name, Ast* pAst) {
     } else {
         resolve:
         for (unsigned int i = 0; i < importMap.size(); i++) {
-            if (importMap.get(i).key == current->sourcefile) {
+            if (importMap.get(i).key == current->getTokenizer()->file) {
 
                 List<string> &lst = importMap.get(i).value;
                 for (unsigned int x = 0; x < lst.size(); x++) {
@@ -862,7 +866,7 @@ bool Compiler::resolveClass(List<ClassObject*> &classes, List<ClassObject*> &res
         results.add(klass);
     } else {
         for (unsigned int i = 0; i < importMap.size(); i++) {
-            if (importMap.get(i).key == current->sourcefile) {
+            if (importMap.get(i).key == current->getTokenizer()->file) {
 
                 List<string> &lst = importMap.get(i).value;
                 for (unsigned int x = 0; x < lst.size(); x++) {
@@ -880,8 +884,7 @@ bool Compiler::resolveClass(List<ClassObject*> &classes, List<ClassObject*> &res
 }
 
 void Compiler::inheritObjectClassHelper(Ast *ast, ClassObject *klass) {
-    if(klass->module == "std" && klass->name == "_object_") { }
-    else if(klass->getSuperClass() == NULL){
+    if(klass->fullName != "std#_object_" && klass->getSuperClass() == NULL) {
         ClassObject *base = findClass("std", "_object_", classes);
 
         if (base != NULL && (IS_CLASS_ENUM(base->getClassType()) || IS_CLASS_INTERFACE(base->getClassType()))) {
@@ -899,11 +902,6 @@ void Compiler::inheritObjectClassHelper(Ast *ast, ClassObject *klass) {
                 errors->createNewError(GENERIC, ast->line, ast->col, err.str());
             }
         }
-    }
-
-    for(long long x = 0; x < klass->getChildClasses().size(); x++) {
-        ClassObject* child = klass->getChildClasses().get(x);
-        inheritObjectClassHelper(child->ast, child);
     }
 }
 
@@ -923,12 +921,6 @@ void Compiler::inheritEnumClassHelper(Ast *ast, ClassObject *enumClass) {
                 err << "support class for enums not found";
                 errors->createNewError(GENERIC, ast->line, ast->col, err.str());
             }
-        }
-    } else {
-
-        for(long long x = 0; x < enumClass->getChildClasses().size(); x++) {
-            ClassObject *child = enumClass->getChildClasses().get(x);
-            inheritEnumClassHelper(child->ast, child);
         }
     }
 }
@@ -1083,23 +1075,23 @@ void Compiler::parseBoolLiteral(Expression* expr, Token &token) {
 }
 
 void Compiler::compileLiteralExpression(Expression* expr, Ast* ast) {
-    switch(ast->getEntity(0).getId()) {
+    switch(ast->getToken(0).getId()) {
         case CHAR_LITERAL:
-            parseCharLiteral(expr, ast->getEntity(0));
+            parseCharLiteral(expr, ast->getToken(0));
             break;
         case INTEGER_LITERAL:
-            parseIntegerLiteral(expr, ast->getEntity(0));
+            parseIntegerLiteral(expr, ast->getToken(0));
             break;
         case HEX_LITERAL:
-            parseHexLiteral(expr, ast->getEntity(0));
+            parseHexLiteral(expr, ast->getToken(0));
             break;
         case STRING_LITERAL:
-            parseStringLiteral(expr, ast->getEntity(0));
+            parseStringLiteral(expr, ast->getToken(0));
             break;
         default:
-            if(ast->getEntity(0).getValue() == "true" ||
-                    ast->getEntity(0).getValue() == "false") {
-                parseBoolLiteral(expr, ast->getEntity(0));
+            if(ast->getToken(0).getValue() == "true" ||
+                    ast->getToken(0).getValue() == "false") {
+                parseBoolLiteral(expr, ast->getToken(0));
             }
             break;
     }
@@ -1357,7 +1349,7 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
             return resolvedMethod;
         else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && currentScope()->getLocalField(name) != NULL) {
             Field* field = currentScope()->getLocalField(name)->field;
-            if(field->utype && field->utype->getType() == utype_method_prototype) {
+            if(field->utype && field->utype->getType() == utype_function_ptr) {
                 resolvedMethod =  (Method*)field->utype->getResolvedType();
 
 
@@ -1381,7 +1373,7 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
 
             // TODO: add getter sett here
             // TODO: replace with function resolveFieldUtype()
-            if(field->utype && field->utype->getType() == utype_method_prototype) {
+            if(field->utype && field->utype->getType() == utype_function_ptr) {
                 resolvedMethod =  (Method*)field->utype->getResolvedType();
 
                 if(field->locality == stl_thread) {
@@ -1418,7 +1410,7 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
                 Field* field = klass->getField(name, true);
                 compileFieldType(field);
                 
-                if(field->utype && field->utype->getType() == utype_method_prototype) {
+                if(field->utype && field->utype->getType() == utype_function_ptr) {
                     resolvedMethod =  (Method*)field->utype->getResolvedType();
 
                     if(!complexParameterMatch(resolvedMethod->params, params)) {
@@ -1573,7 +1565,7 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
         IrCode &code = expr->utype->getCode();
 
         validateAccess(resolvedMethod, ast);
-        if(!resolvedMethod->flags.find(STATIC) && resolvedMethod->fnType != fn_prototype) {
+        if(!resolvedMethod->flags.find(STATIC) && resolvedMethod->fnType != fn_ptr) {
             if(singularCall) {
                 code.push_i64(SET_Di(i64, op_MOVL, 0));
                 code.push_i64(SET_Ei(i64, op_PUSHOBJ));
@@ -1603,7 +1595,7 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
             } else
                 code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, resolvedMethod->address, 0, params.size()));
         } else {
-            if(resolvedMethod->fnType != fn_prototype)
+            if(resolvedMethod->fnType != fn_ptr)
                 code.push_i64(SET_Di(i64, op_CALL, resolvedMethod->address));
             else {
                 code.push_i64(SET_Di(i64, op_LOADVAL, i64ebx))
@@ -1623,7 +1615,7 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
  */
 void Compiler::printExpressionCode(Expression *expr) {
     cout << "\n\n\n==== Expression Code ===\n";
-    cout << "line " << expr->ast->line << " file " << current->sourcefile << endl;
+    cout << "line " << expr->ast->line << " file " << current->getTokenizer()->file << endl;
     cout << codeToString(expr->utype->getCode());
     cout << "\n=========\n" << std::flush;
 }
@@ -2681,7 +2673,7 @@ void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, IrCode
     Method *constructor; // TODO: take note that I may not be doing pre equals validation on the param before I call this function
 
     flags.add(PUBLIC);
-    Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
               ast->line, ast->col);
 
     params.add(new Field(paramUtype->getResolvedType()->type, 0, "", currentScope()->klass, flags, meta, stl_stack, 0));
@@ -2732,7 +2724,7 @@ expression_type Compiler::utypeToExpressionType(Utype *utype) {
         return utypeToExpressionType(((Field*)utype->getResolvedType())->utype);
     else if(utype->getType() == utype_method)
         return exp_var;
-    else if(utype->getType() == utype_method_prototype)
+    else if(utype->getType() == utype_function_ptr)
         return exp_var;
     else if(utype->getType() == utype_class)
         return exp_class;
@@ -2755,8 +2747,8 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
     expr->ast = ast;
     compileExpressionList(array, vectAst);
 
-    if(compareType && compareType->getType() != utype_class && compareType->getType() != utype_native)
-        errors->createNewError(GENERIC, ast->line, ast->col, "arrayType `" + compareType->toString() + "` must be a class or a native type");
+    if(compareType && compareType->getType() != utype_class && compareType->getType() != utype_native && compareType->getType() != utype_function_ptr)
+        errors->createNewError(GENERIC, ast->line, ast->col, "arrayType `" + compareType->toString() + "` must be a class, funcion pointer, or a native type");
 
     if(array.size() >= 1) {
         if(compareType == NULL) compareType = array.get(0)->utype;
@@ -2774,9 +2766,7 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
 
         for (long i = 0; i < array.size(); i++) {
             elementUtype = array.get(i)->utype;
-            if(elementUtype->getType() == utype_method_prototype) {
-                errors->createNewError(GENERIC, ast->line, ast->col, "anonymous functions & lambdas are not allowed in array declarations");
-            } else if (!isUtypeConvertableToNativeClass(elementUtype, compareType) && !isUtypeConvertableToNativeClass(compareType, elementUtype)
+            if (!isUtypeConvertableToNativeClass(elementUtype, compareType) && !isUtypeConvertableToNativeClass(compareType, elementUtype)
                      && !compareType->isRelated(elementUtype)) {
                 errors->createNewError(GENERIC, ast->line, ast->col, "array element of type `" + elementUtype->toString() + "` is not equal to type `" + compareType->toString() + "`");
             }
@@ -2900,7 +2890,7 @@ void Compiler::compileFieldInitialization(Expression* expr, List<KeyPair<Field*,
     if(ast->getType() == ast_expression_list && fields.size() < ast->getSubAstCount()) {
         stringstream ss;
         ss << "class `" << expr->utype->toString() << "` only contains a total of " << expr->utype->getClass()->totalFieldCount()
-            << "fields but was supplied a total of `" << ast->getSubAstCount() << "` expressions";
+            << " fields but was supplied a total of `" << ast->getSubAstCount() << "` expressions";
         errors->createNewError(GENERIC, ast->line, ast->col, ss.str());
         return;
     }
@@ -2909,7 +2899,7 @@ void Compiler::compileFieldInitialization(Expression* expr, List<KeyPair<Field*,
         Ast *field_init = ast->getSubAst(i);
         bool baseField = false;
 
-        if(field_init->hasEntity("base")) {
+        if(field_init->hasToken("base")) {
             baseField = true;
             if(expr->utype->getClass()->getSuperClass() == NULL) {
                 baseField = false;
@@ -3048,7 +3038,7 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
         compileVectorExpression(expr, ast, arrayType);
     } else if(ast->hasSubAst(ast_array_expression)) {
         compileNewArrayExpression(expr, ast->getSubAst(ast_array_expression), arrayType);
-    } else if(ast->hasSubAst(ast_expression_list) && ast->getSubAst(ast_expression_list)->hasEntity(LEFTPAREN)) {
+    } else if(ast->hasSubAst(ast_expression_list) && ast->getSubAst(ast_expression_list)->hasToken(LEFTPAREN)) {
         if(arrayType->getClass() && arrayType->getType() != utype_field) {
             if(arrayType->getClass()->flags.find(EXTENSION)) {
                 errors->createNewError(GENERIC, ast->line, ast->col, "cannot instantiate extension class `" + arrayType->toString() + "`");
@@ -3183,7 +3173,7 @@ void Compiler::compileBaseExpression(Expression* expr, Ast* ast) {
 
     expr->ast = ast;
     if(currentScope()->klass != NULL) {
-        if (ast->hasEntity(PTR)) {
+        if (ast->hasToken(PTR)) {
             compileDotNotationCall(expr, ast->getSubAst(ast_dotnotation_call_expr));
         } else {
             expr->type = exp_class;
@@ -3200,7 +3190,7 @@ void Compiler::compileBaseExpression(Expression* expr, Ast* ast) {
 void Compiler::compileSelfExpression(Expression* expr, Ast* ast) {
 
     expr->ast = ast;
-    if(ast->hasEntity(PTR)) {
+    if(ast->hasToken(PTR)) {
         RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
         compileDotNotationCall(expr, ast->getSubAst(ast_dotnotation_call_expr));
         RESTORE_BLOCK_TYPE()
@@ -3266,18 +3256,20 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
             else if(ast->getSubAst(i)->getType() == ast_cast_e)
                 compileCastExpression(expr, false, ast->getSubAst(i));
             else if(ast->getSubAst(i)->getType() == ast_dot_not_e || ast->getSubAst(i)->getType() == ast_dotnotation_call_expr) {
-                if(!expr->utype->getClass())
+                if(expr->utype->getClass()) {
+                    Ast *astToCompile = ast->getSubAst(i)->getType() == ast_dot_not_e ? ast->getSubAst(i)->getSubAst(0)
+                                                                                      : ast->getSubAst(i);
+                    Expression bridgeExpr;
+                    bridgeExpr.utype->getCode().instanceCaptured = true;
+                    bridgeExpr.utype->getCode().inject(expr->utype->getCode().getInjector(ptrInjector));
+                    compileDotNotationCall(&bridgeExpr, astToCompile);
+
+                    expr->copy(&bridgeExpr);
+                    expr->utype->getCode().inject(bridgeExpr.utype->getCode());
+                    expr->copyInjectors(bridgeExpr.utype);
+                } else
                     errors->createNewError(GENERIC, ast->getSubAst(i)->line, ast->getSubAst(i)->col, "expression of type `" + expr->utype->toString()
                                                                                                      + "` must resolve as a class");
-                Ast *astToCompile = ast->getSubAst(i)->getType() == ast_dot_not_e ? ast->getSubAst(i)->getSubAst(0) : ast->getSubAst(i);
-                Expression bridgeExpr;
-                bridgeExpr.utype->getCode().instanceCaptured = true;
-                bridgeExpr.utype->getCode().inject(expr->utype->getCode().getInjector(ptrInjector));
-                compileDotNotationCall(&bridgeExpr, astToCompile);
-
-                expr->copy(&bridgeExpr);
-                expr->utype->getCode().inject(bridgeExpr.utype->getCode());
-                expr->copyInjectors(bridgeExpr.utype);
             } else if(ast->getSubAst(i)->getType() == ast_arry_e)
                 compileArrayExpression(expr, ast->getSubAst(i));
             else {
@@ -3390,6 +3382,31 @@ void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression 
     }
 }
 
+void Compiler::compileFnPtrCast(Utype *utype, Expression *castExpr, Expression *outExpr) {
+    if(utype->getResolvedType() != NULL && castExpr->type != exp_undefined) {
+        if(utype->getType() == utype_function_ptr) {
+            if(castExpr->utype->getType() == utype_method)
+                compileMethodReturnType((Method*)castExpr->utype->getResolvedType(), castExpr->utype->getResolvedType()->ast);
+
+            if(utype->equals(castExpr->utype)) {
+                if(!utype->isArray()) {
+                    outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ebxInjector));
+                    outExpr->utype->getCode().getInjector(stackInjector)
+                            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                } else {
+                    outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ptrInjector));
+                    outExpr->utype->getCode().getInjector(stackInjector)
+                            .push_i64(SET_Ei(i64, op_PUSHOBJ));
+                }
+            } else goto castErr;
+        } else goto castErr; // should never happen but we need to make sure
+    } else {
+        castErr:
+        errors->createNewError(GENERIC, outExpr->ast->line, outExpr->ast->col, "unable to cast incompatible type of `" + castExpr->utype->toString()
+                                                                               + "` to type `" + utype->toString() + "`");
+    }
+}
+
 void Compiler::compileClassCast(Utype *utype, Expression *castExpr, Expression *outExpr) {
     if(castExpr->utype->getClass() != NULL) {
         if(utype->isArray() == castExpr->utype->isArray()) {
@@ -3477,6 +3494,8 @@ void Compiler::compileCastExpression(Expression *expr, bool compileExpr, Ast *as
             compileClassCast(utype, &castExpr, expr);
         else if(utype->getType() == utype_native) {
             compileNativeCast(utype, &castExpr, expr);
+        } else if(utype->getType() == utype_function_ptr) {
+            compileFnPtrCast(utype, &castExpr, expr);
         } else {
             errors->createNewError(GENERIC, ast->line, ast->col, "cast expression of type `" + utype->toString() + "` not allowed, must be of type `class` or a native type");
         }
@@ -3598,7 +3617,7 @@ void Compiler::compilePreIncExpression(Expression* expr, Ast* ast) {
     // use restricted insance for context expressions
     this->compileExpression(expr, ast->getSubAst(ast_expression));
 
-    Token tok = ast->hasEntity(_INC) ? ast->getToken(_INC) : ast->getToken(_DEC);
+    Token tok = ast->hasToken(_INC) ? ast->getToken(_INC) : ast->getToken(_DEC);
 
     if(expr->utype->isArray()) {
         errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "expression of type `" + expr->utype->toString() + "` must return a var to use `" +
@@ -3693,7 +3712,7 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
     if(compileExpression)
         this->compileExpression(expr, ast->getSubAst(ast_expression));
 
-    Token tok = ast->hasEntity(_INC) ? ast->getToken(_INC) : ast->getToken(_DEC);
+    Token tok = ast->hasToken(_INC) ? ast->getToken(_INC) : ast->getToken(_DEC);
 
     if(expr->utype->isArray()) {
         errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "expression of type `" + expr->utype->toString() + "` must return a var to use `" +
@@ -3704,7 +3723,7 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
         List<AccessFlag> flags;
         flags.add(PUBLIC);
 
-        Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+        Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
                   ast->line, ast->col);
 
         params.add(new Field(VAR, guid++, "arg0", currentScope()->klass, flags, meta, stl_stack, 0));
@@ -3796,7 +3815,7 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
 }
 
 Field* Compiler::compileLambdaArg(Ast *ast) {
-    string name = ast->getEntity(0).getValue();
+    string name = ast->getToken(0).getValue();
     Utype *utype = NULL;
 
     RETAIN_TYPE_INFERENCE(false)
@@ -3807,7 +3826,7 @@ Field* Compiler::compileLambdaArg(Ast *ast) {
     List<AccessFlag> fieldFlags;
     fieldFlags.add(PUBLIC);
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
               ast->line, ast->col);
 
     Field *field = new Field(UNTYPED, guid++, name, findClass(currModule, globalClass, classes), fieldFlags, meta, stl_stack, 0);
@@ -3827,11 +3846,7 @@ Field* Compiler::compileLambdaArg(Ast *ast) {
 
 void Compiler::compileLambdaArgList(List<Field*> &fields, Ast* ast) {
     for(long i = 0; i < ast->getSubAstCount(); i++) {
-        if(ast->getSubAst(i)->getType()==ast_func_prototype) {
-            fields.add(compileFuncPrototypeArg(ast->getSubAst(i)));
-        } else {
-            fields.add(compileLambdaArg(ast->getSubAst(i)));
-        }
+        fields.add(compileLambdaArg(ast->getSubAst(i)));
     }
 }
 
@@ -3858,7 +3873,7 @@ void Compiler::compileLambdaExpression(Expression* expr, Ast* ast) {
         flags.add(PRIVATE);
         flags.add(STATIC);
 
-        Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+        Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
                   ast->line, ast->col);
 
         stringstream ss;
@@ -3877,7 +3892,7 @@ void Compiler::compileLambdaExpression(Expression* expr, Ast* ast) {
     }
 
     expr->type = exp_var;
-    expr->utype->setType(utype_method_prototype);
+    expr->utype->setType(utype_function_ptr);
     expr->utype->setArrayType(false);
     expr->utype->setNullType(false);
     expr->utype->setResolvedType(lambda);
@@ -3997,96 +4012,6 @@ bool Compiler::isLambdaFullyQualified(Method *lambda) {
     return true;
 }
 
-void Compiler::resolvePrototypeField(Ast* ast) {
-    string name = ast->getEntity(0).getValue();
-    Token tmp(name, IDENTIFIER, 0, 0);
-    if(parser::isStorageType(tmp)) {
-        name = ast->getEntity(1).getValue();
-    }
-
-    Field *field = currentScope()->klass->getField(name, false);
-    if(field->type == UNTYPED) {
-        Method* prototype = new Method();
-        prototype->name = field->name;
-        prototype->fullName = field->fullName;
-        prototype->owner = currentScope()->klass;
-        prototype->fnType = fn_prototype;
-        prototype->module = currModule;
-        prototype->guid = guid++;
-        prototype->ast = ast;
-        prototype->flags.add(PUBLIC);
-        prototype->flags.add(STATIC);
-        field->utype = new Utype();
-        field->utype->setResolvedType(prototype);
-        field->utype->setType(utype_method_prototype);
-        field->type = FNPTR;
-        if (field->locality == stl_stack) {
-            field->address = field->owner->getFieldAddress(field);
-        }
-
-        Meta meta(current->getErrors()->getLine(ast->getEntity(0).getLine()), current->sourcefile,
-                  ast->getEntity(0).getLine(), ast->getEntity(0).getColumn());
-        prototype->meta.copy(meta);
-
-        if(ast->getSubAst(ast_utype_arg_list_opt)) {
-            List<Field*> params;
-            parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list_opt));
-            validateMethodParams(params, ast->getSubAst(ast_utype_arg_list_opt));
-
-            prototype->params.addAll(params);
-
-            if(ast->hasSubAst(ast_method_return_type)) {
-                compileMethodReturnType(prototype, ast);
-            } else {
-                void_:
-                prototype->utype = new Utype();
-                prototype->utype->setType(utype_native);
-
-                DataEntity *_void = new DataEntity();
-                _void->owner = prototype->owner;
-                _void->type = NIL;
-                _void->meta.copy(meta);
-
-                prototype->utype->setResolvedType(_void);
-            }
-        } else {
-            // we need to infer the type
-            cout << ast->toString() << std::flush;
-            Expression *expr = new Expression();
-            compileExpression(expr, ast->getSubAst(ast_value)->getSubAst(ast_expression));
-            Utype *utype = expr->utype;
-            if(utype->getType() == utype_field)
-                utype = ((Field*)utype->getResolvedType())->utype;
-
-            if(utype->getType() == utype_method || (utype->getType() == utype_method_prototype && ((Method*)utype->getResolvedType())->fnType != fn_lambda)) {
-                prototype->params.addAll(((Method*)utype->getResolvedType())->params);
-                prototype->utype = ((Method*)utype->getResolvedType())->utype;
-            } else if(utype->getType() == utype_method_prototype && ((Method*)utype->getResolvedType())->fnType != fn_lambda) {
-                Method *lambda = (Method*)utype->getResolvedType();
-                if(isLambdaFullyQualified(lambda)) {
-                    compileMethodReturnType(lambda, lambda->ast);
-
-                    prototype->params.addAll(lambda->params);
-                    prototype->utype = lambda->utype;
-                } else {
-                    errors->createNewError(GENERIC, ast->line, ast->col, "expression being assigned to field `" + name + "` is not a fully qualified lambda expression. Try assigning types to all of the fields so that the compiler can correctly resolve the field.");
-                }
-            } else {
-                errors->createNewError(GENERIC, ast->line, ast->col, "expression being assigned to field `" + name + "` must be either a method or anonymous function");
-                prototype->utype = new Utype();
-                prototype->utype->setType(utype_native);
-
-                DataEntity *_void = new DataEntity();
-                _void->owner = prototype->owner;
-                _void->type = NIL;
-                _void->meta.copy(meta);
-
-                prototype->utype->setResolvedType(_void);
-            }
-        }
-    }
-}
-
 void Compiler::resolveFieldType(Field* field, Utype *utype, Ast* ast) {
 
     field->isArray = utype->isArray();
@@ -4101,7 +4026,8 @@ void Compiler::resolveFieldType(Field* field, Utype *utype, Ast* ast) {
             this->errors->createNewError(GENERIC, ast->line, ast->col, " illegal use of function `" + utype->toString() + "` as a type");
     } else if(utype->getType() == utype_native) {
         if(utype->getResolvedType()->type >= NIL)
-            this->errors->createNewError(GENERIC, ast->line, ast->col, " field`" + field->fullName + "` cannot be assigned type `" + utype->toString() + "` due to invalid type assignment format");
+            goto invalidUtype;
+
         field->type = utype->getResolvedType()->type;
         field->utype = utype;
     } else if(utype->getType() == utype_literal) {
@@ -4109,14 +4035,11 @@ void Compiler::resolveFieldType(Field* field, Utype *utype, Ast* ast) {
             field->type = utype->getResolvedType()->type;
             field->utype = new Utype(utype->getResolvedType()->type, utype->isArray());
         } else
-            this->errors->createNewError(GENERIC, ast->line, ast->col, " field`" + field->fullName + "` cannot be assigned type `" + utype->toString() + "` due to invalid type assignment format");
+            goto invalidUtype;
     } else if(utype->getType() == utype_field) {
         if(typeInference) {
             if(((Field*)utype->getResolvedType()) == field) {
                 this->errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->fullName + "` cannot be self-initialized");
-            } else if(((Field*)utype->getResolvedType())->utype->getType() == utype_method_prototype) {
-                field->type = VAR;
-                field->utype = new Utype(VAR);
             } else {
                 Field *fieldType = ((Field*)utype->getResolvedType());
                 RETAIN_TYPE_INFERENCE(false)
@@ -4125,18 +4048,31 @@ void Compiler::resolveFieldType(Field* field, Utype *utype, Ast* ast) {
             }
         } else
             this->errors->createNewError(GENERIC, ast->line, ast->col, " illegal use of field `" + utype->toString() + "` as a type");
-    } else
-        this->errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->fullName + "` cannot be assigned type `" + utype->toString() + "` due to invalid type assignment format");
-
+    } else if(utype->getType() == utype_function_ptr) {
+        field->type = FNPTR;
+        field->utype = utype;
+    } else if(isLambdaUtype(utype)) {
+        Method *lambda = (Method*)utype->getResolvedType();
+        if(isLambdaFullyQualified(lambda)) {
+            field->type = FNPTR;
+            field->utype = utype;
+        } else {
+            errors->createNewError(GENERIC, ast->line, ast->col, "expression being assigned to field `" + field->fullName + "` is not a fully qualified lambda expression. Try assigning types to all of the fields so that the compiler can correctly resolve the field.");
+        }
+    } else {
+        invalidUtype:
+        this->errors->createNewError(GENERIC, ast->line, ast->col,
+                                     " field `" + field->fullName + "` cannot be assigned type `" + utype->toString() +
+                                     "` due to invalid type assignment format");
+    }
     if(field->utype == NULL) {
-        field->utype = new Utype(UNDEFINED);
-        field->utype->setType(utype_unresolved);
+        field->utype = undefUtype;
         field->type = UNDEFINED;
     }
 }
 
 void Compiler::resolveAlias(Ast* ast) {
-    string name = ast->getEntity(0).getValue();
+    string name = ast->getToken(0).getValue();
 
     Alias *alias = currentScope()->klass->getAlias(name, false);
     // we need to do this in case the user tries to use an alias as a class inheritence and there was something wrong with processing it
@@ -4185,10 +4121,10 @@ void Compiler::findConflicts(Ast *ast, string type, string &name) {
 }
 
 void Compiler::resolveField(Ast* ast) {
-    string name = ast->getEntity(0).getValue();
+    string name = ast->getToken(0).getValue();
     Token tmp(name, IDENTIFIER, 0, 0);
     if(parser::isStorageType(tmp)) {
-        name = ast->getEntity(1).getValue();
+        name = ast->getToken(1).getValue();
     }
 
     Field *field = currentScope()->klass->getField(name, false);
@@ -4202,11 +4138,11 @@ void Compiler::resolveField(Ast* ast) {
             field->address = field->owner->getFieldAddress(field);
         }
 
-        if (ast->hasEntity(COLON)) {
+        if (ast->hasToken(COLON)) {
             Utype *utype = compileUtype(ast->getSubAst(ast_utype));
             freePtr(field->utype); field->utype = NULL;
             resolveFieldType(field, utype, ast);
-        } else if (ast->hasEntity(INFER)) {
+        } else if (ast->hasToken(INFER)) {
             Expression expr;
             RETAIN_BLOCK_TYPE(field->flags.find(STATIC) ? STATIC_BLOCK : currentScope()->type)
             RETAIN_TYPE_INFERENCE(true)
@@ -4243,7 +4179,7 @@ void Compiler::resolveField(Ast* ast) {
             for(long i = startAst; i < ast->getSubAstCount(); i++) {
                 Ast *branch = ast->getSubAst(i);
 
-                name = branch->getEntity(0).getValue();
+                name = branch->getToken(0).getValue();
                 Field *xtraField = currentScope()->klass->getField(name, false);
 
                 // we cannot add thread local to secondary variables so me must match its locality with the first one
@@ -4264,10 +4200,10 @@ void Compiler::resolveSetter(Ast *ast, Field *field) {
     List<AccessFlag> fieldFlags;
     params.add(field);
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
               ast->line, ast->col);
 
-    Field *arg0 = new Field(CLASS, guid++, ast->getEntity(1).getValue(), field->owner, fieldFlags, meta, stl_stack, 0);
+    Field *arg0 = new Field(CLASS, guid++, ast->getToken(1).getValue(), field->owner, fieldFlags, meta, stl_stack, 0);
     arg0->utype = field->utype;
     arg0->type = field->type;
     params.add(arg0);
@@ -4336,7 +4272,7 @@ void Compiler::resolveGetter(Ast *ast, Field *field) {
     if(field->flags.find(STATIC))
         flags.add(STATIC);
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
               ast->line, ast->col);
 
     if(field->flags.find(flg_CONST)) {
@@ -4372,7 +4308,7 @@ void Compiler::resolveClassFields(Ast* ast, ClassObject* currentClass) {
     Ast* block = ast->getLastSubAst();
 
     if(currentClass == NULL) {
-        string name = ast->getEntity(0).getValue();
+        string name = ast->getToken(0).getValue();
         if(globalScope()) {
             currentClass = findClass(currModule, name, classes);
         }
@@ -4397,9 +4333,6 @@ void Compiler::resolveClassFields(Ast* ast, ClassObject* currentClass) {
                 case ast_alias_decl:
                     resolveAlias(branch);
                     break;
-                case ast_func_prototype:
-                    resolvePrototypeField(branch);
-                    break;
                 case ast_mutate_decl:
                     resolveClassMutateFields(branch);
                     break;
@@ -4414,12 +4347,12 @@ void Compiler::resolveClassFields(Ast* ast, ClassObject* currentClass) {
 
 void Compiler::parseMethodAccessFlags(List<AccessFlag> &flags, Ast *ast) {
     long errPos=0;
-    for(long i = 0; i < ast->getEntityCount(); i++) {
-        flags.add(strToAccessFlag(ast->getEntity(i).getValue()));
+    for(long i = 0; i < ast->getTokenCount(); i++) {
+        flags.add(strToAccessFlag(ast->getToken(i).getValue()));
 
         if(flags.last() == LOCAL && !globalScope()) {
             this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->line, ast->col,
-                                         " `" + ast->getEntity(i).getValue() + "` can only be used at global scope");
+                                         " `" + ast->getToken(i).getValue() + "` can only be used at global scope");
         } else if(flags.last() == flg_CONST || flags.last() > STATIC) {
             errPos = i;
             goto error;
@@ -4445,20 +4378,24 @@ void Compiler::parseMethodAccessFlags(List<AccessFlag> &flags, Ast *ast) {
 
     if(false) {
         error:
-        this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->getEntity(errPos).getLine(),
-                                     ast->getEntity(errPos).getColumn(), " `" + ast->getEntity(errPos).getValue() + "`");
+        this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->getToken(errPos).getLine(),
+                                     ast->getToken(errPos).getColumn(), " `" + ast->getToken(errPos).getValue() + "`");
     }
 }
 
 Field* Compiler::compileUtypeArg(Ast* ast) {
     Field *arg = new Field();
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->sourcefile,
+    arg->guid = guid;
+    arg->module = currModule;
+    arg->ast = ast;
+
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
     arg->meta.copy(meta);
 
     // for optional utype args
-    if(ast->getEntityCount() != 0) {
-        arg->name = ast->getEntity(0).getValue();
+    if(ast->getTokenCount() != 0) {
+        arg->name = ast->getToken(0).getValue();
         arg->fullName = arg->name;
     } else {
         stringstream ss;
@@ -4518,66 +4455,9 @@ void Compiler::validateMethodParams(List<Field*>& params, Ast* ast) {
     }
 }
 
-Field* Compiler::compileFuncPrototypeArg(Ast *ast) {
-    Field* field = new Field();
-    field->name = ast->getEntity(0).getValue();
-    field->type = FNPTR;
-    field->fullName = field->name;
-    field->module = currModule;
-    field->guid = guid++;
-    field->ast = ast;
-    field->flags.add(PUBLIC);
-    field->utype = new Utype();
-    field->utype->setType(utype_method_prototype);
-    field->owner = currentScope()->klass;
-
-    Meta meta(current->getErrors()->getLine(ast->getEntity(0).getLine()), current->sourcefile,
-              ast->getEntity(0).getLine(), ast->getEntity(0).getColumn());
-    field->meta.copy(meta);
-
-    Method* prototype = new Method();
-    prototype->name = field->name;
-    prototype->fullName = field->fullName;
-    prototype->type = METHOD;
-    prototype->owner = currentScope()->klass;
-    prototype->fnType = fn_prototype;
-    prototype->module = currModule;
-    prototype->guid = guid++;
-    prototype->ast = ast;
-    prototype->flags.add(PUBLIC);
-    field->utype->setResolvedType(prototype);
-
-    if(ast->getSubAst(ast_utype_arg_list_opt)) {
-        List<Field*> params;
-        parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list_opt));
-        validateMethodParams(params, ast->getSubAst(ast_utype_arg_list_opt));
-
-        prototype->params.addAll(params);
-    }
-
-    if(ast->hasSubAst(ast_method_return_type)) {
-        compileMethodReturnType(prototype, ast);
-    } else {
-        prototype->utype = new Utype();
-        prototype->utype->setType(utype_native);
-
-        DataEntity *_void = new DataEntity();
-        _void->owner = prototype->owner;
-        _void->type = NIL;
-        _void->meta.copy(meta);
-
-        prototype->utype->setResolvedType(_void);
-    }
-    return field;
-}
-
 void Compiler::parseUtypeArgList(List<Field*> &params, Ast* ast) {
     for(unsigned int i = 0; i < ast->getSubAstCount(); i++) {
-        if(ast->getSubAst(i)->getType()==ast_func_prototype) {
-            params.add(compileFuncPrototypeArg(ast->getSubAst(i)));
-        } else {
-            params.add(compileUtypeArg(ast->getSubAst(i)));
-        }
+        params.add(compileUtypeArg(ast->getSubAst(i)));
     }
 }
 
@@ -4663,12 +4543,12 @@ void Compiler::resolveOperatorOverload(Ast* ast) {
 
     // TODO: when operator[] is supported only store `[` char so that we dont break this function
     List<Field*> params;
-    string name = ast->getEntity(0).getValue() + ast->getEntity(1).getValue();
-    string op = ast->getEntity(1).getValue();
+    string name = ast->getToken(0).getValue() + ast->getToken(1).getValue();
+    string op = ast->getToken(1).getValue();
     parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
     validateMethodParams(params, ast->getSubAst(ast_utype_arg_list));
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
               ast->line, ast->col);
 
     Method *method = new Method(name, currModule, currentScope()->klass, params, flags, meta);
@@ -4702,11 +4582,11 @@ void Compiler::resolveConstructor(Ast* ast) {
     }
 
     List<Field*> params;
-    string name = ast->getEntity(0).getValue();
+    string name = ast->getToken(0).getValue();
     parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
     validateMethodParams(params, ast->getSubAst(ast_utype_arg_list));
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
               ast->line, ast->col);
 
     Method *method = new Method(name, currModule, currentScope()->klass, params, flags, meta);
@@ -4754,11 +4634,11 @@ void Compiler::resolveDelegateImpl(Ast* ast) {
     }
 
     List<Field*> params;
-    string name = ast->getEntity(0).getValue();
+    string name = ast->getToken(0).getValue();
     parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
     validateMethodParams(params, ast->getSubAst(ast_utype_arg_list));
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
               ast->line, ast->col);
 
     Method *method = new Method(name, currModule, currentScope()->klass, params, flags, meta);
@@ -4791,11 +4671,11 @@ void Compiler::resolveDelegateDecl(Ast* ast) {
     }
 
     List<Field*> params;
-    string name = ast->getEntity(0).getValue();
+    string name = ast->getToken(0).getValue();
     parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
     validateMethodParams(params, ast->getSubAst(ast_utype_arg_list));
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
               ast->line, ast->col);
 
     Method *method = new Method(name, currModule, currentScope()->klass, params, flags, meta);
@@ -4805,22 +4685,14 @@ void Compiler::resolveDelegateDecl(Ast* ast) {
     method->address = delegateGUID++;
 
     if(ast->hasSubAst(ast_method_return_type)) {
-        if(ast->findEntity("nil"))
+        if(ast->hasToken("nil"))
             goto void_;
 
         Utype* utype = compileUtype(ast->getSubAst(ast_method_return_type)->getSubAst(ast_utype));
         method->utype = utype;
     } else {
         void_:
-        method->utype = new Utype();
-        method->utype->setType(utype_native);
-
-        DataEntity *_void = new DataEntity();
-        _void->owner = method->owner;
-        _void->type = NIL;
-        _void->meta.copy(meta);
-
-        method->utype->setResolvedType(_void);
+        method->utype = nilUtype;
     }
 
     if(!addFunction(currentScope()->klass, method, &simpleParameterMatch)) {
@@ -4836,7 +4708,7 @@ void Compiler::resolveDelegateDecl(Ast* ast) {
 void Compiler::compileMethodReturnType(Method* fun, Ast *ast, bool wait) {
     if(fun->utype == NULL) {
         if (ast->hasSubAst(ast_method_return_type)) {
-            if (ast->getSubAst(ast_method_return_type)->findEntity("nil"))
+            if (ast->getSubAst(ast_method_return_type)->hasToken("nil"))
                 goto void_;
 
             if (!wait) {
@@ -4866,12 +4738,10 @@ void Compiler::compileMethodReturnType(Method* fun, Ast *ast, bool wait) {
                                                  " function `" + fun->fullName + "` cannot use type `" +
                                                  utype->toString() + "` as a return type");
 
-                if (fun->utype == NULL) {
-                    fun->utype = new Utype(UNDEFINED);
-                    fun->utype->setType(utype_unresolved);
-                }
+                if (fun->utype == NULL)
+                    fun->utype = undefUtype;
             }
-        } else if (ast->findEntity(":=")) {
+        } else if (ast->hasToken(":=")) {
             if (!wait) {
                 Expression e;
                 RETAIN_TYPE_INFERENCE(false)
@@ -4896,15 +4766,7 @@ void Compiler::compileMethodReturnType(Method* fun, Ast *ast, bool wait) {
             }
         } else {
             void_:
-            fun->utype = new Utype();
-            fun->utype->setType(utype_native);
-
-            DataEntity *_void = new DataEntity();
-            _void->owner = fun->owner;
-            _void->type = NIL;
-            _void->meta.copy(fun->meta);
-
-            fun->utype->setResolvedType(_void);
+            fun->utype = nilUtype;
         }
     }
 }
@@ -4994,7 +4856,7 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
     parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
     validateMethodParams(params, ast->getSubAst(ast_utype_arg_list));
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->sourcefile,
+    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
               ast->line, ast->col);
 
     Method *method = new Method(name, currModule, currentClass, params, flags, meta);
@@ -5005,8 +4867,6 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
     method->extensionFun = getExtensionFunctionClass(method->ast) != NULL;
 
     compileMethodReturnType(method, ast, true);
-
-    checkMainMethodSignature(method);
     if (!addFunction(currentClass, method, &simpleParameterMatch)) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                      "function `" + name + "` is already defined in the scope");
@@ -5023,7 +4883,7 @@ void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
     List<AccessFlag> flags;
 
     if(currentClass == NULL) {
-        string name = ast->getEntity(0).getValue();
+        string name = ast->getToken(0).getValue();
         if(globalScope()) {
             currentClass = findClass(currModule, name, classes);
         }
@@ -5045,10 +4905,6 @@ void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
                 case ast_interface_decl:
                     resolveClassMethods(branch);
                     break;
-                case ast_variable_decl:
-                    break;
-                case ast_func_prototype:
-                    break;
                 case ast_method_decl:
                     resolveClassMethod(branch);
                     break;
@@ -5063,8 +4919,6 @@ void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
                     break;
                 case ast_delegate_decl:
                     resolveDelegateDecl(branch);
-                    break;
-                case ast_enum_decl:
                     break;
                 case ast_mutate_decl:
                     resolveClassMutateMethods(branch);
@@ -5246,7 +5100,7 @@ void Compiler::resolveAllDelegates(Ast *ast, ClassObject* currentClass) {
     Ast* block = ast->getSubAst(ast_block);
 
     if(currentClass == NULL) {
-        string name = ast->getEntity(0).getValue();
+        string name = ast->getToken(0).getValue();
         if(globalScope()) {
             currentClass = findClass(currModule, name, classes);
         }
@@ -5281,11 +5135,10 @@ void Compiler::resolveAllDelegates(Ast *ast, ClassObject* currentClass) {
 void Compiler::resolveAllDelegates() {
     for(unsigned long i = 0; i < parsers.size(); i++) {
         current = parsers.get(i);
-        errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors);
+        updateErrorManagerInstance(current);
 
         currModule = "$unknown";
-
-        sourceFiles.addif(current->sourcefile);
+        long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (int x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
@@ -5317,21 +5170,9 @@ void Compiler::resolveAllDelegates() {
         }
 
 
-        if(errors->hasErrors()){
-            report:
-
-            errCount+= errors->getErrorCount();
-            rawErrCount+= errors->getUnfilteredErrorCount();
-
-            failedParsers.addif(current->sourcefile);
-            succeededParsers.removefirst(current->sourcefile);
-        } else {
-            succeededParsers.addif(current->sourcefile);
-            failedParsers.removefirst(current->sourcefile);
+        if(NEW_ERRORS_FOUND()){
+            failedParsers.addif(current);
         }
-
-        errors->free();
-        delete (errors); this->errors = NULL;
         removeScope();
     }
 }
@@ -5367,11 +5208,10 @@ void Compiler::resolveDelegateMutateMethods(Ast *ast) {
 void Compiler::resolveAllMethods() {
     for(unsigned long i = 0; i < parsers.size(); i++) {
         current = parsers.get(i);
-        errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors);
+        updateErrorManagerInstance(current);
 
         currModule = "$unknown";
-
-        sourceFiles.addif(current->sourcefile);
+        long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (int x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
@@ -5410,21 +5250,9 @@ void Compiler::resolveAllMethods() {
         }
 
 
-        if(errors->hasErrors()){
-            report:
-
-            errCount+= errors->getErrorCount();
-            rawErrCount+= errors->getUnfilteredErrorCount();
-
-            failedParsers.addif(current->sourcefile);
-            succeededParsers.removefirst(current->sourcefile);
-        } else {
-            succeededParsers.addif(current->sourcefile);
-            failedParsers.removefirst(current->sourcefile);
+        if(NEW_ERRORS_FOUND()){
+            failedParsers.addif(current);
         }
-
-        errors->free();
-        delete (errors); this->errors = NULL;
         removeScope();
     }
 }
@@ -5446,11 +5274,10 @@ void Compiler::resolveClassMutateFields(Ast *ast) {
 void Compiler::resolveAllFields() {
     for(unsigned long i = 0; i < parsers.size(); i++) {
         current = parsers.get(i);
-        errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors);
+        updateErrorManagerInstance(current);
 
         currModule = "$unknown";
-
-        sourceFiles.addif(current->sourcefile);
+        long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (int x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
@@ -5476,9 +5303,6 @@ void Compiler::resolveAllFields() {
                 case ast_alias_decl:
                     resolveAlias(branch);
                     break;
-                case ast_func_prototype:
-                    resolvePrototypeField(branch);
-                    break;
                 case ast_mutate_decl:
                     resolveClassMutateFields(branch);
                     break;
@@ -5491,35 +5315,16 @@ void Compiler::resolveAllFields() {
         }
 
 
-        if(errors->hasErrors()){
-            report:
-
-            errCount+= errors->getErrorCount();
-            rawErrCount+= errors->getUnfilteredErrorCount();
-
-            failedParsers.addif(current->sourcefile);
-            succeededParsers.removefirst(current->sourcefile);
-        } else {
-            succeededParsers.addif(current->sourcefile);
-            failedParsers.removefirst(current->sourcefile);
+        if(NEW_ERRORS_FOUND()){
+            failedParsers.addif(current);
         }
-
-        errors->free();
-        delete (errors); this->errors = NULL;
         removeScope();
     }
 }
 
-void Compiler::inheritObjectClass() {
-    for(long long i = 0; i < classes.size(); i++) {
-        inheritObjectClassHelper(classes.at(i)->ast, classes.at(i));
-    }
-}
-
-
 void Compiler::compileTypeIdentifier(ReferencePointer &ptr, Ast *ast) {
     if(ast->getSubAstCount() == 0) {
-        ptr.classes.add(ast->getEntity(0).getValue());
+        ptr.classes.add(ast->getToken(0).getValue());
     } else
         compileReferencePtr(ptr, ast->getSubAst(ast_refrence_pointer));
 }
@@ -5615,7 +5420,7 @@ Field *Compiler::resolveEnum(string name) {
     Field* field;
 
     for (unsigned int i = 0; i < importMap.size(); i++) {
-        if (importMap.get(i).key == current->sourcefile) {
+        if (importMap.get(i).key == current->getTokenizer()->file) {
 
             List<string> &lst = importMap.get(i).value;
             for (unsigned int x = 0; x < lst.size(); x++) {
@@ -6000,11 +5805,7 @@ void Compiler::compileFieldType(Field *field) {
         RETAIN_TYPE_INFERENCE(false)
         if (field->type == UNTYPED) {
             currScope.add(new Scope(field->owner, field->owner->isGlobalClass() ? GLOBAL_SCOPE : CLASS_SCOPE));
-            if (field->ast->getType() == ast_func_prototype) {
-                resolvePrototypeField(field->ast);
-                field->inlineCheck = true;
-            } else
-                resolveField(field->ast);
+            resolveField(field->ast);
             removeScope();
         }
 
@@ -6164,7 +5965,7 @@ void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
         RETAIN_TYPE_INFERENCE(false)
         resolveSingularUtype(initialRefrence, utype, ast);
         RESTORE_TYPE_INFERENCE()
-        if(utype->getType() == utype_method || utype->getType() == utype_method_prototype) {
+        if(utype->getType() == utype_method || utype->getType() == utype_function_ptr) {
             errors->createNewError(GENERIC, ast->line, ast->col, "symbol `" + utype->toString() +
                              "` is a function pointer and cant be used as an instance field.");
         } else if(utype->getType() == utype_class) {
@@ -6178,6 +5979,36 @@ void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
     }
 }
 
+void Compiler::compileFuncPtr(Utype *utype, Ast *ast) {
+    Method* funPtr = new Method();
+    List<Field*> params;
+
+    compileMethodReturnType(funPtr, ast);
+    parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list_opt));
+
+    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
+              ast->line, ast->col);
+
+    stringstream name;
+    name << "funcPtr#" << guid;
+    funPtr->name = name.str();
+    funPtr->fullName = name.str();
+    funPtr->type = FNPTR;
+    funPtr->owner = currentScope()->klass; // we just need this so the compiler dosen't crash
+    funPtr->fnType = fn_ptr;
+    funPtr->module = currModule;
+    funPtr->guid = guid++;
+    funPtr->ast = ast;
+    funPtr->flags.add(PUBLIC);
+    funPtr->flags.add(STATIC);
+    funPtr->params.addAll(params);
+    funPtr->meta.copy(meta);
+
+    utype->setType(utype_function_ptr);
+    utype->setResolvedType(funPtr);
+    checkTypeInference(ast);
+}
+
 Utype* Compiler::compileUtype(Ast *ast, bool instanceCaptured) {
     if(ast->getType() != ast_utype)
         throw runtime_error("check parseUtype()");
@@ -6185,49 +6016,60 @@ Utype* Compiler::compileUtype(Ast *ast, bool instanceCaptured) {
     // we need this code for complex expressions
     Utype *utype = new Utype();
     utype->getCode().instanceCaptured = instanceCaptured;
-
     ReferencePointer ptr;
-    compileTypeIdentifier(ptr, ast->getSubAst(ast_type_identifier));
 
-    if(ptr.classes.singular() && parser::isNativeType(ptr.classes.get(0))) {
-        utype->setType(utype_native);
-        DataEntity *native = new DataEntity();
-        utype->setResolvedType(native);
+    if(ast->getSubAst(ast_type_identifier)->hasSubAst(ast_func_ptr)) {
+        compileFuncPtr(utype, ast->getSubAst(ast_type_identifier)->getSubAst(ast_func_ptr));
+    } else {
+        compileTypeIdentifier(ptr, ast->getSubAst(ast_type_identifier));
+        if (ptr.classes.singular() && parser::isNativeType(ptr.classes.get(0))) {
+            utype->setType(utype_native);
+            DataEntity *native = new DataEntity();
+            utype->setResolvedType(native);
 
-        native->type = strToNativeType(ptr.classes.get(0));
+            native->type = strToNativeType(ptr.classes.get(0));
 
-        if(ast->hasEntity(LEFTBRACE) && ast->hasEntity(RIGHTBRACE)) {
-            utype->setArrayType(true);
+            if (ast->hasToken(LEFTBRACE) && ast->hasToken(RIGHTBRACE)) {
+                utype->setArrayType(true);
+            }
+
+            checkTypeInference(ast);
+            ptr.free();
+            return utype;
+        } else if (ptr.classes.singular() && ptr.mod == "" && IS_CLASS_GENERIC(currentScope()->klass->getClassType())
+                   && currentScope()->klass->getKeys().find(ptr.classes.get(0)) &&
+                   currentScope()->klass->isAtLeast(created)) {
+
+            Utype *keyType = currentScope()->klass->getKeyTypes().get(
+                    currentScope()->klass->getKeys().indexof(ptr.classes.get(0)));
+            utype->copy(keyType);
+
+            bool isArray = false;
+            if (ast->hasToken(LEFTBRACE) && ast->hasToken(RIGHTBRACE)) {
+                isArray = true;
+            }
+
+            checkTypeInference(ast);
+            if (utype->isArray() && isArray) {
+                errors->createNewError(GENERIC, ast, "Array-arrays are not supported.");
+            } else if (isArray) {
+                utype->setArrayType(true);
+            }
+            ptr.free();
+            return utype;
         }
 
-        checkTypeInference(ast);
-        ptr.free();
-        return utype;
-    } else if(ptr.classes.singular() && ptr.mod == "" && IS_CLASS_GENERIC(currentScope()->klass->getClassType())
-        && currentScope()->klass->getKeys().find(ptr.classes.get(0)) && currentScope()->klass->isAtLeast(created)) {
-
-        Utype *keyType = currentScope()->klass->getKeyTypes().get(currentScope()->klass->getKeys().indexof(ptr.classes.get(0)));
-        utype->copy(keyType);
-
-        bool isArray = false;
-        if(ast->hasEntity(LEFTBRACE) && ast->hasEntity(RIGHTBRACE)) {
-            isArray = true;
-        }
-
-        checkTypeInference(ast);
-        if(utype->isArray() && isArray) {
-            errors->createNewError(GENERIC, ast, "Array-arrays are not supported.");
-        } else if(isArray) {
-            utype->setArrayType(true);
-        }
-        ptr.free();
-        return utype;
+        resolveUtype(ptr, utype, ast);
     }
 
-    resolveUtype(ptr, utype, ast);
-
-    if(ast->hasEntity(LEFTBRACE) && ast->hasEntity(RIGHTBRACE)) {
+    if(ast->hasToken(LEFTBRACE) && ast->hasToken(RIGHTBRACE)) {
         utype->setArrayType(true);
+    }
+
+    if(utype->getType() == utype_unresolved) {
+        utype->free();
+        delete utype;
+        utype = undefUtype;
     }
 
     ptr.free();
@@ -6311,17 +6153,13 @@ ClassObject* Compiler::compileGenericClassReference(string &mod, string &name, C
             newClass->setGenericOwner(generic);
 
             if(processingStage >= POST_PROCESSING) {
-                errors->filename = newClass->getGenericOwner()->meta.file;
                 newClass->setProcessStage(preprocessed);
 
-                string file = errors->filename;
-                List<string> oldLines;
                 parser* oldParser = current;
-                long long currErrors = errors->getUnfilteredErrorCount() ,newErrors;
+                long long totalErrors = errors->getUnfilteredErrorCount();
 
-                oldLines.addAll(errors->lines);
                 current = getParserBySourceFile(errors->filename);
-                errors->lines.addAll(current->lines);
+                updateErrorManagerInstance(current);
 
                 // preprocess code
                 preProccessClassDecl(newClass->ast, IS_CLASS_INTERFACE(newClass->getClassType()), newClass);
@@ -6347,11 +6185,9 @@ ClassObject* Compiler::compileGenericClassReference(string &mod, string &name, C
                     unProcessedClasses.add(newClass);
 
                 current = oldParser;
-                errors->lines.addAll(oldLines);
-                errors->filename = file;
-                newErrors = errors->getUnfilteredErrorCount()-currErrors;
+                updateErrorManagerInstance(current);
 
-                if(newErrors > 0) {
+                if(NEW_ERRORS_FOUND()) {
                     // this helps the user find where they went wrong
                     printNote(newClass->meta, "in generic `" + newClass->name + "`");
                 }
@@ -6368,23 +6204,23 @@ ClassObject* Compiler::compileGenericClassReference(string &mod, string &name, C
 }
 
 void Compiler::compileReferencePtr(ReferencePointer &ptr, Ast* ast) {
-    bool hashFound = ast->findEntity("#"), hashProcessed = false;
+    bool hashFound = ast->hasToken("#"), hashProcessed = false;
     stringstream module;
     long genericListPos = 0;
     ClassObject *parent = NULL;
     bool failed = false;
-    for(long i = 0; i < ast->getEntityCount(); i++) {
+    for(long i = 0; i < ast->getTokenCount(); i++) {
         if(hashFound && !hashProcessed) {
-            module << ast->getEntity(i).getValue();
-            if(ast->getEntity(i+1) == "#") {
+            module << ast->getToken(i).getValue();
+            if(ast->getToken(i + 1) == "#") {
                 hashProcessed = true;
                 ptr.mod = module.str();
                 i++;
             }
         } else {
-            string name = ast->getEntity(i).getValue();
+            string name = ast->getToken(i).getValue();
             if(name != ".") {
-                if (!failed && ((i + 1) < ast->getEntityCount()) && ast->getEntity(i + 1) == "<") {
+                if (!failed && ((i + 1) < ast->getTokenCount()) && ast->getToken(i + 1) == "<") {
                     RETAIN_TYPE_INFERENCE(false) // TODO
                     ClassObject *genericClass = compileGenericClassReference(
                             ptr.mod, name, parent, ast->getSubAst(genericListPos++));
@@ -6536,7 +6372,7 @@ void Compiler::resolveSuperClass(Ast *ast, ClassObject* currentClass) {
     Ast* block = ast->getSubAst(ast_block), *branch;
 
     if(currentClass == NULL) {
-        string name = ast->getEntity(0).getValue();
+        string name = ast->getToken(0).getValue();
         if(ast->getType() == ast_generic_class_decl || ast->getType() == ast_generic_interface_decl)
             name += "<>";
 
@@ -6579,6 +6415,11 @@ void Compiler::resolveSuperClass(Ast *ast, ClassObject* currentClass) {
                 err.str("");
             } else
                 currentClass->setSuperClass(base);
+        } else {
+            if(IS_CLASS_ENUM(currentClass->getClassType())) {
+                inheritEnumClassHelper(ast, currentClass);
+            } else
+                inheritObjectClassHelper(ast, currentClass);
         }
 
         inheritInterfaces:
@@ -6631,27 +6472,15 @@ void Compiler::resolveSuperClass(Ast *ast, ClassObject* currentClass) {
     }
 }
 
-void Compiler::inheritEnumClass() {
-    for(long long i = 0; i < classes.size(); i++) {
-        ClassObject *k = classes.get(i);
-        inheritEnumClassHelper(k->ast, k);
-    }
-}
-
 parser *Compiler::getParserBySourceFile(string name) {
     for(long long i = 0; i < parsers.size(); i++) {
-        if(parsers.get(i)->sourcefile == name)
+        if(parsers.get(i)->getTokenizer()->file == name)
             return parsers.get(i);
     }
     return NULL;
 }
 
 void Compiler::preProcessUnprocessedClasses(long long unstableClasses) {
-    string old = currModule;
-    parser* oldParser = current;
-    string oldFile = errors->filename;
-    List<string> oldLines;
-    oldLines.addAll(errors->lines);
     // we need this size just incase any classes get added after the fact to prevent double preprocessing
     long long size = unstableClasses;
 
@@ -6659,11 +6488,10 @@ void Compiler::preProcessUnprocessedClasses(long long unstableClasses) {
         ClassObject *unprocessedClass = unProcessedClasses.get(i);
 
         currModule = unprocessedClass->module;
-        errors->filename = unprocessedClass->getGenericOwner()->meta.file;
-        current = getParserBySourceFile(errors->filename);
+        current = getParserBySourceFile(unprocessedClass->meta.file);
 
-        long long currErrors = errors->getUnfilteredErrorCount() ,newErrors;
-        errors->lines.addAll(current->lines);
+        long long totalErrors = errors->getUnfilteredErrorCount();
+        updateErrorManagerInstance(current);
 
         // bring the classes up to speed
         unprocessedClass->setProcessStage(preprocessed);
@@ -6674,18 +6502,10 @@ void Compiler::preProcessUnprocessedClasses(long long unstableClasses) {
         resolveClassMethods(unprocessedClass->ast, unprocessedClass);
         resolveUnprocessedClassMutations(unprocessedClass);
 
-        newErrors = errors->getUnfilteredErrorCount()-currErrors;
-
-        if(newErrors > 0) {
-            // this helps the user find where they went wrong
-            printNote(unprocessedClass->meta, "in generic `" + unprocessedClass->name + "`");
+        if(NEW_ERRORS_FOUND()) {
+            failedParsers.addif(current);
         }
     }
-
-    currModule = old;
-    current = oldParser;
-    errors->lines.addAll(oldLines);
-    errors->filename = oldFile;
 }
 
 /**
@@ -6709,11 +6529,10 @@ void Compiler::resolveUnprocessedClassMutations(ClassObject *unprocessedClass) {
 void Compiler::resolveBaseClasses() {
     for(unsigned long i = 0; i < parsers.size(); i++) {
         current = parsers.get(i);
-        errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors);
+        updateErrorManagerInstance(current);
 
         currModule = "$unknown";
-
-        sourceFiles.addif(current->sourcefile);
+        long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for(unsigned long x = 0; x < current->size(); x++)
         {
@@ -6746,29 +6565,14 @@ void Compiler::resolveBaseClasses() {
         }
 
 
-        if(errors->hasErrors()){
-            report:
-
-            errCount+= errors->getErrorCount();
-            rawErrCount+= errors->getUnfilteredErrorCount();
-
-            failedParsers.addif(current->sourcefile);
-            succeededParsers.removefirst(current->sourcefile);
-        } else {
-            succeededParsers.addif(current->sourcefile);
-            failedParsers.removefirst(current->sourcefile);
+        if(NEW_ERRORS_FOUND()){
+            failedParsers.addif(current);
         }
-
-        errors->free();
-        delete (errors); this->errors = NULL;
         removeScope();
     }
 }
 
 void Compiler::preProcessGenericClasses(long long unstableClasses) {
-
-    errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors);
-
     /**
      * There is a bit of a tug of war going on with the order in how the compiler processes elements.
      * In the pre-processing stage we process the base classes of every single class in our code that we found, subclasses and all.
@@ -6781,53 +6585,13 @@ void Compiler::preProcessGenericClasses(long long unstableClasses) {
      * and every other class will either work its-self out or be post-processed later.
      */
     preProcessUnprocessedClasses(unstableClasses);
-
-    if(errors->hasErrors()){
-        report:
-
-        errCount+= errors->getErrorCount();
-        rawErrCount+= errors->getUnfilteredErrorCount();
-
-        failedParsers.addif(current->sourcefile);
-        succeededParsers.removefirst(current->sourcefile);
-    } else {
-        succeededParsers.addif(current->sourcefile);
-        failedParsers.removefirst(current->sourcefile);
-    }
-
-    errors->free();
-    delete (errors); this->errors = NULL;
-}
-
-void Compiler::inheritRespectiveClasses() {
-
-    errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors);
-
-    inheritEnumClass();
-    inheritObjectClass();
-
-    if(errors->hasErrors()){
-        report:
-
-        errCount+= errors->getErrorCount();
-        rawErrCount+= errors->getUnfilteredErrorCount();
-
-        failedParsers.addif(current->sourcefile);
-        succeededParsers.removefirst(current->sourcefile);
-    } else {
-        succeededParsers.addif(current->sourcefile);
-        failedParsers.removefirst(current->sourcefile);
-    }
-
-    errors->free();
-    delete (errors); this->errors = NULL;
 }
 
 void Compiler::inlineFieldHelper(Ast* ast) {
-    string name = ast->getEntity(0).getValue();
+    string name = ast->getToken(0).getValue();
     Token tmp(name, IDENTIFIER, 0, 0);
     if(parser::isStorageType(tmp)) {
-        name = ast->getEntity(1).getValue();
+        name = ast->getToken(1).getValue();
     }
 
     Field *field = currentScope()->klass->getField(name, false);
@@ -6883,7 +6647,7 @@ bool Compiler::isWholeNumber(double value) {
 }
 
 void Compiler::inlineEnumField(Ast* ast) {
-    string name = ast->getEntity(0).getValue();
+    string name = ast->getToken(0).getValue();
     Field *field = currentScope()->klass->getField(name, false);
 
     if(!field->inlineCheck) {
@@ -6944,7 +6708,7 @@ void Compiler::inlineEnumFields(Ast* ast, ClassObject* currentClass) {
     Ast* block = ast->getSubAst(ast_enum_identifier_list);
 
     if(currentClass == NULL) {
-        string name = ast->getEntity(0).getValue();
+        string name = ast->getToken(0).getValue();
         if(globalScope()) {
             currentClass = findClass(currModule, name, classes);
         }
@@ -6974,7 +6738,7 @@ void Compiler::inlineClassFields(Ast* ast, ClassObject* currentClass) {
     Ast* block = ast->getLastSubAst();
 
     if(currentClass == NULL) {
-        string name = ast->getEntity(0).getValue();
+        string name = ast->getToken(0).getValue();
         if(globalScope()) {
             currentClass = findClass(currModule, name, classes);
         }
@@ -7028,11 +6792,10 @@ void Compiler::inlineClassMutateFields(Ast *ast) {
 void Compiler::inlineFields() {
     for(unsigned long i = 0; i < parsers.size(); i++) {
         current = parsers.get(i);
-        errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors);
+        updateErrorManagerInstance(current);
 
         currModule = "$unknown";
-
-        sourceFiles.addif(current->sourcefile);
+        long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (int x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
@@ -7070,41 +6833,22 @@ void Compiler::inlineFields() {
         }
 
 
-        if(errors->hasErrors()){
-            report:
-
-            errCount+= errors->getErrorCount();
-            rawErrCount+= errors->getUnfilteredErrorCount();
-
-            failedParsers.addif(current->sourcefile);
-            succeededParsers.removefirst(current->sourcefile);
-        } else {
-            succeededParsers.addif(current->sourcefile);
-            failedParsers.removefirst(current->sourcefile);
+        if(NEW_ERRORS_FOUND()){
+            failedParsers.addif(current);
         }
-
-        errors->free();
-        delete (errors); this->errors = NULL;
         removeScope();
     }
 }
 
 void Compiler::postProcessUnprocessedClasses() {
-    string old = currModule;
-    parser* oldParser = current;
-    string oldFile = errors->filename;
-    List<string> oldLines;
-    oldLines.addAll(errors->lines);
-
     for(long long i = 0; i < unProcessedClasses.size(); i++) {
         ClassObject *unprocessedClass = unProcessedClasses.get(i);
 
         currModule = unprocessedClass->module;
-        errors->filename = unprocessedClass->getGenericOwner()->meta.file;
-        current = getParserBySourceFile(errors->filename);
+        current = getParserBySourceFile(unprocessedClass->meta.file);
 
-        long long currErrors = errors->getUnfilteredErrorCount() ,newErrors;
-        errors->lines.addAll(current->lines);
+        long long totalErrors = errors->getUnfilteredErrorCount();
+        updateErrorManagerInstance(current);
 
         // bring the classes up to speed
         unprocessedClass->setProcessStage(postprocessed);
@@ -7115,23 +6859,13 @@ void Compiler::postProcessUnprocessedClasses() {
         resolveGenericFieldMutations(unprocessedClass);
 
         // class has graduated but still is unprocessed so we must babysit the class...
-        newErrors = errors->getUnfilteredErrorCount()-currErrors;
-        if(newErrors > 0) {
-            // this helps the user find where they went wrong
-            printNote(unprocessedClass->meta, "in generic `" + unprocessedClass->name + "`");
+        if(NEW_ERRORS_FOUND()) {
+            failedParsers.addif(current);
         }
     }
-
-    currModule = old;
-    current = oldParser;
-    errors->lines.addAll(oldLines);
-    errors->filename = oldFile;
 }
 
 void Compiler::postProcessGenericClasses() {
-
-    errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors);
-
     /**
      * There is a bit of a tug of war going on with the order in how the compiler processes elements.
      * In the pre-processing stage we process the base classes of every single class in our code that we found, subclasses and all.
@@ -7144,22 +6878,6 @@ void Compiler::postProcessGenericClasses() {
      * and every other class will either work its-self out or be post-processed later.
      */
     postProcessUnprocessedClasses();
-
-    if(errors->hasErrors()){
-        report:
-
-        errCount+= errors->getErrorCount();
-        rawErrCount+= errors->getUnfilteredErrorCount();
-
-        failedParsers.addif(current->sourcefile);
-        succeededParsers.removefirst(current->sourcefile);
-    } else {
-        succeededParsers.addif(current->sourcefile);
-        failedParsers.removefirst(current->sourcefile);
-    }
-
-    errors->free();
-    delete (errors); this->errors = NULL;
 }
 
 bool Compiler::postProcess() {
@@ -7167,7 +6885,6 @@ bool Compiler::postProcess() {
     long long unstableClasses = unProcessedClasses.size();
 
     preprocessMutations();
-    inheritRespectiveClasses();
     preProcessGenericClasses(unstableClasses);
     resolveAllMethods();
     resolveAllDelegates();
@@ -7175,42 +6892,29 @@ bool Compiler::postProcess() {
     inlineFields();
     postProcessGenericClasses();
 
-    return rawErrCount == 0;
+    return !errors->hasErrors();
 }
 
 void Compiler::handleImports() {
 
     for(unsigned long i = 0; i < parsers.size(); i++) {
         current = parsers.get(i);
-        errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors);
+        updateErrorManagerInstance(current);
 
         currModule = "$unknown";
-        sourceFiles.addif(current->sourcefile);
-
-        // Post-PreProcessing functions
+        long long totalErrors = errors->getUnfilteredErrorCount();
         if(c_options.magic)
         { // import everything in magic mode
-            importMap.__new().key = current->sourcefile;
+            importMap.__new().key = current->getTokenizer()->file;
             importMap.last().value.init();
             importMap.last().value.addAllUnique(modules);
         } else
             preproccessImports();
 
-        if(errors->hasErrors()){
-            report:
 
-            errCount+= errors->getErrorCount();
-            rawErrCount+= errors->getUnfilteredErrorCount();
-
-            failedParsers.addif(current->sourcefile);
-            succeededParsers.removefirst(current->sourcefile);
-        } else {
-            succeededParsers.addif(current->sourcefile);
-            failedParsers.removefirst(current->sourcefile);
+        if(NEW_ERRORS_FOUND()){
+            failedParsers.addif(current);
         }
-
-        errors->free();
-        delete (errors); this->errors = NULL;
     }
 }
 
@@ -7218,11 +6922,10 @@ bool Compiler::preprocess() {
     bool success = true;
     for(unsigned long i = 0; i < parsers.size(); i++) {
         current = parsers.get(i);
-        errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors); // TOSO: add state manager for error mnager
+        updateErrorManagerInstance(current);
 
         currModule = "$unknown";
-
-        sourceFiles.addif(current->sourcefile);
+        long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for(unsigned long x = 0; x < current->size(); x++)
         {
@@ -7274,9 +6977,6 @@ bool Compiler::preprocess() {
                 case ast_alias_decl:
                     preProccessAliasDecl(branch);
                     break;
-                case ast_func_prototype:
-                    preProccessVarDecl(branch);
-                    break;
                 case ast_mutate_decl:
                     /* ignpre */
                     break;
@@ -7290,22 +6990,10 @@ bool Compiler::preprocess() {
             CHECK_CMP_ERRORS(return false;)
         }
 
-        if(errors->hasErrors()){
-            report:
-
-            errCount+= errors->getErrorCount();
-            rawErrCount+= errors->getUnfilteredErrorCount();
-
+        if(NEW_ERRORS_FOUND()){
             success = false;
-            failedParsers.addif(current->sourcefile);
-            succeededParsers.removefirst(current->sourcefile);
-        } else {
-            succeededParsers.addif(current->sourcefile);
-            failedParsers.removefirst(current->sourcefile);
+            failedParsers.addif(current);
         }
-
-        errors->free();
-        delete (errors); this->errors = NULL;
         removeScope();
     }
 
@@ -7362,11 +7050,10 @@ void Compiler::preProccessClassDeclForMutation(Ast* ast) {
 void Compiler::preprocessMutations() {
     for(unsigned long i = 0; i < parsers.size(); i++) {
         current = parsers.get(i);
-        errors = new ErrorManager(current->lines, current->sourcefile, true, c_options.aggressive_errors);
+        updateErrorManagerInstance(current);
 
         currModule = "$unknown";
-
-        sourceFiles.addif(current->sourcefile);
+        long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for(unsigned long x = 0; x < current->size(); x++)
         {
@@ -7401,26 +7088,34 @@ void Compiler::preprocessMutations() {
             CHECK_CMP_ERRORS(return;)
         }
 
-        if(errors->hasErrors()){
-            report:
-
-            errCount+= errors->getErrorCount();
-            rawErrCount+= errors->getUnfilteredErrorCount();
-
-            failedParsers.addif(current->sourcefile);
-            succeededParsers.removefirst(current->sourcefile);
-        } else {
-            succeededParsers.addif(current->sourcefile);
-            failedParsers.removefirst(current->sourcefile);
+        if(NEW_ERRORS_FOUND()){
+            failedParsers.addif(current);
         }
-
-        errors->free();
-        delete (errors); this->errors = NULL;
         removeScope();
     }
 }
 
+void Compiler::setup() {
+    modules.init();
+    noteMessages.init();
+    classes.init();
+    enums.init();
+    generics.init();
+    warnings.init();
+    currScope.init();
+    importMap.init();
+    stringMap.init();
+    functionPtrs.init();
+    failedParsers.init();
+    unProcessedClasses.init();
+    inlinedFields.init();
+    nilUtype = new Utype(NIL);
+    undefUtype = new Utype(UNDEFINED);
+    undefUtype->setType(utype_unresolved);
+}
+
 void Compiler::compile() {
+    setup(); // TODO: talk about the changes maid to main.cpp in tutorial series for counting failed files commit is 17th pass on rewrite
 
     if(preprocess() && postProcess()) {
         processingStage = COMPILING;
@@ -7432,9 +7127,9 @@ void Compiler::compile() {
 
 string Compiler::parseModuleDecl(Ast *ast) {
     string module;
-    for(long i = 0; i < ast->getEntityCount(); i++)
+    for(long i = 0; i < ast->getTokenCount(); i++)
     {
-        module += ast->getEntity(i).getValue();
+        module += ast->getToken(i).getValue();
     }
     return module;
 }
@@ -7481,7 +7176,7 @@ void Compiler::printNote(Meta& meta, string msg) {
 }
 
 ClassObject* Compiler::addGlobalClassObject(string name, List<AccessFlag>& flags, Ast *ast, List<ClassObject*> &classList) {
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->sourcefile,
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
     ClassObject* k = new ClassObject(name, currModule, this->guid++, flags, meta), *prevClass;
@@ -7539,7 +7234,7 @@ void Compiler::addDefaultConstructor(ClassObject* klass, Ast* ast) {
     flags.add(PUBLIC);
 
     Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line),
-              current->sourcefile, ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
+              current->getTokenizer()->file, ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
     if(klass->getConstructor(emptyParams, false) == NULL) {
         Method* method = new Method(klass->name, currModule, klass, emptyParams, flags, meta);
 
@@ -7655,4 +7350,10 @@ Compiler::findFunction(ClassObject *k, Method *method, bool (*paramaterMatchFun)
 
     funcs.free();
     return NULL;
+}
+
+void Compiler::updateErrorManagerInstance(parser *parser) {
+    if(errors == NULL)
+        errors = new ErrorManager(&parser->getTokenizer()->getLines(), parser->getTokenizer()->file, true, c_options.aggressive_errors);
+    else errors->update(parser, true, c_options.aggressive_errors);
 }

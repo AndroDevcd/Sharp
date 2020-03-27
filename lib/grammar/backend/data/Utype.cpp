@@ -82,9 +82,7 @@ string Utype::toString() {
             if(array) ss << "[]";
         } else if (type == utype_field) {
             ss << ((Field *) resolvedType)->toString();
-        } else if (type == utype_method || type == utype_method_prototype) {
-            ss << ((Method *) resolvedType)->toString();
-        } else if (type == utype_method || type == utype_method_prototype) {
+        } else if (type == utype_method || type == utype_function_ptr) {
             ss << ((Method *) resolvedType)->toString();
         } else if (type == utype_literal) {
             if (((Literal *) resolvedType)->literalType == numeric_literal)
@@ -119,23 +117,22 @@ Utype::Utype(DataType type, bool isArray)
     }
 
 bool Utype::equals(Utype *utype) {
-    if(type == utype->type) {
+    if(type == utype_method || type == utype_function_ptr) {
+        if(Compiler::simpleParameterMatch(((Method*)resolvedType)->params, ((Method*)utype->resolvedType)->params)) {
+            if((((Method*)resolvedType)->utype != NULL && ((Method*)utype->resolvedType)->utype != NULL) ||
+               (((Method*)resolvedType)->utype == NULL && ((Method*)utype->resolvedType)->utype == NULL)) {
+                if(((Method*)resolvedType)->utype != NULL) {
+                    return ((Method*)resolvedType)->utype->equals(((Method*)utype->resolvedType)->utype);
+                } else
+                    return true;
+            }
+        }
+    } else if(type == utype->type) {
         if(type != utype_unresolved) {
             if(type == utype_native)
                 return resolvedType->type == utype->resolvedType->type && array == utype->array;
             else if(type == utype_class)
                 return ((ClassObject*)resolvedType)->match((ClassObject*)utype->resolvedType) && array == utype->array;
-            else if(type == utype_method || type == utype_method_prototype) {
-                if(Compiler::simpleParameterMatch(((Method*)resolvedType)->params, ((Method*)utype->resolvedType)->params)) {
-                    if((((Method*)resolvedType)->utype != NULL && ((Method*)utype->resolvedType)->utype != NULL) ||
-                       (((Method*)resolvedType)->utype == NULL && ((Method*)utype->resolvedType)->utype == NULL)) {
-                        if(((Method*)resolvedType)->utype != NULL) {
-                            return ((Method*)resolvedType)->utype->equals(((Method*)utype->resolvedType)->utype);
-                        } else
-                            return true;
-                    }
-                }
-            }
             else if(type == utype_field)
                 return ((Field*)resolvedType)->equals(*(Field*)utype->resolvedType);
         } else
@@ -166,7 +163,7 @@ bool Utype::isRelated(Utype *utype) {
             else if(array && utype->nullType)
                 return true;
         } else if (resolvedType->type == FNPTR) {
-            if (utype->getResolvedType()->type == FNPTR) {
+            if (utype->getResolvedType()->type == FNPTR || utype->getType() == utype_method) {
                 return Compiler::simpleParameterMatch(((Method *) resolvedType)->params,
                                                       ((Method *) utype->getResolvedType())->params);
             }

@@ -81,8 +81,20 @@ bool Field::isRelated(Field &f) {
             return true;
     } else if(type == FNPTR) {
         if(f.type == FNPTR) {
-            return Compiler::simpleParameterMatch(((Method*)this->utype->getResolvedType())->params,
-                                           ((Method*)f.utype->getResolvedType())->params);
+            Method *compareFun = (Method*)f.utype->getResolvedType();
+            if(compareFun->fnType == fn_lambda) {
+                if(compareFun->utype != NULL)
+                    return utype != NULL && f.utype != NULL && utype->getType() == f.utype->getType() &&
+                           Compiler::simpleParameterMatch(((Method*)this->utype->getResolvedType())->params,
+                                                          compareFun->params);
+                else
+                    return Compiler::simpleParameterMatch(((Method*)this->utype->getResolvedType())->params,
+                                                          compareFun->params);
+            } else {
+                return utype != NULL && f.utype != NULL && utype->getType() == f.utype->getType() &&
+                       Compiler::simpleParameterMatch(((Method *) this->utype->getResolvedType())->params,
+                                                      compareFun->params);
+            }
         }
     } else if(type >= _INT8 && type <= _UINT64) {
         if(f.type >= _INT8 && f.type <= VAR)

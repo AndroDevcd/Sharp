@@ -17,40 +17,27 @@ long Ast::getSubAstCount()
 
 Ast* Ast::getSubAst(long at)
 {
-    if(sub_asts.size() == 0 || at >= sub_asts.size()) {
-        stringstream ss;
-        ss << "internal error, ast not found at index " << at;
-        throw runtime_error(ss.str());
-    }
     return sub_asts.get(at);
 }
 
-long Ast::getEntityCount()
+long Ast::getTokenCount()
 {
-    return entities.size();
+    return tokens.size();
 }
 
-Token &Ast::getEntity(long at)
+Token &Ast::getToken(long at)
 {
-    return entities.get(at);
+    return tokens.get(at);
 }
 
 void Ast::addToken(Token entity)
 {
-    numEntities++;
-    entities.add(entity);
+    tokens.add(entity);
 }
 
 void Ast::addAst(Ast* _ast)
 {
-    numAsts++;
-    sub_asts.__new() = _ast;
-}
-
-void Ast::addAstFirst(Ast* _ast)
-{
-    numAsts++;
-    sub_asts.insert(0, _ast);
+    sub_asts.add(_ast);
 }
 
 void Ast::free() {
@@ -63,11 +50,9 @@ void Ast::free() {
         delete pAst;
     }
 
-    numAsts = 0;
-    numEntities = 0;
     this->type = ast_none;
     this->sub_asts.free();
-    this->entities.free();
+    this->tokens.free();
 }
 
 void Ast::freeSubAsts() {
@@ -79,7 +64,6 @@ void Ast::freeSubAsts() {
         delete pAst;
     }
 
-    numAsts = 0;
     this->sub_asts.free();
 }
 
@@ -87,30 +71,11 @@ void Ast::freeLastSub() {
     Ast* pAst = this->sub_asts.last();
     pAst->free();
     delete pAst;
-    numAsts--;
     this->sub_asts.pop_back();
 }
 
-void Ast::freeAst(ast_type t) {
-    for(unsigned int i = 0; i < sub_asts.size(); i++) {
-        if(sub_asts.get(i)->getType() == t) {
-            sub_asts.get(i)->free();
-            delete sub_asts.get(i);
-            numAsts--;
-            this->sub_asts.pop_back();
-            return;
-        }
-    }
-}
-
-void Ast::freeEntities() {
-    numEntities = 0;
-    this->entities.free();
-}
-
-void Ast::freeLastEntity() {
-    numEntities--;
-    this->entities.pop_back();
+void Ast::freeTokens() {
+    this->tokens.free();
 }
 
 bool Ast::hasSubAst(ast_type at) {
@@ -121,19 +86,10 @@ bool Ast::hasSubAst(ast_type at) {
     return false;
 }
 
-bool Ast::hasEntity(token_type t) {
+bool Ast::hasToken(token_type t) {
 
-    for(unsigned int i = 0; i < entities.size(); i++) {
-        if(entities.at(i).getType() == t)
-            return true;
-    }
-    return false;
-}
-
-bool Ast::findEntity(string t) {
-
-    for(unsigned int i = 0; i < entities.size(); i++) {
-        if(entities.at(i).getValue() == t)
+    for(unsigned int i = 0; i < tokens.size(); i++) {
+        if(tokens.at(i).getType() == t)
             return true;
     }
     return false;
@@ -150,41 +106,27 @@ Ast *Ast::getSubAst(ast_type at) {
 }
 
 Token Ast::getToken(token_type t) {
-    for(unsigned int i = 0; i < entities.size(); i++) {
-        if(entities.at(i).getType() == t)
-            return entities.get(i);
+    for(unsigned int i = 0; i < tokens.size(); i++) {
+        if(tokens.at(i).getType() == t)
+            return tokens.get(i);
     }
     return Token();
 }
 
-Ast *Ast::getNextSubAst(ast_type at) {
-    bool found = false;
-    for(unsigned int i = 0; i < sub_asts.size(); i++) {
-        if(sub_asts.get(i)->getType() == at) {
-            if(found)
-                return sub_asts.get(i);
-            else
-                found = true;
-        }
-    }
-    return NULL;
-}
-
 // tODO: add param bool override (default true) to override the encapsulation
 Ast* Ast::encapsulate(ast_type at) {
-
     Ast *branch = new Ast(at, this->line, this->col);
 
     for(long int i = 0; i < sub_asts.size(); i++) {
         branch->addAst(sub_asts.get(i));
     }
 
-    for(long int i = 0; i < entities.size(); i++) {
-        branch->addToken(entities.get(i));
+    for(long int i = 0; i < tokens.size(); i++) {
+        branch->addToken(tokens.get(i));
     }
 
     sub_asts.free();
-    entities.free();
+    tokens.free();
     addAst(branch);
     return branch;
 }
@@ -329,8 +271,6 @@ string Ast::astTypeToString(ast_type type) {
             return "ast_type_identifier";
         case ast_enum_identifier:
             return "ast_enum_identifier";
-        case ast_func_prototype:
-            return "ast_func_prototype";
         case ast_refrence_pointer:
             return "ast_refrence_pointer";
         case ast_modulename:
@@ -389,7 +329,14 @@ string Ast::astTypeToString(ast_type type) {
             return "ast_sizeof_e";
         case ast_none:
             return "ast_none";
-
+        case ast_dictionary_array:
+            return "ast_dictionary_array";
+        case ast_dictionary_type:
+            return "ast_dictionary_type";
+        case ast_alias_decl:
+            return "ast_alias_decl";
+        case ast_func_ptr:
+            return "ast_func_ptr";
     }
 
     return "unknown";
@@ -400,11 +347,6 @@ void Ast::setAstType(ast_type t) {
 }
 
 Ast *Ast::getLastSubAst() {
-    if(sub_asts.size() == 0) {
-        stringstream ss;
-        ss << "internal error, ast not found at index 0";
-        throw runtime_error(ss.str());
-    }
     return sub_asts.last();
 }
 
@@ -420,15 +362,15 @@ void Ast::copy(Ast *ast) {
             sub_asts.last()->copy(ast->sub_asts.get(i));
         }
 
-        for(long i = 0; i < ast->entities.size(); i++) {
-            addToken(ast->entities.get(i));
+        for(long i = 0; i < ast->tokens.size(); i++) {
+            addToken(ast->tokens.get(i));
         }
     }
 }
 
-bool Ast::hasEntity(string s) {
-    for(long i = 0; i < entities.size(); i++) {
-        if(entities.get(i) == s)
+bool Ast::hasToken(string s) {
+    for(long i = 0; i < tokens.size(); i++) {
+        if(tokens.get(i) == s)
             return true;
     }
     return false;
@@ -449,10 +391,10 @@ string Ast::toString() {
     astStr << getIndent() << "Ast (" << astTypeToString(type) << ")\n";
     astStr << getIndent() << "[\n";
     astStr << getIndent() << " tokens: (";
-    for(long i = 0; i < entities.size(); i++) {
-        astStr << "\"" << entities.get(i).getValue() + "\"";
+    for(long i = 0; i < tokens.size(); i++) {
+        astStr << "\"" << tokens.get(i).getValue() + "\"";
 
-        if((i + 1) < entities.size()) {
+        if((i + 1) < tokens.size()) {
             astStr << ", ";
         }
     }

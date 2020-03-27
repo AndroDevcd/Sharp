@@ -1,20 +1,16 @@
 mod main;
 
+import std.io;
 
-class Y {
+f := { foo as noPtrl };
 
-    y := 8;
+alias (var)(var) as noPtrl;
 
-    lo : Y;
+y := f[0](8);
 
-    k := Y.color.r as int;
-
-    enum color {
-        r,b,g
-    };
+def foo(n : var) : var {
 
 }
 
-def main() {
-
+def main() : var {
 }

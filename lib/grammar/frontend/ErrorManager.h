@@ -47,6 +47,7 @@ enum error_type
 
 static std::list<KeyPair<error_type, string>> predefinedErrors;
 void initalizeErrors();
+class parser;
 
 struct ParseError
 {
@@ -116,7 +117,7 @@ class Ast;
 class ErrorManager
 {
 public:
-    ErrorManager(List<string>& lines, string file_name, bool asis, bool aggressiveRoporting)
+    ErrorManager(List<string>* lines, string file_name, bool asis, bool aggressiveRoporting)
             :
             lines(),
             teCursor(-1),
@@ -126,7 +127,7 @@ public:
             asis(asis),
             aggressive(aggressiveRoporting)
     {
-        this->lines.addAll(lines);
+        this->lines = lines;
         errors = new list<ParseError>();
         warnings = new list<ParseError>();
         unfilteredErrors = new list<ParseError>();
@@ -135,6 +136,7 @@ public:
         lastCheckedError = ParseError();
     }
 
+    void update(parser *p, bool asis, bool aggressiveRoporting);
     void printErrors();
     uint64_t getErrorCount() { return errors->size(); }
     uint64_t getWarningCount() { return warnings->size(); }
@@ -155,7 +157,7 @@ public:
     string getLine(int line);
 
     string filename;
-    List<string> lines;
+    List<string>* lines;
 private:
     KeyPair<error_type, string> getErrorById(error_type);
     list<ParseError>* getPossibleErrorList();

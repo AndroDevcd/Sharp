@@ -1,7 +1,7 @@
 mod std.io;
 
 //global_lck := new _object_();
-def critical_section(fn block()) {
+def critical_section(block : ()()) {
     // err : exception;
     // lock global_lck -> {
     //   try {
@@ -14,7 +14,7 @@ def critical_section(fn block()) {
     // if(err != null) throw err;
 }
 
-//def<t> critical_section(fn block(t), data: t) {
+//def<t, r> critical_section(block : (t)(r), data: t) {
     // err : exception;
     // lock global_lck -> {
     //   try {
@@ -27,7 +27,7 @@ def critical_section(fn block()) {
     // if(err != null) throw err;
 //}
 
-def critical_section(fn block(), lock_obj : object) {
+def critical_section(block : ()(), lock_obj : object) {
     // err : exception;
     // lock lock_obj -> {
     //   try {
@@ -40,7 +40,7 @@ def critical_section(fn block(), lock_obj : object) {
     // if(err != null) throw err;
 }
 
-//def<t> critical_section(fn block(t), lock_obj : object, data: t) {
+//def<t, r> critical_section(block : (t)(r), lock_obj : object, data: t) {
     // err : exception;
     // lock lock_obj -> {
     //   try {

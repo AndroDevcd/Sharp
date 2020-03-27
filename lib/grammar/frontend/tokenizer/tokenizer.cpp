@@ -96,7 +96,7 @@ void tokenizer::parse()
         return;
 
     parse_lines();
-    errors = new ErrorManager(lines, file, false, c_options.aggressive_errors);
+    errors = new ErrorManager(&lines, file, false, c_options.aggressive_errors);
     EOF_token = new Token("", SINGLE, 1, lines.size(), _EOF);
 
     for(;;)

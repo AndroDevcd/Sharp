@@ -416,6 +416,9 @@ void compile(List<string> &files)
 
                 errors+= currTokenizer->getErrors()->getErrorCount();
                 unfilteredErrors+= currTokenizer->getErrors()->getUnfilteredErrorCount();
+
+                currTokenizer->free();
+                delete currTokenizer;
                 failed++;
             } else {
                 if(c_options.debugMode)
@@ -446,8 +449,6 @@ void compile(List<string> &files)
             }
 
             end:
-            currTokenizer->free();
-            delete (currTokenizer);
             buf.end();
 
             if(panic==1) {
@@ -463,11 +464,11 @@ void compile(List<string> &files)
 
         Compiler engine(c_options.out, parsers);
 
-        failed = engine.failed;
-        succeeded = engine.succeeded;
+        failed += engine.failedParsers.size();
+        succeeded = files.size() - failed;
 
-        errors+=engine.errCount;
-        unfilteredErrors+=engine.rawErrCount;
+        errors+=engine.errors->getErrorCount();
+        unfilteredErrors+=engine.errors->getUnfilteredErrorCount();
         if(errors == 0 && unfilteredErrors == 0) {
             if(!c_options.compile)
                 engine.generate();
@@ -478,6 +479,8 @@ void compile(List<string> &files)
     else {
         for(unsigned long i = 0; i < parsers.size(); i++) {
             parser* parser = parsers.get(i);
+            parser->getTokenizer()->free();
+            delete parser->getTokenizer();
             parser->free();
             delete(parser);
         }

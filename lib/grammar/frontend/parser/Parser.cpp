@@ -20,10 +20,7 @@ void parser::parse() {
     if(toks->size() == 0)
         return;
 
-    lines.addAll(toks->getLines());
-    sourcefile = toks->file;
-
-    errors = new ErrorManager(lines, sourcefile, false, c_options.aggressive_errors);
+    errors = new ErrorManager(&toks->getLines(), toks->file, false, c_options.aggressive_errors);
     _current= &toks->getTokens().get(0);
 
     while(true) {
@@ -79,10 +76,6 @@ void parser::parse() {
                 (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":="))))
         {
             parseVariableDecl(NULL);
-        }
-        else if(isPrototypeDecl(current()) || (isStorageType(current()) && isPrototypeDecl(*peek(1))))
-        {
-            parsePrototypeDecl(NULL);
         }
         else
         {
@@ -296,7 +289,7 @@ void parser::parseSwitchDeclarator(Ast* ast) {
     advance();
     branch->addToken(current()); // case | default
 
-    if(branch->getEntity(0).getValue() == "case")
+    if(branch->getToken(0).getValue() == "case")
         parseExpression(branch);
     else {
         int i = 0;
@@ -318,7 +311,7 @@ void parser::parseSwitchDeclarator(Ast* ast) {
             errors->pass();
             if(branch->getSubAstCount() == 1) {
                 branch->freeSubAsts();
-                branch->freeEntities();
+                branch->freeTokens();
             }
             else {
                 branch->freeLastSub();
@@ -841,15 +834,6 @@ void parser::parseInterfaceBlock(Ast* ast) {
             errors->createNewError(GENERIC, current(), "unexpected variable declaration");
             parseVariableDecl(branch);
         }
-        else if(isPrototypeDecl(current()) || (isStorageType(current()) && isPrototypeDecl(*peek(1))))
-        {
-            if(access_types.size() > 0)
-            {
-                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-            }
-            errors->createNewError(GENERIC, current(), "unexpected function pointer");
-            parsePrototypeDecl(branch);
-        }
         else if(isMethodDecl(current()))
         {
             if(peek(1)->getValue() == "operator") {
@@ -1072,6 +1056,32 @@ void parser::parseConstructor(Ast *ast) {
     parseBlock(branch);
 }
 
+bool parser::parseFunctionPtr(Ast* ast) {
+    Ast *branch = getBranch(ast, ast_func_ptr);
+
+    if(peek(1)->getType() == LEFTPAREN) {
+        parseUtypeArgListOpt(branch);
+
+        if(peek(1)->getType() == LEFTPAREN) {
+            expect(branch, "(", false);
+
+            if(peek(1)->getType() != RIGHTPAREN) {
+                Ast *returnType = getBranch(branch, ast_method_return_type);
+
+                if(*peek(1) == "nil")
+                    expect(returnType, "nil");
+                else
+                    parseUtype(returnType);
+            }
+
+            expect(branch, ")", false);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool parser::parseTypeIdentifier(Ast* ast) {
     Ast *branch = getBranch(ast, ast_type_identifier);
 
@@ -1083,6 +1093,15 @@ bool parser::parseTypeIdentifier(Ast* ast) {
         _current--;
 
     errors->enterProtectedMode();
+    if(parseFunctionPtr(branch)) {
+        errors->fail();
+        return true;
+    } else {
+        errors->pass();
+        errors->enterProtectedMode();
+        branch->freeLastSub();
+    }
+
     if(!parseReferencePointer(branch)){
         errors->pass();
     }
@@ -1357,7 +1376,7 @@ bool parser::parseExpression(Ast* ast) {
         _current=old;
         if(branch->getSubAstCount() == 1) {
             branch->freeSubAsts();
-            branch->freeEntities();
+            branch->freeTokens();
         }
         else {
             branch->freeLastSub();
@@ -1561,7 +1580,7 @@ bool parser::unary(Ast *ast) {
         _current=old;
         if(ast->getSubAstCount() == 1) {
             ast->freeSubAsts();
-            ast->freeEntities();
+            ast->freeTokens();
         }
         else {
             ast->freeLastSub();
@@ -1706,6 +1725,10 @@ bool parser::parseDotNotCallExpr(Ast* ast) {
                 } else {
                     errors->fail();
                 }
+            } else if(peek(1)->getType() == LEFTPAREN) {
+                parseExpressionList(branch, "(", ")");
+
+                branch->encapsulate(ast_dot_fn_e);
             }
             goto incCheck;
         }
@@ -1745,7 +1768,7 @@ bool parser::parseArrayExpression(Ast* ast) {
 
             if(branch->getSubAstCount() == 1) {
                 branch->freeSubAsts();
-                branch->freeEntities();
+                branch->freeTokens();
             }
             else {
                 branch->freeLastSub();
@@ -1852,89 +1875,19 @@ void parser::parseLambdaReturnType(Ast *ast) {
         expect(branch, ")", false);
     }
 }
-
-void parser::parsePrototypeValueAssignment(Ast *ast) {
-    advance();
-    if(current() == "=" || current() == ":=")
-    {
-        Ast* branch = getBranch(ast, ast_value);
-        branch->addToken(current());
-        parseExpression(branch);
-    }
-    else
-        _current--;
-}
-
-void parser::parsePrototypeDecl(Ast *ast, bool semicolon) {
-    Ast* branch = getBranch(ast, ast_func_prototype);
-
-    addAccessTypes(branch);
-    access_types.free();
-
-    if(isStorageType(current())) {
-        if(!semicolon) {
-
-        } else
-            branch->addToken(current());
-    } else
-        _current--;
-
-    expect(branch, "fn", false);
-    expectIdentifier(branch);
-
-    if(!semicolon || peek(1)->getType() == LEFTPAREN) {
-        parseUtypeArgListOpt(branch);
-        parseMethodReturnType(branch); // assign-expr operators must return void
-    }
-
-    if(semicolon) {
-
-        if((*peek(1) != "=" && *peek(1) != ":=") && !branch->hasSubAst(ast_utype_arg_list_opt)) {
-            errors->createNewError(GENERIC, current(), "expected `=` or `:=` after function pointer was declared");
-        } else {
-            if(*peek(1) == ":=") {
-                if(branch->hasSubAst(ast_utype_arg_list_opt))
-                    errors->createNewError(GENERIC, current(), "invalid syntax using `:=` to infer type when type of field is already known, use `=`instead.");
-            } else if(*peek(1) == "=") {
-                if(!branch->hasSubAst(ast_utype_arg_list_opt))
-                    errors->createNewError(GENERIC, current(), "invalid syntax using `=` when type of field is not known, use `:=` instead to infer the type");
-            } else {
-                if(!branch->hasSubAst(ast_utype_arg_list_opt))
-                    errors->createNewError(GENERIC, current(), "invalid syntax, cannot create field without typing information provided. Please specify the type, or infer it.");
-            }
-            parsePrototypeValueAssignment(branch);
-        }
-    }
-    else if(isAssignExprSymbol(peek(1)->getValue()))
-        errors->createNewError(GENERIC, current(), "operator `" + peek(1)->getValue() + "` on function pointer is not allowed here");
-
-    if(semicolon)
-        expect(branch, ";");
-}
-
 void parser::parseUtypeArgListOpt(Ast* ast) {
     Ast* branch = getBranch(ast, ast_utype_arg_list_opt);
     expect(branch, "(");
 
     if(peek(1)->getType() != RIGHTPAREN)
     {
-        if(isPrototypeDecl(*peek(1))) {
-            advance();
-            parsePrototypeDecl(branch, false);
-        }
-        else
-            parseUtypeArgOpt(branch);
+        parseUtypeArgOpt(branch);
         _puTypeArgOpt:
         if(peek(1)->getType() == COMMA)
         {
             expect(branch, ",");
 
-            if(isPrototypeDecl(*peek(1))){
-                advance();
-                parsePrototypeDecl(branch, false);
-            }
-            else
-                parseUtypeArgOpt(branch);
+            parseUtypeArgOpt(branch);
             goto _puTypeArgOpt;
         }
     }
@@ -1948,23 +1901,14 @@ void parser::parseUtypeArgList(Ast* ast) {
 
     if(peek(1)->getType() != RIGHTPAREN)
     {
-        if(isPrototypeDecl(*peek(1))){
-            advance();
-            parsePrototypeDecl(branch, false);
-        }
-        else
-            parseUtypeArg(branch);
+        parseUtypeArg(branch);
+
         _puTypeArg:
         if(peek(1)->getType() == COMMA)
         {
             expect(branch, ",");
 
-            if(isPrototypeDecl(*peek(1))){
-                advance();
-                parsePrototypeDecl(branch, false);
-            }
-            else
-                parseUtypeArg(branch);
+            parseUtypeArg(branch);
             goto _puTypeArg;
         }
     }
@@ -1975,23 +1919,13 @@ void parser::parseUtypeArgList(Ast* ast) {
 void parser::parseLambdaArgList(Ast* ast) {
     Ast* branch = getBranch(ast, ast_lambda_arg_list);
 
-    if(isPrototypeDecl(*peek(1))){
-        advance();
-        parsePrototypeDecl(branch, false);
-    }
-    else
-        parseLambdaArg(branch);
+    parseLambdaArg(branch);
+
     _pLambdaArg:
     if(peek(1)->getType() == COMMA)
     {
         expect(branch, ",");
-
-        if(isPrototypeDecl(*peek(1))){
-            advance();
-            parsePrototypeDecl(branch, false);
-        }
-        else
-            parseLambdaArg(branch);
+        parseLambdaArg(branch);
         goto _pLambdaArg;
     }
 }
@@ -2500,10 +2434,6 @@ void parser::parseClassBlock(Ast *ast) {
         {
             parseAliasDeclaration(branch);
         }
-        else if(isPrototypeDecl(current()) || (isStorageType(current()) && isPrototypeDecl(*peek(1))))
-        {
-            parsePrototypeDecl(branch);
-        }
         else if(isEnumDecl(current()))
         {
             parseEnumDecl(branch);
@@ -2635,15 +2565,15 @@ Token* parser::peek(int forward) {
 }
 
 bool parser::isAccessDecl(Token &token) {
-    return
-            (token.getId() == IDENTIFIER && token.getValue() == "protected") ||
-            (token.getId() == IDENTIFIER && token.getValue() == "private") ||
-            (token.getId() == IDENTIFIER && token.getValue() == "static") ||
-            (token.getId() == IDENTIFIER && token.getValue() == "local") ||
-            (token.getId() == IDENTIFIER && token.getValue() == "const") ||
-            (token.getId() == IDENTIFIER && token.getValue() == "ext") ||
-            (token.getId() == IDENTIFIER && token.getValue() == "stable") ||
-            (token.getId() == IDENTIFIER && token.getValue() == "public");
+    return token.getId() == IDENTIFIER &&
+            ((token.getValue() == "protected") ||
+            (token.getValue() == "private") ||
+            (token.getValue() == "static") ||
+            (token.getValue() == "local") ||
+            (token.getValue() == "const") ||
+            (token.getValue() == "ext") ||
+            (token.getValue() == "stable") ||
+            (token.getValue() == "public"));
 }
 
 bool parser::isModuleDecl(Token &token) {
@@ -2684,10 +2614,6 @@ bool parser::isStorageType(Token &token) {
 
 bool parser::isInterfaceDecl(Token &token) {
     return (token.getId() == IDENTIFIER && token.getValue() == "interface");
-}
-
-bool parser::isPrototypeDecl(Token& token) {
-    return (token.getId() == IDENTIFIER && token.getValue() == "fn");
 }
 
 bool parser::isMethodDecl(Token& token) {
@@ -2749,7 +2675,7 @@ bool parser::isKeyword(string key) {
            || key == "_int32" || key == "_int64" || key == "_uint8"
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
            || key == "delegate" || key == "interface" || key == "lock" || key == "enum"
-           || key == "switch" || key == "default" || key == "fn" || key == "local"
+           || key == "switch" || key == "default" || key == "local"
            || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
            || key == "as";
@@ -2859,20 +2785,17 @@ void parser::expect(Ast* ast, string token, bool addToken, const char *expecteds
     }
 }
 
-Ast * parser::getBranch(Ast *ast, ast_type type) {
+Ast * parser::getBranch(Ast *parent, ast_type type) {
     Ast *branch = new Ast(type, current().getLine(),
             current().getColumn());
 
-    if(ast == NULL)
+    if(parent == NULL)
     {
         tree.push_back(branch);
-        ast_cursor++;
-
-        return astAt(ast_cursor);
+        return tree.last();
     }
     else {
-        ast->addAst(branch);
-
+        parent->addAst(branch);
         return branch;
     }
 }
@@ -2897,7 +2820,6 @@ void parser::free() {
             delete(pAst);
         }
 
-        ast_cursor = 0;
         access_types.free();
         this->tree.free();
         access_types.free();

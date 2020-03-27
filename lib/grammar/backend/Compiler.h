@@ -20,10 +20,6 @@ public:
     Compiler(string outFile,List<parser*> &parsers)
     :
         outFile(outFile),
-        failed(0),
-        succeeded(0),
-        errCount(0),
-        rawErrCount(0),
         classSize(0),
         methodSize(0),
         threadLocals(0),
@@ -40,20 +36,6 @@ public:
         delegateGUID(0),
         typeInference(false)
     {
-        modules.init();
-        sourceFiles.init();
-        noteMessages.init();
-        classes.init();
-        enums.init();
-        generics.init();
-        warnings.init();
-        currScope.init();
-        importMap.init();
-        stringMap.init();
-        failedParsers.init();
-        unProcessedClasses.init();
-        succeededParsers.init();
-        inlinedFields.init();
         this->parsers.init();
         this->parsers.addAll(parsers);
 
@@ -106,10 +88,8 @@ public:
     static bool isUtypeConvertableToNativeClass(Utype *dest, Utype *src);
     static bool isUtypeClass(Utype* utype, string mod, int names, ...);
 
-    List<string> failedParsers;
-    List<string> succeededParsers;
-    long long failed, succeeded;
-    long errCount, rawErrCount;
+    ErrorManager *errors;
+    List<parser*> failedParsers;
     static long guid;
 private:
     bool panic;
@@ -127,7 +107,6 @@ private:
     Method* mainMethod;
     List<parser*> parsers;
     List<string> modules;
-    List<string> sourceFiles;
     List<string> noteMessages;
     List<string> warnings;
     List<ClassObject*> classes;
@@ -139,21 +118,24 @@ private:
     List<KeyPair<Field*, double>> inlinedFields;
     List<KeyPair<string, List<string>>>  importMap;
     List<Method*> lambdas;
+    List<Method*> functionPtrs;
+    Utype* nilUtype;
+    Utype* undefUtype;
     parser* current;
-    ErrorManager *errors;
     string currModule;
     Method* requiredSignature;
 
+    void setup();
     bool preprocess();
     bool postProcess();
     void preprocessMutations();
     void compile();
     void createGlobalClass();
-    void inheritRespectiveClasses();
     void inlineFields();
     void postProcessGenericClasses();
     void postProcessUnprocessedClasses();
     void handleImports();
+    void updateErrorManagerInstance(parser *parser);
     void preProcessGenericClasses(long long unstableClasses);
     void preProcessUnprocessedClasses(long long unstableClasses);
     parser *getParserBySourceFile(string name);
@@ -183,7 +165,6 @@ private:
     void parseVariableAccessFlags(List<AccessFlag> &flags, Ast *ast);
     ClassObject* addChildClassObject(string name, List<AccessFlag> &flags, ClassObject* owner, Ast* ast);
     void removeScope();
-    void inheritEnumClass();
     void resolveBaseClasses();
     __int64 dataTypeToOpcode(DataType type);
     void convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, IrCode &code, Ast* ast);
@@ -196,6 +177,7 @@ private:
     ClassObject* compileGenericClassReference(string &mod, string &name, ClassObject* parent, Ast *ast);
     void compileUtypeList(Ast *ast, List<Utype *> &types);
     Utype* compileUtype(Ast *ast, bool intanceCaptured = false);
+    void compileFuncPtr(Utype *utype, Ast *ast);
     void resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast);
     void inlineVariableValue(IrCode &code, Field *field);
     bool isDClassNumberEncodable(double var);
@@ -206,12 +188,12 @@ private:
     DataType strToNativeType(string &str);
     double getInlinedFieldValue(Field* field);
     void compileTypeIdentifier(ReferencePointer &ptr, Ast *ast);
-    void inheritObjectClass();
     void resolveAllFields();
     void resolveAllMethods();
     void resolveAllDelegates();
     void resolveClassMutateFields(Ast *ast);
     void resolveDelegateMutateMethods(Ast *ast);
+    void compileFnPtrCast(Utype *utype, Expression *castExpr, Expression *outExpr);
     void resolveAllDelegates(Ast *ast, ClassObject* currentClass = NULL);
     Method* validateDelegatesHelper(Method *method, List<Method*> &list);
     void validateDelegates(ClassObject *subscriber, Ast *ast);
@@ -236,7 +218,6 @@ private:
     void compileLambdaArgList(List<Field*> &fields, Ast* ast);
     Field* compileLambdaArg(Ast *ast);
     void compilePostIncExpression(Expression* expr, bool compileExpression, Ast* ast);
-    Field* compileFuncPrototypeArg(Ast *ast);
     bool containsParamType(List<Field*> &params, DataType type);
     void validateMethodParams(List<Field*>& params, Ast* ast);
     void parseUtypeArgList(List<Field*> &params, Ast* ast);
@@ -266,7 +247,6 @@ private:
     void inheritEnumClassHelper(Ast *ast, ClassObject *enumClass);
     void resolveField(Ast* ast);
     void resolveFieldType(Field* field, Utype *utype, Ast* ast);
-    void resolvePrototypeField(Ast* ast);
     void compileExpression(Expression* expr, Ast* ast);
     void compilePrimaryExpression(Expression* expr, Ast* ast);
     void compileCastExpression(Expression *expr, bool compileExpr, Ast *ast);
@@ -337,7 +317,7 @@ enum ProcessingStage {
 
 #define CHECK_CMP_ERRORS(exit_proc) \
     if(panic) exit_proc \
-    else if((rawErrCount + errors->getUnfilteredErrorCount()) > _SHARP_CERROR_LIMIT) { \
+    else if(errors->getUnfilteredErrorCount() > _SHARP_CERROR_LIMIT) { \
         panic = true; \
         exit_proc \
     }
@@ -362,6 +342,8 @@ enum ProcessingStage {
 #define RESTORE_REQUIRED_SIGNATURE() \
     requiredSignature = oldRequiredSig;
 
+#define NEW_ERRORS_FOUND() \
+    ((errors->getUnfilteredErrorCount() - totalErrors) > 0)
 
 #define RETAIN_SCOPE_CLASS(bt) \
     ClassObject *oldScopeClass = currentScope()->klass; \

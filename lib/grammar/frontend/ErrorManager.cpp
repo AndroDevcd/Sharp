@@ -6,6 +6,7 @@
 #include <sstream>
 #include "../../util/KeyPair.h"
 #include "parser/Ast.h"
+#include "parser/Parser.h"
 
 void initalizeErrors()
 {
@@ -253,10 +254,10 @@ void ErrorManager::createNewWarning(error_type err, int l, int c, string xcmts) 
 }
 
 string ErrorManager::getLine(int line) {
-    if((line-1) >= lines.size())
+    if((line-1) >= lines->size())
         return "End of File";
     else
-        return lines.get(line-1);
+        return lines->get(line-1);
 }
 
 KeyPair<error_type, string> ErrorManager::getErrorById(error_type err) {
@@ -356,7 +357,6 @@ void ErrorManager::free() {
     this->_err = false;
     this->lastCheckedError.free();
     this->lastError.free();
-    this->lines.free();
     freeList(*errors);
     freeList(*warnings);
     freeList(*unfilteredErrors);
@@ -423,4 +423,12 @@ void ErrorManager::createNewWarning(error_type err, Ast *pAst, string xcmts) {
 
         warnings->push_back(e);
     }
+}
+
+void ErrorManager::update(parser *p, bool asis, bool aggressiveReporting) {
+
+    this->lines = &p->getTokenizer()->getLines();
+    filename = p->getTokenizer()->file;
+    this->asis = asis;
+    this->aggressive = aggressiveReporting;
 }
