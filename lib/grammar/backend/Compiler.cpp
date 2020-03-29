@@ -4814,14 +4814,16 @@ void Compiler::resolveClassMethod(Ast* ast) {
 
 void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
     List<AccessFlag> flags;
+    bool extensionFun = getExtensionFunctionClass(ast) != NULL;
 
     if (ast->hasSubAst(ast_access_type)) {
         parseMethodAccessFlags(flags, ast->getSubAst(ast_access_type));
 
         if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
             flags.add(PUBLIC);
+        if(globalScope() && !extensionFun) flags.addif(STATIC);
     } else {
-        if(globalScope()) {
+        if(globalScope() && !extensionFun) {
             flags.add(PUBLIC);
             flags.add(STATIC);
         } else
@@ -4856,8 +4858,7 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
         method->fnType = fn_normal;
         method->address = methodSize++;
     }
-    method->extensionFun = getExtensionFunctionClass(method->ast) != NULL;
-    if(globalScope() && !method->extensionFun) method->flags.addif(STATIC);
+    method->extensionFun = extensionFun;
 
     compileMethodReturnType(method, ast, true);
     if (!addFunction(currentClass, method, &simpleParameterMatch)) {
