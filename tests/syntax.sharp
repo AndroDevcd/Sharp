@@ -4,8 +4,6 @@ import std.io;
 
 class furniture {
     n : int;
-
-    def foo();
 }
 
 class chair base furniture {
@@ -13,6 +11,8 @@ class chair base furniture {
 
     def foo() { }
 }
+
+public def furniture.foo();
 
 l : ()()[];
 fun := (l)[0];

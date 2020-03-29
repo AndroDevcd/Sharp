@@ -197,6 +197,7 @@ private:
     void resolveAllDelegates(Ast *ast, ClassObject* currentClass = NULL);
     Method* validateDelegatesHelper(Method *method, List<Method*> &list);
     void validateDelegates(ClassObject *subscriber, Ast *ast);
+    string accessFlagsToStr(List<AccessFlag> &flags);
     ClassObject* getExtensionFunctionClass(Ast* ast);
     void resolveClassMutateMethods(Ast *ast);
     void resolveMethod(Ast* ast, ClassObject *currentClass = NULL);

@@ -4758,7 +4758,7 @@ void Compiler::compileMethodReturnType(Method* fun, Ast *ast, bool wait) {
 
 ClassObject* Compiler::getExtensionFunctionClass(Ast* ast) {
 
-    if(ast->getType() == ast_method_decl) {
+    if(ast->getType() == ast_method_decl || ast->getType() == ast_delegate_decl) {
         ReferencePointer ptr;
         compileReferencePtr(ptr, ast->getSubAst(ast_refrence_pointer));
         if (ptr.mod == "" && ptr.classes.singular()) {
@@ -4790,7 +4790,7 @@ void Compiler::resolveGlobalMethod(Ast* ast) {
         if(IS_CLASS_GENERIC(resolvedClass->getClassType()) && resolvedClass->getGenericOwner() == NULL) {
             resolvedClass->getExtensionFunctionTree().add(ast);
         } else // its can be a generic class that was already created or a reg. class
-            resolveMethod(ast);
+            resolveMethod(ast, resolvedClass);
     }
 }
 
@@ -4820,8 +4820,6 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
 
         if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
             flags.add(PUBLIC);
-
-        if(globalScope()) flags.addif(STATIC);
     } else {
         if(globalScope()) {
             flags.add(PUBLIC);
@@ -4848,6 +4846,10 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
     method->fullName = currentClass->fullName + "." + name;
     method->ast = ast;
     if(ast->getType() == ast_delegate_decl) {
+        if(method->owner->isGlobalClass())
+            this->errors->createNewError(GENERIC, ast->line, ast->col,
+                                         "delegate functions are not allowed at global scope");
+
         method->fnType = fn_delegate;
         method->address = delegateGUID++;
     } else {
@@ -4855,6 +4857,7 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
         method->address = methodSize++;
     }
     method->extensionFun = getExtensionFunctionClass(method->ast) != NULL;
+    if(globalScope() && !method->extensionFun) method->flags.addif(STATIC);
 
     compileMethodReturnType(method, ast, true);
     if (!addFunction(currentClass, method, &simpleParameterMatch)) {
@@ -4916,6 +4919,52 @@ void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
         addDefaultConstructor(currentClass, ast);
         removeScope();
     }
+}
+
+string Compiler::accessFlagsToStr(List<AccessFlag> &flags) {
+    stringstream ss;
+    ss << "{ ";
+
+    for(long i = 0; i < flags.size(); i++) {
+        switch(flags.get(i)) {
+            case PUBLIC:
+                ss << "PUBLIC";
+                break;
+            case PRIVATE:
+                ss << "PRIVATE";
+                break;
+            case PROTECTED:
+                ss << "PROTECTED";
+                break;
+            case LOCAL:
+                ss << "LOCAL";
+                break;
+            case flg_CONST:
+                ss << "CONST";
+                break;
+            case STATIC:
+                ss << "STATIC";
+                break;
+            case STABLE :
+                ss << "STABLE";
+                break;
+            case UNSTABLE :
+                ss << "UNSTABLE";
+                break;
+            case EXTENSION:
+                ss << "EXTENSION";
+                break;
+            case flg_UNDEFINED:
+                ss << "UNDEFINED";
+                break;
+        }
+
+        if((i + 1) < flags.size())
+            ss << ", ";
+    }
+
+    ss << " }";
+    return ss.str();
 }
 
 /**
@@ -4992,8 +5041,8 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
 
             if(!(contract->flags.size() == sub->flags.size() && contract->flags.sameElements(sub->flags))) {
                 stringstream err;
-                err << "method `" << sub->toString() << "` provided different access privileges than contract method '"
-                    << contract->toString() << "'";
+                err << "method `" << sub->toString() << "` provided " + accessFlagsToStr(sub->flags) + " different access privileges than contract method '"
+                    << contract->toString() << "' provided " + accessFlagsToStr(contract->flags);
                 errors->createNewError(GENERIC, ast->line, ast->col, err.str());
                 printNote(contract->meta, "as defined here");
             }
@@ -5182,6 +5231,7 @@ void Compiler::resolveAllMethods() {
                 case ast_class_decl:
                     resolveClassMethods(branch);
                     break;
+                case ast_delegate_decl:
                 case ast_method_decl:
                     resolveGlobalMethod(branch);
                     break;
@@ -6919,6 +6969,7 @@ bool Compiler::preprocess() {
                 case ast_enum_decl:
                     preProccessEnumDecl(branch);
                     break;
+                case ast_delegate_decl: /* ignore */
                 case ast_method_decl: /* ignore */
                     break;
                 case ast_variable_decl:
