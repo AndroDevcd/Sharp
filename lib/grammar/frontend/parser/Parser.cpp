@@ -130,64 +130,29 @@ void parser::parseMethodDecl(Ast *ast) {
 
     parseUtypeArgList(branch);
 
-    if(peek(1)->getType() == COLON) {
+    if (peek(1)->getType() == COLON) {
         parseMethodReturnType(branch);
 
-        if(peek(1)->getType() == EQUALS) {
+        if (peek(1)->getType() == EQUALS) {
             expect(branch, "=", true);
             parseExpression(branch);
             expect(branch, ";", false);
+        } else if(*peek(1) == ";") {
+            expect(branch, ";", false);
+            branch->setAstType(ast_delegate_decl);
         } else {
             parseBlock(branch);
         }
-    } else if(peek(1)->getType() == INFER) {
+    } else if (peek(1)->getType() == INFER) {
         expect(branch, ":=", true);
         parseExpression(branch);
         expect(branch, ";", false);
-    } else {
-        parseBlock(branch);
-    }
-}
-
-void parser::parseDelegateDecl(Ast *ast) {
-    Ast* branch = getBranch(ast, ast_delegate_impl);
-
-
-    addAccessTypes(branch);
-    access_types.free();
-
-    expect(branch, "delegate", false);
-
-    expect(branch, ":", false);
-    expect(branch, ":", false);
-    expectIdentifier(branch);
-
-    parseUtypeArgList(branch);
-
-    if(*peek(1) == ";") {
-        expect(branch, ";");
+    } else if(*peek(1) == ";") {
+        expect(branch, ";", false);
         branch->setAstType(ast_delegate_decl);
-    } else {
-        if(peek(1)->getType() == COLON) {
-            parseMethodReturnType(branch);
-
-            if(peek(1)->getType() == EQUALS) {
-                expect(branch, "=", true);
-                parseExpression(branch);
-                expect(branch, ";", false);
-            } else if(*peek(1) == ";") {
-                expect(branch, ";");
-                branch->setAstType(ast_delegate_decl);
-            } else {
-                parseBlock(branch);
-            }
-        } else if(peek(1)->getType() == INFER) {
-            expect(branch, ":=", true);
-            parseExpression(branch);
-            expect(branch, ";", false);
-        } else {
-            parseBlock(branch);
-        }
+    }
+    else {
+        parseBlock(branch);
     }
 }
 
@@ -843,17 +808,11 @@ void parser::parseInterfaceBlock(Ast* ast) {
                 }
                 errors->createNewError(GENERIC, current(), "unexpected operator declaration");
                 parseOperatorDecl(branch);
-            }
-            else if(peek(1)->getValue() == "delegate") {
-                parseDelegateDecl(branch);
-            }
-            else {
-                if(access_types.size() > 0)
-                {
-                    errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-                }
-                errors->createNewError(GENERIC, current(), "unexpected method declaration");
+            } else {
                 parseMethodDecl(branch);
+
+                if(branch->getLastSubAst()->getType() != ast_delegate_decl)
+                    errors->createNewError(GENERIC, current(), "unexpected method declaration");
             }
         }
         else if(isInitDecl(current()))
@@ -937,8 +896,6 @@ void parser::parseAll(Ast *ast) {
     {
         if(peek(1)->getValue() == "operator")
             parseOperatorDecl(ast);
-        else if(peek(1)->getValue() == "delegate")
-            parseDelegateDecl(ast);
         else
             parseMethodDecl(ast);
     }
@@ -1270,8 +1227,7 @@ bool parser::isOverrideOperator(string token) {
            token == ">>" || token == "<<"||
            token == "<" || token == ">"||
            token == "<=" || token == ">="||
-           token == "!="
-            ;
+           token == "!=";
 }
 
 void parser::parseVectorArray(Ast* ast) {
@@ -1444,7 +1400,7 @@ bool parser::parseExpression(Ast* ast) {
         return true;
     }
 
-    //errors->createNewError(GENERIC, current(), "expected expression");
+    if(!success) errors->createNewError(GENERIC, current(), "expected expression");
     return success;
 }
 
@@ -1611,20 +1567,27 @@ bool parser::parseLiteral(Ast* ast) {
     }
 }
 
+void parser::parseBaseClassUtype(Ast *ast) {
+    if(peek(1)->getType() == AT) {
+        Ast *branch = getBranch(ast, ast_base_utype);
+        expect(branch, "@", false);
+        parseUtype(branch);
+    }
+}
+
 bool parser::parseFieldInitializatioin(Ast *ast) {
     Ast* branch = getBranch(ast, ast_field_init);
 
     if(peek(1)->getValue() == "base") {
         expect(branch, "base");
+        parseBaseClassUtype(branch);
         expect(branch, "->");
     }
 
     if(parseUtypeNaked(branch) && peek(1)->getType() == EQUALS) {
         expect(branch, "=");
 
-        if(!parseExpression(branch)){
-            errors->createNewError(GENERIC, branch->getLastSubAst(), "expected expression");
-        }
+        parseExpression(branch);
         return true;
     }
 
@@ -1668,9 +1631,7 @@ void parser::parseExpressionList(Ast* ast, string beginChar, string endChar) {
         if(peek(1)->getType() == COMMA)
         {
             expect(branch, ",");
-            if(!parseExpression(branch)){
-                errors->createNewError(GENERIC, branch->getLastSubAst(), "expected expression");
-            }
+            parseExpression(branch);
             goto _pValue;
         }
     }
@@ -2021,8 +1982,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
 
     if(peek(1)->getValue() == "base")
     {
-        advance();
-        expect(branch, "base", "");
+        expect(branch, "base");
+        parseBaseClassUtype(branch);
         expect(branch, "->");
         parseDotNotCallExpr(branch);
 
@@ -2365,6 +2326,10 @@ void parser::parseClassDecl(Ast* ast) {
     }
 
     parseClassBlock(branch);
+
+//    cout << branch->toString() << endl;
+//    cout << std::flush;
+//    int i = 0;
 }
 
 void parser::parseClassBlock(Ast *ast) {
@@ -2446,8 +2411,6 @@ void parser::parseClassBlock(Ast *ast) {
         {
             if(peek(1)->getValue() == "operator")
                 parseOperatorDecl(branch);
-            else if(peek(1)->getValue() == "delegate")
-                parseDelegateDecl(branch);
             else
                 parseMethodDecl(branch);
         }

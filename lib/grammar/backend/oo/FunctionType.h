@@ -12,7 +12,6 @@ enum function_type
     fn_ptr,
     fn_lambda,
     fn_op_overload,
-    fn_delegate_impl,
     fn_delegate,
     fn_undefined
 };

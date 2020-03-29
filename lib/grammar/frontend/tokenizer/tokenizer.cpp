@@ -42,7 +42,8 @@
     ('?' == c) || ('&' == c) || \
     ('|' == c) || (';' == c) || \
     ('!' == c) || ('.' == c) || \
-    ('#' == c) || ('$' == c))
+    ('#' == c) || ('$' == c) || \
+    ('@' == c))
 
 #define isnumber(c) \
     isdigit(c)
@@ -267,6 +268,8 @@ void tokenizer::parse()
                 tokens.add(Token(string(1, current), SINGLE, col, line, QUESMK));
             else if ('$' == current)
                 tokens.add(Token(string(1, current), SINGLE, col, line, DOLLAR));
+            else if ('@' == current)
+                tokens.add(Token(string(1, current), SINGLE, col, line, AT));
             else
             {
                 errors->createNewError(UNEXPECTED_SYMBOL, line, col, " `" + string(1, current) + "`");

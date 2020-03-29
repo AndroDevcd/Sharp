@@ -520,15 +520,12 @@ void Compiler::preProccessEnumDecl(Ast *ast)
                 break;
             case ast_variable_decl: /* invalid */
                 break;
+            case ast_delegate_decl: /* invalid */
             case ast_method_decl: /* invalid */
                 break;
             case ast_operator_decl: /* invalid */
                 break;
             case ast_construct_decl: /* invalid */
-                break;
-            case ast_delegate_impl: /* invalid */
-                break;
-            case ast_delegate_decl: /* invalid */
                 break;
             case ast_interface_decl: /* invalid */
                 break;
@@ -614,6 +611,7 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
             case ast_variable_decl:
                 preProccessVarDecl(branch);
                 break;
+            case ast_delegate_decl: /* Will be parsed later */
             case ast_method_decl: /* Will be parsed later */
                 break;
             case ast_alias_decl:
@@ -622,10 +620,6 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
             case ast_operator_decl: /* Will be parsed later */
                 break;
             case ast_construct_decl: /* Will be parsed later */
-                break;
-            case ast_delegate_impl: /* Will be parsed later */
-                break;
-            case ast_delegate_decl: /* Will be parsed later */
                 break;
             case ast_interface_decl:
                 preProccessClassDecl(branch, true);
@@ -1097,7 +1091,6 @@ void Compiler::compileLiteralExpression(Expression* expr, Ast* ast) {
     }
 
     expr->ast = ast;
-    compilePostAstExpressions(expr, ast);
 }
 
 void Compiler::compileUtypeClass(Expression* expr, Ast* ast) {
@@ -2897,15 +2890,12 @@ void Compiler::compileFieldInitialization(Expression* expr, List<KeyPair<Field*,
 
     for(long i = 0; i < ast->getSubAstCount(); i++) {
         Ast *field_init = ast->getSubAst(i);
-        bool baseField = false;
+        ClassObject *scopedClass = NULL;
 
         if(field_init->hasToken("base")) {
-            baseField = true;
-            if(expr->utype->getClass()->getSuperClass() == NULL) {
-                baseField = false;
-                errors->createNewError(GENERIC, ast->line, ast->col, "initializer class `" + expr->utype->getClass()->fullName + "` does not contain a base class");
-            }
-        }
+            scopedClass = getBaseClassUtype(field_init);
+        } else
+            scopedClass = currentScope()->klass;
 
 
 
@@ -2913,20 +2903,13 @@ void Compiler::compileFieldInitialization(Expression* expr, List<KeyPair<Field*,
         compileExpression(&assignExpression, ast->getType() == ast_expression_list ? field_init : field_init->getSubAst(ast_expression));
 
         if(ast->getType() == ast_field_init_list) {
-            Utype *utype;
-            ClassObject* oldScope = currentScope()->klass;
-
-            if(baseField)
-                currentScope()->klass = expr->utype->getClass()->getSuperClass();
-            else
-                currentScope()->klass = expr->utype->getClass();
-
+            RETAIN_SCOPE_CLASS(scopedClass)
             RETAIN_BLOCK_TYPE(INSTANCE_BLOCK)
 
-            utype = compileUtype(field_init->getSubAst(ast_utype));
+            Utype *utype = compileUtype(field_init->getSubAst(ast_utype));
 
             RESTORE_BLOCK_TYPE()
-            currentScope()->klass = oldScope;
+            RESTORE_SCOPE_CLASS()
 
             if (utype->getType() == utype_field) {
                 Field *field = (Field *) utype->getResolvedType();
@@ -2977,6 +2960,7 @@ void Compiler::compileFieldInitialization(Expression* expr, List<KeyPair<Field*,
 void Compiler::assignFieldInitExpressionValue(Field *field, Expression *assignExpr, IrCode *resultCode, Ast *ast) {
     if((field->utype->getClass() && assignExpr->utype->getClass() && assignExpr->utype->getClass()->isClassRelated(field->utype->getClass())
            && field->utype->isArray() == assignExpr->utype->isArray())
+        || (field->utype->getClass() && assignExpr->utype->isNullType())
         || (field->utype->getClass() == NULL && assignExpr->utype->isRelated(field->utype))) {
         resultCode->inject(assignExpr->utype->getCode()); // TODO:...
 
@@ -3160,18 +3144,29 @@ void Compiler::compileNullExpression(Expression* expr, Ast* ast) {
     expr->utype->setResolvedType(de);
     expr->utype->setNullType(true);
 
-    expr->utype->getCode()
-            .push_i64(SET_Di(i64, op_MOVSL, 1))
-            .push_i64(SET_Ei(i64, op_DEL));
+    ClassObject *nilClass = findClass("std", "_nil_", classes);
+    if(nilClass != NULL) {
+        Field *null_obj = nilClass->getField("null_object", false);
+        if(null_obj != NULL) {
+            if(null_obj->locality == stl_thread) {
+                expr->utype->getCode()
+                        .push_i64(SET_Di(i64, op_TLS_MOVL, null_obj->address));
 
-    expr->utype->getCode().getInjector(stackInjector)
-            .push_i64(SET_Ei(i64, op_PUSHOBJ));
+                expr->utype->getCode().getInjector(stackInjector)
+                        .push_i64(SET_Ei(i64, op_PUSHOBJ));
+            } else
+                errors->createNewError(GENERIC, ast->line, ast->col, "field `null_object` in class `std#_nil_` bust be a thread local variable");
+        } else
+            errors->createNewError(GENERIC, ast->line, ast->col, "class  `std#_nil_` does not contain field `null_object`");
+    } else
+        errors->createNewError(GENERIC, ast->line, ast->col, "class `std#_nil_` does not exist");
 }
 
 void Compiler::compileBaseExpression(Expression* expr, Ast* ast) {
-    RETAIN_SCOPE_CLASS(currentScope()->klass->getSuperClass())
-
+    RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
+    RETAIN_SCOPE_CLASS(getBaseClassUtype(ast))
     expr->ast = ast;
+
     if(currentScope()->klass != NULL) {
         if (ast->hasToken(PTR)) {
             compileDotNotationCall(expr, ast->getSubAst(ast_dotnotation_call_expr));
@@ -3179,12 +3174,39 @@ void Compiler::compileBaseExpression(Expression* expr, Ast* ast) {
             expr->type = exp_class;
             expr->utype = new Utype(currentScope()->klass);
         }
-    } else
-        errors->createNewError(GENERIC, ast->line, ast->col, "scoped class `" + oldScopeClass->fullName + "` does not have a base class to derive from");
+    }
 
     if(currentScope()->type == GLOBAL_SCOPE || currentScope()->type == STATIC_BLOCK)
         errors->createNewError(GENERIC, ast->line, ast->col, "illegal reference to self in static context");
     RESTORE_SCOPE_CLASS()
+    RESTORE_BLOCK_TYPE()
+}
+
+ClassObject *Compiler::getBaseClassUtype(Ast *ast) {
+    ClassObject *scopedBaseClass = NULL;
+    if(ast->hasSubAst(ast_base_utype)) {
+        RETAIN_BLOCK_TYPE(CLASS_SCOPE)
+        RETAIN_TYPE_INFERENCE(false)
+        Utype *utype = compileUtype(ast->getSubAst(ast_base_utype)->getSubAst(ast_utype));
+        RESTORE_BLOCK_TYPE()
+        RESTORE_TYPE_INFERENCE()
+
+        if(utype->getType() == utype_class) {
+            scopedBaseClass = utype->getClass();
+            if(!currentScope()->klass->isClassRelated(scopedBaseClass)) {
+                errors->createNewError(GENERIC, ast->line, ast->col, "class `" + currentScope()->klass->fullName + "` does not inherit base class `" + utype->toString() + "`");
+            }
+        } else
+            errors->createNewError(GENERIC, ast->line, ast->col, "symbol `" + utype->toString() + "` does not represent a class");
+        freePtr(utype);
+    } else {
+        scopedBaseClass = currentScope()->klass->getSuperClass();
+
+        if(scopedBaseClass == NULL)
+            errors->createNewError(GENERIC, ast->line, ast->col, "class `" + currentScope()->klass->fullName + "` does not contain a base class");
+    }
+
+    return scopedBaseClass;
 }
 
 void Compiler::compileSelfExpression(Expression* expr, Ast* ast) {
@@ -4020,8 +4042,8 @@ void Compiler::resolveFieldType(Field* field, Utype *utype, Ast* ast) {
         field->utype = utype;
     } else if(utype->getType() == utype_method) {
         if(typeInference) {
-            field->type = VAR;
-            field->utype = new Utype(VAR);
+            field->type = FNPTR;
+            field->utype = utype;
         } else
             this->errors->createNewError(GENERIC, ast->line, ast->col, " illegal use of function `" + utype->toString() + "` as a type");
     } else if(utype->getType() == utype_native) {
@@ -4132,7 +4154,7 @@ void Compiler::resolveField(Ast* ast) {
         findConflicts(ast, "field", name);
         // wee need to do this to prevent possible stack overflow errors
         field->type = UNDEFINED;
-        field->utype = new Utype(UNDEFINED);
+        field->utype = undefUtype;
 
         if (field->locality == stl_stack) {
             field->address = field->owner->getFieldAddress(field);
@@ -4140,7 +4162,7 @@ void Compiler::resolveField(Ast* ast) {
 
         if (ast->hasToken(COLON)) {
             Utype *utype = compileUtype(ast->getSubAst(ast_utype));
-            freePtr(field->utype); field->utype = NULL;
+            field->utype = NULL;
             resolveFieldType(field, utype, ast);
         } else if (ast->hasToken(INFER)) {
             Expression expr;
@@ -4150,7 +4172,7 @@ void Compiler::resolveField(Ast* ast) {
             compileExpression(&expr, ast->getSubAst(ast_expression));
 
             printExpressionCode(&expr);
-            freePtr(field->utype); field->utype = NULL;
+            field->utype = NULL;
             resolveFieldType(field, expr.utype, ast);
             RESTORE_TYPE_INFERENCE()
             RESTORE_BLOCK_TYPE()
@@ -4621,43 +4643,6 @@ void Compiler::resolveConstructor(Ast* ast) {
     }
 }
 
-void Compiler::resolveDelegateImpl(Ast* ast) {
-    List<AccessFlag> flags;
-
-    if (ast->hasSubAst(ast_access_type)) {
-        parseMethodAccessFlags(flags, ast->getSubAst(ast_access_type));
-
-        if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
-            flags.add(PUBLIC);
-    } else {
-        flags.add(PUBLIC);
-    }
-
-    List<Field*> params;
-    string name = ast->getToken(0).getValue();
-    parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
-    validateMethodParams(params, ast->getSubAst(ast_utype_arg_list));
-
-    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
-              ast->line, ast->col);
-
-    Method *method = new Method(name, currModule, currentScope()->klass, params, flags, meta);
-    method->fullName = currentScope()->klass->fullName + "." + name;
-    method->ast = ast;
-    method->fnType = fn_delegate_impl;
-    method->address = methodSize++;
-
-    compileMethodReturnType(method, ast, true);
-    if(!addFunction(currentScope()->klass, method, &simpleParameterMatch)) {
-        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                                     "function `" + name + "` is already defined in the scope");
-        printNote(findFunction(currentScope()->klass, method, &simpleParameterMatch)->meta, "function `" + name + "` previously defined here");
-
-        method->free();
-        delete method;
-    }
-}
-
 void Compiler::resolveDelegateDecl(Ast* ast) {
     List<AccessFlag> flags;
 
@@ -4862,8 +4847,13 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
     Method *method = new Method(name, currModule, currentClass, params, flags, meta);
     method->fullName = currentClass->fullName + "." + name;
     method->ast = ast;
-    method->fnType = fn_normal;
-    method->address = methodSize++;
+    if(ast->getType() == ast_delegate_decl) {
+        method->fnType = fn_delegate;
+        method->address = delegateGUID++;
+    } else {
+        method->fnType = fn_normal;
+        method->address = methodSize++;
+    }
     method->extensionFun = getExtensionFunctionClass(method->ast) != NULL;
 
     compileMethodReturnType(method, ast, true);
@@ -4906,6 +4896,7 @@ void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
                     resolveClassMethods(branch);
                     break;
                 case ast_method_decl:
+                case ast_delegate_decl:
                     resolveClassMethod(branch);
                     break;
                 case ast_operator_decl:
@@ -4913,12 +4904,6 @@ void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
                     break;
                 case ast_construct_decl:
                     resolveConstructor(branch);
-                    break;
-                case ast_delegate_impl:
-                    resolveDelegateImpl(branch);
-                    break;
-                case ast_delegate_decl:
-                    resolveDelegateDecl(branch);
                     break;
                 case ast_mutate_decl:
                     resolveClassMutateMethods(branch);
@@ -4964,7 +4949,7 @@ void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
 void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
     List<Method*> subscribedMethods, contractedMethods;
 
-    subscriber->getAllFunctionsByType(fn_delegate_impl, subscribedMethods);
+    subscriber->getAllFunctionsByType(fn_normal, subscribedMethods);
 
     // we want to add all the delegates we need to validate
     ClassObject* currClass = subscriber;
@@ -4986,42 +4971,6 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
         compileMethodReturnType(subscribedMethods.get(i), subscribedMethods.get(i)->ast);
     }
 
-    // First check that all subscribed methods have a contract attached to them
-    for(long long i = 0; i < subscribedMethods.size(); i++) {
-        Method* contract, *sub = subscribedMethods.get(i);
-        if((contract = validateDelegatesHelper(sub, contractedMethods)) != NULL) {
-            if((sub->utype != NULL && contract->utype != NULL) || (sub->utype == NULL && contract->utype == NULL)) {
-                if(sub->utype != NULL) {
-                    if(!sub->utype->equals(contract->utype)) {
-                        goto return_type_err;
-                    }
-                }
-            } else {
-                return_type_err:
-                stringstream err;
-                err << "method `" << sub->toString() << "` return type does not match that of contract '"
-                    << contract->toString() << "'";
-                errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-                printNote(contract->meta, "as defined here");
-            }
-
-            if(!(contract->flags.size() == sub->flags.size() && contract->flags.sameElements(sub->flags))) {
-                stringstream err;
-                err << "method `" << sub->toString() << "` provided different access privileges than contract method '"
-                    << contract->toString() << "'";
-                errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-                printNote(contract->meta, "as defined here");
-            }
-        } else {
-            stringstream err;
-            err << "no contract found in class `" << subscriber->fullName << "` for method '"
-                << subscribedMethods.get(i)->toString() << "'";
-            errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-            printNote(sub->meta, "as defined here");
-        }
-    }
-
-    // Lastly we need to verify that we have implemented all of our contract functions
     for(long long i = 0; i < contractedMethods.size(); i++) {
         Method* contract = contractedMethods.get(i), *sub;
         if((sub = validateDelegatesHelper(contract, subscribedMethods)) != NULL) {
@@ -5029,6 +4978,7 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
                 if(contract->utype != NULL) {
                     if(!contract->utype->equals(sub->utype)) {
                         goto subscribe_err;
+                        sub->delegateAddr = contract->address;
                     }
                 }
             } else {

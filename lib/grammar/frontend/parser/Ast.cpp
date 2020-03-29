@@ -155,8 +155,6 @@ string Ast::astTypeToString(ast_type type) {
             return "ast_init_decl";
         case ast_delegate_decl:
             return "ast_delegate_decl";
-        case ast_delegate_impl:
-            return "ast_delegate_impl";
         case ast_construct_decl:
             return "ast_construct_decl";
         case ast_label_decl:

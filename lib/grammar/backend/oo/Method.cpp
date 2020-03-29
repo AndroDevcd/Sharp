@@ -17,7 +17,7 @@ void Method::free() {
 string Method::toString() {
     stringstream ss;
     ss << "fn ";
-    if(fnType == fn_delegate_impl || fnType == fn_delegate)
+    if(fnType == fn_delegate)
         ss << "delegate::";
     else if(fnType == fn_ptr)
         ss << "*";

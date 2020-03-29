@@ -13,14 +13,14 @@ stable class _object_ : printable, unique {
         return (self as object)==o;
     }
 
-    public def delegate::to_string() := new string("");
+    public def to_string() := new string("");
 
-    def delegate::hash() : _int64 {
+    def hash() : _int64 {
         /* must be implemented at a higher level */
         return 0;
     }
 
-    def delegate::guid() : _int64 {
+    def guid() : _int64 {
         /* user must impl at higher level if constant guid is desired */
         return 0;//global_guid++;
     }

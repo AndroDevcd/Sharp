@@ -82,8 +82,10 @@ string Utype::toString() {
             if(array) ss << "[]";
         } else if (type == utype_field) {
             ss << ((Field *) resolvedType)->toString();
+            if(array) ss << "[]";
         } else if (type == utype_method || type == utype_function_ptr) {
             ss << ((Method *) resolvedType)->toString();
+            if(array) ss << "[]";
         } else if (type == utype_literal) {
             if (((Literal *) resolvedType)->literalType == numeric_literal)
                 ss << "[literal: " << ((Literal *) resolvedType)->numericData << "]";
@@ -162,14 +164,11 @@ bool Utype::isRelated(Utype *utype) {
                 return array == utype->array;
             else if(array && utype->nullType)
                 return true;
-        } else if (resolvedType->type == FNPTR) {
+        } else if (type == utype_method || resolvedType->type == FNPTR) {
             if (utype->getResolvedType()->type == FNPTR || utype->getType() == utype_method) {
                 return Compiler::simpleParameterMatch(((Method *) resolvedType)->params,
                                                       ((Method *) utype->getResolvedType())->params);
             }
-        } else if(type == utype_method) {
-            if (utype->getResolvedType()->type >= _INT8 && utype->getResolvedType()->type <= VAR)
-                return true;
         }
     }
     return false;

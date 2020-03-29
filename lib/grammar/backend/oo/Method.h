@@ -18,7 +18,8 @@ public:
         fnType(fn_undefined),
         utype(NULL),
         overload(' '),
-        extensionFun(false)
+        extensionFun(false),
+        delegateAddr(invalidAddr)
     {
         type = METHOD;
         params.init();
@@ -57,6 +58,7 @@ public:
     function_type fnType;
     char overload;
     bool extensionFun;
+    long delegateAddr;
     Utype* utype;
     List<Field*> params;
 };

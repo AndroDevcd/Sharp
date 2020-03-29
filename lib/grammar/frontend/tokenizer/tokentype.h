@@ -43,6 +43,7 @@ enum token_type
     SHR,                // >>
     LESSTHAN,
     GREATERTHAN,
+    AT,
     AND,
     ANDAND,             // &&
     OR,

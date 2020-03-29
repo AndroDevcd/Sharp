@@ -204,7 +204,6 @@ private:
     void resolveClassMethod(Ast* ast);
     void compileMethodReturnType(Method* fun, Ast *ast, bool wait = false);
     void resolveDelegateDecl(Ast* ast);
-    void resolveDelegateImpl(Ast* ast);
     void resolveConstructor(Ast* ast);
     void resolveOperatorOverload(Ast* ast);
     void checkMainMethodSignature(Method* method);
@@ -307,6 +306,8 @@ private:
     void resolveClassUtype(Utype *utype, Ast *ast, DataEntity *resolvedClass);
     void resolveFunctionByNameUtype(Utype *utype, Ast *ast, string &name, List<Method *> &functions);
     void resolveAliasUtype(Utype *utype, Ast *ast, DataEntity *resolvedAlias);
+
+    ClassObject *getBaseClassUtype(Ast *ast);
 };
 
 enum ProcessingStage {

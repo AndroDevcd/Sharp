@@ -8,5 +8,5 @@ mod std;
  * for printing of any object.
  */
 interface printable {
-    def delegate::to_string() : string;
+    def to_string() : string;
 }

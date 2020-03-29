@@ -11,7 +11,7 @@ public class integer<native_type> {
         value = num.value;
     }
 
-    def delegate::hash() : _int64 {
+    def hash() : _int64 {
         return value;
     }
 
@@ -22,7 +22,7 @@ public class integer<native_type> {
 
     public def operator==(num : integer<native_type>) := 0;// (value==num.value);
 
-//    public def delegate::to_string() : string {
+//    public def to_string() : string {
 //        return "" + value;
 //    }
 }

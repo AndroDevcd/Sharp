@@ -113,10 +113,10 @@ private:
     void parseLambdaArgList(Ast*);
     bool parseArrayExpression(Ast*);
     bool parseFieldInitializatioin(Ast*);
+    void parseBaseClassUtype(Ast *ast);
     void parseMethodReturnType(Ast*);
     void parseLambdaReturnType(Ast*);
     void parseMethodDecl(Ast*);
-    void parseDelegateDecl(Ast*);
     void parseOperatorDecl(Ast*);
     void parseConstructor(Ast*);
     void parseAll(Ast*);

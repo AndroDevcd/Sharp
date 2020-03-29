@@ -2,15 +2,22 @@ mod main;
 
 import std.io;
 
-f := { foo as noPtrl };
+class furniture {
+    n : int;
 
-alias (var)(var) as noPtrl;
-
-y := f[0](8);
-
-def foo(n : var) : var {
-
+    def foo();
 }
 
-def main() : var {
+class chair base furniture {
+    l := new furniture { n = null };
+
+    def foo() { }
+}
+
+l : ()()[];
+fun := (l)[0];
+
+
+def main() {
+
 }
