@@ -93,12 +93,12 @@ A value consists of an <expression>
 [ <expression> (',' <expression>)* ]           i.e. <value-list> without '(' and ')'
 
 <uTypeArgOpt>:
-<uType> [<identifier>]
+[<identifier> `:`] <uType>
 
 <uTypeArg>:
 <identifier> : <uType>                         i.e. dog: object  cat: Animal
 
-<uTypeArg-list-opt>;
+<uTypeArg-list-opt>:
 [ '(' <uTypeArgOpt> (',' <uTypeArgOpt>)* ')']
 
 <uTypeArg-list>;

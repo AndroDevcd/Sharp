@@ -2,22 +2,21 @@ mod main;
 
 import std.io;
 
-class furniture {
-    n : int;
+class k {
+
+    def foo(s : string) : var {
+
+    }
+
+    n := std#someVar.operator!();
+    a : y;
+    num := foo("hi");
 }
 
-class chair base furniture {
-    l := new furniture { n = null };
+class y {
 
-    def foo() { }
-}
+    def operator!() : y {
 
-def furniture.foo();
-
-l : ()()[];
-fun := (l)[0];
-
-
-def main() {
+    }
 
 }

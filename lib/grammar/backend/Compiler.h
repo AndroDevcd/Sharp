@@ -86,6 +86,7 @@ public:
     static bool simpleParameterMatch(List<Field*> &params, List<Field*> &comparator);
     static bool complexParameterMatch(List<Field*> &params, List<Field*> &comparator);
     static bool isUtypeConvertableToNativeClass(Utype *dest, Utype *src);
+    static bool isUtypeClassConvertableToVar(Utype *dest, Utype *src);
     static bool isUtypeClass(Utype* utype, string mod, int names, ...);
 
     ErrorManager *errors;
@@ -168,7 +169,7 @@ private:
     void resolveBaseClasses();
     __int64 dataTypeToOpcode(DataType type);
     void convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, IrCode &code, Ast* ast);
-    void convertNativeClassToUtype(Utype *clazz, Utype *paramUtype, IrCode &code, Ast *ast);
+    void convertNativeIntegerClassToVar(Utype *clazz, Utype *paramUtype, IrCode &code, Ast *ast);
     void resolveSuperClass(Ast *ast, ClassObject* currentClass = NULL);
     void parseReferencePointerList(List<ReferencePointer*> &refPtrs, Ast *ast);
     ClassObject* resolveBaseClass(Ast *ast);

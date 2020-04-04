@@ -115,6 +115,10 @@ void parser::parseInterfaceDecl(Ast *ast) {
     }
 
     parseInterfaceBlock(branch);
+
+//    cout << branch->toString() << endl;
+//    cout << std::flush;
+//    int i = 0;
 }
 
 void parser::parseMethodDecl(Ast *ast) {
@@ -1055,20 +1059,10 @@ bool parser::parseTypeIdentifier(Ast* ast) {
         return true;
     } else {
         errors->pass();
-        errors->enterProtectedMode();
         branch->freeLastSub();
     }
 
-    if(!parseReferencePointer(branch)){
-        errors->pass();
-    }
-    else {
-
-        errors->fail();
-        return true;
-    }
-
-    return false;
+    return parseReferencePointer(branch);
 }
 
 bool parser::parseUtype(Ast* ast) {
@@ -1227,7 +1221,7 @@ bool parser::isOverrideOperator(string token) {
            token == ">>" || token == "<<"||
            token == "<" || token == ">"||
            token == "<=" || token == ">="||
-           token == "!=";
+           token == "!=" || token == "!";
 }
 
 void parser::parseVectorArray(Ast* ast) {
@@ -1316,8 +1310,8 @@ bool parser::parseExpression(Ast* ast) {
     if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
     {
         advance();
-        branch->addToken(current());
         Ast *exprAst = getBranch(branch, ast_pre_inc_e);
+        exprAst->addToken(current());
         parseExpression(exprAst);
         return true;
     }
@@ -1798,13 +1792,8 @@ bool parser::parseUtypeArgOpt(Ast* ast) {
         parseUtype(branch);
         return true;
     } else {
-        if(parseUtype(branch)) {
-            return true;
-        } else
-            errors->createNewError(GENERIC, current(), "expected native type or reference pointer");
+        return parseUtype(branch);
     }
-
-    return false;
 }
 
 void parser::parseMethodReturnType(Ast *ast) {
@@ -2444,7 +2433,6 @@ void parser::parseClassBlock(Ast *ast) {
         else if(current().getType() == LEFTCURLY)
             brackets++;
         else {
-            // save parser state
             errors->createNewError(GENERIC, current(), "expected method, class, or variable declaration");
             parseAll(branch);
         }
@@ -2454,8 +2442,8 @@ void parser::parseClassBlock(Ast *ast) {
 
     if(brackets != 0)
         errors->createNewError(MISSING_BRACKET, current(), " expected `}` at end of class declaration");
-
-    expect(branch, "}");
+    else
+        expect(branch, "}");
 }
 
 void parser::addAccessTypes(Ast *ast) {
@@ -2470,20 +2458,11 @@ void parser::addAccessTypes(Ast *ast) {
 bool parser::parseReferencePointer(Ast *ast) {
     Ast *branch = getBranch(ast, ast_refrence_pointer);
 
-    advance();
-    if(current().getId() == IDENTIFIER && isKeyword(current().getValue())) {
-        if(current() != "operator")
-            return false;
-        else if(isOverrideOperator(peek(1)->getValue())){
-            _current--;
-            expect(ast, "operator");
-            advance();
-            ast->addToken(current());
-            return true;
-        } else
-            return false;
-    } else
-        _current--;
+    if(*peek(1) == "operator") {
+        expect(ast, "operator", false);
+        expectOverrideOperator(branch);
+        return true;
+    }
 
     if(!expectIdentifier(branch))
         return false;
@@ -2491,6 +2470,11 @@ bool parser::parseReferencePointer(Ast *ast) {
     while(peek(1)->getType() == DOT && *peek(2) != "class") {
         expect(branch, ".");
 
+        if(*peek(1) == "operator") {
+            expect(ast, "operator", false);
+            expectOverrideOperator(branch);
+            return true;
+        }
         expectIdentifier(branch);
     }
 
@@ -2501,18 +2485,23 @@ bool parser::parseReferencePointer(Ast *ast) {
 
     if(peek(1)->getValue() == "<") {
         expect(branch, "<");
-        parseUtypeList(ast->getType() == ast_refrence_pointer ? ast : branch);
+        parseUtypeList(branch);
         expect(branch, ">");
     }
 
     while(peek(1)->getType() == DOT && *peek(2) != "class") {
         expect(branch, ".");
 
-        expectIdentifier(branch);
+        if(*peek(1) == "operator") {
+            expect(ast, "operator", false);
+            expectOverrideOperator(branch);
+            return true;
+        }
 
+        expectIdentifier(branch);
         if(peek(1)->getValue() == "<") {
             expect(branch, "<");
-            parseUtypeList(ast->getType() == ast_refrence_pointer ? ast : branch);
+            parseUtypeList(branch);
             expect(branch, ">");
         }
     }
@@ -2663,6 +2652,21 @@ bool parser::expectIdentifier(Ast* ast) {
     }
     else {
         errors->createNewError(GENERIC, current(), "expected identifier");
+    }
+    return false;
+}
+
+bool parser::expectOverrideOperator(Ast* ast) {
+    advance();
+
+    if(isOverrideOperator(current().getValue()))
+    {
+        if(ast != NULL)
+            ast->addToken(current());
+        return true;
+    }
+    else {
+        errors->createNewError(GENERIC, current(), "expected override operator");
     }
     return false;
 }

@@ -34,6 +34,8 @@ public:
     tokenizer *getTokenizer() { return toks; }
     static bool isStorageType(Token &t);
     static bool isNativeType(string t);
+    static bool isOverrideOperator(string t);
+    static bool isAssignExprSymbol(string t);
 
     bool parsed, panic;
 
@@ -63,12 +65,11 @@ private:
     bool isConstructorDecl();
     bool isKeyword(string s);
     bool isExprSymbol(string token);
-    bool isOverrideOperator(string t);
-    bool isAssignExprSymbol(string t);
     bool isForLoopCompareSymbol(string t);
     void parseAccessTypes();
 
     bool expectIdentifier(Ast*);
+    bool expectOverrideOperator(Ast* ast);
     void parseModuleDecl(Ast*);
     void parseImportDecl(Ast*);
     void parseClassDecl(Ast*);

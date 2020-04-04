@@ -1142,7 +1142,8 @@ void Compiler::expressionsToParams(List<Expression*> &expressions, List<Field*> 
         }
         else if(e.type == exp_var && e.utype->getType() == utype_literal) {
             if(((Literal*) e.utype->getResolvedType())->literalType == string_literal) {
-                params.get(i)->utype = new Utype(_INT8);
+                params.get(i)->utype = new Utype(_INT8, true);
+                params.get(i)->isArray = true;
                 params.get(i)->type = _INT8;
             } else {
                 params.get(i)->utype = new Utype(VAR);
@@ -1319,6 +1320,9 @@ Method* Compiler::findGetterSetter(ClassObject *klass, string name, List<Field*>
 Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *expr, List<Field*> &params, Ast* ast) {
     Method *resolvedMethod = NULL;
     string name = ptr.classes.get(0);
+    if(parser::isOverrideOperator(name)) {
+        name = "operator" + name;
+    }
 
     if(ptr.mod != "") {
         ClassObject *global = findClass(ptr.mod, globalClass, classes);
@@ -1496,6 +1500,10 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
         }
     } else {
         string name = ptr.classes.get(ptr.classes.size() - 1);
+        if(parser::isOverrideOperator(name)) {
+            name = "operator" + name;
+        }
+
         ptr.classes.pop_back();
 
         Utype *utype = expr->utype;
@@ -1573,8 +1581,8 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
             if(isUtypeConvertableToNativeClass(methodParam->utype, params.get(i)->utype)) {
                 convertUtypeToNativeClass(methodParam->utype, params.get(i)->utype, code, ast);
                 code.inject(code.getInjector(stackInjector));
-            } else if(isUtypeConvertableToNativeClass(params.get(i)->utype, methodParam->utype)) {
-                convertNativeClassToUtype(params.get(i)->utype, methodParam->utype, code, ast);
+            } else if(isUtypeClassConvertableToVar(methodParam->utype, params.get(i)->utype)) {
+                convertNativeIntegerClassToVar(params.get(i)->utype, methodParam->utype, code, ast);
                 code.inject(code.getInjector(stackInjector));
             } else {
                 params.get(i)->utype->getCode().inject(stackInjector);
@@ -2635,10 +2643,10 @@ string Compiler::codeToString(IrCode &code) {
     return ss.str();
 }
 
-void Compiler::convertNativeClassToUtype(Utype *clazz, Utype *paramUtype, IrCode &code, Ast *ast) {
+void Compiler::convertNativeIntegerClassToVar(Utype *clazz, Utype *paramUtype, IrCode &code, Ast *ast) {
     Field *valueField = clazz->getClass()->getField("value", true);
 
-    if(valueField) { // TODO: add support for string as well
+    if(valueField) {
         compileFieldType(valueField);
 
         code.inject(clazz->getCode());
@@ -2671,6 +2679,7 @@ void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, IrCode
 
     params.add(new Field(paramUtype->getResolvedType()->type, 0, "", currentScope()->klass, flags, meta, stl_stack, 0));
     params.get(0)->utype = paramUtype;
+    params.get(0)->isArray = paramUtype->isArray();
 
     if((constructor = clazz->getClass()->getConstructor(params, true)) != NULL) {
         validateAccess(constructor, ast);
@@ -2696,6 +2705,18 @@ void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, IrCode
 
     params.get(0)->utype = NULL;
     freeListPtr(params);
+}
+
+bool Compiler::isUtypeClassConvertableToVar(Utype *dest, Utype *clazz) {
+    if(dest->getResolvedType() && clazz->getResolvedType()) {
+        DataType type = dest->getResolvedType()->type;
+
+        if (isUtypeClass(clazz, "std", 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint")) {
+            return !dest->isArray() && (type <= VAR);
+        }
+    }
+
+    return false;
 }
 
 bool Compiler::isUtypeConvertableToNativeClass(Utype *dest, Utype *src) {
@@ -2759,7 +2780,7 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
 
         for (long i = 0; i < array.size(); i++) {
             elementUtype = array.get(i)->utype;
-            if (!isUtypeConvertableToNativeClass(elementUtype, compareType) && !isUtypeConvertableToNativeClass(compareType, elementUtype)
+            if (!isUtypeClassConvertableToVar(compareType, elementUtype) && !isUtypeConvertableToNativeClass(compareType, elementUtype)
                      && !compareType->isRelated(elementUtype)) {
                 errors->createNewError(GENERIC, ast->line, ast->col, "array element of type `" + elementUtype->toString() + "` is not equal to type `" + compareType->toString() + "`");
             }
@@ -2790,8 +2811,8 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
 
         for(long i = 0; i < array.size(); i++) {
             if(expr->type == exp_var) {
-                if(isUtypeConvertableToNativeClass(array.get(i)->utype, expr->utype)) {
-                    convertNativeClassToUtype(array.get(i)->utype, expr->utype, expr->utype->getCode(), ast);
+                if(isUtypeClassConvertableToVar(array.get(i)->utype, expr->utype)) {
+                    convertNativeIntegerClassToVar(array.get(i)->utype, expr->utype, expr->utype->getCode(), ast);
                 } else {
                     expr->utype->getCode().inject(array.get(i)->utype->getCode());
                     expr->utype->getCode().inject(array.get(i)->utype->getCode().getInjector(ebxInjector));
@@ -3609,11 +3630,14 @@ void Compiler::compileNotExpression(Expression* expr, Ast* ast) {
                 break;
 
             case CLASS:
-                if((overload = findFunction((ClassObject*)expr->utype->getResolvedType(), "operator" + tok.getValue(),
+                if((overload = findFunction(expr->utype->getClass(), "operator" + tok.getValue(),
                                             params, ast, true, fn_op_overload)) != NULL) {
+                    compileMethodReturnType(overload, overload->ast, false);
+
                     validateAccess(overload, ast);
                     expr->utype->copy(overload->utype);
 
+                    expr->utype->getCode().inject(stackInjector);
                     expr->utype->getCode().push_i64(SET_Di(i64, op_CALL, overload->address));
                 } else {
                     errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "call to function `" + expr->utype->toString() + "` must return an var or class to use `" + tok.getValue() + "` operator");
@@ -3703,11 +3727,14 @@ void Compiler::compilePreIncExpression(Expression* expr, Ast* ast) {
                 break;
 
             case CLASS:
-                if((overload = findFunction((ClassObject*)expr->utype->getResolvedType(), "operator" + tok.getValue(),
+                if((overload = findFunction(expr->utype->getClass(), "operator" + tok.getValue(),
                                             params, ast, true, fn_op_overload)) != NULL) {
+                    compileMethodReturnType(overload, overload->ast, false);
+
                     validateAccess(overload, ast);
                     expr->utype->copy(overload->utype);
 
+                    expr->utype->getCode().inject(stackInjector);
                     expr->utype->getCode().push_i64(SET_Di(i64, op_CALL, overload->address));
                 } else {
                     errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "call to function `" + expr->utype->toString() + "` must return an var or class to use `" + tok.getValue() + "` operator");
@@ -3730,7 +3757,6 @@ void Compiler::compilePreIncExpression(Expression* expr, Ast* ast) {
 }
 
 void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression, Ast* ast) {
-    // use restricted insance for context expressions
     if(compileExpression)
         this->compileExpression(expr, ast->getSubAst(ast_expression));
 
@@ -3761,7 +3787,7 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
                 break;
             case OBJECT:
                 errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "expressions of type object must be casted before using `"
-                                                                                + tok.getValue() + "` operator, try `((Type)<your-expression>)++` instead");
+                                                                                + tok.getValue() + "` operator, try `(<your-expression> as type)++` instead");
                 break;
 
             case _INT8:
@@ -3773,7 +3799,7 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
             case _UINT32:
             case _UINT64:
             case VAR:
-                expr->utype->getCode().inject(expr->utype->getCode().getInjector(ebxInjector));
+                expr->utype->getCode().inject(ebxInjector);
 
                 if(expr->utype->getType() == utype_field) {
                     Field *field = (Field*)expr->utype->getResolvedType();
@@ -3784,7 +3810,7 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
                     else
                         expr->utype->getCode().push_i64(SET_Di(i64, op_DEC, i64cmt));
 
-                    if (expr->utype->getResolvedType()->type <= _UINT64) {
+                    if (field->type <= _UINT64) {
                         expr->utype->getCode()
                                 .push_i64(SET_Ci(i64, dataTypeToOpcode(expr->utype->getResolvedType()->type), i64cmt, 0,
                                                  i64cmt));
@@ -3807,15 +3833,17 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
                 break;
 
             case CLASS:
-                if((overload = findFunction((ClassObject*)expr->utype->getResolvedType(), "operator" + tok.getValue(),
+                if((overload = findFunction(expr->utype->getClass(), "operator" + tok.getValue(),
                                             params, ast, true, fn_op_overload)) != NULL) {
+                    compileMethodReturnType(overload, overload->ast, false);
+
                     validateAccess(overload, ast);
                     expr->utype->copy(overload->utype);
 
+                    expr->utype->getCode().inject(stackInjector);
                     expr->utype->getCode()
                            .push_i64(SET_Di(i64, op_ISTORE, 1))
-                           .push_i64(SET_Di(i64, op_CALL, overload->address)); // TODO: check if we can call ++ on a class
-                           // TODO: we need to make sure we pass the instance to the function also for preIncExpr as well
+                           .push_i64(SET_Di(i64, op_CALL, overload->address));
                 } else {
                     errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "class expression `" + expr->utype->toString() + "` must overload operator `" + tok.getValue() + "` to be used");
                 }
@@ -3829,6 +3857,9 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
                     expr->utype->getCode().getInjector(ebxInjector)
                             .push_i64(SET_Di(i64, op_LOADVAL, i64ebx));
                 }
+                break;
+            default:
+                errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "cannot use `" + tok.getValue() + "` operator on expression of type `" + expr->utype->toString() + "`");
                 break;
         }
     }
@@ -3925,6 +3956,8 @@ void Compiler::compileLambdaExpression(Expression* expr, Ast* ast) {
 
     if(processingStage > POST_PROCESSING) {
         // Todo:...
+    } else {
+        // TODO: add to unproccessedMethods list
     }
 }
 
@@ -4009,7 +4042,7 @@ void Compiler::compileExpression(Expression* expr, Ast* ast) {
     switch(branch->getType()) {
         case ast_primary_expr:
             return compilePrimaryExpression(expr, branch);
-        case ast_post_inc_e:
+        case ast_pre_inc_e:
             return compilePreIncExpression(expr, branch);
         case ast_not_e:
             return compileNotExpression(expr, branch);
@@ -4017,10 +4050,9 @@ void Compiler::compileExpression(Expression* expr, Ast* ast) {
             return compileVectorExpression(expr, branch);
     }
 
-    if(ast->getSubAstCount() > 1) {
-        return this->errors->createNewError(GENERIC, ast->getSubAst(1)->line, ast->getSubAst(1)->col,
-                                            "unexpected malformed expression found");
-    }
+    expr->ast = ast;
+    return this->errors->createNewError(GENERIC, ast->getSubAst(0)->line, ast->getSubAst(0)->col,
+                                        "unexpected malformed expression found");
 }
 
 bool Compiler::isLambdaFullyQualified(Method *lambda) {
@@ -5492,6 +5524,10 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
     List<Method*> functions;
     List<ClassObject*> resolvedClasses;
 
+    if(parser::isOverrideOperator(name)) {
+        name = "operator" + name;
+    }
+
     if(ptr.mod != "")
         goto globalCheck;
 
@@ -5962,6 +5998,9 @@ void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
         ReferencePointer initialRefrence;
         initialRefrence.classes.add(name);
         initialRefrence.mod = ptr.mod;
+        if(parser::isOverrideOperator(name)) {
+            name = "operator" + name;
+        }
 
         RETAIN_TYPE_INFERENCE(false)
         resolveSingularUtype(initialRefrence, utype, ast);

@@ -274,24 +274,22 @@ void ErrorManager::enterProtectedMode() {
 }
 
 list<ParseError> *ErrorManager::getPossibleErrorList() {
-    return *std::next(possibleErrors->begin(), teCursor);
+    return *std::next(possibleErrors->begin(), possibleErrors->size() - 1);
 }
 
 void ErrorManager::removePossibleErrorList() {
     if(possibleErrors->size() != 0)
     {
-        list<ParseError> *lst = *std::next(possibleErrors->begin(), teCursor);
+        list<ParseError> *lst = *std::next(possibleErrors->begin(), possibleErrors->size() - 1);
         lst->clear();
         delete lst;
         possibleErrors->pop_back();
-        teCursor--;
-        if(teCursor < 0) protectedMode = false;
+        if(possibleErrors->empty()) protectedMode = false;
     }
 }
 
 void ErrorManager::addPossibleErrorList() {
     possibleErrors->push_back(new list<ParseError>());
-    teCursor++;
 }
 
 void ErrorManager::fail() {
@@ -309,8 +307,7 @@ void ErrorManager::fail() {
         lastCheckedError = ParseError();
         removePossibleErrorList();
 
-        if(teCursor <= 0) {
-            lastError = lastCheckedError;
+        if(possibleErrors->empty()) {
             _err = true;
         }
     }

@@ -22,5 +22,5 @@ stable ext class _nil_ {
     // do not use nor modify this field as it is used for `null` keyword
     private static thread_local null_object : _object_;
 
-    public def to_string() := new string("nil");
+    //public def to_string() := new string("nil");
 }

@@ -57,8 +57,8 @@ public:
             error()
     {
         id = NO_ERR;
-        line = 0;
-        col = 0;
+        line = -1;
+        col = -1;
     }
     ParseError(const ParseError &pe)
     {
@@ -120,7 +120,6 @@ public:
     ErrorManager(List<string>* lines, string file_name, bool asis, bool aggressiveRoporting)
             :
             lines(),
-            teCursor(-1),
             _err(false),
             protectedMode(false),
             filename(file_name),
@@ -166,7 +165,6 @@ private:
 
     list<ParseError>* errors, *unfilteredErrors, *warnings;
     list<std::list<ParseError>*>* possibleErrors;
-    int64_t  teCursor;
     ParseError lastError;
     ParseError lastCheckedError;
     bool _err, protectedMode;

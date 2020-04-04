@@ -1,13 +1,13 @@
 mod std;
 
 public class integer<native_type> {
-    public value : native_type;
+    value : native_type;
 
-    public integer(initial_val : var) {
+    integer(initial_val : var) {
         value = initial_val;
     }
 
-    public integer(num : integer<native_type>) {
+    integer(num : integer<native_type>) {
         value = num.value;
     }
 
@@ -17,17 +17,28 @@ public class integer<native_type> {
 
     def foo() {}
 
-    public def operator!=(num : integer<native_type>) := 0; //(value!=num.value); // TODO: add func for every integer type
-    public def operator!=(num : var) := 0; //TODO: see why it is broken (value!=num.value);
+    def operator!=(num : integer<native_type>) := 0; //(value!=num.value); // TODO: add func for every integer type
+    def operator!=(num : var) := 0; //TODO: see why it is broken (value!=num.value);
 
-    public def operator==(num : integer<native_type>) := 0;// (value==num.value);
+    def operator==(num : integer<native_type>) := 0;// (value==num.value);
 
 //    public def to_string() : string {
 //        return "" + value;
 //    }
+
+    def to_ulong() := new ulong { value };
+    def to_long() := new long { value };
+    def to_uint() := new uint { value };
+    def to_int() := new int { value };
+    def to_ushort() := new ushort { value };
+    def to_short() := new short { value };
+    def to_uchar() := new uchar { value };
+    def to_char() := new char { value };
+    def to_byte() := new byte { value };
+    def to_bool() := new bool { value };
 }
 
-class ulong base integer<_uint64> {}
+class ulong base integer<_uint64> { }
 class long base integer<_int64> {}
 class uint base integer<_uint32> {}
 class int base integer<_int32> {}
