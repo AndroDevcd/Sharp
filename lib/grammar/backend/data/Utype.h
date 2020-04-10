@@ -7,7 +7,7 @@
 
 #include "../../../../stdimports.h"
 #include "DataEntity.h"
-#include "../code/IrCode.h"
+#include "../code/CodeHolder.h"
 
 enum utype_struct
 {
@@ -49,7 +49,7 @@ public:
     bool isClass();
     ClassObject* getClass();
     DataEntity* getResolvedType() { return resolvedType; }
-    IrCode& getCode() { return code; }
+    CodeHolder& getCode() { return code; }
     void free();
     void softFree();
     string toString();
@@ -67,7 +67,7 @@ private:
     DataEntity *resolvedType;
     bool array;
     bool nullType;
-    IrCode code;
+    CodeHolder code;
 };
 
 

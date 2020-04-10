@@ -25,6 +25,8 @@ struct Manifest {
     int target;
     long sourceFiles;
     int64_t strings;
+    int64_t floatingPoints;
+    int64_t constants;
     int64_t threadLocals;
 };
 

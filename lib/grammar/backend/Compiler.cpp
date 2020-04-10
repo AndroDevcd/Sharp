@@ -8,7 +8,6 @@
 #include "oo/ClassObject.h"
 #include "ReferencePointer.h"
 #include "data/Utype.h"
-#include "../../runtime/Opcode.h"
 #include "../../runtime/register.h"
 #include "Expression.h"
 #include "data/Literal.h"
@@ -599,6 +598,12 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
     } else generatedClass = true;
 
     currentClass->address = classSize++;
+    if(currentClass->address >= CLASS_LIMIT) {
+        stringstream err;
+        err << "maximum class limit of (" << CLASS_LIMIT << ") reached.";
+        errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
+    }
+
     currScope.add(new Scope(currentClass, CLASS_SCOPE));
     for (long i = 0; i < block->getSubAstCount(); i++) {
         Ast *branch = block->getSubAst(i);
@@ -928,44 +933,44 @@ void Compiler::parseCharLiteral(Expression* expr, Token &token) {
         switch(token.getValue().at(1)) {
             case 'n':
                 expr->utype->setResolvedType(new Literal('\n', _INT8));
-                expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\n'), i64ebx);
+                expr->utype->getCode().addIr(OpBuilder::movi('\n', EBX));
                 break;
             case 't':
                 expr->utype->setResolvedType(new Literal('\t', _INT8));
-                expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\t'), i64ebx);
+                expr->utype->getCode().addIr(OpBuilder::movi('\t', EBX));
                 break;
             case 'b':
                 expr->utype->setResolvedType(new Literal('\b', _INT8));
-                expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\b'), i64ebx);
+                expr->utype->getCode().addIr(OpBuilder::movi('\b', EBX));
                 break;
             case 'v':
                 expr->utype->setResolvedType(new Literal('\v', _INT8));
-                expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\v'), i64ebx);
+                expr->utype->getCode().addIr(OpBuilder::movi('\v', EBX));
                 break;
             case 'r':
                 expr->utype->setResolvedType(new Literal('\r', _INT8));
-                expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\r'), i64ebx);
+                expr->utype->getCode().addIr(OpBuilder::movi('\r', EBX));
                 break;
             case 'f':
                 expr->utype->setResolvedType(new Literal('\f', _INT8));
-                expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\f'), i64ebx);
+                expr->utype->getCode().addIr(OpBuilder::movi('\f', EBX));
                 break;
             case '\\':
                 expr->utype->setResolvedType(new Literal('\\', _INT8));
-                expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, '\\'), i64ebx);
+                expr->utype->getCode().addIr(OpBuilder::movi('\\', EBX));
                 break;
             default:
                 expr->utype->setResolvedType(new Literal(token.getValue().at(1), _INT8));
-                expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, token.getValue().at(1)), i64ebx);
+                expr->utype->getCode().addIr(OpBuilder::movi(token.getValue().at(1), EBX));
                 break;
         }
     } else {
         expr->utype->setResolvedType(new Literal(token.getValue().at(0), _INT8));
-        expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, token.getValue().at(0)), i64ebx);
+        expr->utype->getCode().addIr(OpBuilder::movi(token.getValue().at(0), EBX));
     }
 
-    IrCode &inj = expr->utype->getCode().getInjector(stackInjector);
-    inj.push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+    CodeHolder &inj = expr->utype->getCode().getInjector(stackInjector);
+    inj.addIr(OpBuilder::rstore(EBX));
 }
 
 string Compiler::invalidateUnderscores(string str) {
@@ -995,29 +1000,31 @@ void Compiler::parseIntegerLiteral(Expression* expr, Token &token) {
 
     if(isAllIntegers(int_string)) {
         value = std::strtod (int_string.c_str(), NULL);
-        if(value > DA_MAX || value < DA_MIN) {
-            stringstream ss;
-            ss << "integral number too large: " + int_string;
-            errors->createNewError(GENERIC, token.getLine(), token.getColumn(), ss.str());
-        }
-        expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, value), i64ebx);
+        if(value > INT32_MAX) {
+            long constantAddress = constantIntMap.addIfIndex(value);
+            if(constantAddress >= CONSTANT_LIMIT) {
+                stringstream err;
+                err << "maximum large constant limit of (" << CONSTANT_LIMIT << ") reached.";
+                errors->createNewError(INTERNAL_ERROR, token, err.str());
+            }
 
-        expr->utype->getCode().getInjector(stackInjector)
-                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+            expr->utype->getCode().addIr(OpBuilder::ldc(EBX, constantAddress));
+        } else
+            expr->utype->getCode().addIr(OpBuilder::movi(value, EBX));
     }else {
-        value = std::strtod (int_string.c_str(), NULL);
-        if((int64_t )value > DA_MAX || (int64_t )value < DA_MIN) {
-            stringstream ss;
-            ss << "integral number too large: " + int_string;
-            errors->createNewError(GENERIC, token.getLine(), token.getColumn(), ss.str());
+        value = std::strtof (int_string.c_str(), NULL);
+        long floatingPointAddress = floatingPointMap.addIfIndex(value);
+        if(floatingPointAddress >= FLOATING_POINT_LIMIT) {
+            stringstream err;
+            err << "maximum floating point limit of (" << FLOATING_POINT_LIMIT << ") reached.";
+            errors->createNewError(INTERNAL_ERROR, token, err.str());
         }
 
-        expr->utype->getCode().push_i64(SET_Di(i64, op_MOVBI, ((int64_t)value)), abs(getLowBytes(value)));
-
-        expr->utype->getCode().getInjector(stackInjector)
-                .push_i64(SET_Di(i64, op_RSTORE, i64bmr));
+        expr->utype->getCode().addIr(OpBuilder::movf(EBX, floatingPointAddress));
     }
 
+    expr->utype->getCode().getInjector(stackInjector)
+            .addIr(OpBuilder::rstore(EBX));
     expr->utype->setResolvedType(new Literal(value));
 }
 
@@ -1030,14 +1037,19 @@ void Compiler::parseHexLiteral(Expression* expr, Token &token) {
     string hex_string = invalidateUnderscores(token.getValue());
 
     value = strtoll(hex_string.c_str(), NULL, 16);
-    if(value > DA_MAX || value < DA_MIN) {
-        stringstream ss;
-        ss << "integral number too large: " + hex_string;
-        errors->createNewError(GENERIC, token.getLine(), token.getColumn(), ss.str());
-    }
-    expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, value), i64ebx);
+    if(value > INT32_MAX) {
+        long constantAddress = constantIntMap.addIfIndex(value);
+        if(constantAddress >= CONSTANT_LIMIT) {
+            stringstream err;
+            err << "maximum large constant limit of (" << CONSTANT_LIMIT << ") reached.";
+            errors->createNewError(INTERNAL_ERROR, token, err.str());
+        }
+
+        expr->utype->getCode().addIr(OpBuilder::ldc(EBX, constantAddress));
+    } else
+        expr->utype->getCode().addIr(OpBuilder::movi(value, EBX));
     expr->utype->getCode().getInjector(stackInjector)
-            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+            .addIr(OpBuilder::rstore(EBX));
 
     expr->utype->setResolvedType(new Literal(value));
 }
@@ -1047,24 +1059,28 @@ void Compiler::parseStringLiteral(Expression* expr, Token &token) {
     expr->utype->setType(utype_literal);
     expr->utype->setArrayType(true);
 
-    stringMap.addif(token.getValue());
-    unsigned long long index =  stringMap.indexof(token.getValue());
+    long long index = stringMap.addIfIndex(token.getValue());
+    if(index >= STRING_LITERAL_LIMIT) {
+        stringstream err;
+        err << "maximum string literal limit of (" << STRING_LITERAL_LIMIT << ") reached.";
+        errors->createNewError(INTERNAL_ERROR, token, err.str());
+    }
 
     expr->utype->setResolvedType(new Literal(token.getValue(), index));
-    expr->utype->getCode().push_i64(SET_Di(i64, op_NEWSTRING, index));
+    expr->utype->getCode().addIr(OpBuilder::newString(index));
 
     expr->utype->getCode().getInjector(ptrInjector)
-            .push_i64(SET_Ei(i64, op_POPOBJ_2));
+            .addIr(OpBuilder::popObject2());
 }
 
 void Compiler::parseBoolLiteral(Expression* expr, Token &token) {
     expr->type = exp_var;
     expr->utype->setType(utype_literal);
     expr->utype->setArrayType(false);
-    expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, (token.getValue() == "true" ? 1 : 0)), i64ebx);
+    expr->utype->getCode().addIr(OpBuilder::movi(token.getValue() == "true" ? 1 : 0, EBX));
 
     expr->utype->getCode().getInjector(stackInjector)
-            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+            .addIr(OpBuilder::rstore(EBX));
     expr->utype->setResolvedType(new Literal(token.getValue() == "true" ? 1 : 0));
 }
 
@@ -1101,7 +1117,7 @@ void Compiler::compileUtypeClass(Expression* expr, Ast* ast) {
         expr->utype->setType(utype_literal);
         expr->utype->setArrayType(false);
 
-        expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, utype->getResolvedType()->address), i64ebx);
+        expr->utype->getCode().addIr(OpBuilder::movi(utype->getResolvedType()->address, EBX));
         expr->utype->setResolvedType(new Literal(utype->getResolvedType()->address));
     } else {
         expr->type = exp_undefined;
@@ -1112,7 +1128,7 @@ void Compiler::compileUtypeClass(Expression* expr, Ast* ast) {
     }
 
     expr->utype->getCode().getInjector(stackInjector)
-            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+            .addIr(OpBuilder::rstore(EBX));
     expr->ast = ast;
     compilePostAstExpressions(expr, ast);
 }
@@ -1351,8 +1367,8 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
 
 
                 expr->utype->getCode()
-                        .push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, field->address))
-                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                        .addIr(OpBuilder::loadl(EBX, field->address))
+                        .addIr(OpBuilder::rstore(EBX));
                 if(!complexParameterMatch(resolvedMethod->params, params)) {
                     errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` does not match provided parameter arguments");
                 }
@@ -1374,21 +1390,21 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
                 resolvedMethod =  (Method*)field->utype->getResolvedType();
 
                 if(field->locality == stl_thread) {
-                    expr->utype->getCode().push_i64(SET_Di(i64, op_TLS_MOVL, field->address));
+                    expr->utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
                 } else {
                     if(field->flags.find(STATIC) || field->owner->isGlobalClass())
-                        expr->utype->getCode().push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                        expr->utype->getCode().addIr(OpBuilder::movg(field->owner->address));
                     else if(!expr->utype->getCode().instanceCaptured) {
                         expr->utype->getCode().instanceCaptured = true;
-                        expr->utype->getCode().push_i64(SET_Di(i64, op_MOVL, 0));
+                        expr->utype->getCode().addIr(OpBuilder::movl(0));
                     }
-                    expr->utype->getCode().push_i64(SET_Di(i64, op_MOVN, field->address));
+                    expr->utype->getCode().addIr(OpBuilder::movn(field->address));
                 }
 
                 expr->utype->getCode()
-                        .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                        .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx))
-                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                        .addIr(OpBuilder::movi(0, ADX))
+                        .addIr(OpBuilder::iaload(EBX, ADX))
+                        .addIr(OpBuilder::rstore(EBX));
 
                 if(!complexParameterMatch(resolvedMethod->params, params)) {
                     errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` does not match provided parameter arguments");
@@ -1414,11 +1430,11 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
                         errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` does not match provided parameter arguments");
                     }
                     expr->utype->getCode()
-                            .push_i64(SET_Di(i64, op_MOVG, field->owner->address))
-                            .push_i64(SET_Di(i64, op_MOVN, field->address))
-                            .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                            .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx))
-                            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                            .addIr(OpBuilder::movg(field->owner->address))
+                            .addIr(OpBuilder::movn(field->address))
+                            .addIr(OpBuilder::movi(0, ADX))
+                            .addIr(OpBuilder::iaload(EBX, ADX))
+                            .addIr(OpBuilder::rstore(EBX));
 
                     if(!field->flags.find(STATIC))
                         errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` must be static to be used in static context");
@@ -1519,7 +1535,7 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
                 compileMethodReturnType(resolvedMethod, resolvedMethod->ast);
                 if(!resolvedMethod->flags.find(STATIC)) {
                     utype->getCode().inject(ptrInjector);
-                    utype->getCode().push_i64(SET_Ei(i64, op_PUSHOBJ));
+                    utype->getCode().addIr(OpBuilder::pushObject());
                 } else {
                     // TODO: try to find out wether or not the last item processed is an instance field
                     // if so warn the user that what they are doing is innefficent
@@ -1534,10 +1550,10 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
                     compileMethodReturnType(resolvedMethod, resolvedMethod->ast); // probably unessicary but we do it anyway
 
                     utype->getCode().inject(ptrInjector);
-                    utype->getCode().push_i64(SET_Di(i64, op_MOVN, field->address))
-                            .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                            .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx))
-                            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                    utype->getCode().addIr(OpBuilder::movn(field->address))
+                            .addIr(OpBuilder::movi(0, ADX))
+                            .addIr(OpBuilder::iaload(EBX, ADX))
+                            .addIr(OpBuilder::rstore(EBX));
 
                     if(!complexParameterMatch(resolvedMethod->params, params)) {
                         errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` does not match provided parameter arguments");
@@ -1563,13 +1579,13 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
     }
 
     if(resolvedMethod) {
-        IrCode &code = expr->utype->getCode();
+        CodeHolder &code = expr->utype->getCode();
 
         validateAccess(resolvedMethod, ast);
         if(!resolvedMethod->flags.find(STATIC) && resolvedMethod->fnType != fn_ptr) {
             if(singularCall) {
-                code.push_i64(SET_Di(i64, op_MOVL, 0));
-                code.push_i64(SET_Ei(i64, op_PUSHOBJ));
+                code.addIr(OpBuilder::movl(0));
+                code.addIr(OpBuilder::pushObject());
             }
         }
 
@@ -1591,16 +1607,13 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
         }
 
         if(resolvedMethod->fnType == fn_delegate) {
-            if(resolvedMethod->flags.find(STATIC)) {
-                code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE_STATIC, resolvedMethod->address, 0, params.size()), resolvedMethod->owner->address);
-            } else
-                code.push_i64(SET_Ci(i64, op_INVOKE_DELEGATE, resolvedMethod->address, 0, params.size()));
+            code.addIr(OpBuilder::invokeDelegate(resolvedMethod->address, params.size(), resolvedMethod->flags.find(STATIC)));
         } else {
             if(resolvedMethod->fnType != fn_ptr)
-                code.push_i64(SET_Di(i64, op_CALL, resolvedMethod->address));
+                code.addIr(OpBuilder::call(resolvedMethod->address));
             else {
-                code.push_i64(SET_Di(i64, op_LOADVAL, i64ebx))
-                    .push_i64(SET_Di(i64, op_CALLD, i64ebx));
+                code.addIr(OpBuilder::loadValue(EBX))
+                        .addIr(OpBuilder::calld(EBX));
             }
         }
     }
@@ -1626,25 +1639,25 @@ void Compiler::printExpressionCode(Expression *expr) {
  */
 string Compiler::registerToString(int64_t r) {
     switch(r) {
-        case i64adx:
+        case ADX:
             return "adx";
-        case i64cx:
+        case CX:
             return "cx";
-        case i64cmt:
+        case CMT:
             return "cmt";
-        case i64ebx:
+        case EBX:
             return "ebx";
-        case i64ecx:
+        case ECX:
             return "ecx";
-        case i64ecf:
+        case ECF:
             return "ecf";
-        case i64edf:
+        case EDF:
             return "edf";
-        case i64ehf:
+        case EHF:
             return "ehf";
-        case i64bmr:
+        case BMR:
             return "bmr";
-        case i64egx:
+        case EGX:
             return "egx";
         default: {
             stringstream ss;
@@ -1675,964 +1688,938 @@ string Compiler::find_class(int64_t id) {
 /*
  * DEBUG: This is a debug function made to allow early testing in compiler code generation
  */
-string Compiler::codeToString(IrCode &code) {
+string Compiler::codeToString(CodeHolder &code) {
     stringstream ss;
     for(unsigned int x = 0; x < code.size(); x++) {
-        int64_t x64=code.ir64.get(x);
+        opcode_instr opcodeData=code.ir32.get(x);
 
-        switch(GET_OP(x64)) {
-            case op_NOP:
+        switch(GET_OP(opcodeData)) {
+            case Opcode::ILL:
+            {
+                ss<<"ill ";
+
+                break;
+            }
+            case Opcode::NOP:
             {
                 ss<<"nop";
                 
                 break;
             }
-            case op_INT:
+            case Opcode::INT:
             {
-                ss<<"int 0x" << std::hex << GET_Da(x64);
+                ss<<"int 0x" << std::hex << GET_Da(opcodeData);
                 
                 break;
             }
-            case op_MOVI:
+            case Opcode::MOVI:
             {
-                ss<<"movi #" << GET_Da(x64) << ", ";
-                ss<< registerToString(code.ir64.get(++x)) ;
+                ss << "movi #" << GET_Da(opcodeData) << ", ";
+                ss<< registerToString(code.ir32.get(++x)) ;
                 
                 break;
             }
-            case op_RET:
+            case Opcode::RET:
             {
                 ss<<"ret";
                 
                 break;
             }
-            case op_HLT:
+            case Opcode::HLT:
             {
                 ss<<"hlt";
                 
                 break;
             }
-            case op_NEWARRAY:
+            case Opcode::NEWARRAY:
             {
                 ss<<"newarry ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_CAST:
+            case Opcode::CAST:
             {
                 ss<<"cast ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_VARCAST:
+            case Opcode::VARCAST:
             {
                 ss<<"vcast ";
-                ss<< GET_Da(x64);
+                ss<< GET_Ca(opcodeData);
+                ss << " -> " << (GET_Cb(opcodeData) == 1 ? "[]" : "");
                 
                 break;
             }
-            case op_MOV8:
+            case Opcode::MOV8:
             {
                 ss<<"mov8 ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_MOV16:
+            case Opcode::MOV16:
             {
                 ss<<"mov16 ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_MOV32:
+            case Opcode::MOV32:
             {
                 ss<<"mov32 ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_MOV64:
+            case Opcode::MOV64:
             {
                 ss<<"mov64 ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
-            } case op_MOVU8:
+            } case Opcode::MOVU8:
             {
                 ss<<"movu8 ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_MOVU16:
+            case Opcode::MOVU16:
             {
                 ss<<"movu16 ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_MOVU32:
+            case Opcode::MOVU32:
             {
                 ss<<"movu32 ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_MOVU64:
+            case Opcode::MOVU64:
             {
                 ss<<"movu64 ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_RSTORE:
+            case Opcode::RSTORE:
             {
                 ss<<"rstore ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_ADD:
+            case Opcode::ADD:
             {
                 ss<<"add ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ba(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Bb(opcodeData));
                 ss<< " -> ";
-                ss<< registerToString(code.ir64.get(++x));
+                ss<< registerToString(GET_Bc(opcodeData));
                 
                 break;
             }
-            case op_SUB:
+            case Opcode::SUB:
             {
                 ss<<"sub ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ba(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Bb(opcodeData));
                 ss<< " -> ";
-                ss<< registerToString(code.ir64.get(++x));
+                ss<< registerToString(GET_Bc(opcodeData));
                 
                 break;
             }
-            case op_MUL:
+            case Opcode::MUL:
             {
                 ss<<"mul ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ba(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Bb(opcodeData));
                 ss<< " -> ";
-                ss<< registerToString(code.ir64.get(++x));
+                ss<< registerToString(GET_Bc(opcodeData));
                 
                 break;
             }
-            case op_DIV:
+            case Opcode::DIV:
             {
                 ss<<"div ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ba(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Bb(opcodeData));
                 ss<< " -> ";
-                ss<< registerToString(code.ir64.get(++x));
+                ss<< registerToString(GET_Bc(opcodeData));
                 
                 break;
             }
-            case op_MOD:
+            case Opcode::MOD:
             {
                 ss<<"mod ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ba(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Bb(opcodeData));
                 ss<< " -> ";
-                ss<< registerToString(code.ir64.get(++x));
+                ss<< registerToString(GET_Bc(opcodeData));
                 
                 break;
             }
-            case op_IADD:
+            case Opcode::IADD:
             {
                 ss<<"iadd ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 ss<< ", #";
-                ss<< GET_Cb(x64);
+                ss<< registerToString(code.ir32.get(++x));
                 
                 break;
             }
-            case op_ISUB:
+            case Opcode::ISUB:
             {
                 ss<<"isub ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 ss<< ", #";
-                ss<< GET_Cb(x64);
+                ss<< registerToString(code.ir32.get(++x));
                 
                 break;
             }
-            case op_IMUL:
+            case Opcode::IMUL:
             {
                 ss<<"imul ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 ss<< ", #";
-                ss<< GET_Cb(x64);
+                ss<< registerToString(code.ir32.get(++x));
                 
                 break;
             }
-            case op_IDIV:
+            case Opcode::IDIV:
             {
                 ss<<"idiv ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 ss<< ", #";
-                ss<< GET_Cb(x64);
+                ss<< registerToString(code.ir32.get(++x));
                 
                 break;
             }
-            case op_IMOD:
+            case Opcode::IMOD:
             {
                 ss<<"imod ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 ss<< ", #";
-                ss<< GET_Cb(x64);
+                ss<< registerToString(code.ir32.get(++x));
                 
                 break;
             }
-            case op_POP:
+            case Opcode::POP:
             {
                 ss<<"pop";
                 
                 break;
             }
-            case op_INC:
+            case Opcode::INC:
             {
                 ss<<"inc ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_DEC:
+            case Opcode::DEC:
             {
                 ss<<"dec ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_MOVR:
+            case Opcode::MOVR:
             {
                 ss<<"movr ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_IALOAD:
+            case Opcode::IALOAD:
             {
                 ss<<"iaload ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_BRH:
+            case Opcode::BRH:
             {
                 ss<<"brh";
                 
                 break;
             }
-            case op_IFE:
+            case Opcode::IFE:
             {
                 ss<<"ife";
                 
                 break;
             }
-            case op_IFNE:
+            case Opcode::IFNE:
             {
                 ss<<"ifne";
                 
                 break;
             }
-            case op_JE:
+            case Opcode::JE: // TODO: continue here
             {
-                ss<<"je " << GET_Da(x64);
+                ss<<"je " << GET_Da(opcodeData);
                 
                 break;
             }
-            case op_JNE:
+            case Opcode::JNE:
             {
-                ss<<"jne " << GET_Da(x64);
+                ss<<"jne " << GET_Da(opcodeData);
                 
                 break;
             }
-            case op_LT:
+            case Opcode::LT:
             {
                 ss<<"lt ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_GT:
+            case Opcode::GT:
             {
                 ss<<"gt ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_LTE:
+            case Opcode::LTE:
             {
                 ss<<"lte ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_GTE:
+            case Opcode::GTE:
             {
                 ss<<"gte ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_MOVL:
+            case Opcode::MOVL:
             {
-                ss<<"movl " << GET_Da(x64);
+                ss<<"movl " << GET_Da(opcodeData);
                 
                 break;
             }
-            case op_POPL:
+            case Opcode::POPL:
             {
-                ss<<"popl " << GET_Da(x64);
+                ss<<"popl " << GET_Da(opcodeData);
                 
                 break;
             }
-            case op_MOVSL:
+            case Opcode::MOVSL:
             {
                 ss<<"movsl #";
-                ss<< GET_Da(x64);
+                ss<< GET_Da(opcodeData);
                 
                 break;
             }
-            case op_MOVBI:
+            case Opcode::MOVF:
             {
-                ss<<"movbi #" << GET_Da(x64) << ", #";
-                ss<< code.ir64.get(++x);
+                ss << "movf #" << GET_Ca(opcodeData) << ", #";
+                ss<< floatingPointMap.get(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_SIZEOF:
+            case Opcode::SIZEOF:
             {
                 ss<<"sizeof ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_PUT:
+            case Opcode::PUT:
             {
                 ss<<"put ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_PUTC:
+            case Opcode::PUTC:
             {
                 ss<<"_putc ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_CHECKLEN:
+            case Opcode::CHECKLEN:
             {
                 ss<<"chklen ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_GOTO:
+            case Opcode::GOTO:
             {
-                ss<<"goto @" << GET_Da(x64);
+                ss<<"goto @" << GET_Da(opcodeData);
                 
                 break;
             }
-            case op_LOADPC:
+            case Opcode::LOADPC:
             {
                 ss<<"loadpc ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_PUSHOBJ:
+            case Opcode::PUSHOBJ:
             {
                 ss<<"pushobj";
                 
                 break;
             }
-            case op_DEL:
+            case Opcode::DEL:
             {
                 ss<<"del";
                 
                 break;
             }
-            case op_CALL:
+            case Opcode::CALL:
             {
-                ss<<"call @" << GET_Da(x64) << " // <";
+                ss << "call @" << GET_Da(opcodeData) << " // <";
                 //ss << find_method(GET_Da(x64)) << ">";
                 
                 break;
             }
-            case op_CALLD:
+            case Opcode::CALLD:
             {
                 ss<<"calld ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_NEWCLASS:
+            case Opcode::NEWCLASS:
             {
-                ss<<"new_class @" << GET_Da(x64);
-                ss << " // "; ss << find_class(GET_Da(x64));
+                ss<<"new_class @" << GET_Da(opcodeData);
+                ss << " // "; ss << find_class(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_MOVN:
+            case Opcode::MOVN:
             {
-                ss<<"movn #" << GET_Da(x64);
+                ss<<"movn #" << code.ir32.get(++x);
                 
                 break;
             }
-            case op_SLEEP:
+            case Opcode::SLEEP:
             {
                 ss<<"sleep ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_TEST:
+            case Opcode::TEST:
             {
                 ss<<"test ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_TNE:
+            case Opcode::TNE:
             {
                 ss<<"tne ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_LOCK:
+            case Opcode::LOCK:
             {
                 ss<<"_lck ";
                 
                 break;
             }
-            case op_ULOCK:
+            case Opcode::ULOCK:
             {
                 ss<<"_ulck";
                 
                 break;
             }
-            case op_EXP:
+            case Opcode::MOVG:
             {
-                ss<<"exp ";
-                ss<< registerToString(GET_Da(x64));
+                ss<<"movg @"<< GET_Da(opcodeData);
+                ss << " // @"; ss << find_class(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_MOVG:
-            {
-                ss<<"movg @"<< GET_Da(x64);
-                ss << " // @"; ss << find_class(GET_Da(x64));
-                
-                break;
-            }
-            case op_MOVND:
+            case Opcode::MOVND:
             {
                 ss<<"movnd ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_NEWOBJARRAY:
+            case Opcode::NEWOBJARRAY:
             {
                 ss<<"newobj_arry ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_NOT: //c
+            case Opcode::NOT: //c
             {
                 ss<<"not ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_SKIP:// d
+            case Opcode::SKIP:// d
             {
                 ss<<"skip @";
-                ss<< GET_Da(x64);
-                ss << " // pc = " << (x + GET_Da(x64));
+                ss<< GET_Da(opcodeData);
+                ss << " // pc = " << (x + GET_Da(opcodeData));
                 
                 break;
             }
-            case op_LOADVAL:
+            case Opcode::LOADVAL:
             {
                 ss<<"loadval ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_SHL:
+            case Opcode::SHL:
             {
                 ss<<"shl ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ba(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Bb(opcodeData));
                 ss<< " -> ";
-                ss<< registerToString(code.ir64.get(++x));
+                ss<< registerToString(GET_Bc(opcodeData));
                 
                 break;
             }
-            case op_SHR:
+            case Opcode::SHR:
             {
                 ss<<"shr ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ba(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Bb(opcodeData));
                 ss<< " -> ";
-                ss<< registerToString(code.ir64.get(++x));
+                ss<< registerToString(GET_Bc(opcodeData));
                 
                 break;
             }
-            case op_SKPE:
+            case Opcode::SKPE:
             {
                 ss<<"skpe ";
-                ss<<GET_Da(x64);
-                ss << " // pc = " << (x + GET_Da(x64));
+                ss<<GET_Da(opcodeData);
+                ss << " // pc = " << (x + GET_Da(opcodeData));
                 
                 break;
             }
-            case op_SKNE:
+            case Opcode::SKNE:
             {
                 ss<<"skne ";
-                ss<<GET_Da(x64);
-                ss << " // pc = " << (x + GET_Da(x64));
+                ss<<GET_Da(opcodeData);
+                ss << " // pc = " << (x + GET_Da(opcodeData));
                 
                 break;
             }
-            case op_CMP:
+            case Opcode::CMP:
             {
                 ss<<"cmp ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 ss<< ", ";
-                ss<< GET_Cb(x64);
+                ss<< code.ir32.get(++x);
                 
                 break;
             }
-            case op_AND:
+            case Opcode::AND:
             {
                 ss<<"and ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_UAND:
+            case Opcode::UAND:
             {
                 ss<<"uand ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_OR:
+            case Opcode::OR:
             {
                 ss<<"or ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_XOR:
+            case Opcode::XOR:
             {
                 ss<<"xor ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_THROW:
+            case Opcode::THROW:
             {
                 ss<<"throw ";
                 
                 break;
             }
-            case op_CHECKNULL:
+            case Opcode::CHECKNULL:
             {
                 ss<<"checknull";
                 
                 break;
             }
-            case op_RETURNOBJ:
+            case Opcode::RETURNOBJ:
             {
                 ss<<"returnobj";
                 
                 break;
             }
-            case op_NEWCLASSARRAY:
+            case Opcode::NEWCLASSARRAY:
             {
                 ss<<"new_classarray ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< " ";
-                ss << " // "; ss << find_class(GET_Cb(x64)) << "[]";
+                ss << " // "; ss << find_class(GET_Cb(opcodeData)) << "[]";
                 
                 break;
             }
-            case op_NEWSTRING:
+            case Opcode::NEWSTRING:
             {
-                ss<<"newstr @" << GET_Da(x64) << " // ";
+                ss << "newstr @" << GET_Da(opcodeData) << " // ";
                 //ss << getString(GET_Da(x64));
                 
                 break;
             }
-            case op_ADDL:
+            case Opcode::ADDL:
             {
                 ss<<"addl ";
-                ss<< registerToString(GET_Ca(x64)) << ", @";
-                ss<<GET_Cb(x64);
+                ss << registerToString(GET_Ca(opcodeData)) << ", fp@";
+                ss<<GET_Cb(opcodeData);
                 
                 break;
             }
-            case op_SUBL:
+            case Opcode::SUBL:
             {
                 ss<<"subl ";
-                ss<< registerToString(GET_Ca(x64)) << ", @";
-                ss<<GET_Cb(x64);
+                ss << registerToString(GET_Ca(opcodeData)) << ", fp@";
+                ss<<GET_Cb(opcodeData);
                 
                 break;
             }
-            case op_MULL:
+            case Opcode::MULL:
             {
                 ss<<"mull ";
-                ss<< registerToString(GET_Ca(x64)) << ", @";
-                ss<<GET_Cb(x64);
+                ss << registerToString(GET_Ca(opcodeData)) << ", fp@";
+                ss<<GET_Cb(opcodeData);
                 
                 break;
             }
-            case op_DIVL:
+            case Opcode::DIVL:
             {
                 ss<<"divl ";
-                ss<< registerToString(GET_Ca(x64)) << ", @";
-                ss<<GET_Cb(x64);
+                ss << registerToString(GET_Ca(opcodeData)) << ", fp@";
+                ss<<GET_Cb(opcodeData);
                 
                 break;
             }
-            case op_MODL:
+            case Opcode::MODL:
             {
                 ss<<"modl #";
-                ss<< registerToString(GET_Ca(x64)) << ", @";
-                ss<<GET_Cb(x64);
+                ss << registerToString(GET_Ca(opcodeData)) << ", fp@";
+                ss<<GET_Cb(opcodeData);
                 
                 break;
             }
-            case op_IADDL:
+            case Opcode::IADDL:
             {
                 ss<<"iaddl ";
-                ss<< GET_Ca(x64) << ", @";
-                ss<<GET_Cb(x64);
+                ss << code.ir32.get(x+1) << ", fp@";
+                ss<<GET_Da(opcodeData); x++;
                 
                 break;
             }
-            case op_ISUBL:
+            case Opcode::ISUBL:
             {
-                ss<<"isubl #";
-                ss<< GET_Ca(x64) << ", @";
-                ss<<GET_Cb(x64);
+                ss<<"isubl ";
+                ss << code.ir32.get(x+1) << ", fp@";
+                ss<<GET_Da(opcodeData); x++;
                 
                 break;
             }
-            case op_IMULL:
+            case Opcode::IMULL:
             {
-                ss<<"imull #";
-                ss<< GET_Ca(x64) << ", @";
-                ss<<GET_Cb(x64);
+                ss<<"imull ";
+                ss << code.ir32.get(x+1) << ", fp@";
+                ss<<GET_Da(opcodeData); x++;
                 
                 break;
             }
-            case op_IDIVL:
+            case Opcode::IDIVL:
             {
-                ss<<"idivl #";
-                ss<< GET_Ca(x64) << ", @";
-                ss<<GET_Cb(x64);
+                ss<<"idivl ";
+                ss << code.ir32.get(x+1) << ", fp@";
+                ss<<GET_Da(opcodeData); x++;
                 
                 break;
             }
-            case op_IMODL:
+            case Opcode::IMODL:
             {
-                ss<<"imodl #";
-                ss<< GET_Ca(x64) << ", @";
-                ss<<GET_Cb(x64);
+                ss<<"imodl ";
+                ss << code.ir32.get(x+1) << ", fp@";
+                ss<<GET_Da(opcodeData); x++;
                 
                 break;
             }
-            case op_LOADL:
+            case Opcode::LOADL:
             {
                 ss<<"loadl ";
-                ss<< registerToString(GET_Ca(x64)) << ", fp+";
-                ss<<GET_Cb(x64);
+                ss << registerToString(GET_Ca(opcodeData)) << ", fp+";
+                ss<<GET_Cb(opcodeData);
                 
                 break;
             }
-            case op_IALOAD_2:
-            {
-                ss<<"iaload_2 ";
-                ss<< registerToString(GET_Ca(x64));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
-                
-                break;
-            }
-            case op_POPOBJ:
+            case Opcode::POPOBJ:
             {
                 ss<<"popobj";
                 
                 break;
             }
-            case op_SMOVR:
+            case Opcode::SMOVR:
             {
                 ss<<"smovr ";
-                ss<< registerToString(GET_Ca(x64)) << ", sp+";
-                if(GET_Cb(x64)<0) ss<<"[";
-                ss<<GET_Cb(x64);
-                if(GET_Cb(x64)<0) ss<<"]";
+                ss << registerToString(GET_Ca(opcodeData)) << ", sp+";
+                if(GET_Cb(opcodeData) < 0) ss << "[";
+                ss<<GET_Cb(opcodeData);
+                if(GET_Cb(opcodeData) < 0) ss << "]";
                 
                 break;
             }
-            case op_SMOVR_2:
+            case Opcode::SMOVR_2:
             {
                 ss<<"smovr_2 ";
-                ss<< registerToString(GET_Ca(x64)) << ", fp+";
-                if(GET_Cb(x64)<0) ss<<"[";
-                ss<<GET_Cb(x64);
-                if(GET_Cb(x64)<0) ss<<"]";
+                ss << registerToString(GET_Ca(opcodeData)) << ", fp+";
+                if(GET_Cb(opcodeData) < 0) ss << "[";
+                ss<<GET_Cb(opcodeData);
+                if(GET_Cb(opcodeData) < 0) ss << "]";
                 
                 break;
             }
-            case op_ANDL:
+            case Opcode::ANDL:
             {
                 ss<<"andl ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< GET_Cb(x64);
+                ss<< GET_Cb(opcodeData);
                 
                 break;
             }
-            case op_ORL:
+            case Opcode::ORL:
             {
                 ss<<"orl ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< GET_Cb(x64);
+                ss<< GET_Cb(opcodeData);
                 
                 break;
             }
-            case op_XORL:
+            case Opcode::XORL:
             {
                 ss<<"xorl ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< GET_Cb(x64);
+                ss<< GET_Cb(opcodeData);
                 
                 break;
             }
-            case op_RMOV:
+            case Opcode::RMOV:
             {
                 ss<<"rmov ";
-                ss<< registerToString(GET_Ca(x64));
+                ss<< registerToString(GET_Ca(opcodeData));
                 ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
+                ss<< registerToString(GET_Cb(opcodeData));
                 
                 break;
             }
-            case op_SMOV:
+            case Opcode::SMOV:
             {
                 ss<<"smov ";
-                ss<< registerToString(GET_Ca(x64)) << ", sp+";
-                if(GET_Cb(x64)<0) ss<<"[";
-                ss<<GET_Cb(x64);
-                if(GET_Cb(x64)<0) ss<<"]";
+                ss << registerToString(GET_Ca(opcodeData)) << ", sp+";
+                if(GET_Cb(opcodeData) < 0) ss << "[";
+                ss<<GET_Cb(opcodeData);
+                if(GET_Cb(opcodeData) < 0) ss << "]";
                 
                 break;
             }
-            case op_LOADPC_2:
-            {
-                ss<<"loadpc_2 ";
-                ss<< registerToString(GET_Ca(x64));
-                ss<< ", pc+";
-                ss<< GET_Cb(x64);
-                ss<< " // " << registerToString(GET_Ca(x64))
-                  << " = " << (x + GET_Cb(x64));
-                
-                break;
-            }
-            case op_RETURNVAL:
+            case Opcode::RETURNVAL:
             {
                 ss<<"return_val ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_ISTORE:
+            case Opcode::ISTORE:
             {
                 ss<<"istore ";
-                ss<< GET_Da(x64);
+                ss<< code.ir32.get(++x);
                 
                 break;
             }
-            case op_ISTOREL:
+            case Opcode::ISTOREL:
             {
                 ss<<"istorel ";
-                ss<< code.ir64.get(++x) << ", fp+";
-                ss<<GET_Da(x64);
+                ss << code.ir32.get(++x) << ", fp+";
+                ss<<GET_Da(opcodeData);
                 
                 break;
             }
-            case op_IPUSHL:
+            case Opcode::IPUSHL:
             {
                 ss<<"ipushl #";
-                ss<< GET_Da(x64);
+                ss<< GET_Da(opcodeData);
                 
                 break;
             }
-            case op_PUSHL:
+            case Opcode::PUSHL:
             {
                 ss<<"pushl ";
-                ss<< GET_Da(x64);
+                ss<< GET_Da(opcodeData);
                 
                 break;
             }
-            case op_PUSHNIL:
+            case Opcode::PUSHNULL:
             {
-                ss<<"pushnil ";
+                ss<<"pushnull ";
                 
                 break;
             }
-            case op_GET:
+            case Opcode::GET:
             {
                 ss<<"get ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_ITEST:
+            case Opcode::ITEST:
             {
                 ss<<"itest ";
-                ss<< registerToString(GET_Da(x64));
+                ss<< registerToString(GET_Da(opcodeData));
                 
                 break;
             }
-            case op_INVOKE_DELEGATE:
+            case Opcode::INVOKE_DELEGATE:
             {
                 ss<<"invoke_delegate ";
-                ss<< GET_Ca(x64);
-                ss<< ", ";
-                ss<< GET_Cb(x64);
+                ss<< GET_Da(opcodeData);
+                ss<< " { static=";
+                ss<< GET_Ca(code.ir32.get(x+1))
+                    << ", args=" << GET_Cb(code.ir32.get(x+1)) <<  " }";
+                x++;
                 
                 break;
             }
-            case op_INVOKE_DELEGATE_STATIC:
-            {
-                ss<<"invoke_delegate_static ";
-                ss<< registerToString(GET_Ca(x64));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(x64));
-                
-                break;
-            }
-            case op_ISADD:
+            case Opcode::ISADD:
             {
                 ss<<"isadd ";
-                ss<< GET_Ca(x64) << ", sp+";
-                if(GET_Cb(x64)<0) ss<<"[";
-                ss<<GET_Cb(x64);
-                if(GET_Cb(x64)<0) ss<<"]";
-                
+                ss << GET_Ca(opcodeData) << ", sp+";
+                if(code.ir32.get(x+1) < 0) ss << "[";
+                ss<<code.ir32.get(x+1);
+                if(code.ir32.get(x+1) < 0) ss << "]";
+                x++;
+
                 break;
             }
-            case op_IPOPL:
+            case Opcode::IPOPL:
             {
                 ss<<"ipopl ";
-                ss<< GET_Da(x64);
+                ss<< GET_Da(opcodeData);
                 
                 break;
             }
-            case op_SWITCH:
+            case Opcode::SWITCH:
             {
                 ss<<"switch ";
-                ss<< GET_Da(x64);
+                ss<< code.ir32.get(x+1);
                 //ss<< " // " << getSwitchTable(method, GET_Da(x64));
                 
                 break;
             }
-            case op_TLS_MOVL:
+            case Opcode::TLS_MOVL:
             {
                 ss<<"tls_movl ";
-                ss<< GET_Da(x64);
+                ss<< GET_Da(opcodeData);
                 
                 break;
             }
-            case op_DUP:
+            case Opcode::DUP:
             {
                 ss<<"dup ";
                 
                 break;
             }
-            case op_POPOBJ_2:
+            case Opcode::POPOBJ_2:
             {
                 ss<<"popobj2 ";
                 
                 break;
             }
-            case op_SWAP:
+            case Opcode::SWAP:
             {
                 ss<<"swap ";
                 
                 break;
             }
             default:
-                ss << "? (" << GET_OP(x64) << ")";
+                ss << "? (" << GET_OP(opcodeData) << ")";
                 
                 break;
         }
@@ -2643,7 +2630,7 @@ string Compiler::codeToString(IrCode &code) {
     return ss.str();
 }
 
-void Compiler::convertNativeIntegerClassToVar(Utype *clazz, Utype *paramUtype, IrCode &code, Ast *ast) {
+void Compiler::convertNativeIntegerClassToVar(Utype *clazz, Utype *paramUtype, CodeHolder &code, Ast *ast) {
     Field *valueField = clazz->getClass()->getField("value", true);
 
     if(valueField) {
@@ -2652,23 +2639,21 @@ void Compiler::convertNativeIntegerClassToVar(Utype *clazz, Utype *paramUtype, I
         code.inject(clazz->getCode());
         code.inject(clazz->getCode().getInjector(ptrInjector));
         code
-                .push_i64(SET_Di(i64, op_MOVN, valueField->address))
-                .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx));
+                .addIr(OpBuilder::movn(valueField->address))
+                .addIr(OpBuilder::movi(0, ADX))
+                .addIr(OpBuilder::iaload(EBX, ADX));
 
         if (paramUtype->getResolvedType()->type != VAR) {
-            code
-                    .push_i64(SET_Ci(i64, dataTypeToOpcode(paramUtype->getResolvedType()->type), i64ebx, 0,
-                                     i64ebx));
+            dataTypeToOpcode(paramUtype->getResolvedType()->type, EBX, EBX, code);
         }
 
         code.getInjector(stackInjector)
-                .push_i64(SET_Di(i64, op_RSTORE, i64ebx)); // todo: add all stack injectors here
+                .addIr(OpBuilder::rstore(EBX)); // todo: add all stack injectors here
     } else
         errors->createNewError(GENERIC, ast->line, ast->col, "could not locate field `value` inside of `" + clazz->toString() + "`");
 }
 
-void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, IrCode &code, Ast *ast) {
+void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, CodeHolder &code, Ast *ast) {
     List<Field*> params;
     List<AccessFlag> flags;
     Method *constructor; // TODO: take note that I may not be doing pre equals validation on the param before I call this function
@@ -2684,19 +2669,19 @@ void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, IrCode
     if((constructor = clazz->getClass()->getConstructor(params, true)) != NULL) {
         validateAccess(constructor, ast);
 
-        code.push_i64(SET_Di(i64, op_NEWCLASS, clazz->getClass()->address));
+        code.addIr(OpBuilder::newClass(clazz->getClass()->address));
 
         paramUtype->getCode().inject(stackInjector);
         code.inject(paramUtype->getCode());
-        code.push_i64(SET_Di(i64, op_CALL, constructor->address));
+        code.addIr(OpBuilder::call(constructor->address));
 
         if (constructor->utype->isArray() || constructor->utype->getResolvedType()->type == OBJECT
             || constructor->utype->getResolvedType()->type == CLASS) {
             code.getInjector(ptrInjector)
-                    .push_i64(SET_Ei(i64, op_POPOBJ_2));
+                    .addIr(OpBuilder::popObject2());
         } else if (constructor->utype->getResolvedType()->isVar()) {
             code.getInjector(ebxInjector)
-                    .push_i64(SET_Di(i64, op_LOADVAL, i64ebx));
+                    .addIr(OpBuilder::loadValue(EBX));
         }
     } else {
         errors->createNewError(GENERIC, ast->line,  ast->col, "Support class `" + clazz->toString() + "` does not have constructor for type `"
@@ -2800,14 +2785,14 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
 
     if(array.size() >= 1) {
         expr->utype->getCode()
-                .push_i64(SET_Di(i64, op_MOVI, array.size()), i64ebx);
+                .addIr(OpBuilder::movi(array.size(), EBX));
 
         if(expr->type == exp_var)
-            expr->utype->getCode().push_i64(SET_Di(i64, op_NEWARRAY, i64ebx));
+            expr->utype->getCode().addIr(OpBuilder::newVarArray(EBX));
         else if(expr->type == exp_class)
-            expr->utype->getCode().push_i64(SET_Ci(i64, op_NEWCLASSARRAY, i64ebx, 0, expr->utype->getClass()->address));
+            expr->utype->getCode().addIr(OpBuilder::newClassArray(EBX, expr->utype->getClass()->address));
         else if(expr->type == exp_object)
-            expr->utype->getCode().push_i64(SET_Di(i64, op_NEWOBJARRAY, i64ebx));
+            expr->utype->getCode().addIr(OpBuilder::newObjectArray(EBX));
 
         for(long i = 0; i < array.size(); i++) {
             if(expr->type == exp_var) {
@@ -2819,9 +2804,9 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
                 }
 
                 expr->utype->getCode()
-                        .push_i64(SET_Di(i64, op_MOVSL, 0)) // get our array object
-                        .push_i64(SET_Di(i64, op_MOVI, i), i64adx) // set element index
-                        .push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx)); // ourArry[%adx] = %ebx
+                        .addIr(OpBuilder::movsl(0)) // get our array object
+                        .addIr(OpBuilder::movi(i, ADX)) // set element index
+                        .addIr(OpBuilder::rmov(ADX, EBX)); // ourArry[%adx] = %ebx
             }
             else if(expr->type == exp_class || expr->type == exp_object) {
                 if(isUtypeConvertableToNativeClass(expr->utype, array.get(i)->utype)) {
@@ -2837,21 +2822,20 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
                 }
 
                 expr->utype->getCode()
-                   .push_i64(SET_Di(i64, op_MOVSL, -1)) // get our array object
-                   .push_i64(SET_Di(i64, op_MOVN, i)) // select array element
-                   .push_i64(SET_Ei(i64, op_POPOBJ)); // set object
+                        .addIr(OpBuilder::movsl(-1)) // get our array object
+                        .addIr(OpBuilder::movn(i)) // select array element
+                        .addIr(OpBuilder::popObject()); // set object
             }
         }
 
         expr->utype->getCode().getInjector(ptrInjector)
-                .push_i64(SET_Ei(i64, op_POPOBJ_2));
+                .addIr(OpBuilder::popObject2());
     } else {
         expr->utype->getCode()
-                .push_i64(SET_Di(i64, op_MOVSL, 1))
-                .push_i64(SET_Ei(i64, op_DEL));
+                .addIr(OpBuilder::pushNull());
 
-        expr->utype->getCode().getInjector(stackInjector)
-                .push_i64(SET_Ei(i64, op_PUSHOBJ));
+        expr->utype->getCode().getInjector(ptrInjector)
+                .addIr(OpBuilder::popObject2());
 
     }
 
@@ -2874,25 +2858,25 @@ void Compiler::compileNewArrayExpression(Expression *expr, Ast *ast, Utype *arra
     expr->utype->getCode().inject(index.utype->getCode().getInjector(ebxInjector));
 
     if(expr->type == exp_var)
-        expr->utype->getCode().push_i64(SET_Di(i64, op_NEWARRAY, i64ebx));
+        expr->utype->getCode().addIr(OpBuilder::newVarArray(EBX));
     else if(expr->type == exp_class)
-        expr->utype->getCode().push_i64(SET_Ci(i64, op_NEWCLASSARRAY, i64ebx, 0, expr->utype->getClass()->address));
+        expr->utype->getCode().addIr(OpBuilder::newClassArray(EBX, expr->utype->getClass()->address));
     else if(expr->type == exp_object)
-        expr->utype->getCode().push_i64(SET_Di(i64, op_NEWOBJARRAY, i64ebx));
+        expr->utype->getCode().addIr(OpBuilder::newObjectArray(EBX));
 }
 
 // usedfor assigning native vars with size constraints
-__int64 Compiler::dataTypeToOpcode(DataType type) {
+CodeHolder& Compiler::dataTypeToOpcode(DataType type, _register outRegister, _register castRegister, CodeHolder &code) {
     switch (type) {
-        case _INT8: return op_MOV8;
-        case _INT16: return op_MOV16;
-        case _INT32: return op_MOV32;
-        case _INT64: return op_MOV64;
-        case _UINT8: return op_MOVU8;
-        case _UINT16: return op_MOVU16;
-        case _UINT32: return op_MOVU32;
-        case _UINT64: return op_MOVU64;
-        default: return op_NOP;
+        case _INT8: return code.addIr(OpBuilder::mov8(outRegister, castRegister));
+        case _INT16: return code.addIr(OpBuilder::mov16(outRegister, castRegister));
+        case _INT32: return code.addIr(OpBuilder::mov32(outRegister, castRegister));
+        case _INT64: return code.addIr(OpBuilder::mov64(outRegister, castRegister));
+        case _UINT8: return code.addIr(OpBuilder::movu8(outRegister, castRegister));
+        case _UINT16: return code.addIr(OpBuilder::movu16(outRegister, castRegister));
+        case _UINT32: return code.addIr(OpBuilder::movu32(outRegister, castRegister));
+        case _UINT64: return code.addIr(OpBuilder::movu64(outRegister, castRegister));
+        default: return code.addIr(OpBuilder::ill());
     }
 }
 
@@ -2978,7 +2962,7 @@ void Compiler::compileFieldInitialization(Expression* expr, List<KeyPair<Field*,
     }
 }
 
-void Compiler::assignFieldInitExpressionValue(Field *field, Expression *assignExpr, IrCode *resultCode, Ast *ast) {
+void Compiler::assignFieldInitExpressionValue(Field *field, Expression *assignExpr, CodeHolder *resultCode, Ast *ast) {
     if((field->utype->getClass() && assignExpr->utype->getClass() && assignExpr->utype->getClass()->isClassRelated(field->utype->getClass())
            && field->utype->isArray() == assignExpr->utype->isArray())
         || (field->utype->getClass() && assignExpr->utype->isNullType())
@@ -2989,41 +2973,39 @@ void Compiler::assignFieldInitExpressionValue(Field *field, Expression *assignEx
             if(field->isArray)
                 goto object_assignment;
             resultCode->inject(assignExpr->utype->getCode().getInjector(ebxInjector));
-            (*resultCode)
-                    // first case ebx to appropriae value
-                    .push_i64(SET_Ci(i64, dataTypeToOpcode(field->type), i64ebx, 0, i64ebx))
-                    // get the created object
-                    .push_i64(SET_Di(i64, op_MOVSL, 0))
-                    //access the field
-                    .push_i64(SET_Di(i64, op_MOVN, field->address))
-                    // set the ebx vlue to the field
-                    .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                    .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
-                    .push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
+
+            dataTypeToOpcode(field->type, EBX, EBX, *resultCode)
+                    .addIr(OpBuilder::movsl(0))
+                            //access the field
+                    .addIr(OpBuilder::movn(field->address))
+                            // set the ebx value to the field
+                    .addIr(OpBuilder::movi(0, ADX))
+                    .addIr(OpBuilder::checklen(ADX))
+                    .addIr(OpBuilder::rmov(ADX, EBX));
         } else if(field->type == VAR || field->type == FNPTR) {
             if(field->isArray)
                 goto object_assignment;
 
             resultCode->inject(assignExpr->utype->getCode().getInjector(ebxInjector));
             (*resultCode)
-                            // get the created object
-                    .push_i64(SET_Di(i64, op_MOVSL, 0))
+                    // get the created object
+                    .addIr(OpBuilder::movsl(0))
                             //access the field
-                    .push_i64(SET_Di(i64, op_MOVN, field->address))
+                    .addIr(OpBuilder::movn(field->address))
                             // set the ebx vlue to the field
-                    .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                    .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
-                    .push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
+                    .addIr(OpBuilder::movi(0, ADX))
+                    .addIr(OpBuilder::checklen(ADX))
+                    .addIr(OpBuilder::rmov(ADX, EBX));
         } else if(field->type == CLASS || field->type == OBJECT) {
             object_assignment:
             resultCode->inject(assignExpr->utype->getCode().getInjector(stackInjector));
             (*resultCode)
-                            // get the created object
-                    .push_i64(SET_Di(i64, op_MOVSL, -1))
+                    // get the created object
+                    .addIr(OpBuilder::movsl(-1))
                             //access the field
-                    .push_i64(SET_Di(i64, op_MOVN, field->address))
+                    .addIr(OpBuilder::movn(field->address))
                             // get value from stack & assign to field
-                    .push_i64(SET_Ei(i64, op_POPOBJ));
+                    .addIr(OpBuilder::popObject());
         } else {
             errors->createNewError(GENERIC, ast->line, ast->col, " expression `" + assignExpr->utype->toString() + "` assigned to field `" + field->toString()
                                                                  + "` does not allow values to be assigned to it.");
@@ -3067,7 +3049,7 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
 
             if(constr != NULL) {
                 validateAccess(constr, ast);
-                expr->utype->getCode().push_i64(SET_Di(i64, op_NEWCLASS, expr->utype->getClass()->address));
+                expr->utype->getCode().addIr(OpBuilder::newClass(expr->utype->getClass()->address));
 
                 for(long i = 0; i < params.size(); i++) {
                     Field *param = constr->params.get(i);
@@ -3079,7 +3061,7 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
                     }
                 }
 
-                expr->utype->getCode().push_i64(SET_Di(i64, op_CALL, constr->address));
+                expr->utype->getCode().addIr(OpBuilder::call(constr->address));
             }
 
             freeListPtr(expressions);
@@ -3111,7 +3093,7 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
                 goto addFields;
             }
 
-            expr->utype->getCode().push_i64(SET_Di(i64, op_NEWCLASS, expr->utype->getClass()->address));
+            expr->utype->getCode().addIr(OpBuilder::newClass(expr->utype->getClass()->address));
             compileFieldInitialization(expr, fields,
                                        ast->getSubAst(ast_expression_list) == NULL ? ast->getSubAst(ast_field_init_list) : ast->getSubAst(ast_expression_list));
 
@@ -3158,29 +3140,13 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
 }
 
 void Compiler::compileNullExpression(Expression* expr, Ast* ast) {
-    DataEntity *de = new DataEntity();
-    de->type = OBJECT;
-    de->guid = guid++;
-    expr->utype->setType(utype_native);
-    expr->utype->setResolvedType(de);
-    expr->utype->setNullType(true);
+    expr->utype = nullUtype;
 
-    ClassObject *nilClass = findClass("std", "_nil_", classes);
-    if(nilClass != NULL) {
-        Field *null_obj = nilClass->getField("null_object", false);
-        if(null_obj != NULL) {
-            if(null_obj->locality == stl_thread) {
-                expr->utype->getCode()
-                        .push_i64(SET_Di(i64, op_TLS_MOVL, null_obj->address));
+    expr->utype->getCode()
+            .addIr(OpBuilder::pushNull());
 
-                expr->utype->getCode().getInjector(stackInjector)
-                        .push_i64(SET_Ei(i64, op_PUSHOBJ));
-            } else
-                errors->createNewError(GENERIC, ast->line, ast->col, "field `null_object` in class `std#_nil_` bust be a thread local variable");
-        } else
-            errors->createNewError(GENERIC, ast->line, ast->col, "class  `std#_nil_` does not contain field `null_object`");
-    } else
-        errors->createNewError(GENERIC, ast->line, ast->col, "class `std#_nil_` does not exist");
+    expr->utype->getCode().getInjector(ptrInjector)
+            .addIr(OpBuilder::popObject2());
 }
 
 void Compiler::compileBaseExpression(Expression* expr, Ast* ast) {
@@ -3265,10 +3231,10 @@ void Compiler::compileDotNotationCall(Expression* expr, Ast* ast) {
             if (method->utype->isArray() || method->utype->getResolvedType()->type == OBJECT
                 || method->utype->getResolvedType()->type == CLASS) {
                 expr->utype->getCode().getInjector(ptrInjector)
-                        .push_i64(SET_Ei(i64, op_POPOBJ_2));
+                        .addIr(OpBuilder::popObject2());
             } else if (method->utype->getResolvedType()->isVar()) {
                 expr->utype->getCode().getInjector(ebxInjector)
-                        .push_i64(SET_Di(i64, op_LOADVAL, i64ebx));
+                        .addIr(OpBuilder::loadValue(EBX));
             }
 
         }
@@ -3338,18 +3304,16 @@ void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression 
 
                         outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ptrInjector));
                         outExpr->utype->getCode()
-                                .push_i64(SET_Di(i64, op_MOVN, valueField->address))
-                                .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                                .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx));
+                                .addIr(OpBuilder::movn(valueField->address))
+                                .addIr(OpBuilder::movi(0, ADX))
+                                .addIr(OpBuilder::iaload(EBX, ADX));
 
                         if (utype->getResolvedType()->type != VAR) {
-                            outExpr->utype->getCode()
-                                    .push_i64(SET_Ci(i64, dataTypeToOpcode(utype->getResolvedType()->type), i64ebx, 0,
-                                                     i64ebx));
+                            dataTypeToOpcode(utype->getResolvedType()->type, EBX, EBX, outExpr->utype->getCode());
                         }
 
                         outExpr->utype->getCode().getInjector(stackInjector)
-                                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                                .addIr(OpBuilder::rstore(EBX));
                     } else goto castErr;
                 } else goto castErr;
             } else if (isUtypeClass(castExpr->utype, "std", 9, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong")) {
@@ -3361,28 +3325,26 @@ void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression 
 
                         outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ptrInjector));
                         outExpr->utype->getCode()
-                                .push_i64(SET_Di(i64, op_MOVN, valueField->address))
-                                .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                                .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx));
+                                .addIr(OpBuilder::movn(valueField->address))
+                                .addIr(OpBuilder::movi(0, ADX))
+                                .addIr(OpBuilder::iaload(EBX, ADX));
 
                         if (utype->getResolvedType()->type != VAR) {
-                            outExpr->utype->getCode()
-                                    .push_i64(SET_Ci(i64, dataTypeToOpcode(utype->getResolvedType()->type), i64ebx, 0,
-                                                     i64ebx));
+                            dataTypeToOpcode(utype->getResolvedType()->type, EBX, EBX, outExpr->utype->getCode());
                         }
 
                         outExpr->utype->getCode().getInjector(stackInjector)
-                                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                                .addIr(OpBuilder::rstore(EBX));
                     } else goto castErr;
                 } else goto castErr;
             } else if (castExpr->utype->getResolvedType()->type == OBJECT) {
                 if(utype->isArray() && !castExpr->utype->isArray()) {
                     outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ptrInjector));
                     outExpr->utype->getCode()
-                            .push_i64(SET_Di(i64, op_VARCAST, 1));
+                            .addIr(OpBuilder::varCast(1, true));
 
                     outExpr->utype->getCode().getInjector(stackInjector)
-                            .push_i64(SET_Ei(i64, op_PUSHOBJ));
+                            .addIr(OpBuilder::pushObject());
                 } else goto castErr;
             } else if (castExpr->type == exp_var) {
                 if(utype->isArray() == castExpr->utype->isArray()) {
@@ -3394,15 +3356,12 @@ void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression 
                                                                                                       + "` to `" + utype->toString() + "`");
                         } else {
                             if(utype->getResolvedType()->type != VAR) {
-                                outExpr->utype->getCode()
-                                        .push_i64(
-                                                SET_Ci(i64, dataTypeToOpcode(utype->getResolvedType()->type), i64ebx, 0,
-                                                       i64ebx));
+                                dataTypeToOpcode(utype->getResolvedType()->type, EBX, EBX, outExpr->utype->getCode());
                             }
                         }
 
                         outExpr->utype->getCode().getInjector(stackInjector)
-                                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                                .addIr(OpBuilder::rstore(EBX));
                     } else if (utype->equals(castExpr->utype)) {
                         createNewWarning(GENERIC, __WDECL, outExpr->ast->line, outExpr->ast->col, "redundant cast of type `" + castExpr->utype->toString()
                                + "` to `" + utype->toString() + "`");
@@ -3435,11 +3394,11 @@ void Compiler::compileFnPtrCast(Utype *utype, Expression *castExpr, Expression *
                 if(!utype->isArray()) {
                     outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ebxInjector));
                     outExpr->utype->getCode().getInjector(stackInjector)
-                            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                            .addIr(OpBuilder::rstore(EBX));
                 } else {
                     outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ptrInjector));
                     outExpr->utype->getCode().getInjector(stackInjector)
-                            .push_i64(SET_Ei(i64, op_PUSHOBJ));
+                            .addIr(OpBuilder::pushObject());
                 }
             } else goto castErr;
         } else goto castErr; // should never happen but we need to make sure
@@ -3472,11 +3431,11 @@ void Compiler::compileClassCast(Utype *utype, Expression *castExpr, Expression *
                 // anything else MUST be checked at runtime!
                 outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ptrInjector));
                 outExpr->utype->getCode()
-                      .push_i64(SET_Di(i64, op_MOVI, utype->getClass()->address), i64cmt)
-                      .push_i64(SET_Di(i64, op_CAST, i64cmt));
+                        .addIr(OpBuilder::movi(utype->getClass()->address, CMT))
+                        .addIr(OpBuilder::cast(CMT));
 
                 outExpr->utype->getCode().getInjector(stackInjector)
-                        .push_i64(SET_Ei(i64, op_PUSHOBJ));
+                        .addIr(OpBuilder::pushObject());
             }
         } else {
             goto castErr;
@@ -3484,11 +3443,11 @@ void Compiler::compileClassCast(Utype *utype, Expression *castExpr, Expression *
     } else if(castExpr->utype->getResolvedType()->type == OBJECT) {
         outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ptrInjector));
         outExpr->utype->getCode()
-              .push_i64(SET_Di(i64, op_MOVI, utype->getClass()->address), i64cmt)
-              .push_i64(SET_Di(i64, op_CAST, i64cmt));
+                .addIr(OpBuilder::movi(utype->getClass()->address, CMT))
+                .addIr(OpBuilder::cast(CMT));
 
         outExpr->utype->getCode().getInjector(stackInjector)
-                .push_i64(SET_Ei(i64, op_PUSHOBJ));
+                .addIr(OpBuilder::pushObject());
     } else if(isUtypeConvertableToNativeClass(utype, castExpr->utype)) {
         outExpr->utype->getCode().free();
 
@@ -3558,25 +3517,25 @@ void Compiler::compileArrayExpression(Expression* expr, Ast* ast) {
 
         if(arrayExpr.type == exp_var) {
             expr->utype->getCode()
-                    .push_i64(SET_Ei(i64, op_POPOBJ_2))
-                    .push_i64(SET_Ci(i64, op_MOVR, i64adx, 0, i64ebx))
-                    .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
-                    .push_i64(SET_Di(i64, op_MOVND, i64adx));
+                    .addIr(OpBuilder::popObject2())
+                    .addIr(OpBuilder::movr(ADX, EBX))
+                    .addIr(OpBuilder::checklen(ADX))
+                    .addIr(OpBuilder::movnd(ADX));
 
             expr->freeInjectors();
             if(expr->utype->getResolvedType()->isVar()) {
                 expr->utype->getCode().getInjector(ebxInjector)
-                        .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                        .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx));
+                        .addIr(OpBuilder::movi(0, ADX))
+                        .addIr(OpBuilder::iaload(EBX, ADX));
 
                 expr->utype->getCode().getInjector(stackInjector)
-                        .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                        .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx))
-                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                        .addIr(OpBuilder::movi(0, ADX))
+                        .addIr(OpBuilder::iaload(EBX, ADX))
+                        .addIr(OpBuilder::rstore(EBX));
             } else if(expr->utype->getResolvedType()->type == OBJECT || expr->utype->getResolvedType()->type == CLASS) {
 
                 expr->utype->getCode().getInjector(stackInjector)
-                        .push_i64(SET_Ei(i64, op_PUSHOBJ));
+                        .addIr(OpBuilder::pushObject());
             } else
                 errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + expr->utype->toString() + "` must be a var[], object[], or class[]");
         } else
@@ -3622,11 +3581,11 @@ void Compiler::compileNotExpression(Expression* expr, Ast* ast) {
             case _UINT64:
             case VAR:
                 expr->utype->getCode().inject(expr->utype->getCode().getInjector(ebxInjector));
-                expr->utype->getCode().push_i64(SET_Ci(i64, op_NOT, i64ebx,0, i64ebx));
+                expr->utype->getCode().addIr(OpBuilder::_not(EBX, EBX));
 
                 expr->freeInjectors();
                 expr->utype->getCode().getInjector(stackInjector)
-                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                        .addIr(OpBuilder::rstore(EBX));
                 break;
 
             case CLASS:
@@ -3638,7 +3597,7 @@ void Compiler::compileNotExpression(Expression* expr, Ast* ast) {
                     expr->utype->copy(overload->utype);
 
                     expr->utype->getCode().inject(stackInjector);
-                    expr->utype->getCode().push_i64(SET_Di(i64, op_CALL, overload->address));
+                    expr->utype->getCode().addIr(OpBuilder::call(overload->address));
                 } else {
                     errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "call to function `" + expr->utype->toString() + "` must return an var or class to use `" + tok.getValue() + "` operator");
                 }
@@ -3647,10 +3606,10 @@ void Compiler::compileNotExpression(Expression* expr, Ast* ast) {
                 if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
                     || expr->utype->getResolvedType()->type == CLASS) {
                     expr->utype->getCode().getInjector(ptrInjector)
-                            .push_i64(SET_Ei(i64, op_POPOBJ_2));
+                            .addIr(OpBuilder::popObject2());
                 } else if (expr->utype->getResolvedType()->isVar()) {
                     expr->utype->getCode().getInjector(ebxInjector)
-                            .push_i64(SET_Di(i64, op_LOADVAL, i64ebx));
+                            .addIr(OpBuilder::loadValue(EBX));
                 }
                 break;
         }
@@ -3697,33 +3656,31 @@ void Compiler::compilePreIncExpression(Expression* expr, Ast* ast) {
             case VAR:
                 expr->utype->getCode().inject(expr->utype->getCode().getInjector(ebxInjector));
                 if (tok == "++")
-                    expr->utype->getCode().push_i64(SET_Di(i64, op_INC, i64ebx));
+                    expr->utype->getCode().addIr(OpBuilder::inc(EBX));
                 else
-                    expr->utype->getCode().push_i64(SET_Di(i64, op_DEC, i64ebx));
+                    expr->utype->getCode().addIr(OpBuilder::dec(EBX));
 
                 if (expr->utype->getResolvedType()->type <= _UINT64) {
-                    expr->utype->getCode()
-                            .push_i64(SET_Ci(i64, dataTypeToOpcode(expr->utype->getResolvedType()->type), i64ebx, 0,
-                                             i64ebx));
+                    dataTypeToOpcode(expr->utype->getResolvedType()->type, EBX, EBX, expr->utype->getCode());
                 }
 
                 if(expr->utype->getType() == utype_field) {
                     Field *field = (Field*)expr->utype->getResolvedType();
 
                     if(field->local) {
-                        expr->utype->getCode().push_i64(SET_Ci(i64, op_SMOVR_2, i64ebx, 0, field->address));
+                        expr->utype->getCode().addIr(OpBuilder::smovr2(EBX, field->address));
                     } else {
                         // we know that Ptr has to still be set because we had to pull the ebx value from it
                         // this is very dangerous but we have to assume or assumptions are correct
                         expr->utype->getCode()
-                                .push_i64(SET_Di(i64, op_MOVI, 0), i64adx) // I'm pretty sure adx is already set to 0 but just in-case
-                                .push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64ebx));
+                                .addIr(OpBuilder::movi(0, ADX)) // I'm pretty sure adx is already set to 0 but just in-case
+                                .addIr(OpBuilder::rmov(ADX, EBX));
                     }
                 }
 
                 expr->freeInjectors();
                 expr->utype->getCode().getInjector(stackInjector)
-                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                        .addIr(OpBuilder::rstore(EBX));
                 break;
 
             case CLASS:
@@ -3735,7 +3692,7 @@ void Compiler::compilePreIncExpression(Expression* expr, Ast* ast) {
                     expr->utype->copy(overload->utype);
 
                     expr->utype->getCode().inject(stackInjector);
-                    expr->utype->getCode().push_i64(SET_Di(i64, op_CALL, overload->address));
+                    expr->utype->getCode().addIr(OpBuilder::call(overload->address));
                 } else {
                     errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "call to function `" + expr->utype->toString() + "` must return an var or class to use `" + tok.getValue() + "` operator");
                 }
@@ -3744,10 +3701,10 @@ void Compiler::compilePreIncExpression(Expression* expr, Ast* ast) {
                 if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
                     || expr->utype->getResolvedType()->type == CLASS) {
                     expr->utype->getCode().getInjector(ptrInjector)
-                            .push_i64(SET_Ei(i64, op_POPOBJ_2));
+                            .addIr(OpBuilder::popObject2());
                 } else if (expr->utype->getResolvedType()->isVar()) {
                     expr->utype->getCode().getInjector(ebxInjector)
-                            .push_i64(SET_Di(i64, op_LOADVAL, i64ebx));
+                            .addIr(OpBuilder::loadValue(EBX));
                 }
                 break;
         }
@@ -3803,33 +3760,31 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
 
                 if(expr->utype->getType() == utype_field) {
                     Field *field = (Field*)expr->utype->getResolvedType();
-                    expr->utype->getCode().push_i64(SET_Ci(i64, op_MOVR, i64cmt, 0, i64ebx));
+                    expr->utype->getCode().addIr(OpBuilder::movr(CMT, EBX));
 
                     if (tok == "++")
-                        expr->utype->getCode().push_i64(SET_Di(i64, op_INC, i64cmt));
+                        expr->utype->getCode().addIr(OpBuilder::inc(CMT));
                     else
-                        expr->utype->getCode().push_i64(SET_Di(i64, op_DEC, i64cmt));
+                        expr->utype->getCode().addIr(OpBuilder::dec(CMT));
 
                     if (field->type <= _UINT64) {
-                        expr->utype->getCode()
-                                .push_i64(SET_Ci(i64, dataTypeToOpcode(expr->utype->getResolvedType()->type), i64cmt, 0,
-                                                 i64cmt));
+                        dataTypeToOpcode(expr->utype->getResolvedType()->type, CMT, CMT, expr->utype->getCode());
                     }
 
                     if(field->local) {
-                        expr->utype->getCode().push_i64(SET_Ci(i64, op_SMOVR_2, i64cmt, 0, field->address));
+                        expr->utype->getCode().addIr(OpBuilder::smovr2(CMT, field->address));
                     } else {
                         // we know that Ptr has to still be set because we had to pull the ebx value from it
                         // this is very dangerous but we have to assume or assumptions are correct
                         expr->utype->getCode()
-                              .push_i64(SET_Di(i64, op_MOVI, 0), i64adx) // I'm pretty sure adx is already set to 0 but just in-case
-                              .push_i64(SET_Ci(i64, op_RMOV, i64adx, 0, i64cmt));
+                                .addIr(OpBuilder::movi(0, ADX)) // I'm pretty sure adx is already set to 0 but just in-case
+                                .addIr(OpBuilder::rmov(ADX, CMT));
                     }
                 }
 
                 expr->freeInjectors();
                 expr->utype->getCode().getInjector(stackInjector)
-                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                        .addIr(OpBuilder::rstore(EBX));
                 break;
 
             case CLASS:
@@ -3842,8 +3797,8 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
 
                     expr->utype->getCode().inject(stackInjector);
                     expr->utype->getCode()
-                           .push_i64(SET_Di(i64, op_ISTORE, 1))
-                           .push_i64(SET_Di(i64, op_CALL, overload->address));
+                            .addIr(OpBuilder::istore(1))
+                            .addIr(OpBuilder::call(overload->address));
                 } else {
                     errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "class expression `" + expr->utype->toString() + "` must overload operator `" + tok.getValue() + "` to be used");
                 }
@@ -3852,10 +3807,10 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
                 if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
                     || expr->utype->getResolvedType()->type == CLASS) {
                     expr->utype->getCode().getInjector(ptrInjector)
-                            .push_i64(SET_Ei(i64, op_POPOBJ_2));
+                            .addIr(OpBuilder::popObject2());
                 } else if (expr->utype->getResolvedType()->isVar()) {
                     expr->utype->getCode().getInjector(ebxInjector)
-                            .push_i64(SET_Di(i64, op_LOADVAL, i64ebx));
+                            .addIr(OpBuilder::loadValue(EBX));
                 }
                 break;
             default:
@@ -3950,9 +3905,9 @@ void Compiler::compileLambdaExpression(Expression* expr, Ast* ast) {
     expr->utype->setNullType(false);
     expr->utype->setResolvedType(lambda);
 
-    expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, lambda->address), i64ebx);
+    expr->utype->getCode().addIr(OpBuilder::movi(lambda->address, EBX));
     expr->utype->getCode().getInjector(stackInjector)
-            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+            .addIr(OpBuilder::rstore(EBX));
 
     if(processingStage > POST_PROCESSING) {
         // Todo:...
@@ -3985,16 +3940,17 @@ void Compiler::compileSizeOfExpression(Expression* expr, Ast* ast) {
     expr->utype->getCode().inject(sizeExpr.utype->getCode());
     if(sizeExpr.utype->getType() == utype_literal
         && ((Literal*)sizeExpr.utype->getResolvedType())->literalType == string_literal) {
-        expr->utype->getCode().push_i64(SET_Di(i64, op_MOVI, ((Literal*)sizeExpr.utype->getResolvedType())->stringData.size()), i64ebx);
+        expr->utype->getCode().addIr(
+                OpBuilder::movi(((Literal *) sizeExpr.utype->getResolvedType())->stringData.size(), EBX));
     } else if(sizeExpr.utype->getType() == utype_class || sizeExpr.utype->getType() == utype_field){
         expr->utype->getCode().inject(sizeExpr.utype->getCode().getInjector(ptrInjector));
-        expr->utype->getCode().push_i64(SET_Di(i64, op_SIZEOF, i64ebx));
+        expr->utype->getCode().addIr(OpBuilder::_sizeof(EBX));
     } else {
         errors->createNewError(GENERIC, expr->ast, "cannot get sizeof from expression of type `" + sizeExpr.utype->toString() + "`");
     }
 
     expr->utype->getCode().getInjector(stackInjector)
-            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+            .addIr(OpBuilder::rstore(EBX));
 
     compilePostAstExpressions(expr, ast, 1);
 }
@@ -4190,6 +4146,17 @@ void Compiler::resolveField(Ast* ast) {
 
         if (field->locality == stl_stack) {
             field->address = field->owner->getFieldAddress(field);
+            if(field->address >= CLASS_FIELD_LIMIT) {
+                stringstream err;
+                err << "maximum class field limit of (" << CLASS_FIELD_LIMIT << ") reached.";
+                errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
+            }
+        } else {
+            if(field->address >= THREAD_LOCAL_FIELD_LIMIT) {
+                stringstream err;
+                err << "maximum thread local field limit of (" << THREAD_LOCAL_FIELD_LIMIT << ") reached.";
+                errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
+            }
         }
 
         if (ast->hasToken(COLON)) {
@@ -4890,6 +4857,12 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
         method->fnType = fn_normal;
         method->address = methodSize++;
     }
+
+    if(method->address >= FUNCTION_LIMIT) {
+        stringstream err;
+        err << "maximum function limit of (" << FUNCTION_LIMIT << ") reached.";
+        errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
+    }
     method->extensionFun = extensionFun;
 
     compileMethodReturnType(method, ast, true);
@@ -5409,7 +5382,7 @@ double Compiler::getInlinedFieldValue(Field* field) {
 }
 
 bool Compiler::isDClassNumberEncodable(double var) {
-    return !((int64_t )var > DA_MAX || (int64_t )var < DA_MIN);
+    return !((int64_t )var > DA_MAX);
 }
 
 int64_t Compiler::getLowBytes(double var) {
@@ -5431,21 +5404,22 @@ int64_t Compiler::getLowBytes(double var) {
     return 0;
 }
 
-void Compiler::inlineVariableValue(IrCode &code, Field *field) {
+void Compiler::inlineVariableValue(CodeHolder &code, Field *field) {
     double value = getInlinedFieldValue(field);
     code.free();
 
     if(isWholeNumber(value)) {
-        code.push_i64(SET_Di(i64, op_MOVI, value), i64ebx);
+        if(value > INT32_MAX) {
+            code.addIr(OpBuilder::ldc(EBX, constantIntMap.indexof(value)));
+        } else
+            code.addIr(OpBuilder::movi(value, EBX));
         code.getInjector(stackInjector)
-                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                .addIr(OpBuilder::rstore(EBX));
     }
     else {
-        code.push_i64(SET_Di(i64, op_MOVBI, ((int64_t)value)), abs(getLowBytes(value)));
+        code.addIr(OpBuilder::movf(EBX, floatingPointMap.indexof(value)));
         code.getInjector(stackInjector)
-                .push_i64(SET_Di(i64, op_RSTORE, i64bmr));
-        code.getInjector(ebxInjector)
-                .push_i64(SET_Ci(i64, op_MOVR, i64ebx, 0, i64bmr));
+                .addIr(OpBuilder::rstore(EBX));
     }
 }
 
@@ -5542,43 +5516,43 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         if(field->isVar()) {
             if(field->isArray || field->locality == stl_thread) {
                 if(field->locality == stl_thread) {
-                    utype->getCode().push_i64(SET_Di(i64, op_TLS_MOVL, field->address));
+                    utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
 
                     // we only do it for stl_thread var if it is not an array field
                     if(!field->isArray) {
                         utype->getCode().getInjector(ebxInjector)
-                            .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                            .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
-                            .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx,0, i64adx));
+                                .addIr(OpBuilder::movi(0, ADX))
+                                .addIr(OpBuilder::checklen(ADX))
+                                .addIr(OpBuilder::iaload(EBX, ADX));
 
                         utype->getCode().getInjector(stackInjector)
-                                .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                                .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
-                                .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx))
-                                .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                                .addIr(OpBuilder::movi(0, ADX))
+                                .addIr(OpBuilder::checklen(ADX))
+                                .addIr(OpBuilder::iaload(EBX, ADX))
+                                .addIr(OpBuilder::rstore(EBX));
                         return;
                     }
                 } else {
-                    utype->getCode().push_i64(SET_Di(i64, op_MOVL, field->address));
+                    utype->getCode().addIr(OpBuilder::movl(field->address));
                 }
 
                 utype->getCode().getInjector(stackInjector)
-                        .push_i64(SET_Ei(i64, op_PUSHOBJ));
+                        .addIr(OpBuilder::pushObject());
             } else {
-                utype->getCode().push_i64(SET_Ci(i64, op_LOADL, i64ebx, 0, field->address));
+                utype->getCode().addIr(OpBuilder::loadl(EBX, field->address));
                 utype->getCode().getInjector(stackInjector)
-                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                        .addIr(OpBuilder::rstore(EBX));
             }
         }
         else {
             if(field->locality == stl_thread) {
-                utype->getCode().push_i64(SET_Di(i64, op_TLS_MOVL, field->address));
+                utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
             } else {
-                utype->getCode().push_i64(SET_Di(i64, op_MOVL, field->address));
+                utype->getCode().addIr(OpBuilder::movl(field->address));
             }
 
             utype->getCode().getInjector(stackInjector)
-                    .push_i64(SET_Ei(i64, op_PUSHOBJ));
+                    .addIr(OpBuilder::pushObject());
         }
     } else if((resolvedUtype = currentScope()->klass->getField(name, true)) != NULL) {
         resolveFieldUtype(utype, ast, resolvedUtype, name);
@@ -5588,11 +5562,11 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         utype->setResolvedType(resolvedUtype);
         utype->setArrayType(((Field*)resolvedUtype)->isArray);
 
-        utype->getCode().push_i64(SET_Di(i64, op_MOVG, resolvedUtype->owner->address));
-        utype->getCode().push_i64(SET_Di(i64, op_MOVN, resolvedUtype->address));
+        utype->getCode().addIr(OpBuilder::movg(resolvedUtype->owner->address));
+        utype->getCode().addIr(OpBuilder::movn(resolvedUtype->address));
 
         utype->getCode().getInjector(stackInjector)
-                .push_i64(SET_Ei(i64, op_PUSHOBJ));
+                .addIr(OpBuilder::pushObject());
         return;
     } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveClass("", name, ast)) != NULL) {
         utype->setType(utype_class);
@@ -5740,9 +5714,10 @@ void Compiler::resolveFunctionByNameUtype(Utype *utype, Ast *ast, string &name, 
     if(!functions.get(0)->flags.find(STATIC)) {
         errors->createNewError(GENERIC, ast->line, ast->col, " cannot get address from non static function `" + name + "` ");
     }
-    utype->getCode().push_i64(SET_Di(i64, op_MOVI, resolvedFunction->address), i64ebx);
+
+    utype->getCode().addIr(OpBuilder::movi(resolvedFunction->address, EBX));
     utype->getCode().getInjector(stackInjector)
-            .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+            .addIr(OpBuilder::rstore(EBX));
 }
 
 void Compiler::resolveClassUtype(Utype *utype, Ast *ast, DataEntity *resolvedClass) {
@@ -5771,39 +5746,39 @@ void Compiler::resolveFieldUtype(Utype *utype, Ast *ast, DataEntity *resolvedFie
         if(field->getter != NULL) {
             if(field->locality == stl_stack && !field->flags.find(STATIC) && !utype->getCode().instanceCaptured) {
                 utype->getCode().instanceCaptured = true;
-                utype->getCode().push_i64(SET_Di(i64, op_MOVL, 0));
+                utype->getCode().addIr(OpBuilder::movl(0));
             }
 
-            utype->getCode().push_i64(SET_Ei(i64, op_PUSHOBJ));
+            utype->getCode().addIr(OpBuilder::pushObject());
             compileFieldGetterCode(utype->getCode(), field);
         } else {
             if(field->locality == stl_thread) {
-                utype->getCode().push_i64(SET_Di(i64, op_TLS_MOVL, field->address));
+                utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
             } else {
                 if(field->flags.find(STATIC) || field->owner->isGlobalClass())
-                    utype->getCode().push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                    utype->getCode().addIr(OpBuilder::movg( field->owner->address));
                 else if(!utype->getCode().instanceCaptured) {
                     utype->getCode().instanceCaptured = true;
-                    utype->getCode().push_i64(SET_Di(i64, op_MOVL, 0));
+                    utype->getCode().addIr(OpBuilder::movl(0));
                 }
 
-                utype->getCode().push_i64(SET_Di(i64, op_MOVN, field->address));
+                utype->getCode().addIr(OpBuilder::movn(field->address));
             }
 
             if (field->isVar() && !field->isArray) {
                 utype->getCode().getInjector(ebxInjector)
-                        .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                        .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
-                        .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx));
+                        .addIr(OpBuilder::movi(0, ADX))
+                        .addIr(OpBuilder::checklen(ADX))
+                        .addIr(OpBuilder::iaload(EBX, ADX));
 
                 utype->getCode().getInjector(stackInjector)
-                        .push_i64(SET_Di(i64, op_MOVI, 0), i64adx)
-                        .push_i64(SET_Di(i64, op_CHECKLEN, i64adx))
-                        .push_i64(SET_Ci(i64, op_IALOAD_2, i64ebx, 0, i64adx))
-                        .push_i64(SET_Di(i64, op_RSTORE, i64ebx));
+                        .addIr(OpBuilder::movi(0, ADX))
+                        .addIr(OpBuilder::checklen(ADX))
+                        .addIr(OpBuilder::iaload(EBX, ADX))
+                        .addIr(OpBuilder::rstore(EBX));
             } else
                 utype->getCode().getInjector(stackInjector)
-                        .push_i64(SET_Ei(i64, op_PUSHOBJ));
+                        .addIr(OpBuilder::pushObject());
         }
     }
 }
@@ -5817,18 +5792,18 @@ void Compiler::resolveFieldUtype(Utype *utype, Ast *ast, DataEntity *resolvedFie
  * @param code
  * @param field
  */
-void Compiler::compileFieldGetterCode(IrCode &code, Field *field) { // TODO: dont call this if we are in the getter or setter code
+void Compiler::compileFieldGetterCode(CodeHolder &code, Field *field) { // TODO: dont call this if we are in the getter or setter code
     if(field != NULL && field->utype != NULL && field->getter) {
         if(field->isVar() && !field->isArray) {
-            code.push_i64(SET_Di(i64, op_CALL, field->getter->address));
+            code.addIr(OpBuilder::call(field->getter->address));
 
             code.getInjector(ebxInjector)
-                    .push_i64(SET_Di(i64, op_LOADVAL, i64ebx));
+                    .addIr(OpBuilder::loadValue(EBX));
         } else {
-            code.push_i64(SET_Di(i64, op_CALL, field->getter->address));
+            code.addIr(OpBuilder::call(field->getter->address));
 
             code.getInjector(ptrInjector)
-                    .push_i64(SET_Ei(i64, op_POPOBJ_2));
+                    .addIr(OpBuilder::popObject2());
         }
     }
 }
@@ -5898,7 +5873,7 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
         if(bridgeUtype->getType() == utype_field) {
             Field *field = (Field*)bridgeUtype->getResolvedType();
             if(fromClass)
-                utype->getCode().push_i64(SET_Di(i64, op_MOVG, field->owner->address));
+                utype->getCode().addIr(OpBuilder::movg( field->owner->address));
 
             if(isFieldInlined(field) || field->flags.find(STATIC)) {
                 utype->getCode().free();
@@ -7148,11 +7123,16 @@ void Compiler::setup() {
     stringMap.init();
     functionPtrs.init();
     failedParsers.init();
+    floatingPointMap.init();
+    constantIntMap.init();
     unProcessedClasses.init();
     inlinedFields.init();
     nilUtype = new Utype(NIL);
+    nullUtype = new Utype(OBJECT);
     undefUtype = new Utype(UNDEFINED);
     undefUtype->setType(utype_unresolved);
+    nullUtype->setNullType(true);
+    nullUtype->getResolvedType()->guid = guid++;
 }
 
 void Compiler::compile() {

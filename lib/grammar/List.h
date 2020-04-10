@@ -34,7 +34,7 @@ public:
         return _Data[len-1];
     }
 
-    void insert(unsigned long long pos, T& data) {
+    void insert(uint32_t pos, T& data) {
         if(pos>len || pos < 0) {
             stringstream ss;
             ss << "index out of bounds list::insert() _X: " << pos
@@ -46,11 +46,11 @@ public:
             push_back(data);
         } else {
             T* result = new T[len+1];
-            unsigned long long newLen=len+1;
-            for(unsigned long long i = 0; i < pos; i++)
+            uint32_t newLen=len+1;
+            for(uint32_t i = 0; i < pos; i++)
                 result[i] = _Data[i];
             result[pos] = data;
-            for(unsigned long long i = pos + 1; i < newLen; i++)
+            for(uint32_t i = pos + 1; i < newLen; i++)
                 result[i] = _Data[i - 1];
 
             free();
@@ -64,7 +64,7 @@ public:
      * Programmer must be responsible
      * for freeing that data himself
      */
-    void removeAt(unsigned long long _X) {
+    void removeAt(uint32_t _X) {
         if(_X>=len || len==0){
             stringstream ss;
             ss << "index out of bounds list::removeAt() _X: " << _X
@@ -82,10 +82,10 @@ public:
             __shrink();
         } else {
             T* result = new T[len-1];
-            unsigned long long newLen=len-1,iter=0;
-            for(unsigned long long i = 0; i < _X; i++)
+            uint32_t newLen=len-1,iter=0;
+            for(uint32_t i = 0; i < _X; i++)
                 result[iter++] = _Data[i];
-            for(unsigned long long i = _X+1; i < len; i++)
+            for(uint32_t i = _X+1; i < len; i++)
                 result[iter++] = _Data[i];
 
             free();
@@ -101,7 +101,7 @@ public:
      * for freeing that data himself
      */
     void remove(T& _X) {
-        for(unsigned long long i = 0; i < len; i++) {
+        for(uint32_t i = 0; i < len; i++) {
             if(_X == _Data[i]) {
                 removeAt(i);
                 return;
@@ -109,7 +109,7 @@ public:
         }
     }
 
-    T at(unsigned long long _X) {
+    T at(uint32_t _X) {
         if(_X>=len){
             stringstream ss;
             ss << "index out of bounds list::get() _X: " << _X
@@ -119,7 +119,7 @@ public:
         return _Data[_X];
     }
 
-    T& get(unsigned long long _X) {
+    T& get(uint32_t _X) {
         if(_X>=len || _X < 0){
             stringstream ss;
             ss << "index out of bounds list::get() _X: " << _X
@@ -145,7 +145,7 @@ public:
         len=0;
     }
 
-    unsigned long long size() { return len; }
+    uint32_t size() { return len; }
 
     bool singular() { return len == 1; }
 
@@ -154,7 +154,7 @@ public:
     }
 
     bool addif(T _V) {
-        for(unsigned long long i = 0; i < len; i++) {
+        for(uint32_t i = 0; i < len; i++) {
             if(_V == _Data[i])
                 return false;
         }
@@ -163,8 +163,19 @@ public:
         return true;
     }
 
+
+    uint32_t addIfIndex(T _V) {
+        for(uint32_t i = 0; i < len; i++) {
+            if(_V == _Data[i])
+                return i;
+        }
+
+        push_back(_V);
+        return len - 1;
+    }
+
     bool sameElements(List<T> &list) {
-        for(unsigned long long i = 0; i < len; i++) {
+        for(uint32_t i = 0; i < len; i++) {
             if(list._Data[i] != _Data[i])
                 return false;
         }
@@ -173,8 +184,8 @@ public:
     }
 
     void removefirst(T _V) {
-        unsigned long long iter = -1;
-        for(unsigned long long i = 0; i < len; i++) {
+        uint32_t iter = -1;
+        for(uint32_t i = 0; i < len; i++) {
             if(_V == _Data[i]){
                 iter = i;
                 break;
@@ -190,7 +201,7 @@ public:
      * Programmer must be responsible
      * for freeing that data himself
      */
-    void replace(unsigned long long _X, T repl) {
+    void replace(uint32_t _X, T repl) {
         if(_X>=len || _X < 0){
             stringstream ss;
             ss << "index out of bounds list::replaceat() _X: " << _X
@@ -202,20 +213,20 @@ public:
 
     void addAll(List<T>& list) {
         free();
-        for(unsigned long long i = 0; i < list.size(); i++) {
+        for(uint32_t i = 0; i < list.size(); i++) {
             push_back(list.get(i));
         }
     }
 
     void addAllUnique(List<T>& list) {
         free();
-        for(unsigned long long i = 0; i < list.size(); i++) {
+        for(uint32_t i = 0; i < list.size(); i++) {
             addif(list.get(i));
         }
     }
 
     void appendAll(List<T>& list) {
-        for(unsigned long long i = 0; i < list.size(); i++) {
+        for(uint32_t i = 0; i < list.size(); i++) {
             push_back(list.get(i));
         }
     }
@@ -228,7 +239,7 @@ public:
     }
 
     bool find(T data) {
-        for(unsigned long long i = 0; i < len; i++) {
+        for(uint32_t i = 0; i < len; i++) {
             if(data == _Data[i]){
                 return true;
             }
@@ -238,7 +249,7 @@ public:
 
     long long count(T data) {
         long long num=0;
-        for(unsigned long long i = 0; i < len; i++) {
+        for(uint32_t i = 0; i < len; i++) {
             if(data == _Data[i]){
                 num++;
             }
@@ -246,8 +257,8 @@ public:
         return num;
     }
 
-    unsigned long long indexof(T data) {
-        for(unsigned long long i = 0; i < len; i++) {
+    uint32_t indexof(T data) {
+        for(uint32_t i = 0; i < len; i++) {
             if(data == _Data[i]){
                 return i;
             }
@@ -255,8 +266,8 @@ public:
         return -1;
     }
 
-    unsigned long long indexof(bool (*isElement)(T* e, void *e2), void *e2) {
-        for(unsigned long long i = 0; i < len; i++) {
+    uint32_t indexof(bool (*isElement)(T* e, void *e2), void *e2) {
+        for(uint32_t i = 0; i < len; i++) {
             if(isElement(&_Data[i], e2)){
                 return i;
             }
@@ -265,9 +276,9 @@ public:
     }
 
     void linearSort(bool (*swap)(T e1, T e2)) {
-        for(unsigned int i = 0; i < len; i++) {
+        for(uint32_t i = 0; i < len; i++) {
 
-            for (unsigned int j = 0; j < len; j++) {
+            for (uint32_t j = 0; j < len; j++) {
                 if((j + 1) < len) {
                     if (swap(_Data[j], _Data[j+1])) {
                         T tmp = _Data[j];
@@ -287,7 +298,7 @@ private:
     void __expand() {
         try{
             T* newbuf = new T[len+1];
-            for(unsigned long long i = 0; i < len; i++) {
+            for(uint32_t i = 0; i < len; i++) {
                 newbuf[i] = _Data[i];
             }
             delete[] _Data;
@@ -308,7 +319,7 @@ private:
             }
 
             T* newbuf = new T[len-1];
-			for (unsigned long long i = 0; i < len-1; i++) {
+			for (uint32_t i = 0; i < len-1; i++) {
 				newbuf[i] = _Data[i];
 			}
             delete[] _Data;
@@ -320,7 +331,7 @@ private:
         }
     }
 
-    unsigned  long long len;
+    uint32_t len;
     T* _Data;
 };
 

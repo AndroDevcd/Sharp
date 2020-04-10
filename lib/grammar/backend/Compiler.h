@@ -7,6 +7,7 @@
 
 #include "../../../stdimports.h"
 #include "../frontend/parser/Parser.h"
+#include "../../runtime/Opcode.h"
 #include "Scope.h"
 #include "ReferencePointer.h"
 #include "data/Utype.h"
@@ -103,7 +104,6 @@ private:
     long processingStage;
     string outFile;
     string lastNoteMsg;
-    __int64 i64;
     Meta lastNote;
     Method* mainMethod;
     List<parser*> parsers;
@@ -116,11 +116,14 @@ private:
     List<ClassObject*> unProcessedClasses; /* We cant compile everything at once so this will hold all classes that cant be immediatley processed at the time */
     List<Scope*> currScope;
     List<string> stringMap;
+    List<float> floatingPointMap;
+    List<int64_t> constantIntMap;
     List<KeyPair<Field*, double>> inlinedFields;
     List<KeyPair<string, List<string>>>  importMap;
     List<Method*> lambdas;
     List<Method*> functionPtrs;
     Utype* nilUtype;
+    Utype* nullUtype;
     Utype* undefUtype;
     parser* current;
     string currModule;
@@ -167,9 +170,9 @@ private:
     ClassObject* addChildClassObject(string name, List<AccessFlag> &flags, ClassObject* owner, Ast* ast);
     void removeScope();
     void resolveBaseClasses();
-    __int64 dataTypeToOpcode(DataType type);
-    void convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, IrCode &code, Ast* ast);
-    void convertNativeIntegerClassToVar(Utype *clazz, Utype *paramUtype, IrCode &code, Ast *ast);
+    CodeHolder& dataTypeToOpcode(DataType type, _register outRegister, _register castRegister, CodeHolder &code);
+    void convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, CodeHolder &code, Ast* ast);
+    void convertNativeIntegerClassToVar(Utype *clazz, Utype *paramUtype, CodeHolder &code, Ast *ast);
     void resolveSuperClass(Ast *ast, ClassObject* currentClass = NULL);
     void parseReferencePointerList(List<ReferencePointer*> &refPtrs, Ast *ast);
     ClassObject* resolveBaseClass(Ast *ast);
@@ -180,7 +183,7 @@ private:
     Utype* compileUtype(Ast *ast, bool intanceCaptured = false);
     void compileFuncPtr(Utype *utype, Ast *ast);
     void resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast);
-    void inlineVariableValue(IrCode &code, Field *field);
+    void inlineVariableValue(CodeHolder &code, Field *field);
     bool isDClassNumberEncodable(double var);
     Field *resolveEnum(string name);
     void compileAliasType(Alias *alias);
@@ -282,7 +285,7 @@ private:
     Field *resolveField(string name, Ast *ast);
     Alias *resolveAlias(string mod, string name, Ast *ast);
     bool isAllIntegers(string int_string);
-    string codeToString(IrCode &code);
+    string codeToString(CodeHolder &code);
     string registerToString(int64_t r);
     string find_class(int64_t id);
     void printExpressionCode(Expression *expr);
@@ -296,11 +299,11 @@ private:
     bool resolveExtensionFunctions(ClassObject *unprocessedClass);
     void compileFieldType(Field *field);
     void checkTypeInference(Ast *ast);
-    void assignFieldInitExpressionValue(Field *field, Expression *assignExpr, IrCode *resultCode, Ast *ast);
+    void assignFieldInitExpressionValue(Field *field, Expression *assignExpr, CodeHolder *resultCode, Ast *ast);
     void resolveUnprocessedClassMutations(ClassObject *unprocessedClass);
     void resolveGetter(Ast *ast, Field *field);
     void resolveSetter(Ast *ast, Field *field);
-    void compileFieldGetterCode(IrCode &code, Field *field);
+    void compileFieldGetterCode(CodeHolder &code, Field *field);
     void compilePostAstExpressions(Expression *expr, Ast *ast, long startPos = 1);
     void getContractedMethods(ClassObject *subscriber, List<Method *> &contractedMethods);
     void findConflicts(Ast *ast, string type, string &name);
@@ -317,6 +320,17 @@ enum ProcessingStage {
     POST_PROCESSING=1,
     COMPILING=2,
 };
+
+#define CLASS_LIMIT CA2_MAX
+#define CLASS_FIELD_LIMIT DA_MAX
+#define LOCAL_FIELD_LIMIT CA2_MAX
+#define THREAD_LOCAL_FIELD_LIMIT DA_MAX
+#define FUNCTION_LIMIT DA_MAX
+#define STRING_LITERAL_LIMIT DA_MAX
+#define FLOATING_POINT_LIMIT CA2_MAX
+#define CONSTANT_LIMIT CA2_MAX
+#define FUNCTION_OPCODE_LIMIT DA_MAX
+#define OPCODE_SKIP_LIMIT DA_MAX
 
 #define CHECK_CMP_ERRORS(exit_proc) \
     if(panic) exit_proc \

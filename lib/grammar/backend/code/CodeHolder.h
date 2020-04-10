@@ -11,17 +11,17 @@
 #include "../../../util/KeyPair.h"
 #include "../../List.h"
 
-class IrCode {
+class CodeHolder {
 public:
-    IrCode() {
-        ir64.init();
+    CodeHolder() {
+        ir32.init();
         injectors.key.init();
         injectors.value.init();
         instanceCaptured = false;
     }
 
     void init() {
-        ir64.init();
+        ir32.init();
         injectors.key.init();
         injectors.value.init();
         instanceCaptured = false;
@@ -37,38 +37,27 @@ public:
         return false;
     }
 
-    void addinjector_unsafe(std::string key) {
-        injectors.key.push_back(key);
-        injectors.value.__new();
-        injectors.value.last().init();
-    }
-
-    bool add(string injector, int64_t i64) {
+    bool add(string injector, int32_t i32) {
         if(has_injector(injector)) {
-            getInjector(injector).ir64.push_back(i64);
+            getInjector(injector).ir32.add(i32);
             return true;
         }
         return false;
     }
 
-    IrCode& push_i64(int64_t i64){
-        ir64.push_back(i64);
-        return *this;
-    }
-    IrCode& push_i64(int64_t i64, int64_t xtra){
-        ir64.push_back(i64);
-        ir64.push_back(xtra);
+    CodeHolder& addIr(uint32_t i32){
+        ir32.push_back(i32);
         return *this;
     }
 
     // conditinal state variables for processing fields
     bool instanceCaptured;
 
-    List<int64_t> ir64;
-    KeyPair<List<string>, List<IrCode>> injectors;
+    List<uint32_t> ir32;
+    KeyPair<List<string>, List<CodeHolder>> injectors;
 
-    IrCode& free() {
-        ir64.free();
+    CodeHolder& free() {
+        ir32.free();
         injectors.key.free();
 
         for(unsigned int i = 0; i < injectors.value.size(); i++) {
@@ -79,53 +68,65 @@ public:
         return *this;
     }
 
-    void injecti64(int64_t i, int64_t i64) {
-        if(i < 0) return;
+    /**
+     * This function consumes data returned by the Opcode::Builder
+     * to be added to the code holder
+     * @param buffer
+     * @return
+     */
+    CodeHolder& addIr(uint32_t *buffer) {
+        const int BUFFER_SIZE = 3;
+        for(int i = 0; i < BUFFER_SIZE; i++) {
+            if(buffer[i] != -1)
+                addIr(buffer[i]);
+            else
+                return *this;
+        }
 
-        ir64.insert(i, i64);
+        return *this;
     }
 
-    void inject(int64_t i, IrCode& assembler) {
+    void inject(int32_t i, CodeHolder& assembler) {
         if(i < 0) return;
 
-        int64_t start = i, iter = 0;
+        int32_t start = i, iter = 0;
         for(;;) {
-            if(iter >= assembler.ir64.size())
+            if(iter >= assembler.ir32.size())
                 break;
 
-            ir64.insert(start++, assembler.ir64.get(iter++));
+            ir32.insert(start++, assembler.ir32.get(iter++));
         }
     }
 
-    void inject(IrCode& assembler) {
-        int64_t start = ir64.size(), iter = 0;
+    void inject(CodeHolder& assembler) {
+        int32_t start = ir32.size(), iter = 0;
         for(;;) {
-            if(iter >= assembler.ir64.size())
+            if(iter >= assembler.ir32.size())
                 break;
 
-            ir64.insert(start++, assembler.ir64.get(iter++));
+            ir32.insert(start++, assembler.ir32.get(iter++));
         }
     }
 
     void inject(string injector) {
-        IrCode& assembler = getInjector(injector);
+        CodeHolder& assembler = getInjector(injector);
 
-        int64_t start = ir64.size(), iter = 0;
+        int32_t start = ir32.size(), iter = 0;
         for(;;) {
-            if(iter >= assembler.ir64.size())
+            if(iter >= assembler.ir32.size())
                 break;
 
-            ir64.insert(start++, assembler.ir64.get(iter++));
+            ir32.insert(start++, assembler.ir32.get(iter++));
         }
 
         assembler.free();
     }
 
-    int64_t size() {
-        return ir64.size();
+    int32_t size() {
+        return ir32.size();
     }
 
-    IrCode& getInjector(string key) {
+    CodeHolder& getInjector(string key) {
         for(unsigned int i = 0; i < injectors.key.size(); i++) {
             if(injectors.key.at(i) == key)
                 return injectors.value.get(i);
@@ -135,9 +136,7 @@ public:
         return injectors.value.last();
     }
 
-private:
-
-    void remove_injector(string key) {
+    void removeInjector(string key) {
         for(unsigned int i = 0; i < injectors.key.size(); i++) {
             if(injectors.key.at(i) == key) {
                 injectors.value.removeAt(i);
@@ -146,6 +145,7 @@ private:
             }
         }
     }
+private:
 
     bool has_injector(string key) {
         for(unsigned int i = 0; i < injectors.key.size(); i++) {

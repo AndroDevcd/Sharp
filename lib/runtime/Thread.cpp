@@ -715,67 +715,6 @@ void printStack() {
 }
 #endif
 
-double exponent(int64_t n){
-    if (n < 100000){
-        // 5 or less
-        if (n < 100){
-            // 1 or 2
-            if (n < 10)
-                return n*0.1;
-            else
-                return n*0.01;
-        }else{
-            // 3 or 4 or 5
-            if (n < 1000)
-                return n*0.001;
-            else{
-                // 4 or 5
-                if (n < 10000)
-                    return n*0.0001;
-                else
-                    return n*0.00001;
-            }
-        }
-    } else {
-        // 6 or more
-        if (n < 10000000) {
-            // 6 or 7
-            if (n < 1000000)
-                return n*0.000001;
-            else
-                return n*0.0000001;
-        } else if(n < 1000000000) {
-            // 8 to 10
-            if (n < 100000000)
-                return n*0.00000001;
-            else {
-                // 9 or 10
-                if (n < 1000000000)
-                    return n*0.000000001;
-                else
-                    return n*0.0000000001;
-            }
-        } else if(n < 1000000000000000) {
-            // 11 to 15
-            if (n < 100000000000)
-                return n*0.00000000001;
-            else {
-                // 12 to 15
-                if (n < 1000000000000)
-                    return n*0.000000000001;
-                else if (n < 10000000000000)
-                    return n*0.0000000000001;
-                else if (n < 100000000000000)
-                    return n*0.00000000000001;
-                else
-                    return n*0.000000000000001;
-            }
-        }
-        else {
-            return n*0.0000000000000001;
-        }
-    }
-}
 
 /**
  * This tells the virtual machine to process code
@@ -944,12 +883,6 @@ void Thread::exec() {
             MOVR: // tested
                 registers[GET_Ca(*pc)]=registers[GET_Cb(*pc)];
                 _brh
-            IALOAD: // tested
-                o = sp->object.object;
-                if(o != NULL && TYPE(o->info) == _stype_var) {
-                    registers[GET_Ca(*pc)] = o->HEAD[(int64_t)registers[GET_Cb(*pc)]];
-                } else throw Exception(Environment::NullptrException, "");
-                _brh
             BRH: // tested
                 pc=cache+(int64_t)registers[i64adx];
                 LONG_CALL();
@@ -990,9 +923,9 @@ void Thread::exec() {
             MOVSL: // tested
                 o2 = &((sp+GET_Da(*pc))->object);
                 _brh
-            MOVBI:
-                registers[i64bmr]=GET_Da(*pc) + exponent(*(pc+1)); pc++;
-                _brh
+            MOVF: // TODO: change this in the JIT
+                registers[GET_Da(*pc)]=env->floatingPoints[*(pc + 1)]
+                _brh_inc(2)
             SIZEOF:
                 if(o2==NULL || o2->object == NULL)
                     registers[GET_Da(*pc)] = 0;
@@ -1090,9 +1023,6 @@ void Thread::exec() {
                 _brh
             ULOCK:
                 CHECK_NULL2(Object::monitorUnLock(o2, thread_self);)
-                _brh
-            EXP:
-                registers[i64bmr] = exponent(registers[GET_Da(*pc)]);
                 _brh
             MOVG:
                 o2 = env->globalHeap+GET_Da(*pc);
@@ -1194,7 +1124,7 @@ void Thread::exec() {
             LOADL:
                 registers[GET_Ca(*pc)]=(fp+GET_Cb(*pc))->var;
                 _brh
-            IALOAD_2:
+            IALOAD:
                 CHECK_INULLOBJ(
                         registers[GET_Ca(*pc)] = o2->object->HEAD[(int64_t)registers[GET_Cb(*pc)]];
                 )
@@ -1227,9 +1157,6 @@ void Thread::exec() {
             SMOV:
                 registers[GET_Ca(*pc)]=(sp+GET_Cb(*pc))->var;
                 _brh
-            LOADPC_2:
-                registers[GET_Ca(*pc)]=PC(this)+GET_Cb(*pc);
-                _brh
             RETURNVAL:
                 (fp)->var=registers[GET_Da(*pc)];
                 _brh
@@ -1239,7 +1166,7 @@ void Thread::exec() {
             ISTOREL:
                 (fp+GET_Da(*pc))->var=*(pc+1);
                 _brh_inc(2)
-            PUSHNIL:
+            PUSHNULL:
             GarbageCollector::self->releaseObject(&(++sp)->object);
                 STACK_CHECK _brh
             IPUSHL:
@@ -1254,10 +1181,6 @@ void Thread::exec() {
                 _brh
             INVOKE_DELEGATE:
                 invokeDelegate(GET_Ca(*pc), GET_Cb(*pc), this, 0);
-                THREAD_EXECEPT();
-                _brh_NOINCREMENT
-            INVOKE_DELEGATE_STATIC:
-                invokeDelegate(GET_Ca(*pc), GET_Cb(*pc), this, *(++pc));
                 THREAD_EXECEPT();
                 _brh_NOINCREMENT
             ISADD:

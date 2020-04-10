@@ -389,3 +389,17 @@ def main() {
 }
 
 ```
+
+- add `is` keyword to check for instances
+
+```javascript
+mod main;
+
+def main() {
+    message : object  = "Hi";
+    if(message is string.class) {
+        
+    }
+}
+
+```

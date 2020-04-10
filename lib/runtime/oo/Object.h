@@ -76,7 +76,7 @@ struct SharpObject
      * 0000 0000 0000 0000 0000 0000 0000 0000 32 bits consisting of "class", "type", "gc mark', 'generation', and 'lock'
      *
      *  low-end bits                                                                high-end bits
-     *  0000 0000 0000 0000 0000 0000   000        0                00              0           0
+     *  00000000 00000000 00000000      000        0                00              0           0
      *  ^-- class address               ^--type    ^-- class bit    ^-- generation  ^-- mark    ^--- lock
      */
     uint32_t info;

@@ -49,6 +49,7 @@ public:
 
     native_string* sourceFiles;
     runtime::String* strings;
+    double floatingPoints*;
     Method* methods;
 #ifdef WIN32_
     Gui* gui;

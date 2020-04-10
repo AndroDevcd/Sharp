@@ -2,7 +2,10 @@ mod main;
 
 import std.io;
 
-class k {
+class list<t> {
+
+    public alias data as list_data;
+    public const classAddress := k.class;
 
     def foo(s : string) : var {
 
@@ -10,8 +13,11 @@ class k {
 
     n := std#someVar.operator!();
     a : y;
+    data : t[];
     num := foo("hi");
 }
+
+numerixList := list<var>.list_data;
 
 class y {
 

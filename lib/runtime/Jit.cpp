@@ -10,7 +10,7 @@
 
 Jit *Jit::self = nullptr;
 
-void Jit::startup() {
+void Jit::startup() { // TODO: update how instructions are processed because they have changed
     if(c_options.jit) {
         self = new Jit();
 
