@@ -20,9 +20,11 @@ enum utype_struct
     utype_unresolved
 };
 
+class Method;
 extern string stackInjector;
 extern string ebxInjector;
 extern string ptrInjector;
+extern string getterInjector;
 class Utype {
 public:
     Utype()
@@ -48,6 +50,7 @@ public:
     bool isNullType() { return nullType; }
     bool isClass();
     ClassObject* getClass();
+    Method *getMethod();
     DataEntity* getResolvedType() { return resolvedType; }
     CodeHolder& getCode() { return code; }
     void free();

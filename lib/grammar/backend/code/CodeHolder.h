@@ -86,6 +86,16 @@ public:
         return *this;
     }
 
+    CodeHolder& removeIrEnd(uint32_t count) {
+        while(ir32.size() > 0) {
+            if(count-- != 0) {
+                ir32.pop_back();
+            } else break;
+        }
+
+        return *this;
+    }
+
     void inject(int32_t i, CodeHolder& assembler) {
         if(i < 0) return;
 

@@ -494,8 +494,6 @@ SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
         uint32_t size = staticInit ? k->staticFields : k->instanceFields;
 
         object->init(size, k);
-        SET_TYPE(object->info, _stype_struct);
-
         if(k->fieldCount > 0) {
             object->node = (Object*)__calloc(size, sizeof(Object));
 

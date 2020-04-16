@@ -124,6 +124,7 @@ private:
     List<Method*> functionPtrs;
     Utype* nilUtype;
     Utype* nullUtype;
+    Utype** naiveUTypeList;
     Utype* undefUtype;
     parser* current;
     string currModule;
@@ -266,6 +267,9 @@ private:
     void compileFieldInitialization(Expression* expr, List<KeyPair<Field*, bool>> &fields, Ast* ast);
     void compileNewArrayExpression(Expression *expr, Ast *ast, Utype *arrayType);
     void compileVectorExpression(Expression* expr, Ast* ast, Utype *compareType = NULL);
+    void compileAssignExpression(Expression* expr, Ast* ast);
+    void assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);
+    void compoundAssignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);
     expression_type utypeToExpressionType(Utype *utype);
     Method* compileMethodUtype(Expression* expr, Ast* ast);
     void fullyQualifyLambda(Utype *lambdaQualifier, Utype *lambda);
@@ -311,8 +315,11 @@ private:
     void resolveClassUtype(Utype *utype, Ast *ast, DataEntity *resolvedClass);
     void resolveFunctionByNameUtype(Utype *utype, Ast *ast, string &name, List<Method *> &functions);
     void resolveAliasUtype(Utype *utype, Ast *ast, DataEntity *resolvedAlias);
-
     ClassObject *getBaseClassUtype(Ast *ast);
+    void compileExpressionAst(Expression *expr, Ast *branch);
+    void expressionToParam(Expression &expression, Field *param);
+
+    void pushParametersToStackAndCall(Ast *ast, Method *resolvedMethod, List<Field *> &params, CodeHolder &code);
 };
 
 enum ProcessingStage {

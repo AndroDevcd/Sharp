@@ -20,7 +20,6 @@ public:
         key(""),
         isArray(false),
         nullField(false),
-        dvExpression(NULL),
         utype(NULL),
         locality(stl_stack),
         inlineCheck(false),
@@ -38,7 +37,6 @@ public:
         key(""),
         isArray(false),
         nullField(false),
-        dvExpression(NULL),
         utype(NULL),
         inlineCheck(false),
         local(false),
@@ -66,7 +64,6 @@ public:
     bool inlineCheck;
     bool local;
     StorageLocality locality;
-    Expression* dvExpression;
     Method* getter, *setter;
     Utype *utype;
 };

@@ -2,27 +2,13 @@ mod main;
 
 import std.io;
 
-class list<t> {
+class list {
 
-    public alias data as list_data;
-    public const classAddress := k.class;
+    size : list;
+        get -> { }
+    test := size++;
 
-    def foo(s : string) : var {
-
-    }
-
-    n := std#someVar.operator!();
-    a : y;
-    data : t[];
-    num := foo("hi");
-}
-
-numerixList := list<var>.list_data;
-
-class y {
-
-    def operator!() : y {
+    def operator++(n : int) : var {
 
     }
-
 }

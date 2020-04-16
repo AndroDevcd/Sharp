@@ -1140,6 +1140,9 @@ void Thread::exec() {
             SMOVR_2:
                 (fp+GET_Cb(*pc))->var=registers[GET_Ca(*pc)];
                 _brh
+            SMOVR_3:
+                (fp+GET_Da(*pc))->object=o2;
+                _brh
             ANDL:
                 (fp+GET_Cb(*pc))->andl(registers[GET_Ca(*pc)]);
                 _brh

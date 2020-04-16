@@ -3305,6 +3305,7 @@ void RuntimeEngine::assignValue(token_entity operand, Expression& out, Expressio
 
                 equals(left, right);
                 if(left.isProtoType()) {
+
                     if(operand == "=") {
 
                         if(right.isProtoType() || right.isAnonymousFunction()) {

@@ -214,6 +214,7 @@
             &&POPOBJ_2,                                  \
             &&SWAP,                                     \
             &&LDC                                     \
+            &&SMOVR_3,                        \
         };
 
 typedef unsigned int opcode_instr;
@@ -342,6 +343,7 @@ public:
         static const uint8_t POPOBJ_2 = 0x73;
         static const uint8_t SWAP     = 0x74;
         static const uint8_t LDC      = 0x75;
+        static const uint8_t SMOVR_3  = 0x76;
 
         enum instr_class {
             E_CLASS,
@@ -352,7 +354,7 @@ public:
 
     struct Builder {
     public:
-        static opcode_instr ill();
+        static opcode_instr ill(); // TODO: describe all the instructions
         static opcode_instr nop();
         static opcode_instr _int(interruptFlag flag);
         static opcode_instr* movi(opcode_arg value, _register outRegister);
@@ -383,7 +385,7 @@ public:
         static opcode_instr inc(_register outRegister);
         static opcode_instr dec(_register outRegister);
         static opcode_instr movr(_register outRegister, _register inRegister);
-        static opcode_instr iaload(_register outRegister, _register inRegister);
+        static opcode_instr iaload(_register outRegister, _register indexRegister);
         static opcode_instr brh();
         static opcode_instr ife();
         static opcode_instr ifne();
@@ -450,6 +452,7 @@ public:
         static opcode_instr returnValue(_register inRegister);
         static opcode_instr* istore(opcode_arg value);
         static opcode_instr smovr2(_register inRegister, opcode_arg relFrameAddress);
+        static opcode_instr smovr3(opcode_arg relFrameAddress);
         static opcode_instr istorel(opcode_arg relFrameAddress);
         static opcode_instr popl(opcode_arg relFrameAddress);
         static opcode_instr pushNull();

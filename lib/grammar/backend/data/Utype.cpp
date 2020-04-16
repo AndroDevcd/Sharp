@@ -10,6 +10,7 @@
 string stackInjector = "stack-injector";
 string ebxInjector = "ebx-injector";
 string ptrInjector = "ptr-injector";
+string getterInjector = "getterCodeSize-injector";
 
 void Utype::free() {
 
@@ -120,11 +121,11 @@ Utype::Utype(DataType type, bool isArray)
 
 bool Utype::equals(Utype *utype) {
     if(type == utype_method || type == utype_function_ptr) {
-        if(Compiler::simpleParameterMatch(((Method*)resolvedType)->params, ((Method*)utype->resolvedType)->params)) {
-            if((((Method*)resolvedType)->utype != NULL && ((Method*)utype->resolvedType)->utype != NULL) ||
-               (((Method*)resolvedType)->utype == NULL && ((Method*)utype->resolvedType)->utype == NULL)) {
-                if(((Method*)resolvedType)->utype != NULL) {
-                    return ((Method*)resolvedType)->utype->equals(((Method*)utype->resolvedType)->utype);
+        if(Compiler::simpleParameterMatch(getMethod()->params, utype->getMethod()->params)) {
+            if((getMethod()->utype != NULL && utype->getMethod()->utype != NULL) ||
+               (getMethod()->utype == NULL && utype->getMethod()->utype == NULL)) {
+                if(getMethod()->utype != NULL) {
+                    return getMethod()->utype->equals(utype->getMethod()->utype);
                 } else
                     return true;
             }
@@ -149,10 +150,12 @@ bool Utype::isRelated(Utype *utype) {
         if (getClass()) {
             if (utype->getClass())
                 return getClass()->isClassRelated(utype->getClass()) && array == utype->array;
+            else return utype->nullType;
         } else if (resolvedType->type == OBJECT) {
             if(array) {
                 if (utype->array && (utype->getClass() || utype->getResolvedType()->type == OBJECT))
                     return true;
+                else return utype->nullType;
             } else {
                 if(utype->resolvedType->isVar())
                     return utype->array;
@@ -166,9 +169,10 @@ bool Utype::isRelated(Utype *utype) {
                 return true;
         } else if (type == utype_method || resolvedType->type == FNPTR) {
             if (utype->getResolvedType()->type == FNPTR || utype->getType() == utype_method) {
-                return Compiler::simpleParameterMatch(((Method *) resolvedType)->params,
-                                                      ((Method *) utype->getResolvedType())->params);
-            }
+                return Compiler::simpleParameterMatch(getMethod()->params,
+                                                      utype->getMethod()->params);
+            } else if(utype->nullType && array)
+                return true;
         }
     }
     return false;
@@ -186,5 +190,11 @@ ClassObject *Utype::getClass() {
     }
 
     return NULL;
+}
+
+Method *Utype::getMethod() {
+    if(type == utype_method || type == utype_function_ptr)
+        return (Method*)resolvedType;
+    else return ((Field*)resolvedType)->utype->getMethod();
 }
 

@@ -31,8 +31,6 @@ struct SharpObject
         info=0;
         HEAD=NULL;
         next=NULL;
-        prev=NULL;
-//        mutex=NULL;
         this->size=size;
         SET_INFO(info, 0, _stype_none, gc_young); /* generation young */
         refCount=0;
@@ -42,11 +40,9 @@ struct SharpObject
         info=0;
         HEAD=NULL;
         next=NULL;
-        prev=NULL;
-//        mutex=NULL;
         this->size=size;
         refCount=0;
-        SET_INFO(info, k->serial, _stype_none, gc_young); /* generation young */
+        SET_INFO(info, k->serial, _stype_struct, gc_young); /* generation young */
         SET_CLASS_BIT(info, 1);
     }
 
@@ -73,14 +69,14 @@ struct SharpObject
      * packaged information.
      *
      * layout
-     * 0000 0000 0000 0000 0000 0000 0000 0000 32 bits consisting of "class", "type", "gc mark', 'generation', and 'lock'
+     * 00000000 00000000 00000000 00000000 32 bits consisting of "class", "type", "gc mark', 'generation', and 'lock'
      *
      *  low-end bits                                                                high-end bits
      *  00000000 00000000 00000000      000        0                00              0           0
      *  ^-- class address               ^--type    ^-- class bit    ^-- generation  ^-- mark    ^--- lock
      */
     uint32_t info;
-    SharpObject *next, *prev; /* linked list pointers */
+    SharpObject *next; /* linked list pointers */
 };
 
 #define DEC_REF(obj) \

@@ -19,6 +19,7 @@ public class integer<native_type> {
 
     def operator!=(num : integer<native_type>) := 0; //(value!=num.value); // TODO: add func for every integer type
     def operator!=(num : var) := 0; //TODO: see why it is broken (value!=num.value);
+    def operator=(num : var) := 0;
 
     def operator==(num : integer<native_type>) := 0;// (value==num.value);
 

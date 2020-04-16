@@ -10,11 +10,6 @@
 
 void Field::free() {
     release();
-    if(dvExpression)
-    {
-        dvExpression->free();
-        delete dvExpression;
-    }
 }
 
 bool Field::equals(Field &f) {

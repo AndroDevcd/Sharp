@@ -403,3 +403,29 @@ def main() {
 }
 
 ```
+
+- add new constructor decl style
+
+```javascript
+mod main;
+
+class list<t>(
+ private maxSize: var,
+ private data: t
+) {
+    // ..
+}
+
+// here is an example of calling a base class constructor with the new syntax
+class dog(private size : int) base animal(size) {
+ // ..
+}
+
+
+def main() {
+    _list = new list<int>(10, { 1, 2, 3 });
+}
+```
+
+the class `list` now has a field called maxSize declared because parameters with access specifiers
+are declared member variables and the ones with out are considered parameters

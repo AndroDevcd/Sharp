@@ -15,11 +15,6 @@ enum BlockType {
     STATIC_BLOCK=4
 };
 
-struct Local {
-    long address;
-    Field* field;
-};
-
 struct Scope {
     public:
     Scope()
@@ -41,18 +36,18 @@ struct Scope {
     }
 
 
-    Local* getLocalField(string name) {
+    Field* getLocalField(string name) {
         if(locals.size() == 0) return NULL;
 
         for(long long i = locals.size()-1; i >= 0; i--) {
-            if(locals.at(i).field->name == name) {
-                return &locals.get(i);
+            if(locals.at(i)->name == name) {
+                return locals.get(i);
             }
         }
         return NULL;
     }
 
-    List<Local> locals;
+    List<Field*> locals;
     BlockType type;
     ClassObject* klass;
     Method* currentFunction;

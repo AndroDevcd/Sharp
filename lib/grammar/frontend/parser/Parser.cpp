@@ -127,13 +127,13 @@ void parser::parseMethodDecl(Ast *ast) {
     addAccessTypes(branch);
     access_types.free();
 
-    if(*peek(1) == IDENTIFIER && *peek(1) != "operator")
-        parseReferencePointer(branch);
-    else
+    parseReferencePointer(branch);
+    if(isOverrideOperator(current().getValue()))
+    {
         errors->createNewError(GENERIC, current(), "expected identifier");
+    }
 
     parseUtypeArgList(branch);
-
     if (peek(1)->getType() == COLON) {
         parseMethodReturnType(branch);
 
@@ -177,7 +177,7 @@ void parser::parseBlock(Ast* ast) {
         if (current().getType() == RIGHTCURLY)
         {
             if(!curly)
-                errors->createNewError(GENERIC, current(), "expected '{'");
+                errors->createNewError(UNEXPECTED_SYMBOL, current(), "'}'");
             _current--;
             break;
         }
@@ -710,19 +710,12 @@ bool parser::parseStatement(Ast* ast) {
 void parser::parseOperatorDecl(Ast *ast) {
     Ast* branch = getBranch(ast, ast_operator_decl);
 
-
     addAccessTypes(branch);
     access_types.free();
     expect(branch, "operator");
-
-    advance();
-    if(!isOverrideOperator(current().getValue()))
-        errors->createNewError(GENERIC, current(), "expected override operator");
-    else
-        branch->addToken(current());
+    expectOverrideOperator(branch);
 
     parseUtypeArgList(branch);
-
     if(peek(1)->getType() == COLON) {
         parseMethodReturnType(branch);
 
@@ -964,7 +957,7 @@ void parser::parseEnumDecl(Ast *ast) {
 }
 
 void parser::parseInitDecl(Ast *ast) {
-    Ast* branch = getBranch(ast, ast_enum_decl);
+    Ast* branch = getBranch(ast, ast_init_decl);
 
     if(access_types.size() > 0) {
         errors->createNewError(GENERIC, current(), "access types not allowed here");
@@ -1054,12 +1047,14 @@ bool parser::parseTypeIdentifier(Ast* ast) {
         _current--;
 
     errors->enterProtectedMode();
+    Token *old=_current;
     if(parseFunctionPtr(branch)) {
         errors->fail();
         return true;
     } else {
         errors->pass();
         branch->freeLastSub();
+        _current = old;
     }
 
     return parseReferencePointer(branch);
@@ -1760,7 +1755,7 @@ bool parser::parseUtypeArg(Ast* ast) {
         parseUtype(branch);
         return true;
     } else {
-        errors->createNewError(GENERIC, current(), "expected native type or reference pointer");
+        errors->createNewError(GENERIC, current(), "expected variable declaration");
     }
 
     return false;

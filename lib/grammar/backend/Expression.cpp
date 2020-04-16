@@ -21,6 +21,7 @@ void Expression::freeInjectors() {
     utype->getCode().getInjector(ptrInjector).free();
     utype->getCode().getInjector(stackInjector).free();
     utype->getCode().getInjector(ebxInjector).free();
+    utype->getCode().getInjector(getterInjector).free();
 }
 
 void Expression::copy(Expression *expr) {
@@ -36,4 +37,6 @@ void Expression::copyInjectors(Utype *utype) {
             .inject(utype->getCode().getInjector(ebxInjector));
     this->utype->getCode().getInjector(ptrInjector).free()
             .inject(utype->getCode().getInjector(ptrInjector));
+    this->utype->getCode().getInjector(getterInjector).free()
+            .inject(utype->getCode().getInjector(getterInjector));
 }
