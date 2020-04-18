@@ -219,6 +219,7 @@ private:
     void compilePreIncExpression(Expression* expr, Ast* ast);
     void compileLambdaExpression(Expression* expr, Ast* ast);
     void compileNotExpression(Expression* expr, Ast* ast);
+    void compileMinusExpression(Expression* expr, Ast* ast);
     Method* findLambdaByAst(Ast *ast);
     void compileLambdaArgList(List<Field*> &fields, Ast* ast);
     Field* compileLambdaArg(Ast *ast);
@@ -268,7 +269,9 @@ private:
     void compileNewArrayExpression(Expression *expr, Ast *ast, Utype *arrayType);
     void compileVectorExpression(Expression* expr, Ast* ast, Utype *compareType = NULL);
     void compileAssignExpression(Expression* expr, Ast* ast);
+    void compileBinaryExpression(Expression* expr, Ast* ast);
     void assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);
+    void compileBinaryExpression(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);
     void compoundAssignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);
     expression_type utypeToExpressionType(Utype *utype);
     Method* compileMethodUtype(Expression* expr, Ast* ast);

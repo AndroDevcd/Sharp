@@ -107,6 +107,7 @@ enum ast_type
     ast_pre_inc_e,
     ast_paren_e,
     ast_vect_e,
+    ast_minus_e,
     ast_add_e,
     ast_mult_e,
     ast_shift_e,

@@ -1116,7 +1116,7 @@ void parser::parseVariableDecl(Ast* ast) {
     Ast *branch = getBranch(ast, ast_variable_decl);
     recursion++;
 
-    if(ast == NULL || ast->getType() != ast_variable_decl) {
+    if(recursion == 1) {
         addAccessTypes(branch);
         access_types.free();
 
@@ -1127,11 +1127,7 @@ void parser::parseVariableDecl(Ast* ast) {
     }
 
     expectIdentifier(branch);
-    if(current() == "apples") {
-        int i = 0;
-    }
-
-    if(ast == NULL || ast->getType() != ast_variable_decl) {
+    if(recursion == 1) {
         if(*peek(1) == ":") {
             expect(branch, ":");
             parseUtype(branch);
@@ -1160,7 +1156,7 @@ void parser::parseVariableDecl(Ast* ast) {
             expect(branch, ";");
     } else {
         if(recursion == 1)
-        expect(branch, ";");
+            expect(branch, ";");
 
         if (*peek(1) == "get" || *peek(1) == "set") {
             if (*peek(1) == "get") {
@@ -1210,9 +1206,7 @@ bool parser::isOverrideOperator(string token) {
            token == "++" ||token == "--" ||
            token == "*" || token == "/" ||
            token == "%" || token == "-" ||
-           token == "+" || token == "==" ||
-
-           token == "&&" || token == "||" ||
+           token == "+" || token == "==" || // TODO: talk about removal of "&&, ||"
            token == ">>" || token == "<<"||
            token == "<" || token == ">"||
            token == "<=" || token == ">="||
@@ -1504,7 +1498,7 @@ bool parser::unary(Ast *ast) {
         Ast *right = new Ast(ast->getType(), ast->line, ast->col);
         bool success = unary(right);
         ast->addAst(right);
-        ast = ast->encapsulate(ast_add_e);
+        ast->encapsulate(ast_minus_e);
         return success;
     } else if(match(1, NOT)) {
         advance();
@@ -1513,7 +1507,7 @@ bool parser::unary(Ast *ast) {
         Ast *right = new Ast(ast->getType(), ast->line, ast->col);
         bool success = unary(right);
         ast->addAst(right);
-        ast = ast->encapsulate(ast_not_e);
+        ast->encapsulate(ast_not_e);
         return success;
     }
 

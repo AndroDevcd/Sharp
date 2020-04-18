@@ -411,7 +411,7 @@ mod main;
 
 class list<t>(
  private maxSize: var,
- private data: t
+ private data: t[]
 ) {
     // ..
 }

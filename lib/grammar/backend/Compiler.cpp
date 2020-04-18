@@ -1187,6 +1187,17 @@ void Compiler::expressionToParam(Expression &expression, Field *param) {
         param->utype->getCode().getInjector(stackInjector).inject(0, expression.utype->getCode().getInjector(stackInjector));
         freePtr(expression.utype);
     }
+    else if(expression.utype->getType() == utype_field) {
+        auto *exprField = (Field*)expression.utype->getResolvedType();
+        param->utype = new Utype();
+        param->utype->copy(exprField->utype);
+        param->type = exprField->type;
+
+        // yet another line of nasty dirty code...smh...
+        param->utype->getCode().inject(0, expression.utype->getCode());
+        param->utype->getCode().getInjector(stackInjector).inject(0, expression.utype->getCode().getInjector(stackInjector));
+        freePtr(expression.utype);
+    }
     else {
         param->isArray = expression.utype->isArray();
         param->utype = expression.utype;
@@ -1567,10 +1578,10 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
                 }
                 else
                     errors->createNewError(GENERIC, ast->line, ast->col,
-                                           " symbol `" + name + "` is not a function or pointer");
+                                           " could not resolve function `" + name + "`");
             } else
                 errors->createNewError(GENERIC, ast->line, ast->col,
-                                       " symbol `" + name + "` is not a function or pointer");
+                                       " could not resolve function `" + name + "`");
 
         } else if(utype->getType() == utype_field) {
             errors->createNewError(GENERIC, ast->line, ast->col, " field `" + utype->toString() + "` is not a data structure");
@@ -1702,6 +1713,7 @@ string Compiler::codeToString(CodeHolder &code) {
     stringstream ss;
     for(unsigned int x = 0; x < code.size(); x++) {
         opcode_instr opcodeData=code.ir32.get(x);
+        ss << x << ": ";
 
         switch(GET_OP(opcodeData)) {
             case Opcode::ILL:
@@ -2258,16 +2270,16 @@ string Compiler::codeToString(CodeHolder &code) {
             case Opcode::SKPE:
             {
                 ss<<"skpe ";
-                ss<<GET_Da(opcodeData);
-                ss << " // pc = " << (x + GET_Da(opcodeData));
+                ss<< registerToString(GET_Ca(opcodeData));
+                ss << " // pc = " << (x + GET_Cb(opcodeData));
                 
                 break;
             }
             case Opcode::SKNE:
             {
                 ss<<"skne ";
-                ss<<GET_Da(opcodeData);
-                ss << " // pc = " << (x + GET_Da(opcodeData));
+                ss<< registerToString(GET_Ca(opcodeData));
+                ss << " // pc = " << (x + GET_Cb(opcodeData));
                 
                 break;
             }
@@ -2795,9 +2807,9 @@ void Compiler::compoundAssignValue(Expression* expr, Token &operand, Expression 
             }
         } else {
             errors->createNewError(GENERIC, ast->line, ast->col,
-                                   " expression `" + rightExpr.utype->toString() + "` assigned to class type `" +
+                                   " incompatible types, cannot convert `" + params.get(0)->utype->toString() + "` to `" +
                                    leftExpr.utype->toString()
-                                   + "` does not contain an operator overload function for operand `" + operand.getValue() + "`.");
+                                   + "`.");
         }
 
         freeListPtr(params);
@@ -2810,7 +2822,14 @@ void Compiler::compoundAssignValue(Expression* expr, Token &operand, Expression 
 
             leftExpr.utype->getCode().getInjector(ptrInjector).free();
             leftExpr.utype->getCode().removeIrEnd(leftExpr.utype->getCode().getInjector(getterInjector).ir32.at(0));
-            leftExpr.utype->getCode().addIr(OpBuilder::movn(field->address));
+
+            if(field->locality == stl_stack) {
+                if(field->flags.find(STATIC))
+                    leftExpr.utype->getCode().addIr(OpBuilder::movg(field->owner->address));
+                leftExpr.utype->getCode().addIr(OpBuilder::movn(field->address));
+            }
+            else
+                leftExpr.utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
 
             leftExpr.utype->getCode().getInjector(stackInjector).free()
                     .addIr(OpBuilder::pushObject());
@@ -2845,18 +2864,30 @@ void Compiler::compoundAssignValue(Expression* expr, Token &operand, Expression 
                 }
             } else {
                 errors->createNewError(GENERIC, ast->line, ast->col,
-                                       " expression `" + rightExpr.utype->toString() + "` assigned to field `" +
+                                       " incompatible types, cannot convert `" + params.get(0)->utype->toString() + "` to `" +
                                        leftExpr.utype->toString()
-                                       + "` does not contain an operator overload function for operand `" + operand.getValue() + "`.");
+                                       + "`.");
             }
 
             freeListPtr(params);
         } else {
             if(field->utype->getResolvedType()->type <= _UINT64 || field->utype->getResolvedType()->type == VAR) {
                 if(!field->isArray) {
-                    if(rightExpr.utype->isRelated(field->utype)) {
+                    if(rightExpr.utype->isRelated(field->utype) || ((field->type <= _UINT64 || field->type == VAR) && isUtypeClassConvertableToVar(field->utype, rightExpr.utype))) {
                         bool integerField = (field->type >= _INT8 && field->type <= _UINT64);
                         expr->utype->copy(field->utype);
+
+                        if(isUtypeClassConvertableToVar(field->utype, rightExpr.utype)) {
+                            CodeHolder tmp;
+                            convertNativeIntegerClassToVar(rightExpr.utype, field->utype, tmp, ast);
+
+                            rightExpr.utype->getCode().free()
+                                    .inject(tmp);
+
+                            rightExpr.utype->getCode().getInjector(stackInjector)
+                                    .inject(tmp.getInjector(stackInjector));
+                            tmp.free();
+                        }
 
                         if (field->local) {
                             resultCode->inject(rightExpr.utype->getCode());
@@ -3031,28 +3062,408 @@ void Compiler::compoundAssignValue(Expression* expr, Token &operand, Expression 
     }
 }
 
+void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast) {
+    CodeHolder *resultCode = &expr->utype->getCode();
+
+    Literal *leftLiteral = leftExpr.utype->getType() == utype_literal ?
+                            (Literal*)leftExpr.utype->getResolvedType() : NULL;
+    Literal *rightLiteral = rightExpr.utype->getType() == utype_literal ?
+                            (Literal*)rightExpr.utype->getResolvedType() : NULL;
+
+    if(leftLiteral != NULL) {
+
+        if(leftLiteral->literalType == numeric_literal && rightLiteral != NULL && rightLiteral->literalType == numeric_literal) {
+            double result = 0;
+            if (operand == "/") {
+                result = leftLiteral->numericData / rightLiteral->numericData;
+            } else if (operand == "*") {
+                result = leftLiteral->numericData * rightLiteral->numericData;
+            } else if (operand == "%") {
+                result = (long)leftLiteral->numericData % (long)rightLiteral->numericData;
+            } else if (operand == "+") {
+                result = leftLiteral->numericData + rightLiteral->numericData;
+            } else if (operand == "-") {
+                result = leftLiteral->numericData - rightLiteral->numericData;
+            } else if (operand == ">") {
+                result = leftLiteral->numericData > rightLiteral->numericData;
+            } else if (operand == "<") {
+                result = leftLiteral->numericData < rightLiteral->numericData;
+            } else if (operand == ">=") {
+                result = leftLiteral->numericData >= rightLiteral->numericData;
+            } else if (operand == "<=") {
+                result = leftLiteral->numericData <= rightLiteral->numericData;
+            } else if (operand == "==") {
+                result = leftLiteral->numericData == rightLiteral->numericData;
+            } else if (operand == "!=") {
+                result = leftLiteral->numericData != rightLiteral->numericData;
+            }else if (operand == "<<") {
+                result = (long long)leftLiteral->numericData << (long)rightLiteral->numericData;
+            } else if (operand == ">>") {
+                result = (long long)leftLiteral->numericData >> (long)rightLiteral->numericData;
+            } else if (operand == "&") {
+                result = (long long)leftLiteral->numericData & (long)rightLiteral->numericData;
+            } else if (operand == "|") {
+                result = (long long)leftLiteral->numericData | (long)rightLiteral->numericData;
+            } else if (operand == "^") {
+                result = (long long)leftLiteral->numericData ^ (long)rightLiteral->numericData;
+            } else if (operand == "&&") {
+                result = leftLiteral->numericData && rightLiteral->numericData;
+            } else if (operand == "||") {
+                result = leftLiteral->numericData || rightLiteral->numericData;
+            }
+
+            if(isWholeNumber(result)) {
+                if(result > INT32_MAX) {
+                    long constantAddress = constantIntMap.addIfIndex(result);
+                    if(constantAddress >= CONSTANT_LIMIT) {
+                        stringstream err;
+                        err << "maximum large constant limit of (" << CONSTANT_LIMIT << ") reached.";
+                        errors->createNewError(INTERNAL_ERROR, leftExpr.ast, err.str());
+                    }
+
+                    resultCode->addIr(OpBuilder::ldc(EBX, constantAddress));
+                } else
+                    resultCode->addIr(OpBuilder::movi(result, EBX));
+
+            } else {
+                long floatingPointAddress = floatingPointMap.addIfIndex(result);
+                if(floatingPointAddress >= FLOATING_POINT_LIMIT) {
+                    stringstream err;
+                    err << "maximum floating point limit of (" << FLOATING_POINT_LIMIT << ") reached.";
+                    errors->createNewError(INTERNAL_ERROR, leftExpr.ast, err.str());
+                }
+                resultCode->addIr(OpBuilder::movf(EBX, floatingPointMap.indexof(result)));
+            }
+
+            expr->utype->setType(utype_literal);
+            expr->utype->setArrayType(false);
+            expr->utype->setResolvedType(new Literal(result));
+
+            expr->utype->getCode().getInjector(stackInjector)
+                    .addIr(OpBuilder::rstore(EBX));
+        } else if(leftLiteral->literalType == string_literal) {
+
+            if(operand == "+" &&
+                (rightLiteral != NULL ||
+                    (rightExpr.utype->getType() == utype_field && isFieldInlined((Field*)rightExpr.utype->getResolvedType())))) {
+                expr->type = exp_var;
+                expr->utype->setType(utype_literal);
+                expr->utype->setArrayType(true);
+
+                stringstream newStr;
+                if(rightExpr.utype->getType() == utype_field) {
+                    newStr << leftLiteral->stringData << getInlinedFieldValue((Field*)rightExpr.utype->getResolvedType());
+                } else if (rightLiteral->literalType == string_literal) {
+                    newStr << leftLiteral->stringData << rightLiteral->stringData;
+                } else {
+                    newStr << leftLiteral->stringData << rightLiteral->numericData;
+                }
+
+
+                long index = stringMap.addIfIndex(newStr.str());
+                if (index >= STRING_LITERAL_LIMIT) {
+                    stringstream err;
+                    err << "maximum string literal limit of (" << STRING_LITERAL_LIMIT << ") reached.";
+                    errors->createNewError(INTERNAL_ERROR, leftExpr.ast, err.str());
+                }
+
+                expr->utype->setResolvedType(new Literal(stringMap.get(index), index));
+                expr->utype->getCode().addIr(OpBuilder::newString(index));
+
+                expr->utype->getCode().getInjector(ptrInjector)
+                        .addIr(OpBuilder::popObject2());
+            } else if(operand != "&&" && operand != "||"){
+                _string_literal:
+                List<Expression*> exprs;
+                List<Field*> params;
+                List<Field*> stringLiteralParam;
+                exprs.add(&leftExpr);
+
+                Utype *stringClass = new Utype(resolveClass("std", "string", ast));
+                if(stringClass->getResolvedType() != NULL) {
+                    expressionsToParams(exprs, stringLiteralParam);
+                    convertUtypeToNativeClass(stringClass, stringLiteralParam.get(0)->utype, *resultCode, ast);
+
+                    Method *overload;
+
+                    params.add(new Field());
+                    expressionToParam(rightExpr, params.get(0));
+
+                    if ((overload = findFunction(stringClass->getClass(), "operator" + operand.getValue(),
+                                                 params, ast, true, fn_op_overload)) != NULL) {
+                        compileMethodReturnType(overload, overload->ast, false);
+
+                        validateAccess(overload, ast);
+                        expr->utype->copy(overload->utype);
+
+                        pushParametersToStackAndCall(ast, overload, params, *resultCode);
+
+                        expr->freeInjectors();
+                        if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
+                            || expr->utype->getResolvedType()->type == CLASS) {
+                            expr->utype->getCode().getInjector(ptrInjector)
+                                    .addIr(OpBuilder::popObject2());
+                        } else if (expr->utype->getResolvedType()->isVar()) {
+                            expr->utype->getCode().getInjector(ebxInjector)
+                                    .addIr(OpBuilder::loadValue(EBX));
+                        }
+                    } else {
+                        errors->createNewError(GENERIC, ast->line, ast->col,
+                                               " illegal use of operator `" + operand.getValue() +
+                                               "` with expressions of `" +
+                                               stringLiteralParam.get(0)->utype->toString() + "` and `" +
+                                               params.get(0)->utype->toString() + "`.");
+                    }
+
+                    freeListPtr(params);
+                    freeListPtr(stringLiteralParam);
+                    freePtr(stringClass);
+                }
+            } else {
+                errors->createNewError(GENERIC, ast->line, ast->col,
+                                       " illegal use of operator `" + operand.getValue() +
+                                       "` with expression `" +
+                                       leftExpr.utype->toString() + "`.");
+            }
+        } else {
+            processSimpleValue:
+            if((rightLiteral != NULL && rightLiteral->literalType == string_literal) && rightExpr.type != exp_var
+                && !isUtypeClassConvertableToVar(leftExpr.utype, rightExpr.utype)) {
+                incompatibleExpressions:
+                errors->createNewError(GENERIC, ast->line, ast->col,
+                                       " attempt to use operand `" + operand.getValue() + "` on differing literal values of `" + leftExpr.utype->toString()
+                                       + "` and `" + rightExpr.utype->toString() + "`.");
+            } else if(operand != "&&" && operand != "||") {
+                if(isUtypeClassConvertableToVar(leftExpr.utype, rightExpr.utype)) {
+                    CodeHolder tmp;
+                    convertNativeIntegerClassToVar(rightExpr.utype, leftExpr.utype, tmp, ast);
+
+                    rightExpr.utype->getCode().free()
+                            .inject(tmp);
+
+                    rightExpr.utype->getCode().getInjector(stackInjector)
+                            .inject(tmp.getInjector(stackInjector));
+                    tmp.free();
+                }
+
+                resultCode->inject(leftExpr.utype->getCode());
+                resultCode->inject(leftExpr.utype->getCode().getInjector(ebxInjector));
+                resultCode->addIr(OpBuilder::rstore(EBX));
+                resultCode->inject(rightExpr.utype->getCode());
+                resultCode->inject(rightExpr.utype->getCode().getInjector(ebxInjector));
+                resultCode->addIr(OpBuilder::loadValue(ECX));
+
+
+                if (operand == "/") {
+                    resultCode->addIr(OpBuilder::div(EBX, ECX, EBX));
+                } else if (operand == "*") {
+                    resultCode->addIr(OpBuilder::mul(EBX, ECX, EBX));
+                } else if (operand == "%") {
+                    resultCode->addIr(OpBuilder::mod(EBX, ECX, EBX));
+                } else if (operand == "+") {
+                    resultCode->addIr(OpBuilder::add(EBX, ECX, EBX));
+                } else if (operand == "-") {
+                    resultCode->addIr(OpBuilder::sub(EBX, ECX, EBX));
+                } else if (operand == ">") {
+                    resultCode->addIr(OpBuilder::gt(ECX, EBX));
+                } else if (operand == "<") {
+                    resultCode->addIr(OpBuilder::lt(ECX, EBX));
+                } else if (operand == ">=") {
+                    resultCode->addIr(OpBuilder::ge(ECX, EBX));
+                } else if (operand == "<=") {
+                    resultCode->addIr(OpBuilder::le(ECX, EBX));
+                } else if (operand == "==") {
+                    resultCode->addIr(OpBuilder::te(ECX, EBX));
+                } else if (operand == "!=") {
+                    resultCode->addIr(OpBuilder::tne(ECX, EBX));
+                }else if (operand == "<<") {
+                    resultCode->addIr(OpBuilder::shl(EBX, ECX, EBX));
+                } else if (operand == ">>") {
+                    resultCode->addIr(OpBuilder::shr(EBX, ECX, EBX));
+                } else if (operand == "&") {
+                    resultCode->addIr(OpBuilder::uand(ECX, EBX));
+                } else if (operand == "|") {
+                    resultCode->addIr(OpBuilder::_or(ECX, EBX));
+                } else if (operand == "^") {
+                    resultCode->addIr(OpBuilder::_xor(ECX, EBX));
+                }
+
+                expr->utype->setType(utype_native);
+                expr->utype->setArrayType(false);
+                expr->utype->setResolvedType(new DataEntity(VAR));
+                if(operand == ">" || operand == "<" || operand == ">=" || operand == "<="
+                    || operand == "==" || operand == "!=") {
+                    expr->utype->getCode().getInjector(ebxInjector)
+                            .addIr(OpBuilder::movr(EBX, CMT));
+                    expr->utype->getCode().getInjector(stackInjector)
+                            .addIr(OpBuilder::rstore(CMT));
+                } else {
+                    expr->utype->getCode().getInjector(stackInjector)
+                            .addIr(OpBuilder::rstore(EBX));
+                }
+            } else {
+                resultCode->inject(leftExpr.utype->getCode());
+                resultCode->inject(leftExpr.utype->getCode().getInjector(ebxInjector));
+
+                long rightExpresionSize = rightExpr.utype->getCode().size() +
+                        rightExpr.utype->getCode().getInjector(ebxInjector).size();
+
+                if(operand == "&&") {
+                    resultCode->addIr(OpBuilder::skipifne(EBX, rightExpresionSize + 1));
+                } else {
+                    resultCode->addIr(OpBuilder::skipife(EBX, rightExpresionSize + 1));
+                }
+
+
+                resultCode->inject(rightExpr.utype->getCode());
+                resultCode->inject(rightExpr.utype->getCode().getInjector(ebxInjector));
+
+                expr->utype->setType(utype_native);
+                expr->utype->setArrayType(false);
+                expr->utype->setResolvedType(new DataEntity(VAR));
+
+                expr->utype->getCode().getInjector(stackInjector)
+                        .addIr(OpBuilder::rstore(EBX));
+            }
+        }
+    } else if(leftExpr.utype->getType() == utype_field) {
+        Field *field = (Field*)leftExpr.utype->getResolvedType();
+
+        if(field->utype->getType() == utype_class) {
+            goto processClassOverload;
+        } else if(field->utype->getResolvedType()->type <= VAR) {
+            goto processSimpleValue;
+        }  else if(field->utype->getResolvedType()->type == OBJECT && (operand == "==" || operand == "!=")) {
+            goto instanceTest;
+        } else
+            goto incompatibleExpressions;
+    } else if(leftExpr.utype->getType() == utype_native) {
+        if(leftExpr.utype->getResolvedType()->type <= VAR) {
+            goto processSimpleValue;
+        } else if(leftExpr.utype->getResolvedType()->type == OBJECT && (operand == "==" || operand == "!=")) {
+            goto instanceTest;
+        } else
+            goto incompatibleExpressions;
+    } else if((operand == "==" || operand == "!=") && leftExpr.utype->getResolvedType()->type == OBJECT) {
+        instanceTest:
+        if(rightExpr.utype->getResolvedType()->type == OBJECT || rightExpr.utype->getClass() != NULL) {
+            resultCode->inject(leftExpr.utype->getCode());
+            resultCode->inject(leftExpr.utype->getCode().getInjector(stackInjector));
+            resultCode->inject(rightExpr.utype->getCode());
+            resultCode->inject(rightExpr.utype->getCode().getInjector(ptrInjector));
+            resultCode->addIr(OpBuilder::itest(EBX));
+
+            expr->utype->getCode().getInjector(stackInjector)
+                    .addIr(OpBuilder::rstore(EBX));
+        } else {
+            errors->createNewError(GENERIC, ast->line, ast->col,
+                                   " illegal use of operator `" + operand.getValue() +
+                                   "` with expression `" +
+                                   leftExpr.utype->toString() + "`.");
+        }
+    }
+    else if(leftExpr.utype->getType() == utype_class){
+        processClassOverload:
+        Method *overload;
+        List<Field *> params;
+
+        params.add(new Field());
+        expressionToParam(rightExpr, params.get(0));
+
+        if ((overload = findFunction(leftExpr.utype->getClass(), "operator" + operand.getValue(),
+                                     params, ast, true, fn_op_overload)) != NULL) {
+            compileMethodReturnType(overload, overload->ast, false);
+
+            validateAccess(overload, ast);
+            expr->utype->copy(overload->utype);
+
+            resultCode->inject(leftExpr.utype->getCode());
+            resultCode->inject(leftExpr.utype->getCode().getInjector(stackInjector));
+            pushParametersToStackAndCall(ast, overload, params, *resultCode);
+
+            expr->freeInjectors();
+            if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
+                || expr->utype->getResolvedType()->type == CLASS) {
+                expr->utype->getCode().getInjector(ptrInjector)
+                        .addIr(OpBuilder::popObject2());
+            } else if (expr->utype->getResolvedType()->isVar()) {
+                expr->utype->getCode().getInjector(ebxInjector)
+                        .addIr(OpBuilder::loadValue(EBX));
+            }
+        } else {
+            if(operand == "==" || operand == "!=") {
+                if(params.get(0)->utype->getResolvedType()->type == OBJECT || params.get(0)->utype->getClass() != NULL) {
+                    resultCode->inject(leftExpr.utype->getCode());
+                    resultCode->inject(leftExpr.utype->getCode().getInjector(stackInjector));
+                    resultCode->inject(params.get(0)->utype->getCode());
+                    resultCode->inject(params.get(0)->utype->getCode().getInjector(ptrInjector));
+                    resultCode->addIr(OpBuilder::itest(EBX));
+
+                    expr->utype->getCode().getInjector(stackInjector)
+                            .addIr(OpBuilder::rstore(EBX));
+                } else {
+                    errors->createNewError(GENERIC, ast->line, ast->col,
+                                           " illegal use of operator `" + operand.getValue() +
+                                           "` with expression `" +
+                                           leftExpr.utype->toString() + "`.");
+                }
+            } else {
+                errors->createNewError(GENERIC, ast->line, ast->col,
+                                       " expression `" + leftExpr.utype->toString() +
+                                       "` does not contain an override operator for expresion `" +
+                                       leftExpr.utype->toString()
+                                       + "` with operand `" + operand.getValue() + "`.");
+            }
+        }
+
+        freeListPtr(params);
+    } else {
+        errors->createNewError(GENERIC, ast->line, ast->col,
+                               " illegal use of operator `" + operand.getValue() +
+                               "` with expression `" +
+                               leftExpr.utype->toString() + "`.");
+    }
+}
+
 void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast) {
     CodeHolder *resultCode = &expr->utype->getCode();
 
     if(leftExpr.utype->getType() == utype_field) {
         Field *field = (Field*)leftExpr.utype->getResolvedType();
 
-        resolveFieldType(field, field->utype, field->ast);
-
         if(field->setter != NULL
         && (currentScope()->currentFunction == NULL ||
             !(currentScope()->currentFunction == field->setter || currentScope()->currentFunction == field->getter))) {
-            leftExpr.utype->getCode().removeIrEnd(leftExpr.utype->getCode().getInjector(getterInjector).ir32.at(0));
 
-            resultCode->inject(leftExpr.utype->getCode());
-            resultCode->addIr(OpBuilder::pushObject());
+            if(field->getter != NULL)
+                leftExpr.utype->getCode().removeIrEnd(leftExpr.utype->getCode().getInjector(getterInjector).ir32.at(0));
 
-            resultCode->inject(rightExpr.utype->getCode());
-            resultCode->inject(rightExpr.utype->getCode().getInjector(stackInjector));
-            resultCode->
-                    addIr(OpBuilder::call(field->setter->address));
+            List<Field *> params;
 
-            expr->utype->copy(field->setter->utype);
+            params.add(new Field());
+            expressionToParam(rightExpr, params.get(0));
+
+            if(leftExpr.utype->isRelated(params.get(0)->utype)
+                || isUtypeConvertableToNativeClass(field->setter->params.get(0)->utype, params.get(0)->utype)
+                   || isUtypeClassConvertableToVar(field->setter->params.get(0)->utype, params.get(0)->utype)) {
+
+                if(field->locality != stl_thread && !field->flags.find(STATIC)) {
+                    resultCode->inject(leftExpr.utype->getCode());
+                    resultCode->addIr(OpBuilder::pushObject());
+                }
+
+                validateAccess(field->setter, ast);
+
+                pushParametersToStackAndCall(ast, field->setter, params, *resultCode);
+
+                expr->freeInjectors();
+                expr->utype->copy(field->setter->utype);
+            } else {
+                errors->createNewError(GENERIC, ast->line, ast->col,
+                                       " field `" + field->fullName + "` has a setter that requires type `" +
+                                       field->utype->toString()
+                                       + "` which differs from the provided type of `" + params.get(0)->utype->toString() + "`.");
+            }
         } else {
             if(field->getter != NULL
             && (currentScope()->currentFunction == NULL ||
@@ -3060,24 +3471,42 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
 
                 leftExpr.utype->getCode().getInjector(ptrInjector).free();
                 leftExpr.utype->getCode().removeIrEnd(leftExpr.utype->getCode().getInjector(getterInjector).ir32.at(0));
-                leftExpr.utype->getCode().addIr(OpBuilder::movn(field->address));
+
+                if(field->locality == stl_stack) {
+                    if(field->flags.find(STATIC))
+                        leftExpr.utype->getCode().addIr(OpBuilder::movg(field->owner->address));
+                    leftExpr.utype->getCode().addIr(OpBuilder::movn(field->address));
+                }
+                else
+                    leftExpr.utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
 
                 leftExpr.utype->getCode().getInjector(stackInjector).free()
                     .addIr(OpBuilder::pushObject());
             }
 
-            if (leftExpr.utype->isRelated(rightExpr.utype)) {
+            if (rightExpr.utype->isRelated(leftExpr.utype) || ((field->type <= _UINT64 || field->type == VAR) && isUtypeClassConvertableToVar(field->utype, rightExpr.utype))) {
 
                 expr->utype->copy(field->utype);
                 bool integerField = (field->type >= _INT8 && field->type <= _UINT64);
-                if (field->type <= VAR) { // TODO: verify lambdas being assigned to pointers and qualify them if not fully qualified
+                if (field->type <= VAR) {
                     if (field->isArray)
                         goto object_assignment;
-
 
                     if(field->utype->getResolvedType() != NULL && field->utype->getResolvedType()->type == FNPTR
                         && isLambdaUtype(rightExpr.utype))
                         fullyQualifyLambda(field->utype, rightExpr.utype);
+
+                    if(isUtypeClassConvertableToVar(field->utype, rightExpr.utype)) {
+                        CodeHolder tmp;
+                        convertNativeIntegerClassToVar(rightExpr.utype, field->utype, tmp, ast);
+
+                        rightExpr.utype->getCode().free()
+                            .inject(tmp);
+
+                        rightExpr.utype->getCode().getInjector(stackInjector)
+                            .inject(tmp.getInjector(stackInjector));
+                        tmp.free();
+                    }
 
                     resultCode->inject(rightExpr.utype->getCode());
 
@@ -3169,22 +3598,22 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                     }
                 } else {
                     errors->createNewError(GENERIC, ast->line, ast->col,
-                                           " expression `" + rightExpr.utype->toString() + "` assigned to field `" +
-                                           field->toString()
-                                           + "` does not allow values to be assigned to it.");
+                                           " incompatible types, cannot convert `" + params.get(0)->utype->toString() + "` to `" +
+                                           leftExpr.utype->toString()
+                                           + "`.");
                 }
 
                 freeListPtr(params);
             } else {
                 errors->createNewError(GENERIC, ast->line, ast->col,
-                                       " expression `" + rightExpr.utype->toString() + "` assigned to field `" +
-                                       field->toString()
-                                       + "` does not match the type of the field.");
+                                       " incompatible types, cannot convert `" + rightExpr.utype->toString() + "` to `" +
+                                       leftExpr.utype->toString()
+                                       + "`.");
             }
         }
     } else { // utype_class
 
-        if(leftExpr.utype->isRelated(rightExpr.utype)) {
+        if(rightExpr.utype->isRelated(leftExpr.utype)) {
             if(rightExpr.utype->isNullType()) {
                 resultCode->inject(leftExpr.utype->getCode());
                 resultCode->inject(leftExpr.utype->getCode().getInjector(ptrInjector));
@@ -3197,6 +3626,7 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                 resultCode->addIr(OpBuilder::popObject());
             }
 
+            expr->utype->copy(leftExpr.utype);
             expr->utype->getCode().getInjector(stackInjector)
                     .addIr(OpBuilder::pushObject());
         } else {
@@ -3227,16 +3657,44 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                             .addIr(OpBuilder::loadValue(EBX));
                 }
             } else {
+
                 errors->createNewError(GENERIC, ast->line, ast->col,
-                                       " expression `" + rightExpr.utype->toString() + "` assigned to class type `" +
+                                       " incompatible types, cannot convert `" + params.get(0)->utype->toString() + "` to `" +
                                        leftExpr.utype->toString()
-                                       + "` does not contain an operator overload function for operand `" +
-                                       operand.getValue() + "`.");
+                                       + "`.");
             }
 
             freeListPtr(params);
         }
     }
+}
+
+void Compiler::compileBinaryExpression(Expression* expr, Ast* ast) {
+    Expression leftExpr, rightExpr;
+
+    RETAIN_TYPE_INFERENCE(true)
+    compileExpression(&leftExpr, ast->getSubAst(0));
+    compileExpression(&rightExpr, ast->getSubAst(1));
+    RESTORE_TYPE_INFERENCE()
+
+    expr->ast = ast;
+    Token &operand = ast->getToken(0);
+
+    switch(leftExpr.utype->getType()) {
+        case utype_class:
+        case utype_field:
+        case utype_native:
+        case utype_literal: {
+            compileBinaryExpression(expr, operand, leftExpr, rightExpr, ast);
+            break;
+        }
+        default: {
+            errors->createNewError(GENERIC, ast->line, ast->col, "unexpected expression of type `" + leftExpr.utype->toString() + "` to be used with operand `" + operand.getValue() + "`");
+            break;
+        }
+    }
+
+    expr->type = utypeToExpressionType(expr->utype);
 }
 
 void Compiler::compileAssignExpression(Expression* expr, Ast* ast) {
@@ -3596,8 +4054,10 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
 
             freeListPtr(expressions);
             freeListPtr(params);
-        } else
-            errors->createNewError(GENERIC, ast->line, ast->col, "arrayType `" + arrayType->toString() + "` must be a class");
+        } else if(arrayType->getType() == utype_field)
+            errors->createNewError(GENERIC, ast->line, ast->col, "field `" + arrayType->toString() + "` cannot be used for instantiation.");
+        else if(arrayType->getType() != utype_unresolved)
+            errors->createNewError(GENERIC, ast->line, ast->col, "symbol `" + arrayType->toString() + "` must be of type `class` to be used for instantiation.");
     } else if(ast->hasSubAst(ast_field_init_list) || ast->hasSubAst(ast_expression_list)) {
         if(arrayType->getClass() && arrayType->getType() != utype_field) {
             if(arrayType->getClass()->flags.find(EXTENSION)) {
@@ -3780,6 +4240,7 @@ void Compiler::compileDotNotationCall(Expression* expr, Ast* ast) {
         expr->utype->getCode().inject(utype->getCode());
 
         expr->type = utypeToExpressionType(expr->utype);
+        freePtr(utype);
     }
 
     compilePostAstExpressions(expr, ast);
@@ -4091,6 +4552,80 @@ void Compiler::compileArrayExpression(Expression* expr, Ast* ast) {
             errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + expr->utype->toString() + "` must be an array type");
     }
 
+    compilePostAstExpressions(expr, ast);
+}
+
+
+void Compiler::compileMinusExpression(Expression* expr, Ast* ast) {
+    this->compileExpression(expr, ast->getSubAst(ast_expression));
+
+    Token tok = ast->getToken(MINUS);
+    if(expr->utype->isArray()) {
+        errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "expression of type `" + expr->utype->toString() + "` must return a var to use `" +
+                                                                        tok.getValue() + "` operator");
+    } else if(expr->utype->getType() != utype_unresolved){
+        Method *overload;
+        List<Field*> params; // def operator-() { ... }
+
+        switch(expr->utype->getResolvedType()->type) {
+            case NIL:
+                errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "cannot use `" + tok.getValue() + "` operator on expression that returns nil");
+                break;
+            case UNTYPED:
+                errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "the type of the expression that is returned from `" + expr->utype->toString() + "` is untyped. Mostly likely due to a compiler bug, and therefore cannot use operator `" + tok.getValue() + "`");
+                break;
+            case UNDEFINED:
+                break;
+            case OBJECT:
+                errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "expressions of type object must be casted before using `!` operator, try `!((Type)<your-expression>)` instead");
+                break;
+
+            case _INT8:
+            case _INT16:
+            case _INT32:
+            case _INT64:
+            case _UINT8:
+            case _UINT16:
+            case _UINT32:
+            case _UINT64:
+            case VAR:
+                expr->utype->getCode().inject(expr->utype->getCode().getInjector(ebxInjector));
+                expr->utype->getCode().addIr(OpBuilder::neg(EBX, EBX));
+
+                expr->freeInjectors();
+                expr->utype->getCode().getInjector(stackInjector)
+                        .addIr(OpBuilder::rstore(EBX));
+                break;
+
+            case CLASS:
+                if((overload = findFunction(expr->utype->getClass(), "operator" + tok.getValue(),
+                                            params, ast, true, fn_op_overload)) != NULL) {
+                    compileMethodReturnType(overload, overload->ast, false);
+
+                    validateAccess(overload, ast);
+                    expr->utype->copy(overload->utype);
+
+                    expr->utype->getCode().inject(stackInjector);
+                    expr->utype->getCode().addIr(OpBuilder::call(overload->address));
+
+                    expr->freeInjectors();
+                    if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
+                        || expr->utype->getResolvedType()->type == CLASS) {
+                        expr->utype->getCode().getInjector(ptrInjector)
+                                .addIr(OpBuilder::popObject2());
+                    } else if (expr->utype->getResolvedType()->isVar()) {
+                        expr->utype->getCode().getInjector(ebxInjector)
+                                .addIr(OpBuilder::loadValue(EBX));
+                    }
+                } else {
+                    errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "use  of operator `" + tok.getValue() + "` does not have any qualified use with class `" + expr->utype->toString() + "`");
+                }
+
+                break;
+        }
+    }
+
+    expr->type = utypeToExpressionType(expr->utype);
     compilePostAstExpressions(expr, ast);
 }
 
@@ -4546,7 +5081,7 @@ void Compiler::compilePrimaryExpression(Expression* expr, Ast* ast) {
 }
 
 void Compiler::compileExpression(Expression* expr, Ast* ast) {
-    Ast *branch = ast->getSubAst(0);
+    Ast *branch = ast->getType() == ast_expression ? ast->getSubAst(0) : ast;
     compileExpressionAst(expr, branch);
 }
 
@@ -4562,6 +5097,15 @@ void Compiler::compileExpressionAst(Expression *expr, Ast *branch) {
             return compileVectorExpression(expr, branch);
         case ast_assign_e:
             return compileAssignExpression(expr, branch);
+        case ast_minus_e:
+            return compileMinusExpression(expr, branch);
+        case ast_and_e:
+        case ast_shift_e:
+        case ast_equal_e:
+        case ast_less_e:
+        case ast_mult_e:
+        case ast_add_e:
+            return compileBinaryExpression(expr, branch);
     }
 
     return errors->createNewError(GENERIC, branch->getSubAst(0)->line, branch->getSubAst(0)->col,
@@ -5970,14 +6514,13 @@ void Compiler::inlineVariableValue(CodeHolder &code, Field *field) {
             code.addIr(OpBuilder::ldc(EBX, constantIntMap.indexof(value)));
         } else
             code.addIr(OpBuilder::movi(value, EBX));
-        code.getInjector(stackInjector)
-                .addIr(OpBuilder::rstore(EBX));
     }
     else {
         code.addIr(OpBuilder::movf(EBX, floatingPointMap.indexof(value)));
-        code.getInjector(stackInjector)
-                .addIr(OpBuilder::rstore(EBX));
     }
+
+    code.getInjector(stackInjector)
+            .addIr(OpBuilder::rstore(EBX));
 }
 
 Field *Compiler::resolveEnum(string name) {
@@ -6299,14 +6842,17 @@ void Compiler::resolveFieldUtype(Utype *utype, Ast *ast, DataEntity *resolvedFie
     if(field->getter == NULL && isFieldInlined(field)) {
         inlineVariableValue(utype->getCode(), field);
     } else {
-        if(field->getter != NULL) {
+        if(field->getter != NULL
+           && (currentScope()->currentFunction == NULL ||
+               !(currentScope()->currentFunction == field->setter || currentScope()->currentFunction == field->getter))) {
             if(field->locality == stl_stack && !field->flags.find(STATIC) && !utype->getCode().instanceCaptured) {
                 utype->getCode().instanceCaptured = true;
                 utype->getCode().addIr(OpBuilder::movl(0));
             }
 
             long codeSize = utype->getCode().size();
-            utype->getCode().addIr(OpBuilder::pushObject());
+            if(field->locality == stl_stack && !field->flags.find(STATIC))
+                utype->getCode().addIr(OpBuilder::pushObject());
             compileFieldGetterCode(utype->getCode(), field);
 
             codeSize = utype->getCode().size() - codeSize;

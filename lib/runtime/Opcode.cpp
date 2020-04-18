@@ -290,7 +290,7 @@ opcode_instr OpBuilder::sleep(_register inRegister) {
     return SET_Di(tmpInstr, SLEEP, inRegister, POSITIVE);
 }
 
-opcode_instr OpBuilder::test(_register leftRegister, _register rightRegister) {
+opcode_instr OpBuilder::te(_register leftRegister, _register rightRegister) {
     return SET_Ci(tmpInstr, TEST, leftRegister, POSITIVE, rightRegister, POSITIVE);
 }
 
@@ -342,16 +342,16 @@ opcode_instr OpBuilder::shr(_register outRegister, _register leftRegister, _regi
     return SET_Bi(tmpInstr, SHR, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
 }
 
-opcode_instr OpBuilder::skipife(opcode_arg address) {
-    if(illegalParam(address, D_CLASS))
+opcode_instr OpBuilder::skipife(_register inRegister, opcode_arg address) {
+    if(illegalParam(address, C_CLASS, 2))
         return ill();
-    return SET_Di(tmpInstr, SKPE, abs(address), posNeg(address));
+    return SET_Ci(tmpInstr, SKPE, inRegister, POSITIVE, abs(address), posNeg(address));
 }
 
-opcode_instr OpBuilder::skipifne(opcode_arg address) {
-    if(illegalParam(address, D_CLASS))
+opcode_instr OpBuilder::skipifne(_register inRegister, opcode_arg address) {
+    if(illegalParam(address, C_CLASS, 2))
         return ill();
-    return SET_Di(tmpInstr, SKNE, abs(address), posNeg(address));
+    return SET_Ci(tmpInstr, SKNE, inRegister, POSITIVE, abs(address), posNeg(address));
 }
 
 opcode_instr OpBuilder::_and(_register leftRegister, _register rightRegister) {
@@ -657,4 +657,8 @@ opcode_instr OpBuilder::ldc(_register outRegister, opcode_arg address) {
     if(illegalParam(address, D_CLASS))
         return ill();
     return SET_Ci(tmpInstr, LDC, outRegister, POSITIVE, abs(address), posNeg(address));
+}
+
+opcode_instr OpBuilder::neg(_register outRegister, _register inRegister) {
+    return SET_Ci(tmpInstr, NEG, outRegister, POSITIVE, inRegister, POSITIVE);
 }

@@ -26,13 +26,13 @@ public:
     {
     }
 
-    Literal(string &data, long long address)
+    Literal(string &data, long address)
             :
             DataEntity(),
             literalType(string_literal),
-            stringData(data),
-            numericData(address)
+            stringData(data)
     {
+        this->address = address;
         type = _INT8;
     }
 

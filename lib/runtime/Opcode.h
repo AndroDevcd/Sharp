@@ -215,6 +215,7 @@
             &&SWAP,                                     \
             &&LDC                                     \
             &&SMOVR_3,                        \
+            &&NEG                        \
         };
 
 typedef unsigned int opcode_instr;
@@ -344,6 +345,7 @@ public:
         static const uint8_t SWAP     = 0x74;
         static const uint8_t LDC      = 0x75;
         static const uint8_t SMOVR_3  = 0x76;
+        static const uint8_t NEG      = 0x77;
 
         enum instr_class {
             E_CLASS,
@@ -408,7 +410,7 @@ public:
         static opcode_instr newClass(opcode_arg address);
         static opcode_instr* movn(opcode_arg address);
         static opcode_instr sleep(_register inRegister);
-        static opcode_instr test(_register leftRegister, _register rightRegister);
+        static opcode_instr te(_register leftRegister, _register rightRegister);
         static opcode_instr tne(_register leftRegister, _register rightRegister);
         static opcode_instr lock();
         static opcode_instr unlock();
@@ -420,8 +422,8 @@ public:
         static opcode_instr loadValue(_register outRegister);
         static opcode_instr shl(_register outRegister, _register leftRegister, _register rightRegister);
         static opcode_instr shr(_register outRegister, _register leftRegister, _register rightRegister);
-        static opcode_instr skipife(opcode_arg address);
-        static opcode_instr skipifne(opcode_arg address);
+        static opcode_instr skipife(_register inRegister, opcode_arg address);
+        static opcode_instr skipifne(_register inRegister, opcode_arg address);
         static opcode_instr _and(_register leftRegister, _register rightRegister);
         static opcode_instr uand(_register leftRegister, _register rightRegister);
         static opcode_instr _or(_register leftRegister, _register rightRegister);
@@ -474,6 +476,7 @@ public:
         static opcode_instr popObject2();
         static opcode_instr swap();
         static opcode_instr ldc(_register outRegister, opcode_arg address);
+        static opcode_instr neg(_register leftRegister, _register rightRegister);
 
         static bool illegalParam(opcode_arg param, instr_class iclass, short argNum = 1);
 

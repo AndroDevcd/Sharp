@@ -153,6 +153,8 @@ string Ast::astTypeToString(ast_type type) {
             return "ast_enum_decl";
         case ast_init_decl:
             return "ast_init_decl";
+        case ast_minus_e:
+            return "ast_minus_e";
         case ast_delegate_decl:
             return "ast_delegate_decl";
         case ast_construct_decl:

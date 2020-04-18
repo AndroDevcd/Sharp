@@ -4,11 +4,19 @@ import std.io;
 
 class list {
 
-    size : list;
-        get -> { }
-    test := size++;
+    static size : var;
+        get {}
 
-    def operator++(n : int) : var {
+    num := 9;
+    test := true && num == 9 || size == 100;
+}
+
+def foo() : int = null;
+
+mutate std#int {
+
+    def operator+=(numm : var) : var {
 
     }
+
 }

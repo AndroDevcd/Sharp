@@ -1157,6 +1157,9 @@ void Thread::exec() {
                         o2->object->HEAD[(int64_t)registers[GET_Ca(*pc)]]=registers[GET_Cb(*pc)];
                 )
                 _brh
+            NEG:
+                registers[GET_Ca(*pc)]=-registers[GET_Cb(*pc)]];
+                _brh
             SMOV:
                 registers[GET_Ca(*pc)]=(sp+GET_Cb(*pc))->var;
                 _brh
