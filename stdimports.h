@@ -13,6 +13,7 @@
 #include <string>
 #include <cstdio>
 #include <cstring>
+#include "lib/runtime/jit/architecture.h"
 
 using namespace std;
 
@@ -54,6 +55,16 @@ using namespace std;
 
 #ifndef DEBUGGING
 #define DEBUGGING
+#endif
+
+#if _ARCH_BITS == 32
+typedef int32_t Int;
+typedef uint32_t uInt;
+#define _INT_MAX INT32_MAX
+#else
+typedef int64_t Int;
+typedef uint64_t uInt;
+#define _INT_MAX INT64_MAX
 #endif
 
 typedef void (*fptr)(void *);

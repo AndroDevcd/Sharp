@@ -181,6 +181,8 @@ string Ast::astTypeToString(ast_type type) {
             return "ast_lambda_function";
         case ast_field_init:
             return "ast_field_init";
+        case ast_base_utype:
+            return "ast_base_utype";
         case ast_lambda_arg:
             return "ast_lambda_arg";
         case ast_lambda_arg_list:

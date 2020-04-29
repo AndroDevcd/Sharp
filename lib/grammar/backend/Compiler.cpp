@@ -545,6 +545,45 @@ void Compiler::preProccessEnumDecl(Ast *ast)
     removeScope();
 }
 
+void Compiler::compileClassFields(Ast* ast, ClassObject* currentClass) {
+    Ast* block = ast->getLastSubAst();
+    List<AccessFlag> flags;
+
+    if(currentClass == NULL) {
+        string name = ast->getToken(0).getValue();
+        if(globalScope()) {
+            currentClass = findClass(currModule, name, classes);
+        }
+        else {
+            currentClass = currentScope()->klass->getChildClass(name);
+        }
+    }
+
+    if(currentClass != NULL) {
+        currScope.add(new Scope(currentClass, CLASS_SCOPE));
+        for (long i = 0; i < block->getSubAstCount(); i++) {
+            Ast *branch = block->getSubAst(i);
+            CHECK_CMP_ERRORS(return;)
+
+            switch (branch->getType()) {
+                case ast_class_decl:
+                    compileClassFields(branch);
+                    break;
+                case ast_mutate_decl:
+                    compileClassMutateFields(branch);
+                    break;
+                case ast_variable_decl:
+                    compileVarDecl(branch);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        removeScope();
+    }
+}
+
 void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* currentClass) {
     Ast* block = ast->getLastSubAst();
     List<AccessFlag> flags;
@@ -1229,7 +1268,7 @@ bool Compiler::paramsContainNonQualifiedLambda(List<Field*> &params) {
     return false;
 }
 
-Method* // TODO: Circle back around to this as it is in its primitive stae there might beissues with how it searches the mehtods with _int64 _int8 etc.
+Method* // TODO: Circle back around to this as it is in its primitive stae there might be issues with how it searches the mehtods with _int64 _int8 etc.
 Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* ast, bool checkBase, function_type type) {
     List<Method*> funcs;
     List<Method*> matches;
@@ -1648,10 +1687,10 @@ void Compiler::pushParametersToStackAndCall(Ast *ast, Method *resolvedMethod, Li
 /*
  * DEBUG: This is a debug function made to print the generated contents of a n expression's code
  */
-void Compiler::printExpressionCode(Expression *expr) {
+void Compiler::printExpressionCode(Expression &expr) {
     cout << "\n\n\n==== Expression Code ===\n";
-    cout << "line " << expr->ast->line << " file " << current->getTokenizer()->file << endl;
-    cout << codeToString(expr->utype->getCode());
+    cout << "line " << expr.ast->line << " file " << current->getTokenizer()->file << endl;
+    cout << codeToString(expr.utype->getCode());
     cout << "\n=========\n" << std::flush;
 }
 
@@ -3425,7 +3464,7 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
     }
 }
 
-void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast) {
+void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast, bool allowOverloading) {
     CodeHolder *resultCode = &expr->utype->getCode();
 
     if(leftExpr.utype->getType() == utype_field) {
@@ -3484,7 +3523,9 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                     .addIr(OpBuilder::pushObject());
             }
 
-            if (rightExpr.utype->isRelated(leftExpr.utype) || ((field->type <= _UINT64 || field->type == VAR) && isUtypeClassConvertableToVar(field->utype, rightExpr.utype))) {
+            if (rightExpr.utype->isRelated(leftExpr.utype)
+                || ((field->type <= _UINT64 || field->type == VAR) && isUtypeClassConvertableToVar(field->utype, rightExpr.utype))
+                || (!allowOverloading && isUtypeConvertableToNativeClass(field->utype, rightExpr.utype))) {
 
                 expr->utype->copy(field->utype);
                 bool integerField = (field->type >= _INT8 && field->type <= _UINT64);
@@ -3537,6 +3578,20 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                 } else if (field->type == CLASS || field->type == OBJECT) {
                     object_assignment:
 
+                    if(isUtypeConvertableToNativeClass(field->utype, rightExpr.utype)) {
+                        CodeHolder tmp;
+                        convertUtypeToNativeClass(field->utype, rightExpr.utype, tmp, ast);
+
+                        rightExpr.utype->getCode().free()
+                                .inject(tmp);
+
+                        rightExpr.utype->getCode().getInjector(stackInjector)
+                                .inject(tmp.getInjector(stackInjector));
+                        rightExpr.utype->getCode().getInjector(ptrInjector)
+                                .inject(tmp.getInjector(ptrInjector));
+                        tmp.free();
+                    }
+
                     if (field->local) {
                         resultCode->inject(rightExpr.utype->getCode());
                         resultCode->inject(rightExpr.utype->getCode().getInjector(ptrInjector));
@@ -3569,7 +3624,7 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                                            field->toString()
                                            + "` does not allow values to be assigned to it.");
                 }
-            } else if (field->utype->getClass()) {
+            } else if (field->utype->getClass() && allowOverloading) {
                 Method *overload;
                 List<Field *> params;
 
@@ -3606,9 +3661,10 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                 freeListPtr(params);
             } else {
                 errors->createNewError(GENERIC, ast->line, ast->col,
-                                       " incompatible types, cannot convert `" + rightExpr.utype->toString() + "` to `" +
+                                       " incompatible types, cannot convert `" + rightExpr.utype->toString() +
+                                       "` to `" +
                                        leftExpr.utype->toString()
-                                       + "`.");
+                                       + "`" + (!allowOverloading ? ", has the variable been initialized yet?" : "."));
             }
         }
     } else { // utype_class
@@ -3629,7 +3685,7 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
             expr->utype->copy(leftExpr.utype);
             expr->utype->getCode().getInjector(stackInjector)
                     .addIr(OpBuilder::pushObject());
-        } else {
+        } else if(allowOverloading) {
             Method *overload;
             List<Field *> params;
 
@@ -3665,6 +3721,11 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
             }
 
             freeListPtr(params);
+        } else {
+            errors->createNewError(GENERIC, ast->line, ast->col,
+                                   " incompatible types, cannot convert `" + rightExpr.utype->toString() + "` to `" +
+                                   leftExpr.utype->toString()
+                                   + "`.");
         }
     }
 }
@@ -4548,7 +4609,7 @@ void Compiler::compileArrayExpression(Expression* expr, Ast* ast) {
                 errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + expr->utype->toString() + "` must be a var[], object[], or class[]");
         } else
             errors->createNewError(GENERIC, ast->line, ast->col, "index expression of type `" + arrayExpr.utype->toString() + "` was not found to be a var");
-    } else {
+    } else { // TODO: chech if utype is class and add support for operator[] overload
             errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + expr->utype->toString() + "` must be an array type");
     }
 
@@ -4985,6 +5046,12 @@ void Compiler::compileLambdaExpression(Expression* expr, Ast* ast) {
 
         compileMethodReturnType(lambda, ast);
         lambdas.add(lambda);
+
+        if(processingStage > POST_PROCESSING) {
+            // Todo:...
+        } else {
+            unProcessedMethods.add(lambda);
+        }
     }
 
     expr->type = exp_var;
@@ -4996,12 +5063,6 @@ void Compiler::compileLambdaExpression(Expression* expr, Ast* ast) {
     expr->utype->getCode().addIr(OpBuilder::movi(lambda->address, EBX));
     expr->utype->getCode().getInjector(stackInjector)
             .addIr(OpBuilder::rstore(EBX));
-
-    if(processingStage > POST_PROCESSING) {
-        // Todo:...
-    } else {
-        // TODO: add to unproccessedMethods list
-    }
 }
 
 void Compiler::compileParenExpression(Expression* expr, Ast* ast) {
@@ -5231,6 +5292,54 @@ void Compiler::findConflicts(Ast *ast, string type, string &name) {
     }
 }
 
+void Compiler::compileVarDecl(Ast* ast) {
+    string name = ast->getToken(0).getValue();
+    Token tmp(name, IDENTIFIER, 0, 0);
+    if(parser::isStorageType(tmp)) {
+        name = ast->getToken(1).getValue();
+    }
+
+    Field *field = currentScope()->klass->getField(name, false);
+    if(field->type <= CLASS && !isFieldInlined(field)) {
+
+        if(ast->hasSubAst(ast_expression)) {
+            RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
+            RETAIN_TYPE_INFERENCE(true)
+
+            Token operand("=", SINGLE, ast->col, ast->line, EQUALS);
+            Expression leftExpr, rightExpr, resultExpr;
+            ReferencePointer fieldReference;
+            resultExpr.ast = ast;
+            leftExpr.ast = ast;
+
+            fieldReference.classes.add(name);
+            resolveUtype(fieldReference, leftExpr.utype, ast);
+
+            leftExpr.type = utypeToExpressionType(leftExpr.utype);
+            compileExpression(&rightExpr, ast->getSubAst(ast_expression));
+
+            assignValue(&resultExpr, operand, leftExpr, rightExpr, ast, false);
+
+            cout << ast->toString() << endl;
+            printExpressionCode(resultExpr);
+            if(field->flags.find(STATIC)) {
+                staticMainInserts.inject(resultExpr.utype->getCode());
+            } else {
+                List<Method*> constructors;
+                currentScope()->klass->getAllFunctionsByType(fn_constructor, constructors);
+                for(uInt i = 0; i < constructors.size(); i++) {
+                    constructors.get(i)->data.code.inject(resultExpr.utype->getCode());
+                }
+
+                constructors.free();
+            }
+
+            RESTORE_TYPE_INFERENCE()
+            RESTORE_BLOCK_TYPE()
+        }
+    }
+}
+
 void Compiler::resolveField(Ast* ast) {
     string name = ast->getToken(0).getValue();
     Token tmp(name, IDENTIFIER, 0, 0);
@@ -5268,10 +5377,7 @@ void Compiler::resolveField(Ast* ast) {
             Expression expr;
             RETAIN_BLOCK_TYPE(field->flags.find(STATIC) ? STATIC_BLOCK : currentScope()->type)
             RETAIN_TYPE_INFERENCE(true)
-            cout << ast->toString() << std::flush;
             compileExpression(&expr, ast->getSubAst(ast_expression));
-
-            printExpressionCode(&expr);
             field->utype = NULL;
             resolveFieldType(field, expr.utype, ast);
             RESTORE_TYPE_INFERENCE()
@@ -6293,6 +6399,20 @@ void Compiler::resolveClassMutateMethods(Ast *ast) {
             // do nothing it's allready been processed
         } else {
             resolveClassMethods(ast, currentClass);
+        }
+    }
+}
+
+void Compiler::compileClassMutateFields(Ast *ast) {
+    ReferencePointer ptr;
+    compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
+    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
+
+    if(currentClass != NULL) {
+        if (IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
+            // do nothing it's allready been processed
+        } else {
+            compileClassFields(ast, currentClass);
         }
     }
 }
@@ -8238,25 +8358,64 @@ void Compiler::setup() {
     constantIntMap.init();
     unProcessedClasses.init();
     inlinedFields.init();
+    staticMainInserts.init();
     nilUtype = new Utype(NIL);
-    naiveUTypeList = new Utype*[10]
-            {
-              new Utype(_INT8),
-              new Utype(_INT16),
-              new Utype(_INT32),
-              new Utype(_INT64),
-              new Utype(_UINT8),
-              new Utype(_UINT16),
-              new Utype(_UINT32),
-              new Utype(_UINT64),
-              NULL,
-              new Utype(VAR)
-            };
     nullUtype = new Utype(OBJECT);
     undefUtype = new Utype(UNDEFINED);
     undefUtype->setType(utype_unresolved);
     nullUtype->setNullType(true);
-    nullUtype->getResolvedType()->guid = guid++;
+}
+
+void Compiler::compileAllFields() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        current = parsers.get(i);
+        updateErrorManagerInstance(current);
+
+        currModule = "$unknown";
+        long long totalErrors = errors->getUnfilteredErrorCount();
+        currScope.add(new Scope(NULL, GLOBAL_SCOPE));
+        for (unsigned long x = 0; x < current->size(); x++) {
+            Ast *branch = current->astAt(x);
+            if (x == 0) {
+                if (branch->getType() == ast_module_decl) {
+                    currModule = parseModuleDecl(branch);
+                    currScope.last()->klass = findClass(currModule, globalClass, classes);
+                    continue;
+                } else {
+                    currModule = undefinedModule;
+                    currScope.last()->klass = findClass(currModule, globalClass, classes);
+                }
+            }
+
+            switch(branch->getType()) {
+                case ast_class_decl:
+                    break;
+                case ast_generic_class_decl:
+                    compileClassFields(branch);
+                    break;
+                case ast_enum_decl:
+                    break;
+                case ast_method_decl: /* ignore */
+                    break;
+                case ast_variable_decl:
+                    compileVarDecl(branch);
+                    break;
+                case ast_mutate_decl:
+                    /* ignpre */
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+
+            CHECK_CMP_ERRORS(return;)
+        }
+
+        if(NEW_ERRORS_FOUND()){
+            failedParsers.addif(current);
+        }
+        removeScope();
+    }
 }
 
 void Compiler::compile() {
@@ -8265,8 +8424,11 @@ void Compiler::compile() {
     if(preprocess() && postProcess()) {
         processingStage = COMPILING;
         // TODO: write compileUnprocessedClasses() to be called for everything else and free unprocessedClasses list
+        compileAllFields();
 
-        cout << "ready to compile!!!";
+
+        // TODO: compile umprocessed methods last
+        cout << "compiled!!!";
     }
 }
 

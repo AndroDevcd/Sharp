@@ -9,37 +9,59 @@
 #include "oo/string.h"
 #include "List.h"
 
+using namespace runtime;
 
 /**
  * Application info
  */
 struct Manifest {
-    native_string executable;
-    native_string application;
-    native_string version;
+public:
+    Manifest()
+    {
+        executable.init();
+        application.init();
+        version.init();
+        debug = false;
+        entryMethod = 0;
+        methods = 0;
+        classes = 0;
+        fvers = 0;
+        target = 0;
+        sourceFiles = 0;
+        strings = 0;
+        constants = 0;
+        threadLocals = 0;
+    }
+
+    String executable;
+    String application;
+    String version;
     bool debug;
-    int64_t entryMethod;
-    int64_t methods, classes;
-    int64_t memlocals;
-    int fvers;
-    int target;
-    long sourceFiles;
-    int64_t strings;
-    int64_t floatingPoints;
-    int64_t constants;
-    int64_t threadLocals;
+    Int entryMethod;
+    Int methods, classes;
+    Int fvers;
+    Int target;
+    uInt sourceFiles;
+    Int strings;
+    Int constants;
+    Int threadLocals;
 };
 
-extern Manifest manifest;
+struct SourceFile {
+    Int id;
+    String name;
+    _List<String> lines;
 
-struct source_file{
-    long id;
-    _List<native_string> source_line;
+    void init() {
+        id = 0;
+        name.init();
+        lines.init();
+    }
 
     void free() {
-        for(unsigned int i = 0; i < source_line.size(); i++)
-            source_line.get(i).free();
-        source_line.free();
+        for(uInt i = 0; i < lines.size(); i++)
+            lines.get(i).free();
+        lines.free();
     }
 };
 
@@ -52,14 +74,16 @@ class Meta {
 public:
     Meta()
             :
-            sourceFiles()
+            files()
     {
     }
 
-    _List<source_file> sourceFiles;
+    void init() { Meta(); }
 
-    std::string getLine(long line, long sourceFile);
-    bool hasLine(long line, long sourceFile);
+    _List<SourceFile> files;
+
+    String getLine(uInt line, uInt sourceFile);
+    bool hasLine(uInt line, uInt sourceFile);
     void free();
 };
 

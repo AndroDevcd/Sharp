@@ -11,14 +11,14 @@
 #include "oo/Method.h"
 #include "profiler.h"
 #include "../Modules/std/Random.h"
-#include "architecture.h"
+#include "jit/architecture.h"
+#include "../util/HashMap.h"
 
-#define MAX_THREADS 0xffba
+#define ILL_THREAD_ID -1
+#define THREAD_MAP_SIZE 0x2000
 
-#define interp_STACK_SIZE 0xcfba
-#define interp_STACK_MIN 0x3e8
-// minimum size required left after local memory objects are allocated on the stack
-#define interp_STACK_start_MIN 0xff
+#define INTERNAL_STACK_SIZE (MB_TO_BYTES(1) / sizeof(StackElement))
+#define INTERNAL_STACK_MIN KB_TO_BYTES(1)
 #define STACK_SIZE MB_TO_BYTES(1)
 #define STACK_MIN KB_TO_BYTES(50)
 #define STACK_OVERFLOW_BUF KB_TO_BYTES(10) // VERY LARGE OVERFLOW BUFFER FOR jit STACK OFERFLOW CATCHES
@@ -33,15 +33,35 @@ struct jit_context;
 
 enum ThreadState {
     THREAD_CREATED      =0x000,
-    THREAD_RUNNING      =0x001,
-    THREAD_SUSPENDED    =0x002,
-    THREAD_KILLED       =0x003
+    THREAD_STARTED      =0x001,
+    THREAD_RUNNING      =0x002,
+    THREAD_SUSPENDED    =0x003,
+    THREAD_KILLED       =0x004
 };
 
 enum ThreadPriority {
     THREAD_PRIORITY_LOW = 0x0001,
     THREAD_PRIORITY_NORM = 0X0004,
     THREAD_PRIORITY_HIGH = 0X0006
+};
+
+enum ThreadProcessingResult {
+    RESULT_OK                      = 0x000,
+    RESULT_ILL_THREAD_START        = 0x001,
+    RESULT_THREAD_RUNNING          = 0x002,
+    RESULT_THREAD_TERMINATED       = 0x003,
+    RESULT_INVALID_STACK_SIZE      = 0x004,
+    RESULT_THREAD_NOT_STARTED      = 0x005,
+    RESULT_ILL_THREAD_JOIN         = 0x006,
+    RESULT_THREAD_JOIN_FAILED      = 0x007,
+    RESULT_ILL_THREAD_INTERRUPT    = 0x008,
+    RESULT_THREAD_INTERRUPT_FAILED = 0x009,
+    RESULT_ILL_THREAD_DESTROY      = 0x00a,
+    RESULT_THREAD_CREATE_FAILED    = 0x00b,
+    RESULT_NO_THREAD_ID            = 0x00c,
+    RESULT_THREAD_DESTROY_FAILED   = 0x00d,
+    RESULT_ILL_PRIORITY_SET        = 0x00e,
+    RESULT_MAX_SPIN_GIVEUP         = 0x0ff
 };
 
 /**
@@ -61,40 +81,38 @@ class Thread {
 public:
     Thread()
             :
-            id(-1),
+            id(ILL_THREAD_ID),
             daemon(false),
-            state(THREAD_KILLED),
+            state(THREAD_CREATED),
             suspended(false),
-            name(""),
-            rand(NULL),
+            exited(false),
+            terminated(false),
+            priority(THREAD_PRIORITY_HIGH),
+            name(),
+            rand(new Random()),
             main(NULL),
-            exitVal(1),
+            exitVal(0),
             signal(tsig_empty),
             throwable(),
             callStack(),
-            dataStack(NULL)
-
+            dataStack(NULL),
+            calls(0)
 #ifdef BUILD_JIT
             ,jctx(NULL)
 #endif
 
     {
-        exceptionObject.object=0;
-#ifdef SHARP_PROF_
-        tprof = NULL;
-#endif
-    #ifdef WIN32_
+        args.object = NULL;
+        currentThread.object=NULL;
+        exceptionObject.object=NULL;
         new (&mutex) std::mutex();
-    #endif
-    #ifdef POSIX_
-        new (&mutex) std::mutex();
-    #endif
-
 #ifdef WIN32_
         thread = NULL;
 #endif
     }
 
+    void init(string name, Int id, Method* main, bool daemon = false, bool initializeStack = false);
+    static int32_t generateId();
     static void Startup();
     static void suspendSelf();
     static int start(int32_t, size_t);
@@ -112,6 +130,8 @@ public:
     static void shutdown();
     static bool validStackSize(size_t);
     static bool validInternalStackSize(size_t);
+    static void suspendAllThreads();
+    static void resumeAllThreads();
 
     static int startDaemon(
 #ifdef WIN32_
@@ -123,12 +143,15 @@ public:
     (*threadFunc)(void*), Thread* thread);
 
 
-    static int32_t Create(int32_t);
-    void Create(string);
+    static int32_t Create(int32_t, bool daemon);
+    void Create(string, Method*);
     void CreateDaemon(string);
     void exit();
+    void term();
+    void exec();
+    void setup();
 
-    // easier to acces for JIT
+    // easier to access for JIT
     long long calls;
     StackElement* dataStack,
             *sp, *fp;
@@ -137,34 +160,27 @@ public:
 #ifdef BUILD_JIT
     jit_context *jctx;
 #endif
-    int64_t stack_lmt;
+    int64_t stackLimit;
     Cache cache, pc;
 #ifdef SHARP_PROF_
     Profiler *tprof;
 #endif
     /* tsig_t */ int signal;
 
+    static uInt maxThreadId;
     static int32_t tid;
-    static _List<Thread*> threads;
-#ifdef WIN32_
+    static HashMap<Int, Thread*> threads;
     static std::mutex threadsMonitor;
-    std::mutex mutex;
-#endif
-#ifdef POSIX_
-    static std::mutex threadsMonitor;
-    std::mutex mutex;
-#endif
-    static bool isAllThreadsSuspended;
 
+    std::mutex mutex;
     int32_t id;
-    int64_t stack;
+    int64_t stackSize;
     int64_t stbase;
     int64_t stfloor;
     int priority;
     bool daemon;
     bool terminated;
     unsigned int state;
-    unsigned int starting;
     bool suspended;
     bool exited;
     native_string name;
@@ -182,18 +198,6 @@ public:
     pthread_t thread;
 #endif
 
-// @Remove
-    void term();
-
-    static void suspendAllThreads();
-
-    static void resumeAllThreads();
-
-    void exec();
-
-    void interrupt();
-
-    void setup();
 private:
 
     void wait();
@@ -205,6 +209,7 @@ private:
 
     static void pushThread(Thread *thread);
     static void popThread(Thread *thread);
+    void releaseResources();
 };
 
 /**
@@ -231,7 +236,7 @@ extern unsigned long long irCount, overflow;
 extern FinallyTable finallyTable;
 extern thread_local short startAddress;
 extern double exponent(int64_t n);
-extern size_t dStackSz;
-extern size_t iStackSz;
+extern size_t threadStackSize;
+extern size_t internalStackSize;
 
 #endif //SHARP_THREAD_H

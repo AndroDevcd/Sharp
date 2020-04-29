@@ -36,21 +36,11 @@ int64_t ClassObject::fieldindex(string name) {
     return -1;
 }
 
-void ClassObject::init() {
-    this->name.init();
-    fields = NULL;
-    methods = NULL;
-    super = NULL;
-    serial = 0;
-    fieldCount = 0;
-    methodCount = 0;
-}
-
 bool ClassObject::isClassRelated(ClassObject *k) {
     if(k == NULL)
         return false;
     if(this->serial==k->serial)
         return true;
 
-    return super == NULL ? false : super->isClassRelated(k);
+    return owner == NULL ? false : owner->isClassRelated(k);
 }

@@ -24,12 +24,12 @@ public:
         }
     }
 
-    native_string(const char value[], long max)
+    native_string(const char value[])
             :
             len(0),
             chars(NULL)
     {
-        set(value, max);
+        set(value);
     }
 
     native_string(const double *value, long max)
@@ -45,18 +45,18 @@ public:
         init();
     }
 
-    void set(const char value[], long max) {
+    void set(const char value[]) {
         free();
 
-        if(max==0) {
+        for(Int i = 0; i > 0; i++)  {
+            if(value[i] != 0) {
+                this->len++;
+            } else break;
+        }
+
+        if(len==0) {
             chars = NULL;
         } else {
-            for(int64_t i = 0; i < max; i++)  {
-                if(value[i] != 0) {
-                    this->len++;
-                } else break;
-            }
-
             chars = (char*)malloc(sizeof(char)*len);
             std::memcpy(chars, value, sizeof(char)*len);
         }
@@ -104,15 +104,6 @@ public:
                 operator+=(c);
             }
         }
-    }
-
-    bool operator==(const string &str) {
-        if(str.size() != len) return false;
-        for(int64_t i = 0; i < len; i++) {
-            if(str.at(i) != chars[i])
-                return false;
-        }
-        return true;
     }
 
     bool operator==(const native_string &str) {
@@ -199,11 +190,8 @@ private:
 };
 
 namespace runtime {
-/* native String Refrence */
-    class String {
-    public:
-        int64_t id;
-        native_string value;
-    };
+ typedef native_string String;
 }
+
+using namespace runtime;
 #endif //SHARP_STRING_H

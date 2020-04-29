@@ -41,10 +41,10 @@ struct ExceptionTable{
         this->className=e.className;
     }
 
-    uint64_t start_pc, end_pc;
-    uint64_t handler_pc;
-    int64_t local;
-    native_string className;
+    uInt start_pc, end_pc;
+    uInt handler_pc;
+    uInt local;
+    String className;
 };
 
 struct FinallyTable {
@@ -62,8 +62,8 @@ struct FinallyTable {
         try_end_pc=ft.try_end_pc;
     }
 
-    uint64_t start_pc, end_pc;
-    uint64_t try_start_pc, try_end_pc;
+    uInt start_pc, end_pc;
+    uInt try_start_pc, try_end_pc;
 };
 
 #endif //SHARP_EXCECPTION_H

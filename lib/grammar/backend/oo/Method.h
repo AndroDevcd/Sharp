@@ -9,6 +9,17 @@
 #include "../data/DataEntity.h"
 #include "Field.h"
 #include "FunctionType.h"
+#include "../code/CodeHolder.h"
+
+struct CodeData {
+    CodeData()
+    :
+        code()
+    {
+    }
+
+    CodeHolder code;
+};
 
 class Method : public DataEntity {
 public:
@@ -19,7 +30,8 @@ public:
         utype(NULL),
         overload(' '),
         extensionFun(false),
-        delegateAddr(invalidAddr)
+        delegateAddr(invalidAddr),
+        data()
     {
         type = METHOD;
         params.init();
@@ -31,7 +43,8 @@ public:
             fnType(fn_undefined),
             utype(NULL),
             overload(' '),
-            extensionFun(false)
+            extensionFun(false),
+            data()
     {
         this->type = METHOD;
         this->params.init();
@@ -61,6 +74,7 @@ public:
     long delegateAddr;
     Utype* utype;
     List<Field*> params;
+    CodeData data;
 };
 
 

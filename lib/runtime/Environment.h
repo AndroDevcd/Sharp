@@ -36,28 +36,12 @@ public:
 
     // TODO: create the aux classes to be used internally
     // Alloce'd by new()
-    static ClassObject *Throwable;
-    static ClassObject *StackOverflowErr;
-    static ClassObject *RuntimeErr; // TODO: compare exceptions by name not id
-    static ClassObject *ThreadStackException;
-    static ClassObject *IndexOutOfBoundsException;
-    static ClassObject *NullptrException;
-    static ClassObject *ClassCastException;
 
-    Object* globalHeap;         /* Mainly static classes/variables etc */
-    ClassObject* classes;
 
-    native_string* sourceFiles;
-    runtime::String* strings;
-    double floatingPoints*;
-    Method* methods;
-#ifdef WIN32_
-    Gui* gui;
-#endif
 
     void shutdown();
 
-    native_string& getStringById(int64_t ref);
+    String& getStringById(int64_t ref);
 
     Object* findField(std::string name, SharpObject *object);
 
@@ -65,11 +49,5 @@ public:
 
     void createString(Object *o, native_string &str);
 };
-
-extern Environment* env;
-
-#define mvers versions.ALPHA
-
-#define AUX_CLASSES 7
 
 #endif //SHARP_ENVIRONMENT_H

@@ -9,8 +9,7 @@
 #include "string.h"
 #include "Field.h"
 
-class Object;
-class Method;
+struct Method;
 
 class ClassObject {
 public:
@@ -19,56 +18,55 @@ public:
             name(),
             fields(NULL),
             methods(NULL),
+            owner(NULL),
             super(NULL),
+            interfaces(NULL),
             serial(-1),
             totalFieldCount(0),
             instanceFields(0),
             staticFields(0),
-            methodCount(0)
-    {
-    }
-
-    ClassObject(string name, Field* fields, unsigned long instanceFields, unsigned long staticFields, unsigned long fieldCount,
-                ClassObject* super, unsigned long id)
-            :
-            name(name),
-            fields(fields),
-            methods(NULL),
-            super(super),
-            serial(id),
-            totalFieldCount(fieldCount),
-            instanceFields(instanceFields),
-            staticFields(staticFields),
             methodCount(0),
-            base(NULL)
+            interfaceCount(0)
     {
+        name.init();
     }
 
-    void operator=(const ClassObject& klass) {
+    void init() { ClassObject(); }
+
+    ClassObject& operator=(const ClassObject& klass) {
         name = klass.name;
+        fullName = klass.fullName;
         fields = klass.fields;
         methods = klass.methods;
-        super = klass.super;
+        owner = klass.owner;
         serial = klass.serial;
-        base = klass.base;
+        super = klass.super;
         totalFieldCount = klass.totalFieldCount;
         instanceFields = klass.instanceFields;
         staticFields = klass.staticFields;
         methodCount = klass.methodCount;
+
+        return *this;
     }
 
-    native_string name;
-    Field* fields;
-    unsigned long *methods, *interfaces;
-    ClassObject* super, *base;
-    unsigned long serial, staticFields, instanceFields, totalFieldCount, methodCount, interfaceCount;
+    String name;
+    String fullName;
+    Field *fields; // TODO: have compiler format the fields as follows {[instance Fields] [static Fields]}
+    Method **methods;
+    ClassObject *owner, *super;
+    ClassObject **interfaces;
+    uInt
+        serial,
+        staticFields,
+        instanceFields,
+        totalFieldCount,
+        methodCount,
+        interfaceCount;
 
     void free();
 
     Field* getfield(string name);
-    int64_t fieldindex(string name);
-
-    void init();
+    uInt fieldindex(string name);
 
     bool isClassRelated(ClassObject *klass);
 };

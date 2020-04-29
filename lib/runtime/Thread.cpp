@@ -13,8 +13,8 @@
 #include "Manifest.h"
 #include "oo/Object.h"
 #include "../util/time.h"
-#include "_BaseAssembler.h"
-#include "Jit.h"
+#include "jit/_BaseAssembler.h"
+#include "jit/Jit.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -22,10 +22,11 @@
 #include "termios.h"
 #endif
 
-int32_t Thread::tid = 0;
+Int Thread::tid = ILL_THREAD_ID;
+uInt Thread::maxThreadId = 0;
 thread_local Thread* thread_self = NULL;
-_List<Thread*> Thread::threads;
-size_t dStackSz = STACK_SIZE, iStackSz = interp_STACK_SIZE;
+HashMap<Int, Thread*> Thread::threads;
+size_t threadStackSize = STACK_SIZE, internalStackSize = INTERNAL_STACK_SIZE;
 
 #ifdef WIN32_
 std::mutex Thread::threadsMonitor;
@@ -33,7 +34,6 @@ std::mutex Thread::threadsMonitor;
 #ifdef POSIX_
 std::mutex Thread::threadsMonitor;
 #endif
-bool Thread::isAllThreadsSuspended = false;
 
 /*
  * Local registers for the thread to use
@@ -41,13 +41,11 @@ bool Thread::isAllThreadsSuspended = false;
 thread_local double registers[12];
 
 void Thread::Startup() {
-    threads.init();
-    threads.setMax(MAX_THREADS);
+    threads.init(THREAD_MAP_SIZE);
 
     Thread* main = (Thread*)malloc(
             sizeof(Thread)*1);
-    main->main = &env->methods[manifest.entryMethod];
-    main->Create("Main");
+    main->Create("Main", vm.getMainMethod());
 }
 
 /**
@@ -57,164 +55,65 @@ void Thread::Startup() {
  * @param stack_size
  * @return
  */
-int32_t Thread::Create(int32_t methodAddress) {
-    if(methodAddress < 0 || methodAddress >= manifest.methods)
-        return -1;
-    Method* method = &env->methods[methodAddress];
+int32_t Thread::Create(int32_t methodAddress, bool daemon) {
+    int32_t threadId = generateId();
+    registers[CMT] = false;
+    if(methodAddress < 0 || methodAddress >= vm.manifest.methods)
+        return RESULT_THREAD_CREATE_FAILED;
+
+    if(threadId == ILL_THREAD_ID)
+        return RESULT_NO_THREAD_ID;
+
+    Method* method = &vm.methods[methodAddress];
     if(method->paramSize>0)
-        return -2;
+        return RESULT_THREAD_CREATE_FAILED;
 
     Thread* thread = (Thread*)malloc(
             sizeof(Thread)*1);
 
-#ifdef WIN32_
-    new (&thread->mutex) std::mutex();
-#endif
-#ifdef POSIX_
-    new (&thread->mutex) std::mutex();
-#endif
-    thread->name.init();
-    thread->rand = new Random();
-    thread->main = method;
-    thread->id = Thread::tid++;
-    thread->dataStack = NULL;
-    thread->callStack = NULL;
-    thread->currentThread.object=NULL;
-    thread->args.object=NULL;
-    thread->calls=0;
-
-#ifdef BUILD_JIT
-    thread->jctx=new jit_context();
-#endif
-    thread->starting=0;
-    thread->exceptionObject.object=0;
-    thread->current = NULL;
-    thread->priority=THREAD_PRIORITY_NORM;
-    thread->signal = 0;
-    thread->suspended = false;
-    thread->throwable.init();
-    thread->exited = false;
-    thread->daemon = false;
-    thread->terminated = false;
-    thread->state = THREAD_CREATED;
-    thread->exitVal = 0;
-    thread->stack_lmt = iStackSz;
-    thread->fp=0;
-    thread->sp=NULL;
-
-#ifdef SHARP_PROF_
-    thread->tprof = new Profiler();
-#endif
+    stringstream ss;
+    ss << "Thread@" << threadId;
+    thread->init(ss.str(), threadId, method, daemon);
 
     pushThread(thread);
-
-    stringstream ss;
-    ss << "Thread@" << thread->id;
-    thread->name = ss.str();
-    return thread->id;
+    registers[CMT] = true;
+    return threadId;
 }
 
-void Thread::Create(string name) {
-#ifdef WIN32_
-    new (&mutex) std::mutex();
-#endif
-#ifdef POSIX_
-    new (&this->mutex) std::mutex();
-#endif
-    this->name.init();
-    this->currentThread.object=NULL;
-    this->args.object=NULL;
-    this->name = name;
-    this->starting = 0;
-    this->exceptionObject.object=0;
-    this->rand = new Random();
-    this->id = Thread::tid++;
-    this->dataStack = (StackElement*)__calloc(iStackSz, sizeof(StackElement));
-    this->signal = 0;
-    this->suspended = false;
-#ifdef BUILD_JIT
-    this->jctx=new jit_context();
-#endif
-    this->exited = false;
-    this->priority=THREAD_PRIORITY_HIGH;
-    this->throwable.init();
-    this->daemon = false;
-    this->terminated = false;
-    this->state = THREAD_CREATED;
-    this->exitVal = 0;
-    this->stack_lmt = iStackSz;
-    this->callStack = NULL;
-    this->calls=0;
-    this->fp=&dataStack[manifest.threadLocals];
-    this->sp=(&dataStack[manifest.threadLocals])-1;
+void Thread::Create(string name, Method* main) {
+    Int threadId = generateId();
+    if(threadId == ILL_THREAD_ID)
+        return;
 
-#ifdef SHARP_PROF_
-    this->tprof = new Profiler();
-#endif
-
+    init(name, threadId, main, false, true);
     pushThread(this);
 }
 
 void Thread::CreateDaemon(string name) {
-#ifdef WIN32_
-    new (&mutex) std::mutex();
-#endif
-#ifdef POSIX_
-    new (&this->mutex) std::mutex();
-#endif
-    this->name.init();
-    this->name = name;
-    this->id = Thread::tid++;
-    this->rand = new Random();
-    this->dataStack = NULL;
+    Int threadId = generateId();
+    if(threadId == ILL_THREAD_ID)
+        return;
 
-#ifdef BUILD_JIT
-    this->jctx=new jit_context();
-#endif
-    this->callStack = NULL;
-    this->currentThread.object=NULL;
-    this->args.object=NULL;
-    this->exceptionObject.object=0;
-    this->calls=0;
-    this->starting=0;
-    this->priority=THREAD_PRIORITY_NORM;
-    this->current = NULL;
-    this->signal = 0;
-    this->suspended = false;
-    this->exited = false;
-    this->daemon = true;
-    this->terminated = false;
-    this->throwable.init();
-    this->state = THREAD_CREATED;
-    this->exitVal = 0;
-    this->stack_lmt=0;
-    this->fp=0;
-    this->sp=NULL;
-    this->main=NULL;
-
-#ifdef SHARP_PROF_
-    this->tprof = new Profiler();
-#endif
+    init(name, threadId, NULL, true);
     pushThread(this);
 }
 
 void Thread::pushThread(Thread *thread) {
     std::lock_guard<std::mutex> guard(threadsMonitor);
-    threads.push_back(thread);
+    threads.put(thread->id, thread);
 }
 
 void Thread::popThread(Thread *thread) {
     std::lock_guard<std::mutex> guard(threadsMonitor);
-    threads.removefirst(thread);
+    threads.remove(thread->id);
 }
 
 Thread *Thread::getThread(int32_t id) {
-    for(int32_t i = 0 ; i < threads.size(); i++) {
-        if(threads.get(i) != NULL && threads.get(i)->id == id)
-            return threads.get(i);
-    }
+    std::lock_guard<std::mutex> guard(threadsMonitor);
+    Thread *thread;
+    threads.get(id, thread);
 
-    return NULL;
+    return thread;
 }
 
 void Thread::suspendSelf() {
@@ -259,34 +158,33 @@ void Thread::wait() {
     this->state = THREAD_RUNNING;
 }
 
-int Thread::start(int32_t id, size_t stacksz) {
+int Thread::start(int32_t id, size_t stackSize) {
     Thread *thread = getThread(id);
 
-    if (thread_self != NULL && (thread == NULL || thread->starting || id==main_threadid))
-        return 1;
+    if (thread_self != NULL && (thread == NULL || thread->state == THREAD_STARTED))
+        return RESULT_ILL_THREAD_START;
 
     if(thread->state == THREAD_RUNNING)
-        return 2;
+        return RESULT_THREAD_RUNNING;
 
     if(thread->terminated)
-        return 4;
+        return RESULT_THREAD_TERMINATED;
 
-    if(stacksz && !validStackSize(stacksz))
-        return 5;
+    if(stackSize && !validStackSize(stackSize))
+        return RESULT_INVALID_STACK_SIZE;
 
-    thread->stack = (stacksz ? stacksz : dStackSz);
+    thread->stackSize = (stackSize != 0 ? stackSize : threadStackSize);
     thread->exited = false;
-    thread->state = THREAD_CREATED;
-    thread->starting = 1;
+    thread->state = THREAD_STARTED;
 #ifdef WIN32_
     thread->thread = CreateThread(
-            NULL,                   // default security attributes
-            (thread->stack),                      // use default stack size
-            &vm->InterpreterThreadStart,       // thread function caller
-            thread,                 // thread self when thread is created
-            0,                      // use default creation flags
+            NULL,                     // default security attributes
+            (thread->stackSize),                      // use default stack size
+            &VirtualMachine::InterpreterThreadStart,  // thread function caller
+            thread,                                   // thread self when thread is created
+            0,                         // use default creation flags
             NULL);
-    if(thread->thread == NULL) return 3; // thread was not started
+    if(thread->thread == NULL) return RESULT_THREAD_NOT_STARTED; // thread was not started
     else return waitForThread(thread);
 #endif
 #ifdef POSIX_
@@ -294,7 +192,7 @@ int Thread::start(int32_t id, size_t stacksz) {
     pthread_attr_init(&attr);
     pthread_attr_setstacksize(&attr,thread->stack + STACK_OVERFLOW_BUF);
     if(pthread_create( &thread->thread, &attr, vm->InterpreterThreadStart, (void*) thread))
-        return 3; // thread was not started
+        return RESULT_THREAD_NOT_STARTED; // thread was not started
     else {
         return waitForThread(thread);
     }
@@ -304,42 +202,35 @@ int Thread::start(int32_t id, size_t stacksz) {
 
 int Thread::destroy(int64_t id) {
     if(id == thread_self->id || id==main_threadid)
-        return 1; // cannot destroy thread_self or main
+        return RESULT_ILL_THREAD_DESTROY; // cannot destroy self or main
 
     Thread* thread = getThread(id);
     if(thread == NULL || thread->daemon)
-        return 1;
+        return RESULT_ILL_THREAD_DESTROY;
 
     if (thread->state == THREAD_KILLED || thread->terminated)
     {
-        if (thread->id == main_threadid)
-        {
-            return 3; // should never happen
-        }
-        else
-        {
             popThread(thread);
             thread->term();
             std::free (thread);
-            return 0;
-        }
+            return RESULT_OK;
     } else {
-        return 2;
+        return RESULT_THREAD_DESTROY_FAILED;
     }
 }
 
 int Thread::interrupt(int32_t id) {
     if(id == thread_self->id)
-        return 1; // cannot interrupt thread_self
+        return RESULT_ILL_THREAD_INTERRUPT; // cannot interrupt thread_self
 
     Thread* thread = getThread(id);
     if(thread == NULL || thread->daemon)
-        return 1;
+        return RESULT_THREAD_INTERRUPT_FAILED;
     if(thread->terminated)
-        return 2;
+        return RESULT_THREAD_TERMINATED;
 
     int result = interrupt(thread);
-    if(result==0 && !masterShutdown)
+    if(result == RESULT_OK && vm.state != VM_TERMINATED)
         waitForThreadExit(thread);
     return result;
 }
@@ -357,10 +248,7 @@ void Thread::waitForThreadSuspend(Thread *thread) {
         if (retryCount++ == sMaxRetries)
         {
             retryCount = 0;
-            if(++spinCount >= sMaxSpinCount)
-            {
-                return; // give up
-            } else if(thread->state >= THREAD_SUSPENDED)
+            if(++spinCount >= sMaxSpinCount || thread->state >= THREAD_SUSPENDED)
                 return;
         }
     }
@@ -388,6 +276,11 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
     int retryCount = 0;
 
     thread->term();
+
+    std::lock_guard<std::mutex> gd(thread->mutex);
+    thread->state = THREAD_KILLED;
+    sendSignal(thread->signal, tsig_kill, 1);
+
     while (!thread->exited)
     {
         if (retryCount++ == sMaxRetries)
@@ -398,14 +291,21 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
 
             __os_sleep(1);
         }
-
-        thread->state = THREAD_KILLED;
-        sendSignal(thread->signal, tsig_kill, 1);
     }
 }
 
+/**
+ * This function forces the current thread to wait for the thread to offically start,
+ * however it is not garunteed to to wait for the thread if there was a problem with starting it.
+ *
+ * In theory this function depending on CPU clock speeds and other factors should not wait
+ * longer than 50ms for any given thread to be started.
+ *
+ * @param thread
+ * @return
+ */
 int Thread::waitForThread(Thread *thread) {
-    const int sMaxRetries = 100000000;
+    const int sMaxRetries = 10000000;
     const int sMaxSpinCount = 25;
 
     int spinCount = 0;
@@ -419,23 +319,25 @@ int Thread::waitForThread(Thread *thread) {
             retryCount = 0;
             if(++spinCount >= sMaxSpinCount)
             {
-                return -255; // give up
+                return RESULT_MAX_SPIN_GIVEUP;
             }
             __os_sleep(1);
         }
     }
-    return 0;
+
+    return RESULT_OK;
 }
 
 void Thread::suspendAllThreads() {
+    std::lock_guard<std::mutex> guard(threadsMonitor);
     Thread* thread;
-    isAllThreadsSuspended = true;
 
-    for(unsigned int i= 0; i < threads.size(); i++) {
-        thread=threads.get(i);
+    for(uInt i = 0; i < maxThreadId; i++) {
 
-        if(thread!=NULL &&
-           (thread->id != thread_self->id) && thread->state == THREAD_RUNNING){
+        if(threads.get(i, thread)
+            && thread != NULL
+            && (thread->id != thread_self->id)
+            && thread->state == THREAD_RUNNING){
             suspendThread(thread);
             waitForThreadSuspend(thread);
         }
@@ -443,14 +345,14 @@ void Thread::suspendAllThreads() {
 }
 
 void Thread::resumeAllThreads() {
+    std::lock_guard<std::mutex> guard(threadsMonitor);
     Thread* thread;
-    isAllThreadsSuspended = false;
 
-    for(unsigned int i= 0; i < threads.size(); i++) {
-        thread=threads.get(i);
+    for(unsigned int i= 0; i < maxThreadId; i++) {
 
-        if(thread!=NULL &&
-           (thread->id != thread_self->id)){
+        if(threads.get(i, thread)
+           && thread != NULL
+           && (thread->id != thread_self->id)){
             unsuspendThread(thread);
         }
     }
@@ -458,7 +360,7 @@ void Thread::resumeAllThreads() {
 
 int Thread::unsuspendThread(Thread *thread) {
     thread->suspended = false;
-    return 0;
+    return RESULT_OK;
 }
 
 void Thread::suspendThread(Thread *thread) {
@@ -471,11 +373,12 @@ void Thread::suspendThread(Thread *thread) {
 }
 
 void Thread::term() {
+    std::lock_guard<std::mutex> gd(mutex);
     this->state = THREAD_KILLED;
     sendSignal(this->signal, tsig_kill, 1);
     this->terminated = true;
     if(dataStack != NULL) {
-        for(unsigned long i = 0; i < this->stack_lmt; i++) {
+        for(unsigned long i = 0; i < this->stackLimit; i++) {
             GarbageCollector::self->releaseObject(&dataStack[i].object);
         }
         std::free(dataStack); dataStack = NULL;
@@ -501,55 +404,57 @@ void Thread::term() {
 }
 
 int Thread::join(int32_t id) {
-    if (thread_self != NULL && (id == thread_self->id || id==main_threadid))
-        return 1;
+    if (thread_self != NULL && (id == thread_self->id || id <= jit_threadid))
+        return RESULT_ILL_THREAD_JOIN;
 
     Thread* thread = getThread(id);
-    if (thread == NULL || thread->daemon)
-        return 1;
+    if (thread == NULL)
+        return RESULT_ILL_THREAD_JOIN;
     if(thread->terminated)
-        return 2;
+        return RESULT_THREAD_TERMINATED;
 
     return threadjoin(thread);
 }
 
 int Thread::threadjoin(Thread *thread) {
-    if(thread->starting)
+    if(thread->state == THREAD_STARTED)
         waitForThread(thread);
 
     if (thread->state == THREAD_RUNNING)
     {
 #ifdef WIN32_
         WaitForSingleObject(thread->thread, INFINITE);
-        return 0;
+        return RESULT_OK;
 #endif
 #ifdef POSIX_
-        if(pthread_join(thread->thread, NULL))
-            return 3;
-        else return 0;
+        if(pthread_join(thread->thread, NULL) != 0)
+            return RESULT_THREAD_JOIN_FAILED;
+        else return RESULT_OK;
 #endif
     }
 
-    return 2;
+    return RESULT_THREAD_JOIN_FAILED;
 }
 
 void Thread::killAll() {
+    std::lock_guard<std::mutex> guard(threadsMonitor);
     Thread* thread;
     suspendAllThreads();
 
-    for(unsigned int i = 0; i < threads.size(); i++) {
-        thread = threads.get(i);
+    for(unsigned int i = 0; i < maxThreadId; i++) {
+        threads.get(i, thread);
 
-        if(thread != NULL && thread->id != thread_self->id
-           && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
-            if(thread->state == THREAD_RUNNING){
-                interrupt(thread);
+        if(threads.get(i, thread) && thread != NULL) {
+            if(thread->id != thread_self->id
+               && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
+                if(thread->state == THREAD_RUNNING){
+                    interrupt(thread); // shouldn't happen
+                }
+
+                terminateAndWaitForThreadExit(thread);
+            } else {
+                thread->term();
             }
-
-            terminateAndWaitForThreadExit(thread);
-        } else if(thread != NULL){
-
-            thread->term();
         }
     }
 }
@@ -573,55 +478,53 @@ int Thread::interrupt(Thread *thread) {
             * regardless of what they are doing, we
             * stop them.
             */
-            vm->shutdown();
-            masterShutdown = true;
+            vm.shutdown();
         }
         else
         {
             std::lock_guard<std::mutex> gd(thread->mutex);
             thread->state = THREAD_KILLED; // terminate thread
             sendSignal(thread->signal, tsig_kill, 1);
-            return 0;
         }
+
+        return RESULT_OK;
     }
 
-    return 2;
+    return RESULT_THREAD_INTERRUPT_FAILED;
 }
 
 void Thread::shutdown() {
-    if(!threads.empty()) {
+    if(tid != ILL_THREAD_ID) {
         Thread::killAll();
+        Thread* thread;
 
-        for(unsigned int i = 0; i < threads.size(); i++) {
-            if(threads.get(i) != NULL) {
-                std::free(threads.get(i));
-            }
+        for(Int i = 0; i < maxThreadId; i++) {
+            threads.get(i, thread);
+            std::free(thread);
         }
-
-        threads.free();
     }
 }
 
 void Thread::exit() {
-
+    std::lock_guard<std::mutex> guard(threadsMonitor);
     if(hasSignal(signal, tsig_except)) {
-        this->exitVal = -800;
+        this->exitVal = 1;
 
         cout << "Unhandled exception on thread " << name.str() << " (most recent call last):\n"; cout
                 << throwable.stackTrace.str();
-        cout << endl << throwable.throwable->name.str() << " ("
+        cout << endl << throwable.handlingClass->name.str() << " ("
            << throwable.message.str() << ")\n";
     } else {
-        if(!daemon && dataStack)
-            this->exitVal = (int)dataStack[0].var;
+        if(!daemon && dataStack != NULL)
+            this->exitVal = (int)dataStack[vm.manifest.threadLocals].var;
         else
             this->exitVal = 0;
     }
 
     if(dataStack != NULL) {
-        GarbageCollector::self->freeMemory(sizeof(StackElement) * stack_lmt);
+        GarbageCollector::self->freeMemory(sizeof(StackElement) * stackLimit);
         StackElement *p = dataStack;
-        for(size_t i = 0; i < stack_lmt; i++)
+        for(size_t i = 0; i < stackLimit; i++)
         {
             if(p->object.object) {
                 DEC_REF(p->object.object);
@@ -633,13 +536,17 @@ void Thread::exit() {
 
     if(callStack) {
         free(this->callStack); callStack = NULL;
-        GarbageCollector::self->freeMemory(sizeof(Frame) * stack_lmt);
+        GarbageCollector::self->freeMemory(sizeof(Frame) * stackLimit);
     }
     this->state = THREAD_KILLED;
     this->signal = tsig_empty;
 
-    GarbageCollector::self->reconcileLocks(this);
+    releaseResources();
     this->exited = true;
+}
+
+void Thread::releaseResources() {
+    GarbageCollector::self->reconcileLocks(this);
 }
 
 int Thread::startDaemon(
@@ -651,10 +558,10 @@ void*
 #endif
 (*threadFunc)(void *), Thread *thread) {
     if (thread == NULL || !thread->daemon)
-        return 1;
+        return RESULT_ILL_THREAD_START;
 
     if(thread->state == THREAD_RUNNING)
-        return 2;
+        return RESULT_THREAD_RUNNING;
 
     thread->exited = false;
 #ifdef WIN32_
@@ -665,13 +572,13 @@ void*
             thread,                 // thread self when thread is created
             0,                      // use default creation flags
             NULL);
-    if(thread->thread == NULL) return 3; // thread was not started
+    if(thread->thread == NULL) return RESULT_THREAD_NOT_STARTED; // thread was not started
     else
         return waitForThread(thread);
 #endif
 #ifdef POSIX_
     if(pthread_create( &thread->thread, NULL, threadFunc, (void*) thread)!=0)
-        return 3; // thread was not started
+        return RESULT_THREAD_NOT_STARTED; // thread was not started
     else
         return waitForThread(thread);
 #endif
@@ -716,6 +623,19 @@ void printStack() {
 #endif
 
 
+/**
+ * TODO: update exception system
+ * I will keep the finally table but add an instruction to the VM for checking if we are in an "exception state" and
+ * if so jump to the next respective finally block and then return if the last finally block in the function has been hit
+ * we return from the function and keep doing that until we bounce out of the main function
+ *
+ * This will make the exception system very fast as it will only rely on the "initial firing" of the exception to figure out where it needs to jump
+ * and the compiler will do the rest of the hard work by just running code
+ *
+ * also for the throw instruction instead of throwing the exception simply just call the respective function for the intitial firing of the exception
+ * any other code that throws a exception while maybe calling a system interrupt or something will be caught and call the same thing
+ *
+ */
 /**
  * This tells the virtual machine to process code
  * when executing a finally block or the regular processing
@@ -1258,15 +1178,6 @@ void Thread::exec() {
     DISPATCH();
 }
 
-void Thread::interrupt() {
-    std::lock_guard<std::mutex> gd(mutex);
-
-    if (hasSignal(signal, tsig_suspend))
-        suspendSelf();
-    if (state == THREAD_KILLED)
-        return;
-}
-
 void Thread::setup() {
     current = NULL;
     calls=-1;
@@ -1281,12 +1192,12 @@ void Thread::setup() {
 #endif
 
     if(dataStack==NULL) {
-        dataStack = (StackElement*)__malloc(sizeof(StackElement)*stack_lmt);
-        GarbageCollector::self->addMemory(sizeof(StackElement)*stack_lmt);
+        dataStack = (StackElement*)__malloc(sizeof(StackElement) * stackLimit);
+        GarbageCollector::self->addMemory(sizeof(StackElement) * stackLimit);
     }
     if(callStack==NULL) {
-        callStack = (Frame*)__malloc(sizeof(Frame)*stack_lmt);
-        GarbageCollector::self->addMemory(sizeof(Frame)*stack_lmt);
+        callStack = (Frame*)__malloc(sizeof(Frame) * stackLimit);
+        GarbageCollector::self->addMemory(sizeof(Frame) * stackLimit);
     }
     if(id != main_threadid){
         int priority = (int)env->__sgetFieldVar("priority", currentThread.object);
@@ -1303,20 +1214,20 @@ void Thread::setup() {
         fp=&dataStack[manifest.threadLocals];
         sp=(&dataStack[manifest.threadLocals])-1;
 
-        for(unsigned long i = 0; i < stack_lmt; i++) {
+        for(unsigned long i = 0; i < stackLimit; i++) {
             this->dataStack[i].object.object = NULL;
             this->dataStack[i].var=0;
         }
     } else {
-        GarbageCollector::self->addMemory(sizeof(StackElement)*stack_lmt);
+        GarbageCollector::self->addMemory(sizeof(StackElement) * stackLimit);
         setupSigHandler();
     }
 }
 
 int Thread::setPriority(Thread* thread, int priority) {
-    if(thread->thread != 0) {
+    if(thread->thread != NULL) {
         if(thread->priority == priority)
-            return 0;
+            return RESULT_OK;
 
 #ifdef WIN32_
 
@@ -1351,17 +1262,15 @@ int Thread::setPriority(Thread* thread, int priority) {
 #endif
     }
 
-    return 3;
+    return RESULT_ILL_PRIORITY_SET;
 }
 
 int Thread::setPriority(int32_t id, int priority) {
 
     Thread* thread = getThread(id);
-    if(thread == NULL || thread->daemon)
-        return 1;
-    if(thread->terminated || thread->state==THREAD_KILLED
-       || thread->state==THREAD_CREATED)
-        return 2;
+    if(thread == NULL || thread->terminated || thread->state==THREAD_KILLED
+       || thread->state==THREAD_CREATED || id <= jit_threadid)
+        return RESULT_ILL_PRIORITY_SET;
 
     return setPriority(thread, priority);
 }
@@ -1371,7 +1280,48 @@ bool Thread::validStackSize(size_t sz) {
 }
 
 bool Thread::validInternalStackSize(size_t sz) {
-    return sz >= interp_STACK_MIN;
+    return sz >= INTERNAL_STACK_MIN;
+}
+
+int32_t Thread::generateId() {
+    std::lock_guard<std::mutex> guard(threadsMonitor);
+
+    Thread *thread;
+    boolean wrapped = false;
+
+    do {
+        tid++;
+        if(tid < 0) {
+            if(wrapped)
+                return ILL_THREAD_ID;
+            else { wrapped = true; tid = jit_threadid; }
+        }
+    }
+    while(threads.get(tid, thread));
+
+    if(tid > maxThreadId)
+        maxThreadId = tid;
+    return tid;
+}
+
+void Thread::init(string name, Int id, Method *main, bool daemon, bool initializeStack)  {
+    Thread();
+    this->name = name;
+    this->id = id;
+    this->main = main;
+    this->stackLimit = internalStackSize;
+    this->daemon=daemon;
+#ifdef SHARP_PROF_
+    if(!daemon) {
+        thread->tprof = new Profiler();
+    }
+#endif
+
+    if(initializeStack) {
+        this->dataStack = (StackElement *) __calloc(internalStackSize, sizeof(StackElement));
+        this->fp = &dataStack[vm.manifest.threadLocals];
+        this->sp = (&dataStack[vm.manifest.threadLocals]) - 1;
+    }
 }
 
 void __os_sleep(int64_t INTERVAL) {

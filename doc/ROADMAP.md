@@ -349,8 +349,24 @@ obfuscate {
 }
 
 // explicitly declare to not obvuscate these fields
-obfuscate ignore {
+obfuscate -keep {
     car.wheels
+}
+
+// obfusaction options
+-keep
+-printmapping
+
+// some options have different formatting
+obfuscate -keeppackagenames {
+    "std.io",
+    "std.math"
+}
+
+// some options have different formatting
+obfuscate -flattenpackageheiarchy {
+    "std.io",
+    "std.math"
 }
 
 ```
@@ -359,7 +375,7 @@ obfuscate ignore {
 - add option -obf to compiler to obfuscate everything 
 - dont perform code obvuscation until code genertion step in the compiler
 
-- add support for using function pointers as utypes
+- [X] add support for using function pointers as utypes
 
 ```javascript
 

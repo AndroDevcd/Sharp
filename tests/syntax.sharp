@@ -2,21 +2,5 @@ mod main;
 
 import std.io;
 
-class list {
-
-    static size : var;
-        get {}
-
-    num := 9;
-    test := true && num == 9 || size == 100;
-}
-
-def foo() : int = null;
-
-mutate std#int {
-
-    def operator+=(numm : var) : var {
-
-    }
-
-}
+num : int;
+message : var = num;

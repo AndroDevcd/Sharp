@@ -20,15 +20,15 @@ public:
         buffer()
         :
                 _Data(NULL),
-                _ds(0),
-                sp(0)
+                rawSize(0),
+                actualSize(0)
         {
             begin();
         }
 
         buffer(std::string _S)
                 :
-                sp(0)
+                actualSize(0)
         {
             begin();
             operator<<(_S);
@@ -36,8 +36,8 @@ public:
 
         void begin() {
             _Data=(char* )malloc(sizeof(char)*STREAM_BASE);
-            _ds=STREAM_BASE;
-            sp=0;
+            rawSize=STREAM_BASE;
+            actualSize=0;
         }
 
         ~buffer()
@@ -50,10 +50,10 @@ public:
             if(_Data == NULL)
                 begin();
 
-            sp=0;
+            actualSize=0;
             for(stream_t i=0; i < _D.size(); i++){
                 _push_back(_D._Data[i++]);
-                sp++;
+                actualSize++;
             }
         }
 
@@ -97,16 +97,16 @@ public:
             return *this;
         }
 
-        bool empty() { return sp==0; }
+        bool empty() { return actualSize == 0; }
         CXX11_INLINE
-        stream_t size() { return sp; }
+        stream_t size() { return actualSize; }
         char at(stream_t _X);
 
         void end() {
             if(_Data != NULL) {
                 std::free(_Data); _Data = NULL;
-                _ds=0;
-                sp=0;
+                rawSize=0;
+                actualSize=0;
             }
         }
 
@@ -119,8 +119,8 @@ public:
     private:
         void _push_back(char);
         char* _Data;
-        stream_t _ds;
-        stream_t sp;
+        stream_t rawSize;
+        stream_t actualSize;
     };
 
     static void read_alltext(const char *file, buffer& out);

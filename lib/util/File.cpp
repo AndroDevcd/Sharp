@@ -122,22 +122,22 @@ void File::buffer::_push_back(char _C) {
     if(_Data == NULL)
         begin();
 
-    if(sp>=_ds) {
-        _ds+=STREAM_CHUNK;
-        void* tptr=realloc(_Data, _ds*sizeof(char));
+    if(actualSize >= rawSize) {
+        rawSize+=STREAM_CHUNK;
+        void* tptr=realloc(_Data, rawSize * sizeof(char));
         if(tptr == NULL) {
             throw std::bad_alloc();
         }
         _Data=(char* )tptr;
     }
 
-    _Data[sp++]=_C;
+    _Data[actualSize++]=_C;
 }
 
 char File::buffer::at(stream_t _X) {
-    if(_X>=sp ||_X<0) {
+    if(_X >= actualSize || _X < 0) {
         stringstream _s;
-        _s << "buffer::at() _X: " << _X << " >= size: " << sp;
+        _s << "buffer::at() _X: " << _X << " >= size: " << actualSize;
         throw std::out_of_range(_s.str());
     }
     return _Data[_X];

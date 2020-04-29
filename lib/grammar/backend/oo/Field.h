@@ -16,16 +16,16 @@ class Field : public DataEntity {
 public:
     Field()
         :
-        DataEntity(),
-        key(""),
-        isArray(false),
-        nullField(false),
-        utype(NULL),
-        locality(stl_stack),
-        inlineCheck(false),
-        local(false),
-        getter(NULL),
-        setter(NULL)
+            DataEntity(),
+            key(""),
+            isArray(false),
+            nullField(false),
+            utype(NULL),
+            locality(stl_stack),
+            inlineCheck(false),
+            local(false),
+            getter(NULL),
+            setter(NULL)
     {
     }
 

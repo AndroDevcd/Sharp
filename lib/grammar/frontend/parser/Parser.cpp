@@ -973,16 +973,15 @@ void parser::parseEnumBlock(Ast *ast) {
     expect(branch, "{");
 
     parseEnumIdentifier(branch);
-    pRefPtr:
+    pEnumIdentifier:
     if(peek(1)->getType() == COMMA)
     {
         expect(branch, ",");
         parseEnumIdentifier(branch);
-        goto pRefPtr;
+        goto pEnumIdentifier;
     }
 
     expect(branch, "}");
-    expect(branch, ";");
 }
 
 void parser::parseEnumIdentifier(Ast *ast) {
@@ -995,6 +994,7 @@ void parser::parseEnumIdentifier(Ast *ast) {
 
         parseExpression(branch);
     }
+
 }
 
 void parser::parseConstructor(Ast *ast) {
@@ -1139,6 +1139,10 @@ void parser::parseVariableDecl(Ast* ast) {
         } else if(*peek(1) == ":=") {
             expect(branch, ":=");
             parseExpression(branch);
+
+//            cout << branch->getLastSubAst()->toString() << endl;
+//            cout << std::flush;
+//            int i = 0;
         }
     } else {
         if(*peek(1) == "=") {
@@ -1207,10 +1211,11 @@ bool parser::isOverrideOperator(string token) {
            token == "*" || token == "/" ||
            token == "%" || token == "-" ||
            token == "+" || token == "==" || // TODO: talk about removal of "&&, ||"
-           token == ">>" || token == "<<"||
+           token == ">>" || token == "<<"|| // TODO: talk about addition of "[]"
            token == "<" || token == ">"||
            token == "<=" || token == ">="||
-           token == "!=" || token == "!";
+           token == "!=" || token == "!"||
+           token == "[";
 }
 
 void parser::parseVectorArray(Ast* ast) {
@@ -1313,13 +1318,7 @@ bool parser::parseExpression(Ast* ast) {
     else {
 
         _current=old;
-        if(branch->getSubAstCount() == 1) {
-            branch->freeSubAsts();
-            branch->freeTokens();
-        }
-        else {
-            branch->freeLastSub();
-        }
+        branch->freeLastSub();
     }
 
     if(peek(1)->getType() == LEFTCURLY)
@@ -1638,7 +1637,7 @@ bool parser::parseDotNotCallExpr(Ast* ast) {
             branch->encapsulate(ast_dot_fn_e);
         }
 
-        /* func()++ or func()--
+        /* func()++ or func()-- or func()[0] or func().someField
          * This expression rule dosen't process correctly by itsself
          * so we hav to do it ourselves
          */
@@ -1677,15 +1676,16 @@ bool parser::parseDotNotCallExpr(Ast* ast) {
             goto incCheck;
         }
         else {
-            errors->enterProtectedMode();
-            Token* old = _current;
-            if(!parseDotNotCallExpr(branch))
-            {
-                _current=old;
-                errors->pass();
-                branch->freeLastSub();
-            } else {
-                errors->fail();
+            if(peek(1)->getType() == DOT) {
+                errors->enterProtectedMode();
+                Token *old = _current;
+                if (!parseDotNotCallExpr(branch)) {
+                    _current = old;
+                    errors->pass();
+                    branch->freeLastSub();
+                } else {
+                    errors->fail();
+                }
             }
         }
 
@@ -1880,7 +1880,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         branch->encapsulate(ast_literal_e);
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC) {
-            branch = branch->getSubAst(ast_literal_e);
+            branch = branch->getLastSubAst();
             goto checkInc;
         }
         else if(peek(1)->getType() == DOT)
@@ -1896,11 +1896,6 @@ bool parser::parsePrimaryExpr(Ast* ast) {
     _current=old;
 
     errors->enterProtectedMode();
-    if(peek(1)->getType() == DOT) {
-        advance();
-        branch->addToken(current());
-    }
-
     old=_current;
     if(parseUtype(branch))
     {
@@ -1913,8 +1908,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             branch->encapsulate(ast_utype_class_e);
 
             if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC) {
-                branch = branch->getSubAst(ast_utype_class_e);
-                goto checkInc;
+                errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
             }
             else if(peek(1)->getType() == DOT)
                 errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
@@ -1945,7 +1939,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         branch->encapsulate(ast_self_e);
 
         if(peek(1)->getValue() != "as")
-            branch = branch->getSubAst(ast_self_e);
+            branch = branch->getLastSubAst();
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
             goto checkInc;
@@ -1962,13 +1956,16 @@ bool parser::parsePrimaryExpr(Ast* ast) {
     {
         expect(branch, "base");
         parseBaseClassUtype(branch);
-        expect(branch, "->");
-        parseDotNotCallExpr(branch);
+
+        if(*peek(1) == "->") {
+            expect(branch, "->");
+            parseDotNotCallExpr(branch);
+        }
 
         branch->encapsulate(ast_base_e);
 
         if(peek(1)->getValue() != "as")
-            branch = branch->getSubAst(ast_self_e);
+            branch = branch->getLastSubAst();
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
             goto checkInc;
@@ -2650,8 +2647,13 @@ bool parser::expectOverrideOperator(Ast* ast) {
 
     if(isOverrideOperator(current().getValue()))
     {
-        if(ast != NULL)
-            ast->addToken(current());
+        if(ast != NULL) { // TODO: talk about changes to this function in tutorial
+            if(current() == "[") {
+                ast->addToken(current());
+                expect(ast, "]", false);
+            } else
+                ast->addToken(current());
+        }
         return true;
     }
     else {

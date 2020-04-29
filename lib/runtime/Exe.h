@@ -7,17 +7,6 @@
 
 #include "../../stdimports.h"
 
-struct Manifest;
-class Meta;
-
-extern Manifest manifest;
-extern Meta metaData;
-
-struct i64_t {
-    int32_t A;
-    int32_t B;
-};
-
 #define zoffset 0xf
 #define file_sig 0x0f
 #define digi_sig1 0x07
@@ -26,10 +15,10 @@ struct i64_t {
 #define manif 0x1
 #define eoh 0x03
 #define nil 0x0
-#define hsz 0xb
 #define eos 0x1d
 #define sdata 0x05
 #define sstring 0x02
+#define sconst 0x02 // TODO: add constant section
 #define stext 0x0e
 #define smeta 0x06
 #define data_class 0x2f
@@ -39,23 +28,25 @@ struct i64_t {
 #define data_compress 0x5b
 #define data_field 0x22
 #define data_string 0x1e
+#define data_const 0x1c
 #define data_byte 0x05
-#define I64_BYTES 8
-#define min_file_vers 2
-#define file_vers 3
+#define EXE_BYTE_CHUNK 4
+#define min_file_vers 4
+#define file_vers 4
+#define BUILD_VERS versions.ALPHA
+#define HEADER_SIZE 0xb
+
+// Processing errors
+#define CORRUPT_FILE 0x001
+#define UNSUPPORTED_FILE_VERS 0x002
+#define CORRUPT_MANIFEST 0x003
+#define EMPTY_FILE 0x004
+#define FILE_DOES_NOT_EXIST 0x005
+#define FILE_NOT_AUTHENTIC 0x006
+#define UNSUPPORTED_BUILD_VERSION 0x007
+#define OUT_OF_MEMORY 0x008
 
 #define data_compress_threshold 0x1388f
-
-#define SET_i32A(mi, i) mi.A=(i >> 32)
-
-#define SET_i32B(mi, i) mi.B=( i & 0xFFFFFFFF)
-
-#define SET_i64(mi, i) \
-    SET_i32A(mi,i); \
-    SET_i32B(mi,i); \
-
-
-#define GET_i64(A, B) ((((int64_t)A << 32)) | ((int64_t)B & 0xFFFFFFFF))
 
 #define GET_i32w(i) ((uint8_t)(i >> 24))
 #define GET_i32x(i) ((uint8_t)((i >> 16) & 0xff))
@@ -65,6 +56,7 @@ struct i64_t {
 #define SET_i32(w,x,y,z) (((uint8_t)z) | ((uint8_t)y << 8) | ((uint8_t)x << 16) | ((uint8_t)w << 24))
 
 int Process_Exe(std::string);
+extern string exeErrorMessage;
 
 
 #endif //SHARP_EXE_H

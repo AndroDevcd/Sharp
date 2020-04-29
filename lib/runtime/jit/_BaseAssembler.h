@@ -12,10 +12,10 @@
 #define ASMJIT_STATIC   1
 #define ASMJIT_BUILD_RELEASE 1
 
-#include "../../stdimports.h"
-#include "../util/jit/asmjit/src/asmjit/asmjit.h"
-#include "List.h"
-#include "oo/Object.h"
+#include "../../../stdimports.h"
+#include "../../util/jit/asmjit/src/asmjit/asmjit.h"
+#include "../List.h"
+#include "../oo/Object.h"
 
 using namespace asmjit;
 

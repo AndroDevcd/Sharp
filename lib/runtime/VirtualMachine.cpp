@@ -20,7 +20,7 @@
 #include "../util/File.h"
 #include "../Modules/std.kernel/cmath.h"
 #include "../Modules/std.kernel/clist.h"
-#include "Jit.h"
+#include "jit/Jit.h"
 #include "main.h"
 
 #ifdef WIN32_
@@ -30,20 +30,16 @@
 #include "termios.h"
 #endif
 
-VirtualMachine* vm;
-Environment* env;
-bool masterShutdown = false;
-
-int CreateVirtualMachine(std::string exe)
+VirtualMachine vm;
+int CreateVirtualMachine(string &exe)
 {
-    vm = (VirtualMachine*)__malloc(sizeof(VirtualMachine)*1);
-    env = (Environment*)__malloc(sizeof(Environment)*1);
-
-    if(Process_Exe(exe) != 0)
+    if(Process_Exe(exe) != 0) {
+        if(!exeErrorMessage.empty())
+            fprintf(stderr, exeErrorMessage.c_str());
         return 1;
+    }
 
-    vm->exitVal = 0;
-    if((iStackSz - interp_STACK_start_MIN - manifest.threadLocals) <= 0)
+    if((internalStackSize - vm.manifest.threadLocals) <= 1)
         return 2;
 
     Thread::Startup();
@@ -53,122 +49,29 @@ int CreateVirtualMachine(std::string exe)
     Jit::startup();
 #endif
 #ifdef WIN32_
-    env->gui = new Gui();
-    env->gui->setupMain();
+    vm.gui = new Gui();
+    vm.gui->setupMain();
 #endif
 
-    manifest.classes -= AUX_CLASSES;
-
     /**
-     * Aux classes
+     * Resolve Aux classes
      */
-    Field* fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, true, &env->classes[manifest.classes]);
-    fields[1].init("stackTrace", 0, VAR, false, true, &env->classes[manifest.classes]);
-
-    env->classes[manifest.classes].init();
-    env->classes[manifest.classes] = ClassObject(
-            "std#Throwable",
-            fields,
-            2,
-            NULL,
-            manifest.classes
-    );
-    env->Throwable = &env->classes[manifest.classes++];
-
-    fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, true, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
-
-    env->classes[manifest.classes].init();
-    env->classes[manifest.classes] = ClassObject(
-            "std#RuntimeErr",
-            fields,
-            2,
-            env->Throwable,
-            manifest.classes
-    );
-    env->RuntimeErr = &env->classes[manifest.classes++];
-
-    fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, true, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
-
-    env->classes[manifest.classes].init();
-    env->classes[manifest.classes] = ClassObject(
-            "std#StackOverflowErr",
-            fields,
-            2,
-            env->RuntimeErr,
-            manifest.classes
-    );
-    env->StackOverflowErr = &env->classes[manifest.classes++];
-
-    fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, true, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
-
-    env->classes[manifest.classes].init();
-    env->classes[manifest.classes] = ClassObject(
-            "std#ThreadStackException",
-            fields,
-            2,
-            env->RuntimeErr,
-            manifest.classes
-    );
-    env->ThreadStackException = &env->classes[manifest.classes++];
-
-    fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, true, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
-
-    env->classes[manifest.classes].init();
-    env->classes[manifest.classes] = ClassObject(
-            "std#IndexOutOfBoundsException",
-            fields,
-            2,
-            env->RuntimeErr,
-            manifest.classes
-    );
-    env->IndexOutOfBoundsException = &env->classes[manifest.classes++];
-
-    fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, true, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
-
-    env->classes[manifest.classes].init();
-    env->classes[manifest.classes] = ClassObject(
-            "std#NullptrException",
-            fields,
-            2,
-            env->RuntimeErr,
-            manifest.classes
-    );
-    env->NullptrException = &env->classes[manifest.classes++];
-
-    fields=(Field*)malloc(sizeof(Field)*2);
-    fields[0].init("message", 0, VAR, false, true, env->Throwable);
-    fields[1].init("stackTrace", 0, VAR, false, true, env->Throwable);
-
-    env->classes[manifest.classes].init();
-    env->classes[manifest.classes] = ClassObject(
-            "std#ClassCastException",
-            fields,
-            2,
-            env->RuntimeErr,
-            manifest.classes
-    );
-    env->ClassCastException = &env->classes[manifest.classes++];
-
+    vm.Throwable = vm.resolveClass("std#throwable");
+    vm.RuntimeExcept = vm.resolveClass("std#runtime_exception");
+    vm.StackOverflowExcept = vm.resolveClass("std#stack_overflow_exception");
+    vm.ThreadStackExcept = vm.resolveClass("std#thread_stack_exception");
+    vm.IndexOutOfBoundsExcept = vm.resolveClass("std#index_out_of_bounds_exception");
+    vm.NullptrExcept = vm.resolveClass("std#nullptr_exception");
+    vm.ClassCastExcept = vm.resolveClass("std#class_cast_exception");
+    vm.OutOfMemoryExcept = vm.resolveClass("std#out_of_memory_exception");
     cout.precision(16);
 
     /**
-     * Initilize all calsses to be used for static access
-     * TODO: add flag to check if class has ststic values
+     * Initialize all classes to be used for static access
      */
-    for(unsigned long i = 0; i < manifest.classes-AUX_CLASSES; i++) {
-        env->globalHeap[i].object = GarbageCollector::self->newObject(&env->classes[i], true);
-        SET_GENERATION(env->globalHeap[i].object->info, gc_perm);
+    for(unsigned long i = 0; i < vm.manifest.classes; i++) {
+        vm.staticHeap[i].object = GarbageCollector::self->newObject(&vm.classes[i], true);
+        SET_GENERATION(vm.staticHeap[i].object->info, gc_perm);
     }
 
     return 0;
@@ -176,7 +79,7 @@ int CreateVirtualMachine(std::string exe)
 
 int64_t executeSwitch(Thread* thread, int64_t constant) {
     register int64_t val;
-    if((val = thread->current->switchTable.get(constant).values.indexof(registers[i64ebx])) != -1 ) {
+    if((val = thread->current->switchTable.get(constant).values.indexof(registers[EBX])) != -1 ) {
         thread->pc=thread->cache+thread->current->switchTable.get(constant).addresses.get(val);
         return PC(thread);
     } else {
@@ -186,19 +89,19 @@ int64_t executeSwitch(Thread* thread, int64_t constant) {
 }
 
 void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t staticAddr) {
-    SharpObject* o2 = staticAddr!=0 ? env->globalHeap[staticAddr].object :  (thread->sp-args)->object.object;
+    SharpObject* o2 = staticAddr!=0 ? vm.staticHeap[staticAddr].object :  (thread->sp-args)->object.object;
     ClassObject* klass;
     fptr jitFn;
 
     if(o2!=NULL && TYPE(o2->info) == _stype_struct) {
-        klass = &env->classes[CLASS(o2->info)];
+        klass = &vm.classes[CLASS(o2->info)];
         if (klass != NULL) {
             search:
             for (long i = 0; i < klass->methodCount; i++) {
-                if (env->methods[klass->methods[i]].delegateAddress == address) {
-                    if((thread->calls+1) >= thread->stack_lmt) throw Exception(Environment::StackOverflowErr, "");
+                if (vm.methods[klass->methods[i]].delegateAddress == address) {
+                    if((thread->calls+1) >= thread->stackLimit) throw Exception(vm.StackOverflowExcept, "");
 
-                    if((jitFn = executeMethod(env->methods[klass->methods[i]].address, thread)) != NULL) {
+                    if((jitFn = executeMethod(vm.methods[klass->methods[i]].address, thread)) != NULL) {
 
 #ifdef BUILD_JIT
                         jitFn(thread->jctx);
@@ -208,16 +111,16 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t stati
                 }
             }
 
-            if (klass->base != NULL) {
-                klass = klass->base;
+            if (klass->super != NULL) {
+                klass = klass->super;
                 goto search;
             }
-            throw Exception(Environment::RuntimeErr, "delegate function has no subscribers");
+            throw Exception(vm.RuntimeExcept, "delegate function has no subscribers");
         } else {
-            throw Exception(Environment::RuntimeErr, "attempt to call delegate function on non class object");
+            throw Exception(vm.RuntimeExcept, "attempt to call delegate function on non class object");
         }
     } else
-        throw Exception(Environment::NullptrException, "");
+        throw Exception(vm.NullptrExcept, "");
 }
 
 bool returnMethod(Thread* thread) {
@@ -233,7 +136,7 @@ bool returnMethod(Thread* thread) {
     Frame *returnAddress = thread->callStack+(thread->calls-1);
 
     if(thread->current->finallyBlocks.len > 0) {
-        if(vm->executeFinally(thread_self->current)) {
+        if(vm.executeFinally(thread_self->current)) {
             return false;
         }
     }
@@ -259,7 +162,7 @@ bool returnMethod(Thread* thread) {
 
 fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
 
-    Method *method = env->methods+address;
+    Method *method = vm.methods+address;
     StackElement *equlizer=thread->sp-method->stackEqulizer;
     THREAD_STACK_CHECK2(thread, address);
 
@@ -273,17 +176,17 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
     thread->current = method;
     thread->cache = method->bytecode;
     thread->fp = thread->calls==0 ? thread->fp :
-                      ((method->returnVal) ? equlizer : (equlizer+1));
+                      ((method->returnsData) ? equlizer : (equlizer + 1));
     thread->sp += (method->stackSize - method->paramSize);
     thread->pc = thread->cache;
 
 #ifdef BUILD_JIT
     if(!method->isjit) {
-        if(method->longCalls >= JIT_IR_LIMIT)
+        if(method->branches >= JIT_IR_LIMIT)
         {
             if(!method->compiling && method->jitAttempts < JIT_MAX_ATTEMPTS)
                 Jit::sendMessage(method);
-        } else method->longCalls++;
+        } else method->branches++;
     }
 #endif
 
@@ -296,7 +199,7 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
     } else
 #endif
 
-        if(inJit || thread->calls==0) {
+    if(inJit || thread->calls==0) {
         startAddress=0;
         thread->exec();
     }
@@ -318,13 +221,41 @@ void VirtualMachine::destroy() {
 #endif
 
 #ifdef WIN32_
-    if(env->gui != NULL)
+    if(vm.gui != NULL)
     {
-        env->gui->shutdown();
-        delete env->gui;
+        vm.gui->shutdown();
+        delete vm.gui;
     }
 
 #endif
+    for(uInt i = 0; i < manifest.methods; i++) {
+        methods[i].free();
+    }
+    std::free (methods);
+    for(uInt i = 0; i < manifest.strings; i++)
+       strings[i].free();
+    std::free (strings);
+
+    for(uInt i = 0; i < manifest.classes; i++) {
+        classes[i].free();
+    }
+    std::free (classes);
+
+    for(uInt i = 0; i < manifest.sourceFiles; i++)
+        metaData.files.get(i).free();
+    metaData.files.free();
+
+    /**
+     * The beauty of the memory management system is it does all the hard work for us
+     * so all we have to do in the end is just delete the global heap objects the pointers
+     * they are refrencing are meaningless at this point
+     */
+    std::free (this->staticHeap);
+
+    manifest.application.free();
+    manifest.executable.free();
+    manifest.version.free();
+    metaData.free();
 }
 
 extern void printRegs();
@@ -340,7 +271,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     thread_self = (Thread*)arg;
     thread_self->state = THREAD_RUNNING;
     thread_self->stbase = (int64_t)&arg;
-    thread_self->stfloor = thread_self->stbase - thread_self->stack;
+    thread_self->stfloor = thread_self->stbase - thread_self->stackSize;
 
     fptr jitFn;
     Thread::setPriority(thread_self, THREAD_PRIORITY_HIGH);
@@ -397,7 +328,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         * regardless of what they are doing, we
         * stop them.
         */
-        vm->shutdown();
+        vm.shutdown();
     }
 
 #ifdef WIN32_
@@ -409,11 +340,9 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 }
 
 void VirtualMachine::shutdown() {
-    if(!masterShutdown) {
+    if(vm.state != VM_TERMINATED) {
         destroy();
-        env->shutdown();
-
-        masterShutdown = true;
+        vm.state = VM_TERMINATED;
     }
 }
 
@@ -463,7 +392,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             break;
 #ifdef WIN32_
         case 0xf5:
-            env->gui->winGuiIntf(_64EBX);
+            vm.gui->winGuiIntf(_64EBX);
             break;
 #endif
         case 0xa3:
@@ -514,14 +443,14 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 _64CMT= system(cmd.str().c_str());
                 cmd.free();
             } else
-                throw Exception(env->NullptrException, "");
+                throw Exception(vm.NullptrException, "");
             return;
         }
         case 0xe9:
             _64CMT= _kbhit();
             return;
         case 0xa8:
-            registers[i64cmt]=Thread::Create((int32_t )registers[i64adx]);
+            registers[EBX]=Thread::Create((int32_t )registers[ADX], (bool)registers[EBX]);
             return;
         case 0xe4:
             registers[i64cmt]=Thread::setPriority((int32_t )registers[i64adx], (int)registers[i64egx]);
@@ -533,7 +462,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             clist((int)registers[i64adx]);
             return;
         case 0xa9:
-            vm->shutdown();
+            vm.shutdown();
             return;
         case 0xaa:
             registers[i64cmt]=GarbageCollector::self->getMemoryLimit();
@@ -556,7 +485,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 absolute = resolve_path(path);
                 GarbageCollector::self->createStringArray(arry, absolute);
             } else
-                throw Exception(Environment::NullptrException, "");
+                throw Exception(vm.NullptrException, "");
             return;
         }
         case 0xc0: {
@@ -575,8 +504,8 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 if(IS_CLASS(o->info)) { // class?
 
                     if(TYPE(o->info) != _stype_struct || o->node == NULL)
-                        throw Exception(Environment::NullptrException, "");
-                    *arry = GarbageCollector::self->newObjectArray(len, &env->classes[CLASS(o->info)]);
+                        throw Exception(vm.NullptrException, "");
+                    *arry = GarbageCollector::self->newObjectArray(len, &vm.classes[CLASS(o->info)]);
 
                     for(size_t i = 0; i < len; i++) {
                         arry->object->node[i] = o->node[i];
@@ -594,7 +523,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 }
 
             } else
-                throw Exception(Environment::NullptrException, "");
+                throw Exception(vm.NullptrException, "");
             return;
         }
         case 0xc1: {
@@ -614,8 +543,8 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                 if(IS_CLASS(o->info)) { // class?
                     if(TYPE(o->info) != _stype_struct || o->node == NULL)
-                        throw Exception(Environment::NullptrException, "");
-                    data = GarbageCollector::self->newObjectArray(len, &env->classes[CLASS(o->info)]);
+                        throw Exception(vm.NullptrException, "");
+                    data = GarbageCollector::self->newObjectArray(len, &vm.classes[CLASS(o->info)]);
 
                     for(size_t i = 0; i < indexLen; i++) {
                         data.object->node[i] = o->node[i];
@@ -639,7 +568,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 }
 
             } else
-                throw Exception(Environment::NullptrException, "");
+                throw Exception(vm.NullptrException, "");
             return;
         } case 0xc3: {
             size_t endIndex = (thread_self->sp--)->var;
@@ -660,8 +589,8 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                 if(IS_CLASS(o->info)) { // class?
                     if(TYPE(o->info) != _stype_struct || o->node == NULL)
-                        throw Exception(Environment::NullptrException, "");
-                    data = GarbageCollector::self->newObjectArray(sz+1, &env->classes[CLASS(o->info)]);
+                        throw Exception(vm.NullptrException, "");
+                    data = GarbageCollector::self->newObjectArray(sz+1, &vm.classes[CLASS(o->info)]);
 
                     for(size_t i = startIndex; i < o->size; i++) {
                         data.object->node[idx++] = o->node[i];
@@ -688,7 +617,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 }
 
             } else
-                throw Exception(Environment::NullptrException, "");
+                throw Exception(vm.NullptrException, "");
             return;
         } case 0xc4: {
             size_t endIndex = (thread_self->sp--)->var;
@@ -709,8 +638,8 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                 if(IS_CLASS(o->info)) { // class?
                     if(o->node == NULL)
-                        throw Exception(Environment::NullptrException, "");
-                    data = GarbageCollector::self->newObjectArray(sz+1, &env->classes[CLASS(o->info)]);
+                        throw Exception(vm.NullptrException, "");
+                    data = GarbageCollector::self->newObjectArray(sz+1, &vm.classes[CLASS(o->info)]);
 
                     for(size_t i = endIndex; i > 0; i--) {
                         data.object->node[idx++] = o->node[i];
@@ -742,7 +671,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 }
 
             } else
-                throw Exception(Environment::NullptrException, "");
+                throw Exception(vm.NullptrException, "");
             return;
         } case 0xc6: {
             size_t len = (thread_self->sp--)->var;
@@ -760,7 +689,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 if(IS_CLASS(o->info)) { // class?
 
                     if(o->node == NULL)
-                        throw Exception(Environment::NullptrException, "");
+                        throw Exception(vm.NullptrException, "");
 
                     GarbageCollector::self->reallocObject(o, len);
                 } else if(TYPE(o->info) == _stype_var) { // var[]
@@ -770,7 +699,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 }
 
             } else
-                throw Exception(Environment::NullptrException, "");
+                throw Exception(vm.NullptrException, "");
             return;
         }
         case 0xb1:
@@ -850,7 +779,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     }
                 }
             } else
-                throw Exception(Environment::NullptrException, "");
+                throw Exception(vm.NullptrException, "");
             return;
         }
         case 0xba:
@@ -929,7 +858,7 @@ void VirtualMachine::Throw() {
 
     if (!hasSignal(thread_self->signal, tsig_except))
     {
-            thread_self->throwable.throwable = &env->classes[CLASS(thread_self->exceptionObject.object->info)];
+            thread_self->throwable.handlingClass = &vm.classes[CLASS(thread_self->exceptionObject.object->info)];
             fillStackTrace(&thread_self->exceptionObject);
             sendSignal(thread_self->signal, tsig_except, 1);
     }
@@ -996,14 +925,14 @@ void VirtualMachine::fillStackTrace(Object *exceptionObject) {
 
     if(exceptionObject->object && IS_CLASS(exceptionObject->object->info)) {
 
-        Object* stackTrace = env->findField("stackTrace", exceptionObject->object);
-        Object* message = env->findField("message", exceptionObject->object);
+        Object* stackTrace = vm.findField("stackTrace", exceptionObject->object);
+        Object* message = vm.findField("message", exceptionObject->object);
 
         if(stackTrace != NULL) {
             GarbageCollector::self->createStringArray(stackTrace, str);
         }
         if(message != NULL) {
-            if(thread_self->throwable.native)
+            if(thread_self->throwable.native) // TODO: no longer required
                 GarbageCollector::self->createStringArray(message, thread_self->throwable.message);
             else if(message->object != NULL && TYPE(message->object->info) == _stype_var) {
                 stringstream ss;
@@ -1019,7 +948,7 @@ void VirtualMachine::fillStackTrace(Object *exceptionObject) {
 void VirtualMachine::fillMethodCall(Method* func, Frame &frameInfo, stringstream &ss) {
     ss << "\tSource ";
     if(func->sourceFile != -1 && func->sourceFile < manifest.sourceFiles) {
-        ss << "\""; ss << env->sourceFiles[func->sourceFile].str() << "\"";
+        ss << "\""; ss << vm.sourceFiles[func->sourceFile].str() << "\"";
     }
     else
         ss << "\"Unknown File\"";
@@ -1197,4 +1126,37 @@ void VirtualMachine::__snprintf(int cfmt, double val, int precision) {
 
     native_string str(buf, 256);
     GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
+}
+
+Method *VirtualMachine::getMainMethod() {
+    return &methods[manifest.entryMethod];
+}
+
+ClassObject *VirtualMachine::resolveClass(runtime::String fullName) {
+    for(uInt i = 0; i < vm.manifest.classes; i++) {
+        if(vm.classes[i].fullName == fullName) {
+            return &vm.classes[i];
+        }
+    }
+
+    return nullptr;
+}
+
+Object *VirtualMachine::resolveField(runtime::String name, Object *classObject) {
+    if(IS_CLASS(classObject->object->info)) {
+        ClassObject *representedClass = &vm.classes[CLASS(classObject->object->info)];
+        for(Int i = 0; i < representedClass->totalFieldCount; i++) {
+            Field &field = representedClass->fields[i];
+            if(field.name == name) {
+                if(isStaticObject(classObject) == IS_STATIC(field.accessFlags))
+                    return &classObject->object->node[field.address];
+                else return nullptr;
+            }
+        }
+    }
+    return nullptr;
+}
+
+bool VirtualMachine::isStaticObject(Object *object) {
+    return object->object != NULL && GENERATION(object->object->info) == gc_perm;
 }

@@ -8,9 +8,10 @@
 #include "../Thread.h"
 #include "../register.h"
 #include "../memory/GarbageCollector.h"
+#include "../VirtualMachine.h"
 
 void Throwable::drop() {
-    this->throwable = NULL;
+    this->handlingClass = NULL;
     this->message.free();
     stackTrace.free();
 }
@@ -19,13 +20,13 @@ Exception::Exception(const char *msg, bool native)
         :
         runtime_error(msg)
 {
-    throwable.init(Environment::RuntimeErr, msg, native);
+    throwable.init(vm.RuntimeExcept, msg, native);
     pushException();
 }
 
 Exception::Exception(const std::string &__arg, bool native)
         :
-        throwable(Environment::RuntimeErr, __arg, native),
+        throwable(vm.RuntimeExcept, __arg, native),
         runtime_error(__arg)
 {
     pushException();
@@ -46,17 +47,22 @@ Exception::~Exception()
 
 void Exception::pushException() {
     if(thread_self != NULL && throwable.native) {
-        if(throwable.message == "out of memory") {
+        if(throwable.handlingClass == vm.OutOfMemoryExcept) {
             /*
              * If there is no memory we exit
              */
+            std::lock_guard<std::mutex> gd(thread_self->mutex);
             thread_self->state = THREAD_KILLED;
             sendSignal(thread_self->signal, tsig_kill, 1);
             return;
         }
 
         thread_self->exceptionObject
-                = GarbageCollector::self->newObject(throwable.throwable);
+                = GarbageCollector::self->newObject(throwable.handlingClass);
+
+        GarbageCollector::self->createStringArray(
+                vm.resolveField("message", &thread_self->exceptionObject),
+                   thread_self->throwable.message);
     }
 }
 

@@ -16,7 +16,7 @@ class Throwable {
 public:
     Throwable()
             :
-            throwable(NULL),
+            handlingClass(NULL),
             native(false)
     {
         message.init();
@@ -24,7 +24,7 @@ public:
     }
 
     void init() {
-        throwable =NULL;
+        handlingClass =NULL;
         message.init();
         this->stackTrace.init();
         native = false;
@@ -32,7 +32,7 @@ public:
 
     Throwable(ClassObject* throwable, const std::string &message, bool native)
             :
-            throwable(throwable),
+            handlingClass(throwable),
             native(native)
     {
         this->message.init();
@@ -41,7 +41,7 @@ public:
     }
 
     void init(ClassObject* throwable, const char* message, bool native) {
-        this->throwable = throwable;
+        this->handlingClass = throwable;
         this->native = native;
         this->message.init();
         this->stackTrace.init();
@@ -51,7 +51,7 @@ public:
     }
 
     void operator=(Throwable& t) {
-        throwable=t.throwable;
+        handlingClass=t.handlingClass;
         message = t.message;
         stackTrace = t.stackTrace;
         native = t.native;
@@ -60,7 +60,7 @@ public:
     void drop();
 
     bool native;
-    ClassObject* throwable;
+    ClassObject* handlingClass;
     native_string message, stackTrace;
 };
 

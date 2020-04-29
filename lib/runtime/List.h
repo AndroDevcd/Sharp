@@ -45,8 +45,9 @@ public:
         _Data[len-1]=data;
     }
 
-    void __new() {
+    T& __new() {
         __expand();
+        return last();
     }
 
     void insert(long long pos, T& data) {

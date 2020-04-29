@@ -6,7 +6,7 @@ enum property_type
     class_property,
     field_property,
     function_property
-};
+}
 
 class data_property base data_entity {
 

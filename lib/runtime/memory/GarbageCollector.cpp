@@ -12,16 +12,18 @@
 #include "../Environment.h"
 #include "../Exe.h"
 #include "../Manifest.h"
+#include "../VirtualMachine.h"
 #include <thread>
 #include <algorithm>
 
-long long hbytes = 0, freedBytes = 0, freedYoung = 0, freedAdult = 0, freedOld = 0;
-long long transferredYoung = 0, transferredAdult = 0, transferredOld = 0;
+uInt hbytes = 0, freedBytes = 0, freedYoung = 0, freedAdult = 0, freedOld = 0;
+uInt transferredAdult = 0, transferredOld = 0;
 GarbageCollector *GarbageCollector::self = nullptr;
 
-const int baselineMax = 10;
-long long int baseLine[baselineMax];
-long long int baselineCount =0, downgradeCount = 0;
+const Int MEMORY_POOL_SAMPLE_SIZE = 10;
+const Int MAX_DOWNGRADE_ATTEMPTS = 3;
+uInt memoryPoolResults[MEMORY_POOL_SAMPLE_SIZE];
+Int samplesReceived =0, downgradeAttempts = 0;
 
 void* __malloc(unsigned long long bytes)
 {
@@ -35,14 +37,14 @@ void* __malloc(unsigned long long bytes)
     if(GarbageCollector::self != nullptr && ptr == nullptr) {
         if(gc) {
             lowmem:
-            throw Exception("out of memory");
+            throw Exception(vm.OutOfMemoryExcept, "out of memory");
         } else {
             gc=true;
             if(GarbageCollector::self != nullptr) {
                 GarbageCollector::self->collect(GC_LOW);
                 goto alloc_bytes;
             } else
-                throw Exception("out of memory");
+                throw Exception(vm.OutOfMemoryExcept, "out of memory");
         }
     } else {
         return ptr;
@@ -60,14 +62,14 @@ void* __calloc(unsigned long long n, unsigned long long bytes)
     if(ptr == nullptr) {
         if(gc) {
             lowmem:
-            throw Exception("out of memory");
+            throw Exception(vm.OutOfMemoryExcept, "out of memory");
         } else {
             gc=true;
             if(GarbageCollector::self != nullptr) {
                 GarbageCollector::self->collect(GC_LOW);
                 goto alloc_bytes;
             } else
-                throw Exception("out of memory");
+                throw Exception(vm.OutOfMemoryExcept, "out of memory");
         }
     } else {
         return ptr;
@@ -85,14 +87,14 @@ void* __realloc(void *ptr, unsigned long long bytes, unsigned long long old)
     if(rmap == nullptr) {
         if(gc) {
             lowmem:
-            throw Exception("out of memory");
+            throw Exception(vm.OutOfMemoryExcept, "out of memory");
         } else {
             gc=true;
             if(GarbageCollector::self != nullptr) {
                 GarbageCollector::self->collect(GC_LOW);
                 goto alloc_bytes;
             } else
-                throw Exception("out of memory");
+                throw Exception(vm.OutOfMemoryExcept, "out of memory");
         }
     } else {
         return rmap;
@@ -101,16 +103,11 @@ void* __realloc(void *ptr, unsigned long long bytes, unsigned long long old)
 
 void GarbageCollector::initilize() {
     self=(GarbageCollector*)malloc(sizeof(GarbageCollector)*1);
-#ifdef WIN32_
-    new (&self->mutex) std::mutex();
-#endif
-#ifdef POSIX_
-    new (&self->mutex) std::mutex();
-#endif
-    self->_Mheap = (SharpObject*)malloc(sizeof(SharpObject)); // HEAD
 
+    self->_Mheap = (SharpObject*)malloc(sizeof(SharpObject)); // HEAD
     if(self->_Mheap==NULL)
-        throw Exception("out of memory");
+        throw Exception(vm.OutOfMemoryExcept, "out of memory");
+    new (&self->mutex) std::mutex();
     self->_Mheap->init(0);
     self->tail = self->_Mheap; // set tail to self for later use
     self->heapSize = 0;
@@ -176,7 +173,6 @@ void GarbageCollector::shutdown() {
 #endif
         self->locks.free();
         // im no longer freeing memory due to multiple memory references on objects when clearing
-        std::free(self->_Mheap);
         std::free(self); self = nullptr;
     }
 }
@@ -228,55 +224,67 @@ void GarbageCollector::collect(CollectionPolicy policy) {
     youngObjects -= freedYoung;
     adultObjects -= freedAdult;
     oldObjects -= freedOld;
-    youngObjects += transferredYoung;
     adultObjects += transferredAdult;
     oldObjects += transferredOld;
     freedBytes = 0;
     freedYoung = 0;
     freedAdult = 0;
-    transferredYoung = 0;
     transferredAdult = 0;
     transferredOld = 0;
     mutex.unlock();
 
-    /**
-     * We want to update the allocation threshold as the program runs for
-     * more efficent memory collection
-     *
-     */
-    if(baselineCount == baselineMax) {
-        size_t total =0, avg;
-        for(long i = 0; i < baselineMax; i++) {
-            total+=baseLine[i];
-        }
-        avg=total/baselineMax;
-        baselineCount =0;
-        if(avg > memoryThreshold) {
-            memoryThreshold = avg; // dynamically update threshold
-        } else{
-            if(downgradeCount == (baselineMax /2)) {
-                memoryThreshold = avg; // downgrade memory due to some free operation
-            } else
-                downgradeCount++;
-        }
+    updateMemoryThreshold();
+}
+
+/**
+ * We want to update the allocation threshold as the program runs for
+ * more efficent memory collection
+ *
+ */
+void GarbageCollector::updateMemoryThreshold() {
+    if(GC_LOW_MEM()) {
+        memoryThreshold = (0.85 * memoryLimit);
     } else {
-        baseLine[baselineCount++] = managedBytes;
+        if (samplesReceived == MEMORY_POOL_SAMPLE_SIZE) {
+            size_t total = 0, avg;
+            for (long i = 0; i < MEMORY_POOL_SAMPLE_SIZE; i++) {
+                total += memoryPoolResults[i];
+            }
+
+            avg = total / MEMORY_POOL_SAMPLE_SIZE;
+            samplesReceived = 0;
+            if (avg > memoryThreshold) {
+                memoryThreshold = avg; // dynamically update threshold
+            } else {
+                if (downgradeAttempts == MAX_DOWNGRADE_ATTEMPTS) {
+                    memoryThreshold = avg; // downgrade memory due to some free operation
+                } else
+                    downgradeAttempts++;
+            }
+        } else {
+            memoryPoolResults[samplesReceived++] = managedBytes;
+        }
     }
 }
 
 void GarbageCollector::collectGarbage() {
 
-    yObjs = 0;
-    SharpObject *object = self->_Mheap->next;
+    yObjs = 0; aObjs = 0; oObjs = 0;
+    SharpObject *object = self->_Mheap->next, *prevObj = self->_Mheap, *cachedTail = NULL;
+    mutex.lock();
+    cachedTail = tail;
+    mutex.unlock();
+
     while(object != NULL) {
-        if(tself->state == THREAD_KILLED) {
+        if(tself->state == THREAD_KILLED
+            || object == cachedTail) {
             break;
         }
 
         if(GENERATION(object->info) <= gc_old) {
             // free object
             if(MARKED(object->info) && object->refCount == 0) {
-                object = sweep(object);
+                object = sweep(object, prevObj, cachedTail);
                 continue;
             } else if(MARKED(object->info) && object->refCount > 0){
                 switch(GENERATION(object->info)) {
@@ -298,6 +306,7 @@ void GarbageCollector::collectGarbage() {
             }
         }
 
+        prevObj = object;
         object = object->next;
     }
 }
@@ -348,7 +357,6 @@ void GarbageCollector::run() {
 #endif
             if(sleep) sedateSelf();
             if(!messageQueue.empty()) goto message;
-            if(GC_LOW_MEM()) break;
         } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()))
                 && !hasSignal(tself->signal, tsig_suspend) && tself->state == THREAD_RUNNING);
 
@@ -401,14 +409,14 @@ void GarbageCollector::sendMessage(CollectionPolicy message) {
     messageQueue.push_back(message);
 }
 
-unsigned long long GarbageCollector::_sizeof(SharpObject *object) {
-    unsigned long long size =0;
+double GarbageCollector::_sizeof(SharpObject *object) {
+    double size =0;
     if(object != nullptr) {
 
         if(TYPE(object->info) == _stype_var) {
             size += sizeof(double)*object->size;
         } else if(TYPE(object->info) == _stype_struct) {
-            for(unsigned long i = 0; i < object->size; i++) {
+            for(uInt i = 0; i < object->size; i++) {
                 SharpObject *o = object->node[i].object;
 
                 /**
@@ -428,7 +436,7 @@ unsigned long long GarbageCollector::_sizeof(SharpObject *object) {
     return size;
 }
 
-SharpObject* GarbageCollector::sweep(SharpObject *object) {
+SharpObject* GarbageCollector::sweep(SharpObject *object, SharpObject *prevObj, SharpObject *tail) {
     if(object != nullptr) {
 
         if(TYPE(object->info) == _stype_var) {
@@ -460,7 +468,7 @@ SharpObject* GarbageCollector::sweep(SharpObject *object) {
         freedBytes += sizeof(SharpObject);
 
         SharpObject* tmp = object->next;
-        erase(object);
+        erase(object, prevObj, tail);
         if(HAS_LOCK(object->info))
             dropLock(object);
         std::free(object);
@@ -494,26 +502,29 @@ SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
         uint32_t size = staticInit ? k->staticFields : k->instanceFields;
 
         object->init(size, k);
-        if(k->fieldCount > 0) {
+        if(size > 0) {
             object->node = (Object*)__calloc(size, sizeof(Object));
+            uInt fieldAddress =  staticInit ? k->instanceFields : 0;
 
             for(unsigned int i = 0; i < object->size; i++) {
                 /**
                  * We want to set the class variables and arrays
                  * to null and initialize the var variables
                  */
-                if(k->fields[i].type == VAR && !k->fields[i].isArray) {
-                    if(!staticInit || (staticInit && k->fields[i].isStatic)) {
+                if(k->fields[fieldAddress].type == VAR && !k->fields[fieldAddress].isArray) {
+                    if(!staticInit || (staticInit && k->fields[fieldAddress].isStatic)) {
                         object->node[i].object = newObject(1);
                         object->node[i].object->refCount++;
                     }
                 }
+
+                fieldAddress++;
             }
 
         }
 
         std::lock_guard<recursive_mutex> gd(mutex);
-        managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*k->fieldCount);
+        managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
         PUSH(object);
         youngObjects++;
         return object;
@@ -563,12 +574,13 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
     return nullptr;
 }
 
-void GarbageCollector::createStringArray(Object *object, native_string& s) {
+void GarbageCollector::createStringArray(Object *object, String& str) {
     if(object != nullptr) {
-        *object = newObject(s.len);
+        *object = newObject(str.len);
 
-        for(unsigned long i = 0; i < s.len; i++) {
-            object->object->HEAD[i] = s.chars[i];
+        double *array = object->object->HEAD;
+        for(unsigned long i = 0; i < str.len; i++) {
+            array[i] = str.chars[i]; array++;
         }
     }
 }
@@ -581,20 +593,14 @@ unsigned long long GarbageCollector::getManagedMemory() {
     return managedBytes;
 }
 
-void GarbageCollector::erase(SharpObject *p) {
+SharpObject* GarbageCollector::erase(SharpObject *freedObj, SharpObject *prevObj, SharpObject *tail) {
     heapSize--;
 
-    if(p == tail) {
-        mutex.lock();
-        p->prev->next = p->next;
-        if(p == tail) {
-            tail = p->prev;
-            tail->next = NULL;
-        } else  p->next->prev = p->prev;
-        mutex.unlock();
-        return;
-    } else if(p->next != NULL) p->next->prev = p->prev;
-    p->prev->next = p->next;
+    if(tail == freedObj){
+        std::lock_guard<recursive_mutex> gd(mutex);
+        prevObj->next = freedObj->next;
+    } else prevObj->next = freedObj->next;
+    return prevObj->next;
 }
 
 void GarbageCollector::realloc(SharpObject *o, size_t sz) {

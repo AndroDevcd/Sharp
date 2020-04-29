@@ -11,11 +11,7 @@
 #include "../../../stdimports.h"
 #include "../List.h"
 #include "../../util/KeyPair.h"
-
-#ifndef WIN32_
-#include <mutex>
-
-#endif
+#include "../oo/string.h"
 
 enum CollectionPolicy
 {
@@ -43,7 +39,7 @@ struct SharpObject;
 class ClassObject;
 class Thread;
 
-struct mutex_t // TODO: add thread mutex lock protection and close all locked objects
+struct mutex_t
 {
     SharpObject* object;
     recursive_mutex *mutex;
@@ -120,7 +116,7 @@ public:
     SharpObject* newObjectArray(int64_t size); /* Array Object allocation */
     SharpObject* newObjectArray(int64_t size, ClassObject* k); /* Class Array allocation */
 
-    void createStringArray(Object* object, native_string& s); /* Native string allocation */
+    void createStringArray(Object* object, String& str); /* Native string allocation */
 
     /**
      * Utility system level functions to garbage collect at a high level
@@ -181,7 +177,7 @@ public:
      * @param object
      * @return
      */
-    static unsigned long long _sizeof(SharpObject *object);
+    static double _sizeof(SharpObject *object);
 
     /**
      * Lock an object to be thread safe
@@ -206,13 +202,13 @@ public:
      * This does not mean that if there are 100 objects dropped that every one will be freed
      * its just an estimate
      */
-    unsigned long yObjs;
-    unsigned long aObjs;
-    unsigned long oObjs;
+    uInt yObjs;
+    uInt aObjs;
+    uInt oObjs;
 private:
-     long long managedBytes;
-    unsigned long long memoryLimit;
-    unsigned long long memoryThreshold;
+    uInt managedBytes;
+    uInt memoryLimit;
+    uInt memoryThreshold;
     bool isShutdown;
 
     /**
@@ -226,18 +222,18 @@ private:
      * This does not mean that if there are 100 objects dropped that every one will be freed
      * its just an estimate
      */
-    /* collect when 10% has been dropped */
-    long long youngObjects;
-    /* collect when 40% has been dropped */
-    long long adultObjects;
+    /* collect when 2% has been dropped */
+    Int youngObjects;
     /* collect when 20% has been dropped */
-    long long oldObjects;
+    Int adultObjects;
+    /* collect when 10% has been dropped */
+    Int oldObjects;
 #ifdef SHARP_PROF_
     unsigned long x;
 #endif
     _List<mutex_t*> locks;
     SharpObject* _Mheap, *tail;
-    unsigned long long heapSize;
+    uInt heapSize;
     bool sleep;
 
     void collectGarbage();
@@ -248,18 +244,20 @@ private:
      * @param object
      * @return
      */
-    SharpObject* sweep(SharpObject *object);
+    SharpObject* sweep(SharpObject *object, SharpObject *prevObj, SharpObject *tail);
 
-    void erase(SharpObject *pObject);
+    SharpObject* erase(SharpObject *freedObj, SharpObject *prevObj, SharpObject *tail);
 
     void sedateSelf();
 
     void dropLock(SharpObject *);
+
+    void updateMemoryThreshold();
 };
 
-#define GC_COLLECT_YOUNG() ( yObjs >= 20 )
-#define GC_COLLECT_ADULT() ( aObjs >= 10 )
-#define GC_COLLECT_OLD() ( oObjs >= 10 )
+#define GC_COLLECT_YOUNG() ( (yObjs / youngObjects) >= 2 )
+#define GC_COLLECT_ADULT() ( (aObjs / adultObjects) >= 20 )
+#define GC_COLLECT_OLD() ( (oObjs / oldObjects) >= 10 )
 #define GC_LOW_MEM() ( managedBytes >= (0.85 * memoryLimit) )
 #define GC_COLLECT_MEM() ( managedBytes >= memoryThreshold )
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))
@@ -304,9 +302,9 @@ private:
 /**
  * Bytes are used via the JEDEC Standard 100B.01
  */
-#define KB_TO_BYTES(bytes) (((unsigned long long)bytes)*1024)
-#define MB_TO_BYTES(bytes) (((unsigned long long)bytes)*1048576)
-#define GB_TO_BYTES(bytes) (((unsigned long long)(bytes))*1073741824)
+#define KB_TO_BYTES(bytes) (((uInt)bytes)*1024)
+#define MB_TO_BYTES(bytes) (((uInt)bytes)*1048576)
+#define GB_TO_BYTES(bytes) (((uInt)(bytes))*1073741824)
 
 
 #endif //SHARP_GARBAGECOLLECTOR_H

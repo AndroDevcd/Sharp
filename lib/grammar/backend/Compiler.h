@@ -114,6 +114,7 @@ private:
     List<ClassObject*> enums;
     List<ClassObject*> generics;
     List<ClassObject*> unProcessedClasses; /* We cant compile everything at once so this will hold all classes that cant be immediatley processed at the time */
+    List<Method*> unProcessedMethods;
     List<Scope*> currScope;
     List<string> stringMap;
     List<float> floatingPointMap;
@@ -124,11 +125,11 @@ private:
     List<Method*> functionPtrs;
     Utype* nilUtype;
     Utype* nullUtype;
-    Utype** naiveUTypeList;
     Utype* undefUtype;
     parser* current;
     string currModule;
     Method* requiredSignature;
+    CodeHolder staticMainInserts;
 
     void setup();
     bool preprocess();
@@ -136,6 +137,7 @@ private:
     void preprocessMutations();
     void compile();
     void createGlobalClass();
+    void compileAllFields();
     void inlineFields();
     void postProcessGenericClasses();
     void postProcessUnprocessedClasses();
@@ -159,6 +161,7 @@ private:
     void preProcessMutation(Ast *ast, ClassObject *currentClass = NULL);
     bool isWholeNumber(double value);
     void preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* currentClass = NULL);
+    void compileClassFields(Ast* ast, ClassObject* currentClass = NULL);
     void preProccessGenericClassDecl(Ast* ast, bool isInterface);
     void parseIdentifierList(Ast *ast, List<string> &idList);
     StorageLocality strtostl(string locality);
@@ -205,6 +208,7 @@ private:
     string accessFlagsToStr(List<AccessFlag> &flags);
     ClassObject* getExtensionFunctionClass(Ast* ast);
     void resolveClassMutateMethods(Ast *ast);
+    void compileClassMutateFields(Ast *ast);
     void resolveMethod(Ast* ast, ClassObject *currentClass = NULL);
     void resolveGlobalMethod(Ast* ast);
     void resolveClassMethod(Ast* ast);
@@ -252,6 +256,7 @@ private:
     ClassObject* findClass(string mod, string className, List<ClassObject*> &classes, bool match = false);
     void inheritEnumClassHelper(Ast *ast, ClassObject *enumClass);
     void resolveField(Ast* ast);
+    void compileVarDecl(Ast* ast);
     void resolveFieldType(Field* field, Utype *utype, Ast* ast);
     void compileExpression(Expression* expr, Ast* ast);
     void compilePrimaryExpression(Expression* expr, Ast* ast);
@@ -270,7 +275,7 @@ private:
     void compileVectorExpression(Expression* expr, Ast* ast, Utype *compareType = NULL);
     void compileAssignExpression(Expression* expr, Ast* ast);
     void compileBinaryExpression(Expression* expr, Ast* ast);
-    void assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);
+    void assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast, bool allowOverloading = true);
     void compileBinaryExpression(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);
     void compoundAssignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);
     expression_type utypeToExpressionType(Utype *utype);
@@ -295,7 +300,7 @@ private:
     string codeToString(CodeHolder &code);
     string registerToString(int64_t r);
     string find_class(int64_t id);
-    void printExpressionCode(Expression *expr);
+    void printExpressionCode(Expression &expr);
     void parseBoolLiteral(Expression* expr, Token &token);
     void parseHexLiteral(Expression* expr, Token &token);
     void parseStringLiteral(Expression* expr, Token &token);

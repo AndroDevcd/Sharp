@@ -15,47 +15,56 @@ class Field {
 public:
     Field()
             :
-            name()
+            name(),
+            fullName()
     {
     }
 
-    void init(string name, int64_t id, FieldType type, bool _static, bool arry,
-              ClassObject* owner, bool tls = false)
+    void init(string name, string fullName, int64_t addr, DataType type, uInt accessFlags, bool arrayType,
+              ClassObject* owner, ClassObject *klass, bool tls = false)
     {
         this->name.init();
+        this->fullName.init();
         this->name = name;
-        this->serial = id;
+        this->fullName = fullName;
+        this->address = addr;
         this->type=type;
-        this->isStatic=_static;
-        this->isArray=arry;
-        this->isThreadLocal = tls;
+        this->accessFlags=accessFlags;
+        this->isArray=arrayType;
+        this->threadLocal = tls;
+        this->owner = owner;
+        this->klass = klass;
     }
 
     void operator=(Field& field) {
 
-        this->serial = field.serial;
+        this->address = field.address;
         this->name = field.name;
+        this->fullName = field.fullName;
         this->type = field.type;
         this->owner = field.owner;
-        this->isStatic = field.isStatic;
+        this->accessFlags = field.accessFlags;
         this->isArray=field.isArray;
-        this->isThreadLocal = field.isThreadLocal;
+        this->threadLocal = field.threadLocal;
+        this->klass = field.klass;
     }
 
-    native_string name;
-    int64_t serial;
-    FieldType type;
-    bool isStatic;
+    String name, fullName;
+    int64_t address;
+    DataType type;
+    uInt accessFlags;
     bool isArray;
-    bool isThreadLocal;
-    ClassObject* owner;
+    bool threadLocal;
+    ClassObject* owner, *klass;
 
     void free() {
         owner = NULL;
         name.free();
+        fullName.free();
     }
 };
 
+#define IS_STATIC(accessFlags) ((accessFlags >> 6) & 1UL)
 
 
 #endif //SHARP_FIELD_H

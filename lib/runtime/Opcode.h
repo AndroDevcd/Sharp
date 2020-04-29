@@ -69,17 +69,17 @@
     }
 
 #define LONG_CALL() \
-    if(current->longCalls < JIT_IR_LIMIT) \
-        current->longCalls++;
+    if(current->branches < JIT_IR_LIMIT) \
+        current->branches++;
 
 #define THREAD_EXECEPT() \
     if(hasSignal(signal, tsig_except)) \
         goto exception_catch;
 
-#define STACK_CHECK  if(((sp-dataStack)+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
-#define CALLSTACK_CHECK  if((calls+1) >= stack_lmt) throw Exception(Environment::StackOverflowErr, "");
-#define THREAD_STACK_CHECK(self)  if(((self->sp-self->dataStack)+2) >= self->stack_lmt) throw Exception(Environment::StackOverflowErr, "");
-#define THREAD_STACK_CHECK2(self, x)  if(((self->sp-self->dataStack)+2) >= self->stack_lmt || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(Environment::StackOverflowErr, "");
+#define STACK_CHECK  if(((sp-dataStack)+1) >= stackLimit) throw Exception(Environment::StackOverflowErr, "");
+#define CALLSTACK_CHECK  if((calls+1) >= stackLimit) throw Exception(Environment::StackOverflowErr, "");
+#define THREAD_STACK_CHECK(self)  if(((self->sp-self->dataStack)+2) >= self->stackLimit) throw Exception(Environment::StackOverflowErr, "");
+#define THREAD_STACK_CHECK2(self, x)  if(((self->sp-self->dataStack)+2) >= self->stackLimit || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(Environment::StackOverflowErr, "");
 
 #ifndef SHARP_PROF_
 #define _brh_NOINCREMENT HAS_SIGNAL if(!startAddress) DISPATCH() else goto *opcodeStart;
@@ -359,7 +359,7 @@ public:
         static opcode_instr ill(); // TODO: describe all the instructions
         static opcode_instr nop();
         static opcode_instr _int(interruptFlag flag);
-        static opcode_instr* movi(opcode_arg value, _register outRegister);
+        static opcode_instr* movi(opcode_arg value, _register outRegister); // TODO: flatten this to 1 instruse ldc instead if addr > DA_MAX
         static opcode_instr ret();
         static opcode_instr hlt();
         static opcode_instr newVarArray(_register inRegister);
@@ -397,7 +397,7 @@ public:
         static opcode_instr ge(_register leftRegister, _register rightRegister);
         static opcode_instr movl(opcode_arg relFrameAddress);
         static opcode_instr movsl(opcode_arg relStackAddress);
-        static opcode_instr movf(_register outRegister, opcode_arg floatingPtrAddress);
+        static opcode_instr movf(_register outRegister, opcode_arg floatingPtrAddress); // TODO: delete this, use LDC instead
         static opcode_instr _sizeof(_register outRegister);
         static opcode_instr put(_register inRegister);
         static opcode_instr putc(_register inRegister);

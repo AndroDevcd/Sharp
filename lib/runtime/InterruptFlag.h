@@ -7,8 +7,8 @@
 
 enum interruptFlag
 {
-    INTFL_NOP=0x0,
-    INTFL_PRINTF=0x1
+    INT_NOP=0x0,
+    INT_PRINTF=0x1
 };
 
 #endif //SHARP_INTERRUPTFLAG_H

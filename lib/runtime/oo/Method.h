@@ -18,10 +18,10 @@ struct jit_context;
 #endif
 
 struct SwitchTable { // for every value there will be a corresponding address
-    _List<int64_t> values;
-    _List<int64_t> addresses;
+    _List<uInt> values;
+    _List<uInt> addresses;
 
-    int64_t defaultAddress; // -1 if not present
+    Int defaultAddress; // -1 if not present
 
     void init() {
         values.init();
@@ -56,7 +56,8 @@ struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUC
 
     int64_t* bytecode;
     int stackSize;                 /* inital stack space required for frame */
-    short int returnVal;           /* Simple binary flag indicating the function returns a value */
+    short returnType;              /* Simple binary flag indicating the function returns a value */
+    ClassObject* returnClass;
     ClassObject* owner;
     native_string name, fullName;
     int64_t* params;
@@ -95,7 +96,7 @@ struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUC
      * Currently the limit for long calls will JIT any function that exceeds the max long call limit of
      * 25,000. This includes any branches included in this number
      */
-    int16_t longCalls;
+    int16_t branches;
     int8_t jitAttempts; // we only allow 3 attempts to JIT a method
     int isjit;
     bool compiling; // are we compiling the function?
@@ -110,7 +111,7 @@ struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUC
         lineNumbers.free();
         finallyBlocks.free();
         isjit=0;
-        longCalls=0;
+        branches=0;
         jit_call=0;
         compiling=false;
         jitAttempts=0;
@@ -143,7 +144,7 @@ struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUC
         name.init();
         fullName.init();
         isjit=false;
-        longCalls=0;
+        branches=0;
         jit_call=0;
         compiling=false;
         jitAttempts=0;
@@ -162,15 +163,22 @@ struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUC
         address = 0;
         cacheSize = 0;
         isStatic = 0;
-        returnVal = 0;
+        returnsData = 0;
         stackEqulizer = 0;
         delegateAddress = -1;
     }
 };
 
 struct line_table {
-    int64_t pc;
-    int64_t line_number;
+public:
+    line_table(uInt pc, uInt line)
+    :
+        pc(pc),
+        line_number(line)
+    {}
+
+    uInt pc;
+    uInt line_number;
 };
 
 struct StackElement;

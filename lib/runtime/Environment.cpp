@@ -28,36 +28,7 @@ ClassObject *Environment::findClass(string name) {
 }
 
 void Environment::shutdown() {
-    for(unsigned int i = 0; i < manifest.methods; i++) {
-        this->methods[i].free();
-    }
-    std::free (this->methods);
-    for(int64_t i = 0; i < manifest.strings; i++)
-        this->strings[i].value.free();
-    std::free (this->strings);
 
-    for(int64_t i = 0; i < manifest.classes; i++) {
-        this->classes[i].free();
-    }
-    std::free (this->classes);
-
-    for(int64_t i = 0; i < manifest.sourceFiles; i++)
-        this->sourceFiles[i].free();
-    std::free (this->sourceFiles);
-
-
-    /**
-     * The beauty of the memory managment system is it does all the hard work for us
-     * so all we have to do in the end is just delete the global heap objects the pointers
-     * they are refrencing are meaningless at this point
-     */
-    std::free (this->globalHeap);
-
-    manifest.application.free();
-    manifest.executable.free();
-    manifest.version.free();
-
-    metaData.free();
 }
 
 native_string& Environment::getStringById(int64_t ref) {

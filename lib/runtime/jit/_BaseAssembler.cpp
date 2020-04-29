@@ -6,14 +6,14 @@
 #ifdef BUILD_JIT
 
 #include <fstream>
-#include "Thread.h"
-#include "Manifest.h"
-#include "main.h"
-#include "Environment.h"
+#include "../Thread.h"
+#include "../Manifest.h"
+#include "../main.h"
+#include "../Environment.h"
 #include "Jit.h"
-#include "Opcode.h"
-#include "VirtualMachine.h"
-#include "register.h"
+#include "../Opcode.h"
+#include "../VirtualMachine.h"
+#include "../register.h"
 #ifdef WIN32_
 #include <conio.h>
 #endif
@@ -1945,7 +1945,7 @@ void _BaseAssembler::jitCastVar(Object *obj, int array) {
 
 fptr _BaseAssembler::jitCall(Thread *thread, int64_t addr) {
     try {
-        if ((thread->calls + 1) >= thread->stack_lmt) {
+        if ((thread->calls + 1) >= thread->stackLimit) {
             Exception e(Environment::StackOverflowErr, "");
             __srt_cxx_prepare_throw(e);
             return NULL;
@@ -1967,7 +1967,7 @@ fptr _BaseAssembler::jitCallDynamic(Thread *thread, int64_t addr) {
             Exception e(ss.str());
             __srt_cxx_prepare_throw(e);
         }
-        if ((thread->calls + 1) >= thread->stack_lmt) {
+        if ((thread->calls + 1) >= thread->stackLimit) {
             Exception e(Environment::StackOverflowErr, "");
             __srt_cxx_prepare_throw(e);
         }
@@ -2181,7 +2181,7 @@ void _BaseAssembler::__srt_cxx_prepare_throw(Exception &e) {
         VirtualMachine::fillStackTrace(self->throwable.stackTrace);
     } else {
         VirtualMachine::fillStackTrace(eobj);
-        self->throwable.throwable = &env->classes[CLASS(eobj->object->info)];
+        self->throwable.handlingClass = &env->classes[CLASS(eobj->object->info)];
     }
     sendSignal(self->signal, tsig_except, 1);
 }

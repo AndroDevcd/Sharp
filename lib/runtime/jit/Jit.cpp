@@ -3,9 +3,9 @@
 //
 
 #include "Jit.h"
-#include "main.h"
-#include "Thread.h"
-#include "Environment.h"
+#include "../main.h"
+#include "../Thread.h"
+#include "../Environment.h"
 #ifdef BUILD_JIT
 
 Jit *Jit::self = nullptr;

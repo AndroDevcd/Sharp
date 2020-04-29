@@ -12,8 +12,8 @@ int runtimeStart(int argc, const char* argv[]);
 void error(string message);
 
 #define progname "sharp"
-#define rev "r5"
-#define progvers "2.3.66" rev
+#define rev "r6"
+#define progvers "2.4.0" rev
 
 #ifdef SHARP_PROF_
 enum profilerSort {

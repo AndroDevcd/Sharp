@@ -9,6 +9,7 @@
 #include "../../DataType.h"
 #include "../../List.h"
 #include "../../AccessFlag.h"
+#include "../../options.h"
 
 class ClassObject;
 class Ast;
@@ -62,6 +63,8 @@ public:
         name(""),
         fullName(""),
         meta(),
+        obfuscate(c_options.obfuscate),
+        obfuscationSet(false),
         address(invalidAddr),
         guid(-109913),
         owner(NULL),
@@ -110,6 +113,8 @@ public:
     string module;
     long address;
     long guid;
+    bool obfuscate;
+    bool obfuscationSet;
     List<AccessFlag> flags;
     ClassObject *owner;
     Ast *ast;

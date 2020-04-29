@@ -5,28 +5,28 @@
 
 void Meta::free() {
 
-    for(unsigned int i = 0; i < sourceFiles.size(); i++)
-        sourceFiles.get(i).free();
-    sourceFiles.free();
+    for(unsigned int i = 0; i < files.size(); i++)
+        files.get(i).free();
+    files.free();
 }
 
-std::string Meta::getLine(long line, long sourceFile) {
-    for(unsigned int i = 0; i < sourceFiles.size(); i++) {
-        if(sourceFiles.get(i).id == sourceFile) {
-            if(line >= 0 && line < sourceFiles.get(i).source_line.size()) {
-                return  sourceFiles.get(i).source_line.get(line).str();
+String Meta::getLine(uInt line, uInt sourceFile) {
+    for(unsigned int i = 0; i < files.size(); i++) {
+        if(files.get(i).id == sourceFile) {
+            if(line >= 0 && line < files.get(i).lines.size()) {
+                return  files.get(i).lines.get(line);
             } else
-                return "";
+                return String();
         }
     }
 
-    return "";
+    return String();
 }
 
-bool Meta::hasLine(long line, long sourceFile) {
-    for(unsigned int i = 0; i < sourceFiles.size(); i++) {
-        if(sourceFiles.get(i).id == sourceFile) {
-            return line >= 0 && line < sourceFiles.get(i).source_line.size();
+bool Meta::hasLine(uInt line, uInt sourceFile) {
+    for(unsigned int i = 0; i < files.size(); i++) {
+        if(files.get(i).id == sourceFile) {
+            return line >= 0 && line < files.get(i).lines.size();
         }
     }
 

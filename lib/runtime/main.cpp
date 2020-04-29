@@ -16,19 +16,16 @@
 #include "memory/GarbageCollector.h"
 #include "Manifest.h"
 #include "Environment.h"
-#include "_BaseAssembler.h"
+#include "jit/_BaseAssembler.h"
 
 options c_options;
-int startApplication(string e, _List<native_string> &pArgs);
-
-void init_main(_List <native_string>& list1);
-
-void createStringArray(Object *object, _List<native_string> &lst);
-
-unsigned long long getMemBytes(const char *argv, bool &setLimit);
+int startApplication(string &e, std::list<string> &appArgs);
+void pushArgumentsToStack(std::list<string>& appArgs);
+void pushArgumentsToStack(Object *object, std::list<string> &appArgs);
+uInt getMemBytes(const char *argv, string option);
 
 void version() {
-    cout << progname << " " << progvers << endl;
+    cout << progname << " " << progvers << " build-" << BUILD_VERS << endl;
 }
 
 void error(string message) {
@@ -49,10 +46,10 @@ void help() {
     cout <<               "    -sort<id>              sort by time(tm), avg time(avgt), calls(calls), or ir(ir)." << endl;
 #endif
     cout <<               "    -showversion           print the version number and continue." << endl;
-    cout <<               "    -(maxlmt/mem)<size:type>     set the maximum memory allowed to the virtual machine." << endl;
+    cout <<               "    -mem<size:type>        set the maximum memory allowed to the virtual machine." << endl;
     cout <<               "    -stack<size:type>      set the default physical stack size allowed to threads." << endl;
-    cout <<               "    -istack<size:type>     set the default internal 'fictional' stack size allowed to threads." << endl;
-    cout <<               "    -gthreshold<size:type> set the minimum memory allowed to trigger the garbage collector." << endl;
+    cout <<               "    -istack<size:type>     set the default internal stack size allotted to the virtual machine." << endl;
+    cout <<               "    -t<size:type>          set the minimum memory allowed to trigger the garbage collector." << endl;
     cout <<               "    -nojit                 disable runtime JIT compilation." << endl;
     cout <<               "    -slowboot              JIT compile entire codebase at startup." << endl;
     cout <<               "    --h -?                 display this help message." << endl;
@@ -67,8 +64,8 @@ int runtimeStart(int argc, const char* argv[])
         return 1;
     }
 
-    string executable ="";
-    _List<native_string> pArgs;
+    string executable;
+    std::list<string> appArgs;
 
     /**
      * We start off with allowing 64 megabytes of memory to be under
@@ -99,14 +96,11 @@ int runtimeStart(int argc, const char* argv[])
         else if(opt("-debug")) {
             c_options.debugMode = true;
         }
-        else if(opt("-gthreashold") || opt("-gt")) {
-            bool setLimit;
+        else if(opt("-threshold") || opt("-t")) {
             if((i+1) >= argc)
-                error("expected argument after option `-gt`");
-            GarbageCollector::setMemoryThreshold(getMemBytes(argv[++i], setLimit));
-
-            if(!setLimit)
-                error("expected postfix 'K', 'M', or 'G' after number with option `-gthreashold`");
+                error("expected argument after option `" + string(argv[i]) + "`");
+            GarbageCollector::setMemoryThreshold(getMemBytes(argv[i+1], argv[i]));
+            i++;
         }
 #ifdef SHARP_PROF_
         else if(opt("-sort") || opt("-sortby")) {
@@ -129,71 +123,58 @@ int runtimeStart(int argc, const char* argv[])
 #endif
         else if(opt("-maxlmt") || opt("-mem")){
             if(i+1 >= argc)
-                error("maximum memory limit required after option `-Maxlmt`");
+                error("maximum memory limit required after option `" + string(argv[i]) + "`");
             else {
                 bool setLimit;
-                GarbageCollector::setMemoryLimit(getMemBytes(argv[++i], setLimit));
-
-                if(!setLimit)
-                    error("expected postfix 'K', 'M', or 'G' after number with option `-Maxlmt`");
+                GarbageCollector::setMemoryLimit(getMemBytes(argv[i+1], argv[i]));
+                i++;
             }
         }
         else if(opt("-stack")){
             if(i+1 >= argc)
                 error("maximum stack limit required after option `-stack`");
             else {
-                bool setLimit;
-                size_t sz = getMemBytes(argv[++i], setLimit);
+                size_t sz = getMemBytes(argv[i+1], argv[i]);
+                i++;
+
                 if(Thread::validStackSize(sz)) {
-                    dStackSz = sz;
+                    threadStackSize = sz;
                 } else {
                     stringstream ss;
                     ss << "default stack size must be greater than " << STACK_MIN << " bytes \n";
                     error(ss.str());
                 }
-
-                if(!setLimit)
-                    error("expected postfix 'K', 'M', or 'G' after number with option `-stack`");
             }
         }
         else if(opt("-istack")){
             if(i+1 >= argc)
-                error("maximum stack limit required after option `-istack`");
+                error("internal stack limit required after option `-istack`");
             else {
-                bool setLimit;
-                size_t sz = getMemBytes(argv[++i], setLimit);
-                if(Thread::validInternalStackSize(sz)) {
-                    iStackSz = sz;
+                size_t memoryLimit = getMemBytes(argv[i+1], argv[i]);
+                size_t stackSize = memoryLimit / sizeof(StackElement);
+                i++;
+
+                if(Thread::validInternalStackSize(memoryLimit)) {
+                    internalStackSize = stackSize;
                 } else {
                     stringstream ss;
-                    ss << "default 'fictional' stack size must be greater than " << interp_STACK_MIN << " cells \n";
+                    ss << "default internal stack size must be at least " << INTERNAL_STACK_MIN << " bytes \n";
                     error(ss.str());
                 }
-
-                if(!setLimit)
-                    error("expected postfix 'K', 'M', or 'G' after number with option `-istack`");
             }
         }
         else if(string(argv[i]).at(0) == '-'){
             error("invalid option `" + string(argv[i]) + "`, try sharp -h");
         }
         else {
-            // add the source files
             executable = argv[i++];
-            native_string arg;
-            while(i < argc) {
-                arg = string(argv[i++]);
-                pArgs.__new();
-
-                pArgs.get(pArgs.size()-1).init();
-                pArgs.get(pArgs.size()-1) = arg;
-            }
-            arg.free();
+            while(i < argc)
+                appArgs.emplace_back(argv[i++]);
             break;
         }
     }
 
-    if(executable == ""){
+    if(executable.empty()){
         help();
         return 1;
     }
@@ -202,11 +183,10 @@ int runtimeStart(int argc, const char* argv[])
         error("file `" + executable + "` doesnt exist!");
     }
 
-    return startApplication(executable, pArgs);
+    return startApplication(executable, appArgs);
 }
 
-unsigned long long getMemBytes(const char *str, bool &setLimit) {
-    setLimit= false;
+uInt getMemBytes(const char *str, string option) {
     string size = string(str);
     stringstream ss;
     bool parsedDigit = false;
@@ -221,79 +201,65 @@ unsigned long long getMemBytes(const char *str, bool &setLimit) {
             switch(size.at(i)) {
                 case 'k':
                 case 'K':
-                    setLimit = true;
                     return KB_TO_BYTES(limit);
                 case 'm':
                 case 'M':
-                    setLimit = true;
                     return MB_TO_BYTES(limit);
                 case 'G':
                 case 'g':
-                    setLimit = true;
                     return GB_TO_BYTES(limit);
                 default:
-                    error("expected postfix 'K', 'M', or 'G' after number with option `-maxlmt`");
+                    error("expected postfix 'K', 'M', or 'G' after number with option `" + option + "`");
                     break;
             }
         } else {
             if(parsedDigit)
-                error("expected postfix 'K', 'M', or 'G' after number with option `-maxlmt`");
+                error("expected postfix 'K', 'M', or 'G' after number with option `" + option + "`");
             else
-                error("expected number option `-maxlmt`");
+                error("expected number option `" + option + "`");
         }
     }
     return 0;
 }
 
-int startApplication(string exe, _List<native_string>& pArgs) {
+int startApplication(string &exe, std::list<string>& appArgs) {
     int result;
     if((result = CreateVirtualMachine(exe)) != 0) {
-        fprintf(stderr, "Sharp VM init failed with code: %d\n", result);
+        fprintf(stderr, "Could not start the Sharp virtual machine. Failed with code: %d\n", result);
         goto bail;
     }
 
-    init_main(pArgs);
+    pushArgumentsToStack(appArgs);
     Thread::start(main_threadid, 0);
     Thread::join(main_threadid);
-    result=vm->exitVal;
 
-    std::free(vm);
-    std::free(env);
+    result=vm.exitVal;
     return result;
 
     bail:
-    if(vm != NULL) {
-        vm->destroy();
-    }
-
-    return 1;
+    vm.destroy();
+    return result;
 }
 
-void init_main(_List <native_string>& pArgs) {
+void pushArgumentsToStack(std::list<string>& appArgs) {
     Thread *main = Thread::threads.get(main_threadid);
-    Object* object = &(++main->sp)->object;
-
-    createStringArray(object, pArgs);
-    for(unsigned int i = 0; i < pArgs.size(); i++) {
-        pArgs.get(i).free();
-    }
-    pArgs.free();
+    pushArgumentsToStack(&(++main->sp)->object, appArgs);
 }
 
-void createStringArray(Object *object, _List<native_string> &args) {
-    int16_t MIN_ARGS = 4;
-    int64_t size = MIN_ARGS+args.size();
-    int64_t iter=0;
+void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {
+    const short MIN_ARGS = 4;
+    Int size = MIN_ARGS+appArgs.size();
+    Int iter=0;
 
     stringstream ss;
-    ss << manifest.target;
+    ss << vm->manifest.target;
     native_string str(ss.str());
 
     object->object = GarbageCollector::self->newObjectArray(size);
     SET_GENERATION(object->object->info, gc_perm);
 
-    GarbageCollector::self->createStringArray(&object->object->node[iter++], manifest.application);
-    GarbageCollector::self->createStringArray(&object->object->node[iter++], manifest.version);
+    GarbageCollector::self->createStringArray(&object->object->node[iter++],vm->manifest.application);
+    GarbageCollector::self->createStringArray(&object->object->node[iter++],vm->manifest.version);
     GarbageCollector::self->createStringArray(&object->object->node[iter++], str); /* target platform also the platform version */
 
 #ifdef WIN32_
@@ -307,8 +273,11 @@ void createStringArray(Object *object, _List<native_string> &args) {
     /*
      * Assign program args to be passed to main
      */
-    for(unsigned int i = 0; i < args.size(); i++) {
-        GarbageCollector::self->createStringArray(&object->object->node[iter++], args.get(i));
+    for(unsigned int i = 0; i < appArgs.size(); i++) {
+        runtime::String argStr(*std::next(appArgs.begin(), i));
+        GarbageCollector::self->createStringArray(&object->object->node[iter++],  argStr);
     }
+
+    appArgs.clear();
 }
 

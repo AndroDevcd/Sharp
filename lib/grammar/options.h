@@ -21,6 +21,11 @@ struct options {
     bool aggressive_errors = false;
 
     /*
+     * Obfuscate everything that is compiled.
+     */
+    bool obfuscate = false;
+
+    /*
      * Only compile all the files
      */
     bool compile = false;
@@ -105,5 +110,6 @@ struct options {
 
 extern bool warning_map[];
 extern bool asmDump_map[];
+extern options c_options;
 
 #endif //SHARP_OPTIONS_H

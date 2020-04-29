@@ -14,615 +14,566 @@
 #include "oo/Object.h"
 #include "../util/zip/zlib.h"
 #include "main.h"
+#include "VirtualMachine.h"
 
-Manifest manifest;
-Meta metaData;
+string exeErrorMessage;
+uInt index = 0;
 
-uint64_t n = 0, jobIndx=0;
+bool validateAuthenticity(File::buffer& exe);
 
-bool checkFile(File::buffer& exe);
+string getString(File::buffer& exe);
+Int parseInt(File::buffer& exe);
+int32_t geti32(File::buffer& exe);
 
-string getstring(File::buffer& exe);
-
-int64_t getlong(File::buffer& exe);
-
-void getField(File::buffer& exe, _List<KeyPair<int64_t, Field*>> &fieldMap, Field* field);
-
-void getMethod(File::buffer& exe, ClassObject *parent, Method* method);
-
-ClassObject *findClass(int64_t superClass);
-
-int64_t geti64(File::buffer& exe) ;
-
-void parse_source_file(_List<native_string> &list, native_string str);
+void parseSourceFile(SourceFile &sourceFile, native_string &data);
 
 int Process_Exe(std::string exe)
 {
-    File::buffer buffer, reserve;
-    int __bitFlag, hdr_cnt=0, compressed = 0;
+    File::buffer buffer;
+    Int processedFlags=0, currentFlag;
+    bool manifestFlagFound = false;
 
     if(!File::exists(exe.c_str())){
-        std::runtime_error("file `" + exe + "` doesnt exist!");
+        exeErrorMessage = "file `" + exe + "` doesnt exist!\n";
+        return FILE_DOES_NOT_EXIST;
     }
 
-    manifest.executable.init();
-    manifest.executable = exe;
     File::read_alltext(exe.c_str(), buffer);
-    if(buffer.empty())
-        return 1;
+    if(buffer.empty()) {
+        exeErrorMessage = "file `" + exe + "` is empty.\n";
+        return EMPTY_FILE;
+    }
 
-    try {
-        if(!checkFile(buffer)) {
-            throw std::runtime_error("file `" + exe + "` could not be ran");
-        }
+    if(!validateAuthenticity(buffer)) {
+        exeErrorMessage = "file `" + exe + "` could not be ran.\n";
+        return FILE_NOT_AUTHENTIC;
+    }
 
-        bool manifestFlag = false;
-        int var = 0;
-        for (;;) {
+    for (;;) {
 
-            hdr_cnt++;
-            __bitFlag = buffer.at(n++);
-            switch (__bitFlag) {
-                case 0x0:
-                case 0x0a:
-                case 0x0d:
-                case eoh:
-                    hdr_cnt--;
-                    break;
-
-                case manif:
-                    hdr_cnt--;
-                    manifestFlag = true;
-                    break;
-
-                case 0x2:
-                    manifest.application.init();
-                    manifest.application = getstring(buffer);
-                    break;
-                case 0x4:
-                    manifest.version.init();
-                    manifest.version =getstring(buffer);
-                    break;
-                case 0x5:
-                    manifest.debug = buffer.at(n++) == '1';
-                    break;
-                case 0x6:
-                    manifest.entryMethod =geti64(buffer);
-                    break;
-                case 0x7:
-                    manifest.methods =geti64(buffer);
-                    break;
-                case 0x8:
-                    manifest.classes =geti64(buffer);
-                    break;
-                case 0x9:
-                    manifest.fvers =getlong(buffer);
-                    break;
-                case 0x0c:
-                    manifest.strings =geti64(buffer);
-                    break;
-                case 0x0e:
-                    manifest.target =getlong(buffer);
-                    break;
-                case 0x0f:
-                    manifest.sourceFiles =getlong(buffer);
-                    break;
-                case 0x1b:
-                    manifest.threadLocals =geti64(buffer);
-                    break;
-                default:
-                    throw std::runtime_error("file `" + exe + "` may be corrupt");
-            }
-
-            if(__bitFlag == eoh) {
-                if(!manifestFlag)
-                    throw std::runtime_error("missing manifest flag");
-                if(!(manifest.fvers >= min_file_vers && manifest.fvers <= file_vers))
-                    throw std::runtime_error("unknown file version");
-
-                if(hdr_cnt != hsz || manifest.target > mvers)
-                    return 1;
-
+        currentFlag = buffer.at(index++);
+        processedFlags++;
+        switch (currentFlag) {
+            case 0x0:
+            case 0x0a:
+            case 0x0d:
+            case eoh:
+                processedFlags--;
                 break;
-            }
-        }
 
-        if(buffer.at(n++) != sdata)
-            throw std::runtime_error("file `" + exe + "` may be corrupt");
-
-        /* Data section */
-        _List<KeyPair<int64_t, ClassObject*>> mSuperClasses;
-        _List<KeyPair<int64_t, ClassObject*>> mBaseClasses;
-        _List<KeyPair<int64_t, Field*>> mFields;
-        int64_t fileRefptr=0;
-
-        manifest.classes += AUX_CLASSES;
-        env->classes =(ClassObject*)malloc(sizeof(ClassObject)*manifest.classes);
-        env->methods = (Method*)malloc(sizeof(Method)*manifest.methods);
-        env->strings = (runtime::String*)malloc(sizeof(runtime::String)*(manifest.strings+1));
-        env->globalHeap = (Object*)malloc(sizeof(Object)*manifest.classes);
-        env->sourceFiles = (native_string*)malloc(sizeof(native_string)*manifest.sourceFiles);
-        env->strings[manifest.strings].value.init();
-        env->strings[manifest.strings].id = -1;
-
-        for(unsigned long i = 0; i < manifest.classes; i++) {
-            env->globalHeap[i].object = NULL;
-        }
-
-        if(env->classes == NULL || env->methods == NULL || env->globalHeap == NULL
-           || env->strings == NULL) {
-            throw Exception("Failed to allocate memory for program,"
-                                    " try reducing program size!");
-        }
-
-        for (;;) {
-
-            __bitFlag = buffer.at(n++);
-            switch (__bitFlag) {
-                case 0x0:
-                case 0x0a:
-                case 0x0d:
-                    break;
-
-                case data_class: {
-                    int64_t fieldPtr=0, functionPtr=0;
-                    long l1 = getlong(buffer);
-                    long l2 = getlong(buffer);
-                    long serial = geti64(buffer);
-                    ClassObject* klass = &env->classes[serial];
-                    mSuperClasses.add(KeyPair<int64_t, ClassObject*>(l1, klass));
-                    mBaseClasses.add(KeyPair<int64_t, ClassObject*>(l2, klass));
-
-                    klass->serial = serial;
-                    klass->name.init();
-                    klass->name = getstring(buffer);
-                    klass->fieldCount = getlong(buffer);
-                    klass->methodCount = getlong(buffer);
-                    klass->interfaceCount = getlong(buffer);
-
-                    if(klass->fieldCount != 0) {
-                        klass->fields = (Field*)malloc(sizeof(Field)*klass->fieldCount);
-                    } else
-                        klass->fields = NULL;
-                    if(klass->methodCount != 0) {
-                        klass->methods = (unsigned long*)malloc(sizeof(unsigned long)*klass->methodCount);
-                    } else
-                        klass->methods = NULL;
-                    if(klass->interfaceCount != 0) {
-                        klass->interfaces = (unsigned long*)malloc(sizeof(unsigned long)*klass->interfaceCount);
-                    } else
-                        klass->interfaces = NULL;
-                    klass->super = NULL;
-                    klass->base = NULL;
-
-                    if(klass->fieldCount != 0) {
-                        for( ;; ) {
-                            if(buffer.at(n) == data_field) {
-                                n++;
-                                getField(buffer, mFields, &klass->fields[fieldPtr++]);
-                            } else if(buffer.at(n) == 0x0a || buffer.at(n) == 0x0d) {
-                                n++;
-                            } else
-                                break;
-
-                            if(fieldPtr > klass->fieldCount) {
-                                throw std::runtime_error("invalid field size");
-                            }
-                        }
-                    }
-
-                    if(klass->methodCount != 0) {
-                        for( ;; ) {
-                            if(buffer.at(n) == data_method) {
-                                n++;
-                                klass->methods[functionPtr++] = geti64(buffer);
-                                n++;
-                            } else if(buffer.at(n) == 0x0a || buffer.at(n) == 0x0d){
-                                n++;
-                            } else
-                                break;
-                        }
-
-                        if(functionPtr != klass->methodCount) {
-                            throw std::runtime_error("invalid method size");
-                        }
-                    }
-
-                    functionPtr = 0;
-                    if(klass->interfaceCount != 0) {
-                        for( ;; ) {
-                            if(buffer.at(n) == data_interface) {
-                                n++;
-                                klass->interfaces[functionPtr++] = geti64(buffer);
-                                n++;
-                            } else if(buffer.at(n) == 0x0a || buffer.at(n) == 0x0d){
-                                n++;
-                            } else
-                                break;
-                        }
-
-                        if(functionPtr != klass->interfaceCount) {
-                            throw std::runtime_error("invalid interface size");
-                        }
-                    }
-                    break;
-                }
-                case data_file:
-                    env->sourceFiles[fileRefptr].init();
-                    env->sourceFiles[fileRefptr] = getstring(buffer);
-
-                    fileRefptr++;
-                    break;
-                case eos:
-                    break;
-                default:
-                    throw std::runtime_error("file `" + exe + "` may be corrupt");
-            }
-
-            if(__bitFlag == eos) {
+            case manif:
+                processedFlags--;
+                manifestFlagFound = true;
                 break;
+
+            case 0x2:
+                vm->manifest.application = getString(buffer);
+                break;
+            case 0x4:
+                vm->manifest.version = getString(buffer);
+                break;
+            case 0x5:
+                vm->manifest.debug = buffer.at(index++) == '1';
+                break;
+            case 0x6:
+                vm->manifest.entryMethod = geti32(buffer);
+                break;
+            case 0x7:
+                vm->manifest.methods = geti32(buffer);
+                break;
+            case 0x8:
+                vm->manifest.classes = geti32(buffer);
+                break;
+            case 0x9:
+                vm->manifest.fvers = parseInt(buffer);
+                break;
+            case 0x0c:
+                vm->manifest.strings = geti32(buffer);
+                break;
+            case 0x0e:
+                vm->manifest.target = parseInt(buffer);
+                break;
+            case 0x0f:
+                vm->manifest.sourceFiles = geti32(buffer);
+                break;
+            case 0x1b:
+                vm->manifest.threadLocals = geti32(buffer);
+                break;
+            case 0x1c:
+                vm->manifest.constants = geti32(buffer);
+                break;
+            default: {
+                exeErrorMessage = "file `" + exe + "` may be corrupt.\n";
+                return CORRUPT_MANIFEST;
             }
         }
 
-        /* Resolve classes */
-        for(unsigned long i = 0; i < mSuperClasses.size(); i++) {
-            KeyPair<int64_t, ClassObject*> &klass =
-                    mSuperClasses.get(i);
-            if(klass.key != -1)
-                klass.value->super = findClass(klass.key);
+        if(currentFlag == eoh) {
+            if(!manifestFlagFound) {
+                exeErrorMessage = "File may be corrupt, could not properly load the manifest";
+                return CORRUPT_MANIFEST;
+            }
+            if(!(vm->manifest.fvers >= min_file_vers && vm->manifest.fvers <= file_vers)) {
+                stringstream err;
+                err << "unsupported file version of: " << vm->manifest.fvers << ". Sharp supports file versions from `"
+                    << min_file_vers << "-" << file_vers << "` that can be processed. Are you possibly targeting the incorrect virtual machine?";
+                exeErrorMessage = err.str();
+                return UNSUPPORTED_FILE_VERS;
+            }
+
+            if(processedFlags != HEADER_SIZE)
+                return CORRUPT_MANIFEST;
+            else if(vm->manifest.target > BUILD_VERS)
+                return UNSUPPORTED_BUILD_VERSION;
+
+            break;
         }
-        mSuperClasses.free();
+    }
 
-        for(unsigned long i = 0; i < mBaseClasses.size(); i++) {
-            KeyPair<int64_t, ClassObject*> &klass =
-                    mBaseClasses.get(i);
-            if(klass.key != -1)
-                klass.value->base = findClass(klass.key);
-        }
-        mBaseClasses.free();
+    if(buffer.at(index++) != sdata){
+        exeErrorMessage = "file `" + exe + "` may be corrupt";
+        return CORRUPT_FILE;
+    }
 
-        for(unsigned long i = 0; i < mFields.size(); i++) {
-            KeyPair<int64_t, Field*> &field =
-                    mFields.get(i);
-            field.value->owner = findClass(field.key);
-        }
+    /* Data section */
+    uInt sourceFilesCreated=0;
+    uInt itemsProcessed=0;
+    vm->classes =(ClassObject*)malloc(sizeof(ClassObject)*vm->manifest.classes);
+    vm->methods = (Method*)malloc(sizeof(Method)*vm->manifest.methods);
+    vm->strings = (runtime::String*)malloc(sizeof(runtime::String)*(vm->manifest.strings)); // TODO: create "" string from compiler as the 0'th element
+    vm->constants = (double*)malloc(sizeof(double)*(vm->manifest.constants));
+    vm->staticHeap = (Object*)calloc(vm->manifest.classes, sizeof(Object));
+    vm->metaData.init();
 
-        /* String section */
-        int64_t stringPtr=0, stringCnt=0;
 
-        for (;;) {
+    if(vm->classes == NULL || vm->methods == NULL || vm->staticHeap == NULL
+       || vm->strings == NULL) {
+        exeErrorMessage = "Failed to allocate memory for the program.";
+        return OUT_OF_MEMORY;
+    }
 
-            __bitFlag = buffer.at(n++);
-            switch (__bitFlag) {
-                case 0x0:
-                case 0x0a:
-                case 0x0d:
-                    break;
+    for (;;) {
 
-                case data_string: {
-                    env->strings[stringPtr].id = geti64(buffer); n++;
-                    env->strings[stringPtr].value.init();
-                    env->strings[stringPtr].value = getstring(buffer);
+        currentFlag = buffer.at(index++);
+        switch (currentFlag) {
+            case 0x0:
+            case 0x0a:
+            case 0x0d:
+                break;
 
-                    stringPtr++, stringCnt++;
-                    break;
+            case data_class: {
+                itemsProcessed=0;
+                Int address = geti32(buffer);
+                if(address >= vm->manifest.classes) {
+                    exeErrorMessage = "file `" + exe + "` may be corrupt";
+                    return CORRUPT_FILE;
                 }
 
-                case eos:
-                    break;
+                ClassObject* klass = &vm.classes[address];
+                klass->init();
 
-                default:
-                    throw std::runtime_error("file `" + exe + "` may be corrupt");
-            }
+                address = geti32(buffer);
+                if(address != -1) klass->owner = &vm.classes[address];
+                address = geti32(buffer);
+                if(address != -1) klass->super = &vm.classes[address];
 
-            if(__bitFlag == eos) {
-                if(stringCnt != manifest.strings)
-                    throw std::runtime_error("invalid string size");
+                klass->serial = address;
+                klass->name = getString(buffer);
+                klass->fullName = getString(buffer);
+                klass->staticFields = geti32(buffer);
+                klass->instanceFields = geti32(buffer);
+                klass->totalFieldCount = klass->staticFields + klass->instanceFields;
+                klass->methodCount = geti32(buffer);
+                klass->interfaceCount = geti32(buffer);
+
+                klass->fields = (Field*)malloc(sizeof(Field)*klass->totalFieldCount);
+                klass->methods = (Method**)malloc(sizeof(Method**)*klass->methodCount);
+                klass->interfaces = (ClassObject**)malloc(sizeof(ClassObject**)*klass->interfaceCount);
+
+                if(klass->totalFieldCount != 0) {
+                    for( ;; ) {
+                        if(buffer.at(index) == data_field) {
+                            index++;
+                            Field *field = &klass->fields[itemsProcessed++];
+                            field->name.init();
+
+                            field->name = getString(buffer);
+                            field->address = geti32(buffer);
+                            field->type = (DataType) parseInt(buffer);
+                            field->accessFlags = geti32(buffer);
+                            field->isArray = (bool) parseInt(buffer);
+                            field->threadLocal = (bool) parseInt(buffer);
+
+                            address = geti32(buffer);
+                            if(address != -1) field->klass = &vm.classes[address];
+                            field->owner = &vm->classes[geti32(buffer)];
+                        } else if(buffer.at(index) == 0x0a || buffer.at(index) == 0x0d){ /* ignore */ }
+                        else
+                            break;
+                        index++;
+                    }
+
+                    if(itemsProcessed != klass->totalFieldCount) {
+                        exeErrorMessage = "Failed to process all class fields in executable.";
+                        return CORRUPT_FILE;
+                    }
+                }
+
+                itemsProcessed = 0;
+                if(klass->methodCount != 0) {
+                    for( ;; ) {
+                        if(buffer.at(index) == data_method) {
+                            index++;
+                            klass->methods[itemsProcessed++] = &vm->methods[geti32(buffer)];
+                        } else if(buffer.at(index) == 0x0a || buffer.at(index) == 0x0d){ /* ignore */ }
+                        else
+                            break;
+
+                        index++;
+                    }
+
+                    if(itemsProcessed != klass->methodCount) {
+                        exeErrorMessage = "Failed to process all methods in executable.";
+                        return CORRUPT_FILE;
+                    }
+                }
+
+
+                itemsProcessed = 0;
+                if(klass->interfaceCount != 0) {
+                    for( ;; ) {
+                        if(buffer.at(index) == data_interface) {
+                            index++;
+                            klass->interfaces[itemsProcessed++] = &vm->classes[geti32(buffer)];
+                        } else if(buffer.at(index) == 0x0a || buffer.at(index) == 0x0d){ /* ignore */ }
+                        else
+                            break;
+
+                        index++;
+                    }
+
+                    if(itemsProcessed != klass->interfaceCount) {
+                        exeErrorMessage = "Failed to process all interfaces in executable.";
+                        return CORRUPT_FILE;
+                    }
+                }
                 break;
             }
+            case eos:
+                break;
+            default: {
+                exeErrorMessage = "file `" + exe + "` may be corrupt";
+                return CORRUPT_FILE;
+            }
         }
 
-        if(buffer.at(n) == data_compress) {
-            n++;
-            compressed=1;
-            // restructure buffer
-            int len = geti64(buffer);
-            stringstream buf, __outbuf__;
+        if(currentFlag == eos) {
+            break;
+        }
+    }
 
-            for(long long i = n+len; i < buffer.size(); i++) {
-                reserve << buffer.at(i);
+    /* String section */
+    itemsProcessed=0;
+    if(buffer.at(index++) != sstring) {
+        exeErrorMessage = "file `" + exe + "` may be corrupt";
+        return CORRUPT_FILE;
+    }
+
+    for (;;) {
+
+        currentFlag = buffer.at(index++);
+        switch (currentFlag) {
+            case 0x0:
+            case 0x0a:
+            case 0x0d:
+                break;
+
+            case data_string: {
+                index++;
+                vm->strings[itemsProcessed].init();
+                vm->strings[itemsProcessed++] = getString(buffer);
+                break;
             }
 
-            for(long long i = n; i < buffer.size(); i++) {
-                __outbuf__ << buffer.at(i);
+            case eos:
+                break;
+
+            default: {
+                exeErrorMessage = "file `" + exe + "` may be corrupt";
+                return CORRUPT_FILE;
             }
-
-            Zlib zlib;
-            Zlib::AUTO_CLEAN=(true);
-            zlib.Decompress_Buffer2Buffer(__outbuf__.str(), buf);
-
-            buffer.end();
-            buffer << buf.str(); buf.str("");
-            n = 0;
         }
 
-        if(buffer.at(n++) != stext)
-            throw std::runtime_error("file `" + exe + "` may be corrupt");
+        if (currentFlag == eos) {
+            if (itemsProcessed != vm->manifest.strings) {
+                exeErrorMessage = "Failed to process all strings in executable.";
+                return CORRUPT_FILE;
+            }
 
-        /* Text section */
-        uint64_t aspRef=0;
+            break;
+        }
+    }
 
-        for (;;) {
+    if(buffer.at(index) == data_compress) {
+        index++;
+        // restructure buffer
+        stringstream buf, __outbuf__;
+        for(uInt i = index; i < buffer.size(); i++) {
+            __outbuf__ << buffer.at(i);
+        }
 
-            __bitFlag = buffer.at(n++);
-            switch (__bitFlag) {
-                case 0x0:
-                case 0x0a:
-                case 0x0d:
-                    break;
+        Zlib zlib;
+        Zlib::AUTO_CLEAN=(true);
+        zlib.Decompress_Buffer2Buffer(__outbuf__.str(), buf);
 
-                case data_method: {
-                    if(aspRef >= manifest.methods)
-                        throw std::runtime_error("text section may be corrupt");
+        buffer.end();
+        buffer << buf.str(); buf.str("");
+        index = 0;
+    }
 
-                    Method* method = &env->methods[aspRef++];
-                    method->init();
+    if(buffer.at(index++) != stext) {
+        exeErrorMessage = "file `" + exe + "` may be corrupt";
+        return CORRUPT_FILE;
+    }
 
-                    method->address = geti64(buffer);
-                    method->isjit = getlong(buffer);
-                    method->name = getstring(buffer);
-                    method->fullName = getstring(buffer);
-                    method->sourceFile = getlong(buffer);
-                    method->owner = findClass(geti64(buffer));
-                    method->paramSize = geti64(buffer);
-                    method->stackSize = geti64(buffer);
-                    method->cacheSize = geti64(buffer);
-                    method->isStatic = getlong(buffer);
-                    method->returnVal = getlong(buffer);
-                    method->delegateAddress = geti64(buffer);
-                    method->stackEqulizer = geti64(buffer);
+    /* Text section */
+    for (;;) {
+
+        currentFlag = buffer.at(index++);
+        switch (currentFlag) {
+            case 0x0:
+            case 0x0a:
+            case 0x0d:
+                break;
+
+            case data_method: {
+                if(itemsProcessed >= vm->manifest.methods) {
+                    exeErrorMessage = "file `" + exe + "` may be corrupt";
+                    return CORRUPT_FILE;
+                }
+
+                Method* method = &vm->methods[itemsProcessed++];
+                method->init();
+
+                method->address = geti32(buffer);
+                method->isjit = parseInt(buffer);
+                method->name = getString(buffer);
+                method->fullName = getString(buffer);
+                method->sourceFile = geti32(buffer);
+                method->owner = &vm->classes[geti32(buffer)];
+                method->paramSize = geti32(buffer);
+                method->stackSize = geti32(buffer);
+                method->cacheSize = geti32(buffer);
+                method->isStatic = parseInt(buffer);
+                method->returnsData = parseInt(buffer);
+                method->delegateAddress = geti32(buffer);
+                method->stackEqulizer = geti32(buffer);
 //                    if(c_options.jit) {
 //                        if(method->address==316) method->isjit = true;
 //                        if(method->address==7) method->isjit = true;
 //                    }
 
-                    long len = getlong(buffer);
-                    line_table lt;
-                    for(long i = 0; i < len; i++) {
-                        lt.line_number = geti64(buffer);
-                        lt.pc = geti64(buffer);
-                        method->lineNumbers.push_back(lt);
-                    }
-
-                    len = getlong(buffer);
-                    long addressLen, valuesLen;
-                    for(long i = 0; i < len; i++) {
-                        method->switchTable.__new();
-                        method->switchTable.last().init();
-                        SwitchTable &st = method->switchTable.last();
-
-                        addressLen = getlong(buffer);
-                        for(long x = 0; x < addressLen; x++) {
-                            st.addresses.add(geti64(buffer));
-                        }
-
-                        valuesLen = getlong(buffer);
-                        for(long x = 0; x < valuesLen; x++) {
-                            st.values.add(geti64(buffer));
-                        }
-
-                        st.defaultAddress = geti64(buffer);
-                    }
-
-
-                    len = getlong(buffer);
-                    ExceptionTable et;
-
-                    for(long i = 0; i < len; i++) {
-                        et.handler_pc=geti64(buffer);
-                        et.end_pc=geti64(buffer);
-                        et.className=getstring(buffer);
-                        et.local=geti64(buffer);
-                        et.start_pc=geti64(buffer);
-                        method->exceptions.__new();
-
-                        ExceptionTable &e = method->exceptions.get(method->exceptions.size()-1);
-                        e.init();
-
-                        e = et;
-                    }
-
-                    len = getlong(buffer);
-                    FinallyTable ft;
-
-                    for(long i = 0; i < len; i++) {
-                        ft.start_pc=geti64(buffer);
-                        ft.end_pc=geti64(buffer);
-                        ft.try_start_pc=geti64(buffer);
-                        ft.try_end_pc=geti64(buffer);
-                        method->finallyBlocks.push_back(ft);
-                    }
-                    break;
+                long len = geti32(buffer);
+                for(Int i = 0; i < len; i++) {
+                    method->lineNumbers
+                            .add(line_table(
+                                    geti32(buffer),
+                                    geti32(buffer)
+                            ));
                 }
 
-                case data_byte:
-                    break;
-                default:
-                    throw std::runtime_error("file `" + exe + "` may be corrupt");
-            }
+                len = geti32(buffer);
+                long addressLen, valuesLen;
+                for(Int i = 0; i < len; i++) {
+                    SwitchTable &st = method->switchTable.__new();
+                    st.init();
 
-            if(__bitFlag == data_byte) {
-                if(aspRef != manifest.methods)
-                    throw std::runtime_error("text section may be corrupt");
-                n--;
+                    addressLen = geti32(buffer);
+                    for(Int x = 0; x < addressLen; x++) {
+                        st.addresses.add(geti32(buffer));
+                    }
+
+                    valuesLen = geti32(buffer);
+                    for(Int x = 0; x < valuesLen; x++) {
+                        st.values.add(geti32(buffer));
+                    }
+
+                    st.defaultAddress = geti32(buffer);
+                }
+
+
+                len = parseInt(buffer);
+                for(Int i = 0; i < len; i++) {
+                    ExceptionTable &e = method->exceptions.__new();
+
+                    e.init();
+                    e.handler_pc= geti32(buffer);
+                    e.end_pc= geti32(buffer);
+                    e.className= getString(buffer);
+                    e.local= geti32(buffer);
+                    e.start_pc= geti32(buffer);
+                }
+
+                len = parseInt(buffer);
+                FinallyTable ft;
+
+                for(Int i = 0; i < len; i++) {
+                    ft.start_pc= geti32(buffer);
+                    ft.end_pc= geti32(buffer);
+                    ft.try_start_pc= geti32(buffer);
+                    ft.try_end_pc= geti32(buffer);
+                    method->finallyBlocks.push_back(ft);
+                }
                 break;
             }
+
+            case data_byte:
+                break;
+            default: {
+                exeErrorMessage = "file `" + exe + "` may be corrupt";
+                return CORRUPT_FILE;
+            }
         }
 
-        aspRef=0;
+        if(currentFlag == data_byte) {
+            if(itemsProcessed != vm->manifest.methods)
+                throw std::runtime_error("text section may be corrupt");
+            index--;
+            break;
+        }
+    }
 
-        for (;;) {
+    itemsProcessed=0;
+    for (;;) {
 
-            __bitFlag = buffer.at(n++);
-            switch (__bitFlag) {
-                case 0x0:
-                case 0x0a:
-                case 0x0d:
-                    break;
+        currentFlag = buffer.at(index++);
+        switch (currentFlag) {
+            case 0x0:
+            case 0x0a:
+            case 0x0d:
+                break;
 
-                case data_byte: {
-                    Method* method = &env->methods[aspRef++];
+            case data_byte: {
+                Method* method = &vm->methods[itemsProcessed++];
 
-                    if(method->paramSize > 0) {
-                        method->params = (int64_t*)malloc(sizeof(int64_t)*method->paramSize);
-                        method->arrayFlag = (bool*)malloc(sizeof(bool)*method->paramSize);
-                        for(unsigned int i = 0; i < method->paramSize; i++) {
-                            method->params[i] = getlong(buffer);
-                            method->arrayFlag[i] = (bool)getlong(buffer);
-                        }
+                if(method->paramSize > 0) {
+                    method->params = (int64_t*)malloc(sizeof(int64_t)*method->paramSize);
+                    method->arrayFlag = (bool*)malloc(sizeof(bool)*method->paramSize);
+                    for(unsigned int i = 0; i < method->paramSize; i++) {
+                        method->params[i] = parseInt(buffer);
+                        method->arrayFlag[i] = (bool) parseInt(buffer);
                     }
-
-                    if(method->cacheSize > 0) {
-                        method->bytecode = (int64_t*)malloc(sizeof(int64_t)*method->cacheSize);
-                        for(int64_t i = 0; i < method->cacheSize; i++) {
-                            method->bytecode[i] = geti64(buffer);
-                        }
-                    }
-                    break;
                 }
 
-                case eos:
-                    break;
-                default:
-                    throw std::runtime_error("file `" + exe + "` may be corrupt");
-            }
-
-            if(__bitFlag == eos) {
+                if(method->cacheSize > 0) {
+                    method->bytecode = (int64_t*)malloc(sizeof(int64_t)*method->cacheSize);
+                    for(int64_t i = 0; i < method->cacheSize; i++) {
+                        method->bytecode[i] = geti32(buffer);
+                    }
+                }
                 break;
             }
-        }
 
-
-        if(compressed) {
-            buffer.end();
-            buffer << reserve;
-            reserve.end();
-            n = 0;
-        }
-
-        if(manifest.debug) {
-            if(buffer.at(n++) != smeta)
-                throw std::runtime_error("file `" + exe + "` may be corrupt");
-
-            long sourceid=0;
-            for(;;) {
-                __bitFlag = buffer.at(n++);
-                switch (__bitFlag) {
-                    case 0x0:
-                    case 0x0a:
-                    case 0x0d:
-                        break;
-
-                    case data_file: {
-                        metaData.sourceFiles.__new();
-                        source_file &sf = metaData.sourceFiles.get(
-                                metaData.sourceFiles.size()-1);
-
-                        sf.id = sourceid++;
-                        parse_source_file(sf.source_line, getstring(buffer));
-                        break;
-                    }
-
-                    case eos:
-                        break;
-                    default:
-                        throw std::runtime_error("file `" + exe + "` may be corrupt");
-                }
-
-                if(__bitFlag == eos) {
-                    break;
-                }
+            case eos:
+                break;
+            default: {
+                exeErrorMessage = "file `" + exe + "` may be corrupt";
+                return CORRUPT_FILE;
             }
         }
-    } catch(std::exception &e) {
-        cout << "error " << e.what();
-        return 1;
+
+        if(currentFlag == eos) {
+            break;
+        }
+    }
+
+    if(buffer.at(index++) != smeta) {
+        exeErrorMessage = "file `" + exe + "` may be corrupt";
+        return CORRUPT_FILE;
+    }
+
+    for(;;) {
+        currentFlag = buffer.at(index++);
+        switch (currentFlag) {
+            case 0x0:
+            case 0x0a:
+            case 0x0d:
+                break;
+
+            case data_file: {
+
+                SourceFile &sourceFile = vm->metaData.files.__new();
+                sourceFile.init();
+                sourceFile.id = geti32(buffer);
+                sourceFile.name = getString(buffer);
+
+                if(vm->manifest.debug) {
+                    String sourceFileData(getString(buffer));
+                    parseSourceFile(sourceFile, sourceFileData);
+                }
+                break;
+            }
+
+            case eos:
+                break;
+            default: {
+                exeErrorMessage = "file `" + exe + "` may be corrupt";
+                return CORRUPT_FILE;
+            }
+        }
+
+        if(currentFlag == eos) {
+            break;
+        }
     }
 
     return 0;
 }
 
-void parse_source_file(_List<native_string> &list, native_string str) {
-    list.init();
-
+void parseSourceFile(SourceFile &sourceFile, native_string &data) {
     native_string line;
-    for(unsigned int i = 0; i < str.len; i++) {
-        if(str.chars[i] == '\n')
+    for(unsigned int i = 0; i < data.len; i++) {
+        if(data.chars[i] == '\n')
         {
-            list.__new();
-            list.last().init();
-            list.last() = line;
+            sourceFile.lines.__new().init();
+            sourceFile.lines.last() = line;
 
             line.free();
         } else {
-            line += str.chars[i];
+            line += data.chars[i];
         }
     }
 
-    list.__new();
-    list.last().init();
-    list.last() = line;
-
+    sourceFile.lines.__new().init();
+    sourceFile.lines.last() = line;
     line.free();
 }
 
-int64_t geti64(File::buffer& exe) {
-    int64_t i64 =GET_i64(
-            SET_i32(exe.at(n), exe.at(n+1),
-                     exe.at(n+2), exe.at(n+3)
-            ), SET_i32(exe.at(n+4), exe.at(n+5),
-                        exe.at(n+6), exe.at(n+7)
-            )
-    ); n+=I64_BYTES;
+int32_t geti32(File::buffer& exe) {
+    int32_t i32 =SET_i32(
+            exe.at(index), exe.at(index + 1),
+                exe.at(index + 2), exe.at(index + 3)
+    ); index+=EXE_BYTE_CHUNK;
 
-    return i64;
+    return i32;
 }
 
-ClassObject *findClass(int64_t superClass) {
-    for(uint64_t i = 0; i < manifest.classes; i++) {
-        if(env->classes[i].serial == superClass)
-            return &env->classes[i];
-    }
-
-    return NULL;
-}
-
-void getField(File::buffer& exe, _List<KeyPair<int64_t, Field*>> &fieldMap, Field* field) {
-    field->name.init();
-    field->name = getstring(exe);
-    field->serial = getlong(exe);
-    field->type = (FieldType)getlong(exe);
-    field->isStatic = (bool)getlong(exe);
-    field->isArray = (bool)getlong(exe);
-    field->isThreadLocal = (bool)getlong(exe);
-    field->owner = NULL;
-    fieldMap.add(KeyPair<int64_t, Field*>(getlong(exe), field));
-}
-
-string getstring(File::buffer& exe) {
+string getString(File::buffer& exe) {
     string s;
-    char c = exe.at(n);
-    while(exe.at(n++) != nil) {
-        s+=exe.at(n-1);
+    char c = exe.at(index);
+    while(exe.at(index++) != nil) {
+        s+=exe.at(index - 1);
     }
 
     return s;
 }
 
-int64_t getlong(File::buffer& exe) {
-    native_string integer;
-    integer = getstring(exe);
-    return strtoll(integer.str().c_str(), NULL, 0);
+Int parseInt(File::buffer& exe) {
+#if _ARCH_BITS == 32
+    return strtol(getString(exe).c_str(), NULL, 0);
+#else
+    return strtoll(getstring(exe).c_str(), NULL, 0);
+#endif
 }
 
 native_string string_forward(File::buffer& str, size_t begin, size_t end) {
@@ -637,13 +588,13 @@ native_string string_forward(File::buffer& str, size_t begin, size_t end) {
     return s;
 }
 
-bool checkFile(File::buffer& exe) {
-    if(exe.at(n++) == file_sig && string_forward(exe, n, 3) == "SEF") {
-        n +=3 + zoffset;
+bool validateAuthenticity(File::buffer& exe) {
+    if(exe.at(index++) == file_sig && string_forward(exe, index, 3) == "SEF") {
+        index += 3 + zoffset;
 
         /* Check file's digital signature */
-        if(exe.at(n++) == digi_sig1 && exe.at(n++) == digi_sig2
-           && exe.at(n++) == digi_sig3) {
+        if(exe.at(index++) == digi_sig1 && exe.at(index++) == digi_sig2
+           && exe.at(index++) == digi_sig3) {
             return true;
         }
     }

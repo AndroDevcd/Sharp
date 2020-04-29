@@ -35,7 +35,6 @@ public:
         array(false),
         nullType(false)
     {
-        code.addinjector(stackInjector);
     }
 
     Utype(ClassObject* k, bool isArray = false);
