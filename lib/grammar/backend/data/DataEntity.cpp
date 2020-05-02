@@ -6,4 +6,4 @@
 #include "../../frontend/parser/Ast.h"
 #include "../Compiler.h"
 
-long invalidAddr = -109912;
+int invalidAddr = -109912;

@@ -873,7 +873,7 @@ void Thread::exec() {
                             throw Exception(Environment::IndexOutOfBoundsException, ss.str());
                         }
                 )
-            GOTO: // tested
+            JMP: // tested
                 pc = cache+GET_Da(*pc);
                 LONG_CALL();
                 _brh_NOINCREMENT
@@ -1147,6 +1147,9 @@ void Thread::exec() {
                     ss << "Illegal stack swap while sp is ( " << (x86int_t )(sp - dataStack) << ") ";
                     throw Exception(Environment::ThreadStackException, ss.str());
                 }
+                _brh
+            CHECK_SIG:
+                registers[GET_Ca(*pc)] = hasSignal(signal, (short)GET_Cb(*pc));
                 _brh
 
 

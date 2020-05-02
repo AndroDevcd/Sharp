@@ -13,7 +13,7 @@
 
 int _bootstrap(int argc, const char* argv[]);
 bool startsWith(string &str, string prefix);
-bool ends_with(std::string const & value, std::string const & ending);
+bool ends_with(std::string value, std::string ending);
 
 #define opt(v) strcmp(argv[i], v) == 0
 

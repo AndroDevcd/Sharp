@@ -8,6 +8,7 @@
 #include "../../stdimports.h"
 #include "InterruptFlag.h"
 #include "register.h"
+#include "ThreadStates.h"
 
 /**
  * 32-Bit layout
@@ -51,12 +52,12 @@
 #define SET_Bi(i, op, a1, n, a2, n2, a3, n3) (i=((op) | ((n & POSITIVE) << 8u) | ((n2 & POSITIVE) << 9u) | ((n3 & POSITIVE) << 10u) | ((uint8_t)a1 << 11u) | ((uint8_t)a2 << 18u) | ((uint8_t)a3 << 25u)))
 
 #define GET_OP(i) (i & OPCODE_MASK)
-#define GET_Da(i) (((i >> 8u) & POSITIVE) ? (i >> 9u) : (-1 * (i >> 9u)))
-#define GET_Ca(i) (((i >> 8u) & POSITIVE) ? (i >> 10u & CA1_MAX) : (-1 * (i >> 10u & CA1_MAX)))
-#define GET_Cb(i) (((i >> 9u) & POSITIVE) ? (i >> 14u) : (-1 * (i >> 14u)))
-#define GET_Ba(i) (((i >> 8u) & POSITIVE) ? (i >> 11u & BA_MAX) : (-1 * (i >> 11u & BA_MAX)))
-#define GET_Bb(i) (((i >> 9u) & POSITIVE) ? (i >> 18u & BA_MAX) : (-1 * (i >> 18u & BA_MAX)))
-#define GET_Bc(i) (((i >> 10u) & POSITIVE) ? (i >> 25u & BA_MAX) : (-1 * (i >> 25u & BA_MAX)))
+#define GET_Da(i) (int32_t)(((i >> 8u) & POSITIVE) ? (i >> 9u) : (-1 * (i >> 9u)))
+#define GET_Ca(i) (int32_t)(((i >> 8u) & POSITIVE) ? (i >> 10u & CA1_MAX) : (-1 * (i >> 10u & CA1_MAX)))
+#define GET_Cb(i) (int32_t)(((i >> 9u) & POSITIVE) ? (i >> 14u) : (-1 * (i >> 14u)))
+#define GET_Ba(i) (int32_t)(((i >> 8u) & POSITIVE) ? (i >> 11u & BA_MAX) : (-1 * (i >> 11u & BA_MAX)))
+#define GET_Bb(i) (int32_t)(((i >> 9u) & POSITIVE) ? (i >> 18u & BA_MAX) : (-1 * (i >> 18u & BA_MAX)))
+#define GET_Bc(i) (int32_t)(((i >> 10u) & POSITIVE) ? (i >> 25u & BA_MAX) : (-1 * (i >> 25u & BA_MAX)))
 
 #define DISPATCH() /*if(GET_OP(cache[pc])> op_GET) throw Exception("op"); else*/ goto *opcode_table[GET_OP(*pc)];
 
@@ -140,7 +141,7 @@
             &&PUT,                   \
             &&PUTC,                   \
             &&CHECKLEN,                   \
-            &&GOTO,                   \
+            &&JMP,                     \
             &&LOADPC,                   \
             &&PUSHOBJ,                   \
             &&DEL,                   \
@@ -215,7 +216,8 @@
             &&SWAP,                                     \
             &&LDC                                     \
             &&SMOVR_3,                        \
-            &&NEG                        \
+            &&NEG,                             \
+            &&CHECK_SIG                          \
         };
 
 typedef unsigned int opcode_instr;
@@ -270,7 +272,7 @@ public:
         static const uint8_t PUT         = 0x29;
         static const uint8_t PUTC        = 0x2a;
         static const uint8_t CHECKLEN    = 0x2b;
-        static const uint8_t GOTO        = 0x2c;
+        static const uint8_t JMP         = 0x2c;
         static const uint8_t LOADPC      = 0x2d;
         static const uint8_t PUSHOBJ     = 0x2e;
         static const uint8_t DEL         = 0x2f;
@@ -330,22 +332,23 @@ public:
         static const uint8_t PUSHL         = 0x65;
         static const uint8_t ITEST         = 0x66;
         static const uint8_t INVOKE_DELEGATE = 0x67;
-        static const uint8_t GET      = 0x68;
-        static const uint8_t ISADD    = 0x69;
-        static const uint8_t JE       = 0x6a;
-        static const uint8_t JNE      = 0x6b;
-        static const uint8_t IPOPL    = 0x6c;
-        static const uint8_t SWITCH   = 0x6d;
-        static const uint8_t CMP      = 0x6e;
-        static const uint8_t CALLD    = 0x6f;
-        static const uint8_t VARCAST  = 0x70;
-        static const uint8_t TLS_MOVL = 0x71;
-        static const uint8_t DUP      = 0x72;
-        static const uint8_t POPOBJ_2 = 0x73;
-        static const uint8_t SWAP     = 0x74;
-        static const uint8_t LDC      = 0x75;
-        static const uint8_t SMOVR_3  = 0x76;
-        static const uint8_t NEG      = 0x77;
+        static const uint8_t GET       = 0x68;
+        static const uint8_t ISADD     = 0x69;
+        static const uint8_t JE        = 0x6a;
+        static const uint8_t JNE       = 0x6b;
+        static const uint8_t IPOPL     = 0x6c;
+        static const uint8_t SWITCH    = 0x6d;
+        static const uint8_t CMP       = 0x6e;
+        static const uint8_t CALLD     = 0x6f;
+        static const uint8_t VARCAST   = 0x70;
+        static const uint8_t TLS_MOVL  = 0x71;
+        static const uint8_t DUP       = 0x72;
+        static const uint8_t POPOBJ_2  = 0x73;
+        static const uint8_t SWAP      = 0x74;
+        static const uint8_t LDC       = 0x75;
+        static const uint8_t SMOVR_3   = 0x76;
+        static const uint8_t NEG       = 0x77;
+        static const uint8_t CHECK_SIG = 0x78;
 
         enum instr_class {
             E_CLASS,
@@ -402,7 +405,7 @@ public:
         static opcode_instr put(_register inRegister);
         static opcode_instr putc(_register inRegister);
         static opcode_instr checklen(_register inRegister);
-        static opcode_instr _goto(opcode_arg address);
+        static opcode_instr jmp(opcode_arg address);
         static opcode_instr loadpc(_register outRegister);
         static opcode_instr pushObject();
         static opcode_instr del();
@@ -455,7 +458,7 @@ public:
         static opcode_instr* istore(opcode_arg value);
         static opcode_instr smovr2(_register inRegister, opcode_arg relFrameAddress);
         static opcode_instr smovr3(opcode_arg relFrameAddress);
-        static opcode_instr istorel(opcode_arg relFrameAddress);
+        static opcode_instr* istorel(opcode_arg relFrameAddress, opcode_arg integerValue);
         static opcode_instr popl(opcode_arg relFrameAddress);
         static opcode_instr pushNull();
         static opcode_instr ipushl(opcode_arg relFrameAddress);
@@ -477,6 +480,7 @@ public:
         static opcode_instr swap();
         static opcode_instr ldc(_register outRegister, opcode_arg address);
         static opcode_instr neg(_register leftRegister, _register rightRegister);
+        static opcode_instr checkSignal(_register inRegister, tsig_t signal);
 
         static bool illegalParam(opcode_arg param, instr_class iclass, short argNum = 1);
 

@@ -31,6 +31,8 @@ public:
         this->flags.addAll(flags);
     }
 
+    void free();
+
     Utype *utype;
 };
 

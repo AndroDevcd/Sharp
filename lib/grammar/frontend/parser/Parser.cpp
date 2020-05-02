@@ -234,8 +234,6 @@ void parser::parseLambdaBlock(Ast* ast) {
             if(!parseStatement(branch))
                 break;
         }
-
-        access_types.free();
     }
 
     expect(branch, "}");
@@ -413,47 +411,81 @@ void parser::parseIfStatement(Ast *ast) {
 void parser::parseForStmnt(Ast *ast) {
     Ast* branch = getBranch(ast, ast_for_statement);
 
+    _current--;
     expect(branch, "for");
 
     expect(branch, "(");
 
-    if(isForLoopCompareSymbol(peek(1)->getValue())) {
-        expect(branch, peek(1)->getValue());
-        parseExpression(branch);
+    if(peek(1)->getType() != SEMICOLON) {
+        _current++;
+        parseVariableDecl(branch);
+    }
 
-        expect(branch, ":");
+    if(peek(1)->getType() != SEMICOLON) {
+        Ast *exprCond = getBranch(branch, ast_for_expresion_cond);
+        parseExpression(exprCond);
+    }
+    expect(branch, ";");
+
+    if(peek(1)->getType() != RIGHTPAREN) {
+        Ast *exprIter = getBranch(branch, ast_for_expresion_iter);
+        parseExpression(exprIter);
+    }
+
+    expect(branch, ")");
+
+    parseBlock(branch);
+}
+
+void parser::parseWhileStatement(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_while_statement);
+
+    _current--;
+    expect(branch, "while", false);
+
+    expect(branch, "(", false);
+    parseExpression(branch);
+    expect(branch, ")", false);
+
+    parseBlock(branch);
+}
+
+void parser::parseForEachStmnt(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_foreach_statement);
+
+    _current--;
+    expect(branch, "foreach");
+
+    expect(branch, "(");
+    if(*peek(2) == ":")
+        parseUtypeArg(branch);
+    else {
+        Ast* arg = getBranch(branch, ast_utype_arg);
+        expectIdentifier(arg);
+    }
+
+    expect(branch, "in", false);
+    parseExpression(branch);
+    expect(branch, ")");
+
+    parseBlock(branch);
+}
+
+void parser::parseLabelDecl(Ast* ast) {
+    Ast *branch = getBranch(ast, ast_label_decl);
+
+    _current--;
+    expectIdentifier(branch);
+    expect(ast, ":", false);
+
+    if(peek(1)->getType() == LEFTCURLY)
         parseBlock(branch);
-    } else {
-        if(parseExpression(branch) && isForLoopCompareSymbol(peek(1)->getValue())) {
-            branch->freeLastSub();
-            parseExpression(branch);
-            expect(branch, peek(1)->getValue());
-
-            expect(branch, ":");
-            parseBlock(branch);
-        } else {
-            if(peek(1)->getType() != SEMICOLON) {
-                parseVariableDecl(branch);
-            }
-
-            if(peek(1)->getType() != SEMICOLON) {
-                parseExpression(branch);
-                branch->getLastSubAst()->setAstType(ast_for_expresion_cond);
-            }
-            expect(branch, ";");
-
-            if(peek(1)->getType() != RIGHTPAREN) {
-                parseExpression(branch);
-                branch->getLastSubAst()->setAstType(ast_for_expresion_iter);
-            }
-            expect(branch, ")");
-
-            parseBlock(branch);
-        }
+    else {
+        advance();
+        parseStatement(branch);
     }
 }
 
-int commas=0;
 bool parser::parseStatement(Ast* ast) {
     Ast* branch = getBranch(ast, ast_statement);
     CHECK_ERRLMT(return false;)
@@ -509,28 +541,47 @@ bool parser::parseStatement(Ast* ast) {
         parseAliasDeclaration(branch);
         return true;
     }
+    else if((isVariableDecl(current()) && (*peek(1) == ":" || *peek(1) == ":=")) ||
+       (isStorageType(current()) && (isVariableDecl(*peek(1)) && (*peek(2) == ":" || *peek(2) == ":="))))
+    {
+        if(*peek(1) == ":") {
+            Token *old = _current;
+            _current++;
+            parseUtype(branch);
+            branch->freeLastSub();
+
+            if(*peek(1) == "=" || *peek(1) == ";"
+                || *peek(1) == ",") {
+                _current = old;
+                parseVariableDecl(branch);
+            } else {
+                goto labelDecl;
+            }
+        } else
+            parseVariableDecl(branch);
+    }
+    else if(isForEachStatement(current()))
+    {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
+        parseForEachStmnt(branch);
+        return true;
+    }
+    else if(isWhileStatement(current()))
+    {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
+        parseWhileStatement(branch);
+        return true;
+    }
 //    else if(islock_stmnt(current()))
 //    {
 //        if(access_types.size() > 0)
 //            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
 //
 //        parse_lockstmnt(pAst );
-//        return true;
-//    }
-//    else if(isforeach_stmnt(current()))
-//    {
-//        if(access_types.size() > 0)
-//            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-//
-//        parse_foreachstmnt(pAst );
-//        return true;
-//    }
-//    else if(iswhile_stmnt(current()))
-//    {
-//        if(access_types.size() > 0)
-//            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-//
-//        parse_whilestmnt(pAst );
 //        return true;
 //    }
 //    else if(isdowhile_stmnt(current()))
@@ -633,76 +684,53 @@ bool parser::parseStatement(Ast* ast) {
 //        errors->createNewError(GENERIC, current(), "import declaration not allowed here (why are you putting this here lol?)");
 //        parse_importdecl(pAst);
 //    }
-//    else if(current().getTokenType() == SEMICOLON)
-//    {
-//        if(access_types.size() > 0)
-//            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-//
-//        /* we don't care about empty statements but we allow them */
-//        if(commas > 1) {
-//            commas = 0;
-//            errors->createNewWarning(GENERIC, current().getLine(), current().getColumn(), "unnecessary semicolon ';'");
-//        } else
-//            commas++;
-//        return true;
-//    }
-//    else
-//    {
-//        // save parser state
-//        errors->enterProtectedMode();
-//        this->retainstate(pAst);
-//        pushback();
-//
-//        /*
-//         * variable decl?
-//         */
-//        if(parse_utype(pAst))
-//        {
-//            errors->pass();
-//            if(peek(1).getTokenType() == COLON)
-//            {
-//                if(access_types.size() > 0)
-//                    errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-//
-//                pAst = this->rollback();
-//                parse_labeldecl(pAst);
-//                return true;
-//            }
-//            else if(peek(1).getId() == IDENTIFIER)
-//            {
-//                // Variable decliration
-//                pAst = this->rollback();
-//                parse_variabledecl(pAst);
-//                return true;
-//            }
-//        } else
-//            errors->pass();
-//
-//        pAst = this->rollback();
-//        pushback();
-//
-//        errors->enterProtectedMode();
-//        this->retainstate(pAst);
-//        if(!parse_expression(pAst))
-//        {
-//            errors->pass();
-//            advance();
-//            errors->createNewError(GENERIC, pAst, "not a statement");
-//            return false;
-//        } else {
-//            if(access_types.size() > 0)
-//                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, pAst);
-//
-//            errors->fail();
-//            this->dumpstate();
-//
-//            if(peek(1).getTokenType() != SEMICOLON)
-//                errors->createNewError(GENERIC, pAst, "expected `;`");
-//            else
-//                expect(SEMICOLON, pAst, "`;`");
-//            return true;
-//        }
-//    }
+    else if(current().getType() == SEMICOLON)
+    {
+        if(access_types.size() > 0) {
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, branch);
+            access_types.free();
+        }
+        errors->createNewWarning(GENERIC, current().getLine(), current().getColumn(), "unnecessary semicolon ';'");
+        return true;
+    }
+    else
+    {
+        /*
+         * label decl?
+         */
+        if(current().getId() == IDENTIFIER && !isKeyword(current().getValue())
+            && peek(2)->getType() == COLON)
+        {
+            labelDecl:
+            if(access_types.size() > 0) {
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, branch);
+                access_types.free();
+            }
+
+            parseLabelDecl(branch);
+            return true;
+        }
+
+        errors->enterProtectedMode();
+        if(access_types.size() > 0) {
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, branch);
+            access_types.free();
+        }
+
+        _current--;
+        if(!parseExpression(branch))
+        {
+            errors->pass();
+            advance();
+            errors->createNewError(GENERIC, branch, "not a statement");
+            return false;
+        } else {
+
+            errors->fail();
+            expect(branch, ";", false);
+            return true;
+        }
+    }
 
     return false;
 }
@@ -1579,7 +1607,6 @@ bool parser::parseFieldInitializatioin(Ast *ast) {
 void parser::parseFieldInitList(Ast *ast) {
     Ast *branch = getBranch(ast, ast_field_init_list);
 
-    cout << "field init list" << endl;
     expect(branch, "{");
 
     if(peek(1)->getType() != RIGHTCURLY)
@@ -1709,14 +1736,6 @@ bool parser::parseArrayExpression(Ast* ast) {
         {
             _current=old;
             errors->pass();
-
-            if(branch->getSubAstCount() == 1) {
-                branch->freeSubAsts();
-                branch->freeTokens();
-            }
-            else {
-                branch->freeLastSub();
-            }
             return false;
         } else
         {
@@ -1863,7 +1882,7 @@ void parser::parseLambdaArgList(Ast* ast) {
     _pLambdaArg:
     if(peek(1)->getType() == COMMA)
     {
-        expect(branch, ",");
+        expect(branch, ",", false);
         parseLambdaArg(branch);
         goto _pLambdaArg;
     }
@@ -1989,7 +2008,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         branch->sub_asts.removeAt(branch->sub_asts.size() - 2);
 
         if(peek(1)->getValue() != "as")
-            branch = branch->getSubAst(ast_self_e);
+            branch = branch->getLastSubAst();
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
             goto checkInc;
@@ -2040,7 +2059,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         branch->encapsulate(ast_new_e);
 
         if(peek(1)->getValue() != "as")
-            branch = branch->getSubAst(ast_new_e);
+            branch = branch->getLastSubAst();
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
             goto checkInc;
@@ -2069,11 +2088,13 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             branch = newAst;
 
             if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
-                goto checkInc;
+                errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
             else if(peek(1)->getType() == DOT)
                 errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
             else if(peek(1)->getType() == LEFTBRACE)
                 errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
+            else if(peek(1)->getValue() == "as")
+                errors->createNewError(GENERIC, current(), "unexpected symbol `as`");
             return true;
         } else {
             Ast* newAst = getBranch(branch, ast_lambda_function);
@@ -2091,6 +2112,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
                     errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
                 else if(peek(1)->getType() == LEFTBRACE)
                     errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
+                else if(peek(1)->getValue() == "as")
+                    errors->createNewError(GENERIC, current(), "unexpected symbol `as`");
                 return true;
             } else {
                 branch->freeLastSub();
@@ -2469,10 +2492,22 @@ bool parser::parseReferencePointer(Ast *ast) {
         expectIdentifier(branch);
     }
 
-    if(peek(1)->getValue() == "<") {
+    if(peek(1)->getValue() == "<") { // TODO: talk about this fix in the youtube series
+        Token *old = _current;
         expect(branch, "<");
+        errors->enterProtectedMode();
         parseUtypeList(branch);
-        expect(branch, ">");
+
+        if(*peek(1) == ">") {
+            errors->fail();
+            expect(branch, ">");
+        }
+        else {
+            errors->pass();
+            _current = old;
+            branch->freeLastSub();
+            branch->freeLastToken();
+        }
     }
 
     while(peek(1)->getType() == DOT && *peek(2) != "class") {
@@ -2486,9 +2521,21 @@ bool parser::parseReferencePointer(Ast *ast) {
 
         expectIdentifier(branch);
         if(peek(1)->getValue() == "<") {
+            Token *old = _current;
             expect(branch, "<");
+            errors->enterProtectedMode();
             parseUtypeList(branch);
-            expect(branch, ">");
+
+            if(*peek(1) == ">") {
+                errors->fail();
+                expect(branch, ">");
+            }
+            else {
+                errors->pass();
+                _current = old;
+                branch->freeLastSub();
+                branch->freeLastToken();
+            }
         }
     }
 
@@ -2582,6 +2629,14 @@ bool parser::isForStatement(Token& t) {
     return (t.getId() == IDENTIFIER && t.getValue() == "for");
 }
 
+bool parser::isForEachStatement(Token& t) {
+    return (t.getId() == IDENTIFIER && t.getValue() == "foreach");
+}
+
+bool parser::isWhileStatement(Token& t) {
+    return (t.getId() == IDENTIFIER && t.getValue() == "while");
+}
+
 bool parser::isAliasDeclaration(Token& t) {
     return (t.getId() == IDENTIFIER && t.getValue() == "alias");
 }
@@ -2616,7 +2671,7 @@ bool parser::isKeyword(string key) {
            || key == "switch" || key == "default" || key == "local"
            || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
-           || key == "as";
+           || key == "as" || key == "in";
 }
 
 void parser::parseAccessTypes() {

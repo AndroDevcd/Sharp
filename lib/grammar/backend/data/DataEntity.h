@@ -45,7 +45,7 @@ struct Meta {
     }
 };
 
-extern long invalidAddr;
+extern int invalidAddr;
 
 /**
  * This class represents any subset of data such as:

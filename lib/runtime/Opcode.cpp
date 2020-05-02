@@ -58,18 +58,18 @@ bool OpBuilder::illegalParam(opcode_arg param, instr_class iclass, short argNum)
             return true; // e class should not have parameters
         case D_CLASS:
             if(argNum == 1)
-                return (param < -((int32_t)DA_MAX) || param > DA_MAX);
+                return !(param >= -((int32_t)DA_MAX) && param <= (int32_t)DA_MAX);
             else return true;
         case C_CLASS: {
             if(argNum == 1)
-                return (param < -((int32_t)CA1_MAX) || param > CA1_MAX);
+                return !(param >= -((int32_t)CA1_MAX) && param <= (int32_t)CA1_MAX);
             else if(argNum == 2)
-                return (param < -((int32_t)CA2_MAX) || param > CA2_MAX);
+                return !(param >= -((int32_t)CA2_MAX) && param <= (int32_t)CA2_MAX);
             else return true;
         }
         case B_CLASS:
             if(argNum >= 1 && argNum <= 3)
-                return (param < -((int32_t)BA_MAX) && param > BA_MAX);
+                return !(param >= -((int32_t)BA_MAX) && param <= (int32_t)BA_MAX);
             else return true;
     }
     return false;
@@ -248,10 +248,10 @@ opcode_instr OpBuilder::checklen(_register inRegister) {
     return SET_Di(tmpInstr, CHECKLEN, inRegister, POSITIVE);
 }
 
-opcode_instr OpBuilder::_goto(opcode_arg address) {
+opcode_instr OpBuilder::jmp(opcode_arg address) {
     if(illegalParam(address, D_CLASS))
         return ill();
-    return SET_Di(tmpInstr, GOTO, abs(address), posNeg(address));
+    return SET_Di(tmpInstr, JMP, abs(address), posNeg(address));
 }
 
 opcode_instr OpBuilder::loadpc(_register outRegister) {
@@ -431,7 +431,7 @@ opcode_instr* OpBuilder::isubl(opcode_arg value, opcode_arg relFrameAddress) {
         return instruction_Buffer;
     }
 
-    instruction_Buffer[0] = SET_Di(tmpInstr, IADDL, abs(relFrameAddress), posNeg(relFrameAddress));
+    instruction_Buffer[0] = SET_Di(tmpInstr, ISUBL, abs(relFrameAddress), posNeg(relFrameAddress));
     instruction_Buffer[1] = value;
     return instruction_Buffer;
 }
@@ -524,16 +524,22 @@ opcode_instr OpBuilder::smovr3(opcode_arg relFrameAddress) {
     return SET_Di(tmpInstr, SMOVR_3, abs(relFrameAddress), posNeg(relFrameAddress));
 }
 
-opcode_instr OpBuilder::istorel(opcode_arg relFrameAddress) {
-    if(illegalParam(relFrameAddress, D_CLASS))
-        return ill();
-    return SET_Di(tmpInstr, RETURNVAL, abs(relFrameAddress), posNeg(relFrameAddress));
+opcode_instr* OpBuilder::istorel(opcode_arg relFrameAddress, opcode_arg integerValue) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+    if(illegalParam(relFrameAddress, D_CLASS)) {
+        instruction_Buffer[0] = ill();
+        return instruction_Buffer;
+    }
+
+    instruction_Buffer[0] = SET_Di(tmpInstr, ISTOREL, abs(relFrameAddress), posNeg(relFrameAddress));
+    instruction_Buffer[1] = integerValue;
+    return instruction_Buffer;
 }
 
 opcode_instr OpBuilder::popl(opcode_arg relFrameAddress) {
     if(illegalParam(relFrameAddress, D_CLASS))
         return ill();
-    return SET_Di(tmpInstr, RETURNVAL, abs(relFrameAddress), posNeg(relFrameAddress));
+    return SET_Di(tmpInstr, POPL, abs(relFrameAddress), posNeg(relFrameAddress));
 }
 
 opcode_instr OpBuilder::pushNull() {
@@ -661,4 +667,8 @@ opcode_instr OpBuilder::ldc(_register outRegister, opcode_arg address) {
 
 opcode_instr OpBuilder::neg(_register outRegister, _register inRegister) {
     return SET_Ci(tmpInstr, NEG, outRegister, POSITIVE, inRegister, POSITIVE);
+}
+
+opcode_instr Opcode::Builder::checkSignal(_register inRegister, tsig_t signal) {
+    return SET_Ci(tmpInstr, NEG, inRegister, POSITIVE, signal, POSITIVE);
 }

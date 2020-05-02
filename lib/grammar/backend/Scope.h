@@ -19,38 +19,51 @@ struct Scope {
     public:
     Scope()
     :
-        type(GLOBAL_SCOPE),
-        klass(NULL),
-        currentFunction(NULL)
+            type(GLOBAL_SCOPE),
+            klass(NULL),
+            currentFunction(NULL),
+            isReachable(true),
+            scopeLevel(0),
+            finallyStartLabel(""),
+            finallyNextBlockLabel(""),
+            loopStartLabel(""),
+            loopEndLabel("")
     {
-        locals.init();
     }
 
     Scope(ClassObject* klass, BlockType bt)
             :
             type(bt),
             klass(klass),
-            currentFunction(NULL)
+            currentFunction(NULL),
+            isReachable(true),
+            scopeLevel(0),
+            finallyStartLabel(""),
+            finallyNextBlockLabel(""),
+            loopStartLabel(""),
+            loopEndLabel("")
     {
-        locals.init();
     }
 
-
-    Field* getLocalField(string name) {
-        if(locals.size() == 0) return NULL;
-
-        for(long long i = locals.size()-1; i >= 0; i--) {
-            if(locals.at(i)->name == name) {
-                return locals.get(i);
-            }
-        }
-        return NULL;
+    void resetLocalScopeFlags() {
+        currentFunction = NULL;
+        scopeLevel = 0;
+        isReachable = true;
+        finallyStartLabel = "";
+        finallyNextBlockLabel = "";
+        loopStartLabel = "";
+        loopEndLabel = "";
     }
 
-    List<Field*> locals;
     BlockType type;
     ClassObject* klass;
     Method* currentFunction;
+    Int scopeLevel;
+    bool isReachable;
+    string finallyStartLabel;
+    string finallyNextBlockLabel;
+    string loopStartLabel;
+    string loopEndLabel;
 };
 // TODO: add Block *blck; to hold all nessicary block information
 // add variable bool conStructorCalled; to be set if a constructor inside the class has been called

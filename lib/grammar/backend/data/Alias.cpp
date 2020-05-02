@@ -3,3 +3,8 @@
 //
 
 #include "Alias.h"
+#include "Utype.h"
+
+void Alias::free() {
+    utype->free();
+}

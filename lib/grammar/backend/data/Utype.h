@@ -25,6 +25,7 @@ extern string stackInjector;
 extern string ebxInjector;
 extern string ptrInjector;
 extern string getterInjector;
+extern string removeFromStackInjector;
 class Utype {
 public:
     Utype()

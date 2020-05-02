@@ -11,6 +11,7 @@ string stackInjector = "stack-injector";
 string ebxInjector = "ebx-injector";
 string ptrInjector = "ptr-injector";
 string getterInjector = "getterCodeSize-injector";
+string removeFromStackInjector = "removeFromStack-injector";
 
 void Utype::free() {
 
@@ -104,7 +105,8 @@ Utype::Utype(ClassObject *k, bool isArray)
     :
             type(utype_class),
             array(isArray),
-            resolvedType(k)
+            resolvedType(k),
+            nullType(false)
     {
         code.init();
     }
@@ -113,6 +115,7 @@ Utype::Utype(DataType type, bool isArray)
     :
         type(utype_native),
         array(isArray),
+        nullType(false),
         resolvedType(new DataEntity())
     {
         resolvedType->type = type;
@@ -160,7 +163,7 @@ bool Utype::isRelated(Utype *utype) {
                 if(utype->resolvedType->isVar())
                     return utype->array;
                 else
-                    return true;
+                    return utype->getResolvedType()->type <= CLASS;
             }
         } else if (resolvedType->type == VAR || (resolvedType->type >= _INT8 && resolvedType->type <= _UINT64)) {
             if (utype->getResolvedType()->type >= _INT8 && utype->getResolvedType()->type <= VAR)
@@ -173,6 +176,8 @@ bool Utype::isRelated(Utype *utype) {
                                                       utype->getMethod()->params);
             } else if(utype->nullType && array)
                 return true;
+        } else if(resolvedType->type == NIL) {
+            return utype->getResolvedType()->type == NIL;
         }
     }
     return false;

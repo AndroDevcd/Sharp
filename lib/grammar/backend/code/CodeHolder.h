@@ -21,10 +21,7 @@ public:
     }
 
     void init() {
-        ir32.init();
-        injectors.key.init();
-        injectors.value.init();
-        instanceCaptured = false;
+        CodeHolder();
     }
 
     bool addinjector(string key) {
@@ -65,6 +62,15 @@ public:
         }
         injectors.value.free();
         instanceCaptured = false;
+        return *this;
+    }
+
+    CodeHolder& freeInjectors() {
+        for(unsigned int i = 0; i < injectors.value.size(); i++) {
+            injectors.value.at(i).free();
+        }
+        injectors.value.free();
+        injectors.key.free();
         return *this;
     }
 
@@ -144,6 +150,14 @@ public:
 
         addinjector(key);
         return injectors.value.last();
+    }
+
+    void copyInjectors(CodeHolder &code) {
+        freeInjectors();
+
+        for(unsigned int i = 0; i < code.injectors.key.size(); i++) {
+            getInjector(code.injectors.key.get(i)).inject(code.injectors.value.get(i));
+        }
     }
 
     void removeInjector(string key) {

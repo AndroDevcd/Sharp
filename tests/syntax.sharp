@@ -2,5 +2,13 @@ mod main;
 
 import std.io;
 
-num : int;
-message : var = num;
+class K {
+
+    init {
+        list : object[];
+        iter := 0;
+        while(iter < sizeof(list)) {
+            o := list[iter++];
+        }
+    }
+}

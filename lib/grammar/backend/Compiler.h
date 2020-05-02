@@ -35,7 +35,8 @@ public:
         requiredSignature(NULL),
         mainSignature(0),
         delegateGUID(0),
-        typeInference(false)
+        typeInference(false),
+        initProcessed(false)
     {
         this->parsers.init();
         this->parsers.addAll(parsers);
@@ -92,7 +93,7 @@ public:
 
     ErrorManager *errors;
     List<parser*> failedParsers;
-    static long guid;
+    static uInt guid;
 private:
     bool panic;
     long classSize;
@@ -101,6 +102,7 @@ private:
     long threadLocals;
     long mainSignature;
     bool typeInference;
+    bool initProcessed;
     long processingStage;
     string outFile;
     string lastNoteMsg;
@@ -120,12 +122,14 @@ private:
     List<float> floatingPointMap;
     List<int64_t> constantIntMap;
     List<KeyPair<Field*, double>> inlinedFields;
+    List<KeyPair<Field*, Int>> inlinedStringFields;
     List<KeyPair<string, List<string>>>  importMap;
     List<Method*> lambdas;
     List<Method*> functionPtrs;
     Utype* nilUtype;
     Utype* nullUtype;
     Utype* undefUtype;
+    Utype* varUtype;
     parser* current;
     string currModule;
     Method* requiredSignature;
@@ -138,6 +142,7 @@ private:
     void compile();
     void createGlobalClass();
     void compileAllFields();
+    void compileAllInitDecls();
     void inlineFields();
     void postProcessGenericClasses();
     void postProcessUnprocessedClasses();
@@ -157,17 +162,33 @@ private:
     void inlineFieldHelper(Ast* ast);
     void inlineEnumFields(Ast* ast, ClassObject* currentClass = NULL);
     void inlineEnumField(Ast* ast);
+    void compileInitDecl(Ast *ast);
+    void reconcileBranches(Ast *ast);
+    void invalidateLocalAliases();
+    void invalidateLocalVariables();
+    bool compileBlock(Ast *ast);
+    void compileLocalVariableDecl(Ast *ast);
+    void compileForStatement(Ast *ast);
+    void compileForEachStatement(Ast *ast);
+    void compileWhileStatement(Ast *ast);
+    void compileReturnStatement(Ast *ast, bool *controlPaths);
+    void compileIfStatement(Ast *ast, bool *controlPaths);
+    void compileLabelDecl(Ast *ast, bool *controlPaths);
+    void compileStatement(Ast *ast, bool *controlPaths);
+    bool allControlPathsReturnAValue(bool *controlPaths);
+    void addLocalVariables();
     void preProccessClassDeclForMutation(Ast* ast);
     void preProcessMutation(Ast *ast, ClassObject *currentClass = NULL);
     bool isWholeNumber(double value);
     void preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* currentClass = NULL);
     void compileClassFields(Ast* ast, ClassObject* currentClass = NULL);
+    void compileClassInitDecls(Ast* ast, ClassObject* currentClass = NULL);
     void preProccessGenericClassDecl(Ast* ast, bool isInterface);
     void parseIdentifierList(Ast *ast, List<string> &idList);
     StorageLocality strtostl(string locality);
     void preProccessVarDeclHelper(List<AccessFlag>& flags, Ast* ast);
     void preProccessVarDecl(Ast* ast);
-    void preProccessAliasDecl(Ast* ast);
+    Alias* preProccessAliasDecl(Ast* ast);
     int64_t checkstl(StorageLocality locality);
     void resolveAlias(Ast* ast);
     void parseVariableAccessFlags(List<AccessFlag> &flags, Ast *ast);
@@ -195,6 +216,7 @@ private:
     int64_t getLowBytes(double var);
     DataType strToNativeType(string &str);
     double getInlinedFieldValue(Field* field);
+    Int getInlinedStringFieldAddress(Field* field);
     void compileTypeIdentifier(ReferencePointer &ptr, Ast *ast);
     void resolveAllFields();
     void resolveAllMethods();
@@ -205,10 +227,11 @@ private:
     void resolveAllDelegates(Ast *ast, ClassObject* currentClass = NULL);
     Method* validateDelegatesHelper(Method *method, List<Method*> &list);
     void validateDelegates(ClassObject *subscriber, Ast *ast);
-    string accessFlagsToStr(List<AccessFlag> &flags);
+    string accessFlagsToString(List<AccessFlag> &flags);
     ClassObject* getExtensionFunctionClass(Ast* ast);
     void resolveClassMutateMethods(Ast *ast);
     void compileClassMutateFields(Ast *ast);
+    void compileClassMutateInitDecls(Ast *ast);
     void resolveMethod(Ast* ast, ClassObject *currentClass = NULL);
     void resolveGlobalMethod(Ast* ast);
     void resolveClassMethod(Ast* ast);
@@ -256,7 +279,7 @@ private:
     ClassObject* findClass(string mod, string className, List<ClassObject*> &classes, bool match = false);
     void inheritEnumClassHelper(Ast *ast, ClassObject *enumClass);
     void resolveField(Ast* ast);
-    void compileVarDecl(Ast* ast);
+    void compileVariableDecl(Ast* ast);
     void resolveFieldType(Field* field, Utype *utype, Ast* ast);
     void compileExpression(Expression* expr, Ast* ast);
     void compilePrimaryExpression(Expression* expr, Ast* ast);
@@ -297,10 +320,11 @@ private:
     Field *resolveField(string name, Ast *ast);
     Alias *resolveAlias(string mod, string name, Ast *ast);
     bool isAllIntegers(string int_string);
-    string codeToString(CodeHolder &code);
+    string codeToString(CodeHolder &code, CodeData *data = NULL);
     string registerToString(int64_t r);
     string find_class(int64_t id);
     void printExpressionCode(Expression &expr);
+    void printMethodCode(Method &func, Ast *ast);
     void parseBoolLiteral(Expression* expr, Token &token);
     void parseHexLiteral(Expression* expr, Token &token);
     void parseStringLiteral(Expression* expr, Token &token);
@@ -326,8 +350,18 @@ private:
     ClassObject *getBaseClassUtype(Ast *ast);
     void compileExpressionAst(Expression *expr, Ast *branch);
     void expressionToParam(Expression &expression, Field *param);
-
     void pushParametersToStackAndCall(Ast *ast, Method *resolvedMethod, List<Field *> &params, CodeHolder &code);
+    Field* createLocalField(string name, Utype *type, bool isArray, StorageLocality locality, List<AccessFlag> flags,
+                          Int scopeLevel, Ast *ast);
+    string accessFlagToString(AccessFlag flag);
+
+    void inlineField(Field *field, Expression &expr);
+
+    void assignFieldExpressionValue(Field *field, Ast *ast);
+
+    void compileLocalAlias(Ast *ast);
+
+    void initializeLocalVariable(Field *field);
 };
 
 enum ProcessingStage {
@@ -374,6 +408,16 @@ enum ProcessingStage {
 #define RESTORE_REQUIRED_SIGNATURE() \
     requiredSignature = oldRequiredSig;
 
+#define RETAIN_LOOP_LABELS(startLabel, endLabel) \
+    string prevLoopStartLabel = currentScope()->loopStartLabel; \
+    string prevLoopEndLabel = currentScope()->loopEndLabel; \
+    currentScope()->loopStartLabel = startLabel; \
+    currentScope()->loopEndLabel = endLabel;
+
+#define RESTORE_LOOP_LABELS() \
+    currentScope()->loopStartLabel = prevLoopStartLabel; \
+    currentScope()->loopEndLabel = prevLoopEndLabel;
+
 #define NEW_ERRORS_FOUND() \
     ((errors->getUnfilteredErrorCount() - totalErrors) > 0)
 
@@ -390,5 +434,14 @@ enum ProcessingStage {
 
 #define RESTORE_TYPE_INFERENCE() \
     typeInference = oldTypeInference;
+
+#define CONTROL_PATH_SIZE 4
+#define MAIN_CONTROL_PATH 0
+#define IF_CONTROL_PATH 1
+#define ELSEIF_CONTROL_PATH 2
+#define ELSE_CONTROL_PATH 3
+
+#define INTERNAL_VARIABLE_NAME_PREFIX string("$01internal_var_")
+#define INTERNAL_LABEL_NAME_PREFIX string("$02internal_label_")
 
 #endif //SHARP_COMPILER_H

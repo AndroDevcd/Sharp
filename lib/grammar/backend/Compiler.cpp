@@ -12,10 +12,11 @@
 #include "Expression.h"
 #include "data/Literal.h"
 #include "../../runtime/oo/Method.h"
+#include "oo/Method.h"
 
 string globalClass = "__srt_global";
 string undefinedModule = "__$srt_undefined";
-long Compiler::guid = 0;
+uInt Compiler::guid = 0;
 void Compiler::generate() {
 
 }
@@ -313,7 +314,7 @@ void Compiler::preProccessVarDecl(Ast* ast) {
     }
 }
 
-void Compiler::preProccessAliasDecl(Ast* ast) {
+Alias* Compiler::preProccessAliasDecl(Ast* ast) {
     List<AccessFlag> flags;
 
     if(ast->hasSubAst(ast_access_type)){
@@ -353,10 +354,13 @@ void Compiler::preProccessAliasDecl(Ast* ast) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                      "alias `" + name + "` is already defined in the scope");
         printNote(prevAlias->meta, "alias `" + name + "` previously defined here");
+        return NULL;
     } else {
-        currentScope()->klass->getAliases().add(new Alias(guid++, name, currentScope()->klass, flags, meta));
+        Alias *alias = new Alias(guid++, name, currentScope()->klass, flags, meta);
+        currentScope()->klass->getAliases().add(alias);
         currentScope()->klass->getAlias(name, false)->ast = ast;
         currentScope()->klass->getAlias(name, false)->fullName = currentScope()->klass->fullName + "." + name;
+        return alias;
     }
 }
 
@@ -545,6 +549,57 @@ void Compiler::preProccessEnumDecl(Ast *ast)
     removeScope();
 }
 
+void Compiler::compileClassInitDecls(Ast* ast, ClassObject* currentClass) {
+    Ast* block = ast->getLastSubAst();
+    List<AccessFlag> flags;
+
+    if(currentClass == NULL) {
+        string name = ast->getToken(0).getValue();
+        if(globalScope()) {
+            currentClass = findClass(currModule, name, classes);
+        }
+        else {
+            currentClass = currentScope()->klass->getChildClass(name);
+        }
+    }
+
+    if(currentClass != NULL) {
+        currScope.add(new Scope(currentClass, CLASS_SCOPE));
+        for (long i = 0; i < block->getSubAstCount(); i++) {
+            Ast *branch = block->getSubAst(i);
+            CHECK_CMP_ERRORS(return;)
+
+            switch (branch->getType()) {
+                case ast_class_decl:
+                    compileClassInitDecls(branch);
+                    break;
+                case ast_mutate_decl:
+                    compileClassMutateInitDecls(branch);
+                    break;
+                case ast_init_decl:
+                    compileInitDecl(branch);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        removeScope();
+    }
+}
+
+void Compiler::addLocalVariables() {
+    List<Method*> constructors;
+    currentScope()->klass->getAllFunctionsByType(fn_constructor, constructors);
+    for(uInt i = 0; i < constructors.size(); i++) {
+        Method *constructor = constructors.get(i);
+        constructor->data.locals.addAll(constructor->params);
+        constructor->data.localVariablesSize = constructor->params.size() + 1; // +1 because we need space for the instance
+    }
+
+    constructors.free();
+}
+
 void Compiler::compileClassFields(Ast* ast, ClassObject* currentClass) {
     Ast* block = ast->getLastSubAst();
     List<AccessFlag> flags;
@@ -573,13 +628,14 @@ void Compiler::compileClassFields(Ast* ast, ClassObject* currentClass) {
                     compileClassMutateFields(branch);
                     break;
                 case ast_variable_decl:
-                    compileVarDecl(branch);
+                    compileVariableDecl(branch);
                     break;
                 default:
                     break;
             }
         }
 
+        addLocalVariables();
         removeScope();
     }
 }
@@ -680,6 +736,8 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
             case ast_mutate_decl:
                 if (processingStage >= POST_PROCESSING && !generatedClass)
                     preProcessMutation(branch);
+                break;
+            case ast_init_decl: /* Will be parsed later */
                 break;
             default:
                 stringstream err;
@@ -1417,16 +1475,32 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
         }
         else if((resolvedMethod = findFunction(currentScope()->klass, name, params, ast, true)) != NULL)
             return resolvedMethod;
-        else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && currentScope()->getLocalField(name) != NULL) {
-            Field* field = currentScope()->getLocalField(name);
+        else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && currentScope()->currentFunction != NULL
+            && currentScope()->currentFunction->data.getLocalFieldHereOrHigher(name, currentScope()->scopeLevel) != NULL) {
+            Field* field = currentScope()->currentFunction->data.getLocalFieldHereOrHigher(name, currentScope()->scopeLevel);
             if(field->utype && field->utype->getType() == utype_function_ptr) {
                 resolvedMethod =  (Method*)field->utype->getResolvedType();
 
-                expr->utype->getCode()
-                        .addIr(OpBuilder::loadl(EBX, field->address))
-                        .addIr(OpBuilder::rstore(EBX));
-                if(!complexParameterMatch(resolvedMethod->params, params)) {
-                    errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` does not match provided parameter arguments");
+                if (!complexParameterMatch(resolvedMethod->params, params)) {
+                    errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() +
+                                                                         "` does not match provided parameter arguments");
+                }
+
+                if(isFieldInlined(field)) {
+                    inlineVariableValue(expr->utype->getCode(), field);
+                    expr->utype->getCode().inject(stackInjector);
+                } else {
+                    if (field->locality == stl_thread) {
+                        expr->utype->getCode()
+                                .addIr(OpBuilder::tlsMovl(field->address))
+                                .addIr(OpBuilder::movi(0, ADX))
+                                .addIr(OpBuilder::iaload(EBX, ADX))
+                                .addIr(OpBuilder::rstore(EBX));
+                    } else {
+                        expr->utype->getCode()
+                                .addIr(OpBuilder::loadl(EBX, field->address))
+                                .addIr(OpBuilder::rstore(EBX));
+                    }
                 }
                 return resolvedMethod;
             } else {
@@ -1445,59 +1519,49 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
             if(field->utype && field->utype->getType() == utype_function_ptr) {
                 resolvedMethod =  (Method*)field->utype->getResolvedType();
 
-                if(field->locality == stl_thread) {
-                    expr->utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
-                } else {
-                    if(field->flags.find(STATIC) || field->owner->isGlobalClass())
-                        expr->utype->getCode().addIr(OpBuilder::movg(field->owner->address));
-                    else if(!expr->utype->getCode().instanceCaptured) {
-                        expr->utype->getCode().instanceCaptured = true;
-                        expr->utype->getCode().addIr(OpBuilder::movl(0));
-                    }
-                    expr->utype->getCode().addIr(OpBuilder::movn(field->address));
-                }
-
-                expr->utype->getCode()
-                        .addIr(OpBuilder::movi(0, ADX))
-                        .addIr(OpBuilder::iaload(EBX, ADX))
-                        .addIr(OpBuilder::rstore(EBX));
-
                 if(!complexParameterMatch(resolvedMethod->params, params)) {
                     errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` does not match provided parameter arguments");
                 }
+
+                if(field->getter == NULL && isFieldInlined(field)) {
+                    inlineVariableValue(expr->utype->getCode(), field);
+                    expr->utype->getCode().inject(stackInjector);
+                } else {
+                    if(field->getter != NULL
+                       && (currentScope()->currentFunction == NULL ||
+                           !(currentScope()->currentFunction == field->setter || currentScope()->currentFunction == field->getter))) {
+                        if(field->locality == stl_stack && !field->flags.find(STATIC) && !expr->utype->getCode().instanceCaptured) {
+                            expr->utype->getCode().instanceCaptured = true;
+                            expr->utype->getCode().addIr(OpBuilder::movl(0));
+                        }
+
+                        if(field->locality == stl_stack && !field->flags.find(STATIC))
+                            expr->utype->getCode().addIr(OpBuilder::pushObject());
+                        compileFieldGetterCode(expr->utype->getCode(), field);
+                        // we dont need the getter code size stuff because we immediatley use the dynaic function address
+                    } else {
+                        if (field->locality == stl_thread) {
+                            expr->utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
+                        } else {
+                            if (field->flags.find(STATIC) || field->owner->isGlobalClass())
+                                expr->utype->getCode().addIr(OpBuilder::movg(field->owner->address));
+                            else if (!expr->utype->getCode().instanceCaptured) {
+                                expr->utype->getCode().instanceCaptured = true;
+                                expr->utype->getCode().addIr(OpBuilder::movl(0));
+                            }
+                            expr->utype->getCode().addIr(OpBuilder::movn(field->address));
+                        }
+
+                        expr->utype->getCode()
+                                .addIr(OpBuilder::movi(0, ADX))
+                                .addIr(OpBuilder::iaload(EBX, ADX))
+                                .addIr(OpBuilder::rstore(EBX));
+                    }
+                }
+
                 return resolvedMethod;
             } else {
                 errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` is not a function pointer");
-            }
-        } else if(currentScope()->klass->isClassRelated(findClass("std", "_enum_", classes))) {
-            ClassObject *klass = currScope.get(currScope.size()-2)->klass;
-
-            // TODO: function or field must be static as we dont own the instance
-            if((resolvedMethod = findFunction(klass, name, params, ast, true)) != NULL)
-                return resolvedMethod;
-            else if(klass->getField(name, true) != NULL) {
-                Field* field = klass->getField(name, true);
-                compileFieldType(field);
-                
-                if(field->utype && field->utype->getType() == utype_function_ptr) {
-                    resolvedMethod =  (Method*)field->utype->getResolvedType();
-
-                    if(!complexParameterMatch(resolvedMethod->params, params)) {
-                        errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` does not match provided parameter arguments");
-                    }
-                    expr->utype->getCode()
-                            .addIr(OpBuilder::movg(field->owner->address))
-                            .addIr(OpBuilder::movn(field->address))
-                            .addIr(OpBuilder::movi(0, ADX))
-                            .addIr(OpBuilder::iaload(EBX, ADX))
-                            .addIr(OpBuilder::rstore(EBX));
-
-                    if(!field->flags.find(STATIC))
-                        errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` must be static to be used in static context");
-                    return resolvedMethod;
-                } else {
-                    errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` is not a function pointer");
-                }
             }
         }
     }
@@ -1649,7 +1713,7 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
     }
 
     ptr.free();
-    freeListPtr(expressions);
+    expressions.free();
     freeListPtr(params);
     return resolvedMethod;
 }
@@ -1691,6 +1755,13 @@ void Compiler::printExpressionCode(Expression &expr) {
     cout << "\n\n\n==== Expression Code ===\n";
     cout << "line " << expr.ast->line << " file " << current->getTokenizer()->file << endl;
     cout << codeToString(expr.utype->getCode());
+    cout << "\n=========\n" << std::flush;
+}
+
+void Compiler::printMethodCode(Method &func, Ast *ast) {
+    cout << "\n\n\n==== Expression Code ===\n";
+    cout << "line " << ast->line << " file " << current->getTokenizer()->file << endl;
+    cout << codeToString(func.data.code, &func.data);
     cout << "\n=========\n" << std::flush;
 }
 
@@ -1748,11 +1819,15 @@ string Compiler::find_class(int64_t id) {
 /*
  * DEBUG: This is a debug function made to allow early testing in compiler code generation
  */
-string Compiler::codeToString(CodeHolder &code) {
-    stringstream ss;
+string Compiler::codeToString(CodeHolder &code, CodeData *data) {
+    stringstream ss, endData;
     for(unsigned int x = 0; x < code.size(); x++) {
         opcode_instr opcodeData=code.ir32.get(x);
         ss << x << ": ";
+
+        if(data != NULL) {
+            // TODO: put code info here
+        }
 
         switch(GET_OP(opcodeData)) {
             case Opcode::ILL:
@@ -2150,9 +2225,9 @@ string Compiler::codeToString(CodeHolder &code) {
                 
                 break;
             }
-            case Opcode::GOTO:
+            case Opcode::JMP:
             {
-                ss<<"goto @" << GET_Da(opcodeData);
+                ss<<"jmp @" << GET_Da(opcodeData);
                 
                 break;
             }
@@ -2695,6 +2770,8 @@ string Compiler::codeToString(CodeHolder &code) {
                 break;
         }
 
+
+        ss << endData.str(); endData.str("");
         ss << "\n";
     }
 
@@ -2746,17 +2823,20 @@ void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, CodeHo
         code.inject(paramUtype->getCode());
         code.addIr(OpBuilder::call(constructor->address));
 
-        code.getInjector(stackInjector).free();
-        code.getInjector(ptrInjector).free();
-        code.getInjector(ebxInjector).free();
-        code.getInjector(getterInjector).free();
+        code.freeInjectors();
         if (constructor->utype->isArray() || constructor->utype->getResolvedType()->type == OBJECT
             || constructor->utype->getResolvedType()->type == CLASS) {
             code.getInjector(ptrInjector)
                     .addIr(OpBuilder::popObject2());
+
+            code.getInjector(removeFromStackInjector)
+                    .addIr(OpBuilder::pop());
         } else if (constructor->utype->getResolvedType()->isVar()) {
             code.getInjector(ebxInjector)
                     .addIr(OpBuilder::loadValue(EBX));
+
+            code.getInjector(removeFromStackInjector)
+                    .addIr(OpBuilder::pop());
         }
     } else {
         errors->createNewError(GENERIC, ast->line,  ast->col, "Support class `" + clazz->toString() + "` does not have constructor for type `"
@@ -2809,6 +2889,8 @@ expression_type Compiler::utypeToExpressionType(Utype *utype) {
             return exp_var;
         else if(utype->getResolvedType()->type == OBJECT)
             return exp_object;
+        else if(utype->getResolvedType()->type == NIL)
+            return exp_nil;
     }
 
     return exp_undefined;
@@ -2835,14 +2917,20 @@ void Compiler::compoundAssignValue(Expression* expr, Token &operand, Expression 
             resultCode->inject(leftExpr.utype->getCode().getInjector(stackInjector));
             pushParametersToStackAndCall(ast, overload, params, *resultCode);
 
-            expr->freeInjectors();
+            expr->utype->getCode().freeInjectors();
             if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
                 || expr->utype->getResolvedType()->type == CLASS) {
                 expr->utype->getCode().getInjector(ptrInjector)
                         .addIr(OpBuilder::popObject2());
+
+                expr->utype->getCode().getInjector(removeFromStackInjector)
+                        .addIr(OpBuilder::pop());
             } else if (expr->utype->getResolvedType()->isVar()) {
                 expr->utype->getCode().getInjector(ebxInjector)
                         .addIr(OpBuilder::loadValue(EBX));
+
+                expr->utype->getCode().getInjector(removeFromStackInjector)
+                        .addIr(OpBuilder::pop());
             }
         } else {
             errors->createNewError(GENERIC, ast->line, ast->col,
@@ -2860,6 +2948,7 @@ void Compiler::compoundAssignValue(Expression* expr, Token &operand, Expression 
                !(currentScope()->currentFunction == field->setter || currentScope()->currentFunction == field->getter))) {
 
             leftExpr.utype->getCode().getInjector(ptrInjector).free();
+            leftExpr.utype->getCode().getInjector(removeFromStackInjector).free();
             leftExpr.utype->getCode().removeIrEnd(leftExpr.utype->getCode().getInjector(getterInjector).ir32.at(0));
 
             if(field->locality == stl_stack) {
@@ -2892,14 +2981,20 @@ void Compiler::compoundAssignValue(Expression* expr, Token &operand, Expression 
                 resultCode->inject(leftExpr.utype->getCode().getInjector(stackInjector));
                 pushParametersToStackAndCall(ast, overload, params, *resultCode);
 
-                expr->freeInjectors();
+                expr->utype->getCode().freeInjectors();
                 if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
                     || expr->utype->getResolvedType()->type == CLASS) {
                     expr->utype->getCode().getInjector(ptrInjector)
                             .addIr(OpBuilder::popObject2());
+
+                    expr->utype->getCode().getInjector(removeFromStackInjector)
+                            .addIr(OpBuilder::pop());
                 } else if (expr->utype->getResolvedType()->isVar()) {
                     expr->utype->getCode().getInjector(ebxInjector)
                             .addIr(OpBuilder::loadValue(EBX));
+
+                    expr->utype->getCode().getInjector(removeFromStackInjector)
+                            .addIr(OpBuilder::pop());
                 }
             } else {
                 errors->createNewError(GENERIC, ast->line, ast->col,
@@ -3103,11 +3198,41 @@ void Compiler::compoundAssignValue(Expression* expr, Token &operand, Expression 
 
 void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast) {
     CodeHolder *resultCode = &expr->utype->getCode();
+    Literal fieldLiteral;
 
     Literal *leftLiteral = leftExpr.utype->getType() == utype_literal ?
                             (Literal*)leftExpr.utype->getResolvedType() : NULL;
+    if(leftLiteral == NULL && leftExpr.utype->getType() == utype_field && isFieldInlined((Field*)leftExpr.utype->getResolvedType())) {
+        Field *field = (Field*)leftExpr.utype->getResolvedType();
+        if(field->isVar()) {
+            fieldLiteral.literalType = numeric_literal;
+            fieldLiteral.numericData = getInlinedFieldValue(field);
+        }
+        else {
+            fieldLiteral.literalType = string_literal;
+            fieldLiteral.stringData = stringMap.get(getInlinedStringFieldAddress(field));
+            fieldLiteral.address = getInlinedStringFieldAddress(field);
+        }
+
+        leftLiteral = &fieldLiteral;
+    }
+
     Literal *rightLiteral = rightExpr.utype->getType() == utype_literal ?
                             (Literal*)rightExpr.utype->getResolvedType() : NULL;
+    if(rightLiteral == NULL && rightExpr.utype->getType() == utype_field && isFieldInlined((Field*)rightExpr.utype->getResolvedType())) {
+        Field *field = (Field*)rightExpr.utype->getResolvedType();
+        if(field->isVar()) {
+            fieldLiteral.literalType = numeric_literal;
+            fieldLiteral.numericData = getInlinedFieldValue(field);
+        }
+        else {
+            fieldLiteral.literalType = string_literal;
+            fieldLiteral.stringData = stringMap.get(getInlinedStringFieldAddress(field));
+            fieldLiteral.address = getInlinedStringFieldAddress(field);
+        }
+
+        rightLiteral = &fieldLiteral;
+    }
 
     if(leftLiteral != NULL) {
 
@@ -3237,14 +3362,20 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
 
                         pushParametersToStackAndCall(ast, overload, params, *resultCode);
 
-                        expr->freeInjectors();
+                        expr->utype->getCode().freeInjectors();
                         if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
                             || expr->utype->getResolvedType()->type == CLASS) {
                             expr->utype->getCode().getInjector(ptrInjector)
                                     .addIr(OpBuilder::popObject2());
+
+                            expr->utype->getCode().getInjector(removeFromStackInjector)
+                                    .addIr(OpBuilder::pop());
                         } else if (expr->utype->getResolvedType()->isVar()) {
                             expr->utype->getCode().getInjector(ebxInjector)
                                     .addIr(OpBuilder::loadValue(EBX));
+
+                            expr->utype->getCode().getInjector(removeFromStackInjector)
+                                    .addIr(OpBuilder::pop());
                         }
                     } else {
                         errors->createNewError(GENERIC, ast->line, ast->col,
@@ -3420,14 +3551,20 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
             resultCode->inject(leftExpr.utype->getCode().getInjector(stackInjector));
             pushParametersToStackAndCall(ast, overload, params, *resultCode);
 
-            expr->freeInjectors();
+            expr->utype->getCode().freeInjectors();
             if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
                 || expr->utype->getResolvedType()->type == CLASS) {
                 expr->utype->getCode().getInjector(ptrInjector)
                         .addIr(OpBuilder::popObject2());
+
+                expr->utype->getCode().getInjector(removeFromStackInjector)
+                        .addIr(OpBuilder::pop());
             } else if (expr->utype->getResolvedType()->isVar()) {
                 expr->utype->getCode().getInjector(ebxInjector)
                         .addIr(OpBuilder::loadValue(EBX));
+
+                expr->utype->getCode().getInjector(removeFromStackInjector)
+                        .addIr(OpBuilder::pop());
             }
         } else {
             if(operand == "==" || operand == "!=") {
@@ -3495,7 +3632,7 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
 
                 pushParametersToStackAndCall(ast, field->setter, params, *resultCode);
 
-                expr->freeInjectors();
+                expr->utype->getCode().freeInjectors();
                 expr->utype->copy(field->setter->utype);
             } else {
                 errors->createNewError(GENERIC, ast->line, ast->col,
@@ -3509,6 +3646,7 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                 !(currentScope()->currentFunction == field->setter || currentScope()->currentFunction == field->getter))) {
 
                 leftExpr.utype->getCode().getInjector(ptrInjector).free();
+                leftExpr.utype->getCode().getInjector(removeFromStackInjector).free();
                 leftExpr.utype->getCode().removeIrEnd(leftExpr.utype->getCode().getInjector(getterInjector).ir32.at(0));
 
                 if(field->locality == stl_stack) {
@@ -3560,7 +3698,27 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                         if (integerField)
                             dataTypeToOpcode(field->type, EBX, EBX, *resultCode);
 
-                        resultCode->addIr(OpBuilder::smovr2(EBX, field->address));
+                        if(field->locality == stl_thread) {
+                            resultCode->addIr(OpBuilder::tlsMovl(field->address))
+                                    .addIr(OpBuilder::movi(0, ADX))
+                                    .addIr(OpBuilder::rmov(ADX, EBX));
+
+                            resultCode->getInjector(stackInjector).free();
+                            resultCode->getInjector(ebxInjector)
+                                    .addIr(OpBuilder::tlsMovl(field->address))
+                                    .addIr(OpBuilder::movi(0, ADX))
+                                    .addIr(OpBuilder::checklen(ADX))
+                                    .addIr(OpBuilder::iaload(EBX, ADX));
+
+                            resultCode->getInjector(stackInjector)
+                                    .addIr(OpBuilder::tlsMovl(field->address))
+                                    .addIr(OpBuilder::movi(0, ADX))
+                                    .addIr(OpBuilder::checklen(ADX))
+                                    .addIr(OpBuilder::iaload(EBX, ADX))
+                                    .addIr(OpBuilder::rstore(EBX));
+
+                        } else
+                            resultCode->addIr(OpBuilder::smovr2(EBX, field->address));
                         return;
                     } else {
                         resultCode->inject(rightExpr.utype->getCode().getInjector(stackInjector));
@@ -3595,12 +3753,24 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                     if (field->local) {
                         resultCode->inject(rightExpr.utype->getCode());
                         resultCode->inject(rightExpr.utype->getCode().getInjector(ptrInjector));
-                        resultCode->addIr(OpBuilder::smovr3(field->address));
 
-                        expr->utype->getCode().getInjector(stackInjector)
-                                .addIr(OpBuilder::pushl(field->address));
-                        expr->utype->getCode().getInjector(ptrInjector)
-                                .addIr(OpBuilder::movl(field->address));
+                        if(field->locality == stl_thread) {
+                            resultCode->addIr(OpBuilder::tlsMovl(field->address))
+                                    .addIr(OpBuilder::popObject());
+
+                            expr->utype->getCode().getInjector(stackInjector)
+                                    .addIr(OpBuilder::tlsMovl(field->address))
+                                    .addIr(OpBuilder::pushObject());
+                            expr->utype->getCode().getInjector(ptrInjector)
+                                    .addIr(OpBuilder::tlsMovl(field->address));
+                        } else {
+                            resultCode->addIr(OpBuilder::smovr3(field->address));
+
+                            expr->utype->getCode().getInjector(stackInjector)
+                                    .addIr(OpBuilder::pushl(field->address));
+                            expr->utype->getCode().getInjector(ptrInjector)
+                                    .addIr(OpBuilder::movl(field->address));
+                        }
                         return;
                     } else {
                         if(rightExpr.utype->isNullType()) {
@@ -3642,14 +3812,20 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                     resultCode->inject(leftExpr.utype->getCode().getInjector(stackInjector));
                     pushParametersToStackAndCall(ast, overload, params, *resultCode);
 
-                    expr->freeInjectors();
+                    expr->utype->getCode().freeInjectors();
                     if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
                         || expr->utype->getResolvedType()->type == CLASS) {
                         expr->utype->getCode().getInjector(ptrInjector)
                                 .addIr(OpBuilder::popObject2());
+
+                        expr->utype->getCode().getInjector(removeFromStackInjector)
+                                .addIr(OpBuilder::pop());
                     } else if (expr->utype->getResolvedType()->isVar()) {
                         expr->utype->getCode().getInjector(ebxInjector)
                                 .addIr(OpBuilder::loadValue(EBX));
+
+                        expr->utype->getCode().getInjector(removeFromStackInjector)
+                                .addIr(OpBuilder::pop());
                     }
                 } else {
                     errors->createNewError(GENERIC, ast->line, ast->col,
@@ -3703,14 +3879,20 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                 resultCode->inject(leftExpr.utype->getCode().getInjector(stackInjector));
                 pushParametersToStackAndCall(ast, overload, params, *resultCode);
 
-                expr->freeInjectors();
+                expr->utype->getCode().freeInjectors();
                 if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
                     || expr->utype->getResolvedType()->type == CLASS) {
                     expr->utype->getCode().getInjector(ptrInjector)
                             .addIr(OpBuilder::popObject2());
+
+                    expr->utype->getCode().getInjector(removeFromStackInjector)
+                            .addIr(OpBuilder::pop());
                 } else if (expr->utype->getResolvedType()->isVar()) {
                     expr->utype->getCode().getInjector(ebxInjector)
                             .addIr(OpBuilder::loadValue(EBX));
+
+                    expr->utype->getCode().getInjector(removeFromStackInjector)
+                            .addIr(OpBuilder::pop());
                 }
             } else {
 
@@ -3874,12 +4056,16 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
             }
         }
 
+        expr->utype->getCode().getInjector(removeFromStackInjector)
+                .addIr(OpBuilder::pop());
         expr->utype->getCode().getInjector(ptrInjector)
                 .addIr(OpBuilder::popObject2());
     } else {
         expr->utype->getCode()
                 .addIr(OpBuilder::pushNull());
 
+        expr->utype->getCode().getInjector(removeFromStackInjector)
+                .addIr(OpBuilder::pop());
         expr->utype->getCode().getInjector(ptrInjector)
                 .addIr(OpBuilder::popObject2());
 
@@ -3909,6 +4095,9 @@ void Compiler::compileNewArrayExpression(Expression *expr, Ast *ast, Utype *arra
         expr->utype->getCode().addIr(OpBuilder::newClassArray(EBX, expr->utype->getClass()->address));
     else if(expr->type == exp_object)
         expr->utype->getCode().addIr(OpBuilder::newObjectArray(EBX));
+
+    expr->utype->getCode().getInjector(removeFromStackInjector)
+            .addIr(OpBuilder::pop());
 }
 
 // used for assigning native vars with size constraints
@@ -4110,10 +4299,10 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
                 expr->utype->getCode().addIr(OpBuilder::call(constr->address));
 
                 expr->utype->getCode().getInjector(ptrInjector)
-                        .addIr(OpBuilder::popObject2());
+                        .addIr(OpBuilder::movsl(1));
             }
 
-            freeListPtr(expressions);
+            expressions.free();
             freeListPtr(params);
         } else if(arrayType->getType() == utype_field)
             errors->createNewError(GENERIC, ast->line, ast->col, "field `" + arrayType->toString() + "` cannot be used for instantiation.");
@@ -4184,6 +4373,8 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
             if(ast->getSubAstCount() > 2)
                 compilePostAstExpressions(expr, ast, 2);
             else {
+                expr->utype->getCode().getInjector(removeFromStackInjector)
+                        .addIr(OpBuilder::pop());
                 expr->utype->getCode().getInjector(ptrInjector)
                         .addIr(OpBuilder::popObject2());
             }
@@ -4271,7 +4462,7 @@ void Compiler::compileSelfExpression(Expression* expr, Ast* ast) {
 void Compiler::compileDotNotationCall(Expression* expr, Ast* ast) {
 
     expr->ast = ast;
-    expr->freeInjectors();
+    expr->utype->getCode().freeInjectors();
     if(ast->hasSubAst(ast_dot_fn_e)) {
         Ast* branch = ast->getSubAst(ast_dot_fn_e);
         RETAIN_REQUIRED_SIGNATURE(NULL)
@@ -4288,16 +4479,22 @@ void Compiler::compileDotNotationCall(Expression* expr, Ast* ast) {
                 || method->utype->getResolvedType()->type == CLASS) {
                 expr->utype->getCode().getInjector(ptrInjector)
                         .addIr(OpBuilder::popObject2());
+
+                expr->utype->getCode().getInjector(removeFromStackInjector)
+                        .addIr(OpBuilder::pop());
             } else if (method->utype->getResolvedType()->isVar()) {
                 expr->utype->getCode().getInjector(ebxInjector)
                         .addIr(OpBuilder::loadValue(EBX));
+
+                expr->utype->getCode().getInjector(removeFromStackInjector)
+                        .addIr(OpBuilder::pop());
             }
 
         }
     } else {
         Utype *utype = compileUtype(ast->getSubAst(ast_utype), expr->utype->getCode().instanceCaptured);
         expr->utype->copy(utype);
-        expr->copyInjectors(utype);
+        expr->utype->getCode().copyInjectors(utype->getCode());
         expr->utype->getCode().inject(utype->getCode());
 
         expr->type = utypeToExpressionType(expr->utype);
@@ -4313,7 +4510,6 @@ void Compiler::compileDotNotationCall(Expression* expr, Ast* ast) {
 void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startPos) {
 
     expr->utype->getCode().instanceCaptured = true;
-    RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
     RETAIN_SCOPE_CLASS(expr->utype->getClass() != NULL ? expr->utype->getClass() : currentScope()->klass)
     if(ast->getSubAstCount() > 1) {
         for(long i = startPos; i < ast->getSubAstCount(); i++) {
@@ -4323,6 +4519,8 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
                 compileCastExpression(expr, false, ast->getSubAst(i));
             else if(ast->getSubAst(i)->getType() == ast_dot_not_e || ast->getSubAst(i)->getType() == ast_dotnotation_call_expr) {
                 if(expr->utype->getClass()) {
+
+                    RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
                     Ast *astToCompile = ast->getSubAst(i)->getType() == ast_dot_not_e ? ast->getSubAst(i)->getSubAst(0)
                                                                                       : ast->getSubAst(i);
                     Expression bridgeExpr;
@@ -4332,7 +4530,8 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
 
                     expr->copy(&bridgeExpr);
                     expr->utype->getCode().inject(bridgeExpr.utype->getCode());
-                    expr->copyInjectors(bridgeExpr.utype);
+                    expr->utype->getCode().copyInjectors(bridgeExpr.utype->getCode());
+                    RESTORE_BLOCK_TYPE()
                 } else
                     errors->createNewError(GENERIC, ast->getSubAst(i)->line, ast->getSubAst(i)->col, "expression of type `" + expr->utype->toString()
                                                                                                      + "` must resolve as a class");
@@ -4345,7 +4544,6 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
         }
     }
     RESTORE_SCOPE_CLASS()
-    RESTORE_BLOCK_TYPE()
 }
 
 void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression *outExpr) {
@@ -4369,7 +4567,7 @@ void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression 
                             dataTypeToOpcode(utype->getResolvedType()->type, EBX, EBX, outExpr->utype->getCode());
                         }
 
-                        outExpr->freeInjectors();
+                        outExpr->utype->getCode().freeInjectors();
                         outExpr->utype->getCode().getInjector(stackInjector)
                                 .addIr(OpBuilder::rstore(EBX));
                     } else goto castErr;
@@ -4391,7 +4589,7 @@ void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression 
                             dataTypeToOpcode(utype->getResolvedType()->type, EBX, EBX, outExpr->utype->getCode());
                         }
 
-                        outExpr->freeInjectors();
+                        outExpr->utype->getCode().freeInjectors();
                         outExpr->utype->getCode().getInjector(stackInjector)
                                 .addIr(OpBuilder::rstore(EBX));
                     } else goto castErr;
@@ -4402,7 +4600,7 @@ void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression 
                     outExpr->utype->getCode()
                             .addIr(OpBuilder::varCast(1, true));
 
-                    outExpr->freeInjectors();
+                    outExpr->utype->getCode().freeInjectors();
                     outExpr->utype->getCode().getInjector(stackInjector)
                             .addIr(OpBuilder::pushObject());
                 } else goto castErr;
@@ -4420,7 +4618,7 @@ void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression 
                             }
                         }
 
-                        outExpr->freeInjectors();
+                        outExpr->utype->getCode().freeInjectors();
                         outExpr->utype->getCode().getInjector(stackInjector)
                                 .addIr(OpBuilder::rstore(EBX));
                     } else if (utype->equals(castExpr->utype)) {
@@ -4433,11 +4631,8 @@ void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression 
             if(!utype->isRelated(castExpr->utype))
                 goto castErr;
 
-            outExpr->freeInjectors();
-            outExpr->utype->getCode().getInjector(stackInjector)
-                    .inject(castExpr->utype->getCode().getInjector(stackInjector));
-            outExpr->utype->getCode().getInjector(ptrInjector)
-                    .inject(castExpr->utype->getCode().getInjector(ptrInjector));
+            outExpr->utype->getCode().freeInjectors();
+            outExpr->utype->getCode().copyInjectors(castExpr->utype->getCode());
         } else goto castErr; // should never happen but we need to make sure
     } else {
         castErr:
@@ -4456,13 +4651,13 @@ void Compiler::compileFnPtrCast(Utype *utype, Expression *castExpr, Expression *
                 if(!utype->isArray()) {
                     outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ebxInjector));
 
-                    outExpr->freeInjectors();
+                    outExpr->utype->getCode().freeInjectors();
                     outExpr->utype->getCode().getInjector(stackInjector)
                             .addIr(OpBuilder::rstore(EBX));
                 } else {
                     outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ptrInjector));
 
-                    outExpr->freeInjectors();
+                    outExpr->utype->getCode().freeInjectors();
                     outExpr->utype->getCode().getInjector(stackInjector)
                             .addIr(OpBuilder::pushObject());
                 }
@@ -4484,11 +4679,8 @@ void Compiler::compileClassCast(Utype *utype, Expression *castExpr, Expression *
                                + "` to `" + utype->toString() + "`");
                 }
 
-                outExpr->freeInjectors();
-                outExpr->utype->getCode().getInjector(stackInjector)
-                        .inject(castExpr->utype->getCode().getInjector(stackInjector));
-                outExpr->utype->getCode().getInjector(ptrInjector)
-                        .inject(castExpr->utype->getCode().getInjector(ptrInjector));
+                outExpr->utype->getCode().freeInjectors();
+                outExpr->utype->getCode().copyInjectors(castExpr->utype->getCode());
                 // we only assume its good if were casting downstream
                 // any other casts need to be check explicitly by the VM at runtime
                 // I.E. (_object_)new int(100)
@@ -4501,7 +4693,7 @@ void Compiler::compileClassCast(Utype *utype, Expression *castExpr, Expression *
                         .addIr(OpBuilder::movi(utype->getClass()->address, CMT))
                         .addIr(OpBuilder::cast(CMT));
 
-                outExpr->freeInjectors();
+                outExpr->utype->getCode().freeInjectors();
                 outExpr->utype->getCode().getInjector(stackInjector)
                         .addIr(OpBuilder::pushObject());
             }
@@ -4514,7 +4706,7 @@ void Compiler::compileClassCast(Utype *utype, Expression *castExpr, Expression *
                 .addIr(OpBuilder::movi(utype->getClass()->address, CMT))
                 .addIr(OpBuilder::cast(CMT));
 
-        outExpr->freeInjectors();
+        outExpr->utype->getCode().freeInjectors();
         outExpr->utype->getCode().getInjector(stackInjector)
                 .addIr(OpBuilder::pushObject());
     } else if(isUtypeConvertableToNativeClass(utype, castExpr->utype)) {
@@ -4550,7 +4742,7 @@ void Compiler::compileCastExpression(Expression *expr, bool compileExpr, Ast *as
         castExpr.type = utypeToExpressionType(expr->utype);
 
         // we need to transfer the left side of the expression to the castExpression
-        castExpr.copyInjectors(expr->utype);
+        castExpr.utype->getCode().copyInjectors(expr->utype->getCode());
         castExpr.utype->getCode().inject(expr->utype->getCode());
         expr->utype->getCode().free();
     }
@@ -4591,7 +4783,7 @@ void Compiler::compileArrayExpression(Expression* expr, Ast* ast) {
                     .addIr(OpBuilder::checklen(ADX))
                     .addIr(OpBuilder::movnd(ADX));
 
-            expr->freeInjectors();
+            expr->utype->getCode().freeInjectors();
             if(expr->utype->getResolvedType()->isVar()) {
                 expr->utype->getCode().getInjector(ebxInjector)
                         .addIr(OpBuilder::movi(0, ADX))
@@ -4653,7 +4845,7 @@ void Compiler::compileMinusExpression(Expression* expr, Ast* ast) {
                 expr->utype->getCode().inject(expr->utype->getCode().getInjector(ebxInjector));
                 expr->utype->getCode().addIr(OpBuilder::neg(EBX, EBX));
 
-                expr->freeInjectors();
+                expr->utype->getCode().freeInjectors();
                 expr->utype->getCode().getInjector(stackInjector)
                         .addIr(OpBuilder::rstore(EBX));
                 break;
@@ -4669,14 +4861,18 @@ void Compiler::compileMinusExpression(Expression* expr, Ast* ast) {
                     expr->utype->getCode().inject(stackInjector);
                     expr->utype->getCode().addIr(OpBuilder::call(overload->address));
 
-                    expr->freeInjectors();
+                    expr->utype->getCode().freeInjectors();
                     if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
                         || expr->utype->getResolvedType()->type == CLASS) {
                         expr->utype->getCode().getInjector(ptrInjector)
                                 .addIr(OpBuilder::popObject2());
+                        expr->utype->getCode().getInjector(removeFromStackInjector)
+                                .addIr(OpBuilder::pop());
                     } else if (expr->utype->getResolvedType()->isVar()) {
                         expr->utype->getCode().getInjector(ebxInjector)
                                 .addIr(OpBuilder::loadValue(EBX));
+                        expr->utype->getCode().getInjector(removeFromStackInjector)
+                                .addIr(OpBuilder::pop());
                     }
                 } else {
                     errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "use  of operator `" + tok.getValue() + "` does not have any qualified use with class `" + expr->utype->toString() + "`");
@@ -4726,7 +4922,7 @@ void Compiler::compileNotExpression(Expression* expr, Ast* ast) {
                 expr->utype->getCode().inject(expr->utype->getCode().getInjector(ebxInjector));
                 expr->utype->getCode().addIr(OpBuilder::_not(EBX, EBX));
 
-                expr->freeInjectors();
+                expr->utype->getCode().freeInjectors();
                 expr->utype->getCode().getInjector(stackInjector)
                         .addIr(OpBuilder::rstore(EBX));
                 break;
@@ -4742,14 +4938,20 @@ void Compiler::compileNotExpression(Expression* expr, Ast* ast) {
                     expr->utype->getCode().inject(stackInjector);
                     expr->utype->getCode().addIr(OpBuilder::call(overload->address));
 
-                    expr->freeInjectors();
+                    expr->utype->getCode().freeInjectors();
                     if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
                         || expr->utype->getResolvedType()->type == CLASS) {
                         expr->utype->getCode().getInjector(ptrInjector)
                                 .addIr(OpBuilder::popObject2());
+
+                        expr->utype->getCode().getInjector(removeFromStackInjector)
+                                .addIr(OpBuilder::pop());
                     } else if (expr->utype->getResolvedType()->isVar()) {
                         expr->utype->getCode().getInjector(ebxInjector)
                                 .addIr(OpBuilder::loadValue(EBX));
+
+                        expr->utype->getCode().getInjector(removeFromStackInjector)
+                                .addIr(OpBuilder::pop());
                     }
                 } else {
                     errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "call to function `" + expr->utype->toString() + "` must return an var or class to use `" + tok.getValue() + "` operator");
@@ -4822,7 +5024,7 @@ void Compiler::compilePreIncExpression(Expression* expr, Ast* ast) {
                     }
                 }
 
-                expr->freeInjectors();
+                expr->utype->getCode().freeInjectors();
                 expr->utype->getCode().getInjector(stackInjector)
                         .addIr(OpBuilder::rstore(EBX));
                 break;
@@ -4838,14 +5040,20 @@ void Compiler::compilePreIncExpression(Expression* expr, Ast* ast) {
                     expr->utype->getCode().inject(stackInjector);
                     expr->utype->getCode().addIr(OpBuilder::call(overload->address));
 
-                    expr->freeInjectors();
+                    expr->utype->getCode().freeInjectors();
                     if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
                         || expr->utype->getResolvedType()->type == CLASS) {
                         expr->utype->getCode().getInjector(ptrInjector)
                                 .addIr(OpBuilder::popObject2());
+
+                        expr->utype->getCode().getInjector(removeFromStackInjector)
+                                .addIr(OpBuilder::pop());
                     } else if (expr->utype->getResolvedType()->isVar()) {
                         expr->utype->getCode().getInjector(ebxInjector)
                                 .addIr(OpBuilder::loadValue(EBX));
+
+                        expr->utype->getCode().getInjector(removeFromStackInjector)
+                                .addIr(OpBuilder::pop());
                     }
                 } else {
                     errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "call to function `" + overload->toString() + "` must return an var or class to use `" + tok.getValue() + "` operator");
@@ -4930,7 +5138,7 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
                     }
                 }
 
-                expr->freeInjectors();
+                expr->utype->getCode().freeInjectors();
                 expr->utype->getCode().getInjector(stackInjector)
                         .addIr(OpBuilder::rstore(EBX));
                 break;
@@ -4946,14 +5154,20 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
                     expr->utype->getCode().inject(stackInjector);
                     pushParametersToStackAndCall(ast, overload, params, expr->utype->getCode());
 
-                    expr->freeInjectors();
+                    expr->utype->getCode().freeInjectors();
                     if (expr->utype->isArray() || expr->utype->getResolvedType()->type == OBJECT
                         || expr->utype->getResolvedType()->type == CLASS) {
                         expr->utype->getCode().getInjector(ptrInjector)
                                 .addIr(OpBuilder::popObject2());
+
+                        expr->utype->getCode().getInjector(removeFromStackInjector)
+                                .addIr(OpBuilder::pop());
                     } else if (expr->utype->getResolvedType()->isVar()) {
                         expr->utype->getCode().getInjector(ebxInjector)
                                 .addIr(OpBuilder::loadValue(EBX));
+
+                        expr->utype->getCode().getInjector(removeFromStackInjector)
+                                .addIr(OpBuilder::pop());
                     }
                 } else {
                     errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "class expression `" + expr->utype->toString() + "` must overload operator `" + tok.getValue() + "` to be used");
@@ -5292,7 +5506,7 @@ void Compiler::findConflicts(Ast *ast, string type, string &name) {
     }
 }
 
-void Compiler::compileVarDecl(Ast* ast) {
+void Compiler::compileVariableDecl(Ast* ast) {
     string name = ast->getToken(0).getValue();
     Token tmp(name, IDENTIFIER, 0, 0);
     if(parser::isStorageType(tmp)) {
@@ -5300,10 +5514,33 @@ void Compiler::compileVarDecl(Ast* ast) {
     }
 
     Field *field = currentScope()->klass->getField(name, false);
+    assignFieldExpressionValue(field, ast);
+
+    if(ast->hasSubAst(ast_variable_decl)) {
+        long startAst = 0;
+        for(long i = 0; i < ast->getSubAstCount(); i++) {
+            if(ast->getSubAst(i)->getType() == ast_variable_decl)
+            {
+                startAst = i;
+                break;
+            }
+        }
+
+        for(long i = startAst; i < ast->getSubAstCount(); i++) {
+            Ast *branch = ast->getSubAst(i);
+
+            name = branch->getToken(0).getValue();
+            Field *xtraField = currentScope()->klass->getField(name, false);
+            assignFieldExpressionValue(xtraField, branch);
+        }
+    }
+}
+
+void Compiler::assignFieldExpressionValue(Field *field, Ast *ast) {
     if(field->type <= CLASS && !isFieldInlined(field)) {
 
         if(ast->hasSubAst(ast_expression)) {
-            RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
+            RETAIN_BLOCK_TYPE(field->local ? INSTANCE_BLOCK : RESTRICTED_INSTANCE_BLOCK)
             RETAIN_TYPE_INFERENCE(true)
 
             Token operand("=", SINGLE, ast->col, ast->line, EQUALS);
@@ -5312,7 +5549,7 @@ void Compiler::compileVarDecl(Ast* ast) {
             resultExpr.ast = ast;
             leftExpr.ast = ast;
 
-            fieldReference.classes.add(name);
+            fieldReference.classes.add(field->name);
             resolveUtype(fieldReference, leftExpr.utype, ast);
 
             leftExpr.type = utypeToExpressionType(leftExpr.utype);
@@ -5320,23 +5557,38 @@ void Compiler::compileVarDecl(Ast* ast) {
 
             assignValue(&resultExpr, operand, leftExpr, rightExpr, ast, false);
 
-            cout << ast->toString() << endl;
-            printExpressionCode(resultExpr);
-            if(field->flags.find(STATIC)) {
-                staticMainInserts.inject(resultExpr.utype->getCode());
+            if(field->local) {
+                currentScope()->currentFunction->data.code.inject(resultExpr.utype->getCode());
             } else {
-                List<Method*> constructors;
-                currentScope()->klass->getAllFunctionsByType(fn_constructor, constructors);
-                for(uInt i = 0; i < constructors.size(); i++) {
-                    constructors.get(i)->data.code.inject(resultExpr.utype->getCode());
-                }
+                if (field->flags.find(STATIC)) {
+                    staticMainInserts.inject(resultExpr.utype->getCode());
+                } else {
+                    List<Method *> constructors;
+                    currentScope()->klass->getAllFunctionsByType(fn_constructor, constructors);
+                    for (uInt i = 0; i < constructors.size(); i++) {
+                        constructors.get(i)->data.code.inject(resultExpr.utype->getCode());
+                    }
 
-                constructors.free();
+                    constructors.free();
+                }
             }
 
             RESTORE_TYPE_INFERENCE()
             RESTORE_BLOCK_TYPE()
+        } else if(field->local) {
+            initializeLocalVariable(field);
         }
+    }
+}
+
+void Compiler::initializeLocalVariable(Field *field) {
+    if(field->isVar() && !field->isArray) {
+        currentScope()->currentFunction->data.code
+                .addIr(OpBuilder::istorel(field->address, 0));
+    } else {
+        currentScope()->currentFunction->data.code
+                .addIr(OpBuilder::movl(field->address))
+                .addIr(OpBuilder::del());
     }
 }
 
@@ -5416,7 +5668,7 @@ void Compiler::resolveField(Ast* ast) {
                     xtraField->address = xtraField->owner->getFieldAddress(xtraField);
 
                 if(xtraField->type == UNTYPED) {
-                    resolveFieldType(xtraField, field->utype, ast);
+                    resolveFieldType(xtraField, field->utype, branch);
                 }
             }
         }
@@ -5673,6 +5925,7 @@ void Compiler::validateMethodParams(List<Field*>& params, Ast* ast) {
         if(containsParam(params, params.get(i)->name)) {
             errors->createNewError(SYMBOL_ALREADY_DEFINED, ast->line, ast->col, "param `" + params.get(i)->toString() + "` already defined in the scope");
         } else {
+            params.get(i)->address = i;
             if(params.get(i)->name == "" && ast->getType() == ast_utype_arg_list_opt) {
                 stringstream ss;
                 ss << "arg" << i;
@@ -6086,7 +6339,6 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
 
 void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
     Ast* block = ast->getLastSubAst();
-    List<AccessFlag> flags;
 
     if(currentClass == NULL) {
         string name = ast->getToken(0).getValue();
@@ -6134,43 +6386,12 @@ void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
     }
 }
 
-string Compiler::accessFlagsToStr(List<AccessFlag> &flags) {
+string Compiler::accessFlagsToString(List<AccessFlag> &flags) {
     stringstream ss;
     ss << "{ ";
 
     for(long i = 0; i < flags.size(); i++) {
-        switch(flags.get(i)) {
-            case PUBLIC:
-                ss << "PUBLIC";
-                break;
-            case PRIVATE:
-                ss << "PRIVATE";
-                break;
-            case PROTECTED:
-                ss << "PROTECTED";
-                break;
-            case LOCAL:
-                ss << "LOCAL";
-                break;
-            case flg_CONST:
-                ss << "CONST";
-                break;
-            case STATIC:
-                ss << "STATIC";
-                break;
-            case STABLE :
-                ss << "STABLE";
-                break;
-            case UNSTABLE :
-                ss << "UNSTABLE";
-                break;
-            case EXTENSION:
-                ss << "EXTENSION";
-                break;
-            case flg_UNDEFINED:
-                ss << "UNDEFINED";
-                break;
-        }
+        ss << accessFlagToString(flags.get(i));
 
         if((i + 1) < flags.size())
             ss << ", ";
@@ -6178,6 +6399,33 @@ string Compiler::accessFlagsToStr(List<AccessFlag> &flags) {
 
     ss << " }";
     return ss.str();
+}
+
+string Compiler::accessFlagToString(AccessFlag flag) {
+    switch(flag) {
+        case PUBLIC:
+            return "PUBLIC";
+        case PRIVATE:
+            return "PRIVATE";
+        case PROTECTED:
+            return "PROTECTED";
+        case LOCAL:
+            return "LOCAL";
+        case flg_CONST:
+            return "CONST";
+        case STATIC:
+            return "STATIC";
+        case STABLE :
+            return "STABLE";
+        case UNSTABLE :
+            return "UNSTABLE";
+        case EXTENSION:
+            return "EXTENSION";
+        case flg_UNDEFINED:
+            return "UNDEFINED";
+    }
+
+    return "UNDEFINED";
 }
 
 /**
@@ -6254,8 +6502,8 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
 
             if(!(contract->flags.size() == sub->flags.size() && contract->flags.sameElements(sub->flags))) {
                 stringstream err;
-                err << "method `" << sub->toString() << "` provided " + accessFlagsToStr(sub->flags) + " different access privileges than contract method '"
-                    << contract->toString() << "' provided " + accessFlagsToStr(contract->flags);
+                err << "method `" << sub->toString() << "` provided " + accessFlagsToString(sub->flags) + " different access privileges than contract method '"
+                    << contract->toString() << "' provided " + accessFlagsToString(contract->flags);
                 errors->createNewError(GENERIC, ast->line, ast->col, err.str());
                 printNote(contract->meta, "as defined here");
             }
@@ -6413,6 +6661,20 @@ void Compiler::compileClassMutateFields(Ast *ast) {
             // do nothing it's allready been processed
         } else {
             compileClassFields(ast, currentClass);
+        }
+    }
+}
+
+void Compiler::compileClassMutateInitDecls(Ast *ast) {
+    ReferencePointer ptr;
+    compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
+    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
+
+    if(currentClass != NULL) {
+        if (IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
+            // do nothing it's allready been processed
+        } else {
+            compileClassInitDecls(ast, currentClass);
         }
     }
 }
@@ -6590,6 +6852,11 @@ bool Compiler::isFieldInlined(Field* field) {
             return true;
     }
 
+    for(unsigned int i = 0; i < inlinedStringFields.size(); i++) {
+        if(inlinedStringFields.get(i).key == field)
+            return true;
+    }
+
     return false;
 }
 
@@ -6600,6 +6867,15 @@ double Compiler::getInlinedFieldValue(Field* field) {
     }
 
     return 0;
+}
+
+Int Compiler::getInlinedStringFieldAddress(Field* field) {
+    for(unsigned int i = 0; i < inlinedStringFields.size(); i++) {
+        if(inlinedStringFields.get(i).key==field)
+            return inlinedStringFields.get(i).value;
+    }
+
+    return invalidAddr;
 }
 
 bool Compiler::isDClassNumberEncodable(double var) {
@@ -6626,21 +6902,31 @@ int64_t Compiler::getLowBytes(double var) {
 }
 
 void Compiler::inlineVariableValue(CodeHolder &code, Field *field) {
-    double value = getInlinedFieldValue(field);
-    code.free();
+    if(field->isVar() && !field->isArray) {
+        double value = getInlinedFieldValue(field);
+        code.free();
 
-    if(isWholeNumber(value)) {
-        if(value > INT32_MAX) {
-            code.addIr(OpBuilder::ldc(EBX, constantIntMap.indexof(value)));
-        } else
-            code.addIr(OpBuilder::movi(value, EBX));
-    }
-    else {
-        code.addIr(OpBuilder::movf(EBX, floatingPointMap.indexof(value)));
-    }
+        if (isWholeNumber(value)) {
+            if (value > INT32_MAX) {
+                code.addIr(OpBuilder::ldc(EBX, constantIntMap.indexof(value)));
+            } else
+                code.addIr(OpBuilder::movi(value, EBX));
+        } else {
+            code.addIr(OpBuilder::movf(EBX, floatingPointMap.indexof(value)));
+        }
 
-    code.getInjector(stackInjector)
-            .addIr(OpBuilder::rstore(EBX));
+        code.getInjector(stackInjector)
+                .addIr(OpBuilder::rstore(EBX));
+    } else {
+        code.free();
+
+        code.addIr(OpBuilder::newString(getInlinedStringFieldAddress(field)));
+
+        code.getInjector(ptrInjector)
+                .addIr(OpBuilder::popObject2());
+        code.getInjector(removeFromStackInjector)
+                .addIr(OpBuilder::pop());
+    }
 }
 
 Field *Compiler::resolveEnum(string name) {
@@ -6725,52 +7011,56 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
     if(ptr.mod != "")
         goto globalCheck;
 
-    if(currentScope()->type >= INSTANCE_BLOCK && currentScope()->getLocalField(name) != NULL) {
-        Field* field = currentScope()->getLocalField(name);
+    if(currentScope()->type >= INSTANCE_BLOCK && currentScope()->currentFunction != NULL
+        && currentScope()->currentFunction->data.getLocalFieldHereOrHigher(name, currentScope()->scopeLevel) != NULL) {
+        Field* field = currentScope()->currentFunction->data.getLocalFieldHereOrHigher(name, currentScope()->scopeLevel);
 
         utype->setType(utype_field);
         utype->setResolvedType(field);
         utype->setArrayType(field->isArray);
         utype->getCode().instanceCaptured = true;
 
-        if(field->isVar()) {
-            if(field->isArray || field->locality == stl_thread) {
-                if(field->locality == stl_thread) {
-                    utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
+        if(field->getter == NULL && isFieldInlined(field)) {
+            inlineVariableValue(utype->getCode(), field);
+        } else {
+            if (field->isVar()) {
+                if (field->isArray || field->locality == stl_thread) {
+                    if (field->locality == stl_thread) {
+                        utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
 
-                    // we only do it for stl_thread var if it is not an array field
-                    if(!field->isArray) {
-                        utype->getCode().getInjector(ebxInjector)
-                                .addIr(OpBuilder::movi(0, ADX))
-                                .addIr(OpBuilder::iaload(EBX, ADX));
+                        // we only do it for stl_thread var if it is not an array field
+                        if (!field->isArray) {
+                            utype->getCode().getInjector(ebxInjector)
+                                    .addIr(OpBuilder::movi(0, ADX))
+                                    .addIr(OpBuilder::iaload(EBX, ADX));
 
-                        utype->getCode().getInjector(stackInjector)
-                                .addIr(OpBuilder::movi(0, ADX))
-                                .addIr(OpBuilder::iaload(EBX, ADX))
-                                .addIr(OpBuilder::rstore(EBX));
-                        return;
+                            utype->getCode().getInjector(stackInjector)
+                                    .addIr(OpBuilder::movi(0, ADX))
+                                    .addIr(OpBuilder::iaload(EBX, ADX))
+                                    .addIr(OpBuilder::rstore(EBX));
+                            return;
+                        }
+                    } else {
+                        utype->getCode().addIr(OpBuilder::movl(field->address));
                     }
+
+                    utype->getCode().getInjector(stackInjector)
+                            .addIr(OpBuilder::pushObject());
+                } else {
+                    utype->getCode().addIr(OpBuilder::loadl(EBX, field->address));
+                    utype->getCode().getInjector(stackInjector)
+                            .addIr(OpBuilder::rstore(EBX));
+                }
+            } else {
+                if (field->locality == stl_thread) {
+                    utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
                 } else {
                     utype->getCode().addIr(OpBuilder::movl(field->address));
                 }
 
                 utype->getCode().getInjector(stackInjector)
                         .addIr(OpBuilder::pushObject());
-            } else {
-                utype->getCode().addIr(OpBuilder::loadl(EBX, field->address));
-                utype->getCode().getInjector(stackInjector)
-                        .addIr(OpBuilder::rstore(EBX));
             }
-        }
-        else {
-            if(field->locality == stl_thread) {
-                utype->getCode().addIr(OpBuilder::tlsMovl(field->address));
-            } else {
-                utype->getCode().addIr(OpBuilder::movl(field->address));
-            }
-
-            utype->getCode().getInjector(stackInjector)
-                    .addIr(OpBuilder::pushObject());
         }
     } else if((resolvedUtype = currentScope()->klass->getField(name, true)) != NULL) {
         resolveFieldUtype(utype, ast, resolvedUtype, name);
@@ -6900,10 +7190,7 @@ void Compiler::resolveAliasUtype(Utype *utype, Ast *ast, DataEntity *resolvedAli
 
     utype->copy(alias->utype);
     utype->getCode().free().inject(alias->utype->getCode());
-    utype->getCode().getInjector(ptrInjector).free().inject(alias->utype->getCode().getInjector(ptrInjector));
-    utype->getCode().getInjector(ebxInjector).free().inject(alias->utype->getCode().getInjector(ebxInjector));
-    utype->getCode().getInjector(stackInjector).free().inject(alias->utype->getCode().getInjector(stackInjector));
-    utype->getCode().getInjector(getterInjector).free().inject(alias->utype->getCode().getInjector(getterInjector));
+    utype->getCode().copyInjectors(alias->utype->getCode());
     validateAccess(alias, ast);
     checkTypeInference(alias, ast);
 }
@@ -7035,6 +7322,9 @@ void Compiler::compileFieldGetterCode(CodeHolder &code, Field *field) { // TODO:
             code.getInjector(ptrInjector)
                     .addIr(OpBuilder::popObject2());
         }
+
+        code.getInjector(removeFromStackInjector)
+                .addIr(OpBuilder::pop());
     }
 }
 
@@ -7113,10 +7403,7 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
             if(!lastReference)
                 utype->getCode().inject(bridgeUtype->getCode().getInjector(ptrInjector));
             else {
-                utype->getCode().getInjector(ptrInjector).inject(bridgeUtype->getCode().getInjector(ptrInjector));
-                utype->getCode().getInjector(ebxInjector).inject(bridgeUtype->getCode().getInjector(ebxInjector));
-                utype->getCode().getInjector(stackInjector).inject(bridgeUtype->getCode().getInjector(stackInjector));
-                utype->getCode().getInjector(getterInjector).inject(bridgeUtype->getCode().getInjector(getterInjector));
+                utype->getCode().copyInjectors(bridgeUtype->getCode());
             }
 
             compileFieldType(field);
@@ -7146,8 +7433,7 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
             if(!lastReference)
                 utype->getCode().inject(bridgeUtype->getCode().getInjector(ebxInjector));
             else {
-                utype->getCode().getInjector(ebxInjector).inject(bridgeUtype->getCode().getInjector(ebxInjector));
-                utype->getCode().getInjector(stackInjector).inject(bridgeUtype->getCode().getInjector(stackInjector));
+                utype->getCode().copyInjectors(bridgeUtype->getCode());
             }
 
             Method *method = (Method*)bridgeUtype->getResolvedType();
@@ -7165,9 +7451,7 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
                                                                      "` is a pointer to the respective function and this returns a var and cannot be used as a class field.");
                 break;
             } else {
-                utype->getCode().getInjector(ptrInjector).inject(bridgeUtype->getCode().getInjector(ptrInjector));
-                utype->getCode().getInjector(ebxInjector).inject(bridgeUtype->getCode().getInjector(ebxInjector));
-                utype->getCode().getInjector(stackInjector).inject(bridgeUtype->getCode().getInjector(stackInjector));
+                utype->getCode().copyInjectors(bridgeUtype->getCode());
             }
         } else if(bridgeUtype->getType() == utype_class) {
             if(!fromClass)
@@ -7176,9 +7460,7 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
             currentScope()->klass = (ClassObject*)bridgeUtype->getResolvedType();
             if(lastReference) {
                 checkTypeInference(ast);
-                utype->getCode().getInjector(ptrInjector).inject(bridgeUtype->getCode().getInjector(ptrInjector));
-                utype->getCode().getInjector(ebxInjector).inject(bridgeUtype->getCode().getInjector(ebxInjector));
-                utype->getCode().getInjector(stackInjector).inject(bridgeUtype->getCode().getInjector(stackInjector));
+                utype->getCode().copyInjectors(bridgeUtype->getCode());
             }
         } else {
             error:
@@ -7848,21 +8130,53 @@ void Compiler::inlineFieldHelper(Ast* ast) {
             Expression expr;
             compileExpression(&expr, ast->getSubAst(ast_expression));
 
-            if(expr.type == exp_var && utypeToExpressionType(field->utype) == exp_var && !field->utype->isArray()) {
-                if(expr.utype->getType() == utype_field && isFieldInlined((Field*)expr.utype->getResolvedType())) {
-                    inlinedFields.add(KeyPair<Field*, double>(field, getInlinedFieldValue((Field*)expr.utype->getResolvedType())));
-                } else if(expr.utype->getType() == utype_literal) {
-                    Literal* literal = ((Literal*)expr.utype->getResolvedType());
-
-                    if(literal->literalType == numeric_literal) {
-                        inlinedFields.add(KeyPair<Field*, double>(field, literal->numericData));
-                    }
-                } else if(expr.utype->getType() == utype_method) {
-                    Method* method = ((Method*)expr.utype->getResolvedType());
-                    inlinedFields.add(KeyPair<Field*, double>(field, method->address));
-                }
-            }
+            inlineField(field, expr);
         }
+    }
+}
+
+void Compiler::inlineField(Field *field, Expression &expr) {
+    if(expr.utype->isRelated(field->utype)) {
+        if (expr.type == exp_var && utypeToExpressionType(field->utype) == exp_var && !field->utype->isArray()) {
+            if (expr.utype->getType() == utype_field && isFieldInlined((Field *) expr.utype->getResolvedType())) {
+                if (((Field *) expr.utype->getResolvedType())->isVar() &&
+                    !((Field *) expr.utype->getResolvedType())->isArray)
+                    inlinedFields.add(KeyPair<Field *, double>(field, getInlinedFieldValue(
+                            (Field *) expr.utype->getResolvedType())));
+                else
+                    inlinedStringFields.add(KeyPair<Field *, Int>(field, getInlinedStringFieldAddress(
+                            (Field *) expr.utype->getResolvedType())));
+            } else if (expr.utype->getType() == utype_literal) {
+                Literal *literal = ((Literal *) expr.utype->getResolvedType());
+
+                if (literal->literalType == numeric_literal) {
+                    if (!isWholeNumber(literal->numericData)) {
+                        errors->createNewError(GENERIC, expr.ast,
+                                               "constant value must evaluate to an integer, the constant's value appears to be a decimal");
+                    }
+
+                    inlinedFields.add(KeyPair<Field *, double>(field, literal->numericData));
+                } else {
+                    inlinedStringFields.add(KeyPair<Field *, Int>(field, literal->address));
+                }
+            } else if (expr.utype->getType() == utype_method) {
+                Method *method = ((Method *) expr.utype->getResolvedType());
+                inlinedFields.add(KeyPair<Field *, double>(field, method->address));
+            } else {
+                errors->createNewError(GENERIC, expr.ast,
+                                       " non constant value of type `" + expr.utype->toString() +
+                                       "` assigned to constant field `" + field->name + "`");
+            }
+        } else {
+            errors->createNewError(GENERIC, expr.ast,
+                                   " non constant value of type `" + expr.utype->toString() +
+                                   "` assigned to constant field `" + field->name + "`");
+        }
+    } else {
+        errors->createNewError(GENERIC, expr.ast->line, expr.ast->col,
+                               " incompatible types, cannot convert `" + expr.utype->toString() + "` to `" +
+                               field->utype->toString()
+                               + "`.");
     }
 }
 
@@ -8360,10 +8674,741 @@ void Compiler::setup() {
     inlinedFields.init();
     staticMainInserts.init();
     nilUtype = new Utype(NIL);
+    varUtype = new Utype(VAR);
     nullUtype = new Utype(OBJECT);
     undefUtype = new Utype(UNDEFINED);
     undefUtype->setType(utype_unresolved);
     nullUtype->setNullType(true);
+}
+
+bool Compiler::allControlPathsReturnAValue(bool *controlPaths) {
+    return controlPaths[MAIN_CONTROL_PATH] || (controlPaths[IF_CONTROL_PATH] && controlPaths[ELSEIF_CONTROL_PATH] && controlPaths[ELSE_CONTROL_PATH]);
+}
+
+void Compiler::compileLabelDecl(Ast *ast, bool *controlPaths) {
+    if(allControlPathsReturnAValue(controlPaths)) {
+        for(Int i = 0; i < CONTROL_PATH_SIZE; i++) {
+            controlPaths[i] = false;
+        }
+    }
+
+    string name = ast->getToken(0).getValue();
+    if(currentScope()->currentFunction->data.getLabelAddress(name) == invalidAddr) {
+        currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(name, currentScope()->currentFunction->data.code.size()));
+    } else {
+
+        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                                     "label `" + name + "` is already defined in the scope");
+    }
+
+    Ast *branch = ast->getSubAst(0);
+    if(branch->getType() == ast_block) {
+        controlPaths[MAIN_CONTROL_PATH] = compileBlock(branch);
+    } else {
+        branch = branch->getSubAst(0);
+        compileStatement(branch, controlPaths);
+    }
+}
+
+void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
+    Expression cond;
+    string ifEndLabel, ifBlockEnd;
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+
+    compileExpression(&cond, ast->getSubAst(ast_expression));
+
+    stringstream labelId;
+    labelId << INTERNAL_LABEL_NAME_PREFIX << "if_end" << guid++;
+    ifEndLabel=labelId.str(); labelId.str("");
+
+    code.inject(cond.utype->getCode());
+    code.inject(cond.utype->getCode().getInjector(ebxInjector));
+    code.addIr(OpBuilder::movr(CMT, EBX));
+
+    if(ast->getSubAstCount() > 2) {
+        labelId << INTERNAL_LABEL_NAME_PREFIX << "if_block_end" << guid++;
+        ifBlockEnd=labelId.str(); labelId.str("");
+
+        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifBlockEnd, 0));
+        code.addIr(OpBuilder::jne(invalidAddr));
+
+        controlPaths[IF_CONTROL_PATH] = compileBlock(ast->getSubAst(ast_block));
+        if(!ast->hasSubAst(ast_elseif_statement)) {
+            controlPaths[ELSEIF_CONTROL_PATH] = true;
+        }
+
+        currentScope()->isReachable = true;
+        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0));
+        code.addIr(OpBuilder::jmp(invalidAddr));
+
+        currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(ifBlockEnd, code.size()));
+
+        for(Int i = 2; i < ast->getSubAstCount(); i++) {
+            Ast *branch = ast->getSubAst(i);
+
+            switch(branch->getType()) {
+                case ast_elseif_statement: {
+                    Expression ifelseCond;
+                    compileExpression(&ifelseCond, branch->getSubAst(ast_expression));
+
+                    labelId << INTERNAL_LABEL_NAME_PREFIX << "if_block_end" << guid++;
+                    ifBlockEnd=labelId.str(); labelId.str("");
+
+                    code.inject(ifelseCond.utype->getCode());
+                    code.inject(ifelseCond.utype->getCode().getInjector(ebxInjector));
+                    code.addIr(OpBuilder::movr(CMT, EBX));
+
+                    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifBlockEnd, 0));
+                    code.addIr(OpBuilder::jne(invalidAddr));
+
+                    controlPaths[ELSEIF_CONTROL_PATH] = compileBlock(branch->getSubAst(ast_block));
+
+                    if((i+1) < ast->getSubAstCount()) {
+                        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0));
+                        code.addIr(OpBuilder::jmp(invalidAddr));
+                    }
+
+                    currentScope()->isReachable = true;
+                    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(ifBlockEnd, code.size()));
+                    break;
+                }
+
+                case ast_else_statement: {
+                    controlPaths[ELSE_CONTROL_PATH] = compileBlock(branch->getSubAst(ast_block));
+                    break;
+                }
+            }
+        }
+
+    } else {
+        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0));
+        code.addIr(OpBuilder::jne(invalidAddr));
+        compileBlock(ast->getSubAst(ast_block)); // we dont care about control paths because they are not compelete
+        currentScope()->isReachable = true;
+    }
+
+    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(ifEndLabel, code.size()));
+//    code.addIr(OpBuilder::nop()); // Theoretically we shouldn't need this, only for visual purposes
+}
+
+void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
+    currentScope()->isReachable = false;
+    Expression returnVal;
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+
+    if(ast->getSubAst(ast_expression)) {
+        compileExpression(&returnVal, ast->getSubAst(ast_expression));
+    }
+    else {
+        returnVal.ast = ast;
+        returnVal.type = exp_nil;
+        returnVal.utype->copy(nilUtype);
+    }
+
+    if(!returnVal.utype->isRelated(currentScope()->currentFunction->utype)) {
+        errors->createNewError(GENERIC, ast->line, ast->col, "returning `" + returnVal.utype->toString() + "` from a function returning `"
+                                                             + currentScope()->currentFunction->utype->toString() + "`.");
+    }
+
+    bool shouldReturnValue = currentScope()->finallyNextBlockLabel.empty() && currentScope()->finallyStartLabel.empty();
+
+    switch (returnVal.type) {
+        case exp_var:
+            code.inject(returnVal.utype->getCode());
+
+            if(shouldReturnValue) {
+                code.inject(returnVal.utype->getCode().getInjector(ebxInjector));
+                code.addIr(OpBuilder::returnValue(EBX));
+            } else {
+                code.inject(returnVal.utype->getCode().getInjector(stackInjector));
+            }
+            break;
+
+        case exp_class:
+        case exp_object:
+        case exp_null:
+            code.inject(returnVal.utype->getCode());
+
+            if(shouldReturnValue) {
+                code.inject(returnVal.utype->getCode().getInjector(ptrInjector));
+                code.addIr(OpBuilder::returnObject());
+            } else {
+                code.inject(returnVal.utype->getCode().getInjector(stackInjector));
+            }
+            break;
+
+        case exp_nil:
+            code.inject(returnVal.utype->getCode());
+            break;
+    }
+
+    if(!shouldReturnValue) {
+        Field *shouldReturn = currentScope()->currentFunction->data.getLocalField(INTERNAL_VARIABLE_NAME_PREFIX + "shouldReturn", 0);
+        if(shouldReturn == NULL) {
+            Utype *fieldType = new Utype(VAR);
+            List<AccessFlag> flags;
+            flags.add(PUBLIC);
+
+            string name = INTERNAL_VARIABLE_NAME_PREFIX + "shouldReturn";
+            shouldReturn = createLocalField(name, fieldType, false, stl_stack, flags, 0, ast);
+        }
+
+        code.addIr(OpBuilder::istorel(shouldReturn->address, 1));
+
+        if(!currentScope()->finallyStartLabel.empty()) {
+            currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), currentScope()->finallyStartLabel, 0));
+        } else {
+            currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), currentScope()->finallyNextBlockLabel, 0));
+        }
+
+        code.addIr(OpBuilder::jmp(invalidAddr));
+    } else {
+        code.addIr(OpBuilder::ret());
+    }
+
+    controlPaths[MAIN_CONTROL_PATH] = true;
+}
+
+void Compiler::compileLocalVariableDecl(Ast *ast) {
+    List<AccessFlag> flags;
+
+    if(ast->hasSubAst(ast_access_type)){
+        parseVariableAccessFlags(flags, ast->getSubAst(ast_access_type));
+    }
+
+    for(Int i = 0; i < flags.size(); i++) {
+        if(flags.get(i) == LOCAL) {
+            createNewWarning(GENERIC, __WACCESS, ast->line, ast->col,
+                             "`local` access specifier is not necessary on local variables");
+        } else if(flags.get(i) != flg_CONST) {
+            errors->createNewError(GENERIC, ast->line, ast->col, "illegal access declaration applied to local variable `" +
+                    accessFlagToString(flags.get(i)) + "`");
+        }
+    }
+
+    Field *field;
+    Utype *fieldType;
+    string name = ast->getToken(0).getValue();
+    StorageLocality locality = stl_stack;
+    Int threadLocalAddress = invalidAddr;
+    Token tmp(name, IDENTIFIER, 0, 0);
+    if(parser::isStorageType(tmp)) {
+        locality = strtostl(name);
+        name = ast->getToken(1).getValue();
+        flags.addif(STATIC);
+    }
+
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
+              ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
+
+    if (ast->hasSubAst(ast_setter) || ast->hasSubAst(ast_getter)) {
+        errors->createNewError(GENERIC, ast->line, ast->col, "getters and setters are not allowed on local variables");
+    }
+
+
+    if (locality == stl_thread) {
+        threadLocalAddress = checkstl(locality);
+        if(threadLocalAddress >= THREAD_LOCAL_FIELD_LIMIT) {
+            stringstream err;
+            err << "maximum thread local field limit of (" << THREAD_LOCAL_FIELD_LIMIT << ") reached.";
+            errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
+        }
+    }
+
+    if (ast->hasToken(COLON)) {
+        fieldType = compileUtype(ast->getSubAst(ast_utype));
+
+        field = createLocalField(name, NULL, fieldType->isArray(), locality, flags, currentScope()->scopeLevel, ast);
+        if(field->scopeLevel == currentScope()->scopeLevel) {
+
+            resolveFieldType(field, fieldType, ast);
+
+            if(ast->hasSubAst(ast_expression)) {
+                if(field->flags.find(flg_CONST)) {
+
+                    Expression expr;
+                    compileExpression(&expr, ast->getSubAst(ast_expression));
+                    inlineField(field, expr);
+                    currentScope()->currentFunction->data.localVariablesSize--;
+                }
+            } else if(field->flags.find(flg_CONST)) {
+                errors->createNewError(GENERIC, ast->line, ast->col, "constant field `" + field->name + "` requires a value to be assigned to it");
+            }
+        }
+    } else if (ast->hasToken(INFER)) {
+        RETAIN_TYPE_INFERENCE(true)
+        Expression expr;
+        compileExpression(&expr, ast->getSubAst(ast_expression));
+
+        field = createLocalField(name, NULL, expr.utype->isArray(), locality, flags, currentScope()->scopeLevel, ast);
+        if(field->scopeLevel == currentScope()->scopeLevel) {
+            resolveFieldType(field, expr.utype, ast);
+
+            if(flags.find(flg_CONST)) {
+                inlineField(field, expr);
+                currentScope()->currentFunction->data.localVariablesSize--; // we do this because constant variables do not take up memory
+            }
+        }
+        RESTORE_TYPE_INFERENCE()
+    }
+
+    if(field->locality == stl_thread)
+        field->address = threadLocalAddress;
+
+    assignFieldExpressionValue(field, ast);
+
+    if(ast->hasSubAst(ast_variable_decl)) {
+        long startAst = 0;
+        for(long i = 0; i < ast->getSubAstCount(); i++) {
+            if(ast->getSubAst(i)->getType() == ast_variable_decl)
+            {
+                startAst = i;
+                break;
+            }
+        }
+
+        for(long i = startAst; i < ast->getSubAstCount(); i++) {
+            Ast *branch = ast->getSubAst(i);
+
+            name = branch->getToken(0).getValue();
+            Field *xtraField = createLocalField(name, field->utype, field->utype->isArray(), locality, flags, currentScope()->scopeLevel, branch);
+
+            if(xtraField->scopeLevel == currentScope()->scopeLevel) {
+                if (xtraField->locality == stl_thread)
+                    xtraField->address = checkstl(xtraField->locality);
+
+                if(flags.find(flg_CONST)) {
+                    if(branch->hasSubAst(ast_expression)) {
+                        Expression expr;
+                        compileExpression(&expr, branch->getSubAst(ast_expression));
+                        inlineField(field, expr);
+                    } else {
+                        errors->createNewError(GENERIC, branch->line, branch->col, "constant field `" + xtraField->name + "` requires a value to be assigned to it");
+                    }
+                }
+                else
+                    assignFieldExpressionValue(xtraField, branch);
+            }
+        }
+    }
+}
+
+void Compiler::compileWhileStatement(Ast *ast) {
+    string whileEndLabel, whileBeginLabel;
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+
+    stringstream labelId;
+    labelId << INTERNAL_LABEL_NAME_PREFIX << "while_begin" << guid++;
+    whileBeginLabel=labelId.str(); labelId.str("");
+
+    labelId << INTERNAL_LABEL_NAME_PREFIX << "while_end" << guid++;
+    whileEndLabel=labelId.str(); labelId.str("");
+
+    Expression condExpr;
+    compileExpression(&condExpr, ast->getSubAst(ast_expression));
+
+    if(condExpr.type != exp_var) {
+        errors->createNewError(GENERIC, ast->line, ast->col, "while loop condition expression must evaluate to a `var`");
+    }
+
+    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(whileBeginLabel, currentScope()->currentFunction->data.code.size()));
+
+    condExpr.utype->getCode().inject(ebxInjector);
+    code.inject(condExpr.utype->getCode());
+    code.addIr(OpBuilder::movr(CMT, EBX));
+
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whileEndLabel, 0));
+    code.addIr(OpBuilder::jne(invalidAddr));
+
+    RETAIN_LOOP_LABELS(whileBeginLabel, whileEndLabel)
+    compileBlock(ast->getSubAst(ast_block));
+    RESTORE_LOOP_LABELS()
+
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whileBeginLabel, 0));
+    code.addIr(OpBuilder::jmp(invalidAddr));
+
+    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(whileEndLabel, currentScope()->currentFunction->data.code.size()));
+}
+
+void Compiler::compileForEachStatement(Ast *ast) {
+    string forEndLabel, forBeginLabel;
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+
+    stringstream labelId;
+    labelId << INTERNAL_LABEL_NAME_PREFIX << "foreach_begin" << guid++;
+    forBeginLabel=labelId.str(); labelId.str("");
+
+    labelId << INTERNAL_LABEL_NAME_PREFIX << "foreach_end" << guid++;
+    forEndLabel=labelId.str(); labelId.str("");
+
+    Expression arrayExpr;
+    compileExpression(&arrayExpr, ast->getSubAst(ast_expression));
+
+    currentScope()->scopeLevel++;
+    Field *iteratorField, *indexField, *arrayResultField;
+    List<AccessFlag> flags;
+    if(ast->getSubAst(ast_utype_arg)->hasSubAst(ast_utype)) {
+        string name = ast->getSubAst(ast_utype_arg)->getToken(0).getValue();
+        Utype *fieldType = compileUtype(ast->getSubAst(ast_utype_arg)->getSubAst(ast_utype));
+
+        if(fieldType->isArray()) {
+            errors->createNewError(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` cannot evaluate to an array");
+        }
+
+        iteratorField = createLocalField(name, fieldType, false, stl_stack, flags, currentScope()->scopeLevel, ast);
+
+        fieldType->setArrayType(true);
+        if(!arrayExpr.utype->isRelated(fieldType)) {
+            errors->createNewError(GENERIC, ast->line, ast->col,
+                                   " incompatible types, cannot convert `" + arrayExpr.utype->toString() + "` to `" +
+                                   fieldType->toString() + "`.");
+        }
+        fieldType->setArrayType(false);
+    } else {
+        string name = ast->getSubAst(ast_utype_arg)->getToken(0).getValue();
+        Utype *fieldType = new Utype();
+        fieldType->copy(arrayExpr.utype);
+        fieldType->setArrayType(false);
+
+        iteratorField = createLocalField(name, fieldType, false, stl_stack, flags, currentScope()->scopeLevel, ast);
+    }
+
+    if(iteratorField->utype->isRelated(nilUtype)) {
+        errors->createNewError(GENERIC, ast->line, ast->col, "illegal use of field `" + iteratorField->name + "` in foreach with type of `nil`");
+    }
+
+    stringstream indexFieldName;
+    indexFieldName << INTERNAL_VARIABLE_NAME_PREFIX << "foreach_index" << currentScope()->scopeLevel;
+    indexField = createLocalField(indexFieldName.str(), varUtype, false, stl_stack, flags, currentScope()->scopeLevel, ast);
+    initializeLocalVariable(indexField);
+    code.addIr(OpBuilder::isubl(1, indexField->address));
+
+    Utype *arrayFieldType = new Utype();
+    arrayFieldType->copy(arrayExpr.utype);
+    stringstream arrayFieldName;
+    arrayFieldName << INTERNAL_VARIABLE_NAME_PREFIX << "foreach_array_result" << currentScope()->scopeLevel;
+    arrayResultField = createLocalField(arrayFieldName.str(), arrayFieldType, true, stl_stack, flags, currentScope()->scopeLevel, ast);
+    currentScope()->scopeLevel--;
+
+    arrayExpr.utype->getCode().inject(stackInjector);
+    code.inject(arrayExpr.utype->getCode());
+    code.addIr(OpBuilder::movl(arrayResultField->address))
+        .addIr(OpBuilder::popObject());
+
+    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(forBeginLabel, currentScope()->currentFunction->data.code.size()));
+
+    code.addIr(OpBuilder::iaddl(1, indexField->address))
+        .addIr(OpBuilder::movl(arrayResultField->address))
+        .addIr(OpBuilder::_sizeof(ECX));
+
+    code.addIr(OpBuilder::loadl(EBX, indexField->address))
+        .addIr(OpBuilder::lt(EBX, ECX));
+
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forEndLabel, 0));
+    code.addIr(OpBuilder::jne(invalidAddr));
+
+    code.addIr(OpBuilder::movnd(EBX));
+
+    if(iteratorField->isVar()) {
+        code.addIr(OpBuilder::movi(0, ADX))
+            .addIr(OpBuilder::iaload(EBX, ADX))
+            .addIr(OpBuilder::smovr2(EBX, iteratorField->address));
+    } else {
+        if(arrayResultField->type == OBJECT && iteratorField->type == CLASS) {
+            code.addIr(OpBuilder::pushObject())
+                    .addIr(OpBuilder::movl(iteratorField->address))
+                    .addIr(OpBuilder::popObject())
+                    .addIr(OpBuilder::movi(iteratorField->utype->getClass()->address, EBX))
+                    .addIr(OpBuilder::cast(EBX));
+        } else {
+            code.addIr(OpBuilder::pushObject())
+                    .addIr(OpBuilder::movl(iteratorField->address))
+                    .addIr(OpBuilder::popObject());
+        }
+    }
+
+    RETAIN_LOOP_LABELS(forBeginLabel, forEndLabel)
+    compileBlock(ast->getSubAst(ast_block));
+    RESTORE_LOOP_LABELS()
+
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forBeginLabel, 0));
+    code.addIr(OpBuilder::jmp(invalidAddr));
+
+    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(forEndLabel, currentScope()->currentFunction->data.code.size()));
+}
+
+void Compiler::compileForStatement(Ast *ast) {
+    string forEndLabel, forBeginLabel;
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+
+    stringstream labelId;
+    labelId << INTERNAL_LABEL_NAME_PREFIX << "for_begin" << guid++;
+    forBeginLabel=labelId.str(); labelId.str("");
+
+    labelId << INTERNAL_LABEL_NAME_PREFIX << "for_end" << guid++;
+    forEndLabel=labelId.str(); labelId.str("");
+
+    currentScope()->scopeLevel++; // we need to do this because it will represent the inner scope of the for loop
+    if(ast->hasSubAst(ast_variable_decl)) {
+        compileLocalVariableDecl(ast->getSubAst(ast_variable_decl));
+    }
+
+    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(forBeginLabel, currentScope()->currentFunction->data.code.size()));
+    if(ast->hasSubAst(ast_for_expresion_cond)) {
+        Expression expr;
+        compileExpression(&expr, ast->getSubAst(ast_for_expresion_cond)->getSubAst(ast_expression));
+
+        if(expr.type == exp_var || isUtypeClassConvertableToVar(varUtype, expr.utype)) {
+            if(isUtypeClassConvertableToVar(varUtype, expr.utype)) {
+                CodeHolder tmp;
+                convertNativeIntegerClassToVar(expr.utype, varUtype, tmp, ast);
+                code.inject(tmp);
+                tmp.free();
+            } else {
+                expr.utype->getCode().inject(ebxInjector);
+                code.inject(expr.utype->getCode());
+            }
+
+            code.addIr(OpBuilder::movr(CMT, EBX));
+            currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forEndLabel, 0));
+            code.addIr(OpBuilder::jne(invalidAddr));
+
+        } else {
+            errors->createNewError(GENERIC, ast->line, ast->col, "for loop condition expression must evaluate to a `var`");
+        }
+    }
+
+    Expression iterExpr; // the block will delete the local iterator field so we need to process the iter code beforehand
+    if(ast->hasSubAst(ast_for_expresion_iter)) {
+        compileExpression(&iterExpr, ast->getSubAst(ast_for_expresion_iter)->getSubAst(ast_expression));
+
+        iterExpr.utype->getCode().inject(removeFromStackInjector);
+    }
+    currentScope()->scopeLevel--;
+
+    RETAIN_LOOP_LABELS(forBeginLabel, forEndLabel)
+    compileBlock(ast->getSubAst(ast_block));
+    RESTORE_LOOP_LABELS()
+
+    if(ast->hasSubAst(ast_for_expresion_iter)) {
+        code.inject(iterExpr.utype->getCode());
+    }
+
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forBeginLabel, 0));
+    code.addIr(OpBuilder::jmp(invalidAddr));
+
+    currentScope()->isReachable = true;
+    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(forEndLabel, currentScope()->currentFunction->data.code.size()));
+}
+
+void Compiler::compileStatement(Ast *ast, bool *controlPaths) {
+    if(!currentScope()->isReachable) {
+        if(ast->getType() != ast_label_decl)
+            errors->createNewError(GENERIC, ast->line, ast->col, "unreachable statement");
+        currentScope()->isReachable = true;
+    }
+
+    switch(ast->getType()) {
+        case ast_return_stmnt:
+            return compileReturnStatement(ast, controlPaths);
+        case ast_if_statement:
+            return compileIfStatement(ast, controlPaths);
+        case ast_expression: {
+            Expression expr;
+            compileExpression(&expr, ast);
+            expr.utype->getCode().inject(removeFromStackInjector);
+            currentScope()->currentFunction->data.code.inject(expr.utype->getCode());
+            // TODO: add code for calling the base constructor
+            break;
+        }
+        case ast_label_decl:
+            return compileLabelDecl(ast, controlPaths);
+        case ast_variable_decl:
+            return compileLocalVariableDecl(ast); // TODO: fire out a way to prevent unititialized vars from being used as a result of a goto
+        case ast_alias_decl:
+            return compileLocalAlias(ast);
+        case ast_for_statement:
+            return compileForStatement(ast);
+        case ast_foreach_statement:
+            return compileForEachStatement(ast);
+        case ast_while_statement:
+            return compileWhileStatement(ast);
+        default:
+            stringstream err;
+            err << ": unknown ast type: " << ast->getType();
+            errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
+            break;
+    }
+}
+
+void Compiler::compileLocalAlias(Ast *ast) {
+    Alias *alias = preProccessAliasDecl(ast);
+    if(alias != NULL) {
+        resolveAlias(ast);
+        currentScope()->currentFunction->data.localAliases.add(
+                KeyPair<Int, string>(currentScope()->scopeLevel, alias->name));
+    }
+}
+
+void Compiler::invalidateLocalVariables() {
+    checkFields:
+    for(Int i = 0; i < currentScope()->currentFunction->data.locals.size(); i++) {
+        Field *localField = currentScope()->currentFunction->data.locals.get(i);
+        if(localField->scopeLevel == currentScope()->scopeLevel) {
+            freePtr(localField);
+            currentScope()->currentFunction->data.locals.remove(localField);
+            goto checkFields;
+        }
+    }
+}
+
+bool Compiler::compileBlock(Ast *ast) {
+    currentScope()->scopeLevel++;
+    bool controlPaths[]
+        = {
+            false, // MAIN_CONTROL_PATH
+            false, // IF_CONTROL_PATH
+            false, // ELSEIF_CONTROL_PATH
+            false  // ELSE_CONTROL_PATH
+        };
+
+    for(unsigned int i = 0; i < ast->getSubAstCount(); i++) {
+        Ast *branch = ast->getSubAst(i);
+
+        if(branch->getType() == ast_block) {
+            compileBlock(branch);
+            continue;
+        } else {
+            branch = branch->getSubAst(0);
+            compileStatement(branch, controlPaths);
+        }
+
+        if(currentScope()->currentFunction->data.code.size() >= FUNCTION_OPCODE_LIMIT) {
+            stringstream err;
+            err << "maximum function opcode limit reached (" << LOCAL_FIELD_LIMIT << ").";
+            errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
+        }
+    }
+
+    invalidateLocalAliases();
+    invalidateLocalVariables();
+    currentScope()->scopeLevel--;
+    return allControlPathsReturnAValue(controlPaths);
+}
+
+void Compiler::invalidateLocalAliases() {
+    checkAliases:
+    for(Int i = 0; i < currentScope()->currentFunction->data.localAliases.size(); i++) {
+        if(currentScope()->currentFunction->data.localAliases.get(i).key == currentScope()->scopeLevel) {
+            Alias *localAlias = currentScope()->klass->getAlias(
+                    currentScope()->currentFunction->data.localAliases.get(i).value, false);
+            freePtr(localAlias);
+            currentScope()->klass->getAliases().remove(localAlias);
+            goto checkAliases;
+        }
+    }
+}
+
+void Compiler::reconcileBranches(Ast *ast) {
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+    for(Int i = 0; i < currentScope()->currentFunction->data.branchTable.size(); i++) {
+        BranchTable &branch = currentScope()->currentFunction->data.branchTable.get(i);
+        Int labelAddress = currentScope()->currentFunction->data.getLabelAddress(branch.labelName);
+
+        if(branch.branch_pc < code.size()) {
+            if(labelAddress != invalidAddr) {
+                switch (GET_OP(code.ir32.get(branch.branch_pc))) {
+                    case Opcode::JNE:
+                        code.ir32.get(branch.branch_pc) = OpBuilder::jne(labelAddress + branch._offset);
+                        break;
+                    case Opcode::JE:
+                        code.ir32.get(branch.branch_pc) = OpBuilder::je(labelAddress + branch._offset);
+                        break;
+                    case Opcode::JMP:
+                        code.ir32.get(branch.branch_pc) = OpBuilder::jmp(labelAddress + branch._offset);
+                        break;
+                }
+            } else {
+                errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, ": attempt to jump to label `" + branch.labelName + "` that dosen't exist in the current function");
+            }
+        } else {
+            errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, ": attempt to reconcile branch that is not in codebase ");
+        }
+    }
+
+    currentScope()->currentFunction->data.branchTable.free();
+    currentScope()->currentFunction->data.labelMap.free();
+}
+
+void Compiler::compileInitDecl(Ast *ast) {
+    Ast *block = ast->getSubAst(ast_block);
+
+    List<Method*> constructors;
+    currentScope()->klass->getAllFunctionsByType(fn_constructor, constructors);
+    for(uInt i = 0; i < constructors.size(); i++) {
+        Method *constructor = constructors.get(i);
+        uInt totalErrors = errors->getUnfilteredErrorCount();
+        currentScope()->currentFunction = constructor;
+
+        // we dont need to setup locals since it wont have any!
+        RETAIN_BLOCK_TYPE(INSTANCE_BLOCK)
+        if(!compileBlock(block)) {
+            cout << "not all code paths return a value";
+        }
+        RESTORE_BLOCK_TYPE()
+
+        reconcileBranches(ast);
+        if(GET_OP(constructor->data.code.ir32.last()) != Opcode::RET) {
+            constructor->data.code.addIr(OpBuilder::ret());
+        }
+//        cout << ast->toString() << endl;
+        printMethodCode(*constructor, ast);
+        if(NEW_ERRORS_FOUND()){
+            break; // no need to waste processing power to compile a broken init decl
+        }
+    }
+
+    constructors.free();
+}
+
+void Compiler::compileAllInitDecls() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        current = parsers.get(i);
+        updateErrorManagerInstance(current);
+
+        currModule = "$unknown";
+        long long totalErrors = errors->getUnfilteredErrorCount();
+        currScope.add(new Scope(NULL, GLOBAL_SCOPE));
+        for (unsigned long x = 0; x < current->size(); x++) {
+            Ast *branch = current->astAt(x);
+            if (x == 0) {
+                if (branch->getType() == ast_module_decl) {
+                    currModule = parseModuleDecl(branch);
+                    currScope.last()->klass = findClass(currModule, globalClass, classes);
+                    continue;
+                } else {
+                    currModule = undefinedModule;
+                    currScope.last()->klass = findClass(currModule, globalClass, classes);
+                }
+            }
+
+            switch(branch->getType()) {
+                case ast_class_decl:
+                    compileClassInitDecls(branch);
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+
+            CHECK_CMP_ERRORS(return;)
+        }
+
+        if(NEW_ERRORS_FOUND()){
+            failedParsers.addif(current);
+        }
+        removeScope();
+    }
 }
 
 void Compiler::compileAllFields() {
@@ -8389,8 +9434,6 @@ void Compiler::compileAllFields() {
 
             switch(branch->getType()) {
                 case ast_class_decl:
-                    break;
-                case ast_generic_class_decl:
                     compileClassFields(branch);
                     break;
                 case ast_enum_decl:
@@ -8398,7 +9441,7 @@ void Compiler::compileAllFields() {
                 case ast_method_decl: /* ignore */
                     break;
                 case ast_variable_decl:
-                    compileVarDecl(branch);
+                    compileVariableDecl(branch);
                     break;
                 case ast_mutate_decl:
                     /* ignpre */
@@ -8425,6 +9468,8 @@ void Compiler::compile() {
         processingStage = COMPILING;
         // TODO: write compileUnprocessedClasses() to be called for everything else and free unprocessedClasses list
         compileAllFields();
+        compileAllInitDecls();
+        initProcessed = true;
 
 
         // TODO: compile umprocessed methods last
@@ -8549,7 +9594,7 @@ void Compiler::addDefaultConstructor(ClassObject* klass, Ast* ast) {
         method->ast = ast;
         method->fnType = fn_constructor;
         method->address = methodSize++;
-        method->utype = new Utype(klass);
+        method->utype = nilUtype;
         klass->addFunction(method);
     }
 }
@@ -8663,4 +9708,43 @@ void Compiler::updateErrorManagerInstance(parser *parser) {
     if(errors == NULL)
         errors = new ErrorManager(&parser->getTokenizer()->getLines(), parser->getTokenizer()->file, true, c_options.aggressive_errors);
     else errors->update(parser, true, c_options.aggressive_errors);
+}
+
+Field* Compiler::createLocalField(string name, Utype *type, bool isArray, StorageLocality locality, List<AccessFlag> flags,
+                           Int scopeLevel, Ast *ast) {
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
+              ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
+
+    Field* prevField=NULL;
+    if((prevField = currentScope()->currentFunction->data.getLocalField(name, scopeLevel)) != NULL) {
+        this->errors->createNewError(PREVIOUSLY_DEFINED, prevField->ast->line, prevField->ast->col,
+                                     "local field `" + name + "` is already defined in the scope");
+        printNote(prevField->meta, "local field `" + name + "` previously defined here");
+        return prevField;
+    } else {
+        if((prevField = currentScope()->currentFunction->data.getLocalFieldHereOrHigher(name, scopeLevel)) != NULL) {
+            if(prevField->scopeLevel > 0 || initProcessed) {
+                createNewWarning(GENERIC, __WACCESS, ast->line, ast->col,
+                                 "local field `" + name + "` shadows another field at higher scope");
+            }
+        }
+
+        Field *local = new Field(type == NULL ? UNTYPED : type->getResolvedType()->type, guid++, name, NULL, flags, meta, locality, checkstl(locality));
+        currentScope()->currentFunction->data.locals.add(local);
+        local->ast = ast;
+        local->local = true;
+        local->utype = type;
+        local->isArray = isArray;
+        local->owner = currentScope()->klass;
+        local->scopeLevel = scopeLevel;
+        local->address = currentScope()->currentFunction->data.localVariablesSize++;
+        local->fullName = "[local: " + name + "]";
+
+        if(local->address >= LOCAL_FIELD_LIMIT) {
+            stringstream err;
+            err << "maximum amount of local fields reached (" << LOCAL_FIELD_LIMIT << ").";
+            errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
+        }
+        return local;
+    }
 }

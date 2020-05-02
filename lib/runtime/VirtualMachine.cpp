@@ -146,7 +146,7 @@ bool returnMethod(Thread* thread) {
 
    thread->pc = frameInfo->pc;
    thread->sp = frameInfo->sp;
-   thread->fp = frameInfo->fp;
+   thread->fp = frameInfo->fp; // TODO: check if exception state is active and verify wether we have to decrement the stack based on the method we are returning from
     thread->calls--;
 #ifdef SHARP_PROF_
     thread->tprof->profile();

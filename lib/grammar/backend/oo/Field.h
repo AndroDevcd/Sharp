@@ -25,7 +25,8 @@ public:
             inlineCheck(false),
             local(false),
             getter(NULL),
-            setter(NULL)
+            setter(NULL),
+            scopeLevel(0)
     {
     }
 
@@ -41,7 +42,8 @@ public:
         inlineCheck(false),
         local(false),
         getter(NULL),
-        setter(NULL)
+        setter(NULL),
+        scopeLevel(0)
     {
         this->type = type;
         this->guid = guid;
@@ -63,6 +65,7 @@ public:
     bool nullField;
     bool inlineCheck;
     bool local;
+    Int scopeLevel;
     StorageLocality locality;
     Method* getter, *setter;
     Utype *utype;

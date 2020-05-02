@@ -60,6 +60,8 @@ private:
     bool isSwitchStatement(Token &t);
     bool isAssemblyStatement(Token &t);
     bool isForStatement(Token &t);
+    bool isForEachStatement(Token &t);
+    bool isWhileStatement(Token &t);
     bool isAliasDeclaration(Token &t);
     bool isSwitchDeclarator(Token &t);
     bool isConstructorDecl();
@@ -137,6 +139,9 @@ private:
     void parseAliasDeclaration(Ast *ast);
     void parseAssemblyBlock(Ast*);
     void parseForStmnt(Ast*);
+    void parseForEachStmnt(Ast*);
+    void parseWhileStatement(Ast*);
+    void parseLabelDecl(Ast* ast);
 
     Ast* getBranch(Ast *parent, ast_type type);
     void expect(Ast* ast, string token, bool addToken = true, const char *expectedstr = nullptr);

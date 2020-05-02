@@ -43,7 +43,7 @@ bool asmDump_map[] = {
 options c_options;
 void compile(List<string>&);
 
-inline bool ends_with(std::string const & value, std::string const & ending)
+bool ends_with(std::string value, std::string ending)
 {
     if (ending.size() > value.size()) return false;
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
@@ -67,8 +67,7 @@ void get_full_file_list(native_string &path, List<native_string> &files) {
             }
 
             if(ends_with(file.str(), ".sharp")) {
-                files.__new();
-                files.last().init();
+                files.__new().init();
                 files.last() = file;
             }
         }

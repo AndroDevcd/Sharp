@@ -78,6 +78,10 @@ void Ast::freeTokens() {
     this->tokens.free();
 }
 
+void Ast::freeLastToken() {
+    this->tokens.pop_back();
+}
+
 bool Ast::hasSubAst(ast_type at) {
     for(unsigned int i = 0; i < sub_asts.size(); i++) {
         if(sub_asts.get(i)->getType() == at)

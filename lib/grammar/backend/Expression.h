@@ -16,6 +16,7 @@ enum expression_type
     exp_var,
     exp_object,
     exp_class,
+    exp_nil,
     exp_undefined
 };
 
@@ -26,14 +27,7 @@ public:
         init();
     }
 
-    ~Expression() {
-        free();
-    }
-
     void init();
-    void free();
-    void freeInjectors();
-    void copyInjectors(Utype *utype);
     void copy(Expression *expr);
 
     Utype* utype;

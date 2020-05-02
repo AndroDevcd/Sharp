@@ -1736,10 +1736,10 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
 
     switch(pAst->getType()) {
         case ast_return_stmnt:
-            parseReturnStatement(block, pAst);
+            parseReturnStatement(block, pAst); // check for locked object and if so unlock all objects
             break;
         case ast_if_statement:
-            parseIfStatement(block, pAst); // done
+            parseIfStatement(block, pAst); // create a control paths list of List<KeyPair<Int, bool>> controlPaths; this gets only add more control path if there is an if & an else statement
             break;
         case ast_expression: {
             Expression expr(pAst);
@@ -1749,50 +1749,50 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
                 expr.code.push_i64(SET_Ei(i64, op_POP));
             }
 
-            block.code.inject(block.code.size(), expr.code); // done
+            block.code.inject(block.code.size(), expr.code); // create an injector called removeFromStackInjector for new exprs and function calls
         }
             break;
         case ast_assembly_statement:
-            parseAssemblyStatement(block, pAst); // done
+            parseAssemblyStatement(block, pAst); //
             break;
         case ast_for_statement:
-            parseForStatement(block, pAst); // done
+            parseForStatement(block, pAst); //
             break;
         case ast_foreach_statement:
-            parseForEachStatement(block, pAst); // done
+            parseForEachStatement(block, pAst); //
             break;
         case ast_while_statement:
-            parseWhileStatement(block, pAst); // done
+            parseWhileStatement(block, pAst); //
             break;
-        case ast_switch_statement:
-            parseSwitchStatement(block, pAst); // done
+        case ast_switch_statement: // create a switch control paths that requires all values ro return a bvalue only if the switched value is const
+            parseSwitchStatement(block, pAst); //
             break;
-        case ast_lock_statement:
-            parseLockStatement(block, pAst); // done
+        case ast_lock_statement: // ignore
+            parseLockStatement(block, pAst); // create a local variable in the stack & assign it to the instance of the locked obj to be used later
             break;
         case ast_do_while_statement:
-            parseDoWhileStatement(block, pAst); // done
+            parseDoWhileStatement(block, pAst); //
             break;
-        case ast_trycatch_statement:
-            parseTryCatchStatement(block, pAst); // done
+        case ast_trycatch_statement: // create try and catch control paths
+            parseTryCatchStatement(block, pAst); //
             break;
         case ast_throw_statement:
-            parseThrowStatement(block, pAst); // done
+            parseThrowStatement(block, pAst); //
             break;
         case ast_continue_statement:
-            parseContinueStatement(block, pAst); // done
+            parseContinueStatement(block, pAst); // do a check for continue to see if we jump out of scope for locked object
             break;
         case ast_break_statement:
-            parseBreakStatement(block, pAst); // done
+            parseBreakStatement(block, pAst); // do a check here as well as described above
             break;
         case ast_goto_statement:
-            parseGotoStatement(block, pAst); // done
+            parseGotoStatement(block, pAst); //  add nop's in place to verify wether or not we need to unlock the locked object we need a List<LockTable> and List<LockMap> wich contains the start and end of each lock
             break;
-        case ast_label_decl:
-            parseLabelDecl(block, pAst); // done
+        case ast_label_decl: // if this was defined after a return statement and this label is used in the function we need to reset all the control paths to false
+            parseLabelDecl(block, pAst); // create label table to be used for updating goto statements & check if all code paths return a value if so set them all to false ONLY if the LABEl has been used
             break;
         case ast_var_decl:
-            parseVarDecl(block, pAst); // done
+            parseVarDecl(block, pAst); //
             break;
         case ast_func_prototype:
             parsePrototypeDecl(block, pAst); // done

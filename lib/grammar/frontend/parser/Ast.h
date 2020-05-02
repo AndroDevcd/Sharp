@@ -176,6 +176,7 @@ public:
     void free();
 
     void freeTokens();
+    void freeLastToken();
     void freeLastSub();
     string toString();
 
