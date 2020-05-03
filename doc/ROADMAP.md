@@ -85,7 +85,7 @@ global scope and translate it to ``var result = $anonymous1(x, y);``
        print("multi-line");
     }
 ```
-- fix bug that deadlocks lock statements due to return and goto
+- [X] (Fuckin donne!!!!!) fix bug that deadlocks lock statements due to return and goto
 ```javascript
 lock(self) {
     return 1; // lock is not released

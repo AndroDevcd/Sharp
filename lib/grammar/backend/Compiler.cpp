@@ -8682,7 +8682,9 @@ void Compiler::setup() {
 }
 
 bool Compiler::allControlPathsReturnAValue(bool *controlPaths) {
-    return controlPaths[MAIN_CONTROL_PATH] || (controlPaths[IF_CONTROL_PATH] && controlPaths[ELSEIF_CONTROL_PATH] && controlPaths[ELSE_CONTROL_PATH]);
+    return controlPaths[MAIN_CONTROL_PATH]
+        || (controlPaths[IF_CONTROL_PATH] && controlPaths[ELSEIF_CONTROL_PATH] && controlPaths[ELSE_CONTROL_PATH])
+        || (controlPaths[TRY_CONTROL_PATH] && controlPaths[CATCH_CONTROL_PATH]);
 }
 
 void Compiler::compileLabelDecl(Ast *ast, bool *controlPaths) {
@@ -8729,16 +8731,14 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
         labelId << INTERNAL_LABEL_NAME_PREFIX << "if_block_end" << guid++;
         ifBlockEnd=labelId.str(); labelId.str("");
 
-        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifBlockEnd, 0));
+        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifBlockEnd, 0, ast->line, ast->col));
         code.addIr(OpBuilder::jne(invalidAddr));
 
         controlPaths[IF_CONTROL_PATH] = compileBlock(ast->getSubAst(ast_block));
-        if(!ast->hasSubAst(ast_elseif_statement)) {
-            controlPaths[ELSEIF_CONTROL_PATH] = true;
-        }
+        controlPaths[ELSEIF_CONTROL_PATH] = true;
 
         currentScope()->isReachable = true;
-        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0));
+        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0, ast->line, ast->col));
         code.addIr(OpBuilder::jmp(invalidAddr));
 
         currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(ifBlockEnd, code.size()));
@@ -8758,13 +8758,15 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
                     code.inject(ifelseCond.utype->getCode().getInjector(ebxInjector));
                     code.addIr(OpBuilder::movr(CMT, EBX));
 
-                    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifBlockEnd, 0));
+                    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifBlockEnd, 0, ast->line, ast->col));
                     code.addIr(OpBuilder::jne(invalidAddr));
 
-                    controlPaths[ELSEIF_CONTROL_PATH] = compileBlock(branch->getSubAst(ast_block));
+                    if(!compileBlock(branch->getSubAst(ast_block))) {
+                        controlPaths[ELSEIF_CONTROL_PATH] = false;
+                    }
 
                     if((i+1) < ast->getSubAstCount()) {
-                        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0));
+                        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0, ast->line, ast->col));
                         code.addIr(OpBuilder::jmp(invalidAddr));
                     }
 
@@ -8781,7 +8783,7 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
         }
 
     } else {
-        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0));
+        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0, ast->line, ast->col));
         code.addIr(OpBuilder::jne(invalidAddr));
         compileBlock(ast->getSubAst(ast_block)); // we dont care about control paths because they are not compelete
         currentScope()->isReachable = true;
@@ -8810,7 +8812,7 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
                                                              + currentScope()->currentFunction->utype->toString() + "`.");
     }
 
-    bool shouldReturnValue = currentScope()->finallyNextBlockLabel.empty() && currentScope()->finallyStartLabel.empty();
+    bool shouldReturnValue = currentScope()->finallyBlocks.empty() && currentScope()->lockBlocks.empty();
 
     switch (returnVal.type) {
         case exp_var:
@@ -8821,6 +8823,23 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
                 code.addIr(OpBuilder::returnValue(EBX));
             } else {
                 code.inject(returnVal.utype->getCode().getInjector(stackInjector));
+
+                for(Int i =  currentScope()->finallyBlocks.size() - 1; i >= 0; i--) {
+                    if(currentScope()->finallyBlocks.get(i) != NULL)
+                        compileBlock(currentScope()->finallyBlocks.get(i));
+                }
+
+                for(Int i =  currentScope()->lockBlocks.size() - 1; i >= 0; i--) {
+                    Expression lockExpr;
+                    compileExpression(&lockExpr, currentScope()->lockBlocks.get(i));
+
+                    lockExpr.utype->getCode().inject(ptrInjector);
+                    code.inject(lockExpr.utype->getCode());
+                    code.addIr(OpBuilder::unlock());
+                }
+
+                code.addIr(OpBuilder::loadValue(EBX))
+                    .addIr(OpBuilder::returnValue(EBX));
             }
             break;
 
@@ -8834,6 +8853,23 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
                 code.addIr(OpBuilder::returnObject());
             } else {
                 code.inject(returnVal.utype->getCode().getInjector(stackInjector));
+
+                for(Int i =  currentScope()->finallyBlocks.size() - 1; i >= 0; i--) {
+                    if(currentScope()->finallyBlocks.get(i) != NULL)
+                        compileBlock(currentScope()->finallyBlocks.get(i));
+                }
+
+                for(Int i =  currentScope()->lockBlocks.size() - 1; i >= 0; i--) {
+                    Expression lockExpr;
+                    compileExpression(&lockExpr, currentScope()->lockBlocks.get(i));
+
+                    lockExpr.utype->getCode().inject(ptrInjector);
+                    code.inject(lockExpr.utype->getCode());
+                    code.addIr(OpBuilder::unlock());
+                }
+
+                code.addIr(OpBuilder::popObject2())
+                    .addIr(OpBuilder::returnObject());
             }
             break;
 
@@ -8842,30 +8878,7 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
             break;
     }
 
-    if(!shouldReturnValue) {
-        Field *shouldReturn = currentScope()->currentFunction->data.getLocalField(INTERNAL_VARIABLE_NAME_PREFIX + "shouldReturn", 0);
-        if(shouldReturn == NULL) {
-            Utype *fieldType = new Utype(VAR);
-            List<AccessFlag> flags;
-            flags.add(PUBLIC);
-
-            string name = INTERNAL_VARIABLE_NAME_PREFIX + "shouldReturn";
-            shouldReturn = createLocalField(name, fieldType, false, stl_stack, flags, 0, ast);
-        }
-
-        code.addIr(OpBuilder::istorel(shouldReturn->address, 1));
-
-        if(!currentScope()->finallyStartLabel.empty()) {
-            currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), currentScope()->finallyStartLabel, 0));
-        } else {
-            currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), currentScope()->finallyNextBlockLabel, 0));
-        }
-
-        code.addIr(OpBuilder::jmp(invalidAddr));
-    } else {
-        code.addIr(OpBuilder::ret());
-    }
-
+    code.addIr(OpBuilder::ret());
     controlPaths[MAIN_CONTROL_PATH] = true;
 }
 
@@ -8993,6 +9006,305 @@ void Compiler::compileLocalVariableDecl(Ast *ast) {
     }
 }
 
+void Compiler::compileDoWhileStatement(Ast *ast) {
+    string whileEndLabel, whileBeginLabel;
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+
+    stringstream labelId;
+    labelId << INTERNAL_LABEL_NAME_PREFIX << "do_while_begin" << guid++;
+    whileBeginLabel=labelId.str(); labelId.str("");
+
+    labelId << INTERNAL_LABEL_NAME_PREFIX << "do_while_end" << guid++;
+    whileEndLabel=labelId.str(); labelId.str("");
+
+    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(whileBeginLabel, currentScope()->currentFunction->data.code.size()));
+
+    RETAIN_LOOP_LABELS(whileBeginLabel, whileEndLabel)
+    compileBlock(ast->getSubAst(ast_block));
+    RESTORE_LOOP_LABELS()
+
+    Expression condExpr;
+    compileExpression(&condExpr, ast->getSubAst(ast_expression));
+
+    if(condExpr.type != exp_var) {
+        errors->createNewError(GENERIC, ast->line, ast->col, "do while loop condition expression must evaluate to a `var`");
+    }
+
+    condExpr.utype->getCode().inject(ebxInjector);
+    code.inject(condExpr.utype->getCode());
+    code.addIr(OpBuilder::movr(CMT, EBX));
+
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whileBeginLabel, 0, ast->line, ast->col));
+    code.addIr(OpBuilder::je(invalidAddr));
+
+    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(whileEndLabel, currentScope()->currentFunction->data.code.size()));
+    currentScope()->isReachable = true;
+}
+
+void Compiler::compileGotoStatement(Ast *ast) {
+    Token &label = ast->getToken(0);
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), label.getValue(), 0, ast->line, ast->col));
+    code.addIr(OpBuilder::jmp(invalidAddr));
+}
+
+ClassObject* Compiler::compileCatchClause(Ast *ast, TryCatchData &tryCatchData, bool *controlPaths) {
+    CatchData catchData;
+    ClassObject *exceptionClass = NULL;
+
+    if(ast->getSubAst(ast_utype_arg)->getTokenCount() > 0) {
+        Field *catchField;
+        List<AccessFlag> flags;
+        string name = ast->getSubAst(ast_utype_arg)->getToken(0).getValue();
+        Utype *handlingClass = compileUtype(ast->getSubAst(ast_utype_arg)->getSubAst(ast_utype));
+
+        if(handlingClass->isArray()) {
+            errors->createNewError(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` cannot evaluate to an array");
+        }
+
+        if(handlingClass->getType() != utype_class) {
+            errors->createNewError(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` must be of type class");
+        }
+
+        catchField = createLocalField(name, handlingClass, false, stl_stack, flags, currentScope()->scopeLevel+1, ast);
+        catchData.localFieldAddress = catchField->address;
+        if(handlingClass->getClass() != NULL)
+            catchData.classAddress = handlingClass->getClass()->address;
+        exceptionClass = handlingClass->getClass();
+    } else {
+        Utype *handlingClass = compileUtype(ast->getSubAst(ast_utype_arg)->getSubAst(ast_utype));
+
+        if(handlingClass->isArray()) {
+            errors->createNewError(GENERIC, ast->line, ast->col, "handling class  `" + handlingClass->toString() + "` cannot evaluate to an array");
+        }
+
+        if(handlingClass->getType() != utype_class) {
+            errors->createNewError(GENERIC, ast->line, ast->col, "type `" + handlingClass->toString() + "` must be of type class");
+        }
+
+        if(handlingClass->getClass() != NULL)
+            catchData.classAddress = handlingClass->getClass()->address;
+        catchData.localFieldAddress = -1;
+        exceptionClass = handlingClass->getClass();
+    }
+
+    catchData.handler_pc = currentScope()->currentFunction->data.code.size();
+    if(!compileBlock(ast->getSubAst(ast_block))) {
+        controlPaths[CATCH_CONTROL_PATH] = false;
+    }
+
+    return exceptionClass;
+}
+
+void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
+    string tryEndLabel;
+    TryCatchData tryCatchData;
+    List<ClassObject*> catchedClasses;
+
+    ClassObject *throwable = resolveClass("std", "throwable", ast);
+    bool hasFinallyBlock = ast->hasSubAst(ast_finally_block);
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+
+    stringstream labelId;
+    labelId << INTERNAL_LABEL_NAME_PREFIX << "try_end" << guid++;
+    tryEndLabel=labelId.str(); labelId.str("");
+
+    tryCatchData.try_start_pc = code.size();
+    currentScope()->finallyBlocks.add(ast->getSubAst(ast_finally_block));
+    controlPaths[TRY_CONTROL_PATH] = compileBlock(ast->getSubAst(ast_block));
+    tryCatchData.try_end_pc = code.size();
+
+    currentScope()->currentFunction->data.branchTable.add(
+            BranchTable(code.size(), tryEndLabel, 0, ast->line, ast->col));
+    code.addIr(OpBuilder::jmp(invalidAddr));
+
+    controlPaths[CATCH_CONTROL_PATH] = true;
+    for(Int i = 1; i < ast->getSubAstCount(); i++) {
+        Ast *branch = ast->getSubAst(i);
+
+        switch (branch->getType()) {
+            case ast_catch_clause: {
+                ClassObject *klass = compileCatchClause(branch, tryCatchData, controlPaths);
+
+                if(klass != NULL && !catchedClasses.addif(klass)) {
+                    errors->createNewError(GENERIC, ast->line, ast->col, "class `" + klass->fullName + "` has already been caught.");
+                }
+
+                if(!klass->isClassRelated(throwable)) {
+                    errors->createNewError(GENERIC, ast->line, ast->col, "handling class `" + klass->fullName + "` must inherit base level exception class `std#throwable`");
+                }
+                currentScope()->isReachable = true;
+                break;
+            }
+
+            case ast_finally_block: {
+                currentScope()->finallyBlocks.last() = NULL;
+                currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(tryEndLabel, currentScope()->currentFunction->data.code.size()));
+                tryCatchData.finallyData = new FinallyData();
+                tryCatchData.finallyData->start_pc = code.size();
+                compileBlock(branch);
+                tryCatchData.finallyData->end_pc = code.size();
+                break;
+            }
+        }
+    }
+
+    if(!hasFinallyBlock)
+        currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(tryEndLabel, currentScope()->currentFunction->data.code.size()));
+    code.addIr(OpBuilder::nop());
+
+    catchedClasses.free();
+    currentScope()->finallyBlocks.pop_back();
+    currentScope()->currentFunction->data.tryCatchTable.add(tryCatchData);
+}
+
+void Compiler::compileLockStatement(Ast *ast) {
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+    Expression lockExpr;
+
+    compileExpression(&lockExpr, ast->getSubAst(ast_expression));
+
+    if(lockExpr.type == exp_object
+        || lockExpr.type == exp_class
+        || (lockExpr.type == exp_var && lockExpr.utype->isArray())) {
+
+        lockExpr.utype->getCode().inject(ptrInjector);
+        code.inject(lockExpr.utype->getCode());
+        code.addIr(OpBuilder::lock());
+
+        currentScope()->lockBlocks.add(ast->getSubAst(ast_expression));
+        compileBlock(ast->getSubAst(ast_block));
+        currentScope()->lockBlocks.pop_back();
+
+        lockExpr.utype->getCode().inject(ptrInjector);
+        code.inject(lockExpr.utype->getCode());
+        code.addIr(OpBuilder::unlock());
+    } else {
+        errors->createNewError(GENERIC, ast->line, ast->col, "attempt to lock non-lockable object of type `" + lockExpr.utype->toString() + "`.");
+    }
+}
+
+/**
+ * This function MUST only be used with break; and continue; statements respectively
+ *
+ * It it intended to locate the total amount of possible finally or lock blocks skipped when jumping
+ * to the beginning or end of a loop
+ * @return
+ */
+Int Compiler::getSkippedBlockCount(ast_type triggerStatement) {
+    Int blocksSkipped = 0;
+    for(Int i = currentScope()->statements.size() - 1; i >= 0; i--) {
+        ast_type statement = currentScope()->statements.get(i);
+        if(statement == triggerStatement)
+            blocksSkipped++;
+        else if(statement == ast_while_statement
+            || statement == ast_foreach_statement
+            || statement == ast_do_while_statement
+            || statement == ast_for_statement)
+            break;
+    }
+
+    return blocksSkipped;
+}
+
+void Compiler::compileContinueStatement(Ast *ast) {
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+    Int finallyBlocksSkipped = getSkippedBlockCount(ast_trycatch_statement);
+    Int lockBlocksSkipped = getSkippedBlockCount(ast_lock_statement);
+
+    if(finallyBlocksSkipped > 0) {
+        for(Int i = currentScope()->finallyBlocks.size() - 1; i >= 0; i--) {
+            if(currentScope()->finallyBlocks.get(i) != NULL)
+                compileBlock(currentScope()->finallyBlocks.get(i));
+
+            if(--finallyBlocksSkipped == 0)
+                break;
+        }
+    }
+
+    if(lockBlocksSkipped > 0) {
+        for(Int i = currentScope()->lockBlocks.size() - 1; i >= 0; i--) {
+            Expression lockExpr;
+            compileExpression(&lockExpr, currentScope()->lockBlocks.get(i));
+
+            lockExpr.utype->getCode().inject(ptrInjector);
+            code.inject(lockExpr.utype->getCode());
+            code.addIr(OpBuilder::unlock());
+
+            if(--lockBlocksSkipped == 0)
+                break;
+        }
+    }
+
+    if(currentScope()->loopStartLabel.empty()) {
+        errors->createNewError(GENERIC, ast->line, ast->col, "attempt to call `continue` outside of an enclosing loop");
+    }
+
+    currentScope()->currentFunction->data.branchTable.add(
+            BranchTable(code.size(), currentScope()->loopStartLabel, 0, ast->line, ast->col));
+    code.addIr(OpBuilder::jmp(invalidAddr));
+}
+
+void Compiler::compileBreakStatement(Ast *ast) {
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+    Int finallyBlocksSkipped = getSkippedBlockCount(ast_trycatch_statement);
+    Int lockBlocksSkipped = getSkippedBlockCount(ast_lock_statement);
+
+    if(finallyBlocksSkipped > 0) {
+        for(Int i = currentScope()->finallyBlocks.size() - 1; i >= 0; i--) {
+            if(currentScope()->finallyBlocks.get(i) != NULL)
+                compileBlock(currentScope()->finallyBlocks.get(i));
+
+            if(--finallyBlocksSkipped == 0)
+                break;
+        }
+    }
+
+    if(lockBlocksSkipped > 0) {
+        for(Int i = currentScope()->lockBlocks.size() - 1; i >= 0; i--) {
+            Expression lockExpr;
+            compileExpression(&lockExpr, currentScope()->lockBlocks.get(i));
+
+            lockExpr.utype->getCode().inject(ptrInjector);
+            code.inject(lockExpr.utype->getCode());
+            code.addIr(OpBuilder::unlock());
+
+            if(--lockBlocksSkipped == 0)
+                break;
+        }
+    }
+
+    if(currentScope()->loopStartLabel.empty()) {
+        errors->createNewError(GENERIC, ast->line, ast->col, "attempt to call `break` outside of an enclosing loop");
+    }
+
+    currentScope()->currentFunction->data.branchTable.add(
+            BranchTable(code.size(), currentScope()->loopEndLabel, 0, ast->line, ast->col));
+    code.addIr(OpBuilder::jmp(invalidAddr));
+}
+
+void Compiler::compileThrowStatement(Ast *ast) {
+    Expression exceptionExpr;
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+    currentScope()->isReachable = false;
+
+    compileExpression(&exceptionExpr, ast->getSubAst(ast_expression));
+
+    if(exceptionExpr.type == exp_class) {
+        ClassObject *throwable = resolveClass("std", "throwable", ast);
+        if(exceptionExpr.utype->getClass()->isClassRelated(throwable)) {
+            exceptionExpr.utype->getCode().inject(stackInjector);
+            code.inject(exceptionExpr.utype->getCode());
+            code.addIr(OpBuilder::_throw());
+        } else {
+            errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + exceptionExpr.utype->toString() + "` must inherit base level exception class `std#throwable`");
+        }
+    } else {
+        errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + exceptionExpr.utype->toString() + "` must evaluate to a class");
+    }
+}
+
 void Compiler::compileWhileStatement(Ast *ast) {
     string whileEndLabel, whileBeginLabel;
     CodeHolder &code = currentScope()->currentFunction->data.code;
@@ -9017,17 +9329,18 @@ void Compiler::compileWhileStatement(Ast *ast) {
     code.inject(condExpr.utype->getCode());
     code.addIr(OpBuilder::movr(CMT, EBX));
 
-    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whileEndLabel, 0));
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whileEndLabel, 0, ast->line, ast->col));
     code.addIr(OpBuilder::jne(invalidAddr));
 
     RETAIN_LOOP_LABELS(whileBeginLabel, whileEndLabel)
     compileBlock(ast->getSubAst(ast_block));
     RESTORE_LOOP_LABELS()
 
-    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whileBeginLabel, 0));
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whileBeginLabel, 0, ast->line, ast->col));
     code.addIr(OpBuilder::jmp(invalidAddr));
 
     currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(whileEndLabel, currentScope()->currentFunction->data.code.size()));
+    currentScope()->isReachable = true;
 }
 
 void Compiler::compileForEachStatement(Ast *ast) {
@@ -9104,7 +9417,7 @@ void Compiler::compileForEachStatement(Ast *ast) {
     code.addIr(OpBuilder::loadl(EBX, indexField->address))
         .addIr(OpBuilder::lt(EBX, ECX));
 
-    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forEndLabel, 0));
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forEndLabel, 0, ast->line, ast->col));
     code.addIr(OpBuilder::jne(invalidAddr));
 
     code.addIr(OpBuilder::movnd(EBX));
@@ -9131,10 +9444,11 @@ void Compiler::compileForEachStatement(Ast *ast) {
     compileBlock(ast->getSubAst(ast_block));
     RESTORE_LOOP_LABELS()
 
-    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forBeginLabel, 0));
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forBeginLabel, 0, ast->line, ast->col));
     code.addIr(OpBuilder::jmp(invalidAddr));
 
     currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(forEndLabel, currentScope()->currentFunction->data.code.size()));
+    currentScope()->isReachable = true;
 }
 
 void Compiler::compileForStatement(Ast *ast) {
@@ -9170,7 +9484,7 @@ void Compiler::compileForStatement(Ast *ast) {
             }
 
             code.addIr(OpBuilder::movr(CMT, EBX));
-            currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forEndLabel, 0));
+            currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forEndLabel, 0, ast->line, ast->col));
             code.addIr(OpBuilder::jne(invalidAddr));
 
         } else {
@@ -9194,7 +9508,7 @@ void Compiler::compileForStatement(Ast *ast) {
         code.inject(iterExpr.utype->getCode());
     }
 
-    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forBeginLabel, 0));
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forBeginLabel, 0, ast->line, ast->col));
     code.addIr(OpBuilder::jmp(invalidAddr));
 
     currentScope()->isReachable = true;
@@ -9204,15 +9518,18 @@ void Compiler::compileForStatement(Ast *ast) {
 void Compiler::compileStatement(Ast *ast, bool *controlPaths) {
     if(!currentScope()->isReachable) {
         if(ast->getType() != ast_label_decl)
-            errors->createNewError(GENERIC, ast->line, ast->col, "unreachable statement");
+            createNewWarning(GENERIC, __WGENERAL, ast, "unreachable statement");
         currentScope()->isReachable = true;
     }
 
+    currentScope()->statements.add(ast->getType());
     switch(ast->getType()) {
         case ast_return_stmnt:
-            return compileReturnStatement(ast, controlPaths);
+            compileReturnStatement(ast, controlPaths);
+            break;
         case ast_if_statement:
-            return compileIfStatement(ast, controlPaths);
+            compileIfStatement(ast, controlPaths);
+            break;
         case ast_expression: {
             Expression expr;
             compileExpression(&expr, ast);
@@ -9222,23 +9539,51 @@ void Compiler::compileStatement(Ast *ast, bool *controlPaths) {
             break;
         }
         case ast_label_decl:
-            return compileLabelDecl(ast, controlPaths);
+            compileLabelDecl(ast, controlPaths);
+            break;
         case ast_variable_decl:
-            return compileLocalVariableDecl(ast); // TODO: fire out a way to prevent unititialized vars from being used as a result of a goto
+            compileLocalVariableDecl(ast); // TODO: fire out a way to prevent unititialized vars from being used as a result of a goto
+            break;
         case ast_alias_decl:
-            return compileLocalAlias(ast);
+            compileLocalAlias(ast);
+            break;
         case ast_for_statement:
-            return compileForStatement(ast);
+            compileForStatement(ast);
+            break;
         case ast_foreach_statement:
-            return compileForEachStatement(ast);
+            compileForEachStatement(ast);
+            break;
         case ast_while_statement:
-            return compileWhileStatement(ast);
+            compileWhileStatement(ast);
+            break;
+        case ast_do_while_statement:
+            compileDoWhileStatement(ast);
+            break;
+        case ast_throw_statement:
+            compileThrowStatement(ast);
+            break;
+        case ast_goto_statement:
+            compileGotoStatement(ast);
+            break;
+        case ast_continue_statement:
+            compileContinueStatement(ast);
+            break;
+        case ast_break_statement:
+            compileBreakStatement(ast);
+            break;
+        case ast_lock_statement:
+            compileLockStatement(ast);
+            break;
+        case ast_trycatch_statement:
+            compileTryCatchStatement(ast, controlPaths);
+            break;
         default:
             stringstream err;
             err << ": unknown ast type: " << ast->getType();
             errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
             break;
     }
+    currentScope()->statements.pop_back();
 }
 
 void Compiler::compileLocalAlias(Ast *ast) {
@@ -9269,7 +9614,9 @@ bool Compiler::compileBlock(Ast *ast) {
             false, // MAIN_CONTROL_PATH
             false, // IF_CONTROL_PATH
             false, // ELSEIF_CONTROL_PATH
-            false  // ELSE_CONTROL_PATH
+            false,  // ELSE_CONTROL_PATH
+            false,  // TRY_CONTROL_PATH
+            false  // CATCH_CONTROL_PATH
         };
 
     for(unsigned int i = 0; i < ast->getSubAstCount(); i++) {
@@ -9309,34 +9656,39 @@ void Compiler::invalidateLocalAliases() {
     }
 }
 
-void Compiler::reconcileBranches(Ast *ast) {
+void Compiler::reconcileBranches() {
     CodeHolder &code = currentScope()->currentFunction->data.code;
     for(Int i = 0; i < currentScope()->currentFunction->data.branchTable.size(); i++) {
         BranchTable &branch = currentScope()->currentFunction->data.branchTable.get(i);
-        Int labelAddress = currentScope()->currentFunction->data.getLabelAddress(branch.labelName);
+        if(!branch.resolved) {
+            branch.resolved = true;
+            Int labelAddress = currentScope()->currentFunction->data.getLabelAddress(branch.labelName);
 
-        if(branch.branch_pc < code.size()) {
-            if(labelAddress != invalidAddr) {
-                switch (GET_OP(code.ir32.get(branch.branch_pc))) {
-                    case Opcode::JNE:
-                        code.ir32.get(branch.branch_pc) = OpBuilder::jne(labelAddress + branch._offset);
-                        break;
-                    case Opcode::JE:
-                        code.ir32.get(branch.branch_pc) = OpBuilder::je(labelAddress + branch._offset);
-                        break;
-                    case Opcode::JMP:
-                        code.ir32.get(branch.branch_pc) = OpBuilder::jmp(labelAddress + branch._offset);
-                        break;
+            if (branch.branch_pc < code.size()) {
+                if (labelAddress != invalidAddr) {
+                    switch (GET_OP(code.ir32.get(branch.branch_pc))) {
+                        case Opcode::JNE:
+                            code.ir32.get(branch.branch_pc) = OpBuilder::jne(labelAddress + branch._offset);
+                            break;
+                        case Opcode::JE:
+                            code.ir32.get(branch.branch_pc) = OpBuilder::je(labelAddress + branch._offset);
+                            break;
+                        case Opcode::JMP:
+                            code.ir32.get(branch.branch_pc) = OpBuilder::jmp(labelAddress + branch._offset);
+                            break;
+                    }
+                } else {
+                    errors->createNewError(GENERIC, branch.line, branch.col,
+                                           "attempt to jump to label `" + branch.labelName +
+                                           "` that dosen't exist in the current context.");
                 }
             } else {
-                errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, ": attempt to jump to label `" + branch.labelName + "` that dosen't exist in the current function");
+                errors->createNewError(INTERNAL_ERROR, branch.line, branch.col,
+                                       ": attempt to reconcile branch that is not in codebase.");
             }
-        } else {
-            errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, ": attempt to reconcile branch that is not in codebase ");
         }
     }
 
-    currentScope()->currentFunction->data.branchTable.free();
     currentScope()->currentFunction->data.labelMap.free();
 }
 
@@ -9357,12 +9709,14 @@ void Compiler::compileInitDecl(Ast *ast) {
         }
         RESTORE_BLOCK_TYPE()
 
-        reconcileBranches(ast);
+        reconcileBranches();
         if(GET_OP(constructor->data.code.ir32.last()) != Opcode::RET) {
             constructor->data.code.addIr(OpBuilder::ret());
         }
+
 //        cout << ast->toString() << endl;
         printMethodCode(*constructor, ast);
+        currentScope()->resetLocalScopeFlags();
         if(NEW_ERRORS_FOUND()){
             break; // no need to waste processing power to compile a broken init decl
         }
@@ -9599,6 +9953,9 @@ void Compiler::addDefaultConstructor(ClassObject* klass, Ast* ast) {
     }
 }
 
+void Compiler::createNewWarning(error_type error, int type, Ast* ast, string xcmnts) {
+    createNewWarning(error, type, ast->line, ast->col, xcmnts);
+}
 
 void Compiler::createNewWarning(error_type error, int type, int line, int col, string xcmnts) {
     if(warning_map[__WGENERAL] && !warnings.find(xcmnts)) {

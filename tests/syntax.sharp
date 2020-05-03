@@ -7,8 +7,21 @@ class K {
     init {
         list : object[];
         iter := 0;
-        while(iter < sizeof(list)) {
+
+        try {
             o := list[iter++];
+        } catch(exception){
+
+            return 1;
+        }
+         finally {
+
+        }
+
+        if(iter > 0) {
+            return 1;
+        } else {
+            return 2;
         }
     }
 }

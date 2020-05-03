@@ -339,7 +339,7 @@ void parser::parseAssemblyBlock(Ast *ast) {
     }
 }
 
-void parser::parseAssemblyStmnt(Ast *ast) {
+void parser::parseAssemblyStatement(Ast *ast) {
     Ast* branch = getBranch(ast, ast_assembly_statement);
 
     expect(branch, "asm");
@@ -408,7 +408,7 @@ void parser::parseIfStatement(Ast *ast) {
     }
 }
 
-void parser::parseForStmnt(Ast *ast) {
+void parser::parseForStatement(Ast *ast) {
     Ast* branch = getBranch(ast, ast_for_statement);
 
     _current--;
@@ -450,7 +450,115 @@ void parser::parseWhileStatement(Ast *ast) {
     parseBlock(branch);
 }
 
-void parser::parseForEachStmnt(Ast *ast) {
+void parser::parseDoWhileStatement(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_do_while_statement);
+
+    _current--;
+    expect(branch, "do", false);
+    parseBlock(branch);
+
+    expect(branch, "while", false);
+    expect(branch, "(", false);
+    parseExpression(branch);
+    expect(branch, ")", false);
+    expect(branch, ";", false);
+}
+
+void parser::parseThrowStatement(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_throw_statement);
+
+    _current--;
+    expect(branch, "throw", false);
+    parseExpression(branch);
+    expect(branch, ";", false);
+}
+
+void parser::parseGotoStatement(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_goto_statement);
+
+    _current--;
+    expect(branch, "goto", false);
+    expectIdentifier(branch);
+    expect(branch, ";", false);
+}
+
+void parser::parseBreakStatement(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_break_statement);
+
+    _current--;
+    expect(branch, "break", false);
+    expect(branch, ";", false);
+}
+
+void parser::parseContinueStatement(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_continue_statement);
+
+    _current--;
+    expect(branch, "continue", false);
+    expect(branch, ";", false);
+}
+
+void parser::parseLockStatement(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_lock_statement);
+
+    _current--;
+    expect(branch, "lock", false);
+    parseExpression(branch);
+    expect(branch, "->", false);
+    parseBlock(branch);
+}
+
+void parser::parseCatchClause(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_catch_clause);
+
+    expect(branch, "catch", false);
+
+    expect(branch, "(", false);
+    parseUtypeArgOpt(branch);
+    expect(branch, ")", false);
+
+    parseBlock(branch);
+}
+
+void parser::parseCatchChain(Ast *ast) {
+    if(*peek(1) == "catch")
+    {
+        parseCatchClause(ast);
+
+        _pCatch:
+        if(peek(1)->getValue() == "catch")
+        {
+            parseCatchClause(ast);
+            goto _pCatch;
+        }
+    }
+}
+
+void parser::parseFinallyBlock(Ast *ast) {
+    if(*peek(1) == "finally")
+    {
+        Ast *branch = getBranch(ast, ast_finally_block);
+
+        expect(branch, "finally", false);
+        parseBlock(branch);
+    }
+}
+
+void parser::parseTryCatchStatement(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_trycatch_statement);
+
+    _current--;
+    expect(branch, "try", false);
+    parseBlock(branch);
+    parseCatchChain(branch);
+    parseFinallyBlock(branch);
+
+    if(!branch->hasSubAst(ast_catch_clause) && !branch->hasSubAst(ast_finally_block)) {
+        errors->createNewError(GENERIC, current(), "expected `catch` or `finally`");
+    }
+}
+
+void parser::parseForEachStatement(Ast *ast) {
     Ast* branch = getBranch(ast, ast_foreach_statement);
 
     _current--;
@@ -525,7 +633,7 @@ bool parser::parseStatement(Ast* ast) {
         if(access_types.size() > 0)
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
 
-        parseAssemblyStmnt(branch);
+        parseAssemblyStatement(branch);
         return true;
     }
     else if(isForStatement(current()))
@@ -533,7 +641,7 @@ bool parser::parseStatement(Ast* ast) {
         if(access_types.size() > 0)
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
 
-        parseForStmnt(branch);
+        parseForStatement(branch);
         return true;
     }
     else if(isAliasDeclaration(current()))
@@ -565,7 +673,7 @@ bool parser::parseStatement(Ast* ast) {
         if(access_types.size() > 0)
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
 
-        parseForEachStmnt(branch);
+        parseForEachStatement(branch);
         return true;
     }
     else if(isWhileStatement(current()))
@@ -576,114 +684,62 @@ bool parser::parseStatement(Ast* ast) {
         parseWhileStatement(branch);
         return true;
     }
-//    else if(islock_stmnt(current()))
-//    {
-//        if(access_types.size() > 0)
-//            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-//
-//        parse_lockstmnt(pAst );
-//        return true;
-//    }
-//    else if(isdowhile_stmnt(current()))
-//    {
-//        if(access_types.size() > 0)
-//            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-//
-//        parse_dowhilestmnt(pAst);
-//        return true;
-//    }
-//    else if(istrycatch_stmnt(current()))
-//    {
-//        if(access_types.size() > 0)
-//            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-//
-//        parse_trycatch(pAst);
-//        return true;
-//    }
-//    else if(isthrow_stmnt(current()))
-//    {
-//        if(access_types.size() > 0)
-//            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-//
-//        parse_throwstmnt(pAst);
-//        return true;
-//    }
-//    else if(current().getToken() == "continue")
-//    {
-//        if(access_types.size() > 0)
-//            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-//
-//        Ast* pAst2 = get_ast(pAst, ast_continue_statement);
-//
-//        expect_token(pAst2, "continue", "`continue`");
-//
-//        expect(SEMICOLON, pAst, "`;`");
-//        return true;
-//    }
-//    else if(current().getToken() == "break")
-//    {
-//        if(access_types.size() > 0)
-//            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-//
-//        Ast* pAst2 = get_ast(pAst, ast_break_statement);
-//
-//        expect_token(pAst2, "break", "`break`");
-//        expect(SEMICOLON, pAst2, "`;`");
-//        return true;
-//    }
-//    else if(current().getToken() == "goto")
-//    {
-//        if(access_types.size() > 0)
-//            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-//
-//        Ast* pAst2 = get_ast(pAst, ast_goto_statement);
-//
-//        expect_token(pAst2, "goto", "`goto`");
-//
-//        expectidentifier(pAst2);
-//        // TODO: add support for calling goto labels[9];
-//        expect(SEMICOLON, pAst2, "`;`");
-//        return true;
-//    }
-//    else if(isvariable_decl(current()) || (isstorage_type(current()) && isvariable_decl(peek(1))))
-//    {
-//        parse_variabledecl(pAst);
-//        return true;
-//    }
-//    else if(isprototype_decl(current()) || (isstorage_type(current()) && isprototype_decl(peek(1))))
-//    {
-//        if(access_types.size() > 0)
-//            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-//
-//        parse_prototypedecl(pAst);
-//        return true;
-//    }
-//        /* these are just in case there is a missed bracket anywhere */
-//    else if(ismodule_decl(current()))
-//    {
-//        errors->createNewError(GENERIC, current(), "module declaration not allowed here");
-//        parse_moduledecl(pAst);
-//    }
-//    else if(isclass_decl(current()))
-//    {
-//        errors->createNewError(GENERIC, current(), "unexpected class declaration");
-//        parse_classdecl(pAst);
-//    }
-//    else if(isenum_decl(current()))
-//    {
-//        errors->createNewError(GENERIC, current(), "enum declaration cannot be local");
-//        parse_enumdecl(pAst);
-//    }
-//    else if(isinterface_decl(current()))
-//    {
-//        errors->createNewError(GENERIC, current(), "unexpected interface declaration");
-//        parse_interfacedecl(NULL);
-//    }
-//    else if(isimport_decl(current()))
-//    {
-//        errors->createNewError(GENERIC, current(), "import declaration not allowed here (why are you putting this here lol?)");
-//        parse_importdecl(pAst);
-//    }
+    else if(isDoWhileStatement(current()))
+    {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
+        parseDoWhileStatement(branch);
+        return true;
+    }
+    else if(isThrowStatement(current()))
+    {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
+        parseThrowStatement(branch);
+        return true;
+    }
+    else if(isGotoStatement(current()))
+    {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
+        parseGotoStatement(branch);
+        return true;
+    }
+    else if(isBreakStatement(current()))
+    {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
+        parseBreakStatement(branch);
+        return true;
+    }
+    else if(isContinueStatement(current()))
+    {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
+        parseContinueStatement(branch);
+        return true;
+    }
+    else if(isLockStatement(current()))
+    {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
+        parseLockStatement(branch);
+        return true;
+    }
+    else if(isTryCatchStatement(current()))
+    {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
+        parseTryCatchStatement(branch);
+        return true;
+    }
     else if(current().getType() == SEMICOLON)
     {
         if(access_types.size() > 0) {
@@ -721,7 +777,8 @@ bool parser::parseStatement(Ast* ast) {
         if(!parseExpression(branch))
         {
             errors->pass();
-            advance();
+            advance()
+            branch->freeLastSub();
             errors->createNewError(GENERIC, branch, "not a statement");
             return false;
         } else {
@@ -2637,8 +2694,36 @@ bool parser::isWhileStatement(Token& t) {
     return (t.getId() == IDENTIFIER && t.getValue() == "while");
 }
 
+bool parser::isDoWhileStatement(Token& t) {
+    return (t.getId() == IDENTIFIER && t.getValue() == "do");
+}
+
 bool parser::isAliasDeclaration(Token& t) {
     return (t.getId() == IDENTIFIER && t.getValue() == "alias");
+}
+
+bool parser::isThrowStatement(Token& t) {
+    return (t.getId() == IDENTIFIER && t.getValue() == "throw");
+}
+
+bool parser::isGotoStatement(Token& t) {
+    return (t.getId() == IDENTIFIER && t.getValue() == "goto");
+}
+
+bool parser::isBreakStatement(Token& t) {
+    return (t.getId() == IDENTIFIER && t.getValue() == "break");
+}
+
+bool parser::isContinueStatement(Token& t) {
+    return (t.getId() == IDENTIFIER && t.getValue() == "continue");
+}
+
+bool parser::isLockStatement(Token& t) {
+    return (t.getId() == IDENTIFIER && t.getValue() == "lock");
+}
+
+bool parser::isTryCatchStatement(Token& t) {
+    return (t.getId() == IDENTIFIER && t.getValue() == "try");
 }
 
 bool parser::isSwitchDeclarator(Token& t) {
@@ -2798,9 +2883,17 @@ void parser::expect(Ast* ast, string token, bool addToken, const char *expecteds
     }
 }
 
-Ast * parser::getBranch(Ast *parent, ast_type type) {
-    Ast *branch = new Ast(type, current().getLine(),
-            current().getColumn());
+Ast * parser::getBranch(Ast *parent, ast_type type) { // TODO: talk about this change to the youtube series
+    Ast *branch;
+
+    if(type == ast_expression) {
+        branch = new Ast(type, peek(1)->getLine(),
+                         peek(1)->getColumn());
+    }
+    else {
+        branch = new Ast(type, current().getLine(),
+                current().getColumn());
+    }
 
     if(parent == NULL)
     {

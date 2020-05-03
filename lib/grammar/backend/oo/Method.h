@@ -16,7 +16,7 @@ struct CatchData {
             :
             handler_pc(invalidAddr),
             localFieldAddress(invalidAddr),
-            className("")
+            classAddress(invalidAddr)
     {
     }
 
@@ -24,24 +24,18 @@ struct CatchData {
         CatchData();
     }
 
-    ~CatchData()
-    {
-        className = "";
-    }
-
     void free() {
-        className = "";
     }
 
     void operator=(CatchData* ct) {
         this->handler_pc=ct->handler_pc;
         this->handler_pc=ct->handler_pc;
-        this->className=ct->className;
+        this->classAddress=ct->classAddress;
     }
 
     Int handler_pc;
     Int localFieldAddress;
-    string className;
+    Int classAddress;
 };
 
 struct FinallyData {
@@ -94,21 +88,30 @@ struct BranchTable {
     :
         branch_pc(0),
         labelName(""),
-        _offset(0)
+        _offset(0),
+        resolved(false),
+        line(0),
+        col(0)
     {
     }
 
-    BranchTable(Int branch_pc, string labelName, Int _offset)
+    BranchTable(Int branch_pc, string labelName, Int _offset,
+                Int line, Int col)
             :
             branch_pc(branch_pc),
             _offset(_offset),
-            labelName(labelName)
+            labelName(labelName),
+            resolved(false),
+            line(line),
+            col(col)
     {
     }
 
+    bool resolved;          // have we already processed this branch map?
     Int branch_pc;          // where was the branch initated in the code
     string labelName;           // the label we were trying to access
     Int _offset;                // any offset to the address label
+    Int line, col;          // where did it happen?
 
     void free() {
         labelName = "";

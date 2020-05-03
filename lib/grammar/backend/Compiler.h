@@ -154,6 +154,7 @@ private:
     void addDefaultConstructor(ClassObject* klass, Ast* ast);
     void inlineClassMutateFields(Ast *ast);
     void createNewWarning(error_type error, int type, int line, int col, string xcmnts);
+    void createNewWarning(error_type error, int type, Ast* ast, string xcmnts);
     string parseModuleDecl(Ast* ast);
     void parseClassAccessFlags(List<AccessFlag> &flags, Ast *ast);
     bool matchesFlag(AccessFlag flags[], int len, int startPos, AccessFlag flag);
@@ -163,14 +164,23 @@ private:
     void inlineEnumFields(Ast* ast, ClassObject* currentClass = NULL);
     void inlineEnumField(Ast* ast);
     void compileInitDecl(Ast *ast);
-    void reconcileBranches(Ast *ast);
+    void reconcileBranches();
     void invalidateLocalAliases();
     void invalidateLocalVariables();
+    Int getSkippedBlockCount(ast_type triggerStatement);
     bool compileBlock(Ast *ast);
     void compileLocalVariableDecl(Ast *ast);
     void compileForStatement(Ast *ast);
     void compileForEachStatement(Ast *ast);
     void compileWhileStatement(Ast *ast);
+    void compileDoWhileStatement(Ast *ast);
+    void compileThrowStatement(Ast *ast);
+    void compileGotoStatement(Ast *ast);
+    void compileBreakStatement(Ast *ast);
+    void compileContinueStatement(Ast *ast);
+    void compileLockStatement(Ast *ast);
+    void compileTryCatchStatement(Ast *ast, bool *controlPaths);
+    ClassObject* compileCatchClause(Ast *ast, TryCatchData &tryCatchData, bool *controlPaths);
     void compileReturnStatement(Ast *ast, bool *controlPaths);
     void compileIfStatement(Ast *ast, bool *controlPaths);
     void compileLabelDecl(Ast *ast, bool *controlPaths);
@@ -435,11 +445,13 @@ enum ProcessingStage {
 #define RESTORE_TYPE_INFERENCE() \
     typeInference = oldTypeInference;
 
-#define CONTROL_PATH_SIZE 4
+#define CONTROL_PATH_SIZE 6
 #define MAIN_CONTROL_PATH 0
 #define IF_CONTROL_PATH 1
 #define ELSEIF_CONTROL_PATH 2
 #define ELSE_CONTROL_PATH 3
+#define TRY_CONTROL_PATH 4
+#define CATCH_CONTROL_PATH 5
 
 #define INTERNAL_VARIABLE_NAME_PREFIX string("$01internal_var_")
 #define INTERNAL_LABEL_NAME_PREFIX string("$02internal_label_")
