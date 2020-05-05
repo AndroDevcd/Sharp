@@ -4,24 +4,20 @@ import std.io;
 
 class K {
 
+    private funPtr : ()(var);
+
     init {
-        list : object[];
-        iter := 0;
 
-        try {
-            o := list[iter++];
-        } catch(exception){
-
-            return 1;
-        }
-         finally {
-
-        }
-
-        if(iter > 0) {
-            return 1;
-        } else {
-            return 2;
+        when(funPtr) {
+             foo -> {
+                return 1;
+            }
+            else -> {
+                return 1;
+            }
         }
     }
+
+    static def foo() : var {}
+    static def foo(num : var) : var {}
 }

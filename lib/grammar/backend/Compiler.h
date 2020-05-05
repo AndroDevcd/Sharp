@@ -119,8 +119,7 @@ private:
     List<Method*> unProcessedMethods;
     List<Scope*> currScope;
     List<string> stringMap;
-    List<float> floatingPointMap;
-    List<int64_t> constantIntMap;
+    List<double> constantMap;
     List<KeyPair<Field*, double>> inlinedFields;
     List<KeyPair<Field*, Int>> inlinedStringFields;
     List<KeyPair<string, List<string>>>  importMap;
@@ -180,6 +179,7 @@ private:
     void compileContinueStatement(Ast *ast);
     void compileLockStatement(Ast *ast);
     void compileTryCatchStatement(Ast *ast, bool *controlPaths);
+    void compileWhenStatement(Ast *ast, bool *controlPaths);
     ClassObject* compileCatchClause(Ast *ast, TryCatchData &tryCatchData, bool *controlPaths);
     void compileReturnStatement(Ast *ast, bool *controlPaths);
     void compileIfStatement(Ast *ast, bool *controlPaths);
@@ -386,7 +386,6 @@ enum ProcessingStage {
 #define THREAD_LOCAL_FIELD_LIMIT DA_MAX
 #define FUNCTION_LIMIT DA_MAX
 #define STRING_LITERAL_LIMIT DA_MAX
-#define FLOATING_POINT_LIMIT CA2_MAX
 #define CONSTANT_LIMIT CA2_MAX
 #define FUNCTION_OPCODE_LIMIT DA_MAX
 #define OPCODE_SKIP_LIMIT DA_MAX
@@ -445,13 +444,15 @@ enum ProcessingStage {
 #define RESTORE_TYPE_INFERENCE() \
     typeInference = oldTypeInference;
 
-#define CONTROL_PATH_SIZE 6
+#define CONTROL_PATH_SIZE 8
 #define MAIN_CONTROL_PATH 0
 #define IF_CONTROL_PATH 1
 #define ELSEIF_CONTROL_PATH 2
 #define ELSE_CONTROL_PATH 3
 #define TRY_CONTROL_PATH 4
 #define CATCH_CONTROL_PATH 5
+#define WHEN_CONTROL_PATH 6
+#define WHEN_ELSE_CONTROL_PATH 7
 
 #define INTERNAL_VARIABLE_NAME_PREFIX string("$01internal_var_")
 #define INTERNAL_LABEL_NAME_PREFIX string("$02internal_label_")

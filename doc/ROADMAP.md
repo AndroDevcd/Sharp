@@ -258,13 +258,13 @@ response_messages :=
     - add support for high level casting and assignment of the objects
     
     
-- add where statement
+- [X] add when statement
  
  ```javascript
 
 def main() {
     myStr := "hello";
-    where (myStr) {
+    when (myStr) {
         "hi" -> {
         
         }    
@@ -276,7 +276,7 @@ def main() {
         }
     }   
 
-    where {
+    when {
         myStr == "hi" -> {
         
         }
@@ -290,7 +290,7 @@ def main() {
 }
 ```
 
-- add support for operator []
+- [X] add support for operator []
 
 ```javascript
 

@@ -226,12 +226,6 @@ opcode_instr OpBuilder::movsl(opcode_arg relStackAddress) {
     return SET_Di(tmpInstr, MOVSL, abs(relStackAddress), posNeg(relStackAddress));
 }
 
-opcode_instr OpBuilder::movf(_register outRegister, opcode_arg floatingPointAddress) {
-    if(illegalParam(floatingPointAddress, C_CLASS, 2))
-        return ill();
-    return SET_Ci(tmpInstr, MOVF, outRegister, POSITIVE, abs(floatingPointAddress), posNeg(floatingPointAddress));;
-}
-
 opcode_instr OpBuilder::_sizeof(_register outRegister) {
     return SET_Di(tmpInstr, SIZEOF, outRegister, POSITIVE);
 }
@@ -632,7 +626,7 @@ opcode_instr *OpBuilder::cmp(_register inRegister, opcode_arg value) {
 }
 
 opcode_instr OpBuilder::calld(_register inRegister) {
-    return SET_Di(tmpInstr, JNE, inRegister, POSITIVE);
+    return SET_Di(tmpInstr, CALLD, inRegister, POSITIVE);
 }
 
 opcode_instr OpBuilder::varCast(opcode_arg varType, bool isArray) {

@@ -1764,7 +1764,7 @@ void RuntimeEngine::parseStatement(Block& block, Ast* pAst) {
         case ast_while_statement:
             parseWhileStatement(block, pAst); //
             break;
-        case ast_switch_statement: // create a switch control paths that requires all values ro return a bvalue only if the switched value is const
+        case ast_switch_statement: // create a switch control paths that requires all values ro return a bvalue only if the switched value is an enum else all control paths are consered void
             parseSwitchStatement(block, pAst); //
             break;
         case ast_lock_statement: // ignore

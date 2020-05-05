@@ -21,11 +21,18 @@ enum utype_struct
 };
 
 class Method;
+
+/**
+ * Injector for building code
+ */
 extern string stackInjector;
 extern string ebxInjector;
 extern string ptrInjector;
 extern string getterInjector;
 extern string removeFromStackInjector;
+extern string incInjector;
+extern string decInjector;
+
 class Utype {
 public:
     Utype()
@@ -54,7 +61,6 @@ public:
     DataEntity* getResolvedType() { return resolvedType; }
     CodeHolder& getCode() { return code; }
     void free();
-    void softFree();
     string toString();
     bool equals(Utype *utype);
     bool isRelated(Utype *utype);

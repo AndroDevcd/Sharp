@@ -25,7 +25,7 @@ public:
     }
 
     bool addinjector(string key) {
-        if(!has_injector(key)) {
+        if(!hasInjector(key)) {
             injectors.key.push_back(key);
             injectors.value.__new();
             injectors.value.last().init();
@@ -35,7 +35,7 @@ public:
     }
 
     bool add(string injector, int32_t i32) {
-        if(has_injector(injector)) {
+        if(hasInjector(injector)) {
             getInjector(injector).ir32.add(i32);
             return true;
         }
@@ -169,9 +169,9 @@ public:
             }
         }
     }
-private:
 
-    bool has_injector(string key) {
+
+    bool hasInjector(string key) {
         for(unsigned int i = 0; i < injectors.key.size(); i++) {
             if(injectors.key.at(i) == key)
                 return true;

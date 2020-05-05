@@ -12,22 +12,20 @@ string ebxInjector = "ebx-injector";
 string ptrInjector = "ptr-injector";
 string getterInjector = "getterCodeSize-injector";
 string removeFromStackInjector = "removeFromStack-injector";
+string incInjector = "inc-injector";
+string decInjector = "dec-injector";
 
 void Utype::free() {
-
-    if(type == utype_native && resolvedType) {
-        resolvedType->release();
-        delete resolvedType;
-    }
     if(type == utype_literal && resolvedType) {
         ((Literal*)resolvedType)->free();
         delete resolvedType;
     }
-    code.free();
-}
 
-void Utype::softFree() {
     code.free();
+    type = utype_unresolved;
+    resolvedType = NULL;
+    array = false;
+    nullType = false;
 }
 
 string Utype::toString() {

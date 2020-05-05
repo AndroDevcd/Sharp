@@ -54,6 +54,45 @@ struct FinallyData {
     uInt start_pc, end_pc;
 };
 
+struct LineData {
+    LineData()
+            :
+            start_pc(0),
+            line(0)
+    {
+    }
+
+    LineData(uInt startPc, Int line)
+            :
+            start_pc(startPc),
+            line(line)
+    {
+    }
+
+    void operator=(LineData *ld) {
+        start_pc=ld->start_pc;
+        line=ld->line;
+    }
+
+    uInt start_pc;
+    Int line;
+};
+
+struct AsmData {
+    AsmData()
+            :
+            start_pc(0),
+            end_pc(0)
+    {
+    }
+
+    void operator=(AsmData *ad) {
+        start_pc=ad->start_pc;
+        end_pc=ad->end_pc;
+    }
+
+    uInt start_pc, end_pc;
+};
 
 struct TryCatchData {
     TryCatchData()
@@ -127,7 +166,8 @@ struct CodeData {
             localAliases(),
             labelMap(),
             branchTable(),
-            localVariablesSize(0)
+            localVariablesSize(0),
+            protectedCodeTable()
     {
     }
 
@@ -169,6 +209,8 @@ struct CodeData {
     List<KeyPair<Int, string>> localAliases;
     List<KeyPair<string, Int>> labelMap;
     List<BranchTable> branchTable;
+    List<AsmData> protectedCodeTable;
+    List<LineData> lineTable;
 };
 
 class Method : public DataEntity {

@@ -482,6 +482,53 @@ void parser::parseGotoStatement(Ast *ast) {
     expect(branch, ";", false);
 }
 
+void parser::parseWhenStatement(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_when_statement);
+
+    _current--;
+    expect(branch, "when", false);
+    if(peek(1)->getValue() == "(") {
+        expect(branch, "(", false);
+        parseExpression(branch);
+        expect(branch, ")", false);
+    }
+
+    parseWhenBlock(branch);
+}
+
+void parser::parseWhenBlock(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_when_block);
+
+    expect(branch, "{", false);
+
+    pWhenClause:
+    if(peek(1)->getValue() == "else") {
+        Ast* whenClause = getBranch(branch, ast_when_else_clause);
+
+        expect(whenClause, "else", false);
+        expect(whenClause, "->", false);
+        parseBlock(whenClause);
+        goto endOfClause;
+    } else {
+        Ast* whenClause = getBranch(branch, ast_when_clause);
+
+        parseExpression(whenClause);
+        expect(whenClause, "->", false);
+        parseBlock(whenClause);
+    }
+
+    if(peek(1)->getValue() != "}") {
+        goto pWhenClause;
+    }
+
+    endOfClause:
+    if(!branch->hasSubAst(ast_when_clause)) {
+        errors->createNewError(GENERIC, current(), "expected when clause");
+    }
+
+    expect(branch, "}", false);
+}
+
 void parser::parseBreakStatement(Ast *ast) {
     Ast* branch = getBranch(ast, ast_break_statement);
 
@@ -599,7 +646,7 @@ bool parser::parseStatement(Ast* ast) {
     CHECK_ERRLMT(return false;)
 
     access_types.free();
-    if(isAccessDecl(current()))
+    if(isAccessDecl(current())) // TODO: do switch and asm() statements
     {
         parseAccessTypes();
     }
@@ -738,6 +785,14 @@ bool parser::parseStatement(Ast* ast) {
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
 
         parseTryCatchStatement(branch);
+        return true;
+    }
+    else if(isWhenStatement(current()))
+    {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
+        parseWhenStatement(branch);
         return true;
     }
     else if(current().getType() == SEMICOLON)
@@ -1295,8 +1350,8 @@ bool parser::isOverrideOperator(string token) {
            token == "++" ||token == "--" ||
            token == "*" || token == "/" ||
            token == "%" || token == "-" ||
-           token == "+" || token == "==" || // TODO: talk about removal of "&&, ||"
-           token == ">>" || token == "<<"|| // TODO: talk about addition of "[]"
+           token == "+" || token == "==" ||
+           token == ">>" || token == "<<"||
            token == "<" || token == ">"||
            token == "<=" || token == ">="||
            token == "!=" || token == "!"||
@@ -2212,7 +2267,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         parseExpression(parenBranch);
 
         expect(parenBranch, ")");
-        branch = parenBranch;
+        if(peek(1)->getValue() != "as")
+            branch = parenBranch;
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
             goto checkInc;
@@ -2261,7 +2317,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             else {
                 errors->fail();
                 if(peek(1)->getValue() != "as")
-                    branch = branch->getSubAst(ast_self_e);
+                    branch = branch->getLastSubAst();
 
                 if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
                     goto checkInc;
@@ -2277,10 +2333,10 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         } else if(*peek(1) == "[") {
             advance();
             errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
-        }
+        } else if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+            goto checkInc;
 
-        if(!match(2, _INC, _DEC))
-            return true;
+        return true;
     }
 
     asExpr:
@@ -2293,7 +2349,6 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         expect(branch, "as");
         parseUtype(branch);
 
-        errors->fail();
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
             errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
         else if(peek(1)->getType() == DOT)
@@ -2549,7 +2604,7 @@ bool parser::parseReferencePointer(Ast *ast) {
         expectIdentifier(branch);
     }
 
-    if(peek(1)->getValue() == "<") { // TODO: talk about this fix in the youtube series
+    if(peek(1)->getValue() == "<") {
         Token *old = _current;
         expect(branch, "<");
         errors->enterProtectedMode();
@@ -2710,6 +2765,10 @@ bool parser::isGotoStatement(Token& t) {
     return (t.getId() == IDENTIFIER && t.getValue() == "goto");
 }
 
+bool parser::isWhenStatement(Token& t) {
+    return (t.getId() == IDENTIFIER && t.getValue() == "when");
+}
+
 bool parser::isBreakStatement(Token& t) {
     return (t.getId() == IDENTIFIER && t.getValue() == "break");
 }
@@ -2787,7 +2846,7 @@ bool parser::expectOverrideOperator(Ast* ast) {
 
     if(isOverrideOperator(current().getValue()))
     {
-        if(ast != NULL) { // TODO: talk about changes to this function in tutorial
+        if(ast != NULL) {
             if(current() == "[") {
                 ast->addToken(current());
                 expect(ast, "]", false);
@@ -2883,7 +2942,7 @@ void parser::expect(Ast* ast, string token, bool addToken, const char *expecteds
     }
 }
 
-Ast * parser::getBranch(Ast *parent, ast_type type) { // TODO: talk about this change to the youtube series
+Ast * parser::getBranch(Ast *parent, ast_type type) {
     Ast *branch;
 
     if(type == ast_expression) {

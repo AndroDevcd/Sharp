@@ -65,8 +65,8 @@ struct Scope {
     bool isReachable;
     string loopStartLabel;
     string loopEndLabel;
-    List<ast_type> statements; // use this to figure out how many finally blocks we need to execute until we hit a loop ast or whatever we need and compile the respective block starting from the end of the list backwards
-    List<Ast*> finallyBlocks; // as we parse try catches populate this if there is no finally block to process then set this to null
+    List<ast_type> statements;
+    List<Ast*> finallyBlocks;
     List<Ast*> lockBlocks;
 };
 // TODO: add Block *blck; to hold all nessicary block information

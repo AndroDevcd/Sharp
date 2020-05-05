@@ -65,6 +65,7 @@ private:
     bool isDoWhileStatement(Token &t);
     bool isThrowStatement(Token &t);
     bool isGotoStatement(Token &t);
+    bool isWhenStatement(Token &t);
     bool isBreakStatement(Token &t);
     bool isContinueStatement(Token &t);
     bool isLockStatement(Token &t);
@@ -151,6 +152,8 @@ private:
     void parseDoWhileStatement(Ast*);
     void parseThrowStatement(Ast*);
     void parseGotoStatement(Ast*);
+    void parseWhenStatement(Ast*);
+    void parseWhenBlock(Ast*);
     void parseBreakStatement(Ast*);
     void parseContinueStatement(Ast*);
     void parseLockStatement(Ast*);
