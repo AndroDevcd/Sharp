@@ -1148,8 +1148,8 @@ void Thread::exec() {
                     throw Exception(Environment::ThreadStackException, ss.str());
                 }
                 _brh
-            CHECK_SIG:
-                registers[GET_Ca(*pc)] = hasSignal(signal, (short)GET_Cb(*pc));
+            EXP:
+                registers[GET_Ba(*pc)]=pow(registers[GET_Bb(*pc)], registers[GET_Bc(*pc)]);
                 _brh
 
 

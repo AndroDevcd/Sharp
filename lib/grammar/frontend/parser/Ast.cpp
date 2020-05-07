@@ -339,6 +339,8 @@ string Ast::astTypeToString(ast_type type) {
             return "ast_dictionary_array";
         case ast_dictionary_type:
             return "ast_dictionary_type";
+        case ast_dictionary_element:
+            return "ast_dictionary_element";
         case ast_alias_decl:
             return "ast_alias_decl";
         case ast_func_ptr:

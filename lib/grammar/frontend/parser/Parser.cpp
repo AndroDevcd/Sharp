@@ -496,6 +496,514 @@ void parser::parseWhenStatement(Ast *ast) {
     parseWhenBlock(branch);
 }
 
+void parser::parseAsmStatement(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_assembly_statement);
+
+    _current--;
+    expect(branch, "asm", false);
+    if(peek(1)->getValue() == "volatile") {
+        expect(branch, "volatile");
+    }
+
+    parseAsmBlock(branch);
+}
+
+void parser::parseAssemblyInstruction(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_assembly_instruction);
+
+    advance()
+    if(current() == "nop") {
+        expect(branch, current().getValue());
+    } else if(current() == "int") {
+        expect(branch, current().getValue());
+        parseAsmLiteral(branch);
+    } else if(current() == "movi") {
+        expect(branch, current().getValue());
+        parseAsmLiteral(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "ret") {
+        expect(branch, current().getValue());
+    } else if(current() == "hlt") {
+        expect(branch, current().getValue());
+    } else if(current() == "newArray") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "cast") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "mov8") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "mov16") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "mov32") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "mov64") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "movu8") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "movu16") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "movu32") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "movu64") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "rstore") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "add") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    }  else if(current() == "sub") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "mul") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "div") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "mod") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "iadd") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(current() == "isub") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(current() == "idiv") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(current() == "imod") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(current() == "pop") {
+        expect(branch, current().getValue());
+    } else if(current() == "inc") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "dec") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "movr") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "iaload") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(current() == "brh") {
+        expect(branch, current().getValue());
+    } else if(current() == "ife") {
+        expect(branch, current().getValue());
+    } else if(current() == "ifne") {
+        expect(branch, current().getValue());
+    } else if(current() == "lt") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "gt") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "le") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "ge") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "movl") {
+        expect(branch, current().getValue());
+        parseAsmLiteral(branch);
+    } else if(current() == "movsl") {
+        expect(branch, current().getValue());
+        parseAsmLiteral(branch);
+    } else if(current() == "sizeof") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "put") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "putc") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "checklen") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "jmp") {
+        expect(branch, current().getValue());
+        parseAsmLiteral(branch);
+    } else if(current() == "loadpc") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "pushobject") {
+        expect(branch, current().getValue());
+    } else if(current() == "del") {
+        expect(branch, current().getValue());
+    } else if(current() == "call") {
+        expect(branch, current().getValue());
+        parseAsmLiteral(branch);
+    } else if(current() == "newClass") {
+        expect(branch, current().getValue());
+        parseUtype(branch);
+    } else if(current() == "movn") {
+        expect(branch, current().getValue());
+        parseAsmLiteral(branch);
+    } else if(current() == "sleep") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "te") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "tne") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "lock") {
+        expect(branch, current().getValue());
+    } else if(current() == "ulock") {
+        expect(branch, current().getValue());
+    } else if(current() == "movg") {
+        expect(branch, current().getValue());
+        parseAsmLiteral(branch);
+    } else if(current() == "movnd") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "newObjArray") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "not") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "skip") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+    } else if(current() == "loadVal") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "shl") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "shr") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "skipife") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "skipifne") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "and") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "uand") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "or") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "xor") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "throw") {
+        expect(branch, current().getValue());
+    } else if(current() == "checknull") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "returnObject") {
+        expect(branch, current().getValue());
+    } else if(current() == "newClassArray") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(current() == "newString") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+    } else if(current() == "addl") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(current() == "subl") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(current() == "mull") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(current() == "divl") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(current() == "modl") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
+    } else if(current() == "iaddl") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "isubl") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "idivl") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "imull") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "imodl") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "loadl") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "popObject") {
+        expect(branch, current().getValue());
+    } else if(current() == "smovr") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "andl") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "orl") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "xorl") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "rmov") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    } else if(current() == "smov") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "returnVal") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "istore") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+    } else if(current() == "smovr2") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "smovr3") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+    } else if(current() == "istorel") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "popl") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+    } else if(current() == "pushNull") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+    } else if(current() == "ipushl") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+    } else if(current() == "pushl") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+    } else if(current() == "itest") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "invokeDelegate") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "get") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "isadd") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "je") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+    } else if(current() == "jne") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+    } else if(current() == "ipopl") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+    } else if(current() == "cmp") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "calld") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+    } else if(current() == "varCast") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "tlsMovl") {
+        expect(branch, current().getValue());
+        parseLiteral(branch);
+    } else if(current() == "dup") {
+        expect(branch, current().getValue());
+    } else if(current() == "popObj2") {
+        expect(branch, current().getValue());
+    } else if(current() == "swap") {
+        expect(branch, current().getValue());
+    } else if(current() == "ldc") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseLiteral(branch);
+    } else if(current() == "neg") {
+        expect(branch, current().getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
+    }
+}
+
+void parser::parseAsmBlock(Ast *ast) {
+    Ast* branch = getBranch(ast, ast_assembly_block);
+
+    expect(branch, "{");
+
+    parseAssemblyInstruction(ast);
+
+    _pCatch:
+    if(iaAssemblyInstruction(peek(1)->getValue()))
+    {
+        parseAssemblyInstruction(ast);
+        goto _pCatch;
+    }
+
+    expect(branch, "}");
+}
+
 void parser::parseWhenBlock(Ast *ast) {
     Ast* branch = getBranch(ast, ast_when_block);
 
@@ -513,6 +1021,11 @@ void parser::parseWhenBlock(Ast *ast) {
         Ast* whenClause = getBranch(branch, ast_when_clause);
 
         parseExpression(whenClause);
+        while(peek(1)->getValue() == ",") {
+            expect(whenClause, ",", false);
+            parseExpression(whenClause);
+        }
+
         expect(whenClause, "->", false);
         parseBlock(whenClause);
     }
@@ -793,6 +1306,14 @@ bool parser::parseStatement(Ast* ast) {
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
 
         parseWhenStatement(branch);
+        return true;
+    }
+    else if(isAsmStatement(current()))
+    {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
+        parseAsmStatement(branch);
         return true;
     }
     else if(current().getType() == SEMICOLON)
@@ -1355,7 +1876,7 @@ bool parser::isOverrideOperator(string token) {
            token == "<" || token == ">"||
            token == "<=" || token == ">="||
            token == "!=" || token == "!"||
-           token == "[";
+           token == "[" || token == "**";
 }
 
 void parser::parseVectorArray(Ast* ast) {
@@ -1368,7 +1889,7 @@ void parser::parseVectorArray(Ast* ast) {
         _pExpr:
         if(peek(1)->getType() == COMMA)
         {
-            expect(branch, ",");
+            expect(branch, ",", false);
             parseExpression(branch);
             goto _pExpr;
         }
@@ -1381,14 +1902,22 @@ void parser::parseDictionaryType(Ast* ast) {
 
     if(*peek(1) == "as") {
         Ast *branch = getBranch(ast, ast_dictionary_type);
-        expect(branch, "as");
+        expect(branch, "as", false);
 
-        expect(branch, "<");
+        expect(branch, "<", false);
         parseUtype(branch);
-        expect(branch, ",");
+        expect(branch, ",", false);
         parseUtype(branch);
-        expect(branch, ">");
+        expect(branch, ">", false);
     }
+}
+
+void parser::parseDictElement(Ast* ast) {
+    Ast* branch = getBranch(ast, ast_dictionary_element);
+
+    parseExpression(branch);
+    expect(branch, ":", false);
+    parseExpression(branch);
 }
 
 void parser::parseDictExpression(Ast* ast) {
@@ -1398,20 +1927,21 @@ void parser::parseDictExpression(Ast* ast) {
 
     if(peek(1)->getType() != COLON)
     {
-        parseExpression(branch);
+        parseDictElement(branch);
         _pExpr:
         if(peek(1)->getType() == COMMA)
         {
-            expect(branch, ",");
-            parseExpression(branch);
+            expect(branch, ",", false);
+            parseDictElement(branch);
             goto _pExpr;
         }
-    }
+    } else
+        expect(branch, ":", false);
 
     expect(branch, "}");
 
     /*
-     * { : }++ or { : }--
+     * { : }++ or { : }-- { 200 : "hello" }[200]
      * Just in case the user does some stupid shit... we shall support it
      */
     incCheck:
@@ -1422,16 +1952,43 @@ void parser::parseDictExpression(Ast* ast) {
         incBranch->addToken(current());
         goto incCheck;
     }
+    else if(peek(1)->getType() == LEFTBRACE) {
+        Ast* arrayBranch = getBranch(branch, ast_arry_e);
+        advance();
+        arrayBranch->addToken(current());
+
+        parseExpression(arrayBranch);
+        expect(arrayBranch, "]");
+
+        if(peek(1)->getType() == DOT) {
+            errors->enterProtectedMode();
+            Token* old = _current;
+            if(!parseDotNotCallExpr(arrayBranch))
+            {
+                _current=old;
+                errors->pass();
+                arrayBranch->freeLastSub();
+            } else {
+                errors->fail();
+            }
+        } else if(peek(1)->getType() == LEFTPAREN) {
+            parseExpressionList(branch, "(", ")");
+
+            branch->encapsulate(ast_dot_fn_e);
+        }
+        goto incCheck;
+    }
     else {
-        errors->enterProtectedMode();
-        Token* old = _current;
-        if(!parseDotNotCallExpr(branch))
-        {
-            _current=old;
-            errors->pass();
-            branch->freeLastSub();
-        } else {
-            errors->fail();
+        if(peek(1)->getType() == DOT) {
+            errors->enterProtectedMode();
+            Token *old = _current;
+            if (!parseDotNotCallExpr(branch)) {
+                _current = old;
+                errors->pass();
+                branch->freeLastSub();
+            } else {
+                errors->fail();
+            }
         }
     }
 }
@@ -1528,33 +2085,16 @@ bool parser::parseExpression(Ast* ast) {
 
 
 bool parser::binary(Ast *ast) {
-    bool success = shift(ast);
+    bool success = equality(ast);
 
     while(match(5, AND, XOR, OR, ANDAND, OROR)) {
         advance();
         ast->addToken(current());
 
         Ast *right = new Ast(ast->getType(), ast->line, ast->col);
-        shift(right);
-        ast->addAst(right);
-        ast->encapsulate(ast_and_e);
-        success = true;
-    }
-
-    return success;
-}
-
-bool parser::shift(Ast *ast) {
-    bool success = equality(ast);
-
-    while(match(2, SHL, SHR)) {
-        advance();
-        ast->addToken(current());
-
-        Ast *right = new Ast(ast->getType(), ast->line, ast->col);
         equality(right);
         ast->addAst(right);
-        ast = ast->encapsulate(ast_shift_e);
+        ast->encapsulate(ast_and_e);
         success = true;
     }
 
@@ -1579,16 +2119,33 @@ bool parser::equality(Ast *ast) {
 }
 
 bool parser::comparason(Ast *ast) {
-    bool success = addition(ast);
+    bool success = shift(ast);
 
     while(match(4, GREATERTHAN, _GTE, LESSTHAN, _LTE)) {
         advance();
         ast->addToken(current());
 
         Ast *right = new Ast(ast->getType(), ast->line, ast->col);
-        addition(right);
+        shift(right);
         ast->addAst(right);
         ast = ast->encapsulate(ast_less_e);
+        success = true;
+    }
+
+    return success;
+}
+
+bool parser::shift(Ast *ast) {
+    bool success = addition(ast);
+
+    while(match(2, SHL, SHR)) {
+        advance();
+        ast->addToken(current());
+
+        Ast *right = new Ast(ast->getType(), ast->line, ast->col);
+        addition(right);
+        ast->addAst(right);
+        ast = ast->encapsulate(ast_shift_e);
         success = true;
     }
 
@@ -1613,16 +2170,33 @@ bool parser::addition(Ast *ast) {
 }
 
 bool parser::multiplication(Ast *ast) {
-    bool success = unary(ast);
+    bool success = exponent(ast);
 
     while(match(3, _DIV, _MOD, MULT)) {
         advance();
         ast->addToken(current());
 
         Ast *right = new Ast(ast_expression, ast->line, ast->col);
-        unary(right);
+        exponent(right);
         ast->addAst(right);
         ast = ast->encapsulate(ast_mult_e);
+        success = true;
+    }
+
+    return success;
+}
+
+bool parser::exponent(Ast *ast) {
+    bool success = unary(ast);
+
+    while(match(1, EXPONENT)) {
+        advance();
+        ast->addToken(current());
+
+        Ast *right = new Ast(ast_expression, ast->line, ast->col);
+        unary(right);
+        ast->addAst(right);
+        ast = ast->encapsulate(ast_exponent_e);
         success = true;
     }
 
@@ -1671,6 +2245,93 @@ bool parser::unary(Ast *ast) {
     }
 }
 
+bool parser::parseAsmLiteral(Ast* ast) {
+    Ast* branch = getBranch(ast, ast_assembly_literal);
+
+    Token *t = peek(1);
+    if(t->getId() == CHAR_LITERAL || t->getId() == INTEGER_LITERAL
+       || t->getId() == STRING_LITERAL || t->getId() == HEX_LITERAL
+       || t->getValue() == "true" || t->getValue() == "false")
+    {
+        advance();
+        branch->addToken(current());
+        return true;
+    }
+    else if(t->getType() == AT) { // label
+        expect(branch, "@");
+        expectIdentifier(branch);
+        if(peek(1)->getType() == PLUS || peek(1)->getType() == MINUS) {
+            advance();
+            branch->addToken(current());
+
+            if(t->getId() == INTEGER_LITERAL
+               || t->getId() == HEX_LITERAL)
+            {
+                advance();
+                branch->addToken(current());
+                return true;
+            } else {
+                errors->createNewError(GENERIC, current(), "expected literal of type (integer, hex)");
+                return false;
+            }
+        }
+        return true;
+    } else if(t->getType() == LEFTCURLY) { // any
+        expect(branch, "{");
+        parseUtype(branch);
+
+        if(peek(1)->getType() == PLUS || peek(1)->getType() == MINUS) {
+            advance();
+            branch->addToken(current());
+
+            if(t->getId() == INTEGER_LITERAL
+               || t->getId() == HEX_LITERAL)
+            {
+                advance();
+                branch->addToken(current());
+                return true;
+            } else {
+                errors->createNewError(GENERIC, current(), "expected literal of type (integer, hex)");
+                return false;
+            }
+        }
+        expect(branch, "}");
+        return true;
+    }
+    else {
+        errors->createNewError(GENERIC, current(), "expected literal of type (integer, char, hex, bool, or label)");
+        return false;
+    }
+}
+
+bool parser::parseRegister(Ast* ast) {
+    Ast* branch = getBranch(ast, ast_assembly_register);
+
+    if(peek(1)->getValue() == "%")
+        expect(branch, "%", false);
+
+    Token *reg = peek(1);
+    if(to_lower(reg->getValue()) == "adx"
+        || to_lower(reg->getValue()) == "cx"
+        || to_lower(reg->getValue()) == "cmt"
+        || to_lower(reg->getValue()) == "ebx"
+        || to_lower(reg->getValue()) == "ecx"
+        || to_lower(reg->getValue()) == "ecf"
+        || to_lower(reg->getValue()) == "edf"
+        || to_lower(reg->getValue()) == "ehf"
+        || to_lower(reg->getValue()) == "bmr"
+        || to_lower(reg->getValue()) == "egx")
+    {
+        advance();
+        branch->addToken(current());
+        return true;
+    }
+    else {
+        errors->createNewError(GENERIC, current(), "expected literal of type (integer, char, hex, or bool)");
+        return false;
+    }
+}
+
 bool parser::parseLiteral(Ast* ast) {
     Ast* branch = getBranch(ast, ast_literal);
 
@@ -1684,7 +2345,7 @@ bool parser::parseLiteral(Ast* ast) {
         return true;
     }
     else {
-        errors->createNewError(GENERIC, current(), "expected literal of type (string, char, hex, or bool)");
+        errors->createNewError(GENERIC, current(), "expected literal of type (integer, string, char, hex, or bool)");
         return false;
     }
 }
@@ -2773,6 +3434,10 @@ bool parser::isBreakStatement(Token& t) {
     return (t.getId() == IDENTIFIER && t.getValue() == "break");
 }
 
+bool parser::isAsmStatement(Token& t) {
+    return (t.getId() == IDENTIFIER && t.getValue() == "asm");
+}
+
 bool parser::isContinueStatement(Token& t) {
     return (t.getId() == IDENTIFIER && t.getValue() == "continue");
 }
@@ -2792,6 +3457,10 @@ bool parser::isSwitchDeclarator(Token& t) {
 bool parser::isConstructorDecl() {
     return current().getId() == IDENTIFIER && !isKeyword(current().getValue()) &&
            peek(1)->getType() == LEFTPAREN;
+}
+
+bool parser::iaAssemblyInstruction(string key) {
+    return key == "mov";
 }
 
 bool parser::isKeyword(string key) {
@@ -2815,7 +3484,7 @@ bool parser::isKeyword(string key) {
            || key == "switch" || key == "default" || key == "local"
            || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
-           || key == "as" || key == "in";
+           || key == "as" || key == "in" || key == "volatile";
 }
 
 void parser::parseAccessTypes() {

@@ -8,14 +8,9 @@ class K {
 
     init {
 
-        when(funPtr) {
-             foo -> {
-                return 1;
-            }
-            else -> {
-                return 1;
-            }
-        }
+        dict := {  as<int, string> 200 : "hello" };
+
+        vect := { 100, 120, 1003 };
     }
 
     static def foo() : var {}

@@ -178,6 +178,9 @@ private:
     void compileBreakStatement(Ast *ast);
     void compileContinueStatement(Ast *ast);
     void compileLockStatement(Ast *ast);
+    void compileAsmStatement(Ast *ast);
+    _register compileAsmRegister(Ast *ast);
+    opcode_arg compileAsmLiteral(Ast *ast);
     void compileTryCatchStatement(Ast *ast, bool *controlPaths);
     void compileWhenStatement(Ast *ast, bool *controlPaths);
     ClassObject* compileCatchClause(Ast *ast, TryCatchData &tryCatchData, bool *controlPaths);
@@ -372,6 +375,8 @@ private:
     void compileLocalAlias(Ast *ast);
 
     void initializeLocalVariable(Field *field);
+
+    opcode_arg getAsmOffset(Ast *ast);
 };
 
 enum ProcessingStage {

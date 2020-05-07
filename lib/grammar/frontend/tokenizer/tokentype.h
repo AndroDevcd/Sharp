@@ -19,6 +19,7 @@ enum token_type
     PLUS,
     MINUS,
     MULT,
+    EXPONENT,           // **
     _DIV,               //
     _MOD,               // %
     COLON,              // :

@@ -1109,7 +1109,7 @@ void Compiler::parseIntegerLiteral(Expression* expr, Token &token) {
         } else
             expr->utype->getCode().addIr(OpBuilder::movi(value, EBX));
     }else {
-        value = std::strtof (int_string.c_str(), NULL);
+        value = std::strtod (int_string.c_str(), NULL);
         long constantAddress = constantMap.addIfIndex(value);
         if(constantAddress >= CONSTANT_LIMIT) {
             stringstream err;
@@ -3248,6 +3248,8 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
                 result = leftLiteral->numericData / rightLiteral->numericData;
             } else if (operand == "*") {
                 result = leftLiteral->numericData * rightLiteral->numericData;
+            } else if (operand == "**") {
+                result = pow(leftLiteral->numericData, rightLiteral->numericData);
             } else if (operand == "%") {
                 result = (long)leftLiteral->numericData % (long)rightLiteral->numericData;
             } else if (operand == "+") {
@@ -3403,7 +3405,7 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
             }
         } else {
             processSimpleValue:
-            if((rightLiteral != NULL && rightLiteral->literalType == string_literal) && rightExpr.type != exp_var
+            if((rightLiteral != NULL && rightLiteral->literalType == string_literal) && !(rightExpr.type == exp_var && rightExpr.utype->isArray())
                 && !isUtypeClassConvertableToVar(leftExpr.utype, rightExpr.utype)) {
                 incompatibleExpressions:
                 errors->createNewError(GENERIC, ast->line, ast->col,
@@ -3422,6 +3424,17 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
                     tmp.free();
                 }
 
+                if(operand == "==") {
+                    if(!rightExpr.utype->isRelated(leftExpr.utype)) {
+                        errors->createNewError(GENERIC, ast->line, ast->col, "operator `" + operand.getValue()
+                             +  "` cannot be applied to expressions of type `" + leftExpr.utype->toString() + "` and `" + rightExpr.utype->toString() + "`");
+                    }
+                } else {
+                    if(rightExpr.type != exp_var) {
+                        errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + rightExpr.utype->toString() +  "` must evaluate to a `var`");
+                    }
+                }
+
                 resultCode->inject(leftExpr.utype->getCode());
                 resultCode->inject(leftExpr.utype->getCode().getInjector(ebxInjector));
                 resultCode->addIr(OpBuilder::rstore(EBX));
@@ -3434,6 +3447,8 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
                     resultCode->addIr(OpBuilder::div(EBX, ECX, EBX));
                 } else if (operand == "*") {
                     resultCode->addIr(OpBuilder::mul(EBX, ECX, EBX));
+                } else if (operand == "**") {
+                    resultCode->addIr(OpBuilder::exp(EBX, ECX, EBX));
                 } else if (operand == "%") {
                     resultCode->addIr(OpBuilder::mod(EBX, ECX, EBX));
                 } else if (operand == "+") {
@@ -3507,27 +3522,34 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
 
         if(field->utype->getType() == utype_class) {
             goto processClassOverload;
-        } else if(field->utype->getResolvedType()->type <= VAR) {
+        } else if(field->utype->getResolvedType()->type <= VAR && !field->isArray) {
             goto processSimpleValue;
-        }  else if(field->utype->getResolvedType()->type == OBJECT && (operand == "==" || operand == "!=")) {
+        }  else if((field->utype->getResolvedType()->type == OBJECT || field->isArray)
+            && (operand == "==" || operand == "!=")) {
             goto instanceTest;
         } else
             goto incompatibleExpressions;
     } else if(leftExpr.utype->getType() == utype_native) {
-        if(leftExpr.utype->getResolvedType()->type <= VAR) {
+        if(leftExpr.utype->getResolvedType()->type <= VAR && !leftExpr.utype->isArray()) {
             goto processSimpleValue;
-        } else if(leftExpr.utype->getResolvedType()->type == OBJECT && (operand == "==" || operand == "!=")) {
+        } else if((leftExpr.utype->getResolvedType()->type == OBJECT || leftExpr.utype->isArray())
+            && (operand == "==" || operand == "!=")) {
             goto instanceTest;
         } else
             goto incompatibleExpressions;
     } else if((operand == "==" || operand == "!=") && leftExpr.utype->getResolvedType()->type == OBJECT) {
         instanceTest:
-        if(rightExpr.utype->getResolvedType()->type == OBJECT || rightExpr.utype->getClass() != NULL) {
+        if((rightExpr.utype->getResolvedType()->type == OBJECT || rightExpr.utype->isArray())
+            || rightExpr.utype->getClass() != NULL) {
             resultCode->inject(leftExpr.utype->getCode());
             resultCode->inject(leftExpr.utype->getCode().getInjector(stackInjector));
             resultCode->inject(rightExpr.utype->getCode());
             resultCode->inject(rightExpr.utype->getCode().getInjector(ptrInjector));
             resultCode->addIr(OpBuilder::itest(EBX));
+
+            expr->utype->setType(utype_native);
+            expr->utype->setArrayType(false);
+            expr->utype->setResolvedType(new DataEntity(VAR));
 
             expr->utype->getCode().getInjector(stackInjector)
                     .addIr(OpBuilder::rstore(EBX));
@@ -3593,7 +3615,7 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
                 errors->createNewError(GENERIC, ast->line, ast->col,
                                        " expression `" + leftExpr.utype->toString() +
                                        "` does not contain an override operator for expresion `" +
-                                       leftExpr.utype->toString()
+                                       rightExpr.utype->toString()
                                        + "` with operand `" + operand.getValue() + "`.");
             }
         }
@@ -5449,10 +5471,12 @@ void Compiler::compileExpressionAst(Expression *expr, Ast *branch) {
         case ast_equal_e:
         case ast_less_e:
         case ast_mult_e:
+        case ast_exponent_e:
         case ast_add_e:
             return compileBinaryExpression(expr, branch);
     }
 
+    cout << branch->toString() << endl;
     return errors->createNewError(GENERIC, branch->getSubAst(0)->line, branch->getSubAst(0)->col,
                                   "unexpected malformed expression found");
 }
@@ -8879,7 +8903,7 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
     }
 
     currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(ifEndLabel, code.size()));
-//    code.addIr(OpBuilder::nop()); // Theoretically we shouldn't need this, only for visual purposes
+    code.addIr(OpBuilder::nop()); // Theoretically we shouldn't need this, only for visual purposes
 }
 
 void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
@@ -9187,10 +9211,126 @@ ClassObject* Compiler::compileCatchClause(Ast *ast, TryCatchData &tryCatchData, 
     return exceptionClass;
 }
 
+_register Compiler::compileAsmRegister(Ast *ast) {
+    if(to_lower(ast->getToken(0).getValue()) == "adx") {
+        return ADX;
+    } else if(to_lower(ast->getToken(0).getValue()) == "cx") {
+        return CX;
+    } else if(to_lower(ast->getToken(0).getValue()) == "cmt") {
+        return CMT;
+    } else if(to_lower(ast->getToken(0).getValue()) == "ebx") {
+        return EBX;
+    } else if(to_lower(ast->getToken(0).getValue()) == "ecx") {
+        return ECX;
+    } else if(to_lower(ast->getToken(0).getValue()) == "ecf") {
+        return ECF;
+    } else if(to_lower(ast->getToken(0).getValue()) == "edf") {
+        return EDF;
+    } else if(to_lower(ast->getToken(0).getValue()) == "ehf") {
+        return EHF;
+    } else if(to_lower(ast->getToken(0).getValue()) == "bmr") {
+        return BMR;
+    } else if(to_lower(ast->getToken(0).getValue()) == "egx") {
+        return EGX;
+    } else {
+        return ADX;
+    }
+}
+
+opcode_arg Compiler::compileAsmLiteral(Ast *ast) {
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+
+    if(ast->getTokenCount() == 1) {
+        Expression tmp;
+        compileLiteralExpression(&tmp, ast);
+
+        Literal *literal = (Literal*)tmp.utype->getResolvedType();
+        return literal->literalType == string_literal ? literal->address : literal->numericData;
+    } else if(ast->getToken(0) == "@") {
+        opcode_arg offset = getAsmOffset(ast);
+
+        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ast->getToken(1).getValue(), offset, ast->line, ast->col));
+    } else if(ast->getToken(0) == "[") {
+        List<Method*> functions;
+        currentScope()->klass->getFunctionByName(ast->getToken(1).getValue(), functions, true);
+        opcode_arg offset = getAsmOffset(ast);
+
+        if(!functions.empty()) {
+            if(offset < functions.size()) {
+                return functions.get(offset)->address;
+            } else {
+                stringstream err;
+                err << "cannot locate function with offset of (" << offset << ")";
+                errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+            }
+        } else {
+
+            errors->createNewError(GENERIC, ast->line, ast->col, "attempt to get address of a function.");
+        }
+    } else if(ast->getToken(0) == "{") {
+        RETAIN_BLOCK_TYPE(CLASS_SCOPE)
+        Utype *utype = compileUtype(ast->getSubAst(ast_utype));
+        RESTORE_BLOCK_TYPE()
+
+        opcode_arg offset = getAsmOffset(ast);
+
+        if(utype->getType() != utype_unresolved) {
+            if(utype->getType() == utype_class
+                || utype->getType() == utype_method
+                || utype->getType() == utype_field) {
+                return utype->getResolvedType()->address + offset;
+            } else {
+                stringstream err;
+                err << "cannot get address of type `" << utype->toString() << "`.";
+                errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+            }
+        }
+    }
+
+    return invalidAddr;
+}
+
+opcode_arg Compiler::getAsmOffset(Ast *ast) {
+    opcode_arg offset = 0;
+    if(ast->hasToken(PLUS) || ast->hasToken(MINUS)) {
+        if(ast->getToken(3).getId() == INTEGER_LITERAL) {
+            string hex_string = invalidateUnderscores(ast->getToken(3).getValue());
+
+#if _ARCH_BITS == 64
+            offset = strtoll(hex_string.c_str(), NULL, 16);
+#else
+            offset = strtol(hex_string.c_str(), NULL, 16);
+#endif
+        } else {
+            string hex_string = invalidateUnderscores(ast->getToken(3).getValue());
+
+#if _ARCH_BITS == 64
+            offset = strtod(hex_string.c_str(), NULL);
+#else
+            offset = strtod(hex_string.c_str(), NULL);
+#endif
+        }
+    }
+    return offset;
+}
+
+void Compiler::compileAsmStatement(Ast *ast) {
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+
+    for(Int i = 0; i < ast->getSubAstCount(); i++) {
+        Ast *branch = ast->getSubAst(i);
+        string opcode = branch->getToken(0).getValue();
+
+        if(opcode == "nop") {
+            code.addIr(OpBuilder::nop());
+        }
+    }
+}
+
 void Compiler::compileWhenStatement(Ast *ast, bool *controlPaths) {
     CodeHolder &code = currentScope()->currentFunction->data.code;
     Expression condExpr, outExpr;
-    string whenEndLabel, nextCaseLabel;
+    string whenEndLabel, nextClauseLabel, clauseStartLabel;
     Ast *whenBlock = ast->getSubAst(ast_when_block);
     Token operand("==", SINGLE, ast->col, ast->line, EQEQ);
 
@@ -9205,33 +9345,48 @@ void Compiler::compileWhenStatement(Ast *ast, bool *controlPaths) {
     for(Int i = 0; i < whenBlock->getSubAstCount(); i++) {
         Ast *branch = whenBlock->getSubAst(i);
 
-        outExpr.utype->free();
-        outExpr.ast = branch;
 
         switch(branch->getType()) {
             case ast_when_clause: {
-                Expression compareExpr;
+                labelId << INTERNAL_LABEL_NAME_PREFIX << "when_next_case" << guid++;
+                nextClauseLabel=labelId.str(); labelId.str("");
+                labelId << INTERNAL_LABEL_NAME_PREFIX << "when_case_start" << guid++;
+                clauseStartLabel=labelId.str(); labelId.str("");
 
-                if((ast->hasSubAst(ast_expression) && condExpr.utype->getType() == utype_function_ptr)
-                   || (condExpr.utype->getType() == utype_field && ((Field*)condExpr.utype->getResolvedType())->type == FNPTR)) {
-                    if(condExpr.utype->getType() == utype_field) {
-                        RETAIN_REQUIRED_SIGNATURE((Method*)((Field*)condExpr.utype->getResolvedType())->utype->getResolvedType())
-                        compileExpression(&compareExpr, branch->getSubAst(ast_expression));
-                        RESTORE_REQUIRED_SIGNATURE()
+                for(Int j = 0; j < branch->getSubAstCount() - 1; j++) {
+                    Ast *expressionAst = branch->getSubAst(j);
+                    Expression compareExpr;
+
+                    outExpr.utype->free();
+                    outExpr.ast = expressionAst;
+
+                    if((ast->hasSubAst(ast_expression) && condExpr.utype->getType() == utype_function_ptr)
+                       || (condExpr.utype->getType() == utype_field && ((Field*)condExpr.utype->getResolvedType())->type == FNPTR)) {
+                        if(condExpr.utype->getType() == utype_field) {
+                            RETAIN_REQUIRED_SIGNATURE((Method*)((Field*)condExpr.utype->getResolvedType())->utype->getResolvedType())
+                            compileExpression(&compareExpr, expressionAst);
+                            RESTORE_REQUIRED_SIGNATURE()
+                        } else {
+                            RETAIN_REQUIRED_SIGNATURE((Method*)condExpr.utype->getResolvedType())
+                            compileExpression(&compareExpr, expressionAst);
+                            RESTORE_REQUIRED_SIGNATURE()
+                        }
+                    } else
+                        compileExpression(&compareExpr, expressionAst);
+
+                    if(ast->hasSubAst(ast_expression)) {
+                        compileBinaryExpression(&outExpr, operand, condExpr, compareExpr, branch);
+                        if(outExpr.type != exp_var) {
+                            errors->createNewError(GENERIC, branch->line, branch->col, "comparing `" + outExpr.utype->toString()
+                                                   + "` to `" + outExpr.utype->toString() + "` must evaluate to a `var`");
+                        }
+
                     } else {
-                        RETAIN_REQUIRED_SIGNATURE((Method*)condExpr.utype->getResolvedType())
-                        compileExpression(&compareExpr, branch->getSubAst(ast_expression));
-                        RESTORE_REQUIRED_SIGNATURE()
+                        if(compareExpr.type != exp_var) {
+                            errors->createNewError(GENERIC, branch->line, branch->col, "comparing `" + compareExpr.utype->toString()
+                                                   + "` to `" + compareExpr.utype->toString() + "` must evaluate to a `var`");
+                        }
                     }
-                } else
-                    compileExpression(&compareExpr, branch->getSubAst(ast_expression));
-
-                if(ast->hasSubAst(ast_expression))
-                    compileBinaryExpression(&outExpr, operand, condExpr, compareExpr, branch);
-
-                if(ast->hasSubAst(ast_expression) ? outExpr.type == exp_var : compareExpr.type == exp_var) {
-                    labelId << INTERNAL_LABEL_NAME_PREFIX << "when_next_case" << guid++;
-                    nextCaseLabel=labelId.str(); labelId.str("");
 
                     if(ast->hasSubAst(ast_expression)) {
                         outExpr.utype->getCode().inject(ebxInjector);
@@ -9243,25 +9398,28 @@ void Compiler::compileWhenStatement(Ast *ast, bool *controlPaths) {
                         code.addIr(OpBuilder::movr(CMT, EBX));
                     }
 
-                    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), nextCaseLabel, 0, ast->line, ast->col));
-                    code.addIr(OpBuilder::jne(invalidAddr));
-
-                    if(!compileBlock(branch->getSubAst(ast_block))) {
-                        controlPaths[WHEN_CONTROL_PATH] = false;
+                    if((j + 1) < (branch->getSubAstCount() -1)) {
+                        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), clauseStartLabel, 0, ast->line, ast->col));
+                        code.addIr(OpBuilder::je(invalidAddr));
+                    } else {
+                        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), nextClauseLabel, 0, ast->line, ast->col));
+                        code.addIr(OpBuilder::jne(invalidAddr));
                     }
+                }
 
-                    if((i+1) < ast->getSubAstCount()) {
-                        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whenEndLabel, 0, ast->line, ast->col));
-                        code.addIr(OpBuilder::jmp(invalidAddr));
-                    }
 
-                    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(nextCaseLabel, currentScope()->currentFunction->data.code.size()));
-                } else {
-                    errors->createNewError(GENERIC, branch->line, branch->col, "comparing `" + condExpr.utype->toString()
-                           + "` to `" + compareExpr.utype->toString() + "` must evaluate to a `var`");
+                currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(clauseStartLabel, currentScope()->currentFunction->data.code.size()));
+                if(!compileBlock(branch->getSubAst(ast_block))) {
+                    controlPaths[WHEN_CONTROL_PATH] = false;
+                }
+
+                if((i+1) < whenBlock->getSubAstCount()) {
+                    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whenEndLabel, 0, ast->line, ast->col));
+                    code.addIr(OpBuilder::jmp(invalidAddr));
                 }
 
                 currentScope()->isReachable = true;
+                currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(nextClauseLabel, currentScope()->currentFunction->data.code.size()));
                 break;
             }
 
@@ -9273,6 +9431,7 @@ void Compiler::compileWhenStatement(Ast *ast, bool *controlPaths) {
     }
 
     currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(whenEndLabel, currentScope()->currentFunction->data.code.size()));
+    code.addIr(OpBuilder::nop());
 }
 
 void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
@@ -9761,6 +9920,9 @@ void Compiler::compileStatement(Ast *ast, bool *controlPaths) {
         case ast_when_statement:
             compileWhenStatement(ast, controlPaths);
             break;
+        case ast_statement:
+            compileAsmStatement(ast);
+            break;
         default:
             stringstream err;
             err << ": unknown ast type: " << ast->getType();
@@ -9900,7 +10062,7 @@ void Compiler::compileInitDecl(Ast *ast) {
             constructor->data.code.addIr(OpBuilder::ret());
         }
 
-//        cout << ast->toString() << endl;
+        cout << ast->toString() << endl;
         printMethodCode(*constructor, ast);
         currentScope()->resetLocalScopeFlags();
         if(NEW_ERRORS_FOUND()){

@@ -176,6 +176,7 @@ void tokenizer::parse()
                 else if ((chs[0] == '-') && (chs[1] == '-')) type = _DEC;
                 else if ((chs[0] == '+') && (chs[1] == '=')) type = PLUSEQ;
                 else if ((chs[0] == '*') && (chs[1] == '=')) type = MULTEQ;
+                else if ((chs[0] == '*') && (chs[1] == '*')) type = EXPONENT; // TODO: talk about exponent
                 else if ((chs[0] == '-') && (chs[1] == '=')) type = MINUSEQ;
                 else if ((chs[0] == '/') && (chs[1] == '=')) type = DIVEQ;
                 else if ((chs[0] == '&') && (chs[1] == '=')) type = ANDEQ;

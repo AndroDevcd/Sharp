@@ -67,6 +67,7 @@ private:
     bool isGotoStatement(Token &t);
     bool isWhenStatement(Token &t);
     bool isBreakStatement(Token &t);
+    bool isAsmStatement(Token &t);
     bool isContinueStatement(Token &t);
     bool isLockStatement(Token &t);
     bool isTryCatchStatement(Token &t);
@@ -74,6 +75,7 @@ private:
     bool isSwitchDeclarator(Token &t);
     bool isConstructorDecl();
     bool isKeyword(string s);
+    bool iaAssemblyInstruction(string s);
     bool isExprSymbol(string token);
     bool isForLoopCompareSymbol(string t);
     void parseAccessTypes();
@@ -100,6 +102,7 @@ private:
     bool parseUtypeNaked(Ast*);
     bool parseExpression(Ast*);
     void parseDictExpression(Ast* ast);
+    void parseDictElement(Ast* ast);
     void parseDictionaryType(Ast* ast);
     void parseVectorArray(Ast*);
     bool match(int num_args, ...);
@@ -107,12 +110,15 @@ private:
     bool shift(Ast*);
     bool comparason(Ast*);
     bool multiplication(Ast*);
+    bool exponent(Ast*);
     bool parseFunctionPtr(Ast* ast);
     bool addition(Ast*);
     bool unary(Ast*);
     bool binary(Ast*);
     bool parsePrimaryExpr(Ast*);
     bool parseLiteral(Ast*);
+    bool parseRegister(Ast*);
+    bool parseAsmLiteral(Ast *ast);
     bool parseDotNotCallExpr(Ast*);
     void parseExpressionList(Ast*,string,string);
     void parseFieldInitList(Ast*);
@@ -153,6 +159,9 @@ private:
     void parseThrowStatement(Ast*);
     void parseGotoStatement(Ast*);
     void parseWhenStatement(Ast*);
+    void parseAsmStatement(Ast*);
+    void parseAsmBlock(Ast*);
+    void parseAssemblyInstruction(Ast*);
     void parseWhenBlock(Ast*);
     void parseBreakStatement(Ast*);
     void parseContinueStatement(Ast*);

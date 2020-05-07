@@ -216,7 +216,7 @@
             &&LDC                                     \
             &&SMOVR_3,                        \
             &&NEG,                             \
-            &&CHECK_SIG                          \
+            &&EXP                               \
         };
 
 typedef unsigned int opcode_instr;
@@ -346,7 +346,7 @@ public:
         static const uint8_t LDC       = 0x74;
         static const uint8_t SMOVR_3   = 0x75;
         static const uint8_t NEG       = 0x76;
-        static const uint8_t CHECK_SIG = 0x77;
+        static const uint8_t EXP       = 0x77;
 
         enum instr_class {
             E_CLASS,
@@ -377,6 +377,7 @@ public:
         static opcode_instr add(_register outRegister, _register leftRegister, _register rightRegister);
         static opcode_instr sub(_register outRegister, _register leftRegister, _register rightRegister);
         static opcode_instr mul(_register outRegister, _register leftRegister, _register rightRegister);
+        static opcode_instr exp(_register outRegister, _register leftRegister, _register rightRegister);
         static opcode_instr div(_register outRegister, _register leftRegister, _register rightRegister);
         static opcode_instr mod(_register outRegister, _register leftRegister, _register rightRegister);
         static opcode_instr* iadd(_register outRegister, opcode_arg value);
@@ -429,7 +430,7 @@ public:
         static opcode_instr _or(_register leftRegister, _register rightRegister);
         static opcode_instr _xor(_register leftRegister, _register rightRegister);
         static opcode_instr _throw();
-        static opcode_instr checkNull();
+        static opcode_instr checkNull(_register outRegister); // TODO: modify this to accept which register we want to put the result in
         static opcode_instr returnObject();
         static opcode_instr newClassArray(_register inRegister, opcode_arg classAddress);
         static opcode_instr newString(opcode_arg address);
@@ -467,7 +468,7 @@ public:
         static opcode_instr je(opcode_arg address);
         static opcode_instr jne(opcode_arg address);
         static opcode_instr ipopl(opcode_arg relFrameAddress);
-        static opcode_instr* _switch(opcode_arg value);
+        static opcode_instr* _switch(opcode_arg value); // TODO: delete this
         static opcode_instr *cmp(_register inRegister, opcode_arg value);
         static opcode_instr calld(_register inRegister);
         static opcode_instr varCast(opcode_arg varType, bool isArray);
@@ -477,7 +478,6 @@ public:
         static opcode_instr swap();
         static opcode_instr ldc(_register outRegister, opcode_arg address);
         static opcode_instr neg(_register leftRegister, _register rightRegister);
-        static opcode_instr checkSignal(_register inRegister, tsig_t signal);
 
         static bool illegalParam(opcode_arg param, instr_class iclass, short argNum = 1);
 

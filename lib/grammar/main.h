@@ -14,6 +14,7 @@
 int _bootstrap(int argc, const char* argv[]);
 bool startsWith(string &str, string prefix);
 bool ends_with(std::string value, std::string ending);
+std::string to_lower(std::string s);
 
 #define opt(v) strcmp(argv[i], v) == 0
 

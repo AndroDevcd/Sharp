@@ -119,6 +119,10 @@ opcode_instr OpBuilder::mul(_register outRegister, _register leftRegister, _regi
     return SET_Bi(tmpInstr, MUL, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
 }
 
+opcode_instr OpBuilder::exp(_register outRegister, _register leftRegister, _register rightRegister) {
+    return SET_Bi(tmpInstr, EXP, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
+}
+
 opcode_instr OpBuilder::div(_register outRegister, _register leftRegister, _register rightRegister) {
     return SET_Bi(tmpInstr, DIV, leftRegister, POSITIVE, rightRegister, POSITIVE, outRegister, POSITIVE);
 }
@@ -368,8 +372,8 @@ opcode_instr OpBuilder::_throw() {
     return SET_Ei(tmpInstr, THROW);
 }
 
-opcode_instr OpBuilder::checkNull() {
-    return SET_Ei(tmpInstr, CHECKNULL);
+opcode_instr OpBuilder::checkNull(_register outRegister) {
+    return SET_Di(tmpInstr, CHECKNULL, outRegister, POSITIVE);
 }
 
 opcode_instr OpBuilder::returnObject() {
@@ -661,8 +665,4 @@ opcode_instr OpBuilder::ldc(_register outRegister, opcode_arg address) {
 
 opcode_instr OpBuilder::neg(_register outRegister, _register inRegister) {
     return SET_Ci(tmpInstr, NEG, outRegister, POSITIVE, inRegister, POSITIVE);
-}
-
-opcode_instr Opcode::Builder::checkSignal(_register inRegister, tsig_t signal) {
-    return SET_Ci(tmpInstr, NEG, inRegister, POSITIVE, signal, POSITIVE);
 }
