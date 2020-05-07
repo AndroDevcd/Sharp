@@ -345,6 +345,8 @@ string Ast::astTypeToString(ast_type type) {
             return "ast_alias_decl";
         case ast_func_ptr:
             return "ast_func_ptr";
+        case ast_exponent_e:
+            return "ast_exponent_e";
     }
 
     return "unknown";

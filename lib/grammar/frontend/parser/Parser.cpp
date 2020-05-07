@@ -1863,6 +1863,7 @@ bool parser::isExprSymbol(string token) {
            token == "&" || token == "|"||
            token == "&&" || token == "||"||
            token == "^" || token == "?" ||
+           token == "**" ||
             isAssignExprSymbol(token);
 }
 
@@ -2088,13 +2089,17 @@ bool parser::binary(Ast *ast) {
     bool success = equality(ast);
 
     while(match(5, AND, XOR, OR, ANDAND, OROR)) {
-        advance();
-        ast->addToken(current());
+        if(isExprSymbol(peek(2)->getValue()))
+            errors->createNewError(GENERIC, *peek(2), "expected expression");
 
-        Ast *right = new Ast(ast->getType(), ast->line, ast->col);
-        equality(right);
-        ast->addAst(right);
-        ast->encapsulate(ast_and_e);
+        Ast *left = ast->sub_asts.last();
+        ast->sub_asts.pop_back();
+        Ast *branch = getBranch(ast, ast_and_e);
+        branch->addAst(left);
+
+        advance();
+        branch->addToken(current());
+        equality(branch);
         success = true;
     }
 
@@ -2105,13 +2110,17 @@ bool parser::equality(Ast *ast) {
     bool success = comparason(ast);
 
     while(match(2, EQEQ, NOTEQ)) {
-        advance();
-        ast->addToken(current());
+        if(isExprSymbol(peek(2)->getValue()))
+            errors->createNewError(GENERIC, *peek(2), "expected expression");
 
-        Ast *right = new Ast(ast->getType(), ast->line, ast->col);
-        comparason(right);
-        ast->addAst(right);
-        ast = ast->encapsulate(ast_equal_e);
+        Ast *left = ast->sub_asts.last();
+        ast->sub_asts.pop_back();
+        Ast *branch = getBranch(ast, ast_equal_e);
+        branch->addAst(left);
+
+        advance();
+        branch->addToken(current());
+        comparason(branch);
         success = true;
     }
 
@@ -2122,13 +2131,17 @@ bool parser::comparason(Ast *ast) {
     bool success = shift(ast);
 
     while(match(4, GREATERTHAN, _GTE, LESSTHAN, _LTE)) {
-        advance();
-        ast->addToken(current());
+        if(isExprSymbol(peek(2)->getValue()))
+            errors->createNewError(GENERIC, *peek(2), "expected expression");
 
-        Ast *right = new Ast(ast->getType(), ast->line, ast->col);
-        shift(right);
-        ast->addAst(right);
-        ast = ast->encapsulate(ast_less_e);
+        Ast *left = ast->sub_asts.last();
+        ast->sub_asts.pop_back();
+        Ast *branch = getBranch(ast, ast_less_e);
+        branch->addAst(left);
+
+        advance();
+        branch->addToken(current());
+        shift(branch);
         success = true;
     }
 
@@ -2139,13 +2152,17 @@ bool parser::shift(Ast *ast) {
     bool success = addition(ast);
 
     while(match(2, SHL, SHR)) {
-        advance();
-        ast->addToken(current());
+        if(isExprSymbol(peek(2)->getValue()))
+            errors->createNewError(GENERIC, *peek(2), "expected expression");
 
-        Ast *right = new Ast(ast->getType(), ast->line, ast->col);
-        addition(right);
-        ast->addAst(right);
-        ast = ast->encapsulate(ast_shift_e);
+        Ast *left = ast->sub_asts.last();
+        ast->sub_asts.pop_back();
+        Ast *branch = getBranch(ast, ast_shift_e);
+        branch->addAst(left);
+
+        advance();
+        branch->addToken(current());
+        addition(branch);
         success = true;
     }
 
@@ -2156,13 +2173,17 @@ bool parser::addition(Ast *ast) {
     bool success = multiplication(ast);
 
     while(match(2, MINUS, PLUS)) {
-        advance();
-        ast->addToken(current());
+        if(isExprSymbol(peek(2)->getValue()))
+            errors->createNewError(GENERIC, *peek(2), "expected expression");
 
-        Ast *right = new Ast(ast_expression, ast->line, ast->col);
-        multiplication(right);
-        ast->addAst(right);
-        ast = ast->encapsulate(ast_add_e);
+        Ast *left = ast->sub_asts.last();
+        ast->sub_asts.pop_back();
+        Ast *branch = getBranch(ast, ast_add_e);
+        branch->addAst(left);
+
+        advance();
+        branch->addToken(current());
+        multiplication(branch);
         success = true;
     }
 
@@ -2173,13 +2194,17 @@ bool parser::multiplication(Ast *ast) {
     bool success = exponent(ast);
 
     while(match(3, _DIV, _MOD, MULT)) {
-        advance();
-        ast->addToken(current());
+        if(isExprSymbol(peek(2)->getValue()))
+            errors->createNewError(GENERIC, *peek(2), "expected expression");
 
-        Ast *right = new Ast(ast_expression, ast->line, ast->col);
-        exponent(right);
-        ast->addAst(right);
-        ast = ast->encapsulate(ast_mult_e);
+        Ast *left = ast->sub_asts.last();
+        ast->sub_asts.pop_back();
+        Ast *branch = getBranch(ast, ast_mult_e);
+        branch->addAst(left);
+
+        advance();
+        branch->addToken(current());
+        exponent(branch);
         success = true;
     }
 
@@ -2190,57 +2215,54 @@ bool parser::exponent(Ast *ast) {
     bool success = unary(ast);
 
     while(match(1, EXPONENT)) {
-        advance();
-        ast->addToken(current());
+        if(isExprSymbol(peek(2)->getValue()))
+            errors->createNewError(GENERIC, *peek(2), "expected expression");
 
-        Ast *right = new Ast(ast_expression, ast->line, ast->col);
-        unary(right);
-        ast->addAst(right);
-        ast = ast->encapsulate(ast_exponent_e);
+        Ast *left = ast->sub_asts.last();
+        ast->sub_asts.pop_back();
+        Ast *branch = getBranch(ast, ast_exponent_e);
+        branch->addAst(left);
+
+        advance();
+        branch->addToken(current());
+        unary(branch);
         success = true;
     }
+
 
     return success;
 }
 
 bool parser::unary(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_expression);
+
     if(match(1, MINUS)) {
         advance();
-        ast->addToken(current());
+        branch->addToken(current());
 
-        Ast *right = new Ast(ast->getType(), ast->line, ast->col);
-        bool success = unary(right);
-        ast->addAst(right);
-        ast->encapsulate(ast_minus_e);
+        bool success = unary(branch);
+        branch->setAstType(ast_minus_e);
         return success;
     } else if(match(1, NOT)) {
         advance();
-        ast->addToken(current());
+        branch->addToken(current());
 
-        Ast *right = new Ast(ast->getType(), ast->line, ast->col);
-        bool success = unary(right);
-        ast->addAst(right);
-        ast->encapsulate(ast_not_e);
+        bool success = unary(branch);
+        branch->setAstType(ast_minus_e);
         return success;
     }
 
     errors->enterProtectedMode();
-    Token* old = _current;
-    if(!parsePrimaryExpr(ast))
-    {
+    Token *old = _current;
+    if (!parsePrimaryExpr(branch)) {
         errors->pass();
-        _current=old;
-        if(ast->getSubAstCount() == 1) {
-            ast->freeSubAsts();
-            ast->freeTokens();
-        }
-        else {
-            ast->freeLastSub();
-        }
+        _current = old;
+        ast->freeLastSub();
         return false;
-    } else
-    {
+    } else {
         errors->fail();
+        if(!isExprSymbol(peek(1)->getValue()))
+            return binary(branch);
         return true;
     }
 }

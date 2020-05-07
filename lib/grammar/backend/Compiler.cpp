@@ -10050,6 +10050,7 @@ void Compiler::compileInitDecl(Ast *ast) {
         uInt totalErrors = errors->getUnfilteredErrorCount();
         currentScope()->currentFunction = constructor;
 
+        cout << ast->toString() << endl;
         // we dont need to setup locals since it wont have any!
         RETAIN_BLOCK_TYPE(INSTANCE_BLOCK)
         if(!compileBlock(block)) {
@@ -10062,7 +10063,6 @@ void Compiler::compileInitDecl(Ast *ast) {
             constructor->data.code.addIr(OpBuilder::ret());
         }
 
-        cout << ast->toString() << endl;
         printMethodCode(*constructor, ast);
         currentScope()->resetLocalScopeFlags();
         if(NEW_ERRORS_FOUND()){
