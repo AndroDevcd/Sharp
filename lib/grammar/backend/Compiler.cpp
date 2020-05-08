@@ -9316,14 +9316,67 @@ opcode_arg Compiler::getAsmOffset(Ast *ast) {
 
 void Compiler::compileAsmStatement(Ast *ast) {
     CodeHolder &code = currentScope()->currentFunction->data.code;
+    Ast *asmBlock = ast->getSubAst(ast_assembly_block);
+    AsmData asmData;
+    asmData.start_pc = code.size();
 
-    for(Int i = 0; i < ast->getSubAstCount(); i++) {
-        Ast *branch = ast->getSubAst(i);
+    for(Int i = 0; i < asmBlock->getSubAstCount(); i++) {
+        Ast *branch = asmBlock->getSubAst(i);
         string opcode = branch->getToken(0).getValue();
 
         if(opcode == "nop") {
             code.addIr(OpBuilder::nop());
+        } else if(opcode == "int") {
+            code.addIr(OpBuilder::_int((interruptFlag)compileAsmLiteral(branch->getSubAst(ast_literal))));
+        } else if(opcode == "movi") {
+            code.addIr(OpBuilder::movi(compileAsmLiteral(branch->getSubAst(ast_literal)),
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+        } else if(opcode == "ret") {
+            code.addIr(OpBuilder::ret());
+        } else if(opcode == "hlt") {
+            code.addIr(OpBuilder::hlt());
+        } else if(opcode == "newVarArray") {
+            code.addIr(OpBuilder::newVarArray(compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+        } else if(opcode == "cast") {
+            code.addIr(OpBuilder::cast(compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+        } else if(opcode == "mov8") {
+            code.addIr(OpBuilder::mov8(
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+        } else if(opcode == "mov16") {
+            code.addIr(OpBuilder::mov16(
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+        } else if(opcode == "mov32") {
+            code.addIr(OpBuilder::mov32(
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+        } else if(opcode == "mov64") {
+            code.addIr(OpBuilder::mov64(
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+        } else if(opcode == "movu8") {
+            code.addIr(OpBuilder::movu8(
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+        } else if(opcode == "movu16") {
+            code.addIr(OpBuilder::movu16(
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+        } else if(opcode == "movu32") {
+            code.addIr(OpBuilder::movu32(
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+        } else if(opcode == "movu64") {
+            code.addIr(OpBuilder::movu64(
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
         }
+    }
+
+    asmData.end_pc = code.size();
+    if(!ast->hasToken("volatile")) {
+        currentScope()->currentFunction->data.protectedCodeTable.add(asmData);
     }
 }
 
@@ -9920,7 +9973,7 @@ void Compiler::compileStatement(Ast *ast, bool *controlPaths) {
         case ast_when_statement:
             compileWhenStatement(ast, controlPaths);
             break;
-        case ast_statement:
+        case ast_assembly_statement:
             compileAsmStatement(ast);
             break;
         default:

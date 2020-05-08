@@ -149,9 +149,7 @@ private:
     void parseSwitchStatement(Ast*);
     void parseSwitchBlock(Ast*);
     void parseSwitchDeclarator(Ast*);
-    void parseAssemblyStatement(Ast *ast);
     void parseAliasDeclaration(Ast *ast);
-    void parseAssemblyBlock(Ast*);
     void parseForStatement(Ast *ast);
     void parseForEachStatement(Ast *ast);
     void parseWhileStatement(Ast*);
