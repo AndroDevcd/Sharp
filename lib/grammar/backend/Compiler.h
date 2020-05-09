@@ -385,6 +385,9 @@ enum ProcessingStage {
     COMPILING=2,
 };
 
+extern string globalClass;
+extern string undefinedModule;
+
 #define CLASS_LIMIT CA2_MAX
 #define CLASS_FIELD_LIMIT DA_MAX
 #define LOCAL_FIELD_LIMIT CA2_MAX

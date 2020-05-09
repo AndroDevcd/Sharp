@@ -546,8 +546,6 @@ void parser::parseAssemblyInstruction(Ast *ast) {
     } else if(*peek(1)  == "rstore") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
-        expect(branch, ",", false);
-        parseRegister(branch);
     } else if(*peek(1)  == "add") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
@@ -620,7 +618,7 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
-        parseAsmLiteral(branch);
+        parseRegister(branch);
     } else if(*peek(1)  == "brh") {
         expect(branch, peek(1)->getValue());
     } else if(*peek(1)  == "ife") {
@@ -671,7 +669,7 @@ void parser::parseAssemblyInstruction(Ast *ast) {
     } else if(*peek(1)  == "loadpc") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
-    } else if(*peek(1)  == "pushobject") {
+    } else if(*peek(1)  == "pushobj") {
         expect(branch, peek(1)->getValue());
     } else if(*peek(1)  == "del") {
         expect(branch, peek(1)->getValue());
@@ -680,7 +678,7 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseAsmLiteral(branch);
     } else if(*peek(1)  == "newClass") {
         expect(branch, peek(1)->getValue());
-        parseUtype(branch);
+        parseAsmLiteral(branch);
     } else if(*peek(1)  == "movn") {
         expect(branch, peek(1)->getValue());
         parseAsmLiteral(branch);
@@ -689,6 +687,8 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
     } else if(*peek(1)  == "te") {
         expect(branch, peek(1)->getValue());
+        parseRegister(branch);
+        expect(branch, ",", false);
         parseRegister(branch);
     } else if(*peek(1)  == "tne") {
         expect(branch, peek(1)->getValue());
@@ -768,7 +768,7 @@ void parser::parseAssemblyInstruction(Ast *ast) {
     } else if(*peek(1)  == "checknull") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
-    } else if(*peek(1)  == "returnObject") {
+    } else if(*peek(1)  == "returnObj") {
         expect(branch, peek(1)->getValue());
     } else if(*peek(1)  == "newClassArray") {
         expect(branch, peek(1)->getValue());
@@ -889,7 +889,6 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseLiteral(branch);
     } else if(*peek(1)  == "pushNull") {
         expect(branch, peek(1)->getValue());
-        parseLiteral(branch);
     } else if(*peek(1)  == "ipushl") {
         expect(branch, peek(1)->getValue());
         parseLiteral(branch);

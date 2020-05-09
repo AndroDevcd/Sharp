@@ -66,7 +66,7 @@ public:
         obfuscate(c_options.obfuscate),
         obfuscationSet(false),
         address(invalidAddr),
-        guid(-109913),
+        guid(invalidAddr),
         owner(NULL),
         ast(NULL),
         module("")

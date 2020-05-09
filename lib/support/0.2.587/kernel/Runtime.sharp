@@ -28,6 +28,7 @@ public class Runtime { // TODO: implement hashMap "https://www.geeksforgeeks.org
     *
     * NO code should be placed inside this function
     */
+    private static def initializeRTE() {
     }
 
     /**
