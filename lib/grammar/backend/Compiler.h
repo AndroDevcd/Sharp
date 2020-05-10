@@ -133,6 +133,7 @@ private:
     string currModule;
     Method* requiredSignature;
     CodeHolder staticMainInserts;
+    CodeHolder stlMainInserts;
 
     void setup();
     bool preprocess();
@@ -189,6 +190,7 @@ private:
     void compileLabelDecl(Ast *ast, bool *controlPaths);
     void compileStatement(Ast *ast, bool *controlPaths);
     bool allControlPathsReturnAValue(bool *controlPaths);
+    void deInitializeLocalVariables(string &name);
     void addLocalVariables();
     void preProccessClassDeclForMutation(Ast* ast);
     void preProcessMutation(Ast *ast, ClassObject *currentClass = NULL);
@@ -377,6 +379,8 @@ private:
     void initializeLocalVariable(Field *field);
 
     opcode_arg getAsmOffset(Ast *ast);
+
+    void compileAssemblyInstruction(CodeHolder &code, Ast *branch, string &opcode);
 };
 
 enum ProcessingStage {
@@ -444,6 +448,13 @@ extern string undefinedModule;
 
 #define RESTORE_SCOPE_CLASS() \
     currentScope()->klass = oldScopeClass;
+
+#define RETAIN_SCOPE_INIT_CHECK(initCheck) \
+    bool oldInitCheckState = currentScope()->initializationCheck; \
+    currentScope()->initializationCheck = initCheck;
+
+#define RESTORE_SCOPE_INIT_CHECK() \
+    currentScope()->initializationCheck = oldInitCheckState;
 
 #define RETAIN_TYPE_INFERENCE(ti) \
     bool oldTypeInference = typeInference; \

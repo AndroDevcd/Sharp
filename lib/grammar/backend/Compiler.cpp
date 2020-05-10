@@ -28,7 +28,6 @@ void Compiler::cleanup() {
         delete parser->getTokenizer();
         parser->free();
         delete(parser);
-        delete(parser);
     }
     parsers.free();
 }
@@ -1301,6 +1300,7 @@ void Compiler::expressionToParam(Expression &expression, Field *param) {
         param->utype = new Utype();
         param->utype->copy(exprField->utype);
         param->type = exprField->type;
+        param->isArray = exprField->isArray;
 
         // yet another line of nasty dirty code...smh...
         param->utype->getCode().inject(0, expression.utype->getCode());
@@ -1479,7 +1479,6 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
         }
     } else {
 
-        // TODO: check for overloads later i need to see how it comes in
         if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedMethod = resolveFunction(name, params, ast)) != NULL) {
             return resolvedMethod;
         } else if((resolvedMethod = findGetterSetter(currentScope()->klass, name, params, ast)) != NULL) {
@@ -1526,8 +1525,6 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
                 errors->createNewError(GENERIC, ast->line, ast->col, "cannot get field `" + name + "` from self in static context");
             }
 
-            // TODO: add getter sett here
-            // TODO: replace with function resolveFieldUtype()
             if(field->utype && field->utype->getType() == utype_function_ptr) {
                 resolvedMethod =  (Method*)field->utype->getResolvedType();
 
@@ -1714,11 +1711,12 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
         CodeHolder &code = expr->utype->getCode();
 
         validateAccess(resolvedMethod, ast);
-        if(!resolvedMethod->flags.find(STATIC) && resolvedMethod->fnType != fn_ptr) {
-            if(singularCall) {
-                code.addIr(OpBuilder::movl(0));
-                code.addIr(OpBuilder::pushObject());
-            }
+        if(!resolvedMethod->flags.find(STATIC)
+            && resolvedMethod->fnType != fn_ptr
+            && !expr->utype->getCode().instanceCaptured
+            && singularCall) {
+            code.addIr(OpBuilder::movl(0));
+            code.addIr(OpBuilder::pushObject());
         }
 
         pushParametersToStackAndCall(ast, resolvedMethod, params, code);
@@ -1754,8 +1752,13 @@ void Compiler::pushParametersToStackAndCall(Ast *ast, Method *resolvedMethod, Li
         if(resolvedMethod->fnType != fn_ptr)
             code.addIr(OpBuilder::call(resolvedMethod->address));
         else {
-            code.addIr(OpBuilder::loadValue(EBX))
-                    .addIr(OpBuilder::calld(EBX));
+            if(params.size() == 0) {
+                code.addIr(OpBuilder::loadValue(EBX))
+                        .addIr(OpBuilder::calld(EBX));
+            } else {
+                code.addIr(OpBuilder::smov(EBX, -params.size()))
+                        .addIr(OpBuilder::calld(EBX));
+            }
         }
     }
 }
@@ -1856,7 +1859,7 @@ string Compiler::codeToString(CodeHolder &code, CodeData *data) {
             }
             case Opcode::INT:
             {
-                ss<<"int 0x" << std::hex << GET_Da(opcodeData);
+                ss<<"int 0x" << std::hex << GET_Da(opcodeData) << std::dec;
                 
                 break;
             }
@@ -3643,6 +3646,7 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
 
     if(leftExpr.utype->getType() == utype_field) {
         Field *field = (Field*)leftExpr.utype->getResolvedType();
+        field->initialized = true;
 
         if(field->setter != NULL
         && (currentScope()->currentFunction == NULL ||
@@ -3993,9 +3997,12 @@ void Compiler::compileBinaryExpression(Expression* expr, Ast* ast) {
 
 void Compiler::compileAssignExpression(Expression* expr, Ast* ast) {
     Expression leftExpr, rightExpr;
+    Token &operand = ast->getToken(0);
 
     RETAIN_TYPE_INFERENCE(true)
+    RETAIN_SCOPE_INIT_CHECK(operand == "=" ? false : true)
     compileExpressionAst(&leftExpr, ast->getSubAst(ast_primary_expr));
+    RESTORE_SCOPE_INIT_CHECK()
 
     if(leftExpr.utype->getType() == utype_function_ptr
         || (leftExpr.utype->getType() == utype_field && ((Field*)leftExpr.utype->getResolvedType())->type == FNPTR)) {
@@ -4013,7 +4020,6 @@ void Compiler::compileAssignExpression(Expression* expr, Ast* ast) {
     RESTORE_TYPE_INFERENCE()
 
     expr->ast = ast;
-    Token &operand = ast->getToken(0);
 
     switch(leftExpr.utype->getType()) {
         case utype_class:
@@ -4574,6 +4580,9 @@ void Compiler::compileDotNotationCall(Expression* expr, Ast* ast) {
  */
 void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startPos) {
 
+    if(ast->line >= 102) {
+        int i = 0;
+    }
     expr->utype->getCode().instanceCaptured = true;
     RETAIN_SCOPE_CLASS(expr->utype->getClass() != NULL ? expr->utype->getClass() : currentScope()->klass)
     if(ast->getSubAstCount() > 1) {
@@ -4590,7 +4599,11 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
                                                                                       : ast->getSubAst(i);
                     Expression bridgeExpr;
                     bridgeExpr.utype->getCode().instanceCaptured = true;
-                    bridgeExpr.utype->getCode().inject(expr->utype->getCode().getInjector(ptrInjector));
+
+                    if(astToCompile->hasSubAst(ast_dot_fn_e))
+                        bridgeExpr.utype->getCode().inject(expr->utype->getCode().getInjector(stackInjector));
+                    else
+                        bridgeExpr.utype->getCode().inject(expr->utype->getCode().getInjector(ptrInjector));
                     compileDotNotationCall(&bridgeExpr, astToCompile);
 
                     expr->copy(&bridgeExpr);
@@ -4600,6 +4613,66 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
                 } else
                     errors->createNewError(GENERIC, ast->getSubAst(i)->line, ast->getSubAst(i)->col, "expression of type `" + expr->utype->toString()
                                                                                                      + "` must resolve as a class");
+            } else if(ast->getSubAst(i)->getType() == ast_dot_fn_e)  {
+                if(expr->utype->getMethod() != NULL) {
+                    Method *resolvedMethod = expr->utype->getMethod();
+                    Ast *branch = ast->getSubAst(i);
+                    List<Expression*> expressions;
+                    List<Field*> params;
+
+                    compileMethodReturnType(resolvedMethod, resolvedMethod->ast); // shouldn't need to but just in case
+                    if(branch->getSubAst(ast_expression_list)->getSubAstCount() == resolvedMethod->params.size()) {
+                        compileExpressionList(expressions, branch->getSubAst(ast_expression_list));
+                        expressionsToParams(expressions, params);
+
+                        if(simpleParameterMatch(resolvedMethod->params, params)
+                            || complexParameterMatch(resolvedMethod->params, params)) {
+                            CodeHolder &code = expr->utype->getCode();
+
+                            validateAccess(resolvedMethod, ast);
+                            code.inject(stackInjector);
+                            pushParametersToStackAndCall(ast, resolvedMethod, params, code);
+                            expr->type = utypeToExpressionType(resolvedMethod->utype);
+                            expr->utype->setResolvedType(resolvedMethod->utype->getResolvedType());
+                            expr->utype->setType(resolvedMethod->utype->getType());
+                            expr->utype->setArrayType(resolvedMethod->utype->isArray());
+
+                            code.freeInjectors();
+                            if (resolvedMethod->utype->isArray() || resolvedMethod->utype->getResolvedType()->type == OBJECT
+                                || resolvedMethod->utype->getResolvedType()->type == CLASS) {
+                                code.getInjector(ptrInjector)
+                                        .addIr(OpBuilder::popObject2());
+
+                                code.getInjector(removeFromStackInjector)
+                                        .addIr(OpBuilder::pop());
+                            } else if (resolvedMethod->utype->getResolvedType()->isVar()) {
+                                code.getInjector(ebxInjector)
+                                        .addIr(OpBuilder::loadValue(EBX));
+
+                                code.getInjector(removeFromStackInjector)
+                                        .addIr(OpBuilder::pop());
+                            }
+                        } else
+                            errors->createNewError(GENERIC, ast->getSubAst(i)->line, ast->getSubAst(i)->col,
+                                                   "invalid arguments for expression of type `" + expr->utype->toString()
+                                                   + "`");
+
+                        expressions.free();
+                        freeListPtr(params);
+                    } else {
+                        if(branch->getSubAst(ast_expression_list)->getSubAstCount() > resolvedMethod->params.size()) {
+                            errors->createNewError(GENERIC, ast->getSubAst(i)->line, ast->getSubAst(i)->col,
+                                                   "too many arguments for expression of type `" + expr->utype->toString()
+                                                   + "`");
+                        } else {
+                            errors->createNewError(GENERIC, ast->getSubAst(i)->line, ast->getSubAst(i)->col,
+                                                   "not enough arguments for expression of type `" + expr->utype->toString()
+                                                   + "`");
+                        }
+                    }
+                } else
+                    errors->createNewError(GENERIC, ast->getSubAst(i)->line, ast->getSubAst(i)->col, "expression of type `" + expr->utype->toString()
+                                                                                                     + "` must resolve as a function");
             } else if(ast->getSubAst(i)->getType() == ast_arry_e) {
                 compileArrayExpression(expr, ast->getSubAst(i));
                 continue;
@@ -4926,6 +4999,8 @@ void Compiler::compileArrayExpression(Expression* expr, Ast* ast) {
         } else
             errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + expr->utype->toString() + "` must be an array type");
     }
+
+    compilePostAstExpressions(expr, ast);
 }
 
 
@@ -5666,7 +5741,9 @@ void Compiler::assignFieldExpressionValue(Field *field, Ast *ast) {
             if(field->local) {
                 currentScope()->currentFunction->data.code.inject(resultExpr.utype->getCode());
             } else {
-                if (field->flags.find(STATIC)) {
+                if(field->locality == stl_thread) {
+                    stlMainInserts.inject(resultExpr.utype->getCode());
+                } else if (field->flags.find(STATIC)) {
                     staticMainInserts.inject(resultExpr.utype->getCode());
                 } else {
                     List<Method *> constructors;
@@ -6264,11 +6341,14 @@ void Compiler::compileMethodReturnType(Method* fun, Ast *ast, bool wait) {
             if (!wait) {
                 RETAIN_TYPE_INFERENCE(false)
                 RETAIN_SCOPE_CLASS(fun->owner)
+                RETAIN_BLOCK_TYPE(CLASS_SCOPE)
                 Utype *utype = compileUtype(ast->getSubAst(ast_method_return_type)->getSubAst(ast_utype));
+                RESTORE_BLOCK_TYPE()
                 RESTORE_SCOPE_CLASS()
                 RESTORE_TYPE_INFERENCE()
 
-                if (utype->getType() == utype_class) {
+                if (utype->getType() == utype_class
+                    || utype->getType() == utype_function_ptr) {
                     fun->utype = utype;
                 } else if (utype->getType() == utype_method) {
                     this->errors->createNewError(GENERIC, ast->line, ast->col,
@@ -6296,7 +6376,9 @@ void Compiler::compileMethodReturnType(Method* fun, Ast *ast, bool wait) {
                 Expression e;
                 RETAIN_TYPE_INFERENCE(false)
                 RETAIN_SCOPE_CLASS(fun->owner)
+                RETAIN_BLOCK_TYPE(CLASS_SCOPE)
                 compileExpression(&e, ast->getSubAst(ast_expression));
+                RESTORE_BLOCK_TYPE()
                 RESTORE_SCOPE_CLASS()
                 RESTORE_TYPE_INFERENCE()
 
@@ -6937,6 +7019,7 @@ void Compiler::setup() {
     unProcessedClasses.init();
     inlinedFields.init();
     staticMainInserts.init();
+    stlMainInserts.init();
     nilUtype = new Utype(NIL);
     varUtype = new Utype(VAR);
     nullUtype = new Utype(OBJECT);
@@ -6952,6 +7035,21 @@ bool Compiler::allControlPathsReturnAValue(bool *controlPaths) {
         || (controlPaths[WHEN_CONTROL_PATH] && controlPaths[WHEN_ELSE_CONTROL_PATH]);
 }
 
+void Compiler::deInitializeLocalVariables(string &name) {
+    for(Int i = 0; i < currentScope()->currentFunction->data.branchTable.size(); i++) {
+        BranchTable &branch = currentScope()->currentFunction->data.branchTable.get(i);
+
+        if(branch.labelName == name && !branch.resolved) {
+            for(Int j = 0; j < currentScope()->currentFunction->data.locals.size(); j++) {
+                Field *local = currentScope()->currentFunction->data.locals.get(j);
+                if(local->initialized_pc > branch.branch_pc) {
+                    local->initialized = false;
+                }
+            }
+        }
+    }
+}
+
 void Compiler::compileLabelDecl(Ast *ast, bool *controlPaths) {
     if(allControlPathsReturnAValue(controlPaths)) {
         for(Int i = 0; i < CONTROL_PATH_SIZE; i++) {
@@ -6962,6 +7060,7 @@ void Compiler::compileLabelDecl(Ast *ast, bool *controlPaths) {
     string name = ast->getToken(0).getValue();
     if(currentScope()->currentFunction->data.getLabelAddress(name) == invalidAddr) {
         currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(name, currentScope()->currentFunction->data.code.size()));
+        deInitializeLocalVariables(name);
     } else {
 
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
@@ -6969,12 +7068,7 @@ void Compiler::compileLabelDecl(Ast *ast, bool *controlPaths) {
     }
 
     Ast *branch = ast->getSubAst(0);
-    if(branch->getType() == ast_block) {
-        controlPaths[MAIN_CONTROL_PATH] = compileBlock(branch);
-    } else {
-        branch = branch->getSubAst(0);
-        compileStatement(branch, controlPaths);
-    }
+    controlPaths[MAIN_CONTROL_PATH] = compileBlock(branch);
 }
 
 void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
@@ -7206,7 +7300,7 @@ void Compiler::compileLocalVariableDecl(Ast *ast) {
 
         field = createLocalField(name, NULL, fieldType->isArray(), locality, flags, currentScope()->scopeLevel, ast);
         if(field->scopeLevel == currentScope()->scopeLevel) {
-
+            field->initialized_pc = currentScope()->currentFunction->data.code.size();
             resolveFieldType(field, fieldType, ast);
 
             if(ast->hasSubAst(ast_expression)) {
@@ -7228,6 +7322,7 @@ void Compiler::compileLocalVariableDecl(Ast *ast) {
 
         field = createLocalField(name, NULL, expr.utype->isArray(), locality, flags, currentScope()->scopeLevel, ast);
         if(field->scopeLevel == currentScope()->scopeLevel) {
+            field->initialized_pc = currentScope()->currentFunction->data.code.size();
             resolveFieldType(field, expr.utype, ast);
 
             if(flags.find(flg_CONST)) {
@@ -8218,7 +8313,7 @@ void Compiler::compileInitDecl(Ast *ast) {
         // we dont need to setup locals since it wont have any!
         RETAIN_BLOCK_TYPE(INSTANCE_BLOCK)
         if(!compileBlock(block)) {
-            cout << "not all code paths return a value";
+            cout << "not all code paths return a value\n";
         }
         RESTORE_BLOCK_TYPE()
 
@@ -8330,9 +8425,11 @@ void Compiler::compileAllFields() {
     }
 }
 
+typedef std::numeric_limits< double > dbl;
 void Compiler::compile() {
     setup(); // TODO: talk about the changes maid to main.cpp in tutorial series for counting failed files commit is 17th pass on rewrite
 
+    cout.precision(dbl::max_digits10);
     if(preprocess() && postProcess()) {
         processingStage = COMPILING;
         // TODO: write compileUnprocessedClasses() to be called for everything else and free unprocessedClasses list

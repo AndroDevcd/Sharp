@@ -4,12 +4,19 @@ import std.io;
 
 class K {
 
-    private funPtr : ()(var);
+    private funPtr : (var)(var);
+    private n: var;
+    j : K[];
+
+    def work(arr: var) : K;
+
+    def operator+(n: var) : var {
+
+    }
 
     init {
-        asm {
-            int 0x2fabb
-        }
+        self->j = null;
+
     }
 
     static def foo() : var {}

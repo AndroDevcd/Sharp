@@ -562,7 +562,8 @@ opcode_instr OpBuilder::itest(_register outRegister) {
 
 opcode_instr* OpBuilder::invokeDelegate(opcode_arg address, opcode_arg argCount, bool isFunctionStatic) {
     clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
-    if(illegalParam(address, D_CLASS)) {
+    if(illegalParam(address, D_CLASS) ||
+        illegalParam(argCount, C_CLASS, 2)) {
         instruction_Buffer[0] = ill();
         return instruction_Buffer;
     }

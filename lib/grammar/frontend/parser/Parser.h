@@ -58,7 +58,6 @@ private:
     bool isReturnStatement(Token &t);
     bool isIfStatement(Token &t);
     bool isSwitchStatement(Token &t);
-    bool isAssemblyStatement(Token &t);
     bool isForStatement(Token &t);
     bool isForEachStatement(Token &t);
     bool isWhileStatement(Token &t);

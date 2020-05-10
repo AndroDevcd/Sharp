@@ -26,7 +26,9 @@ public:
             local(false),
             getter(NULL),
             setter(NULL),
-            scopeLevel(0)
+            scopeLevel(0),
+            initialized(true),
+            initialized_pc(invalidAddr)
     {
     }
 
@@ -43,7 +45,9 @@ public:
         local(false),
         getter(NULL),
         setter(NULL),
-        scopeLevel(0)
+        scopeLevel(0),
+        initialized(true),
+        initialized_pc(invalidAddr)
     {
         this->type = type;
         this->guid = guid;
@@ -65,7 +69,9 @@ public:
     bool nullField;
     bool inlineCheck;
     bool local;
+    bool initialized;
     Int scopeLevel;
+    uInt initialized_pc; // for local variable use ONLY
     StorageLocality locality;
     Method* getter, *setter;
     Utype *utype;

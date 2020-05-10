@@ -954,6 +954,13 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
         expect(branch, ",", false);
         parseRegister(branch);
+    } else if(*peek(1)  == ".") {
+        expect(branch, peek(1)->getValue());
+        expectIdentifier(branch);
+        expect(branch, ":");
+        parseAssemblyInstruction(branch);
+    } else {
+        errors->createNewError(GENERIC, current(), "expected assembly instruction");
     }
 }
 
@@ -1115,13 +1122,7 @@ void parser::parseLabelDecl(Ast* ast) {
     _current--;
     expectIdentifier(branch);
     expect(ast, ":", false);
-
-    if(peek(1)->getType() == LEFTCURLY)
-        parseBlock(branch);
-    else {
-        advance();
-        parseStatement(branch);
-    }
+    parseBlock(branch);
 }
 
 bool parser::parseStatement(Ast* ast) {
@@ -1129,7 +1130,7 @@ bool parser::parseStatement(Ast* ast) {
     CHECK_ERRLMT(return false;)
 
     access_types.free();
-    if(isAccessDecl(current())) // TODO: do switch and asm() statements
+    if(isAccessDecl(current()))
     {
         parseAccessTypes();
     }
@@ -1177,14 +1178,18 @@ bool parser::parseStatement(Ast* ast) {
         if(*peek(1) == ":") {
             Token *old = _current;
             _current++;
+
+            errors->enterProtectedMode();
             parseUtype(branch);
             branch->freeLastSub();
+            errors->pass();
 
             if(*peek(1) == "=" || *peek(1) == ";"
                 || *peek(1) == ",") {
                 _current = old;
                 parseVariableDecl(branch);
             } else {
+                _current = old;
                 goto labelDecl;
             }
         } else
@@ -2440,7 +2445,12 @@ bool parser::parseDotNotCallExpr(Ast* ast) {
          * so we hav to do it ourselves
          */
         incCheck:
-        if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+        if(peek(1)->getType() == LEFTPAREN) { // TODO: talk about this in next episode
+            Ast* funCallBranch = getBranch(branch, ast_dot_fn_e);
+            parseExpressionList(funCallBranch, "(", ")");
+            goto incCheck;
+        }
+        else if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
         {
             Ast* incBranch = getBranch(branch, ast_post_inc_e);
             advance();
@@ -3392,10 +3402,6 @@ bool parser::isSwitchStatement(Token& t) {
     return (t.getId() == IDENTIFIER && t.getValue() == "switch");
 }
 
-bool parser::isAssemblyStatement(Token& t) {
-    return (t.getId() == IDENTIFIER && t.getValue() == "asm");
-}
-
 bool parser::isForStatement(Token& t) {
     return (t.getId() == IDENTIFIER && t.getValue() == "for");
 }
@@ -3458,7 +3464,124 @@ bool parser::isConstructorDecl() {
 }
 
 bool parser::iaAssemblyInstruction(string key) {
-    return key == "mov";
+    return key == "nop" ||
+    key  == "int" ||
+    key  == "movi" ||
+    key  == "ret" ||
+    key  == "hlt" ||
+    key  == "newVarArray" ||
+    key  == "cast" ||
+    key  == "mov8" ||
+    key  == "mov16" ||
+    key  == "mov32" ||
+    key  == "mov64" ||
+    key  == "movu8" ||
+    key  == "movu16" ||
+    key  == "movu32" ||
+    key  == "movu64" ||
+    key  == "rstore" ||
+    key  == "add" ||
+    key  == "sub" ||
+    key  == "mul" ||
+    key  == "div" ||
+    key  == "mod" ||
+    key  == "iadd" ||
+    key  == "isub" ||
+    key  == "idiv" ||
+    key  == "imod" ||
+    key  == "pop" ||
+    key  == "inc" ||
+    key  == "dec" ||
+    key  == "movr" ||
+    key  == "iaload" ||
+    key  == "brh" ||
+    key  == "ife" ||
+    key  == "ifne" ||
+    key  == "lt" ||
+    key  == "gt" ||
+    key  == "le" ||
+    key  == "ge" ||
+    key  == "movl" ||
+    key  == "movsl" ||
+    key  == "sizeof" ||
+    key  == "put" ||
+    key  == "putc" ||
+    key  == "checklen" ||
+    key  == "jmp" ||
+    key  == "loadpc" ||
+    key  == "pushobj" ||
+    key  == "del" ||
+    key  == "call" ||
+    key  == "newClass" ||
+    key  == "movn" ||
+    key  == "sleep" ||
+    key  == "te" ||
+    key  == "tne" ||
+    key  == "lock" ||
+    key  == "ulock" ||
+    key  == "movg" ||
+    key  == "movnd" ||
+    key  == "newObjArray" ||
+    key  == "not" ||
+    key  == "skip" ||
+    key  == "loadVal" ||
+    key  == "shl" ||
+    key  == "shr" ||
+    key  == "skipife" ||
+    key  == "skipifne" ||
+    key  == "and" ||
+    key  == "uand" ||
+    key  == "or" ||
+    key  == "xor" ||
+    key  == "throw" ||
+    key  == "checknull" ||
+    key  == "returnObj" ||
+    key  == "newClassArray" ||
+    key  == "newString" ||
+    key  == "addl" ||
+    key  == "subl" ||
+    key  == "mull" ||
+    key  == "divl" ||
+    key  == "modl" ||
+    key  == "iaddl" ||
+    key  == "isubl" ||
+    key  == "idivl" ||
+    key  == "imull" ||
+    key  == "imodl" ||
+    key  == "loadl" ||
+    key  == "popObject" ||
+    key  == "smovr" ||
+    key  == "andl" ||
+    key  == "orl" ||
+    key  == "xorl" ||
+    key  == "rmov" ||
+    key  == "smov" ||
+    key  == "returnVal" ||
+    key  == "istore" ||
+    key  == "smovr2" ||
+    key  == "smovr3" ||
+    key  == "istorel" ||
+    key  == "popl" ||
+    key  == "pushNull" ||
+    key  == "ipushl" ||
+    key  == "pushl" ||
+    key  == "itest" ||
+    key  == "invokeDelegate" ||
+    key  == "get" ||
+    key  == "isadd" ||
+    key  == "je" ||
+    key  == "jne" ||
+    key  == "ipopl" ||
+    key  == "cmp" ||
+    key  == "calld" ||
+    key  == "varCast" ||
+    key  == "tlsMovl" ||
+    key  == "dup" ||
+    key  == "popObj2" ||
+    key  == "swap" ||
+    key  == "ldc" ||
+    key  == "neg" ||
+    key  == ".";
 }
 
 bool parser::isKeyword(string key) {

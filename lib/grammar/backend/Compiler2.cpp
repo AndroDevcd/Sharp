@@ -284,7 +284,7 @@ void Compiler::inlineVariableValue(CodeHolder &code, Field *field) {
         double value = getInlinedFieldValue(field);
         code.free();
 
-        if (value > INT32_MAX) {
+        if (constantMap.indexof(value) != -1) {
             code.addIr(OpBuilder::ldc(EBX, constantMap.indexof(value)));
         } else
             code.addIr(OpBuilder::movi(value, EBX));
@@ -394,6 +394,11 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         utype->setResolvedType(field);
         utype->setArrayType(field->isArray);
         utype->getCode().instanceCaptured = true;
+
+        if(!field->initialized && currentScope()->initializationCheck) {
+            errors->createNewError(GENERIC, ast->line, ast->col,
+                                   " use of unitialized local field `" + name + "`.");
+        }
 
         if(field->getter == NULL && isFieldInlined(field)) {
             inlineVariableValue(utype->getCode(), field);
@@ -1873,421 +1878,437 @@ void Compiler::compileAsmStatement(Ast *ast) {
     for(Int i = 0; i < asmBlock->getSubAstCount(); i++) {
         Ast *branch = asmBlock->getSubAst(i);
         string opcode = branch->getToken(0).getValue();
-
-        if(opcode == "nop") {
-            code.addIr(OpBuilder::nop());
-        } else if(opcode == "int") {
-            code.addIr(OpBuilder::_int((interruptFlag)compileAsmLiteral(branch->getSubAst(ast_literal))));
-        } else if(opcode == "movi") {
-            code.addIr(OpBuilder::movi(compileAsmLiteral(branch->getSubAst(ast_literal)),
-                                       compileAsmRegister(branch->getSubAst(ast_assembly_register))));
-        } else if(opcode == "ret") {
-            code.addIr(OpBuilder::ret());
-        } else if(opcode == "hlt") {
-            code.addIr(OpBuilder::hlt());
-        } else if(opcode == "newVarArray") {
-            code.addIr(OpBuilder::newVarArray(compileAsmRegister(branch->getSubAst(ast_assembly_register))));
-        } else if(opcode == "cast") {
-            code.addIr(OpBuilder::cast(compileAsmRegister(branch->getSubAst(ast_assembly_register))));
-        } else if(opcode == "mov8") {
-            code.addIr(OpBuilder::mov8(
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
-        } else if(opcode == "mov16") {
-            code.addIr(OpBuilder::mov16(
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
-        } else if(opcode == "mov32") {
-            code.addIr(OpBuilder::mov32(
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
-        } else if(opcode == "mov64") {
-            code.addIr(OpBuilder::mov64(
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
-        } else if(opcode == "movu8") {
-            code.addIr(OpBuilder::movu8(
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
-        } else if(opcode == "movu16") {
-            code.addIr(OpBuilder::movu16(
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
-        } else if(opcode == "movu32") {
-            code.addIr(OpBuilder::movu32(
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
-        } else if(opcode == "movu64") {
-            code.addIr(OpBuilder::movu64(
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register)),
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
-        } else if(opcode == "rstore") {
-            code.addIr(OpBuilder::rstore(
-                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
-        } else if(opcode == "add") {
-            code.addIr(OpBuilder::add(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1)),
-                    compileAsmRegister(branch->getSubAst(2))));
-        } else if(opcode == "sub") {
-            code.addIr(OpBuilder::sub(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1)),
-                    compileAsmRegister(branch->getSubAst(2))));
-        } else if(opcode == "mul") {
-            code.addIr(OpBuilder::mul(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1)),
-                    compileAsmRegister(branch->getSubAst(2))));
-        } else if(opcode == "div") {
-            code.addIr(OpBuilder::div(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1)),
-                    compileAsmRegister(branch->getSubAst(2))));
-        } else if(opcode == "mod") {
-            code.addIr(OpBuilder::mod(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1)),
-                    compileAsmRegister(branch->getSubAst(2))));
-        } else if(opcode == "iadd") {
-            code.addIr(OpBuilder::iadd(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "isub") {
-            code.addIr(OpBuilder::isub(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "imul") {
-            code.addIr(OpBuilder::imul(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "idiv") {
-            code.addIr(OpBuilder::idiv(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "imod") {
-            code.addIr(OpBuilder::imod(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "pop") {
-            code.addIr(OpBuilder::pop());
-        } else if(opcode == "inc") {
-            code.addIr(OpBuilder::inc(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "dec") {
-            code.addIr(OpBuilder::dec(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "movr") {
-            code.addIr(OpBuilder::movr(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "iaload") {
-            code.addIr(OpBuilder::iaload(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "brh") {
-            code.addIr(OpBuilder::brh());
-        } else if(opcode == "ife") {
-            code.addIr(OpBuilder::ife());
-        } else if(opcode == "ifne") {
-            code.addIr(OpBuilder::ifne());
-        } else if(opcode == "lt") {
-            code.addIr(OpBuilder::lt(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "gt") {
-            code.addIr(OpBuilder::gt(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "le") {
-            code.addIr(OpBuilder::le(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "ge") {
-            code.addIr(OpBuilder::ge(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "movl") {
-            code.addIr(OpBuilder::movl(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "movsl") {
-            code.addIr(OpBuilder::movsl(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "sizeof") {
-            code.addIr(OpBuilder::_sizeof(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "put") {
-            code.addIr(OpBuilder::put(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "putc") {
-            code.addIr(OpBuilder::putc(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "checklen") {
-            code.addIr(OpBuilder::checklen(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "jmp") {
-            code.addIr(OpBuilder::jmp(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "loadpc") {
-            code.addIr(OpBuilder::loadpc(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "pushobj") {
-            code.addIr(OpBuilder::pushObject());
-        } else if(opcode == "del") {
-            code.addIr(OpBuilder::del());
-        } else if(opcode == "call") {
-            code.addIr(OpBuilder::call(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "newClass") {
-            code.addIr(OpBuilder::newClass(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "movn") {
-            code.addIr(OpBuilder::movn(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "sleep") {
-            code.addIr(OpBuilder::sleep(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "te") {
-            code.addIr(OpBuilder::te(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "te") {
-            code.addIr(OpBuilder::tne(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "lock") {
-            code.addIr(OpBuilder::lock());
-        } else if(opcode == "ulock") {
-            code.addIr(OpBuilder::unlock());
-        } else if(opcode == "movg") {
-            code.addIr(OpBuilder::movg(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "movnd") {
-            code.addIr(OpBuilder::movnd(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "movnd") {
-            code.addIr(OpBuilder::movnd(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "newObjArray") {
-            code.addIr(OpBuilder::newObjectArray(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "not") {
-            code.addIr(OpBuilder::_not(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "skip") {
-            code.addIr(OpBuilder::skip(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "loadVal") {
-            code.addIr(OpBuilder::loadValue(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "shl") {
-            code.addIr(OpBuilder::shl(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1)),
-                    compileAsmRegister(branch->getSubAst(2))));
-        } else if(opcode == "shr") {
-            code.addIr(OpBuilder::shr(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1)),
-                    compileAsmRegister(branch->getSubAst(2))));
-        } else if(opcode == "skipife") {
-            code.addIr(OpBuilder::skipife(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "skipifne") {
-            code.addIr(OpBuilder::skipifne(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "and") {
-            code.addIr(OpBuilder::_and(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "uand") {
-            code.addIr(OpBuilder::uand(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "or") {
-            code.addIr(OpBuilder::_or(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "xor") {
-            code.addIr(OpBuilder::_xor(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "throw") {
-            code.addIr(OpBuilder::_throw());
-        } else if(opcode == "checknull") {
-            code.addIr(OpBuilder::checkNull(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "returnObj") {
-            code.addIr(OpBuilder::returnObject());
-        } else if(opcode == "newClassArray") {
-            code.addIr(OpBuilder::newClassArray(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "newString") {
-            code.addIr(OpBuilder::newString(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "addl") {
-            code.addIr(OpBuilder::addl(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "subl") {
-            code.addIr(OpBuilder::subl(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "mull") {
-            code.addIr(OpBuilder::mull(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "divl") {
-            code.addIr(OpBuilder::divl(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "modl") {
-            code.addIr(OpBuilder::modl(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "iaddl") {
-            code.addIr(OpBuilder::iaddl(
-                    compileAsmLiteral(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "isubl") {
-            code.addIr(OpBuilder::isubl(
-                    compileAsmLiteral(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "imull") {
-            code.addIr(OpBuilder::imull(
-                    compileAsmLiteral(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "idivl") {
-            code.addIr(OpBuilder::idivl(
-                    compileAsmLiteral(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "imodl") {
-            code.addIr(OpBuilder::imodl(
-                    compileAsmLiteral(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "loadl") {
-            code.addIr(OpBuilder::loadl(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "popObj") {
-            code.addIr(OpBuilder::popObject());
-        } else if(opcode == "smovr") {
-            code.addIr(OpBuilder::smovr(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "andl") {
-            code.addIr(OpBuilder::andl(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "orl") {
-            code.addIr(OpBuilder::orl(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "xorl") {
-            code.addIr(OpBuilder::xorl(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "rmov") {
-            code.addIr(OpBuilder::rmov(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "smov") {
-            code.addIr(OpBuilder::smov(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "returnVal") {
-            code.addIr(OpBuilder::returnValue(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "xor") {
-            code.addIr(OpBuilder::_xor(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        } else if(opcode == "istore") {
-            code.addIr(OpBuilder::istore(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "smovr2") {
-            code.addIr(OpBuilder::smovr2(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "smovr3") {
-            code.addIr(OpBuilder::smovr3(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "istorel") {
-            code.addIr(OpBuilder::istorel(
-                    compileAsmLiteral(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "popl") {
-            code.addIr(OpBuilder::popl(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "pushNull") {
-            code.addIr(OpBuilder::pushNull());
-        } else if(opcode == "ipushl") {
-            code.addIr(OpBuilder::ipushl(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "pushl") {
-            code.addIr(OpBuilder::pushl(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "itest") {
-            code.addIr(OpBuilder::itest(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "invokeDelegate") {
-            code.addIr(OpBuilder::invokeDelegate(
-                    compileAsmLiteral(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1)),
-                    (bool)compileAsmLiteral(branch->getSubAst(2))));
-        } else if(opcode == "get") {
-            code.addIr(OpBuilder::get(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "isadd") {
-            code.addIr(OpBuilder::isadd(
-                    compileAsmLiteral(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "je") {
-            code.addIr(OpBuilder::je(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "jne") {
-            code.addIr(OpBuilder::jne(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "ipopl") {
-            code.addIr(OpBuilder::ipopl(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "cmp") {
-            code.addIr(OpBuilder::cmp(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "calld") {
-            code.addIr(OpBuilder::calld(
-                    compileAsmRegister(branch->getSubAst(0))));
-        } else if(opcode == "varCast") {
-            code.addIr(OpBuilder::varCast(
-                    compileAsmLiteral(branch->getSubAst(0)),
-                    (bool)compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "tlsMovl") {
-            code.addIr(OpBuilder::tlsMovl(
-                    compileAsmLiteral(branch->getSubAst(0))));
-        } else if(opcode == "dup") {
-            code.addIr(OpBuilder::dup());
-        } else if(opcode == "popObj2") {
-            code.addIr(OpBuilder::popObject2());
-        } else if(opcode == "swap") {
-            code.addIr(OpBuilder::swap());
-        } else if(opcode == "ldc") {
-            code.addIr(OpBuilder::ldc(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmLiteral(branch->getSubAst(1))));
-        } else if(opcode == "neg") {
-            code.addIr(OpBuilder::neg(
-                    compileAsmRegister(branch->getSubAst(0)),
-                    compileAsmRegister(branch->getSubAst(1))));
-        }
+        compileAssemblyInstruction(code, branch, opcode);
     }
 
     asmData.end_pc = code.size();
     if(!ast->hasToken("volatile")) {
         currentScope()->currentFunction->data.protectedCodeTable.add(asmData);
+    }
+}
+
+void Compiler::compileAssemblyInstruction(CodeHolder &code, Ast *branch, string &opcode) {
+    if(opcode == "nop") {
+        code.addIr(OpBuilder::nop());
+    } else if(opcode == "int") {
+        code.addIr(OpBuilder::_int((interruptFlag) compileAsmLiteral(branch->getSubAst(ast_literal))));
+    } else if(opcode == "movi") {
+        code.addIr(OpBuilder::movi(compileAsmLiteral(branch->getSubAst(ast_literal)),
+                                   compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+    } else if(opcode == "ret") {
+        code.addIr(OpBuilder::ret());
+    } else if(opcode == "hlt") {
+        code.addIr(OpBuilder::hlt());
+    } else if(opcode == "newVarArray") {
+        code.addIr(OpBuilder::newVarArray(compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+    } else if(opcode == "cast") {
+        code.addIr(OpBuilder::cast(compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+    } else if(opcode == "mov8") {
+        code.addIr(OpBuilder::mov8(
+                compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+    } else if(opcode == "mov16") {
+        code.addIr(OpBuilder::mov16(
+                compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+    } else if(opcode == "mov32") {
+        code.addIr(OpBuilder::mov32(
+                compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+    } else if(opcode == "mov64") {
+        code.addIr(OpBuilder::mov64(
+                compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+    } else if(opcode == "movu8") {
+        code.addIr(OpBuilder::movu8(
+                compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+    } else if(opcode == "movu16") {
+        code.addIr(OpBuilder::movu16(
+                compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+    } else if(opcode == "movu32") {
+        code.addIr(OpBuilder::movu32(
+                compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+    } else if(opcode == "movu64") {
+        code.addIr(OpBuilder::movu64(
+                compileAsmRegister(branch->getSubAst(ast_assembly_register)),
+                compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+    } else if(opcode == "rstore") {
+        code.addIr(OpBuilder::rstore(
+                compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+    } else if(opcode == "add") {
+        code.addIr(OpBuilder::add(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1)),
+                compileAsmRegister(branch->getSubAst(2))));
+    } else if(opcode == "sub") {
+        code.addIr(OpBuilder::sub(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1)),
+                compileAsmRegister(branch->getSubAst(2))));
+    } else if(opcode == "mul") {
+        code.addIr(OpBuilder::mul(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1)),
+                compileAsmRegister(branch->getSubAst(2))));
+    } else if(opcode == "div") {
+        code.addIr(OpBuilder::div(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1)),
+                compileAsmRegister(branch->getSubAst(2))));
+    } else if(opcode == "mod") {
+        code.addIr(OpBuilder::mod(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1)),
+                compileAsmRegister(branch->getSubAst(2))));
+    } else if(opcode == "iadd") {
+        code.addIr(OpBuilder::iadd(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "isub") {
+        code.addIr(OpBuilder::isub(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "imul") {
+        code.addIr(OpBuilder::imul(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "idiv") {
+        code.addIr(OpBuilder::idiv(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "imod") {
+        code.addIr(OpBuilder::imod(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "pop") {
+        code.addIr(OpBuilder::pop());
+    } else if(opcode == "inc") {
+        code.addIr(OpBuilder::inc(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "dec") {
+        code.addIr(OpBuilder::dec(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "movr") {
+        code.addIr(OpBuilder::movr(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "iaload") {
+        code.addIr(OpBuilder::iaload(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "brh") {
+        code.addIr(OpBuilder::brh());
+    } else if(opcode == "ife") {
+        code.addIr(OpBuilder::ife());
+    } else if(opcode == "ifne") {
+        code.addIr(OpBuilder::ifne());
+    } else if(opcode == "lt") {
+        code.addIr(OpBuilder::lt(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "gt") {
+        code.addIr(OpBuilder::gt(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "le") {
+        code.addIr(OpBuilder::le(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "ge") {
+        code.addIr(OpBuilder::ge(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "movl") {
+        code.addIr(OpBuilder::movl(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "movsl") {
+        code.addIr(OpBuilder::movsl(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "sizeof") {
+        code.addIr(OpBuilder::_sizeof(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "put") {
+        code.addIr(OpBuilder::put(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "putc") {
+        code.addIr(OpBuilder::putc(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "checklen") {
+        code.addIr(OpBuilder::checklen(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "jmp") {
+        code.addIr(OpBuilder::jmp(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "loadpc") {
+        code.addIr(OpBuilder::loadpc(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "pushobj") {
+        code.addIr(OpBuilder::pushObject());
+    } else if(opcode == "del") {
+        code.addIr(OpBuilder::del());
+    } else if(opcode == "call") {
+        code.addIr(OpBuilder::call(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "newClass") {
+        code.addIr(OpBuilder::newClass(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "movn") {
+        code.addIr(OpBuilder::movn(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "sleep") {
+        code.addIr(OpBuilder::sleep(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "te") {
+        code.addIr(OpBuilder::te(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "te") {
+        code.addIr(OpBuilder::tne(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "lock") {
+        code.addIr(OpBuilder::lock());
+    } else if(opcode == "ulock") {
+        code.addIr(OpBuilder::unlock());
+    } else if(opcode == "movg") {
+        code.addIr(OpBuilder::movg(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "movnd") {
+        code.addIr(OpBuilder::movnd(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "movnd") {
+        code.addIr(OpBuilder::movnd(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "newObjArray") {
+        code.addIr(OpBuilder::newObjectArray(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "not") {
+        code.addIr(OpBuilder::_not(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "skip") {
+        code.addIr(OpBuilder::skip(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "loadVal") {
+        code.addIr(OpBuilder::loadValue(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "shl") {
+        code.addIr(OpBuilder::shl(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1)),
+                compileAsmRegister(branch->getSubAst(2))));
+    } else if(opcode == "shr") {
+        code.addIr(OpBuilder::shr(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1)),
+                compileAsmRegister(branch->getSubAst(2))));
+    } else if(opcode == "skipife") {
+        code.addIr(OpBuilder::skipife(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "skipifne") {
+        code.addIr(OpBuilder::skipifne(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "and") {
+        code.addIr(OpBuilder::_and(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "uand") {
+        code.addIr(OpBuilder::uand(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "or") {
+        code.addIr(OpBuilder::_or(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "xor") {
+        code.addIr(OpBuilder::_xor(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "throw") {
+        code.addIr(OpBuilder::_throw());
+    } else if(opcode == "checknull") {
+        code.addIr(OpBuilder::checkNull(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "returnObj") {
+        code.addIr(OpBuilder::returnObject());
+    } else if(opcode == "newClassArray") {
+        code.addIr(OpBuilder::newClassArray(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "newString") {
+        code.addIr(OpBuilder::newString(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "addl") {
+        code.addIr(OpBuilder::addl(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "subl") {
+        code.addIr(OpBuilder::subl(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "mull") {
+        code.addIr(OpBuilder::mull(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "divl") {
+        code.addIr(OpBuilder::divl(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "modl") {
+        code.addIr(OpBuilder::modl(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "iaddl") {
+        code.addIr(OpBuilder::iaddl(
+                compileAsmLiteral(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "isubl") {
+        code.addIr(OpBuilder::isubl(
+                compileAsmLiteral(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "imull") {
+        code.addIr(OpBuilder::imull(
+                compileAsmLiteral(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "idivl") {
+        code.addIr(OpBuilder::idivl(
+                compileAsmLiteral(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "imodl") {
+        code.addIr(OpBuilder::imodl(
+                compileAsmLiteral(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "loadl") {
+        code.addIr(OpBuilder::loadl(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "popObj") {
+        code.addIr(OpBuilder::popObject());
+    } else if(opcode == "smovr") {
+        code.addIr(OpBuilder::smovr(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "andl") {
+        code.addIr(OpBuilder::andl(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "orl") {
+        code.addIr(OpBuilder::orl(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "xorl") {
+        code.addIr(OpBuilder::xorl(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "rmov") {
+        code.addIr(OpBuilder::rmov(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "smov") {
+        code.addIr(OpBuilder::smov(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "returnVal") {
+        code.addIr(OpBuilder::returnValue(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "xor") {
+        code.addIr(OpBuilder::_xor(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == "istore") {
+        code.addIr(OpBuilder::istore(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "smovr2") {
+        code.addIr(OpBuilder::smovr2(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "smovr3") {
+        code.addIr(OpBuilder::smovr3(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "istorel") {
+        code.addIr(OpBuilder::istorel(
+                compileAsmLiteral(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "popl") {
+        code.addIr(OpBuilder::popl(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "pushNull") {
+        code.addIr(OpBuilder::pushNull());
+    } else if(opcode == "ipushl") {
+        code.addIr(OpBuilder::ipushl(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "pushl") {
+        code.addIr(OpBuilder::pushl(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "itest") {
+        code.addIr(OpBuilder::itest(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "invokeDelegate") {
+        code.addIr(OpBuilder::invokeDelegate(
+                compileAsmLiteral(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1)),
+                (bool) compileAsmLiteral(branch->getSubAst(2))));
+    } else if(opcode == "get") {
+        code.addIr(OpBuilder::get(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "isadd") {
+        code.addIr(OpBuilder::isadd(
+                compileAsmLiteral(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "je") {
+        code.addIr(OpBuilder::je(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "jne") {
+        code.addIr(OpBuilder::jne(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "ipopl") {
+        code.addIr(OpBuilder::ipopl(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "cmp") {
+        code.addIr(OpBuilder::cmp(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "calld") {
+        code.addIr(OpBuilder::calld(
+                compileAsmRegister(branch->getSubAst(0))));
+    } else if(opcode == "varCast") {
+        code.addIr(OpBuilder::varCast(
+                compileAsmLiteral(branch->getSubAst(0)),
+                (bool) compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "tlsMovl") {
+        code.addIr(OpBuilder::tlsMovl(
+                compileAsmLiteral(branch->getSubAst(0))));
+    } else if(opcode == "dup") {
+        code.addIr(OpBuilder::dup());
+    } else if(opcode == "popObj2") {
+        code.addIr(OpBuilder::popObject2());
+    } else if(opcode == "swap") {
+        code.addIr(OpBuilder::swap());
+    } else if(opcode == "ldc") {
+        code.addIr(OpBuilder::ldc(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmLiteral(branch->getSubAst(1))));
+    } else if(opcode == "neg") {
+        code.addIr(OpBuilder::neg(
+                compileAsmRegister(branch->getSubAst(0)),
+                compileAsmRegister(branch->getSubAst(1))));
+    } else if(opcode == ".") {
+        string name = branch->getToken(1).getValue();
+        if(currentScope()->currentFunction->data.getLabelAddress(name) == invalidAddr) {
+            currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(name, currentScope()->currentFunction->data.code.size()));
+        } else {
+
+            this->errors->createNewError(PREVIOUSLY_DEFINED, branch->line, branch->col,
+                                         "label `" + name + "` is already defined in the scope");
+        }
+
+        Ast *instrBranch = branch->getSubAst(ast_assembly_instruction);
+        string instrOpcode = instrBranch->getToken(0).getValue();
+        compileAssemblyInstruction(code, instrBranch, instrOpcode);
     }
 }

@@ -65,6 +65,9 @@ string Field::toString() {
 }
 
 bool Field::isRelated(Field &f) {
+    if(isArray!=f.isArray)
+        return false;
+
     if(type == CLASS) {
         if(f.type == CLASS)
             return ((ClassObject*)f.utype->getResolvedType())->isClassRelated((ClassObject*)utype->getResolvedType());

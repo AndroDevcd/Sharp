@@ -28,7 +28,8 @@ struct Scope {
             loopEndLabel(""),
             statements(),
             finallyBlocks(),
-            lockBlocks()
+            lockBlocks(),
+            initializationCheck(true)
     {
     }
 
@@ -43,7 +44,8 @@ struct Scope {
             loopEndLabel(""),
             statements(),
             finallyBlocks(),
-            lockBlocks()
+            lockBlocks(),
+            initializationCheck(true)
     {
     }
 
@@ -56,6 +58,7 @@ struct Scope {
         statements.free();
         finallyBlocks.free();
         lockBlocks.free();
+        initializationCheck = true;
     }
 
     BlockType type;
@@ -63,6 +66,7 @@ struct Scope {
     Method* currentFunction;
     Int scopeLevel;
     bool isReachable;
+    bool initializationCheck;
     string loopStartLabel;
     string loopEndLabel;
     List<ast_type> statements;

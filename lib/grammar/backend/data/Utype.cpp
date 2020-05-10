@@ -198,6 +198,7 @@ ClassObject *Utype::getClass() {
 Method *Utype::getMethod() {
     if(type == utype_method || type == utype_function_ptr)
         return (Method*)resolvedType;
-    else return ((Field*)resolvedType)->utype->getMethod();
+    else if(type == utype_field) return ((Field*)resolvedType)->utype->getMethod();
+    else return NULL;
 }
 
