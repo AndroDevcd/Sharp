@@ -43,6 +43,20 @@ void Compiler::compileClassMutateFields(Ast *ast) {
     }
 }
 
+void Compiler::compileClassMutateMethods(Ast *ast) {
+    ReferencePointer ptr;
+    compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
+    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
+
+    if(currentClass != NULL) {
+        if (IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
+            // do nothing it's allready been processed
+        } else {
+            compileClassMethods(ast, currentClass);
+        }
+    }
+}
+
 void Compiler::compileClassMutateInitDecls(Ast *ast) {
     ReferencePointer ptr;
     compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
@@ -1370,19 +1384,24 @@ void Compiler::resolveSuperClass(Ast *ast, ClassObject* currentClass) {
             freeListPtr(refPtrs);
         }
 
-        for (long i = 0; i < block->getSubAstCount(); i++) {
-            branch = block->getSubAst(i);
-            CHECK_CMP_ERRORS(return;)
+        if(block != NULL) {
+            for (long i = 0; i < block->getSubAstCount(); i++) {
+                branch = block->getSubAst(i);
+                CHECK_CMP_ERRORS(return;)
 
-            switch (branch->getType()) {
-                case ast_class_decl:
-                    resolveSuperClass(branch);
-                    break;
-                case ast_interface_decl:
-                    resolveSuperClass(branch);
-                    break;
-                default:
-                    break;
+                switch (branch->getType()) {
+                    case ast_class_decl:
+                        resolveSuperClass(branch);
+                        break;
+                    case ast_enum_decl:
+                        resolveSuperClass(branch);
+                        break;
+                    case ast_interface_decl:
+                        resolveSuperClass(branch);
+                        break;
+                    default:
+                        break;
+                }
             }
         }
         removeScope();
@@ -1471,6 +1490,9 @@ void Compiler::resolveBaseClasses() {
                     resolveSuperClass(branch);
                     break;
                 case ast_interface_decl:
+                    resolveSuperClass(branch);
+                    break;
+                case ast_enum_decl:
                     resolveSuperClass(branch);
                     break;
                 default:
@@ -1601,6 +1623,7 @@ void Compiler::inlineEnumField(Ast* ast) {
 
     if(!field->inlineCheck) {
         field->inlineCheck = true;
+        field->address = field->owner->getFieldAddress(field);
 
         if(ast->hasSubAst(ast_expression)) {
             BlockType oldScope = currentScope()->type;
@@ -1618,6 +1641,7 @@ void Compiler::inlineEnumField(Ast* ast) {
                                                    "enum value must evaluate to an integer, the constant variable's value you have derived resolves to a decimal");
                         }
 
+                        enumValue = (long)inlinedValue + 1;
                         inlinedFields.add(KeyPair<Field *, double>(field, inlinedValue));
                     } else
                         errors->createNewError(GENERIC, ast,
@@ -1631,12 +1655,14 @@ void Compiler::inlineEnumField(Ast* ast) {
                                                    "enum value must evaluate to an integer, the constant variable's value you have derived resolves to a decimal");
                         }
 
+                        enumValue = (long)literal->numericData + 1;
                         inlinedFields.add(KeyPair<Field*, double>(field, literal->numericData));
                     } else
                         errors->createNewError(GENERIC, ast,
                                                " strings are not allowed to be assigned to enums");
                 } else if(expr.utype->getType() == utype_method) {
                     Method* method = ((Method*)expr.utype->getResolvedType());
+                    enumValue = (long)method->address + 1;
                     inlinedFields.add(KeyPair<Field*, double>(field, method->address));
                 } else
                     errors->createNewError(GENERIC, ast,
@@ -1648,24 +1674,33 @@ void Compiler::inlineEnumField(Ast* ast) {
             if(field->flags.find(STATIC))
                 currentScope()->type = oldScope;
         } else {
-            inlinedFields.add(KeyPair<Field*, double>(field, guid++));
+            inlinedFields.add(KeyPair<Field*, double>(field, enumValue++));
         }
     }
 }
 
-void Compiler::inlineEnumFields(Ast* ast, ClassObject* currentClass) {
+void Compiler::inlineEnumFields(Ast* ast) {
     Ast* block = ast->getSubAst(ast_enum_identifier_list);
 
-    if(currentClass == NULL) {
-        string name = ast->getToken(0).getValue();
-        if(globalScope()) {
-            currentClass = findClass(currModule, name, classes);
-        }
-        else {
-            currentClass = currentScope()->klass->getChildClass(name);
+    if(IS_CLASS_GENERIC(currentScope()->klass->getClassType())) {
+        ClassObject *enumClass = currentScope()->klass->getGenericOwner()->getChildClass(ast->getToken(0).getValue());
+        if(enumClass != NULL && enumClass->isAtLeast(postprocessed)) {
+            currentScope()->klass->addClass(enumClass);
+            return;
         }
     }
 
+    ClassObject *currentClass;
+    string name = ast->getToken(0).getValue();
+    if(globalScope()) {
+        currentClass = findClass(currModule, name, classes);
+    }
+    else {
+        currentClass = currentScope()->klass->getChildClass(name);
+    }
+
+    enumValue = guid;
+    currentClass->setProcessStage(postprocessed);
     currScope.add(new Scope(currentClass, CLASS_SCOPE));
     for(long i = 0; i < block->getSubAstCount(); i++) {
         Ast* branch = block->getSubAst(i);

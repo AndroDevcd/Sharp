@@ -10,15 +10,19 @@ class K {
 
     def work(arr: var) : K;
 
-    def operator+(n: var) : var {
-
-    }
-
     init {
-        self->j = null;
-
+        ptr : ()();
+        o : object = L<var>.e.b;
+        o  = new L<int>();
+        (o as K).n = 9;
     }
 
-    static def foo() : var {}
-    static def foo(num : var) : var {}
+}
+
+class L<t> {
+    enum e {
+        a,
+        b
+    }
+
 }

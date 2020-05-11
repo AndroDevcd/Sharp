@@ -129,7 +129,7 @@ public:
     Alias* getAlias(string name, bool checkBase);
     long totalFieldCount();
     void addClass(ClassObject* k) {
-        classes.add(k);
+        classes.addif(k);
     }
     void addField(Field* f) {
         fields.add(f);

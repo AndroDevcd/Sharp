@@ -21,11 +21,11 @@ class reflect {
     //def operator[](field_name : string) :=
     //    get_field(field_name);
 
-    def get_field(name : string) : field {
+    //def get_field(name : string) : field {
 
-    }
+    //}
 
-    def get_function(name : string) : function {
+    //def get_function(name : string) : function {
 
-    }
+    //}
 }

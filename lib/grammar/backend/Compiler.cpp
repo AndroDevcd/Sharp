@@ -493,6 +493,14 @@ void Compiler::preProccessEnumDecl(Ast *ast)
     flags.addif(EXTENSION);
     string className = ast->getToken(0).getValue();
 
+    if(IS_CLASS_GENERIC(currentScope()->klass->getClassType())) {
+        ClassObject *enumClass = currentScope()->klass->getGenericOwner()->getChildClass(className);
+        if(enumClass != NULL && enumClass->isAtLeast(preprocessed)) {
+            currentScope()->klass->addClass(enumClass);
+            return;
+        }
+    }
+
     if(globalScope()) {
         currentClass = addGlobalClassObject(className, flags, ast, classes);
         if(currentClass == NULL) return; // obviously the uer did something really dumb
@@ -510,6 +518,13 @@ void Compiler::preProccessEnumDecl(Ast *ast)
         currentClass->fullName = ss.str();
     }
 
+    if(IS_CLASS_GENERIC(currentScope()->klass->getClassType())) {
+        currentScope()->klass->getGenericOwner()->addClass(currentClass);
+        currentClass->fullName = currentScope()->klass->getGenericOwner()->fullName + "." + currentClass->name;
+        currentClass->owner = currentScope()->klass->getGenericOwner();
+    }
+
+    currentClass->setProcessStage(preprocessed);
     enums.addif(currentClass);
     currentClass->address = classSize++;
     currentClass->setClassType(class_enum);
@@ -593,11 +608,15 @@ void Compiler::addLocalVariables() {
     currentScope()->klass->getAllFunctionsByType(fn_constructor, constructors);
     for(uInt i = 0; i < constructors.size(); i++) {
         Method *constructor = constructors.get(i);
-        constructor->data.locals.addAll(constructor->params);
-        constructor->data.localVariablesSize = constructor->params.size() + 1; // +1 because we need space for the instance
+        addLocalFields(constructor);
     }
 
     constructors.free();
+}
+
+void Compiler::addLocalFields(Method *func) const {
+    func->data.locals.addAll(func->params);
+    func->data.localVariablesSize = func->params.size() + 1; // +1 because we need space for the instance
 }
 
 void Compiler::compileClassFields(Ast* ast, ClassObject* currentClass) {
@@ -636,6 +655,52 @@ void Compiler::compileClassFields(Ast* ast, ClassObject* currentClass) {
         }
 
         addLocalVariables();
+        removeScope();
+    }
+}
+
+void Compiler::compileClassMethods(Ast* ast, ClassObject* currentClass) {
+    Ast* block = ast->getLastSubAst();
+    List<AccessFlag> flags;
+
+    if(currentClass == NULL) {
+        string name = ast->getToken(0).getValue();
+        if(globalScope()) {
+            currentClass = findClass(currModule, name, classes);
+        }
+        else {
+            currentClass = currentScope()->klass->getChildClass(name);
+        }
+    }
+
+    if(currentClass != NULL) {
+        currScope.add(new Scope(currentClass, CLASS_SCOPE));
+        for (long i = 0; i < block->getSubAstCount(); i++) {
+            Ast *branch = block->getSubAst(i);
+            CHECK_CMP_ERRORS(return;)
+
+            switch (branch->getType()) {
+                case ast_class_decl:
+                    compileClassMethods(branch);
+                    break;
+                case ast_mutate_decl:
+                    compileClassMutateFields(branch);
+                    break;
+                case ast_method_decl:
+                    compileClassMethod(branch);
+                    break;
+                case ast_construct_decl:
+                    compileConstructor(branch);
+                    break;
+                case ast_operator_decl:
+                    compileOperatorOverload(branch);
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
         removeScope();
     }
 }
@@ -757,6 +822,8 @@ int64_t Compiler::checkstl(StorageLocality locality) {
 }
 
 void Compiler::removeScope() {
+    currScope.last()->resetLocalScopeFlags();
+    delete currScope.last();
     currScope.pop_back();
 }
 
@@ -1339,7 +1406,7 @@ bool Compiler::paramsContainNonQualifiedLambda(List<Field*> &params) {
 }
 
 Method* // TODO: Circle back around to this as it is in its primitive stae there might be issues with how it searches the mehtods with _int64 _int8 etc.
-Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* ast, bool checkBase, function_type type) {
+Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* ast, bool checkBase, function_type type, bool advancedSearch) {
     List<Method*> funcs;
     List<Method*> matches;
     Method* resolvedFunction;
@@ -1364,7 +1431,7 @@ Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* a
             }
         }
 
-        if(matches.empty()) {
+        if(advancedSearch && matches.empty()) {
             for (long long i = 0; i < funcs.size(); i++) {
                 if (complexParameterMatch(funcs.get(i)->params, params)) {
                     matches.add(funcs.get(i));
@@ -3703,6 +3770,7 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
             }
 
             if ((field->type != FNPTR && rightExpr.utype->isRelated(leftExpr.utype))
+                || (field->type == OBJECT && leftExpr.utype->isRelated(rightExpr.utype))
                 || (field->type == FNPTR && leftExpr.utype->isRelated(rightExpr.utype))
                 || ((field->type <= _UINT64 || field->type == VAR) && isUtypeClassConvertableToVar(field->utype, rightExpr.utype))
                 || (!allowOverloading && isUtypeConvertableToNativeClass(field->utype, rightExpr.utype))) {
@@ -3882,7 +3950,7 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                                        " incompatible types, cannot convert `" + rightExpr.utype->toString() +
                                        "` to `" +
                                        leftExpr.utype->toString()
-                                       + "`" + (!allowOverloading ? ", has the variable been initialized yet?" : "."));
+                                       + "`" + (!allowOverloading && leftExpr.utype->getResolvedType()->type == CLASS ? ", has the variable been initialized yet?" : "."));
             }
         }
     } else { // utype_class
@@ -4579,10 +4647,6 @@ void Compiler::compileDotNotationCall(Expression* expr, Ast* ast) {
  * Proccess elements after an expression in the format of `[]`, `.<identifier>`, or `++`
  */
 void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startPos) {
-
-    if(ast->line >= 102) {
-        int i = 0;
-    }
     expr->utype->getCode().instanceCaptured = true;
     RETAIN_SCOPE_CLASS(expr->utype->getClass() != NULL ? expr->utype->getClass() : currentScope()->klass)
     if(ast->getSubAstCount() > 1) {
@@ -5424,19 +5488,22 @@ void Compiler::compileLambdaExpression(Expression* expr, Ast* ast) {
         stringstream ss;
         ss << "anon_func#" << methodSize;
         string name = ss.str();
+        ClassObject *lambdaOwner = findClass(currModule, globalClass, classes);
 
-        lambda = new Method(name, currModule, findClass(currModule, globalClass, classes), fields, flags, meta);
+        lambda = new Method(name, currModule, lambdaOwner, fields, flags, meta);
         lambda->fullName = findClass(currModule, globalClass, classes)->fullName + "." + name;
         lambda->ast = ast;
         lambda->fnType = fn_lambda;
-        lambda->type = FNPTR; // lambda's are technically methos but we treat thm as pointers at high level
+        lambda->type = FNPTR; // lambda's are technically methods but we treat thm as pointers at high level
         lambda->address = methodSize++;
+        lambda->address = methodSize++;
+        lambdaOwner->addFunction(lambda);
 
         compileMethodReturnType(lambda, ast);
         lambdas.add(lambda);
 
         if(processingStage > POST_PROCESSING) {
-            // Todo:...
+            compileMethod(ast, lambda);
         } else {
             unProcessedMethods.add(lambda);
         }
@@ -6205,7 +6272,11 @@ void Compiler::resolveOperatorOverload(Ast* ast) {
         flags.add(PUBLIC);
     }
 
-    // TODO: when operator[] is supported only store `[` char so that we dont break this function
+    if(flags.find(STATIC)) {
+        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
+                                     "static operator overloads are not allowed.");
+    }
+
     List<Field*> params;
     string name = ast->getToken(0).getValue() + ast->getToken(1).getValue();
     string op = ast->getToken(1).getValue();
@@ -6230,6 +6301,18 @@ void Compiler::resolveOperatorOverload(Ast* ast) {
 
         method->free();
         delete method;
+    }
+}
+
+void Compiler::compileOperatorOverload(Ast* ast) {
+    List<Field*> params;
+    string name = ast->getToken(0).getValue() + ast->getToken(1).getValue();
+    parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
+    Method *func = findFunction(currentScope()->klass, name, params, ast, false, fn_op_overload, false);
+
+    if(func != NULL) { // if null it must be a delegate func which we dont care about
+        checkMainMethodSignature(func);
+        compileMethod(ast, func);
     }
 }
 
@@ -6258,7 +6341,7 @@ void Compiler::resolveConstructor(Ast* ast) {
     method->ast = ast;
     method->fnType = fn_constructor;
     method->address = methodSize++;
-    method->utype = new Utype(currentScope()->klass);
+    method->utype = nilUtype;
 
     if(name != currentScope()->klass->name) {
         if(IS_CLASS_GENERIC(currentScope()->klass->getClassType())) {
@@ -6285,50 +6368,19 @@ void Compiler::resolveConstructor(Ast* ast) {
     }
 }
 
-void Compiler::resolveDelegateDecl(Ast* ast) {
-    List<AccessFlag> flags;
-
-    if (ast->hasSubAst(ast_access_type)) {
-        parseMethodAccessFlags(flags, ast->getSubAst(ast_access_type));
-
-        if(!flags.find(PUBLIC) && !flags.find(PRIVATE) && !flags.find(PROTECTED))
-            flags.add(PUBLIC);
-    } else {
-        flags.add(PUBLIC);
-    }
-
+void Compiler::compileConstructor(Ast* ast) {
     List<Field*> params;
     string name = ast->getToken(0).getValue();
     parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
-    validateMethodParams(params, ast->getSubAst(ast_utype_arg_list));
+    Method *func = findFunction(currentScope()->klass, name, params, ast, false, fn_constructor, false);
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
-              ast->line, ast->col);
-
-    Method *method = new Method(name, currModule, currentScope()->klass, params, flags, meta);
-    method->fullName = currentScope()->klass->fullName + "." + name;
-    method->ast = ast;
-    method->fnType = fn_delegate;
-    method->address = delegateGUID++;
-
-    if(ast->hasSubAst(ast_method_return_type)) {
-        if(ast->hasToken("nil"))
-            goto void_;
-
-        Utype* utype = compileUtype(ast->getSubAst(ast_method_return_type)->getSubAst(ast_utype));
-        method->utype = utype;
+    if(func != NULL) {
+        currentScope()->currentFunction = func;
+        compileMethod(ast, func);
     } else {
-        void_:
-        method->utype = nilUtype;
-    }
-
-    if(!addFunction(currentScope()->klass, method, &simpleParameterMatch)) {
-        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                                     "function `" + name + "` is already defined in the scope");
-        printNote(findFunction(currentScope()->klass, method, &simpleParameterMatch)->meta, "function `" + name + "` previously defined here");
-
-        method->free();
-        delete method;
+        this->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col,
+                                     " could not resolve constructor `" + name + "` in `" +
+                                             currentScope()->klass->fullName + "`.");
     }
 }
 
@@ -6441,6 +6493,23 @@ void Compiler::resolveGlobalMethod(Ast* ast) {
     }
 }
 
+void Compiler::compileGlobalMethod(Ast* ast) {
+    ClassObject *resolvedClass = getExtensionFunctionClass(ast);
+
+    if(resolvedClass == NULL) {
+        // our method is most likely a normal global function
+        compileMethodDecl(ast);
+    } else { // looks like we have an extension function!!
+        if(IS_CLASS_GENERIC(resolvedClass->getClassType()) && resolvedClass->getGenericOwner() == NULL) {
+            /* ignore */
+        } else { // it can be a generic class that was already created or a reg. class
+            currScope.add(new Scope(resolvedClass, CLASS_SCOPE));
+            compileMethodDecl(ast, resolvedClass);
+            removeScope();
+        }
+    }
+}
+
 void Compiler::resolveClassMethod(Ast* ast) {
     ClassObject *resolvedClass = getExtensionFunctionClass(ast);
 
@@ -6456,6 +6525,20 @@ void Compiler::resolveClassMethod(Ast* ast) {
             resolvedClass->getExtensionFunctionTree().add(ast);
         } else // its can be a generic class that was already created or a reg. class
             resolveMethod(ast, resolvedClass);
+    }
+}
+
+void Compiler::compileClassMethod(Ast* ast) {
+    ClassObject *resolvedClass = getExtensionFunctionClass(ast);
+
+    if(resolvedClass == NULL) {
+        // our method is most likely a normal global function
+        compileMethodDecl(ast);
+    } else { // looks like we have an extension function!!
+        if(IS_CLASS_GENERIC(resolvedClass->getClassType()) && resolvedClass->getGenericOwner() == NULL) {
+            /* ignore */
+        } else // it can be a generic class that was already created or a reg. class
+            compileMethodDecl(ast, resolvedClass);
     }
 }
 
@@ -8309,20 +8392,17 @@ void Compiler::compileInitDecl(Ast *ast) {
         uInt totalErrors = errors->getUnfilteredErrorCount();
         currentScope()->currentFunction = constructor;
 
-        cout << ast->toString() << endl;
-        // we dont need to setup locals since it wont have any!
         RETAIN_BLOCK_TYPE(INSTANCE_BLOCK)
-        if(!compileBlock(block)) {
-            cout << "not all code paths return a value\n";
-        }
+        compileBlock(block);
         RESTORE_BLOCK_TYPE()
 
         reconcileBranches();
-        if(!constructor->data.code.ir32.empty() && GET_OP(constructor->data.code.ir32.last()) != Opcode::RET) {
-            constructor->data.code.addIr(OpBuilder::ret());
-        }
+//        if(!constructor->data.code.ir32.empty() && GET_OP(constructor->data.code.ir32.last()) != Opcode::RET) {
+//            constructor->data.code.addIr(OpBuilder::ret());
+//        } else
+//            constructor->data.code.addIr(OpBuilder::ret());
 
-        printMethodCode(*constructor, ast);
+//        printMethodCode(*constructor, ast);
         currentScope()->resetLocalScopeFlags();
         if(NEW_ERRORS_FOUND()){
             break; // no need to waste processing power to compile a broken init decl
@@ -8400,10 +8480,6 @@ void Compiler::compileAllFields() {
                 case ast_class_decl:
                     compileClassFields(branch);
                     break;
-                case ast_enum_decl:
-                    break;
-                case ast_method_decl: /* ignore */
-                    break;
                 case ast_variable_decl:
                     compileVariableDecl(branch);
                     break;
@@ -8425,20 +8501,240 @@ void Compiler::compileAllFields() {
     }
 }
 
-typedef std::numeric_limits< double > dbl;
+void Compiler::compileMethodDecl(Ast *ast, ClassObject* currentClass) {
+    bool extensionFun = getExtensionFunctionClass(ast) != NULL;
+
+    List<Field*> params;
+    ReferencePointer ptr;
+    compileReferencePtr(ptr, ast->getSubAst(ast_refrence_pointer));
+    string name = ptr.classes.last();
+
+    if(currentClass == NULL)
+        currentClass = currentScope()->klass;
+
+    parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
+    Method *func = findFunction(currentClass, name, params, ast, false, fn_normal, false);
+
+   if(func != NULL) { // if null it must be a delegate func which we dont care about
+       checkMainMethodSignature(func);
+       compileMethod(ast, func);
+   }
+}
+
+void Compiler::compileMethod(Ast *ast, Method *func) {
+    addLocalFields(func);
+
+    if(ast->hasSubAst(ast_block)) {
+        Ast *block = ast->getSubAst(ast_block);
+        currentScope()->currentFunction = func;
+        bool allCodePathsReturnValue = false;
+
+        compileMethodReturnType(func, ast, false);
+        RETAIN_BLOCK_TYPE(func->flags.find(STATIC) ? STATIC_BLOCK : INSTANCE_BLOCK)
+        allCodePathsReturnValue = compileBlock(block);
+        RESTORE_BLOCK_TYPE()
+
+        reconcileBranches();
+
+        if(func->utype->isRelated(nilUtype)) {
+            if(!func->data.code.ir32.empty() && GET_OP(func->data.code.ir32.last()) != Opcode::RET) {
+                func->data.code.addIr(OpBuilder::ret());
+            } else
+                func->data.code.addIr(OpBuilder::ret());
+        } else if(!func->utype->isRelated(undefUtype)){
+            if(!allCodePathsReturnValue) {
+                errors->createNewError(GENERIC, block, "not all code paths return a value");
+            }
+        }
+    } else if(ast->hasSubAst(ast_expression)) {
+        Expression expr;
+        compileExpression(&expr, ast->getSubAst(ast_expression));
+
+        if(!expr.utype->isRelated(func->utype)) {
+            errors->createNewError(GENERIC, ast->line, ast->col, "return value of type `" + expr.utype->toString() + "` is not compatible with that of type `"
+                + func->utype->toString() + "`");
+        }
+
+        if(expr.type == exp_nil) {
+            func->data.code.inject(expr.utype->getCode());
+            func->data.code.addIr(OpBuilder::ret());
+        } else {
+            if(expr.type == exp_var && !expr.utype->isArray()) {
+                expr.utype->getCode().inject(ebxInjector);
+                func->data.code.inject(expr.utype->getCode());
+                func->data.code.addIr(OpBuilder::returnValue(EBX))
+                    .addIr(OpBuilder::ret());
+            } else {
+                expr.utype->getCode().inject(ptrInjector);
+                func->data.code.inject(expr.utype->getCode());
+                func->data.code.addIr(OpBuilder::returnObject())
+                        .addIr(OpBuilder::ret());
+            }
+        }
+    }
+
+//        printMethodCode(*constructor, ast);
+    currentScope()->resetLocalScopeFlags();
+}
+
+void Compiler::compileAllMethods() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        current = parsers.get(i);
+        updateErrorManagerInstance(current);
+
+        currModule = "$unknown";
+        long long totalErrors = errors->getUnfilteredErrorCount();
+        currScope.add(new Scope(NULL, GLOBAL_SCOPE));
+        for (unsigned long x = 0; x < current->size(); x++) {
+            Ast *branch = current->astAt(x);
+            if (x == 0) {
+                if (branch->getType() == ast_module_decl) {
+                    currModule = parseModuleDecl(branch);
+                    currScope.last()->klass = findClass(currModule, globalClass, classes);
+                    continue;
+                } else {
+                    currModule = undefinedModule;
+                    currScope.last()->klass = findClass(currModule, globalClass, classes);
+                }
+            }
+
+            switch(branch->getType()) {
+                case ast_class_decl:
+                    compileClassMethods(branch);
+                    break;
+                case ast_method_decl:
+                    compileGlobalMethod(branch);
+                    break;
+                case ast_mutate_decl:
+                    compileClassMutateMethods(branch);
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+
+            CHECK_CMP_ERRORS(return;)
+        }
+
+        if(NEW_ERRORS_FOUND()){
+            failedParsers.addif(current);
+        }
+        removeScope();
+    }
+}
+
+void Compiler::assignEnumFieldName(Field *enumField) {
+    Field *nameField = ((ClassObject*)enumField->utype->getResolvedType())->getField("name", true);
+
+    if(nameField != NULL) {
+        Int index = stringMap.addIfIndex(enumField->name);
+        staticMainInserts.addIr(OpBuilder::newString(stringMap.addIfIndex(enumField->name)))
+            .addIr(OpBuilder::movg(enumField->owner->address))
+            .addIr(OpBuilder::movn(enumField->address))
+            .addIr(OpBuilder::movn(nameField->address))
+            .addIr(OpBuilder::popObject());
+    } else
+        errors->createNewError(INTERNAL_ERROR, enumField->ast,
+                         " enum class field `name` could not be located");
+}
+
+
+void Compiler::assignEnumFieldValue(Field *enumField) {
+    Field *valueField = ((ClassObject*)enumField->utype->getResolvedType())->getField("ordinal", true);
+
+    if(valueField != NULL) {
+        inlineVariableValue(staticMainInserts, enumField);
+        staticMainInserts.addIr(OpBuilder::movg(enumField->owner->address))
+            .addIr(OpBuilder::movn(enumField->address))
+            .addIr(OpBuilder::movn(valueField->address))
+            .addIr(OpBuilder::movi(0, ADX))
+            .addIr(OpBuilder::rmov(ADX, EBX));
+    } else
+        errors->createNewError(INTERNAL_ERROR, enumField->ast,
+                         " enum class field `ordinal` could not be located");
+}
+
+void Compiler::compileEnumField(Field *enumField) {
+    assignEnumFieldName(enumField);
+    assignEnumFieldValue(enumField);
+}
+
+void Compiler::assignEnumArray(ClassObject *enumClass) {
+    Field *arrayField = enumClass->getField("enums", true);
+
+    CodeHolder code;
+    if(arrayField != NULL) {
+        Int enumFieldCount = 0;
+        for(Int i = 0; i < enumClass->fieldCount(); i++) {
+            if(enumClass->getField(i)->utype->getClass() == enumClass)
+                enumFieldCount++;
+        }
+
+        code.addIr(OpBuilder::movi(enumFieldCount, EBX))
+                .addIr(OpBuilder::newClassArray(EBX, enumClass->address));
+        enumFieldCount = 0;
+        for(Int i = 0; i < enumClass->fieldCount(); i++) {
+            if(enumClass->getField(i)->utype->getClass() == enumClass)
+            {
+                code.addIr(OpBuilder::movg(enumClass->address))
+                        .addIr(OpBuilder::movn(enumClass->getField(i)->address))
+                        .addIr(OpBuilder::pushObject())
+                        .addIr(OpBuilder::movsl(-1))
+                        .addIr(OpBuilder::movn(enumFieldCount++))
+                        .addIr(OpBuilder::popObject());
+            }
+        }
+
+        code.addIr(OpBuilder::movg(enumClass->address))
+                .addIr(OpBuilder::movn(arrayField->address))
+                .addIr(OpBuilder::popObject());
+        cout << "codee \n\n " << codeToString(code) << endl;
+    } else
+        errors->createNewError(INTERNAL_ERROR, enumClass->ast,
+                               " enum class field `ordinal` could not be located");
+}
+
+void Compiler::compileEnumFields() {
+    for(Int i = 0; i < enums.size(); i++) {
+        ClassObject *enumClass = enums.get(i);
+        current = getParserBySourceFile(enumClass->meta.file);
+        updateErrorManagerInstance(current);
+        currScope.add(new Scope(enumClass, CLASS_SCOPE));
+        for(Int j = 0; j < enumClass->fieldCount(); j++) {
+            compileEnumField(enumClass->getField(j));
+        }
+
+        assignEnumArray(enumClass);
+        removeScope();
+    }
+}
+
+void Compiler::compileAllUnprocessedMethods() {
+    for(Int i = 0; i < unProcessedMethods.size(); i++) {
+        Method *method = unProcessedMethods.get(i);
+        current = getParserBySourceFile(method->meta.file);
+        updateErrorManagerInstance(current);
+
+        currModule = method->module;
+        currScope.add(new Scope(method->owner, GLOBAL_SCOPE));
+        compileMethod(method->ast, method);
+        removeScope();
+    }
+    unProcessedMethods.free();
+}
+
 void Compiler::compile() {
     setup(); // TODO: talk about the changes maid to main.cpp in tutorial series for counting failed files commit is 17th pass on rewrite
 
-    cout.precision(dbl::max_digits10);
     if(preprocess() && postProcess()) {
         processingStage = COMPILING;
         // TODO: write compileUnprocessedClasses() to be called for everything else and free unprocessedClasses list
         compileAllFields();
         compileAllInitDecls();
-        initProcessed = true;
+        compileAllMethods();
+        compileAllUnprocessedMethods();
+        compileEnumFields();
 
-
-        // TODO: compile umprocessed methods last
         cout << "compiled!!!";
     }
 }
@@ -8692,10 +8988,8 @@ Field* Compiler::createLocalField(string name, Utype *type, bool isArray, Storag
         return prevField;
     } else {
         if((prevField = currentScope()->currentFunction->data.getLocalFieldHereOrHigher(name, scopeLevel)) != NULL) {
-            if(prevField->scopeLevel > 0 || initProcessed) {
-                createNewWarning(GENERIC, __WACCESS, ast->line, ast->col,
-                                 "local field `" + name + "` shadows another field at higher scope");
-            }
+            createNewWarning(GENERIC, __WACCESS, ast->line, ast->col,
+                             "local field `" + name + "` shadows another field at higher scope");
         }
 
         Field *local = new Field(type == NULL ? UNTYPED : type->getResolvedType()->type, guid++, name, NULL, flags, meta, locality, checkstl(locality));

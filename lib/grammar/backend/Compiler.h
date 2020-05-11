@@ -36,7 +36,7 @@ public:
         mainSignature(0),
         delegateGUID(0),
         typeInference(false),
-        initProcessed(false)
+        enumValue(0)
     {
         this->parsers.init();
         this->parsers.addAll(parsers);
@@ -102,8 +102,8 @@ private:
     long threadLocals;
     long mainSignature;
     bool typeInference;
-    bool initProcessed;
     long processingStage;
+    long enumValue;
     string outFile;
     string lastNoteMsg;
     Meta lastNote;
@@ -143,15 +143,24 @@ private:
     void createGlobalClass();
     void compileAllFields();
     void compileAllInitDecls();
+    void compileAllMethods();
     void inlineFields();
     void postProcessGenericClasses();
+    void compileAllUnprocessedMethods();
+    void assignEnumFieldName(Field*);
+    void assignEnumFieldValue(Field*);
+    void compileEnumField(Field*);
+    void compileEnumFields();
+    void assignEnumArray(ClassObject *enumClass);
     void postProcessUnprocessedClasses();
     void handleImports();
+    void compileMethodDecl(Ast *ast, ClassObject* currentClass = NULL);
     void updateErrorManagerInstance(parser *parser);
     void preProcessGenericClasses(long long unstableClasses);
     void preProcessUnprocessedClasses(long long unstableClasses);
     parser *getParserBySourceFile(string name);
     void addDefaultConstructor(ClassObject* klass, Ast* ast);
+    void inlineGenericClassFields(Ast *ast, ClassObject*);
     void inlineClassMutateFields(Ast *ast);
     void createNewWarning(error_type error, int type, int line, int col, string xcmnts);
     void createNewWarning(error_type error, int type, Ast* ast, string xcmnts);
@@ -161,7 +170,7 @@ private:
     void inlineClassFields(Ast* ast, ClassObject* currentClass = NULL);
     void inlineField(Ast* ast);
     void inlineFieldHelper(Ast* ast);
-    void inlineEnumFields(Ast* ast, ClassObject* currentClass = NULL);
+    void inlineEnumFields(Ast* ast);
     void inlineEnumField(Ast* ast);
     void compileInitDecl(Ast *ast);
     void reconcileBranches();
@@ -197,6 +206,7 @@ private:
     bool isWholeNumber(double value);
     void preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* currentClass = NULL);
     void compileClassFields(Ast* ast, ClassObject* currentClass = NULL);
+    void compileClassMethods(Ast* ast, ClassObject* currentClass = NULL);
     void compileClassInitDecls(Ast* ast, ClassObject* currentClass = NULL);
     void preProccessGenericClassDecl(Ast* ast, bool isInterface);
     void parseIdentifierList(Ast *ast, List<string> &idList);
@@ -246,14 +256,18 @@ private:
     ClassObject* getExtensionFunctionClass(Ast* ast);
     void resolveClassMutateMethods(Ast *ast);
     void compileClassMutateFields(Ast *ast);
+    void compileClassMutateMethods(Ast *ast);
     void compileClassMutateInitDecls(Ast *ast);
     void resolveMethod(Ast* ast, ClassObject *currentClass = NULL);
+    void compileClassMethod(Ast* ast);
     void resolveGlobalMethod(Ast* ast);
+    void compileGlobalMethod(Ast* ast);
     void resolveClassMethod(Ast* ast);
     void compileMethodReturnType(Method* fun, Ast *ast, bool wait = false);
-    void resolveDelegateDecl(Ast* ast);
     void resolveConstructor(Ast* ast);
+    void compileConstructor(Ast* ast);
     void resolveOperatorOverload(Ast* ast);
+    void compileOperatorOverload(Ast* ast);
     void checkMainMethodSignature(Method* method);
     Field* compileUtypeArg(Ast* ast);
     void compileParenExpression(Expression* expr, Ast* ast);
@@ -325,7 +339,7 @@ private:
     void parseCharLiteral(Expression* expr, Token &token);
     void parseIntegerLiteral(Expression* expr, Token &token);
     string invalidateUnderscores(string str);
-    Method* findFunction(ClassObject *k, string name, List<Field*> &params, Ast* ast, bool checklBase = false, function_type type = fn_undefined);
+    Method* findFunction(ClassObject *k, string name, List<Field*> &params, Ast* ast, bool checklBase = false, function_type type = fn_undefined, bool advancedSearch = true);
     bool paramsContainNonQualifiedLambda(List<Field*> &params);
     bool isLambdaUtype(Utype *type);
     bool resolveFunctionByName(string name, List<Method*> &functions, Ast *ast);
@@ -381,6 +395,10 @@ private:
     opcode_arg getAsmOffset(Ast *ast);
 
     void compileAssemblyInstruction(CodeHolder &code, Ast *branch, string &opcode);
+
+    void compileMethod(Ast *ast, Method *func);
+
+    void addLocalFields(Method *func) const;
 };
 
 enum ProcessingStage {

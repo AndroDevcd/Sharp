@@ -424,8 +424,10 @@ void ErrorManager::createNewWarning(error_type err, Ast *pAst, string xcmts) {
 
 void ErrorManager::update(parser *p, bool asis, bool aggressiveReporting) {
 
-    this->lines = &p->getTokenizer()->getLines();
-    filename = p->getTokenizer()->file;
-    this->asis = asis;
-    this->aggressive = aggressiveReporting;
+    if(p != NULL) {
+        this->lines = &p->getTokenizer()->getLines();
+        filename = p->getTokenizer()->file;
+        this->asis = asis;
+        this->aggressive = aggressiveReporting;
+    }
 }

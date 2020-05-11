@@ -16,11 +16,6 @@ string incInjector = "inc-injector";
 string decInjector = "dec-injector";
 
 void Utype::free() {
-    if(type == utype_literal && resolvedType) {
-        ((Literal*)resolvedType)->free();
-        delete resolvedType;
-    }
-
     code.free();
     type = utype_unresolved;
     resolvedType = NULL;

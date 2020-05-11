@@ -146,6 +146,10 @@ void parser::parseMethodDecl(Ast *ast) {
             branch->setAstType(ast_delegate_decl);
         } else {
             parseBlock(branch);
+            if(branch->getLastSubAst()->sub_asts.singular() // TODO: talk about in next episode
+               && branch->getLastSubAst()->sub_asts.get(0)->getSubAst(0)->getType() == ast_expression) {
+                errors->createNewError(GENERIC, current(), "expected `=` before expression");
+            }
         }
     } else if (peek(1)->getType() == INFER) {
         expect(branch, ":=", true);
@@ -157,6 +161,10 @@ void parser::parseMethodDecl(Ast *ast) {
     }
     else {
         parseBlock(branch);
+        if(branch->getLastSubAst()->sub_asts.singular()
+            && branch->getLastSubAst()->sub_asts.get(0)->getSubAst(0)->getType() == ast_expression) {
+            errors->createNewError(GENERIC, current(), "expected `=` before expression");
+        }
     }
 }
 

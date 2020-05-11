@@ -557,7 +557,7 @@ void RuntimeEngine::compile()
 
 
             if((i+1) >= parsers.size() && errors->getErrorCount() == 0 && errors->getUnfilteredErrorCount() == 0) {
-                getMainMethod(p);
+                getMainMethod(p); // setup main
 
                 if(errors->getErrorCount() == 0 && errors->getUnfilteredErrorCount() > 0) {
                     errors->enableAggressive();
