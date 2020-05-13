@@ -401,8 +401,8 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         goto globalCheck;
 
     if(currentScope()->type >= INSTANCE_BLOCK && currentScope()->currentFunction != NULL
-       && currentScope()->currentFunction->data.getLocalFieldHereOrHigher(name, currentScope()->scopeLevel) != NULL) {
-        Field* field = currentScope()->currentFunction->data.getLocalFieldHereOrHigher(name, currentScope()->scopeLevel);
+       && currentScope()->currentFunction->data.getLocalField(name) != NULL) {
+        Field* field = currentScope()->currentFunction->data.getLocalField(name);
 
         utype->setType(utype_field);
         utype->setResolvedType(field);
@@ -424,6 +424,21 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
 
                         // we only do it for stl_thread var if it is not an array field
                         if (!field->isArray) {
+                            utype->getCode().getInjector(incInjector).addIr(OpBuilder::inc(EBX));
+                            utype->getCode().getInjector(decInjector).addIr(OpBuilder::dec(EBX));
+
+                            if (field->type <= _UINT64) {
+                                dataTypeToOpcode(field->type, EBX, EBX, utype->getCode().getInjector(incInjector));
+                                dataTypeToOpcode(field->type, EBX, EBX, utype->getCode().getInjector(decInjector));
+                            }
+
+                            utype->getCode().getInjector(incInjector)
+                              .addIr(OpBuilder::movi(0, ADX))
+                              .addIr(OpBuilder::rmov(ADX, EBX));
+                            utype->getCode().getInjector(decInjector)
+                                    .addIr(OpBuilder::movi(0, ADX))
+                                    .addIr(OpBuilder::rmov(ADX, EBX));
+
                             utype->getCode().getInjector(ebxInjector)
                                     .addIr(OpBuilder::movi(0, ADX))
                                     .addIr(OpBuilder::iaload(EBX, ADX));
@@ -441,6 +456,20 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
                     utype->getCode().getInjector(stackInjector)
                             .addIr(OpBuilder::pushObject());
                 } else {
+
+                    utype->getCode().getInjector(incInjector).addIr(OpBuilder::inc(EBX));
+                    utype->getCode().getInjector(decInjector).addIr(OpBuilder::dec(EBX));
+
+                    if (field->type <= _UINT64) {
+                        dataTypeToOpcode(field->type, EBX, EBX, utype->getCode().getInjector(incInjector));
+                        dataTypeToOpcode(field->type, EBX, EBX, utype->getCode().getInjector(decInjector));
+                    }
+
+                    utype->getCode().getInjector(incInjector)
+                      .addIr(OpBuilder::smovr2(EBX, field->address));
+                    utype->getCode().getInjector(decInjector)
+                            .addIr(OpBuilder::smovr2(EBX, field->address));
+
                     utype->getCode().addIr(OpBuilder::loadl(EBX, field->address));
                     utype->getCode().getInjector(stackInjector)
                             .addIr(OpBuilder::rstore(EBX));
@@ -686,6 +715,21 @@ void Compiler::resolveFieldUtype(Utype *utype, Ast *ast, DataEntity *resolvedFie
             }
 
             if (field->isVar() && !field->isArray) {
+                utype->getCode().getInjector(incInjector).addIr(OpBuilder::inc(EBX));
+                utype->getCode().getInjector(decInjector).addIr(OpBuilder::dec(EBX));
+
+                if (field->type <= _UINT64) {
+                    dataTypeToOpcode(field->type, EBX, EBX, utype->getCode().getInjector(incInjector));
+                    dataTypeToOpcode(field->type, EBX, EBX, utype->getCode().getInjector(decInjector));
+                }
+
+                utype->getCode().getInjector(incInjector)
+                        .addIr(OpBuilder::movi(0, ADX))
+                        .addIr(OpBuilder::rmov(ADX, EBX));
+                utype->getCode().getInjector(decInjector)
+                        .addIr(OpBuilder::movi(0, ADX))
+                        .addIr(OpBuilder::rmov(ADX, EBX));
+
                 utype->getCode().getInjector(ebxInjector)
                         .addIr(OpBuilder::movi(0, ADX))
                         .addIr(OpBuilder::checklen(ADX))
@@ -1931,7 +1975,7 @@ void Compiler::compileAssemblyInstruction(CodeHolder &code, Ast *branch, string 
         code.addIr(OpBuilder::movi(compileAsmLiteral(branch->getSubAst(ast_literal)),
                                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
     } else if(opcode == "ret") {
-        code.addIr(OpBuilder::ret());
+        code.addIr(OpBuilder::ret(compileAsmLiteral(branch->getSubAst(ast_literal))));
     } else if(opcode == "hlt") {
         code.addIr(OpBuilder::hlt());
     } else if(opcode == "newVarArray") {
@@ -2334,8 +2378,8 @@ void Compiler::compileAssemblyInstruction(CodeHolder &code, Ast *branch, string 
                 compileAsmRegister(branch->getSubAst(1))));
     } else if(opcode == ".") {
         string name = branch->getToken(1).getValue();
-        if(currentScope()->currentFunction->data.getLabelAddress(name) == invalidAddr) {
-            currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(name, currentScope()->currentFunction->data.code.size()));
+        if(currentScope()->currentFunction->data.getLabel(name).start_pc == invalidAddr) {
+            currentScope()->currentFunction->data.labelMap.add(LabelData(name, currentScope()->currentFunction->data.code.size(), currentScope()->scopeLevel));
         } else {
 
             this->errors->createNewError(PREVIOUSLY_DEFINED, branch->line, branch->col,

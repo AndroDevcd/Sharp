@@ -32,8 +32,8 @@ void OpBuilder::clearBuf(opcode_instr *instrs, int buffLen) {
     }
 }
 
-opcode_instr OpBuilder::ret() {
-    return SET_Ei(tmpInstr, RET);
+opcode_instr OpBuilder::ret(opcode_arg errState) {
+    return SET_Di(tmpInstr, RET, (errState ? 1 : 0), POSITIVE);
 }
 
 opcode_instr OpBuilder::hlt() {

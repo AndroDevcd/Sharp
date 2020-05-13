@@ -614,7 +614,7 @@ void Compiler::addLocalVariables() {
     constructors.free();
 }
 
-void Compiler::addLocalFields(Method *func) const {
+void Compiler::addLocalFields(Method *func) {
     func->data.locals.addAll(func->params);
     func->data.localVariablesSize = func->params.size() + 1; // +1 because we need space for the instance
 }
@@ -1554,8 +1554,8 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
         else if((resolvedMethod = findFunction(currentScope()->klass, name, params, ast, true)) != NULL)
             return resolvedMethod;
         else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && currentScope()->currentFunction != NULL
-            && currentScope()->currentFunction->data.getLocalFieldHereOrHigher(name, currentScope()->scopeLevel) != NULL) {
-            Field* field = currentScope()->currentFunction->data.getLocalFieldHereOrHigher(name, currentScope()->scopeLevel);
+            && currentScope()->currentFunction->data.getLocalField(name) != NULL) {
+            Field* field = currentScope()->currentFunction->data.getLocalField(name);
             if(field->utype && field->utype->getType() == utype_function_ptr) {
                 resolvedMethod =  (Method*)field->utype->getResolvedType();
 
@@ -1939,7 +1939,7 @@ string Compiler::codeToString(CodeHolder &code, CodeData *data) {
             }
             case Opcode::RET:
             {
-                ss<<"ret";
+                ss<<"ret" << (GET_Da(opcodeData) == ERR_STATE ? " ERR" : "");
                 
                 break;
             }
@@ -2547,7 +2547,7 @@ string Compiler::codeToString(CodeHolder &code, CodeData *data) {
             case Opcode::NEWSTRING:
             {
                 ss << "newstr @" << GET_Da(opcodeData) << " // ";
-                //ss << getString(GET_Da(x64));
+                ss << stringMap.get(GET_Da(opcodeData));
                 
                 break;
             }
@@ -2728,7 +2728,7 @@ string Compiler::codeToString(CodeHolder &code, CodeData *data) {
             case Opcode::ISTOREL:
             {
                 ss<<"istorel ";
-                ss << code.ir32.get(++x) << ", fp+";
+                ss << ((int32_t)code.ir32.get(++x)) << ", fp+";
                 ss<<GET_Da(opcodeData);
                 
                 break;
@@ -2900,7 +2900,8 @@ void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, CodeHo
     if((constructor = clazz->getClass()->getConstructor(params, true)) != NULL) {
         validateAccess(constructor, ast);
 
-        code.addIr(OpBuilder::newClass(clazz->getClass()->address));
+        code.addIr(OpBuilder::newClass(clazz->getClass()->address))
+            .addIr(OpBuilder::dup());
 
         paramUtype->getCode().inject(stackInjector);
         code.inject(paramUtype->getCode());
@@ -3558,7 +3559,7 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
 
                 expr->utype->setType(utype_native);
                 expr->utype->setArrayType(false);
-                expr->utype->setResolvedType(new DataEntity(VAR));
+                expr->utype->setResolvedType(varUtype->getResolvedType());
                 if(operand == ">" || operand == "<" || operand == ">=" || operand == "<="
                     || operand == "==" || operand == "!=") {
                     expr->utype->getCode().getInjector(ebxInjector)
@@ -3588,7 +3589,7 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
 
                 expr->utype->setType(utype_native);
                 expr->utype->setArrayType(false);
-                expr->utype->setResolvedType(new DataEntity(VAR));
+                expr->utype->setResolvedType(varUtype->getResolvedType());
 
                 expr->utype->getCode().getInjector(stackInjector)
                         .addIr(OpBuilder::rstore(EBX));
@@ -3626,7 +3627,7 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
 
             expr->utype->setType(utype_native);
             expr->utype->setArrayType(false);
-            expr->utype->setResolvedType(new DataEntity(VAR));
+            expr->utype->setResolvedType(varUtype->getResolvedType());
 
             expr->utype->getCode().getInjector(stackInjector)
                     .addIr(OpBuilder::rstore(EBX));
@@ -3679,6 +3680,10 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
                     resultCode->inject(params.get(0)->utype->getCode());
                     resultCode->inject(params.get(0)->utype->getCode().getInjector(ptrInjector));
                     resultCode->addIr(OpBuilder::itest(EBX));
+
+                    expr->utype->setType(utype_native);
+                    expr->utype->setArrayType(false);
+                    expr->utype->setResolvedType(varUtype->getResolvedType());
 
                     expr->utype->getCode().getInjector(stackInjector)
                             .addIr(OpBuilder::rstore(EBX));
@@ -4422,7 +4427,8 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
 
             if(constr != NULL) {
                 validateAccess(constr, ast);
-                expr->utype->getCode().addIr(OpBuilder::newClass(expr->utype->getClass()->address));
+                expr->utype->getCode().addIr(OpBuilder::newClass(expr->utype->getClass()->address))
+                        .addIr(OpBuilder::dup());
 
                 for(long i = 0; i < params.size(); i++) {
                     Field *param = constr->params.get(i);
@@ -5314,6 +5320,9 @@ void Compiler::compilePreIncExpression(Expression* expr, Ast* ast) {
                 }
 
                 break;
+            default:
+                errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "cannot use `" + tok.getValue() + "` operator on expression of type `" + expr->utype->toString() + "`");
+                break;
         }
     }
 
@@ -5783,7 +5792,16 @@ void Compiler::assignFieldExpressionValue(Field *field, Ast *ast) {
     if(field->type <= CLASS && !isFieldInlined(field)) {
 
         if(ast->hasSubAst(ast_expression)) {
-            RETAIN_BLOCK_TYPE(field->local ? INSTANCE_BLOCK : RESTRICTED_INSTANCE_BLOCK)
+            BlockType bt;
+
+            if(field->local)
+                bt = INSTANCE_BLOCK;
+            else if(field->flags.find(STATIC))
+                bt = STATIC_BLOCK;
+            else
+                bt = currentScope()->type;
+
+            RETAIN_BLOCK_TYPE(bt)
             RETAIN_TYPE_INFERENCE(true)
 
             Token operand("=", SINGLE, ast->col, ast->line, EQUALS);
@@ -7105,6 +7123,7 @@ void Compiler::setup() {
     stlMainInserts.init();
     nilUtype = new Utype(NIL);
     varUtype = new Utype(VAR);
+    objectUtype = new Utype(OBJECT);
     nullUtype = new Utype(OBJECT);
     undefUtype = new Utype(UNDEFINED);
     undefUtype->setType(utype_unresolved);
@@ -7140,18 +7159,27 @@ void Compiler::compileLabelDecl(Ast *ast, bool *controlPaths) {
         }
     }
 
-    string name = ast->getToken(0).getValue();
-    if(currentScope()->currentFunction->data.getLabelAddress(name) == invalidAddr) {
-        currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(name, currentScope()->currentFunction->data.code.size()));
+    Token &label = ast->getToken(0);
+    string name;
+    if(currentScope()->scopedLabels) {
+        name = formatLabelName(label);
+    } else
+        name = label.getValue();
+
+    if(currentScope()->currentFunction->data.getLabel(name).start_pc == invalidAddr) {
+        currentScope()->currentFunction->data.labelMap.add(
+                LabelData(name, currentScope()->currentFunction->data.code.size(), currentScope()->scopeLevel));
         deInitializeLocalVariables(name);
     } else {
-
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
-                                     "label `" + name + "` is already defined in the scope");
+                                     "label `" + label.getValue() + "` is already defined in the scope");
     }
 
     Ast *branch = ast->getSubAst(0);
-    controlPaths[MAIN_CONTROL_PATH] = compileBlock(branch);
+    if(branch->getType() == ast_block)
+        controlPaths[MAIN_CONTROL_PATH] = compileBlock(branch);
+    else
+        compileStatement(branch->getSubAst(0), controlPaths);
 }
 
 void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
@@ -7177,17 +7205,17 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
         labelId << INTERNAL_LABEL_NAME_PREFIX << "if_block_end" << guid++;
         ifBlockEnd=labelId.str(); labelId.str("");
 
-        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifBlockEnd, 0, ast->line, ast->col));
+        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifBlockEnd, 0, ast->line, ast->col, currentScope()->scopeLevel));
         code.addIr(OpBuilder::jne(invalidAddr));
 
         controlPaths[IF_CONTROL_PATH] = compileBlock(ast->getSubAst(ast_block));
         controlPaths[ELSEIF_CONTROL_PATH] = true;
 
         currentScope()->isReachable = true;
-        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0, ast->line, ast->col));
+        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
         code.addIr(OpBuilder::jmp(invalidAddr));
 
-        currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(ifBlockEnd, code.size()));
+        currentScope()->currentFunction->data.labelMap.add(LabelData(ifBlockEnd, code.size(), 0));
 
         for(Int i = 2; i < ast->getSubAstCount(); i++) {
             Ast *branch = ast->getSubAst(i);
@@ -7208,7 +7236,7 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
                     code.inject(elseIfCond.utype->getCode().getInjector(ebxInjector));
                     code.addIr(OpBuilder::movr(CMT, EBX));
 
-                    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifBlockEnd, 0, ast->line, ast->col));
+                    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifBlockEnd, 0, ast->line, ast->col, currentScope()->scopeLevel));
                     code.addIr(OpBuilder::jne(invalidAddr));
 
                     if(!compileBlock(branch->getSubAst(ast_block))) {
@@ -7216,12 +7244,12 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
                     }
 
                     if((i+1) < ast->getSubAstCount()) {
-                        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0, ast->line, ast->col));
+                        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
                         code.addIr(OpBuilder::jmp(invalidAddr));
                     }
 
                     currentScope()->isReachable = true;
-                    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(ifBlockEnd, code.size()));
+                    currentScope()->currentFunction->data.labelMap.add(LabelData(ifBlockEnd, code.size(), 0));
                     break;
                 }
 
@@ -7233,14 +7261,31 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
         }
 
     } else {
-        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0, ast->line, ast->col));
+        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
         code.addIr(OpBuilder::jne(invalidAddr));
         compileBlock(ast->getSubAst(ast_block)); // we dont care about control paths because they are not compelete
         currentScope()->isReachable = true;
     }
 
-    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(ifEndLabel, code.size()));
+    currentScope()->currentFunction->data.labelMap.add(LabelData(ifEndLabel, code.size(), 0));
     code.addIr(OpBuilder::nop()); // Theoretically we shouldn't need this, only for visual purposes
+}
+
+/**
+ * This function MUST only be used with break; and continue; statements respectively
+ *
+ * It it intended to locate the total amount of possible finally or lock blocks skipped when jumping
+ * to the beginning or end of a loop
+ * @return
+ */
+bool Compiler::insideFinallyBlock() {
+    for(Int i = currentScope()->astList.size() - 1; i >= 0; i--) {
+        ast_type statement = currentScope()->astList.get(i)->getType();
+        if(statement == ast_finally_block)
+            return true;
+    }
+
+    return false;
 }
 
 void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
@@ -7262,65 +7307,46 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
                                                              + currentScope()->currentFunction->utype->toString() + "`.");
     }
 
-    bool shouldReturnValue = currentScope()->finallyBlocks.empty() && currentScope()->lockBlocks.empty();
+    if(insideFinallyBlock()) {
+        errors->createNewError(GENERIC, ast->line, ast->col, "control cannot leave body of finally clause");
+    }
 
+    if(!currentScope()->finallyBlocks.empty()) {
+        RETAIN_SCOPED_LABELS(true)
+        for (Int i = currentScope()->finallyBlocks.size() - 1; i >= 0; i--) {
+            currentScope()->isReachable = true;
+            if (currentScope()->finallyBlocks.get(i).value != NULL) {
+                compileBlock(currentScope()->finallyBlocks.get(i).value);
+            }
+        }
+        RESTORE_SCOPED_LABELS()
+    }
+
+    if(!currentScope()->lockBlocks.empty()) {
+        for (Int i = currentScope()->lockBlocks.size() - 1; i >= 0; i--) {
+            Expression lockExpr;
+            compileExpression(&lockExpr, currentScope()->lockBlocks.get(i));
+
+            lockExpr.utype->getCode().inject(ptrInjector);
+            code.inject(lockExpr.utype->getCode());
+            code.addIr(OpBuilder::unlock());
+        }
+    }
+
+    currentScope()->isReachable = false;
     switch (returnVal.type) {
         case exp_var:
+            returnVal.utype->getCode().inject(ebxInjector);
             code.inject(returnVal.utype->getCode());
-
-            if(shouldReturnValue) {
-                code.inject(returnVal.utype->getCode().getInjector(ebxInjector));
-                code.addIr(OpBuilder::returnValue(EBX));
-            } else {
-                code.inject(returnVal.utype->getCode().getInjector(stackInjector));
-
-                for(Int i =  currentScope()->finallyBlocks.size() - 1; i >= 0; i--) {
-                    if(currentScope()->finallyBlocks.get(i) != NULL)
-                        compileBlock(currentScope()->finallyBlocks.get(i));
-                }
-
-                for(Int i =  currentScope()->lockBlocks.size() - 1; i >= 0; i--) {
-                    Expression lockExpr;
-                    compileExpression(&lockExpr, currentScope()->lockBlocks.get(i));
-
-                    lockExpr.utype->getCode().inject(ptrInjector);
-                    code.inject(lockExpr.utype->getCode());
-                    code.addIr(OpBuilder::unlock());
-                }
-
-                code.addIr(OpBuilder::loadValue(EBX))
-                    .addIr(OpBuilder::returnValue(EBX));
-            }
+            code.addIr(OpBuilder::returnValue(EBX));
             break;
 
         case exp_class:
         case exp_object:
         case exp_null:
             code.inject(returnVal.utype->getCode());
-
-            if(shouldReturnValue) {
-                code.inject(returnVal.utype->getCode().getInjector(ptrInjector));
-                code.addIr(OpBuilder::returnObject());
-            } else {
-                code.inject(returnVal.utype->getCode().getInjector(stackInjector));
-
-                for(Int i =  currentScope()->finallyBlocks.size() - 1; i >= 0; i--) {
-                    if(currentScope()->finallyBlocks.get(i) != NULL)
-                        compileBlock(currentScope()->finallyBlocks.get(i));
-                }
-
-                for(Int i =  currentScope()->lockBlocks.size() - 1; i >= 0; i--) {
-                    Expression lockExpr;
-                    compileExpression(&lockExpr, currentScope()->lockBlocks.get(i));
-
-                    lockExpr.utype->getCode().inject(ptrInjector);
-                    code.inject(lockExpr.utype->getCode());
-                    code.addIr(OpBuilder::unlock());
-                }
-
-                code.addIr(OpBuilder::popObject2())
-                    .addIr(OpBuilder::returnObject());
-            }
+            code.inject(returnVal.utype->getCode().getInjector(ptrInjector));
+            code.addIr(OpBuilder::returnObject());
             break;
 
         case exp_nil:
@@ -7328,7 +7354,7 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
             break;
     }
 
-    code.addIr(OpBuilder::ret());
+    code.addIr(OpBuilder::ret(NO_ERR));
     controlPaths[MAIN_CONTROL_PATH] = true;
 }
 
@@ -7468,7 +7494,7 @@ void Compiler::compileDoWhileStatement(Ast *ast) {
     labelId << INTERNAL_LABEL_NAME_PREFIX << "do_while_end" << guid++;
     whileEndLabel=labelId.str(); labelId.str("");
 
-    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(whileBeginLabel, currentScope()->currentFunction->data.code.size()));
+    currentScope()->currentFunction->data.labelMap.add(LabelData(whileBeginLabel, currentScope()->currentFunction->data.code.size(), 0));
 
     RETAIN_LOOP_LABELS(whileBeginLabel, whileEndLabel)
     compileBlock(ast->getSubAst(ast_block));
@@ -7485,19 +7511,130 @@ void Compiler::compileDoWhileStatement(Ast *ast) {
     code.inject(condExpr.utype->getCode());
     code.addIr(OpBuilder::movr(CMT, EBX));
 
-    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whileBeginLabel, 0, ast->line, ast->col));
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whileBeginLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
     code.addIr(OpBuilder::je(invalidAddr));
 
-    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(whileEndLabel, currentScope()->currentFunction->data.code.size()));
+    currentScope()->currentFunction->data.labelMap.add(LabelData(whileEndLabel, currentScope()->currentFunction->data.code.size(), 0));
     currentScope()->isReachable = true;
+}
+
+string Compiler::getUnFormattedLabelName(string &label) {
+    for(Int i = label.size() - 1; i >= 0; i--) {
+        if(label[i] == ':') {
+            return label.substr(0, i);
+        }
+    }
+
+    return "";
+}
+
+string Compiler::formatLabelName(Token &label) {
+    stringstream labelName;
+    labelName << label.getValue() << ":scoped";
+    return labelName.str();
+}
+
+void Compiler::processScopeExitLockAndFinallys(string &label) {
+    Int locksSkipped = 0, finallyBlocksSkipped = 0;
+    CodeHolder &code = currentScope()->currentFunction->data.code;
+
+    for(Int i = currentScope()->astList.size() - 1; i >= 0; i--) {
+        Ast* branch = currentScope()->astList.get(i);
+        if(branch->getType() == ast_block) {
+            for(Int j = 0; j < branch->getSubAstCount(); j++) {
+                Ast *statement = branch->getSubAst(j);
+                if(statement->getType() == ast_statement)
+                    statement = statement->getSubAst(0);
+
+                if(statement->getType() == ast_label_decl) {
+                    if(statement->getToken(0).getValue() == label) {
+                        goto processFinally;
+                    }
+
+                    Ast *tmpBranch = statement;
+                    while(true) {
+
+                        if (tmpBranch->getSubAst(0)->getType() == ast_statement) {
+                            if(tmpBranch->getSubAst(0)->getSubAst(0)->getType() == ast_label_decl) {
+                                if(tmpBranch->getSubAst(0)->getSubAst(0)->getToken(0).getValue() == label) {
+                                    goto processFinally;
+                                }
+
+                                tmpBranch = tmpBranch->getSubAst(0)->getSubAst(0);
+                            } else break;
+                        } else break;
+                    }
+                }
+            }
+        } else if(branch->getType() == ast_trycatch_statement)
+            finallyBlocksSkipped++;
+        else if(branch->getType() == ast_lock_statement)
+            locksSkipped++;
+        else if(branch->getType() == ast_label_decl) {
+            if(branch->getToken(0).getValue() == label) {
+                break;
+            }
+
+            Ast *tmpBranch = branch;
+            while(true) {
+
+                if (tmpBranch->getSubAst(0)->getType() == ast_statement) {
+                    if(tmpBranch->getSubAst(0)->getSubAst(0)->getType() == ast_label_decl) {
+                        if(tmpBranch->getSubAst(0)->getSubAst(0)->getToken(0).getValue() == label) {
+                            goto processFinally;
+                        }
+                        tmpBranch = tmpBranch->getSubAst(0)->getSubAst(0);
+                    } else break;
+                } else break;
+            }
+        }
+    }
+
+    processFinally:
+    if(finallyBlocksSkipped > 0) {
+        RETAIN_SCOPED_LABELS(true)
+        for (Int i = currentScope()->finallyBlocks.size() - 1; i >= 0; i--) {
+            currentScope()->isReachable = true;
+            if (currentScope()->finallyBlocks.get(i).value != NULL) {
+                compileBlock(currentScope()->finallyBlocks.get(i).value);
+            }
+
+            if(--finallyBlocksSkipped == 0)
+                break;
+        }
+        RESTORE_SCOPED_LABELS()
+    }
+
+    if(locksSkipped > 0) {
+        for(Int i = currentScope()->lockBlocks.size() - 1; i >= 0; i--) {
+            Expression lockExpr;
+            compileExpression(&lockExpr, currentScope()->lockBlocks.get(i));
+
+            lockExpr.utype->getCode().inject(ptrInjector);
+            code.inject(lockExpr.utype->getCode());
+            code.addIr(OpBuilder::unlock());
+
+            if(--locksSkipped == 0)
+                break;
+        }
+    }
+
 }
 
 void Compiler::compileGotoStatement(Ast *ast) {
     Token &label = ast->getToken(0);
     CodeHolder &code = currentScope()->currentFunction->data.code;
 
-    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), label.getValue(), 0, ast->line, ast->col));
+    string labelName;
+    if(currentScope()->scopedLabels) {
+        labelName = formatLabelName(label);
+    } else
+        labelName = label.getValue();
+
+    processScopeExitLockAndFinallys(label.getValue());
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), labelName, 0, ast->line, ast->col, currentScope()->scopeLevel));
     code.addIr(OpBuilder::jmp(invalidAddr));
+    currentScope()->isReachable = false;
 }
 
 ClassObject* Compiler::compileCatchClause(Ast *ast, TryCatchData &tryCatchData, bool *controlPaths) {
@@ -7587,7 +7724,7 @@ opcode_arg Compiler::compileAsmLiteral(Ast *ast) {
     } else if(ast->getToken(0) == "@") {
         opcode_arg offset = getAsmOffset(ast);
 
-        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ast->getToken(1).getValue(), offset, ast->line, ast->col));
+        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ast->getToken(1).getValue(), offset, ast->line, ast->col, currentScope()->scopeLevel));
     } else if(ast->getToken(0) == "[") {
         List<Method*> functions;
         currentScope()->klass->getFunctionByName(ast->getToken(1).getValue(), functions, true);
@@ -7724,27 +7861,27 @@ void Compiler::compileWhenStatement(Ast *ast, bool *controlPaths) {
                     }
 
                     if((j + 1) < (branch->getSubAstCount() -1)) {
-                        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), clauseStartLabel, 0, ast->line, ast->col));
+                        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), clauseStartLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
                         code.addIr(OpBuilder::je(invalidAddr));
                     } else {
-                        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), nextClauseLabel, 0, ast->line, ast->col));
+                        currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), nextClauseLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
                         code.addIr(OpBuilder::jne(invalidAddr));
                     }
                 }
 
 
-                currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(clauseStartLabel, currentScope()->currentFunction->data.code.size()));
+                currentScope()->currentFunction->data.labelMap.add(LabelData(clauseStartLabel, currentScope()->currentFunction->data.code.size(), 0));
                 if(!compileBlock(branch->getSubAst(ast_block))) {
                     controlPaths[WHEN_CONTROL_PATH] = false;
                 }
 
                 if((i+1) < whenBlock->getSubAstCount()) {
-                    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whenEndLabel, 0, ast->line, ast->col));
+                    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whenEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
                     code.addIr(OpBuilder::jmp(invalidAddr));
                 }
 
                 currentScope()->isReachable = true;
-                currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(nextClauseLabel, currentScope()->currentFunction->data.code.size()));
+                currentScope()->currentFunction->data.labelMap.add(LabelData(nextClauseLabel, currentScope()->currentFunction->data.code.size(), 0));
                 break;
             }
 
@@ -7755,36 +7892,56 @@ void Compiler::compileWhenStatement(Ast *ast, bool *controlPaths) {
         }
     }
 
-    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(whenEndLabel, currentScope()->currentFunction->data.code.size()));
+    currentScope()->currentFunction->data.labelMap.add(LabelData(whenEndLabel, currentScope()->currentFunction->data.code.size(), 0));
     code.addIr(OpBuilder::nop());
 }
 
 void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
-    string tryEndLabel;
+    string tryEndLabel, finallyStartLabel, finallyEndLabel;
     TryCatchData tryCatchData;
     List<ClassObject*> catchedClasses;
+    Field *exceptionObjectField = NULL;
 
     ClassObject *throwable = resolveClass("std", "throwable", ast);
     bool hasFinallyBlock = ast->hasSubAst(ast_finally_block);
     CodeHolder &code = currentScope()->currentFunction->data.code;
 
+    if(hasFinallyBlock) {
+        List<AccessFlag> flags;
+        flags.add(PUBLIC);
+        stringstream errFieldName;
+        errFieldName << INTERNAL_VARIABLE_NAME_PREFIX << "exception_object0";
+        if((exceptionObjectField = currentScope()->currentFunction->data.getLocalField(errFieldName.str())) == NULL) {
+            exceptionObjectField = createLocalField(errFieldName.str(), objectUtype, true, stl_stack, flags, 0,
+                                                    ast);
+        }
+    }
+
     stringstream labelId;
     labelId << INTERNAL_LABEL_NAME_PREFIX << "try_end" << guid++;
     tryEndLabel=labelId.str(); labelId.str("");
 
+    labelId << INTERNAL_LABEL_NAME_PREFIX << "finally_start" << guid++;
+    finallyStartLabel=labelId.str(); labelId.str("");
+
+    labelId << INTERNAL_LABEL_NAME_PREFIX << "finally_end" << guid++;
+    finallyEndLabel=labelId.str(); labelId.str("");
+
     tryCatchData.try_start_pc = code.size();
-    currentScope()->finallyBlocks.add(ast->getSubAst(ast_finally_block));
+    currentScope()->finallyBlocks.add(KeyPair<string, Ast*>(
+            hasFinallyBlock ? finallyStartLabel : "",ast->getSubAst(ast_finally_block)));
     controlPaths[TRY_CONTROL_PATH] = compileBlock(ast->getSubAst(ast_block));
     tryCatchData.try_end_pc = code.size();
 
     currentScope()->currentFunction->data.branchTable.add(
-            BranchTable(code.size(), tryEndLabel, 0, ast->line, ast->col));
+            BranchTable(code.size(), tryEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
     code.addIr(OpBuilder::jmp(invalidAddr));
 
     controlPaths[CATCH_CONTROL_PATH] = true;
     for(Int i = 1; i < ast->getSubAstCount(); i++) {
         Ast *branch = ast->getSubAst(i);
 
+        currentScope()->isReachable = true;
         switch (branch->getType()) {
             case ast_catch_clause: {
                 ClassObject *klass = compileCatchClause(branch, tryCatchData, controlPaths);
@@ -7801,11 +7958,52 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
             }
 
             case ast_finally_block: {
-                currentScope()->finallyBlocks.last() = NULL;
-                currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(tryEndLabel, currentScope()->currentFunction->data.code.size()));
+                string nextFinallyLabel;
+                if(!currentScope()->finallyBlocks.empty()) {
+                    bool currentBranchFound = false;
+                    for(Int j = currentScope()->finallyBlocks.size() - 1; j >= 0; j--) {
+                        if(currentScope()->finallyBlocks.get(j).value == branch) {
+                            currentBranchFound = true;
+                        } else if(currentScope()->finallyBlocks.get(j).value != NULL
+                                  && currentBranchFound) {
+                            nextFinallyLabel = currentScope()->finallyBlocks.get(j).key;
+                            break;
+                        }
+                    }
+                }
+
+                currentScope()->finallyBlocks.last().value = NULL;
+                currentScope()->currentFunction->data.labelMap.add(LabelData(tryEndLabel, currentScope()->currentFunction->data.code.size(), 0));
+                currentScope()->currentFunction->data.labelMap.add(LabelData(finallyStartLabel, currentScope()->currentFunction->data.code.size(), 0));
                 tryCatchData.finallyData = new FinallyData();
                 tryCatchData.finallyData->start_pc = code.size();
-                compileBlock(branch);
+                compileBlock(branch->getSubAst(ast_block));
+
+                if(nextFinallyLabel.empty()) {
+                    tryCatchData.finallyData->exception_object_field_address = exceptionObjectField->address;
+                    code.addIr(OpBuilder::movl(exceptionObjectField->address))
+                            .addIr(OpBuilder::checkNull(CMT));
+
+                    currentScope()->currentFunction->data.branchTable.add(
+                            BranchTable(code.size(), finallyEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
+                    code.addIr(OpBuilder::je(invalidAddr))
+                            .addIr(OpBuilder::pushObject())
+                            .addIr(OpBuilder::ret(ERR_STATE)); // it will only return of exception object still has not been handled
+                } else {
+                    code.addIr(OpBuilder::movl(exceptionObjectField->address))
+                        .addIr(OpBuilder::checkNull(CMT));
+
+                    currentScope()->currentFunction->data.branchTable.add(
+                            BranchTable(code.size(), finallyEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
+                    code.addIr(OpBuilder::je(invalidAddr));
+
+                    currentScope()->currentFunction->data.branchTable.add(
+                            BranchTable(code.size(), nextFinallyLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
+                    code.addIr(OpBuilder::jmp(invalidAddr)); // it will only return of exception object still has not been handled
+
+                }
+
+                currentScope()->currentFunction->data.labelMap.add(LabelData(finallyEndLabel, currentScope()->currentFunction->data.code.size(), 0));
                 tryCatchData.finallyData->end_pc = code.size();
                 break;
             }
@@ -7813,7 +8011,7 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
     }
 
     if(!hasFinallyBlock)
-        currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(tryEndLabel, currentScope()->currentFunction->data.code.size()));
+        currentScope()->currentFunction->data.labelMap.add(LabelData(tryEndLabel, currentScope()->currentFunction->data.code.size(), 0));
     code.addIr(OpBuilder::nop());
 
     catchedClasses.free();
@@ -7856,8 +8054,8 @@ void Compiler::compileLockStatement(Ast *ast) {
  */
 Int Compiler::getSkippedBlockCount(ast_type triggerStatement) {
     Int blocksSkipped = 0;
-    for(Int i = currentScope()->statements.size() - 1; i >= 0; i--) {
-        ast_type statement = currentScope()->statements.get(i);
+    for(Int i = currentScope()->astList.size() - 1; i >= 0; i--) {
+        ast_type statement = currentScope()->astList.get(i)->getType();
         if(statement == triggerStatement)
             blocksSkipped++;
         else if(statement == ast_while_statement
@@ -7872,17 +8070,11 @@ Int Compiler::getSkippedBlockCount(ast_type triggerStatement) {
 
 void Compiler::compileContinueStatement(Ast *ast) {
     CodeHolder &code = currentScope()->currentFunction->data.code;
-    Int finallyBlocksSkipped = getSkippedBlockCount(ast_trycatch_statement);
+    Int finallyBlocksSkipped = getSkippedBlockCount(ast_finally_block);
     Int lockBlocksSkipped = getSkippedBlockCount(ast_lock_statement);
 
     if(finallyBlocksSkipped > 0) {
-        for(Int i = currentScope()->finallyBlocks.size() - 1; i >= 0; i--) {
-            if(currentScope()->finallyBlocks.get(i) != NULL)
-                compileBlock(currentScope()->finallyBlocks.get(i));
-
-            if(--finallyBlocksSkipped == 0)
-                break;
-        }
+        errors->createNewError(GENERIC, ast->line, ast->col, "control cannot leave body of finally clause");
     }
 
     if(lockBlocksSkipped > 0) {
@@ -7904,23 +8096,18 @@ void Compiler::compileContinueStatement(Ast *ast) {
     }
 
     currentScope()->currentFunction->data.branchTable.add(
-            BranchTable(code.size(), currentScope()->loopStartLabel, 0, ast->line, ast->col));
+            BranchTable(code.size(), currentScope()->loopStartLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
     code.addIr(OpBuilder::jmp(invalidAddr));
+    currentScope()->isReachable = false;
 }
 
 void Compiler::compileBreakStatement(Ast *ast) {
     CodeHolder &code = currentScope()->currentFunction->data.code;
-    Int finallyBlocksSkipped = getSkippedBlockCount(ast_trycatch_statement);
+    Int finallyBlocksSkipped = getSkippedBlockCount(ast_finally_block);
     Int lockBlocksSkipped = getSkippedBlockCount(ast_lock_statement);
 
     if(finallyBlocksSkipped > 0) {
-        for(Int i = currentScope()->finallyBlocks.size() - 1; i >= 0; i--) {
-            if(currentScope()->finallyBlocks.get(i) != NULL)
-                compileBlock(currentScope()->finallyBlocks.get(i));
-
-            if(--finallyBlocksSkipped == 0)
-                break;
-        }
+        errors->createNewError(GENERIC, ast->line, ast->col, "control cannot leave body of finally clause");
     }
 
     if(lockBlocksSkipped > 0) {
@@ -7942,8 +8129,9 @@ void Compiler::compileBreakStatement(Ast *ast) {
     }
 
     currentScope()->currentFunction->data.branchTable.add(
-            BranchTable(code.size(), currentScope()->loopEndLabel, 0, ast->line, ast->col));
+            BranchTable(code.size(), currentScope()->loopEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
     code.addIr(OpBuilder::jmp(invalidAddr));
+    currentScope()->isReachable = false;
 }
 
 void Compiler::compileThrowStatement(Ast *ast) {
@@ -7985,23 +8173,23 @@ void Compiler::compileWhileStatement(Ast *ast) {
         errors->createNewError(GENERIC, ast->line, ast->col, "while loop condition expression must evaluate to a `var`");
     }
 
-    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(whileBeginLabel, currentScope()->currentFunction->data.code.size()));
+    currentScope()->currentFunction->data.labelMap.add(LabelData(whileBeginLabel, currentScope()->currentFunction->data.code.size(), 0));
 
     condExpr.utype->getCode().inject(ebxInjector);
     code.inject(condExpr.utype->getCode());
     code.addIr(OpBuilder::movr(CMT, EBX));
 
-    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whileEndLabel, 0, ast->line, ast->col));
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whileEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
     code.addIr(OpBuilder::jne(invalidAddr));
 
     RETAIN_LOOP_LABELS(whileBeginLabel, whileEndLabel)
     compileBlock(ast->getSubAst(ast_block));
     RESTORE_LOOP_LABELS()
 
-    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whileBeginLabel, 0, ast->line, ast->col));
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), whileBeginLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
     code.addIr(OpBuilder::jmp(invalidAddr));
 
-    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(whileEndLabel, currentScope()->currentFunction->data.code.size()));
+    currentScope()->currentFunction->data.labelMap.add(LabelData(whileEndLabel, currentScope()->currentFunction->data.code.size(), 0));
     currentScope()->isReachable = true;
 }
 
@@ -8055,8 +8243,7 @@ void Compiler::compileForEachStatement(Ast *ast) {
     stringstream indexFieldName;
     indexFieldName << INTERNAL_VARIABLE_NAME_PREFIX << "foreach_index" << currentScope()->scopeLevel;
     indexField = createLocalField(indexFieldName.str(), varUtype, false, stl_stack, flags, currentScope()->scopeLevel, ast);
-    initializeLocalVariable(indexField);
-    code.addIr(OpBuilder::isubl(1, indexField->address));
+    code.addIr(OpBuilder::istorel(indexField->address, -1));
 
     Utype *arrayFieldType = new Utype();
     arrayFieldType->copy(arrayExpr.utype);
@@ -8070,7 +8257,7 @@ void Compiler::compileForEachStatement(Ast *ast) {
     code.addIr(OpBuilder::movl(arrayResultField->address))
         .addIr(OpBuilder::popObject());
 
-    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(forBeginLabel, currentScope()->currentFunction->data.code.size()));
+    currentScope()->currentFunction->data.labelMap.add(LabelData(forBeginLabel, currentScope()->currentFunction->data.code.size(), 0));
 
     code.addIr(OpBuilder::iaddl(1, indexField->address))
         .addIr(OpBuilder::movl(arrayResultField->address))
@@ -8079,7 +8266,7 @@ void Compiler::compileForEachStatement(Ast *ast) {
     code.addIr(OpBuilder::loadl(EBX, indexField->address))
         .addIr(OpBuilder::lt(EBX, ECX));
 
-    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forEndLabel, 0, ast->line, ast->col));
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
     code.addIr(OpBuilder::jne(invalidAddr));
 
     code.addIr(OpBuilder::movnd(EBX));
@@ -8106,10 +8293,10 @@ void Compiler::compileForEachStatement(Ast *ast) {
     compileBlock(ast->getSubAst(ast_block));
     RESTORE_LOOP_LABELS()
 
-    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forBeginLabel, 0, ast->line, ast->col));
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forBeginLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
     code.addIr(OpBuilder::jmp(invalidAddr));
 
-    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(forEndLabel, currentScope()->currentFunction->data.code.size()));
+    currentScope()->currentFunction->data.labelMap.add(LabelData(forEndLabel, currentScope()->currentFunction->data.code.size(), 0));
     currentScope()->isReachable = true;
 }
 
@@ -8129,7 +8316,7 @@ void Compiler::compileForStatement(Ast *ast) {
         compileLocalVariableDecl(ast->getSubAst(ast_variable_decl));
     }
 
-    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(forBeginLabel, currentScope()->currentFunction->data.code.size()));
+    currentScope()->currentFunction->data.labelMap.add(LabelData(forBeginLabel, currentScope()->currentFunction->data.code.size(), 0));
     if(ast->hasSubAst(ast_for_expresion_cond)) {
         Expression expr;
         compileExpression(&expr, ast->getSubAst(ast_for_expresion_cond)->getSubAst(ast_expression));
@@ -8146,7 +8333,7 @@ void Compiler::compileForStatement(Ast *ast) {
             }
 
             code.addIr(OpBuilder::movr(CMT, EBX));
-            currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forEndLabel, 0, ast->line, ast->col));
+            currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
             code.addIr(OpBuilder::jne(invalidAddr));
 
         } else {
@@ -8170,11 +8357,11 @@ void Compiler::compileForStatement(Ast *ast) {
         code.inject(iterExpr.utype->getCode());
     }
 
-    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forBeginLabel, 0, ast->line, ast->col));
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forBeginLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
     code.addIr(OpBuilder::jmp(invalidAddr));
 
     currentScope()->isReachable = true;
-    currentScope()->currentFunction->data.labelMap.add(KeyPair<string, Int>(forEndLabel, currentScope()->currentFunction->data.code.size()));
+    currentScope()->currentFunction->data.labelMap.add(LabelData(forEndLabel, currentScope()->currentFunction->data.code.size(), 0));
 }
 
 void Compiler::compileStatement(Ast *ast, bool *controlPaths) {
@@ -8187,7 +8374,7 @@ void Compiler::compileStatement(Ast *ast, bool *controlPaths) {
         currentScope()->isReachable = true;
     }
 
-    currentScope()->statements.add(ast->getType());
+    currentScope()->astList.add(ast);
     switch(ast->getType()) {
         case ast_return_stmnt:
             compileReturnStatement(ast, controlPaths);
@@ -8207,7 +8394,7 @@ void Compiler::compileStatement(Ast *ast, bool *controlPaths) {
             compileLabelDecl(ast, controlPaths);
             break;
         case ast_variable_decl:
-            compileLocalVariableDecl(ast); // TODO: fire out a way to prevent unititialized vars from being used as a result of a goto
+            compileLocalVariableDecl(ast);
             break;
         case ast_alias_decl:
             compileLocalAlias(ast);
@@ -8254,7 +8441,7 @@ void Compiler::compileStatement(Ast *ast, bool *controlPaths) {
             errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
             break;
     }
-    currentScope()->statements.pop_back();
+    currentScope()->astList.pop_back();
 }
 
 void Compiler::compileLocalAlias(Ast *ast) {
@@ -8280,6 +8467,7 @@ void Compiler::invalidateLocalVariables() {
 
 bool Compiler::compileBlock(Ast *ast) {
     currentScope()->scopeLevel++;
+    currentScope()->astList.add(ast);
     bool controlPaths[]
         = {
             false, // MAIN_CONTROL_PATH
@@ -8310,9 +8498,11 @@ bool Compiler::compileBlock(Ast *ast) {
         }
     }
 
+    reconcileBranches(false);
     invalidateLocalAliases();
     invalidateLocalVariables();
     currentScope()->scopeLevel--;
+    currentScope()->astList.pop_back();
     return allControlPathsReturnAValue(controlPaths);
 }
 
@@ -8329,16 +8519,17 @@ void Compiler::invalidateLocalAliases() {
     }
 }
 
-void Compiler::reconcileBranches() {
+void Compiler::reconcileBranches(bool finalTry) {
     CodeHolder &code = currentScope()->currentFunction->data.code;
     for(Int i = 0; i < currentScope()->currentFunction->data.branchTable.size(); i++) {
         BranchTable &branch = currentScope()->currentFunction->data.branchTable.get(i);
         if(!branch.resolved) {
-            branch.resolved = true;
-            Int labelAddress = currentScope()->currentFunction->data.getLabelAddress(branch.labelName);
+            LabelData label = currentScope()->currentFunction->data.getLabel(branch.labelName);
 
             if (branch.branch_pc < code.size()) {
-                if (labelAddress != invalidAddr) {
+                if (label.start_pc != invalidAddr && label.scopeLevel <= branch.scopeLevel) {
+                    branch.resolved = true;
+
                     switch (GET_OP(code.ir32.get(branch.branch_pc))) {
                         case Opcode::MOVI:
                         case Opcode::IADD:
@@ -8355,31 +8546,41 @@ void Compiler::reconcileBranches() {
                         case Opcode::ISTOREL:
                         case Opcode::ISADD:
                         case Opcode::CMP:
-                            code.ir32.get(branch.branch_pc + 1) = labelAddress + branch._offset;
+                            code.ir32.get(branch.branch_pc + 1) = label.start_pc + branch._offset;
                             break;
                         case Opcode::JNE:
-                            code.ir32.get(branch.branch_pc) = OpBuilder::jne(labelAddress + branch._offset);
+                            code.ir32.get(branch.branch_pc) = OpBuilder::jne(label.start_pc + branch._offset);
                             break;
                         case Opcode::JE:
-                            code.ir32.get(branch.branch_pc) = OpBuilder::je(labelAddress + branch._offset);
+                            code.ir32.get(branch.branch_pc) = OpBuilder::je(label.start_pc + branch._offset);
                             break;
                         case Opcode::JMP:
-                            code.ir32.get(branch.branch_pc) = OpBuilder::jmp(labelAddress + branch._offset);
+                            code.ir32.get(branch.branch_pc) = OpBuilder::jmp(label.start_pc + branch._offset);
                             break;
                     }
-                } else {
+                } else if(finalTry) {
+                    string labelName = branch.labelName.find(':')!= string::npos ?
+                            getUnFormattedLabelName(branch.labelName) : branch.labelName;
                     errors->createNewError(GENERIC, branch.line, branch.col,
-                                           "attempt to jump to label `" + branch.labelName +
+                                           "attempt to jump to label `" + labelName +
                                            "` that dosen't exist in the current context.");
                 }
             } else {
+                branch.resolved = true;
                 errors->createNewError(INTERNAL_ERROR, branch.line, branch.col,
                                        ": attempt to reconcile branch that is not in codebase.");
             }
         }
     }
 
-    currentScope()->currentFunction->data.labelMap.free();
+    checkLabels:
+    for(Int i = 0; i < currentScope()->currentFunction->data.labelMap.size(); i++) {
+        if(currentScope()->currentFunction->data.labelMap.get(i).scopeLevel == currentScope()->scopeLevel) {
+            LabelData ld = currentScope()->currentFunction->data.labelMap.get(i);
+            currentScope()->currentFunction->data.labelMap.removeAt(i);
+            goto checkLabels;
+        }
+    }
 }
 
 void Compiler::compileInitDecl(Ast *ast) {
@@ -8396,13 +8597,8 @@ void Compiler::compileInitDecl(Ast *ast) {
         compileBlock(block);
         RESTORE_BLOCK_TYPE()
 
-        reconcileBranches();
-//        if(!constructor->data.code.ir32.empty() && GET_OP(constructor->data.code.ir32.last()) != Opcode::RET) {
-//            constructor->data.code.addIr(OpBuilder::ret());
-//        } else
-//            constructor->data.code.addIr(OpBuilder::ret());
-
-//        printMethodCode(*constructor, ast);
+        reconcileBranches(true);
+        cout << "codee \n\n " << codeToString(constructors.get(i)->data.code) << endl;
         currentScope()->resetLocalScopeFlags();
         if(NEW_ERRORS_FOUND()){
             break; // no need to waste processing power to compile a broken init decl
@@ -8534,13 +8730,12 @@ void Compiler::compileMethod(Ast *ast, Method *func) {
         allCodePathsReturnValue = compileBlock(block);
         RESTORE_BLOCK_TYPE()
 
-        reconcileBranches();
-
+        reconcileBranches(true);
         if(func->utype->isRelated(nilUtype)) {
             if(!func->data.code.ir32.empty() && GET_OP(func->data.code.ir32.last()) != Opcode::RET) {
-                func->data.code.addIr(OpBuilder::ret());
+                func->data.code.addIr(OpBuilder::ret(NO_ERR));
             } else
-                func->data.code.addIr(OpBuilder::ret());
+                func->data.code.addIr(OpBuilder::ret(NO_ERR));
         } else if(!func->utype->isRelated(undefUtype)){
             if(!allCodePathsReturnValue) {
                 errors->createNewError(GENERIC, block, "not all code paths return a value");
@@ -8557,18 +8752,18 @@ void Compiler::compileMethod(Ast *ast, Method *func) {
 
         if(expr.type == exp_nil) {
             func->data.code.inject(expr.utype->getCode());
-            func->data.code.addIr(OpBuilder::ret());
+            func->data.code.addIr(OpBuilder::ret(NO_ERR));
         } else {
             if(expr.type == exp_var && !expr.utype->isArray()) {
                 expr.utype->getCode().inject(ebxInjector);
                 func->data.code.inject(expr.utype->getCode());
                 func->data.code.addIr(OpBuilder::returnValue(EBX))
-                    .addIr(OpBuilder::ret());
+                    .addIr(OpBuilder::ret(NO_ERR));
             } else {
                 expr.utype->getCode().inject(ptrInjector);
                 func->data.code.inject(expr.utype->getCode());
                 func->data.code.addIr(OpBuilder::returnObject())
-                        .addIr(OpBuilder::ret());
+                        .addIr(OpBuilder::ret(NO_ERR));
             }
         }
     }
@@ -8662,7 +8857,6 @@ void Compiler::compileEnumField(Field *enumField) {
 void Compiler::assignEnumArray(ClassObject *enumClass) {
     Field *arrayField = enumClass->getField("enums", true);
 
-    CodeHolder code;
     if(arrayField != NULL) {
         Int enumFieldCount = 0;
         for(Int i = 0; i < enumClass->fieldCount(); i++) {
@@ -8670,13 +8864,13 @@ void Compiler::assignEnumArray(ClassObject *enumClass) {
                 enumFieldCount++;
         }
 
-        code.addIr(OpBuilder::movi(enumFieldCount, EBX))
+        staticMainInserts.addIr(OpBuilder::movi(enumFieldCount, EBX))
                 .addIr(OpBuilder::newClassArray(EBX, enumClass->address));
         enumFieldCount = 0;
         for(Int i = 0; i < enumClass->fieldCount(); i++) {
             if(enumClass->getField(i)->utype->getClass() == enumClass)
             {
-                code.addIr(OpBuilder::movg(enumClass->address))
+                staticMainInserts.addIr(OpBuilder::movg(enumClass->address))
                         .addIr(OpBuilder::movn(enumClass->getField(i)->address))
                         .addIr(OpBuilder::pushObject())
                         .addIr(OpBuilder::movsl(-1))
@@ -8685,10 +8879,9 @@ void Compiler::assignEnumArray(ClassObject *enumClass) {
             }
         }
 
-        code.addIr(OpBuilder::movg(enumClass->address))
+        staticMainInserts.addIr(OpBuilder::movg(enumClass->address))
                 .addIr(OpBuilder::movn(arrayField->address))
                 .addIr(OpBuilder::popObject());
-        cout << "codee \n\n " << codeToString(code) << endl;
     } else
         errors->createNewError(INTERNAL_ERROR, enumClass->ast,
                                " enum class field `ordinal` could not be located");
@@ -8981,13 +9174,13 @@ Field* Compiler::createLocalField(string name, Utype *type, bool isArray, Storag
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
     Field* prevField=NULL;
-    if((prevField = currentScope()->currentFunction->data.getLocalField(name, scopeLevel)) != NULL) {
+    if((prevField = currentScope()->currentFunction->data.getLocalField(name)) != NULL) {
         this->errors->createNewError(PREVIOUSLY_DEFINED, prevField->ast->line, prevField->ast->col,
                                      "local field `" + name + "` is already defined in the scope");
         printNote(prevField->meta, "local field `" + name + "` previously defined here");
         return prevField;
     } else {
-        if((prevField = currentScope()->currentFunction->data.getLocalFieldHereOrHigher(name, scopeLevel)) != NULL) {
+        if((prevField = currentScope()->currentFunction->data.getLocalField(name)) != NULL) {
             createNewWarning(GENERIC, __WACCESS, ast->line, ast->col,
                              "local field `" + name + "` shadows another field at higher scope");
         }

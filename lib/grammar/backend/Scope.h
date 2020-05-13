@@ -23,10 +23,11 @@ struct Scope {
             klass(NULL),
             currentFunction(NULL),
             isReachable(true),
+            scopedLabels(false),
             scopeLevel(0),
             loopStartLabel(""),
             loopEndLabel(""),
-            statements(),
+            astList(),
             finallyBlocks(),
             lockBlocks(),
             initializationCheck(true)
@@ -39,10 +40,11 @@ struct Scope {
             klass(klass),
             currentFunction(NULL),
             isReachable(true),
+            scopedLabels(false),
             scopeLevel(0),
             loopStartLabel(""),
             loopEndLabel(""),
-            statements(),
+            astList(),
             finallyBlocks(),
             lockBlocks(),
             initializationCheck(true)
@@ -53,9 +55,10 @@ struct Scope {
         currentFunction = NULL;
         scopeLevel = 0;
         isReachable = true;
+        scopedLabels = false;
         loopStartLabel = "";
         loopEndLabel = "";
-        statements.free();
+        astList.free();
         finallyBlocks.free();
         lockBlocks.free();
         initializationCheck = true;
@@ -67,10 +70,11 @@ struct Scope {
     Int scopeLevel;
     bool isReachable;
     bool initializationCheck;
+    bool scopedLabels;
     string loopStartLabel;
     string loopEndLabel;
-    List<ast_type> statements;
-    List<Ast*> finallyBlocks;
+    List<Ast*> astList;
+    List<KeyPair<string, Ast*>> finallyBlocks;
     List<Ast*> lockBlocks;
 };
 // TODO: add Block *blck; to hold all nessicary block information

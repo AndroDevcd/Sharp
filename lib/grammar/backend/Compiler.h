@@ -129,6 +129,7 @@ private:
     Utype* nullUtype;
     Utype* undefUtype;
     Utype* varUtype;
+    Utype* objectUtype;
     parser* current;
     string currModule;
     Method* requiredSignature;
@@ -173,7 +174,7 @@ private:
     void inlineEnumFields(Ast* ast);
     void inlineEnumField(Ast* ast);
     void compileInitDecl(Ast *ast);
-    void reconcileBranches();
+    void reconcileBranches(bool finalTry);
     void invalidateLocalAliases();
     void invalidateLocalVariables();
     Int getSkippedBlockCount(ast_type triggerStatement);
@@ -185,6 +186,8 @@ private:
     void compileDoWhileStatement(Ast *ast);
     void compileThrowStatement(Ast *ast);
     void compileGotoStatement(Ast *ast);
+    string formatLabelName(Token &label);
+    string getUnFormattedLabelName(string &label);
     void compileBreakStatement(Ast *ast);
     void compileContinueStatement(Ast *ast);
     void compileLockStatement(Ast *ast);
@@ -200,6 +203,7 @@ private:
     void compileStatement(Ast *ast, bool *controlPaths);
     bool allControlPathsReturnAValue(bool *controlPaths);
     void deInitializeLocalVariables(string &name);
+    bool insideFinallyBlock();
     void addLocalVariables();
     void preProccessClassDeclForMutation(Ast* ast);
     void preProcessMutation(Ast *ast, ClassObject *currentClass = NULL);
@@ -398,7 +402,8 @@ private:
 
     void compileMethod(Ast *ast, Method *func);
 
-    void addLocalFields(Method *func) const;
+    void addLocalFields(Method *func);
+    void processScopeExitLockAndFinallys(string &label);
 };
 
 enum ProcessingStage {
@@ -473,6 +478,13 @@ extern string undefinedModule;
 
 #define RESTORE_SCOPE_INIT_CHECK() \
     currentScope()->initializationCheck = oldInitCheckState;
+
+#define RETAIN_SCOPED_LABELS(enable) \
+    bool oldScopedLabelsState = currentScope()->scopedLabels; \
+    currentScope()->scopedLabels = enable;
+
+#define RESTORE_SCOPED_LABELS() \
+    currentScope()->scopedLabels = oldScopedLabelsState;
 
 #define RETAIN_TYPE_INFERENCE(ti) \
     bool oldTypeInference = typeInference; \

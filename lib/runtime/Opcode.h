@@ -40,6 +40,8 @@
 
 #define POSITIVE 1u
 #define NEGATIVE 0u
+#define ERR_STATE 1
+#define NO_ERR 0
 
 #define DA_MAX 0xFFFFFFu
 #define CA1_MAX 0xFu
@@ -216,12 +218,12 @@
             &&LDC                                     \
             &&SMOVR_3,                        \
             &&NEG,                             \
-            &&EXP                               \
+            &&EXP                                \
         };
 
 typedef unsigned int opcode_instr;
 typedef int opcode_arg;
-#define INSTRUCTION_BUFFER_SIZE 3
+#define INSTRUCTION_BUFFER_SIZE 2
 
 struct Opcode { // TODO: update VM and JIT with new formatting for instructions
 
@@ -330,23 +332,23 @@ public:
         static const uint8_t PUSHL         = 0x64;
         static const uint8_t ITEST         = 0x65;
         static const uint8_t INVOKE_DELEGATE = 0x66;
-        static const uint8_t GET       = 0x67;
-        static const uint8_t ISADD     = 0x68;
-        static const uint8_t JE        = 0x69;
-        static const uint8_t JNE       = 0x6a;
-        static const uint8_t IPOPL     = 0x6b;
-        static const uint8_t SWITCH    = 0x6c;
-        static const uint8_t CMP       = 0x6d;
-        static const uint8_t CALLD     = 0x6e;
-        static const uint8_t VARCAST   = 0x6f;
-        static const uint8_t TLS_MOVL  = 0x70;
-        static const uint8_t DUP       = 0x71;
-        static const uint8_t POPOBJ_2  = 0x72;
-        static const uint8_t SWAP      = 0x73;
-        static const uint8_t LDC       = 0x74;
-        static const uint8_t SMOVR_3   = 0x75;
-        static const uint8_t NEG       = 0x76;
-        static const uint8_t EXP       = 0x77;
+        static const uint8_t GET          = 0x67;
+        static const uint8_t ISADD        = 0x68;
+        static const uint8_t JE           = 0x69;
+        static const uint8_t JNE          = 0x6a;
+        static const uint8_t IPOPL        = 0x6b;
+        static const uint8_t SWITCH       = 0x6c;
+        static const uint8_t CMP          = 0x6d;
+        static const uint8_t CALLD        = 0x6e;
+        static const uint8_t VARCAST      = 0x6f;
+        static const uint8_t TLS_MOVL     = 0x70;
+        static const uint8_t DUP          = 0x71;
+        static const uint8_t POPOBJ_2     = 0x72;
+        static const uint8_t SWAP         = 0x73;
+        static const uint8_t LDC          = 0x74;
+        static const uint8_t SMOVR_3      = 0x75;
+        static const uint8_t NEG          = 0x76;
+        static const uint8_t EXP          = 0x77;
 
         enum instr_class {
             E_CLASS,
@@ -361,7 +363,7 @@ public:
         static opcode_instr nop();
         static opcode_instr _int(interruptFlag flag);
         static opcode_instr* movi(opcode_arg value, _register outRegister); // TODO: flatten this to 1 instruse ldc instead if addr > DA_MAX
-        static opcode_instr ret();
+        static opcode_instr ret(opcode_arg errState);
         static opcode_instr hlt();
         static opcode_instr newVarArray(_register inRegister);
         static opcode_instr cast(_register outRegister);

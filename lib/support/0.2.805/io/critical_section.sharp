@@ -1,25 +1,25 @@
 mod std.io;
 
-//global_lck := new _object_();
+global_lck := new _object_();
 def critical_section(block : ()()) {
-    // err : exception;
-    // lock global_lck -> {
-    //   try {
-    //       block();
-    //   } catch(e : exception) {
-    //       err = e;
-    //   }
-    // }
-    //
-    // if(err != null) throw err;
+    err : exception;
+    lock global_lck -> {
+      try {
+          block();
+      } catch(e: exception) {
+          err = e;
+      }
+    }
+
+    if(err != null) throw err;
 }
 
-//def<t, r> critical_section(block : (t)(r), data: t) {
+//def<t, r> critical_section(block : (t)(r), data: t) : r {
     // err : exception;
     // lock global_lck -> {
     //   try {
-    //       block(data);
-    //   } catch(e : exception) {
+    //       return block(data);
+    //   } catch(e: exception) {
     //       err = e;
     //   }
     // }
@@ -28,24 +28,24 @@ def critical_section(block : ()()) {
 //}
 
 def critical_section(block : ()(), lock_obj : object) {
-    // err : exception;
-    // lock lock_obj -> {
-    //   try {
-    //       block();
-    //   } catch(e : exception) {
-    //       err = e;
-    //   }
-    // }
-    //
-    // if(err != null) throw err;
+    err : exception;
+    lock lock_obj -> {
+      try {
+          block();
+      } catch(e: exception) {
+          err = e;
+      }
+    }
+
+    if(err != null) throw err;
 }
 
-//def<t, r> critical_section(block : (t)(r), lock_obj : object, data: t) {
+//def<t, r> critical_section(block : (t)(r), lock_obj : object, data: t) : r {
     // err : exception;
     // lock lock_obj -> {
     //   try {
-    //       block(data);
-    //   } catch(e : exception) {
+    //       return block(data);
+    //   } catch(e: exception) {
     //       err = e;
     //   }
     // }

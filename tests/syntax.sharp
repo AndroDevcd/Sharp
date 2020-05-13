@@ -5,24 +5,34 @@ import std.io;
 class K {
 
     private funPtr : (var)(var);
-    private n: var;
-    j : K[];
 
-    def work(arr: var) : K;
-
-    init {
-        ptr : ()();
-        o : object = L<var>.e.b;
-        o  = new L<int>();
-        (o as K).n = 9;
+    def foo() {
+        return;
     }
 
-}
+    init {
+        i := 10;
+        o : object = null;
+        //        This was tested and passed
 
-class L<t> {
-    enum e {
-        a,
-        b
+
+                lock o -> {
+               try {
+                   li:
+                    name:
+                   try {
+                        j := 0;
+                        goto name;
+                   } catch(exception) {
+                   } finally {
+                       st2 := "finally!!";
+                   }
+                   k := 0;
+               } finally {
+                   str := "finally!! yet again";
+               }
+               }
+
     }
 
 }

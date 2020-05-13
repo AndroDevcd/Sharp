@@ -45,7 +45,3 @@ string Method::paramsToString(List<Field *> &params) {
     ss << ")";
     return ss.str();
 }
-
-TryCatchData::~TryCatchData() {
-    Compiler::freeList(catchTable);
-}

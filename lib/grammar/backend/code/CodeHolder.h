@@ -81,12 +81,9 @@ public:
      * @return
      */
     CodeHolder& addIr(uint32_t *buffer) {
-        const int BUFFER_SIZE = 3;
+        const int BUFFER_SIZE = 2;
         for(int i = 0; i < BUFFER_SIZE; i++) {
-            if(buffer[i] != -1)
-                addIr(buffer[i]);
-            else
-                return *this;
+            addIr(buffer[i]);
         }
 
         return *this;

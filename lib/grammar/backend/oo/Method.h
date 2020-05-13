@@ -42,15 +42,18 @@ struct FinallyData {
     FinallyData()
             :
             start_pc(0),
-            end_pc(0)
+            end_pc(0),
+            exception_object_field_address(-1)
     {
     }
 
     void operator=(FinallyData *fd) {
         start_pc=fd->start_pc;
         end_pc=fd->end_pc;
+        exception_object_field_address=fd->exception_object_field_address;
     }
 
+    uInt exception_object_field_address;
     uInt start_pc, end_pc;
 };
 
@@ -108,8 +111,6 @@ struct TryCatchData {
         TryCatchData();
     }
 
-    ~TryCatchData();
-
     void operator=(TryCatchData *data) {
         this->try_start_pc=data->try_start_pc;
         this->try_end_pc=data->try_end_pc;
@@ -130,19 +131,21 @@ struct BranchTable {
         _offset(0),
         resolved(false),
         line(0),
-        col(0)
+        col(0),
+        scopeLevel(0)
     {
     }
 
     BranchTable(Int branch_pc, string labelName, Int _offset,
-                Int line, Int col)
+                Int line, Int col, Int scopeLevel)
             :
             branch_pc(branch_pc),
             _offset(_offset),
             labelName(labelName),
             resolved(false),
             line(line),
-            col(col)
+            col(col),
+            scopeLevel(scopeLevel)
     {
     }
 
@@ -151,10 +154,33 @@ struct BranchTable {
     string labelName;           // the label we were trying to access
     Int _offset;                // any offset to the address label
     Int line, col;          // where did it happen?
+    Int scopeLevel;        // what part of scope was it found on?
 
     void free() {
         labelName = "";
     }
+};
+
+struct LabelData {
+    LabelData()
+            :
+            start_pc(invalidAddr),
+            labelName(""),
+            scopeLevel(-1)
+    {
+    }
+
+    LabelData(string labelName, Int start_pc, Int scopeLevel)
+        :
+            start_pc(start_pc),
+            labelName(labelName),
+            scopeLevel(scopeLevel)
+    {
+    }
+
+    Int start_pc;          // where was the label created in the code
+    string labelName;      // the name of the label
+    Int scopeLevel;        // what part of scope was it found on?
 };
 
 struct CodeData {
@@ -171,35 +197,24 @@ struct CodeData {
     {
     }
 
-    Field* getLocalField(string name, Int scopeLevel) {
+    Field* getLocalField(string name) {
         if(locals.size() == 0) return NULL;
 
         for(Int i = locals.size()-1; i >= 0; i--) {
-            if(locals.at(i)->name == name && locals.at(i)->scopeLevel == scopeLevel) {
+            if(locals.at(i)->name == name) {
                 return locals.get(i);
             }
         }
         return NULL;
     }
 
-    Field* getLocalFieldHereOrHigher(string name, Int scopeLevel) {
-        if(locals.size() == 0) return NULL;
-
-        for(Int i = locals.size()-1; i >= 0; i--) {
-            if (locals.at(i)->name == name && locals.at(i)->scopeLevel <= scopeLevel) {
-                return locals.get(i);
-            }
-        }
-        return NULL;
-    }
-
-    Int getLabelAddress(string name) {
+    LabelData getLabel(string name) {
         for(Int i = 0; i < labelMap.size(); i++) {
-            if(labelMap.get(i).key == name)
-                return labelMap.get(i).value;
+            if(labelMap.get(i).labelName == name)
+                return labelMap.get(i);
         }
 
-        return invalidAddr;
+        return LabelData();
     }
 
     CodeHolder code;
@@ -207,7 +222,7 @@ struct CodeData {
     List<Field*> locals;
     List<TryCatchData> tryCatchTable;
     List<KeyPair<Int, string>> localAliases;
-    List<KeyPair<string, Int>> labelMap;
+    List<LabelData> labelMap;
     List<BranchTable> branchTable;
     List<AsmData> protectedCodeTable;
     List<LineData> lineTable;

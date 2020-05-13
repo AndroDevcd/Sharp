@@ -146,7 +146,7 @@ void parser::parseMethodDecl(Ast *ast) {
             branch->setAstType(ast_delegate_decl);
         } else {
             parseBlock(branch);
-            if(branch->getLastSubAst()->sub_asts.singular() // TODO: talk about in next episode
+            if(branch->getLastSubAst()->sub_asts.singular()
                && branch->getLastSubAst()->sub_asts.get(0)->getSubAst(0)->getType() == ast_expression) {
                 errors->createNewError(GENERIC, current(), "expected `=` before expression");
             }
@@ -503,6 +503,7 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
     } else if(*peek(1)  == "ret") {
         expect(branch, peek(1)->getValue());
+        parseAsmLiteral(branch);
     } else if(*peek(1)  == "hlt") {
         expect(branch, peek(1)->getValue());
     } else if(*peek(1)  == "newVarArray") {
@@ -1130,7 +1131,12 @@ void parser::parseLabelDecl(Ast* ast) {
     _current--;
     expectIdentifier(branch);
     expect(ast, ":", false);
-    parseBlock(branch);
+    if(*peek(1) == "{")
+        parseBlock(branch);
+    else {
+        advance();
+        parseStatement(branch);
+    }
 }
 
 bool parser::parseStatement(Ast* ast) {
@@ -2448,12 +2454,12 @@ bool parser::parseDotNotCallExpr(Ast* ast) {
             branch->encapsulate(ast_dot_fn_e);
         }
 
-        /* func()++ or func()-- or func()[0] or func().someField
+        /* func()++ or func()-- or func()[0] or func().someField or func()()
          * This expression rule dosen't process correctly by itsself
          * so we hav to do it ourselves
          */
         incCheck:
-        if(peek(1)->getType() == LEFTPAREN) { // TODO: talk about this in next episode
+        if(peek(1)->getType() == LEFTPAREN) {
             Ast* funCallBranch = getBranch(branch, ast_dot_fn_e);
             parseExpressionList(funCallBranch, "(", ")");
             goto incCheck;
