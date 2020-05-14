@@ -1146,7 +1146,7 @@ ClassObject* Compiler::compileGenericClassReference(string &mod, string &name, C
                 resolveExtensionFunctions(newClass);
                 resolveUnprocessedClassMutations(newClass);
 
-                if(processingStage > POST_PROCESSING) {
+                if(processingStage == COMPILING) {
                     // post processing code
                     newClass->setProcessStage(postprocessed);
                     resolveAllDelegates(newClass->ast, newClass);
@@ -1154,8 +1154,10 @@ ClassObject* Compiler::compileGenericClassReference(string &mod, string &name, C
                     inlineClassFields(newClass->ast, newClass);
                     resolveGenericFieldMutations(newClass);
 
-                    // TODO: add additional code
                     newClass->setProcessStage(compiled);
+                    compileClassFields(newClass->ast, newClass);
+                    compileClassInitDecls(newClass->ast, newClass);
+                    compileClassMethods(newClass->ast, newClass);
                 } else // we need to make sure we don't double process he class
                     unProcessedClasses.add(newClass);
 

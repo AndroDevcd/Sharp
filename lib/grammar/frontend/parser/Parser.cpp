@@ -147,8 +147,11 @@ void parser::parseMethodDecl(Ast *ast) {
         } else {
             parseBlock(branch);
             if(branch->getLastSubAst()->sub_asts.singular()
-               && branch->getLastSubAst()->sub_asts.get(0)->getSubAst(0)->getType() == ast_expression) {
-                errors->createNewError(GENERIC, current(), "expected `=` before expression");
+               && branch->getLastSubAst()->sub_asts.get(0)->getType() == ast_statement) {
+                if(!branch->getLastSubAst()->sub_asts.get(0)->sub_asts.empty()
+                    && branch->getLastSubAst()->sub_asts.get(0)->getSubAst(0)->getType() == ast_expression) { // TODO: talk about this in tutorial def static foo() {}
+                    errors->createNewError(GENERIC, current(), "expected `=` before expression");
+                }
             }
         }
     } else if (peek(1)->getType() == INFER) {
@@ -162,8 +165,11 @@ void parser::parseMethodDecl(Ast *ast) {
     else {
         parseBlock(branch);
         if(branch->getLastSubAst()->sub_asts.singular()
-            && branch->getLastSubAst()->sub_asts.get(0)->getSubAst(0)->getType() == ast_expression) {
-            errors->createNewError(GENERIC, current(), "expected `=` before expression");
+           && branch->getLastSubAst()->sub_asts.get(0)->getType() == ast_statement) {
+            if(!branch->getLastSubAst()->sub_asts.get(0)->sub_asts.empty()
+               && branch->getLastSubAst()->sub_asts.get(0)->getSubAst(0)->getType() == ast_expression) { // TODO: talk about this in tutorial def static foo() {}
+                errors->createNewError(GENERIC, current(), "expected `=` before expression");
+            }
         }
     }
 }

@@ -1,0 +1,11 @@
+mod platform.kernel;
+
+class platform
+{
+    static def tls_init() {}
+    private static def static_init() {}
+
+    private static def srt_init(args: object[]) {
+
+    }
+}

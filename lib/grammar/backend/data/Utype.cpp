@@ -143,7 +143,7 @@ bool Utype::equals(Utype *utype) {
 
 bool Utype::isRelated(Utype *utype) {
 
-    if(resolvedType && utype->getResolvedType()) {
+    if(resolvedType && utype && utype->getResolvedType()) {
         if (getClass()) {
             if (utype->getClass())
                 return getClass()->isClassRelated(utype->getClass()) && array == utype->array;

@@ -134,7 +134,7 @@ private:
     string currModule;
     Method* requiredSignature;
     CodeHolder staticMainInserts;
-    CodeHolder stlMainInserts;
+    CodeHolder tlsMainInserts;
 
     void setup();
     bool preprocess();
@@ -148,6 +148,9 @@ private:
     void inlineFields();
     void postProcessGenericClasses();
     void compileAllUnprocessedMethods();
+    void compileUnprocessedClasses();
+    void validateCoreClasses(Ast *ast);
+    void setupMainMethod(Ast *ast);
     void assignEnumFieldName(Field*);
     void assignEnumFieldValue(Field*);
     void compileEnumField(Field*);
@@ -186,8 +189,6 @@ private:
     void compileDoWhileStatement(Ast *ast);
     void compileThrowStatement(Ast *ast);
     void compileGotoStatement(Ast *ast);
-    string formatLabelName(Token &label);
-    string getUnFormattedLabelName(string &label);
     void compileBreakStatement(Ast *ast);
     void compileContinueStatement(Ast *ast);
     void compileLockStatement(Ast *ast);
@@ -331,6 +332,7 @@ private:
     void compileVectorExpression(Expression* expr, Ast* ast, Utype *compareType = NULL);
     void compileAssignExpression(Expression* expr, Ast* ast);
     void compileBinaryExpression(Expression* expr, Ast* ast);
+    void compileInlineIfExpression(Expression* expr, Ast* ast);
     void assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast, bool allowOverloading = true);
     void compileBinaryExpression(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);
     void compoundAssignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);

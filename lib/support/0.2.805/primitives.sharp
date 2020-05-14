@@ -15,13 +15,11 @@ public class integer<native_type> {
         return value;
     }
 
-    def foo() {}
-
     def operator!=(num : integer<native_type>) := 0; //(value!=num.value); // TODO: add func for every integer type
+    def operator==(num : integer<native_type>) := 0;// (value==num.value);
     def operator!=(num : var) := 0; //TODO: see why it is broken (value!=num.value);
     def operator=(num : var) := 0;
 
-    def operator==(num : integer<native_type>) := 0;// (value==num.value);
 
 //    public def to_string() : string {
 //        return "" + value;
@@ -39,13 +37,33 @@ public class integer<native_type> {
     def to_bool() := new bool { value };
 }
 
-class ulong base integer<_uint64> { }
-class long base integer<_int64> {}
-class uint base integer<_uint32> {}
-class int base integer<_int32> {}
-class ushort base integer<_uint16> {}
-class short base integer<_int16> {}
-class uchar base integer<_uint8> {}
-class char base integer<_int8> {}
-class byte base uchar {}
+class ulong base integer<_uint64> {
+
+}
+class long base integer<_int64> {
+    long(i : int) {
+
+    }
+}
+class uint base integer<_uint32> {
+
+}
+class int base integer<_int32> {
+
+}
+class ushort base integer<_uint16> {
+
+}
+class short base integer<_int16> {
+
+}
+class uchar base integer<_uint8> {
+
+}
+class char base integer<_int8> {
+
+}
+class byte base uchar {
+
+}
 class bool base integer<_int8> { /* TDOO: override base class methods */ }

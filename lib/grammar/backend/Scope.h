@@ -23,7 +23,6 @@ struct Scope {
             klass(NULL),
             currentFunction(NULL),
             isReachable(true),
-            scopedLabels(false),
             scopeLevel(0),
             loopStartLabel(""),
             loopEndLabel(""),
@@ -40,7 +39,6 @@ struct Scope {
             klass(klass),
             currentFunction(NULL),
             isReachable(true),
-            scopedLabels(false),
             scopeLevel(0),
             loopStartLabel(""),
             loopEndLabel(""),
@@ -55,7 +53,6 @@ struct Scope {
         currentFunction = NULL;
         scopeLevel = 0;
         isReachable = true;
-        scopedLabels = false;
         loopStartLabel = "";
         loopEndLabel = "";
         astList.free();
@@ -70,7 +67,6 @@ struct Scope {
     Int scopeLevel;
     bool isReachable;
     bool initializationCheck;
-    bool scopedLabels;
     string loopStartLabel;
     string loopEndLabel;
     List<Ast*> astList;

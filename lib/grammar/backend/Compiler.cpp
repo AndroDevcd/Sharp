@@ -3957,12 +3957,42 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                 }
 
                 freeListPtr(params);
+            } else if(isUtypeClass(field->utype, "std", 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint")){
+                Method *constr;
+                List<Field *> params;
+
+                params.add(new Field());
+                expressionToParam(rightExpr, params.get(0));
+
+                if ((constr = field->utype->getClass()->getConstructor(params, false)) != NULL) {
+                    compileMethodReturnType(constr, constr->ast, false);
+
+                    validateAccess(constr, ast);
+                    expr->utype->copy(field->utype);
+
+                    resultCode->addIr(OpBuilder::newClass(field->utype->getClass()->address))
+                            .addIr(OpBuilder::dup());
+                    pushParametersToStackAndCall(ast, constr, params, *resultCode);
+                    resultCode->inject(leftExpr.utype->getCode());
+                    resultCode->inject(leftExpr.utype->getCode().getInjector(ptrInjector));
+                    resultCode->addIr(OpBuilder::popObject());
+
+                    expr->utype->getCode().freeInjectors();
+                    expr->utype->getCode().getInjector(stackInjector)
+                            .addIr(OpBuilder::pushObject());
+                } else {
+                    errors->createNewError(GENERIC, ast->line, ast->col,
+                                           " incompatible types, cannot convert `" + params.get(0)->utype->toString() + "` to `" +
+                                           leftExpr.utype->toString() + "`, are you possibly missing a cast?");
+                }
+
+                freeListPtr(params);
             } else {
                 errors->createNewError(GENERIC, ast->line, ast->col,
                                        " incompatible types, cannot convert `" + rightExpr.utype->toString() +
                                        "` to `" +
                                        leftExpr.utype->toString()
-                                       + "`" + (!allowOverloading && leftExpr.utype->getResolvedType()->type == CLASS ? ", has the variable been initialized yet?" : "."));
+                                       + "`" + (!allowOverloading && leftExpr.utype->getResolvedType()->type == CLASS ? ", is the variable initalized?" : "."));
             }
         }
     } else if(leftExpr.utype->getType() == utype_native) {
@@ -4043,6 +4073,61 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                                    leftExpr.utype->toString()
                                    + "`.");
         }
+    }
+}
+
+void Compiler::compileInlineIfExpression(Expression* expr, Ast* ast) {
+    Expression condExpr, trueExpr, falseExpr;
+
+    compileExpression(&condExpr, ast->getSubAst(0));
+    compileExpression(&trueExpr, ast->getSubAst(1));
+    compileExpression(&falseExpr, ast->getSubAst(2));
+
+    if(condExpr.utype->isRelated(varUtype) || isUtypeClassConvertableToVar(varUtype, condExpr.utype)) {
+        if((trueExpr.utype->getResolvedType()->isVar() && trueExpr.utype->isRelated(falseExpr.utype))
+            || (falseExpr.utype->getResolvedType()->isVar() && falseExpr.utype->isRelated(trueExpr.utype))
+            || (trueExpr.type == exp_class && trueExpr.utype->isRelated(falseExpr.utype))
+            || trueExpr.utype->equals(falseExpr.utype)) {
+            if(isUtypeClassConvertableToVar(varUtype, condExpr.utype)) {
+                CodeHolder tmp;
+                convertNativeIntegerClassToVar(condExpr.utype, varUtype, tmp, ast);
+                condExpr.utype->getCode().free()
+                    .inject(tmp);
+                condExpr.utype->getCode().copyInjectors(tmp);
+            }
+
+            expr->utype->copy(trueExpr.utype);
+            CodeHolder &code = expr->utype->getCode();
+
+            condExpr.utype->getCode().inject(ebxInjector);
+            code.inject(condExpr.utype->getCode());
+
+            code.addIr(OpBuilder::skipifne(EBX, trueExpr.utype->getCode().size()));
+            if(trueExpr.type == exp_var) {
+                trueExpr.utype->getCode().inject(ebxInjector);
+                code.inject(trueExpr.utype->getCode());
+                code.addIr(OpBuilder::skip(falseExpr.utype->getCode().size()));
+                falseExpr.utype->getCode().inject(ebxInjector);
+                code.inject(falseExpr.utype->getCode());
+
+                code.getInjector(stackInjector)
+                        .addIr(OpBuilder::rstore(EBX));
+            } else {
+                trueExpr.utype->getCode().inject(ptrInjector);
+                code.inject(trueExpr.utype->getCode());
+                code.addIr(OpBuilder::skip(falseExpr.utype->getCode().size()));
+                falseExpr.utype->getCode().inject(ptrInjector);
+                code.inject(falseExpr.utype->getCode());
+
+                code.getInjector(stackInjector)
+                        .addIr(OpBuilder::pushObject());
+            }
+        } else {
+            errors->createNewError(GENERIC, ast->line, ast->col, " expression of type `" + trueExpr.utype->toString() + "` is not equal to that of type `"
+                + falseExpr.utype->toString() + "`, are you possibly missing a cast?");
+        }
+    } else {
+        errors->createNewError(GENERIC, ast->line, ast->col, " cannot convert expression of type `" + condExpr.utype->toString() + "` to a var");
     }
 }
 
@@ -5613,12 +5698,7 @@ void Compiler::compileLambdaExpression(Expression* expr, Ast* ast) {
 
         compileMethodReturnType(lambda, ast);
         lambdas.add(lambda);
-
-        if(processingStage > POST_PROCESSING) {
-            compileMethod(ast, lambda);
-        } else {
-            unProcessedMethods.add(lambda);
-        }
+        unProcessedMethods.add(lambda);
     }
 
     expr->type = exp_var;
@@ -5735,6 +5815,8 @@ void Compiler::compileExpressionAst(Expression *expr, Ast *branch) {
         case ast_exponent_e:
         case ast_add_e:
             return compileBinaryExpression(expr, branch);
+        case ast_ques_e:
+            return compileInlineIfExpression(expr, branch);
     }
 
     cout << branch->toString() << endl;
@@ -5930,7 +6012,7 @@ void Compiler::assignFieldExpressionValue(Field *field, Ast *ast) {
                 currentScope()->currentFunction->data.code.inject(resultExpr.utype->getCode());
             } else {
                 if(field->locality == stl_thread) {
-                    stlMainInserts.inject(resultExpr.utype->getCode());
+                    tlsMainInserts.inject(resultExpr.utype->getCode());
                 } else if (field->flags.find(STATIC)) {
                     staticMainInserts.inject(resultExpr.utype->getCode());
                 } else {
@@ -6432,7 +6514,6 @@ void Compiler::compileOperatorOverload(Ast* ast) {
     Method *func = findFunction(currentScope()->klass, name, params, ast, false, fn_op_overload, false);
 
     if(func != NULL) { // if null it must be a delegate func which we dont care about
-        checkMainMethodSignature(func);
         compileMethod(ast, func);
     }
 }
@@ -7223,7 +7304,7 @@ void Compiler::setup() {
     unProcessedClasses.init();
     inlinedFields.init();
     staticMainInserts.init();
-    stlMainInserts.init();
+    tlsMainInserts.init();
     nilUtype = new Utype(NIL);
     varUtype = new Utype(VAR);
     objectUtype = new Utype(OBJECT);
@@ -7263,16 +7344,11 @@ void Compiler::compileLabelDecl(Ast *ast, bool *controlPaths) {
     }
 
     Token &label = ast->getToken(0);
-    string name;
-    if(currentScope()->scopedLabels) {
-        name = formatLabelName(label);
-    } else
-        name = label.getValue();
 
-    if(currentScope()->currentFunction->data.getLabel(name).start_pc == invalidAddr) {
+    if(currentScope()->currentFunction->data.getLabel(label.getValue()).start_pc == invalidAddr) {
         currentScope()->currentFunction->data.labelMap.add(
-                LabelData(name, currentScope()->currentFunction->data.code.size(), currentScope()->scopeLevel));
-        deInitializeLocalVariables(name);
+                LabelData(label.getValue(), currentScope()->currentFunction->data.code.size(), currentScope()->scopeLevel));
+        deInitializeLocalVariables(label.getValue());
     } else {
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                      "label `" + label.getValue() + "` is already defined in the scope");
@@ -7323,6 +7399,7 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
         for(Int i = 2; i < ast->getSubAstCount(); i++) {
             Ast *branch = ast->getSubAst(i);
 
+            currentScope()->scopeLevel++;
             switch(branch->getType()) {
                 case ast_elseif_statement: {
                     Expression elseIfCond;
@@ -7361,6 +7438,7 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
                     break;
                 }
             }
+            currentScope()->scopeLevel--;
         }
 
     } else {
@@ -7415,14 +7493,12 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
     }
 
     if(!currentScope()->finallyBlocks.empty()) {
-        RETAIN_SCOPED_LABELS(true)
         for (Int i = currentScope()->finallyBlocks.size() - 1; i >= 0; i--) {
             currentScope()->isReachable = true;
             if (currentScope()->finallyBlocks.get(i).value != NULL) {
                 compileBlock(currentScope()->finallyBlocks.get(i).value);
             }
         }
-        RESTORE_SCOPED_LABELS()
     }
 
     if(!currentScope()->lockBlocks.empty()) {
@@ -7621,25 +7697,10 @@ void Compiler::compileDoWhileStatement(Ast *ast) {
     currentScope()->isReachable = true;
 }
 
-string Compiler::getUnFormattedLabelName(string &label) {
-    for(Int i = label.size() - 1; i >= 0; i--) {
-        if(label[i] == ':') {
-            return label.substr(0, i);
-        }
-    }
-
-    return "";
-}
-
-string Compiler::formatLabelName(Token &label) {
-    stringstream labelName;
-    labelName << label.getValue() << ":scoped";
-    return labelName.str();
-}
-
 void Compiler::processScopeExitLockAndFinallys(string &label) {
     Int locksSkipped = 0, finallyBlocksSkipped = 0;
     CodeHolder &code = currentScope()->currentFunction->data.code;
+    List<Ast*> finallyBlocksToIgnore;
 
     for(Int i = currentScope()->astList.size() - 1; i >= 0; i--) {
         Ast* branch = currentScope()->astList.get(i);
@@ -7691,21 +7752,23 @@ void Compiler::processScopeExitLockAndFinallys(string &label) {
                 } else break;
             }
         }
+        else if(branch->getType() == ast_finally_block) {
+            finallyBlocksToIgnore.add(branch);
+        }
     }
 
     processFinally:
     if(finallyBlocksSkipped > 0) {
-        RETAIN_SCOPED_LABELS(true)
         for (Int i = currentScope()->finallyBlocks.size() - 1; i >= 0; i--) {
             currentScope()->isReachable = true;
-            if (currentScope()->finallyBlocks.get(i).value != NULL) {
+            if (currentScope()->finallyBlocks.get(i).value != NULL
+                && !finallyBlocksToIgnore.find(currentScope()->finallyBlocks.get(i).value)) {
                 compileBlock(currentScope()->finallyBlocks.get(i).value);
             }
 
             if(--finallyBlocksSkipped == 0)
                 break;
         }
-        RESTORE_SCOPED_LABELS()
     }
 
     if(locksSkipped > 0) {
@@ -7728,14 +7791,8 @@ void Compiler::compileGotoStatement(Ast *ast) {
     Token &label = ast->getToken(0);
     CodeHolder &code = currentScope()->currentFunction->data.code;
 
-    string labelName;
-    if(currentScope()->scopedLabels) {
-        labelName = formatLabelName(label);
-    } else
-        labelName = label.getValue();
-
     processScopeExitLockAndFinallys(label.getValue());
-    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), labelName, 0, ast->line, ast->col, currentScope()->scopeLevel));
+    currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), label.getValue(), 0, ast->line, ast->col, currentScope()->scopeLevel));
     code.addIr(OpBuilder::jmp(invalidAddr));
     currentScope()->isReachable = false;
 }
@@ -7910,7 +7967,7 @@ void Compiler::compileWhenStatement(Ast *ast, bool *controlPaths) {
     for(Int i = 0; i < whenBlock->getSubAstCount(); i++) {
         Ast *branch = whenBlock->getSubAst(i);
 
-
+        currentScope()->scopeLevel++;
         switch(branch->getType()) {
             case ast_when_clause: {
                 labelId << INTERNAL_LABEL_NAME_PREFIX << "when_next_case" << guid++;
@@ -7993,6 +8050,7 @@ void Compiler::compileWhenStatement(Ast *ast, bool *controlPaths) {
                 break;
             }
         }
+        currentScope()->scopeLevel--;
     }
 
     currentScope()->currentFunction->data.labelMap.add(LabelData(whenEndLabel, currentScope()->currentFunction->data.code.size(), 0));
@@ -8044,6 +8102,8 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
     for(Int i = 1; i < ast->getSubAstCount(); i++) {
         Ast *branch = ast->getSubAst(i);
 
+        currentScope()->scopeLevel++;
+        currentScope()->astList.add(branch);
         currentScope()->isReachable = true;
         switch (branch->getType()) {
             case ast_catch_clause: {
@@ -8117,6 +8177,9 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
                 break;
             }
         }
+
+        currentScope()->scopeLevel--;
+        currentScope()->astList.pop_back();
     }
 
     if(!hasFinallyBlock)
@@ -8668,10 +8731,8 @@ void Compiler::reconcileBranches(bool finalTry) {
                             break;
                     }
                 } else if(finalTry) {
-                    string labelName = branch.labelName.find(':')!= string::npos ?
-                            getUnFormattedLabelName(branch.labelName) : branch.labelName;
                     errors->createNewError(GENERIC, branch.line, branch.col,
-                                           "attempt to jump to label `" + labelName +
+                                           "attempt to jump to label `" + branch.labelName +
                                            "` that dosen't exist in the current context.");
                 }
             } else {
@@ -8851,6 +8912,8 @@ void Compiler::compileMethod(Ast *ast, Method *func) {
             }
         }
     } else if(ast->hasSubAst(ast_expression)) {
+        compileMethodReturnType(func, ast);
+
         Expression expr;
         compileExpression(&expr, ast->getSubAst(ast_expression));
 
@@ -9011,6 +9074,152 @@ void Compiler::compileEnumFields() {
     }
 }
 
+void Compiler::setupMainMethod(Ast *ast) {
+    string starterClass = "platform";
+    string starterMethod = "srt_init";
+    string staticInitMethod = "static_init";
+    string tlsSetupMethod = "tls_init";
+
+    ClassObject* StarterClass = resolveClass("platform.kernel", starterClass, ast);
+    if(StarterClass != NULL && mainMethod != NULL) {
+        List<Field*> params;
+        List<Method*> resolvedMethods;
+        List<AccessFlag> flags;
+        Meta meta;
+        Field *arg0 = new Field(OBJECT, guid++, "args", StarterClass, flags, meta, stl_stack, 0);
+        arg0->isArray = true;
+        arg0->utype = new Utype();
+        arg0->utype->copy(objectUtype);
+        params.add(arg0);
+
+        StarterClass->getAllFunctionsByTypeAndName(fn_normal, starterMethod, false, resolvedMethods);
+
+        if(resolvedMethods.empty()) {
+            errors->createNewError(GENERIC, 1, 0, "could not locate main method '" + starterMethod + "(object[])' in starter class");
+        }else if(resolvedMethods.size() > 1) { // shouldn't happen
+            errors->createNewError(GENERIC, 1, 0, "attempting to find main method '" + starterMethod + "(object[])' in starter class, but it was found to be ambiguous");
+        } else {
+            Method *main = resolvedMethods.last(), *StaticInit, *TlsSetup;
+            if(!main->flags.find(STATIC)) {
+                errors->createNewError(GENERIC, 1, 0, "main method '" + starterMethod + "(object[])' must be static");
+            }
+
+            if(!main->flags.find(PRIVATE)) {
+                errors->createNewError(GENERIC, 1, 0, "main method '" + starterMethod + "(object[])' must be private");
+            }
+
+            delete params.last()->utype;
+            delete params.last();
+            params.free();
+
+            StarterClass->getAllFunctionsByTypeAndName(fn_normal, staticInitMethod, false, resolvedMethods);
+            if(resolvedMethods.empty()) {
+                errors->createNewError(GENERIC, 1, 0, "could not locate runtime environment setup method '" + staticInitMethod + "()' in starter class");
+                return;
+            } else StaticInit = resolvedMethods.last();
+
+            StarterClass->getAllFunctionsByTypeAndName(fn_normal, tlsSetupMethod, false, resolvedMethods);
+            if(resolvedMethods.empty()) {
+                errors->createNewError(GENERIC, 1, 0, "could not locate thread local storage init method '" + starterMethod + "()' in starter class");
+                return;
+            } else TlsSetup = resolvedMethods.last();
+
+            if(!StaticInit->flags.find(STATIC)) {
+                errors->createNewError(GENERIC, 1, 0, "runtime environment setup method '" + staticInitMethod + "()' must be static");
+            }
+            if(!TlsSetup->flags.find(STATIC)) {
+                errors->createNewError(GENERIC, 1, 0, "thread local storage init method '" + tlsSetupMethod + "()' must be static");
+            }
+
+            if(!StaticInit->flags.find(PRIVATE)) {
+                errors->createNewError(GENERIC, 1, 0, "runtime environment setup method '" + staticInitMethod + "()' must be private");
+            }
+
+            if(!TlsSetup->flags.find(PUBLIC)) {
+                errors->createNewError(GENERIC, 1, 0, "thread local storage init method '" + tlsSetupMethod + "()' must be public");
+            }
+
+            Field *userMain;
+            switch(mainSignature) {
+                case 0: { // fn main(string[]) : var;
+                    userMain = StarterClass->getField("main", false);
+                    break;
+                }
+                case 1: { // fn main2(string[]);
+                    userMain = StarterClass->getField("main2", false);
+                    break;
+                }
+                case 2: { // fn main3();
+                    userMain = StarterClass->getField("main3", false);
+                    break;
+                }
+                case 3: { // fn main4() var;
+                    userMain = StarterClass->getField("main4", false);
+                    break;
+                }
+            }
+
+            if(userMain != NULL) {
+                if(!userMain->flags.find(STATIC)) {
+                    errors->createNewError(GENERIC, 1, 0, "main method function pointer field '" + userMain->toString() + "' must be static");
+                }
+
+                if(!userMain->flags.find(PRIVATE)) {
+                    errors->createNewError(GENERIC, 1, 0, "main method function pointer field '" + userMain->toString() + "' must be ptivate");
+                }
+
+                if(userMain->type != FNPTR) {
+                    errors->createNewError(GENERIC, 1, 0, "main method function pointer field '" + userMain->toString() + "' must be a function pointer");
+                }
+
+                staticMainInserts.addIr(OpBuilder::movg(StarterClass->address))
+                     .addIr(OpBuilder::movn(userMain->address))
+                     .addIr(OpBuilder::movi(0, ADX))
+                     .addIr(OpBuilder::movi(mainMethod->address, EBX)) // set main address
+                     .addIr(OpBuilder::rmov(ADX, EBX));
+            } else
+                errors->createNewError(GENERIC, 1, 0, "user main method function pointer was not found");
+
+            StaticInit->data.code.inject(staticMainInserts);
+            TlsSetup->data.code.inject(tlsMainInserts);
+            staticMainInserts.free();
+            tlsMainInserts.free();
+        }
+    } else if(StarterClass == NULL) {
+        errors->createNewError(GENERIC, 1, 0, "Could not find starter class '" + starterClass + "' for application entry point.");
+    }
+}
+
+void Compiler::validateCoreClasses(Ast *ast) {
+    ClassObject* resolvedClass = resolveClass("std", "_enum_", ast);
+}
+
+void Compiler::compileUnprocessedClasses() {
+    for(long long i = 0; i < unProcessedClasses.size(); i++) {
+        ClassObject *unprocessedClass = unProcessedClasses.get(i);
+
+        if(unprocessedClass->isNot(compiled)) {
+            currModule = unprocessedClass->module;
+            current = getParserBySourceFile(unprocessedClass->meta.file);
+
+            long long totalErrors = errors->getUnfilteredErrorCount();
+            updateErrorManagerInstance(current);
+
+            // bring the classes up to speed
+            unprocessedClass->setProcessStage(compiled);
+            compileClassFields(unprocessedClass->ast, unprocessedClass);
+            compileClassInitDecls(unprocessedClass->ast, unprocessedClass);
+            compileClassMethods(unprocessedClass->ast, unprocessedClass);
+
+            if (NEW_ERRORS_FOUND()) {
+                failedParsers.addif(current);
+            }
+        }
+    }
+
+    unProcessedClasses.free();
+}
+
 void Compiler::compileAllUnprocessedMethods() {
     for(Int i = 0; i < unProcessedMethods.size(); i++) {
         Method *method = unProcessedMethods.get(i);
@@ -9030,12 +9239,14 @@ void Compiler::compile() {
 
     if(preprocess() && postProcess()) {
         processingStage = COMPILING;
-        // TODO: write compileUnprocessedClasses() to be called for everything else and free unprocessedClasses list
         compileAllFields();
         compileAllInitDecls();
         compileAllMethods();
         compileAllUnprocessedMethods();
         compileEnumFields();
+        compileUnprocessedClasses();
+        setupMainMethod(parsers.last()->astAt(0));
+        validateCoreClasses(parsers.last()->astAt(0));
 
         cout << "compiled!!!";
     }

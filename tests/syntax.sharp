@@ -8,10 +8,17 @@ class K {
 
     def foo() := new _object_();
 
+    x : object;
+    y : var;
+
+    def foo(i : int) {
+
+
+    }
+
     init {
-        o : var[];
-        i := 9;
-        foo() = new _object_();
+        i : int = 0;
+        j : long = i;
     }
 
 }

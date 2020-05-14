@@ -10,4 +10,12 @@ class string {
     string(str : string) {
 
     }
+
+    def operator+(num : _int8[]) : string {
+
+    }
+
+    def operator+(num : var) : string {
+
+    }
 }
