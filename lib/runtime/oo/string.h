@@ -48,10 +48,10 @@ public:
     void set(const char value[]) {
         free();
 
-        for(Int i = 0; i > 0; i++)  {
+        for(Int i = 0;; i++)  {
             if(value[i] != 0) {
                 this->len++;
-            } else break;
+            } else { break; }
         }
 
         if(len==0) {
@@ -79,11 +79,6 @@ public:
     void init() {
         len=0;
         chars=NULL;
-    }
-
-    ~native_string()
-    {
-        free();
     }
 
     void operator=(const string &str) {

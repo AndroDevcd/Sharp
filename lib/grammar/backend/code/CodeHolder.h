@@ -10,6 +10,7 @@
 #include "../../../../stdimports.h"
 #include "../../../util/KeyPair.h"
 #include "../../List.h"
+#include "../../../runtime/oo/string.h"
 
 class CodeHolder {
 public:
@@ -24,11 +25,11 @@ public:
         CodeHolder();
     }
 
-    bool addinjector(string key) {
+    bool addinjector(native_string key) {
         if(!hasInjector(key)) {
-            injectors.key.push_back(key);
-            injectors.value.__new();
-            injectors.value.last().init();
+            injectors.value.__new().init();
+            injectors.key.__new().init();
+            injectors.key.last() = key;
             return true;
         }
         return false;
@@ -51,7 +52,7 @@ public:
     bool instanceCaptured;
 
     List<uint32_t> ir32;
-    KeyPair<List<string>, List<CodeHolder>> injectors;
+    KeyPair<List<native_string>, List<CodeHolder>> injectors;
 
     CodeHolder& free() {
         ir32.free();
@@ -121,7 +122,7 @@ public:
         }
     }
 
-    void inject(string injector) {
+    void inject(native_string injector) {
         CodeHolder& assembler = getInjector(injector);
 
         int32_t start = ir32.size(), iter = 0;
@@ -139,7 +140,7 @@ public:
         return ir32.size();
     }
 
-    CodeHolder& getInjector(string key) {
+    CodeHolder& getInjector(native_string key) {
         for(unsigned int i = 0; i < injectors.key.size(); i++) {
             if(injectors.key.at(i) == key)
                 return injectors.value.get(i);
@@ -157,7 +158,7 @@ public:
         }
     }
 
-    void removeInjector(string key) {
+    void removeInjector(native_string key) {
         for(unsigned int i = 0; i < injectors.key.size(); i++) {
             if(injectors.key.at(i) == key) {
                 injectors.value.removeAt(i);
@@ -168,7 +169,7 @@ public:
     }
 
 
-    bool hasInjector(string key) {
+    bool hasInjector(native_string key) {
         for(unsigned int i = 0; i < injectors.key.size(); i++) {
             if(injectors.key.at(i) == key)
                 return true;

@@ -6,33 +6,12 @@ class K {
 
     private funPtr : (var)(var);
 
-    def foo() {
-        return;
-    }
+    def foo() := new _object_();
 
     init {
-        i := 10;
-        o : object = null;
-        //        This was tested and passed
-
-
-                lock o -> {
-               try {
-                   li:
-                    name:
-                   try {
-                        j := 0;
-                        goto name;
-                   } catch(exception) {
-                   } finally {
-                       st2 := "finally!!";
-                   }
-                   k := 0;
-               } finally {
-                   str := "finally!! yet again";
-               }
-               }
-
+        o : var[];
+        i := 9;
+        foo() = new _object_();
     }
 
 }

@@ -25,13 +25,13 @@ class Method;
 /**
  * Injector for building code
  */
-extern string stackInjector;
-extern string ebxInjector;
-extern string ptrInjector;
-extern string getterInjector;
-extern string removeFromStackInjector;
-extern string incInjector;
-extern string decInjector;
+extern native_string stackInjector;
+extern native_string ebxInjector;
+extern native_string ptrInjector;
+extern native_string getterInjector;
+extern native_string removeFromStackInjector;
+extern native_string incInjector;
+extern native_string decInjector;
 
 class Utype {
 public:

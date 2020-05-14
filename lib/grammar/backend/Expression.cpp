@@ -8,6 +8,7 @@
 void Expression::init() {
     type = exp_undefined;
     utype = new Utype();
+    ast = NULL;
 }
 
 void Expression::copy(Expression *expr) {

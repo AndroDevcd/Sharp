@@ -7,13 +7,14 @@
 #include "../oo/ClassObject.h"
 #include "Literal.h"
 
-string stackInjector = "stack-injector";
-string ebxInjector = "ebx-injector";
-string ptrInjector = "ptr-injector";
-string getterInjector = "getterCodeSize-injector";
-string removeFromStackInjector = "removeFromStack-injector";
-string incInjector = "inc-injector";
-string decInjector = "dec-injector";
+native_string stackInjector("stack-injector");
+native_string ebxInjector("ebx-injector");
+native_string ptrInjector("ptr-injector");
+native_string getterInjector("getterCodeSize-injector");
+native_string removeFromStackInjector("removeFromStack-injector");
+native_string incInjector("inc-injector");
+native_string decInjector("dec-injector");
+native_string indexAssignInjector("indexAssign-injector");
 
 void Utype::free() {
     code.free();

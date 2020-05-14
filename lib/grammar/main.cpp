@@ -41,7 +41,7 @@ bool asmDump_map[] = {
 };
 
 options c_options;
-void compile(List<string>&);
+void compile(List<native_string>&);
 
 bool ends_with(std::string value, std::string ending)
 {
@@ -175,7 +175,7 @@ int _bootstrap(int argc, const char* argv[])
 
 
     initalizeErrors();
-    List<string> files;
+    List<native_string> files;
     std::string asmDmpPrefix("-asmd:");
     for (int i = 1; i < argc; ++i) {
         args_:
@@ -342,6 +342,7 @@ int _bootstrap(int argc, const char* argv[])
                 if(string(argv[i]).at(0) == '-')
                     goto args_;
 
+
                 files.addif(string(argv[i++]));
             }while(i<argc);
             break;
@@ -372,7 +373,7 @@ int _bootstrap(int argc, const char* argv[])
     }
 
     for(unsigned int i = 0; i < files.size(); i++) {
-        string& file = files.get(i);
+        string file = files.get(i).str();
 
         if(!File::exists(file.c_str())){
             error("file `" + file + "` doesnt exist!");
@@ -386,7 +387,7 @@ int _bootstrap(int argc, const char* argv[])
     return 0;
 }
 
-void compile(List<string> &files)
+void compile(List<native_string> &files)
 {
     List<parser*> parsers;
     parser* currParser = NULL;
@@ -397,7 +398,7 @@ void compile(List<string> &files)
 
     for(unsigned int i = 0; i < files.size(); i++)
     {
-        string& file = files.get(i);
+        string file = files.get(i).str();
         buf.begin();
 
         File::read_alltext(file.c_str(), buf);

@@ -241,8 +241,6 @@ string Ast::astTypeToString(ast_type type) {
             return "ast_statement";
         case ast_if_statement:
             return "ast_if_statement";
-        case ast_switch_statement:
-            return "ast_switch_statement";
         case ast_elseif_statement:
             return "ast_elseif_statement";
         case ast_else_statement:

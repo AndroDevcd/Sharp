@@ -71,7 +71,6 @@ enum ast_type
     ast_return_stmnt,
     ast_statement,
     ast_if_statement,
-    ast_switch_statement,
     ast_elseif_statement,
     ast_else_statement,
     ast_lock_statement,

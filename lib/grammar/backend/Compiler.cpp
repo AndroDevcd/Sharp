@@ -1259,6 +1259,7 @@ void Compiler::parseBoolLiteral(Expression* expr, Token &token) {
 }
 
 void Compiler::compileLiteralExpression(Expression* expr, Ast* ast) {
+    expr->ast = ast;
     switch(ast->getToken(0).getId()) {
         case CHAR_LITERAL:
             parseCharLiteral(expr, ast->getToken(0));
@@ -1280,7 +1281,6 @@ void Compiler::compileLiteralExpression(Expression* expr, Ast* ast) {
             break;
     }
 
-    expr->ast = ast;
 }
 
 void Compiler::compileUtypeClass(Expression* expr, Ast* ast) {
@@ -2908,20 +2908,11 @@ void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, CodeHo
         code.addIr(OpBuilder::call(constructor->address));
 
         code.freeInjectors();
-        if (constructor->utype->isArray() || constructor->utype->getResolvedType()->type == OBJECT
-            || constructor->utype->getResolvedType()->type == CLASS) {
-            code.getInjector(ptrInjector)
-                    .addIr(OpBuilder::popObject2());
+        code.getInjector(ptrInjector)
+                .addIr(OpBuilder::popObject2());
 
-            code.getInjector(removeFromStackInjector)
-                    .addIr(OpBuilder::pop());
-        } else if (constructor->utype->getResolvedType()->isVar()) {
-            code.getInjector(ebxInjector)
-                    .addIr(OpBuilder::loadValue(EBX));
-
-            code.getInjector(removeFromStackInjector)
-                    .addIr(OpBuilder::pop());
-        }
+        code.getInjector(removeFromStackInjector)
+                .addIr(OpBuilder::pop());
     } else {
         errors->createNewError(GENERIC, ast->line,  ast->col, "Support class `" + clazz->toString() + "` does not have constructor for type `"
                                                                           + paramUtype->toString() + "`");
@@ -3024,6 +3015,21 @@ void Compiler::compoundAssignValue(Expression* expr, Token &operand, Expression 
         }
 
         freeListPtr(params);
+    } else if(leftExpr.utype->getType() == utype_native) {
+        stringstream injector;
+        injector << operand.getValue() << "{injector}";
+        string inj = injector.str();
+        if(!leftExpr.utype->getCode().getInjector(inj).ir32.empty()) {
+            expr->utype->copy(leftExpr.utype);
+
+            resultCode->inject(rightExpr.utype->getCode());
+            resultCode->inject(rightExpr.utype->getCode().getInjector(stackInjector));
+            resultCode->inject(leftExpr.utype->getCode());
+            resultCode->inject(leftExpr.utype->getCode().getInjector(ebxInjector));
+            resultCode->inject(leftExpr.utype->getCode().getInjector(inj));
+        } else {
+            errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + leftExpr.utype->toString() + "` must be a variable, class, or indexer");
+        }
     } else { // utype_field
         Field *field = (Field*)leftExpr.utype->getResolvedType();
 
@@ -3753,7 +3759,8 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                                        field->utype->toString()
                                        + "` which differs from the provided type of `" + params.get(0)->utype->toString() + "`.");
             }
-        } else {
+        }
+        else {
             if(field->getter != NULL
             && (currentScope()->currentFunction == NULL ||
                 !(currentScope()->currentFunction == field->setter || currentScope()->currentFunction == field->getter))) {
@@ -3958,7 +3965,19 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                                        + "`" + (!allowOverloading && leftExpr.utype->getResolvedType()->type == CLASS ? ", has the variable been initialized yet?" : "."));
             }
         }
-    } else { // utype_class
+    } else if(leftExpr.utype->getType() == utype_native) {
+        if(!leftExpr.utype->getCode().getInjector("={injector}").ir32.empty()) {
+            expr->utype->copy(leftExpr.utype);
+
+            resultCode->inject(rightExpr.utype->getCode());
+            resultCode->inject(rightExpr.utype->getCode().getInjector(stackInjector));
+            resultCode->inject(leftExpr.utype->getCode());
+            resultCode->inject(leftExpr.utype->getCode().getInjector("={injector}"));
+        } else {
+            errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + leftExpr.utype->toString() + "` must be a variable, class, or indexer");
+        }
+    }
+    else { // utype_class
 
         if(rightExpr.utype->isRelated(leftExpr.utype)) {
             if(rightExpr.utype->isNullType()) {
@@ -4096,6 +4115,7 @@ void Compiler::compileAssignExpression(Expression* expr, Ast* ast) {
 
     switch(leftExpr.utype->getType()) {
         case utype_class:
+        case utype_native:
         case utype_field: {
             if(operand == "=")
                 assignValue(expr, operand, leftExpr, rightExpr, ast);
@@ -4103,7 +4123,7 @@ void Compiler::compileAssignExpression(Expression* expr, Ast* ast) {
             break;
         }
         default: {
-            errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + leftExpr.utype->toString() + "` cannot be assigned a value");
+            errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + leftExpr.utype->toString() + "` must be a variable, class, or indexer");
             break;
         }
     }
@@ -4443,7 +4463,7 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
                 expr->utype->getCode().addIr(OpBuilder::call(constr->address));
 
                 expr->utype->getCode().getInjector(ptrInjector)
-                        .addIr(OpBuilder::movsl(1));
+                        .addIr(OpBuilder::movsl(0));
             }
 
             expressions.free();
@@ -5020,9 +5040,92 @@ void Compiler::compileArrayExpression(Expression* expr, Ast* ast) {
                 expr->utype->getCode().getInjector(decInjector)
                         .addIr(OpBuilder::movi(0, ADX))
                         .addIr(OpBuilder::rmov(ADX, EBX));
+
+                expr->utype->getCode().getInjector("={injector}")
+                        .addIr(OpBuilder::loadValue(EBX))
+                        .addIr(OpBuilder::rmov(ADX, EBX));
+
+
+                CodeHolder *injector = &expr->utype->getCode().getInjector("+={injector}");
+                injector->addIr(OpBuilder::loadValue(ECX))
+                        .addIr(OpBuilder::add(EBX, EBX, ECX));
+                if(expr->utype->getResolvedType()->type <= _UINT64) {
+                    dataTypeToOpcode(expr->utype->getResolvedType()->type, EBX, EBX, *injector);
+                    injector->addIr(OpBuilder::rmov(ADX, EBX));
+                } else
+                    injector->addIr(OpBuilder::rmov(ADX, EBX));
+
+                injector = &expr->utype->getCode().getInjector("-={injector}");
+                injector->addIr(OpBuilder::loadValue(ECX))
+                        .addIr(OpBuilder::sub(EBX, EBX, ECX));
+
+                if(expr->utype->getResolvedType()->type <= _UINT64) {
+                    dataTypeToOpcode(expr->utype->getResolvedType()->type, EBX, EBX, *injector);
+                    injector->addIr(OpBuilder::rmov(ADX, EBX));
+                } else
+                    injector->addIr(OpBuilder::rmov(ADX, EBX));
+
+                injector = &expr->utype->getCode().getInjector("*={injector}");
+                injector->addIr(OpBuilder::loadValue(ECX))
+                        .addIr(OpBuilder::mul(EBX, EBX, ECX));
+
+                if(expr->utype->getResolvedType()->type <= _UINT64) {
+                    dataTypeToOpcode(expr->utype->getResolvedType()->type, EBX, EBX, *injector);
+                    injector->addIr(OpBuilder::rmov(ADX, EBX));
+                } else
+                    injector->addIr(OpBuilder::rmov(ADX, EBX));
+
+                injector = &expr->utype->getCode().getInjector("/={injector}");
+                injector->addIr(OpBuilder::loadValue(ECX))
+                        .addIr(OpBuilder::div(EBX, EBX, ECX));
+
+                if(expr->utype->getResolvedType()->type <= _UINT64) {
+                    dataTypeToOpcode(expr->utype->getResolvedType()->type, EBX, EBX, *injector);
+                    injector->addIr(OpBuilder::rmov(ADX, EBX));
+                } else
+                    injector->addIr(OpBuilder::rmov(ADX, EBX));
+
+                injector = &expr->utype->getCode().getInjector("%={injector}");
+                injector->addIr(OpBuilder::loadValue(ECX))
+                        .addIr(OpBuilder::mod(EBX, EBX, ECX));
+
+                if(expr->utype->getResolvedType()->type <= _UINT64) {
+                    dataTypeToOpcode(expr->utype->getResolvedType()->type, EBX, EBX, *injector);
+                    injector->addIr(OpBuilder::rmov(ADX, EBX));
+                } else
+                    injector->addIr(OpBuilder::rmov(ADX, EBX));
+
+                injector = &expr->utype->getCode().getInjector("&={injector}");
+                injector->addIr(OpBuilder::loadValue(ECX))
+                        .addIr(OpBuilder::_and(EBX, ECX));
+                injector->addIr(OpBuilder::rmov(ADX, CMT));
+
+                injector = &expr->utype->getCode().getInjector("|={injector}");
+                injector->addIr(OpBuilder::loadValue(ECX))
+                        .addIr(OpBuilder::_or(EBX, ECX));
+
+                if(expr->utype->getResolvedType()->type <= _UINT64) {
+                    dataTypeToOpcode(expr->utype->getResolvedType()->type, CMT, CMT, *injector);
+                    injector->addIr(OpBuilder::rmov(ADX, CMT));
+                } else
+                    injector->addIr(OpBuilder::rmov(ADX, CMT));
+
+                injector = &expr->utype->getCode().getInjector("^={injector}");
+                injector->addIr(OpBuilder::loadValue(ECX))
+                        .addIr(OpBuilder::_xor(EBX, ECX));
+
+                if(expr->utype->getResolvedType()->type <= _UINT64) {
+                    dataTypeToOpcode(expr->utype->getResolvedType()->type, CMT, CMT, *injector);
+                    injector->addIr(OpBuilder::rmov(ADX, CMT));
+                } else
+                    injector->addIr(OpBuilder::rmov(ADX, CMT));
+
             } else if(expr->utype->getResolvedType()->type == OBJECT || expr->utype->getResolvedType()->type == CLASS) {
                 expr->utype->getCode().getInjector(stackInjector)
                         .addIr(OpBuilder::pushObject());
+
+                expr->utype->getCode().getInjector("={injector}")
+                        .addIr(OpBuilder::popObject());
             } else
                 errors->createNewError(GENERIC, ast->line, ast->col, "expression of type `" + expr->utype->toString() + "` must be a var[], object[], or class[]");
         } else
@@ -7953,6 +8056,10 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
                 if(!klass->isClassRelated(throwable)) {
                     errors->createNewError(GENERIC, ast->line, ast->col, "handling class `" + klass->fullName + "` must inherit base level exception class `std#throwable`");
                 }
+
+                currentScope()->currentFunction->data.branchTable.add(
+                        BranchTable(code.size(), tryEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
+                code.addIr(OpBuilder::jmp(invalidAddr));
                 currentScope()->isReachable = true;
                 break;
             }
@@ -7974,6 +8081,8 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
 
                 currentScope()->finallyBlocks.last().value = NULL;
                 currentScope()->currentFunction->data.labelMap.add(LabelData(tryEndLabel, currentScope()->currentFunction->data.code.size(), 0));
+                initializeLocalVariable(exceptionObjectField);
+
                 currentScope()->currentFunction->data.labelMap.add(LabelData(finallyStartLabel, currentScope()->currentFunction->data.code.size(), 0));
                 tryCatchData.finallyData = new FinallyData();
                 tryCatchData.finallyData->start_pc = code.size();

@@ -318,18 +318,6 @@ void parser::parseSwitchBlock(Ast* ast) {
     expect(branch, "}");
 }
 
-void parser::parseSwitchStatement(Ast *ast) {
-    Ast* branch = getBranch(ast, ast_switch_statement);
-
-    expect(branch, "switch");
-
-    expect(branch, "(");
-    parseExpression(ast);
-    expect(branch, ")");
-
-    parseSwitchBlock(ast);
-}
-
 void parser::parseAliasDeclaration(Ast *ast) {
     Ast* branch = getBranch(ast, ast_alias_decl);
 
@@ -1165,14 +1153,6 @@ bool parser::parseStatement(Ast* ast) {
         parseIfStatement(branch);
         return true;
     }
-    else if(isSwitchStatement(current()))
-    {
-        if(access_types.size() > 0)
-            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-
-        parseSwitchStatement(branch);
-        return true;
-    }
     else if(isForStatement(current()))
     {
         if(access_types.size() > 0)
@@ -1183,6 +1163,9 @@ bool parser::parseStatement(Ast* ast) {
     }
     else if(isAliasDeclaration(current()))
     {
+        if(access_types.size() > 0)
+            errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+
         parseAliasDeclaration(branch);
         return true;
     }
@@ -1317,7 +1300,6 @@ bool parser::parseStatement(Ast* ast) {
             labelDecl:
             if(access_types.size() > 0) {
                 errors->createNewError(ILLEGAL_ACCESS_DECLARATION, branch);
-                access_types.free();
             }
 
             parseLabelDecl(branch);
@@ -3616,7 +3598,7 @@ bool parser::isKeyword(string key) {
            || key == "_int32" || key == "_int64" || key == "_uint8"
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
            || key == "delegate" || key == "interface" || key == "lock" || key == "enum"
-           || key == "switch" || key == "default" || key == "local"
+           || key == "when" || key == "default" || key == "local"
            || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
            || key == "as" || key == "in" || key == "volatile";
