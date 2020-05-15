@@ -26,6 +26,11 @@ struct options {
     bool obfuscate = false;
 
     /*
+     * Obfuscation map file to output.
+     */
+    string mapFile = "mapping.txt";
+
+    /*
      * Only compile all the files
      */
     bool compile = false;

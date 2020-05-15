@@ -157,3 +157,7 @@ Field *ClassObject::getField(long index) {
     return fields.get(index);
 }
 
+Method* ClassObject::getFunction(long index) {
+    return functions.get(index);
+}
+

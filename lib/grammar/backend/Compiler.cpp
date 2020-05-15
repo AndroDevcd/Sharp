@@ -13,6 +13,7 @@
 #include "data/Literal.h"
 #include "../../runtime/oo/Method.h"
 #include "oo/Method.h"
+#include "ofuscation/Obfuscator.h"
 
 string globalClass = "__srt_global";
 string undefinedModule = "__$srt_undefined";
@@ -827,7 +828,7 @@ void Compiler::removeScope() {
     currScope.pop_back();
 }
 
-void Compiler::preProccessImportDecl(Ast *branch, List<string> &imports) {
+void Compiler::preProccessImportDecl(Ast *branch, List<PackageData*> &imports) {
     bool star = false;
     stringstream ss;
     for(long i = 0; i < branch->getTokenCount(); i++) {
@@ -841,14 +842,18 @@ void Compiler::preProccessImportDecl(Ast *branch, List<string> &imports) {
 
     string mod = ss.str();
     string baseMod = mod.substr(0, mod.size() - 1);
+    PackageData *package;
+
     if(star) {
         bool found = false;
-        if(modules.find(baseMod))
-            imports.addif(baseMod);
-        for(long i = 0; i < modules.size(); i++) {
-            if(startsWith(modules.get(i), mod)) {
+        if((package = Obfuscator::getPackage(baseMod)) != NULL) {
+            imports.addif(package);
+        }
+
+        for(long i = 0; i < Obfuscator::packages.size(); i++) {
+            if(startsWith(Obfuscator::packages.get(i)->name, mod)) {
                 found = true;
-                imports.addif(modules.at(i));
+                imports.addif(Obfuscator::packages.get(i));
             }
         }
 
@@ -858,8 +863,8 @@ void Compiler::preProccessImportDecl(Ast *branch, List<string> &imports) {
         }
 
     } else {
-        if(modules.find(mod)) {
-            if(!imports.addif(mod)) {
+        if((package = Obfuscator::getPackage(mod)) != NULL) {
+            if(!imports.addif(package)) {
                 createNewWarning(GENERIC, __WGENERAL, branch->line, branch->col, "module `" + mod + "` has already been imported.");
             }
         }
@@ -872,8 +877,8 @@ void Compiler::preProccessImportDecl(Ast *branch, List<string> &imports) {
 
 void Compiler::preproccessImports() {
     KeyPair<string, List<string>> resolveMap;
-    List<string> imports;
-    imports.add("std"); // import the std lib by default
+    List<PackageData*> imports;
+    imports.add(Obfuscator::getPackage("std")); // import the std lib by default
 
     for(unsigned long x = 0; x < current->size(); x++)
     {
@@ -881,10 +886,10 @@ void Compiler::preproccessImports() {
         if(x == 0)
         {
             if(branch->getType() == ast_module_decl) {
-                imports.push_back(currModule = parseModuleDecl(branch));
+                imports.add(Obfuscator::getPackage(currModule = parseModuleDecl(branch)));
                 continue;
             } else {
-                imports.push_back(currModule = undefinedModule);
+                imports.add(Obfuscator::getPackage(currModule = undefinedModule));
             }
         }
         switch(branch->getType()) {
@@ -1006,9 +1011,9 @@ ClassObject* Compiler::resolveClass(string mod, string name, Ast* pAst) {
         for (unsigned int i = 0; i < importMap.size(); i++) {
             if (importMap.get(i).key == current->getTokenizer()->file) {
 
-                List<string> &lst = importMap.get(i).value;
+                List<PackageData*> &lst = importMap.get(i).value;
                 for (unsigned int x = 0; x < lst.size(); x++) {
-                    if ((klass = findClass(lst.get(x), name, classes)) != NULL) {
+                    if ((klass = findClass(lst.get(x)->name, name, classes)) != NULL) {
                         validateAccess(klass, pAst);
                         return klass;
                     }
@@ -1031,9 +1036,9 @@ bool Compiler::resolveClass(List<ClassObject*> &classes, List<ClassObject*> &res
         for (unsigned int i = 0; i < importMap.size(); i++) {
             if (importMap.get(i).key == current->getTokenizer()->file) {
 
-                List<string> &lst = importMap.get(i).value;
+                List<PackageData*> &lst = importMap.get(i).value;
                 for (unsigned int x = 0; x < lst.size(); x++) {
-                    if ((klass = findClass(lst.get(x), name, classes, match)) != NULL) {
+                    if ((klass = findClass(lst.get(x)->name, name, classes, match)) != NULL) {
                         results.addif(klass);
                     }
                 }
@@ -5687,12 +5692,11 @@ void Compiler::compileLambdaExpression(Expression* expr, Ast* ast) {
         string name = ss.str();
         ClassObject *lambdaOwner = findClass(currModule, globalClass, classes);
 
-        lambda = new Method(name, currModule, lambdaOwner, fields, flags, meta);
+        lambda = new Method(name, currModule, lambdaOwner, guid++, fields, flags, meta);
         lambda->fullName = findClass(currModule, globalClass, classes)->fullName + "." + name;
         lambda->ast = ast;
         lambda->fnType = fn_lambda;
         lambda->type = FNPTR; // lambda's are technically methods but we treat thm as pointers at high level
-        lambda->address = methodSize++;
         lambda->address = methodSize++;
         lambdaOwner->addFunction(lambda);
 
@@ -6161,7 +6165,7 @@ void Compiler::resolveSetter(Ast *ast, Field *field) {
         flags.add(STATIC);
 
     string fnName = "set_" + field->name;
-    Method *method = new Method(fnName, currModule, currentScope()->klass, params, flags, meta);
+    Method *method = new Method(fnName, currModule, currentScope()->klass, guid++, params, flags, meta);
     method->fullName = currentScope()->klass->fullName + "." + fnName;
     method->ast = ast;
     method->fnType = fn_normal;
@@ -6214,7 +6218,7 @@ void Compiler::resolveGetter(Ast *ast, Field *field) {
     }
 
     string fnName = "get_" + field->name;
-    Method *method = new Method(fnName, currModule, currentScope()->klass, params, flags, meta);
+    Method *method = new Method(fnName, currModule, currentScope()->klass, guid++, params, flags, meta);
     method->fullName = currentScope()->klass->fullName + "." + fnName;
     method->ast = ast;
     method->fnType = fn_normal;
@@ -6489,7 +6493,7 @@ void Compiler::resolveOperatorOverload(Ast* ast) {
     Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
               ast->line, ast->col);
 
-    Method *method = new Method(name, currModule, currentScope()->klass, params, flags, meta);
+    Method *method = new Method(name, currModule, currentScope()->klass, guid++, params, flags, meta);
     method->fullName = currentScope()->klass->fullName + "." + name;
     method->ast = ast;
     method->fnType = fn_op_overload;
@@ -6538,7 +6542,7 @@ void Compiler::resolveConstructor(Ast* ast) {
     Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
               ast->line, ast->col);
 
-    Method *method = new Method(name, currModule, currentScope()->klass, params, flags, meta);
+    Method *method = new Method(name, currModule, currentScope()->klass, guid++, params, flags, meta);
     method->fullName = currentScope()->klass->fullName + "." + name;
     method->ast = ast;
     method->fnType = fn_constructor;
@@ -6776,7 +6780,7 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
     Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
               ast->line, ast->col);
 
-    Method *method = new Method(name, currModule, currentClass, params, flags, meta);
+    Method *method = new Method(name, currModule, currentClass, guid++, params, flags, meta);
     method->fullName = currentClass->fullName + "." + name;
     method->ast = ast;
     if(ast->getType() == ast_delegate_decl) {
@@ -7125,13 +7129,13 @@ bool Compiler::preprocess() {
             if(x == 0)
             {
                 if(branch->getType() == ast_module_decl) {
-                    modules.addif(currModule = parseModuleDecl(branch));
+                    Obfuscator::addPackage(currModule = parseModuleDecl(branch), guid++);
                     // add class for global methods
                     createGlobalClass();
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
-                    modules.addif(currModule = undefinedModule);
+                    Obfuscator::addPackage(currModule = undefinedModule, guid++);
                     // add class for global methods
                     createGlobalClass();
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
@@ -7289,7 +7293,6 @@ void Compiler::preprocessMutations() {
 }
 
 void Compiler::setup() {
-    modules.init();
     noteMessages.init();
     classes.init();
     enums.init();
@@ -9095,17 +9098,17 @@ void Compiler::setupMainMethod(Ast *ast) {
         StarterClass->getAllFunctionsByTypeAndName(fn_normal, starterMethod, false, resolvedMethods);
 
         if(resolvedMethods.empty()) {
-            errors->createNewError(GENERIC, 1, 0, "could not locate main method '" + starterMethod + "(object[])' in starter class");
+            errors->createNewError(GENERIC, ast, "could not locate main method '" + starterMethod + "(object[])' in starter class");
         }else if(resolvedMethods.size() > 1) { // shouldn't happen
-            errors->createNewError(GENERIC, 1, 0, "attempting to find main method '" + starterMethod + "(object[])' in starter class, but it was found to be ambiguous");
+            errors->createNewError(GENERIC, ast, "attempting to find main method '" + starterMethod + "(object[])' in starter class, but it was found to be ambiguous");
         } else {
             Method *main = resolvedMethods.last(), *StaticInit, *TlsSetup;
             if(!main->flags.find(STATIC)) {
-                errors->createNewError(GENERIC, 1, 0, "main method '" + starterMethod + "(object[])' must be static");
+                errors->createNewError(GENERIC, ast, "main method '" + starterMethod + "(object[])' must be static");
             }
 
             if(!main->flags.find(PRIVATE)) {
-                errors->createNewError(GENERIC, 1, 0, "main method '" + starterMethod + "(object[])' must be private");
+                errors->createNewError(GENERIC, ast, "main method '" + starterMethod + "(object[])' must be private");
             }
 
             delete params.last()->utype;
@@ -9114,29 +9117,29 @@ void Compiler::setupMainMethod(Ast *ast) {
 
             StarterClass->getAllFunctionsByTypeAndName(fn_normal, staticInitMethod, false, resolvedMethods);
             if(resolvedMethods.empty()) {
-                errors->createNewError(GENERIC, 1, 0, "could not locate runtime environment setup method '" + staticInitMethod + "()' in starter class");
+                errors->createNewError(GENERIC, ast, "could not locate runtime environment setup method '" + staticInitMethod + "()' in starter class");
                 return;
             } else StaticInit = resolvedMethods.last();
 
             StarterClass->getAllFunctionsByTypeAndName(fn_normal, tlsSetupMethod, false, resolvedMethods);
             if(resolvedMethods.empty()) {
-                errors->createNewError(GENERIC, 1, 0, "could not locate thread local storage init method '" + starterMethod + "()' in starter class");
+                errors->createNewError(GENERIC, ast, "could not locate thread local storage init method '" + starterMethod + "()' in starter class");
                 return;
             } else TlsSetup = resolvedMethods.last();
 
             if(!StaticInit->flags.find(STATIC)) {
-                errors->createNewError(GENERIC, 1, 0, "runtime environment setup method '" + staticInitMethod + "()' must be static");
+                errors->createNewError(GENERIC, ast, "runtime environment setup method '" + staticInitMethod + "()' must be static");
             }
             if(!TlsSetup->flags.find(STATIC)) {
-                errors->createNewError(GENERIC, 1, 0, "thread local storage init method '" + tlsSetupMethod + "()' must be static");
+                errors->createNewError(GENERIC, ast, "thread local storage init method '" + tlsSetupMethod + "()' must be static");
             }
 
             if(!StaticInit->flags.find(PRIVATE)) {
-                errors->createNewError(GENERIC, 1, 0, "runtime environment setup method '" + staticInitMethod + "()' must be private");
+                errors->createNewError(GENERIC, ast, "runtime environment setup method '" + staticInitMethod + "()' must be private");
             }
 
             if(!TlsSetup->flags.find(PUBLIC)) {
-                errors->createNewError(GENERIC, 1, 0, "thread local storage init method '" + tlsSetupMethod + "()' must be public");
+                errors->createNewError(GENERIC, ast, "thread local storage init method '" + tlsSetupMethod + "()' must be public");
             }
 
             Field *userMain;
@@ -9161,15 +9164,15 @@ void Compiler::setupMainMethod(Ast *ast) {
 
             if(userMain != NULL) {
                 if(!userMain->flags.find(STATIC)) {
-                    errors->createNewError(GENERIC, 1, 0, "main method function pointer field '" + userMain->toString() + "' must be static");
+                    errors->createNewError(GENERIC, ast, "main method function pointer field '" + userMain->toString() + "' must be static");
                 }
 
                 if(!userMain->flags.find(PRIVATE)) {
-                    errors->createNewError(GENERIC, 1, 0, "main method function pointer field '" + userMain->toString() + "' must be ptivate");
+                    errors->createNewError(GENERIC, ast, "main method function pointer field '" + userMain->toString() + "' must be ptivate");
                 }
 
                 if(userMain->type != FNPTR) {
-                    errors->createNewError(GENERIC, 1, 0, "main method function pointer field '" + userMain->toString() + "' must be a function pointer");
+                    errors->createNewError(GENERIC, ast, "main method function pointer field '" + userMain->toString() + "' must be a function pointer");
                 }
 
                 staticMainInserts.addIr(OpBuilder::movg(StarterClass->address))
@@ -9178,7 +9181,7 @@ void Compiler::setupMainMethod(Ast *ast) {
                      .addIr(OpBuilder::movi(mainMethod->address, EBX)) // set main address
                      .addIr(OpBuilder::rmov(ADX, EBX));
             } else
-                errors->createNewError(GENERIC, 1, 0, "user main method function pointer was not found");
+                errors->createNewError(GENERIC, ast, "user main method function pointer was not found");
 
             StaticInit->data.code.inject(staticMainInserts);
             TlsSetup->data.code.inject(tlsMainInserts);
@@ -9186,12 +9189,52 @@ void Compiler::setupMainMethod(Ast *ast) {
             tlsMainInserts.free();
         }
     } else if(StarterClass == NULL) {
-        errors->createNewError(GENERIC, 1, 0, "Could not find starter class '" + starterClass + "' for application entry point.");
+        errors->createNewError(GENERIC, ast, "Could not find starter class '" + starterClass + "' for application entry point.");
+    } else if(mainMethod == NULL) {
+        errors->createNewError(GENERIC, ast, "could not locate main method 'main(string[])'");
     }
 }
 
 void Compiler::validateCoreClasses(Ast *ast) {
-    ClassObject* resolvedClass = resolveClass("std", "_enum_", ast);
+    if(resolveClass("std", "_enum_", ast) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate enum support class `_enum_`.");
+    }
+
+    if(resolveClass("std", "string", ast) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate string support class `string`.");
+    }
+
+    if(resolveClass("std", "throwable", ast) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `throwable`.");
+    }
+
+    if(resolveClass("std", "runtime_exception", ast) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `runtime_exception`.");
+    }
+
+    if(resolveClass("std", "stack_overflow_exception", ast) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `stack_overflow_exception`.");
+    }
+
+    if(resolveClass("std", "thread_stack_exception", ast) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `thread_stack_exception`.");
+    }
+
+    if(resolveClass("std", "index_out_of_bounds_exception", ast) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `index_out_of_bounds_exception`.");
+    }
+
+    if(resolveClass("std", "nullptr_exception", ast) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `nullptr_exception`.");
+    }
+
+    if(resolveClass("std", "class_cast_exception", ast) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `class_cast_exception`.");
+    }
+
+    if(resolveClass("std", "out_of_memory_exception", ast) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `out_of_memory_exception`.");
+    }
 }
 
 void Compiler::compileUnprocessedClasses() {
@@ -9245,10 +9288,15 @@ void Compiler::compile() {
         compileAllUnprocessedMethods();
         compileEnumFields();
         compileUnprocessedClasses();
-        setupMainMethod(parsers.last()->astAt(0));
-        validateCoreClasses(parsers.last()->astAt(0));
 
-        cout << "compiled!!!";
+        // after processing procedures
+        updateErrorManagerInstance(parsers.get(0));
+        setupMainMethod(parsers.get(0)->astAt(0));
+        validateCoreClasses(parsers.get(0)->astAt(0));
+
+
+        Obfuscator obf(this);
+        obf.obfuscate();
     }
 }
 
@@ -9363,7 +9411,7 @@ void Compiler::addDefaultConstructor(ClassObject* klass, Ast* ast) {
     Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line),
               current->getTokenizer()->file, ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
     if(klass->getConstructor(emptyParams, false) == NULL) {
-        Method* method = new Method(klass->name, currModule, klass, emptyParams, flags, meta);
+        Method* method = new Method(klass->name, currModule, klass, guid++, emptyParams, flags, meta);
 
         method->fullName = klass->fullName + "." + klass->name;
         method->ast = ast;
@@ -9404,7 +9452,6 @@ void Compiler::createGlobalClass() {
         ss << currModule << "#" << global->name;
         global->fullName = ss.str();
         addDefaultConstructor(global, NULL);
-        classes.add(global); // global class ref
     }
 
     flags.free();

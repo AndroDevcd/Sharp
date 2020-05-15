@@ -331,6 +331,8 @@ class car {
     hp : _int8;
     color : vehicle_color;
     wheels: _int8;
+
+    def foo(i : int) {}
 }
 
 enum vehicle_color {
@@ -350,21 +352,12 @@ obfuscate {
 
 // explicitly declare to not obvuscate these fields
 obfuscate -keep {
-    car.wheels
+    car.wheels,
+    car.foo(int)
 }
-
-// obfusaction options
--keep
--printmapping
 
 // some options have different formatting
 obfuscate -keeppackagenames {
-    "std.io",
-    "std.math"
-}
-
-// some options have different formatting
-obfuscate -flattenpackageheiarchy {
     "std.io",
     "std.math"
 }
@@ -445,3 +438,23 @@ def main() {
 
 the class `list` now has a field called maxSize declared because parameters with access specifiers
 are declared member variables and the ones with out are considered parameters
+
+- implement static inits for classes
+
+```javascript
+mod main;
+
+class Player {
+    static init {
+        //... code for when the singleton is created
+    }
+
+}
+```
+
+- add a `$internal_func_static_init()` inside of the class if there is a static field, function, or init block found by the compiler
+- just like regular init static init will be compiled after fields
+- move code for static variable initialization to that function
+- do not allow static init to be called at global scope
+- for each class call the respective function in `srt_init()` for setting up each class & pass the instance of MOVG instruction to the function because technically it will be an instance function
+

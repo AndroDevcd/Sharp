@@ -64,7 +64,6 @@ public:
         fullName(""),
         meta(),
         obfuscate(c_options.obfuscate),
-        obfuscationSet(false),
         address(invalidAddr),
         guid(invalidAddr),
         owner(NULL),
@@ -84,6 +83,7 @@ public:
             guid(-109913),
             owner(NULL),
             ast(NULL),
+            obfuscate(c_options.obfuscate),
             module("")
     {
         flags.init();
@@ -94,6 +94,7 @@ public:
     void copy(DataEntity *de) {
         type = de->type;
         name = de->name;
+        obfuscate = de->obfuscate;
         fullName = de->fullName;
         meta.copy(de->meta);
         module = de->module;
@@ -114,7 +115,6 @@ public:
     long address;
     long guid;
     bool obfuscate;
-    bool obfuscationSet;
     List<AccessFlag> flags;
     ClassObject *owner;
     Ast *ast;

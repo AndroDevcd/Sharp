@@ -14,6 +14,7 @@
 #include "Expression.h"
 #include "oo/FunctionType.h"
 #include "data/Alias.h"
+#include "ofuscation/Obfuscator.h"
 
 class Compiler {
 
@@ -93,6 +94,7 @@ public:
 
     ErrorManager *errors;
     List<parser*> failedParsers;
+    List<ClassObject*> classes;
     static uInt guid;
 private:
     bool panic;
@@ -109,10 +111,8 @@ private:
     Meta lastNote;
     Method* mainMethod;
     List<parser*> parsers;
-    List<string> modules;
     List<string> noteMessages;
     List<string> warnings;
-    List<ClassObject*> classes;
     List<ClassObject*> enums;
     List<ClassObject*> generics;
     List<ClassObject*> unProcessedClasses; /* We cant compile everything at once so this will hold all classes that cant be immediatley processed at the time */
@@ -122,7 +122,7 @@ private:
     List<double> constantMap;
     List<KeyPair<Field*, double>> inlinedFields;
     List<KeyPair<Field*, Int>> inlinedStringFields;
-    List<KeyPair<string, List<string>>>  importMap;
+    List<KeyPair<string, List<PackageData*>>>  importMap;
     List<Method*> lambdas;
     List<Method*> functionPtrs;
     Utype* nilUtype;
@@ -301,7 +301,7 @@ private:
     void checkTypeInference(Alias *alias, Ast* ast);
     bool resolveClass(List<ClassObject*> &classes, List<ClassObject*> &results, string mod, string name, Ast* pAst, bool match = false);
     void resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *ast);
-    void preProccessImportDecl(Ast *branch, List<string> &imports);
+    void preProccessImportDecl(Ast *branch, List<PackageData*> &imports);
     bool resolveHigherScopeSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *ast);
     void preproccessImports();
     void preProccessEnumDecl(Ast *ast);

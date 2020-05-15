@@ -323,11 +323,11 @@ Field *Compiler::resolveEnum(string name) {
     for (unsigned int i = 0; i < importMap.size(); i++) {
         if (importMap.get(i).key == current->getTokenizer()->file) {
 
-            List<string> &lst = importMap.get(i).value;
+            List<PackageData*> &lst = importMap.get(i).value;
             for (unsigned int x = 0; x < lst.size(); x++) {
                 for(long j = 0; j < enums.size(); j++) {
                     ClassObject *enumClass = enums.get(j);
-                    if(enumClass->module == lst.get(x)) {
+                    if(enumClass->module == lst.get(x)->name) {
 
                         if(enumClass->owner == NULL || (enumClass->owner != NULL && enumClass->owner->fullName == currentScope()->klass->fullName)) {
                             if ((field = enumClass->getField(name, false)) != NULL)
@@ -1123,7 +1123,7 @@ ClassObject* Compiler::compileGenericClassReference(string &mod, string &name, C
             newClass->fullName = fullName.str();
             newClass->name = name;
             newClass->setProcessStage(created);
-            newClass->owner = parent;
+            newClass->owner = parent ? parent : findClass(currModule, globalClass, classes);
             newClass->addKeyTypes(utypes);
             newClass->setGenericOwner(generic);
 
@@ -1937,7 +1937,7 @@ void Compiler::handleImports() {
         { // import everything in magic mode
             importMap.__new().key = current->getTokenizer()->file;
             importMap.last().value.init();
-            importMap.last().value.addAllUnique(modules);
+            importMap.last().value.addAll(Obfuscator::packages);
         } else
             preproccessImports();
 

@@ -164,7 +164,7 @@ public:
     }
 
 
-    uint32_t addIfIndex(T _V) {
+    int32_t addIfIndex(T _V) {
         for(uint32_t i = 0; i < len; i++) {
             if(_V == _Data[i])
                 return i;
@@ -257,7 +257,7 @@ public:
         return num;
     }
 
-    uint32_t indexof(T data) {
+    int32_t indexof(T data) {
         for(uint32_t i = 0; i < len; i++) {
             if(data == _Data[i]){
                 return i;
@@ -266,13 +266,22 @@ public:
         return -1;
     }
 
-    uint32_t indexof(bool (*isElement)(T* e, void *e2), void *e2) {
+    int32_t indexof(bool (*isElement)(T* e, void *e2), void *e2) {
         for(uint32_t i = 0; i < len; i++) {
             if(isElement(&_Data[i], e2)){
                 return i;
             }
         }
         return -1;
+    }
+
+    bool find(bool (*isElement)(T* e, void *e2), void *e2) {
+        for(uint32_t i = 0; i < len; i++) {
+            if(isElement(&_Data[i], e2)){
+                return true;
+            }
+        }
+        return false;
     }
 
     void linearSort(bool (*swap)(T e1, T e2)) {

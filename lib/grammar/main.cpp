@@ -88,6 +88,7 @@ void help() {
     cout <<               "    -a                enable aggressive error reporting"                     << endl;
     cout <<               "    -s                strip debugging info and unused classes"               << endl;
     cout <<               "    -O                optimize user code"                                    << endl;
+    cout <<               "    -obf              obfuscate user code"                                    << endl;
     cout <<               "    -L<path>          library directory path"                                << endl;
     cout <<               "    -w                disable all warnings"                                  << endl;
     cout <<               "    -errlmt<count>    set max errors the compiler allows before quitting"    << endl;
@@ -204,6 +205,9 @@ int _bootstrap(int argc, const char* argv[])
         }
         else if(opt("-O")){
             c_options.optimize = true;
+        }
+        else if(opt("-obf")){
+            c_options.obfuscate = true;
         }
         else if(opt("--h") || opt("-?")){
             help();

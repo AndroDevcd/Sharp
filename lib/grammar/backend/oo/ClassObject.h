@@ -71,6 +71,7 @@ public:
     Method* getConstructor(List<Field*> params, bool checkBase);
     Field* getField(string name, bool checkBase);
     Field* getField(long index);
+    Method* getFunction(long index);
     int getClassType() { return classType; }
     void setClassType(int type) { classType = type; }
     void setSuperClass(ClassObject* sup) { super = sup; }
@@ -137,6 +138,9 @@ public:
     }
     void addFunction(Method* f) {
         functions.add(f);
+    }
+    Int getFunctionCount() {
+        return functions.size();
     }
     void addKeys(List<string> &keys) {
         this->keys.addAll(keys);

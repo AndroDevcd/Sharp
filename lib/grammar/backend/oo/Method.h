@@ -244,7 +244,7 @@ public:
         params.init();
     }
 
-    Method(string& name, string& module, ClassObject* owner, List<Field*> &params, List<AccessFlag> &flags, Meta &meta)
+    Method(string& name, string& module, ClassObject* owner, Int guid, List<Field*> &params, List<AccessFlag> &flags, Meta &meta)
             :
             DataEntity(),
             fnType(fn_undefined),
@@ -261,6 +261,7 @@ public:
         this->flags.addAll(flags);
         this->params.addAll(params);
         this->meta.copy(meta);
+        this->guid = guid;
         if(!flags.find(STATIC))
             this->data.localVariablesSize++; // allocate 1 slot for the class instance
     }
