@@ -43,6 +43,20 @@ void Compiler::compileClassMutateFields(Ast *ast) {
     }
 }
 
+void Compiler::compileClassMutateObfuscations(Ast *ast) {
+    ReferencePointer ptr;
+    compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
+    ClassObject *currentClass = resolveClassReference(ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer), ptr, true);
+
+    if(currentClass != NULL) {
+        if (IS_CLASS_GENERIC(currentClass->getClassType()) && currentClass->getGenericOwner() == NULL) {
+            // do nothing it's allready been processed
+        } else {
+            compileClassObfuscations(ast, currentClass);
+        }
+    }
+}
+
 void Compiler::compileClassMutateMethods(Ast *ast) {
     ReferencePointer ptr;
     compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
@@ -649,7 +663,7 @@ void Compiler::resolveFunctionByNameUtype(Utype *utype, Ast *ast, string &name, 
     utype->setType(utype_method);
     utype->setResolvedType(resolvedFunction);
     utype->setArrayType(false);
-    if(!functions.get(0)->flags.find(STATIC)) {
+    if(!obfuscateMode && !functions.get(0)->flags.find(STATIC)) {
         errors->createNewError(GENERIC, ast->line, ast->col, " cannot get address from non static function `" + name + "` ");
     }
 
@@ -1155,10 +1169,11 @@ ClassObject* Compiler::compileGenericClassReference(string &mod, string &name, C
                     resolveGenericFieldMutations(newClass);
 
                     newClass->setProcessStage(compiled);
+                    compileClassObfuscations(newClass->ast, newClass);
                     compileClassFields(newClass->ast, newClass);
                     compileClassInitDecls(newClass->ast, newClass);
                     compileClassMethods(newClass->ast, newClass);
-                } else // we need to make sure we don't double process he class
+                } else // we need to make sure we don't double process the class
                     unProcessedClasses.add(newClass);
 
                 current = oldParser;
@@ -1937,7 +1952,7 @@ void Compiler::handleImports() {
         { // import everything in magic mode
             importMap.__new().key = current->getTokenizer()->file;
             importMap.last().value.init();
-            importMap.last().value.addAll(Obfuscator::packages);
+            importMap.last().value.addAll(Obfuscater::packages);
         } else
             preproccessImports();
 

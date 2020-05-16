@@ -13,13 +13,14 @@
 #include "data/Literal.h"
 #include "../../runtime/oo/Method.h"
 #include "oo/Method.h"
-#include "ofuscation/Obfuscator.h"
+#include "ofuscation/Obfuscater.h"
 
 string globalClass = "__srt_global";
 string undefinedModule = "__$srt_undefined";
 uInt Compiler::guid = 0;
 void Compiler::generate() {
-
+    Obfuscater obf(this);
+    obf.obfuscate();
 }
 
 void Compiler::cleanup() {
@@ -620,6 +621,107 @@ void Compiler::addLocalFields(Method *func) {
     func->data.localVariablesSize = func->params.size() + 1; // +1 because we need space for the instance
 }
 
+void Compiler::compileObfuscateDecl(Ast* ast) {
+    if(c_options.obfuscate) {
+        bool keepData = ast->hasToken("keep");
+        Ast *block = ast->getSubAst(ast_obfuscate_block);
+        obfuscateMode = true;
+
+        for (Int i = 0; i < block->getSubAstCount(); i++) {
+            Ast *branch = block->getSubAst(i);
+
+            if (branch->getTokenCount() > 0) {
+                PackageData *package = Obfuscater::getPackage(branch->getToken(0).getValue());
+                if (package != NULL) {
+                    if(!package->obfuscate && !keepData) {
+                        errors->createNewError(GENERIC, ast->line, ast->col,
+                                               "unable to obfuscate package `" + branch->getToken(0).getValue() + "`, that is already being preserved with `-keep`.");
+                    } else
+                        package->obfuscate = keepData;
+                } else
+                    errors->createNewError(GENERIC, ast->line, ast->col,
+                                           "could not locate package `" + branch->getToken(0).getValue() + "`.");
+            } else {
+                Utype *utype;
+                if(branch->hasSubAst(ast_utype_arg_list_opt)) {
+                    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
+                              ast->line, ast->col);
+
+                    List<Field*> params;
+                    List<AccessFlag> flags;
+                    flags.add(PUBLIC);
+                    parseUtypeArgList(params, branch->getSubAst(ast_utype_arg_list_opt));
+                    Method tmp("tmp", currModule, currentScope()->klass, guid++, params, flags, meta);
+                    tmp.ast = branch;
+
+                    compileMethodReturnType(&tmp, tmp.ast);
+
+                    RETAIN_REQUIRED_SIGNATURE(&tmp)
+                    utype = compileUtype(branch->getSubAst(ast_utype));
+                    RESTORE_REQUIRED_SIGNATURE()
+
+                    flags.free();
+                    freeListPtr(params);
+                } else {
+                    utype = compileUtype(branch->getSubAst(ast_utype));
+                }
+
+                if(utype->getResolvedType()) {
+                    DataEntity *de = utype->getResolvedType();
+                    if (!de->obfuscate && !keepData) {
+                        errors->createNewError(GENERIC, ast->line, ast->col,
+                                               "unable to obfuscate type `" + utype->toString() +
+                                               "`, that is already being preserved with `-keep`.");
+                    } else
+                        de->obfuscate = !keepData;
+                }
+            }
+        }
+
+        obfuscateMode = false;
+    }
+}
+
+void Compiler::compileClassObfuscations(Ast* ast, ClassObject* currentClass) {
+    Ast* block = ast->getLastSubAst();
+    List<AccessFlag> flags;
+
+    if(currentClass == NULL) {
+        string name = ast->getToken(0).getValue();
+        if(globalScope()) {
+            currentClass = findClass(currModule, name, classes);
+        }
+        else {
+            currentClass = currentScope()->klass->getChildClass(name);
+        }
+    }
+
+    if(currentClass != NULL) {
+        currScope.add(new Scope(currentClass, CLASS_SCOPE));
+        for (long i = 0; i < block->getSubAstCount(); i++) {
+            Ast *branch = block->getSubAst(i);
+            CHECK_CMP_ERRORS(return;)
+
+            switch (branch->getType()) {
+                case ast_class_decl:
+                    compileClassObfuscations(branch);
+                    break;
+                case ast_mutate_decl:
+                    compileClassMutateObfuscations(branch);
+                    break;
+                case ast_obfuscate_decl:
+                    compileObfuscateDecl(branch);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        addLocalVariables();
+        removeScope();
+    }
+}
+
 void Compiler::compileClassFields(Ast* ast, ClassObject* currentClass) {
     Ast* block = ast->getLastSubAst();
     List<AccessFlag> flags;
@@ -805,6 +907,9 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
                 break;
             case ast_init_decl: /* Will be parsed later */
                 break;
+            case ast_obfuscate_decl:
+                /* ignpre */
+                break;
             default:
                 stringstream err;
                 err << ": unknown ast type: " << branch->getType();
@@ -846,14 +951,14 @@ void Compiler::preProccessImportDecl(Ast *branch, List<PackageData*> &imports) {
 
     if(star) {
         bool found = false;
-        if((package = Obfuscator::getPackage(baseMod)) != NULL) {
+        if((package = Obfuscater::getPackage(baseMod)) != NULL) {
             imports.addif(package);
         }
 
-        for(long i = 0; i < Obfuscator::packages.size(); i++) {
-            if(startsWith(Obfuscator::packages.get(i)->name, mod)) {
+        for(long i = 0; i < Obfuscater::packages.size(); i++) {
+            if(startsWith(Obfuscater::packages.get(i)->name, mod)) {
                 found = true;
-                imports.addif(Obfuscator::packages.get(i));
+                imports.addif(Obfuscater::packages.get(i));
             }
         }
 
@@ -863,7 +968,7 @@ void Compiler::preProccessImportDecl(Ast *branch, List<PackageData*> &imports) {
         }
 
     } else {
-        if((package = Obfuscator::getPackage(mod)) != NULL) {
+        if((package = Obfuscater::getPackage(mod)) != NULL) {
             if(!imports.addif(package)) {
                 createNewWarning(GENERIC, __WGENERAL, branch->line, branch->col, "module `" + mod + "` has already been imported.");
             }
@@ -878,7 +983,7 @@ void Compiler::preProccessImportDecl(Ast *branch, List<PackageData*> &imports) {
 void Compiler::preproccessImports() {
     KeyPair<string, List<string>> resolveMap;
     List<PackageData*> imports;
-    imports.add(Obfuscator::getPackage("std")); // import the std lib by default
+    imports.add(Obfuscater::getPackage("std")); // import the std lib by default
 
     for(unsigned long x = 0; x < current->size(); x++)
     {
@@ -886,10 +991,10 @@ void Compiler::preproccessImports() {
         if(x == 0)
         {
             if(branch->getType() == ast_module_decl) {
-                imports.add(Obfuscator::getPackage(currModule = parseModuleDecl(branch)));
+                imports.add(Obfuscater::getPackage(currModule = parseModuleDecl(branch)));
                 continue;
             } else {
-                imports.add(Obfuscator::getPackage(currModule = undefinedModule));
+                imports.add(Obfuscater::getPackage(currModule = undefinedModule));
             }
         }
         switch(branch->getType()) {
@@ -7129,13 +7234,13 @@ bool Compiler::preprocess() {
             if(x == 0)
             {
                 if(branch->getType() == ast_module_decl) {
-                    Obfuscator::addPackage(currModule = parseModuleDecl(branch), guid++);
+                    Obfuscater::addPackage(currModule = parseModuleDecl(branch), guid++);
                     // add class for global methods
                     createGlobalClass();
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
-                    Obfuscator::addPackage(currModule = undefinedModule, guid++);
+                    Obfuscater::addPackage(currModule = undefinedModule, guid++);
                     // add class for global methods
                     createGlobalClass();
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
@@ -7175,6 +7280,9 @@ bool Compiler::preprocess() {
                     preProccessAliasDecl(branch);
                     break;
                 case ast_mutate_decl:
+                    /* ignpre */
+                    break;
+                case ast_obfuscate_decl:
                     /* ignpre */
                     break;
                 default:
@@ -8824,6 +8932,52 @@ void Compiler::compileAllInitDecls() {
     }
 }
 
+void Compiler::compileAllObfuscationRules() {
+    for(unsigned long i = 0; i < parsers.size(); i++) {
+        current = parsers.get(i);
+        updateErrorManagerInstance(current);
+
+        currModule = "$unknown";
+        long long totalErrors = errors->getUnfilteredErrorCount();
+        currScope.add(new Scope(NULL, GLOBAL_SCOPE));
+        for (unsigned long x = 0; x < current->size(); x++) {
+            Ast *branch = current->astAt(x);
+            if (x == 0) {
+                if (branch->getType() == ast_module_decl) {
+                    currModule = parseModuleDecl(branch);
+                    currScope.last()->klass = findClass(currModule, globalClass, classes);
+                    continue;
+                } else {
+                    currModule = undefinedModule;
+                    currScope.last()->klass = findClass(currModule, globalClass, classes);
+                }
+            }
+
+            switch(branch->getType()) {
+                case ast_class_decl:
+                    compileClassObfuscations(branch);
+                    break;
+                case ast_mutate_decl:
+                    compileClassMutateObfuscations(branch);
+                    break;
+                case ast_obfuscate_decl:
+                    compileObfuscateDecl(branch);
+                    break;
+                default:
+                    /* ignore */
+                    break;
+            }
+
+            CHECK_CMP_ERRORS(return;)
+        }
+
+        if(NEW_ERRORS_FOUND()){
+            failedParsers.addif(current);
+        }
+        removeScope();
+    }
+}
+
 void Compiler::compileAllFields() {
     for(unsigned long i = 0; i < parsers.size(); i++) {
         current = parsers.get(i);
@@ -9250,6 +9404,7 @@ void Compiler::compileUnprocessedClasses() {
 
             // bring the classes up to speed
             unprocessedClass->setProcessStage(compiled);
+            compileClassObfuscations(unprocessedClass->ast, unprocessedClass);
             compileClassFields(unprocessedClass->ast, unprocessedClass);
             compileClassInitDecls(unprocessedClass->ast, unprocessedClass);
             compileClassMethods(unprocessedClass->ast, unprocessedClass);
@@ -9282,6 +9437,7 @@ void Compiler::compile() {
 
     if(preprocess() && postProcess()) {
         processingStage = COMPILING;
+        compileAllObfuscationRules();
         compileAllFields();
         compileAllInitDecls();
         compileAllMethods();
@@ -9293,10 +9449,6 @@ void Compiler::compile() {
         updateErrorManagerInstance(parsers.get(0));
         setupMainMethod(parsers.get(0)->astAt(0));
         validateCoreClasses(parsers.get(0)->astAt(0));
-
-
-        Obfuscator obf(this);
-        obf.obfuscate();
     }
 }
 
@@ -9571,3 +9723,19 @@ Field* Compiler::createLocalField(string name, Utype *type, bool isArray, Storag
         return local;
     }
 }
+
+/*
+ * hash code
+ *
+ * long long compute_hash(string const& s) {
+    const int p = 31;
+    const int m = 1e9 + 9;
+    long long hash_value = 0;
+    long long p_pow = 1;
+    for (char c : s) {
+        hash_value = (hash_value + (c - 'a' + 1) * p_pow) % m;
+        p_pow = (p_pow * p) % m;
+    }
+    return hash_value;
+}
+ */

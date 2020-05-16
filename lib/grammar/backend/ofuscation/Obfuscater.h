@@ -2,8 +2,8 @@
 // Created by BNunnally on 5/14/2020.
 //
 
-#ifndef SHARP_OBFUSCATOR_H
-#define SHARP_OBFUSCATOR_H
+#ifndef SHARP_OBFUSCATER_H
+#define SHARP_OBFUSCATER_H
 
 #include "../../../../stdimports.h"
 #include "../oo/ClassObject.h"
@@ -11,20 +11,21 @@
 struct PackageData {
     PackageData(string name, Int guid)
     :
-        name(name),
-        guid(guid)
+            name(name),
+            guid(guid),
+            obfuscate(c_options.obfuscate)
     {
     }
 
     string name;
     Int guid;
-    bool ignore;
+    bool obfuscate;
 };
 
 class Compiler;
-class Obfuscator {
+class Obfuscater {
 public:
-    Obfuscator(Compiler *compiler)
+    Obfuscater(Compiler *compiler)
     :
         compiler(compiler)
     {
@@ -54,4 +55,4 @@ private:
 };
 
 #define MAX_SAMPLE_SIZE 100000
-#endif //SHARP_OBFUSCATOR_H
+#endif //SHARP_OBFUSCATER_H

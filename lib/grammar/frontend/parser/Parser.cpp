@@ -68,6 +68,10 @@ void parser::parse() {
         {
             parseInterfaceDecl(NULL);
         }
+        else if(isObfuscateDecl(current()))
+        {
+            parseObfuscateDecl(NULL);
+        }
         else if(isEnumDecl(current()))
         {
             parseEnumDecl(NULL);
@@ -90,6 +94,59 @@ void parser::parse() {
     }
 
     parsed = !panic;
+}
+
+bool parser::isObfuscationOption(Token &token) {
+    return token.getValue() == "keep";
+}
+
+void parser::parseObfuscateDecl(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_obfuscate_decl);
+
+    if(*peek(1) == "-") {
+        if(isObfuscationOption(*peek(2))) {
+            expect(branch, "-", false);
+            expect(branch, peek(1)->getValue());
+        } else
+            errors->createNewError(GENERIC, current(), "expected obfuscation option");
+    }
+
+    parseObfuscateBlock(branch);
+}
+
+void parser::parseObfuscateElement(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_obfuscate_element);
+    if(peek(1)->getId() == STRING_LITERAL) {
+        advance()
+        branch->addToken(current());
+    } else {
+        parseUtype(branch);
+        if(peek(1)->getType() == LEFTPAREN) {
+            parseUtypeArgListOpt(branch);
+            parseMethodReturnType(branch);
+        }
+    }
+}
+
+void parser::parseObfuscateBlock(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_obfuscate_block);
+
+    expect(branch, "{", false);
+
+    if(peek(1)->getType() != RIGHTCURLY)
+    {
+        parseObfuscateElement(branch);
+
+        _pObfuscateDecl:
+        if(peek(1)->getType() == COMMA)
+        {
+            expect(branch, ",", false);
+            parseObfuscateElement(branch);
+            goto _pObfuscateDecl;
+        }
+    }
+
+    expect(branch, "}", false);
 }
 
 void parser::parseInterfaceDecl(Ast *ast) {
@@ -1557,6 +1614,10 @@ void parser::parseAll(Ast *ast) {
     else if(isAliasDeclaration(current()))
     {
         parseAliasDeclaration(ast);
+    }
+    else if(isObfuscateDecl(current()))
+    {
+        parseObfuscateDecl(ast);
     }
     else if(current() == "get") {
         _current--;
@@ -3147,6 +3208,10 @@ void parser::parseClassBlock(Ast *ast) {
         {
             parseInterfaceDecl(branch);
         }
+        else if(isObfuscateDecl(current()))
+        {
+            parseObfuscateDecl(branch);
+        }
         else if(current() == "get") {
             if(access_types.size() > 0)
                 errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
@@ -3384,6 +3449,10 @@ bool parser::isInterfaceDecl(Token &token) {
     return (token.getId() == IDENTIFIER && token.getValue() == "interface");
 }
 
+bool parser::isObfuscateDecl(Token &token) {
+    return (token.getId() == IDENTIFIER && token.getValue() == "obfuscate");
+}
+
 bool parser::isMethodDecl(Token& token) {
     return (token.getId() == IDENTIFIER && token.getValue() == "def");
 }
@@ -3607,7 +3676,7 @@ bool parser::isKeyword(string key) {
            || key == "when" || key == "default" || key == "local"
            || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
-           || key == "as" || key == "in" || key == "volatile";
+           || key == "as" || key == "in" || key == "volatile" || key == "obfuscate";
 }
 
 void parser::parseAccessTypes() {

@@ -50,6 +50,7 @@ private:
     bool isClassDecl(Token &t);
     bool isMutateDecl(Token &t);
     bool isInterfaceDecl(Token &t);
+    bool isObfuscateDecl(Token &t);
     bool isVariableDecl(Token &t);
     bool isMethodDecl(Token &t);
     bool isInitDecl(Token& token);
@@ -77,6 +78,7 @@ private:
     bool iaAssemblyInstruction(string s);
     bool isExprSymbol(string token);
     bool isForLoopCompareSymbol(string t);
+    bool isObfuscationOption(Token &token);
     void parseAccessTypes();
 
     bool expectIdentifier(Ast*);
@@ -86,6 +88,9 @@ private:
     void parseClassDecl(Ast*);
     void parseMutateDecl(Ast*);
     void parseInterfaceDecl(Ast*);
+    void parseObfuscateBlock(Ast*);
+    void parseObfuscateElement(Ast *ast);
+    void parseObfuscateDecl(Ast*);
     void parseIdentifierList(Ast*);
     void addAccessTypes(Ast*);
     bool parseReferencePointer(Ast*);

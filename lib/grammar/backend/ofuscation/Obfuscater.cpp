@@ -4,7 +4,7 @@
 
 #include "../../../runtime/oo/string.h"
 #include "../Compiler.h"
-#include "Obfuscator.h"
+#include "Obfuscater.h"
 
 #define ALPHABET_COUNT 26
 #define MAX_BUFFER_SIZE 1028
@@ -16,13 +16,13 @@ char alphabet[]
 
 char buf[MAX_BUFFER_SIZE];
 char resultBuf[MAX_BUFFER_SIZE];
-List<PackageData*> Obfuscator::packages;
+List<PackageData*> Obfuscater::packages;
 
-bool Obfuscator::findPackage(PackageData **p1, void *p2) {
+bool Obfuscater::findPackage(PackageData **p1, void *p2) {
     return (*p1)->name == ((PackageData*)p2)->name;
 }
 
-string Obfuscator::generateName(Int id) {
+string Obfuscater::generateName(Int id) {
     stringstream name;
     if(id < ALPHABET_COUNT) {
         name << alphabet[id];
@@ -53,19 +53,19 @@ string Obfuscator::generateName(Int id) {
     return string(resultBuf, stringSize);
 }
 
-void Obfuscator::clearBuf() {
+void Obfuscater::clearBuf() {
     for(Int i = 0; i < MAX_BUFFER_SIZE; i++) {
         buf[i] = 0;
     }
 }
 
-bool Obfuscator::checkReliability(Int startId, Int sampleSize) {
+bool Obfuscater::checkReliability(Int startId, Int sampleSize) {
 
     if(sampleSize <= MAX_SAMPLE_SIZE) {
         string *names = new string[sampleSize];
         Int stringSize = 0;
         for(Int i = 0; i < sampleSize; i++) {
-            names[stringSize++] = Obfuscator::generateName(startId++);
+            names[stringSize++] = Obfuscater::generateName(startId++);
         }
 
         for(Int i = 0; i < sampleSize; i++) {
@@ -84,7 +84,7 @@ bool Obfuscator::checkReliability(Int startId, Int sampleSize) {
     return true;
 }
 
-void Obfuscator::obfuscate(ClassObject *klass) {
+void Obfuscater::obfuscate(ClassObject *klass) {
     if(klass->obfuscate) {
         if(IS_CLASS_GENERIC(klass->getClassType())
             && klass->getGenericOwner() == NULL)
@@ -108,14 +108,14 @@ void Obfuscator::obfuscate(ClassObject *klass) {
     }
 }
 
-void Obfuscator::obfuscate(DataEntity *de) {
+void Obfuscater::obfuscate(DataEntity *de) {
     if(de->obfuscate) {
         de->name = generateName(de->guid);
         obfuscateFullName(de);
     }
 }
 
-void Obfuscator::obfuscateFullName(DataEntity *de) {
+void Obfuscater::obfuscateFullName(DataEntity *de) {
 
     if(de->owner == NULL) {
         PackageData *package = getPackage(de->module);
@@ -125,14 +125,17 @@ void Obfuscator::obfuscateFullName(DataEntity *de) {
     }
 }
 
-void Obfuscator::generateMappingFile() {
+void Obfuscater::generateMappingFile() {
     stringstream ss;
     ss << "/*** Dumpfile for " << c_options.out << " ***/\n\n";
 
     ss << "[Packages]\n";
     for(Int i = 0; i < packages.size(); i++) {
         PackageData *package = packages.get(i);
-        ss << package->name << "=" << generateName(package->guid) << endl;
+        ss << package->name << "=";
+        if(package->obfuscate)
+            ss << generateName(package->guid) << endl;
+        else ss << package->name;
     }
 
     ss << "\n\n[Classes]\n";
@@ -156,8 +159,12 @@ void Obfuscator::generateMappingFile() {
     File::write(c_options.mapFile.c_str(), ss.str());
 }
 
-void Obfuscator::printClassMapping(stringstream &ss, ClassObject *klass) {
-    ss << klass->fullName << " = " << generateName(klass->guid) << endl;
+void Obfuscater::printClassMapping(stringstream &ss, ClassObject *klass) {
+    ss << klass->fullName << " = ";
+
+    if(klass->obfuscate)
+        ss << generateName(klass->guid) << endl;
+    else ss << "no_change" << endl;
 
     List<ClassObject*> &childClasses = klass->getChildClasses();
     for(Int i = 0; i < childClasses.size(); i++) {
@@ -165,9 +172,14 @@ void Obfuscator::printClassMapping(stringstream &ss, ClassObject *klass) {
     }
 }
 
-void Obfuscator::printClassFieldMapping(stringstream &ss, ClassObject *klass) {
+void Obfuscater::printClassFieldMapping(stringstream &ss, ClassObject *klass) {
     for(Int i = 0; i < klass->fieldCount(); i++) {
-        ss << klass->getField(i)->fullName << " = " << generateName(klass->getField(i)->guid) << endl;
+        Field *field = klass->getField(i);
+        ss << field->fullName << " = ";
+
+        if(field->obfuscate)
+            ss << generateName(field->guid) << endl;
+        else ss << "no_change" << endl;
     }
 
     List<ClassObject*> &childClasses = klass->getChildClasses();
@@ -176,9 +188,14 @@ void Obfuscator::printClassFieldMapping(stringstream &ss, ClassObject *klass) {
     }
 }
 
-void Obfuscator::printClassMethodMapping(stringstream &ss, ClassObject *klass) {
+void Obfuscater::printClassMethodMapping(stringstream &ss, ClassObject *klass) {
     for(Int i = 0; i < klass->getFunctionCount(); i++) {
-        ss << klass->getFunction(i)->fullName << " = " << generateName(klass->getFunction(i)->guid) << endl;
+        Method* fun = klass->getFunction(i);
+        ss << fun->fullName << " = ";
+
+        if(fun->obfuscate)
+            ss << generateName(klass->getFunction(i)->guid) << endl;
+        else ss << "no_change" << endl;
     }
 
     List<ClassObject*> &childClasses = klass->getChildClasses();
@@ -187,7 +204,7 @@ void Obfuscator::printClassMethodMapping(stringstream &ss, ClassObject *klass) {
     }
 }
 
-void Obfuscator::obfuscate() {
+void Obfuscater::obfuscate() {
     if(c_options.obfuscate) {
         generateMappingFile();
 
@@ -199,22 +216,21 @@ void Obfuscator::obfuscate() {
         for(Int i = 0; i < packages.size(); i++) {
             PackageData *package = packages.get(i);
 
-            if(!package->ignore) {
-                package->ignore = true;
+            if(package->obfuscate) {
                 package->name = generateName(package->guid);
             }
         }
     }
 }
 
-PackageData *Obfuscator::getPackage(string name) {
+PackageData *Obfuscater::getPackage(string name) {
     PackageData package(name, 0);
     Int index = packages.indexof(findPackage, &package);
 
     return index == -1 ? NULL : packages.get(index);
 }
 
-void Obfuscator::addPackage(string name, Int id) {
+void Obfuscater::addPackage(string name, Int id) {
     if(getPackage(name) == NULL) {
         packages.add(new PackageData(name, id));
     }

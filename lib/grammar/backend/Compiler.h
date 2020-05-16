@@ -14,7 +14,7 @@
 #include "Expression.h"
 #include "oo/FunctionType.h"
 #include "data/Alias.h"
-#include "ofuscation/Obfuscator.h"
+#include "ofuscation/Obfuscater.h"
 
 class Compiler {
 
@@ -37,6 +37,7 @@ public:
         mainSignature(0),
         delegateGUID(0),
         typeInference(false),
+        obfuscateMode(false),
         enumValue(0)
     {
         this->parsers.init();
@@ -104,6 +105,7 @@ private:
     long threadLocals;
     long mainSignature;
     bool typeInference;
+    bool obfuscateMode;
     long processingStage;
     long enumValue;
     string outFile;
@@ -143,6 +145,7 @@ private:
     void compile();
     void createGlobalClass();
     void compileAllFields();
+    void compileAllObfuscationRules();
     void compileAllInitDecls();
     void compileAllMethods();
     void inlineFields();
@@ -164,7 +167,6 @@ private:
     void preProcessUnprocessedClasses(long long unstableClasses);
     parser *getParserBySourceFile(string name);
     void addDefaultConstructor(ClassObject* klass, Ast* ast);
-    void inlineGenericClassFields(Ast *ast, ClassObject*);
     void inlineClassMutateFields(Ast *ast);
     void createNewWarning(error_type error, int type, int line, int col, string xcmnts);
     void createNewWarning(error_type error, int type, Ast* ast, string xcmnts);
@@ -211,9 +213,11 @@ private:
     bool isWholeNumber(double value);
     void preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* currentClass = NULL);
     void compileClassFields(Ast* ast, ClassObject* currentClass = NULL);
+    void compileClassObfuscations(Ast* ast, ClassObject* currentClass = NULL);
     void compileClassMethods(Ast* ast, ClassObject* currentClass = NULL);
     void compileClassInitDecls(Ast* ast, ClassObject* currentClass = NULL);
     void preProccessGenericClassDecl(Ast* ast, bool isInterface);
+    void compileObfuscateDecl(Ast* ast);
     void parseIdentifierList(Ast *ast, List<string> &idList);
     StorageLocality strtostl(string locality);
     void preProccessVarDeclHelper(List<AccessFlag>& flags, Ast* ast);
@@ -261,6 +265,7 @@ private:
     ClassObject* getExtensionFunctionClass(Ast* ast);
     void resolveClassMutateMethods(Ast *ast);
     void compileClassMutateFields(Ast *ast);
+    void compileClassMutateObfuscations(Ast *ast);
     void compileClassMutateMethods(Ast *ast);
     void compileClassMutateInitDecls(Ast *ast);
     void resolveMethod(Ast* ast, ClassObject *currentClass = NULL);
@@ -389,21 +394,13 @@ private:
     Field* createLocalField(string name, Utype *type, bool isArray, StorageLocality locality, List<AccessFlag> flags,
                           Int scopeLevel, Ast *ast);
     string accessFlagToString(AccessFlag flag);
-
     void inlineField(Field *field, Expression &expr);
-
     void assignFieldExpressionValue(Field *field, Ast *ast);
-
     void compileLocalAlias(Ast *ast);
-
     void initializeLocalVariable(Field *field);
-
     opcode_arg getAsmOffset(Ast *ast);
-
     void compileAssemblyInstruction(CodeHolder &code, Ast *branch, string &opcode);
-
     void compileMethod(Ast *ast, Method *func);
-
     void addLocalFields(Method *func);
     void processScopeExitLockAndFinallys(string &label);
 };

@@ -16,6 +16,10 @@ class K {
 
     }
 
+    obfuscate -keep {
+        foo() : _object_
+    }
+
     init {
         i : int = 0;
         j : long = i;
