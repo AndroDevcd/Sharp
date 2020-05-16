@@ -87,8 +87,8 @@ void help() {
     cout <<               "    -c                compile only and do not generate exe"                  << endl;
     cout <<               "    -a                enable aggressive error reporting"                     << endl;
     cout <<               "    -s                strip debugging info and unused classes"               << endl;
-    cout <<               "    -O                optimize user code"                                    << endl;
-    cout <<               "    -obf              obfuscate user code"                                    << endl;
+    cout <<               "    -O                optimize the output code"                              << endl;
+    cout <<               "    -obf              obfuscate user code"                                   << endl;
     cout <<               "    -L<path>          library directory path"                                << endl;
     cout <<               "    -w                disable all warnings"                                  << endl;
     cout <<               "    -errlmt<count>    set max errors the compiler allows before quitting"    << endl;

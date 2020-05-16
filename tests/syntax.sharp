@@ -8,7 +8,7 @@ class K {
 
     def foo() := new _object_();
 
-    x : object;
+    static x : int;
     y : var;
 
     def foo(i : int) {
@@ -20,9 +20,8 @@ class K {
         foo() : _object_
     }
 
-    init {
-        i : int = 0;
-        j : long = i;
+    static init {
+        j : long = x;
     }
 
 }

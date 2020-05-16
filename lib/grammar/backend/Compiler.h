@@ -161,6 +161,7 @@ private:
     void assignEnumArray(ClassObject *enumClass);
     void postProcessUnprocessedClasses();
     void handleImports();
+    void initStaticClassInstance(CodeHolder &code, ClassObject *klass);
     void compileMethodDecl(Ast *ast, ClassObject* currentClass = NULL);
     void updateErrorManagerInstance(parser *parser);
     void preProcessGenericClasses(long long unstableClasses);
@@ -179,6 +180,7 @@ private:
     void inlineEnumFields(Ast* ast);
     void inlineEnumField(Ast* ast);
     void compileInitDecl(Ast *ast);
+    Method* getStaticInitFunction();
     void reconcileBranches(bool finalTry);
     void invalidateLocalAliases();
     void invalidateLocalVariables();
@@ -504,5 +506,6 @@ extern string undefinedModule;
 
 #define INTERNAL_VARIABLE_NAME_PREFIX string("$01internal_var_")
 #define INTERNAL_LABEL_NAME_PREFIX string("$02internal_label_")
+#define INTERNAL_STATIC_INIT_FUNCTION string("$03internal_static_init")
 
 #endif //SHARP_COMPILER_H

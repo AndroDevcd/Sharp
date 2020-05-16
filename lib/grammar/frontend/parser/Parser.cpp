@@ -1501,10 +1501,6 @@ void parser::parseInterfaceBlock(Ast* ast) {
         }
         else if(isInitDecl(current()))
         {
-            if(access_types.size() > 0)
-            {
-                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
-            }
             errors->createNewError(GENERIC, current(), "unexpected init declaration");
             parseInitDecl(branch);
         }
@@ -1650,9 +1646,7 @@ void parser::parseEnumDecl(Ast *ast) {
 void parser::parseInitDecl(Ast *ast) {
     Ast* branch = getBranch(ast, ast_init_decl);
 
-    if(access_types.size() > 0) {
-        errors->createNewError(GENERIC, current(), "access types not allowed here");
-    }
+    addAccessTypes(branch);
     access_types.free();
 
     parseBlock(branch);

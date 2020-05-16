@@ -3891,10 +3891,10 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                     .addIr(OpBuilder::pushObject());
             }
 
-            if ((field->type != FNPTR && rightExpr.utype->isRelated(leftExpr.utype))
-                || (field->type == OBJECT && leftExpr.utype->isRelated(rightExpr.utype))
-                || (field->type == FNPTR && leftExpr.utype->isRelated(rightExpr.utype))
+            if ((field->type == CLASS && rightExpr.utype->getClass() && rightExpr.utype->isRelated(leftExpr.utype))
+                || ((field->type == OBJECT || field->type == FNPTR) && leftExpr.utype->isRelated(rightExpr.utype))
                 || ((field->type <= _UINT64 || field->type == VAR) && isUtypeClassConvertableToVar(field->utype, rightExpr.utype))
+                || ((field->type <= _UINT64 || field->type == VAR) && leftExpr.utype->isRelated(rightExpr.utype))
                 || (!allowOverloading && isUtypeConvertableToNativeClass(field->utype, rightExpr.utype))) {
 
                 expr->utype->copy(field->utype);
@@ -6088,9 +6088,7 @@ void Compiler::assignFieldExpressionValue(Field *field, Ast *ast) {
         if(ast->hasSubAst(ast_expression)) {
             BlockType bt;
 
-            if(field->local)
-                bt = INSTANCE_BLOCK;
-            else if(field->flags.find(STATIC))
+            if(field->flags.find(STATIC))
                 bt = STATIC_BLOCK;
             else
                 bt = currentScope()->type;
@@ -6123,7 +6121,7 @@ void Compiler::assignFieldExpressionValue(Field *field, Ast *ast) {
                 if(field->locality == stl_thread) {
                     tlsMainInserts.inject(resultExpr.utype->getCode());
                 } else if (field->flags.find(STATIC)) {
-                    staticMainInserts.inject(resultExpr.utype->getCode());
+                    getStaticInitFunction()->data.code.inject(resultExpr.utype->getCode());
                 } else {
                     List<Method *> constructors;
                     currentScope()->klass->getAllFunctionsByType(fn_constructor, constructors);
@@ -8864,29 +8862,82 @@ void Compiler::reconcileBranches(bool finalTry) {
     }
 }
 
+Method* Compiler::getStaticInitFunction() {
+    List<Method *> functions;
+    currentScope()->klass->getAllFunctionsByTypeAndName(fn_normal, INTERNAL_STATIC_INIT_FUNCTION, false, functions);
+
+    if(functions.empty()) {
+        List<Field*> emptyParams;
+        List<AccessFlag> flags;
+        flags.add(PRIVATE);
+        flags.add(STATIC);
+        Ast *ast = currentScope()->klass->ast;
+
+        Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line),
+                  current->getTokenizer()->file, ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
+
+        Method* initFun = new Method(INTERNAL_STATIC_INIT_FUNCTION, currModule, currentScope()->klass, guid++, emptyParams, flags, meta);
+
+        initFun->fullName = currentScope()->klass->fullName + "." + INTERNAL_STATIC_INIT_FUNCTION;
+        initFun->ast = ast;
+        initFun->fnType = fn_normal;
+        initFun->address = methodSize++;
+        initFun->utype = nilUtype;
+        currentScope()->klass->addFunction(initFun);
+        return initFun;
+    } else return functions.get(0);
+}
+
 void Compiler::compileInitDecl(Ast *ast) {
     Ast *block = ast->getSubAst(ast_block);
 
-    List<Method*> constructors;
-    currentScope()->klass->getAllFunctionsByType(fn_constructor, constructors);
-    for(uInt i = 0; i < constructors.size(); i++) {
-        Method *constructor = constructors.get(i);
-        uInt totalErrors = errors->getUnfilteredErrorCount();
-        currentScope()->currentFunction = constructor;
+    List<AccessFlag> flags;
+    bool staticInit = false;
+    if (ast->hasSubAst(ast_access_type)) {
+        Ast *accessFlagBranch = ast->getSubAst(ast_access_type);
+        if(accessFlagBranch->getTokenCount() > 1) {
+            this->errors->createNewError(GENERIC, ast->line, ast->col, "init declarations only allows access specifier (static)");
+        } else {
+            if(strToAccessFlag(accessFlagBranch->getToken(0).getValue()) == STATIC) {
+                staticInit = true;
+            } else {
+                this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->line, ast->col, "`" + accessFlagBranch->getToken(0).getValue() + "`");
+            }
+        }
+    }
 
-        RETAIN_BLOCK_TYPE(INSTANCE_BLOCK)
+    if(staticInit) {
+        currentScope()->currentFunction = getStaticInitFunction();
+
+        RETAIN_BLOCK_TYPE(STATIC_BLOCK)
         compileBlock(block);
         RESTORE_BLOCK_TYPE()
 
         reconcileBranches(true);
-        cout << "codee \n\n " << codeToString(constructors.get(i)->data.code) << endl;
+        cout << "codee \n\n " << codeToString(currentScope()->currentFunction->data.code) << endl;
         currentScope()->resetLocalScopeFlags();
-        if(NEW_ERRORS_FOUND()){
-            break; // no need to waste processing power to compile a broken init decl
-        }
-    }
+    } else {
+        List<Method *> constructors;
+        currentScope()->klass->getAllFunctionsByType(fn_constructor, constructors);
+        for (uInt i = 0; i < constructors.size(); i++) {
+            Method *constructor = constructors.get(i);
+            uInt totalErrors = errors->getUnfilteredErrorCount();
+            currentScope()->currentFunction = constructor;
 
-    constructors.free();
+            RETAIN_BLOCK_TYPE(INSTANCE_BLOCK)
+            compileBlock(block);
+            RESTORE_BLOCK_TYPE()
+
+            reconcileBranches(true);
+            cout << "codee \n\n " << codeToString(constructors.get(i)->data.code) << endl;
+            currentScope()->resetLocalScopeFlags();
+            if (NEW_ERRORS_FOUND()) {
+                break; // no need to waste processing power to compile a broken init decl
+            }
+        }
+
+        constructors.free();
+    }
 }
 
 void Compiler::compileAllInitDecls() {
@@ -9231,6 +9282,22 @@ void Compiler::compileEnumFields() {
     }
 }
 
+void Compiler::initStaticClassInstance(CodeHolder &code, ClassObject *klass) {
+
+    List<Method *> functions;
+    klass->getAllFunctionsByTypeAndName(fn_normal, INTERNAL_STATIC_INIT_FUNCTION, false, functions);
+
+    if(!functions.empty()) {
+        code.addIr(OpBuilder::call(functions.get(0)->address));
+    }
+
+
+    List<ClassObject*> &childClasses = klass->getChildClasses();
+    for(Int i = 0; i < childClasses.size(); i++) {
+        initStaticClassInstance(code, childClasses.get(i));
+    }
+}
+
 void Compiler::setupMainMethod(Ast *ast) {
     string starterClass = "platform";
     string starterMethod = "srt_init";
@@ -9336,6 +9403,10 @@ void Compiler::setupMainMethod(Ast *ast) {
                      .addIr(OpBuilder::rmov(ADX, EBX));
             } else
                 errors->createNewError(GENERIC, ast, "user main method function pointer was not found");
+
+            for(Int i = 0; i < classes.size(); i++) {
+                initStaticClassInstance(StaticInit->data.code, classes.get(i));
+            }
 
             StaticInit->data.code.inject(staticMainInserts);
             TlsSetup->data.code.inject(tlsMainInserts);
