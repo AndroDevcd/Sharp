@@ -7,7 +7,7 @@
 #include "Obfuscater.h"
 
 #define ALPHABET_COUNT 26
-#define MAX_BUFFER_SIZE 1028
+#define MAX_BUFFER_SIZE 32
 char alphabet[]
     = {
         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
@@ -16,10 +16,15 @@ char alphabet[]
 
 char buf[MAX_BUFFER_SIZE];
 char resultBuf[MAX_BUFFER_SIZE];
-List<PackageData*> Obfuscater::packages;
+List<ModuleData*> Obfuscater::modules;
+List<FileData*> Obfuscater::files;
 
-bool Obfuscater::findPackage(PackageData **p1, void *p2) {
-    return (*p1)->name == ((PackageData*)p2)->name;
+bool Obfuscater::findPackage(ModuleData **p1, void *p2) {
+    return (*p1)->name == ((ModuleData*)p2)->name;
+}
+
+bool Obfuscater::findFile(FileData **f1, void *f2) {
+    return (*f1)->name == ((ModuleData*)f2)->name;
 }
 
 string Obfuscater::generateName(Int id) {
@@ -62,7 +67,7 @@ void Obfuscater::clearBuf() {
 bool Obfuscater::checkReliability(Int startId, Int sampleSize) {
 
     if(sampleSize <= MAX_SAMPLE_SIZE) {
-        string *names = new string[sampleSize];
+        string names[sampleSize];
         Int stringSize = 0;
         for(Int i = 0; i < sampleSize; i++) {
             names[stringSize++] = Obfuscater::generateName(startId++);
@@ -118,7 +123,7 @@ void Obfuscater::obfuscate(DataEntity *de) {
 void Obfuscater::obfuscateFullName(DataEntity *de) {
 
     if(de->owner == NULL) {
-        PackageData *package = getPackage(de->module);
+        ModuleData *package = de->module;
         de->fullName = generateName(package->guid) + "#" + generateName(de->guid);
     } else {
         de->fullName = de->owner->fullName + "." + generateName(de->guid);
@@ -130,12 +135,21 @@ void Obfuscater::generateMappingFile() {
     ss << "/*** Dumpfile for " << c_options.out << " ***/\n\n";
 
     ss << "[Packages]\n";
-    for(Int i = 0; i < packages.size(); i++) {
-        PackageData *package = packages.get(i);
+    for(Int i = 0; i < modules.size(); i++) {
+        ModuleData *package = modules.get(i);
         ss << package->name << "=";
         if(package->obfuscate)
             ss << generateName(package->guid) << endl;
-        else ss << package->name;
+        else ss << "no_change\n";
+    }
+
+    ss << "\n\n[Files]\n";
+    for(Int i = 0; i < files.size(); i++) {
+        FileData *file = files.get(i);
+        ss << file->name << "=";
+        if(file->obfuscate)
+            ss << generateName(file->guid) << endl;
+        else ss << "no_change\n";
     }
 
     ss << "\n\n[Classes]\n";
@@ -177,7 +191,7 @@ void Obfuscater::printClassFieldMapping(stringstream &ss, ClassObject *klass) {
         Field *field = klass->getField(i);
         ss << field->fullName << " = ";
 
-        if(field->obfuscate)
+        if(field->owner->obfuscate && field->obfuscate)
             ss << generateName(field->guid) << endl;
         else ss << "no_change" << endl;
     }
@@ -193,7 +207,7 @@ void Obfuscater::printClassMethodMapping(stringstream &ss, ClassObject *klass) {
         Method* fun = klass->getFunction(i);
         ss << fun->fullName << " = ";
 
-        if(fun->obfuscate)
+        if(fun->owner->obfuscate && fun->obfuscate)
             ss << generateName(klass->getFunction(i)->guid) << endl;
         else ss << "no_change" << endl;
     }
@@ -213,25 +227,46 @@ void Obfuscater::obfuscate() {
             obfuscate(klass);
         }
 
-        for(Int i = 0; i < packages.size(); i++) {
-            PackageData *package = packages.get(i);
+        for(Int i = 0; i < modules.size(); i++) {
+            ModuleData *package = modules.get(i);
 
             if(package->obfuscate) {
                 package->name = generateName(package->guid);
             }
         }
+
+        for(Int i = 0; i < files.size(); i++) {
+            FileData *file = files.get(i);
+
+            if(file->obfuscate) {
+                file->name = generateName(file->guid);
+            }
+        }
     }
 }
 
-PackageData *Obfuscater::getPackage(string name) {
-    PackageData package(name, 0);
-    Int index = packages.indexof(findPackage, &package);
+ModuleData *Obfuscater::getModule(string name) {
+    ModuleData package(name, 0);
+    Int index = modules.indexof(findPackage, &package);
 
-    return index == -1 ? NULL : packages.get(index);
+    return index == -1 ? NULL : modules.get(index);
 }
 
-void Obfuscater::addPackage(string name, Int id) {
-    if(getPackage(name) == NULL) {
-        packages.add(new PackageData(name, id));
+void Obfuscater::addModule(string name, uInt id) {
+    if(getModule(name) == NULL) {
+        modules.add(new ModuleData(name, id));
+    }
+}
+
+FileData *Obfuscater::getFile(string name) {
+    FileData file(name, 0);
+    Int index = files.indexof(findFile, &file);
+
+    return index == -1 ? NULL : files.get(index);
+}
+
+void Obfuscater::addFile(string name, uInt id) {
+    if(getFile(name) == NULL) {
+        files.add(new FileData(name, id));
     }
 }

@@ -2,6 +2,11 @@ mod platform.kernel;
 
 class platform
 {
+    private static main : (string[])(var);
+    private static main2 : (string[])();
+    private static main3 : ()();
+    private static main4 : ()(var);
+
     static def tls_init() {}
     private static def static_init() {}
 

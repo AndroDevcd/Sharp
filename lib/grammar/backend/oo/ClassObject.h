@@ -34,7 +34,7 @@ enum generic_processing_stage
 class ClassObject : public DataEntity {
 
 public:
-    ClassObject(string name, string mod, long guid, List<AccessFlag> flags, Meta &meta)
+    ClassObject(string name, ModuleData* mod, long guid, List<AccessFlag> flags, Meta &meta)
     :
         DataEntity(),
         super(NULL),
@@ -68,7 +68,6 @@ public:
     void free();
 
     size_t fieldCount();
-    Method* getConstructor(List<Field*> params, bool checkBase);
     Field* getField(string name, bool checkBase);
     Field* getField(long index);
     Method* getFunction(long index);
@@ -130,6 +129,7 @@ public:
     long getFieldIndex(string &name);
     Alias* getAlias(string name, bool checkBase);
     long totalFieldCount();
+    long totalFunctionCount();
     void addClass(ClassObject* k) {
         classes.addif(k);
     }
@@ -152,6 +152,7 @@ public:
     List<string>& getKeys() { return keys; }
     List<Utype*>& getKeyTypes() { return keyTypes; }
     List<Alias*>& getAliases() { return aliases; }
+    List<Method*>& getFunctions() { return functions; }
     List<ClassObject*> & getChildClasses() { return classes; }
     ClassObject* getGenericOwner() { return genericOwner; }
     void setGenericOwner(ClassObject* owner) { genericOwner = owner; }

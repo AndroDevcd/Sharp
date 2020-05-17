@@ -13,18 +13,20 @@
 
 class ClassObject;
 class Ast;
+class FileData;
+class ModuleData;
 
 struct Meta {
     Meta()
     :
         line(""),
-        file(""),
+        file(NULL),
         ln(0),
         col(0)
     {
     }
 
-    Meta(string l, string f, long ln, long col)
+    Meta(string l, FileData* f, long ln, long col)
     :
         line(l),
         file(f),
@@ -34,7 +36,7 @@ struct Meta {
     }
 
     string line;
-    string file;
+    FileData* file;
     long ln,col;
 
     void copy(Meta &meta) {
@@ -68,7 +70,7 @@ public:
         guid(invalidAddr),
         owner(NULL),
         ast(NULL),
-        module("")
+        module(NULL)
     {
         flags.init();
     }
@@ -84,7 +86,7 @@ public:
             owner(NULL),
             ast(NULL),
             obfuscate(c_options.obfuscate),
-            module("")
+            module(NULL)
     {
         flags.init();
     }
@@ -111,7 +113,7 @@ public:
     string name;
     string fullName;
     Meta meta;
-    string module;
+    ModuleData* module;
     long address;
     long guid;
     bool obfuscate;

@@ -25,7 +25,7 @@ public:
         classSize(0),
         methodSize(0),
         threadLocals(0),
-        currModule(""),
+        currModule(NULL),
         panic(false),
         lastNoteMsg(""),
         lastNote(),
@@ -88,14 +88,16 @@ public:
     void cleanup();
 
     static bool simpleParameterMatch(List<Field*> &params, List<Field*> &comparator);
-    static bool complexParameterMatch(List<Field*> &params, List<Field*> &comparator);
+    static bool complexParameterMatch(List<Field*> &params, List<Field*> &comparator, bool nativeClassSupport = true);
     static bool isUtypeConvertableToNativeClass(Utype *dest, Utype *src);
     static bool isUtypeClassConvertableToVar(Utype *dest, Utype *src);
-    static bool isUtypeClass(Utype* utype, string mod, int names, ...);
+    static bool isUtypeClass(Utype* utype, ModuleData* mod, int names, ...);
 
     ErrorManager *errors;
     List<parser*> failedParsers;
     List<ClassObject*> classes;
+    List<string> stringMap;
+    List<double> constantMap;
     static uInt guid;
 private:
     bool panic;
@@ -120,11 +122,9 @@ private:
     List<ClassObject*> unProcessedClasses; /* We cant compile everything at once so this will hold all classes that cant be immediatley processed at the time */
     List<Method*> unProcessedMethods;
     List<Scope*> currScope;
-    List<string> stringMap;
-    List<double> constantMap;
     List<KeyPair<Field*, double>> inlinedFields;
     List<KeyPair<Field*, Int>> inlinedStringFields;
-    List<KeyPair<string, List<PackageData*>>>  importMap;
+    List<KeyPair<FileData*, List<ModuleData*>>>  importMap;
     List<Method*> lambdas;
     List<Method*> functionPtrs;
     Utype* nilUtype;
@@ -133,7 +133,7 @@ private:
     Utype* varUtype;
     Utype* objectUtype;
     parser* current;
-    string currModule;
+    ModuleData* currModule;
     Method* requiredSignature;
     CodeHolder staticMainInserts;
     CodeHolder tlsMainInserts;
@@ -156,8 +156,10 @@ private:
     void setupMainMethod(Ast *ast);
     void assignEnumFieldName(Field*);
     void assignEnumFieldValue(Field*);
+    void getEnumValue(CodeHolder &code, Field *enumField);
     void compileEnumField(Field*);
     void compileEnumFields();
+    void postProcessEnumFields();
     void assignEnumArray(ClassObject *enumClass);
     void postProcessUnprocessedClasses();
     void handleImports();
@@ -177,8 +179,6 @@ private:
     void inlineClassFields(Ast* ast, ClassObject* currentClass = NULL);
     void inlineField(Ast* ast);
     void inlineFieldHelper(Ast* ast);
-    void inlineEnumFields(Ast* ast);
-    void inlineEnumField(Ast* ast);
     void compileInitDecl(Ast *ast);
     Method* getStaticInitFunction();
     void reconcileBranches(bool finalTry);
@@ -239,7 +239,7 @@ private:
     ClassObject* resolveBaseClass(Ast *ast);
     ClassObject *resolveClassReference(Ast *ast, ReferencePointer &ptr, bool allowenerics = false);
     void compileReferencePtr(ReferencePointer &ptr, Ast* ast);
-    ClassObject* compileGenericClassReference(string &mod, string &name, ClassObject* parent, Ast *ast);
+    ClassObject* compileGenericClassReference(ModuleData* mod, string &name, ClassObject* parent, Ast *ast);
     void compileUtypeList(Ast *ast, List<Utype *> &types);
     Utype* compileUtype(Ast *ast, bool intanceCaptured = false);
     void compileFuncPtr(Utype *utype, Ast *ast);
@@ -300,15 +300,15 @@ private:
     void resolveClassMethods(Ast* ast, ClassObject* currentClass = NULL);
     void resolveClassFields(Ast* ast, ClassObject* currentClass = NULL);
     bool isFieldInlined(Field* field);
-    ClassObject* resolveClass(string mod, string name, Ast* pAst);
+    ClassObject* resolveClass(ModuleData* mod, string name, Ast* pAst);
     void validateAccess(ClassObject *klass, Ast* pAst);
     void validateAccess(Field *field, Ast* pAst);
     void validateAccess(Method *function, Ast* pAst);
     void validateAccess(Alias *alias, Ast* pAst);
     void checkTypeInference(Alias *alias, Ast* ast);
-    bool resolveClass(List<ClassObject*> &classes, List<ClassObject*> &results, string mod, string name, Ast* pAst, bool match = false);
+    bool resolveClass(List<ClassObject*> &classes, List<ClassObject*> &results, ModuleData* mod, string name, Ast* pAst, bool match = false);
     void resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *ast);
-    void preProccessImportDecl(Ast *branch, List<PackageData*> &imports);
+    void preProccessImportDecl(Ast *branch, List<ModuleData*> &imports);
     bool resolveHigherScopeSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *ast);
     void preproccessImports();
     void preProccessEnumDecl(Ast *ast);
@@ -317,7 +317,7 @@ private:
     void printNote(Meta& meta, string msg);
     bool isLambdaFullyQualified(Method *lambda);
     ClassObject* addGlobalClassObject(string name, List<AccessFlag>& flags, Ast *ast, List<ClassObject*> &classList);
-    ClassObject* findClass(string mod, string className, List<ClassObject*> &classes, bool match = false);
+    ClassObject* findClass(ModuleData* mod, string className, List<ClassObject*> &classes, bool match = false);
     void inheritEnumClassHelper(Ast *ast, ClassObject *enumClass);
     void resolveField(Ast* ast);
     void compileVariableDecl(Ast* ast);
@@ -340,7 +340,7 @@ private:
     void compileAssignExpression(Expression* expr, Ast* ast);
     void compileBinaryExpression(Expression* expr, Ast* ast);
     void compileInlineIfExpression(Expression* expr, Ast* ast);
-    void assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast, bool allowOverloading = true);
+    void assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast, bool allowOverloading = true, bool allowSetter = true);
     void compileBinaryExpression(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);
     void compoundAssignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);
     expression_type utypeToExpressionType(Utype *utype);
@@ -360,13 +360,8 @@ private:
     Method* findGetterSetter(ClassObject *klass, string name, List<Field*> &params, Ast* ast);
     Method *resolveFunction(string name, List<Field*> &params, Ast *ast);
     Field *resolveField(string name, Ast *ast);
-    Alias *resolveAlias(string mod, string name, Ast *ast);
+    Alias *resolveAlias(ModuleData* mod, string name, Ast *ast);
     bool isAllIntegers(string int_string);
-    string codeToString(CodeHolder &code, CodeData *data = NULL);
-    string registerToString(int64_t r);
-    string find_class(int64_t id);
-    void printExpressionCode(Expression &expr);
-    void printMethodCode(Method &func, Ast *ast);
     void parseBoolLiteral(Expression* expr, Token &token);
     void parseHexLiteral(Expression* expr, Token &token);
     void parseStringLiteral(Expression* expr, Token &token);
@@ -408,13 +403,13 @@ private:
 };
 
 enum ProcessingStage {
-    PREPROCESSING=0,
+    PRE_PROCESSING=0,
     POST_PROCESSING=1,
     COMPILING=2,
 };
 
 extern string globalClass;
-extern string undefinedModule;
+extern ModuleData* undefinedModule;
 
 #define CLASS_LIMIT CA2_MAX
 #define CLASS_FIELD_LIMIT DA_MAX
@@ -480,12 +475,13 @@ extern string undefinedModule;
 #define RESTORE_SCOPE_INIT_CHECK() \
     currentScope()->initializationCheck = oldInitCheckState;
 
-#define RETAIN_SCOPED_LABELS(enable) \
-    bool oldScopedLabelsState = currentScope()->scopedLabels; \
-    currentScope()->scopedLabels = enable;
+// be very careful with this one
+#define RETAIN_CURRENT_FUNCTION(newFun) \
+    Method* olcCurrentFunction = currentScope()->currentFunction; \
+    currentScope()->currentFunction = newFun;
 
-#define RESTORE_SCOPED_LABELS() \
-    currentScope()->scopedLabels = oldScopedLabelsState;
+#define RESTORE_CURRENT_FUNCTION() \
+    currentScope()->currentFunction = olcCurrentFunction;
 
 #define RETAIN_TYPE_INFERENCE(ti) \
     bool oldTypeInference = typeInference; \

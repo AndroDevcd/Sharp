@@ -6,9 +6,7 @@ mod std;
  * Class to be used as the baseline of throwing errors
  */
 class throwable {
-    message : string;
-//      get { return message; }
-//    set {} // prevent the user from setting the value
+    private message : string;
 
     stack_trace : string;
 //      get { new string(stackTrace); }
@@ -26,21 +24,62 @@ class throwable {
 /**
  * Created by braxtonn on 3/2/2018.
  */
-class exception base throwable { }
+class exception base throwable {
+    public exception(message : _int8[]) { base->throwable(message); }
+    public exception(message : string) { base->throwable(message); }
+}
 
-class illegal_argument_exception base exception { }
-class illegal_state_exception base exception { }
-class out_of_bounds_exception base exception { }
-class invalid_operation_exception base exception { }
-class nullptr_exception base exception { }
-class runtime_exception base exception { }
+class illegal_argument_exception base exception {
+    public illegal_argument_exception(message : _int8[]) { base->exception(message); }
+    public illegal_argument_exception(message : string) { base->exception(message); }
+}
+class illegal_state_exception base exception {
+    public illegal_state_exception(message : _int8[]) { base->exception(message); }
+    public illegal_state_exception(message : string) { base->exception(message); }
+}
+class out_of_bounds_exception base exception {
+    public out_of_bounds_exception(message : _int8[]) { base->exception(message); }
+    public out_of_bounds_exception(message : string) { base->exception(message); }
+}
+class invalid_operation_exception base exception {
+    public invalid_operation_exception(message : _int8[]) { base->exception(message); }
+    public invalid_operation_exception(message : string) { base->exception(message); }
+}
+class nullptr_exception base exception {
+    public nullptr_exception(message : _int8[]) { base->exception(message); }
+    public nullptr_exception(message : string) { base->exception(message); }
+}
+class runtime_exception base exception {
+    public runtime_exception(message : _int8[]) { base->exception(message); }
+    public runtime_exception(message : string) { base->exception(message); }
+}
+class stack_overflow_exception base exception {
+    public stack_overflow_exception(message : _int8[]) { base->exception(message); }
+    public stack_overflow_exception(message : string) { base->exception(message); }
+}
+class thread_stack_exception base exception {
+    public thread_stack_exception(message : _int8[]) { base->exception(message); }
+    public thread_stack_exception(message : string) { base->exception(message); }
+}
+class class_cast_exception base exception {
+    public class_cast_exception(message : _int8[]) { base->exception(message); }
+    public class_cast_exception(message : string) { base->exception(message); }
+}
+class out_of_memory_exception base exception {
+    public out_of_memory_exception(message : _int8[]) { base->exception(message); }
+    public out_of_memory_exception(message : string) { base->exception(message); }
+}
 
 /*
-* Alises for shorter name sizee
+* Alises for shorter name size
 */
 alias illegal_argument_exception as ill_arg_except;
 alias illegal_state_exception as ill_state_except;
 alias out_of_bounds_exception as bounds_except;
 alias invalid_operation_exception as invalid_op_except;
 alias nullptr_exception as null_except;
-alias runtime_exception as run_except;
+alias runtime_exception as runtime_except;
+alias exception as error;
+alias thread_stack_exception as stack_except;
+alias class_cast_exception as cast_except;
+alias out_of_memory_exception as memory_except;

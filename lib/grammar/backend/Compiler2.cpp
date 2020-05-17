@@ -104,7 +104,6 @@ void Compiler::resolveAllMethods() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        currModule = "$unknown";
         long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (int x = 0; x < current->size(); x++) {
@@ -113,7 +112,7 @@ void Compiler::resolveAllMethods() {
             if(x == 0)
             {
                 if(branch->getType() == ast_module_decl) {
-                    currModule = parseModuleDecl(branch);
+                    currModule = Obfuscater::getModule(parseModuleDecl(branch));
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
@@ -171,7 +170,6 @@ void Compiler::resolveAllFields() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        currModule = "$unknown";
         long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (int x = 0; x < current->size(); x++) {
@@ -179,7 +177,8 @@ void Compiler::resolveAllFields() {
 
             if (x == 0) {
                 if(branch->getType() == ast_module_decl) {
-                    currModule = parseModuleDecl(branch);
+                    string module = parseModuleDecl(branch);
+                    currModule = Obfuscater::getModule(module);
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
@@ -335,13 +334,13 @@ Field *Compiler::resolveEnum(string name) {
     Field* field;
 
     for (unsigned int i = 0; i < importMap.size(); i++) {
-        if (importMap.get(i).key == current->getTokenizer()->file) {
+        if (importMap.get(i).key->name == current->getTokenizer()->file) {
 
-            List<PackageData*> &lst = importMap.get(i).value;
+            List<ModuleData*> &lst = importMap.get(i).value;
             for (unsigned int x = 0; x < lst.size(); x++) {
                 for(long j = 0; j < enums.size(); j++) {
                     ClassObject *enumClass = enums.get(j);
-                    if(enumClass->module == lst.get(x)->name) {
+                    if(enumClass->module == lst.get(x)) {
 
                         if(enumClass->owner == NULL || (enumClass->owner != NULL && enumClass->owner->fullName == currentScope()->klass->fullName)) {
                             if ((field = enumClass->getField(name, false)) != NULL)
@@ -513,7 +512,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         utype->getCode().getInjector(stackInjector)
                 .addIr(OpBuilder::pushObject());
         return;
-    } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveClass("", name, ast)) != NULL) {
+    } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveClass(NULL, name, ast)) != NULL) {
         utype->setType(utype_class);
         utype->setResolvedType(resolvedUtype);
         utype->setArrayType(false);
@@ -532,18 +531,20 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
     } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && resolveHigherScopeSingularUtype(ptr, utype, ast)) {}
     else {
         globalCheck:
+        ModuleData *module = Obfuscater::getModule(ptr.mod) == NULL
+                ? undefinedModule : Obfuscater::getModule(ptr.mod);
         functions.free();
 
-        if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveClass(ptr.mod, name, ast)) != NULL) {
+        if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveClass(module, name, ast)) != NULL) {
             return resolveClassUtype(utype, ast, resolvedUtype);
         } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveField(name, ast)) != NULL) {
             return resolveFieldUtype(utype, ast, resolvedUtype, name);
         } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && resolveFunctionByName(name, functions, ast)) {
             return resolveFunctionByNameUtype(utype, ast, name, functions);
-        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveAlias("", name, ast)) != NULL) {
+        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveAlias(module, name, ast)) != NULL) {
             return resolveAliasUtype(utype, ast, resolvedUtype);
         } else if((currentScope()->type != RESTRICTED_INSTANCE_BLOCK &&
-                   resolveClass(generics, resolvedClasses, ptr.mod, name + "<>", ast, true))
+                   resolveClass(generics, resolvedClasses, module, name + "<>", ast, true))
                   || currentScope()->klass->getChildClass(name + "<>", true)) {
             if(currentScope()->klass->getChildClass(name + "<>", true))
                 resolvedClasses.add(currentScope()->klass->getChildClass(name + "<>", true));
@@ -580,7 +581,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             }
             return;
         } else if((currentScope()->type != RESTRICTED_INSTANCE_BLOCK &&
-                   resolveClass(classes, resolvedClasses, ptr.mod, name, ast, true))
+                   resolveClass(classes, resolvedClasses, module, name, ast, true))
                   || currentScope()->klass->getChildClass(name, true)) {
             stringstream helpfulMessage;
             helpfulMessage << "I found a few classes that match `" << name << "`. Were you possibly looking for any of these?\n";
@@ -975,7 +976,7 @@ void Compiler::compileFuncPtr(Utype *utype, Ast *ast) {
     compileMethodReturnType(funPtr, ast);
     parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list_opt));
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast->line, ast->col);
 
     stringstream name;
@@ -1076,7 +1077,7 @@ void Compiler::compileUtypeList(Ast *ast, List<Utype *> &types) {
     }
 }
 
-ClassObject* Compiler::compileGenericClassReference(string &mod, string &name, ClassObject* parent, Ast *ast) {
+ClassObject* Compiler::compileGenericClassReference(ModuleData *mod, string &name, ClassObject* parent, Ast *ast) {
     List<Utype*> utypes;
     compileUtypeList(ast, utypes);
 
@@ -1117,7 +1118,7 @@ ClassObject* Compiler::compileGenericClassReference(string &mod, string &name, C
 
             ClassObject *newClass = NULL;
             if(parent == NULL) {
-                string old = currModule;
+                ModuleData* old = currModule;
                 currModule = mod;
                 newClass = addGlobalClassObject(name, flags, ast, classes);
                 currModule = old;
@@ -1131,7 +1132,7 @@ ClassObject* Compiler::compileGenericClassReference(string &mod, string &name, C
             newClass->transfer(generic);
 
             stringstream fullName;
-            fullName << newClass->module << "#" << name;
+            fullName << newClass->module->name << "#" << name;
 
             newClass->meta.copy(tmp);
             newClass->fullName = fullName.str();
@@ -1215,7 +1216,7 @@ void Compiler::compileReferencePtr(ReferencePointer &ptr, Ast* ast) {
                 if (!failed && ((i + 1) < ast->getTokenCount()) && ast->getToken(i + 1) == "<") {
                     RETAIN_TYPE_INFERENCE(false) // TODO
                     ClassObject *genericClass = compileGenericClassReference(
-                            ptr.mod, name, parent, ast->getSubAst(genericListPos++));
+                            Obfuscater::getModule(ptr.mod), name, parent, ast->getSubAst(genericListPos++));
                     ptr.classes.add(genericClass ? genericClass->name : "?");
 
                     parent = genericClass;
@@ -1227,7 +1228,7 @@ void Compiler::compileReferencePtr(ReferencePointer &ptr, Ast* ast) {
 
                     if(!failed) {
                         if (parent == NULL)
-                            parent = resolveClass(ptr.mod, name, ast);
+                            parent = resolveClass(Obfuscater::getModule(ptr.mod), name, ast);
                         else {
                             parent = parent->getChildClass(name);
                             failed = parent == NULL;
@@ -1242,16 +1243,16 @@ void Compiler::compileReferencePtr(ReferencePointer &ptr, Ast* ast) {
 ClassObject *Compiler::resolveClassReference(Ast *ast, ReferencePointer &ptr, bool allowGenerics) {
     Alias *alias;
     if(ptr.classes.singular()) {
-        ClassObject* klass = resolveClass(ptr.mod, ptr.classes.get(0), ast);
+        ClassObject* klass = resolveClass(Obfuscater::getModule(ptr.mod), ptr.classes.get(0), ast);
         if(klass == NULL) {
-            if((klass = findClass(ptr.mod, ptr.classes.get(0) + "<>", generics))) {
+            if((klass = findClass(Obfuscater::getModule(ptr.mod), ptr.classes.get(0) + "<>", generics))) {
                 if(allowGenerics) // this is for extension functions
                     return klass;
                 else
                     errors->createNewError(COULD_NOT_RESOLVE, ast, " `" + ptr.classes.get(0)
                                                                    + "`. It was found to be a generic class, have you missed the key parameters to the class perhaps?");
             } else if((alias = currentScope()->klass->getAlias(ptr.classes.get(0), true)) != NULL
-                      || (alias = resolveAlias(ptr.mod, ptr.classes.get(0), ast)) != NULL) {
+                      || (alias = resolveAlias(Obfuscater::getModule(ptr.mod), ptr.classes.get(0), ast)) != NULL) {
                 compileAliasType(alias); // TODO: support local alises inside functions
                 validateAccess(alias, ast);
 
@@ -1266,13 +1267,13 @@ ClassObject *Compiler::resolveClassReference(Ast *ast, ReferencePointer &ptr, bo
             return klass;
         }
     } else {
-        ClassObject* klass = resolveClass(ptr.mod, ptr.classes.get(0), ast);
+        ClassObject* klass = resolveClass(Obfuscater::getModule(ptr.mod), ptr.classes.get(0), ast);
         if(klass == NULL) {
-            if(findClass(ptr.mod, ptr.classes.get(0) + "<>", generics)) {
+            if(findClass(Obfuscater::getModule(ptr.mod), ptr.classes.get(0) + "<>", generics)) {
                 errors->createNewError(COULD_NOT_RESOLVE, ast, " `" + ptr.classes.get(0)
                                                                + "`. It was found to be a generic class, have you missed the key parameters to the class perhaps?");
             } else if((alias = currentScope()->klass->getAlias(ptr.classes.get(0), true)) != NULL
-                      || (alias = resolveAlias(ptr.mod, ptr.classes.get(0), ast)) != NULL) {
+                      || (alias = resolveAlias(Obfuscater::getModule(ptr.mod), ptr.classes.get(0), ast)) != NULL) {
                 compileAliasType(alias);
                 validateAccess(alias, ast);
 
@@ -1485,7 +1486,7 @@ void Compiler::preProcessUnprocessedClasses(long long unstableClasses) {
         ClassObject *unprocessedClass = unProcessedClasses.get(i);
 
         currModule = unprocessedClass->module;
-        current = getParserBySourceFile(unprocessedClass->meta.file);
+        current = getParserBySourceFile(unprocessedClass->meta.file->name);
 
         long long totalErrors = errors->getUnfilteredErrorCount();
         updateErrorManagerInstance(current);
@@ -1528,7 +1529,6 @@ void Compiler::resolveBaseClasses() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        currModule = "$unknown";
         long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for(unsigned long x = 0; x < current->size(); x++)
@@ -1537,7 +1537,7 @@ void Compiler::resolveBaseClasses() {
             if(x == 0)
             {
                 if(branch->getType() == ast_module_decl) {
-                    currModule = parseModuleDecl(branch);
+                    currModule = Obfuscater::getModule(parseModuleDecl(branch));
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
@@ -1678,106 +1678,6 @@ bool Compiler::isWholeNumber(double value) {
         return false;
 }
 
-void Compiler::inlineEnumField(Ast* ast) {
-    string name = ast->getToken(0).getValue();
-    Field *field = currentScope()->klass->getField(name, false);
-
-    if(!field->inlineCheck) {
-        field->inlineCheck = true;
-        field->address = field->owner->getFieldAddress(field);
-
-        if(ast->hasSubAst(ast_expression)) {
-            BlockType oldScope = currentScope()->type;
-            if(field->flags.find(STATIC))
-                currentScope()->type = STATIC_BLOCK;
-            Expression expr;
-            compileExpression(&expr, ast->getSubAst(ast_expression));
-
-            if(expr.type == exp_var) {
-                if(expr.utype->getType() == utype_field) {
-                    if(isFieldInlined((Field*)expr.utype->getResolvedType())) {
-                        double inlinedValue = getInlinedFieldValue((Field *) expr.utype->getResolvedType());
-                        if (!isWholeNumber(inlinedValue)) {
-                            errors->createNewError(GENERIC, ast,
-                                                   "enum value must evaluate to an integer, the constant variable's value you have derived resolves to a decimal");
-                        }
-
-                        enumValue = (long)inlinedValue + 1;
-                        inlinedFields.add(KeyPair<Field *, double>(field, inlinedValue));
-                    } else
-                        errors->createNewError(GENERIC, ast,
-                                               " The expression being assigned to enum `" + field->name + "` was found to be of non constant value");
-                } else if(expr.utype->getType() == utype_literal) {
-                    Literal* literal = ((Literal*)expr.utype->getResolvedType());
-
-                    if(literal->literalType == numeric_literal) {
-                        if (!isWholeNumber(literal->numericData)) {
-                            errors->createNewError(GENERIC, ast,
-                                                   "enum value must evaluate to an integer, the constant variable's value you have derived resolves to a decimal");
-                        }
-
-                        enumValue = (long)literal->numericData + 1;
-                        inlinedFields.add(KeyPair<Field*, double>(field, literal->numericData));
-                    } else
-                        errors->createNewError(GENERIC, ast,
-                                               " strings are not allowed to be assigned to enums");
-                } else if(expr.utype->getType() == utype_method) {
-                    Method* method = ((Method*)expr.utype->getResolvedType());
-                    enumValue = (long)method->address + 1;
-                    inlinedFields.add(KeyPair<Field*, double>(field, method->address));
-                } else
-                    errors->createNewError(GENERIC, ast,
-                                           "enum value must evaluate to an integer, the expression assigned to enum `" + field->name + "` was found to be non-numeric");
-            } else
-                errors->createNewError(GENERIC, ast,
-                                       "enum value must evaluate to an integer, the expression assigned to enum `" + field->name + "` was found to be non-numeric");
-
-            if(field->flags.find(STATIC))
-                currentScope()->type = oldScope;
-        } else {
-            inlinedFields.add(KeyPair<Field*, double>(field, enumValue++));
-        }
-    }
-}
-
-void Compiler::inlineEnumFields(Ast* ast) {
-    Ast* block = ast->getSubAst(ast_enum_identifier_list);
-
-    if(IS_CLASS_GENERIC(currentScope()->klass->getClassType())) {
-        ClassObject *enumClass = currentScope()->klass->getGenericOwner()->getChildClass(ast->getToken(0).getValue());
-        if(enumClass != NULL && enumClass->isAtLeast(postprocessed)) {
-            currentScope()->klass->addClass(enumClass);
-            return;
-        }
-    }
-
-    ClassObject *currentClass;
-    string name = ast->getToken(0).getValue();
-    if(globalScope()) {
-        currentClass = findClass(currModule, name, classes);
-    }
-    else {
-        currentClass = currentScope()->klass->getChildClass(name);
-    }
-
-    enumValue = guid;
-    currentClass->setProcessStage(postprocessed);
-    currScope.add(new Scope(currentClass, CLASS_SCOPE));
-    for(long i = 0; i < block->getSubAstCount(); i++) {
-        Ast* branch = block->getSubAst(i);
-        CHECK_CMP_ERRORS(return;)
-
-        switch(branch->getType()) {
-            case ast_enum_identifier:
-                inlineEnumField(branch);
-                break;
-            default:
-                /* ignore */
-                break;
-        }
-    }
-    removeScope();
-}
 
 void Compiler::inlineClassFields(Ast* ast, ClassObject* currentClass) {
     Ast* block = ast->getLastSubAst();
@@ -1804,9 +1704,6 @@ void Compiler::inlineClassFields(Ast* ast, ClassObject* currentClass) {
                     break;
                 case ast_variable_decl:
                     inlineField(branch);
-                    break;
-                case ast_enum_decl:
-                    inlineEnumFields(branch);
                     break;
                 case ast_mutate_decl:
                     inlineClassMutateFields(branch);
@@ -1839,7 +1736,6 @@ void Compiler::inlineFields() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        currModule = "$unknown";
         long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (int x = 0; x < current->size(); x++) {
@@ -1847,7 +1743,7 @@ void Compiler::inlineFields() {
 
             if (x == 0) {
                 if(branch->getType() == ast_module_decl) {
-                    currModule = parseModuleDecl(branch);
+                    currModule = Obfuscater::getModule(parseModuleDecl(branch));
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
@@ -1862,9 +1758,6 @@ void Compiler::inlineFields() {
                     break;
                 case ast_variable_decl:
                     inlineField(branch);
-                    break;
-                case ast_enum_decl:
-                    inlineEnumFields(branch);
                     break;
                 case ast_mutate_decl:
                     inlineClassMutateFields(branch);
@@ -1890,7 +1783,7 @@ void Compiler::postProcessUnprocessedClasses() {
         ClassObject *unprocessedClass = unProcessedClasses.get(i);
 
         currModule = unprocessedClass->module;
-        current = getParserBySourceFile(unprocessedClass->meta.file);
+        current = getParserBySourceFile(unprocessedClass->meta.file->name);
 
         long long totalErrors = errors->getUnfilteredErrorCount();
         updateErrorManagerInstance(current);
@@ -1935,6 +1828,7 @@ bool Compiler::postProcess() {
     resolveAllDelegates();
     resolveAllFields();
     inlineFields();
+    postProcessEnumFields();
     postProcessGenericClasses();
 
     return !errors->hasErrors();
@@ -1946,13 +1840,12 @@ void Compiler::handleImports() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        currModule = "$unknown";
         long long totalErrors = errors->getUnfilteredErrorCount();
         if(c_options.magic)
         { // import everything in magic mode
-            importMap.__new().key = current->getTokenizer()->file;
+            importMap.__new().key = Obfuscater::getFile(current->getTokenizer()->file);
             importMap.last().value.init();
-            importMap.last().value.addAll(Obfuscater::packages);
+            importMap.last().value.addAll(Obfuscater::modules);
         } else
             preproccessImports();
 

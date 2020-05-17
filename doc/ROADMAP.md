@@ -321,7 +321,7 @@ def main() {
 
 to bring down file exe size
 
-- add builtin obfuscation of code to the lang
+- [X] add builtin obfuscation of code to the lang
 -- Obfuscate classes, fields, and method names in code
 --- It will be as follows
 ```javascript
@@ -439,7 +439,7 @@ def main() {
 the class `list` now has a field called maxSize declared because parameters with access specifiers
 are declared member variables and the ones with out are considered parameters
 
-- implement static inits for classes
+- [X] implement static inits for classes
 
 ```javascript
 mod main;

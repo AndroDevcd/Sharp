@@ -9,21 +9,21 @@ mod std;
  * needing to know its true makeup.
  */
 stable class _object_ : printable, unique {
+    private static global_guid := 0;
+
     public def operator==(o : object) : var {
         return (self as object)==o;
     }
 
     public def to_string() := new string("");
 
-    def hash() : _int64 {
+    def hash() : long {
         /* must be implemented at a higher level */
         return 0;
     }
 
-    def guid() : _int64 {
+    def guid() : long {
         /* user must impl at higher level if constant guid is desired */
-        return 0;//global_guid++;
+        return global_guid++;
     }
 }
-
-//global_guid := 0;

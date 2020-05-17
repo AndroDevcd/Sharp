@@ -11,12 +11,12 @@ public class integer<native_type> {
         value = num.value;
     }
 
-    def hash() : _int64 {
+    def hash() : long {
         return value;
     }
 
-    def operator!=(num : integer<native_type>) := 0; //(value!=num.value); // TODO: add func for every integer type
-    def operator==(num : integer<native_type>) := 0;// (value==num.value);
+    def operator!=(num : integer<native_type>) := (value!=num.value); // TODO: add func for every integer type
+    def operator==(num : integer<native_type>) := (value==num.value);
     def operator!=(num : var) := 0; //TODO: see why it is broken (value!=num.value);
     def operator=(num : var) := 0;
 
@@ -39,31 +39,58 @@ public class integer<native_type> {
 
 class ulong base integer<_uint64> {
 
+    ulong(i : var) {
+
+    }
 }
 class long base integer<_int64> {
     long(i : int) {
 
     }
+    long(i : var) {
+
+    }
 }
 class uint base integer<_uint32> {
 
+    uint(i : var) {
+
+    }
 }
 class int base integer<_int32> {
 
+    int(i : var) {
+
+    }
 }
 class ushort base integer<_uint16> {
 
+    ushort(i : var) {
+
+    }
 }
 class short base integer<_int16> {
 
+    short(i : var) {
+
+    }
 }
 class uchar base integer<_uint8> {
 
+    uchar(i : var) {
+
+    }
 }
 class char base integer<_int8> {
 
+    char(i : var) {
+
+    }
 }
 class byte base uchar {
 
+    byte(i : var) {
+
+    }
 }
 class bool base integer<_int8> { /* TDOO: override base class methods */ }

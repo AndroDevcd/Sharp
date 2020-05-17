@@ -8,8 +8,8 @@
 #include "../../../../stdimports.h"
 #include "../oo/ClassObject.h"
 
-struct PackageData {
-    PackageData(string name, Int guid)
+struct ModuleData {
+    ModuleData(string name, uInt guid)
     :
             name(name),
             guid(guid),
@@ -18,7 +18,21 @@ struct PackageData {
     }
 
     string name;
-    Int guid;
+    uInt guid;
+    bool obfuscate;
+};
+
+struct FileData {
+    FileData(string name, uInt guid)
+    :
+            name(name),
+            guid(guid),
+            obfuscate(c_options.obfuscate)
+    {
+    }
+
+    string name;
+    uInt guid;
     bool obfuscate;
 };
 
@@ -31,17 +45,28 @@ public:
     {
     }
 
+    ~Obfuscater() {
+        for(Int i = 0; i < modules.size(); i++) {
+            delete modules.get(i);
+        }
+        modules.free();
+    }
+
     void obfuscate();
 
-    static PackageData* getPackage(string name);
-    static void addPackage(string name, Int id);
+    static ModuleData* getModule(string name);
+    static void addModule(string name, uInt id);
+    static FileData* getFile(string name);
+    static void addFile(string name, uInt id);
 
-    static List<PackageData*> packages;
+    static List<ModuleData*> modules;
+    static List<FileData*> files;
 private:
     Compiler *compiler;
 
     static string generateName(Int id);
-    static bool findPackage(PackageData **p1, void *p2);
+    static bool findPackage(ModuleData **p1, void *p2);
+    static bool findFile(FileData **f1, void *f2);
     static bool checkReliability(Int startId, Int sampleSize);
     static void obfuscate(ClassObject *klass);
     static void obfuscate(DataEntity *de);

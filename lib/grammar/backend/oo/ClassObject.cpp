@@ -87,7 +87,6 @@ long ClassObject::getFieldAddress(Field* field) {
 }
 
 long ClassObject::totalFieldCount() {
-    if(fields.empty()) return 0;
     ClassObject* k, *_klass = this;
     long fieldCount=fields.size();
 
@@ -102,26 +101,19 @@ long ClassObject::totalFieldCount() {
     }
 }
 
-Method* ClassObject::getConstructor(List<Field*> params, bool checkBase) {
-    Method *fun;
-    List<Method*> constructors;
-    getAllFunctionsByType(fn_constructor, constructors);
+long ClassObject::totalFunctionCount() {
+    ClassObject* k, *_klass = this;
+    long functionCount=functions.size();
 
-    for(long i = 0; i < constructors.size(); i++) {
-        fun = constructors.get(i);
-        if(Compiler::simpleParameterMatch(params, fun->params)) {
-            constructors.free();
-            return fun;
-        }
+    for(;;) {
+        k = _klass->getSuperClass();
+
+        if(k == NULL)
+            return functionCount;
+
+        functionCount+=k->functions.size();
+        _klass = k;
     }
-
-    if(checkBase && super != NULL) {
-        constructors.free();
-        return super->getConstructor(params, true);
-    }
-
-    constructors.free();
-    return NULL;
 }
 
 bool ClassObject::isClassRelated(ClassObject *klass, bool interfaceCheck) {

@@ -7,17 +7,13 @@ import std.io;
  *
  *
  */
-stable ext class _nil_ {
-    static instance : _nil_;
-        get
-        {
-            //lock self -> {
-            //    if(instance == null)
-            //        return (instance = new _nil_{ });
-            //    else return instance;
-            //}
-        }
+stable class _nil_ {
+    static instance : _nil_ = new _nil_ { };
         set value -> { } // prevent the user from setting a new value
 
-    //public def to_string() := new string("nil");
+    static init {
+
+    }
+
+    public def to_string() := new string("nil");
 }

@@ -8,6 +8,6 @@ mod std;
  * a ever-changing unique id
  */
 interface unique {
-    def hash() : _int64;
-    def guid() : _int64;
+    def hash() : long;
+    def guid() : long;
 }

@@ -4,24 +4,22 @@ import std.io;
 
 class K {
 
-    private funPtr : (var)(var);
-
-    def foo() := new _object_();
-
-    static x : int;
-    y : var;
-
-    def foo(i : int) {
+    private y := 100;
+    private foo : (int)();
 
 
-    }
 
     obfuscate -keep {
         foo() : _object_
     }
 
-    static init {
-        j : long = x;
-    }
+
+}
+
+enum ee {
+    a
+}
+
+def main() {
 
 }

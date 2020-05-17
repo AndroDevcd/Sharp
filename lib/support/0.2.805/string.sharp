@@ -1,7 +1,7 @@
 mod std;
 
 class string {
-    data : _int8[];
+    private data : _int8[];
 
     string(str : _int8[]) {
 
@@ -12,10 +12,24 @@ class string {
     }
 
     def operator+(num : _int8[]) : string {
-
+        return null;
     }
 
     def operator+(num : var) : string {
+        return null;
+    }
 
+    def foo() { }
+
+    def hash() : long {
+        const p := 31;
+        const m := 1e9 + 9;
+        hash_value := 0;
+        p_pow := 1;
+        foreach(c in data) {
+            hash_value = (hash_value + (c - 'a' + 1) * p_pow) % m;
+            p_pow = (p_pow * p) % m;
+        }
+        return hash_value;
     }
 }

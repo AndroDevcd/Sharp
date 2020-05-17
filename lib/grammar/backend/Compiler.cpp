@@ -14,13 +14,19 @@
 #include "../../runtime/oo/Method.h"
 #include "oo/Method.h"
 #include "ofuscation/Obfuscater.h"
+#include "../generator/ExeBuilder.h"
 
 string globalClass = "__srt_global";
-string undefinedModule = "__$srt_undefined";
+ModuleData* undefinedModule = NULL;
+string staticInitMethod = "static_init";
+string tlsSetupMethod = "tls_init";
 uInt Compiler::guid = 0;
 void Compiler::generate() {
     Obfuscater obf(this);
     obf.obfuscate();
+
+    ExeBuilder builder(this);
+    builder.build();
 }
 
 void Compiler::cleanup() {
@@ -166,7 +172,7 @@ void Compiler::parseClassAccessFlags(List<AccessFlag> &flags, Ast *ast) {
 }
 
 ClassObject* Compiler::addChildClassObject(string name, List<AccessFlag> &flags, ClassObject* owner, Ast* ast) {
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
     ClassObject *klass = new ClassObject(name,
@@ -260,7 +266,7 @@ void Compiler::preProccessVarDeclHelper(List<AccessFlag>& flags, Ast* ast) {
         flags.addif(STATIC);
     }
 
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
     Field* prevField=NULL;
@@ -348,7 +354,7 @@ Alias* Compiler::preProccessAliasDecl(Ast* ast) {
     }
 
     string name = ast->getToken(0).getValue();
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
     Alias* prevAlias=NULL;
@@ -420,7 +426,7 @@ void Compiler::preProccessGenericClassDecl(Ast* ast, bool isInterface) {
         currentClass = addGlobalClassObject(className + "<>", flags, ast, generics);
         if(currentClass == NULL) return; // obviously the uer did something really dumb
 
-        fullName << currModule << "#" << className;
+        fullName << currModule->name << "#" << className;
     } else {
         currentClass = addChildClassObject(className + "<>", flags, currentScope()->klass, ast);
         if(currentClass == NULL) return; // obviously the uer did something really dumb
@@ -456,7 +462,7 @@ void Compiler::preProccessEnumVar(Ast *ast) {
     flags.add(flg_CONST);
 
     string name = ast->getToken(0).getValue();
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
 
@@ -508,7 +514,7 @@ void Compiler::preProccessEnumDecl(Ast *ast)
         if(currentClass == NULL) return; // obviously the uer did something really dumb
 
         stringstream ss;
-        ss << currModule << "#" << currentClass->name;
+        ss << currModule->name << "#" << currentClass->name;
         currentClass->fullName = ss.str();
     }
     else {
@@ -631,20 +637,30 @@ void Compiler::compileObfuscateDecl(Ast* ast) {
             Ast *branch = block->getSubAst(i);
 
             if (branch->getTokenCount() > 0) {
-                PackageData *package = Obfuscater::getPackage(branch->getToken(0).getValue());
+                ModuleData *package = Obfuscater::getModule(branch->getToken(0).getValue());
                 if (package != NULL) {
                     if(!package->obfuscate && !keepData) {
                         errors->createNewError(GENERIC, ast->line, ast->col,
                                                "unable to obfuscate package `" + branch->getToken(0).getValue() + "`, that is already being preserved with `-keep`.");
                     } else
-                        package->obfuscate = keepData;
-                } else
-                    errors->createNewError(GENERIC, ast->line, ast->col,
-                                           "could not locate package `" + branch->getToken(0).getValue() + "`.");
+                        package->obfuscate = !keepData;
+                } else {
+                    FileData *file = Obfuscater::getFile(branch->getToken(0).getValue());
+                    if (file != NULL) {
+                        if(!file->obfuscate && !keepData) {
+                            errors->createNewError(GENERIC, ast->line, ast->col,
+                                                   "unable to obfuscate file `" + branch->getToken(0).getValue() + "`, that is already being preserved with `-keep`.");
+                        } else
+                            file->obfuscate = !keepData;
+                    } else {
+                        errors->createNewError(GENERIC, ast->line, ast->col,
+                                               "could not locate package or file `" + branch->getToken(0).getValue() + "`.");
+                    }
+                }
             } else {
                 Utype *utype;
                 if(branch->hasSubAst(ast_utype_arg_list_opt)) {
-                    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
+                    Meta meta(current->getErrors()->getLine(ast->line), Obfuscater::getFile(current->getTokenizer()->file),
                               ast->line, ast->col);
 
                     List<Field*> params;
@@ -846,7 +862,7 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
             if(currentClass == NULL) return; // obviously the uer did something really dumb
 
             stringstream ss;
-            ss << currModule << "#" << currentClass->name;
+            ss << currModule->name << "#" << currentClass->name;
             currentClass->fullName = ss.str();
         } else {
             currentClass = addChildClassObject(className, flags, currentScope()->klass, ast);
@@ -933,7 +949,7 @@ void Compiler::removeScope() {
     currScope.pop_back();
 }
 
-void Compiler::preProccessImportDecl(Ast *branch, List<PackageData*> &imports) {
+void Compiler::preProccessImportDecl(Ast *branch, List<ModuleData*> &imports) {
     bool star = false;
     stringstream ss;
     for(long i = 0; i < branch->getTokenCount(); i++) {
@@ -947,18 +963,18 @@ void Compiler::preProccessImportDecl(Ast *branch, List<PackageData*> &imports) {
 
     string mod = ss.str();
     string baseMod = mod.substr(0, mod.size() - 1);
-    PackageData *package;
+    ModuleData *package;
 
     if(star) {
         bool found = false;
-        if((package = Obfuscater::getPackage(baseMod)) != NULL) {
+        if((package = Obfuscater::getModule(baseMod)) != NULL) {
             imports.addif(package);
         }
 
-        for(long i = 0; i < Obfuscater::packages.size(); i++) {
-            if(startsWith(Obfuscater::packages.get(i)->name, mod)) {
+        for(long i = 0; i < Obfuscater::modules.size(); i++) {
+            if(startsWith(Obfuscater::modules.get(i)->name, mod)) {
                 found = true;
-                imports.addif(Obfuscater::packages.get(i));
+                imports.addif(Obfuscater::modules.get(i));
             }
         }
 
@@ -968,7 +984,7 @@ void Compiler::preProccessImportDecl(Ast *branch, List<PackageData*> &imports) {
         }
 
     } else {
-        if((package = Obfuscater::getPackage(mod)) != NULL) {
+        if((package = Obfuscater::getModule(mod)) != NULL) {
             if(!imports.addif(package)) {
                 createNewWarning(GENERIC, __WGENERAL, branch->line, branch->col, "module `" + mod + "` has already been imported.");
             }
@@ -982,8 +998,8 @@ void Compiler::preProccessImportDecl(Ast *branch, List<PackageData*> &imports) {
 
 void Compiler::preproccessImports() {
     KeyPair<string, List<string>> resolveMap;
-    List<PackageData*> imports;
-    imports.add(Obfuscater::getPackage("std")); // import the std lib by default
+    List<ModuleData*> imports;
+    imports.add(Obfuscater::getModule("std")); // import the std lib by default
 
     for(unsigned long x = 0; x < current->size(); x++)
     {
@@ -991,10 +1007,13 @@ void Compiler::preproccessImports() {
         if(x == 0)
         {
             if(branch->getType() == ast_module_decl) {
-                imports.add(Obfuscater::getPackage(currModule = parseModuleDecl(branch)));
+                string module = parseModuleDecl(branch);
+                imports.add(Obfuscater::getModule(module));
+                currModule = Obfuscater::getModule(module);
                 continue;
             } else {
-                imports.add(Obfuscater::getPackage(currModule = undefinedModule));
+                currModule = undefinedModule;
+                imports.add(currModule);
             }
         }
         switch(branch->getType()) {
@@ -1010,7 +1029,7 @@ void Compiler::preproccessImports() {
     }
 
 
-    importMap.__new().key = current->getTokenizer()->file;
+    importMap.__new().key = Obfuscater::getFile(current->getTokenizer()->file);
     importMap.last().value.init();
     importMap.last().value.addAll(imports);
 }
@@ -1104,9 +1123,9 @@ void Compiler::validateAccess(Method *function, Ast* pAst) {
     }
 }
 
-ClassObject* Compiler::resolveClass(string mod, string name, Ast* pAst) {
+ClassObject* Compiler::resolveClass(ModuleData* mod, string name, Ast* pAst) {
     ClassObject* klass = NULL;
-    if(!mod.empty()) {
+    if(mod != NULL) {
         if((klass = findClass(mod, name, classes)) != NULL) {
             validateAccess(klass, pAst);
             return klass;
@@ -1114,11 +1133,11 @@ ClassObject* Compiler::resolveClass(string mod, string name, Ast* pAst) {
     } else {
         resolve:
         for (unsigned int i = 0; i < importMap.size(); i++) {
-            if (importMap.get(i).key == current->getTokenizer()->file) {
+            if (importMap.get(i).key->name == current->getTokenizer()->file) {
 
-                List<PackageData*> &lst = importMap.get(i).value;
+                List<ModuleData*> &lst = importMap.get(i).value;
                 for (unsigned int x = 0; x < lst.size(); x++) {
-                    if ((klass = findClass(lst.get(x)->name, name, classes)) != NULL) {
+                    if ((klass = findClass(lst.get(x), name, classes)) != NULL) {
                         validateAccess(klass, pAst);
                         return klass;
                     }
@@ -1132,18 +1151,18 @@ ClassObject* Compiler::resolveClass(string mod, string name, Ast* pAst) {
     }
 }
 
-bool Compiler::resolveClass(List<ClassObject*> &classes, List<ClassObject*> &results, string mod, string name, Ast* pAst, bool match) {
+bool Compiler::resolveClass(List<ClassObject*> &classes, List<ClassObject*> &results, ModuleData* mod, string name, Ast* pAst, bool match) {
     ClassObject* klass = NULL;
-    if(!mod.empty() && (klass = findClass(mod, name, classes, match)) != NULL) {
+    if(mod != NULL && (klass = findClass(mod, name, classes, match)) != NULL) {
         validateAccess(klass, pAst);
         results.add(klass);
     } else {
         for (unsigned int i = 0; i < importMap.size(); i++) {
-            if (importMap.get(i).key == current->getTokenizer()->file) {
+            if (importMap.get(i).key->name == current->getTokenizer()->file) {
 
-                List<PackageData*> &lst = importMap.get(i).value;
+                List<ModuleData*> &lst = importMap.get(i).value;
                 for (unsigned int x = 0; x < lst.size(); x++) {
-                    if ((klass = findClass(lst.get(x)->name, name, classes, match)) != NULL) {
+                    if ((klass = findClass(lst.get(x), name, classes, match)) != NULL) {
                         results.addif(klass);
                     }
                 }
@@ -1158,7 +1177,7 @@ bool Compiler::resolveClass(List<ClassObject*> &classes, List<ClassObject*> &res
 
 void Compiler::inheritObjectClassHelper(Ast *ast, ClassObject *klass) {
     if(klass->fullName != "std#_object_" && klass->getSuperClass() == NULL) {
-        ClassObject *base = findClass("std", "_object_", classes);
+        ClassObject *base = findClass(Obfuscater::getModule("std"), "_object_", classes);
 
         if (base != NULL && (IS_CLASS_ENUM(base->getClassType()) || IS_CLASS_INTERFACE(base->getClassType()))) {
             stringstream err;
@@ -1180,7 +1199,7 @@ void Compiler::inheritObjectClassHelper(Ast *ast, ClassObject *klass) {
 
 void Compiler::inheritEnumClassHelper(Ast *ast, ClassObject *enumClass) {
     if(IS_CLASS_ENUM(enumClass->getClassType())) {
-        ClassObject *base = findClass("std", "_enum_", classes);
+        ClassObject *base = findClass(Obfuscater::getModule("std"), "_enum_", classes);
 
         if (base != NULL && (IS_CLASS_ENUM(base->getClassType()) || IS_CLASS_INTERFACE(base->getClassType()))) {
             stringstream err;
@@ -1543,8 +1562,16 @@ Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* a
 
         if(advancedSearch && matches.empty()) {
             for (long long i = 0; i < funcs.size(); i++) {
-                if (complexParameterMatch(funcs.get(i)->params, params)) {
+                if (complexParameterMatch(funcs.get(i)->params, params, false)) {
                     matches.add(funcs.get(i));
+                }
+            }
+
+            if(matches.empty()) {
+                for (long long i = 0; i < funcs.size(); i++) {
+                    if (complexParameterMatch(funcs.get(i)->params, params, true)) {
+                        matches.add(funcs.get(i));
+                    }
                 }
             }
         }
@@ -1564,7 +1591,7 @@ Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* a
     return NULL;
 }
 
-Alias *Compiler::resolveAlias(string mod, string name, Ast *ast) {
+Alias *Compiler::resolveAlias(ModuleData* mod, string name, Ast *ast) {
     List<ClassObject*> globalClasses;
     resolveClass(classes, globalClasses,  mod, globalClass, ast);
     Alias *resolvedAlias;
@@ -1581,7 +1608,7 @@ Alias *Compiler::resolveAlias(string mod, string name, Ast *ast) {
 
 Field *Compiler::resolveField(string name, Ast *ast) {
     List<ClassObject*> globalClasses;
-    resolveClass(classes, globalClasses, "", globalClass, ast);
+    resolveClass(classes, globalClasses, NULL, globalClass, ast);
     Field *resolvedField;
 
     for(long i = 0; i < globalClasses.size(); i++) {
@@ -1595,7 +1622,7 @@ Field *Compiler::resolveField(string name, Ast *ast) {
 
 Method *Compiler::resolveFunction(string name, List<Field*> &params, Ast *ast) {
     List<ClassObject*> globalClasses;
-    resolveClass(classes, globalClasses, "", globalClass, ast);
+    resolveClass(classes, globalClasses, NULL, globalClass, ast);
     Method *resolvedMethod;
 
     for(long i = 0; i < globalClasses.size(); i++) {
@@ -1608,7 +1635,7 @@ Method *Compiler::resolveFunction(string name, List<Field*> &params, Ast *ast) {
 
 bool Compiler::resolveFunctionByName(string name, List<Method*> &functions, Ast *ast) {
     List<ClassObject*> globalClasses;
-    resolveClass(classes, globalClasses, "", globalClass, ast);
+    resolveClass(classes, globalClasses, NULL, globalClass, ast);
     Method *resolvedMethod;
 
     for(long i = 0; i < globalClasses.size(); i++) {
@@ -1645,7 +1672,8 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
     }
 
     if(ptr.mod != "") {
-        ClassObject *global = findClass(ptr.mod, globalClass, classes);
+        ModuleData *module = Obfuscater::getModule(ptr.mod) ? Obfuscater::getModule(ptr.mod) : undefinedModule;
+        ClassObject *global = findClass(module, globalClass, classes);
         if(currentScope()->type == RESTRICTED_INSTANCE_BLOCK && !currentScope()->klass->isClassRelated(global))
             global = NULL;
 
@@ -1756,7 +1784,7 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
     return NULL;
 }
 
-bool Compiler::isUtypeClass(Utype* utype, string mod, int names, ...) {
+bool Compiler::isUtypeClass(Utype* utype, ModuleData* mod, int names, ...) {
     if(utype) {
         va_list ap;
         bool found = false;
@@ -1807,9 +1835,12 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
     List<Field*> params;
     bool singularCall = false; //TODO: fully support restricted instance blocks
 
+    RETAIN_BLOCK_TYPE(currentScope()->type == RESTRICTED_INSTANCE_BLOCK || currentScope()->type == INSTANCE_BLOCK
+        ? INSTANCE_BLOCK : STATIC_BLOCK)
     compileTypeIdentifier(ptr, ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier));
     compileExpressionList(expressions, ast->getSubAst(ast_expression_list));
     expressionsToParams(expressions, params);
+    RESTORE_BLOCK_TYPE()
 
     if(ptr.classes.singular()) {
         singularCall = true;
@@ -1940,1037 +1971,6 @@ void Compiler::pushParametersToStackAndCall(Ast *ast, Method *resolvedMethod, Li
     }
 }
 
-/*
- * DEBUG: This is a debug function made to print the generated contents of a n expression's code
- */
-void Compiler::printExpressionCode(Expression &expr) {
-    cout << "\n\n\n==== Expression Code ===\n";
-    cout << "line " << expr.ast->line << " file " << current->getTokenizer()->file << endl;
-    cout << codeToString(expr.utype->getCode());
-    cout << "\n=========\n" << std::flush;
-}
-
-void Compiler::printMethodCode(Method &func, Ast *ast) {
-    cout << "\n\n\n==== Expression Code ===\n";
-    cout << "line " << ast->line << " file " << current->getTokenizer()->file << endl;
-    cout << codeToString(func.data.code, &func.data);
-    cout << "\n=========\n" << std::flush;
-}
-
-/*
- * DEBUG: This is a debug function made to get the name of a register
- */
-string Compiler::registerToString(int64_t r) {
-    switch(r) {
-        case ADX:
-            return "adx";
-        case CX:
-            return "cx";
-        case CMT:
-            return "cmt";
-        case EBX:
-            return "ebx";
-        case ECX:
-            return "ecx";
-        case ECF:
-            return "ecf";
-        case EDF:
-            return "edf";
-        case EHF:
-            return "ehf";
-        case BMR:
-            return "bmr";
-        case EGX:
-            return "egx";
-        default: {
-            stringstream ss;
-            ss << "? (" << r << ")";
-            return ss.str();
-        }
-    }
-}
-
-/*
- * DEBUG: This is a debug function made to find a class for better code readability
- */
-string Compiler::find_class(int64_t id) {
-    for(unsigned int i = 0; i < classes.size(); i++) {
-        if(classes.get(i)->address == id)
-            return classes.get(i)->fullName;
-        else {
-            ClassObject &klass = *classes.get(i);
-            for(unsigned int x = 0; x < klass.getChildClasses().size(); x++) {
-                if(klass.getChildClasses().get(x)->address == id)
-                    return klass.getChildClasses().get(x)->fullName;
-            }
-        }
-    }
-    return "";
-}
-
-/*
- * DEBUG: This is a debug function made to allow early testing in compiler code generation
- */
-string Compiler::codeToString(CodeHolder &code, CodeData *data) {
-    stringstream ss, endData;
-    for(unsigned int x = 0; x < code.size(); x++) {
-        opcode_instr opcodeData=code.ir32.get(x);
-        ss << x << ": ";
-
-        if(data != NULL) {
-            // TODO: put code info here
-        }
-
-        switch(GET_OP(opcodeData)) {
-            case Opcode::ILL:
-            {
-                ss<<"ill ";
-
-                break;
-            }
-            case Opcode::NOP:
-            {
-                ss<<"nop";
-                
-                break;
-            }
-            case Opcode::INT:
-            {
-                ss<<"int 0x" << std::hex << GET_Da(opcodeData) << std::dec;
-                
-                break;
-            }
-            case Opcode::MOVI:
-            {
-                ss << "movi #" << code.ir32.get(x+1)  << ", ";
-                ss<< registerToString(GET_Da(opcodeData)) ;
-                x++;
-                break;
-            }
-            case Opcode::RET:
-            {
-                ss<<"ret" << (GET_Da(opcodeData) == ERR_STATE ? " ERR" : "");
-                
-                break;
-            }
-            case Opcode::HLT:
-            {
-                ss<<"hlt";
-                
-                break;
-            }
-            case Opcode::NEWARRAY:
-            {
-                ss<<"newarry ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::CAST:
-            {
-                ss<<"cast ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::VARCAST:
-            {
-                ss<<"vcast ";
-                ss<< GET_Ca(opcodeData);
-                ss << " -> " << (GET_Cb(opcodeData) == 1 ? "[]" : "");
-                
-                break;
-            }
-            case Opcode::MOV8:
-            {
-                ss<<"mov8 ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::MOV16:
-            {
-                ss<<"mov16 ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::MOV32:
-            {
-                ss<<"mov32 ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::MOV64:
-            {
-                ss<<"mov64 ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            } case Opcode::MOVU8:
-            {
-                ss<<"movu8 ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::MOVU16:
-            {
-                ss<<"movu16 ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::MOVU32:
-            {
-                ss<<"movu32 ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::MOVU64:
-            {
-                ss<<"movu64 ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::RSTORE:
-            {
-                ss<<"rstore ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::ADD:
-            {
-                ss<<"add ";
-                ss<< registerToString(GET_Ba(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Bb(opcodeData));
-                ss<< " -> ";
-                ss<< registerToString(GET_Bc(opcodeData));
-                
-                break;
-            }
-            case Opcode::SUB:
-            {
-                ss<<"sub ";
-                ss<< registerToString(GET_Ba(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Bb(opcodeData));
-                ss<< " -> ";
-                ss<< registerToString(GET_Bc(opcodeData));
-                
-                break;
-            }
-            case Opcode::MUL:
-            {
-                ss<<"mul ";
-                ss<< registerToString(GET_Ba(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Bb(opcodeData));
-                ss<< " -> ";
-                ss<< registerToString(GET_Bc(opcodeData));
-                
-                break;
-            }
-            case Opcode::DIV:
-            {
-                ss<<"div ";
-                ss<< registerToString(GET_Ba(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Bb(opcodeData));
-                ss<< " -> ";
-                ss<< registerToString(GET_Bc(opcodeData));
-                
-                break;
-            }
-            case Opcode::MOD:
-            {
-                ss<<"mod ";
-                ss<< registerToString(GET_Ba(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Bb(opcodeData));
-                ss<< " -> ";
-                ss<< registerToString(GET_Bc(opcodeData));
-                
-                break;
-            }
-            case Opcode::IADD:
-            {
-                ss<<"iadd ";
-                ss<< registerToString(GET_Da(opcodeData));
-                ss<< ", #";
-                ss<< registerToString(code.ir32.get(++x));
-                
-                break;
-            }
-            case Opcode::ISUB:
-            {
-                ss<<"isub ";
-                ss<< registerToString(GET_Da(opcodeData));
-                ss<< ", #";
-                ss<< registerToString(code.ir32.get(++x));
-                
-                break;
-            }
-            case Opcode::IMUL:
-            {
-                ss<<"imul ";
-                ss<< registerToString(GET_Da(opcodeData));
-                ss<< ", #";
-                ss<< registerToString(code.ir32.get(++x));
-                
-                break;
-            }
-            case Opcode::IDIV:
-            {
-                ss<<"idiv ";
-                ss<< registerToString(GET_Da(opcodeData));
-                ss<< ", #";
-                ss<< registerToString(code.ir32.get(++x));
-                
-                break;
-            }
-            case Opcode::IMOD:
-            {
-                ss<<"imod ";
-                ss<< registerToString(GET_Da(opcodeData));
-                ss<< ", #";
-                ss<< registerToString(code.ir32.get(++x));
-                
-                break;
-            }
-            case Opcode::POP:
-            {
-                ss<<"pop";
-                
-                break;
-            }
-            case Opcode::INC:
-            {
-                ss<<"inc ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::DEC:
-            {
-                ss<<"dec ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::MOVR:
-            {
-                ss<<"movr ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::IALOAD:
-            {
-                ss<<"iaload ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::BRH:
-            {
-                ss<<"brh";
-                
-                break;
-            }
-            case Opcode::IFE:
-            {
-                ss<<"ife";
-                
-                break;
-            }
-            case Opcode::IFNE:
-            {
-                ss<<"ifne";
-                
-                break;
-            }
-            case Opcode::JE: // TODO: continue here
-            {
-                ss<<"je " << GET_Da(opcodeData);
-                
-                break;
-            }
-            case Opcode::JNE:
-            {
-                ss<<"jne " << GET_Da(opcodeData);
-                
-                break;
-            }
-            case Opcode::LT:
-            {
-                ss<<"lt ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::GT:
-            {
-                ss<<"gt ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::LTE:
-            {
-                ss<<"lte ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::GTE:
-            {
-                ss<<"gte ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::MOVL:
-            {
-                ss<<"movl " << GET_Da(opcodeData);
-                
-                break;
-            }
-            case Opcode::POPL:
-            {
-                ss<<"popl " << GET_Da(opcodeData);
-                
-                break;
-            }
-            case Opcode::MOVSL:
-            {
-                ss<<"movsl #";
-                ss<< GET_Da(opcodeData);
-                
-                break;
-            }
-            case Opcode::SIZEOF:
-            {
-                ss<<"sizeof ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::PUT:
-            {
-                ss<<"put ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::PUTC:
-            {
-                ss<<"_putc ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::CHECKLEN:
-            {
-                ss<<"chklen ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::JMP:
-            {
-                ss<<"jmp @" << GET_Da(opcodeData);
-                
-                break;
-            }
-            case Opcode::LOADPC:
-            {
-                ss<<"loadpc ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::PUSHOBJ:
-            {
-                ss<<"pushobj";
-                
-                break;
-            }
-            case Opcode::DEL:
-            {
-                ss<<"del";
-                
-                break;
-            }
-            case Opcode::CALL:
-            {
-                ss << "call @" << GET_Da(opcodeData) << " // <";
-                //ss << find_method(GET_Da(x64)) << ">";
-                
-                break;
-            }
-            case Opcode::CALLD:
-            {
-                ss<<"calld ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::NEWCLASS:
-            {
-                ss<<"new_class @" << GET_Da(opcodeData);
-                ss << " // "; ss << find_class(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::MOVN:
-            {
-                ss<<"movn #" << code.ir32.get(++x);
-                
-                break;
-            }
-            case Opcode::SLEEP:
-            {
-                ss<<"sleep ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::TEST:
-            {
-                ss<<"test ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::TNE:
-            {
-                ss<<"tne ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::LOCK:
-            {
-                ss<<"_lck ";
-                
-                break;
-            }
-            case Opcode::ULOCK:
-            {
-                ss<<"_ulck";
-                
-                break;
-            }
-            case Opcode::MOVG:
-            {
-                ss<<"movg @"<< GET_Da(opcodeData);
-                ss << " // @"; ss << find_class(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::MOVND:
-            {
-                ss<<"movnd ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::NEWOBJARRAY:
-            {
-                ss<<"newobj_arry ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::NOT: //c
-            {
-                ss<<"not ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::SKIP:// d
-            {
-                ss<<"skip @";
-                ss<< GET_Da(opcodeData);
-                ss << " // pc = " << (x + GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::LOADVAL:
-            {
-                ss<<"loadval ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::SHL:
-            {
-                ss<<"shl ";
-                ss<< registerToString(GET_Ba(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Bb(opcodeData));
-                ss<< " -> ";
-                ss<< registerToString(GET_Bc(opcodeData));
-                
-                break;
-            }
-            case Opcode::SHR:
-            {
-                ss<<"shr ";
-                ss<< registerToString(GET_Ba(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Bb(opcodeData));
-                ss<< " -> ";
-                ss<< registerToString(GET_Bc(opcodeData));
-                
-                break;
-            }
-            case Opcode::SKPE:
-            {
-                ss<<"skpe ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss << " // pc = " << (x + GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::SKNE:
-            {
-                ss<<"skne ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss << " // pc = " << (x + GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::CMP:
-            {
-                ss<<"cmp ";
-                ss<< registerToString(GET_Da(opcodeData));
-                ss<< ", ";
-                ss<< code.ir32.get(++x);
-                
-                break;
-            }
-            case Opcode::AND:
-            {
-                ss<<"and ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::UAND:
-            {
-                ss<<"uand ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::OR:
-            {
-                ss<<"or ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::XOR:
-            {
-                ss<<"xor ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::THROW:
-            {
-                ss<<"throw ";
-                
-                break;
-            }
-            case Opcode::CHECKNULL:
-            {
-                ss<<"checknull";
-                
-                break;
-            }
-            case Opcode::RETURNOBJ:
-            {
-                ss<<"returnobj";
-                
-                break;
-            }
-            case Opcode::NEWCLASSARRAY:
-            {
-                ss<<"new_classarray ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< " ";
-                ss << " // "; ss << find_class(GET_Cb(opcodeData)) << "[]";
-                
-                break;
-            }
-            case Opcode::NEWSTRING:
-            {
-                ss << "newstr @" << GET_Da(opcodeData) << " // ";
-                ss << stringMap.get(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::ADDL:
-            {
-                ss<<"addl ";
-                ss << registerToString(GET_Ca(opcodeData)) << ", fp@";
-                ss<<GET_Cb(opcodeData);
-                
-                break;
-            }
-            case Opcode::SUBL:
-            {
-                ss<<"subl ";
-                ss << registerToString(GET_Ca(opcodeData)) << ", fp@";
-                ss<<GET_Cb(opcodeData);
-                
-                break;
-            }
-            case Opcode::MULL:
-            {
-                ss<<"mull ";
-                ss << registerToString(GET_Ca(opcodeData)) << ", fp@";
-                ss<<GET_Cb(opcodeData);
-                
-                break;
-            }
-            case Opcode::DIVL:
-            {
-                ss<<"divl ";
-                ss << registerToString(GET_Ca(opcodeData)) << ", fp@";
-                ss<<GET_Cb(opcodeData);
-                
-                break;
-            }
-            case Opcode::MODL:
-            {
-                ss<<"modl #";
-                ss << registerToString(GET_Ca(opcodeData)) << ", fp@";
-                ss<<GET_Cb(opcodeData);
-                
-                break;
-            }
-            case Opcode::IADDL:
-            {
-                ss<<"iaddl ";
-                ss << code.ir32.get(x+1) << ", fp@";
-                ss<<GET_Da(opcodeData); x++;
-                
-                break;
-            }
-            case Opcode::ISUBL:
-            {
-                ss<<"isubl ";
-                ss << code.ir32.get(x+1) << ", fp@";
-                ss<<GET_Da(opcodeData); x++;
-                
-                break;
-            }
-            case Opcode::IMULL:
-            {
-                ss<<"imull ";
-                ss << code.ir32.get(x+1) << ", fp@";
-                ss<<GET_Da(opcodeData); x++;
-                
-                break;
-            }
-            case Opcode::IDIVL:
-            {
-                ss<<"idivl ";
-                ss << code.ir32.get(x+1) << ", fp@";
-                ss<<GET_Da(opcodeData); x++;
-                
-                break;
-            }
-            case Opcode::IMODL:
-            {
-                ss<<"imodl ";
-                ss << code.ir32.get(x+1) << ", fp@";
-                ss<<GET_Da(opcodeData); x++;
-                
-                break;
-            }
-            case Opcode::LOADL:
-            {
-                ss<<"loadl ";
-                ss << registerToString(GET_Ca(opcodeData)) << ", fp+";
-                ss<<GET_Cb(opcodeData);
-                
-                break;
-            }
-            case Opcode::POPOBJ:
-            {
-                ss<<"popobj";
-                
-                break;
-            }
-            case Opcode::SMOVR:
-            {
-                ss<<"smovr ";
-                ss << registerToString(GET_Ca(opcodeData)) << ", sp+";
-                if(GET_Cb(opcodeData) < 0) ss << "[";
-                ss<<GET_Cb(opcodeData);
-                if(GET_Cb(opcodeData) < 0) ss << "]";
-                
-                break;
-            }
-            case Opcode::SMOVR_2:
-            {
-                ss<<"smovr_2 ";
-                ss << registerToString(GET_Ca(opcodeData)) << ", fp+";
-                if(GET_Cb(opcodeData) < 0) ss << "[";
-                ss<<GET_Cb(opcodeData);
-                if(GET_Cb(opcodeData) < 0) ss << "]";
-                
-                break;
-            }
-            case Opcode::ANDL:
-            {
-                ss<<"andl ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< GET_Cb(opcodeData);
-                
-                break;
-            }
-            case Opcode::ORL:
-            {
-                ss<<"orl ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< GET_Cb(opcodeData);
-                
-                break;
-            }
-            case Opcode::XORL:
-            {
-                ss<<"xorl ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< GET_Cb(opcodeData);
-                
-                break;
-            }
-            case Opcode::RMOV:
-            {
-                ss<<"rmov ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< ", ";
-                ss<< registerToString(GET_Cb(opcodeData));
-                
-                break;
-            }
-            case Opcode::SMOV:
-            {
-                ss<<"smov ";
-                ss << registerToString(GET_Ca(opcodeData)) << ", sp+";
-                if(GET_Cb(opcodeData) < 0) ss << "[";
-                ss<<GET_Cb(opcodeData);
-                if(GET_Cb(opcodeData) < 0) ss << "]";
-                
-                break;
-            }
-            case Opcode::RETURNVAL:
-            {
-                ss<<"return_val ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::ISTORE:
-            {
-                ss<<"istore ";
-                ss<< code.ir32.get(++x);
-                
-                break;
-            }
-            case Opcode::ISTOREL:
-            {
-                ss<<"istorel ";
-                ss << ((int32_t)code.ir32.get(++x)) << ", fp+";
-                ss<<GET_Da(opcodeData);
-                
-                break;
-            }
-            case Opcode::IPUSHL:
-            {
-                ss<<"ipushl #";
-                ss<< GET_Da(opcodeData);
-                
-                break;
-            }
-            case Opcode::PUSHL:
-            {
-                ss<<"pushl ";
-                ss<< GET_Da(opcodeData);
-                
-                break;
-            }
-            case Opcode::PUSHNULL:
-            {
-                ss<<"pushnull ";
-                
-                break;
-            }
-            case Opcode::GET:
-            {
-                ss<<"get ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::ITEST:
-            {
-                ss<<"itest ";
-                ss<< registerToString(GET_Da(opcodeData));
-                
-                break;
-            }
-            case Opcode::INVOKE_DELEGATE:
-            {
-                ss<<"invoke_delegate ";
-                ss<< GET_Da(opcodeData);
-                ss<< " { static=";
-                ss<< GET_Ca(code.ir32.get(x+1))
-                    << ", args=" << GET_Cb(code.ir32.get(x+1)) <<  " }";
-                x++;
-                
-                break;
-            }
-            case Opcode::ISADD:
-            {
-                ss<<"isadd ";
-                ss << GET_Ca(opcodeData) << ", sp+";
-                if(code.ir32.get(x+1) < 0) ss << "[";
-                ss<<code.ir32.get(x+1);
-                if(code.ir32.get(x+1) < 0) ss << "]";
-                x++;
-
-                break;
-            }
-            case Opcode::IPOPL:
-            {
-                ss<<"ipopl ";
-                ss<< GET_Da(opcodeData);
-                
-                break;
-            }
-            case Opcode::SWITCH:
-            {
-                ss<<"switch ";
-                ss<< code.ir32.get(x+1);
-                //ss<< " // " << getSwitchTable(method, GET_Da(x64));
-                
-                break;
-            }
-            case Opcode::TLS_MOVL:
-            {
-                ss<<"tls_movl ";
-                ss<< GET_Da(opcodeData);
-                
-                break;
-            }
-            case Opcode::DUP:
-            {
-                ss<<"dup ";
-                
-                break;
-            }
-            case Opcode::POPOBJ_2:
-            {
-                ss<<"popobj2 ";
-                
-                break;
-            }
-            case Opcode::SWAP:
-            {
-                ss<<"swap ";
-                
-                break;
-            }
-            case Opcode::SMOVR_3:
-            {
-                ss<<"smovr_3";
-                ss << " fp+";
-                if(GET_Da(opcodeData) < 0) ss << "[";
-                ss<<GET_Da(opcodeData);
-                if(GET_Da(opcodeData) < 0) ss << "]";
-
-                break;
-            }
-            case Opcode::LDC:
-            {
-                ss<<"ldc ";
-                ss<< registerToString(GET_Ca(opcodeData));
-                ss<< " // " << constantMap.get(GET_Cb(opcodeData));
-
-                break;
-            }
-            default:
-                ss << "? (" << GET_OP(opcodeData) << ")";
-                
-                break;
-        }
-
-
-        ss << endData.str(); endData.str("");
-        ss << "\n";
-    }
-
-    return ss.str();
-}
-
 void Compiler::convertNativeIntegerClassToVar(Utype *clazz, Utype *paramUtype, CodeHolder &code, Ast *ast) {
     Field *valueField = clazz->getClass()->getField("value", true);
 
@@ -3000,14 +2000,14 @@ void Compiler::convertUtypeToNativeClass(Utype *clazz, Utype *paramUtype, CodeHo
     Method *constructor; // TODO: take note that I may not be doing pre equals validation on the param before I call this function
 
     flags.add(PUBLIC);
-    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast->line, ast->col);
 
     params.add(new Field(paramUtype->getResolvedType()->type, 0, "", currentScope()->klass, flags, meta, stl_stack, 0));
     params.get(0)->utype = paramUtype;
     params.get(0)->isArray = paramUtype->isArray();
 
-    if((constructor = clazz->getClass()->getConstructor(params, true)) != NULL) {
+    if((constructor = findFunction(clazz->getClass(), clazz->getClass()->name, params, ast, false, fn_constructor, true)) != NULL) {
         validateAccess(constructor, ast);
 
         code.addIr(OpBuilder::newClass(clazz->getClass()->address))
@@ -3036,7 +2036,7 @@ bool Compiler::isUtypeClassConvertableToVar(Utype *dest, Utype *clazz) {
     if(dest->getResolvedType() && clazz->getResolvedType()) {
         DataType type = dest->getResolvedType()->type;
 
-        if (isUtypeClass(clazz, "std", 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint")) {
+        if (isUtypeClass(clazz, Obfuscater::getModule("std"), 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint")) {
             return !dest->isArray() && (type <= VAR);
         }
     }
@@ -3048,9 +2048,9 @@ bool Compiler::isUtypeConvertableToNativeClass(Utype *dest, Utype *src) {
     if(dest->getResolvedType() && src->getResolvedType()) {
         DataType type = src->getResolvedType()->type;
 
-        if (isUtypeClass(dest, "std", 1, "string") && type == _INT8 && src->isArray()) {
+        if (isUtypeClass(dest, Obfuscater::getModule("std"), 1, "string") && type == _INT8 && src->isArray()) {
             return true;
-        } else if (isUtypeClass(dest, "std", 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint")) {
+        } else if (isUtypeClass(dest, Obfuscater::getModule("std"), 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint")) {
             return !src->isArray() && (type <= VAR);
         }
     }
@@ -3142,6 +2142,10 @@ void Compiler::compoundAssignValue(Expression* expr, Token &operand, Expression 
         }
     } else { // utype_field
         Field *field = (Field*)leftExpr.utype->getResolvedType();
+        if(field->flags.find(flg_CONST)) {
+            errors->createNewError(GENERIC, ast->line, ast->col, "operator `" + operand.getValue()
+                        +  "` cannot be applied to constant field `" + leftExpr.utype->toString() + "`.");
+        }
 
         if(field->getter != NULL
            && (currentScope()->currentFunction == NULL ||
@@ -3545,7 +2549,7 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
                 List<Field*> stringLiteralParam;
                 exprs.add(&leftExpr);
 
-                Utype *stringClass = new Utype(resolveClass("std", "string", ast));
+                Utype *stringClass = new Utype(resolveClass(Obfuscater::getModule("std"), "string", ast));
                 if(stringClass->getResolvedType() != NULL) {
                     expressionsToParams(exprs, stringLiteralParam);
                     convertUtypeToNativeClass(stringClass, stringLiteralParam.get(0)->utype, *resultCode, ast);
@@ -3829,14 +2833,18 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
     expr->type = utypeToExpressionType(expr->utype);
 }
 
-void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast, bool allowOverloading) {
+void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast, bool allowOverloading, bool allowSetter) {
     CodeHolder *resultCode = &expr->utype->getCode();
 
     if(leftExpr.utype->getType() == utype_field) {
         Field *field = (Field*)leftExpr.utype->getResolvedType();
         field->initialized = true;
+        if(field->flags.find(flg_CONST)) {
+            errors->createNewError(GENERIC, ast->line, ast->col, "operator `" + operand.getValue()
+                   +  "` cannot be applied to constant field `" + leftExpr.utype->toString() + "`.");
+        }
 
-        if(field->setter != NULL
+        if(allowSetter && field->setter != NULL
         && (currentScope()->currentFunction == NULL ||
             !(currentScope()->currentFunction == field->setter || currentScope()->currentFunction == field->getter))) {
 
@@ -4067,14 +3075,14 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                 }
 
                 freeListPtr(params);
-            } else if(isUtypeClass(field->utype, "std", 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint")){
+            } else if(isUtypeClass(field->utype, Obfuscater::getModule("std"), 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint")){
                 Method *constr;
                 List<Field *> params;
 
                 params.add(new Field());
                 expressionToParam(rightExpr, params.get(0));
 
-                if ((constr = field->utype->getClass()->getConstructor(params, false)) != NULL) {
+                if ((constr = findFunction(field->utype->getClass(), field->utype->getClass()->name, params, ast, false, fn_constructor, true)) != NULL) {
                     compileMethodReturnType(constr, constr->ast, false);
 
                     validateAccess(constr, ast);
@@ -4264,7 +3272,6 @@ void Compiler::compileBinaryExpression(Expression* expr, Ast* ast) {
 
     expr->ast = ast;
     Token &operand = ast->getToken(0);
-
     switch(leftExpr.utype->getType()) {
         case utype_class:
         case utype_field:
@@ -4746,7 +3753,8 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
 }
 
 void Compiler::compileNullExpression(Expression* expr, Ast* ast) {
-    expr->utype = nullUtype;
+    expr->utype->copy(nullUtype);
+    expr->type = utypeToExpressionType(nullUtype);
 
     expr->utype->getCode()
             .addIr(OpBuilder::pushNull());
@@ -4996,7 +4004,7 @@ void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression 
                                 .addIr(OpBuilder::rstore(EBX));
                     } else goto castErr;
                 } else goto castErr;
-            } else if (isUtypeClass(castExpr->utype, "std", 9, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong")) {
+            } else if (isUtypeClass(castExpr->utype, Obfuscater::getModule("std"), 9, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong")) {
                 if(!utype->isArray()) {
                     Field *valueField = castExpr->utype->getClass()->getField("value", true);
 
@@ -5405,6 +4413,7 @@ void Compiler::compileMinusExpression(Expression* expr, Ast* ast) {
             case _UINT32:
             case _UINT64:
             case VAR:
+                expr->utype->copy(varUtype);
                 expr->utype->getCode().inject(expr->utype->getCode().getInjector(ebxInjector));
                 expr->utype->getCode().addIr(OpBuilder::neg(EBX, EBX));
 
@@ -5642,7 +4651,7 @@ void Compiler::compilePostIncExpression(Expression* expr, bool compileExpression
         List<AccessFlag> flags;
         flags.add(PUBLIC);
 
-        Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
+        Meta meta(current->getErrors()->getLine(ast->line), Obfuscater::getFile(current->getTokenizer()->file),
                   ast->line, ast->col);
 
         params.add(new Field(VAR, guid++, "arg0", currentScope()->klass, flags, meta, stl_stack, 0));
@@ -5742,7 +4751,7 @@ Field* Compiler::compileLambdaArg(Ast *ast) {
     List<AccessFlag> fieldFlags;
     fieldFlags.add(PUBLIC);
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast->line, ast->col);
 
     Field *field = new Field(UNTYPED, guid++, name, findClass(currModule, globalClass, classes), fieldFlags, meta, stl_stack, 0);
@@ -5789,7 +4798,7 @@ void Compiler::compileLambdaExpression(Expression* expr, Ast* ast) {
         flags.add(PRIVATE);
         flags.add(STATIC);
 
-        Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
+        Meta meta(current->getErrors()->getLine(ast->line), Obfuscater::getFile(current->getTokenizer()->file),
                   ast->line, ast->col);
 
         stringstream ss;
@@ -6084,7 +5093,6 @@ void Compiler::compileVariableDecl(Ast* ast) {
 
 void Compiler::assignFieldExpressionValue(Field *field, Ast *ast) {
     if(field->type <= CLASS && !isFieldInlined(field)) {
-
         if(ast->hasSubAst(ast_expression)) {
             BlockType bt;
 
@@ -6113,7 +5121,7 @@ void Compiler::assignFieldExpressionValue(Field *field, Ast *ast) {
             } else
                 compileExpression(&rightExpr, ast->getSubAst(ast_expression));
 
-            assignValue(&resultExpr, operand, leftExpr, rightExpr, ast, false);
+            assignValue(&resultExpr, operand, leftExpr, rightExpr, ast, false, false);
 
             if(field->local) {
                 currentScope()->currentFunction->data.code.inject(resultExpr.utype->getCode());
@@ -6240,7 +5248,7 @@ void Compiler::resolveSetter(Ast *ast, Field *field) {
     List<AccessFlag> fieldFlags;
     params.add(field);
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast->line, ast->col);
 
     Field *arg0 = new Field(CLASS, guid++, ast->getToken(1).getValue(), field->owner, fieldFlags, meta, stl_stack, 0);
@@ -6293,6 +5301,7 @@ void Compiler::resolveSetter(Ast *ast, Field *field) {
         delete method;
     } else {
         field->setter = method;
+        unProcessedMethods.add(method);
     }
 }
 
@@ -6312,7 +5321,7 @@ void Compiler::resolveGetter(Ast *ast, Field *field) {
     if(field->flags.find(STATIC))
         flags.add(STATIC);
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast->line, ast->col);
 
     if(field->flags.find(flg_CONST)) {
@@ -6338,10 +5347,10 @@ void Compiler::resolveGetter(Ast *ast, Field *field) {
         delete method;
     } else {
         field->getter = method;
+        unProcessedMethods.add(method);
     }
 
     flags.free();
-    params.free();
 }
 
 void Compiler::resolveClassFields(Ast* ast, ClassObject* currentClass) {
@@ -6429,7 +5438,7 @@ Field* Compiler::compileUtypeArg(Ast* ast) {
     arg->module = currModule;
     arg->ast = ast;
 
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
     arg->meta.copy(meta);
 
@@ -6509,7 +5518,7 @@ void Compiler::parseUtypeArgList(List<Field*> &params, Ast* ast) {
 // private static fn main4();
 void Compiler::checkMainMethodSignature(Method* method) {
     if(globalScope() && method->name == "main") {
-        ClassObject* stringClass = findClass("std", "string", classes);
+        ClassObject* stringClass = findClass(Obfuscater::getModule("std"), "string", classes);
 
         if(stringClass != NULL) {
             List<Field*> params;
@@ -6593,7 +5602,7 @@ void Compiler::resolveOperatorOverload(Ast* ast) {
     parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
     validateMethodParams(params, ast->getSubAst(ast_utype_arg_list));
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast->line, ast->col);
 
     Method *method = new Method(name, currModule, currentScope()->klass, guid++, params, flags, meta);
@@ -6642,7 +5651,7 @@ void Compiler::resolveConstructor(Ast* ast) {
     parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
     validateMethodParams(params, ast->getSubAst(ast_utype_arg_list));
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast->line, ast->col);
 
     Method *method = new Method(name, currModule, currentScope()->klass, guid++, params, flags, meta);
@@ -6702,7 +5711,7 @@ void Compiler::compileMethodReturnType(Method* fun, Ast *ast, bool wait) {
             if (!wait) {
                 RETAIN_TYPE_INFERENCE(false)
                 RETAIN_SCOPE_CLASS(fun->owner)
-                RETAIN_BLOCK_TYPE(CLASS_SCOPE)
+                RETAIN_BLOCK_TYPE(fun->flags.find(STATIC) ? STATIC_BLOCK : INSTANCE_BLOCK)
                 Utype *utype = compileUtype(ast->getSubAst(ast_method_return_type)->getSubAst(ast_utype));
                 RESTORE_BLOCK_TYPE()
                 RESTORE_SCOPE_CLASS()
@@ -6734,11 +5743,14 @@ void Compiler::compileMethodReturnType(Method* fun, Ast *ast, bool wait) {
             }
         } else if (ast->hasToken(":=")) {
             if (!wait) {
+
                 Expression e;
                 RETAIN_TYPE_INFERENCE(false)
                 RETAIN_SCOPE_CLASS(fun->owner)
-                RETAIN_BLOCK_TYPE(CLASS_SCOPE)
+                RETAIN_BLOCK_TYPE(fun->flags.find(STATIC) ? STATIC_BLOCK : INSTANCE_BLOCK)
+                RETAIN_CURRENT_FUNCTION(fun)
                 compileExpression(&e, ast->getSubAst(ast_expression));
+                RESTORE_CURRENT_FUNCTION()
                 RESTORE_BLOCK_TYPE()
                 RESTORE_SCOPE_CLASS()
                 RESTORE_TYPE_INFERENCE()
@@ -6773,7 +5785,7 @@ ClassObject* Compiler::getExtensionFunctionClass(Ast* ast) {
             return NULL;
         } else {
             if (ptr.mod != "" && ptr.classes.singular()) {
-                return resolveClass(ptr.mod, globalClass, ast);
+                return resolveClass(Obfuscater::getModule(ptr.mod) ? Obfuscater::getModule(ptr.mod) : undefinedModule, globalClass, ast);
             } else {
                 ptr.classes.pop_back();
                 return resolveClassReference(ast->getSubAst(ast_refrence_pointer), ptr, true);
@@ -6880,7 +5892,7 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
     parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
     validateMethodParams(params, ast->getSubAst(ast_utype_arg_list));
 
-    Meta meta(current->getErrors()->getLine(ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast->line, ast->col);
 
     Method *method = new Method(name, currModule, currentClass, guid++, params, flags, meta);
@@ -7111,7 +6123,7 @@ void Compiler::getContractedMethods(ClassObject *subscriber, List<Method *> &con
         contracter = subscriber->getInterfaces().get(i);
         contracter->getAllFunctionsByType(fn_delegate, contractedMethods);
 
-        if(contracter->getSuperClass() != NULL && !(contracter->getSuperClass()->name == "_object_" && contracter->getSuperClass()->module =="std")) {
+        if(contracter->getSuperClass() != NULL && !(contracter->getSuperClass()->name == "_object_" && contracter->getSuperClass()->module == Obfuscater::getModule("std"))) {
             for(;;) {
 
                 contracter = contracter->getSuperClass();
@@ -7177,7 +6189,6 @@ void Compiler::resolveAllDelegates() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        currModule = "$unknown";
         long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (int x = 0; x < current->size(); x++) {
@@ -7185,7 +6196,8 @@ void Compiler::resolveAllDelegates() {
 
             if (x == 0) {
                 if(branch->getType() == ast_module_decl) {
-                    currModule = parseModuleDecl(branch);
+                    string module = parseModuleDecl(branch);
+                    currModule = Obfuscater::getModule(module);
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
@@ -7218,12 +6230,14 @@ void Compiler::resolveAllDelegates() {
 }
 
 bool Compiler::preprocess() {
+    processingStage = PRE_PROCESSING;
+
     bool success = true;
     for(unsigned long i = 0; i < parsers.size(); i++) {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
+        Obfuscater::addFile(current->getTokenizer()->file, guid++);
 
-        currModule = "$unknown";
         long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for(unsigned long x = 0; x < current->size(); x++)
@@ -7232,13 +6246,15 @@ bool Compiler::preprocess() {
             if(x == 0)
             {
                 if(branch->getType() == ast_module_decl) {
-                    Obfuscater::addPackage(currModule = parseModuleDecl(branch), guid++);
+                    string package = parseModuleDecl(branch);
+                    Obfuscater::addModule(package, guid++);
+                    currModule = Obfuscater::getModule(package);
                     // add class for global methods
                     createGlobalClass();
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
-                    Obfuscater::addPackage(currModule = undefinedModule, guid++);
+                    currModule = undefinedModule;
                     // add class for global methods
                     createGlobalClass();
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
@@ -7355,7 +6371,6 @@ void Compiler::preprocessMutations() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        currModule = "$unknown";
         long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for(unsigned long x = 0; x < current->size(); x++)
@@ -7364,7 +6379,8 @@ void Compiler::preprocessMutations() {
             if(x == 0)
             {
                 if(branch->getType() == ast_module_decl) {
-                    currModule = parseModuleDecl(branch);
+                    string module = parseModuleDecl(branch);
+                    currModule = Obfuscater::getModule(module);
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
@@ -7421,6 +6437,8 @@ void Compiler::setup() {
     undefUtype = new Utype(UNDEFINED);
     undefUtype->setType(utype_unresolved);
     nullUtype->setNullType(true);
+    Obfuscater::addModule("__$srt_undefined", guid++);
+    undefinedModule = Obfuscater::getModule("__$srt_undefined");
 }
 
 bool Compiler::allControlPathsReturnAValue(bool *controlPaths) {
@@ -7592,7 +6610,9 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
         returnVal.utype->copy(nilUtype);
     }
 
-    if(!returnVal.utype->isRelated(currentScope()->currentFunction->utype)) {
+    if(!returnVal.utype->isRelated(currentScope()->currentFunction->utype)
+        && !(isUtypeClassConvertableToVar(currentScope()->currentFunction->utype, returnVal.utype))
+        && !(isUtypeConvertableToNativeClass(currentScope()->currentFunction->utype, returnVal.utype))) {
         errors->createNewError(GENERIC, ast->line, ast->col, "returning `" + returnVal.utype->toString() + "` from a function returning `"
                                                              + currentScope()->currentFunction->utype->toString() + "`.");
     }
@@ -7619,6 +6639,20 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
             code.inject(lockExpr.utype->getCode());
             code.addIr(OpBuilder::unlock());
         }
+    }
+
+    if(isUtypeClassConvertableToVar(currentScope()->currentFunction->utype, returnVal.utype)) {
+        CodeHolder tmp;
+        convertNativeIntegerClassToVar(returnVal.utype, currentScope()->currentFunction->utype, tmp, ast);
+        returnVal.utype->getCode().free();
+        returnVal.utype->getCode().inject(tmp);
+        tmp.free();
+    } else if(isUtypeConvertableToNativeClass(currentScope()->currentFunction->utype, returnVal.utype)) {
+        CodeHolder tmp;
+        convertUtypeToNativeClass(currentScope()->currentFunction->utype, returnVal.utype, tmp, ast);
+        returnVal.utype->getCode().free();
+        returnVal.utype->getCode().inject(tmp);
+        tmp.free();
     }
 
     currentScope()->isReachable = false;
@@ -7675,7 +6709,7 @@ void Compiler::compileLocalVariableDecl(Ast *ast) {
         flags.addif(STATIC);
     }
 
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
     if (ast->hasSubAst(ast_setter) || ast->hasSubAst(ast_getter)) {
@@ -8172,7 +7206,7 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
     List<ClassObject*> catchedClasses;
     Field *exceptionObjectField = NULL;
 
-    ClassObject *throwable = resolveClass("std", "throwable", ast);
+    ClassObject *throwable = resolveClass(Obfuscater::getModule("std"), "throwable", ast);
     bool hasFinallyBlock = ast->hasSubAst(ast_finally_block);
     CodeHolder &code = currentScope()->currentFunction->data.code;
 
@@ -8423,7 +7457,7 @@ void Compiler::compileThrowStatement(Ast *ast) {
     compileExpression(&exceptionExpr, ast->getSubAst(ast_expression));
 
     if(exceptionExpr.type == exp_class) {
-        ClassObject *throwable = resolveClass("std", "throwable", ast);
+        ClassObject *throwable = resolveClass(Obfuscater::getModule("std"), "throwable", ast);
         if(exceptionExpr.utype->getClass()->isClassRelated(throwable)) {
             exceptionExpr.utype->getCode().inject(stackInjector);
             code.inject(exceptionExpr.utype->getCode());
@@ -8646,8 +7680,10 @@ void Compiler::compileForStatement(Ast *ast) {
 }
 
 void Compiler::compileStatement(Ast *ast, bool *controlPaths) {
-    currentScope()->currentFunction->data.lineTable.add(
-            LineData(currentScope()->currentFunction->data.code.size(), ast->line));
+    if(currentScope()->currentFunction->data.lineTable.empty() || currentScope()->currentFunction->data.lineTable.last().line < ast->line) {
+        currentScope()->currentFunction->data.lineTable.add(
+                LineData(currentScope()->currentFunction->data.code.size(), ast->line));
+    }
 
     if(!currentScope()->isReachable) {
         if(ast->getType() != ast_label_decl)
@@ -8874,7 +7910,7 @@ Method* Compiler::getStaticInitFunction() {
         Ast *ast = currentScope()->klass->ast;
 
         Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line),
-                  current->getTokenizer()->file, ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
+                  Obfuscater::getFile(current->getTokenizer()->file), ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
         Method* initFun = new Method(INTERNAL_STATIC_INIT_FUNCTION, currModule, currentScope()->klass, guid++, emptyParams, flags, meta);
 
@@ -8884,6 +7920,7 @@ Method* Compiler::getStaticInitFunction() {
         initFun->address = methodSize++;
         initFun->utype = nilUtype;
         currentScope()->klass->addFunction(initFun);
+        staticMainInserts.addIr(OpBuilder::call(initFun->address));
         return initFun;
     } else return functions.get(0);
 }
@@ -8914,7 +7951,6 @@ void Compiler::compileInitDecl(Ast *ast) {
         RESTORE_BLOCK_TYPE()
 
         reconcileBranches(true);
-        cout << "codee \n\n " << codeToString(currentScope()->currentFunction->data.code) << endl;
         currentScope()->resetLocalScopeFlags();
     } else {
         List<Method *> constructors;
@@ -8929,7 +7965,6 @@ void Compiler::compileInitDecl(Ast *ast) {
             RESTORE_BLOCK_TYPE()
 
             reconcileBranches(true);
-            cout << "codee \n\n " << codeToString(constructors.get(i)->data.code) << endl;
             currentScope()->resetLocalScopeFlags();
             if (NEW_ERRORS_FOUND()) {
                 break; // no need to waste processing power to compile a broken init decl
@@ -8945,14 +7980,14 @@ void Compiler::compileAllInitDecls() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        currModule = "$unknown";
         long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (unsigned long x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
             if (x == 0) {
                 if (branch->getType() == ast_module_decl) {
-                    currModule = parseModuleDecl(branch);
+                    string module = parseModuleDecl(branch);
+                    currModule = Obfuscater::getModule(module);
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
@@ -8988,14 +8023,14 @@ void Compiler::compileAllObfuscationRules() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        currModule = "$unknown";
         long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (unsigned long x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
             if (x == 0) {
                 if (branch->getType() == ast_module_decl) {
-                    currModule = parseModuleDecl(branch);
+                    string module = parseModuleDecl(branch);
+                    currModule = Obfuscater::getModule(module);
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
@@ -9034,14 +8069,14 @@ void Compiler::compileAllFields() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        currModule = "$unknown";
         long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (unsigned long x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
             if (x == 0) {
                 if (branch->getType() == ast_module_decl) {
-                    currModule = parseModuleDecl(branch);
+                    string module = parseModuleDecl(branch);
+                    currModule = Obfuscater::getModule(module);
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
@@ -9091,6 +8126,10 @@ void Compiler::compileMethodDecl(Ast *ast, ClassObject* currentClass) {
 
    if(func != NULL) { // if null it must be a delegate func which we dont care about
        checkMainMethodSignature(func);
+
+       if((func->name == staticInitMethod || func->name == tlsSetupMethod)
+            && func->owner->fullName == "platform.kernel#platform")
+           return;
        compileMethod(ast, func);
    }
 }
@@ -9121,9 +8160,14 @@ void Compiler::compileMethod(Ast *ast, Method *func) {
         }
     } else if(ast->hasSubAst(ast_expression)) {
         compileMethodReturnType(func, ast);
+        currentScope()->currentFunction = func;
 
+        RETAIN_BLOCK_TYPE(func->flags.find(STATIC) ? STATIC_BLOCK : INSTANCE_BLOCK)
+        currentScope()->currentFunction->data.lineTable.add(
+                LineData(currentScope()->currentFunction->data.code.size(), ast->getSubAst(ast_expression)->line));
         Expression expr;
         compileExpression(&expr, ast->getSubAst(ast_expression));
+        RESTORE_BLOCK_TYPE()
 
         if(!expr.utype->isRelated(func->utype)) {
             errors->createNewError(GENERIC, ast->line, ast->col, "return value of type `" + expr.utype->toString() + "` is not compatible with that of type `"
@@ -9157,14 +8201,14 @@ void Compiler::compileAllMethods() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        currModule = "$unknown";
         long long totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (unsigned long x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
             if (x == 0) {
                 if (branch->getType() == ast_module_decl) {
-                    currModule = parseModuleDecl(branch);
+                    string module = parseModuleDecl(branch);
+                    currModule = Obfuscater::getModule(module);
                     currScope.last()->klass = findClass(currModule, globalClass, classes);
                     continue;
                 } else {
@@ -9203,7 +8247,7 @@ void Compiler::assignEnumFieldName(Field *enumField) {
 
     if(nameField != NULL) {
         Int index = stringMap.addIfIndex(enumField->name);
-        staticMainInserts.addIr(OpBuilder::newString(stringMap.addIfIndex(enumField->name)))
+        staticMainInserts.addIr(OpBuilder::newString(stringMap.indexof(enumField->name)))
             .addIr(OpBuilder::movg(enumField->owner->address))
             .addIr(OpBuilder::movn(enumField->address))
             .addIr(OpBuilder::movn(nameField->address))
@@ -9214,11 +8258,75 @@ void Compiler::assignEnumFieldName(Field *enumField) {
 }
 
 
+void Compiler::getEnumValue(CodeHolder &code, Field *enumField) {
+    Ast *ast = enumField->ast;
+
+    if(ast->hasSubAst(ast_expression)) {
+        RETAIN_BLOCK_TYPE(STATIC_BLOCK)
+        Expression expr;
+        compileExpression(&expr, ast->getSubAst(ast_expression));
+
+        if(expr.type == exp_var) {
+            if(expr.utype->getType() == utype_field) {
+                if(isFieldInlined((Field*)expr.utype->getResolvedType())) {
+                    double inlinedValue = getInlinedFieldValue((Field *) expr.utype->getResolvedType());
+                    if (!isWholeNumber(inlinedValue)) {
+                        errors->createNewError(GENERIC, ast,
+                                               "enum value must evaluate to an integer, the constant variable's value you have derived resolves to a decimal");
+                    }
+
+                    enumValue = (long)inlinedValue + 1;
+                } else
+                    errors->createNewError(GENERIC, ast,
+                                           " The expression being assigned to enum `" + enumField->name + "` was found to be of non constant value");
+            } else if(expr.utype->getType() == utype_literal) {
+                Literal* literal = ((Literal*)expr.utype->getResolvedType());
+
+                if(literal->literalType == numeric_literal) {
+                    if (!isWholeNumber(literal->numericData)) {
+                        errors->createNewError(GENERIC, ast,
+                                               "enum value must evaluate to an integer, the constant variable's value you have derived resolves to a decimal");
+                    }
+
+                    enumValue = (long)literal->numericData + 1;
+                } else
+                    errors->createNewError(GENERIC, ast,
+                                           " strings are not allowed to be assigned to enums");
+            } else if(expr.utype->getType() == utype_method) {
+                Method* method = ((Method*)expr.utype->getResolvedType());
+                enumValue = (long)method->address + 1;
+            } else
+                errors->createNewError(GENERIC, ast,
+                                       "enum value must evaluate to an integer, the expression assigned to enum `" + enumField->name + "` was found to be non-numeric");
+        } else
+            errors->createNewError(GENERIC, ast,
+                                   "enum value must evaluate to an integer, the expression assigned to enum `" + enumField->name + "` was found to be non-numeric");
+
+        RESTORE_BLOCK_TYPE()
+    } else {
+        enumValue++;
+    }
+
+    double value = enumValue - 1;
+    if(value > INT32_MAX) {
+        long constantAddress = constantMap.addIfIndex(value);
+
+        if(constantAddress >= CONSTANT_LIMIT) {
+            stringstream err;
+            err << "maximum constant limit of (" << CONSTANT_LIMIT << ") reached.";
+            errors->createNewError(INTERNAL_ERROR, ast, err.str());
+        }
+
+        code.addIr(OpBuilder::ldc(EBX, constantAddress));
+    } else
+        code.addIr(OpBuilder::movi(value, EBX));
+}
+
 void Compiler::assignEnumFieldValue(Field *enumField) {
     Field *valueField = ((ClassObject*)enumField->utype->getResolvedType())->getField("ordinal", true);
 
     if(valueField != NULL) {
-        inlineVariableValue(staticMainInserts, enumField);
+        getEnumValue(staticMainInserts, enumField);
         staticMainInserts.addIr(OpBuilder::movg(enumField->owner->address))
             .addIr(OpBuilder::movn(enumField->address))
             .addIr(OpBuilder::movn(valueField->address))
@@ -9267,11 +8375,21 @@ void Compiler::assignEnumArray(ClassObject *enumClass) {
                                " enum class field `ordinal` could not be located");
 }
 
+void Compiler::postProcessEnumFields() {
+    for(Int i = 0; i < enums.size(); i++) {
+        ClassObject *enumClass = enums.get(i);
+        for(Int j = 0; j < enumClass->fieldCount(); j++) {
+            enumClass->getField(j)->address = enumClass->getFieldAddress(enumClass->getField(j));
+        }
+    }
+}
+
 void Compiler::compileEnumFields() {
     for(Int i = 0; i < enums.size(); i++) {
         ClassObject *enumClass = enums.get(i);
-        current = getParserBySourceFile(enumClass->meta.file);
+        current = getParserBySourceFile(enumClass->meta.file->name);
         updateErrorManagerInstance(current);
+        enumValue = guid++;
         currScope.add(new Scope(enumClass, CLASS_SCOPE));
         for(Int j = 0; j < enumClass->fieldCount(); j++) {
             compileEnumField(enumClass->getField(j));
@@ -9301,10 +8419,8 @@ void Compiler::initStaticClassInstance(CodeHolder &code, ClassObject *klass) {
 void Compiler::setupMainMethod(Ast *ast) {
     string starterClass = "platform";
     string starterMethod = "srt_init";
-    string staticInitMethod = "static_init";
-    string tlsSetupMethod = "tls_init";
 
-    ClassObject* StarterClass = resolveClass("platform.kernel", starterClass, ast);
+    ClassObject* StarterClass = resolveClass(Obfuscater::getModule("platform.kernel"), starterClass, ast);
     if(StarterClass != NULL && mainMethod != NULL) {
         List<Field*> params;
         List<Method*> resolvedMethods;
@@ -9402,14 +8518,23 @@ void Compiler::setupMainMethod(Ast *ast) {
                      .addIr(OpBuilder::movi(mainMethod->address, EBX)) // set main address
                      .addIr(OpBuilder::rmov(ADX, EBX));
             } else
-                errors->createNewError(GENERIC, ast, "user main method function pointer was not found");
+                errors->createNewError(INTERNAL_ERROR, ast, "user main method function pointer was not found");
 
             for(Int i = 0; i < classes.size(); i++) {
                 initStaticClassInstance(StaticInit->data.code, classes.get(i));
             }
 
+            StaticInit->data.lineTable.add(
+                    LineData(0, StaticInit->ast->line));
+            TlsSetup->data.lineTable.add(
+                    LineData(0, TlsSetup->ast->line));
+
             StaticInit->data.code.inject(staticMainInserts);
+            StaticInit->data.code.addIr(OpBuilder::ret(NO_ERR));
+
             TlsSetup->data.code.inject(tlsMainInserts);
+            TlsSetup->data.code.addIr(OpBuilder::ret(NO_ERR));
+
             staticMainInserts.free();
             tlsMainInserts.free();
         }
@@ -9421,43 +8546,43 @@ void Compiler::setupMainMethod(Ast *ast) {
 }
 
 void Compiler::validateCoreClasses(Ast *ast) {
-    if(resolveClass("std", "_enum_", ast) == NULL) {
+    if(resolveClass(Obfuscater::getModule("std"), "_enum_", ast) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate enum support class `_enum_`.");
     }
 
-    if(resolveClass("std", "string", ast) == NULL) {
+    if(resolveClass(Obfuscater::getModule("std"), "string", ast) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate string support class `string`.");
     }
 
-    if(resolveClass("std", "throwable", ast) == NULL) {
+    if(resolveClass(Obfuscater::getModule("std"), "throwable", ast) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `throwable`.");
     }
 
-    if(resolveClass("std", "runtime_exception", ast) == NULL) {
+    if(resolveClass(Obfuscater::getModule("std"), "runtime_exception", ast) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `runtime_exception`.");
     }
 
-    if(resolveClass("std", "stack_overflow_exception", ast) == NULL) {
+    if(resolveClass(Obfuscater::getModule("std"), "stack_overflow_exception", ast) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `stack_overflow_exception`.");
     }
 
-    if(resolveClass("std", "thread_stack_exception", ast) == NULL) {
+    if(resolveClass(Obfuscater::getModule("std"), "thread_stack_exception", ast) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `thread_stack_exception`.");
     }
 
-    if(resolveClass("std", "index_out_of_bounds_exception", ast) == NULL) {
-        errors->createNewError(GENERIC, ast, "Could not locate exception support class `index_out_of_bounds_exception`.");
+    if(resolveClass(Obfuscater::getModule("std"), "out_of_bounds_exception", ast) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `out_of_bounds_exception`.");
     }
 
-    if(resolveClass("std", "nullptr_exception", ast) == NULL) {
+    if(resolveClass(Obfuscater::getModule("std"), "nullptr_exception", ast) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `nullptr_exception`.");
     }
 
-    if(resolveClass("std", "class_cast_exception", ast) == NULL) {
+    if(resolveClass(Obfuscater::getModule("std"), "class_cast_exception", ast) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `class_cast_exception`.");
     }
 
-    if(resolveClass("std", "out_of_memory_exception", ast) == NULL) {
+    if(resolveClass(Obfuscater::getModule("std"), "out_of_memory_exception", ast) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `out_of_memory_exception`.");
     }
 }
@@ -9468,7 +8593,7 @@ void Compiler::compileUnprocessedClasses() {
 
         if(unprocessedClass->isNot(compiled)) {
             currModule = unprocessedClass->module;
-            current = getParserBySourceFile(unprocessedClass->meta.file);
+            current = getParserBySourceFile(unprocessedClass->meta.file->name);
 
             long long totalErrors = errors->getUnfilteredErrorCount();
             updateErrorManagerInstance(current);
@@ -9492,7 +8617,7 @@ void Compiler::compileUnprocessedClasses() {
 void Compiler::compileAllUnprocessedMethods() {
     for(Int i = 0; i < unProcessedMethods.size(); i++) {
         Method *method = unProcessedMethods.get(i);
-        current = getParserBySourceFile(method->meta.file);
+        current = getParserBySourceFile(method->meta.file->name);
         updateErrorManagerInstance(current);
 
         currModule = method->module;
@@ -9532,7 +8657,7 @@ string Compiler::parseModuleDecl(Ast *ast) {
     return module;
 }
 
-ClassObject* Compiler::findClass(string mod, string className, List<ClassObject*> &classes, bool match) {
+ClassObject* Compiler::findClass(ModuleData* mod, string className, List<ClassObject*> &classes, bool match) {
     ClassObject* klass = NULL;
     bool found;
     for(unsigned int i = 0; i < classes.size(); i++) {
@@ -9542,9 +8667,10 @@ ClassObject* Compiler::findClass(string mod, string className, List<ClassObject*
             found = klass->name == className;
 
         if(found) {
-            if(mod != "" && klass->module == mod)
+            found = false;
+            if(mod != NULL && klass->module == mod)
                 return klass;
-            else if(mod == "")
+            else if(mod == NULL)
                 return klass;
         }
     }
@@ -9558,7 +8684,7 @@ void Compiler::printNote(Meta& meta, string msg) {
     {
         stringstream note;
         note << "in file: ";
-        note << meta.file << ":" << meta.ln << ":" << meta.col << ": note:  " << msg
+        note << meta.file->name << ":" << meta.ln << ":" << meta.col << ": note:  " << msg
              << endl;
 
         note << '\t' << '\t' << meta.line << endl << '\t' << '\t';
@@ -9574,7 +8700,7 @@ void Compiler::printNote(Meta& meta, string msg) {
 }
 
 ClassObject* Compiler::addGlobalClassObject(string name, List<AccessFlag>& flags, Ast *ast, List<ClassObject*> &classList) {
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
     ClassObject* k = new ClassObject(name, currModule, this->guid++, flags, meta), *prevClass;
@@ -9582,7 +8708,7 @@ ClassObject* Compiler::addGlobalClassObject(string name, List<AccessFlag>& flags
         || (prevClass = findClass(currModule, name + "<>", classList)) != NULL){
         prevDefined:
         this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col, "class `" + name +
-                                                                                "` is already defined in module {" + currModule + "}");
+                                                                                "` is already defined in module {" + currModule->name + "}");
 
         printNote(prevClass->meta, "class `" + prevClass->fullName + "` previously defined here");
         k->free();
@@ -9612,12 +8738,16 @@ bool Compiler::simpleParameterMatch(List<Field*> &params, List<Field*> &comparat
     return false;
 }
 
-bool Compiler::complexParameterMatch(List<Field*> &params, List<Field*> &comparator) {
+bool Compiler::complexParameterMatch(List<Field*> &params, List<Field*> &comparator, bool nativeClassSupport) {
     if(params.size() == comparator.size()) {
         for(long i = 0; i < params.size(); i++) {
-            if(!params.get(i)->isRelated(*comparator.get(i)) && !isUtypeConvertableToNativeClass(params.get(i)->utype, comparator.get(i)->utype)
-                && !isUtypeConvertableToNativeClass(comparator.get(i)->utype, params.get(i)->utype))
-                return false;
+            if(!params.get(i)->isRelated(*comparator.get(i))) {
+                if(nativeClassSupport && !isUtypeConvertableToNativeClass(params.get(i)->utype, comparator.get(i)->utype)
+                    && !isUtypeConvertableToNativeClass(comparator.get(i)->utype, params.get(i)->utype)) {
+                        return false;
+                } else
+                    return false;
+            }
         }
 
         return true;
@@ -9632,8 +8762,8 @@ void Compiler::addDefaultConstructor(ClassObject* klass, Ast* ast) {
     flags.add(PUBLIC);
 
     Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line),
-              current->getTokenizer()->file, ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
-    if(klass->getConstructor(emptyParams, false) == NULL) {
+              Obfuscater::getFile(current->getTokenizer()->file), ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
+    if(findFunction(klass, klass->name, emptyParams, ast, false, fn_constructor, false) == NULL) {
         Method* method = new Method(klass->name, currModule, klass, guid++, emptyParams, flags, meta);
 
         method->fullName = klass->fullName + "." + klass->name;
@@ -9672,7 +8802,7 @@ void Compiler::createGlobalClass() {
         global->address = classSize++;
         global->setGlobalClass(true);
         stringstream ss;
-        ss << currModule << "#" << global->name;
+        ss << currModule->name << "#" << global->name;
         global->fullName = ss.str();
         addDefaultConstructor(global, NULL);
     }
@@ -9760,7 +8890,7 @@ void Compiler::updateErrorManagerInstance(parser *parser) {
 
 Field* Compiler::createLocalField(string name, Utype *type, bool isArray, StorageLocality locality, List<AccessFlag> flags,
                            Int scopeLevel, Ast *ast) {
-    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), current->getTokenizer()->file,
+    Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
     Field* prevField=NULL;
@@ -9783,7 +8913,8 @@ Field* Compiler::createLocalField(string name, Utype *type, bool isArray, Storag
         local->isArray = isArray;
         local->owner = currentScope()->klass;
         local->scopeLevel = scopeLevel;
-        local->address = currentScope()->currentFunction->data.localVariablesSize++;
+        if(!(local->flags.find(flg_CONST) && local->type <= VAR))
+            local->address = currentScope()->currentFunction->data.localVariablesSize++;
         local->fullName = "[local: " + name + "]";
 
         if(local->address >= LOCAL_FIELD_LIMIT) {

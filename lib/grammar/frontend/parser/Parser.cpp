@@ -202,14 +202,9 @@ void parser::parseMethodDecl(Ast *ast) {
             expect(branch, ";", false);
             branch->setAstType(ast_delegate_decl);
         } else {
+            if(peek(1)->getType() != LEFTCURLY)
+                errors->createNewError(GENERIC, current(), "expected `{`");
             parseBlock(branch);
-            if(branch->getLastSubAst()->sub_asts.singular()
-               && branch->getLastSubAst()->sub_asts.get(0)->getType() == ast_statement) {
-                if(!branch->getLastSubAst()->sub_asts.get(0)->sub_asts.empty()
-                    && branch->getLastSubAst()->sub_asts.get(0)->getSubAst(0)->getType() == ast_expression) { // TODO: talk about this in tutorial def static foo() {}
-                    errors->createNewError(GENERIC, current(), "expected `=` before expression");
-                }
-            }
         }
     } else if (peek(1)->getType() == INFER) {
         expect(branch, ":=", true);
@@ -220,14 +215,9 @@ void parser::parseMethodDecl(Ast *ast) {
         branch->setAstType(ast_delegate_decl);
     }
     else {
+        if(peek(1)->getType() != LEFTCURLY)
+            errors->createNewError(GENERIC, current(), "expected `{`");
         parseBlock(branch);
-        if(branch->getLastSubAst()->sub_asts.singular()
-           && branch->getLastSubAst()->sub_asts.get(0)->getType() == ast_statement) {
-            if(!branch->getLastSubAst()->sub_asts.get(0)->sub_asts.empty()
-               && branch->getLastSubAst()->sub_asts.get(0)->getSubAst(0)->getType() == ast_expression) { // TODO: talk about this in tutorial def static foo() {}
-                errors->createNewError(GENERIC, current(), "expected `=` before expression");
-            }
-        }
     }
 }
 
@@ -1699,9 +1689,7 @@ bool parser::parseFunctionPtr(Ast* ast) {
     Ast *branch = getBranch(ast, ast_func_ptr);
 
     if(peek(1)->getType() == LEFTPAREN) {
-        parseUtypeArgListOpt(branch);
-
-        if(peek(1)->getType() == LEFTPAREN) {
+        if(parseUtypeArgListOpt(branch) && peek(1)->getType() == LEFTPAREN) {
             expect(branch, "(", false);
 
             if(peek(1)->getType() != RIGHTPAREN) {
@@ -2022,7 +2010,23 @@ bool parser::parseExpression(Ast* ast) {
     Ast *branch = getBranch(ast, ast_expression);
     CHECK_ERRLMT(return false;)
 
-    /* ++ or -- after the expression */
+    if(peek(1)->getType() ==MINUS) {
+        advance();
+        Ast *exprAst = getBranch(branch, ast_minus_e);
+        branch->addToken(current());
+        parseExpression(exprAst);
+        return true;
+    }
+
+    if(peek(1)->getType() ==NOT) {
+        advance();
+        Ast *exprAst = getBranch(branch, ast_minus_e);
+        branch->addToken(current());
+        parseExpression(exprAst);
+        return true;
+    }
+
+    /* ++ or -- before the expression */
     if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
     {
         advance();
@@ -2204,6 +2208,9 @@ bool parser::shift(Ast *ast) {
 bool parser::addition(Ast *ast) {
     bool success = multiplication(ast);
 
+    if(ast->line >= 150) {
+        int i =0;
+    }
     while(match(2, MINUS, PLUS)) {
         if(isExprSymbol(peek(2)->getValue()))
             errors->createNewError(GENERIC, *peek(2), "expected expression");
@@ -2275,22 +2282,6 @@ bool parser::exponent(Ast *ast) {
 
 bool parser::unary(Ast *ast) {
     Ast *branch = getBranch(ast, ast_expression);
-
-    if(match(1, MINUS)) {
-        advance();
-        branch->addToken(current());
-
-        bool success = unary(branch);
-        branch->setAstType(ast_minus_e);
-        return success;
-    } else if(match(1, NOT)) {
-        advance();
-        branch->addToken(current());
-
-        bool success = unary(branch);
-        branch->setAstType(ast_minus_e);
-        return success;
-    }
 
     errors->enterProtectedMode();
     Token *old = _current;
@@ -2671,7 +2662,8 @@ void parser::parseLambdaReturnType(Ast *ast) {
         expect(branch, ")", false);
     }
 }
-void parser::parseUtypeArgListOpt(Ast* ast) {
+
+bool parser::parseUtypeArgListOpt(Ast* ast) {
     Ast* branch = getBranch(ast, ast_utype_arg_list_opt);
     expect(branch, "(");
 
@@ -2688,7 +2680,10 @@ void parser::parseUtypeArgListOpt(Ast* ast) {
         }
     }
 
-    expect(branch, ")");
+    if(peek(1)->getType() == RIGHTPAREN) {
+        expect(branch, ")");
+        return true;
+    } else return false;
 }
 
 void parser::parseUtypeArgList(Ast* ast) {
@@ -3800,7 +3795,7 @@ void parser::expect(Ast* ast, string token, bool addToken, const char *expecteds
 Ast * parser::getBranch(Ast *parent, ast_type type) {
     Ast *branch;
 
-    if(type == ast_expression) {
+    if(type == ast_expression || type == ast_utype) {
         branch = new Ast(type, peek(1)->getLine(),
                          peek(1)->getColumn());
     }

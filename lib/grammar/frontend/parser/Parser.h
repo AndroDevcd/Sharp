@@ -130,7 +130,7 @@ private:
     bool parseUtypeArgOpt(Ast*);
     bool parseLambdaArg(Ast*);
     void parseUtypeArgList(Ast*);
-    void parseUtypeArgListOpt(Ast*);
+    bool parseUtypeArgListOpt(Ast*);
     void parseLambdaArgList(Ast*);
     bool parseArrayExpression(Ast*);
     bool parseFieldInitializatioin(Ast*);
