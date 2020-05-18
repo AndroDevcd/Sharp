@@ -160,6 +160,7 @@ public:
     List<ClassObject*> &getInterfaces() { return interfaces; }
     List<Ast*> &getExtensionFunctionTree() { return extensionFunctions; }
     List<Ast*> &getClassMutations() { return classMutations; }
+    long totalInterfaceCount();
     void getAllFunctionsByType(function_type ftype, List<Method*> &results, bool checkSuper = false) {
         for(long long i = 0; i < functions.size(); i++) {
             if(functions.get(i)->fnType == ftype)

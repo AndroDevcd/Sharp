@@ -405,6 +405,16 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
     string name = ptr.classes.get(0);
     List<Method*> functions;
     List<ClassObject*> resolvedClasses;
+    ModuleData *module;
+    if(ptr.mod != "") {
+        module = Obfuscater::getModule(ptr.mod) == NULL
+                 ? undefinedModule : Obfuscater::getModule(ptr.mod);
+
+        if(module == undefinedModule) {
+            errors->createNewError(GENERIC, ast->line, ast->col,
+                                   " could not resolve module `" + ptr.mod + "`.");
+        }
+    } else module = NULL;
 
     if(parser::isOverrideOperator(name)) {
         name = "operator" + name;
@@ -531,8 +541,6 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
     } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && resolveHigherScopeSingularUtype(ptr, utype, ast)) {}
     else {
         globalCheck:
-        ModuleData *module = Obfuscater::getModule(ptr.mod) == NULL
-                ? undefinedModule : Obfuscater::getModule(ptr.mod);
         functions.free();
 
         if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveClass(module, name, ast)) != NULL) {

@@ -4,6 +4,9 @@
 
 #include "../backend/Compiler.h"
 #include "ExeBuilder.h"
+#include "../../runtime/Exe.h"
+#include "../../util/zip/zlib.h"
+#include "../main.h"
 
 bool sortMethods(Method *m1, Method *m2) {
     return m1->address > m2->address;
@@ -11,6 +14,49 @@ bool sortMethods(Method *m1, Method *m2) {
 
 bool sortClasses(ClassObject *c1, ClassObject *c2) {
     return c1->address > c2->address;
+}
+
+string putInt32(int32_t i32)
+{
+    string str;
+
+    str+=(uint8_t)GET_i32w(i32);
+    str+=(uint8_t)GET_i32x(i32);
+    str+=(uint8_t)GET_i32y(i32);
+    str+=(uint8_t)GET_i32z(i32);
+    return str;
+}
+
+void ExeBuilder::buildExe() {
+    buf.str("");
+    buildHeader();
+    buildSymbolSection();
+    buildStringSection();
+    buildDataSection();
+
+    string data = dataSec.str(); dataSec.str("");
+    if(data.size() >= data_compress_threshold) {
+        buf << (char)data_compress;
+        stringstream __outbuf__;
+        Zlib zlib;
+
+        Zlib::AUTO_CLEAN=(true);
+        zlib.Compress_Buffer2Buffer(data, __outbuf__, ZLIB_LAST_SEGMENT);
+        data.clear();
+
+        string result = __outbuf__.str(); __outbuf__.str("");
+        buf << putInt32(result.size());
+        buf << result; result.clear();
+    } else {
+        buf << dataSec.str();
+        dataSec.str("");
+    }
+
+    buildMetaSection();
+
+    if(File::write(c_options.out.c_str(), buf.str())) {
+        cout << progname << ": error: failed to write out to executable " << c_options.out << endl;
+    }
 }
 
 void ExeBuilder::createDumpFile() {
@@ -51,6 +97,7 @@ void ExeBuilder::createDumpFile() {
 
     buf << "\n\n methods: \n";
     allMethods.linearSort(sortMethods);
+    allDelegates.linearSort(sortMethods);
 
     for(Int i = 0; i < allMethods.size(); i++) {
         Method *fun = allMethods.get(i);
@@ -75,8 +122,6 @@ void ExeBuilder::createDumpFile() {
             case fn_op_overload:
                 buf << "overload function: ";
                 break;
-            case fn_delegate:
-                continue;
         }
 
         buf << fun->fullName << "[" << fun->address << "] params("
@@ -87,7 +132,9 @@ void ExeBuilder::createDumpFile() {
         buf << "\n\n";
     }
 
-    File::write((c_options.out + ".odf").c_str(), buf.str().c_str());
+    if(File::write((c_options.out + ".odf").c_str(), buf.str().c_str())) {
+        cout << progname << ": error: failed to write out to dump file: " << c_options.out + ".odf" << endl;
+    }
 }
 
 string ExeBuilder::getNote(Meta& meta) {
@@ -127,7 +174,13 @@ void ExeBuilder::dumpClassInfo(ClassObject *klass) {
 void ExeBuilder::addClass(ClassObject *klass) {
     allClasses.add(klass);
 
-    allMethods.appendAll(klass->getFunctions());
+    List<Method*> &functions = klass->getFunctions();
+    for(Int i = 0; i < functions.size(); i++) {
+        if(functions.get(i)->fnType == fn_delegate)
+            allDelegates.add(functions.get(i));
+        else allMethods.add(functions.get(i));
+    }
+
     List<ClassObject*> &childClasses = klass->getChildClasses();
     for(Int i = 0; i < childClasses.size(); i++) {
         addClass(childClasses.get(i));
@@ -166,15 +219,6 @@ string ExeBuilder::registerToString(int64_t r) {
             return ss.str();
         }
     }
-}
-
-string ExeBuilder::getFunction(Int address) {
-    for(Int i = address; i < allMethods.size(); i++) {
-        if(allMethods.get(i)->address == address)
-            return allMethods.get(i)->fullName;
-    }
-
-    return "?";
 }
 
 /*
@@ -619,7 +663,7 @@ string ExeBuilder::codeToString(Method* fun) {
             {
                 ss << "call @" << GET_Da(opcodeData) << " // <";
                 if(GET_Da(opcodeData) >= 0)
-                    ss << getFunction(GET_Da(opcodeData)) << ">";
+                    ss << allMethods.get(GET_Da(opcodeData)) << ">";
 
                 break;
             }
@@ -1161,4 +1205,229 @@ string ExeBuilder::codeToString(Method* fun) {
 
 void ExeBuilder::build() {
     createDumpFile();
+    buildExe();
 }
+
+string copychars(char c, int t) {
+    native_string s;
+    int it = 0;
+
+    while (it++ < t)
+        s += c;
+
+    return s.str();
+}
+
+void ExeBuilder::buildHeader() {
+    buf << (char)file_sig << "SEF"; buf << copychars(nil, zoffset);
+    buf << (char)digi_sig1 << (char)digi_sig2 << (char)digi_sig3;
+
+    buildManifest();
+}
+
+void ExeBuilder::buildManifest() {
+    buf << (char)manif;
+    buf << ((char)0x02); buf << c_options.out << ((char)nil);
+    buf << ((char)0x4); buf << c_options.vers << ((char)nil);
+    buf << ((char)0x5); buf << (c_options.debug ? 1 : 0);
+    buf << ((char)0x6); buf << putInt32(compiler->mainMethod->address) << ((char)nil);
+    buf << ((char)0x7); buf << putInt32(compiler->methodSize) << ((char)nil);
+    buf << ((char)0x8); buf << putInt32(compiler->classSize) << ((char)nil);
+    buf << ((char)0x9); buf << file_vers << ((char)nil);
+    buf << ((char)0x0c); buf << putInt32(compiler->stringMap.size()) << ((char)nil);
+    buf << ((char)0x0e); buf << c_options.target << ((char)nil);
+    buf << ((char)0x0f); buf << putInt32(compiler->parsers.size()) << ((char)nil);
+    buf << ((char)0x1b); buf << putInt32(compiler->threadLocals) << ((char)nil);
+    buf << ((char)0x1c); buf << putInt32(compiler->constantMap.size()) << ((char)nil);
+    buf << '\n' << (char)eoh;
+}
+
+void ExeBuilder::buildSymbolSection() {
+    buf << (char)ssymbol;
+
+    for(Int i = 0; i < allClasses.size(); i++) {
+        ClassObject *klass = allClasses.get(i);
+
+        buf << (char)data_class;
+        buf << putInt32(klass->address);
+        buf << (klass->owner == NULL ? putInt32(-1) : putInt32(klass->owner->address)) << ((char)nil);
+        buf << (klass->getSuperClass() == NULL ? putInt32(-1) : putInt32(klass->getSuperClass()->address)) << ((char)nil);
+        buf << klass->name << ((char)nil);
+        buf << klass->fullName << ((char)nil);
+        buf << putInt32(klass->getStaticFieldCount()) << ((char)nil);
+        buf << putInt32(klass->getInstanceFieldCount()) << ((char)nil);
+        buf << putInt32(klass->totalFunctionCount()) << ((char)nil);
+        buf << putInt32(klass->totalInterfaceCount()) << ((char)nil);
+
+        buildFieldData(klass);
+        buildMethodData(klass);
+        buildInterfaceData(klass);
+        buf << '\n' << (char)eos;
+    }
+}
+
+void ExeBuilder::buildInterfaceData(ClassObject *klass) {
+    if(klass->getSuperClass() != NULL)
+        buildInterfaceData(klass->getSuperClass());
+
+    List<ClassObject*> &interfaces = klass->getInterfaces();
+    for(Int i = 0; i < interfaces.size(); i++) {
+        ClassObject *_interface = interfaces.get(i);
+        buf << (char)data_interface;
+        buf << putInt32(_interface->address) << ((char)nil);
+    }
+}
+void ExeBuilder::buildMethodData(ClassObject *klass) {
+    if(klass->getSuperClass() != NULL)
+        buildMethodData(klass->getSuperClass());
+
+    for(Int i = 0; i < klass->getFunctionCount(); i++) {
+        Method *function = klass->getFunction(i);
+        buf << (char)data_field;
+        buf << putInt32(function->address) << ((char)nil);
+    }
+}
+
+void ExeBuilder::buildFieldData(ClassObject *klass) {
+    if(klass->getSuperClass() != NULL)
+        buildFieldData(klass->getSuperClass());
+
+    for(Int i = 0; i < klass->fieldCount(); i++) {
+        Field *field = klass->getField(i);
+        buf << (char)data_field;
+        buf << field->name << ((char)nil);
+        buf << putInt32(field->address) << ((char)nil);
+        Int accessTypes = 0;
+        for(Int j = 0; j < field->flags.size(); j++) {
+            accessTypes |= field->flags.get(j);
+        }
+
+        buf << putInt32(accessTypes) << ((char)nil);
+        buf << (field->isArray ? 1 : 0) << ((char)nil);
+        buf << (field->locality == stl_thread ? 1 : 0) << ((char)nil);
+        buf << (field->utype->getClass()
+            ? putInt32(field->utype->getClass()->address) : putInt32(-1)) << ((char)nil);
+        buf << putInt32(field->owner->address) << ((char)nil);
+    }
+}
+
+void ExeBuilder::buildStringSection() {
+    buf << (char)sstring;
+
+    for(Int i = 0; i < compiler->stringMap.size(); i++) {
+        buf << (char)data_field;
+        buf << putInt32(compiler->stringMap.get(i).size()) << ((char)nil);
+        buf << compiler->stringMap.get(i) << ((char)nil);
+    }
+
+    buf << '\n' << (char)eos;
+}
+
+void ExeBuilder::buildDataSection() {
+    dataSec << (char)sdata;
+
+    for(Int i = 0; i < allMethods.size(); i++) {
+        putMethodData(allMethods.get(i));
+    }
+
+    buf << (char)data_delegate;
+    for(Int i = 0; i < allDelegates.size(); i++) {
+        putMethodData(allDelegates.get(i));
+    }
+
+    for(Int i = 0; i < allMethods.size(); i++) {
+        putMethodCode(allMethods.get(i));
+    }
+
+
+    buf << '\n' << (char)eos;
+}
+
+void ExeBuilder::putMethodData(Method *fun) {
+    buf << (char)data_method;
+    buf << putInt32(fun->address) << ((char)nil);
+    buf << fun->name << ((char)nil);
+    buf << fun->fullName << ((char)nil);
+    buf << putInt32(Obfuscater::files.indexof(fun->meta.file)) << ((char)nil);
+    buf << putInt32(fun->owner->address) << ((char)nil);
+    buf << putInt32(fun->params.size()) << ((char)nil);
+    buf << putInt32(fun->data.localVariablesSize) << ((char)nil);
+    buf << putInt32(fun->data.code.size()) << ((char)nil);
+
+    Int accessTypes = 0;
+    for(Int j = 0; j < fun->flags.size(); j++) {
+        accessTypes |= fun->flags.get(j);
+    }
+    buf << putInt32(accessTypes) << ((char)nil);
+    buf << putInt32(getFpOffset(fun)) << ((char)nil);
+    buf << putInt32(getSpOffset(fun)) << ((char)nil);
+    buf << putInt32(fun->delegateAddr) << ((char)nil);
+
+    for(Int i = 0; i < fun->data.lineTable.size(); i++) {
+        buf << putInt32(fun->data.lineTable.get(i).start_pc) << ((char)nil);
+        buf << putInt32(fun->data.lineTable.get(i).line) << ((char)nil);
+    }
+
+    for(Int i = 0; i < fun->data.tryCatchTable.size(); i++) {
+        TryCatchData &tryCatchData = fun->data.tryCatchTable.get(i);
+        buf << putInt32(tryCatchData.try_start_pc) << ((char)nil);
+        buf << putInt32(tryCatchData.try_end_pc) << ((char)nil);
+        if(tryCatchData.finallyData != NULL) {
+            buf << ((char)1);
+            buf << putInt32(tryCatchData.finallyData->start_pc) << ((char)nil);
+            buf << putInt32(tryCatchData.finallyData->end_pc) << ((char)nil);
+            buf << putInt32(tryCatchData.finallyData->exception_object_field_address) << ((char)nil);
+        } else
+            buf << ((char)nil);
+
+        for(Int j = 0; j < tryCatchData.catchTable.size(); j++) {
+            CatchData &catchData = tryCatchData.catchTable.get(j);
+            buf << putInt32(catchData.handler_pc) << ((char)nil);
+            buf << putInt32(catchData.classAddress) << ((char)nil);
+            buf << putInt32(catchData.localFieldAddress) << ((char)nil);
+        }
+    }
+}
+
+void ExeBuilder::putMethodCode(Method *fun) {
+    buf << (char)data_byte;
+    putMethodParams(fun);
+
+    for(Int i = 0; i < fun->data.code.size(); i++) {
+        buf << putInt32(fun->data.code.ir32.get(i));
+    }
+
+    buf << '\n' << (char)eos;
+}
+
+void ExeBuilder::buildMetaSection() {
+    buf << (char)data_file;
+    for(Int i = 0; i < Obfuscater::files.size(); i++) {
+        buf << putInt32(i);
+        buf << Obfuscater::files.get(i)->name << ((char)nil);
+
+        if(c_options.debug) {
+            buf << compiler->parsers.get(i)->
+                getTokenizer()->getData();
+        }
+    }
+}
+
+int32_t ExeBuilder::getFpOffset(Method *fun) {
+    return fun->params.size(); // TODO: figure out the math for both of these
+}
+
+int32_t ExeBuilder::getSpOffset(Method *fun) {
+    return fun->params.size();
+}
+
+void ExeBuilder::putMethodParams(Method *fun) {
+    for(Int i = 0; i < fun->params.size(); i++) {
+        Field* param = fun->params.get(i);
+        buf << putInt32(param->type) << ((char)nil);
+        buf << (param->isArray ? 1 : 0) << ((char)nil);
+        buf << param->name << ((char)nil);
+        buf << putInt32(param->utype->getClass() ? param->utype->getClass()->address : -1) << ((char)nil);
+    }
+}
+

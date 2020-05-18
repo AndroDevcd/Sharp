@@ -93,18 +93,23 @@ public:
     static bool isUtypeClassConvertableToVar(Utype *dest, Utype *src);
     static bool isUtypeClass(Utype* utype, ModuleData* mod, int names, ...);
 
+    parser *getParserBySourceFile(string name);
+
     ErrorManager *errors;
     List<parser*> failedParsers;
     List<ClassObject*> classes;
     List<string> stringMap;
     List<double> constantMap;
+    Method* mainMethod;
+    List<parser*> parsers;
+    long classSize;
+    long methodSize;
+    long threadLocals;
+
     static uInt guid;
 private:
     bool panic;
-    long classSize;
-    long methodSize;
     long delegateGUID;
-    long threadLocals;
     long mainSignature;
     bool typeInference;
     bool obfuscateMode;
@@ -113,8 +118,6 @@ private:
     string outFile;
     string lastNoteMsg;
     Meta lastNote;
-    Method* mainMethod;
-    List<parser*> parsers;
     List<string> noteMessages;
     List<string> warnings;
     List<ClassObject*> enums;
@@ -168,7 +171,6 @@ private:
     void updateErrorManagerInstance(parser *parser);
     void preProcessGenericClasses(long long unstableClasses);
     void preProcessUnprocessedClasses(long long unstableClasses);
-    parser *getParserBySourceFile(string name);
     void addDefaultConstructor(ClassObject* klass, Ast* ast);
     void inlineClassMutateFields(Ast *ast);
     void createNewWarning(error_type error, int type, int line, int col, string xcmnts);

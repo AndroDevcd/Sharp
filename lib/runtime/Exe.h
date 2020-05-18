@@ -16,15 +16,16 @@
 #define eoh 0x03
 #define nil 0x0
 #define eos 0x1d
-#define sdata 0x05
+#define ssymbol 0x05
 #define sstring 0x02
 #define sconst 0x02 // TODO: add constant section
-#define stext 0x0e
+#define sdata 0x0e
 #define smeta 0x06
 #define data_class 0x2f
 #define data_interface 0x2e
 #define data_file 0x2c
 #define data_method 0x4c
+#define data_delegate 0x4d
 #define data_compress 0x5b
 #define data_field 0x22
 #define data_string 0x1e
@@ -46,7 +47,7 @@
 #define UNSUPPORTED_BUILD_VERSION 0x007
 #define OUT_OF_MEMORY 0x008
 
-#define data_compress_threshold 0x1388f
+#define data_compress_threshold 0xFFFF
 
 #define GET_i32w(i) ((uint8_t)(i >> 24))
 #define GET_i32x(i) ((uint8_t)((i >> 16) & 0xff))

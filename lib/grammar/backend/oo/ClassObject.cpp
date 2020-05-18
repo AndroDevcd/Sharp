@@ -116,6 +116,21 @@ long ClassObject::totalFunctionCount() {
     }
 }
 
+long ClassObject::totalInterfaceCount() {
+    ClassObject* k, *_klass = this;
+    long InterfaceCount=interfaces.size();
+
+    for(;;) {
+        k = _klass->getSuperClass();
+
+        if(k == NULL)
+            return InterfaceCount;
+
+        InterfaceCount+=k->interfaces.size();
+        _klass = k;
+    }
+}
+
 bool ClassObject::isClassRelated(ClassObject *klass, bool interfaceCheck) {
     if(klass == NULL) return false;
     if(match(klass)) return true;

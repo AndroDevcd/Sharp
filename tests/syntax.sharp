@@ -9,11 +9,6 @@ class K {
 
 
 
-    obfuscate -keep {
-        foo() : _object_
-    }
-
-
 }
 
 enum ee {

@@ -24,6 +24,7 @@ uInt Compiler::guid = 0;
 void Compiler::generate() {
     Obfuscater obf(this);
     obf.obfuscate();
+    // TODO: optimize code
 
     ExeBuilder builder(this);
     builder.build();

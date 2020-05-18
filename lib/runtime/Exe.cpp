@@ -31,7 +31,6 @@ int Process_Exe(std::string exe)
 {
     File::buffer buffer;
     Int processedFlags=0, currentFlag;
-    bool manifestFlagFound = false;
 
     if(!File::exists(exe.c_str())){
         exeErrorMessage = "file `" + exe + "` doesnt exist!\n";
@@ -50,6 +49,10 @@ int Process_Exe(std::string exe)
     }
 
     for (;;) {
+        if(buffer.at(index++) != manif){
+            exeErrorMessage = "file `" + exe + "` may be corrupt";
+            return CORRUPT_MANIFEST;
+        }
 
         currentFlag = buffer.at(index++);
         processedFlags++;
@@ -59,11 +62,6 @@ int Process_Exe(std::string exe)
             case 0x0d:
             case eoh:
                 processedFlags--;
-                break;
-
-            case manif:
-                processedFlags--;
-                manifestFlagFound = true;
                 break;
 
             case 0x2:
@@ -109,10 +107,6 @@ int Process_Exe(std::string exe)
         }
 
         if(currentFlag == eoh) {
-            if(!manifestFlagFound) {
-                exeErrorMessage = "File may be corrupt, could not properly load the manifest";
-                return CORRUPT_MANIFEST;
-            }
             if(!(vm->manifest.fvers >= min_file_vers && vm->manifest.fvers <= file_vers)) {
                 stringstream err;
                 err << "unsupported file version of: " << vm->manifest.fvers << ". Sharp supports file versions from `"
@@ -130,7 +124,7 @@ int Process_Exe(std::string exe)
         }
     }
 
-    if(buffer.at(index++) != sdata){
+    if(buffer.at(index++) != ssymbol){
         exeErrorMessage = "file `" + exe + "` may be corrupt";
         return CORRUPT_FILE;
     }
@@ -201,8 +195,8 @@ int Process_Exe(std::string exe)
                             field->address = geti32(buffer);
                             field->type = (DataType) parseInt(buffer);
                             field->accessFlags = geti32(buffer);
-                            field->isArray = (bool) parseInt(buffer);
-                            field->threadLocal = (bool) parseInt(buffer);
+                            field->isArray = buffer.at(index++) == '1';
+                            field->threadLocal = buffer.at(index++) == '1';
 
                             address = geti32(buffer);
                             if(address != -1) field->klass = &vm.classes[address];
@@ -331,7 +325,7 @@ int Process_Exe(std::string exe)
         index = 0;
     }
 
-    if(buffer.at(index++) != stext) {
+    if(buffer.at(index++) != sdata) {
         exeErrorMessage = "file `" + exe + "` may be corrupt";
         return CORRUPT_FILE;
     }
