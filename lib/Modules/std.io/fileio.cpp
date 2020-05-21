@@ -2,7 +2,7 @@
 // Created by BraxtonN on 5/25/2018.
 //
 
-#include "../../runtime/oo/string.h"
+#include "../../runtime/symbols/string.h"
 #include "../../../stdimports.h"
 #include "../../runtime/List.h"
 #ifdef WIN32_

@@ -81,16 +81,6 @@ public:
         chars=NULL;
     }
 
-    void operator=(const string &str) {
-        free();
-
-        if(!str.empty()) {
-            len = str.size();
-            chars = (char*)malloc(sizeof(char)*len);
-            assign(str);
-        }
-    }
-
     void operator+=(const string &str) {
 
         if(str != "") {
@@ -157,6 +147,10 @@ public:
     string str() {
         if(len==0) return "";
         return string(chars,len);
+    }
+
+    const char *c_str() {
+        return chars;
     }
 
     void free() {

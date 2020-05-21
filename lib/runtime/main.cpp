@@ -5,17 +5,16 @@
 #include <cstdio>
 #include "../../stdimports.h"
 #include "../util/File.h"
-#include "oo/string.h"
+#include "symbols/string.h"
 #include "List.h"
 #include "main.h"
-#include "oo/Object.h"
+#include "symbols/Object.h"
 #include "VirtualMachine.h"
 #include "Thread.h"
 #include "Exe.h"
 #include "register.h"
 #include "memory/GarbageCollector.h"
 #include "Manifest.h"
-#include "Environment.h"
 #include "jit/_BaseAssembler.h"
 
 options c_options;
@@ -51,7 +50,7 @@ void help() {
     cout <<               "    -istack<size:type>     set the default internal stack size allotted to the virtual machine." << endl;
     cout <<               "    -t<size:type>          set the minimum memory allowed to trigger the garbage collector." << endl;
     cout <<               "    -nojit                 disable runtime JIT compilation." << endl;
-    cout <<               "    -slowboot              JIT compile entire codebase at startup." << endl;
+    cout <<               "    -slowboot              compile entire codebase at startup." << endl;
     cout <<               "    --h -?                 display this help message." << endl;
 }
 
@@ -242,7 +241,8 @@ int startApplication(string &exe, std::list<string>& appArgs) {
 }
 
 void pushArgumentsToStack(std::list<string>& appArgs) {
-    Thread *main = Thread::threads.get(main_threadid);
+    Thread *main;
+    Thread::threads.get(main_threadid, main);
     pushArgumentsToStack(&(++main->sp)->object, appArgs);
 }
 
@@ -252,14 +252,14 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {
     Int iter=0;
 
     stringstream ss;
-    ss << vm->manifest.target;
+    ss << vm.manifest.target;
     native_string str(ss.str());
 
     object->object = GarbageCollector::self->newObjectArray(size);
     SET_GENERATION(object->object->info, gc_perm);
 
-    GarbageCollector::self->createStringArray(&object->object->node[iter++],vm->manifest.application);
-    GarbageCollector::self->createStringArray(&object->object->node[iter++],vm->manifest.version);
+    GarbageCollector::self->createStringArray(&object->object->node[iter++],vm.manifest.application);
+    GarbageCollector::self->createStringArray(&object->object->node[iter++],vm.manifest.version);
     GarbageCollector::self->createStringArray(&object->object->node[iter++], str); /* target platform also the platform version */
 
 #ifdef WIN32_

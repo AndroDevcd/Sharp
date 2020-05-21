@@ -3,7 +3,6 @@
 //
 
 #include "Exception.h"
-#include "../Environment.h"
 #include "ClassObject.h"
 #include "../Thread.h"
 #include "../register.h"
@@ -61,7 +60,7 @@ void Exception::pushException() {
                 = GarbageCollector::self->newObject(throwable.handlingClass);
 
         GarbageCollector::self->createStringArray(
-                vm.resolveField("message", &thread_self->exceptionObject),
+                vm.resolveField("message", thread_self->exceptionObject.object),
                    thread_self->throwable.message);
     }
 }

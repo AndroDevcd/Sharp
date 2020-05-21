@@ -79,23 +79,22 @@
     if(hasSignal(signal, tsig_except)) \
         goto exception_catch;
 
-#define STACK_CHECK  if(((sp-dataStack)+1) >= stackLimit) throw Exception(Environment::StackOverflowErr, "");
-#define CALLSTACK_CHECK  if((calls+1) >= stackLimit) throw Exception(Environment::StackOverflowErr, "");
-#define THREAD_STACK_CHECK(self)  if(((self->sp-self->dataStack)+2) >= self->stackLimit) throw Exception(Environment::StackOverflowErr, "");
-#define THREAD_STACK_CHECK2(self, x)  if(((self->sp-self->dataStack)+2) >= self->stackLimit || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(Environment::StackOverflowErr, "");
+#define STACK_CHECK  if(((sp-dataStack)+1) >= stackLimit) throw Exception(vm.StackOverflowExcept, "");
+#define THREAD_STACK_CHECK(self)  if(((self->sp-self->dataStack)+1) >= self->stackLimit) throw Exception(vm.StackOverflowExcept, "");
+#define THREAD_STACK_CHECK2(self, x)  if(((self->sp-self->dataStack)+1) >= self->stackLimit || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(vm.StackOverflowExcept, "");
 
 #ifndef SHARP_PROF_
-#define _brh_NOINCREMENT HAS_SIGNAL if(!startAddress) DISPATCH() else goto *opcodeStart;
+#define _brh_NOINCREMENT HAS_SIGNAL continue;
 #else
 #define _brh_NOINCREMENT SAFTEY_CHECK irCount++; if(irCount == 0) overflow++; goto *opcodeStart;
 #endif
 #define _brh  pc++; _brh_NOINCREMENT
 #define _brh_inc(x)  pc+=x; _brh_NOINCREMENT
 
-#define CHECK_NULL(x) if(o2==NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
-#define CHECK_NULL2(x) if(o2==NULL|o2->object == NULL) { throw Exception(Environment::NullptrException, ""); } else { x }
-#define CHECK_NULLOBJ(x) if(o2==NULL || o2->object == NULL || TYPE(o2->object->info) != _stype_struct) { throw Exception(Environment::NullptrException, ""); } else { x }
-#define CHECK_INULLOBJ(x) if(o2==NULL || o2->object == NULL || TYPE(o2->object->info) != _stype_var) { throw Exception(Environment::NullptrException, ""); } else { x }
+#define CHECK_NULL(x) if(ptr==NULL) { throw Exception(vm.NullptrExcept, ""); } else { x }
+#define CHECK_NULL2(x) if(ptr==NULL|ptr->object == NULL) { throw Exception(vm.NullptrExcept, ""); } else { x }
+#define CHECK_NULLOBJ(x) if(ptr==NULL || ptr->object == NULL || TYPE(ptr->object->info) != _stype_struct) { throw Exception(vm.NullptrExcept, ""); } else { x }
+#define CHECK_NULLVAR(x) if(ptr==NULL || ptr->object == NULL || TYPE(ptr->object->info) != _stype_var) { throw Exception(vm.NullptrExcept, ""); } else { x }
 
 #define _initOpcodeTable \
         static void* opcode_table[] = { \
@@ -207,7 +206,6 @@
             &&JE,                                 \
             &&JNE,                                 \
             &&IPOPL,                                 \
-            &&SWITCH,                                 \
             &&CMP,                                 \
             &&CALLD,                                 \
             &&VARCAST,                                 \
@@ -215,7 +213,7 @@
             &&DUP,                                      \
             &&POPOBJ_2,                                  \
             &&SWAP,                                     \
-            &&LDC                                     \
+            &&LDC,                                     \
             &&SMOVR_3,                        \
             &&NEG,                             \
             &&EXP                                \
@@ -337,18 +335,17 @@ public:
         static const uint8_t JE           = 0x69;
         static const uint8_t JNE          = 0x6a;
         static const uint8_t IPOPL        = 0x6b;
-        static const uint8_t SWITCH       = 0x6c;
-        static const uint8_t CMP          = 0x6d;
-        static const uint8_t CALLD        = 0x6e;
-        static const uint8_t VARCAST      = 0x6f;
-        static const uint8_t TLS_MOVL     = 0x70;
-        static const uint8_t DUP          = 0x71;
-        static const uint8_t POPOBJ_2     = 0x72;
-        static const uint8_t SWAP         = 0x73;
-        static const uint8_t LDC          = 0x74;
-        static const uint8_t SMOVR_3      = 0x75;
-        static const uint8_t NEG          = 0x76;
-        static const uint8_t EXP          = 0x77;
+        static const uint8_t CMP          = 0x6c;
+        static const uint8_t CALLD        = 0x6d;
+        static const uint8_t VARCAST      = 0x6e;
+        static const uint8_t TLS_MOVL     = 0x6f;
+        static const uint8_t DUP          = 0x70;
+        static const uint8_t POPOBJ_2     = 0x71;
+        static const uint8_t SWAP         = 0x72;
+        static const uint8_t LDC          = 0x73;
+        static const uint8_t SMOVR_3      = 0x74;
+        static const uint8_t NEG          = 0x75;
+        static const uint8_t EXP          = 0x76;
 
         enum instr_class {
             E_CLASS,
@@ -470,7 +467,6 @@ public:
         static opcode_instr je(opcode_arg address);
         static opcode_instr jne(opcode_arg address);
         static opcode_instr ipopl(opcode_arg relFrameAddress);
-        static opcode_instr* _switch(opcode_arg value); // TODO: delete this
         static opcode_instr *cmp(_register inRegister, opcode_arg value);
         static opcode_instr calld(_register inRegister);
         static opcode_instr varCast(opcode_arg varType, bool isArray);

@@ -16,21 +16,21 @@ public:
     {
         allMethods.init();
         allClasses.init();
-        allDelegates.init();
+        functionPointers.init();
     }
 
     ~ExeBuilder() {
         allMethods.free();
         allClasses.free();
-        allDelegates.free();
+        functionPointers.free();
     }
 
     void build();
 
 private:
     List<Method*> allMethods;
-    List<Method*> allDelegates;
     List<ClassObject*> allClasses;
+    List<Method*> functionPointers;
     Compiler *compiler;
     stringstream buf;
     stringstream dataSec;
@@ -54,8 +54,12 @@ private:
     void buildInterfaceData(ClassObject *pObject);
 
     void buildStringSection();
+    void buildConstantSection();
+    void addFunctionPointers();
 
     void buildDataSection();
+    void addSymbol(Utype *utype);
+    void getSymbol(Utype *utype);
 
     void putMethodData(Method *fun);
 

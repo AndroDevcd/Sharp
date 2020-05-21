@@ -15,7 +15,7 @@
 #include "../../../stdimports.h"
 #include "../../util/jit/asmjit/src/asmjit/asmjit.h"
 #include "../List.h"
-#include "../oo/Object.h"
+#include "../symbols/Object.h"
 
 using namespace asmjit;
 

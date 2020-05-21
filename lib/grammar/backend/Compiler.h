@@ -35,7 +35,6 @@ public:
         mainMethod(NULL),
         requiredSignature(NULL),
         mainSignature(0),
-        delegateGUID(0),
         typeInference(false),
         obfuscateMode(false),
         enumValue(0)
@@ -109,7 +108,6 @@ public:
     static uInt guid;
 private:
     bool panic;
-    long delegateGUID;
     long mainSignature;
     bool typeInference;
     bool obfuscateMode;

@@ -10,7 +10,7 @@
 #include "../../../../stdimports.h"
 #include "../../../util/KeyPair.h"
 #include "../../List.h"
-#include "../../../runtime/oo/string.h"
+#include "../../../runtime/symbols/string.h"
 
 class CodeHolder {
 public:

@@ -612,15 +612,6 @@ opcode_instr OpBuilder::ipopl(opcode_arg relFrameAddress) {
     return SET_Di(tmpInstr, IPOPL, abs(relFrameAddress), posNeg(relFrameAddress));
 }
 
-opcode_instr* OpBuilder::_switch(opcode_arg value) {
-    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
-
-    instruction_Buffer[0] = SET_Ei(tmpInstr, SWITCH);
-    instruction_Buffer[1] = value;
-    return instruction_Buffer;
-}
-
-
 opcode_instr *OpBuilder::cmp(_register inRegister, opcode_arg value) {
     clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
 

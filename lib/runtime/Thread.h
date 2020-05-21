@@ -6,9 +6,9 @@
 #define SHARP_THREAD_H
 
 #include "../../stdimports.h"
-#include "oo/ClassObject.h"
-#include "oo/Exception.h"
-#include "oo/Method.h"
+#include "symbols/ClassObject.h"
+#include "symbols/Exception.h"
+#include "symbols/Method.h"
 #include "profiler.h"
 #include "../Modules/std/Random.h"
 #include "jit/architecture.h"
@@ -71,7 +71,7 @@ public:
     static void Startup();
     static void suspendSelf();
     static int start(int32_t, size_t);
-    static int destroy(int64_t);
+    static int destroy(int32_t);
     static int interrupt(int32_t);
     static int join(int32_t);
     static Thread* getThread(int32_t);
@@ -107,7 +107,7 @@ public:
     void setup();
 
     // easier to access for JIT
-    long long calls;
+    Int calls;
     StackElement* dataStack,
             *sp, *fp;
     Method *current;
@@ -115,7 +115,7 @@ public:
 #ifdef BUILD_JIT
     jit_context *jctx;
 #endif
-    int64_t stackLimit;
+    Int stackLimit;
     Cache cache, pc;
 #ifdef SHARP_PROF_
     Profiler *tprof;
@@ -129,9 +129,9 @@ public:
 
     std::mutex mutex;
     int32_t id;
-    int64_t stackSize;
-    int64_t stbase;
-    int64_t stfloor;
+    Int stackSize;
+    Int stbase;
+    Int stfloor;
     int priority;
     bool daemon;
     bool terminated;
@@ -177,20 +177,17 @@ private:
 extern thread_local Thread* thread_self;
 extern thread_local double registers[12];
 
-#define _64EBX registers[i64ebx]
-#define _64ADX registers[i64adx]
-#define _64ECX registers[i64ecx]
-#define _64EGX registers[i64egx]
-#define _64CMT registers[i64cmt]
-#define _64BMR registers[i64bmr]
+#define _64EBX registers[EBX]
+#define _64ADX registers[ADX]
+#define _64ECX registers[ECX]
+#define _64EGX registers[EGX]
+#define _64CMT registers[CMT]
+#define _64BMR registers[BMR]
 
 #define PC(thread_self) \
     (thread_self->pc-thread_self->cache)
 
-extern unsigned long long irCount, overflow;
-extern FinallyTable finallyTable;
-extern thread_local short startAddress;
-extern double exponent(int64_t n);
+extern unsigned long irCount, overflow;
 extern size_t threadStackSize;
 extern size_t internalStackSize;
 

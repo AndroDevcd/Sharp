@@ -5,8 +5,8 @@
 #include <tchar.h>
 #include "Gui.h"
 #include "../../../runtime/Thread.h"
-#include "../../../runtime/Environment.h"
 #include "../../../runtime/register.h"
+#include "../../../runtime/VirtualMachine.h"
 
 wnd_id ugwid = 0;
 recursive_mutex wndMutex;
@@ -186,7 +186,7 @@ LRESULT winProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         case WM_PAINT:
         case WM_DESTROY:
-            env->gui->getWindow(hWnd)->queue.emplace_back(message, wParam, lParam);
+            vm.gui->getWindow(hWnd)->queue.emplace_back(message, wParam, lParam);
             break;
             default:
             lresult = DefWindowProc(hWnd, message, wParam, lParam);
@@ -255,7 +255,7 @@ void Gui::winPaint(long long proc) {
             SharpObject* str = (self->sp--)->object.object;
             if(str) {
                 native_string msg(str->HEAD, str->size);
-                const char *wMsg = msg.str().c_str();
+                const char *wMsg = msg.c_str();
                 TextOut(ctx->hdc,
                         (int)(self->sp)->var, (int)(self->sp-1)->var,
                         wMsg, _tcslen(wMsg));
@@ -359,11 +359,11 @@ bool Gui::createPolygon(Poly *poly) {
     SharpObject *polygonObject = (self->sp)->object.object;
 
     if(polygonObject && IS_CLASS(polygonObject->info)) {
-        ClassObject *k = &env->classes[CLASS(polygonObject->info)];
+        ClassObject *k = &vm.classes[CLASS(polygonObject->info)];
         if(k->name == "std.os.gui#Polygon") {
-            Object *points = env->findField("points", polygonObject);
+            Object *points = vm.resolveField("points", polygonObject);
             if(points && points->object) {
-                ClassObject *k2 = &env->classes[CLASS(points->object->info)];
+                ClassObject *k2 = &vm.classes[CLASS(points->object->info)];
                 if(IS_CLASS(points->object->info) && k2->name == "std.os.gui#Point") {
                     poly->size = (int)points->object->size;
                     poly->pts = new POINT[poly->size];
@@ -371,8 +371,8 @@ bool Gui::createPolygon(Poly *poly) {
                     SharpObject* pt;
                     Object *x, *y;
                     for(int i = 0; i < poly->size; i++) {
-                        x = env->findField("x", points->object->node[i].object);
-                        y = env->findField("y", points->object->node[i].object);
+                        x = vm.resolveField("x", points->object->node[i].object);
+                        y = vm.resolveField("y", points->object->node[i].object);
 
                         if(x && y) {
                             poly->pts[i].x = (int)x->object->HEAD[0];

@@ -6,24 +6,24 @@
 #include "Exe.h"
 #include "../util/File.h"
 #include "../util/KeyPair.h"
-#include "Environment.h"
-#include "oo/Method.h"
+#include "symbols/Method.h"
 #include "Manifest.h"
-#include "oo/Field.h"
-#include "oo/ClassObject.h"
-#include "oo/Object.h"
+#include "symbols/Field.h"
+#include "symbols/ClassObject.h"
+#include "symbols/Object.h"
 #include "../util/zip/zlib.h"
 #include "main.h"
 #include "VirtualMachine.h"
 
 string exeErrorMessage;
-uInt index = 0;
+uInt currentPos = 0;
 
 bool validateAuthenticity(File::buffer& exe);
 
-string getString(File::buffer& exe);
+string getString(File::buffer& exe, Int length = -1);
 Int parseInt(File::buffer& exe);
 int32_t geti32(File::buffer& exe);
+Symbol* getSymbol(File::buffer& buffer);
 
 void parseSourceFile(SourceFile &sourceFile, native_string &data);
 
@@ -49,12 +49,12 @@ int Process_Exe(std::string exe)
     }
 
     for (;;) {
-        if(buffer.at(index++) != manif){
+        if(buffer.at(currentPos++) != manif){
             exeErrorMessage = "file `" + exe + "` may be corrupt";
             return CORRUPT_MANIFEST;
         }
 
-        currentFlag = buffer.at(index++);
+        currentFlag = buffer.at(currentPos++);
         processedFlags++;
         switch (currentFlag) {
             case 0x0:
@@ -65,40 +65,40 @@ int Process_Exe(std::string exe)
                 break;
 
             case 0x2:
-                vm->manifest.application = getString(buffer);
+                vm.manifest.application = getString(buffer);
                 break;
             case 0x4:
-                vm->manifest.version = getString(buffer);
+                vm.manifest.version = getString(buffer);
                 break;
             case 0x5:
-                vm->manifest.debug = buffer.at(index++) == '1';
+                vm.manifest.debug = buffer.at(currentPos++) == '1';
                 break;
             case 0x6:
-                vm->manifest.entryMethod = geti32(buffer);
+                vm.manifest.entryMethod = geti32(buffer);
                 break;
             case 0x7:
-                vm->manifest.methods = geti32(buffer);
+                vm.manifest.methods = geti32(buffer);
                 break;
             case 0x8:
-                vm->manifest.classes = geti32(buffer);
+                vm.manifest.classes = geti32(buffer);
                 break;
             case 0x9:
-                vm->manifest.fvers = parseInt(buffer);
+                vm.manifest.fvers = parseInt(buffer);
                 break;
             case 0x0c:
-                vm->manifest.strings = geti32(buffer);
+                vm.manifest.strings = geti32(buffer);
                 break;
             case 0x0e:
-                vm->manifest.target = parseInt(buffer);
+                vm.manifest.target = parseInt(buffer);
                 break;
             case 0x0f:
-                vm->manifest.sourceFiles = geti32(buffer);
+                vm.manifest.sourceFiles = geti32(buffer);
                 break;
             case 0x1b:
-                vm->manifest.threadLocals = geti32(buffer);
+                vm.manifest.threadLocals = geti32(buffer);
                 break;
             case 0x1c:
-                vm->manifest.constants = geti32(buffer);
+                vm.manifest.constants = geti32(buffer);
                 break;
             default: {
                 exeErrorMessage = "file `" + exe + "` may be corrupt.\n";
@@ -107,9 +107,9 @@ int Process_Exe(std::string exe)
         }
 
         if(currentFlag == eoh) {
-            if(!(vm->manifest.fvers >= min_file_vers && vm->manifest.fvers <= file_vers)) {
+            if(!(vm.manifest.fvers >= min_file_vers && vm.manifest.fvers <= file_vers)) {
                 stringstream err;
-                err << "unsupported file version of: " << vm->manifest.fvers << ". Sharp supports file versions from `"
+                err << "unsupported file version of: " << vm.manifest.fvers << ". Sharp supports file versions from `"
                     << min_file_vers << "-" << file_vers << "` that can be processed. Are you possibly targeting the incorrect virtual machine?";
                 exeErrorMessage = err.str();
                 return UNSUPPORTED_FILE_VERS;
@@ -117,38 +117,55 @@ int Process_Exe(std::string exe)
 
             if(processedFlags != HEADER_SIZE)
                 return CORRUPT_MANIFEST;
-            else if(vm->manifest.target > BUILD_VERS)
+            else if(vm.manifest.target > BUILD_VERS)
                 return UNSUPPORTED_BUILD_VERSION;
 
             break;
         }
     }
 
-    if(buffer.at(index++) != ssymbol){
+    if(buffer.at(currentPos++) != ssymbol){
         exeErrorMessage = "file `" + exe + "` may be corrupt";
         return CORRUPT_FILE;
     }
 
     /* Data section */
+    const Int nativeSymbolCount = 14;
     uInt sourceFilesCreated=0;
     uInt itemsProcessed=0;
-    vm->classes =(ClassObject*)malloc(sizeof(ClassObject)*vm->manifest.classes);
-    vm->methods = (Method*)malloc(sizeof(Method)*vm->manifest.methods);
-    vm->strings = (runtime::String*)malloc(sizeof(runtime::String)*(vm->manifest.strings)); // TODO: create "" string from compiler as the 0'th element
-    vm->constants = (double*)malloc(sizeof(double)*(vm->manifest.constants));
-    vm->staticHeap = (Object*)calloc(vm->manifest.classes, sizeof(Object));
-    vm->metaData.init();
+    vm.classes =(ClassObject*)malloc(sizeof(ClassObject)*vm.manifest.classes);
+    vm.methods = (Method*)malloc(sizeof(Method)*vm.manifest.methods);
+    vm.strings = (runtime::String*)malloc(sizeof(runtime::String)*(vm.manifest.strings)); // TODO: create "" string from compiler as the 0'th element
+    vm.constants = (double*)malloc(sizeof(double)*(vm.manifest.constants));
+    vm.staticHeap = (Object*)calloc(vm.manifest.classes, sizeof(Object));
+    vm.metaData.init();
+    vm.nativeSymbols = (Symbol*)malloc(sizeof(Symbol)*nativeSymbolCount);
+
+    for(Int i = 0; i < nativeSymbolCount; i++)
+        vm.nativeSymbols[i].init();
+    vm.nativeSymbols[_UINT8].type = _UINT8;
+    vm.nativeSymbols[_UINT16].type = _UINT16;
+    vm.nativeSymbols[_UINT32].type = _UINT32;
+    vm.nativeSymbols[_UINT64].type = _UINT64;
+    vm.nativeSymbols[_INT8].type = _INT8;
+    vm.nativeSymbols[_INT16].type = _INT16;
+    vm.nativeSymbols[_INT32].type = _INT32;
+    vm.nativeSymbols[_INT64].type = _INT64;
+    vm.nativeSymbols[_INT64].type = _INT64;
+    vm.nativeSymbols[VAR].type = VAR;
+    vm.nativeSymbols[OBJECT].type = OBJECT;
+    vm.nativeSymbols[NIL].type = NIL;
 
 
-    if(vm->classes == NULL || vm->methods == NULL || vm->staticHeap == NULL
-       || vm->strings == NULL) {
+    if(vm.classes == NULL || vm.methods == NULL || vm.staticHeap == NULL
+       || vm.strings == NULL) {
         exeErrorMessage = "Failed to allocate memory for the program.";
         return OUT_OF_MEMORY;
     }
 
     for (;;) {
 
-        currentFlag = buffer.at(index++);
+        currentFlag = buffer.at(currentPos++);
         switch (currentFlag) {
             case 0x0:
             case 0x0a:
@@ -158,7 +175,7 @@ int Process_Exe(std::string exe)
             case data_class: {
                 itemsProcessed=0;
                 Int address = geti32(buffer);
-                if(address >= vm->manifest.classes) {
+                if(address >= vm.manifest.classes) {
                     exeErrorMessage = "file `" + exe + "` may be corrupt";
                     return CORRUPT_FILE;
                 }
@@ -171,7 +188,7 @@ int Process_Exe(std::string exe)
                 address = geti32(buffer);
                 if(address != -1) klass->super = &vm.classes[address];
 
-                klass->serial = address;
+                klass->guid = geti32(buffer);
                 klass->name = getString(buffer);
                 klass->fullName = getString(buffer);
                 klass->staticFields = geti32(buffer);
@@ -186,25 +203,23 @@ int Process_Exe(std::string exe)
 
                 if(klass->totalFieldCount != 0) {
                     for( ;; ) {
-                        if(buffer.at(index) == data_field) {
-                            index++;
+                        if(buffer.at(currentPos) == data_field) {
+                            currentPos++;
                             Field *field = &klass->fields[itemsProcessed++];
                             field->name.init();
 
                             field->name = getString(buffer);
                             field->address = geti32(buffer);
-                            field->type = (DataType) parseInt(buffer);
-                            field->accessFlags = geti32(buffer);
-                            field->isArray = buffer.at(index++) == '1';
-                            field->threadLocal = buffer.at(index++) == '1';
-
-                            address = geti32(buffer);
-                            if(address != -1) field->klass = &vm.classes[address];
-                            field->owner = &vm->classes[geti32(buffer)];
-                        } else if(buffer.at(index) == 0x0a || buffer.at(index) == 0x0d){ /* ignore */ }
+                            field->type = (DataType) geti32(buffer);
+                            field->flags = geti32(buffer);
+                            field->isArray = buffer.at(currentPos++) == '1';
+                            field->threadLocal = buffer.at(currentPos++) == '1';
+                            field->utype = getSymbol(buffer);
+                            field->owner = &vm.classes[geti32(buffer)];
+                        } else if(buffer.at(currentPos) == 0x0a || buffer.at(currentPos) == 0x0d){ /* ignore */ }
                         else
                             break;
-                        index++;
+                        currentPos++;
                     }
 
                     if(itemsProcessed != klass->totalFieldCount) {
@@ -214,36 +229,16 @@ int Process_Exe(std::string exe)
                 }
 
                 itemsProcessed = 0;
-                if(klass->methodCount != 0) {
-                    for( ;; ) {
-                        if(buffer.at(index) == data_method) {
-                            index++;
-                            klass->methods[itemsProcessed++] = &vm->methods[geti32(buffer)];
-                        } else if(buffer.at(index) == 0x0a || buffer.at(index) == 0x0d){ /* ignore */ }
-                        else
-                            break;
-
-                        index++;
-                    }
-
-                    if(itemsProcessed != klass->methodCount) {
-                        exeErrorMessage = "Failed to process all methods in executable.";
-                        return CORRUPT_FILE;
-                    }
-                }
-
-
-                itemsProcessed = 0;
                 if(klass->interfaceCount != 0) {
                     for( ;; ) {
-                        if(buffer.at(index) == data_interface) {
-                            index++;
-                            klass->interfaces[itemsProcessed++] = &vm->classes[geti32(buffer)];
-                        } else if(buffer.at(index) == 0x0a || buffer.at(index) == 0x0d){ /* ignore */ }
+                        if(buffer.at(currentPos) == data_interface) {
+                            currentPos++;
+                            klass->interfaces[itemsProcessed++] = &vm.classes[geti32(buffer)];
+                        } else if(buffer.at(currentPos) == 0x0a || buffer.at(currentPos) == 0x0d){ /* ignore */ }
                         else
                             break;
 
-                        index++;
+                        currentPos++;
                     }
 
                     if(itemsProcessed != klass->interfaceCount) {
@@ -268,14 +263,14 @@ int Process_Exe(std::string exe)
 
     /* String section */
     itemsProcessed=0;
-    if(buffer.at(index++) != sstring) {
+    if(buffer.at(currentPos++) != sstring) {
         exeErrorMessage = "file `" + exe + "` may be corrupt";
         return CORRUPT_FILE;
     }
 
     for (;;) {
 
-        currentFlag = buffer.at(index++);
+        currentFlag = buffer.at(currentPos++);
         switch (currentFlag) {
             case 0x0:
             case 0x0a:
@@ -283,9 +278,9 @@ int Process_Exe(std::string exe)
                 break;
 
             case data_string: {
-                index++;
-                vm->strings[itemsProcessed].init();
-                vm->strings[itemsProcessed++] = getString(buffer);
+                currentPos++;
+                vm.strings[itemsProcessed].init();
+                vm.strings[itemsProcessed++] = getString(buffer);
                 break;
             }
 
@@ -299,7 +294,7 @@ int Process_Exe(std::string exe)
         }
 
         if (currentFlag == eos) {
-            if (itemsProcessed != vm->manifest.strings) {
+            if (itemsProcessed != vm.manifest.strings) {
                 exeErrorMessage = "Failed to process all strings in executable.";
                 return CORRUPT_FILE;
             }
@@ -308,11 +303,52 @@ int Process_Exe(std::string exe)
         }
     }
 
-    if(buffer.at(index) == data_compress) {
-        index++;
+    /* Constants section */
+    itemsProcessed=0;
+    if(buffer.at(currentPos++) != sconst) {
+        exeErrorMessage = "file `" + exe + "` may be corrupt";
+        return CORRUPT_FILE;
+    }
+
+    for (;;) {
+
+        currentFlag = buffer.at(currentPos++);
+        switch (currentFlag) {
+            case 0x0:
+            case 0x0a:
+            case 0x0d:
+                break;
+
+            case data_const: {
+                currentPos++;
+                vm.constants[itemsProcessed++] = std::strtod(getString(buffer).c_str(), NULL);
+                break;
+            }
+
+            case eos:
+                break;
+
+            default: {
+                exeErrorMessage = "file `" + exe + "` may be corrupt";
+                return CORRUPT_FILE;
+            }
+        }
+
+        if (currentFlag == eos) {
+            if (itemsProcessed != vm.manifest.constants) {
+                exeErrorMessage = "Failed to process all constants in executable.";
+                return CORRUPT_FILE;
+            }
+
+            break;
+        }
+    }
+
+    if(buffer.at(currentPos) == data_compress) {
+        currentPos++;
         // restructure buffer
         stringstream buf, __outbuf__;
-        for(uInt i = index; i < buffer.size(); i++) {
+        for(uInt i = currentPos; i < buffer.size(); i++) {
             __outbuf__ << buffer.at(i);
         }
 
@@ -322,10 +358,10 @@ int Process_Exe(std::string exe)
 
         buffer.end();
         buffer << buf.str(); buf.str("");
-        index = 0;
+        currentPos = 0;
     }
 
-    if(buffer.at(index++) != sdata) {
+    if(buffer.at(currentPos++) != sdata) {
         exeErrorMessage = "file `" + exe + "` may be corrupt";
         return CORRUPT_FILE;
     }
@@ -333,7 +369,7 @@ int Process_Exe(std::string exe)
     /* Text section */
     for (;;) {
 
-        currentFlag = buffer.at(index++);
+        currentFlag = buffer.at(currentPos++);
         switch (currentFlag) {
             case 0x0:
             case 0x0a:
@@ -341,12 +377,12 @@ int Process_Exe(std::string exe)
                 break;
 
             case data_method: {
-                if(itemsProcessed >= vm->manifest.methods) {
+                if(itemsProcessed >= vm.manifest.methods) {
                     exeErrorMessage = "file `" + exe + "` may be corrupt";
                     return CORRUPT_FILE;
                 }
 
-                Method* method = &vm->methods[itemsProcessed++];
+                Method* method = &vm.methods[itemsProcessed++];
                 method->init();
 
                 method->address = geti32(buffer);
@@ -354,14 +390,25 @@ int Process_Exe(std::string exe)
                 method->name = getString(buffer);
                 method->fullName = getString(buffer);
                 method->sourceFile = geti32(buffer);
-                method->owner = &vm->classes[geti32(buffer)];
-                method->paramSize = geti32(buffer);
+                method->owner = &vm.classes[geti32(buffer)];
                 method->stackSize = geti32(buffer);
                 method->cacheSize = geti32(buffer);
-                method->isStatic = parseInt(buffer);
-                method->returnsData = parseInt(buffer);
+                method->flags = parseInt(buffer);
                 method->delegateAddress = geti32(buffer);
-                method->stackEqulizer = geti32(buffer);
+                method->fpOffset = geti32(buffer);
+                method->spOffset = geti32(buffer);
+                method->utype = getSymbol(buffer);
+                method->arrayUtype = geti32(buffer);
+                Int paramSize = geti32(buffer);
+
+                method->params=(Param*)malloc(sizeof(Param)*paramSize);
+                for(Int i = 0; i < paramSize; i++) {
+                    method->params[i].utype =
+                            getSymbol(buffer);
+                    method->params[i].isArray =
+                            buffer.at(currentPos++) == '1';
+                }
+
 //                    if(c_options.jit) {
 //                        if(method->address==316) method->isjit = true;
 //                        if(method->address==7) method->isjit = true;
@@ -369,54 +416,36 @@ int Process_Exe(std::string exe)
 
                 long len = geti32(buffer);
                 for(Int i = 0; i < len; i++) {
-                    method->lineNumbers
-                            .add(line_table(
+                    method->lineTable
+                            .add(LineData(
                                     geti32(buffer),
                                     geti32(buffer)
                             ));
                 }
 
-                len = geti32(buffer);
-                long addressLen, valuesLen;
-                for(Int i = 0; i < len; i++) {
-                    SwitchTable &st = method->switchTable.__new();
-                    st.init();
-
-                    addressLen = geti32(buffer);
-                    for(Int x = 0; x < addressLen; x++) {
-                        st.addresses.add(geti32(buffer));
-                    }
-
-                    valuesLen = geti32(buffer);
-                    for(Int x = 0; x < valuesLen; x++) {
-                        st.values.add(geti32(buffer));
-                    }
-
-                    st.defaultAddress = geti32(buffer);
-                }
-
 
                 len = parseInt(buffer);
                 for(Int i = 0; i < len; i++) {
-                    ExceptionTable &e = method->exceptions.__new();
+                    TryCatchData &tryCatchData = method->tryCatchTable.__new();
 
-                    e.init();
-                    e.handler_pc= geti32(buffer);
-                    e.end_pc= geti32(buffer);
-                    e.className= getString(buffer);
-                    e.local= geti32(buffer);
-                    e.start_pc= geti32(buffer);
-                }
+                    tryCatchData.init();
+                    tryCatchData.try_start_pc= geti32(buffer);
+                    tryCatchData.try_end_pc= geti32(buffer);
 
-                len = parseInt(buffer);
-                FinallyTable ft;
+                    Int caughtExceptions = parseInt(buffer);
+                    for(Int j =0; j < caughtExceptions; j++) {
+                        CatchData &catchData = tryCatchData.catchTable.__new();
+                        catchData.handler_pc = geti32(buffer);
+                        catchData.localFieldAddress = geti32(buffer);
+                        catchData.caughtException = &vm.classes[geti32(buffer)];
+                    }
 
-                for(Int i = 0; i < len; i++) {
-                    ft.start_pc= geti32(buffer);
-                    ft.end_pc= geti32(buffer);
-                    ft.try_start_pc= geti32(buffer);
-                    ft.try_end_pc= geti32(buffer);
-                    method->finallyBlocks.push_back(ft);
+                    if(buffer.at(currentPos++) == '1') {
+                        tryCatchData.finallyData = (FinallyData*)malloc(sizeof(FinallyData));
+                        tryCatchData.finallyData->exception_object_field_address = geti32(buffer);
+                        tryCatchData.finallyData->start_pc = geti32(buffer);
+                        tryCatchData.finallyData->end_pc = geti32(buffer);
+                    }
                 }
                 break;
             }
@@ -430,9 +459,9 @@ int Process_Exe(std::string exe)
         }
 
         if(currentFlag == data_byte) {
-            if(itemsProcessed != vm->manifest.methods)
+            if(itemsProcessed != vm.manifest.methods)
                 throw std::runtime_error("text section may be corrupt");
-            index--;
+            currentPos--;
             break;
         }
     }
@@ -440,7 +469,7 @@ int Process_Exe(std::string exe)
     itemsProcessed=0;
     for (;;) {
 
-        currentFlag = buffer.at(index++);
+        currentFlag = buffer.at(currentPos++);
         switch (currentFlag) {
             case 0x0:
             case 0x0a:
@@ -448,22 +477,16 @@ int Process_Exe(std::string exe)
                 break;
 
             case data_byte: {
-                Method* method = &vm->methods[itemsProcessed++];
-
-                if(method->paramSize > 0) {
-                    method->params = (int64_t*)malloc(sizeof(int64_t)*method->paramSize);
-                    method->arrayFlag = (bool*)malloc(sizeof(bool)*method->paramSize);
-                    for(unsigned int i = 0; i < method->paramSize; i++) {
-                        method->params[i] = parseInt(buffer);
-                        method->arrayFlag[i] = (bool) parseInt(buffer);
-                    }
-                }
+                Method* method = &vm.methods[itemsProcessed++];
 
                 if(method->cacheSize > 0) {
-                    method->bytecode = (int64_t*)malloc(sizeof(int64_t)*method->cacheSize);
+                    method->bytecode = (opcode_instr*)malloc(sizeof(opcode_instr)*method->cacheSize);
                     for(int64_t i = 0; i < method->cacheSize; i++) {
                         method->bytecode[i] = geti32(buffer);
                     }
+                } else {
+                    exeErrorMessage = "method `" + method->fullName.str() + "` is missing bytecode";
+                    return CORRUPT_FILE;
                 }
                 break;
             }
@@ -481,13 +504,13 @@ int Process_Exe(std::string exe)
         }
     }
 
-    if(buffer.at(index++) != smeta) {
+    if(buffer.at(currentPos++) != smeta) {
         exeErrorMessage = "file `" + exe + "` may be corrupt";
         return CORRUPT_FILE;
     }
 
     for(;;) {
-        currentFlag = buffer.at(index++);
+        currentFlag = buffer.at(currentPos++);
         switch (currentFlag) {
             case 0x0:
             case 0x0a:
@@ -496,12 +519,11 @@ int Process_Exe(std::string exe)
 
             case data_file: {
 
-                SourceFile &sourceFile = vm->metaData.files.__new();
+                SourceFile &sourceFile = vm.metaData.files.__new();
                 sourceFile.init();
-                sourceFile.id = geti32(buffer);
                 sourceFile.name = getString(buffer);
 
-                if(vm->manifest.debug) {
+                if(vm.manifest.debug) {
                     String sourceFileData(getString(buffer));
                     parseSourceFile(sourceFile, sourceFileData);
                 }
@@ -543,20 +565,56 @@ void parseSourceFile(SourceFile &sourceFile, native_string &data) {
     line.free();
 }
 
+Symbol* getSymbol(File::buffer& buffer) {
+    DataType type = (DataType)geti32(buffer);
+    if((type >= _UINT8 && type <= _UINT64)
+       || type == VAR || type == OBJECT) {
+        return &vm.nativeSymbols[type];
+    } else if(type == CLASS) {
+        return &vm.classes[geti32(buffer)];
+    } else if(type == FNPTR) {
+        return &vm.funcPtrSymbols[geti32(buffer)];
+//        Method *method = new Method();
+//        method->init();
+//
+//        Int paramSize = geti32(buffer);
+//        method->params = (Param*)malloc(sizeof(Param)*paramSize);
+//        for(Int i = 0; i < paramSize; i++) {
+//            method->params[i].utype =
+//                    getSymbol(buffer);
+//            method->params[i].isArray = buffer.at(index++) == '1';
+//        }
+//
+//        method->utype = getSymbol(buffer);
+//        method->arrayUtype = buffer.at(index++) == '1';
+//        return method;
+    } else {
+        exeErrorMessage = "invalid field type found in symbol table";
+        return NULL;
+    }
+}
+
 int32_t geti32(File::buffer& exe) {
     int32_t i32 =SET_i32(
-            exe.at(index), exe.at(index + 1),
-                exe.at(index + 2), exe.at(index + 3)
-    ); index+=EXE_BYTE_CHUNK;
+            exe.at(currentPos), exe.at(currentPos + 1),
+            exe.at(currentPos + 2), exe.at(currentPos + 3)
+    ); currentPos+=EXE_BYTE_CHUNK;
 
     return i32;
 }
 
-string getString(File::buffer& exe) {
+string getString(File::buffer& exe, Int length) {
     string s;
-    char c = exe.at(index);
-    while(exe.at(index++) != nil) {
-        s+=exe.at(index - 1);
+    char c = exe.at(currentPos);
+    if(length != -1) {
+        for (; length >= 0; length--) {
+            s += exe.at(currentPos);
+            currentPos++;
+        }
+    } else {
+        while (exe.at(currentPos++) != nil) {
+            s += exe.at(currentPos - 1);
+        }
     }
 
     return s;
@@ -566,7 +624,7 @@ Int parseInt(File::buffer& exe) {
 #if _ARCH_BITS == 32
     return strtol(getString(exe).c_str(), NULL, 0);
 #else
-    return strtoll(getstring(exe).c_str(), NULL, 0);
+    return strtoll(getString(exe).c_str(), NULL, 0);
 #endif
 }
 
@@ -583,12 +641,12 @@ native_string string_forward(File::buffer& str, size_t begin, size_t end) {
 }
 
 bool validateAuthenticity(File::buffer& exe) {
-    if(exe.at(index++) == file_sig && string_forward(exe, index, 3) == "SEF") {
-        index += 3 + zoffset;
+    if(exe.at(currentPos++) == file_sig && string_forward(exe, currentPos, 3) == "SEF") {
+        currentPos += 3 + zoffset;
 
         /* Check file's digital signature */
-        if(exe.at(index++) == digi_sig1 && exe.at(index++) == digi_sig2
-           && exe.at(index++) == digi_sig3) {
+        if(exe.at(currentPos++) == digi_sig1 && exe.at(currentPos++) == digi_sig2
+           && exe.at(currentPos++) == digi_sig3) {
             return true;
         }
     }

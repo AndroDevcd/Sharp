@@ -16,6 +16,10 @@ bool sortClasses(ClassObject *c1, ClassObject *c2) {
     return c1->address > c2->address;
 }
 
+bool locateMethod(Method **m1, void *m2) {
+    return Compiler::simpleParameterMatch((*m1)->params, ((Method*)m2)->params) && (*m1)->utype->equals(((Method*)m2)->utype);
+}
+
 string putInt32(int32_t i32)
 {
     string str;
@@ -32,6 +36,7 @@ void ExeBuilder::buildExe() {
     buildHeader();
     buildSymbolSection();
     buildStringSection();
+    buildConstantSection();
     buildDataSection();
 
     string data = dataSec.str(); dataSec.str("");
@@ -97,7 +102,6 @@ void ExeBuilder::createDumpFile() {
 
     buf << "\n\n methods: \n";
     allMethods.linearSort(sortMethods);
-    allDelegates.linearSort(sortMethods);
 
     for(Int i = 0; i < allMethods.size(); i++) {
         Method *fun = allMethods.get(i);
@@ -174,13 +178,7 @@ void ExeBuilder::dumpClassInfo(ClassObject *klass) {
 void ExeBuilder::addClass(ClassObject *klass) {
     allClasses.add(klass);
 
-    List<Method*> &functions = klass->getFunctions();
-    for(Int i = 0; i < functions.size(); i++) {
-        if(functions.get(i)->fnType == fn_delegate)
-            allDelegates.add(functions.get(i));
-        else allMethods.add(functions.get(i));
-    }
-
+    allMethods.appendAll(klass->getFunctions());
     List<ClassObject*> &childClasses = klass->getChildClasses();
     for(Int i = 0; i < childClasses.size(); i++) {
         addClass(childClasses.get(i));
@@ -1231,7 +1229,7 @@ void ExeBuilder::buildManifest() {
     buf << ((char)0x4); buf << c_options.vers << ((char)nil);
     buf << ((char)0x5); buf << (c_options.debug ? 1 : 0);
     buf << ((char)0x6); buf << putInt32(compiler->mainMethod->address) << ((char)nil);
-    buf << ((char)0x7); buf << putInt32(compiler->methodSize) << ((char)nil);
+    buf << ((char)0x7); buf << putInt32(allMethods.size()) << ((char)nil);
     buf << ((char)0x8); buf << putInt32(compiler->classSize) << ((char)nil);
     buf << ((char)0x9); buf << file_vers << ((char)nil);
     buf << ((char)0x0c); buf << putInt32(compiler->stringMap.size()) << ((char)nil);
@@ -1245,13 +1243,15 @@ void ExeBuilder::buildManifest() {
 void ExeBuilder::buildSymbolSection() {
     buf << (char)ssymbol;
 
+    addFunctionPointers();
     for(Int i = 0; i < allClasses.size(); i++) {
         ClassObject *klass = allClasses.get(i);
 
         buf << (char)data_class;
         buf << putInt32(klass->address);
-        buf << (klass->owner == NULL ? putInt32(-1) : putInt32(klass->owner->address)) << ((char)nil);
-        buf << (klass->getSuperClass() == NULL ? putInt32(-1) : putInt32(klass->getSuperClass()->address)) << ((char)nil);
+        buf << (klass->owner == NULL ? putInt32(-1) : putInt32(klass->owner->address));
+        buf << (klass->getSuperClass() == NULL ? putInt32(-1) : putInt32(klass->getSuperClass()->address));
+        buf << putInt32(klass->guid);
         buf << klass->name << ((char)nil);
         buf << klass->fullName << ((char)nil);
         buf << putInt32(klass->getStaticFieldCount()) << ((char)nil);
@@ -1262,8 +1262,8 @@ void ExeBuilder::buildSymbolSection() {
         buildFieldData(klass);
         buildMethodData(klass);
         buildInterfaceData(klass);
-        buf << '\n' << (char)eos;
     }
+    buf << '\n' << (char)eos;
 }
 
 void ExeBuilder::buildInterfaceData(ClassObject *klass) {
@@ -1283,31 +1283,32 @@ void ExeBuilder::buildMethodData(ClassObject *klass) {
 
     for(Int i = 0; i < klass->getFunctionCount(); i++) {
         Method *function = klass->getFunction(i);
-        buf << (char)data_field;
+        buf << (char)data_method;
+        buf << (function->fnType == fn_delegate ? 1 : 0);
         buf << putInt32(function->address) << ((char)nil);
     }
 }
 
-void ExeBuilder::buildFieldData(ClassObject *klass) {
+void ExeBuilder::buildFieldData(ClassObject *klass) { // add boolean staticFieldsOnly
     if(klass->getSuperClass() != NULL)
-        buildFieldData(klass->getSuperClass());
+        buildFieldData(klass->getSuperClass()); // TODO: have compiler format the fields as follows {[instance Fields] [static Fields]}
 
     for(Int i = 0; i < klass->fieldCount(); i++) {
         Field *field = klass->getField(i);
         buf << (char)data_field;
         buf << field->name << ((char)nil);
-        buf << putInt32(field->address) << ((char)nil);
+        buf << putInt32(field->address);
         Int accessTypes = 0;
         for(Int j = 0; j < field->flags.size(); j++) {
             accessTypes |= field->flags.get(j);
         }
 
+        buf << putInt32(field->type);
         buf << putInt32(accessTypes) << ((char)nil);
-        buf << (field->isArray ? 1 : 0) << ((char)nil);
-        buf << (field->locality == stl_thread ? 1 : 0) << ((char)nil);
-        buf << (field->utype->getClass()
-            ? putInt32(field->utype->getClass()->address) : putInt32(-1)) << ((char)nil);
-        buf << putInt32(field->owner->address) << ((char)nil);
+        buf << (field->isArray ? 1 : 0);
+        buf << (field->locality == stl_thread ? 1 : 0);
+        getSymbol(field->utype);
+        buf << putInt32(field->owner->address);
     }
 }
 
@@ -1323,16 +1324,96 @@ void ExeBuilder::buildStringSection() {
     buf << '\n' << (char)eos;
 }
 
+void ExeBuilder::buildConstantSection() {
+    buf << (char)sconst;
+
+    for(Int i = 0; i < compiler->constantMap.size(); i++) {
+        buf << (char)data_const;
+        buf << compiler->constantMap.get(i) << ((char)nil);
+    }
+
+    buf << '\n' << (char)eos;
+}
+
+void ExeBuilder::addFunctionPointers() {
+
+    for(Int i = 0; i < allClasses.size(); i++) {
+        ClassObject *klass = allClasses.get(i);
+
+        for(Int j = 0; j < klass->fieldCount(); j++) {
+            if(klass->getField(j)->type == FNPTR) {
+                if(functionPointers.indexof(locateMethod, klass->getField(j)->utype->getMethod()) == -1) {
+                    functionPointers.add(klass->getField(j)->utype->getMethod());
+                }
+            }
+        }
+
+        for(Int j = 0; j < klass->getFunctionCount(); j++) {
+            Method *fun = klass->getFunction(j);
+            if(fun->utype->getResolvedType()->type == FNPTR) {
+                if(functionPointers.indexof(locateMethod, fun->utype->getMethod()) == -1) {
+                    functionPointers.add(fun->utype->getMethod());
+                }
+            }
+
+            for(Int x = 0; x < fun->params.size(); x++) {
+                Field *param = fun->params.get(x);
+                if(param->type == FNPTR) {
+                    if(functionPointers.indexof(locateMethod, param->utype->getMethod()) == -1) {
+                        functionPointers.add(param->utype->getMethod());
+                    }
+                }
+            }
+        }
+    }
+
+    buf << putInt32(functionPointers.size());
+    for(Int i = 0; i < functionPointers.size(); i++) {
+        Method *fun = functionPointers.get(i);
+
+        for(Int j = 0; j < fun->params.size(); j++) {
+            Field *param = fun->params.get(j);
+            addSymbol(param->utype);
+        }
+
+        addSymbol(fun->utype);
+        buf << (fun->utype->isArray() ? 1 : 0);
+    }
+}
+
+void ExeBuilder::addSymbol(Utype *utype) {
+    buf << putInt32(utype->getResolvedType()->type);
+    if(utype->getResolvedType()->type == CLASS) {
+        buf << putInt32(utype->getClass()->address);
+    } else if(utype->getResolvedType()->type == FNPTR) {
+        Method *fun = utype->getMethod();
+
+        for(Int j = 0; j < fun->params.size(); j++) {
+            Field *param = fun->params.get(j);
+            getSymbol(param->utype);
+            buf << (param->isArray ? 1 : 0);
+        }
+
+        getSymbol(fun->utype);
+        buf << (fun->utype->isArray() ? 1 : 0);
+    }
+}
+
+void ExeBuilder::getSymbol(Utype *utype) {
+    buf << putInt32(utype->getResolvedType()->type);
+    if(utype->getResolvedType()->type == CLASS) {
+        buf << putInt32(utype->getClass()->address);
+    } else if(utype->getResolvedType()->type == FNPTR) {
+        Method *fun = utype->getMethod();
+        buf << putInt32(functionPointers.indexof(locateMethod, fun));
+    }
+}
+
 void ExeBuilder::buildDataSection() {
     dataSec << (char)sdata;
 
     for(Int i = 0; i < allMethods.size(); i++) {
         putMethodData(allMethods.get(i));
-    }
-
-    buf << (char)data_delegate;
-    for(Int i = 0; i < allDelegates.size(); i++) {
-        putMethodData(allDelegates.get(i));
     }
 
     for(Int i = 0; i < allMethods.size(); i++) {
@@ -1359,9 +1440,18 @@ void ExeBuilder::putMethodData(Method *fun) {
         accessTypes |= fun->flags.get(j);
     }
     buf << putInt32(accessTypes) << ((char)nil);
+    buf << putInt32(fun->delegateAddr) << ((char)nil);
     buf << putInt32(getFpOffset(fun)) << ((char)nil);
     buf << putInt32(getSpOffset(fun)) << ((char)nil);
-    buf << putInt32(fun->delegateAddr) << ((char)nil);
+    getSymbol(fun->utype);
+    buf << (fun->utype->isArray() ? 1 : 0);
+    buf << putInt32(fun->params.size());
+    for(Int i = 0; i < fun->params.size(); i++) {
+        Field *param = fun->params.get(i);
+        getSymbol(fun->utype);
+        buf << (param->isArray ? 1 : 0);
+    }
+
 
     for(Int i = 0; i < fun->data.lineTable.size(); i++) {
         buf << putInt32(fun->data.lineTable.get(i).start_pc) << ((char)nil);
@@ -1407,8 +1497,7 @@ void ExeBuilder::buildMetaSection() {
         buf << Obfuscater::files.get(i)->name << ((char)nil);
 
         if(c_options.debug) {
-            buf << compiler->parsers.get(i)->
-                getTokenizer()->getData();
+            buf << compiler->parsers.get(i)->getData();
         }
     }
 }

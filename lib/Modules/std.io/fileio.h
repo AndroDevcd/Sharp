@@ -5,7 +5,7 @@
 #ifndef SHARP_FILEIO_H
 #define SHARP_FILEIO_H
 
-#include "../../runtime/oo/string.h"
+#include "../../runtime/symbols/string.h"
 
 native_string resolve_path(native_string& path);
 

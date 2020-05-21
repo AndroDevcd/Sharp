@@ -11,7 +11,7 @@
 #include "../../runtime/register.h"
 #include "Expression.h"
 #include "data/Literal.h"
-#include "../../runtime/oo/Method.h"
+#include "../../runtime/symbols/Method.h"
 #include "oo/Method.h"
 
 

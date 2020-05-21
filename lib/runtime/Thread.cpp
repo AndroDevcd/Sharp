@@ -6,12 +6,11 @@
 #include "Thread.h"
 #include "memory/GarbageCollector.h"
 #include "Exe.h"
-#include "Environment.h"
 #include "VirtualMachine.h"
 #include "Opcode.h"
 #include "register.h"
 #include "Manifest.h"
-#include "oo/Object.h"
+#include "symbols/Object.h"
 #include "../util/time.h"
 #include "jit/_BaseAssembler.h"
 #include "jit/Jit.h"
@@ -22,7 +21,7 @@
 #include "termios.h"
 #endif
 
-Int Thread::tid = ILL_THREAD_ID;
+int32_t Thread::tid = ILL_THREAD_ID;
 uInt Thread::maxThreadId = 0;
 thread_local Thread* thread_self = NULL;
 HashMap<Int, Thread*> Thread::threads;
@@ -200,7 +199,7 @@ int Thread::start(int32_t id, size_t stackSize) {
 
 }
 
-int Thread::destroy(int64_t id) {
+int Thread::destroy(int32_t id) {
     if(id == thread_self->id || id==main_threadid)
         return RESULT_ILL_THREAD_DESTROY; // cannot destroy self or main
 
@@ -378,9 +377,6 @@ void Thread::term() {
     sendSignal(this->signal, tsig_kill, 1);
     this->terminated = true;
     if(dataStack != NULL) {
-        for(unsigned long i = 0; i < this->stackLimit; i++) {
-            GarbageCollector::self->releaseObject(&dataStack[i].object);
-        }
         std::free(dataStack); dataStack = NULL;
     }
 
@@ -588,16 +584,16 @@ void*
 void printRegs() {
     cout << endl;
     cout << "Registers: \n";
-    cout << "adx = " << registers[i64adx] << endl;
-    cout << "cx = " << registers[i64cx] << endl;
-    cout << "cmt = " << registers[i64cmt] << endl;
-    cout << "ebx = " << registers[i64ebx] << endl;
-    cout << "ecx = " << registers[i64ecx] << endl;
-    cout << "ecf = " << registers[i64ecf] << endl;
-    cout << "edf = " << registers[i64edf] << endl;
-    cout << "ehf = " << registers[i64ehf] << endl;
-    cout << "bmr = " << registers[i64bmr] << endl;
-    cout << "egx = " << registers[i64egx] << endl;
+    cout << "adx = " << registers[ADX] << endl;
+    cout << "cx = " << registers[CX] << endl;
+    cout << "cmt = " << registers[CMT] << endl;
+    cout << "ebx = " << registers[EBX] << endl;
+    cout << "ecx = " << registers[ECX] << endl;
+    cout << "ecf = " << registers[ECF] << endl;
+    cout << "edf = " << registers[EDF] << endl;
+    cout << "ehf = " << registers[EHF] << endl;
+    cout << "bmr = " << registers[BMR] << endl;
+    cout << "egx = " << registers[EGX] << endl;
     cout << "sp -> " << (thread_self->sp-thread_self->dataStack) << endl;
     cout << "fp -> " << (thread_self->fp-thread_self->dataStack) << endl;
     cout << "pc -> " << PC(thread_self) << endl;
@@ -606,7 +602,7 @@ void printRegs() {
     }
     native_string stackTrace;
 
-    vm->fillStackTrace(stackTrace);
+    vm.fillStackTrace(stackTrace);
     cout << "stacktrace ->\n\n " << stackTrace.str() << endl;
     cout << endl;
 
@@ -617,7 +613,7 @@ void printRegs() {
 
 void printStack() {
     native_string str;
-    vm->fillStackTrace(str);
+    vm.fillStackTrace(str);
     cout << " stack\n" << str.str() << endl << std::flush;
 }
 #endif
@@ -636,37 +632,28 @@ void printStack() {
  * any other code that throws a exception while maybe calling a system interrupt or something will be caught and call the same thing
  *
  */
-/**
- * This tells the virtual machine to process code
- * when executing a finally block or the regular processing
- * of a function.
- */
-thread_local short startAddress = 0;
-/*
- * We need this to keep track of which finally block we are executing
- */
-FinallyTable finallyTable;
-unsigned long long irCount = 0, overflow = 0;
+unsigned long irCount = 0, overflow = 0;
 
 void Thread::exec() {
 
-    register int64_t tmp=0;
-    register int64_t val=0;
-    register int64_t delegate=0;
-    register int64_t args=0;
-    ClassObject *klass;
-    SharpObject* o=NULL;
-    Method* f;
-    fptr jitFn;
-    Object* o2=NULL;
-    void* opcodeStart = (startAddress == 0) ?  (&&interp) : (&&finally) ;
-    Method* finnallyMethod;
+//    register int64_t tmp=0;
+//    register int64_t val=0;
+//    register int64_t delegate=0;
+//    register int64_t args=0;
+//    ClassObject *klass;
+//    SharpObject* o=NULL;
+//    Method* f;
+//    fptr jitFn;
+//    Object* o2=NULL;
+    Object *ptr;
+    Int result;
+    fptr jitFun;
 
 #ifdef SHARP_PROF_
     tprof->init(stack_lmt);
     tprof->starttm=Clock::realTimeInNSecs();
     for(size_t i = 0; i < manifest.methods; i++) {
-        funcProf prof = funcProf(env->methods+i);
+        funcProf prof = funcProf(vm.methods+i);
         tprof->functions.push_back(prof);
     }
 #endif
@@ -678,16 +665,6 @@ void Thread::exec() {
     _initOpcodeTable
     try {
         for (;;) {
-            /* We dont want to always run finally code when we start a thread */
-            if(startAddress == 0) goto interp;
-            finnallyMethod = current;
-
-            finally:
-            if((PC(this) <finallyTable.start_pc || PC(this) > finallyTable.end_pc)
-               && current==finnallyMethod)
-                return;
-
-            interp:
             DISPATCH();
             _NOP: // tested
                 _brh
@@ -702,7 +679,7 @@ void Thread::exec() {
 
 #endif
                 VirtualMachine::sysInterrupt(GET_Da(*pc));
-                if(masterShutdown) return;
+                if(vm.state == VM_TERMINATED) return;
                 _brh
             _MOVI: // tested
                 registers[*(pc+1)]=GET_Da(*pc);
@@ -721,14 +698,14 @@ void Thread::exec() {
                         GarbageCollector::self->newObject(registers[GET_Da(*pc)]);
                 STACK_CHECK _brh
             CAST:
-                CHECK_NULL(o2->castObject(registers[GET_Da(*pc)]);)
+                CHECK_NULL(ptr->castObject(registers[GET_Da(*pc)]);)
                 _brh
             VARCAST:
                 CHECK_NULL2(
-                        if(TYPE(o2->object->info) != _stype_var) {
+                        if(TYPE(ptr->object->info) != _stype_var) {
                             stringstream ss;
                             ss << "illegal cast to var" << (GET_Da(*pc) ? "[]" : "");
-                            throw Exception(Environment::ClassCastException, ss.str());
+                            throw Exception(vm.ClassCastExcept, ss.str());
                         }
                 )
                 _brh
@@ -804,33 +781,33 @@ void Thread::exec() {
                 registers[GET_Ca(*pc)]=registers[GET_Cb(*pc)];
                 _brh
             BRH: // tested
-                pc=cache+(int64_t)registers[i64adx];
+                pc=cache+(int64_t)registers[ADX];
                 LONG_CALL();
                 _brh_NOINCREMENT
             IFE:
                 LONG_CALL();
-                if(registers[i64cmt]) {
-                    pc=cache+(int64_t)registers[i64adx]; _brh_NOINCREMENT
+                if(registers[CMT]) {
+                    pc=cache+(int64_t)registers[ADX]; _brh_NOINCREMENT
                 } else  _brh
             IFNE:
                 LONG_CALL();
-                if(registers[i64cmt]==0) {
-                    pc=cache+(int64_t)registers[i64adx]; _brh_NOINCREMENT
+                if(registers[CMT]==0) {
+                    pc=cache+(int64_t)registers[ADX]; _brh_NOINCREMENT
                 } else  _brh
             LT:
-                registers[i64cmt]=registers[GET_Ca(*pc)]<registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*pc)]<registers[GET_Cb(*pc)];
                 _brh
             GT:
-                registers[i64cmt]=registers[GET_Ca(*pc)]>registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*pc)]>registers[GET_Cb(*pc)];
                 _brh
             LTE:
-                registers[i64cmt]=registers[GET_Ca(*pc)]<=registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*pc)]<=registers[GET_Cb(*pc)];
                 _brh
             GTE:
-                registers[i64cmt]=registers[GET_Ca(*pc)]>=registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*pc)]>=registers[GET_Cb(*pc)];
                 _brh
             MOVL: // tested
-                o2 = &(fp+GET_Da(*pc))->object;
+                ptr = &(fp+GET_Da(*pc))->object;
                 _brh
             POPL: // tested
                 (fp+GET_Da(*pc))->object
@@ -841,16 +818,13 @@ void Thread::exec() {
                         = (sp--)->var;
                 _brh
             MOVSL: // tested
-                o2 = &((sp+GET_Da(*pc))->object);
+                ptr = &((sp+GET_Da(*pc))->object);
                 _brh
-            MOVF: // TODO: change this in the JIT
-                registers[GET_Da(*pc)]=env->floatingPoints[*(pc + 1)]
-                _brh_inc(2)
             SIZEOF:
-                if(o2==NULL || o2->object == NULL)
+                if(ptr==NULL || ptr->object == NULL)
                     registers[GET_Da(*pc)] = 0;
                 else
-                    registers[GET_Da(*pc)]=o2->object->size;
+                    registers[GET_Da(*pc)]=ptr->object->size;
                 _brh
             PUT: // tested
                 cout << registers[GET_Da(*pc)];
@@ -866,11 +840,11 @@ void Thread::exec() {
                 _brh
             CHECKLEN:
                 CHECK_NULL2(
-                        if((registers[GET_Da(*pc)]<o2->object->size) &&!(registers[GET_Da(*pc)]<0)) { _brh }
+                        if((registers[GET_Da(*pc)]<ptr->object->size) &&!(registers[GET_Da(*pc)]<0)) { _brh }
                         else {
                             stringstream ss;
-                            ss << "Access to Object at: " << registers[GET_Da(*pc)] << " size is " << o2->object->size;
-                            throw Exception(Environment::IndexOutOfBoundsException, ss.str());
+                            ss << "Access to Object at: " << registers[GET_Da(*pc)] << " size is " << ptr->object->size;
+                            throw Exception(vm.IndexOutOfBoundsExcept, ss.str());
                         }
                 )
             JMP: // tested
@@ -881,74 +855,72 @@ void Thread::exec() {
                 registers[GET_Da(*pc)] = PC(this);
                 _brh
             PUSHOBJ:
-                (++sp)->object = o2;
+                (++sp)->object = ptr;
                 STACK_CHECK _brh
             DEL:
-            GarbageCollector::self->releaseObject(o2);
+            GarbageCollector::self->releaseObject(ptr);
                 _brh
             CALL:
 #ifdef SHARP_PROF_
-            tprof->hit(env->methods+GET_Da(*pc));
+            tprof->hit(vm.methods+GET_Da(*pc));
 #endif
-                CALLSTACK_CHECK
-                if((jitFn = executeMethod(GET_Da(*pc), this)) != NULL) {
+                if((jitFun = executeMethod(GET_Da(*pc), this)) != NULL) {
 
 #ifdef BUILD_JIT
-                    jitFn(jctx);
+                    jitFun(jctx);
 #endif
                 }
                 THREAD_EXECEPT();
                 _brh_NOINCREMENT
             CALLD:
 #ifdef SHARP_PROF_
-            tprof->hit(env->methods+GET_Da(*pc));
+            tprof->hit(vm.methods+GET_Da(*pc));
 #endif
-                if((val = (int64_t )registers[GET_Da(*pc)]) <= 0 || val >= manifest.methods) {
+                if((result = (int64_t )registers[GET_Da(*pc)]) <= 0 || result >= vm.manifest.methods) {
                     stringstream ss;
-                    ss << "invalid call to pointer of " << val;
+                    ss << "invalid call to pointer of " << result;
                     throw Exception(ss.str());
                 }
-                CALLSTACK_CHECK
-                if((jitFn = executeMethod(val, this)) != NULL) {
+                if((jitFun = executeMethod(result, this)) != NULL) {
 
 #ifdef BUILD_JIT
-                    jitFn(jctx);
+                    jitFun(jctx);
 #endif
                 }
                 THREAD_EXECEPT();
                 _brh_NOINCREMENT
             NEWCLASS:
                 (++sp)->object =
-                        GarbageCollector::self->newObject(&env->classes[GET_Da(*pc)]);
+                        GarbageCollector::self->newObject(&vm.classes[GET_Da(*pc)]);
                 STACK_CHECK _brh
             MOVN:
                 CHECK_NULLOBJ(
-                        if(GET_Da(*pc) >= o2->object->size || GET_Da(*pc) < 0)
+                        if(GET_Da(*pc) >= ptr->object->size || GET_Da(*pc) < 0)
                             throw Exception("movn");
 
-                        o2 = &o2->object->node[GET_Da(*pc)];
+                        ptr = &ptr->object->node[GET_Da(*pc)];
                 )
                 _brh
             SLEEP:
                 __os_sleep((int64_t)registers[GET_Da(*pc)]);
                 _brh
             TEST:
-                registers[i64cmt]=registers[GET_Ca(*pc)]==registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*pc)]==registers[GET_Cb(*pc)];
                 _brh
             TNE:
-                registers[i64cmt]=registers[GET_Ca(*pc)]!=registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*pc)]!=registers[GET_Cb(*pc)];
                 _brh
             LOCK:
-                CHECK_NULL2(Object::monitorLock(o2, thread_self);)
+                CHECK_NULL2(Object::monitorLock(ptr, thread_self);)
                 _brh
             ULOCK:
-                CHECK_NULL2(Object::monitorUnLock(o2, thread_self);)
+                CHECK_NULL2(Object::monitorUnLock(ptr, thread_self);)
                 _brh
             MOVG:
-                o2 = env->globalHeap+GET_Da(*pc);
+                ptr = vm.staticHeap+GET_Da(*pc);
                 _brh
             MOVND:
-                CHECK_NULLOBJ(o2 = &o2->object->node[(int64_t)registers[GET_Da(*pc)]];)
+                CHECK_NULLOBJ(ptr = &ptr->object->node[(int64_t)registers[GET_Da(*pc)]];)
                 _brh
             NEWOBJARRAY:
                 (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Da(*pc)]);
@@ -970,45 +942,45 @@ void Thread::exec() {
                 _brh_inc(2)
             SKPE:
                 LONG_CALL();
-                if(registers[i64cmt]) {
+                if(registers[CMT]) {
                     pc = pc+GET_Da(*pc); _brh_NOINCREMENT
                 } else _brh
             SKNE:
                 LONG_CALL();
-                if(registers[i64cmt]==0) {
+                if(registers[CMT]==0) {
                     pc = pc+GET_Da(*pc); _brh_NOINCREMENT
                 } else _brh
             CMP:
-                registers[i64cmt]=registers[GET_Ca(*pc)]==GET_Cb(*pc);
+                registers[CMT]=registers[GET_Ca(*pc)]==GET_Cb(*pc);
                 _brh
             AND:
-                registers[i64cmt]=registers[GET_Ca(*pc)]&&registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*pc)]&&registers[GET_Cb(*pc)];
                 _brh
             UAND:
-                registers[i64cmt]=(int64_t)registers[GET_Ca(*pc)]&(int64_t)registers[GET_Cb(*pc)];
+                registers[CMT]=(int64_t)registers[GET_Ca(*pc)]&(int64_t)registers[GET_Cb(*pc)];
                 _brh
             OR:
-                registers[i64cmt]=(int64_t)registers[GET_Ca(*pc)]|(int64_t)registers[GET_Cb(*pc)];
+                registers[CMT]=(int64_t)registers[GET_Ca(*pc)]|(int64_t)registers[GET_Cb(*pc)];
                 _brh
             XOR:
-                registers[i64cmt]=(int64_t)registers[GET_Ca(*pc)]^(int64_t)registers[GET_Cb(*pc)];
+                registers[CMT]=(int64_t)registers[GET_Ca(*pc)]^(int64_t)registers[GET_Cb(*pc)];
                 _brh
             THROW:
                 exceptionObject = sp->object;
                 throw Exception("", false);
                 _brh
             CHECKNULL:
-                registers[i64cmt]=o2 == NULL || o2->object==NULL;
+                registers[CMT]=ptr == NULL || ptr->object==NULL;
                 _brh
             RETURNOBJ:
-                fp->object=o2;
+                fp->object=ptr;
                 _brh
             NEWCLASSARRAY:
                 (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Ca(*pc)],
-                                                                    &env->classes[GET_Cb(*pc)]);
+                                                                    &vm.classes[GET_Cb(*pc)]);
                 STACK_CHECK _brh
             NEWSTRING:
-                GarbageCollector::self->createStringArray(&(++sp)->object, env->getStringById(GET_Da(*pc)));
+                GarbageCollector::self->createStringArray(&(++sp)->object, vm.strings[GET_Da(*pc)]);
                 STACK_CHECK _brh
             ADDL:
                 (fp+GET_Cb(*pc))->var+=registers[GET_Ca(*pc)];
@@ -1038,20 +1010,20 @@ void Thread::exec() {
                 (fp+GET_Cb(*pc))->var/=GET_Ca(*pc);
                 _brh
             IMODL:
-                val = (fp+GET_Cb(*pc))->var;
-                (fp+GET_Cb(*pc))->var=val%GET_Ca(*pc);
+                result = (fp+GET_Cb(*pc))->var;
+                (fp+GET_Cb(*pc))->var=result%GET_Ca(*pc);
                 _brh
             LOADL:
                 registers[GET_Ca(*pc)]=(fp+GET_Cb(*pc))->var;
                 _brh
             IALOAD:
-                CHECK_INULLOBJ(
-                        registers[GET_Ca(*pc)] = o2->object->HEAD[(int64_t)registers[GET_Cb(*pc)]];
+                CHECK_NULLVAR(
+                        registers[GET_Ca(*pc)] = ptr->object->HEAD[(int64_t)registers[GET_Cb(*pc)]];
                 )
                 _brh
             POPOBJ:
                 CHECK_NULL(
-                        *o2 = (sp--)->object;
+                        *ptr = (sp--)->object;
                 )
                 _brh
             SMOVR:
@@ -1061,7 +1033,7 @@ void Thread::exec() {
                 (fp+GET_Cb(*pc))->var=registers[GET_Ca(*pc)];
                 _brh
             SMOVR_3:
-                (fp+GET_Da(*pc))->object=o2;
+                (fp+GET_Da(*pc))->object=ptr;
                 _brh
             ANDL:
                 (fp+GET_Cb(*pc))->andl(registers[GET_Ca(*pc)]);
@@ -1073,12 +1045,12 @@ void Thread::exec() {
             (fp + GET_Cb(*pc))->xorl(registers[GET_Ca(*pc)]);
                 _brh
             RMOV:
-                CHECK_INULLOBJ(
-                        o2->object->HEAD[(int64_t)registers[GET_Ca(*pc)]]=registers[GET_Cb(*pc)];
+                CHECK_NULLVAR(
+                        ptr->object->HEAD[(int64_t)registers[GET_Ca(*pc)]]=registers[GET_Cb(*pc)];
                 )
                 _brh
             NEG:
-                registers[GET_Ca(*pc)]=-registers[GET_Cb(*pc)]];
+                registers[GET_Ca(*pc)]=-registers[GET_Cb(*pc)];
                 _brh
             SMOV:
                 registers[GET_Ca(*pc)]=(sp+GET_Cb(*pc))->var;
@@ -1114,42 +1086,40 @@ void Thread::exec() {
                 _brh
             JE:
                 LONG_CALL();
-                if(registers[i64cmt]) {
+                if(registers[CMT]) {
                     pc=cache+GET_Da(*pc); _brh_NOINCREMENT
                 } else  _brh
             JNE:
                 LONG_CALL();
-                if(registers[i64cmt]==0) {
+                if(registers[CMT]==0) {
                     pc=cache+GET_Da(*pc); _brh_NOINCREMENT
                 } else  _brh
-            SWITCH: {
-                LONG_CALL();
-                executeSwitch(this, GET_Da(*pc));
-                _brh_NOINCREMENT
-            }
             TLS_MOVL:
-                o2 = &(dataStack+GET_Da(*pc))->object;
+                ptr = &(dataStack+GET_Da(*pc))->object;
                 _brh
             DUP:
                 obj = &sp->object;
                 (++sp)->object = obj;
                 _brh
             POPOBJ_2:
-                o2 = &(sp--)->object;
+                ptr = &(sp--)->object;
                 _brh
             SWAP:
                 if((sp-dataStack) >= 2) {
-                    o = sp->object.object;
+                    SharpObject *swappedObj = sp->object.object;
                     (sp)->object = (sp-1)->object;
-                    (sp-1)->object = o;
+                    (sp-1)->object = swappedObj;
                 } else {
                     stringstream ss;
                     ss << "Illegal stack swap while sp is ( " << (x86int_t )(sp - dataStack) << ") ";
-                    throw Exception(Environment::ThreadStackException, ss.str());
+                    throw Exception(vm.ThreadStackExcept, ss.str());
                 }
                 _brh
             EXP:
                 registers[GET_Ba(*pc)]=pow(registers[GET_Bb(*pc)], registers[GET_Bc(*pc)]);
+                _brh
+            LDC: // tested
+                registers[GET_Ca(*pc)]=vm.constants[GET_Cb(*pc)];
                 _brh
 
 
@@ -1165,10 +1135,10 @@ void Thread::exec() {
     exception_catch:
     if(state == THREAD_KILLED) {
         sendSignal(thread_self->signal, tsig_except, 1);
-        vm->fillStackTrace(throwable.stackTrace);
+        vm.fillStackTrace(throwable.stackTrace);
         return;
     }
-    vm->Throw();
+    vm.Throw();
 
     /**
      * Exception is still live and must make its transition to low
@@ -1189,7 +1159,6 @@ void Thread::setup() {
     exited = false;
     terminated = false;
     exitVal = 0;
-    starting = 0;
 #ifdef BUILD_JIT
     Jit::tlsSetup();
 #endif
@@ -1203,19 +1172,15 @@ void Thread::setup() {
         GarbageCollector::self->addMemory(sizeof(Frame) * stackLimit);
     }
     if(id != main_threadid){
-        int priority = (int)env->__sgetFieldVar("priority", currentThread.object);
+        int priority = (int)vm.resolveField("priority", currentThread.object)->object->HEAD[0];
         setPriority(this, priority);
 
         if(currentThread.object != nullptr
            && IS_CLASS(currentThread.object->info)) {
-            Object *threadName = env->findField("name", currentThread.object);
-
-            if(threadName != NULL) { // reset thread name
-                env->createString(threadName, name);
-            }
+            GarbageCollector::self->createStringArray(vm.resolveField("name", currentThread.object), name);
         }
-        fp=&dataStack[manifest.threadLocals];
-        sp=(&dataStack[manifest.threadLocals])-1;
+        fp=&dataStack[vm.manifest.threadLocals];
+        sp=(&dataStack[vm.manifest.threadLocals])-1;
 
         for(unsigned long i = 0; i < stackLimit; i++) {
             this->dataStack[i].object.object = NULL;

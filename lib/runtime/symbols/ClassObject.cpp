@@ -3,13 +3,13 @@
 //
 
 #include "ClassObject.h"
-#include "../oo/Field.h"
-#include "../oo/Object.h"
+#include "Field.h"
+#include "Object.h"
 
 void ClassObject::free() {
 
     if(fields != NULL) {
-        for(int64_t i = 0; i < fieldCount; i++)
+        for(int64_t i = 0; i < totalFieldCount; i++)
             fields[i].free();
         std::free(fields); fields = NULL;
     }
@@ -21,15 +21,15 @@ void ClassObject::free() {
 }
 
 Field *ClassObject::getfield(string name) {
-    for(unsigned int i = 0; i < fieldCount; i++) {
+    for(unsigned int i = 0; i < totalFieldCount; i++) {
         if(fields[i].name == name)
             return &fields[i];
     }
     return NULL;
 }
 
-int64_t ClassObject::fieldindex(string name) {
-    for(long int i = fieldCount-1; i >= 0; i--) {
+uInt ClassObject::fieldindex(string name) {
+    for(long int i = totalFieldCount-1; i >= 0; i--) {
         if(fields[i].name == name)
             return i;
     }
@@ -39,7 +39,7 @@ int64_t ClassObject::fieldindex(string name) {
 bool ClassObject::isClassRelated(ClassObject *k) {
     if(k == NULL)
         return false;
-    if(this->serial==k->serial)
+    if(this->guid==k->guid)
         return true;
 
     return owner == NULL ? false : owner->isClassRelated(k);

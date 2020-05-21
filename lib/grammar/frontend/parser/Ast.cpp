@@ -347,6 +347,14 @@ string Ast::astTypeToString(ast_type type) {
             return "ast_exponent_e";
         case ast_obfuscate_decl:
             return "ast_obfuscate_decl";
+        case ast_when_statement:
+            return "ast_when_statement";
+        case ast_when_block:
+            return "ast_when_block";
+        case ast_when_else_clause:
+            return "ast_when_else_clause";
+        case ast_when_clause:
+            return "ast_when_clause";
     }
 
     return "unknown";

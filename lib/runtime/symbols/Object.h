@@ -7,12 +7,12 @@
 
 #ifndef WIN32_
 #include <mutex>
-#include <atomic>
 
 #endif
 
+#include <atomic>
 #include "../memory/GarbageCollector.h"
-#include "../oo/ClassObject.h"
+#include "../symbols/ClassObject.h"
 
 struct Object;
 struct ClassObject;
@@ -42,7 +42,7 @@ struct SharpObject
         next=NULL;
         this->size=size;
         refCount=0;
-        SET_INFO(info, k->serial, _stype_struct, generation); /* generation young */
+        SET_INFO(info, k->address, _stype_struct, generation); /* generation young */
         SET_CLASS_BIT(info, 1);
     }
 

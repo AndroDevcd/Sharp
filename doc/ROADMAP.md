@@ -452,9 +452,37 @@ class Player {
 }
 ```
 
-- add a `$internal_func_static_init()` inside of the class if there is a static field, function, or init block found by the compiler
+- [X] add a `$internal_func_static_init()` inside of the class if there is a static field, function, or init block found by the compiler
 - just like regular init static init will be compiled after fields
 - move code for static variable initialization to that function
 - do not allow static init to be called at global scope
 - for each class call the respective function in `srt_init()` for setting up each class & pass the instance of MOVG instruction to the function because technically it will be an instance function
 
+- Add support for calling base constructors during initialization
+
+```javascript
+
+
+class player {
+    health : int = 100;
+    has_power_op : bool;
+    //...
+    player(pwr : power_up) {
+        has_power_up = true;
+        // ...    
+    }
+
+}
+
+class mario base player {
+    
+    mario() -> player() { // calling empty constructor is not required
+        
+    }
+
+    mario(pwr : power_up) -> player(pwr) {
+        
+    }
+}
+
+```

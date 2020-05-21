@@ -5,7 +5,8 @@
 #include "Jit.h"
 #include "../main.h"
 #include "../Thread.h"
-#include "../Environment.h"
+#include "../VirtualMachine.h"
+
 #ifdef BUILD_JIT
 
 Jit *Jit::self = nullptr;
@@ -68,7 +69,7 @@ void Jit::run() {
              * We only want to run a concurrent compilation
              * of a function
              */
-            getAssembler()->tryJit(env->methods+function);
+            getAssembler()->tryJit(vm.methods+function);
         }
 
         do {

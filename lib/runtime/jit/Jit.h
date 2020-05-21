@@ -65,7 +65,7 @@ public:
 private:
     Thread *tSelf;
     recursive_mutex mutex;
-    _List<int64_t> messageQueue;
+    _List<int32_t> messageQueue;
     x64Assembler* x64Asm;
     int error;
 };

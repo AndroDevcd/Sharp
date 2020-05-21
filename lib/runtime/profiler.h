@@ -6,7 +6,7 @@
 #define SHARP_PROFILER_H
 
 #include "../../stdimports.h"
-#include "oo/Method.h"
+#include "symbols/Method.h"
 
 #ifdef SHARP_PROF_
 

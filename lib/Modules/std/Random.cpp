@@ -4,7 +4,6 @@
 
 #include "Random.h"
 #include "../../runtime/Thread.h"
-#include "../../runtime/register.h"
 
 double __crand(int proc) {
     Random *rand = thread_self->rand;

@@ -8,6 +8,7 @@
 #include "../../../../stdimports.h"
 
 #include "../../../runtime/List.h"
+#include "../../../runtime/symbols/string.h"
 #include <Windows.h>
 #include <vector>
 #include <mutex>

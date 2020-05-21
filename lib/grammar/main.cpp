@@ -9,7 +9,8 @@
 #include "frontend/tokenizer/tokenizer.h"
 #include "frontend/parser/Parser.h"
 #include "backend/Compiler.h"
-#include "../runtime/oo/string.h"
+#include "../runtime/symbols/string.h"
+#include "../util/zip/zlib.h"
 
 
 /**

@@ -4,21 +4,21 @@
 
 #include "Object.h"
 #include "../memory/GarbageCollector.h"
-#include "../Environment.h"
 #include "../register.h"
 #include "../Thread.h"
 #include "../Exe.h"
 #include "../Manifest.h"
+#include "../VirtualMachine.h"
 
 void Object::castObject(int64_t classPtr) {
     ClassObject* type =NULL, *base = NULL;
 
     if(this->object == NULL)
-        throw Exception(Environment::ClassCastException, "invalid cast on null object");
+        throw Exception(vm.ClassCastExcept, "invalid cast on null object");
 
-    if(classPtr < manifest.classes && classPtr > 0) {
-        type = &env->classes[classPtr];
-        base = &env->classes[CLASS(object->info)];
+    if(classPtr < vm.manifest.classes && classPtr > 0) {
+        type = &vm.classes[classPtr];
+        base = &vm.classes[CLASS(object->info)];
     } else {
         stringstream msg;
         msg << "class not found @address:" << classPtr;
@@ -30,20 +30,20 @@ void Object::castObject(int64_t classPtr) {
     nonclass << "attempt to perform invalid cast to [" << type->name.str() << "] on non-class object ";
 
     if(!IS_CLASS(this->object->info))
-        throw Exception(Environment::ClassCastException, nonclass.str());
+        throw Exception(vm.ClassCastExcept, nonclass.str());
 
-    if(type->serial!= base->serial && !base->isClassRelated(type)) {
+    if(type->guid != base->guid && !base->isClassRelated(type)) {
         // validate we have all our interfaces checked
         for(int i = 0; i < base->interfaceCount; i++) {
-            ClassObject* _interface = &env->classes[base->interfaces[i]];
-            if(_interface->serial==type->serial || _interface->isClassRelated(type))
+            ClassObject* _interface = base->interfaces[i];
+            if(_interface->guid==type->guid || _interface->isClassRelated(type))
                 return;
         }
 
         stringstream ss;
         ss << "illegal cast of class '" << base->name.str() << "' to '";
         ss << type->name.str() << "'";
-        throw Exception(Environment::ClassCastException, ss.str());
+        throw Exception(vm.ClassCastExcept, ss.str());
     }
 }
 
@@ -52,7 +52,7 @@ void SharpObject::print() {
     cout << "size " << size << endl;
     cout << "refrences " << refCount << endl;
     cout << "generation " << GENERATION(info) << endl;
-    ClassObject *k = &env->classes[CLASS(info)];
+    ClassObject *k = &vm.classes[CLASS(info)];
     if(IS_CLASS(info)) cout << "class: " << k->name.str() << endl;
 
     if(TYPE(info)==_stype_var) {

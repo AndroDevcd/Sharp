@@ -11,7 +11,7 @@
 #include "../../../stdimports.h"
 #include "../List.h"
 #include "../../util/KeyPair.h"
-#include "../oo/string.h"
+#include "../symbols/string.h"
 
 enum CollectionPolicy
 {
@@ -295,7 +295,6 @@ private:
 #define PUSH(object) { \
     heapSize++; \
     tail->next = object; \
-    object->prev = tail; \
     tail = object; \
 }
 

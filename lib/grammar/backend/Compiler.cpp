@@ -11,7 +11,7 @@
 #include "../../runtime/register.h"
 #include "Expression.h"
 #include "data/Literal.h"
-#include "../../runtime/oo/Method.h"
+#include "../../runtime/symbols/Method.h"
 #include "oo/Method.h"
 #include "ofuscation/Obfuscater.h"
 #include "../generator/ExeBuilder.h"
@@ -5899,16 +5899,14 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
     Method *method = new Method(name, currModule, currentClass, guid++, params, flags, meta);
     method->fullName = currentClass->fullName + "." + name;
     method->ast = ast;
+    method->address = methodSize++;
     if(ast->getType() == ast_delegate_decl) {
         if(method->owner->isGlobalClass())
             this->errors->createNewError(GENERIC, ast->line, ast->col,
                                          "delegate functions are not allowed at global scope");
-
         method->fnType = fn_delegate;
-        method->address = delegateGUID++;
     } else {
         method->fnType = fn_normal;
-        method->address = methodSize++;
     }
 
     if(method->address >= FUNCTION_LIMIT) {

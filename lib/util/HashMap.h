@@ -48,7 +48,7 @@ template <typename K>
 struct KeyHash {
     unsigned long operator()(const K& key, uInt tableSize) const
     {
-        return reinterpret_cast<unsigned long>(key) % tableSize;
+        return key % tableSize;
     }
 };
 
@@ -67,8 +67,9 @@ public:
         this->tableSize = tableSize;
     }
 
-    void init(uInt tableSize) {
-        HashMap(tableSize);
+    void init(uInt size) {
+        table = new HashNode<K, V> *[tableSize]();
+        this->tableSize = tableSize;
     }
 
     ~HashMap() {

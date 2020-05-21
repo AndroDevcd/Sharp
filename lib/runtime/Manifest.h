@@ -6,7 +6,7 @@
 #define SHARP_MANIFEST_H
 
 #include "../../stdimports.h"
-#include "oo/string.h"
+#include "symbols/string.h"
 #include "List.h"
 
 using namespace runtime;
@@ -33,9 +33,9 @@ public:
         threadLocals = 0;
     }
 
-    String executable;
-    String application;
-    String version;
+    runtime::String executable;
+    runtime::String application;
+    runtime::String version;
     bool debug;
     Int entryMethod;
     Int methods, classes;
@@ -48,12 +48,10 @@ public:
 };
 
 struct SourceFile {
-    Int id;
-    String name;
-    _List<String> lines;
+    runtime::String name;
+    _List<runtime::String> lines;
 
     void init() {
-        id = 0;
         name.init();
         lines.init();
     }
@@ -82,7 +80,7 @@ public:
 
     _List<SourceFile> files;
 
-    String getLine(uInt line, uInt sourceFile);
+    runtime::String getLine(uInt line, uInt sourceFile);
     bool hasLine(uInt line, uInt sourceFile);
     void free();
 };

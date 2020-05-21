@@ -8,62 +8,79 @@
 
 #include "../../stdimports.h"
 #include <stdexcept>
-#include "../runtime/oo/string.h"
+#include "../runtime/symbols/string.h"
 
-struct ExceptionTable{
-    ExceptionTable()
+
+struct CatchData {
+    CatchData()
             :
-            start_pc(0),
-            end_pc(0),
-            local(0),
-            className("")
+            handler_pc(invalidAddr),
+            localFieldAddress(invalidAddr),
+            caughtException(NULL)
     {
     }
 
     void init() {
-        start_pc=0;
-        end_pc=0;
-        handler_pc=0;
-        local=0;
-        className.init();
+        CatchData();
     }
 
-    ~ExceptionTable()
-    {
-        className.free();
+    void free() {
     }
 
-    void operator=(const ExceptionTable& e) {
-        this->start_pc=e.start_pc;
-        this->end_pc=e.end_pc;
-        this->handler_pc=e.handler_pc;
-        this->local=e.local;
-        this->className=e.className;
+    void operator=(CatchData* ct) {
+        this->handler_pc=ct->handler_pc;
+        this->handler_pc=ct->handler_pc;
+        this->caughtException=ct->caughtException;
     }
 
-    uInt start_pc, end_pc;
-    uInt handler_pc;
-    uInt local;
-    String className;
+    Int handler_pc;
+    Int localFieldAddress;
+    ClassObject* caughtException;
 };
 
-struct FinallyTable {
-    FinallyTable()
+struct FinallyData {
+    FinallyData()
             :
             start_pc(0),
-            end_pc(0)
+            end_pc(0),
+            exception_object_field_address(-1)
     {
     }
 
-    void operator=(const FinallyTable& ft) {
-        start_pc=ft.start_pc;
-        end_pc=ft.end_pc;
-        try_start_pc=ft.try_start_pc;
-        try_end_pc=ft.try_end_pc;
+    void operator=(FinallyData *fd) {
+        start_pc=fd->start_pc;
+        end_pc=fd->end_pc;
+        exception_object_field_address=fd->exception_object_field_address;
     }
 
+    uInt exception_object_field_address;
     uInt start_pc, end_pc;
-    uInt try_start_pc, try_end_pc;
+};
+
+struct TryCatchData {
+    TryCatchData()
+            :
+            try_start_pc(invalidAddr),
+            try_end_pc(invalidAddr),
+            finallyData(NULL),
+            catchTable()
+    {
+    }
+
+    void init() {
+        TryCatchData();
+    }
+
+    void operator=(TryCatchData *data) {
+        this->try_start_pc=data->try_start_pc;
+        this->try_end_pc=data->try_end_pc;
+        this->catchTable.addAll(data->catchTable);
+        this->finallyData = data->finallyData;
+    }
+
+    Int try_start_pc, try_end_pc;
+    _List<CatchData> catchTable;
+    FinallyData *finallyData;
 };
 
 #endif //SHARP_EXCECPTION_H

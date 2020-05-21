@@ -2,7 +2,7 @@
 // Created by BNunnally on 5/14/2020.
 //
 
-#include "../../../runtime/oo/string.h"
+#include "../../../runtime/symbols/string.h"
 #include "../Compiler.h"
 #include "Obfuscater.h"
 
@@ -124,7 +124,9 @@ void Obfuscater::obfuscateFullName(DataEntity *de) {
 
     if(de->owner == NULL) {
         ModuleData *package = de->module;
-        de->fullName = generateName(package->guid) + "#" + generateName(de->guid);
+        if(package->obfuscate)
+            de->fullName = generateName(package->guid) + "#" + generateName(de->guid);
+        else de->fullName = package->name + "#" + generateName(de->guid);
     } else {
         de->fullName = de->owner->fullName + "." + generateName(de->guid);
     }

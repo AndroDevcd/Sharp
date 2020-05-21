@@ -140,6 +140,7 @@ private:
     void parseMethodDecl(Ast*);
     void parseOperatorDecl(Ast*);
     void parseConstructor(Ast*);
+    void parseBaseClassConstructor(Ast*);
     void parseAll(Ast*);
     void parseEnumDecl(Ast*);
     void parseEnumBlock(Ast*);

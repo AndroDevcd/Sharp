@@ -10,30 +10,14 @@
 #include "string.h"
 #include "../../grammar/Exception.h"
 #include "../List.h"
+#include "../Opcode.h"
+#include "param.h"
 
-struct line_table;
+struct LineData;
 
 #ifdef BUILD_JIT
 struct jit_context;
 #endif
-
-struct SwitchTable { // for every value there will be a corresponding address
-    _List<uInt> values;
-    _List<uInt> addresses;
-
-    Int defaultAddress; // -1 if not present
-
-    void init() {
-        values.init();
-        addresses.init();
-        defaultAddress = -1;
-    }
-
-    SwitchTable()
-    {
-        init();
-    }
-};
 
 #define JIT_IR_LIMIT 25000
 
@@ -42,7 +26,7 @@ struct SwitchTable { // for every value there will be a corresponding address
  */
 #define JIT_IR_MIN 1
 
-typedef int64_t* Cache;
+typedef opcode_instr* Cache;
 typedef void (*fptr)(void *);
 
 /**
@@ -50,28 +34,24 @@ typedef void (*fptr)(void *);
  * it will contain all the information to run correctly in the system
  *
  */
-struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUCT DATA USED BY THE JIT */
-    int64_t* jit_labels;
-    int64_t address;          /* refrence id to the the address space */
-
-    int64_t* bytecode;
-    int stackSize;                 /* inital stack space required for frame */
-    short returnType;              /* Simple binary flag indicating the function returns a value */
-    ClassObject* returnClass;
-    ClassObject* owner;
-    native_string name, fullName;
-    int64_t* params;
-    bool* arrayFlag;                /* array flag for each parameter */
+class Method : public Symbol {
+public:
+    int32_t* jit_labels;
+    int32_t address;
+    uint32_t* bytecode;
+    int stackSize;
     int paramSize;
-    long sourceFile;                /* Link to source file in code */
-    int64_t cacheSize;              /* Size of the bytecode cache */
-    int isStatic;
+    Symbol* utype;
+    bool arrayUtype;
+    long sourceFile;
+    int32_t cacheSize;
     long delegateAddress;
-    int stackEqulizer;
-    _List<ExceptionTable> exceptions;
-    _List<FinallyTable> finallyBlocks;
-    _List<line_table> lineNumbers;
-    _List<SwitchTable> switchTable;
+    int spOffset;
+    int fpOffset;
+    Param* params;
+    _List<TryCatchData> tryCatchTable;
+    _List<LineData> lineTable;
+
     /**
      * Below are all the jit related fields
      *
@@ -100,34 +80,21 @@ struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUC
     int8_t jitAttempts; // we only allow 3 attempts to JIT a method
     int isjit;
     bool compiling; // are we compiling the function?
-    fptr jit_call;
+    fptr jit_func;
 
 
     void free() {
-        name.free();
-        fullName.free();
+        Symbol::free();
         sourceFile=0;
-        exceptions.free();
-        lineNumbers.free();
-        finallyBlocks.free();
+        tryCatchTable.free();
+        lineTable.free();
         isjit=0;
         branches=0;
-        jit_call=0;
+        jit_func=0;
         compiling=false;
         jitAttempts=0;
-        for(long i = 0; i < switchTable.size(); i++) {
-            SwitchTable &st = switchTable.get(i);
-            st.values.free();
-            st.addresses.free();
-        }
-
-        switchTable.free();
-
-        if(paramSize != 0) {
-            if(arrayFlag != NULL)
-                std::free(arrayFlag);
-            if(params != NULL)
-                std::free(params);
+        if(params != NULL) {
+            std::free(params);
         }
 
         owner = NULL;
@@ -141,44 +108,40 @@ struct Method {                     /* WARNING:  DO NOT!!!!!!! CHANGE THIS STRUC
     }
 
     void init() {
+        Symbol();
         name.init();
         fullName.init();
         isjit=false;
         branches=0;
-        jit_call=0;
+        jit_func=0;
         compiling=false;
         jitAttempts=0;
         sourceFile=0;
-        exceptions.init();
-        lineNumbers.init();
-        finallyBlocks.init();
-        switchTable.init();
+        tryCatchTable.init();
+        lineTable.init();
         params = NULL;
-        arrayFlag = NULL;
-        paramSize = 0;
         owner = NULL;
         jit_labels = NULL;
         stackSize = 0;
         bytecode = NULL;
         address = 0;
         cacheSize = 0;
-        isStatic = 0;
-        returnsData = 0;
-        stackEqulizer = 0;
+        spOffset = 0;
+        fpOffset = 0;
         delegateAddress = -1;
     }
 };
 
-struct line_table {
+struct LineData {
 public:
-    line_table(uInt pc, uInt line)
+    LineData(Int pc, Int line)
     :
         pc(pc),
         line_number(line)
     {}
 
-    uInt pc;
-    uInt line_number;
+    Int pc;
+    Int line_number;
 };
 
 struct StackElement;

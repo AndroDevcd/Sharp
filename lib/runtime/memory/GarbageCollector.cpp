@@ -4,12 +4,11 @@
 
 #include <random>
 #include "GarbageCollector.h"
-#include "../oo/Object.h"
+#include "../symbols/Object.h"
 #include "../Thread.h"
-#include "../oo/Field.h"
+#include "../symbols/Field.h"
 #include "../../util/time.h"
 #include "../../util/KeyPair.h"
-#include "../Environment.h"
 #include "../Exe.h"
 #include "../Manifest.h"
 #include "../VirtualMachine.h"
@@ -512,7 +511,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
                  * to null and initialize the var variables
                  */
                 if(k->fields[fieldAddress].type == VAR && !k->fields[fieldAddress].isArray) {
-                    if(!staticInit || (staticInit && k->fields[fieldAddress].isStatic)) {
+                    if(!staticInit || (staticInit && IS_STATIC(k->fields[fieldAddress].flags))) {
                         object->node[i].object = newObject(1);
                         object->node[i].object->refCount++;
                     }

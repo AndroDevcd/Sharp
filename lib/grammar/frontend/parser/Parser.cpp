@@ -1401,6 +1401,8 @@ void parser::parseOperatorDecl(Ast *ast) {
             parseExpression(branch);
             expect(branch, ";", false);
         } else {
+            if(peek(1)->getType() != LEFTCURLY)
+                errors->createNewError(GENERIC, current(), "expected `{`");
             parseBlock(branch);
         }
     } else if(peek(1)->getType() == INFER) {
@@ -1408,6 +1410,8 @@ void parser::parseOperatorDecl(Ast *ast) {
         parseExpression(branch);
         expect(branch, ";", false);
     } else {
+        if(peek(1)->getType() != LEFTCURLY)
+            errors->createNewError(GENERIC, current(), "expected `{`");
         parseBlock(branch);
     }
 }
@@ -1672,6 +1676,13 @@ void parser::parseEnumIdentifier(Ast *ast) {
 
 }
 
+void parser::parseBaseClassConstructor(Ast *ast) {
+    Ast *branch = getBranch(ast, ast_base_class_constructor);
+    expect(branch, "->", false);
+    expect(branch, "base", false);
+    parseExpressionList(branch, "(", ")");
+}
+
 void parser::parseConstructor(Ast *ast) {
     Ast* branch = getBranch(ast, ast_construct_decl);
 
@@ -1682,6 +1693,10 @@ void parser::parseConstructor(Ast *ast) {
     expectIdentifier(branch);
 
     parseUtypeArgList(branch);
+
+    if(peek(1)->getType() == PTR) {
+        parseBaseClassConstructor(branch);
+    }
     parseBlock(branch);
 }
 
