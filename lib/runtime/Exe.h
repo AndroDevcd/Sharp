@@ -35,7 +35,7 @@
 #define min_file_vers 4
 #define file_vers 4
 #define BUILD_VERS versions.ALPHA
-#define HEADER_SIZE 0xb
+#define HEADER_SIZE 0xc
 
 // Processing errors
 #define CORRUPT_FILE 0x001

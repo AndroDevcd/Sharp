@@ -39,6 +39,7 @@ public:
     int32_t* jit_labels;
     int32_t address;
     uint32_t* bytecode;
+    DataType type;
     int stackSize;
     int paramSize;
     Symbol* utype;

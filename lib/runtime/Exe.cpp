@@ -48,12 +48,12 @@ int Process_Exe(std::string exe)
         return FILE_NOT_AUTHENTIC;
     }
 
-    for (;;) {
-        if(buffer.at(currentPos++) != manif){
-            exeErrorMessage = "file `" + exe + "` may be corrupt";
-            return CORRUPT_MANIFEST;
-        }
+    if(buffer.at(currentPos++) != manif){
+        exeErrorMessage = "file `" + exe + "` may be corrupt";
+        return CORRUPT_MANIFEST;
+    }
 
+    for (;;) {
         currentFlag = buffer.at(currentPos++);
         processedFlags++;
         switch (currentFlag) {
@@ -391,6 +391,7 @@ int Process_Exe(std::string exe)
                 method->fullName = getString(buffer);
                 method->sourceFile = geti32(buffer);
                 method->owner = &vm.classes[geti32(buffer)];
+                method->type = (DataType)geti32(buffer);
                 method->stackSize = geti32(buffer);
                 method->cacheSize = geti32(buffer);
                 method->flags = parseInt(buffer);
