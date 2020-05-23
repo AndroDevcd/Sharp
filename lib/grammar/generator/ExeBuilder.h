@@ -49,6 +49,7 @@ private:
 
     void buildSymbolSection();
 
+    void buildFieldData(Field *field);
     void buildFieldData(ClassObject *pObject);
     void buildMethodData(ClassObject *pObject);
     void buildInterfaceData(ClassObject *pObject);
@@ -58,20 +59,17 @@ private:
     void addFunctionPointers();
 
     void buildDataSection();
-    void addSymbol(Utype *utype);
-    void getSymbol(Utype *utype);
+    void putSymbol(Utype *utype, stringstream &buf);
 
     void putMethodData(Method *fun);
 
     void putMethodCode(Method *fun);
 
-    void buildMetaSection();
+    void buildMetaDataSection();
 
     int32_t getFpOffset(Method *fun);
 
     int32_t getSpOffset(Method *fun);
-
-    void putMethodParams(Method *fun);
 };
 
 

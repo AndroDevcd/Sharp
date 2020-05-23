@@ -58,6 +58,7 @@ public:
     static void addModule(string name, uInt id);
     static FileData* getFile(string name);
     static void addFile(string name, uInt id);
+    static bool checkReliability(Int startId, Int sampleSize);
 
     static List<ModuleData*> modules;
     static List<FileData*> files;
@@ -65,9 +66,9 @@ private:
     Compiler *compiler;
 
     static string generateName(Int id);
+    static void invalidId(Int id);
     static bool findPackage(ModuleData **p1, void *p2);
     static bool findFile(FileData **f1, void *f2);
-    static bool checkReliability(Int startId, Int sampleSize);
     static void obfuscate(ClassObject *klass);
     static void obfuscate(DataEntity *de);
     static void obfuscateFullName(DataEntity *de);

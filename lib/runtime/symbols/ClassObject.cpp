@@ -28,7 +28,7 @@ Field *ClassObject::getfield(string name) {
     return NULL;
 }
 
-uInt ClassObject::fieldindex(string name) {
+Int ClassObject::fieldindex(string name) {
     for(long int i = totalFieldCount-1; i >= 0; i--) {
         if(fields[i].name == name)
             return i;

@@ -6,6 +6,8 @@
 #define SHARP_SAMPLEMANAGER_H
 
 
+#include "../../../../stdimports.h"
+
 class SampleManager {
 public:
 

@@ -129,10 +129,13 @@ int Process_Exe(std::string exe)
         return CORRUPT_FILE;
     }
 
-    /* Data section */
+    /* Symbol section */
     const Int nativeSymbolCount = 14;
     uInt sourceFilesCreated=0;
     uInt itemsProcessed=0;
+    uInt functionPointerSize=0;
+    uInt functionPointersProcessed=0;
+
     vm.classes =(ClassObject*)malloc(sizeof(ClassObject)*vm.manifest.classes);
     vm.methods = (Method*)malloc(sizeof(Method)*vm.manifest.methods);
     vm.strings = (runtime::String*)malloc(sizeof(runtime::String)*(vm.manifest.strings)); // TODO: create "" string from compiler as the 0'th element
@@ -141,20 +144,13 @@ int Process_Exe(std::string exe)
     vm.metaData.init();
     vm.nativeSymbols = (Symbol*)malloc(sizeof(Symbol)*nativeSymbolCount);
 
-    for(Int i = 0; i < nativeSymbolCount; i++)
+    functionPointerSize = geti32(buffer);
+    vm.funcPtrSymbols = (Method*)malloc(sizeof(Method)*functionPointerSize);
+
+    for(Int i = 0; i < nativeSymbolCount; i++) {
         vm.nativeSymbols[i].init();
-    vm.nativeSymbols[_UINT8].type = _UINT8;
-    vm.nativeSymbols[_UINT16].type = _UINT16;
-    vm.nativeSymbols[_UINT32].type = _UINT32;
-    vm.nativeSymbols[_UINT64].type = _UINT64;
-    vm.nativeSymbols[_INT8].type = _INT8;
-    vm.nativeSymbols[_INT16].type = _INT16;
-    vm.nativeSymbols[_INT32].type = _INT32;
-    vm.nativeSymbols[_INT64].type = _INT64;
-    vm.nativeSymbols[_INT64].type = _INT64;
-    vm.nativeSymbols[VAR].type = VAR;
-    vm.nativeSymbols[OBJECT].type = OBJECT;
-    vm.nativeSymbols[NIL].type = NIL;
+        vm.nativeSymbols[i].type = (DataType)i;
+    }
 
 
     if(vm.classes == NULL || vm.methods == NULL || vm.staticHeap == NULL
@@ -172,8 +168,38 @@ int Process_Exe(std::string exe)
             case 0x0d:
                 break;
 
+            case data_symbol: {
+                if(functionPointersProcessed >= functionPointerSize) {
+                    exeErrorMessage = "file `" + exe + "` may be corrupt";
+                    return CORRUPT_FILE;
+                }
+
+                Method &method = vm.funcPtrSymbols[functionPointersProcessed++];
+                method.init();
+                method.fnType = fn_ptr;
+
+                Int paramSize = geti32(buffer);
+                if(paramSize > 0) {
+                    method.params = (Param *) malloc(sizeof(Param) * paramSize);
+                    for (Int i = 0; i < paramSize; i++) {
+                        method.params[i].utype =
+                                getSymbol(buffer);
+                        method.params[i].isArray = buffer.at(currentPos++) == '1';
+
+                        if(method.params[i].utype == NULL)
+                            return CORRUPT_FILE;
+                    }
+                }
+
+                method.utype = getSymbol(buffer);
+                method.arrayUtype = buffer.at(currentPos++) == '1';
+
+                if(method.utype == NULL)
+                    return CORRUPT_FILE;
+                break;
+            }
+
             case data_class: {
-                itemsProcessed=0;
                 Int address = geti32(buffer);
                 if(address >= vm.manifest.classes) {
                     exeErrorMessage = "file `" + exe + "` may be corrupt";
@@ -182,6 +208,7 @@ int Process_Exe(std::string exe)
 
                 ClassObject* klass = &vm.classes[address];
                 klass->init();
+                klass->address = address;
 
                 address = geti32(buffer);
                 if(address != -1) klass->owner = &vm.classes[address];
@@ -197,10 +224,14 @@ int Process_Exe(std::string exe)
                 klass->methodCount = geti32(buffer);
                 klass->interfaceCount = geti32(buffer);
 
-                klass->fields = (Field*)malloc(sizeof(Field)*klass->totalFieldCount);
-                klass->methods = (Method**)malloc(sizeof(Method**)*klass->methodCount);
-                klass->interfaces = (ClassObject**)malloc(sizeof(ClassObject**)*klass->interfaceCount);
+                if(klass->totalFieldCount > 0)
+                    klass->fields = (Field*)malloc(sizeof(Field)*klass->totalFieldCount);
+                if(klass->methodCount > 0)
+                    klass->methods = (Method**)malloc(sizeof(Method**)*klass->methodCount);
+                if(klass->interfaceCount > 0)
+                    klass->interfaces = (ClassObject**)malloc(sizeof(ClassObject**)*klass->interfaceCount);
 
+                itemsProcessed=0;
                 if(klass->totalFieldCount != 0) {
                     for( ;; ) {
                         if(buffer.at(currentPos) == data_field) {
@@ -211,12 +242,16 @@ int Process_Exe(std::string exe)
                             field->name = getString(buffer);
                             field->address = geti32(buffer);
                             field->type = (DataType) geti32(buffer);
+                            field->guid = geti32(buffer);
                             field->flags = geti32(buffer);
                             field->isArray = buffer.at(currentPos++) == '1';
                             field->threadLocal = buffer.at(currentPos++) == '1';
                             field->utype = getSymbol(buffer);
                             field->owner = &vm.classes[geti32(buffer)];
-                        } else if(buffer.at(currentPos) == 0x0a || buffer.at(currentPos) == 0x0d){ /* ignore */ }
+
+                            if(field->utype == NULL)
+                                return CORRUPT_FILE;
+                        } else if(buffer.at(currentPos) == 0x0 || buffer.at(currentPos) == 0x0a || buffer.at(currentPos) == 0x0d){ /* ignore */ }
                         else
                             break;
                         currentPos++;
@@ -229,12 +264,31 @@ int Process_Exe(std::string exe)
                 }
 
                 itemsProcessed = 0;
+                if(klass->methodCount != 0) {
+                    for( ;; ) {
+                        if(buffer.at(currentPos) == data_method) {
+                            currentPos++;
+                            klass->methods[itemsProcessed++] = &vm.methods[geti32(buffer)];
+                        } else if(buffer.at(currentPos) == 0x0 || buffer.at(currentPos) == 0x0a || buffer.at(currentPos) == 0x0d){ /* ignore */ }
+                        else
+                            break;
+
+                        currentPos++;
+                    }
+
+                    if(itemsProcessed != klass->methodCount) {
+                        exeErrorMessage = "Failed to process all class methods in executable.";
+                        return CORRUPT_FILE;
+                    }
+                }
+
+                itemsProcessed = 0;
                 if(klass->interfaceCount != 0) {
                     for( ;; ) {
                         if(buffer.at(currentPos) == data_interface) {
                             currentPos++;
                             klass->interfaces[itemsProcessed++] = &vm.classes[geti32(buffer)];
-                        } else if(buffer.at(currentPos) == 0x0a || buffer.at(currentPos) == 0x0d){ /* ignore */ }
+                        } else if(buffer.at(currentPos) == 0x0 || buffer.at(currentPos) == 0x0a || buffer.at(currentPos) == 0x0d){ /* ignore */ }
                         else
                             break;
 
@@ -278,9 +332,8 @@ int Process_Exe(std::string exe)
                 break;
 
             case data_string: {
-                currentPos++;
                 vm.strings[itemsProcessed].init();
-                vm.strings[itemsProcessed++] = getString(buffer);
+                vm.strings[itemsProcessed++] = getString(buffer, geti32(buffer));
                 break;
             }
 
@@ -366,7 +419,8 @@ int Process_Exe(std::string exe)
         return CORRUPT_FILE;
     }
 
-    /* Text section */
+    /* Data section */
+    itemsProcessed = 0;
     for (;;) {
 
         currentFlag = buffer.at(currentPos++);
@@ -386,21 +440,23 @@ int Process_Exe(std::string exe)
                 method->init();
 
                 method->address = geti32(buffer);
-                method->isjit = parseInt(buffer);
                 method->name = getString(buffer);
                 method->fullName = getString(buffer);
                 method->sourceFile = geti32(buffer);
                 method->owner = &vm.classes[geti32(buffer)];
-                method->type = (DataType)geti32(buffer);
+                method->fnType = (function_type)geti32(buffer);
                 method->stackSize = geti32(buffer);
                 method->cacheSize = geti32(buffer);
-                method->flags = parseInt(buffer);
+                method->flags = geti32(buffer);
                 method->delegateAddress = geti32(buffer);
                 method->fpOffset = geti32(buffer);
                 method->spOffset = geti32(buffer);
                 method->utype = getSymbol(buffer);
-                method->arrayUtype = geti32(buffer);
+                method->arrayUtype = buffer.at(currentPos++) == '1';
                 Int paramSize = geti32(buffer);
+
+                if(method->utype == NULL)
+                    return CORRUPT_FILE;
 
                 method->params=(Param*)malloc(sizeof(Param)*paramSize);
                 for(Int i = 0; i < paramSize; i++) {
@@ -408,6 +464,9 @@ int Process_Exe(std::string exe)
                             getSymbol(buffer);
                     method->params[i].isArray =
                             buffer.at(currentPos++) == '1';
+
+                    if(method->params[i].utype == NULL)
+                        return CORRUPT_FILE;
                 }
 
 //                    if(c_options.jit) {
@@ -425,7 +484,7 @@ int Process_Exe(std::string exe)
                 }
 
 
-                len = parseInt(buffer);
+                len = geti32(buffer);
                 for(Int i = 0; i < len; i++) {
                     TryCatchData &tryCatchData = method->tryCatchTable.__new();
 
@@ -433,7 +492,7 @@ int Process_Exe(std::string exe)
                     tryCatchData.try_start_pc= geti32(buffer);
                     tryCatchData.try_end_pc= geti32(buffer);
 
-                    Int caughtExceptions = parseInt(buffer);
+                    Int caughtExceptions = geti32(buffer);
                     for(Int j =0; j < caughtExceptions; j++) {
                         CatchData &catchData = tryCatchData.catchTable.__new();
                         catchData.handler_pc = geti32(buffer);
@@ -443,9 +502,9 @@ int Process_Exe(std::string exe)
 
                     if(buffer.at(currentPos++) == '1') {
                         tryCatchData.finallyData = (FinallyData*)malloc(sizeof(FinallyData));
-                        tryCatchData.finallyData->exception_object_field_address = geti32(buffer);
                         tryCatchData.finallyData->start_pc = geti32(buffer);
                         tryCatchData.finallyData->end_pc = geti32(buffer);
+                        tryCatchData.finallyData->exception_object_field_address = geti32(buffer);
                     }
                 }
                 break;
@@ -485,7 +544,7 @@ int Process_Exe(std::string exe)
                     for(int64_t i = 0; i < method->cacheSize; i++) {
                         method->bytecode[i] = geti32(buffer);
                     }
-                } else {
+                } else if(method->fnType != fn_delegate) {
                     exeErrorMessage = "method `" + method->fullName.str() + "` is missing bytecode";
                     return CORRUPT_FILE;
                 }
@@ -510,6 +569,7 @@ int Process_Exe(std::string exe)
         return CORRUPT_FILE;
     }
 
+    /* Meta Data Section */
     for(;;) {
         currentFlag = buffer.at(currentPos++);
         switch (currentFlag) {
@@ -525,7 +585,7 @@ int Process_Exe(std::string exe)
                 sourceFile.name = getString(buffer);
 
                 if(vm.manifest.debug) {
-                    String sourceFileData(getString(buffer));
+                    String sourceFileData(getString(buffer, geti32(buffer)));
                     parseSourceFile(sourceFile, sourceFileData);
                 }
                 break;
@@ -568,27 +628,14 @@ void parseSourceFile(SourceFile &sourceFile, native_string &data) {
 
 Symbol* getSymbol(File::buffer& buffer) {
     DataType type = (DataType)geti32(buffer);
-    if((type >= _UINT8 && type <= _UINT64)
-       || type == VAR || type == OBJECT) {
+    if((type >= _INT8 && type <= _UINT64)
+       || type == VAR || type == OBJECT
+       || type == NIL) {
         return &vm.nativeSymbols[type];
     } else if(type == CLASS) {
         return &vm.classes[geti32(buffer)];
     } else if(type == FNPTR) {
         return &vm.funcPtrSymbols[geti32(buffer)];
-//        Method *method = new Method();
-//        method->init();
-//
-//        Int paramSize = geti32(buffer);
-//        method->params = (Param*)malloc(sizeof(Param)*paramSize);
-//        for(Int i = 0; i < paramSize; i++) {
-//            method->params[i].utype =
-//                    getSymbol(buffer);
-//            method->params[i].isArray = buffer.at(index++) == '1';
-//        }
-//
-//        method->utype = getSymbol(buffer);
-//        method->arrayUtype = buffer.at(index++) == '1';
-//        return method;
     } else {
         exeErrorMessage = "invalid field type found in symbol table";
         return NULL;
@@ -606,9 +653,8 @@ int32_t geti32(File::buffer& exe) {
 
 string getString(File::buffer& exe, Int length) {
     string s;
-    char c = exe.at(currentPos);
     if(length != -1) {
-        for (; length >= 0; length--) {
+        for (; length > 0; length--) {
             s += exe.at(currentPos);
             currentPos++;
         }

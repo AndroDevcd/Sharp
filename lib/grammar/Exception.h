@@ -68,7 +68,10 @@ struct TryCatchData {
     }
 
     void init() {
-        TryCatchData();
+        try_start_pc = 0;
+        try_end_pc = 0;
+        catchTable.init();
+        finallyData = NULL;
     }
 
     void operator=(TryCatchData *data) {

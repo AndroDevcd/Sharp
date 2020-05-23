@@ -29,7 +29,7 @@
 #define data_field 0x22
 #define data_string 0x1e
 #define data_const 0x1c
-#define data_symbol 0x1d
+#define data_symbol 0x1f
 #define data_byte 0x05
 #define EXE_BYTE_CHUNK 4
 #define min_file_vers 4

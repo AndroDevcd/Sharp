@@ -27,7 +27,16 @@ bool Obfuscater::findFile(FileData **f1, void *f2) {
     return (*f1)->name == ((ModuleData*)f2)->name;
 }
 
+void Obfuscater::invalidId(Int id) {
+    stringstream ss;
+    ss << ": could not obfuscate invalid unique id of " << id;
+    throw std::runtime_error(ss.str());
+}
+
 string Obfuscater::generateName(Int id) {
+    if(id < 0)
+        invalidId(id);
+
     stringstream name;
     if(id < ALPHABET_COUNT) {
         name << alphabet[id];
@@ -42,7 +51,7 @@ string Obfuscater::generateName(Int id) {
 
             buf[stringSize++] = alphabet[letterIndex];
             id /= ALPHABET_COUNT;
-        } else {
+        } else { // should never happen
             clearBuf();
             buf[0] = '?';
             stringSize = 1;
@@ -67,14 +76,15 @@ void Obfuscater::clearBuf() {
 bool Obfuscater::checkReliability(Int startId, Int sampleSize) {
 
     if(sampleSize <= MAX_SAMPLE_SIZE) {
-        string names[sampleSize];
+        native_string names[sampleSize];
         Int stringSize = 0;
         for(Int i = 0; i < sampleSize; i++) {
+            names[stringSize].init();
             names[stringSize++] = Obfuscater::generateName(startId++);
         }
 
         for(Int i = 0; i < sampleSize; i++) {
-            string &name = names[i];
+            native_string &name = names[i];
             Int count = 0;
 
             for(Int j = 0; j < sampleSize; j++) {
