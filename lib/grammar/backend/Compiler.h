@@ -140,6 +140,7 @@ private:
     CodeHolder tlsMainInserts;
 
     void setup();
+    void randomizeGUID();
     bool preprocess();
     bool postProcess();
     void preprocessMutations();

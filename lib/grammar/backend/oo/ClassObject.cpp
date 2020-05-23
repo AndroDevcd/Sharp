@@ -101,6 +101,36 @@ long ClassObject::totalFieldCount() {
     }
 }
 
+long ClassObject::totalInstanceFieldCount() {
+    ClassObject* k, *_klass = this;
+    long fieldCount=getInstanceFieldCount();
+
+    for(;;) {
+        k = _klass->getSuperClass();
+
+        if(k == NULL)
+            return fieldCount;
+
+        fieldCount+=k->getInstanceFieldCount();
+        _klass = k;
+    }
+}
+
+long ClassObject::totalStaticFieldCount() {
+    ClassObject* k, *_klass = this;
+    long fieldCount=getStaticFieldCount();
+
+    for(;;) {
+        k = _klass->getSuperClass();
+
+        if(k == NULL)
+            return fieldCount;
+
+        fieldCount+=k->getStaticFieldCount();
+        _klass = k;
+    }
+}
+
 long ClassObject::totalFunctionCount() {
     ClassObject* k, *_klass = this;
     long functionCount=functions.size();

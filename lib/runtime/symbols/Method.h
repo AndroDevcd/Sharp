@@ -12,6 +12,7 @@
 #include "../List.h"
 #include "../Opcode.h"
 #include "param.h"
+#include "../../grammar/backend/oo/FunctionType.h"
 
 struct LineData;
 
@@ -39,7 +40,7 @@ public:
     int32_t* jit_labels;
     int32_t address;
     uint32_t* bytecode;
-    DataType type;
+    function_type fnType;
     int stackSize;
     int paramSize;
     Symbol* utype;
@@ -130,6 +131,7 @@ public:
         spOffset = 0;
         fpOffset = 0;
         delegateAddress = -1;
+        type = METHOD;
     }
 };
 

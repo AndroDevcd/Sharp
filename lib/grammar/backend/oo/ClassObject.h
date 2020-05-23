@@ -129,6 +129,8 @@ public:
     long getFieldIndex(string &name);
     Alias* getAlias(string name, bool checkBase);
     long totalFieldCount();
+    long totalInstanceFieldCount();
+    long totalStaticFieldCount();
     long totalFunctionCount();
     void addClass(ClassObject* k) {
         classes.addif(k);

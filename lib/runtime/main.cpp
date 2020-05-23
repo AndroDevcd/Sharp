@@ -263,10 +263,10 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {
     GarbageCollector::self->createStringArray(&object->object->node[iter++], str); /* target platform also the platform version */
 
 #ifdef WIN32_
-    str = "win";
+    str.set("win");
 #endif
 #ifdef POSIX_
-    str = "posix";
+    str.set("posix");
 #endif
     GarbageCollector::self->createStringArray(&object->object->node[iter++], str); /* operating system currently running on */
 

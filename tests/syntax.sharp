@@ -1,21 +1,5 @@
 mod main;
 
-import std.io;
-
-class K {
-
-    private y := 100;
-    private foo : (int)();
-
-    init {
-    }
-
-}
-
-enum ee {
-    a
-}
-
 def main() {
-
+    //print("Hello, world!");
 }

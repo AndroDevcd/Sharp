@@ -104,13 +104,13 @@ public:
         return !operator==(str);
     }
 
-    void operator=(const native_string &_str) {
+    void operator=(const string &_str) {
         free();
 
-        if(_str.len>0) {
-            len = _str.len;
-            chars = (char*)malloc(sizeof(char)*_str.len);
-            std::memcpy(chars, _str.chars, sizeof(char)*len);
+        if(_str.size()>0) {
+            len = _str.size();
+            chars = (char*)malloc(sizeof(char)*_str.size());
+            std::memcpy(chars, _str.c_str(), sizeof(char)*len);
         }
     }
 

@@ -2,7 +2,9 @@
 // Created by BraxtonN on 10/18/2019.
 //
 
+#include <random>
 #include <cmath>
+#include <chrono>
 #include "Compiler.h"
 #include "../main.h"
 #include "oo/ClassObject.h"
@@ -15,6 +17,7 @@
 #include "oo/Method.h"
 #include "ofuscation/Obfuscater.h"
 #include "../generator/ExeBuilder.h"
+#include "../../util/time.h"
 
 string globalClass = "__srt_global";
 ModuleData* undefinedModule = NULL;
@@ -22,12 +25,16 @@ string staticInitMethod = "static_init";
 string tlsSetupMethod = "tls_init";
 uInt Compiler::guid = 0;
 void Compiler::generate() {
-    Obfuscater obf(this);
-    obf.obfuscate();
-    // TODO: optimize code
+    try {
+        Obfuscater obf(this);
+        obf.obfuscate();
+        // TODO: optimize code
 
-    ExeBuilder builder(this);
-    builder.build();
+        ExeBuilder builder(this);
+        builder.build();
+    } catch(std::exception &e) {
+        errors->createNewError(INTERNAL_ERROR, 0, 0, e.what());
+    }
 }
 
 void Compiler::cleanup() {
@@ -6413,6 +6420,16 @@ void Compiler::preprocessMutations() {
     }
 }
 
+void Compiler::randomizeGUID() {
+    std::mt19937 generator((uInt)(NANO_TOMICRO(std::chrono::duration_cast<std::chrono::nanoseconds>
+                   (std::chrono::high_resolution_clock::now().time_since_epoch()).count())>>4));
+    std::uniform_int_distribution<long long> randomInt;
+    decltype(randomInt.param()) new_range (1, 100000);
+    randomInt.param(new_range);
+
+    guid = randomInt(generator);
+}
+
 void Compiler::setup() {
     noteMessages.init();
     classes.init();
@@ -8628,7 +8645,8 @@ void Compiler::compileAllUnprocessedMethods() {
 }
 
 void Compiler::compile() {
-    setup(); // TODO: talk about the changes maid to main.cpp in tutorial series for counting failed files commit is 17th pass on rewrite
+    setup();
+    randomizeGUID();
 
     if(preprocess() && postProcess()) {
         processingStage = COMPILING;

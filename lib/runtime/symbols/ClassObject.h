@@ -30,7 +30,24 @@ public:
         type = CLASS;
     }
 
-    void init() { ClassObject(); }
+    void init() {
+        Symbol::flags = 0;
+        Symbol::guid = 0;
+        Symbol::address = 0;
+        Symbol::name.init();
+        Symbol::fullName.init();
+        Symbol::type = UNDEFINED;
+        Symbol::owner = NULL;
+        fields = NULL;
+        methods = NULL;
+        super = NULL;
+        interfaces = NULL;
+        totalFieldCount = 0;
+        instanceFields = 0;
+        staticFields = 0;
+        methodCount = 0;
+        interfaceCount = 0;
+    }
 
     void operator=(const ClassObject* klass) {
         name = klass->name;
@@ -51,16 +68,16 @@ public:
     Method **methods;
     ClassObject *super;
     ClassObject **interfaces;
-    uInt staticFields;
-    uInt instanceFields;
-    uInt totalFieldCount;
-    uInt methodCount;
-    uInt interfaceCount;
+    Int staticFields;
+    Int instanceFields;
+    Int totalFieldCount;
+    Int methodCount;
+    Int interfaceCount;
 
     void free();
 
     Field* getfield(string name);
-    uInt fieldindex(string name);
+    Int fieldindex(string name);
 
     bool isClassRelated(ClassObject *klass);
 };
