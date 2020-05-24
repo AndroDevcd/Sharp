@@ -166,10 +166,11 @@ public:
     }
 
     void free() {
-        if(len != 0) {
-            std:: free(chars); chars = NULL;
-            len = 0;
+        if(chars != NULL) {
+            std::free(chars);
+            chars = NULL;
         }
+        len = 0;
     }
 
     char *chars;

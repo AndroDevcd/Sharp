@@ -26,13 +26,7 @@ uInt Thread::maxThreadId = 0;
 thread_local Thread* thread_self = NULL;
 HashMap<Int, Thread*> Thread::threads;
 size_t threadStackSize = STACK_SIZE, internalStackSize = INTERNAL_STACK_SIZE;
-
-#ifdef WIN32_
-std::mutex Thread::threadsMonitor;
-#endif
-#ifdef POSIX_
-std::mutex Thread::threadsMonitor;
-#endif
+recursive_mutex Thread::threadsMonitor;
 
 /*
  * Local registers for the thread to use
@@ -99,17 +93,17 @@ void Thread::CreateDaemon(string name) {
 }
 
 void Thread::pushThread(Thread *thread) {
-    std::lock_guard<std::mutex> guard(threadsMonitor);
+    GUARD(threadsMonitor);
     threads.put(thread->id, thread);
 }
 
 void Thread::popThread(Thread *thread) {
-    std::lock_guard<std::mutex> guard(threadsMonitor);
+    GUARD(threadsMonitor);
     threads.remove(thread->id);
 }
 
 Thread *Thread::getThread(int32_t id) {
-    std::lock_guard<std::mutex> guard(threadsMonitor);
+    GUARD(threadsMonitor);
     Thread *thread;
     threads.get(id, thread);
 
@@ -311,8 +305,7 @@ int Thread::waitForThread(Thread *thread) {
     int spinCount = 0;
     int retryCount = 0;
 
-    while (thread->state == THREAD_CREATED
-           || thread->state == THREAD_SUSPENDED)
+    while (thread->state != THREAD_RUNNING)
     {
         if (retryCount++ == sMaxRetries)
         {
@@ -329,7 +322,7 @@ int Thread::waitForThread(Thread *thread) {
 }
 
 void Thread::suspendAllThreads() {
-    std::lock_guard<std::mutex> guard(threadsMonitor);
+    GUARD(threadsMonitor);
     Thread* thread;
 
     for(uInt i = 0; i < maxThreadId; i++) {
@@ -345,7 +338,7 @@ void Thread::suspendAllThreads() {
 }
 
 void Thread::resumeAllThreads() {
-    std::lock_guard<std::mutex> guard(threadsMonitor);
+    GUARD(threadsMonitor);
     Thread* thread;
 
     for(unsigned int i= 0; i < maxThreadId; i++) {
@@ -434,7 +427,7 @@ int Thread::threadjoin(Thread *thread) {
 }
 
 void Thread::killAll() {
-    std::lock_guard<std::mutex> guard(threadsMonitor);
+    GUARD(threadsMonitor);
     Thread* thread;
     suspendAllThreads();
 
@@ -503,7 +496,7 @@ void Thread::shutdown() {
 }
 
 void Thread::exit() {
-    std::lock_guard<std::mutex> guard(threadsMonitor);
+    GUARD(threadsMonitor);
     if(hasSignal(signal, tsig_except)) {
         this->exitVal = 1;
 
@@ -1249,6 +1242,8 @@ int Thread::setPriority(Thread* thread, int priority) {
             case THREAD_PRIORITY_LOW:
                 SetThreadPriority(thread->thread, THREAD_PRIORITY_BELOW_NORMAL);
                 break;
+            default:
+                return RESULT_ILL_PRIORITY_SET;
         }
 #endif
 #ifdef POSIX_
@@ -1263,11 +1258,15 @@ int Thread::setPriority(Thread* thread, int priority) {
             pthread_prio = sched_get_priority_max(policy);
         } else if(priority == THREAD_PRIORITY_LOW) {
             pthread_prio = sched_get_priority_min(policy);
+        } else {
+            pthread_attr_destroy(&thAttr);
+            return RESULT_ILL_PRIORITY_SET;
         }
 
         pthread_setschedprio(thread->thread, pthread_prio);
         pthread_attr_destroy(&thAttr);
 #endif
+        return RESULT_OK;
     }
 
     return RESULT_ILL_PRIORITY_SET;
@@ -1292,7 +1291,7 @@ bool Thread::validInternalStackSize(size_t sz) {
 }
 
 int32_t Thread::generateId() {
-    std::lock_guard<std::mutex> guard(threadsMonitor);
+    GUARD(threadsMonitor);
 
     Thread *thread;
     bool wrapped = false;

@@ -70,6 +70,7 @@ private:
     int32_t getFpOffset(Method *fun);
 
     int32_t getSpOffset(Method *fun);
+    int32_t getSecondarySpOffset(Method *fun);
 };
 
 

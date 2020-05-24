@@ -49,6 +49,7 @@ public:
     long delegateAddress;
     int spOffset;
     int fpOffset;
+    int frameStackOffset;
     Param* params;
     _List<TryCatchData> tryCatchTable;
     _List<LineData> lineTable;
@@ -130,6 +131,7 @@ public:
         cacheSize = 0;
         spOffset = 0;
         fpOffset = 0;
+        frameStackOffset = 0;
         delegateAddress = -1;
         type = METHOD;
     }

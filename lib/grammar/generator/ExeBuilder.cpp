@@ -1286,6 +1286,7 @@ void ExeBuilder::buildMethodData(ClassObject *klass) {
 void ExeBuilder::buildFieldData(Field *field) {
     buf << (char)data_field;
     buf << field->name << ((char)nil);
+    buf << field->fullName << ((char)nil);
     buf << putInt32(field->address);
     Int accessTypes = 0;
     for(Int j = 0; j < field->flags.size(); j++) {
@@ -1450,6 +1451,7 @@ void ExeBuilder::putMethodData(Method *fun) {
     dataSec << putInt32(fun->delegateAddr);
     dataSec << putInt32(getFpOffset(fun));
     dataSec << putInt32(getSpOffset(fun));
+    dataSec << putInt32(getSecondarySpOffset(fun));
     putSymbol(fun->utype, dataSec);
     dataSec << (fun->utype->isArray() ? 1 : 0);
     dataSec << putInt32(fun->params.size());
@@ -1515,10 +1517,55 @@ void ExeBuilder::buildMetaDataSection() {
 }
 
 int32_t ExeBuilder::getFpOffset(Method *fun) {
-    return fun->params.size(); // TODO: figure out the math for both of these
+    bool staticFunc = fun->flags.find(STATIC);
+    Int paramSize = fun->params.size();
+    if(fun->utype->isRelated(compiler->nilUtype)) {
+        return paramSize + (!staticFunc ? 0 : -1);
+    } else {
+        if(staticFunc) {
+            if(paramSize == 0) {
+                return -1;
+            } else {
+                return fun->params.size() - 1;
+            }
+        } else {
+            if(paramSize == 0) {
+                return 0;
+            } else {
+                return fun->params.size();
+            }
+        }
+    }
+}
+
+int32_t ExeBuilder::getSecondarySpOffset(Method *fun) {
+    bool staticFunc = fun->flags.find(STATIC);
+    Int paramSize = fun->params.size();
+    Int exclusiveStackSize = fun->data.localVariablesSize;
+    if(!staticFunc) exclusiveStackSize--;
+    return exclusiveStackSize - paramSize;
 }
 
 int32_t ExeBuilder::getSpOffset(Method *fun) {
-    return fun->params.size();
+    bool staticFunc = fun->flags.find(STATIC);
+    Int paramSize = fun->params.size();
+    if(fun->utype->isRelated(compiler->nilUtype)) {
+        return paramSize + (!staticFunc ? 1 : 0);
+    } else {
+        if(staticFunc) {
+            if(paramSize == 0) {
+                return -1;
+            } else {
+                return fun->params.size() - 1;
+            }
+        } else {
+            if(paramSize == 0) {
+                return 0;
+            } else {
+                return fun->params.size();
+            }
+        }
+        return fun->params.size();
+    }
 }
 

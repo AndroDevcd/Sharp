@@ -104,6 +104,7 @@ public:
     long classSize;
     long methodSize;
     long threadLocals;
+    Utype* nilUtype;
 
     static uInt guid;
 private:
@@ -128,7 +129,6 @@ private:
     List<KeyPair<FileData*, List<ModuleData*>>>  importMap;
     List<Method*> lambdas;
     List<Method*> functionPtrs;
-    Utype* nilUtype;
     Utype* nullUtype;
     Utype* undefUtype;
     Utype* varUtype;

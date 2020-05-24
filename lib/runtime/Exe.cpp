@@ -242,9 +242,10 @@ int Process_Exe(std::string &exe)
 
                             currentPos++;
                             Field *field = &klass->fields[itemsProcessed++];
-                            field->name.init();
+                            field->init();
 
                             field->name = getString(buffer);
+                            field->fullName = getString(buffer);
                             field->address = geti32(buffer);
                             field->type = (DataType) geti32(buffer);
                             field->guid = geti32(buffer);
@@ -476,6 +477,7 @@ int Process_Exe(std::string &exe)
                 method->delegateAddress = geti32(buffer);
                 method->fpOffset = geti32(buffer);
                 method->spOffset = geti32(buffer);
+                method->frameStackOffset = geti32(buffer);
                 method->utype = getSymbol(buffer);
                 method->arrayUtype = buffer.at(currentPos++) == '1';
                 Int paramSize = geti32(buffer);

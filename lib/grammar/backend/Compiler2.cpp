@@ -1890,7 +1890,7 @@ void Compiler::compileAssemblyInstruction(CodeHolder &code, Ast *branch, string 
     } else if(opcode == "int") {
         code.addIr(OpBuilder::_int((interruptFlag) compileAsmLiteral(branch->getSubAst(ast_literal))));
     } else if(opcode == "movi") {
-        code.addIr(OpBuilder::movi(compileAsmLiteral(branch->getSubAst(ast_literal)),
+        code.addIr(OpBuilder::movi(compileAsmLiteral(branch->getSubAst(ast_assembly_literal)),
                                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
     } else if(opcode == "ret") {
         code.addIr(OpBuilder::ret(compileAsmLiteral(branch->getSubAst(ast_literal))));

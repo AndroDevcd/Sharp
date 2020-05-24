@@ -9,7 +9,7 @@
 void ClassObject::free() {
 
     if(fields != NULL) {
-        for(int64_t i = 0; i < totalFieldCount; i++)
+        for(Int i = 0; i < totalFieldCount; i++)
             fields[i].free();
         std::free(fields); fields = NULL;
     }
@@ -29,7 +29,7 @@ Field *ClassObject::getfield(string name) {
 }
 
 Int ClassObject::fieldindex(string name) {
-    for(long int i = totalFieldCount-1; i >= 0; i--) {
+    for(Int i = totalFieldCount-1; i >= 0; i--) {
         if(fields[i].name == name)
             return i;
     }

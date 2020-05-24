@@ -323,10 +323,9 @@ void GarbageCollector::run() {
 
         message:
         if(!messageQueue.empty()) {
-            mutex.lock();
+            GUARD(mutex);
             CollectionPolicy policy = messageQueue.last();
             messageQueue.pop_back();
-            mutex.unlock();
 
             /**
              * We only want to run a concurrent collection
@@ -399,7 +398,7 @@ GarbageCollector::threadStart(void *pVoid) {
 }
 
 void GarbageCollector::sendMessage(CollectionPolicy message) {
-    std::lock_guard<recursive_mutex> gd(mutex);
+    GUARD(mutex);
     messageQueue.push_back(message);
 }
 
@@ -480,7 +479,7 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
     SET_TYPE(object->info, _stype_var);
 
     /* track the allocation amount */
-    std::lock_guard<recursive_mutex> gd(mutex);
+    GUARD(mutex);
     managedBytes += (sizeof(SharpObject)*1)+(sizeof(double)*size);
     PUSH(object);
     youngObjects++;
@@ -514,7 +513,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
 
         }
 
-        std::lock_guard<recursive_mutex> gd(mutex);
+        GUARD(mutex);
         managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
         PUSH(object);
         youngObjects++;
@@ -530,10 +529,10 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size) {
     
     SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject));
     object->init(size, _stype_struct);
-    object->node = (Object*)__calloc(size, sizeof(Object));
+    object->node = (Object*)__calloc(size, sizeof(Object)*1);
     
     /* track the allocation amount */
-    std::lock_guard<recursive_mutex> gd(mutex);
+    GUARD(mutex);
     managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
     PUSH(object);
     youngObjects++;
@@ -551,7 +550,7 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
             object->node = (Object*)__calloc(size, sizeof(Object));
 
         /* track the allocation amount */
-        std::lock_guard<recursive_mutex> gd(mutex);
+        GUARD(mutex);
         managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
         PUSH(object);
         youngObjects++;
@@ -591,7 +590,7 @@ SharpObject* GarbageCollector::erase(SharpObject *freedObj, SharpObject *prevObj
         dropLock(freedObj);
 
     if(tail == freedObj){
-        std::lock_guard<recursive_mutex> gd(mutex);
+        GUARD(mutex);
         prevObj->next = freedObj->next;
     } else prevObj->next = freedObj->next;
     return prevObj->next;
@@ -601,7 +600,7 @@ void GarbageCollector::realloc(SharpObject *o, size_t sz) {
     if(o != NULL && TYPE(o->info) == _stype_var) {
         o->HEAD = (double*)__realloc(o->HEAD, sizeof(double)*sz, sizeof(double)*o->size);
 
-        std::lock_guard<recursive_mutex> gd(mutex);
+        GUARD(mutex);
         if(sz < o->size)
             managedBytes -= (sizeof(double)*(o->size-sz));
         else
@@ -624,7 +623,7 @@ void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
         }
 
         o->node = (Object*)__realloc(o->node, sizeof(Object)*sz, sizeof(Object)*o->size);
-        std::lock_guard<recursive_mutex> gd(mutex);
+        GUARD(mutex);
         if(sz < o->size)
             managedBytes -= (sizeof(Object)*(o->size-sz));
         else

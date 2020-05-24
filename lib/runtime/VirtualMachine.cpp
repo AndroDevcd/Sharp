@@ -50,9 +50,8 @@ int CreateVirtualMachine(string &exe)
     Jit::startup();
 #endif
 #ifdef WIN32_
-//    vm.gui = new Gui();
-//    vm.gui->setupMain();
-    vm.gui = NULL;
+    vm.gui = new Gui();
+    vm.gui->setupMain();
 #endif
 
     /**
@@ -151,7 +150,7 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
     thread->current = method;
     thread->cache = method->bytecode;
     thread->fp = thread->sp - method->fpOffset;
-    thread->sp += (method->stackSize - method->paramSize);
+    thread->sp += method->frameStackOffset;
     thread->pc = thread->cache;
 
 #ifdef BUILD_JIT

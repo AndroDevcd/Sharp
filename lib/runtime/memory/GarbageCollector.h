@@ -305,5 +305,8 @@ private:
 #define MB_TO_BYTES(bytes) (((uInt)bytes)*1048576)
 #define GB_TO_BYTES(bytes) (((uInt)(bytes))*1073741824)
 
+#define GUARD(mut) \
+    std::lock_guard<recursive_mutex> guard(mut);
+
 
 #endif //SHARP_GARBAGECOLLECTOR_H

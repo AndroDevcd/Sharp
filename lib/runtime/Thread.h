@@ -130,7 +130,7 @@ public:
     static uInt maxThreadId;
     static int32_t tid;
     static HashMap<Int, Thread*> threads;
-    static std::mutex threadsMonitor;
+    static recursive_mutex threadsMonitor;
 
     std::mutex mutex;
     int32_t id;

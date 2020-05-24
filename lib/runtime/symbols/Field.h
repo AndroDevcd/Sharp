@@ -15,15 +15,16 @@ class ClassObject;
 class Field : public Symbol {
 public:
     Field()
-            :
-            Symbol(),
-            utype(NULL),
-            isArray(false),
-            threadLocal(false)
     {
+        init();
     }
 
-    void init() { Field(); }
+    void init() {
+        utype = NULL;
+        isArray = false;
+        threadLocal = false;
+        Symbol::init();
+    }
 
     void operator=(Field* field) {
         this->address = field->address;

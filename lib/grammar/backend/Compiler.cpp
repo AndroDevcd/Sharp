@@ -632,7 +632,10 @@ void Compiler::addLocalVariables() {
 
 void Compiler::addLocalFields(Method *func) {
     func->data.locals.addAll(func->params);
-    func->data.localVariablesSize = func->params.size() + 1; // +1 because we need space for the instance
+    func->data.localVariablesSize = func->params.size();
+
+    if(!func->flags.find(STATIC))
+        func->data.localVariablesSize++; // allocate 1 slot for the class instance
 }
 
 void Compiler::compileObfuscateDecl(Ast* ast) {
@@ -8144,8 +8147,12 @@ void Compiler::compileMethodDecl(Ast *ast, ClassObject* currentClass) {
        checkMainMethodSignature(func);
 
        if((func->name == staticInitMethod || func->name == tlsSetupMethod)
-            && func->owner->fullName == "platform.kernel#platform")
+            && func->owner->fullName == "platform.kernel#platform") {
+            if(ast->hasSubAst(ast_expression) || ast->getSubAst(ast_block)->sub_asts.size() > 0) {
+                errors->createNewError(GENERIC, ast, "platform level function `" + func->toString() + "` does not allow statements or expressions inside.");
+            }
            return;
+       }
        compileMethod(ast, func);
    }
 }
@@ -8464,6 +8471,10 @@ void Compiler::setupMainMethod(Ast *ast) {
                 errors->createNewError(GENERIC, ast, "main method '" + starterMethod + "(object[])' must be private");
             }
 
+            if(!main->utype->equals(varUtype)) {
+                errors->createNewError(GENERIC, ast, "main method '" + starterMethod + "(object[])' must  return a var");
+            }
+
             delete params.last()->utype;
             delete params.last();
             params.free();
@@ -8485,6 +8496,13 @@ void Compiler::setupMainMethod(Ast *ast) {
             }
             if(!TlsSetup->flags.find(STATIC)) {
                 errors->createNewError(GENERIC, ast, "thread local storage init method '" + tlsSetupMethod + "()' must be static");
+            }
+
+            if(!StaticInit->utype->equals(nilUtype)) {
+                errors->createNewError(GENERIC, ast, "runtime environment setup method '" + staticInitMethod + "()' must return `nil`");
+            }
+            if(!TlsSetup->utype->equals(nilUtype)) {
+                errors->createNewError(GENERIC, ast, "thread local storage init method '" + tlsSetupMethod + "()' must return `nil`");
             }
 
             if(!StaticInit->flags.find(PRIVATE)) {
@@ -8551,6 +8569,7 @@ void Compiler::setupMainMethod(Ast *ast) {
             TlsSetup->data.code.inject(tlsMainInserts);
             TlsSetup->data.code.addIr(OpBuilder::ret(NO_ERR));
 
+            mainMethod = main; // reset main method to __srt_init()
             staticMainInserts.free();
             tlsMainInserts.free();
         }
