@@ -133,7 +133,6 @@ int Process_Exe(std::string exe)
     const Int nativeSymbolCount = 14;
     uInt sourceFilesCreated=0;
     uInt itemsProcessed=0;
-    uInt functionPointerSize=0;
     uInt functionPointersProcessed=0;
 
     vm.classes =(ClassObject*)malloc(sizeof(ClassObject)*vm.manifest.classes);
@@ -144,8 +143,8 @@ int Process_Exe(std::string exe)
     vm.metaData.init();
     vm.nativeSymbols = (Symbol*)malloc(sizeof(Symbol)*nativeSymbolCount);
 
-    functionPointerSize = geti32(buffer);
-    vm.funcPtrSymbols = (Method*)malloc(sizeof(Method)*functionPointerSize);
+    vm.manifest.functionPointers = geti32(buffer);
+    vm.funcPtrSymbols = (Method*)malloc(sizeof(Method)*vm.manifest.functionPointers);
 
     for(Int i = 0; i < nativeSymbolCount; i++) {
         vm.nativeSymbols[i].init();
@@ -169,7 +168,7 @@ int Process_Exe(std::string exe)
                 break;
 
             case data_symbol: {
-                if(functionPointersProcessed >= functionPointerSize) {
+                if(functionPointersProcessed >= vm.manifest.functionPointers) {
                     exeErrorMessage = "file `" + exe + "` may be corrupt";
                     return CORRUPT_FILE;
                 }
@@ -235,6 +234,11 @@ int Process_Exe(std::string exe)
                 if(klass->totalFieldCount != 0) {
                     for( ;; ) {
                         if(buffer.at(currentPos) == data_field) {
+                            if(itemsProcessed >= klass->totalFieldCount) {
+                                exeErrorMessage = "file `" + exe + "` may be corrupt";
+                                return CORRUPT_FILE;
+                            }
+
                             currentPos++;
                             Field *field = &klass->fields[itemsProcessed++];
                             field->name.init();
@@ -267,6 +271,11 @@ int Process_Exe(std::string exe)
                 if(klass->methodCount != 0) {
                     for( ;; ) {
                         if(buffer.at(currentPos) == data_method) {
+                            if(itemsProcessed >= klass->methodCount) {
+                                exeErrorMessage = "file `" + exe + "` may be corrupt";
+                                return CORRUPT_FILE;
+                            }
+
                             currentPos++;
                             klass->methods[itemsProcessed++] = &vm.methods[geti32(buffer)];
                         } else if(buffer.at(currentPos) == 0x0 || buffer.at(currentPos) == 0x0a || buffer.at(currentPos) == 0x0d){ /* ignore */ }
@@ -286,6 +295,11 @@ int Process_Exe(std::string exe)
                 if(klass->interfaceCount != 0) {
                     for( ;; ) {
                         if(buffer.at(currentPos) == data_interface) {
+                            if(itemsProcessed >= klass->interfaceCount) {
+                                exeErrorMessage = "file `" + exe + "` may be corrupt";
+                                return CORRUPT_FILE;
+                            }
+
                             currentPos++;
                             klass->interfaces[itemsProcessed++] = &vm.classes[geti32(buffer)];
                         } else if(buffer.at(currentPos) == 0x0 || buffer.at(currentPos) == 0x0a || buffer.at(currentPos) == 0x0d){ /* ignore */ }
@@ -332,6 +346,11 @@ int Process_Exe(std::string exe)
                 break;
 
             case data_string: {
+                if(itemsProcessed >= vm.manifest.strings) {
+                    exeErrorMessage = "file `" + exe + "` may be corrupt";
+                    return CORRUPT_FILE;
+                }
+
                 vm.strings[itemsProcessed].init();
                 vm.strings[itemsProcessed++] = getString(buffer, geti32(buffer));
                 break;
@@ -373,7 +392,11 @@ int Process_Exe(std::string exe)
                 break;
 
             case data_const: {
-                currentPos++;
+                if(itemsProcessed >= vm.manifest.constants) {
+                    exeErrorMessage = "file `" + exe + "` may be corrupt";
+                    return CORRUPT_FILE;
+                }
+
                 vm.constants[itemsProcessed++] = std::strtod(getString(buffer).c_str(), NULL);
                 break;
             }
@@ -440,6 +463,7 @@ int Process_Exe(std::string exe)
                 method->init();
 
                 method->address = geti32(buffer);
+                method->guid = geti32(buffer);
                 method->name = getString(buffer);
                 method->fullName = getString(buffer);
                 method->sourceFile = geti32(buffer);
@@ -454,19 +478,22 @@ int Process_Exe(std::string exe)
                 method->utype = getSymbol(buffer);
                 method->arrayUtype = buffer.at(currentPos++) == '1';
                 Int paramSize = geti32(buffer);
+                method->paramSize = paramSize;
 
                 if(method->utype == NULL)
                     return CORRUPT_FILE;
 
-                method->params=(Param*)malloc(sizeof(Param)*paramSize);
-                for(Int i = 0; i < paramSize; i++) {
-                    method->params[i].utype =
-                            getSymbol(buffer);
-                    method->params[i].isArray =
-                            buffer.at(currentPos++) == '1';
+                if(paramSize > 0) {
+                    method->params = (Param *) malloc(sizeof(Param) * paramSize);
+                    for (Int i = 0; i < paramSize; i++) {
+                        method->params[i].utype =
+                                getSymbol(buffer);
+                        method->params[i].isArray =
+                                buffer.at(currentPos++) == '1';
 
-                    if(method->params[i].utype == NULL)
-                        return CORRUPT_FILE;
+                        if (method->params[i].utype == NULL)
+                            return CORRUPT_FILE;
+                    }
                 }
 
 //                    if(c_options.jit) {
@@ -537,6 +564,11 @@ int Process_Exe(std::string exe)
                 break;
 
             case data_byte: {
+                if(itemsProcessed >= vm.manifest.methods) {
+                    exeErrorMessage = "file `" + exe + "` may be corrupt";
+                    return CORRUPT_FILE;
+                }
+
                 Method* method = &vm.methods[itemsProcessed++];
 
                 if(method->cacheSize > 0) {

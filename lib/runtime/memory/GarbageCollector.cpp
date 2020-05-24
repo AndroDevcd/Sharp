@@ -107,7 +107,7 @@ void GarbageCollector::initilize() {
     if(self->_Mheap==NULL)
         throw Exception(vm.OutOfMemoryExcept, "out of memory");
     new (&self->mutex) std::mutex();
-    self->_Mheap->init(0);
+    self->_Mheap->init(0, _stype_none);
     self->tail = self->_Mheap; // set tail to self for later use
     self->heapSize = 0;
     self->managedBytes=0;
@@ -255,10 +255,10 @@ void GarbageCollector::updateMemoryThreshold() {
             if (avg > memoryThreshold) {
                 memoryThreshold = avg; // dynamically update threshold
             } else {
-                if (downgradeAttempts == MAX_DOWNGRADE_ATTEMPTS) {
+                if (downgradeAttempts++ == MAX_DOWNGRADE_ATTEMPTS) {
                     memoryThreshold = avg; // downgrade memory due to some free operation
-                } else
-                    downgradeAttempts++;
+                    downgradeAttempts = 0;
+                }
             }
         } else {
             memoryPoolResults[samplesReceived++] = managedBytes;
@@ -267,10 +267,9 @@ void GarbageCollector::updateMemoryThreshold() {
 }
 
 void GarbageCollector::collectGarbage() {
-
+    mutex.lock();
     yObjs = 0; aObjs = 0; oObjs = 0;
     SharpObject *object = self->_Mheap->next, *prevObj = self->_Mheap, *cachedTail = NULL;
-    mutex.lock();
     cachedTail = tail;
     mutex.unlock();
 
@@ -311,10 +310,6 @@ void GarbageCollector::collectGarbage() {
 }
 
 void GarbageCollector::run() {
-//    std::random_device rd;
-//    std::mt19937 mt(rd());
-//    std::uniform_real_distribution<double> dist(1, 10000);
-
 #ifdef SHARP_PROF_
     tself->tprof->init(2);
 #endif
@@ -466,12 +461,10 @@ SharpObject* GarbageCollector::sweep(SharpObject *object, SharpObject *prevObj, 
 
         freedBytes += sizeof(SharpObject);
 
-        SharpObject* tmp = object->next;
+        SharpObject* nextObj = object->next;
         erase(object, prevObj, tail);
-        if(HAS_LOCK(object->info))
-            dropLock(object);
         std::free(object);
-        return tmp;
+        return nextObj;
     }
     return NULL;
 }
@@ -480,8 +473,8 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
     if(size==0)
         return nullptr;
     
-    SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
-    object->init(size);
+    SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject));
+    object->init(size, _stype_var);
 
     object->HEAD = (double*)__calloc(size, sizeof(double));
     SET_TYPE(object->info, _stype_var);
@@ -497,7 +490,7 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
 
 SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
     if(k != nullptr) {
-        SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
+        SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject));
         uint32_t size = staticInit ? k->staticFields : k->instanceFields;
 
         object->init(size, k);
@@ -536,11 +529,9 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size) {
     if(size==0)
         return nullptr;
     
-    SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
-    object->init(size);
-
+    SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject));
+    object->init(size, _stype_struct);
     object->node = (Object*)__calloc(size, sizeof(Object));
-    SET_TYPE(object->info, _stype_struct);
     
     /* track the allocation amount */
     std::lock_guard<recursive_mutex> gd(mutex);
@@ -556,7 +547,6 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
         
         SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
         object->init(size, k);
-        SET_TYPE(object->info, _stype_struct); // TODO: check why I am not doing this in the init() function maybe we pass in the _stype ?
 
         if(size > 0)
             object->node = (Object*)__calloc(size, sizeof(Object));
@@ -594,6 +584,9 @@ unsigned long long GarbageCollector::getManagedMemory() {
 
 SharpObject* GarbageCollector::erase(SharpObject *freedObj, SharpObject *prevObj, SharpObject *tail) {
     heapSize--;
+
+    if(HAS_LOCK(freedObj->info))
+        dropLock(freedObj);
 
     if(tail == freedObj){
         std::lock_guard<recursive_mutex> gd(mutex);

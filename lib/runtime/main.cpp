@@ -167,8 +167,9 @@ int runtimeStart(int argc, const char* argv[])
         }
         else {
             executable = argv[i++];
-            while(i < argc)
+            while(i < argc) {
                 appArgs.emplace_back(argv[i++]);
+            }
             break;
         }
     }

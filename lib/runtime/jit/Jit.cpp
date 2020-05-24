@@ -124,7 +124,7 @@ void Jit::sendMessage(Method* func) {
 }
 
 _BaseAssembler *Jit::getAssembler() {
-    if(x64Asm) return x64Asm;
+    //if(x64Asm) return x64Asm;
     return nullptr;
 }
 

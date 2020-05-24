@@ -70,10 +70,10 @@ void _BaseAssembler::setupStackElementFields() {
 
 void _BaseAssembler::setupFrameFields() {
     Frame frame(0,0,0,0,false);
-    Lframe[frame_current] = getMemPtr(relative_offset((&frame), current, current));
-    Lframe[frame_pc] = getMemPtr(relative_offset((&frame), current, pc));
-    Lframe[frame_sp] = getMemPtr(relative_offset((&frame), current, sp));
-    Lframe[frame_fp] = getMemPtr(relative_offset((&frame), current, fp));
+//    Lframe[frame_current] = getMemPtr(relative_offset((&frame), current, current));
+//    Lframe[frame_pc] = getMemPtr(relative_offset((&frame), current, pc));
+//    Lframe[frame_sp] = getMemPtr(relative_offset((&frame), current, sp));
+//    Lframe[frame_fp] = getMemPtr(relative_offset((&frame), current, fp));
 }
 
 void _BaseAssembler::setupMethodFields() {

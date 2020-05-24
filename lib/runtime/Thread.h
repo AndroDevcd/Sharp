@@ -35,28 +35,30 @@ struct jit_context;
 class Thread {
 public:
     Thread()
-            :
-            id(ILL_THREAD_ID),
-            daemon(false),
-            state(THREAD_CREATED),
-            suspended(false),
-            exited(false),
-            terminated(false),
-            priority(THREAD_PRIORITY_HIGH),
-            name(),
-            rand(new Random()),
-            main(NULL),
-            exitVal(0),
-            signal(tsig_empty),
-            throwable(),
-            callStack(),
-            dataStack(NULL),
-            calls(0)
-#ifdef BUILD_JIT
-            ,jctx(NULL)
-#endif
-
     {
+        init();
+    }
+
+    void init() {
+        id = ILL_THREAD_ID;
+        daemon = false;
+        state = THREAD_CREATED;
+        suspended = false;
+        exited = false;
+        terminated = false;
+        priority = THREAD_PRIORITY_HIGH;
+        name.init();
+        rand = new Random();
+        main = NULL;
+        exitVal = 0;
+        signal = tsig_empty;
+        throwable.init();
+        callStack = NULL;
+        dataStack = NULL;
+        calls = 0;
+#ifdef BUILD_JIT
+        jctx = NULL;
+#endif
         args.object = NULL;
         currentThread.object=NULL;
         exceptionObject.object=NULL;
@@ -64,6 +66,8 @@ public:
 #ifdef WIN32_
         thread = NULL;
 #endif
+        sp = NULL;
+        fp = NULL;
     }
 
     void init(string name, Int id, Method* main, bool daemon = false, bool initializeStack = false);

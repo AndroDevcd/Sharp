@@ -14,30 +14,31 @@ class ClassObject;
 class Symbol {
 public:
     Symbol()
-    :
-        address(invalidAddr),
-        guid(invalidAddr),
-        name(),
-        fullName(),
-        owner(NULL),
-        flags(0),
-        type(UNDEFINED)
     {
+        init();
     }
 
-    void init() { Symbol(); }
+    void init() {
+        address = invalidAddr;
+        guid = invalidAddr;
+        name.init();
+        fullName.init();
+        owner = NULL;
+        flags = 0;
+        type = UNDEFINED;
+    }
 
     void free() {
         name.free();
         fullName.free();
     }
 
-    Int address;
-    Int guid;
+    int32_t address;
+    int32_t guid;
     String name;
     String fullName;
     ClassObject *owner;
-    Int flags;
+    int32_t flags;
     DataType type;
 };
 

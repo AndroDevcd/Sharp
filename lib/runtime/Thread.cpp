@@ -40,6 +40,7 @@ std::mutex Thread::threadsMonitor;
 thread_local double registers[12];
 
 void Thread::Startup() {
+    threads.~HashMap();
     threads.init(THREAD_MAP_SIZE);
 
     Thread* main = (Thread*)malloc(
@@ -619,6 +620,43 @@ void printStack() {
 #endif
 
 
+string getVarCastExceptionMsg(DataType varType, bool isArray) {
+    string type;
+    switch(varType) {
+        case _UINT8:
+            type = "_uint8";
+            break;
+        case _UINT16:
+            type = "_uint16";
+            break;
+        case _UINT32:
+            type = "_uint32";
+            break;
+        case _UINT64:
+            type = "_uint64";
+            break;
+        case _INT8:
+            type = "_int8";
+            break;
+        case _INT16:
+            type = "_int16";
+            break;
+        case _INT32:
+            type = "_int32";
+            break;
+        case _INT64:
+            type = "_int64";
+            break;
+        case VAR:
+            type = "var";
+            break;
+    }
+    stringstream ss;
+    ss << "illegal cast to "<< type << (isArray ? "[]" : "");
+    return ss.str();
+}
+
+
 /**
  * TODO: update exception system
  * I will keep the finally table but add an instruction to the VM for checking if we are in an "exception state" and
@@ -636,15 +674,6 @@ unsigned long irCount = 0, overflow = 0;
 
 void Thread::exec() {
 
-//    register int64_t tmp=0;
-//    register int64_t val=0;
-//    register int64_t delegate=0;
-//    register int64_t args=0;
-//    ClassObject *klass;
-//    SharpObject* o=NULL;
-//    Method* f;
-//    fptr jitFn;
-//    Object* o2=NULL;
     Object *ptr;
     Int result;
     fptr jitFun;
@@ -682,30 +711,29 @@ void Thread::exec() {
                 if(vm.state == VM_TERMINATED) return;
                 _brh
             _MOVI: // tested
-                registers[*(pc+1)]=GET_Da(*pc);
+                registers[GET_Da(*pc)]=*(pc+1);
                 _brh_inc(2)
             RET: // tested
                 if(returnMethod(this))
-                    return;
+                    return; // TODO: check if returning w/ error state
                 LONG_CALL();
                 _brh
             HLT: // tested
-                state=THREAD_KILLED;
                 sendSignal(signal, tsig_kill, 1);
                 _brh
             NEWARRAY: // tested
+                STACK_CHECK
                 (++sp)->object =
                         GarbageCollector::self->newObject(registers[GET_Da(*pc)]);
-                STACK_CHECK _brh
+                _brh
             CAST:
                 CHECK_NULL(ptr->castObject(registers[GET_Da(*pc)]);)
                 _brh
             VARCAST:
                 CHECK_NULL2(
                         if(TYPE(ptr->object->info) != _stype_var) {
-                            stringstream ss;
-                            ss << "illegal cast to var" << (GET_Da(*pc) ? "[]" : "");
-                            throw Exception(vm.ClassCastExcept, ss.str());
+                            throw Exception(vm.ClassCastExcept,
+                                    getVarCastExceptionMsg((DataType)GET_Ca(*pc), GET_Cb(*pc)));
                         }
                 )
                 _brh
@@ -719,7 +747,7 @@ void Thread::exec() {
                 registers[GET_Ca(*pc)]=(int32_t)registers[GET_Cb(*pc)];
                 _brh
             MOV64: // tested
-                registers[GET_Ca(*pc)]=(int64_t)registers[GET_Cb(*pc)];
+                registers[GET_Ca(*pc)]=(Int)registers[GET_Cb(*pc)];
                 _brh
             MOVU8: // tested
                 registers[GET_Ca(*pc)]=(uint8_t)registers[GET_Cb(*pc)];
@@ -731,43 +759,44 @@ void Thread::exec() {
                 registers[GET_Ca(*pc)]=(uint32_t)registers[GET_Cb(*pc)];
                 _brh
             MOVU64: // tested
-                registers[GET_Ca(*pc)]=(uint64_t)registers[GET_Cb(*pc)];
+                registers[GET_Ca(*pc)]=(uInt)registers[GET_Cb(*pc)];
                 _brh
             RSTORE: // tested
+                STACK_CHECK
                 (++sp)->var = registers[GET_Da(*pc)];
-                STACK_CHECK _brh
+                 _brh
             ADD: // tested
-                registers[*(pc+1)]=registers[GET_Ca(*pc)]+registers[GET_Cb(*pc)];
-                _brh_inc(2)
+                registers[GET_Bc(*pc)]=registers[GET_Ba(*pc)]+registers[GET_Bb(*pc)];
+                _brh
             SUB: // tested
-                registers[*(pc+1)]=registers[GET_Ca(*pc)]-registers[GET_Cb(*pc)];
-                _brh_inc(2)
+                registers[GET_Bc(*pc)]=registers[GET_Ba(*pc)]-registers[GET_Bb(*pc)];
+                _brh
             MUL: // tested
-                registers[*(pc+1)]=registers[GET_Ca(*pc)]*registers[GET_Cb(*pc)];
-                _brh_inc(2)
+                registers[GET_Bc(*pc)]=registers[GET_Ba(*pc)]*registers[GET_Bb(*pc)];
+                _brh
             DIV: // tested
-                if(registers[GET_Ca(*pc)]==0 && registers[GET_Cb(*pc)]==0) throw Exception("divide by 0");
-                registers[*(pc+1)]=registers[GET_Ca(*pc)]/registers[GET_Cb(*pc)];
-                _brh_inc(2)
+                if(registers[GET_Ba(*pc)]==0 && registers[GET_Bb(*pc)]==0) throw Exception("divide by 0");
+                registers[GET_Bc(*pc)]=registers[GET_Ba(*pc)]/registers[GET_Bb(*pc)];
+                _brh
             MOD: // tested
-                registers[*(pc+1)]=(int64_t)registers[GET_Ca(*pc)]%(int64_t)registers[GET_Cb(*pc)];
-                _brh_inc(2)
+                registers[GET_Bc(*pc)]=(Int)registers[GET_Ba(*pc)]%(Int)registers[GET_Bb(*pc)];
+                _brh
             IADD: // tested
-                registers[GET_Ca(*pc)]+=GET_Cb(*pc);
-                _brh
+                registers[GET_Da(*pc)]+=*(pc+1);
+                _brh_inc(2)
             ISUB: // tested
-                registers[GET_Ca(*pc)]-=GET_Cb(*pc);
-                _brh
+                registers[GET_Da(*pc)]-=*(pc+1);
+                _brh_inc(2)
             IMUL: // tested
-                registers[GET_Ca(*pc)]*=GET_Cb(*pc);
-                _brh
+                registers[GET_Da(*pc)]*=*(pc+1);
+                _brh_inc(2)
             IDIV: // tested
-                if(GET_Cb(*pc)==0) throw Exception("divide by 0");
-                registers[GET_Ca(*pc)]/=GET_Cb(*pc);
-                _brh
+                if(*(pc+1)==0) throw Exception("divide by 0");
+                registers[GET_Da(*pc)]/=*(pc+1);
+                _brh_inc(2)
             IMOD: // tested
-                registers[GET_Ca(*pc)]=(int64_t)registers[GET_Ca(*pc)]%(int64_t)GET_Cb(*pc);
-                _brh
+                registers[GET_Da(*pc)]=(Int)registers[GET_Da(*pc)]%(Int)*(pc+1);
+                _brh_inc(2)
             POP: // tested
                 --sp;
                 _brh
@@ -781,7 +810,7 @@ void Thread::exec() {
                 registers[GET_Ca(*pc)]=registers[GET_Cb(*pc)];
                 _brh
             BRH: // tested
-                pc=cache+(int64_t)registers[ADX];
+                pc=cache+(Int)registers[ADX];
                 LONG_CALL();
                 _brh_NOINCREMENT
             IFE:
@@ -855,10 +884,11 @@ void Thread::exec() {
                 registers[GET_Da(*pc)] = PC(this);
                 _brh
             PUSHOBJ:
+                STACK_CHECK
                 (++sp)->object = ptr;
-                STACK_CHECK _brh
+                _brh
             DEL:
-            GarbageCollector::self->releaseObject(ptr);
+                GarbageCollector::self->releaseObject(ptr);
                 _brh
             CALL:
 #ifdef SHARP_PROF_
@@ -890,19 +920,20 @@ void Thread::exec() {
                 THREAD_EXECEPT();
                 _brh_NOINCREMENT
             NEWCLASS:
+                STACK_CHECK
                 (++sp)->object =
                         GarbageCollector::self->newObject(&vm.classes[GET_Da(*pc)]);
-                STACK_CHECK _brh
+                _brh
             MOVN:
                 CHECK_NULLOBJ(
-                        if(GET_Da(*pc) >= ptr->object->size || GET_Da(*pc) < 0)
+                        if(*(pc+1) >= ptr->object->size || *(pc+1) < 0)
                             throw Exception("movn");
 
-                        ptr = &ptr->object->node[GET_Da(*pc)];
+                        ptr = &ptr->object->node[*(pc+1)];
                 )
-                _brh
+                _brh_inc(2)
             SLEEP:
-                __os_sleep((int64_t)registers[GET_Da(*pc)]);
+                __os_sleep((Int)registers[GET_Da(*pc)]);
                 _brh
             TEST:
                 registers[CMT]=registers[GET_Ca(*pc)]==registers[GET_Cb(*pc)];
@@ -911,16 +942,16 @@ void Thread::exec() {
                 registers[CMT]=registers[GET_Ca(*pc)]!=registers[GET_Cb(*pc)];
                 _brh
             LOCK:
-                CHECK_NULL2(Object::monitorLock(ptr, thread_self);)
+                CHECK_NULL2(Object::monitorLock(ptr, this);)
                 _brh
             ULOCK:
-                CHECK_NULL2(Object::monitorUnLock(ptr, thread_self);)
+                CHECK_NULL2(Object::monitorUnLock(ptr, this);)
                 _brh
             MOVG:
                 ptr = vm.staticHeap+GET_Da(*pc);
                 _brh
             MOVND:
-                CHECK_NULLOBJ(ptr = &ptr->object->node[(int64_t)registers[GET_Da(*pc)]];)
+                CHECK_NULLOBJ(ptr = &ptr->object->node[(Int)registers[GET_Da(*pc)]];)
                 _brh
             NEWOBJARRAY:
                 (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Da(*pc)]);
@@ -935,52 +966,54 @@ void Thread::exec() {
                 registers[GET_Da(*pc)]=(sp--)->var;
                 _brh
             SHL:
-                registers[*(pc+1)]=(int64_t)registers[GET_Ca(*pc)]<<(int64_t)registers[GET_Cb(*pc)];
-                _brh_inc(2)
+                registers[GET_Bc(*pc)]=(int64_t)registers[GET_Ba(*pc)]<<(int64_t)registers[GET_Bb(*pc)];
+                _brh
             SHR:
-                registers[*(pc+1)]=(int64_t)registers[GET_Ca(*pc)]>>(int64_t)registers[GET_Cb(*pc)];
-                _brh_inc(2)
+                registers[GET_Bc(*pc)]=(int64_t)registers[GET_Ba(*pc)]>>(int64_t)registers[GET_Bb(*pc)];
+                _brh
             SKPE:
                 LONG_CALL();
-                if(registers[CMT]) {
-                    pc = pc+GET_Da(*pc); _brh_NOINCREMENT
+                if(registers[GET_Ca(*pc)]) {
+                    pc = pc+GET_Cb(*pc); _brh_NOINCREMENT
                 } else _brh
             SKNE:
                 LONG_CALL();
-                if(registers[CMT]==0) {
-                    pc = pc+GET_Da(*pc); _brh_NOINCREMENT
+                if(registers[GET_Ca(*pc)]==0) {
+                    pc = pc+GET_Cb(*pc); _brh_NOINCREMENT
                 } else _brh
             CMP:
-                registers[CMT]=registers[GET_Ca(*pc)]==GET_Cb(*pc);
-                _brh
+                registers[CMT]=registers[GET_Da(*pc)]==*(pc+1);
+                _brh_inc(2)
             AND:
                 registers[CMT]=registers[GET_Ca(*pc)]&&registers[GET_Cb(*pc)];
                 _brh
             UAND:
-                registers[CMT]=(int64_t)registers[GET_Ca(*pc)]&(int64_t)registers[GET_Cb(*pc)];
+                registers[CMT]=(Int)registers[GET_Ca(*pc)]&(Int)registers[GET_Cb(*pc)];
                 _brh
             OR:
-                registers[CMT]=(int64_t)registers[GET_Ca(*pc)]|(int64_t)registers[GET_Cb(*pc)];
+                registers[CMT]=(Int)registers[GET_Ca(*pc)]|(Int)registers[GET_Cb(*pc)];
                 _brh
             XOR:
-                registers[CMT]=(int64_t)registers[GET_Ca(*pc)]^(int64_t)registers[GET_Cb(*pc)];
+                registers[CMT]=(Int)registers[GET_Ca(*pc)]^(Int)registers[GET_Cb(*pc)];
                 _brh
             THROW:
                 exceptionObject = sp->object;
-                throw Exception("", false);
+                throw Exception("", false); // TODO: dont throw do a more lightweight oiperation
                 _brh
             CHECKNULL:
-                registers[CMT]=ptr == NULL || ptr->object==NULL;
+                registers[GET_Da(*pc)]=ptr == NULL || ptr->object==NULL;
                 _brh
             RETURNOBJ:
                 fp->object=ptr;
                 _brh
             NEWCLASSARRAY:
-                (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Ca(*pc)],
-                                                                    &vm.classes[GET_Cb(*pc)]);
-                STACK_CHECK _brh
+                STACK_CHECK
+                (++sp)->object = GarbageCollector::self->newObjectArray(
+                        registers[GET_Ca(*pc)], &vm.classes[GET_Cb(*pc)]);
+                _brh
             NEWSTRING:
-                GarbageCollector::self->createStringArray(&(++sp)->object, vm.strings[GET_Da(*pc)]);
+                GarbageCollector::self->createStringArray(&(++sp)->object,
+                        vm.strings[GET_Da(*pc)]);
                 STACK_CHECK _brh
             ADDL:
                 (fp+GET_Cb(*pc))->var+=registers[GET_Ca(*pc)];
@@ -998,27 +1031,28 @@ void Thread::exec() {
                 (fp+GET_Cb(*pc))->modul(registers[GET_Ca(*pc)]);
                 _brh
             IADDL:
-                (fp+GET_Cb(*pc))->var+=GET_Ca(*pc);
-                _brh
+                (fp+GET_Da(*pc))->var+=*(pc+1);
+                _brh_inc(2)
             ISUBL:
-                (fp+GET_Cb(*pc))->var-=GET_Ca(*pc);
-                _brh
+                (fp+GET_Da(*pc))->var-=*(pc+1);
+                _brh_inc(2)
             IMULL:
-                (fp+GET_Cb(*pc))->var*=GET_Ca(*pc);
-                _brh
+                (fp+GET_Da(*pc))->var*=*(pc+1);
+                _brh_inc(2)
             IDIVL:
-                (fp+GET_Cb(*pc))->var/=GET_Ca(*pc);
-                _brh
+                (fp+GET_Da(*pc))->var/=*(pc+1);
+                _brh_inc(2)
             IMODL:
-                result = (fp+GET_Cb(*pc))->var;
-                (fp+GET_Cb(*pc))->var=result%GET_Ca(*pc);
-                _brh
+                result = (fp+GET_Da(*pc))->var;
+                (fp+GET_Da(*pc))->var=result%*(pc+1);
+                _brh_inc(2)
             LOADL:
                 registers[GET_Ca(*pc)]=(fp+GET_Cb(*pc))->var;
                 _brh
             IALOAD:
                 CHECK_NULLVAR(
-                        registers[GET_Ca(*pc)] = ptr->object->HEAD[(int64_t)registers[GET_Cb(*pc)]];
+                        registers[GET_Ca(*pc)] =
+                                ptr->object->HEAD[(Int)registers[GET_Cb(*pc)]];
                 )
                 _brh
             POPOBJ:
@@ -1046,7 +1080,8 @@ void Thread::exec() {
                 _brh
             RMOV:
                 CHECK_NULLVAR(
-                        ptr->object->HEAD[(int64_t)registers[GET_Ca(*pc)]]=registers[GET_Cb(*pc)];
+                        ptr->object->HEAD[(Int)registers[GET_Ca(*pc)]]=
+                                registers[GET_Cb(*pc)];
                 )
                 _brh
             NEG:
@@ -1059,31 +1094,35 @@ void Thread::exec() {
                 (fp)->var=registers[GET_Da(*pc)];
                 _brh
             ISTORE:
-                (++sp)->var = GET_Da(*pc);
-                STACK_CHECK _brh
+                STACK_CHECK
+                (++sp)->var = *(pc+1);
+                _brh_inc(2)
             ISTOREL:
                 (fp+GET_Da(*pc))->var=*(pc+1);
                 _brh_inc(2)
             PUSHNULL:
-            GarbageCollector::self->releaseObject(&(++sp)->object);
-                STACK_CHECK _brh
+                STACK_CHECK
+                GarbageCollector::self->releaseObject(&(++sp)->object);
+                _brh
             IPUSHL:
+                STACK_CHECK
                 (++sp)->var = (fp+GET_Da(*pc))->var;
-                STACK_CHECK _brh
+                _brh
             PUSHL:
+                STACK_CHECK
                 (++sp)->object = (fp+GET_Da(*pc))->object;
-                STACK_CHECK _brh
+                _brh
             ITEST:
                 Object *obj = &(sp--)->object;
                 registers[GET_Da(*pc)] = obj->object == (sp--)->object.object;
                 _brh
             INVOKE_DELEGATE:
-                invokeDelegate(GET_Ca(*pc), GET_Cb(*pc), this, 0);
+                invokeDelegate(GET_Da(*pc), GET_Cb(*(pc+1)), this, GET_Ca(*(pc+1)));
                 THREAD_EXECEPT();
                 _brh_NOINCREMENT
             ISADD:
-                (sp+GET_Cb(*pc))->var+=GET_Ca(*pc);
-                _brh
+                (sp+GET_Da(*pc))->var+=*(pc+1);
+                _brh_inc(2)
             JE:
                 LONG_CALL();
                 if(registers[CMT]) {
@@ -1116,7 +1155,7 @@ void Thread::exec() {
                 }
                 _brh
             EXP:
-                registers[GET_Ba(*pc)]=pow(registers[GET_Bb(*pc)], registers[GET_Bc(*pc)]);
+                registers[GET_Bc(*pc)]=pow(registers[GET_Ba(*pc)], registers[GET_Bb(*pc)]);
                 _brh
             LDC: // tested
                 registers[GET_Ca(*pc)]=vm.constants[GET_Cb(*pc)];
@@ -1273,7 +1312,7 @@ int32_t Thread::generateId() {
 }
 
 void Thread::init(string name, Int id, Method *main, bool daemon, bool initializeStack)  {
-    Thread();
+    init();
     this->name = name;
     this->id = id;
     this->main = main;
@@ -1292,7 +1331,7 @@ void Thread::init(string name, Int id, Method *main, bool daemon, bool initializ
     }
 }
 
-void __os_sleep(int64_t INTERVAL) {
+void __os_sleep(Int INTERVAL) {
 #ifdef WIN32_
     Sleep(INTERVAL);
 #endif

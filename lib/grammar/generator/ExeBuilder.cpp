@@ -1433,6 +1433,7 @@ void ExeBuilder::buildDataSection() {
 void ExeBuilder::putMethodData(Method *fun) {
     dataSec << (char)data_method;
     dataSec << putInt32(fun->address);
+    dataSec << putInt32(fun->guid);
     dataSec << fun->name << ((char)nil);
     dataSec << fun->fullName << ((char)nil);
     dataSec << putInt32(Obfuscater::files.indexof(fun->meta.file));

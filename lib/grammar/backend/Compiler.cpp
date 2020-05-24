@@ -4038,7 +4038,7 @@ void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression 
                 if(utype->isArray() && !castExpr->utype->isArray()) {
                     outExpr->utype->getCode().inject(castExpr->utype->getCode().getInjector(ptrInjector));
                     outExpr->utype->getCode()
-                            .addIr(OpBuilder::varCast(1, true));
+                            .addIr(OpBuilder::varCast(utype->getResolvedType()->type, true));
 
                     outExpr->utype->getCode().freeInjectors();
                     outExpr->utype->getCode().getInjector(stackInjector)

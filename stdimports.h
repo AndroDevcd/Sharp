@@ -92,7 +92,7 @@ extern Sharp versions;
 void* __malloc(unsigned long long bytes);
 void* __calloc(unsigned long long n, unsigned long long bytes);
 void* __realloc(void *ptr, unsigned long long bytes, unsigned long long);
-void __os_sleep(int64_t);
+void __os_sleep(Int);
 void setupSigHandler();
 
 #define CXX11_INLINE inline

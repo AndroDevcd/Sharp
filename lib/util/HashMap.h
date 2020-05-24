@@ -63,13 +63,16 @@ public:
 
     HashMap(uInt tableSize) {
         // construct zero initialized hash table of size
-        table = new HashNode<K, V> *[tableSize]();
-        this->tableSize = tableSize;
+        init(tableSize);
     }
 
     void init(uInt size) {
-        table = new HashNode<K, V> *[tableSize]();
-        this->tableSize = tableSize;
+        table = new HashNode<K, V> *[size];
+        this->tableSize = size;
+
+        for(Int i = 0; i < size; i++) {
+            table[i] = NULL;
+        }
     }
 
     ~HashMap() {

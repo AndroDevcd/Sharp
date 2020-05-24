@@ -38,7 +38,6 @@ typedef void (*fptr)(void *);
 class Method : public Symbol {
 public:
     int32_t* jit_labels;
-    int32_t address;
     uint32_t* bytecode;
     function_type fnType;
     int stackSize;
@@ -110,7 +109,7 @@ public:
     }
 
     void init() {
-        Symbol();
+        Symbol::init();
         name.init();
         fullName.init();
         isjit=false;
@@ -123,6 +122,7 @@ public:
         lineTable.init();
         params = NULL;
         owner = NULL;
+        utype = NULL;
         jit_labels = NULL;
         stackSize = 0;
         bytecode = NULL;
@@ -151,27 +151,27 @@ struct StackElement;
 
 struct Frame {
 public:
-    Frame(Method* current, Cache pc, StackElement* sp,
+    Frame(Method* returnAddress, Cache pc, StackElement* sp,
           StackElement* fp, bool jit)
     {
-        this->current=current;
+        this->returnAddress=returnAddress;
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
         this->isjit=jit;
     }
 
-    void init(Method* current, Cache pc, StackElement* sp,
+    void init(Method* returnAddress, Cache pc, StackElement* sp,
               StackElement* fp, bool jit)
     {
-        this->current=current;
+        this->returnAddress=returnAddress;
         this->pc=pc;
         this->sp=sp;
         this->fp=fp;
         this->isjit=jit;
     }
 
-    Method *current;
+    Method *returnAddress;
     Cache pc;
     StackElement* sp;
     StackElement* fp;
@@ -183,20 +183,20 @@ struct StackElement {
     double var;
     Object object;
 
-    void modul(int64_t v) {
-        var = (int64_t)var%v;
+    void modul(Int v) {
+        var = (Int)var%v;
     }
 
-    void andl(int64_t v) {
-        var = (int64_t)var&v;
+    void andl(Int v) {
+        var = (Int)var&v;
     }
 
-    void orl(int64_t v) {
-        var = (int64_t)var|v;
+    void orl(Int v) {
+        var = (Int)var|v;
     }
 
-    void xorl(int64_t v) {
-        var = (int64_t)var^v;
+    void xorl(Int v) {
+        var = (Int)var^v;
     }
 };
 #pragma optimize( "", on )

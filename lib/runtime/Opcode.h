@@ -67,7 +67,7 @@
     if(signal) { \
         if (hasSignal(signal, tsig_suspend)) \
             suspendSelf(); \
-        if (state == THREAD_KILLED) \
+        if (hasSignal(signal, tsig_kill) || state == THREAD_KILLED) \
             return; \
     }
 
@@ -81,7 +81,7 @@
 
 #define STACK_CHECK  if(((sp-dataStack)+1) >= stackLimit) throw Exception(vm.StackOverflowExcept, "");
 #define THREAD_STACK_CHECK(self)  if(((self->sp-self->dataStack)+1) >= self->stackLimit) throw Exception(vm.StackOverflowExcept, "");
-#define THREAD_STACK_CHECK2(self, x)  if(((self->sp-self->dataStack)+1) >= self->stackLimit || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(vm.StackOverflowExcept, "");
+#define THREAD_STACK_CHECK2(self, stackSize, x)  if(((self->sp-self->dataStack)+stackSize) >= self->stackLimit || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(vm.StackOverflowExcept, "");
 
 #ifndef SHARP_PROF_
 #define _brh_NOINCREMENT HAS_SIGNAL continue;

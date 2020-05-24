@@ -26,13 +26,13 @@ enum sharp_type
 
 struct SharpObject
 {
-    void init(uInt size, CollectionGeneration generation = gc_young)
+    void init(uInt size, sharp_type type, CollectionGeneration generation = gc_young)
     {
         info=0;
         HEAD=NULL;
         next=NULL;
         this->size=size;
-        SET_INFO(info, 0, _stype_none, generation); /* generation young */
+        SET_INFO(info, 0, type, generation); /* generation young */
         refCount=0;
     }
     void init(uInt size, ClassObject* k, CollectionGeneration generation = gc_young)

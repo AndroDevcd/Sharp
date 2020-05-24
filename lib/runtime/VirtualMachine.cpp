@@ -50,8 +50,9 @@ int CreateVirtualMachine(string &exe)
     Jit::startup();
 #endif
 #ifdef WIN32_
-    vm.gui = new Gui();
-    vm.gui->setupMain();
+//    vm.gui = new Gui();
+//    vm.gui->setupMain();
+    vm.gui = NULL;
 #endif
 
     /**
@@ -82,6 +83,7 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t stati
     SharpObject* o2 = staticAddr!=0 ? vm.staticHeap[staticAddr].object :  (thread->sp-args)->object.object;
     ClassObject* klass;
     fptr jitFn;
+    thread->pc++;
 
     if(o2!=NULL && TYPE(o2->info) == _stype_struct) {
         klass = &vm.classes[CLASS(o2->info)];
@@ -111,7 +113,7 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t stati
 }
 
 bool returnMethod(Thread* thread) {
-    if(thread->calls <= 0) {
+    if(thread->calls == 1) {
 #ifdef SHARP_PROF_
         thread->tprof->endtm=Clock::realTimeInNSecs();
                 thread->tprof->profile();
@@ -119,35 +121,32 @@ bool returnMethod(Thread* thread) {
         return true;
     }
 
-    Frame *frameInfo = thread->callStack+(thread->calls);
-    Frame *returnAddress = thread->callStack+(thread->calls-1);
+    Frame *frameInfo = thread->callStack+(thread->calls-1);
 
-    thread->current = returnAddress->current;
+    thread->current = frameInfo->returnAddress;
     thread->cache = thread->current->bytecode;
 
    thread->pc = frameInfo->pc;
    thread->sp = frameInfo->sp;
    thread->fp = frameInfo->fp; // TODO: check if exception state is active and verify wether we have to decrement the stack based on the method we are returning from
-    thread->calls--;
+   thread->calls--;
 #ifdef SHARP_PROF_
     thread->tprof->profile();
 #endif
+
     /**
      * We need to return back to the JIT context
      */
-    if(returnAddress->isjit)
-        return true;
-
-    return false;
+    return frameInfo->isjit;
 }
 
 fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
 
-    Method *method = vm.methods+address; // TODO: check if stack size allows for calling function
-    THREAD_STACK_CHECK2(thread, address);
+    Method *method = vm.methods+address;
+    THREAD_STACK_CHECK2(thread, method->stackSize, address);
 
-    thread->callStack[++thread->calls]
-            .init(method, thread->pc, thread->sp-method->spOffset, thread->fp, false);
+    thread->callStack[thread->calls++]
+            .init(thread->current, thread->pc, thread->sp-method->spOffset, thread->fp, inJit);
 
     thread->current = method;
     thread->cache = method->bytecode;
@@ -168,7 +167,6 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
 
 #ifdef BUILD_JIT
     if(method->isjit) {
-        thread->callStack[thread->calls].isjit = true;
         thread->jctx->caller = method;
         return method->jit_func;
     } else
@@ -227,7 +225,6 @@ void VirtualMachine::destroy() {
     std::free (this->staticHeap);
 
     manifest.application.free();
-    manifest.executable.free();
     manifest.version.free();
     metaData.free();
 }
@@ -809,7 +806,7 @@ int VirtualMachine::returnMethod() { // TOTO: change call structure to not hold 
     Frame *frameInfo = thread->callStack+(thread->calls);
     Frame *returnAddress = thread->callStack+(thread->calls-1);
 
-    thread->current = returnAddress->current;
+    thread->current = returnAddress->returnAddress;
     thread->cache = thread->current->bytecode;
 
     thread->pc = frameInfo->pc;
@@ -971,13 +968,13 @@ void VirtualMachine::fillStackTrace(native_string &str) {
         for(long i = 0; i < thread_self->calls; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
-            fillMethodCall(thread_self->callStack[i].current, thread_self->callStack[i+1], ss);
+            fillMethodCall(thread_self->callStack[i].returnAddress, thread_self->callStack[i + 1], ss);
         }
     } else {
         for(long long i = (thread_self->calls+1)-EXCEPTION_PRINT_MAX -1; i < thread_self->calls+1; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
-            fillMethodCall(thread_self->callStack[i].current, thread_self->callStack[i+1], ss);
+            fillMethodCall(thread_self->callStack[i].returnAddress, thread_self->callStack[i + 1], ss);
         }
     }
 

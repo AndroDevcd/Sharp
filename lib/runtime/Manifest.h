@@ -18,7 +18,10 @@ struct Manifest {
 public:
     Manifest()
     {
-        executable.init();
+        init();
+    }
+
+    void init() {
         application.init();
         version.init();
         debug = false;
@@ -31,9 +34,10 @@ public:
         strings = 0;
         constants = 0;
         threadLocals = 0;
+        functionPointers = 0;
     }
 
-    runtime::String executable;
+    Int functionPointers;
     runtime::String application;
     runtime::String version;
     bool debug;
