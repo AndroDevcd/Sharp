@@ -1226,6 +1226,7 @@ void Thread::setup() {
             this->dataStack[i].var=0;
         }
     } else {
+        vm.state = VM_RUNNING;
         GarbageCollector::self->addMemory(sizeof(StackElement) * stackLimit);
         setupSigHandler();
     }

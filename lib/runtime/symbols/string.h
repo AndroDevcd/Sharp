@@ -91,7 +91,7 @@ public:
         }
     }
 
-    bool operator==(const native_string &str) {
+    bool operator==(native_string str) {
         if(str.len != len) return false;
         for(int64_t i = 0; i < len; i++) {
             if(str.chars[i] != chars[i])
@@ -112,6 +112,18 @@ public:
             chars = (char*)malloc(sizeof(char)*_str.size());
             std::memcpy(chars, _str.c_str(), sizeof(char)*len);
         }
+    }
+
+    native_string& operator=(const native_string _str) {
+        free();
+
+        if(_str.len>0) {
+            len = _str.len;
+            chars = (char*)malloc(sizeof(char)*_str.len);
+            std::memcpy(chars, _str.chars, sizeof(char)*len);
+        }
+
+        return *this;
     }
 
     int injectBuff(File::buffer &buf) {

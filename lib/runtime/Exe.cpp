@@ -15,12 +15,13 @@
 #include "main.h"
 #include "VirtualMachine.h"
 
+runtime::String tmpStr;
 string exeErrorMessage;
 uInt currentPos = 0;
 
 bool validateAuthenticity(File::buffer& exe);
 
-native_string getString(File::buffer& exe, Int length = -1);
+native_string& getString(File::buffer& exe, Int length = -1);
 Int parseInt(File::buffer& exe);
 int32_t geti32(File::buffer& exe);
 Symbol* getSymbol(File::buffer& buffer);
@@ -683,20 +684,21 @@ int32_t geti32(File::buffer& exe) {
     return i32;
 }
 
-native_string getString(File::buffer& exe, Int length) {
-    native_string s;
+native_string& getString(File::buffer& exe, Int length) {
+    tmpStr.free();
     if(length != -1) {
         for (; length > 0; length--) {
-            s += exe.at(currentPos);
+            tmpStr += exe.at(currentPos);
             currentPos++;
         }
     } else {
         while (exe.at(currentPos++) != nil) {
-            s += exe.at(currentPos - 1);
+            tmpStr += exe.at(currentPos - 1);
         }
     }
 
-    return s;
+    tmpStr += 0;
+    return tmpStr;
 }
 
 Int parseInt(File::buffer& exe) {
@@ -707,16 +709,16 @@ Int parseInt(File::buffer& exe) {
 #endif
 }
 
-native_string string_forward(File::buffer& str, size_t begin, size_t end) {
+native_string& string_forward(File::buffer& str, size_t begin, size_t end) {
+    tmpStr.free();
     if(begin >= str.size() || end >= str.size())
         throw std::invalid_argument("unexpected end of stream");
 
     size_t it=0;
-    native_string s;
     for(size_t i = begin; it++ < end; i++)
-        s +=str.at(i);
+        tmpStr +=str.at(i);
 
-    return s;
+    return tmpStr;
 }
 
 bool validateAuthenticity(File::buffer& exe) {

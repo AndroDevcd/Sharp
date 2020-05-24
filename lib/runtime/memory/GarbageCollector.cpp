@@ -39,7 +39,7 @@ void* __malloc(unsigned long long bytes)
             throw Exception(vm.OutOfMemoryExcept, "out of memory");
         } else {
             gc=true;
-            if(GarbageCollector::self != nullptr) {
+            if(vm.state == VM_RUNNING && GarbageCollector::self != nullptr) {
                 GarbageCollector::self->collect(GC_LOW);
                 goto alloc_bytes;
             } else
@@ -64,7 +64,7 @@ void* __calloc(unsigned long long n, unsigned long long bytes)
             throw Exception(vm.OutOfMemoryExcept, "out of memory");
         } else {
             gc=true;
-            if(GarbageCollector::self != nullptr) {
+            if(vm.state == VM_RUNNING && GarbageCollector::self != nullptr) {
                 GarbageCollector::self->collect(GC_LOW);
                 goto alloc_bytes;
             } else
@@ -89,7 +89,7 @@ void* __realloc(void *ptr, unsigned long long bytes, unsigned long long old)
             throw Exception(vm.OutOfMemoryExcept, "out of memory");
         } else {
             gc=true;
-            if(GarbageCollector::self != nullptr) {
+            if(vm.state == VM_RUNNING && GarbageCollector::self != nullptr) {
                 GarbageCollector::self->collect(GC_LOW);
                 goto alloc_bytes;
             } else
@@ -566,9 +566,12 @@ void GarbageCollector::createStringArray(Object *object, String& str) {
     if(object != nullptr) {
         *object = newObject(str.len);
 
-        double *array = object->object->HEAD;
-        for(unsigned long i = 0; i < str.len; i++) {
-            array[i] = str.chars[i]; array++;
+        if(object->object != NULL) {
+            double *array = object->object->HEAD;
+            for (unsigned long i = 0; i < str.len; i++) {
+                array[i] = str.chars[i];
+                array++;
+            }
         }
     }
 }

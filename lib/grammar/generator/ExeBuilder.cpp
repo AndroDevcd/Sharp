@@ -1222,15 +1222,15 @@ void ExeBuilder::buildManifest() {
     buf << ((char)0x02); buf << c_options.out << ((char)nil);
     buf << ((char)0x4); buf << c_options.vers << ((char)nil);
     buf << ((char)0x5); buf << (c_options.debug ? 1 : 0);
-    buf << ((char)0x6); buf << putInt32(compiler->mainMethod->address) << ((char)nil);
-    buf << ((char)0x7); buf << putInt32(allMethods.size()) << ((char)nil);
-    buf << ((char)0x8); buf << putInt32(compiler->classSize) << ((char)nil);
+    buf << ((char)0x6); buf << putInt32(compiler->mainMethod->address);
+    buf << ((char)0x7); buf << putInt32(allMethods.size());
+    buf << ((char)0x8); buf << putInt32(compiler->classSize);
     buf << ((char)0x9); buf << file_vers << ((char)nil);
-    buf << ((char)0x0c); buf << putInt32(compiler->stringMap.size()) << ((char)nil);
+    buf << ((char)0x0c); buf << putInt32(compiler->stringMap.size());
     buf << ((char)0x0e); buf << c_options.target << ((char)nil);
-    buf << ((char)0x0f); buf << putInt32(compiler->parsers.size()) << ((char)nil);
-    buf << ((char)0x1b); buf << putInt32(compiler->threadLocals) << ((char)nil);
-    buf << ((char)0x1c); buf << putInt32(compiler->constantMap.size()) << ((char)nil);
+    buf << ((char)0x0f); buf << putInt32(compiler->parsers.size());
+    buf << ((char)0x1b); buf << putInt32(compiler->threadLocals);
+    buf << ((char)0x1c); buf << putInt32(compiler->constantMap.size());
     buf << '\n' << (char)eoh;
 }
 

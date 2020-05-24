@@ -56,9 +56,7 @@ template <typename K, typename V, typename F = KeyHash<K>>
 class HashMap {
 public:
     HashMap() {
-        // construct zero initialized hash table of size
-        table = new HashNode<K, V> *[TABLE_SIZE]();
-        tableSize = TABLE_SIZE;
+        init(TABLE_SIZE);
     }
 
     HashMap(uInt tableSize) {
