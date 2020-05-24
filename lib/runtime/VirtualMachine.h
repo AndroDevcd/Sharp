@@ -12,9 +12,8 @@
 #include "symbols/Method.h"
 #ifdef WIN32_
 #include "../Modules/std.os.gui/win/Gui.h"
-#include "Manifest.h"
-
 #endif
+#include "Manifest.h"
 
 struct SharpObject;
 

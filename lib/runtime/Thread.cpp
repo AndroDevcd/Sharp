@@ -190,8 +190,8 @@ int Thread::start(int32_t id, size_t stackSize) {
 #ifdef POSIX_
     pthread_attr_t attr;
     pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr,thread->stack + STACK_OVERFLOW_BUF);
-    if(pthread_create( &thread->thread, &attr, vm->InterpreterThreadStart, (void*) thread))
+    pthread_attr_setstacksize(&attr,thread->stackSize + STACK_OVERFLOW_BUF);
+    if(pthread_create( &thread->thread, &attr, VirtualMachine::InterpreterThreadStart, (void*) thread))
         return RESULT_THREAD_NOT_STARTED; // thread was not started
     else {
         return waitForThread(thread);
@@ -1294,7 +1294,7 @@ int32_t Thread::generateId() {
     std::lock_guard<std::mutex> guard(threadsMonitor);
 
     Thread *thread;
-    boolean wrapped = false;
+    bool wrapped = false;
 
     do {
         tid++;

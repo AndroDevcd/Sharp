@@ -2,8 +2,10 @@
 // Created by bknun on 7/29/2018.
 //
 
-#include <tchar.h>
 #include "Gui.h"
+
+#fdef WIN32_
+#include <tchar.h>
 #include "../../../runtime/Thread.h"
 #include "../../../runtime/register.h"
 #include "../../../runtime/VirtualMachine.h"
@@ -387,3 +389,5 @@ bool Gui::createPolygon(Poly *poly) {
     }
     return false;
 }
+
+#endif

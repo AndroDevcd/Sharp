@@ -25,7 +25,9 @@
  */
  #ifndef _ZLIB_STREAM
  #define _ZLIB_STREAM
- 
+
+#include <cstdio>
+
  struct SCZ_File
  {
   FILE *fptr;

@@ -7,6 +7,8 @@
 
 #include "../../../../stdimports.h"
 
+#ifdef WIN32_
+
 #include "../../../runtime/List.h"
 #include "../../../runtime/symbols/string.h"
 #include <Windows.h>
@@ -137,4 +139,6 @@ struct Poly { // polygon struct
 };
 
 LRESULT  winProc(HWND, UINT, WPARAM, LPARAM);
+#endif
+
 #endif //SHARP_GUI_H
