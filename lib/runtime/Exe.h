@@ -56,7 +56,7 @@
 
 #define SET_i32(w,x,y,z) (((uint8_t)z) | ((uint8_t)y << 8) | ((uint8_t)x << 16) | ((uint8_t)w << 24))
 
-int Process_Exe(std::string);
+int Process_Exe(std::string&);
 extern string exeErrorMessage;
 
 

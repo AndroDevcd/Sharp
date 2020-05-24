@@ -28,7 +28,7 @@ Symbol* getSymbol(File::buffer& buffer);
 
 void parseSourceFile(SourceFile &sourceFile, native_string &data);
 
-int Process_Exe(std::string exe)
+int Process_Exe(std::string &exe)
 {
     File::buffer buffer;
     Int processedFlags=0, currentFlag;

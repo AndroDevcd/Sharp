@@ -569,7 +569,7 @@ void GarbageCollector::createStringArray(Object *object, String& str) {
         if(object->object != NULL) {
             double *array = object->object->HEAD;
             for (unsigned long i = 0; i < str.len; i++) {
-                array[i] = str.chars[i];
+                *array = str.chars[i];
                 array++;
             }
         }
