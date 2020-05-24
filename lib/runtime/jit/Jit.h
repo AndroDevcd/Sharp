@@ -28,7 +28,7 @@ public:
 
         if (ASMJIT_ARCH_BITS == 64) {
             // currently only running on windows
-            if(OS_id==win) {
+            if(OS_id==win_os) {
                 x64Asm = new x64Assembler();
             } else
                 error = jit_error_unsupp;

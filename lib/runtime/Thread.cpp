@@ -1232,7 +1232,7 @@ void Thread::setup() {
 }
 
 int Thread::setPriority(Thread* thread, int priority) {
-    if(thread->thread != NULL) {
+    if(thread->thread != 0) {
         if(thread->priority == priority)
             return RESULT_OK;
 
@@ -1296,15 +1296,13 @@ int32_t Thread::generateId() {
     Thread *thread;
     bool wrapped = false;
 
-    do {
-        tid++;
+    while(threads.get(++tid, thread)) {
         if(tid < 0) {
             if(wrapped)
                 return ILL_THREAD_ID;
             else { wrapped = true; tid = jit_threadid; }
         }
     }
-    while(threads.get(tid, thread));
 
     if(tid > maxThreadId)
         maxThreadId = tid;
@@ -1318,6 +1316,10 @@ void Thread::init(string name, Int id, Method *main, bool daemon, bool initializ
     this->main = main;
     this->stackLimit = internalStackSize;
     this->daemon=daemon;
+
+#ifdef BUILD_JIT
+    this->jctx = new jit_context();
+#endif
 #ifdef SHARP_PROF_
     if(!daemon) {
         thread->tprof = new Profiler();

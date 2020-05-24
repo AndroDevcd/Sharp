@@ -33,15 +33,15 @@ struct jit_context {
 };
 
 enum os {
-    win=0x0ffa,
-    linux=0x0ffb,
+    win_os=0x0ffa,
+    linux_os=0x0ffb
 };
 
 #ifdef WIN32_
-#define OS_id win
+#define OS_id win_os
 #endif
 #ifdef POSIX_
-#define OS_id linux
+#define OS_id linux_os
 #endif
 
 // Jit helper macros

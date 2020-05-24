@@ -255,9 +255,9 @@ private:
     void updateMemoryThreshold();
 };
 
-#define GC_COLLECT_YOUNG() ( (yObjs / youngObjects) >= 2 )
-#define GC_COLLECT_ADULT() ( (aObjs / adultObjects) >= 20 )
-#define GC_COLLECT_OLD() ( (oObjs / oldObjects) >= 10 )
+#define GC_COLLECT_YOUNG() ( youngObjects > 0 && (yObjs / youngObjects) >= 2 )
+#define GC_COLLECT_ADULT() ( adultObjects > 0 && (aObjs / adultObjects) >= 20 )
+#define GC_COLLECT_OLD() ( oldObjects > 0 && (oObjs / oldObjects) >= 10 )
 #define GC_LOW_MEM() ( managedBytes >= (0.85 * memoryLimit) )
 #define GC_COLLECT_MEM() ( managedBytes >= memoryThreshold )
 #define GC_HEAP_LIMIT (MB_TO_BYTES(64))

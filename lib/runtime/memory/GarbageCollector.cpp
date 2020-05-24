@@ -101,7 +101,7 @@ void* __realloc(void *ptr, unsigned long long bytes, unsigned long long old)
 }
 
 void GarbageCollector::initilize() {
-    self=(GarbageCollector*)malloc(sizeof(GarbageCollector)*1);
+    self=(GarbageCollector*)malloc(sizeof(GarbageCollector));
 
     self->_Mheap = (SharpObject*)malloc(sizeof(SharpObject)); // HEAD
     if(self->_Mheap==NULL)
@@ -505,8 +505,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
                  */
                 if(k->fields[fieldAddress].type == VAR && !k->fields[fieldAddress].isArray) {
                     if(!staticInit || (staticInit && IS_STATIC(k->fields[fieldAddress].flags))) {
-                        object->node[i].object = newObject(1);
-                        object->node[i].object->refCount++;
+                        object->node[i] = newObject(1);
                     }
                 }
 

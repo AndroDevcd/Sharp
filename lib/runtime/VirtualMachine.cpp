@@ -36,7 +36,7 @@ int CreateVirtualMachine(string &exe)
     int result;
     if((result = Process_Exe(exe)) != 0) {
         if(!exeErrorMessage.empty())
-            fprintf(stderr, exeErrorMessage.c_str());
+            fprintf(stderr, "%s", exeErrorMessage.c_str());
         return result;
     }
 
@@ -113,7 +113,7 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t stati
 }
 
 bool returnMethod(Thread* thread) {
-    if(thread->calls == 1) {
+    if(thread->calls == 0) {
 #ifdef SHARP_PROF_
         thread->tprof->endtm=Clock::realTimeInNSecs();
                 thread->tprof->profile();
@@ -121,7 +121,7 @@ bool returnMethod(Thread* thread) {
         return true;
     }
 
-    Frame *frameInfo = thread->callStack+(thread->calls-1);
+    Frame *frameInfo = thread->callStack+(thread->calls);
 
     thread->current = frameInfo->returnAddress;
     thread->cache = thread->current->bytecode;
@@ -145,7 +145,7 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
     Method *method = vm.methods+address;
     THREAD_STACK_CHECK2(thread, method->stackSize, address);
 
-    thread->callStack[thread->calls++]
+    thread->callStack[++thread->calls]
             .init(thread->current, thread->pc, thread->sp-method->spOffset, thread->fp, inJit);
 
     thread->current = method;

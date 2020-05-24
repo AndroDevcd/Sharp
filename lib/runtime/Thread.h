@@ -91,6 +91,7 @@ public:
     static bool validInternalStackSize(size_t);
     static void suspendAllThreads();
     static void resumeAllThreads();
+    static int threadjoin(Thread*);
 
     static int startDaemon(
 #ifdef WIN32_
@@ -161,7 +162,6 @@ private:
 
     void wait();
 
-    static int threadjoin(Thread*);
     static int unsuspendThread(Thread*);
     static void suspendThread(Thread*);
     static int interrupt(Thread*);

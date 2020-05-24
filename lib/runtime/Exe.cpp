@@ -20,7 +20,7 @@ uInt currentPos = 0;
 
 bool validateAuthenticity(File::buffer& exe);
 
-string getString(File::buffer& exe, Int length = -1);
+native_string getString(File::buffer& exe, Int length = -1);
 Int parseInt(File::buffer& exe);
 int32_t geti32(File::buffer& exe);
 Symbol* getSymbol(File::buffer& buffer);
@@ -683,8 +683,8 @@ int32_t geti32(File::buffer& exe) {
     return i32;
 }
 
-string getString(File::buffer& exe, Int length) {
-    string s;
+native_string getString(File::buffer& exe, Int length) {
+    native_string s;
     if(length != -1) {
         for (; length > 0; length--) {
             s += exe.at(currentPos);

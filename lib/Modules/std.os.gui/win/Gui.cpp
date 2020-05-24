@@ -4,7 +4,7 @@
 
 #include "Gui.h"
 
-#fdef WIN32_
+#ifdef WIN32_
 #include <tchar.h>
 #include "../../../runtime/Thread.h"
 #include "../../../runtime/register.h"

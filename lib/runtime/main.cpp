@@ -231,7 +231,10 @@ int startApplication(string &exe, std::list<string>& appArgs) {
 
     pushArgumentsToStack(appArgs);
     Thread::start(main_threadid, 0);
-    Thread::join(main_threadid);
+
+    Thread *main;
+    Thread::threads.get(main_threadid, main);
+    Thread::threadjoin(main);
 
     result=vm.exitVal;
     return result;
