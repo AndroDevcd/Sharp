@@ -52,7 +52,6 @@ public:
         main = NULL;
         exitVal = 0;
         signal = tsig_empty;
-        throwable.init();
         callStack = NULL;
         dataStack = NULL;
         calls = 0;
@@ -62,7 +61,7 @@ public:
         args.object = NULL;
         currentThread.object=NULL;
         exceptionObject.object=NULL;
-        new (&mutex) std::mutex();
+        new (&mutex) recursive_mutex();
 #ifdef WIN32_
         thread = NULL;
 #endif
@@ -92,6 +91,7 @@ public:
     static void suspendAllThreads();
     static void resumeAllThreads();
     static int threadjoin(Thread*);
+    void prepareException();
 
     static int startDaemon(
 #ifdef WIN32_
@@ -132,7 +132,7 @@ public:
     static HashMap<Int, Thread*> threads;
     static recursive_mutex threadsMonitor;
 
-    std::mutex mutex;
+    recursive_mutex mutex;
     int32_t id;
     Int stackSize;
     Int stbase;
@@ -150,7 +150,6 @@ public:
     Object exceptionObject;
     Random* rand;
 
-    Throwable throwable;
 #ifdef WIN32_
     HANDLE thread;
 #endif

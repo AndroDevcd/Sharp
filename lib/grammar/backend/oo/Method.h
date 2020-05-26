@@ -119,6 +119,7 @@ struct TryCatchData {
     }
 
     Int try_start_pc, try_end_pc;
+    Int block_start_pc, block_end_pc;
     List<CatchData> catchTable;
     FinallyData *finallyData;
 };

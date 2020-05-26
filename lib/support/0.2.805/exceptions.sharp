@@ -6,14 +6,14 @@ mod std;
  * Class to be used as the baseline of throwing errors
  */
 class throwable {
-    private message : string;
+    private message : _int8[];
 
-    stack_trace : string;
+    stack_trace : _int8[];
 //      get { new string(stackTrace); }
 //        set {} // prevent user from setting the value
 
     public throwable(message : _int8[]) {
-//        self->message = message;
+        self->message = message;
     }
 
     public throwable(message : string) {

@@ -69,32 +69,50 @@
             suspendSelf(); \
         if (hasSignal(signal, tsig_kill) || state == THREAD_KILLED) \
             return; \
+        if(hasSignal(signal, tsig_except)) \
+            goto exception_catch; \
     }
 
 #define LONG_CALL() \
     if(current->branches < JIT_IR_LIMIT) \
         current->branches++;
 
-#define THREAD_EXECEPT() \
-    if(hasSignal(signal, tsig_except)) \
-        goto exception_catch;
-
 #define STACK_CHECK  if(((sp-dataStack)+1) >= stackLimit) throw Exception(vm.StackOverflowExcept, "");
 #define THREAD_STACK_CHECK(self)  if(((self->sp-self->dataStack)+1) >= self->stackLimit) throw Exception(vm.StackOverflowExcept, "");
 #define THREAD_STACK_CHECK2(self, stackSize, x)  if(((self->sp-self->dataStack)+stackSize) >= self->stackLimit || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(vm.StackOverflowExcept, "");
 
 #ifndef SHARP_PROF_
-#define _brh_NOINCREMENT HAS_SIGNAL continue;
+#define _brh_NOINCREMENT HAS_SIGNAL DISPATCH();
 #else
 #define _brh_NOINCREMENT SAFTEY_CHECK irCount++; if(irCount == 0) overflow++; goto *opcodeStart;
 #endif
 #define _brh  pc++; _brh_NOINCREMENT
 #define _brh_inc(x)  pc+=x; _brh_NOINCREMENT
 
-#define CHECK_NULL(x) if(ptr==NULL) { throw Exception(vm.NullptrExcept, ""); } else { x }
-#define CHECK_NULL2(x) if(ptr==NULL|ptr->object == NULL) { throw Exception(vm.NullptrExcept, ""); } else { x }
-#define CHECK_NULLOBJ(x) if(ptr==NULL || ptr->object == NULL || TYPE(ptr->object->info) != _stype_struct) { throw Exception(vm.NullptrExcept, ""); } else { x }
-#define CHECK_NULLVAR(x) if(ptr==NULL || ptr->object == NULL || TYPE(ptr->object->info) != _stype_var) { throw Exception(vm.NullptrExcept, ""); } else { x }
+#define CHECK_NULL(x) \
+    if(ptr==NULL) { \
+        Exception err(vm.NullptrExcept, ""); \
+        prepareException(); \
+        goto exception_catch; \
+    } else { x }
+#define CHECK_NULL2(x) \
+    if(ptr==NULL|ptr->object == NULL) { \
+        Exception err(vm.NullptrExcept, ""); \
+        prepareException(); \
+        goto exception_catch; \
+    } else { x }
+#define CHECK_NULLOBJ(x) \
+    if(ptr==NULL || ptr->object == NULL || TYPE(ptr->object->info) != _stype_struct) { \
+        Exception err(vm.NullptrExcept, ""); \
+        prepareException(); \
+        goto exception_catch; \
+    } else { x }
+#define CHECK_NULLVAR(x) \
+    if(ptr==NULL || ptr->object == NULL || TYPE(ptr->object->info) != _stype_var) { \
+        Exception err(vm.NullptrExcept, ""); \
+        prepareException(); \
+        goto exception_catch; \
+    } else { x }
 
 #define _initOpcodeTable \
         static void* opcode_table[] = { \

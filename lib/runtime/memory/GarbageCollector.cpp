@@ -381,8 +381,9 @@ GarbageCollector::threadStart(void *pVoid) {
         self->run();
     } catch(Exception &e){
         /* Should never happen */
-        sendSignal(thread_self->signal, tsig_except, 1);
-        thread_self->throwable=e.getThrowable();
+//        sendSignal(thread_self->signal, tsig_except, 1);
+//        thread_self->throwable=e.getThrowable();
+        // TODO: fix
     }
 
         /*

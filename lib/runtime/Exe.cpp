@@ -506,11 +506,10 @@ int Process_Exe(std::string &exe)
 
                 long len = geti32(buffer);
                 for(Int i = 0; i < len; i++) {
+                    Int pc = geti32(buffer);
+                    Int line = geti32(buffer);
                     method->lineTable
-                            .add(LineData(
-                                    geti32(buffer),
-                                    geti32(buffer)
-                            ));
+                            .add(LineData(pc, line));
                 }
 
 
@@ -521,6 +520,8 @@ int Process_Exe(std::string &exe)
                     tryCatchData.init();
                     tryCatchData.try_start_pc= geti32(buffer);
                     tryCatchData.try_end_pc= geti32(buffer);
+                    tryCatchData.block_start_pc= geti32(buffer);
+                    tryCatchData.block_end_pc= geti32(buffer);
 
                     Int caughtExceptions = geti32(buffer);
                     for(Int j =0; j < caughtExceptions; j++) {
@@ -530,7 +531,7 @@ int Process_Exe(std::string &exe)
                         catchData.caughtException = &vm.classes[geti32(buffer)];
                     }
 
-                    if(buffer.at(currentPos++) == '1') {
+                    if(buffer.at(currentPos++) == 1) {
                         tryCatchData.finallyData = (FinallyData*)malloc(sizeof(FinallyData));
                         tryCatchData.finallyData->start_pc = geti32(buffer);
                         tryCatchData.finallyData->end_pc = geti32(buffer);
@@ -699,7 +700,6 @@ native_string& getString(File::buffer& exe, Int length) {
         }
     }
 
-    tmpStr += 0;
     return tmpStr;
 }
 

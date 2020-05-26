@@ -36,7 +36,7 @@ int CreateVirtualMachine(string &exe)
     int result;
     if((result = Process_Exe(exe)) != 0) {
         if(!exeErrorMessage.empty())
-            fprintf(stderr, "%s", exeErrorMessage.c_str());
+            fprintf(stderr, "%s\n", exeErrorMessage.c_str());
         return result;
     }
 
@@ -199,33 +199,6 @@ void VirtualMachine::destroy() {
     }
 
 #endif
-    for(uInt i = 0; i < manifest.methods; i++) {
-        methods[i].free();
-    }
-    std::free (methods);
-    for(uInt i = 0; i < manifest.strings; i++)
-       strings[i].free();
-    std::free (strings);
-
-    for(uInt i = 0; i < manifest.classes; i++) {
-        classes[i].free();
-    }
-    std::free (classes);
-
-    for(uInt i = 0; i < manifest.sourceFiles; i++)
-        metaData.files.get(i).free();
-    metaData.files.free();
-
-    /**
-     * The beauty of the memory management system is it does all the hard work for us
-     * so all we have to do in the end is just delete the global heap objects the pointers
-     * they are refrencing are meaningless at this point
-     */
-    std::free (this->staticHeap);
-
-    manifest.application.free();
-    manifest.version.free();
-    metaData.free();
 }
 
 extern void printRegs();
@@ -259,11 +232,12 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 #endif
         }
     } catch (Exception &e) {
+        Int i = 0;
         //    if(thread_self->exceptionThrown) {
         //        cout << thread_self->throwable.stackTrace.str();
         //    }
-        thread_self->throwable = e.getThrowable();
-        sendSignal(thread_self->signal, tsig_except, 1);
+//        thread_self->throwable = e.getThrowable();
+//        sendSignal(thread_self->signal, tsig_except, 1);
     }
 
 
@@ -796,88 +770,44 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
     }
 }
 
-
-int VirtualMachine::returnMethod() { // TOTO: change call structure to not hold the last function Info but the current called function on the frame
+bool VirtualMachine::catchException() {
     Thread *thread = thread_self;
-    if(thread->calls <= 0)
-        return 1;
+    Int pc = PC(thread_self);
+    TryCatchData *tbl=NULL;
+    ClassObject *handlingClass = &vm.classes[CLASS(thread->exceptionObject.object->info)];
+    for(Int i = 0; i < thread->current->tryCatchTable.len; i++) {
+        tbl = &thread->current->tryCatchTable._Data[i];
 
-    Frame *frameInfo = thread->callStack+(thread->calls);
-    Frame *returnAddress = thread->callStack+(thread->calls-1);
+        if (pc >= tbl->block_start_pc && pc <= tbl->block_end_pc)
+        {
+            for(Int j = 0; j < tbl->catchTable.len; j++) {
+                if(handlingClass->guid == tbl->catchTable._Data[j].caughtException->guid) {
+                    if(tbl->catchTable._Data[j].localFieldAddress >= 0)
+                        (thread->fp+tbl->catchTable._Data[j].localFieldAddress)->object = thread->exceptionObject;
+                    thread->pc = thread->cache+tbl->catchTable._Data[j].handler_pc;
 
-    thread->current = returnAddress->returnAddress;
-    thread->cache = thread->current->bytecode;
-
-    thread->pc = frameInfo->pc;
-    thread->sp = frameInfo->sp;
-    thread->fp = frameInfo->fp;
-    thread->calls--;
-    return returnAddress->isjit ? 2 : 0;
-}
-
-void VirtualMachine::Throw() {
-//    if(exceptionObject->object == NULL || exceptionObject->object->k == NULL) {
-//        cout << "object is not a class" << endl;
-//        return;
-//    }
-
-    if (!hasSignal(thread_self->signal, tsig_except))
-    {
-            thread_self->throwable.handlingClass = &vm.classes[CLASS(thread_self->exceptionObject.object->info)];
-            fillStackTrace(&thread_self->exceptionObject);
-            sendSignal(thread_self->signal, tsig_except, 1);
-    }
-
-    if(TryCatch(thread_self->current, &thread_self->exceptionObject)) {
-        return;
-    }
-
-    int result = thread_self->calls;
-    while(thread_self->calls >= 0) {
-        result = returnMethod();
-        if(result==1)
-            break;
-        else if(result == 2 || result == 3)
-            return;
-
-        if(TryCatch(thread_self->current, &thread_self->exceptionObject)) {
-            return;
+                    DEC_REF(thread->exceptionObject.object);
+                    thread->exceptionObject.object = NULL;
+                    sendSignal(thread->signal, tsig_except, 0);
+                    return true;
+                }
+            }
         }
     }
 
-    // unhandled exception
-    throw Exception(thread_self->throwable);
-}
+    // Since we couldn't catch it we must jump to the first finally block
+    for(Int i = 0; i < thread->current->tryCatchTable.len; i++) {
+        tbl = &thread->current->tryCatchTable._Data[i];
 
-bool VirtualMachine::TryCatch(Method *method, Object *exceptionObject) {
-    int64_t pc = PC(thread_self);
-
-    if(exceptionObject->object==NULL) return false;
-
-    if(method->tryCatchTable.size() > 0) {
-//        ExceptionTable *tbl=NULL;
-//        for(long int i = 0; i < method->tryCatchTable.len; i++) {
-//            ExceptionTable& et = method->tryCatchTable._Data[i];
-//
-//            if (et.start_pc <= pc && et.end_pc >= pc)
-//            {
-//                if (tbl == NULL || et.start_pc > tbl->start_pc)
-//                    tbl = &et;
-//            }
-//        }
-//
-//        if(tbl != NULL)
-//        {
-//            Thread* self = thread_self;
-//            (self->fp+tbl->local)->object = exceptionObject;
-//            self->pc = self->cache+tbl->handler_pc;
-//            DEC_REF(self->exceptionObject.object);
-//
-//            // cancel exception we caught it
-//            sendSignal(self->signal, tsig_except, 0);
-//            startAddress = 0;
-//            return true;
-//        }
+        if (tbl->try_start_pc <= pc && tbl->try_end_pc >= pc)
+        {
+            if(tbl->finallyData != NULL) {
+                thread->pc = thread->cache+tbl->finallyData->start_pc;
+                (thread->fp+tbl->finallyData->exception_object_field_address)->object = thread->exceptionObject;
+                sendSignal(thread->signal, tsig_except, 0);
+                return true;
+            }
+        }
     }
 
     return false;
@@ -886,28 +816,7 @@ bool VirtualMachine::TryCatch(Method *method, Object *exceptionObject) {
 void VirtualMachine::fillStackTrace(Object *exceptionObject) {
     native_string str;
     fillStackTrace(str);
-    thread_self->throwable.stackTrace = str;
-
-    if(exceptionObject->object && IS_CLASS(exceptionObject->object->info)) {
-
-        Object* stackTrace = vm.resolveField("stackTrace", exceptionObject->object);
-        Object* message = vm.resolveField("message", exceptionObject->object);
-
-        if(stackTrace != NULL) {
-            GarbageCollector::self->createStringArray(stackTrace, str);
-        }
-        if(message != NULL) {
-            if(thread_self->throwable.native) // TODO: no longer required
-                GarbageCollector::self->createStringArray(message, thread_self->throwable.message);
-            else if(message->object != NULL && TYPE(message->object->info) == _stype_var) {
-                stringstream ss;
-                for(unsigned long i = 0; i < message->object->size; i++) {
-                    ss << (char) message->object->HEAD[i];
-                }
-                thread_self->throwable.message = ss.str();
-            }
-        }
-    }
+    GarbageCollector::self->createStringArray(vm.resolveField("stack_trace", exceptionObject->object), str);
 }
 
 void VirtualMachine::fillMethodCall(Method* func, Frame &frameInfo, stringstream &ss) {
@@ -944,9 +853,9 @@ void VirtualMachine::fillMethodCall(Method* func, Frame &frameInfo, stringstream
 
     if(c_options.debugMode) {
         ss << (frameInfo.isjit ? "[native]" : "") << " [0x" << std::hex
-           << func->address << "] $0x" << (frameInfo.pc == 0 ? 0 : (frameInfo.pc-func->bytecode))  << std::dec;
+           << func->address << "] $0x" << (frameInfo.pc == nullptr ? 0 : (frameInfo.pc-func->bytecode))  << std::dec;
 
-        ss << " fp; " << (frameInfo.fp == 0 ? 0 : frameInfo.fp-thread_self->dataStack) << " sp: " << (frameInfo.sp == 0 ? 0 : frameInfo.sp-thread_self->dataStack);
+        ss << " fp; " << (frameInfo.fp == 0 ? 0 : frameInfo.fp-thread_self->dataStack) << " sp: " << (frameInfo.sp == nullptr ? 0 : frameInfo.sp-thread_self->dataStack);
     }
 
     if(line != -1 && vm.metaData.files.size() > 0) {
@@ -961,19 +870,19 @@ void VirtualMachine::fillStackTrace(native_string &str) {
     if(thread_self->callStack == NULL) return;
 
     stringstream ss;
-    unsigned int iter = 0;
-    if((thread_self->calls+1) <= EXCEPTION_PRINT_MAX) {
+    uInt iter = 0;
+    if((thread_self->calls+1) < EXCEPTION_PRINT_MAX) {
 
-        for(long i = 0; i < thread_self->calls; i++) {
+        for(Int i = 1; i < thread_self->calls; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
-            fillMethodCall(thread_self->callStack[i].returnAddress, thread_self->callStack[i + 1], ss);
+            fillMethodCall(thread_self->callStack[i].returnAddress, thread_self->callStack[i], ss);
         }
     } else {
-        for(long long i = (thread_self->calls+1)-EXCEPTION_PRINT_MAX -1; i < thread_self->calls+1; i++) {
+        for(Int i = (thread_self->calls+1) - EXCEPTION_PRINT_MAX; i < thread_self->calls+1; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
-            fillMethodCall(thread_self->callStack[i].returnAddress, thread_self->callStack[i + 1], ss);
+            fillMethodCall(thread_self->callStack[i].returnAddress, thread_self->callStack[i], ss);
         }
     }
 
@@ -990,12 +899,16 @@ string VirtualMachine::getPrettyErrorLine(long line, long sourceFile) {
     stringstream ss;
     line -=2;
 
-    if(line >= 0)
-        ss << endl << "\t   " << line << ":    "; ss << vm.metaData.getLine(line, sourceFile).str();
+    if(line >= 0) {
+        ss << endl << "\t   " << line << ":    ";
+        ss << vm.metaData.getLine(line, sourceFile).str();
+    }
     line++;
 
-    if(line >= 0)
-        ss << endl << "\t   " << line << ":    "; ss << vm.metaData.getLine(line, sourceFile).str();
+    if(line >= 0) {
+        ss << endl << "\t   " << line << ":    ";
+        ss << vm.metaData.getLine(line, sourceFile).str();
+    }
     line++;
 
     ss << endl << "\t>  " << line << ":    "; ss << vm.metaData.getLine(line, sourceFile).str();
@@ -1124,4 +1037,16 @@ Object *VirtualMachine::resolveField(runtime::String name, SharpObject *classObj
 
 bool VirtualMachine::isStaticObject(SharpObject *object) {
     return object != NULL && GENERATION(object->info) == gc_perm;
+}
+
+string VirtualMachine::stringValue(SharpObject *object) {
+    stringstream ss;
+    if(object != NULL) {
+        if (TYPE(object->info) == _stype_var) {
+            for(Int i = 0; i < object->size; i++) {
+                ss << (char)object->HEAD[i];
+            }
+        }
+    }
+    return ss.str();
 }

@@ -9,10 +9,10 @@ void Meta::free() {
     files.free();
 }
 
-String Meta::getLine(uInt line, uInt sourceFile) {
+String Meta::getLine(Int line, Int sourceFile) {
     return files.get(sourceFile).lines.get(line);;
 }
 
-bool Meta::hasLine(uInt line, uInt sourceFile) {
+bool Meta::hasLine(Int line, Int sourceFile) {
     return line >= 0 && line < files.get(sourceFile).lines.size();;
 }

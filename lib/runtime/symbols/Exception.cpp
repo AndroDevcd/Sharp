@@ -50,7 +50,7 @@ void Exception::pushException() {
             /*
              * If there is no memory we exit
              */
-            std::lock_guard<std::mutex> gd(thread_self->mutex);
+            GUARD(thread_self->mutex);
             thread_self->state = THREAD_KILLED;
             sendSignal(thread_self->signal, tsig_kill, 1);
             return;
@@ -61,7 +61,7 @@ void Exception::pushException() {
 
         GarbageCollector::self->createStringArray(
                 vm.resolveField("message", thread_self->exceptionObject.object),
-                   thread_self->throwable.message);
+                   throwable.message);
     }
 }
 

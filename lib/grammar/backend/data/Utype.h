@@ -49,7 +49,7 @@ public:
     Utype(DataType type, bool isArray = false);
 
     void setType(utype_struct type) { this->type = type; }
-    void setResolvedType(DataEntity* utype, bool shouldFree = false) { if(shouldFree) free(); resolvedType = utype; }
+    void setResolvedType(DataEntity* utype) { resolvedType = utype; }
     utype_struct getType() { return type; }
     void setArrayType(bool isArray) { array = isArray; }
     bool isArray() { return array; }

@@ -84,8 +84,8 @@ public:
 
     _List<SourceFile> files;
 
-    runtime::String getLine(uInt line, uInt sourceFile);
-    bool hasLine(uInt line, uInt sourceFile);
+    runtime::String getLine(Int line, Int sourceFile);
+    bool hasLine(Int line, Int sourceFile);
     void free();
 };
 

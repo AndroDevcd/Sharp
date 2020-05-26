@@ -99,8 +99,9 @@ Jit::threadStart(void *pVoid) {
     try {
         self->run();
     } catch(Exception &e){
-        sendSignal(thread_self->signal, tsig_except, 1);
-        thread_self->throwable=e.getThrowable();
+//        sendSignal(thread_self->signal, tsig_except, 1);
+//        thread_self->throwable=e.getThrowable();
+        // TODO: fix
     }
 
     /*

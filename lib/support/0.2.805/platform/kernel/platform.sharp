@@ -10,10 +10,35 @@ class platform
     static def tls_init() {}
     private static def static_init() {}
 
+    static def print(msg : _int8[]) {
+        foreach(ch in msg) {
+            asm {
+                loadl ebx, {ch}
+                putc ebx
+            }
+        }
+    }
+
     private static def srt_init(args: object[]) : var {
-        asm {
-            movi 1, ebx
-            put ebx
+        try {
+            try {
+                throw new error("Hello first error");
+            } catch(error) {
+
+                try {
+                    throw new error("Genericcc!!!");
+                } catch(error) {
+                    print("caught FIRSTTTT!! error ");
+                    throw new error("Genericcc 3!!!");
+                } finally {
+                    print("llo quits");
+                }
+            } finally {
+                print("finally!!");
+            }
+        } finally {
+            print("finally!! yet again");
+                throw new error("Genericcc 2!!!");
         }
         return 0;
     }

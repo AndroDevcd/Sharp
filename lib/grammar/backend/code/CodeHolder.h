@@ -15,14 +15,14 @@
 class CodeHolder {
 public:
     CodeHolder() {
+        init();
+    }
+
+    void init() {
         ir32.init();
         injectors.key.init();
         injectors.value.init();
         instanceCaptured = false;
-    }
-
-    void init() {
-        CodeHolder();
     }
 
     bool addinjector(native_string key) {

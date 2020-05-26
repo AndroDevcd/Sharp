@@ -118,7 +118,7 @@ Utype::Utype(DataType type, bool isArray)
 
 bool Utype::equals(Utype *utype) {
     if(type == utype_method || type == utype_function_ptr) {
-        if(Compiler::simpleParameterMatch(getMethod()->params, utype->getMethod()->params)) {
+        if(utype->getMethod() != NULL && Compiler::simpleParameterMatch(getMethod()->params, utype->getMethod()->params)) {
             if((getMethod()->utype != NULL && utype->getMethod()->utype != NULL) ||
                (getMethod()->utype == NULL && utype->getMethod()->utype == NULL)) {
                 if(getMethod()->utype != NULL) {
@@ -160,7 +160,7 @@ bool Utype::isRelated(Utype *utype) {
                     return utype->getResolvedType()->type <= CLASS;
             }
         } else if (resolvedType->type == VAR || (resolvedType->type >= _INT8 && resolvedType->type <= _UINT64)) {
-            if (utype->getResolvedType()->type >= _INT8 && utype->getResolvedType()->type <= VAR)
+            if (utype->getResolvedType()->type <= VAR)
                 return array == utype->array;
             else if(array && utype->nullType)
                 return true;

@@ -77,11 +77,14 @@ struct TryCatchData {
     void operator=(TryCatchData *data) {
         this->try_start_pc=data->try_start_pc;
         this->try_end_pc=data->try_end_pc;
+        this->block_start_pc=data->block_start_pc;
+        this->block_end_pc=data->block_end_pc;
         this->catchTable.addAll(data->catchTable);
         this->finallyData = data->finallyData;
     }
 
     Int try_start_pc, try_end_pc;
+    Int block_start_pc, block_end_pc;
     _List<CatchData> catchTable;
     FinallyData *finallyData;
 };

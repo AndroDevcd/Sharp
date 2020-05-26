@@ -882,7 +882,7 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
-        parseLiteral(branch);
+        parseAsmLiteral(branch);
     } else if(*peek(1)  == "popObject") {
         expect(branch, peek(1)->getValue());
     } else if(*peek(1)  == "smovr") {

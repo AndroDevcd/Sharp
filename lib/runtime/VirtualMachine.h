@@ -60,13 +60,12 @@ public:
     Method* getMainMethod();
     ClassObject* resolveClass(runtime::String fullName);
     Object* resolveField(runtime::String name, SharpObject *classObject);
+    string stringValue(SharpObject *);
     bool isStaticObject(SharpObject *object);
 
     void shutdown();
     static void sysInterrupt(int64_t i);
-    int returnMethod();
-    bool TryCatch(Method *method, Object *exceptionObject);
-    void Throw();
+    bool catchException();
     static void fillStackTrace(Object *exceptionObject);
     static void fillStackTrace(native_string &str);
     static string getPrettyErrorLine(long line, long sourceFile);

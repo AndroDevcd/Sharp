@@ -634,6 +634,10 @@ void Compiler::addLocalFields(Method *func) {
     func->data.locals.addAll(func->params);
     func->data.localVariablesSize = func->params.size();
 
+    for(Int i = 0; i < func->params.size(); i++) {
+        func->params.get(i)->address = i + (func->flags.find(STATIC) ? 0 : 1);
+    }
+
     if(!func->flags.find(STATIC))
         func->data.localVariablesSize++; // allocate 1 slot for the class instance
 }
@@ -7065,8 +7069,10 @@ opcode_arg Compiler::compileAsmLiteral(Ast *ast) {
             errors->createNewError(GENERIC, ast->line, ast->col, "attempt to get address of a function.");
         }
     } else if(ast->getToken(0) == "{") {
-        RETAIN_BLOCK_TYPE(CLASS_SCOPE)
+        RETAIN_BLOCK_TYPE(INSTANCE_BLOCK)
+        obfuscateMode = true;
         Utype *utype = compileUtype(ast->getSubAst(ast_utype));
+        obfuscateMode = false;
         RESTORE_BLOCK_TYPE()
 
         opcode_arg offset = getAsmOffset(ast);
@@ -7250,11 +7256,12 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
     labelId << INTERNAL_LABEL_NAME_PREFIX << "finally_end" << guid++;
     finallyEndLabel=labelId.str(); labelId.str("");
 
+    tryCatchData.block_start_pc = code.size();
     tryCatchData.try_start_pc = code.size();
     currentScope()->finallyBlocks.add(KeyPair<string, Ast*>(
             hasFinallyBlock ? finallyStartLabel : "",ast->getSubAst(ast_finally_block)));
     controlPaths[TRY_CONTROL_PATH] = compileBlock(ast->getSubAst(ast_block));
-    tryCatchData.try_end_pc = code.size();
+    tryCatchData.block_end_pc = code.size();
 
     currentScope()->currentFunction->data.branchTable.add(
             BranchTable(code.size(), tryEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
@@ -7287,6 +7294,8 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
             }
 
             case ast_finally_block: {
+                tryCatchData.try_end_pc = code.size();
+
                 string nextFinallyLabel;
                 if(!currentScope()->finallyBlocks.empty()) {
                     bool currentBranchFound = false;
@@ -7308,10 +7317,10 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
                 currentScope()->currentFunction->data.labelMap.add(LabelData(finallyStartLabel, currentScope()->currentFunction->data.code.size(), 0));
                 tryCatchData.finallyData = new FinallyData();
                 tryCatchData.finallyData->start_pc = code.size();
+                tryCatchData.finallyData->exception_object_field_address = exceptionObjectField->address;
                 compileBlock(branch->getSubAst(ast_block));
 
                 if(nextFinallyLabel.empty()) {
-                    tryCatchData.finallyData->exception_object_field_address = exceptionObjectField->address;
                     code.addIr(OpBuilder::movl(exceptionObjectField->address))
                             .addIr(OpBuilder::checkNull(CMT));
 
@@ -7344,8 +7353,11 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
         currentScope()->astList.pop_back();
     }
 
-    if(!hasFinallyBlock)
-        currentScope()->currentFunction->data.labelMap.add(LabelData(tryEndLabel, currentScope()->currentFunction->data.code.size(), 0));
+    if(!hasFinallyBlock) {
+        currentScope()->currentFunction->data.labelMap.add(
+                LabelData(tryEndLabel, currentScope()->currentFunction->data.code.size(), 0));
+        tryCatchData.try_end_pc = code.size();
+    }
     code.addIr(OpBuilder::nop());
 
     catchedClasses.free();
@@ -7540,6 +7552,10 @@ void Compiler::compileForEachStatement(Ast *ast) {
 
     Expression arrayExpr;
     compileExpression(&arrayExpr, ast->getSubAst(ast_expression));
+    if(!arrayExpr.utype->isArray()) {
+        errors->createNewError(GENERIC, ast->line, ast->col,
+                               " foreach expression`" + arrayExpr.utype->toString() + "` must be an array type.");
+    }
 
     currentScope()->scopeLevel++;
     Field *iteratorField, *indexField, *arrayResultField;
@@ -7603,12 +7619,13 @@ void Compiler::compileForEachStatement(Ast *ast) {
     currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), forEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
     code.addIr(OpBuilder::jne(invalidAddr));
 
-    code.addIr(OpBuilder::movnd(EBX));
+    if(arrayExpr.utype->getResolvedType()->isVar()) {
+        code.addIr(OpBuilder::iaload(ECX, EBX));
+    } else
+        code.addIr(OpBuilder::movnd(EBX));
 
     if(iteratorField->isVar()) {
-        code.addIr(OpBuilder::movi(0, ADX))
-            .addIr(OpBuilder::iaload(EBX, ADX))
-            .addIr(OpBuilder::smovr2(EBX, iteratorField->address));
+        code.addIr(OpBuilder::smovr2(ECX, iteratorField->address));
     } else {
         if(arrayResultField->type == OBJECT && iteratorField->type == CLASS) {
             code.addIr(OpBuilder::pushObject())

@@ -271,7 +271,7 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
 
     thread->term();
 
-    std::lock_guard<std::mutex> gd(thread->mutex);
+    GUARD(thread->mutex);
     thread->state = THREAD_KILLED;
     sendSignal(thread->signal, tsig_kill, 1);
 
@@ -360,13 +360,13 @@ void Thread::suspendThread(Thread *thread) {
     if(thread->id == thread_self->id)
         suspendSelf();
     else {
-        std::lock_guard<std::mutex> gd(thread->mutex);
+        GUARD(thread->mutex);
         sendSignal(thread->signal, tsig_suspend, 1);
     }
 }
 
 void Thread::term() {
-    std::lock_guard<std::mutex> gd(mutex);
+    GUARD(mutex);
     this->state = THREAD_KILLED;
     sendSignal(this->signal, tsig_kill, 1);
     this->terminated = true;
@@ -472,7 +472,7 @@ int Thread::interrupt(Thread *thread) {
         }
         else
         {
-            std::lock_guard<std::mutex> gd(thread->mutex);
+            GUARD(thread->mutex);
             thread->state = THREAD_KILLED; // terminate thread
             sendSignal(thread->signal, tsig_kill, 1);
         }
@@ -500,10 +500,13 @@ void Thread::exit() {
     if(hasSignal(signal, tsig_except)) {
         this->exitVal = 1;
 
+        Object* stackTrace = vm.resolveField("stack_trace", exceptionObject.object);
+        Object* message = vm.resolveField("message", exceptionObject.object);
+        ClassObject *k = &vm.classes[CLASS(exceptionObject.object->info)];
         cout << "Unhandled exception on thread " << name.str() << " (most recent call last):\n"; cout
-                << throwable.stackTrace.str();
-        cout << endl << throwable.handlingClass->name.str() << " ("
-           << throwable.message.str() << ")\n";
+                << (stackTrace != NULL ? vm.stringValue(stackTrace->object) : "");
+        cout << endl << (&vm.classes[CLASS(exceptionObject.object->info)])->name.str() << " ("
+           << (message != NULL ? vm.stringValue(message->object) : "") << ")\n";
     } else {
         if(!daemon && dataStack != NULL)
             this->exitVal = (int)dataStack[vm.manifest.threadLocals].var;
@@ -591,18 +594,18 @@ void printRegs() {
     cout << "sp -> " << (thread_self->sp-thread_self->dataStack) << endl;
     cout << "fp -> " << (thread_self->fp-thread_self->dataStack) << endl;
     cout << "pc -> " << PC(thread_self) << endl;
-    if(thread_self->current != NULL) {
-        cout << "current -> " << thread_self->current->name.str() << endl;
-    }
-    native_string stackTrace;
-
-    vm.fillStackTrace(stackTrace);
-    cout << "stacktrace ->\n\n " << stackTrace.str() << endl;
-    cout << endl;
-
-    for(long i = 0; i < 15; i++) {
-        cout << "fp.var [" << i << "] = " << thread_self->dataStack[i].var << ";" << endl;
-    }
+//    if(thread_self->current != NULL) {
+//        cout << "current -> " << thread_self->current->name.str() << endl;
+//    }
+//    native_string stackTrace;
+//
+//    vm.fillStackTrace(stackTrace);
+//    cout << "stacktrace ->\n\n " << stackTrace.str() << endl;
+//    cout << endl;
+//
+//    for(long i = 0; i < 15; i++) {
+//        cout << "fp.var [" << i << "] = " << thread_self->dataStack[i].var << ";" << endl;
+//    }
 }
 
 void printStack() {
@@ -667,6 +670,8 @@ unsigned long irCount = 0, overflow = 0;
 
 void Thread::exec() {
 
+    Object *tmpPtr;
+    SharpObject* tmpShObj;
     Object *ptr;
     Int result;
     fptr jitFun;
@@ -685,9 +690,11 @@ void Thread::exec() {
 #endif
 
     _initOpcodeTable
+    run:
     try {
+        DISPATCH();
+
         for (;;) {
-            DISPATCH();
             _NOP: // tested
                 _brh
             _INT:
@@ -704,11 +711,25 @@ void Thread::exec() {
                 if(vm.state == VM_TERMINATED) return;
                 _brh
             _MOVI: // tested
-                registers[GET_Da(*pc)]=*(pc+1);
+                registers[GET_Da(*pc)]=(int32_t)*(pc+1);
                 _brh_inc(2)
             RET: // tested
-                if(returnMethod(this))
-                    return; // TODO: check if returning w/ error state
+                result = GET_Da(*pc); // error state
+                if(result == ERR_STATE && exceptionObject.object == NULL) {
+                    exceptionObject
+                            = (sp--)->object.object;
+                }
+
+                if(returnMethod(this)) {
+                    // handle the exception even if we hit the last method or return back to JIT
+                    if(result == ERR_STATE) sendSignal(signal, tsig_except, 1);
+                    return;
+                }
+
+                if(result == ERR_STATE) {
+                    sendSignal(signal, tsig_except, 1);
+                    goto exception_catch;
+                }
                 LONG_CALL();
                 _brh
             HLT: // tested
@@ -775,17 +796,17 @@ void Thread::exec() {
                 registers[GET_Bc(*pc)]=(Int)registers[GET_Ba(*pc)]%(Int)registers[GET_Bb(*pc)];
                 _brh
             IADD: // tested
-                registers[GET_Da(*pc)]+=*(pc+1);
+                registers[GET_Da(*pc)]+=(int32_t)*(pc+1);
                 _brh_inc(2)
             ISUB: // tested
-                registers[GET_Da(*pc)]-=*(pc+1);
+                registers[GET_Da(*pc)]-=(int32_t)*(pc+1);
                 _brh_inc(2)
             IMUL: // tested
-                registers[GET_Da(*pc)]*=*(pc+1);
+                registers[GET_Da(*pc)]*=(int32_t)*(pc+1);
                 _brh_inc(2)
             IDIV: // tested
-                if(*(pc+1)==0) throw Exception("divide by 0");
-                registers[GET_Da(*pc)]/=*(pc+1);
+                if(((int32_t)*(pc+1))==0) throw Exception("divide by 0");
+                registers[GET_Da(*pc)]/=(int32_t)*(pc+1);
                 _brh_inc(2)
             IMOD: // tested
                 registers[GET_Da(*pc)]=(Int)registers[GET_Da(*pc)]%(Int)*(pc+1);
@@ -893,7 +914,6 @@ void Thread::exec() {
                     jitFun(jctx);
 #endif
                 }
-                THREAD_EXECEPT();
                 _brh_NOINCREMENT
             CALLD:
 #ifdef SHARP_PROF_
@@ -910,7 +930,6 @@ void Thread::exec() {
                     jitFun(jctx);
 #endif
                 }
-                THREAD_EXECEPT();
                 _brh_NOINCREMENT
             NEWCLASS:
                 STACK_CHECK
@@ -919,10 +938,10 @@ void Thread::exec() {
                 _brh
             MOVN:
                 CHECK_NULLOBJ(
-                        if(*(pc+1) >= ptr->object->size || *(pc+1) < 0)
+                        if(((int32_t)*(pc+1)) >= ptr->object->size || ((int32_t)*(pc+1)) < 0)
                             throw Exception("movn");
 
-                        ptr = &ptr->object->node[*(pc+1)];
+                        ptr = &ptr->object->node[((int32_t)*(pc+1))];
                 )
                 _brh_inc(2)
             SLEEP:
@@ -975,7 +994,7 @@ void Thread::exec() {
                     pc = pc+GET_Cb(*pc); _brh_NOINCREMENT
                 } else _brh
             CMP:
-                registers[CMT]=registers[GET_Da(*pc)]==*(pc+1);
+                registers[CMT]=registers[GET_Da(*pc)]==((int32_t)*(pc+1));
                 _brh_inc(2)
             AND:
                 registers[CMT]=registers[GET_Ca(*pc)]&&registers[GET_Cb(*pc)];
@@ -990,8 +1009,9 @@ void Thread::exec() {
                 registers[CMT]=(Int)registers[GET_Ca(*pc)]^(Int)registers[GET_Cb(*pc)];
                 _brh
             THROW:
-                exceptionObject = sp->object;
-                throw Exception("", false); // TODO: dont throw do a more lightweight oiperation
+                exceptionObject = (sp--)->object;
+                prepareException();
+                goto exception_catch;
                 _brh
             CHECKNULL:
                 registers[GET_Da(*pc)]=ptr == NULL || ptr->object==NULL;
@@ -1024,20 +1044,20 @@ void Thread::exec() {
                 (fp+GET_Cb(*pc))->modul(registers[GET_Ca(*pc)]);
                 _brh
             IADDL:
-                (fp+GET_Da(*pc))->var+=*(pc+1);
+                (fp+GET_Da(*pc))->var+=((int32_t)*(pc+1));
                 _brh_inc(2)
             ISUBL:
-                (fp+GET_Da(*pc))->var-=*(pc+1);
+                (fp+GET_Da(*pc))->var-=((int32_t)*(pc+1));
                 _brh_inc(2)
             IMULL:
-                (fp+GET_Da(*pc))->var*=*(pc+1);
+                (fp+GET_Da(*pc))->var*=((int32_t)*(pc+1));
                 _brh_inc(2)
             IDIVL:
-                (fp+GET_Da(*pc))->var/=*(pc+1);
+                (fp+GET_Da(*pc))->var/=((int32_t)*(pc+1));
                 _brh_inc(2)
             IMODL:
                 result = (fp+GET_Da(*pc))->var;
-                (fp+GET_Da(*pc))->var=result%*(pc+1);
+                (fp+GET_Da(*pc))->var=result%((int32_t)*(pc+1));
                 _brh_inc(2)
             LOADL:
                 registers[GET_Ca(*pc)]=(fp+GET_Cb(*pc))->var;
@@ -1088,10 +1108,10 @@ void Thread::exec() {
                 _brh
             ISTORE:
                 STACK_CHECK
-                (++sp)->var = *(pc+1);
+                (++sp)->var = ((int32_t)*(pc+1));
                 _brh_inc(2)
             ISTOREL:
-                (fp+GET_Da(*pc))->var=*(pc+1);
+                (fp+GET_Da(*pc))->var=(int32_t)*(pc+1);
                 _brh_inc(2)
             PUSHNULL:
                 STACK_CHECK
@@ -1106,15 +1126,14 @@ void Thread::exec() {
                 (++sp)->object = (fp+GET_Da(*pc))->object;
                 _brh
             ITEST:
-                Object *obj = &(sp--)->object;
-                registers[GET_Da(*pc)] = obj->object == (sp--)->object.object;
+                tmpPtr = &(sp--)->object;
+                registers[GET_Da(*pc)] = tmpPtr->object == (sp--)->object.object;
                 _brh
             INVOKE_DELEGATE:
                 invokeDelegate(GET_Da(*pc), GET_Cb(*(pc+1)), this, GET_Ca(*(pc+1)));
-                THREAD_EXECEPT();
                 _brh_NOINCREMENT
             ISADD:
-                (sp+GET_Da(*pc))->var+=*(pc+1);
+                (sp+GET_Da(*pc))->var+=(int32_t)*(pc+1);
                 _brh_inc(2)
             JE:
                 LONG_CALL();
@@ -1130,8 +1149,8 @@ void Thread::exec() {
                 ptr = &(dataStack+GET_Da(*pc))->object;
                 _brh
             DUP:
-                obj = &sp->object;
-                (++sp)->object = obj;
+                tmpPtr = &sp->object;
+                (++sp)->object = tmpPtr;
                 _brh
             POPOBJ_2:
                 ptr = &(sp--)->object;
@@ -1157,30 +1176,31 @@ void Thread::exec() {
 
 
         }
-    } catch (bad_alloc &e) {
-        cout << "std::bad_alloc\n";
-        // TODO: throw out of memory error
     } catch (Exception &e) {
-        throwable = e.getThrowable();
+        prepareException();
     }
 
     exception_catch:
     if(state == THREAD_KILLED) {
         sendSignal(thread_self->signal, tsig_except, 1);
-        vm.fillStackTrace(throwable.stackTrace);
         return;
     }
-    vm.Throw();
+
+    if(!vm.catchException()) {
+        if(returnMethod(this))
+            return;
+        pc++;
+    }
 
     /**
-     * Exception is still live and must make its transition to low
+     * Exception may still be live and must make its transition to low
      * level Sharp
      */
-    if(hasSignal(signal, tsig_except) || current->isjit) {
+    if(current->isjit) {
         return;
     }
 
-    DISPATCH();
+    goto run;
 }
 
 void Thread::setup() {
@@ -1270,6 +1290,11 @@ int Thread::setPriority(Thread* thread, int priority) {
     }
 
     return RESULT_ILL_PRIORITY_SET;
+}
+
+void Thread::prepareException() {
+    vm.fillStackTrace(&exceptionObject);
+    sendSignal(signal, tsig_except, 1);
 }
 
 int Thread::setPriority(int32_t id, int priority) {

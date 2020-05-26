@@ -82,7 +82,7 @@ public:
             fullName(""),
             meta(),
             address(invalidAddr),
-            guid(-109913),
+            guid(invalidAddr),
             owner(NULL),
             ast(NULL),
             obfuscate(c_options.obfuscate),

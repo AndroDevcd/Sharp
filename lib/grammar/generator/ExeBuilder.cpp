@@ -663,7 +663,7 @@ string ExeBuilder::codeToString(Method* fun) {
             {
                 ss << "call @" << GET_Da(opcodeData) << " // <";
                 if(GET_Da(opcodeData) >= 0)
-                    ss << allMethods.get(GET_Da(opcodeData)) << ">";
+                    ss << allMethods.get(GET_Da(opcodeData))->fullName << ">";
 
                 break;
             }
@@ -1473,6 +1473,8 @@ void ExeBuilder::putMethodData(Method *fun) {
         TryCatchData &tryCatchData = fun->data.tryCatchTable.get(i);
         dataSec << putInt32(tryCatchData.try_start_pc);
         dataSec << putInt32(tryCatchData.try_end_pc);
+        dataSec << putInt32(tryCatchData.block_start_pc);
+        dataSec << putInt32(tryCatchData.block_end_pc);
 
         dataSec << putInt32(tryCatchData.catchTable.size());
         for(Int j = 0; j < tryCatchData.catchTable.size(); j++) {
