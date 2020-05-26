@@ -22,7 +22,7 @@ bool Field::equals(Field &f) {
                     ((ClassObject*)utype->getResolvedType())->match((ClassObject*)f.utype->getResolvedType()));
         else {
             if(type==FNPTR) {
-                Method *compareFun = (Method*)f.utype->getResolvedType();
+                Method *compareFun = f.utype->getMethod();
                 if(compareFun->fnType == fn_lambda) {
                     if(compareFun->utype != NULL)
                         return utype != NULL && f.utype != NULL && utype->getType() == f.utype->getType() &&
@@ -41,11 +41,6 @@ bool Field::equals(Field &f) {
         }
     }
     return false;
-}
-
-bool Field::isEnum() {
-    return utype && utype->getType() == utype_class
-            && IS_CLASS_ENUM(((ClassObject*)utype->getResolvedType())->getClassType());
 }
 
 string Field::toString() {
@@ -75,7 +70,7 @@ bool Field::isRelated(Field &f) {
         if(f.type == CLASS || f.type == OBJECT)
             return true;
     }  else if(type == VAR) {
-        if(f.type >= _INT8 && f.type <= VAR)
+        if(f.type <= VAR)
             return true;
     } else if(type == FNPTR) {
         if(f.type == FNPTR) {
@@ -95,7 +90,7 @@ bool Field::isRelated(Field &f) {
             }
         }
     } else if(type >= _INT8 && type <= _UINT64) {
-        if(f.type >= _INT8 && f.type <= VAR)
+        if(f.type <= VAR)
             return true;
     }
     return false;

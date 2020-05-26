@@ -7,6 +7,7 @@
 #include "../../runtime/Exe.h"
 #include "../../util/zip/zlib.h"
 #include "../main.h"
+#include "../optimizer/Optimizer.h"
 
 bool sortMethods(Method *m1, Method *m2) {
     return m1->address > m2->address;
@@ -71,15 +72,18 @@ void ExeBuilder::createDumpFile() {
 
     buf << "## Object Dump file for " << c_options.out << ":\n\n";
 
-    if(c_options.optimize) {
-        // TODO: put optimization results here
-    }
-
     for(Int i = 0; i < compiler->classes.size(); i++) {
         ClassObject *klass = compiler->classes.get(i);
         addClass(klass);
     }
+
     allClasses.linearSort(sortClasses);
+    allMethods.linearSort(sortMethods);
+
+    if(c_options.optimize) {
+        Optimizer optimizer(&allMethods);
+        optimizer.optimize();
+    }
 
     for(Int i = 0; i < allClasses.size(); i++) {
         ClassObject *klass = allClasses.get(i);
@@ -103,8 +107,6 @@ void ExeBuilder::createDumpFile() {
     }
 
     buf << "\n\n methods: \n";
-    allMethods.linearSort(sortMethods);
-
     for(Int i = 0; i < allMethods.size(); i++) {
         Method *fun = allMethods.get(i);
 
@@ -243,7 +245,46 @@ string ExeBuilder::codeToString(Method* fun) {
             else if(currLine <=9999) ss << "           ";
             else ss << "            ";
         }
-        // TODO: put code info here
+
+        endData << "   ";
+        for(Int i = 0; i < fun->data.protectedCodeTable.size(); i++) {
+            if(x == fun->data.protectedCodeTable.get(i).start_pc) {
+                endData << ": protected asm start";
+            } else if(x == fun->data.protectedCodeTable.get(i).end_pc) {
+                endData << ": protected asm end";
+            }
+        }
+
+        for(Int i = 0; i < fun->data.tryCatchTable.size(); i++) {
+            TryCatchData &tryCatchData = fun->data.tryCatchTable.get(i);
+            if(x == tryCatchData.try_start_pc) {
+                endData << ": try start";
+            } else if(x == tryCatchData.try_end_pc) {
+                endData << ": try end";
+            }
+
+            if(x == tryCatchData.block_start_pc) {
+                endData << ": try block start";
+            } else if(x == tryCatchData.block_end_pc) {
+                endData << ": try block end";
+            }
+
+            for(Int j = 0; j < tryCatchData.catchTable.size(); j++) {
+                CatchData &catchData = tryCatchData.catchTable.get(j);
+
+                if(x == catchData.handler_pc){
+                    endData << ": catch(" << allClasses.get(catchData.classAddress)->fullName << ")";
+                }
+            }
+
+            if(tryCatchData.finallyData != NULL) {
+                if(x == tryCatchData.finallyData->start_pc) {
+                    endData << ": finally start";
+                } else if(x == tryCatchData.finallyData->end_pc) {
+                    endData << ": finally end";
+                }
+            }
+        }
 
         switch(GET_OP(opcodeData)) {
             case Opcode::ILL:

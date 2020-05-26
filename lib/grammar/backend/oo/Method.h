@@ -5,7 +5,6 @@
 #ifndef SHARP_METHOD_H
 #define SHARP_METHOD_H
 
-
 #include "../data/DataEntity.h"
 #include "Field.h"
 #include "FunctionType.h"
@@ -21,7 +20,9 @@ struct CatchData {
     }
 
     void init() {
-        CatchData();
+        handler_pc = invalidAddr;
+        localFieldAddress = invalidAddr;
+        classAddress = invalidAddr;
     }
 
     void free() {

@@ -17,7 +17,6 @@ public:
     Field()
         :
             DataEntity(),
-            key(""),
             isArray(false),
             nullField(false),
             utype(NULL),
@@ -37,7 +36,6 @@ public:
         :
         DataEntity(),
         locality(stl),
-        key(""),
         isArray(false),
         nullField(false),
         utype(NULL),
@@ -60,11 +58,9 @@ public:
     void free();
     bool equals(Field& f);
     bool isRelated(Field &f);
-    bool isEnum();
     string toString();
 
 public:
-    string key;
     bool isArray;
     bool nullField;
     bool inlineCheck;

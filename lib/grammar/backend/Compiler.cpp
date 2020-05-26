@@ -18,6 +18,7 @@
 #include "ofuscation/Obfuscater.h"
 #include "../generator/ExeBuilder.h"
 #include "../../util/time.h"
+#include "../optimizer/Optimizer.h"
 
 string globalClass = "__srt_global";
 ModuleData* undefinedModule = NULL;
@@ -28,7 +29,6 @@ void Compiler::generate() {
     try {
         Obfuscater obf(this);
         obf.obfuscate();
-        // TODO: optimize code
 
         ExeBuilder builder(this);
         builder.build();
@@ -6430,7 +6430,7 @@ void Compiler::preprocessMutations() {
 void Compiler::randomizeGUID() {
     std::mt19937 generator((uInt)(NANO_TOMICRO(std::chrono::duration_cast<std::chrono::nanoseconds>
                    (std::chrono::high_resolution_clock::now().time_since_epoch()).count())>>4));
-    std::uniform_int_distribution<long long> randomInt;
+    std::uniform_int_distribution<Int> randomInt;
     decltype(randomInt.param()) new_range (1, 100000);
     randomInt.param(new_range);
 

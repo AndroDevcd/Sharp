@@ -20,26 +20,29 @@ class platform
     }
 
     private static def srt_init(args: object[]) : var {
-        try {
-            try {
-                throw new error("Hello first error");
-            } catch(error) {
-
-                try {
-                    throw new error("Genericcc!!!");
-                } catch(error) {
-                    print("caught FIRSTTTT!! error ");
-                    throw new error("Genericcc 3!!!");
-                } finally {
-                    print("llo quits");
-                }
-            } finally {
-                print("finally!!");
-            }
-        } finally {
-            print("finally!! yet again");
-                throw new error("Genericcc 2!!!");
+        for(i := 0; i < 10000000; i++) {
         }
+
+        //try {
+        //    try {
+        //        throw new error("Hello first error");
+        //    } catch(error) {
+//
+        //        try {
+        //            throw new error("Genericcc!!!");
+        //        } catch(error) {
+        //            print("caught FIRSTTTT!! error ");
+        //            throw new error("Genericcc 3!!!");
+        //        } finally {
+        //            print("llo quits");
+        //        }
+        //    } finally {
+        //        print("finally!!");
+        //    }
+        //} finally {
+        //    print("finally!! yet again");
+        //        throw new error("Genericcc 2!!!");
+        //}
         return 0;
     }
 }

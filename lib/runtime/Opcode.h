@@ -447,7 +447,7 @@ public:
         static opcode_instr _or(_register leftRegister, _register rightRegister);
         static opcode_instr _xor(_register leftRegister, _register rightRegister);
         static opcode_instr _throw();
-        static opcode_instr checkNull(_register outRegister); // TODO: modify this to accept which register we want to put the result in
+        static opcode_instr checkNull(_register outRegister);
         static opcode_instr returnObject();
         static opcode_instr newClassArray(_register inRegister, opcode_arg classAddress);
         static opcode_instr newString(opcode_arg address);
@@ -496,11 +496,11 @@ public:
         static opcode_instr neg(_register leftRegister, _register rightRegister);
 
         static bool illegalParam(opcode_arg param, instr_class iclass, short argNum = 1);
+        CXX11_INLINE static uint8_t posNeg(opcode_arg data);
 
     private:
         static opcode_instr instruction_Buffer[INSTRUCTION_BUFFER_SIZE];
         static void clearBuf(opcode_instr instrs[], int bufLen);
-        CXX11_INLINE static uint8_t posNeg(opcode_arg data);
     };
 };
 
