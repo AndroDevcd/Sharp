@@ -57,12 +57,13 @@ generic: std#integer<_int8>[50] fields(1) methods(24)
 
 [0]: nil
 [1]: 
-[2]: win
-[3]: posix
-[4]: null
-[5]: class_property
-[6]: field_property
-[7]: function_property
+[2]: Hello, World!
+[3]: win
+[4]: posix
+[5]: null
+[6]: class_property
+[7]: field_property
+[8]: function_property
 
  constants: 
 
@@ -2855,11 +2856,13 @@ constructor: std#integer<_int8>.integer<_int8>[157] params(0) in file: lib/suppo
 0 [0x0]:         ret   
 
 
-function: main#__srt_global.main[158] params(0) in file: tests/syntax.sharp:4:4: note:  
+function: main#__srt_global.main[158] params(0) in file: tests/syntax.sharp:5:4: note:  
 		def main() {
 		   ^
 
-0 [0x0]:         ret   
+0 [0x0]: line: 6 newstr @2 // Hello, World!   
+1 [0x1]:         call @227 // <platform.kernel#platform.print>   
+2 [0x2]:         ret   
 
 
 constructor: std#_enum_._enum_[159] params(1) in file: lib/support/0.2.805//enum.sharp:17:11: note:  
@@ -3615,7 +3618,7 @@ function: platform#build.is_windows[222] params(0) in file: lib/support/0.2.805/
 0 [0x0]: line: 10 movg @19 // @platform#build   
 1 [0x1]:          movn #0   
 3 [0x3]:          pushobj   
-4 [0x4]:          newstr @2 // win   
+4 [0x4]:          newstr @3 // win   
 5 [0x5]:          call @264 // <std#string.operator==>   
 6 [0x6]:          loadval ebx   
 7 [0x7]:          return_val ebx   
@@ -3629,7 +3632,7 @@ function: platform#build.is_linux[223] params(0) in file: lib/support/0.2.805//p
 0 [0x0]: line: 14 movg @19 // @platform#build   
 1 [0x1]:          movn #0   
 3 [0x3]:          pushobj   
-4 [0x4]:          newstr @3 // posix   
+4 [0x4]:          newstr @4 // posix   
 5 [0x5]:          call @264 // <std#string.operator==>   
 6 [0x6]:          loadval ebx   
 7 [0x7]:          return_val ebx   
@@ -3666,12 +3669,12 @@ function: platform.kernel#platform.static_init[226] params(0) in file: lib/suppo
 9 [0x9]:          movg @36 // @std.reflect#property_type   
 10 [0xa]:          movn #1   
 12 [0xc]:          popobj   
-13 [0xd]:          newstr @5 // class_property   
+13 [0xd]:          newstr @6 // class_property   
 14 [0xe]:          movg @36 // @std.reflect#property_type   
 15 [0xf]:          movn #1   
 17 [0x11]:          movn #0   
 19 [0x13]:          popobj   
-20 [0x14]:          movi #92777, ebx   
+20 [0x14]:          movi #88545, ebx   
 22 [0x16]:          movg @36 // @std.reflect#property_type   
 23 [0x17]:          movn #1   
 25 [0x19]:          movn #1   
@@ -3681,12 +3684,12 @@ function: platform.kernel#platform.static_init[226] params(0) in file: lib/suppo
 31 [0x1f]:          movg @36 // @std.reflect#property_type   
 32 [0x20]:          movn #2   
 34 [0x22]:          popobj   
-35 [0x23]:          newstr @6 // field_property   
+35 [0x23]:          newstr @7 // field_property   
 36 [0x24]:          movg @36 // @std.reflect#property_type   
 37 [0x25]:          movn #2   
 39 [0x27]:          movn #0   
 41 [0x29]:          popobj   
-42 [0x2a]:          movi #92778, ebx   
+42 [0x2a]:          movi #88546, ebx   
 44 [0x2c]:          movg @36 // @std.reflect#property_type   
 45 [0x2d]:          movn #2   
 47 [0x2f]:          movn #1   
@@ -3696,12 +3699,12 @@ function: platform.kernel#platform.static_init[226] params(0) in file: lib/suppo
 53 [0x35]:          movg @36 // @std.reflect#property_type   
 54 [0x36]:          movn #3   
 56 [0x38]:          popobj   
-57 [0x39]:          newstr @7 // function_property   
+57 [0x39]:          newstr @8 // function_property   
 58 [0x3a]:          movg @36 // @std.reflect#property_type   
 59 [0x3b]:          movn #3   
 61 [0x3d]:          movn #0   
 63 [0x3f]:          popobj   
-64 [0x40]:          movi #92779, ebx   
+64 [0x40]:          movi #88547, ebx   
 66 [0x42]:          movg @36 // @std.reflect#property_type   
 67 [0x43]:          movn #3   
 69 [0x45]:          movn #1   
@@ -3835,9 +3838,150 @@ function: platform.kernel#platform.srt_init[228] params(1) in file: lib/support/
 75 [0x4b]:          popobj   
 76 [0x4c]: line: 30 call @226 // <platform.kernel#platform.static_init>   
 77 [0x4d]: line: 31 call @225 // <platform.kernel#platform.tls_init>   
-78 [0x4e]: line: 32 movi #0, ebx   
-80 [0x50]:          return_val ebx   
-81 [0x51]:          ret   
+78 [0x4e]: line: 33 movl 0   
+79 [0x4f]: line: 34 sizeof ebx   
+80 [0x50]:          rstore ebx   
+81 [0x51]:          movi #4, ebx   
+83 [0x53]:          loadval ecx   
+84 [0x54]:          sub ecx, ebx -> ebx   
+85 [0x55]:          new_classarray ebx  // std#string[]   
+86 [0x56]:          popobj2    
+87 [0x57]:          smovr_3 fp+1   
+88 [0x58]: line: 35 movi #0, ebx   
+90 [0x5a]:          smovr_2 ebx, fp+2   
+91 [0x5b]: line: 37 movi #4, ebx   
+93 [0x5d]:          smovr_2 ebx, fp+3   
+94 [0x5e]:          loadl ebx, fp+3   
+95 [0x5f]:          rstore ebx   
+96 [0x60]:          movl 0   
+97 [0x61]:          sizeof ebx   
+98 [0x62]:          loadval ecx   
+99 [0x63]:          lt ecx, ebx   
+100 [0x64]:          movr ebx, cmt   
+101 [0x65]:          movr cmt, ebx   
+102 [0x66]:          jne 133   
+103 [0x67]: line: 38 new_class @41 // std#string   
+104 [0x68]:          dup    
+105 [0x69]:          movl 0   
+106 [0x6a]:          pushobj   
+107 [0x6b]:          movi #2, ebx   
+109 [0x6d]:          popobj2    
+110 [0x6e]:          movr adx, ebx   
+111 [0x6f]:          chklen adx   
+112 [0x70]:          movnd adx   
+113 [0x71]:          vcast 0 -> []   
+114 [0x72]:          pushobj   
+115 [0x73]:          call @259 // <std#string.string>   
+116 [0x74]:          movl 1   
+117 [0x75]:          pushobj   
+118 [0x76]:          loadl ebx, fp+2   
+119 [0x77]:          movr egx, ebx   
+120 [0x78]:          inc ebx   
+121 [0x79]:          smovr_2 ebx, fp+2   
+122 [0x7a]:          movr ebx, egx   
+123 [0x7b]:          popobj2    
+124 [0x7c]:          movr adx, ebx   
+125 [0x7d]:          chklen adx   
+126 [0x7e]:          movnd adx   
+127 [0x7f]:          popobj   
+128 [0x80]:          loadl ebx, fp+3   
+129 [0x81]:          movr egx, ebx   
+130 [0x82]:          inc ebx   
+131 [0x83]:          smovr_2 ebx, fp+3   
+132 [0x84]:          jmp @94   
+133 [0x85]: line: 41 movi #0, ebx   
+135 [0x87]:          smovr_2 ebx, fp+4   
+136 [0x88]: line: 42 movg @21 // @platform.kernel#platform   
+137 [0x89]:          movn #0   
+139 [0x8b]:          movi #0, adx   
+141 [0x8d]:          chklen adx   
+142 [0x8e]:          iaload ebx, adx   
+143 [0x8f]:          rstore ebx   
+144 [0x90]:          movi #0, ebx   
+146 [0x92]:          loadval ecx   
+147 [0x93]:          tne ecx, ebx   
+148 [0x94]:          movr ebx, cmt   
+149 [0x95]:          movr cmt, ebx   
+150 [0x96]:          jne 165   
+151 [0x97]: line: 43 movg @21 // @platform.kernel#platform   
+152 [0x98]:          movn #0   
+154 [0x9a]:          movi #0, adx   
+156 [0x9c]:          iaload ebx, adx   
+157 [0x9d]:          rstore ebx   
+158 [0x9e]:          movl 1   
+159 [0x9f]:          pushobj   
+160 [0xa0]:          smov ebx, sp+[-1]   
+161 [0xa1]:          calld ebx   
+162 [0xa2]:          loadval ebx   
+163 [0xa3]:          smovr_2 ebx, fp+4   
+164 [0xa4]:          jmp @243   
+165 [0xa5]:          movg @21 // @platform.kernel#platform   
+166 [0xa6]:          movn #1   
+168 [0xa8]:          movi #0, adx   
+170 [0xaa]:          chklen adx   
+171 [0xab]:          iaload ebx, adx   
+172 [0xac]:          rstore ebx   
+173 [0xad]:          movi #0, ebx   
+175 [0xaf]:          loadval ecx   
+176 [0xb0]:          tne ecx, ebx   
+177 [0xb1]:          movr ebx, cmt   
+178 [0xb2]:          movr cmt, ebx   
+179 [0xb3]:          jne 192   
+180 [0xb4]: line: 44 movg @21 // @platform.kernel#platform   
+181 [0xb5]:          movn #1   
+183 [0xb7]:          movi #0, adx   
+185 [0xb9]:          iaload ebx, adx   
+186 [0xba]:          rstore ebx   
+187 [0xbb]:          movl 1   
+188 [0xbc]:          pushobj   
+189 [0xbd]:          smov ebx, sp+[-1]   
+190 [0xbe]:          calld ebx   
+191 [0xbf]:          jmp @243   
+192 [0xc0]:          movg @21 // @platform.kernel#platform   
+193 [0xc1]:          movn #2   
+195 [0xc3]:          movi #0, adx   
+197 [0xc5]:          chklen adx   
+198 [0xc6]:          iaload ebx, adx   
+199 [0xc7]:          rstore ebx   
+200 [0xc8]:          movi #0, ebx   
+202 [0xca]:          loadval ecx   
+203 [0xcb]:          tne ecx, ebx   
+204 [0xcc]:          movr ebx, cmt   
+205 [0xcd]:          movr cmt, ebx   
+206 [0xce]:          jne 217   
+207 [0xcf]: line: 45 movg @21 // @platform.kernel#platform   
+208 [0xd0]:          movn #2   
+210 [0xd2]:          movi #0, adx   
+212 [0xd4]:          iaload ebx, adx   
+213 [0xd5]:          rstore ebx   
+214 [0xd6]:          loadval ebx   
+215 [0xd7]:          calld ebx   
+216 [0xd8]:          jmp @243   
+217 [0xd9]:          movg @21 // @platform.kernel#platform   
+218 [0xda]:          movn #3   
+220 [0xdc]:          movi #0, adx   
+222 [0xde]:          chklen adx   
+223 [0xdf]:          iaload ebx, adx   
+224 [0xe0]:          rstore ebx   
+225 [0xe1]:          movi #0, ebx   
+227 [0xe3]:          loadval ecx   
+228 [0xe4]:          tne ecx, ebx   
+229 [0xe5]:          movr ebx, cmt   
+230 [0xe6]:          movr cmt, ebx   
+231 [0xe7]:          jne 243   
+232 [0xe8]: line: 46 movg @21 // @platform.kernel#platform   
+233 [0xe9]:          movn #3   
+235 [0xeb]:          movi #0, adx   
+237 [0xed]:          iaload ebx, adx   
+238 [0xee]:          rstore ebx   
+239 [0xef]:          loadval ebx   
+240 [0xf0]:          calld ebx   
+241 [0xf1]:          loadval ebx   
+242 [0xf2]:          smovr_2 ebx, fp+4   
+243 [0xf3]:          nop   
+244 [0xf4]: line: 49 loadl ebx, fp+4   
+245 [0xf5]:          return_val ebx   
+246 [0xf6]:          ret   
 
 
 constructor: platform.kernel#platform.platform[229] params(0) in file: lib/support/0.2.805//platform//kernel//platform.sharp:5:6: note:  
@@ -4253,7 +4397,7 @@ overload function: std#string.operator+[263] params(1) in file: lib/support/0.2.
 24 [0x18]:          jmp @32   
 25 [0x19]: line: 56 movl 2   
 26 [0x1a]:          pushobj   
-27 [0x1b]:          newstr @4 // null   
+27 [0x1b]:          newstr @5 // null   
 28 [0x1c]:          call @262 // <std#string.append>   
 29 [0x1d]:          popobj2    
 30 [0x1e]:          returnobj   

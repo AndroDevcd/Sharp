@@ -3484,6 +3484,9 @@ void Compiler::compileNewArrayExpression(Expression *expr, Ast *ast, Utype *arra
     else if(expr->type == exp_object)
         expr->utype->getCode().addIr(OpBuilder::newObjectArray(EBX));
 
+    expr->utype->getCode().getInjector(ptrInjector)
+            .addIr(OpBuilder::popObject2());
+
     expr->utype->getCode().getInjector(removeFromStackInjector)
             .addIr(OpBuilder::pop());
 }

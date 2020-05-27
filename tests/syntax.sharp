@@ -1,6 +1,7 @@
 mod main;
 
+import platform.kernel;
 
 def main() {
-
+    platform.print("Hello, World!");
 }

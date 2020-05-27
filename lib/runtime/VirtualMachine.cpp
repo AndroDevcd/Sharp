@@ -61,7 +61,7 @@ int CreateVirtualMachine(string &exe)
     vm.RuntimeExcept = vm.resolveClass("std#runtime_exception");
     vm.StackOverflowExcept = vm.resolveClass("std#stack_overflow_exception");
     vm.ThreadStackExcept = vm.resolveClass("std#thread_stack_exception");
-    vm.IndexOutOfBoundsExcept = vm.resolveClass("std#index_out_of_bounds_exception");
+    vm.IndexOutOfBoundsExcept = vm.resolveClass("std#out_of_bounds_exception");
     vm.NullptrExcept = vm.resolveClass("std#nullptr_exception");
     vm.ClassCastExcept = vm.resolveClass("std#class_cast_exception");
     vm.OutOfMemoryExcept = vm.resolveClass("std#out_of_memory_exception");

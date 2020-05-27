@@ -406,6 +406,10 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
     List<Method*> functions;
     List<ClassObject*> resolvedClasses;
     ModuleData *module;
+
+    if(name == "platform") {
+        int i = 0;
+    }
     if(ptr.mod != "") {
         module = Obfuscater::getModule(ptr.mod) == NULL
                  ? undefinedModule : Obfuscater::getModule(ptr.mod);

@@ -29,6 +29,23 @@ class platform
 
         static_init();
         tls_init();
-        return 0;
+
+        const min_args := 4;
+        user_args := new string[sizeof(args) - min_args];
+        iter := 0;
+
+        for(i := min_args; i < sizeof(args); i++) {
+            user_args[iter++] = new string(args[2] as _int8[]);
+        }
+
+        result := 0;
+        when {
+            main != 0 -> result = main(user_args);
+            main2 != 0 -> main2(user_args);
+            main3 != 0 -> main3();
+            main4 != 0 -> result = main4();
+        }
+
+        return result;
     }
 }
