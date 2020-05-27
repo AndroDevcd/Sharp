@@ -85,6 +85,7 @@ public:
     ClassObject *NullptrExcept;
     ClassObject *ClassCastExcept;
     ClassObject *OutOfMemoryExcept;
+    ClassObject *InvalidOperationExcept;
 
     Meta metaData;
     Manifest manifest;

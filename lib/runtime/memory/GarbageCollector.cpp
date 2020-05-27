@@ -503,7 +503,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
                  * We want to set the class variables and arrays
                  * to null and initialize the var variables
                  */
-                if(k->fields[fieldAddress].type == VAR && !k->fields[fieldAddress].isArray) {
+                if(k->fields[fieldAddress].type <= VAR && !k->fields[fieldAddress].isArray) {
                     if(!staticInit || (staticInit && IS_STATIC(k->fields[fieldAddress].flags))) {
                         object->node[i] = newObject(1);
                     }

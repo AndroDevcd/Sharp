@@ -31,6 +31,8 @@ private:
     void optimizeLocalVarInit();
     void optimizeLocalVariableIncrement();
     void optimizeRedundantIntegerPush();
+    void optimizeRedundantLocalPush();
+    void optimizeRedundantLocalPop();
     bool isRegisterUsed(_register reg, Int start_pc);
 };
 

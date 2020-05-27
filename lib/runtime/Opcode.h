@@ -82,7 +82,7 @@
 #define THREAD_STACK_CHECK2(self, stackSize, x)  if(((self->sp-self->dataStack)+stackSize) >= self->stackLimit || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(vm.StackOverflowExcept, "");
 
 #ifndef SHARP_PROF_
-#define _brh_NOINCREMENT HAS_SIGNAL DISPATCH();
+#define _brh_NOINCREMENT HAS_SIGNAL goto top; //DISPATCH();
 #else
 #define _brh_NOINCREMENT SAFTEY_CHECK irCount++; if(irCount == 0) overflow++; goto *opcodeStart;
 #endif
@@ -493,7 +493,7 @@ public:
         static opcode_instr popObject2();
         static opcode_instr swap();
         static opcode_instr ldc(_register outRegister, opcode_arg address);
-        static opcode_instr neg(_register leftRegister, _register rightRegister);
+        static opcode_instr neg(_register outRegister, _register inRegister);
 
         static bool illegalParam(opcode_arg param, instr_class iclass, short argNum = 1);
         CXX11_INLINE static uint8_t posNeg(opcode_arg data);

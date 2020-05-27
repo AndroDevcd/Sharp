@@ -1068,8 +1068,10 @@ void Compiler::checkTypeInference(Alias *alias, Ast* ast) {
 void Compiler::validateAccess(Field *field, Ast* pAst) {
     if(field->flags.find(LOCAL)) {
         Scope *scope = currentScope();
-        if(scope->klass->meta.file == field->meta.file) {
+        if(Obfuscater::getFile(current->getTokenizer()->file) == field->meta.file) {
         } else {
+            FileData *fd = Obfuscater::getFile(current->getTokenizer()->file);
+            FileData *ffd = field->meta.file;
             errors->createNewError(GENERIC, pAst, " invalid access to localized field `" + field->fullName + "`");
         }
     } else if(field->flags.find(PRIVATE)) {
@@ -2757,8 +2759,11 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
             resultCode->inject(leftExpr.utype->getCode());
             resultCode->inject(leftExpr.utype->getCode().getInjector(stackInjector));
             resultCode->inject(rightExpr.utype->getCode());
-            resultCode->inject(rightExpr.utype->getCode().getInjector(ptrInjector));
+            resultCode->inject(rightExpr.utype->getCode().getInjector(stackInjector));
             resultCode->addIr(OpBuilder::itest(EBX));
+
+            if(operand == "!=")
+                resultCode->addIr(OpBuilder::_not(EBX, EBX));
 
             expr->utype->setType(utype_native);
             expr->utype->setArrayType(false);
@@ -2813,8 +2818,11 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
                     resultCode->inject(leftExpr.utype->getCode());
                     resultCode->inject(leftExpr.utype->getCode().getInjector(stackInjector));
                     resultCode->inject(params.get(0)->utype->getCode());
-                    resultCode->inject(params.get(0)->utype->getCode().getInjector(ptrInjector));
+                    resultCode->inject(params.get(0)->utype->getCode().getInjector(stackInjector));
                     resultCode->addIr(OpBuilder::itest(EBX));
+
+                    if(operand == "!=")
+                        resultCode->addIr(OpBuilder::_not(EBX, EBX));
 
                     expr->utype->setType(utype_native);
                     expr->utype->setArrayType(false);
@@ -3791,6 +3799,8 @@ void Compiler::compileBaseExpression(Expression* expr, Ast* ast) {
         } else {
             expr->type = exp_class;
             expr->utype = new Utype(currentScope()->klass);
+            expr->utype->getCode()
+                    .addIr(OpBuilder::movl(0));
         }
     }
 
@@ -3837,6 +3847,8 @@ void Compiler::compileSelfExpression(Expression* expr, Ast* ast) {
     } else {
         expr->type = exp_class;
         expr->utype = new Utype(currentScope()->klass);
+        expr->utype->getCode()
+            .addIr(OpBuilder::movl(0));
     }
 
     if(currentScope()->type == GLOBAL_SCOPE || currentScope()->type == STATIC_BLOCK)
@@ -4230,7 +4242,10 @@ void Compiler::compileArrayExpression(Expression* expr, Ast* ast) {
             expr->utype->getCode()
                     .addIr(OpBuilder::popObject2())
                     .addIr(OpBuilder::movr(ADX, EBX))
-                    .addIr(OpBuilder::checklen(ADX))
+                    .addIr(OpBuilder::checklen(ADX));
+
+            if(!expr->utype->getResolvedType()->isVar())
+                expr->utype->getCode()
                     .addIr(OpBuilder::movnd(ADX));
 
             expr->utype->getCode().freeInjectors();
@@ -8378,6 +8393,12 @@ void Compiler::assignEnumFieldValue(Field *enumField) {
 }
 
 void Compiler::compileEnumField(Field *enumField) {
+
+    // instantiate field
+    staticMainInserts.addIr(OpBuilder::newClass(enumField->utype->getClass() ? enumField->utype->getClass()->address : invalidAddr))
+            .addIr(OpBuilder::movg(enumField->owner->address))
+            .addIr(OpBuilder::movn(enumField->address))
+            .addIr(OpBuilder::popObject());
     assignEnumFieldName(enumField);
     assignEnumFieldValue(enumField);
 }
@@ -8447,6 +8468,7 @@ void Compiler::initStaticClassInstance(CodeHolder &code, ClassObject *klass) {
 
     if(!functions.empty()) {
         code.addIr(OpBuilder::call(functions.get(0)->address));
+        functions.get(0)->data.code.addIr(OpBuilder::ret(NO_ERR));
     }
 
 

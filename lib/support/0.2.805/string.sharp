@@ -1,18 +1,63 @@
 mod std;
 
+import std.io;
+
 class string {
-    private data : _int8[];
+    public data : var[];
+    private static currentFormat := 'g';
+    private static precision := 0;
 
     string(str : _int8[]) {
-
+        if(str != null) {
+            append(str);
+        }
     }
 
-    string(str : string) {
+    def append(char: var) : string
+    {
+        if(data == null)
+            data = new var[1];
+        else
+            realloc(data, sizeof(data) + 1);
 
+        data[sizeof(data) - 1] = char;
+        return self;
     }
 
-    def operator+(num : _int8[]) : string {
-        return null;
+    def append(c: char) : string
+    {
+        return append(c.get_value());
+    }
+
+    def append(immstr: _int8[]) : string
+    {
+        if(immstr == null) return self;
+
+        iter := sizeof(data);
+
+        if(data == null)
+            data = new var[sizeof(immstr)];
+        else
+            realloc(data, sizeof(data) + sizeof(immstr));
+
+        foreach(ch in immstr)
+        {
+            data[iter++] = ch;
+        }
+
+        return self;
+    }
+
+    def operator+(immstr : _int8[]) : string {
+        s := new string(data);
+        if(immstr != null)
+            return s.append(immstr);
+        else
+            return s.append("null");
+    }
+
+    def operator==(num : _int8[]) : var {
+        return 0;
     }
 
     def operator+(num : var) : string {

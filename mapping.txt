@@ -2,43 +2,44 @@
 
 [Packages]
 __$srt_undefined=a
-main=uxr
+main=cutx
 std=no_change
-std.io=vzg
-platform=vac
-platform.kernel=vag
-std.reflect=vbf
+std.io=cuvm
+platform=cuwi
+platform.kernel=cuwt
+std.reflect=cuxs
 
 
 [Files]
-tests/syntax.sharp=uxq
-lib/support/0.2.805//dictionary.sharp=uxu
-lib/support/0.2.805//enum.sharp=uyz
-lib/support/0.2.805//exceptions.sharp=uyf
-lib/support/0.2.805//io//atomic.sharp=vzf
-lib/support/0.2.805//io//critical_section.sharp=vzk
-lib/support/0.2.805//list.sharp=vzn
-lib/support/0.2.805//nil.sharp=vzq
-lib/support/0.2.805//object.sharp=vzu
-lib/support/0.2.805//pair.sharp=vzy
-lib/support/0.2.805//platform//dependencies.sharp=vab
-lib/support/0.2.805//platform//kernel//platform.sharp=vaf
-lib/support/0.2.805//primitives.sharp=vao
-lib/support/0.2.805//printable.sharp=vbb
-lib/support/0.2.805//reflect//class.sharp=vbe
-lib/support/0.2.805//reflect//data_entity.sharp=vbj
-lib/support/0.2.805//reflect//data_property.sharp=vbn
-lib/support/0.2.805//reflect//field.sharp=vbu
-lib/support/0.2.805//reflect//function.sharp=vcz
-lib/support/0.2.805//reflect//reflection.sharp=vcc
-lib/support/0.2.805//string.sharp=vci
-lib/support/0.2.805//unique.sharp=vcm
+tests/syntax.sharp=cutw
+lib/support/0.2.805//dictionary.sharp=cuua
+lib/support/0.2.805//enum.sharp=cuuf
+lib/support/0.2.805//exceptions.sharp=cuul
+lib/support/0.2.805//io//atomic.sharp=cuvl
+lib/support/0.2.805//io//critical_section.sharp=cuvq
+lib/support/0.2.805//list.sharp=cuvt
+lib/support/0.2.805//nil.sharp=cuvw
+lib/support/0.2.805//object.sharp=cuwa
+lib/support/0.2.805//pair.sharp=cuwe
+lib/support/0.2.805//platform//build.sharp=cuwh
+lib/support/0.2.805//platform//dependencies.sharp=cuwq
+lib/support/0.2.805//platform//kernel//platform.sharp=cuws
+lib/support/0.2.805//primitives.sharp=cuxb
+lib/support/0.2.805//printable.sharp=cuxo
+lib/support/0.2.805//reflect//class.sharp=cuxr
+lib/support/0.2.805//reflect//data_entity.sharp=cuxw
+lib/support/0.2.805//reflect//data_property.sharp=cuya
+lib/support/0.2.805//reflect//field.sharp=cuyh
+lib/support/0.2.805//reflect//function.sharp=cuym
+lib/support/0.2.805//reflect//reflection.sharp=cuyp
+lib/support/0.2.805//string.sharp=cuyv
+lib/support/0.2.805//unique.sharp=cvzz
 
 
 [Classes]
-main#__srt_global = uxs
-std#__srt_global = uxw
-std#_enum_ = uyb
+main#__srt_global = cuty
+std#__srt_global = cuuc
+std#_enum_ = cuuh
 std#throwable = no_change
 std#exception = no_change
 std#illegal_argument_exception = no_change
@@ -51,88 +52,93 @@ std#stack_overflow_exception = no_change
 std#thread_stack_exception = no_change
 std#class_cast_exception = no_change
 std#out_of_memory_exception = no_change
-std.io#__srt_global = vzh
-std#_nil_ = vzs
-std#_object_ = vzw
-platform#__srt_global = vad
-platform.kernel#__srt_global = vah
-platform.kernel#platform = vaj
-std#ulong = var
-std#long = vas
-std#uint = vat
-std#int = vau
-std#ushort = vav
-std#short = vaw
-std#uchar = vax
-std#char = vay
-std#byte = vbz
-std#bool = vba
-std#printable = vbd
-std.reflect#__srt_global = vbg
-std.reflect#_class_ = vbi
-std.reflect#data_entity = vbl
-std.reflect#property_type = vbp
-std.reflect#data_property = vbt
-std.reflect#field = vbw
-std.reflect#function = vcb
-std.reflect#reflect = vce
-std#string = vck
-std#unique = vco
-std#integer<_uint64> = vaq
-std#integer<_int64> = vaq
-std#integer<_uint32> = vaq
-std#integer<_int32> = vaq
-std#integer<_uint16> = vaq
-std#integer<_int16> = vaq
-std#integer<_uint8> = vaq
-std#integer<_int8> = vaq
+std.io#__srt_global = cuvn
+std#_nil_ = cuvy
+std#_object_ = cuwc
+platform#__srt_global = cuwj
+platform#build = cuwl
+platform.kernel#__srt_global = cuwu
+platform.kernel#platform = cuww
+std#ulong = cuxe
+std#long = cuxf
+std#uint = cuxg
+std#int = cuxh
+std#ushort = cuxi
+std#short = cuxj
+std#uchar = cuxk
+std#char = cuxl
+std#byte = cuxm
+std#bool = cuxn
+std#printable = cuxq
+std.reflect#__srt_global = cuxt
+std.reflect#_class_ = cuxv
+std.reflect#data_entity = cuxy
+std.reflect#property_type = cuyc
+std.reflect#data_property = cuyg
+std.reflect#field = cuyj
+std.reflect#function = cuyo
+std.reflect#reflect = cuyr
+std#string = cuyx
+std#unique = cvzb
+std#integer<_uint64> = cuxd
+std#integer<_int64> = cuxd
+std#integer<_uint32> = cuxd
+std#integer<_int32> = cuxd
+std#integer<_uint16> = cuxd
+std#integer<_int16> = cuxd
+std#integer<_uint8> = cuxd
+std#integer<_int8> = cuxd
 
 
 [Fields]
-std#_enum_.enums = uyc
-std#_enum_.name = uyd
-std#_enum_.ordinal = uye
+std#_enum_.enums = cuui
+std#_enum_.name = cuuj
+std#_enum_.ordinal = cuuk
 std#throwable.message = no_change
 std#throwable.stack_trace = no_change
-std.io#__srt_global.global_lck = vzm
-std#_nil_.instance = vzt
-std#_object_.global_guid = vzx
-platform.kernel#platform.main = vak
-platform.kernel#platform.main2 = val
-platform.kernel#platform.main3 = vam
-platform.kernel#platform.main4 = van
-std.reflect#data_entity.name = vbm
-std.reflect#property_type.class_property = vbq
-std.reflect#property_type.field_property = vbr
-std.reflect#property_type.function_property = vbs
-std.reflect#field.instance = vbx
-std.reflect#field.properties = vby
-std.reflect#reflect.reflect_obj = vcf
-std.reflect#reflect.class_properties = vcg
-std.reflect#reflect.properties = vch
-std#string.data = vcl
-std#integer<_uint64>.value = vcx
-std#integer<_int64>.value = vdq
-std#integer<_uint32>.value = vej
-std#integer<_int32>.value = vfc
-std#integer<_uint16>.value = vfv
-std#integer<_int16>.value = vgo
-std#integer<_uint8>.value = vhh
-std#integer<_int8>.value = via
+std.io#__srt_global.global_lck = cuvs
+std#_nil_.instance = cuwz
+std#_object_.global_guid = cuwd
+platform#build.os = cuwm
+platform#build.app_name = cuwn
+platform#build.platform = cuwo
+platform#build.version = cuwp
+platform.kernel#platform.main = cuwx
+platform.kernel#platform.main2 = cuwy
+platform.kernel#platform.main3 = cuxz
+platform.kernel#platform.main4 = cuxa
+std.reflect#data_entity.name = cuyz
+std.reflect#property_type.class_property = cuyd
+std.reflect#property_type.field_property = cuye
+std.reflect#property_type.function_property = cuyf
+std.reflect#field.instance = cuyk
+std.reflect#field.properties = cuyl
+std.reflect#reflect.reflect_obj = cuys
+std.reflect#reflect.class_properties = cuyt
+std.reflect#reflect.properties = cuyu
+std#string.data = cuyy
+std#integer<_uint64>.value = cvzk
+std#integer<_int64>.value = cvad
+std#integer<_uint32>.value = cvaw
+std#integer<_int32>.value = cvbp
+std#integer<_uint16>.value = cvci
+std#integer<_int16>.value = cvdb
+std#integer<_uint8>.value = cvdu
+std#integer<_int8>.value = cven
 
 
 [Methods]
-main#__srt_global.__srt_global = uxt
-main#__srt_global.main = vit
-std#__srt_global.__srt_global = uxx
-std#_enum_._enum_ = viu
-std#_enum_.operator!= = viv
-std#_enum_.operator!= = viw
-std#_enum_.operator== = vix
-std#_enum_.operator== = viy
-std#_enum_.get_name = vjz
-std#_enum_.get_ordinal = vja
-std#_enum_._enum_ = vjb
+main#__srt_global.__srt_global = cuuz
+main#__srt_global.main = cvfg
+std#__srt_global.__srt_global = cuud
+std#_enum_._enum_ = cvfh
+std#_enum_.operator!= = cvfi
+std#_enum_.operator!= = cvfj
+std#_enum_.operator== = cvfk
+std#_enum_.operator== = cvfl
+std#_enum_.get_name = cvfm
+std#_enum_.get_ordinal = cvfn
+std#_enum_._enum_ = cvfo
 std#throwable.throwable = no_change
 std#throwable.throwable = no_change
 std#throwable.throwable = no_change
@@ -169,209 +175,214 @@ std#class_cast_exception.class_cast_exception = no_change
 std#out_of_memory_exception.out_of_memory_exception = no_change
 std#out_of_memory_exception.out_of_memory_exception = no_change
 std#out_of_memory_exception.out_of_memory_exception = no_change
-std.io#__srt_global.__srt_global = vzi
-std.io#__srt_global.critical_section = vkn
-std.io#__srt_global.critical_section = vkp
-std.io#__srt_global.$03internal_static_init = vnz
-std#_nil_.to_string = vkq
-std#_nil_._nil_ = vkr
-std#_nil_.set_instance = vmp
-std#_nil_.$03internal_static_init = vna
-std#_object_.operator== = vks
-std#_object_.to_string = vkt
-std#_object_.hash = vku
-std#_object_.guid = vkv
-std#_object_._object_ = vkw
-std#_object_.$03internal_static_init = vnb
-platform#__srt_global.__srt_global = vae
-platform.kernel#__srt_global.__srt_global = vai
-platform.kernel#platform.tls_init = vkx
-platform.kernel#platform.static_init = vky
-platform.kernel#platform.srt_init = vlz
-platform.kernel#platform.platform = vla
-std#ulong.ulong = vlb
-std#ulong.ulong = vlc
-std#long.long = vld
-std#long.long = vle
-std#long.long = vlf
-std#uint.uint = vlg
-std#uint.uint = vlh
-std#int.int = vli
-std#int.int = vlj
-std#ushort.ushort = vlk
-std#ushort.ushort = vll
-std#short.short = vlm
-std#short.short = vln
-std#uchar.uchar = vlo
-std#uchar.uchar = vlp
-std#char.char = vlq
-std#char.char = vlr
-std#byte.byte = vls
-std#byte.byte = vlt
-std#bool.bool = vlu
-std#printable.to_string = vlv
-std#printable.printable = vlw
-std.reflect#__srt_global.__srt_global = vbh
-std.reflect#_class_._class_ = vlx
-std.reflect#data_entity.data_entity = vly
-std.reflect#data_property.data_property = vmz
-std.reflect#field.field = vma
-std.reflect#function.function = vmb
-std.reflect#reflect.reflect = vmc
-std.reflect#reflect.reflect = vmd
-std.reflect#reflect.set_reflect_obj = vmx
-std.reflect#reflect.get_reflect_obj = vmy
-std#string.string = vme
-std#string.string = vmf
-std#string.operator+ = vmg
-std#string.operator+ = vmh
-std#string.foo = vmi
-std#string.hash = vmj
-std#string.string = vmk
-std#unique.hash = vml
-std#unique.guid = vmm
-std#unique.unique = vmn
-std#integer<_uint64>.integer = vcy
-std#integer<_uint64>.integer = vdz
-std#integer<_uint64>.hash = vda
-std#integer<_uint64>.operator!= = vdb
-std#integer<_uint64>.operator== = vdc
-std#integer<_uint64>.operator!= = vdd
-std#integer<_uint64>.operator= = vde
-std#integer<_uint64>.to_ulong = vdf
-std#integer<_uint64>.to_long = vdg
-std#integer<_uint64>.to_uint = vdh
-std#integer<_uint64>.to_int = vdi
-std#integer<_uint64>.to_ushort = vdj
-std#integer<_uint64>.to_short = vdk
-std#integer<_uint64>.to_uchar = vdl
-std#integer<_uint64>.to_char = vdm
-std#integer<_uint64>.to_byte = vdn
-std#integer<_uint64>.to_bool = vdo
-std#integer<_uint64>.integer<_uint64> = vdp
-std#integer<_int64>.integer = vdr
-std#integer<_int64>.integer = vds
-std#integer<_int64>.hash = vdt
-std#integer<_int64>.operator!= = vdu
-std#integer<_int64>.operator== = vdv
-std#integer<_int64>.operator!= = vdw
-std#integer<_int64>.operator= = vdx
-std#integer<_int64>.to_ulong = vdy
-std#integer<_int64>.to_long = vez
-std#integer<_int64>.to_uint = vea
-std#integer<_int64>.to_int = veb
-std#integer<_int64>.to_ushort = vec
-std#integer<_int64>.to_short = ved
-std#integer<_int64>.to_uchar = vee
-std#integer<_int64>.to_char = vef
-std#integer<_int64>.to_byte = veg
-std#integer<_int64>.to_bool = veh
-std#integer<_int64>.integer<_int64> = vei
-std#integer<_uint32>.integer = vek
-std#integer<_uint32>.integer = vel
-std#integer<_uint32>.hash = vem
-std#integer<_uint32>.operator!= = ven
-std#integer<_uint32>.operator== = veo
-std#integer<_uint32>.operator!= = vep
-std#integer<_uint32>.operator= = veq
-std#integer<_uint32>.to_ulong = ver
-std#integer<_uint32>.to_long = ves
-std#integer<_uint32>.to_uint = vet
-std#integer<_uint32>.to_int = veu
-std#integer<_uint32>.to_ushort = vev
-std#integer<_uint32>.to_short = vew
-std#integer<_uint32>.to_uchar = vex
-std#integer<_uint32>.to_char = vey
-std#integer<_uint32>.to_byte = vfz
-std#integer<_uint32>.to_bool = vfa
-std#integer<_uint32>.integer<_uint32> = vfb
-std#integer<_int32>.integer = vfd
-std#integer<_int32>.integer = vfe
-std#integer<_int32>.hash = vff
-std#integer<_int32>.operator!= = vfg
-std#integer<_int32>.operator== = vfh
-std#integer<_int32>.operator!= = vfi
-std#integer<_int32>.operator= = vfj
-std#integer<_int32>.to_ulong = vfk
-std#integer<_int32>.to_long = vfl
-std#integer<_int32>.to_uint = vfm
-std#integer<_int32>.to_int = vfn
-std#integer<_int32>.to_ushort = vfo
-std#integer<_int32>.to_short = vfp
-std#integer<_int32>.to_uchar = vfq
-std#integer<_int32>.to_char = vfr
-std#integer<_int32>.to_byte = vfs
-std#integer<_int32>.to_bool = vft
-std#integer<_int32>.integer<_int32> = vfu
-std#integer<_uint16>.integer = vfw
-std#integer<_uint16>.integer = vfx
-std#integer<_uint16>.hash = vfy
-std#integer<_uint16>.operator!= = vgz
-std#integer<_uint16>.operator== = vga
-std#integer<_uint16>.operator!= = vgb
-std#integer<_uint16>.operator= = vgc
-std#integer<_uint16>.to_ulong = vgd
-std#integer<_uint16>.to_long = vge
-std#integer<_uint16>.to_uint = vgf
-std#integer<_uint16>.to_int = vgg
-std#integer<_uint16>.to_ushort = vgh
-std#integer<_uint16>.to_short = vgi
-std#integer<_uint16>.to_uchar = vgj
-std#integer<_uint16>.to_char = vgk
-std#integer<_uint16>.to_byte = vgl
-std#integer<_uint16>.to_bool = vgm
-std#integer<_uint16>.integer<_uint16> = vgn
-std#integer<_int16>.integer = vgp
-std#integer<_int16>.integer = vgq
-std#integer<_int16>.hash = vgr
-std#integer<_int16>.operator!= = vgs
-std#integer<_int16>.operator== = vgt
-std#integer<_int16>.operator!= = vgu
-std#integer<_int16>.operator= = vgv
-std#integer<_int16>.to_ulong = vgw
-std#integer<_int16>.to_long = vgx
-std#integer<_int16>.to_uint = vgy
-std#integer<_int16>.to_int = vhz
-std#integer<_int16>.to_ushort = vha
-std#integer<_int16>.to_short = vhb
-std#integer<_int16>.to_uchar = vhc
-std#integer<_int16>.to_char = vhd
-std#integer<_int16>.to_byte = vhe
-std#integer<_int16>.to_bool = vhf
-std#integer<_int16>.integer<_int16> = vhg
-std#integer<_uint8>.integer = vhi
-std#integer<_uint8>.integer = vhj
-std#integer<_uint8>.hash = vhk
-std#integer<_uint8>.operator!= = vhl
-std#integer<_uint8>.operator== = vhm
-std#integer<_uint8>.operator!= = vhn
-std#integer<_uint8>.operator= = vho
-std#integer<_uint8>.to_ulong = vhp
-std#integer<_uint8>.to_long = vhq
-std#integer<_uint8>.to_uint = vhr
-std#integer<_uint8>.to_int = vhs
-std#integer<_uint8>.to_ushort = vht
-std#integer<_uint8>.to_short = vhu
-std#integer<_uint8>.to_uchar = vhv
-std#integer<_uint8>.to_char = vhw
-std#integer<_uint8>.to_byte = vhx
-std#integer<_uint8>.to_bool = vhy
-std#integer<_uint8>.integer<_uint8> = viz
-std#integer<_int8>.integer = vib
-std#integer<_int8>.integer = vic
-std#integer<_int8>.hash = vid
-std#integer<_int8>.operator!= = vie
-std#integer<_int8>.operator== = vif
-std#integer<_int8>.operator!= = vig
-std#integer<_int8>.operator= = vih
-std#integer<_int8>.to_ulong = vii
-std#integer<_int8>.to_long = vij
-std#integer<_int8>.to_uint = vik
-std#integer<_int8>.to_int = vil
-std#integer<_int8>.to_ushort = vim
-std#integer<_int8>.to_short = vin
-std#integer<_int8>.to_uchar = vio
-std#integer<_int8>.to_char = vip
-std#integer<_int8>.to_byte = viq
-std#integer<_int8>.to_bool = vir
-std#integer<_int8>.integer<_int8> = vis
+std.io#__srt_global.__srt_global = cuvo
+std.io#__srt_global.critical_section = cvha
+std.io#__srt_global.critical_section = cvhc
+std.io#__srt_global.$03internal_static_init = cvjr
+std#_nil_.to_string = cvhd
+std#_nil_._nil_ = cvhe
+std#_nil_.set_instance = cvjh
+std#_nil_.$03internal_static_init = cvjs
+std#_object_.operator== = cvhf
+std#_object_.to_string = cvhg
+std#_object_.hash = cvhh
+std#_object_.guid = cvhi
+std#_object_._object_ = cvhj
+std#_object_.$03internal_static_init = cvjt
+platform#__srt_global.__srt_global = cuwk
+platform#build.is_windows = cvhk
+platform#build.is_linux = cvhl
+platform#build.build = cvhm
+platform.kernel#__srt_global.__srt_global = cuwv
+platform.kernel#platform.tls_init = cvhn
+platform.kernel#platform.static_init = cvho
+platform.kernel#platform.print = cvhp
+platform.kernel#platform.srt_init = cvhq
+platform.kernel#platform.platform = cvhr
+std#ulong.ulong = cvhs
+std#ulong.ulong = cvht
+std#long.long = cvhu
+std#long.long = cvhv
+std#long.long = cvhw
+std#uint.uint = cvhx
+std#uint.uint = cvhy
+std#int.int = cviz
+std#int.int = cvia
+std#ushort.ushort = cvib
+std#ushort.ushort = cvic
+std#short.short = cvid
+std#short.short = cvie
+std#uchar.uchar = cvif
+std#uchar.uchar = cvig
+std#char.char = cvih
+std#char.char = cvii
+std#byte.byte = cvij
+std#byte.byte = cvik
+std#bool.bool = cvil
+std#printable.to_string = cvim
+std#printable.printable = cvin
+std.reflect#__srt_global.__srt_global = cuxu
+std.reflect#_class_._class_ = cvio
+std.reflect#data_entity.data_entity = cvip
+std.reflect#data_property.data_property = cviq
+std.reflect#field.field = cvir
+std.reflect#function.function = cvis
+std.reflect#reflect.reflect = cvit
+std.reflect#reflect.reflect = cviu
+std.reflect#reflect.set_reflect_obj = cvjp
+std.reflect#reflect.get_reflect_obj = cvjq
+std#string.string = cviv
+std#string.string = cviw
+std#string.operator+ = cvix
+std#string.operator== = cviy
+std#string.operator+ = cvjz
+std#string.foo = cvja
+std#string.hash = cvjb
+std#string.string = cvjc
+std#unique.hash = cvjd
+std#unique.guid = cvje
+std#unique.unique = cvjf
+std#integer<_uint64>.integer = cvzl
+std#integer<_uint64>.integer = cvzm
+std#integer<_uint64>.hash = cvzn
+std#integer<_uint64>.operator!= = cvzo
+std#integer<_uint64>.operator== = cvzp
+std#integer<_uint64>.operator!= = cvzq
+std#integer<_uint64>.operator= = cvzr
+std#integer<_uint64>.to_ulong = cvzs
+std#integer<_uint64>.to_long = cvzt
+std#integer<_uint64>.to_uint = cvzu
+std#integer<_uint64>.to_int = cvzv
+std#integer<_uint64>.to_ushort = cvzw
+std#integer<_uint64>.to_short = cvzx
+std#integer<_uint64>.to_uchar = cvzy
+std#integer<_uint64>.to_char = cvaz
+std#integer<_uint64>.to_byte = cvaa
+std#integer<_uint64>.to_bool = cvab
+std#integer<_uint64>.integer<_uint64> = cvac
+std#integer<_int64>.integer = cvae
+std#integer<_int64>.integer = cvaf
+std#integer<_int64>.hash = cvag
+std#integer<_int64>.operator!= = cvah
+std#integer<_int64>.operator== = cvai
+std#integer<_int64>.operator!= = cvaj
+std#integer<_int64>.operator= = cvak
+std#integer<_int64>.to_ulong = cval
+std#integer<_int64>.to_long = cvam
+std#integer<_int64>.to_uint = cvan
+std#integer<_int64>.to_int = cvao
+std#integer<_int64>.to_ushort = cvap
+std#integer<_int64>.to_short = cvaq
+std#integer<_int64>.to_uchar = cvar
+std#integer<_int64>.to_char = cvas
+std#integer<_int64>.to_byte = cvat
+std#integer<_int64>.to_bool = cvau
+std#integer<_int64>.integer<_int64> = cvav
+std#integer<_uint32>.integer = cvax
+std#integer<_uint32>.integer = cvay
+std#integer<_uint32>.hash = cvbz
+std#integer<_uint32>.operator!= = cvba
+std#integer<_uint32>.operator== = cvbb
+std#integer<_uint32>.operator!= = cvbc
+std#integer<_uint32>.operator= = cvbd
+std#integer<_uint32>.to_ulong = cvbe
+std#integer<_uint32>.to_long = cvbf
+std#integer<_uint32>.to_uint = cvbg
+std#integer<_uint32>.to_int = cvbh
+std#integer<_uint32>.to_ushort = cvbi
+std#integer<_uint32>.to_short = cvbj
+std#integer<_uint32>.to_uchar = cvbk
+std#integer<_uint32>.to_char = cvbl
+std#integer<_uint32>.to_byte = cvbm
+std#integer<_uint32>.to_bool = cvbn
+std#integer<_uint32>.integer<_uint32> = cvbo
+std#integer<_int32>.integer = cvbq
+std#integer<_int32>.integer = cvbr
+std#integer<_int32>.hash = cvbs
+std#integer<_int32>.operator!= = cvbt
+std#integer<_int32>.operator== = cvbu
+std#integer<_int32>.operator!= = cvbv
+std#integer<_int32>.operator= = cvbw
+std#integer<_int32>.to_ulong = cvbx
+std#integer<_int32>.to_long = cvby
+std#integer<_int32>.to_uint = cvcz
+std#integer<_int32>.to_int = cvca
+std#integer<_int32>.to_ushort = cvcb
+std#integer<_int32>.to_short = cvcc
+std#integer<_int32>.to_uchar = cvcd
+std#integer<_int32>.to_char = cvce
+std#integer<_int32>.to_byte = cvcf
+std#integer<_int32>.to_bool = cvcg
+std#integer<_int32>.integer<_int32> = cvch
+std#integer<_uint16>.integer = cvcj
+std#integer<_uint16>.integer = cvck
+std#integer<_uint16>.hash = cvcl
+std#integer<_uint16>.operator!= = cvcm
+std#integer<_uint16>.operator== = cvcn
+std#integer<_uint16>.operator!= = cvco
+std#integer<_uint16>.operator= = cvcp
+std#integer<_uint16>.to_ulong = cvcq
+std#integer<_uint16>.to_long = cvcr
+std#integer<_uint16>.to_uint = cvcs
+std#integer<_uint16>.to_int = cvct
+std#integer<_uint16>.to_ushort = cvcu
+std#integer<_uint16>.to_short = cvcv
+std#integer<_uint16>.to_uchar = cvcw
+std#integer<_uint16>.to_char = cvcx
+std#integer<_uint16>.to_byte = cvcy
+std#integer<_uint16>.to_bool = cvdz
+std#integer<_uint16>.integer<_uint16> = cvda
+std#integer<_int16>.integer = cvdc
+std#integer<_int16>.integer = cvdd
+std#integer<_int16>.hash = cvde
+std#integer<_int16>.operator!= = cvdf
+std#integer<_int16>.operator== = cvdg
+std#integer<_int16>.operator!= = cvdh
+std#integer<_int16>.operator= = cvdi
+std#integer<_int16>.to_ulong = cvdj
+std#integer<_int16>.to_long = cvdk
+std#integer<_int16>.to_uint = cvdl
+std#integer<_int16>.to_int = cvdm
+std#integer<_int16>.to_ushort = cvdn
+std#integer<_int16>.to_short = cvdo
+std#integer<_int16>.to_uchar = cvdp
+std#integer<_int16>.to_char = cvdq
+std#integer<_int16>.to_byte = cvdr
+std#integer<_int16>.to_bool = cvds
+std#integer<_int16>.integer<_int16> = cvdt
+std#integer<_uint8>.integer = cvdv
+std#integer<_uint8>.integer = cvdw
+std#integer<_uint8>.hash = cvdx
+std#integer<_uint8>.operator!= = cvdy
+std#integer<_uint8>.operator== = cvez
+std#integer<_uint8>.operator!= = cvea
+std#integer<_uint8>.operator= = cveb
+std#integer<_uint8>.to_ulong = cvec
+std#integer<_uint8>.to_long = cved
+std#integer<_uint8>.to_uint = cvee
+std#integer<_uint8>.to_int = cvef
+std#integer<_uint8>.to_ushort = cveg
+std#integer<_uint8>.to_short = cveh
+std#integer<_uint8>.to_uchar = cvei
+std#integer<_uint8>.to_char = cvej
+std#integer<_uint8>.to_byte = cvek
+std#integer<_uint8>.to_bool = cvel
+std#integer<_uint8>.integer<_uint8> = cvem
+std#integer<_int8>.integer = cveo
+std#integer<_int8>.integer = cvep
+std#integer<_int8>.hash = cveq
+std#integer<_int8>.operator!= = cver
+std#integer<_int8>.operator== = cves
+std#integer<_int8>.operator!= = cvet
+std#integer<_int8>.operator= = cveu
+std#integer<_int8>.to_ulong = cvev
+std#integer<_int8>.to_long = cvew
+std#integer<_int8>.to_uint = cvex
+std#integer<_int8>.to_int = cvey
+std#integer<_int8>.to_ushort = cvfz
+std#integer<_int8>.to_short = cvfa
+std#integer<_int8>.to_uchar = cvfb
+std#integer<_int8>.to_char = cvfc
+std#integer<_int8>.to_byte = cvfd
+std#integer<_int8>.to_bool = cvfe
+std#integer<_int8>.integer<_int8> = cvff

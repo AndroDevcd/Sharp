@@ -1,7 +1,7 @@
 mod std;
 
 public class integer<native_type> {
-    value : native_type;
+    private value : native_type;
 
     integer(initial_val : var) {
         value = initial_val;
@@ -35,6 +35,8 @@ public class integer<native_type> {
     def to_char() := new char { value };
     def to_byte() := new byte { value };
     def to_bool() := new bool { value };
+
+    def get_value() := value;
 }
 
 class ulong base integer<_uint64> {

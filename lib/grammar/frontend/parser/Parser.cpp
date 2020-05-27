@@ -936,15 +936,15 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseLiteral(branch);
     } else if(*peek(1)  == "popl") {
         expect(branch, peek(1)->getValue());
-        parseLiteral(branch);
+        parseAsmLiteral(branch);
     } else if(*peek(1)  == "pushNull") {
         expect(branch, peek(1)->getValue());
     } else if(*peek(1)  == "ipushl") {
         expect(branch, peek(1)->getValue());
-        parseLiteral(branch);
+        parseAsmLiteral(branch);
     } else if(*peek(1)  == "pushl") {
         expect(branch, peek(1)->getValue());
-        parseLiteral(branch);
+        parseAsmLiteral(branch);
     } else if(*peek(1)  == "itest") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
@@ -971,7 +971,7 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseLiteral(branch);
     } else if(*peek(1)  == "ipopl") {
         expect(branch, peek(1)->getValue());
-        parseLiteral(branch);
+        parseAsmLiteral(branch);
     } else if(*peek(1)  == "cmp") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);

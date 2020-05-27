@@ -60,38 +60,44 @@ string Field::toString() {
 }
 
 bool Field::isRelated(Field &f) {
-    if(isArray!=f.isArray)
-        return false;
-
     if(type == CLASS) {
         if(f.type == CLASS)
-            return ((ClassObject*)f.utype->getResolvedType())->isClassRelated((ClassObject*)utype->getResolvedType());
+            return isArray==f.isArray && ((ClassObject*)f.utype->getResolvedType())->isClassRelated((ClassObject*)utype->getResolvedType());
     } else if(type == OBJECT) {
-        if(f.type == CLASS || f.type == OBJECT)
+        if(f.type == CLASS || f.type == OBJECT
+            || (f.isVar() && f.isArray && !isArray))
             return true;
     }  else if(type == VAR) {
-        if(f.type <= VAR)
-            return true;
+        if(isArray)
+            return f.isArray && f.type == VAR;
+        else {
+            if (f.type <= VAR)
+                return isArray == f.isArray;
+        }
     } else if(type == FNPTR) {
         if(f.type == FNPTR) {
             Method *compareFun = (Method*)f.utype->getResolvedType();
             if(compareFun->fnType == fn_lambda) {
                 if(compareFun->utype != NULL)
-                    return utype != NULL && f.utype != NULL && utype->getType() == f.utype->getType() &&
+                    return isArray==f.isArray && utype != NULL && f.utype != NULL && utype->getType() == f.utype->getType() &&
                            Compiler::simpleParameterMatch(((Method*)this->utype->getResolvedType())->params,
                                                           compareFun->params);
                 else
-                    return Compiler::simpleParameterMatch(((Method*)this->utype->getResolvedType())->params,
+                    return isArray==f.isArray && Compiler::simpleParameterMatch(((Method*)this->utype->getResolvedType())->params,
                                                           compareFun->params);
             } else {
-                return utype != NULL && f.utype != NULL && utype->getType() == f.utype->getType() &&
+                return isArray==f.isArray && utype != NULL && f.utype != NULL && utype->getType() == f.utype->getType() &&
                        Compiler::simpleParameterMatch(((Method *) this->utype->getResolvedType())->params,
                                                       compareFun->params);
             }
         }
     } else if(type >= _INT8 && type <= _UINT64) {
-        if(f.type <= VAR)
-            return true;
+        if(isArray)
+            return f.isArray && f.type == VAR;
+        else {
+            if (f.type <= VAR)
+                return isArray == f.isArray;
+        }
     }
     return false;
 }

@@ -594,6 +594,11 @@ void printRegs() {
     cout << "sp -> " << (thread_self->sp-thread_self->dataStack) << endl;
     cout << "fp -> " << (thread_self->fp-thread_self->dataStack) << endl;
     cout << "pc -> " << PC(thread_self) << endl;
+    cout << "current function -> " << thread_self->current->fullName.str() << endl;
+
+    native_string stackTrace;
+    vm.fillStackTrace(stackTrace);
+    cout << "call stack (most recent call last):\n" << stackTrace.str() << endl;
 //    if(thread_self->current != NULL) {
 //        cout << "current -> " << thread_self->current->name.str() << endl;
 //    }
@@ -692,9 +697,14 @@ void Thread::exec() {
     _initOpcodeTable
     run:
     try {
-        DISPATCH();
+//        DISPATCH();
 
         for (;;) {
+            top:
+                if(current->address == 278 && PC(this) == 3) {
+                    Int i = 0;
+                }
+                DISPATCH();
             _NOP: // tested
                 _brh
             _INT:
@@ -1025,9 +1035,10 @@ void Thread::exec() {
                         registers[GET_Ca(*pc)], &vm.classes[GET_Cb(*pc)]);
                 _brh
             NEWSTRING:
+                STACK_CHECK
                 GarbageCollector::self->createStringArray(&(++sp)->object,
                         vm.strings[GET_Da(*pc)]);
-                STACK_CHECK _brh
+                 _brh
             ADDL:
                 (fp+GET_Cb(*pc))->var+=registers[GET_Ca(*pc)];
                 _brh

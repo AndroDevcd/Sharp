@@ -53,6 +53,7 @@ public:
         this->address = addr;
         this->owner = owner;
         this->flags.addAll(flags);
+        this->meta.copy(meta);
     }
 
     void free();

@@ -17,6 +17,10 @@ bool sortClasses(ClassObject *c1, ClassObject *c2) {
     return c1->address > c2->address;
 }
 
+bool sortFields(Field *f1, Field *f2) {
+    return f1->address > f2->address;
+}
+
 bool locateMethod(Method **m1, void *m2) {
     return Compiler::simpleParameterMatch((*m1)->params, ((Method*)m2)->params) && (*m1)->utype->equals(((Method*)m2)->utype);
 }
@@ -1360,18 +1364,17 @@ void ExeBuilder::buildFieldData(ClassObject *klass) {
         tmp = tmp->getSuperClass();
     }
 
-    if(instanceFields.size() > 0) {
-        for (Int i = instanceFields.size() - 1; i >= 0; i--) {
-            Field *field = instanceFields.get(i);
-            buildFieldData(field);
-        }
+
+    instanceFields.linearSort(sortFields);
+    for (Int i = 0; i < instanceFields.size(); i++) {
+        Field *field = instanceFields.get(i);
+        buildFieldData(field);
     }
 
-    if(staticFields.size() > 0) {
-        for (Int i = staticFields.size() - 1; i >= 0; i--) {
-            Field *field = staticFields.get(i);
-            buildFieldData(field);
-        }
+    staticFields.linearSort(sortFields);
+    for (Int i = 0; i < staticFields.size(); i++) {
+        Field *field = staticFields.get(i);
+        buildFieldData(field);
     }
 }
 

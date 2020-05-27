@@ -1,0 +1,83 @@
+mod std.io;
+
+
+static def realloc(data: object[], size: var) {
+    asm {
+        pushl {data}
+        ipushl {size}
+        int 0xc6       // call realloc
+    }
+}
+
+static def realloc(data: var[], size: var) {
+    asm {
+        pushl {data}
+        ipushl {size}
+        int 0xc6       // call realloc
+    }
+}
+
+static def realloc(data: _int8[], size: var) {
+    asm {
+        pushl {data}
+        ipushl {size}
+        int 0xc6       // call realloc
+    }
+}
+
+static def realloc(data: _int16[], size: var) {
+    asm {
+        pushl {data}
+        ipushl {size}
+        int 0xc6       // call realloc
+    }
+}
+
+static def realloc(data: _int32[], size: var) {
+    asm {
+        pushl {data}
+        ipushl {size}
+        int 0xc6       // call realloc
+    }
+}
+
+static def realloc(data: _int64[], size: var) {
+    asm {
+        pushl {data}
+        ipushl {size}
+        int 0xc6       // call realloc
+    }
+}
+
+static def realloc(data: _uint8[], size: var) {
+    asm {
+        pushl {data}
+        ipushl {size}
+        int 0xc6       // call realloc
+    }
+}
+
+static def realloc(data: _uint16[], size: var) {
+    asm {
+        pushl {data}
+        ipushl {size}
+        int 0xc6       // call realloc
+    }
+}
+
+static def realloc(data: _uint32[], size: var) {
+    asm {
+        pushl {data}
+        ipushl {size}
+        int 0xc6       // call realloc
+    }
+}
+
+static def realloc(data: _uint64[], size: var) {
+    asm {
+        pushl {data}
+        ipushl {size}
+        int 0xc6       // call realloc
+    }
+}
+

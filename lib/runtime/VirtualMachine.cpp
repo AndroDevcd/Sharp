@@ -65,6 +65,7 @@ int CreateVirtualMachine(string &exe)
     vm.NullptrExcept = vm.resolveClass("std#nullptr_exception");
     vm.ClassCastExcept = vm.resolveClass("std#class_cast_exception");
     vm.OutOfMemoryExcept = vm.resolveClass("std#out_of_memory_exception");
+    vm.InvalidOperationExcept = vm.resolveClass("std#invalid_operation_exception");
     cout.precision(16);
 
     /**
@@ -764,8 +765,8 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         default: {
             // unsupported
             stringstream ss;
-            ss << "unsupported signal to int instruction: " << signal;
-            throw Exception(ss.str());
+            ss << "unsupported system interrupt signal to int instruction: " << signal;
+            throw Exception(vm.InvalidOperationExcept, ss.str());
         }
     }
 }
@@ -855,7 +856,9 @@ void VirtualMachine::fillMethodCall(Method* func, Frame &frameInfo, stringstream
         ss << (frameInfo.isjit ? "[native]" : "") << " [0x" << std::hex
            << func->address << "] $0x" << (frameInfo.pc == nullptr ? 0 : (frameInfo.pc-func->bytecode))  << std::dec;
 
-        ss << " fp; " << (frameInfo.fp == 0 ? 0 : frameInfo.fp-thread_self->dataStack) << " sp: " << (frameInfo.sp == nullptr ? 0 : frameInfo.sp-thread_self->dataStack);
+        ss << " fp; " << (frameInfo.fp == 0 ? 0 : frameInfo.fp-thread_self->dataStack)
+        << " sp: " << (frameInfo.sp == nullptr ? 0 : frameInfo.sp-thread_self->dataStack)
+        << " fp offset " << func->fpOffset << " spOffset " << func->spOffset;
     }
 
     if(line != -1 && vm.metaData.files.size() > 0) {
@@ -873,7 +876,7 @@ void VirtualMachine::fillStackTrace(native_string &str) {
     uInt iter = 0;
     if((thread_self->calls+1) < EXCEPTION_PRINT_MAX) {
 
-        for(Int i = 1; i < thread_self->calls; i++) {
+        for(Int i = 1; i <= thread_self->calls; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
             fillMethodCall(thread_self->callStack[i].returnAddress, thread_self->callStack[i], ss);

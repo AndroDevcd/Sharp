@@ -44,7 +44,7 @@ public:
     bool threadLocal;
 };
 
-#define IS_STATIC(flags) ((flags >> 6) & 1UL)
+#define IS_STATIC(flags) ((flags >> 5) & 1UL)
 
 
 #endif //SHARP_FIELD_H
