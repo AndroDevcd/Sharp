@@ -58,9 +58,7 @@ void ExeBuilder::buildExe() {
         zlib.Compress_Buffer2Buffer(data, __outbuf__, ZLIB_LAST_SEGMENT);
         data.clear();
 
-        string result = __outbuf__.str(); __outbuf__.str("");
-        buf << putInt32(result.size());
-        buf << result; result.clear();
+        buf << __outbuf__.str(); __outbuf__.str("");
     } else {
         buf << dataSec.str();
         dataSec.str("");

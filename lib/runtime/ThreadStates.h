@@ -35,6 +35,7 @@ enum ThreadProcessingResult {
     RESULT_NO_THREAD_ID            = 0x00c,
     RESULT_THREAD_DESTROY_FAILED   = 0x00d,
     RESULT_ILL_PRIORITY_SET        = 0x00e,
+    RESULT_ILL_THREAD_SUSPEND      = 0x00f,
     RESULT_MAX_SPIN_GIVEUP         = 0x0ff
 };
 

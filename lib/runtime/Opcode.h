@@ -84,7 +84,7 @@
 #ifndef SHARP_PROF_
 #define _brh_NOINCREMENT HAS_SIGNAL goto top; //DISPATCH();
 #else
-#define _brh_NOINCREMENT SAFTEY_CHECK irCount++; if(irCount == 0) overflow++; goto *opcodeStart;
+#define _brh_NOINCREMENT HAS_SIGNAL irCount++; if(irCount == 0) overflow++; goto top;  //DISPATCH();
 #endif
 #define _brh  pc++; _brh_NOINCREMENT
 #define _brh_inc(x)  pc+=x; _brh_NOINCREMENT

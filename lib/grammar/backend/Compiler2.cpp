@@ -407,9 +407,6 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
     List<ClassObject*> resolvedClasses;
     ModuleData *module;
 
-    if(name == "platform") {
-        int i = 0;
-    }
     if(ptr.mod != "") {
         module = Obfuscater::getModule(ptr.mod) == NULL
                  ? undefinedModule : Obfuscater::getModule(ptr.mod);
@@ -1897,7 +1894,7 @@ void Compiler::compileAssemblyInstruction(CodeHolder &code, Ast *branch, string 
         code.addIr(OpBuilder::movi(compileAsmLiteral(branch->getSubAst(ast_assembly_literal)),
                                    compileAsmRegister(branch->getSubAst(ast_assembly_register))));
     } else if(opcode == "ret") {
-        code.addIr(OpBuilder::ret(compileAsmLiteral(branch->getSubAst(ast_literal))));
+        code.addIr(OpBuilder::ret(compileAsmLiteral(branch->getSubAst(ast_assembly_literal))));
     } else if(opcode == "hlt") {
         code.addIr(OpBuilder::hlt());
     } else if(opcode == "newVarArray") {

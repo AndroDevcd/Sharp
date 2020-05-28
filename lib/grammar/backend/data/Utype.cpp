@@ -78,7 +78,7 @@ string Utype::toString() {
             if(array) ss << "[]";
         } else if (type == utype_field) {
             ss << ((Field *) resolvedType)->toString();
-            if(array) ss << "[]";
+            if(array && !((Field *) resolvedType)->isArray) ss << "[]";
         } else if (type == utype_method || type == utype_function_ptr) {
             ss << ((Method *) resolvedType)->toString();
             if(array) ss << "[]";

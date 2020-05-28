@@ -1,9 +1,9 @@
 mod std.io;
 
-global_lck := new _object_();
+global_lock := new _object_();
 def critical_section(block : ()()) {
     err : exception;
-    lock global_lck -> {
+    lock global_lock -> {
       try {
           block();
       } catch(e: exception) {
@@ -16,7 +16,7 @@ def critical_section(block : ()()) {
 
 //def<t, r> critical_section(block : (t)(r), data: t) : r {
     // err : exception;
-    // lock global_lck -> {
+    // lock global_lock -> {
     //   try {
     //       return block(data);
     //   } catch(e: exception) {

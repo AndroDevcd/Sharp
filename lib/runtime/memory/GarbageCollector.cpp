@@ -115,6 +115,10 @@ void GarbageCollector::initilize() {
     self->adultObjects=0;
     self->youngObjects=0;
     self->oldObjects=0;
+    self->largestCollectionTime=0;
+    self->collections=0;
+    self->timeSpentCollecting=0;
+    self->timeSlept=0;
     self->yObjs=0;
     self->sleep=false;
 
@@ -157,17 +161,11 @@ void GarbageCollector::shutdown() {
         cout << "Total managed bytes left " << self->managedBytes << endl;
         cout << "Objects left over young: " << self->youngObjects << " adult: " << self->adultObjects
                                           << " old: " << self->oldObjects << endl;
-        unsigned long long noRef = 0;
-        SharpObject *p = self->_Mheap;
-        while(p) {
-            if(p->refCount<=0) {
-                noRef++;
-                cout << "non referenced object " << self->_sizeof(p) << endl;
-            }
-            p = p->next;
-        }
-        cout << "non referenced objects " << noRef << endl;
-        //cout << "heap size: " << self->heapSize << endl;
+        cout << "largest collection " << self->largestCollectionTime << endl;
+        cout << "total collections " << self->collections << endl;
+        cout << "total time spent collecting " << self->timeSpentCollecting << endl;
+        cout << "total time spent sleeping " << self->timeSlept << endl;
+        cout << "heap size: " << self->heapSize << endl;
         cout << std::flush << endl;
 #endif
         self->locks.free();
@@ -207,15 +205,15 @@ void GarbageCollector::collect(CollectionPolicy policy) {
          * to prevent lag when freeing up memory. the Old generation will
          * always be the largest generation
          */
-        collectGarbage();
+        if(GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()) {
+            collectGarbage();
+        }
     } else if(policy == GC_CONCURRENT) {
 
         /**
          * This should only be called by the GC thread itsself
          */
-        if(GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()) {        /* 250 objects */
-            collectGarbage();
-        }
+        collectGarbage();
     }
 
     mutex.lock();
@@ -271,6 +269,9 @@ void GarbageCollector::collectGarbage() {
     yObjs = 0; aObjs = 0; oObjs = 0;
     SharpObject *object = self->_Mheap->next, *prevObj = self->_Mheap, *cachedTail = NULL;
     cachedTail = tail;
+#ifdef SHARP_PROF_
+    uInt past = Clock::realTimeInNSecs();
+#endif
     mutex.unlock();
 
     while(object != NULL) {
@@ -307,10 +308,19 @@ void GarbageCollector::collectGarbage() {
         prevObj = object;
         object = object->next;
     }
+
+#ifdef SHARP_PROF_
+    uInt now = Clock::realTimeInNSecs();
+    if(NANO_TOMILL(now-past) > largestCollectionTime)
+        largestCollectionTime = NANO_TOMILL(now-past);
+    timeSpentCollecting += NANO_TOMILL(now-past);
+    collections++;
+#endif
 }
 
 void GarbageCollector::run() {
 #ifdef SHARP_PROF_
+    tself->tprof = new Profiler();
     tself->tprof->init(2);
 #endif
 
@@ -323,9 +333,12 @@ void GarbageCollector::run() {
 
         message:
         if(!messageQueue.empty()) {
-            GUARD(mutex);
-            CollectionPolicy policy = messageQueue.last();
-            messageQueue.pop_back();
+            CollectionPolicy policy;
+            {
+                GUARD(mutex);
+                policy = messageQueue.last();
+                messageQueue.pop_back();
+            }
 
             /**
              * We only want to run a concurrent collection
@@ -343,15 +356,17 @@ void GarbageCollector::run() {
 #endif
 
 #ifdef WIN32_
-            Sleep(1);
+            Sleep(10);
 #endif
 #ifdef POSIX_
-            usleep(1*999);
+            usleep(10*999);
 #endif
+            __os_yield();
+            timeSlept += 10;
             if(sleep) sedateSelf();
             if(!messageQueue.empty()) goto message;
         } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()))
-                && !hasSignal(tself->signal, tsig_suspend) && tself->state == THREAD_RUNNING);
+                && !tself->signal);
 
         if(tself->state == THREAD_KILLED)
             return;
@@ -376,14 +391,13 @@ GarbageCollector::threadStart(void *pVoid) {
     thread_self =(Thread*)pVoid;
     thread_self->state = THREAD_RUNNING;
     self->tself = thread_self;
+    Thread::setPriority(thread_self, THREAD_PRIORITY_LOW);
 
     try {
         self->run();
     } catch(Exception &e){
         /* Should never happen */
-//        sendSignal(thread_self->signal, tsig_except, 1);
-//        thread_self->throwable=e.getThrowable();
-        // TODO: fix
+        sendSignal(thread_self->signal, tsig_except, 1);
     }
 
         /*
@@ -484,6 +498,7 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
     managedBytes += (sizeof(SharpObject)*1)+(sizeof(double)*size);
     PUSH(object);
     youngObjects++;
+    heapSize++;
 
     return object;
 }
@@ -518,6 +533,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
         managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
         PUSH(object);
         youngObjects++;
+        heapSize++;
         return object;
     }
 
@@ -537,6 +553,7 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size) {
     managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
     PUSH(object);
     youngObjects++;
+    heapSize++;
 
     return object;
 }
@@ -555,6 +572,7 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
         managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
         PUSH(object);
         youngObjects++;
+        heapSize++;
 
         return object;
     }

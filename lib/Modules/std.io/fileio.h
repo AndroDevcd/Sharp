@@ -15,7 +15,7 @@ int check_access(native_string& path, int access_flag);
 
 long long get_file_attrs(native_string& path);
 
-long long last_update(native_string& path);
+long long last_update(native_string& path, int tm_request);
 
 long long file_size(native_string &path);
 

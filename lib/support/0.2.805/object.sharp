@@ -3,7 +3,7 @@ mod std;
 /**
  * Created by braxtonn on 11/19/2019.
  *
- * Object is the "god" class of all classes and enums in
+ * _object_ is the "god" class of all classes and enums in
  * Sharp. This class represents a common link shared between
  * each class allowing you to manipulate classes without not
  * needing to know its true makeup.

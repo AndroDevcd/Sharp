@@ -111,16 +111,15 @@ Thread *Thread::getThread(int32_t id) {
 }
 
 void Thread::suspendSelf() {
-    return;
-//    thread_self->suspended = true;
-//    sendSignal(thread_self->signal, tsig_suspend, 0);
+    thread_self->suspended = true;
+    sendSignal(thread_self->signal, tsig_suspend, 0);
 
     /*
 	 * We call wait upon suspend. This function will
 	 * sleep the thread most of the time. unsuspendThread() or
 	 * resumeAllThreads() should be called to revive thread.
 	 */
-//    thread_self->wait();
+    thread_self->wait();
 }
 
 void Thread::wait() {
@@ -142,6 +141,41 @@ void Thread::wait() {
 #endif
 #ifdef POSIX_
             usleep(5*POSIX_USEC_INTERVAL);
+#endif
+        } else if(this->state == THREAD_KILLED) {
+            this->suspended = false;
+            return;
+        }
+    }
+
+    this->state = THREAD_RUNNING;
+}
+
+void Thread::wait(Int mills) {
+    const long sleepInterval = 5; // sleep for 5 milliseconds
+
+    Int sleepCount = 0;
+    if(mills < 10) {
+        sleepCount = mills;
+    } else
+        sleepCount = mills / sleepInterval;
+
+    long spinCount = 0;
+    long retryCount = 0;
+
+    this->state = THREAD_SUSPENDED;
+
+    while (this->suspended)
+    {
+        if (sleepCount-- > 0)
+        {
+            spinCount++;
+            retryCount = 0;
+#ifdef WIN32_
+            Sleep(sleepInterval);
+#endif
+#ifdef POSIX_
+            usleep(sleepInterval*POSIX_USEC_INTERVAL);
 #endif
         } else if(this->state == THREAD_KILLED) {
             this->suspended = false;
@@ -192,6 +226,44 @@ int Thread::start(int32_t id, size_t stackSize) {
     }
 #endif
 
+}
+
+int Thread::suspendThread(int32_t id) {
+    Thread *thread = getThread(id);
+
+    if (thread_self != NULL && (thread == NULL || thread->state != THREAD_RUNNING))
+        return RESULT_ILL_THREAD_SUSPEND;
+
+    if(thread->terminated)
+        return RESULT_THREAD_TERMINATED;
+
+    suspendThread(thread);
+    return RESULT_OK;
+}
+
+void Thread::suspendFor(Int mills) {
+    thread_self->suspended = true;
+    sendSignal(thread_self->signal, tsig_suspend, 0);
+
+    /*
+	 * This function is far more efficent that wait()
+     * Due to there being little to no delay between sleeps
+     * We call wait(mills) when we want to possibly wake up a sleeping thread
+     *
+	 */
+    thread_self->wait(mills);
+}
+
+int Thread::unSuspendThread(int32_t id) {
+    Thread *thread = getThread(id);
+
+    if (thread_self != NULL && (thread == NULL || thread->state != THREAD_SUSPENDED))
+        return RESULT_ILL_THREAD_SUSPEND;
+
+    if(thread->terminated)
+        return RESULT_THREAD_TERMINATED;
+
+    return unsuspendThread(thread);
 }
 
 int Thread::destroy(int32_t id) {
@@ -502,16 +574,21 @@ void Thread::exit() {
 
         Object* stackTrace = vm.resolveField("stack_trace", exceptionObject.object);
         Object* message = vm.resolveField("message", exceptionObject.object);
-        ClassObject *k = &vm.classes[CLASS(exceptionObject.object->info)];
+        ClassObject *exceptionClass = NULL;
+
+        if(exceptionObject.object != NULL)
+            exceptionClass = &vm.classes[CLASS(exceptionObject.object->info)];
         cout << "Unhandled exception on thread " << name.str() << " (most recent call last):\n"; cout
                 << (stackTrace != NULL ? vm.stringValue(stackTrace->object) : "");
-        cout << endl << (&vm.classes[CLASS(exceptionObject.object->info)])->name.str() << " ("
+        cout << endl << (exceptionClass != NULL ? exceptionClass->name.str() : "") << " ("
            << (message != NULL ? vm.stringValue(message->object) : "") << ")\n";
     } else {
-        if(!daemon && dataStack != NULL)
-            this->exitVal = (int)dataStack[vm.manifest.threadLocals].var;
-        else
-            this->exitVal = 0;
+        if(id == main_threadid) {
+            if (dataStack != NULL)
+                this->exitVal = (int) dataStack[vm.manifest.threadLocals].var;
+            else
+                this->exitVal = 0;
+        }
     }
 
     if(dataStack != NULL) {
@@ -682,9 +759,9 @@ void Thread::exec() {
     fptr jitFun;
 
 #ifdef SHARP_PROF_
-    tprof->init(stack_lmt);
+    tprof->init(stackLimit);
     tprof->starttm=Clock::realTimeInNSecs();
-    for(size_t i = 0; i < manifest.methods; i++) {
+    for(size_t i = 0; i < vm.manifest.methods; i++) {
         funcProf prof = funcProf(vm.methods+i);
         tprof->functions.push_back(prof);
     }
@@ -710,7 +787,7 @@ void Thread::exec() {
             _INT:
 
 #ifdef SHARP_PROF_
-            if(GET_Da(*pc) == 0xa9) {
+            if(GET_Da(*pc) == OP_EXIT) {
                 tprof->endtm=Clock::realTimeInNSecs();
                 tprof->profile();
                 tprof->dump();
@@ -1271,7 +1348,7 @@ int Thread::setPriority(Thread* thread, int priority) {
                 SetThreadPriority(thread->thread, THREAD_PRIORITY_ABOVE_NORMAL);
                 break;
             case THREAD_PRIORITY_LOW:
-                SetThreadPriority(thread->thread, THREAD_PRIORITY_BELOW_NORMAL);
+                SetThreadPriority(thread->thread, THREAD_PRIORITY_LOWEST);
                 break;
             default:
                 return RESULT_ILL_PRIORITY_SET;
@@ -1358,7 +1435,7 @@ void Thread::init(string name, Int id, Method *main, bool daemon, bool initializ
 #endif
 #ifdef SHARP_PROF_
     if(!daemon) {
-        thread->tprof = new Profiler();
+        tprof = new Profiler();
     }
 #endif
 

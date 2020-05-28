@@ -21,6 +21,13 @@ class platform
         }
     }
 
+    static def print(num : var) {
+        asm {
+            loadl ebx, {num}
+            put ebx
+        }
+    }
+
     private static def srt_init(args: object[]) : var {
         build.app_name = "${args[0] as _int8[]}";
         build.version = "${args[1] as _int8[]}";

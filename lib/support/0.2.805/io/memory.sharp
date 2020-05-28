@@ -1,7 +1,7 @@
 mod std.io;
 
 
-static def realloc(data: object[], size: var) {
+def realloc(data: object[], size: var) {
     asm {
         pushl {data}
         ipushl {size}
@@ -9,7 +9,7 @@ static def realloc(data: object[], size: var) {
     }
 }
 
-static def realloc(data: var[], size: var) {
+def realloc(data: var[], size: var) {
     asm {
         pushl {data}
         ipushl {size}
@@ -17,7 +17,7 @@ static def realloc(data: var[], size: var) {
     }
 }
 
-static def realloc(data: _int8[], size: var) {
+def realloc(data: _int8[], size: var) {
     asm {
         pushl {data}
         ipushl {size}
@@ -25,7 +25,7 @@ static def realloc(data: _int8[], size: var) {
     }
 }
 
-static def realloc(data: _int16[], size: var) {
+def realloc(data: _int16[], size: var) {
     asm {
         pushl {data}
         ipushl {size}
@@ -33,7 +33,7 @@ static def realloc(data: _int16[], size: var) {
     }
 }
 
-static def realloc(data: _int32[], size: var) {
+def realloc(data: _int32[], size: var) {
     asm {
         pushl {data}
         ipushl {size}
@@ -41,7 +41,7 @@ static def realloc(data: _int32[], size: var) {
     }
 }
 
-static def realloc(data: _int64[], size: var) {
+def realloc(data: _int64[], size: var) {
     asm {
         pushl {data}
         ipushl {size}
@@ -49,7 +49,7 @@ static def realloc(data: _int64[], size: var) {
     }
 }
 
-static def realloc(data: _uint8[], size: var) {
+def realloc(data: _uint8[], size: var) {
     asm {
         pushl {data}
         ipushl {size}
@@ -57,7 +57,7 @@ static def realloc(data: _uint8[], size: var) {
     }
 }
 
-static def realloc(data: _uint16[], size: var) {
+def realloc(data: _uint16[], size: var) {
     asm {
         pushl {data}
         ipushl {size}
@@ -65,7 +65,7 @@ static def realloc(data: _uint16[], size: var) {
     }
 }
 
-static def realloc(data: _uint32[], size: var) {
+def realloc(data: _uint32[], size: var) {
     asm {
         pushl {data}
         ipushl {size}
@@ -73,11 +73,271 @@ static def realloc(data: _uint32[], size: var) {
     }
 }
 
-static def realloc(data: _uint64[], size: var) {
+def realloc(data: _uint64[], size: var) {
     asm {
         pushl {data}
         ipushl {size}
         int 0xc6       // call realloc
     }
+}
+
+def memcopy(data: object[], start: var, end: var) : object[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {end}
+        int 0x21
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def memcopy(data: var[], start: var, end: var) : var[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {end}
+        int 0x21
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def memcopy(data: _int8[], start: var, end: var) : _int8[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {end}
+        int 0x21
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def memcopy(data: _int16[], start: var, end: var) : _int16[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {end}
+        int 0x21
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def memcopy(data: _int32[], start: var, end: var) : _int32[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {end}
+        int 0x21
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def memcopy(data: _int64[], start: var, end: var) : _int64[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {end}
+        int 0x21
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def memcopy(data: _uint8[], start: var, end: var) : _uint8[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {end}
+        int 0x21
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def memcopy(data: _uint16[], start: var, end: var) : _uint16[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {end}
+        int 0x21
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def memcopy(data: _uint32[], start: var, end: var) : _uint32[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {end}
+        int 0x21
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def memcopy(data: _uint64[], start: var, end: var) : _uint64[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {end}
+        int 0x21
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def invert(data: object[], start: var, len: var) : object[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {len}
+        int 0x22
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def invert(data: var[], start: var, len: var) : var[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {len}
+        int 0x22
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def invert(data: _int8[], start: var, len: var) : _int8[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {len}
+        int 0x22
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def invert(data: _int16[], start: var, len: var) : _int16[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {len}
+        int 0x22
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def invert(data: _int32[], start: var, len: var) : _int32[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {len}
+        int 0x22
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def invert(data: _int64[], start: var, len: var) : _int64[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {len}
+        int 0x22
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def invert(data: _uint8[], start: var, len: var) : _uint8[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {len}
+        int 0x22
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def invert(data: _uint16[], start: var, len: var) : _uint16[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {len}
+        int 0x22
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def invert(data: _uint32[], start: var, len: var) : _uint32[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {len}
+        int 0x22
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
+}
+
+def invert(data: _uint64[], start: var, len: var) : _uint64[] {
+    asm {
+        pushl {data}
+        ipushl {start}
+        ipushl {len}
+        int 0x22
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null; // to satisfy the compiler
 }
 

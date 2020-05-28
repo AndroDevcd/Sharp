@@ -56,15 +56,22 @@ class string {
             return s.append("null");
     }
 
-    def operator==(num : _int8[]) : var {
-        return 0;
+    def operator==(str : _int8[]) : var {
+        if(sizeof(data) != sizeof(str))
+            return false;
+
+        iter := 0;
+        foreach(ch in str) {
+            if(ch != str[iter++]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     def operator+(num : var) : string {
         return null;
     }
-
-    def foo() { }
 
     def hash() : long {
         const p := 31;

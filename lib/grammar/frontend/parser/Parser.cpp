@@ -440,6 +440,8 @@ void parser::parseForStatement(Ast *ast) {
     if(peek(1)->getType() != SEMICOLON) {
         _current++;
         parseVariableDecl(branch);
+    } else {
+        expect(branch, ";");
     }
 
     if(peek(1)->getType() != SEMICOLON) {
@@ -1904,7 +1906,9 @@ bool parser::isOverrideOperator(string token) {
            token == "<" || token == ">"||
            token == "<=" || token == ">="||
            token == "!=" || token == "!"||
-           token == "[" || token == "**";
+           token == "[" || token == "**"||
+           token == "&"  || token == "|"||
+           token == "^";
 }
 
 void parser::parseVectorArray(Ast* ast) {
@@ -2223,9 +2227,6 @@ bool parser::shift(Ast *ast) {
 bool parser::addition(Ast *ast) {
     bool success = multiplication(ast);
 
-    if(ast->line >= 150) {
-        int i =0;
-    }
     while(match(2, MINUS, PLUS)) {
         if(isExprSymbol(peek(2)->getValue()))
             errors->createNewError(GENERIC, *peek(2), "expected expression");

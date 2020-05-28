@@ -76,6 +76,9 @@ public:
     static int start(int32_t, size_t);
     static int destroy(int32_t);
     static int interrupt(int32_t);
+    static int suspendThread(int32_t);
+    static int unSuspendThread(int32_t);
+    static void suspendFor(Int);
     static int join(int32_t);
     static Thread* getThread(int32_t);
     static void waitForThreadSuspend(Thread* thread);
@@ -160,6 +163,7 @@ public:
 private:
 
     void wait();
+    void wait(Int);
 
     static int unsuspendThread(Thread*);
     static void suspendThread(Thread*);

@@ -1,7 +1,16 @@
 mod main;
 
 import platform.kernel;
+import std.io;
 
 def main() {
-    platform.print("Hello, World!");
+    i := 0;
+    for(; i < 10000000; i++) {
+        try {
+            throw new error("err");
+        } catch(error) {
+        }
+    }
+
+    platform.print(i);
 }

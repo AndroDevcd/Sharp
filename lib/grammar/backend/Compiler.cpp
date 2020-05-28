@@ -1918,7 +1918,8 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
                                            " could not resolve function `" + name + "`");
             } else
                 errors->createNewError(GENERIC, ast->line, ast->col,
-                                       " could not resolve function `" + name + "`");
+                                       " could not resolve function `" + name + "` with parameters `"
+                                            + Method::paramsToString(params) + "`");
 
         } else if(utype->getType() == utype_field) {
             errors->createNewError(GENERIC, ast->line, ast->col, " field `" + utype->toString() + "` is not a data structure");
@@ -4254,11 +4255,9 @@ void Compiler::compileArrayExpression(Expression* expr, Ast* ast) {
             expr->utype->getCode().freeInjectors();
             if(expr->utype->getResolvedType()->isVar()) {
                 expr->utype->getCode().getInjector(ebxInjector)
-                        .addIr(OpBuilder::movi(0, ADX))
                         .addIr(OpBuilder::iaload(EBX, ADX));
 
                 expr->utype->getCode().getInjector(stackInjector)
-                        .addIr(OpBuilder::movi(0, ADX))
                         .addIr(OpBuilder::iaload(EBX, ADX))
                         .addIr(OpBuilder::rstore(EBX));
 

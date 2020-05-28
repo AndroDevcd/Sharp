@@ -19,9 +19,9 @@
 #include "../Modules/std.io/fileio.h"
 #include "../util/File.h"
 #include "../Modules/std.kernel/cmath.h"
-#include "../Modules/std.kernel/clist.h"
 #include "jit/Jit.h"
 #include "main.h"
+#include "../Modules/std.io/memory.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -128,7 +128,7 @@ bool returnMethod(Thread* thread) {
 
    thread->pc = frameInfo->pc;
    thread->sp = frameInfo->sp;
-   thread->fp = frameInfo->fp; // TODO: check if exception state is active and verify wether we have to decrement the stack based on the method we are returning from
+   thread->fp = frameInfo->fp;
    thread->calls--;
 #ifdef SHARP_PROF_
     thread->tprof->profile();
@@ -233,17 +233,12 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 #endif
         }
     } catch (Exception &e) {
-        Int i = 0;
-        //    if(thread_self->exceptionThrown) {
-        //        cout << thread_self->throwable.stackTrace.str();
-        //    }
-//        thread_self->throwable = e.getThrowable();
-//        sendSignal(thread_self->signal, tsig_except, 1);
+        thread_self->prepareException();
     }
 
 
 #ifdef SHARP_PROF_
-    if(!masterShutdown)
+    if(vm.state != VM_TERMINATED)
         thread_self->tprof->dump();
 #endif
 
@@ -294,17 +289,15 @@ void VirtualMachine::shutdown() {
 
 void VirtualMachine::sysInterrupt(int64_t signal) {
     switch (signal) {
-        case 0x9f:
-            /* does nothing nop equivalent */
-//            throw Exception("");
+        case OP_NOP:
             return;
-        case 0xc7:
-            __snprintf((int) registers[EGX], registers[EBX], (int) registers[ECX]);
+        case OP_PRINTF:
+            __snprintf((int)_64EGX, _64EBX, (int)_64ECX);
             return;
-        case 0xa0:
-            registers[BMR]= Clock::__os_time((int) registers[EBX]);
+        case OP_OS_TIME:
+            _64BMR = Clock::__os_time((int)_64EBX);
             return;
-        case 0xa1:
+        case OP_GC_EXPLICIT:
             /**
              * Make an explicit call to the garbage collector. This
              * does not garuntee that it will run
@@ -312,7 +305,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             GarbageCollector::self->sendMessage(
                     CollectionPolicy::GC_EXPLICIT);
             return;
-        case 0xa2:
+        case OP_GC_LOW:
             /**
              * This should only be used in low memory conditions
              * Sending this request will freeze your entire application
@@ -321,366 +314,183 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             GarbageCollector::self->sendMessage(
                     CollectionPolicy::GC_LOW);
             return;
-        case 0xf0:
+        case OP_GC_COLLECT:
+            /**
+             * This will perform a forced collection on the calling thread
+             * As with everything in the GC this does not gaurantee that any objects
+             * will be freed ad a reslt.
+             *
+             * This system call will only work if the garbage collector has been shutdown
+             */
             _64CMT=GarbageCollector::self->selfCollect();
             break;
-        case 0xf1:
+        case OP_GC_SLEEP:
             GarbageCollector::self->sedate();
             break;
-        case 0xf2:
+        case OP_GC_WAKEUP:
             GarbageCollector::self->wake();
             break;
-        case 0xf3:
+        case OP_GC_KILL:
             GarbageCollector::self->kill();
             break;
-        case 0xf4:
+        case OP_GC_STATE:
             _64CMT=GarbageCollector::self->isAwake();
             break;
 #ifdef WIN32_
-        case 0xf5:
+        case OP_GUI:
             vm.gui->winGuiIntf(_64EBX);
             break;
 #endif
-        case 0xa3:
+        case OP_NAN_TIME:
             registers[BMR]= Clock::realTimeInNSecs();
             return;
-        case 0xa4: {
-            Thread *thread = Thread::getThread((int32_t )registers[ADX]);
+        case OP_THREAD_START: {
+            Thread *thread = Thread::getThread((int32_t )_64ADX);
 
             if(thread != NULL) {
                 thread->currentThread = (thread_self->sp--)->object;
                 thread->args = (thread_self->sp--)->object;
             }
-            registers[CMT]=Thread::start((int32_t )registers[ADX], (size_t )registers[EBX]);
+            registers[CMT]=Thread::start((int32_t )_64ADX, (size_t )_64EBX);
             return;
         }
-        case 0xa5:
-            registers[CMT]=Thread::join((int32_t )registers[ADX]);
+        case OP_THREAD_JOIN:
+            registers[CMT]=Thread::join((int32_t )_64ADX);
             return;
-        case 0xa6:
-            registers[CMT]=Thread::interrupt((int32_t )registers[ADX]);
+        case OP_THREAD_INTERRUPT:
+            registers[CMT]=Thread::interrupt((int32_t )_64ADX);
             return;
-        case 0xa7:
-            registers[CMT]=Thread::destroy((int32_t )registers[ADX]);
+        case OP_THREAD_DESTROY:
+            registers[CMT]=Thread::destroy((int32_t )_64ADX);
             return;
-        case 0xe0: // native getCurrentThread()
+        case OP_THREAD_CREATE:
+            registers[EBX]=Thread::Create((int32_t )_64ADX, (bool)_64EBX);
+            return;
+        case OP_THREAD_PRIORITY:
+            registers[CMT]=Thread::setPriority((int32_t )_64ADX, (int)_64EGX);
+            return;
+        case OP_THREAD_SUSPEND:
+            registers[CMT]=Thread::suspendThread((int32_t )_64ADX);
+            return;
+        case OP_THREAD_UNSUSPEND:
+            registers[CMT]=Thread::unSuspendThread((int32_t )_64ADX);
+            return;
+        case OP_THREAD_WAIT:
+            Thread::suspendFor((Int )_64ADX);
+            return;
+        case OP_THREAD_CURRENT: // native getCurrentThread()
             THREAD_STACK_CHECK(thread_self);
             (++thread_self->sp)->object = thread_self->currentThread;
             return;
-        case 0xe1: // native getCurrentThreadArgs()
+        case OP_THREAD_ARGS: // native getCurrentThreadArgs()
             THREAD_STACK_CHECK(thread_self);
             (++thread_self->sp)->object = thread_self->args;
             return;
-        case 0xe2: // native setCurrentThread(Thread)
+        case OP_THREAD_SET_CURRENT: // native setCurrentThread(Thread)
             thread_self->currentThread = (thread_self->sp--)->object;
             return;
-        case 0xe3:
+        case OP_MATH:
             _64CMT=__cmath(_64EBX, _64EGX, (int)_64ECX);
             return;
-        case 0xe7:
+        case OP_RANDOM:
             _64BMR= __crand((int)_64ADX);
             return;
-        case 0xe8: {
+        case OP_SYSTEM_EXE: {
             SharpObject* str = (thread_self->sp--)->object.object;
-            if(str != NULL && TYPE(str->info) == _stype_var) {
-                native_string cmd;
-                for(long i = 0; i < str->size; i++)
-                    cmd += str->HEAD[i];
+            if(str != NULL && TYPE(str->info) == _stype_var && str->HEAD != NULL) {
+                native_string cmd(str->HEAD, str->size);
                 _64CMT= system(cmd.str().c_str());
                 cmd.free();
             } else
                 throw Exception(vm.NullptrExcept, "");
             return;
         }
-        case 0xe9:
+        case OP_KBHIT:
             _64CMT= _kbhit();
             return;
-        case 0xa8:
-            registers[EBX]=Thread::Create((int32_t )registers[ADX], (bool)registers[EBX]);
-            return;
-        case 0xe4:
-            registers[CMT]=Thread::setPriority((int32_t )registers[ADX], (int)registers[EGX]);
-            return;
-        case 0xe5:
+        case OP_YIELD:
             __os_yield();
             return;
-        case 0xe6:
-            clist((int)registers[ADX]);
-            return;
-        case 0xa9:
+        case OP_EXIT:
             vm.shutdown();
             return;
-        case 0xaa:
+        case OP_MEMORY_LIMIT:
             registers[CMT]=GarbageCollector::self->getMemoryLimit();
             return;
-        case 0xab:
+        case OP_MEMORY:
             registers[CMT]=GarbageCollector::self->getManagedMemory();
             return;
-        case 0xac:
-            __os_sleep((int64_t) registers[EBX]);
-            return;
-        case 0xb0: {
-            Object *arry = &thread_self->sp->object;
-            SharpObject *o = arry->object;
+        case OP_ABS_PATH: {
+            Object *relPath = &thread_self->sp->object;
 
-            if(o != NULL && TYPE(o->info) == _stype_var) {
-                native_string path, absolute;
-                for(long i = 0; i < o->size; i++) {
-                    path += o->HEAD[i];
-                }
+            if(relPath->object != NULL && TYPE(relPath->object->info) == _stype_var && relPath->object->HEAD != NULL) {
+                native_string path(relPath->object->HEAD, relPath->object->size), absolute;
+
                 absolute = resolve_path(path);
-                GarbageCollector::self->createStringArray(arry, absolute);
+                GarbageCollector::self->createStringArray(relPath, absolute);
+                path.free(); absolute.free();
             } else
                 throw Exception(vm.NullptrExcept, "");
             return;
         }
-        case 0xc0: {
-            size_t len = (thread_self->sp--)->var;
-            Object *arry = &thread_self->sp->object;
-            SharpObject *o = arry->object;
-
-            if(o != NULL) {
-                if(len > o->size || len < 0) {
-                    stringstream ss;
-                    ss << "invalid call to native Runtime.copy() len: " << len
-                       << ", array size: " << o->size;
-                    throw Exception(ss.str());
-                }
-
-                if(IS_CLASS(o->info)) { // class?
-
-                    if(TYPE(o->info) != _stype_struct || o->node == NULL)
-                        throw Exception(vm.NullptrExcept, "");
-                    *arry = GarbageCollector::self->newObjectArray(len, &vm.classes[CLASS(o->info)]);
-
-                    for(size_t i = 0; i < len; i++) {
-                        arry->object->node[i] = o->node[i];
-                    }
-
-                } else if(TYPE(o->info) == _stype_var) { // var[]
-                    *arry = GarbageCollector::self->newObject(len);
-                    std::memcpy(arry->object->HEAD, o->HEAD, sizeof(double)*len);
-
-                } else if(TYPE(o->info) == _stype_struct && o->node != NULL) { // object? maybe...
-                    *arry = GarbageCollector::self->newObject(len);
-                    for(size_t i = 0; i < len; i++) {
-                        arry->object->node[i] = o->node[i];
-                    }
-                }
-
-            } else
-                throw Exception(vm.NullptrExcept, "");
+        case OP_MEM_COPY: {
+            memcopy();
             return;
         }
-        case 0xc1: {
+        case OP_INVERT: {
+            invert();
+            return;
+        } case OP_REALLOC: {
             size_t len = (thread_self->sp--)->var;
-            size_t indexLen = (thread_self->sp--)->var;
-            Object *arry = &thread_self->sp->object;
-            SharpObject *o = arry->object;
-            Object data; data.object = NULL;
+            SharpObject *arry = thread_self->sp->object.object;
 
-            if(o != NULL) {
-                if(indexLen > o->size || len < 0 || indexLen < 0 ) {
-                    stringstream ss;
-                    ss << "invalid call to native Runtime.copy2() index-len: " << indexLen
-                       << ", array size: " << o->size;
-                    throw Exception(ss.str());
-                }
-
-                if(IS_CLASS(o->info)) { // class?
-                    if(TYPE(o->info) != _stype_struct || o->node == NULL)
-                        throw Exception(vm.NullptrExcept, "");
-                    data = GarbageCollector::self->newObjectArray(len, &vm.classes[CLASS(o->info)]);
-
-                    for(size_t i = 0; i < indexLen; i++) {
-                        data.object->node[i] = o->node[i];
-                    }
-
-                    *arry = data.object;
-                    data.object->refCount = 1;
-                } else if(TYPE(o->info) == _stype_var) { // var[]
-                    data = GarbageCollector::self->newObject(len);
-                    std::memcpy(data.object->HEAD, o->HEAD, sizeof(double)*indexLen);
-                    *arry = data.object;
-                    data.object->refCount = 1;
-                } else if(TYPE(o->info) == _stype_struct && o->node != NULL) { // object? maybe...
-                    data = GarbageCollector::self->newObjectArray(len);
-                    for(size_t i = 0; i < indexLen; i++) {
-                        data.object->node[i] = o->node[i];
-                    }
-
-                    *arry = data.object;
-                    data.object->refCount = 1;
-                }
-
-            } else
-                throw Exception(vm.NullptrExcept, "");
-            return;
-        } case 0xc3: {
-            size_t endIndex = (thread_self->sp--)->var;
-            size_t startIndex = (thread_self->sp--)->var;
-            Object *arry = &thread_self->sp->object;
-            SharpObject *o = arry->object;
-            Object data; data.object = NULL;
-            size_t sz = endIndex-startIndex, idx=0;
-
-            if(o != NULL) {
-                if(startIndex > o->size || startIndex < 0 || endIndex < 0
-                   || endIndex > o->size || endIndex < startIndex) {
-                    stringstream ss;
-                    ss << "invalid call to native Runtime.memcpy() startIndex: " << startIndex
-                       << " endIndex: " << endIndex << ", array size: " << o->size;
-                    throw Exception(ss.str());
-                }
-
-                if(IS_CLASS(o->info)) { // class?
-                    if(TYPE(o->info) != _stype_struct || o->node == NULL)
-                        throw Exception(vm.NullptrExcept, "");
-                    data = GarbageCollector::self->newObjectArray(sz+1, &vm.classes[CLASS(o->info)]);
-
-                    for(size_t i = startIndex; i < o->size; i++) {
-                        data.object->node[idx++] = o->node[i];
-                        if(i==endIndex) break;
-                    }
-
-                    *arry = data.object;
-                    data.object->refCount = 1;
-                } else if(TYPE(o->info) == _stype_var) { // var[]
-                    data = GarbageCollector::self->newObject(sz+1);
-                    std::memcpy(data.object->HEAD, &o->HEAD[startIndex], sizeof(double)*data.object->size);
-                    *arry = data.object;
-                    data.object->refCount = 1;
-                } else if(TYPE(o->info) == _stype_struct && o->node != NULL) { // object? maybe...
-                    data = GarbageCollector::self->newObjectArray(sz+1);
-
-                    for(size_t i = startIndex; i < o->size; i++) {
-                        data.object->node[idx++] = o->node[i];
-                        if(i==endIndex) break;
-                    }
-
-                    *arry = data.object;
-                    data.object->refCount = 1;
-                }
-
-            } else
-                throw Exception(vm.NullptrExcept, "");
-            return;
-        } case 0xc4: {
-            size_t endIndex = (thread_self->sp--)->var;
-            size_t startIndex = (thread_self->sp--)->var;
-            Object *arry = &thread_self->sp->object;
-            SharpObject *o = arry->object;
-            Object data; data.object = NULL;
-            size_t sz = endIndex-startIndex, idx=0;
-
-            if(o != NULL) {
-                if(startIndex > o->size || startIndex < 0 || endIndex < 0
-                   || endIndex > o->size || endIndex < startIndex) {
-                    stringstream ss;
-                    ss << "invalid call to native Runtime.reverse() startIndex: " << startIndex
-                       << " endIndex: " << endIndex << ", array size: " << o->size;
-                    throw Exception(ss.str());
-                }
-
-                if(IS_CLASS(o->info)) { // class?
-                    if(o->node == NULL)
-                        throw Exception(vm.NullptrExcept, "");
-                    data = GarbageCollector::self->newObjectArray(sz+1, &vm.classes[CLASS(o->info)]);
-
-                    for(size_t i = endIndex; i > 0; i--) {
-                        data.object->node[idx++] = o->node[i];
-                        if(i==startIndex) break;
-                    }
-
-                    *arry = data.object;
-                    data.object->refCount = 1;
-                } else if(TYPE(o->info) == _stype_var) { // var[]
-                    data = GarbageCollector::self->newObject(sz+1);
-
-                    for(size_t i = endIndex; i > 0; i--) {
-                        data.object->HEAD[idx++] = o->HEAD[i];
-                        if(i==startIndex) break;
-                    }
-
-                    *arry = data.object;
-                    data.object->refCount = 1;
-                } else if(TYPE(o->info) == _stype_struct && o->node != NULL) { // object? maybe...
-                    data = GarbageCollector::self->newObjectArray(sz+1);
-
-                    for(size_t i = endIndex; i > 0; i--) {
-                        data.object->node[idx++] = o->node[i];
-                        if(i==startIndex) break;
-                    }
-
-                    *arry = data.object;
-                    data.object->refCount = 1;
-                }
-
-            } else
-                throw Exception(vm.NullptrExcept, "");
-            return;
-        } case 0xc6: {
-            size_t len = (thread_self->sp--)->var;
-            Object *arry = &thread_self->sp->object;
-            SharpObject *o = arry->object;
-
-            if(o != NULL) {
+            if(arry != NULL) {
                 if(len <= 0) {
                     stringstream ss;
-                    ss << "invalid call to native Runtime.realloc() len: " << len
-                       << ", array size: " << o->size;
+                    ss << "invalid call to realloc() len: " << len
+                       << ", size: " << arry->size;
                     throw Exception(ss.str());
                 }
 
-                if(IS_CLASS(o->info)) { // class?
-
-                    if(o->node == NULL)
-                        throw Exception(vm.NullptrExcept, "");
-
-                    GarbageCollector::self->reallocObject(o, len);
-                } else if(TYPE(o->info) == _stype_var) { // var[]
-                    GarbageCollector::self->realloc(o, len);
-                } else if(TYPE(o->info) == _stype_struct && o->node != NULL) { // object? maybe...
-                    GarbageCollector::self->reallocObject(o, len);
-                }
-
+                if(TYPE(arry->info) == _stype_var) { // var[]
+                    GarbageCollector::self->realloc(arry, len);
+                } else if(TYPE(arry->info) == _stype_struct && arry->node != NULL) { // object? maybe...
+                    GarbageCollector::self->reallocObject(arry, len);
+                } else
+                    throw Exception(vm.NullptrExcept, "");
             } else
                 throw Exception(vm.NullptrExcept, "");
             return;
         }
-        case 0xb1:
-        case 0xb2:
-        case 0xb3:
-        case 0xb4:
-        case 0xb5:
-        case 0xb6:
-        case 0xb7:
-        case 0xb8:
-        case 0xb9:
-        case 0xbb:
-        case 0xbc:
-        case 0xbf: {
+        case OP_FILE_ACCESS:
+        case OP_FILE_ATTRS:
+        case OP_FILE_UPDATE_TM:
+        case OP_FILE_SIZE:
+        case OP_FILE_CREATE:
+        case OP_FILE_DELETE:
+        case OP_GET_FILES:
+        case OP_CREATE_DIR:
+        case OP_DELETE_DIR:
+        case OP_UPDATE_FILE_TM:
+        case OP_CHMOD:
+        case OP_READ_FILE: {
             Object *arry = &(thread_self->sp--)->object;
-            SharpObject *o = arry->object;
+            if(arry->object != NULL && arry->object->HEAD != NULL && TYPE(arry->object->info)==_stype_var) {
+                native_string path(arry->object->HEAD, arry->object->size);
 
-            if(o != NULL && TYPE(o->info)==_stype_var) {
-                native_string path;
-                for(long i = 0; i < o->size; i++) {
-                    path += o->HEAD[i];
-                }
-                if(signal==0xb1)
-                    registers[EBX] = check_access(path, (int)registers[EBX]);
-                else if(signal==0xb2)
+                if(signal==OP_FILE_ACCESS)
+                    registers[EBX] = check_access(path, (int)_64EBX);
+                else if(signal==OP_FILE_ATTRS)
                     registers[EBX] = get_file_attrs(path);
-                else if(signal==0xb3)
-                    registers[EBX] = last_update(path);
-                else if(signal==0xb4)
+                else if(signal==OP_FILE_UPDATE_TM)
+                    registers[EBX] = last_update(path, (int)_64EBX);
+                else if(signal==OP_FILE_SIZE)
                     registers[EBX] = file_size(path);
-                else if(signal==0xb5)
+                else if(signal==OP_FILE_CREATE)
                     create_file(path);
-                else if(signal==0xb6)
+                else if(signal==OP_FILE_DELETE)
                     registers[EBX] = delete_file(path);
-                else if(signal==0xb7) {
+                else if(signal==OP_GET_FILES) {
                     _List<native_string> files;
                     get_file_list(path, files);
                     arry = &(++thread_self->sp)->object;
@@ -688,34 +498,30 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     if(files.size()>0) {
                         *arry = GarbageCollector::self->newObjectArray(files.size());
 
-                        o = arry->object;
-
                         for(long i = 0; i < files.size(); i++) {
-                            GarbageCollector::self->createStringArray(&o->node[i], files.get(i));
+                            GarbageCollector::self->createStringArray(&arry->object->node[i], files.get(i));
                             files.get(i).free();
                         }
-                    } else {
-                        GarbageCollector::self->releaseObject(arry);
                     }
 
                     files.free();
                 }
-                else if(signal==0xb8)
+                else if(signal==OP_CREATE_DIR)
                     registers[EBX] = make_dir(path);
-                else if(signal==0xb9)
+                else if(signal==OP_DELETE_DIR)
                     registers[EBX] = delete_dir(path);
-                else if(signal==0xbb)
+                else if(signal==OP_UPDATE_FILE_TM)
                     registers[EBX] = update_time(path, (time_t)registers[EBX]);
-                else if(signal==0xbc)
+                else if(signal==OP_CHMOD)
                     registers[EBX] = __chmod(path, (mode_t)registers[EBX], (bool)registers[EGX], (bool)registers[ECX]);
-                else if(signal==0xbf) {
+                else if(signal==OP_READ_FILE) {
                     File::buffer buf;
                     File::read_alltext(path.str().c_str(), buf);
                     native_string str;
                     arry = &(++thread_self->sp)->object;
 
                     if(str.injectBuff(buf)) {
-                        throw Exception("out of memory");
+                        throw Exception(vm.OutOfMemoryExcept, "out of memory");
                     }
 
                     if(str.len > 0) {
@@ -724,48 +530,45 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                         GarbageCollector::self->releaseObject(arry);
                     }
                 }
+
+                path.free();
             } else
                 throw Exception(vm.NullptrExcept, "");
             return;
         }
-        case 0xba:
-        case 0xbd:  {
-            SharpObject *o = (thread_self->sp--)->object.object;
-            SharpObject *o2 = (thread_self->sp--)->object.object;
+        case OP_RENAME_FILE:
+        case OP_WRITE_FILE:  {
+            SharpObject *pathObj = (thread_self->sp--)->object.object;
+            SharpObject *newNameObj = (thread_self->sp--)->object.object;
 
-            if (o != NULL && TYPE(o->info) == _stype_var && o2 != NULL && TYPE(o2->info) == _stype_var) {
-                native_string path, rename;
-                for (long i = 0; i < o->size; i++) {
-                    path += o->HEAD[i];
-                }
-                for (long i = 0; i < o2->size; i++) {
-                    rename += o2->HEAD[i];
-                }
+            if (pathObj != NULL && TYPE(pathObj->info) == _stype_var && newNameObj != NULL && TYPE(newNameObj->info) == _stype_var
+                && pathObj->HEAD != NULL && newNameObj->HEAD != NULL) {
+                native_string path(pathObj->HEAD, pathObj->size), rename(newNameObj->HEAD, newNameObj->size);
 
-                if(signal==0xba)
+                if(signal==OP_RENAME_FILE)
                     registers[EBX] = rename_file(path, rename);
-                else if(signal==0xbd) {
+                else if(signal==OP_WRITE_FILE) {
                     File::buffer buf;
                     buf.operator<<(rename.str()); // rename will contain our actual unicode data
                     registers[EBX] = File::write(path.str().c_str(), buf);
                 }
-            }
+            } else
+                throw Exception(vm.NullptrExcept, "");
 
             return;
         }
-        case 0xbe:
+        case OP_DISK_SPACE:
             registers[EBX]=disk_space((int32_t )registers[EBX]);
             return;
-        case 0xc2:
+        case OP_SIZEOF:
             registers[EBX] = GarbageCollector::_sizeof((thread_self->sp--)->object.object);
             return;
-        case 0xd0:
+        case OP_FLUSH:
             cout << std::flush;
             break;
         default: {
-            // unsupported
             stringstream ss;
-            ss << "unsupported system interrupt signal to int instruction: " << signal;
+            ss << "invalid system interrupt signal: " << signal;
             throw Exception(vm.InvalidOperationExcept, ss.str());
         }
     }
@@ -988,17 +791,17 @@ void VirtualMachine::__snprintf(int cfmt, double val, int precision) {
             break;
         case 'l': {
             native_string str(to_string((long long)val));
-            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
+            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str); str.free();
             return;
         }
         case 'L': {
             native_string str(to_string((unsigned long long)val));
-            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
+            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);  str.free();
             return;
         }
         default: {
             native_string str(to_string(val));
-            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
+            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str); str.free();
             return;
         }
 
@@ -1006,7 +809,7 @@ void VirtualMachine::__snprintf(int cfmt, double val, int precision) {
     }
 
     native_string str(string(buf, 256));
-    GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);
+    GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str); str.free();
 }
 
 Method *VirtualMachine::getMainMethod() {

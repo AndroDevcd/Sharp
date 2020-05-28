@@ -8,12 +8,12 @@
 #ifdef SHARP_PROF_
 #include "../util/time.h"
 #include "Exe.h"
-#include "Environment.h"
 #include "Thread.h"
 #include "main.h"
+#include "VirtualMachine.h"
 
 
-extern unsigned long long irCount, overflow;
+extern unsigned long irCount, overflow;
 void Profiler::hit(Method *func) {
     funcProf prof;
     prof.func = func;
@@ -84,7 +84,7 @@ void Profiler::dump() {
 
         funcProf &prof = functions.get(i);
 
-        string source = env->sourceFiles[prof.func->sourceFile].str();
+        string source = vm.metaData.files.get(prof.func->sourceFile).name.str();
         ss << std::setw(18) << NANO_TOMILL(prof.time) << setw(20) << NANO_TOMILL(prof.avgtm) << setw(13) << prof.hits
            << setw(17) << prof.ir << setw(19);
         if(prof.ir == 0)

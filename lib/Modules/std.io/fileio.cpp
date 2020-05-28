@@ -128,10 +128,18 @@ int check_access(native_string& path, int access_flg) {
 #endif
 }
 
-long long last_update(native_string& path) {
+long long last_update(native_string& path, int tm_request) {
     if(stat(path.str().c_str(), &result)==0)
     {
-        return result.st_mtime;
+        switch(tm_request) {
+            case 0:
+                return result.st_mtime;
+            case 1:
+                return result.st_ctime;
+            case 2:
+                return result.st_atime;
+
+        }
     }
     return 0;
 }
