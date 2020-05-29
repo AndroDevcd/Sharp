@@ -40,6 +40,7 @@ void Thread::Startup() {
     Thread* main = (Thread*)malloc(
             sizeof(Thread)*1);
     main->Create("Main", vm.getMainMethod());
+    main->priority = THREAD_PRIORITY_HIGH;
 }
 
 /**
@@ -572,14 +573,30 @@ void Thread::exit() {
     if(hasSignal(signal, tsig_except)) {
         this->exitVal = 1;
 
-        Object* stackTrace = vm.resolveField("stack_trace", exceptionObject.object);
+        Object* frameInfo = vm.resolveField("frame_info", exceptionObject.object);
         Object* message = vm.resolveField("message", exceptionObject.object);
         ClassObject *exceptionClass = NULL;
-
         if(exceptionObject.object != NULL)
             exceptionClass = &vm.classes[CLASS(exceptionObject.object->info)];
-        cout << "Unhandled exception on thread " << name.str() << " (most recent call last):\n"; cout
-                << (stackTrace != NULL ? vm.stringValue(stackTrace->object) : "");
+
+
+        cout << "Unhandled exception on thread " << name.str() << " (most recent call last):\n";
+        if(frameInfo && frameInfo->object) {
+            if(((sp-dataStack)+1) >= stackLimit) {
+                sp--;
+            }
+
+            if(exceptionClass != NULL && exceptionClass->guid != vm.OutOfMemoryExcept->guid) {
+                (++sp)->object = frameInfo;
+                vm.getStackTrace();
+                SharpObject *stackTrace = sp->object.object;
+
+                for(Int i = 0; i < stackTrace->size; i++) {
+                    cout << ((char)stackTrace->HEAD[i]);
+                }
+            }
+        }
+
         cout << endl << (exceptionClass != NULL ? exceptionClass->name.str() : "") << " ("
            << (message != NULL ? vm.stringValue(message->object) : "") << ")\n";
     } else {
@@ -1097,7 +1114,7 @@ void Thread::exec() {
                 _brh
             THROW:
                 exceptionObject = (sp--)->object;
-                prepareException();
+                sendSignal(signal, tsig_except, 1);
                 goto exception_catch;
                 _brh
             CHECKNULL:
@@ -1265,7 +1282,7 @@ void Thread::exec() {
 
         }
     } catch (Exception &e) {
-        prepareException();
+        sendSignal(signal, tsig_except, 1);
     }
 
     exception_catch:
@@ -1378,11 +1395,6 @@ int Thread::setPriority(Thread* thread, int priority) {
     }
 
     return RESULT_ILL_PRIORITY_SET;
-}
-
-void Thread::prepareException() {
-    vm.fillStackTrace(&exceptionObject);
-    sendSignal(signal, tsig_except, 1);
 }
 
 int Thread::setPriority(int32_t id, int priority) {

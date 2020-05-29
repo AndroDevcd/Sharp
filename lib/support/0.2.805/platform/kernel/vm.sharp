@@ -1,0 +1,25 @@
+mod platform.kernel;
+
+class vm {
+
+    static def get_frame_info() : stack_state {
+        asm {
+            int 0x35
+            popObj2
+            returnObj
+            ret 0
+        }
+        return null;
+    }
+
+    static def get_stack_trace(info : stack_state) : string {
+        asm {
+            pushl {info}
+            int 0x36
+            popObj2
+            returnObj
+            ret 0
+        }
+        return null;
+    }
+}

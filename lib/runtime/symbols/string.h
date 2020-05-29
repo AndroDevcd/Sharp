@@ -110,7 +110,11 @@ public:
         if(_str.size()>0) {
             len = _str.size();
             chars = (char*)malloc(sizeof(char)*_str.size());
-            std::memcpy(chars, _str.c_str(), sizeof(char)*len);
+            if(chars != NULL)
+                std::memcpy(chars, _str.c_str(), sizeof(char)*len);
+            else {
+                len = 0;
+            }
         }
     }
 
@@ -120,7 +124,11 @@ public:
         if(_str.len>0) {
             len = _str.len;
             chars = (char*)malloc(sizeof(char)*_str.len);
-            std::memcpy(chars, _str.chars, sizeof(char)*len);
+            if(chars != NULL)
+                std::memcpy(chars, _str.chars, sizeof(char)*len);
+            else {
+                len = 0;
+            }
         }
 
         return *this;
@@ -132,7 +140,7 @@ public:
             len = buf.size();
             if(len) {
                 chars = (char*)malloc(sizeof(char)*buf.size());
-                if(chars==NULL)return 1;
+                if(chars==NULL) { len = 0; return 1; }
 
                 std::memcpy(chars, buf.data(), sizeof(char)*len);
             } else
@@ -148,10 +156,17 @@ public:
         if(len == 0) {
             len=1;
             chars=(char*)malloc(sizeof(char)*len);
-            chars[0]=c;
+            if(chars != NULL)
+                chars[0]=c;
+            else {
+                len = 0;
+            }
         } else {
-            chars = (char*)realloc(chars,sizeof(char)*(len+1));
-            chars[len++]=c;
+            char*tmp = (char*)realloc(chars,sizeof(char)*(len+1));
+            if(tmp != NULL) {
+                chars = tmp;
+                chars[len++] = c;
+            }
         }
     }
 

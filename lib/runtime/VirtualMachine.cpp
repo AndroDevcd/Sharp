@@ -68,6 +68,13 @@ int CreateVirtualMachine(string &exe)
     vm.InvalidOperationExcept = vm.resolveClass("std#invalid_operation_exception");
     cout.precision(16);
 
+    vm.outOfMemoryExcept.object = NULL;
+    vm.outOfMemoryExcept = GarbageCollector::self->newObject(vm.OutOfMemoryExcept);
+    native_string message("out of memory");
+    GarbageCollector::self->createStringArray(
+            vm.resolveField("message", vm.outOfMemoryExcept.object),
+            message);
+
     /**
      * Initialize all classes to be used for static access
      */
@@ -233,7 +240,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 #endif
         }
     } catch (Exception &e) {
-        thread_self->prepareException();
+        sendSignal(thread->signal, tsig_except, 1);
     }
 
 
@@ -284,6 +291,64 @@ void VirtualMachine::shutdown() {
     if(vm.state != VM_TERMINATED) {
         destroy();
         vm.state = VM_TERMINATED;
+    }
+}
+
+void VirtualMachine::getStackTrace() {
+    Thread *thread = thread_self;
+    SharpObject *frameInfo = (thread->sp)->object.object;
+
+    if(frameInfo) {
+        frameInfo->refCount++;
+        (thread->sp)->object = GarbageCollector::self->newObject(vm.resolveClass("std#string"));
+
+        Object *methods = vm.resolveField("methods", frameInfo);
+        Object *pcList = vm.resolveField("pc", frameInfo);
+        fillStackTrace(frameInfo, (thread->sp)->object.object);
+        frameInfo->refCount--;
+    }
+}
+
+void VirtualMachine::getFrameInfo(Object *frameInfo) {
+    if(thread_self->callStack == NULL) return;
+
+    if(frameInfo) {
+        Thread *thread = thread_self;
+        *frameInfo = GarbageCollector::self->newObject(
+                vm.resolveClass("platform.kernel#stack_state"));
+
+        if (frameInfo) {
+            Object *methods = vm.resolveField("methods", frameInfo->object);
+            Object *pcList = vm.resolveField("pc", frameInfo->object);
+
+            Int iter = 0;
+            if (methods && pcList) {
+                *methods = GarbageCollector::self->newObjectArray(thread->calls + 1);
+                *pcList = GarbageCollector::self->newObjectArray(thread->calls + 1);
+
+                if ((thread->calls + 1) < EXCEPTION_PRINT_MAX) {
+
+                    for (Int i = 1; i < thread_self->calls; i++) {
+                        if (i >= EXCEPTION_PRINT_MAX)
+                            break;
+                        methods->object->HEAD[iter] = thread->callStack[i].returnAddress->address;
+                        pcList->object->HEAD[iter] = thread->callStack[i].pc - thread->cache;
+                        iter++;
+                    }
+                } else {
+                    for (Int i = (thread->calls + 1) - EXCEPTION_PRINT_MAX; i < thread->calls + 1; i++) {
+                        if (iter >= EXCEPTION_PRINT_MAX)
+                            break;
+                        methods->object->HEAD[iter] = thread->callStack[i].returnAddress->address;
+                        pcList->object->HEAD[iter] = thread->callStack[i].pc - thread->cache;
+                        iter++;
+                    }
+                }
+
+                methods->object->HEAD[iter] = thread->current->address;
+                pcList->object->HEAD[iter] = thread->pc - thread->cache;
+            }
+        }
     }
 }
 
@@ -566,6 +631,12 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         case OP_FLUSH:
             cout << std::flush;
             break;
+        case OP_GET_FRAME_INFO:
+            getFrameInfo(&(++thread_self->sp)->object);
+            break;
+        case OP_GET_STACK_TRACE:
+            getStackTrace();
+            break;
         default: {
             stringstream ss;
             ss << "invalid system interrupt signal: " << signal;
@@ -617,13 +688,20 @@ bool VirtualMachine::catchException() {
     return false;
 }
 
-void VirtualMachine::fillStackTrace(Object *exceptionObject) {
-    native_string str;
-    fillStackTrace(str);
-    GarbageCollector::self->createStringArray(vm.resolveField("stack_trace", exceptionObject->object), str);
+void VirtualMachine::fillStackTrace(SharpObject *frameInfo, SharpObject *stackTrace) {
+    if(frameInfo && stackTrace) {
+        Object *methods = vm.resolveField("methods", frameInfo);
+        Object *pcList = vm.resolveField("pc", frameInfo);
+        Object *data = vm.resolveField("data", stackTrace);
+
+        if(data && methods && pcList) {
+            native_string str;
+            fillStackTrace(methods, pcList, data);
+        }
+    }
 }
 
-void VirtualMachine::fillMethodCall(Method* func, Frame &frameInfo, stringstream &ss) {
+void VirtualMachine::fillMethodCall(Method* func, Int pc, stringstream &ss) {
     ss << "\tSource ";
     if(func->sourceFile != -1 && func->sourceFile < vm.manifest.sourceFiles) {
         ss << "\""; ss << vm.metaData.files.get(func->sourceFile).name.str() << "\"";
@@ -634,7 +712,7 @@ void VirtualMachine::fillMethodCall(Method* func, Frame &frameInfo, stringstream
     long long x, line=-1, ptr=-1;
     for(x = 0; x < func->lineTable.size(); x++)
     {
-        if(func->lineTable.get(x).pc >= (frameInfo.pc - func->bytecode)) {
+        if(func->lineTable.get(x).pc >= pc) {
             if(x > 0)
                 ptr = x-1;
             else
@@ -656,12 +734,8 @@ void VirtualMachine::fillMethodCall(Method* func, Frame &frameInfo, stringstream
     ss << ", in "; ss << func->fullName.str() << "()";
 
     if(c_options.debugMode) {
-        ss << (frameInfo.isjit ? "[native]" : "") << " [0x" << std::hex
-           << func->address << "] $0x" << (frameInfo.pc == nullptr ? 0 : (frameInfo.pc-func->bytecode))  << std::dec;
-
-        ss << " fp; " << (frameInfo.fp == 0 ? 0 : frameInfo.fp-thread_self->dataStack)
-        << " sp: " << (frameInfo.sp == nullptr ? 0 : frameInfo.sp-thread_self->dataStack)
-        << " fp offset " << func->fpOffset << " spOffset " << func->spOffset;
+        ss << " [0x" << std::hex
+           << func->address << "] $0x" << pc  << std::dec;
     }
 
     if(line != -1 && vm.metaData.files.size() > 0) {
@@ -669,6 +743,25 @@ void VirtualMachine::fillMethodCall(Method* func, Frame &frameInfo, stringstream
     }
 
     ss << "\n";
+}
+
+void VirtualMachine::fillStackTrace(Object *methods, Object *pcList, Object *data) {
+    if(methods && pcList && methods->object && pcList->object && TYPE(methods->object->info) == _stype_var
+        && TYPE(pcList->object->info) == _stype_var && data) {
+
+        native_string str;
+        stringstream ss;
+        for(Int i = 0; i < methods->object->size; i++) {
+            fillMethodCall(&vm.methods[(Int)methods->object->HEAD[i] % vm.manifest.methods], (Int)pcList->object->HEAD[i], ss);
+        }
+
+        str = ss.str(); ss.str("");
+        *data = GarbageCollector::self->newObject(str.len);
+        for(Int i = 0; i < str.len; i++) {
+            data->object->HEAD[i] = str.chars[i];
+        }
+        str.free();
+    }
 }
 
 void VirtualMachine::fillStackTrace(native_string &str) {
@@ -682,23 +775,18 @@ void VirtualMachine::fillStackTrace(native_string &str) {
         for(Int i = 1; i <= thread_self->calls; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
-            fillMethodCall(thread_self->callStack[i].returnAddress, thread_self->callStack[i], ss);
+            fillMethodCall(thread_self->callStack[i].returnAddress, thread_self->callStack[i].pc-thread_self->cache, ss);
         }
     } else {
         for(Int i = (thread_self->calls+1) - EXCEPTION_PRINT_MAX; i < thread_self->calls+1; i++) {
             if(iter++ >= EXCEPTION_PRINT_MAX)
                 break;
-            fillMethodCall(thread_self->callStack[i].returnAddress, thread_self->callStack[i], ss);
+            fillMethodCall(thread_self->callStack[i].returnAddress, thread_self->callStack[i].pc-thread_self->cache, ss);
         }
     }
 
-    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp,0);
-    fillMethodCall(thread_self->current, frame, ss);
-
-//    Frame frame(thread_self->current, thread_self->pc, thread_self->sp, thread_self->fp,0);
-//    fillMethodCall(frame, ss);
-
-    str = ss.str();
+    fillMethodCall(thread_self->current, PC(thread_self), ss);
+    str = ss.str(); ss.str("");
 }
 
 string VirtualMachine::getPrettyErrorLine(long line, long sourceFile) {
@@ -832,12 +920,19 @@ Object *VirtualMachine::resolveField(runtime::String name, SharpObject *classObj
         for(Int i = 0; i < representedClass->totalFieldCount; i++) {
             Field &field = representedClass->fields[i];
             if(field.name == name) {
-                if(isStaticObject(classObject) == IS_STATIC(field.flags))
+                if(isStaticObject(classObject) == IS_STATIC(field.flags)) {
+                    name.free();
                     return &classObject->node[field.address];
-                else return nullptr;
+                }
+                else {
+                    name.free();
+                    return nullptr;
+                }
             }
         }
     }
+
+    name.free();
     return nullptr;
 }
 

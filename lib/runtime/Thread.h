@@ -46,7 +46,7 @@ public:
         suspended = false;
         exited = false;
         terminated = false;
-        priority = THREAD_PRIORITY_HIGH;
+        priority = THREAD_PRIORITY_NORM;
         name.init();
         rand = new Random();
         main = NULL;
@@ -94,7 +94,6 @@ public:
     static void suspendAllThreads();
     static void resumeAllThreads();
     static int threadjoin(Thread*);
-    void prepareException();
 
     static int startDaemon(
 #ifdef WIN32_

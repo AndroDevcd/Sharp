@@ -13,6 +13,7 @@
 #include <string>
 #include <cstdio>
 #include <cstring>
+#include <thread>
 #include "lib/runtime/jit/architecture.h"
 
 using namespace std;
@@ -25,7 +26,7 @@ using namespace std;
 
 #ifdef WIN32_
 
-#define __os_yield() _mm_pause
+#define __os_yield() std::this_thread::yield();
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -48,7 +49,7 @@ using namespace std;
     #define __os_yield() sched_yield();
 #endif
 
- #define SHARP_PROF_
+ //#define SHARP_PROF_
 #ifdef SHARP_PROF_
 #define PROFILER_NAME "tanto"
 #endif

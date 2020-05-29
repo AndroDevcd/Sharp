@@ -1,5 +1,7 @@
 mod std;
 
+import platform.kernel;
+
 /**
  * Created by BraxtonN on 5/17/2018.
  *
@@ -8,16 +10,31 @@ mod std;
 class throwable {
     private message : _int8[];
 
-    stack_trace : _int8[];
-//      get { new string(stackTrace); }
-//        set {} // prevent user from setting the value
+    stack_trace : string;
+      get {
+        if(stack_trace == null) {
+            stack_trace =
+                vm.get_stack_trace(frame_info);
+        }
+
+        return stack_trace;
+      }
+
+    private frame_info : stack_state;
 
     public throwable(message : _int8[]) {
         self->message = message;
+        get_frame_info();
     }
 
     public throwable(message : string) {
         //self->message = message.toArray();
+        get_frame_info();
+    }
+
+    private def get_frame_info() {
+        frame_info =
+            vm.get_frame_info();
     }
 }
 

@@ -3693,6 +3693,9 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
 
                 expr->utype->getCode().getInjector(ptrInjector)
                         .addIr(OpBuilder::movsl(0));
+
+                expr->utype->getCode().getInjector(removeFromStackInjector)
+                        .addIr(OpBuilder::pop());
             }
 
             expressions.free();
@@ -8660,6 +8663,10 @@ void Compiler::validateCoreClasses(Ast *ast) {
 
     if(resolveClass(Obfuscater::getModule("std"), "out_of_memory_exception", ast) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `out_of_memory_exception`.");
+    }
+
+    if(resolveClass(Obfuscater::getModule("platform.kernel"), "stack_state", ast) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `stack_state`.");
     }
 }
 

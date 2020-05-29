@@ -66,12 +66,15 @@ public:
     void shutdown();
     static void sysInterrupt(int64_t i);
     bool catchException();
-    static void fillStackTrace(Object *exceptionObject);
+    static void fillStackTrace(SharpObject *frameInfo, SharpObject *stackTrace);
     static void fillStackTrace(native_string &str);
+    static void fillStackTrace(Object *methods, Object *pcList, Object *data);
     static string getPrettyErrorLine(long line, long sourceFile);
+    static void getFrameInfo(Object *frameInfo);
+    static void getStackTrace();
 
 
-    static void fillMethodCall(Method* func, Frame &frameInfo, stringstream &ss);
+    static void fillMethodCall(Method* func, Int pc, stringstream &ss);
     static void __snprintf(int cfmt, double val, int precision);
 
     /**
@@ -87,6 +90,7 @@ public:
     ClassObject *OutOfMemoryExcept;
     ClassObject *InvalidOperationExcept;
 
+    Object outOfMemoryExcept;
     Meta metaData;
     Manifest manifest;
     Object* staticHeap;

@@ -115,15 +115,15 @@ void GarbageCollector::initilize() {
     self->adultObjects=0;
     self->youngObjects=0;
     self->oldObjects=0;
-    self->largestCollectionTime=0;
-    self->collections=0;
-    self->timeSpentCollecting=0;
-    self->timeSlept=0;
     self->yObjs=0;
     self->sleep=false;
 
 #ifdef SHARP_PROF_
     self->x = 0;
+    self->largestCollectionTime=0;
+    self->collections=0;
+    self->timeSpentCollecting=0;
+    self->timeSlept=0;
 #endif
     self->aObjs=0;
     self->oObjs=0;
@@ -353,16 +353,16 @@ void GarbageCollector::run() {
 #ifdef SHARP_PROF_
             if(managedBytes > hbytes)
                 hbytes = managedBytes;
+            timeSlept += 15;
 #endif
 
+            __os_yield();
 #ifdef WIN32_
-            Sleep(10);
+            Sleep(15);
 #endif
 #ifdef POSIX_
-            usleep(10*999);
+            usleep(15*999);
 #endif
-            __os_yield();
-            timeSlept += 10;
             if(sleep) sedateSelf();
             if(!messageQueue.empty()) goto message;
         } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()))
@@ -447,6 +447,10 @@ double GarbageCollector::_sizeof(SharpObject *object) {
 SharpObject* GarbageCollector::sweep(SharpObject *object, SharpObject *prevObj, SharpObject *tail) {
     if(object != nullptr) {
 
+        sharp_type st = (sharp_type)TYPE(object->info);
+        ClassObject *klass = &vm.classes[CLASS(object->info) % vm.manifest.classes];
+        int gen = GENERATION(object->info);
+
         if(TYPE(object->info) == _stype_var) {
             freedBytes += sizeof(double)*object->size;
             std::free(object->HEAD); object->HEAD = NULL;
@@ -499,6 +503,33 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
     PUSH(object);
     youngObjects++;
     heapSize++;
+
+    return object;
+}
+
+SharpObject *GarbageCollector::newObjectUnsafe(int64_t size) {
+    if(size==0)
+        return nullptr;
+
+    SharpObject *object = (SharpObject*)malloc(sizeof(SharpObject));
+    if(object != NULL) {
+        object->init(size, _stype_var);
+
+        object->HEAD = (double *) calloc(size, sizeof(double));
+        if(object->HEAD != NULL) {
+            SET_TYPE(object->info, _stype_var);
+
+            /* track the allocation amount */
+            GUARD(mutex);
+            managedBytes += (sizeof(SharpObject) * 1) + (sizeof(double) * size);
+            PUSH(object);
+            youngObjects++;
+            heapSize++;
+        } else {
+            std::free(object);
+            return NULL;
+        }
+    }
 
     return object;
 }

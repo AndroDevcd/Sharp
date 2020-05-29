@@ -3,18 +3,18 @@
 class: main#__srt_global[0] fields(0) methods(2)
 class: std#__srt_global[1] fields(1) methods(2)
 class: std#_enum_[2] fields(3) methods(13)
-class: std#throwable[3] fields(2) methods(8)
-class: std#exception[4] fields(2) methods(11)
-class: std#illegal_argument_exception[5] fields(2) methods(14)
-class: std#illegal_state_exception[6] fields(2) methods(14)
-class: std#out_of_bounds_exception[7] fields(2) methods(14)
-class: std#invalid_operation_exception[8] fields(2) methods(14)
-class: std#nullptr_exception[9] fields(2) methods(14)
-class: std#runtime_exception[10] fields(2) methods(14)
-class: std#stack_overflow_exception[11] fields(2) methods(14)
-class: std#thread_stack_exception[12] fields(2) methods(14)
-class: std#class_cast_exception[13] fields(2) methods(14)
-class: std#out_of_memory_exception[14] fields(2) methods(14)
+class: std#throwable[3] fields(3) methods(10)
+class: std#exception[4] fields(3) methods(13)
+class: std#illegal_argument_exception[5] fields(3) methods(16)
+class: std#illegal_state_exception[6] fields(3) methods(16)
+class: std#out_of_bounds_exception[7] fields(3) methods(16)
+class: std#invalid_operation_exception[8] fields(3) methods(16)
+class: std#nullptr_exception[9] fields(3) methods(16)
+class: std#runtime_exception[10] fields(3) methods(16)
+class: std#stack_overflow_exception[11] fields(3) methods(16)
+class: std#thread_stack_exception[12] fields(3) methods(16)
+class: std#class_cast_exception[13] fields(3) methods(16)
+class: std#out_of_memory_exception[14] fields(3) methods(16)
 class: std.io#__srt_global[15] fields(1) methods(34)
 class: std#_nil_[16] fields(1) methods(9)
 class: std#_object_[17] fields(0) methods(5)
@@ -22,35 +22,37 @@ class: platform#__srt_global[18] fields(0) methods(1)
 class: platform#build[19] fields(4) methods(8)
 class: platform.kernel#__srt_global[20] fields(0) methods(1)
 class: platform.kernel#platform[21] fields(4) methods(11)
-class: std#ulong[22] fields(1) methods(281)
-class: std#long[23] fields(1) methods(282)
-class: std#uint[24] fields(1) methods(281)
-class: std#int[25] fields(1) methods(281)
-class: std#ushort[26] fields(1) methods(281)
-class: std#short[27] fields(1) methods(281)
-class: std#uchar[28] fields(1) methods(281)
-class: std#char[29] fields(1) methods(281)
-class: std#byte[30] fields(1) methods(283)
-class: std#bool[31] fields(1) methods(280)
-interface: std#printable[32] fields(0) methods(7)
-class: std.reflect#__srt_global[33] fields(0) methods(1)
-class: std.reflect#_class_[34] fields(1) methods(7)
-class: std.reflect#data_entity[35] fields(1) methods(6)
-enum: std.reflect#property_type[36] fields(6) methods(13)
-class: std.reflect#data_property[37] fields(1) methods(7)
-class: std.reflect#field[38] fields(2) methods(6)
-class: std.reflect#function[39] fields(1) methods(7)
-class: std.reflect#reflect[40] fields(3) methods(9)
-class: std#string[41] fields(3) methods(15)
-interface: std#unique[42] fields(0) methods(8)
-generic: std#integer<_uint64>[43] fields(1) methods(279)
-generic: std#integer<_int64>[44] fields(1) methods(279)
-generic: std#integer<_uint32>[45] fields(1) methods(279)
-generic: std#integer<_int32>[46] fields(1) methods(279)
-generic: std#integer<_uint16>[47] fields(1) methods(279)
-generic: std#integer<_int16>[48] fields(1) methods(279)
-generic: std#integer<_uint8>[49] fields(1) methods(279)
-generic: std#integer<_int8>[50] fields(1) methods(279)
+class: platform.kernel#stack_state[22] fields(2) methods(6)
+class: platform.kernel#vm[23] fields(0) methods(8)
+class: std#ulong[24] fields(1) methods(281)
+class: std#long[25] fields(1) methods(282)
+class: std#uint[26] fields(1) methods(281)
+class: std#int[27] fields(1) methods(281)
+class: std#ushort[28] fields(1) methods(281)
+class: std#short[29] fields(1) methods(281)
+class: std#uchar[30] fields(1) methods(281)
+class: std#char[31] fields(1) methods(281)
+class: std#byte[32] fields(1) methods(283)
+class: std#bool[33] fields(1) methods(280)
+interface: std#printable[34] fields(0) methods(7)
+class: std.reflect#__srt_global[35] fields(0) methods(1)
+class: std.reflect#_class_[36] fields(1) methods(7)
+class: std.reflect#data_entity[37] fields(1) methods(6)
+enum: std.reflect#property_type[38] fields(6) methods(13)
+class: std.reflect#data_property[39] fields(1) methods(7)
+class: std.reflect#field[40] fields(2) methods(6)
+class: std.reflect#function[41] fields(1) methods(7)
+class: std.reflect#reflect[42] fields(3) methods(9)
+class: std#string[43] fields(3) methods(15)
+interface: std#unique[44] fields(0) methods(8)
+generic: std#integer<_uint64>[45] fields(1) methods(279)
+generic: std#integer<_int64>[46] fields(1) methods(279)
+generic: std#integer<_uint32>[47] fields(1) methods(279)
+generic: std#integer<_int32>[48] fields(1) methods(279)
+generic: std#integer<_uint16>[49] fields(1) methods(279)
+generic: std#integer<_int16>[50] fields(1) methods(279)
+generic: std#integer<_uint8>[51] fields(1) methods(279)
+generic: std#integer<_int8>[52] fields(1) methods(279)
 
 
  strings: 
@@ -150,7 +152,7 @@ function: std#integer<_uint64>.hash[8] params(0) in file: lib/support/0.2.805//p
 		    def hash() : long {
 		       ^
 
-0 [0x0]: line: 15 new_class @23 // std#long   
+0 [0x0]: line: 15 new_class @25 // std#long   
 1 [0x1]:          dup    
 2 [0x2]:          movl 0   
 3 [0x3]:          movn #0   
@@ -158,7 +160,7 @@ function: std#integer<_uint64>.hash[8] params(0) in file: lib/support/0.2.805//p
 7 [0x7]:          chklen adx   
 8 [0x8]:          iaload ebx, adx   
 9 [0x9]:          rstore ebx   
-10 [0xa]:          call @2294 // <std#long.long>   
+10 [0xa]:          call @2299 // <std#long.long>   
 11 [0xb]:          return_val ebx   
 12 [0xc]:          ret   
 
@@ -5611,7 +5613,7 @@ function: std#integer<_uint64>.to_ulong[268] params(0) in file: lib/support/0.2.
 		    def to_ulong() := new ulong { value };
 		       ^
 
-0 [0x0]: line: 306 new_class @22 // std#ulong   
+0 [0x0]: line: 306 new_class @24 // std#ulong   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -5632,7 +5634,7 @@ function: std#integer<_uint64>.to_long[269] params(0) in file: lib/support/0.2.8
 		    def to_long() := new long { value };
 		       ^
 
-0 [0x0]: line: 307 new_class @23 // std#long   
+0 [0x0]: line: 307 new_class @25 // std#long   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -5653,7 +5655,7 @@ function: std#integer<_uint64>.to_uint[270] params(0) in file: lib/support/0.2.8
 		    def to_uint() := new uint { value };
 		       ^
 
-0 [0x0]: line: 308 new_class @24 // std#uint   
+0 [0x0]: line: 308 new_class @26 // std#uint   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -5674,7 +5676,7 @@ function: std#integer<_uint64>.to_int[271] params(0) in file: lib/support/0.2.80
 		    def to_int() := new int { value };
 		       ^
 
-0 [0x0]: line: 309 new_class @25 // std#int   
+0 [0x0]: line: 309 new_class @27 // std#int   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -5695,7 +5697,7 @@ function: std#integer<_uint64>.to_ushort[272] params(0) in file: lib/support/0.2
 		    def to_ushort() := new ushort { value };
 		       ^
 
-0 [0x0]: line: 310 new_class @26 // std#ushort   
+0 [0x0]: line: 310 new_class @28 // std#ushort   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -5716,7 +5718,7 @@ function: std#integer<_uint64>.to_short[273] params(0) in file: lib/support/0.2.
 		    def to_short() := new short { value };
 		       ^
 
-0 [0x0]: line: 311 new_class @27 // std#short   
+0 [0x0]: line: 311 new_class @29 // std#short   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -5737,7 +5739,7 @@ function: std#integer<_uint64>.to_uchar[274] params(0) in file: lib/support/0.2.
 		    def to_uchar() := new uchar { value };
 		       ^
 
-0 [0x0]: line: 312 new_class @28 // std#uchar   
+0 [0x0]: line: 312 new_class @30 // std#uchar   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -5758,7 +5760,7 @@ function: std#integer<_uint64>.to_char[275] params(0) in file: lib/support/0.2.8
 		    def to_char() := new char { value };
 		       ^
 
-0 [0x0]: line: 313 new_class @29 // std#char   
+0 [0x0]: line: 313 new_class @31 // std#char   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -5779,7 +5781,7 @@ function: std#integer<_uint64>.to_byte[276] params(0) in file: lib/support/0.2.8
 		    def to_byte() := new byte { value };
 		       ^
 
-0 [0x0]: line: 314 new_class @30 // std#byte   
+0 [0x0]: line: 314 new_class @32 // std#byte   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -5800,7 +5802,7 @@ function: std#integer<_uint64>.to_bool[277] params(0) in file: lib/support/0.2.8
 		    def to_bool() := new bool { value };
 		       ^
 
-0 [0x0]: line: 315 new_class @31 // std#bool   
+0 [0x0]: line: 315 new_class @33 // std#bool   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -5875,7 +5877,7 @@ function: std#integer<_int64>.hash[282] params(0) in file: lib/support/0.2.805//
 		    def hash() : long {
 		       ^
 
-0 [0x0]: line: 15 new_class @23 // std#long   
+0 [0x0]: line: 15 new_class @25 // std#long   
 1 [0x1]:          dup    
 2 [0x2]:          movl 0   
 3 [0x3]:          movn #0   
@@ -5883,7 +5885,7 @@ function: std#integer<_int64>.hash[282] params(0) in file: lib/support/0.2.805//
 7 [0x7]:          chklen adx   
 8 [0x8]:          iaload ebx, adx   
 9 [0x9]:          rstore ebx   
-10 [0xa]:          call @2294 // <std#long.long>   
+10 [0xa]:          call @2299 // <std#long.long>   
 11 [0xb]:          return_val ebx   
 12 [0xc]:          ret   
 
@@ -11336,7 +11338,7 @@ function: std#integer<_int64>.to_ulong[542] params(0) in file: lib/support/0.2.8
 		    def to_ulong() := new ulong { value };
 		       ^
 
-0 [0x0]: line: 306 new_class @22 // std#ulong   
+0 [0x0]: line: 306 new_class @24 // std#ulong   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -11357,7 +11359,7 @@ function: std#integer<_int64>.to_long[543] params(0) in file: lib/support/0.2.80
 		    def to_long() := new long { value };
 		       ^
 
-0 [0x0]: line: 307 new_class @23 // std#long   
+0 [0x0]: line: 307 new_class @25 // std#long   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -11378,7 +11380,7 @@ function: std#integer<_int64>.to_uint[544] params(0) in file: lib/support/0.2.80
 		    def to_uint() := new uint { value };
 		       ^
 
-0 [0x0]: line: 308 new_class @24 // std#uint   
+0 [0x0]: line: 308 new_class @26 // std#uint   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -11399,7 +11401,7 @@ function: std#integer<_int64>.to_int[545] params(0) in file: lib/support/0.2.805
 		    def to_int() := new int { value };
 		       ^
 
-0 [0x0]: line: 309 new_class @25 // std#int   
+0 [0x0]: line: 309 new_class @27 // std#int   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -11420,7 +11422,7 @@ function: std#integer<_int64>.to_ushort[546] params(0) in file: lib/support/0.2.
 		    def to_ushort() := new ushort { value };
 		       ^
 
-0 [0x0]: line: 310 new_class @26 // std#ushort   
+0 [0x0]: line: 310 new_class @28 // std#ushort   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -11441,7 +11443,7 @@ function: std#integer<_int64>.to_short[547] params(0) in file: lib/support/0.2.8
 		    def to_short() := new short { value };
 		       ^
 
-0 [0x0]: line: 311 new_class @27 // std#short   
+0 [0x0]: line: 311 new_class @29 // std#short   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -11462,7 +11464,7 @@ function: std#integer<_int64>.to_uchar[548] params(0) in file: lib/support/0.2.8
 		    def to_uchar() := new uchar { value };
 		       ^
 
-0 [0x0]: line: 312 new_class @28 // std#uchar   
+0 [0x0]: line: 312 new_class @30 // std#uchar   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -11483,7 +11485,7 @@ function: std#integer<_int64>.to_char[549] params(0) in file: lib/support/0.2.80
 		    def to_char() := new char { value };
 		       ^
 
-0 [0x0]: line: 313 new_class @29 // std#char   
+0 [0x0]: line: 313 new_class @31 // std#char   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -11504,7 +11506,7 @@ function: std#integer<_int64>.to_byte[550] params(0) in file: lib/support/0.2.80
 		    def to_byte() := new byte { value };
 		       ^
 
-0 [0x0]: line: 314 new_class @30 // std#byte   
+0 [0x0]: line: 314 new_class @32 // std#byte   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -11525,7 +11527,7 @@ function: std#integer<_int64>.to_bool[551] params(0) in file: lib/support/0.2.80
 		    def to_bool() := new bool { value };
 		       ^
 
-0 [0x0]: line: 315 new_class @31 // std#bool   
+0 [0x0]: line: 315 new_class @33 // std#bool   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -11600,7 +11602,7 @@ function: std#integer<_uint32>.hash[556] params(0) in file: lib/support/0.2.805/
 		    def hash() : long {
 		       ^
 
-0 [0x0]: line: 15 new_class @23 // std#long   
+0 [0x0]: line: 15 new_class @25 // std#long   
 1 [0x1]:          dup    
 2 [0x2]:          movl 0   
 3 [0x3]:          movn #0   
@@ -11608,7 +11610,7 @@ function: std#integer<_uint32>.hash[556] params(0) in file: lib/support/0.2.805/
 7 [0x7]:          chklen adx   
 8 [0x8]:          iaload ebx, adx   
 9 [0x9]:          rstore ebx   
-10 [0xa]:          call @2294 // <std#long.long>   
+10 [0xa]:          call @2299 // <std#long.long>   
 11 [0xb]:          return_val ebx   
 12 [0xc]:          ret   
 
@@ -17061,7 +17063,7 @@ function: std#integer<_uint32>.to_ulong[816] params(0) in file: lib/support/0.2.
 		    def to_ulong() := new ulong { value };
 		       ^
 
-0 [0x0]: line: 306 new_class @22 // std#ulong   
+0 [0x0]: line: 306 new_class @24 // std#ulong   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -17082,7 +17084,7 @@ function: std#integer<_uint32>.to_long[817] params(0) in file: lib/support/0.2.8
 		    def to_long() := new long { value };
 		       ^
 
-0 [0x0]: line: 307 new_class @23 // std#long   
+0 [0x0]: line: 307 new_class @25 // std#long   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -17103,7 +17105,7 @@ function: std#integer<_uint32>.to_uint[818] params(0) in file: lib/support/0.2.8
 		    def to_uint() := new uint { value };
 		       ^
 
-0 [0x0]: line: 308 new_class @24 // std#uint   
+0 [0x0]: line: 308 new_class @26 // std#uint   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -17124,7 +17126,7 @@ function: std#integer<_uint32>.to_int[819] params(0) in file: lib/support/0.2.80
 		    def to_int() := new int { value };
 		       ^
 
-0 [0x0]: line: 309 new_class @25 // std#int   
+0 [0x0]: line: 309 new_class @27 // std#int   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -17145,7 +17147,7 @@ function: std#integer<_uint32>.to_ushort[820] params(0) in file: lib/support/0.2
 		    def to_ushort() := new ushort { value };
 		       ^
 
-0 [0x0]: line: 310 new_class @26 // std#ushort   
+0 [0x0]: line: 310 new_class @28 // std#ushort   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -17166,7 +17168,7 @@ function: std#integer<_uint32>.to_short[821] params(0) in file: lib/support/0.2.
 		    def to_short() := new short { value };
 		       ^
 
-0 [0x0]: line: 311 new_class @27 // std#short   
+0 [0x0]: line: 311 new_class @29 // std#short   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -17187,7 +17189,7 @@ function: std#integer<_uint32>.to_uchar[822] params(0) in file: lib/support/0.2.
 		    def to_uchar() := new uchar { value };
 		       ^
 
-0 [0x0]: line: 312 new_class @28 // std#uchar   
+0 [0x0]: line: 312 new_class @30 // std#uchar   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -17208,7 +17210,7 @@ function: std#integer<_uint32>.to_char[823] params(0) in file: lib/support/0.2.8
 		    def to_char() := new char { value };
 		       ^
 
-0 [0x0]: line: 313 new_class @29 // std#char   
+0 [0x0]: line: 313 new_class @31 // std#char   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -17229,7 +17231,7 @@ function: std#integer<_uint32>.to_byte[824] params(0) in file: lib/support/0.2.8
 		    def to_byte() := new byte { value };
 		       ^
 
-0 [0x0]: line: 314 new_class @30 // std#byte   
+0 [0x0]: line: 314 new_class @32 // std#byte   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -17250,7 +17252,7 @@ function: std#integer<_uint32>.to_bool[825] params(0) in file: lib/support/0.2.8
 		    def to_bool() := new bool { value };
 		       ^
 
-0 [0x0]: line: 315 new_class @31 // std#bool   
+0 [0x0]: line: 315 new_class @33 // std#bool   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -17325,7 +17327,7 @@ function: std#integer<_int32>.hash[830] params(0) in file: lib/support/0.2.805//
 		    def hash() : long {
 		       ^
 
-0 [0x0]: line: 15 new_class @23 // std#long   
+0 [0x0]: line: 15 new_class @25 // std#long   
 1 [0x1]:          dup    
 2 [0x2]:          movl 0   
 3 [0x3]:          movn #0   
@@ -17333,7 +17335,7 @@ function: std#integer<_int32>.hash[830] params(0) in file: lib/support/0.2.805//
 7 [0x7]:          chklen adx   
 8 [0x8]:          iaload ebx, adx   
 9 [0x9]:          rstore ebx   
-10 [0xa]:          call @2294 // <std#long.long>   
+10 [0xa]:          call @2299 // <std#long.long>   
 11 [0xb]:          return_val ebx   
 12 [0xc]:          ret   
 
@@ -22786,7 +22788,7 @@ function: std#integer<_int32>.to_ulong[1090] params(0) in file: lib/support/0.2.
 		    def to_ulong() := new ulong { value };
 		       ^
 
-0 [0x0]: line: 306 new_class @22 // std#ulong   
+0 [0x0]: line: 306 new_class @24 // std#ulong   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -22807,7 +22809,7 @@ function: std#integer<_int32>.to_long[1091] params(0) in file: lib/support/0.2.8
 		    def to_long() := new long { value };
 		       ^
 
-0 [0x0]: line: 307 new_class @23 // std#long   
+0 [0x0]: line: 307 new_class @25 // std#long   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -22828,7 +22830,7 @@ function: std#integer<_int32>.to_uint[1092] params(0) in file: lib/support/0.2.8
 		    def to_uint() := new uint { value };
 		       ^
 
-0 [0x0]: line: 308 new_class @24 // std#uint   
+0 [0x0]: line: 308 new_class @26 // std#uint   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -22849,7 +22851,7 @@ function: std#integer<_int32>.to_int[1093] params(0) in file: lib/support/0.2.80
 		    def to_int() := new int { value };
 		       ^
 
-0 [0x0]: line: 309 new_class @25 // std#int   
+0 [0x0]: line: 309 new_class @27 // std#int   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -22870,7 +22872,7 @@ function: std#integer<_int32>.to_ushort[1094] params(0) in file: lib/support/0.2
 		    def to_ushort() := new ushort { value };
 		       ^
 
-0 [0x0]: line: 310 new_class @26 // std#ushort   
+0 [0x0]: line: 310 new_class @28 // std#ushort   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -22891,7 +22893,7 @@ function: std#integer<_int32>.to_short[1095] params(0) in file: lib/support/0.2.
 		    def to_short() := new short { value };
 		       ^
 
-0 [0x0]: line: 311 new_class @27 // std#short   
+0 [0x0]: line: 311 new_class @29 // std#short   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -22912,7 +22914,7 @@ function: std#integer<_int32>.to_uchar[1096] params(0) in file: lib/support/0.2.
 		    def to_uchar() := new uchar { value };
 		       ^
 
-0 [0x0]: line: 312 new_class @28 // std#uchar   
+0 [0x0]: line: 312 new_class @30 // std#uchar   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -22933,7 +22935,7 @@ function: std#integer<_int32>.to_char[1097] params(0) in file: lib/support/0.2.8
 		    def to_char() := new char { value };
 		       ^
 
-0 [0x0]: line: 313 new_class @29 // std#char   
+0 [0x0]: line: 313 new_class @31 // std#char   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -22954,7 +22956,7 @@ function: std#integer<_int32>.to_byte[1098] params(0) in file: lib/support/0.2.8
 		    def to_byte() := new byte { value };
 		       ^
 
-0 [0x0]: line: 314 new_class @30 // std#byte   
+0 [0x0]: line: 314 new_class @32 // std#byte   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -22975,7 +22977,7 @@ function: std#integer<_int32>.to_bool[1099] params(0) in file: lib/support/0.2.8
 		    def to_bool() := new bool { value };
 		       ^
 
-0 [0x0]: line: 315 new_class @31 // std#bool   
+0 [0x0]: line: 315 new_class @33 // std#bool   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -23050,7 +23052,7 @@ function: std#integer<_uint16>.hash[1104] params(0) in file: lib/support/0.2.805
 		    def hash() : long {
 		       ^
 
-0 [0x0]: line: 15 new_class @23 // std#long   
+0 [0x0]: line: 15 new_class @25 // std#long   
 1 [0x1]:          dup    
 2 [0x2]:          movl 0   
 3 [0x3]:          movn #0   
@@ -23058,7 +23060,7 @@ function: std#integer<_uint16>.hash[1104] params(0) in file: lib/support/0.2.805
 7 [0x7]:          chklen adx   
 8 [0x8]:          iaload ebx, adx   
 9 [0x9]:          rstore ebx   
-10 [0xa]:          call @2294 // <std#long.long>   
+10 [0xa]:          call @2299 // <std#long.long>   
 11 [0xb]:          return_val ebx   
 12 [0xc]:          ret   
 
@@ -28511,7 +28513,7 @@ function: std#integer<_uint16>.to_ulong[1364] params(0) in file: lib/support/0.2
 		    def to_ulong() := new ulong { value };
 		       ^
 
-0 [0x0]: line: 306 new_class @22 // std#ulong   
+0 [0x0]: line: 306 new_class @24 // std#ulong   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -28532,7 +28534,7 @@ function: std#integer<_uint16>.to_long[1365] params(0) in file: lib/support/0.2.
 		    def to_long() := new long { value };
 		       ^
 
-0 [0x0]: line: 307 new_class @23 // std#long   
+0 [0x0]: line: 307 new_class @25 // std#long   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -28553,7 +28555,7 @@ function: std#integer<_uint16>.to_uint[1366] params(0) in file: lib/support/0.2.
 		    def to_uint() := new uint { value };
 		       ^
 
-0 [0x0]: line: 308 new_class @24 // std#uint   
+0 [0x0]: line: 308 new_class @26 // std#uint   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -28574,7 +28576,7 @@ function: std#integer<_uint16>.to_int[1367] params(0) in file: lib/support/0.2.8
 		    def to_int() := new int { value };
 		       ^
 
-0 [0x0]: line: 309 new_class @25 // std#int   
+0 [0x0]: line: 309 new_class @27 // std#int   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -28595,7 +28597,7 @@ function: std#integer<_uint16>.to_ushort[1368] params(0) in file: lib/support/0.
 		    def to_ushort() := new ushort { value };
 		       ^
 
-0 [0x0]: line: 310 new_class @26 // std#ushort   
+0 [0x0]: line: 310 new_class @28 // std#ushort   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -28616,7 +28618,7 @@ function: std#integer<_uint16>.to_short[1369] params(0) in file: lib/support/0.2
 		    def to_short() := new short { value };
 		       ^
 
-0 [0x0]: line: 311 new_class @27 // std#short   
+0 [0x0]: line: 311 new_class @29 // std#short   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -28637,7 +28639,7 @@ function: std#integer<_uint16>.to_uchar[1370] params(0) in file: lib/support/0.2
 		    def to_uchar() := new uchar { value };
 		       ^
 
-0 [0x0]: line: 312 new_class @28 // std#uchar   
+0 [0x0]: line: 312 new_class @30 // std#uchar   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -28658,7 +28660,7 @@ function: std#integer<_uint16>.to_char[1371] params(0) in file: lib/support/0.2.
 		    def to_char() := new char { value };
 		       ^
 
-0 [0x0]: line: 313 new_class @29 // std#char   
+0 [0x0]: line: 313 new_class @31 // std#char   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -28679,7 +28681,7 @@ function: std#integer<_uint16>.to_byte[1372] params(0) in file: lib/support/0.2.
 		    def to_byte() := new byte { value };
 		       ^
 
-0 [0x0]: line: 314 new_class @30 // std#byte   
+0 [0x0]: line: 314 new_class @32 // std#byte   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -28700,7 +28702,7 @@ function: std#integer<_uint16>.to_bool[1373] params(0) in file: lib/support/0.2.
 		    def to_bool() := new bool { value };
 		       ^
 
-0 [0x0]: line: 315 new_class @31 // std#bool   
+0 [0x0]: line: 315 new_class @33 // std#bool   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -28775,7 +28777,7 @@ function: std#integer<_int16>.hash[1378] params(0) in file: lib/support/0.2.805/
 		    def hash() : long {
 		       ^
 
-0 [0x0]: line: 15 new_class @23 // std#long   
+0 [0x0]: line: 15 new_class @25 // std#long   
 1 [0x1]:          dup    
 2 [0x2]:          movl 0   
 3 [0x3]:          movn #0   
@@ -28783,7 +28785,7 @@ function: std#integer<_int16>.hash[1378] params(0) in file: lib/support/0.2.805/
 7 [0x7]:          chklen adx   
 8 [0x8]:          iaload ebx, adx   
 9 [0x9]:          rstore ebx   
-10 [0xa]:          call @2294 // <std#long.long>   
+10 [0xa]:          call @2299 // <std#long.long>   
 11 [0xb]:          return_val ebx   
 12 [0xc]:          ret   
 
@@ -34236,7 +34238,7 @@ function: std#integer<_int16>.to_ulong[1638] params(0) in file: lib/support/0.2.
 		    def to_ulong() := new ulong { value };
 		       ^
 
-0 [0x0]: line: 306 new_class @22 // std#ulong   
+0 [0x0]: line: 306 new_class @24 // std#ulong   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -34257,7 +34259,7 @@ function: std#integer<_int16>.to_long[1639] params(0) in file: lib/support/0.2.8
 		    def to_long() := new long { value };
 		       ^
 
-0 [0x0]: line: 307 new_class @23 // std#long   
+0 [0x0]: line: 307 new_class @25 // std#long   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -34278,7 +34280,7 @@ function: std#integer<_int16>.to_uint[1640] params(0) in file: lib/support/0.2.8
 		    def to_uint() := new uint { value };
 		       ^
 
-0 [0x0]: line: 308 new_class @24 // std#uint   
+0 [0x0]: line: 308 new_class @26 // std#uint   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -34299,7 +34301,7 @@ function: std#integer<_int16>.to_int[1641] params(0) in file: lib/support/0.2.80
 		    def to_int() := new int { value };
 		       ^
 
-0 [0x0]: line: 309 new_class @25 // std#int   
+0 [0x0]: line: 309 new_class @27 // std#int   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -34320,7 +34322,7 @@ function: std#integer<_int16>.to_ushort[1642] params(0) in file: lib/support/0.2
 		    def to_ushort() := new ushort { value };
 		       ^
 
-0 [0x0]: line: 310 new_class @26 // std#ushort   
+0 [0x0]: line: 310 new_class @28 // std#ushort   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -34341,7 +34343,7 @@ function: std#integer<_int16>.to_short[1643] params(0) in file: lib/support/0.2.
 		    def to_short() := new short { value };
 		       ^
 
-0 [0x0]: line: 311 new_class @27 // std#short   
+0 [0x0]: line: 311 new_class @29 // std#short   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -34362,7 +34364,7 @@ function: std#integer<_int16>.to_uchar[1644] params(0) in file: lib/support/0.2.
 		    def to_uchar() := new uchar { value };
 		       ^
 
-0 [0x0]: line: 312 new_class @28 // std#uchar   
+0 [0x0]: line: 312 new_class @30 // std#uchar   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -34383,7 +34385,7 @@ function: std#integer<_int16>.to_char[1645] params(0) in file: lib/support/0.2.8
 		    def to_char() := new char { value };
 		       ^
 
-0 [0x0]: line: 313 new_class @29 // std#char   
+0 [0x0]: line: 313 new_class @31 // std#char   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -34404,7 +34406,7 @@ function: std#integer<_int16>.to_byte[1646] params(0) in file: lib/support/0.2.8
 		    def to_byte() := new byte { value };
 		       ^
 
-0 [0x0]: line: 314 new_class @30 // std#byte   
+0 [0x0]: line: 314 new_class @32 // std#byte   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -34425,7 +34427,7 @@ function: std#integer<_int16>.to_bool[1647] params(0) in file: lib/support/0.2.8
 		    def to_bool() := new bool { value };
 		       ^
 
-0 [0x0]: line: 315 new_class @31 // std#bool   
+0 [0x0]: line: 315 new_class @33 // std#bool   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -34500,7 +34502,7 @@ function: std#integer<_uint8>.hash[1652] params(0) in file: lib/support/0.2.805/
 		    def hash() : long {
 		       ^
 
-0 [0x0]: line: 15 new_class @23 // std#long   
+0 [0x0]: line: 15 new_class @25 // std#long   
 1 [0x1]:          dup    
 2 [0x2]:          movl 0   
 3 [0x3]:          movn #0   
@@ -34508,7 +34510,7 @@ function: std#integer<_uint8>.hash[1652] params(0) in file: lib/support/0.2.805/
 7 [0x7]:          chklen adx   
 8 [0x8]:          iaload ebx, adx   
 9 [0x9]:          rstore ebx   
-10 [0xa]:          call @2294 // <std#long.long>   
+10 [0xa]:          call @2299 // <std#long.long>   
 11 [0xb]:          return_val ebx   
 12 [0xc]:          ret   
 
@@ -39961,7 +39963,7 @@ function: std#integer<_uint8>.to_ulong[1912] params(0) in file: lib/support/0.2.
 		    def to_ulong() := new ulong { value };
 		       ^
 
-0 [0x0]: line: 306 new_class @22 // std#ulong   
+0 [0x0]: line: 306 new_class @24 // std#ulong   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -39982,7 +39984,7 @@ function: std#integer<_uint8>.to_long[1913] params(0) in file: lib/support/0.2.8
 		    def to_long() := new long { value };
 		       ^
 
-0 [0x0]: line: 307 new_class @23 // std#long   
+0 [0x0]: line: 307 new_class @25 // std#long   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -40003,7 +40005,7 @@ function: std#integer<_uint8>.to_uint[1914] params(0) in file: lib/support/0.2.8
 		    def to_uint() := new uint { value };
 		       ^
 
-0 [0x0]: line: 308 new_class @24 // std#uint   
+0 [0x0]: line: 308 new_class @26 // std#uint   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -40024,7 +40026,7 @@ function: std#integer<_uint8>.to_int[1915] params(0) in file: lib/support/0.2.80
 		    def to_int() := new int { value };
 		       ^
 
-0 [0x0]: line: 309 new_class @25 // std#int   
+0 [0x0]: line: 309 new_class @27 // std#int   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -40045,7 +40047,7 @@ function: std#integer<_uint8>.to_ushort[1916] params(0) in file: lib/support/0.2
 		    def to_ushort() := new ushort { value };
 		       ^
 
-0 [0x0]: line: 310 new_class @26 // std#ushort   
+0 [0x0]: line: 310 new_class @28 // std#ushort   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -40066,7 +40068,7 @@ function: std#integer<_uint8>.to_short[1917] params(0) in file: lib/support/0.2.
 		    def to_short() := new short { value };
 		       ^
 
-0 [0x0]: line: 311 new_class @27 // std#short   
+0 [0x0]: line: 311 new_class @29 // std#short   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -40087,7 +40089,7 @@ function: std#integer<_uint8>.to_uchar[1918] params(0) in file: lib/support/0.2.
 		    def to_uchar() := new uchar { value };
 		       ^
 
-0 [0x0]: line: 312 new_class @28 // std#uchar   
+0 [0x0]: line: 312 new_class @30 // std#uchar   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -40108,7 +40110,7 @@ function: std#integer<_uint8>.to_char[1919] params(0) in file: lib/support/0.2.8
 		    def to_char() := new char { value };
 		       ^
 
-0 [0x0]: line: 313 new_class @29 // std#char   
+0 [0x0]: line: 313 new_class @31 // std#char   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -40129,7 +40131,7 @@ function: std#integer<_uint8>.to_byte[1920] params(0) in file: lib/support/0.2.8
 		    def to_byte() := new byte { value };
 		       ^
 
-0 [0x0]: line: 314 new_class @30 // std#byte   
+0 [0x0]: line: 314 new_class @32 // std#byte   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -40150,7 +40152,7 @@ function: std#integer<_uint8>.to_bool[1921] params(0) in file: lib/support/0.2.8
 		    def to_bool() := new bool { value };
 		       ^
 
-0 [0x0]: line: 315 new_class @31 // std#bool   
+0 [0x0]: line: 315 new_class @33 // std#bool   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -40225,7 +40227,7 @@ function: std#integer<_int8>.hash[1926] params(0) in file: lib/support/0.2.805//
 		    def hash() : long {
 		       ^
 
-0 [0x0]: line: 15 new_class @23 // std#long   
+0 [0x0]: line: 15 new_class @25 // std#long   
 1 [0x1]:          dup    
 2 [0x2]:          movl 0   
 3 [0x3]:          movn #0   
@@ -40233,7 +40235,7 @@ function: std#integer<_int8>.hash[1926] params(0) in file: lib/support/0.2.805//
 7 [0x7]:          chklen adx   
 8 [0x8]:          iaload ebx, adx   
 9 [0x9]:          rstore ebx   
-10 [0xa]:          call @2294 // <std#long.long>   
+10 [0xa]:          call @2299 // <std#long.long>   
 11 [0xb]:          return_val ebx   
 12 [0xc]:          ret   
 
@@ -45686,7 +45688,7 @@ function: std#integer<_int8>.to_ulong[2186] params(0) in file: lib/support/0.2.8
 		    def to_ulong() := new ulong { value };
 		       ^
 
-0 [0x0]: line: 306 new_class @22 // std#ulong   
+0 [0x0]: line: 306 new_class @24 // std#ulong   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -45707,7 +45709,7 @@ function: std#integer<_int8>.to_long[2187] params(0) in file: lib/support/0.2.80
 		    def to_long() := new long { value };
 		       ^
 
-0 [0x0]: line: 307 new_class @23 // std#long   
+0 [0x0]: line: 307 new_class @25 // std#long   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -45728,7 +45730,7 @@ function: std#integer<_int8>.to_uint[2188] params(0) in file: lib/support/0.2.80
 		    def to_uint() := new uint { value };
 		       ^
 
-0 [0x0]: line: 308 new_class @24 // std#uint   
+0 [0x0]: line: 308 new_class @26 // std#uint   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -45749,7 +45751,7 @@ function: std#integer<_int8>.to_int[2189] params(0) in file: lib/support/0.2.805
 		    def to_int() := new int { value };
 		       ^
 
-0 [0x0]: line: 309 new_class @25 // std#int   
+0 [0x0]: line: 309 new_class @27 // std#int   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -45770,7 +45772,7 @@ function: std#integer<_int8>.to_ushort[2190] params(0) in file: lib/support/0.2.
 		    def to_ushort() := new ushort { value };
 		       ^
 
-0 [0x0]: line: 310 new_class @26 // std#ushort   
+0 [0x0]: line: 310 new_class @28 // std#ushort   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -45791,7 +45793,7 @@ function: std#integer<_int8>.to_short[2191] params(0) in file: lib/support/0.2.8
 		    def to_short() := new short { value };
 		       ^
 
-0 [0x0]: line: 311 new_class @27 // std#short   
+0 [0x0]: line: 311 new_class @29 // std#short   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -45812,7 +45814,7 @@ function: std#integer<_int8>.to_uchar[2192] params(0) in file: lib/support/0.2.8
 		    def to_uchar() := new uchar { value };
 		       ^
 
-0 [0x0]: line: 312 new_class @28 // std#uchar   
+0 [0x0]: line: 312 new_class @30 // std#uchar   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -45833,7 +45835,7 @@ function: std#integer<_int8>.to_char[2193] params(0) in file: lib/support/0.2.80
 		    def to_char() := new char { value };
 		       ^
 
-0 [0x0]: line: 313 new_class @29 // std#char   
+0 [0x0]: line: 313 new_class @31 // std#char   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -45854,7 +45856,7 @@ function: std#integer<_int8>.to_byte[2194] params(0) in file: lib/support/0.2.80
 		    def to_byte() := new byte { value };
 		       ^
 
-0 [0x0]: line: 314 new_class @30 // std#byte   
+0 [0x0]: line: 314 new_class @32 // std#byte   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -45875,7 +45877,7 @@ function: std#integer<_int8>.to_bool[2195] params(0) in file: lib/support/0.2.80
 		    def to_bool() := new bool { value };
 		       ^
 
-0 [0x0]: line: 315 new_class @31 // std#bool   
+0 [0x0]: line: 315 new_class @33 // std#bool   
 1 [0x1]:           movl 0   
 2 [0x2]:           movn #0   
 4 [0x4]:           movi #0, adx   
@@ -45929,7 +45931,7 @@ function: main#__srt_global.main[2198] params(0) in file: tests/syntax.sharp:6:4
 12 [0xc]: line: 9 new_class @4 // std#exception   : try start: try block start
 13 [0xd]: line: 10 dup    
 14 [0xe]:          newstr @2 // err   
-15 [0xf]:          call @2210 // <std#exception.exception>   
+15 [0xf]:          call @2211 // <std#exception.exception>   
 16 [0x10]:          throw    
 17 [0x11]:          jmp @19   : try block end
 18 [0x12]:          jmp @19   : catch(std#exception)
@@ -45941,7 +45943,7 @@ function: main#__srt_global.main[2198] params(0) in file: tests/syntax.sharp:6:4
 24 [0x18]:          jmp @3   
 25 [0x19]: line: 15 loadl ebx, fp+0   
 26 [0x1a]:          rstore ebx   
-27 [0x1b]:          call @2288 // <platform.kernel#platform.print>   
+27 [0x1b]:          call @2289 // <platform.kernel#platform.print>   
 28 [0x1c]:          ret   
 
 
@@ -46070,37 +46072,54 @@ constructor: std#_enum_._enum_[2206] params(0) in file: lib/support/0.2.805//enu
 0 [0x0]:         ret   
 
 
-constructor: std#throwable.throwable[2207] params(1) in file: lib/support/0.2.805//exceptions.sharp:15:21: note:  
+constructor: std#throwable.throwable[2207] params(1) in file: lib/support/0.2.805//exceptions.sharp:25:21: note:  
 		    public throwable(message : _int8[]) {
 		                    ^
 
-0 [0x0]: line: 16 movl 1   
+0 [0x0]: line: 26 movl 1   
 1 [0x1]:          pushobj   
 2 [0x2]:          movl 0   
 3 [0x3]:          movn #0   
 5 [0x5]:          popobj   
-6 [0x6]:          ret   
+6 [0x6]: line: 27 movl 0   
+7 [0x7]:          pushobj   
+8 [0x8]:          call @2209 // <std#throwable.get_frame_info>   
+9 [0x9]:          ret   
 
 
-constructor: std#throwable.throwable[2208] params(1) in file: lib/support/0.2.805//exceptions.sharp:19:21: note:  
+constructor: std#throwable.throwable[2208] params(1) in file: lib/support/0.2.805//exceptions.sharp:30:21: note:  
 		    public throwable(message : string) {
 		                    ^
 
-0 [0x0]:         ret   
+0 [0x0]: line: 32 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          call @2209 // <std#throwable.get_frame_info>   
+3 [0x3]:          ret   
 
 
-constructor: std#throwable.throwable[2209] params(0) in file: lib/support/0.2.805//exceptions.sharp:8:6: note:  
+function: std#throwable.get_frame_info[2209] params(0) in file: lib/support/0.2.805//exceptions.sharp:35:16: note:  
+		    private def get_frame_info() {
+		               ^
+
+0 [0x0]: line: 36 call @2293 // <platform.kernel#vm.get_frame_info>   
+1 [0x1]:          movl 0   
+2 [0x2]:          movn #2   
+4 [0x4]:          popobj   
+5 [0x5]:          ret   
+
+
+constructor: std#throwable.throwable[2210] params(0) in file: lib/support/0.2.805//exceptions.sharp:10:6: note:  
 		class throwable {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#exception.exception[2210] params(1) in file: lib/support/0.2.805//exceptions.sharp:28:21: note:  
+constructor: std#exception.exception[2211] params(1) in file: lib/support/0.2.805//exceptions.sharp:45:21: note:  
 		    public exception(message : _int8[]) { base->throwable(message); }
 		                    ^
 
-0 [0x0]: line: 28 movl 0   
+0 [0x0]: line: 45 movl 0   
 1 [0x1]:          pushobj   
 2 [0x2]:          movl 1   
 3 [0x3]:          pushobj   
@@ -46108,11 +46127,11 @@ constructor: std#exception.exception[2210] params(1) in file: lib/support/0.2.80
 5 [0x5]:          ret   
 
 
-constructor: std#exception.exception[2211] params(1) in file: lib/support/0.2.805//exceptions.sharp:29:21: note:  
+constructor: std#exception.exception[2212] params(1) in file: lib/support/0.2.805//exceptions.sharp:46:21: note:  
 		    public exception(message : string) { base->throwable(message); }
 		                    ^
 
-0 [0x0]: line: 29 movl 0   
+0 [0x0]: line: 46 movl 0   
 1 [0x1]:          pushobj   
 2 [0x2]:          movl 1   
 3 [0x3]:          pushobj   
@@ -46120,152 +46139,16 @@ constructor: std#exception.exception[2211] params(1) in file: lib/support/0.2.80
 5 [0x5]:          ret   
 
 
-constructor: std#exception.exception[2212] params(0) in file: lib/support/0.2.805//exceptions.sharp:27:6: note:  
+constructor: std#exception.exception[2213] params(0) in file: lib/support/0.2.805//exceptions.sharp:44:6: note:  
 		class exception base throwable {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#illegal_argument_exception.illegal_argument_exception[2213] params(1) in file: lib/support/0.2.805//exceptions.sharp:33:38: note:  
+constructor: std#illegal_argument_exception.illegal_argument_exception[2214] params(1) in file: lib/support/0.2.805//exceptions.sharp:50:38: note:  
 		    public illegal_argument_exception(message : _int8[]) { base->exception(message); }
 		                                     ^
-
-0 [0x0]: line: 33 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2210 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#illegal_argument_exception.illegal_argument_exception[2214] params(1) in file: lib/support/0.2.805//exceptions.sharp:34:38: note:  
-		    public illegal_argument_exception(message : string) { base->exception(message); }
-		                                     ^
-
-0 [0x0]: line: 34 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2211 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#illegal_argument_exception.illegal_argument_exception[2215] params(0) in file: lib/support/0.2.805//exceptions.sharp:32:6: note:  
-		class illegal_argument_exception base exception {
-		     ^
-
-0 [0x0]:         ret   
-
-
-constructor: std#illegal_state_exception.illegal_state_exception[2216] params(1) in file: lib/support/0.2.805//exceptions.sharp:37:35: note:  
-		    public illegal_state_exception(message : _int8[]) { base->exception(message); }
-		                                  ^
-
-0 [0x0]: line: 37 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2210 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#illegal_state_exception.illegal_state_exception[2217] params(1) in file: lib/support/0.2.805//exceptions.sharp:38:35: note:  
-		    public illegal_state_exception(message : string) { base->exception(message); }
-		                                  ^
-
-0 [0x0]: line: 38 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2211 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#illegal_state_exception.illegal_state_exception[2218] params(0) in file: lib/support/0.2.805//exceptions.sharp:36:6: note:  
-		class illegal_state_exception base exception {
-		     ^
-
-0 [0x0]:         ret   
-
-
-constructor: std#out_of_bounds_exception.out_of_bounds_exception[2219] params(1) in file: lib/support/0.2.805//exceptions.sharp:41:35: note:  
-		    public out_of_bounds_exception(message : _int8[]) { base->exception(message); }
-		                                  ^
-
-0 [0x0]: line: 41 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2210 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#out_of_bounds_exception.out_of_bounds_exception[2220] params(1) in file: lib/support/0.2.805//exceptions.sharp:42:35: note:  
-		    public out_of_bounds_exception(message : string) { base->exception(message); }
-		                                  ^
-
-0 [0x0]: line: 42 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2211 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#out_of_bounds_exception.out_of_bounds_exception[2221] params(0) in file: lib/support/0.2.805//exceptions.sharp:40:6: note:  
-		class out_of_bounds_exception base exception {
-		     ^
-
-0 [0x0]:         ret   
-
-
-constructor: std#invalid_operation_exception.invalid_operation_exception[2222] params(1) in file: lib/support/0.2.805//exceptions.sharp:45:39: note:  
-		    public invalid_operation_exception(message : _int8[]) { base->exception(message); }
-		                                      ^
-
-0 [0x0]: line: 45 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2210 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#invalid_operation_exception.invalid_operation_exception[2223] params(1) in file: lib/support/0.2.805//exceptions.sharp:46:39: note:  
-		    public invalid_operation_exception(message : string) { base->exception(message); }
-		                                      ^
-
-0 [0x0]: line: 46 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2211 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#invalid_operation_exception.invalid_operation_exception[2224] params(0) in file: lib/support/0.2.805//exceptions.sharp:44:6: note:  
-		class invalid_operation_exception base exception {
-		     ^
-
-0 [0x0]:         ret   
-
-
-constructor: std#nullptr_exception.nullptr_exception[2225] params(1) in file: lib/support/0.2.805//exceptions.sharp:49:29: note:  
-		    public nullptr_exception(message : _int8[]) { base->exception(message); }
-		                            ^
-
-0 [0x0]: line: 49 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2210 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#nullptr_exception.nullptr_exception[2226] params(1) in file: lib/support/0.2.805//exceptions.sharp:50:29: note:  
-		    public nullptr_exception(message : string) { base->exception(message); }
-		                            ^
 
 0 [0x0]: line: 50 movl 0   
 1 [0x1]:          pushobj   
@@ -46275,28 +46158,28 @@ constructor: std#nullptr_exception.nullptr_exception[2226] params(1) in file: li
 5 [0x5]:          ret   
 
 
-constructor: std#nullptr_exception.nullptr_exception[2227] params(0) in file: lib/support/0.2.805//exceptions.sharp:48:6: note:  
-		class nullptr_exception base exception {
+constructor: std#illegal_argument_exception.illegal_argument_exception[2215] params(1) in file: lib/support/0.2.805//exceptions.sharp:51:38: note:  
+		    public illegal_argument_exception(message : string) { base->exception(message); }
+		                                     ^
+
+0 [0x0]: line: 51 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2212 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#illegal_argument_exception.illegal_argument_exception[2216] params(0) in file: lib/support/0.2.805//exceptions.sharp:49:6: note:  
+		class illegal_argument_exception base exception {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#runtime_exception.runtime_exception[2228] params(1) in file: lib/support/0.2.805//exceptions.sharp:53:29: note:  
-		    public runtime_exception(message : _int8[]) { base->exception(message); }
-		                            ^
-
-0 [0x0]: line: 53 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2210 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#runtime_exception.runtime_exception[2229] params(1) in file: lib/support/0.2.805//exceptions.sharp:54:29: note:  
-		    public runtime_exception(message : string) { base->exception(message); }
-		                            ^
+constructor: std#illegal_state_exception.illegal_state_exception[2217] params(1) in file: lib/support/0.2.805//exceptions.sharp:54:35: note:  
+		    public illegal_state_exception(message : _int8[]) { base->exception(message); }
+		                                  ^
 
 0 [0x0]: line: 54 movl 0   
 1 [0x1]:          pushobj   
@@ -46306,28 +46189,28 @@ constructor: std#runtime_exception.runtime_exception[2229] params(1) in file: li
 5 [0x5]:          ret   
 
 
-constructor: std#runtime_exception.runtime_exception[2230] params(0) in file: lib/support/0.2.805//exceptions.sharp:52:6: note:  
-		class runtime_exception base exception {
+constructor: std#illegal_state_exception.illegal_state_exception[2218] params(1) in file: lib/support/0.2.805//exceptions.sharp:55:35: note:  
+		    public illegal_state_exception(message : string) { base->exception(message); }
+		                                  ^
+
+0 [0x0]: line: 55 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2212 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#illegal_state_exception.illegal_state_exception[2219] params(0) in file: lib/support/0.2.805//exceptions.sharp:53:6: note:  
+		class illegal_state_exception base exception {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#stack_overflow_exception.stack_overflow_exception[2231] params(1) in file: lib/support/0.2.805//exceptions.sharp:57:36: note:  
-		    public stack_overflow_exception(message : _int8[]) { base->exception(message); }
-		                                   ^
-
-0 [0x0]: line: 57 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2210 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#stack_overflow_exception.stack_overflow_exception[2232] params(1) in file: lib/support/0.2.805//exceptions.sharp:58:36: note:  
-		    public stack_overflow_exception(message : string) { base->exception(message); }
-		                                   ^
+constructor: std#out_of_bounds_exception.out_of_bounds_exception[2220] params(1) in file: lib/support/0.2.805//exceptions.sharp:58:35: note:  
+		    public out_of_bounds_exception(message : _int8[]) { base->exception(message); }
+		                                  ^
 
 0 [0x0]: line: 58 movl 0   
 1 [0x1]:          pushobj   
@@ -46337,28 +46220,28 @@ constructor: std#stack_overflow_exception.stack_overflow_exception[2232] params(
 5 [0x5]:          ret   
 
 
-constructor: std#stack_overflow_exception.stack_overflow_exception[2233] params(0) in file: lib/support/0.2.805//exceptions.sharp:56:6: note:  
-		class stack_overflow_exception base exception {
+constructor: std#out_of_bounds_exception.out_of_bounds_exception[2221] params(1) in file: lib/support/0.2.805//exceptions.sharp:59:35: note:  
+		    public out_of_bounds_exception(message : string) { base->exception(message); }
+		                                  ^
+
+0 [0x0]: line: 59 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2212 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#out_of_bounds_exception.out_of_bounds_exception[2222] params(0) in file: lib/support/0.2.805//exceptions.sharp:57:6: note:  
+		class out_of_bounds_exception base exception {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#thread_stack_exception.thread_stack_exception[2234] params(1) in file: lib/support/0.2.805//exceptions.sharp:61:34: note:  
-		    public thread_stack_exception(message : _int8[]) { base->exception(message); }
-		                                 ^
-
-0 [0x0]: line: 61 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2210 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#thread_stack_exception.thread_stack_exception[2235] params(1) in file: lib/support/0.2.805//exceptions.sharp:62:34: note:  
-		    public thread_stack_exception(message : string) { base->exception(message); }
-		                                 ^
+constructor: std#invalid_operation_exception.invalid_operation_exception[2223] params(1) in file: lib/support/0.2.805//exceptions.sharp:62:39: note:  
+		    public invalid_operation_exception(message : _int8[]) { base->exception(message); }
+		                                      ^
 
 0 [0x0]: line: 62 movl 0   
 1 [0x1]:          pushobj   
@@ -46368,28 +46251,28 @@ constructor: std#thread_stack_exception.thread_stack_exception[2235] params(1) i
 5 [0x5]:          ret   
 
 
-constructor: std#thread_stack_exception.thread_stack_exception[2236] params(0) in file: lib/support/0.2.805//exceptions.sharp:60:6: note:  
-		class thread_stack_exception base exception {
+constructor: std#invalid_operation_exception.invalid_operation_exception[2224] params(1) in file: lib/support/0.2.805//exceptions.sharp:63:39: note:  
+		    public invalid_operation_exception(message : string) { base->exception(message); }
+		                                      ^
+
+0 [0x0]: line: 63 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2212 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#invalid_operation_exception.invalid_operation_exception[2225] params(0) in file: lib/support/0.2.805//exceptions.sharp:61:6: note:  
+		class invalid_operation_exception base exception {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#class_cast_exception.class_cast_exception[2237] params(1) in file: lib/support/0.2.805//exceptions.sharp:65:32: note:  
-		    public class_cast_exception(message : _int8[]) { base->exception(message); }
-		                               ^
-
-0 [0x0]: line: 65 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2210 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#class_cast_exception.class_cast_exception[2238] params(1) in file: lib/support/0.2.805//exceptions.sharp:66:32: note:  
-		    public class_cast_exception(message : string) { base->exception(message); }
-		                               ^
+constructor: std#nullptr_exception.nullptr_exception[2226] params(1) in file: lib/support/0.2.805//exceptions.sharp:66:29: note:  
+		    public nullptr_exception(message : _int8[]) { base->exception(message); }
+		                            ^
 
 0 [0x0]: line: 66 movl 0   
 1 [0x1]:          pushobj   
@@ -46399,28 +46282,28 @@ constructor: std#class_cast_exception.class_cast_exception[2238] params(1) in fi
 5 [0x5]:          ret   
 
 
-constructor: std#class_cast_exception.class_cast_exception[2239] params(0) in file: lib/support/0.2.805//exceptions.sharp:64:6: note:  
-		class class_cast_exception base exception {
+constructor: std#nullptr_exception.nullptr_exception[2227] params(1) in file: lib/support/0.2.805//exceptions.sharp:67:29: note:  
+		    public nullptr_exception(message : string) { base->exception(message); }
+		                            ^
+
+0 [0x0]: line: 67 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2212 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#nullptr_exception.nullptr_exception[2228] params(0) in file: lib/support/0.2.805//exceptions.sharp:65:6: note:  
+		class nullptr_exception base exception {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#out_of_memory_exception.out_of_memory_exception[2240] params(1) in file: lib/support/0.2.805//exceptions.sharp:69:35: note:  
-		    public out_of_memory_exception(message : _int8[]) { base->exception(message); }
-		                                  ^
-
-0 [0x0]: line: 69 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @2210 // <std#exception.exception>   
-5 [0x5]:          ret   
-
-
-constructor: std#out_of_memory_exception.out_of_memory_exception[2241] params(1) in file: lib/support/0.2.805//exceptions.sharp:70:35: note:  
-		    public out_of_memory_exception(message : string) { base->exception(message); }
-		                                  ^
+constructor: std#runtime_exception.runtime_exception[2229] params(1) in file: lib/support/0.2.805//exceptions.sharp:70:29: note:  
+		    public runtime_exception(message : _int8[]) { base->exception(message); }
+		                            ^
 
 0 [0x0]: line: 70 movl 0   
 1 [0x1]:          pushobj   
@@ -46430,14 +46313,150 @@ constructor: std#out_of_memory_exception.out_of_memory_exception[2241] params(1)
 5 [0x5]:          ret   
 
 
-constructor: std#out_of_memory_exception.out_of_memory_exception[2242] params(0) in file: lib/support/0.2.805//exceptions.sharp:68:6: note:  
+constructor: std#runtime_exception.runtime_exception[2230] params(1) in file: lib/support/0.2.805//exceptions.sharp:71:29: note:  
+		    public runtime_exception(message : string) { base->exception(message); }
+		                            ^
+
+0 [0x0]: line: 71 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2212 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#runtime_exception.runtime_exception[2231] params(0) in file: lib/support/0.2.805//exceptions.sharp:69:6: note:  
+		class runtime_exception base exception {
+		     ^
+
+0 [0x0]:         ret   
+
+
+constructor: std#stack_overflow_exception.stack_overflow_exception[2232] params(1) in file: lib/support/0.2.805//exceptions.sharp:74:36: note:  
+		    public stack_overflow_exception(message : _int8[]) { base->exception(message); }
+		                                   ^
+
+0 [0x0]: line: 74 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2211 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#stack_overflow_exception.stack_overflow_exception[2233] params(1) in file: lib/support/0.2.805//exceptions.sharp:75:36: note:  
+		    public stack_overflow_exception(message : string) { base->exception(message); }
+		                                   ^
+
+0 [0x0]: line: 75 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2212 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#stack_overflow_exception.stack_overflow_exception[2234] params(0) in file: lib/support/0.2.805//exceptions.sharp:73:6: note:  
+		class stack_overflow_exception base exception {
+		     ^
+
+0 [0x0]:         ret   
+
+
+constructor: std#thread_stack_exception.thread_stack_exception[2235] params(1) in file: lib/support/0.2.805//exceptions.sharp:78:34: note:  
+		    public thread_stack_exception(message : _int8[]) { base->exception(message); }
+		                                 ^
+
+0 [0x0]: line: 78 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2211 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#thread_stack_exception.thread_stack_exception[2236] params(1) in file: lib/support/0.2.805//exceptions.sharp:79:34: note:  
+		    public thread_stack_exception(message : string) { base->exception(message); }
+		                                 ^
+
+0 [0x0]: line: 79 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2212 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#thread_stack_exception.thread_stack_exception[2237] params(0) in file: lib/support/0.2.805//exceptions.sharp:77:6: note:  
+		class thread_stack_exception base exception {
+		     ^
+
+0 [0x0]:         ret   
+
+
+constructor: std#class_cast_exception.class_cast_exception[2238] params(1) in file: lib/support/0.2.805//exceptions.sharp:82:32: note:  
+		    public class_cast_exception(message : _int8[]) { base->exception(message); }
+		                               ^
+
+0 [0x0]: line: 82 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2211 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#class_cast_exception.class_cast_exception[2239] params(1) in file: lib/support/0.2.805//exceptions.sharp:83:32: note:  
+		    public class_cast_exception(message : string) { base->exception(message); }
+		                               ^
+
+0 [0x0]: line: 83 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2212 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#class_cast_exception.class_cast_exception[2240] params(0) in file: lib/support/0.2.805//exceptions.sharp:81:6: note:  
+		class class_cast_exception base exception {
+		     ^
+
+0 [0x0]:         ret   
+
+
+constructor: std#out_of_memory_exception.out_of_memory_exception[2241] params(1) in file: lib/support/0.2.805//exceptions.sharp:86:35: note:  
+		    public out_of_memory_exception(message : _int8[]) { base->exception(message); }
+		                                  ^
+
+0 [0x0]: line: 86 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2211 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#out_of_memory_exception.out_of_memory_exception[2242] params(1) in file: lib/support/0.2.805//exceptions.sharp:87:35: note:  
+		    public out_of_memory_exception(message : string) { base->exception(message); }
+		                                  ^
+
+0 [0x0]: line: 87 movl 0   
+1 [0x1]:          pushobj   
+2 [0x2]:          movl 1   
+3 [0x3]:          pushobj   
+4 [0x4]:          call @2212 // <std#exception.exception>   
+5 [0x5]:          ret   
+
+
+constructor: std#out_of_memory_exception.out_of_memory_exception[2243] params(0) in file: lib/support/0.2.805//exceptions.sharp:85:6: note:  
 		class out_of_memory_exception base exception {
 		     ^
 
 0 [0x0]:         ret   
 
 
-function: std.io#__srt_global.critical_section[2243] params(1) in file: lib/support/0.2.805//io//critical_section.sharp:4:4: note:  
+function: std.io#__srt_global.critical_section[2244] params(1) in file: lib/support/0.2.805//io//critical_section.sharp:4:4: note:  
 		def critical_section(block : ()()) {
 		   ^
 
@@ -46472,7 +46491,7 @@ function: std.io#__srt_global.critical_section[2243] params(1) in file: lib/supp
 30 [0x1e]:          ret   
 
 
-function: std.io#__srt_global.critical_section[2244] params(2) in file: lib/support/0.2.805//io//critical_section.sharp:30:4: note:  
+function: std.io#__srt_global.critical_section[2245] params(2) in file: lib/support/0.2.805//io//critical_section.sharp:30:4: note:  
 		def critical_section(block : ()(), lock_obj : object) {
 		   ^
 
@@ -46505,7 +46524,7 @@ function: std.io#__srt_global.critical_section[2244] params(2) in file: lib/supp
 26 [0x1a]:          ret   
 
 
-function: std.io#__srt_global.realloc[2245] params(2) in file: lib/support/0.2.805//io//memory.sharp:4:4: note:  
+function: std.io#__srt_global.realloc[2246] params(2) in file: lib/support/0.2.805//io//memory.sharp:4:4: note:  
 		def realloc(data: object[], size: var) {
 		   ^
 
@@ -46515,7 +46534,7 @@ function: std.io#__srt_global.realloc[2245] params(2) in file: lib/support/0.2.8
 3 [0x3]:         ret   : protected asm end
 
 
-function: std.io#__srt_global.realloc[2246] params(2) in file: lib/support/0.2.805//io//memory.sharp:12:4: note:  
+function: std.io#__srt_global.realloc[2247] params(2) in file: lib/support/0.2.805//io//memory.sharp:12:4: note:  
 		def realloc(data: var[], size: var) {
 		   ^
 
@@ -46525,7 +46544,7 @@ function: std.io#__srt_global.realloc[2246] params(2) in file: lib/support/0.2.8
 3 [0x3]:          ret   : protected asm end
 
 
-function: std.io#__srt_global.realloc[2247] params(2) in file: lib/support/0.2.805//io//memory.sharp:20:4: note:  
+function: std.io#__srt_global.realloc[2248] params(2) in file: lib/support/0.2.805//io//memory.sharp:20:4: note:  
 		def realloc(data: _int8[], size: var) {
 		   ^
 
@@ -46535,7 +46554,7 @@ function: std.io#__srt_global.realloc[2247] params(2) in file: lib/support/0.2.8
 3 [0x3]:          ret   : protected asm end
 
 
-function: std.io#__srt_global.realloc[2248] params(2) in file: lib/support/0.2.805//io//memory.sharp:28:4: note:  
+function: std.io#__srt_global.realloc[2249] params(2) in file: lib/support/0.2.805//io//memory.sharp:28:4: note:  
 		def realloc(data: _int16[], size: var) {
 		   ^
 
@@ -46545,7 +46564,7 @@ function: std.io#__srt_global.realloc[2248] params(2) in file: lib/support/0.2.8
 3 [0x3]:          ret   : protected asm end
 
 
-function: std.io#__srt_global.realloc[2249] params(2) in file: lib/support/0.2.805//io//memory.sharp:36:4: note:  
+function: std.io#__srt_global.realloc[2250] params(2) in file: lib/support/0.2.805//io//memory.sharp:36:4: note:  
 		def realloc(data: _int32[], size: var) {
 		   ^
 
@@ -46555,7 +46574,7 @@ function: std.io#__srt_global.realloc[2249] params(2) in file: lib/support/0.2.8
 3 [0x3]:          ret   : protected asm end
 
 
-function: std.io#__srt_global.realloc[2250] params(2) in file: lib/support/0.2.805//io//memory.sharp:44:4: note:  
+function: std.io#__srt_global.realloc[2251] params(2) in file: lib/support/0.2.805//io//memory.sharp:44:4: note:  
 		def realloc(data: _int64[], size: var) {
 		   ^
 
@@ -46565,7 +46584,7 @@ function: std.io#__srt_global.realloc[2250] params(2) in file: lib/support/0.2.8
 3 [0x3]:          ret   : protected asm end
 
 
-function: std.io#__srt_global.realloc[2251] params(2) in file: lib/support/0.2.805//io//memory.sharp:52:4: note:  
+function: std.io#__srt_global.realloc[2252] params(2) in file: lib/support/0.2.805//io//memory.sharp:52:4: note:  
 		def realloc(data: _uint8[], size: var) {
 		   ^
 
@@ -46575,7 +46594,7 @@ function: std.io#__srt_global.realloc[2251] params(2) in file: lib/support/0.2.8
 3 [0x3]:          ret   : protected asm end
 
 
-function: std.io#__srt_global.realloc[2252] params(2) in file: lib/support/0.2.805//io//memory.sharp:60:4: note:  
+function: std.io#__srt_global.realloc[2253] params(2) in file: lib/support/0.2.805//io//memory.sharp:60:4: note:  
 		def realloc(data: _uint16[], size: var) {
 		   ^
 
@@ -46585,7 +46604,7 @@ function: std.io#__srt_global.realloc[2252] params(2) in file: lib/support/0.2.8
 3 [0x3]:          ret   : protected asm end
 
 
-function: std.io#__srt_global.realloc[2253] params(2) in file: lib/support/0.2.805//io//memory.sharp:68:4: note:  
+function: std.io#__srt_global.realloc[2254] params(2) in file: lib/support/0.2.805//io//memory.sharp:68:4: note:  
 		def realloc(data: _uint32[], size: var) {
 		   ^
 
@@ -46595,7 +46614,7 @@ function: std.io#__srt_global.realloc[2253] params(2) in file: lib/support/0.2.8
 3 [0x3]:          ret   : protected asm end
 
 
-function: std.io#__srt_global.realloc[2254] params(2) in file: lib/support/0.2.805//io//memory.sharp:76:4: note:  
+function: std.io#__srt_global.realloc[2255] params(2) in file: lib/support/0.2.805//io//memory.sharp:76:4: note:  
 		def realloc(data: _uint64[], size: var) {
 		   ^
 
@@ -46605,7 +46624,7 @@ function: std.io#__srt_global.realloc[2254] params(2) in file: lib/support/0.2.8
 3 [0x3]:          ret   : protected asm end
 
 
-function: std.io#__srt_global.memcopy[2255] params(3) in file: lib/support/0.2.805//io//memory.sharp:84:4: note:  
+function: std.io#__srt_global.memcopy[2256] params(3) in file: lib/support/0.2.805//io//memory.sharp:84:4: note:  
 		def memcopy(data: object[], start: var, end: var) : object[] {
 		   ^
 
@@ -46622,7 +46641,7 @@ function: std.io#__srt_global.memcopy[2255] params(3) in file: lib/support/0.2.8
 10 [0xa]:          ret   
 
 
-function: std.io#__srt_global.memcopy[2256] params(3) in file: lib/support/0.2.805//io//memory.sharp:97:4: note:  
+function: std.io#__srt_global.memcopy[2257] params(3) in file: lib/support/0.2.805//io//memory.sharp:97:4: note:  
 		def memcopy(data: var[], start: var, end: var) : var[] {
 		   ^
 
@@ -46639,7 +46658,7 @@ function: std.io#__srt_global.memcopy[2256] params(3) in file: lib/support/0.2.8
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.memcopy[2257] params(3) in file: lib/support/0.2.805//io//memory.sharp:110:4: note:  
+function: std.io#__srt_global.memcopy[2258] params(3) in file: lib/support/0.2.805//io//memory.sharp:110:4: note:  
 		def memcopy(data: _int8[], start: var, end: var) : _int8[] {
 		   ^
 
@@ -46656,7 +46675,7 @@ function: std.io#__srt_global.memcopy[2257] params(3) in file: lib/support/0.2.8
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.memcopy[2258] params(3) in file: lib/support/0.2.805//io//memory.sharp:123:4: note:  
+function: std.io#__srt_global.memcopy[2259] params(3) in file: lib/support/0.2.805//io//memory.sharp:123:4: note:  
 		def memcopy(data: _int16[], start: var, end: var) : _int16[] {
 		   ^
 
@@ -46673,7 +46692,7 @@ function: std.io#__srt_global.memcopy[2258] params(3) in file: lib/support/0.2.8
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.memcopy[2259] params(3) in file: lib/support/0.2.805//io//memory.sharp:136:4: note:  
+function: std.io#__srt_global.memcopy[2260] params(3) in file: lib/support/0.2.805//io//memory.sharp:136:4: note:  
 		def memcopy(data: _int32[], start: var, end: var) : _int32[] {
 		   ^
 
@@ -46690,7 +46709,7 @@ function: std.io#__srt_global.memcopy[2259] params(3) in file: lib/support/0.2.8
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.memcopy[2260] params(3) in file: lib/support/0.2.805//io//memory.sharp:149:4: note:  
+function: std.io#__srt_global.memcopy[2261] params(3) in file: lib/support/0.2.805//io//memory.sharp:149:4: note:  
 		def memcopy(data: _int64[], start: var, end: var) : _int64[] {
 		   ^
 
@@ -46707,7 +46726,7 @@ function: std.io#__srt_global.memcopy[2260] params(3) in file: lib/support/0.2.8
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.memcopy[2261] params(3) in file: lib/support/0.2.805//io//memory.sharp:162:4: note:  
+function: std.io#__srt_global.memcopy[2262] params(3) in file: lib/support/0.2.805//io//memory.sharp:162:4: note:  
 		def memcopy(data: _uint8[], start: var, end: var) : _uint8[] {
 		   ^
 
@@ -46724,7 +46743,7 @@ function: std.io#__srt_global.memcopy[2261] params(3) in file: lib/support/0.2.8
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.memcopy[2262] params(3) in file: lib/support/0.2.805//io//memory.sharp:175:4: note:  
+function: std.io#__srt_global.memcopy[2263] params(3) in file: lib/support/0.2.805//io//memory.sharp:175:4: note:  
 		def memcopy(data: _uint16[], start: var, end: var) : _uint16[] {
 		   ^
 
@@ -46741,7 +46760,7 @@ function: std.io#__srt_global.memcopy[2262] params(3) in file: lib/support/0.2.8
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.memcopy[2263] params(3) in file: lib/support/0.2.805//io//memory.sharp:188:4: note:  
+function: std.io#__srt_global.memcopy[2264] params(3) in file: lib/support/0.2.805//io//memory.sharp:188:4: note:  
 		def memcopy(data: _uint32[], start: var, end: var) : _uint32[] {
 		   ^
 
@@ -46758,7 +46777,7 @@ function: std.io#__srt_global.memcopy[2263] params(3) in file: lib/support/0.2.8
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.memcopy[2264] params(3) in file: lib/support/0.2.805//io//memory.sharp:201:4: note:  
+function: std.io#__srt_global.memcopy[2265] params(3) in file: lib/support/0.2.805//io//memory.sharp:201:4: note:  
 		def memcopy(data: _uint64[], start: var, end: var) : _uint64[] {
 		   ^
 
@@ -46775,7 +46794,7 @@ function: std.io#__srt_global.memcopy[2264] params(3) in file: lib/support/0.2.8
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.invert[2265] params(3) in file: lib/support/0.2.805//io//memory.sharp:214:4: note:  
+function: std.io#__srt_global.invert[2266] params(3) in file: lib/support/0.2.805//io//memory.sharp:214:4: note:  
 		def invert(data: object[], start: var, len: var) : object[] {
 		   ^
 
@@ -46792,7 +46811,7 @@ function: std.io#__srt_global.invert[2265] params(3) in file: lib/support/0.2.80
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.invert[2266] params(3) in file: lib/support/0.2.805//io//memory.sharp:227:4: note:  
+function: std.io#__srt_global.invert[2267] params(3) in file: lib/support/0.2.805//io//memory.sharp:227:4: note:  
 		def invert(data: var[], start: var, len: var) : var[] {
 		   ^
 
@@ -46809,7 +46828,7 @@ function: std.io#__srt_global.invert[2266] params(3) in file: lib/support/0.2.80
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.invert[2267] params(3) in file: lib/support/0.2.805//io//memory.sharp:240:4: note:  
+function: std.io#__srt_global.invert[2268] params(3) in file: lib/support/0.2.805//io//memory.sharp:240:4: note:  
 		def invert(data: _int8[], start: var, len: var) : _int8[] {
 		   ^
 
@@ -46826,7 +46845,7 @@ function: std.io#__srt_global.invert[2267] params(3) in file: lib/support/0.2.80
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.invert[2268] params(3) in file: lib/support/0.2.805//io//memory.sharp:253:4: note:  
+function: std.io#__srt_global.invert[2269] params(3) in file: lib/support/0.2.805//io//memory.sharp:253:4: note:  
 		def invert(data: _int16[], start: var, len: var) : _int16[] {
 		   ^
 
@@ -46843,7 +46862,7 @@ function: std.io#__srt_global.invert[2268] params(3) in file: lib/support/0.2.80
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.invert[2269] params(3) in file: lib/support/0.2.805//io//memory.sharp:266:4: note:  
+function: std.io#__srt_global.invert[2270] params(3) in file: lib/support/0.2.805//io//memory.sharp:266:4: note:  
 		def invert(data: _int32[], start: var, len: var) : _int32[] {
 		   ^
 
@@ -46860,7 +46879,7 @@ function: std.io#__srt_global.invert[2269] params(3) in file: lib/support/0.2.80
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.invert[2270] params(3) in file: lib/support/0.2.805//io//memory.sharp:279:4: note:  
+function: std.io#__srt_global.invert[2271] params(3) in file: lib/support/0.2.805//io//memory.sharp:279:4: note:  
 		def invert(data: _int64[], start: var, len: var) : _int64[] {
 		   ^
 
@@ -46877,7 +46896,7 @@ function: std.io#__srt_global.invert[2270] params(3) in file: lib/support/0.2.80
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.invert[2271] params(3) in file: lib/support/0.2.805//io//memory.sharp:292:4: note:  
+function: std.io#__srt_global.invert[2272] params(3) in file: lib/support/0.2.805//io//memory.sharp:292:4: note:  
 		def invert(data: _uint8[], start: var, len: var) : _uint8[] {
 		   ^
 
@@ -46894,7 +46913,7 @@ function: std.io#__srt_global.invert[2271] params(3) in file: lib/support/0.2.80
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.invert[2272] params(3) in file: lib/support/0.2.805//io//memory.sharp:305:4: note:  
+function: std.io#__srt_global.invert[2273] params(3) in file: lib/support/0.2.805//io//memory.sharp:305:4: note:  
 		def invert(data: _uint16[], start: var, len: var) : _uint16[] {
 		   ^
 
@@ -46911,7 +46930,7 @@ function: std.io#__srt_global.invert[2272] params(3) in file: lib/support/0.2.80
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.invert[2273] params(3) in file: lib/support/0.2.805//io//memory.sharp:318:4: note:  
+function: std.io#__srt_global.invert[2274] params(3) in file: lib/support/0.2.805//io//memory.sharp:318:4: note:  
 		def invert(data: _uint32[], start: var, len: var) : _uint32[] {
 		   ^
 
@@ -46928,7 +46947,7 @@ function: std.io#__srt_global.invert[2273] params(3) in file: lib/support/0.2.80
 10 [0xa]:           ret   
 
 
-function: std.io#__srt_global.invert[2274] params(3) in file: lib/support/0.2.805//io//memory.sharp:331:4: note:  
+function: std.io#__srt_global.invert[2275] params(3) in file: lib/support/0.2.805//io//memory.sharp:331:4: note:  
 		def invert(data: _uint64[], start: var, len: var) : _uint64[] {
 		   ^
 
@@ -46945,27 +46964,27 @@ function: std.io#__srt_global.invert[2274] params(3) in file: lib/support/0.2.80
 10 [0xa]:           ret   
 
 
-function: std#_nil_.to_string[2275] params(0) in file: lib/support/0.2.805//nil.sharp:14:15: note:  
+function: std#_nil_.to_string[2276] params(0) in file: lib/support/0.2.805//nil.sharp:14:15: note:  
 		    public def to_string() := new string("nil");
 		              ^
 
-0 [0x0]: line: 14 new_class @41 // std#string   
+0 [0x0]: line: 14 new_class @43 // std#string   
 1 [0x1]:          dup    
 2 [0x2]:          newstr @0 // nil   
-3 [0x3]:          call @2320 // <std#string.string>   
+3 [0x3]:          call @2325 // <std#string.string>   
 4 [0x4]:          movsl #0   
 5 [0x5]:          returnobj   
 6 [0x6]:          ret   
 
 
-constructor: std#_nil_._nil_[2276] params(0) in file: lib/support/0.2.805//nil.sharp:10:13: note:  
+constructor: std#_nil_._nil_[2277] params(0) in file: lib/support/0.2.805//nil.sharp:10:13: note:  
 		stable class _nil_ {
 		            ^
 
 0 [0x0]:         ret   
 
 
-overload function: std#_object_.operator==[2277] params(1) in file: lib/support/0.2.805//object.sharp:13:15: note:  
+overload function: std#_object_.operator==[2278] params(1) in file: lib/support/0.2.805//object.sharp:13:15: note:  
 		    public def operator==(o : object) : var {
 		              ^
 
@@ -46977,37 +46996,37 @@ overload function: std#_object_.operator==[2277] params(1) in file: lib/support/
 5 [0x5]:          ret   
 
 
-function: std#_object_.to_string[2278] params(0) in file: lib/support/0.2.805//object.sharp:17:15: note:  
+function: std#_object_.to_string[2279] params(0) in file: lib/support/0.2.805//object.sharp:17:15: note:  
 		    public def to_string() := new string("");
 		              ^
 
-0 [0x0]: line: 17 new_class @41 // std#string   
+0 [0x0]: line: 17 new_class @43 // std#string   
 1 [0x1]:          dup    
 2 [0x2]:          newstr @1 //    
-3 [0x3]:          call @2320 // <std#string.string>   
+3 [0x3]:          call @2325 // <std#string.string>   
 4 [0x4]:          movsl #0   
 5 [0x5]:          returnobj   
 6 [0x6]:          ret   
 
 
-function: std#_object_.hash[2279] params(0) in file: lib/support/0.2.805//object.sharp:19:8: note:  
+function: std#_object_.hash[2280] params(0) in file: lib/support/0.2.805//object.sharp:19:8: note:  
 		    def hash() : long {
 		       ^
 
-0 [0x0]: line: 21 new_class @23 // std#long   
+0 [0x0]: line: 21 new_class @25 // std#long   
 1 [0x1]:          dup    
 2 [0x2]:          movi #0, ebx   
 4 [0x4]:          rstore ebx   
-5 [0x5]:          call @2294 // <std#long.long>   
+5 [0x5]:          call @2299 // <std#long.long>   
 6 [0x6]:          return_val ebx   
 7 [0x7]:          ret   
 
 
-function: std#_object_.guid[2280] params(0) in file: lib/support/0.2.805//object.sharp:24:8: note:  
+function: std#_object_.guid[2281] params(0) in file: lib/support/0.2.805//object.sharp:24:8: note:  
 		    def guid() : long {
 		       ^
 
-0 [0x0]: line: 26 new_class @23 // std#long   
+0 [0x0]: line: 26 new_class @25 // std#long   
 1 [0x1]:          dup    
 2 [0x2]:          movg @1 // @std#__srt_global   
 3 [0x3]:          movn #0   
@@ -47019,19 +47038,19 @@ function: std#_object_.guid[2280] params(0) in file: lib/support/0.2.805//object
 11 [0xb]:          movi #0, adx   
 13 [0xd]:          rmov adx, ebx   
 14 [0xe]:          rstore egx   
-15 [0xf]:          call @2294 // <std#long.long>   
+15 [0xf]:          call @2299 // <std#long.long>   
 16 [0x10]:          return_val ebx   
 17 [0x11]:          ret   
 
 
-constructor: std#_object_._object_[2281] params(0) in file: lib/support/0.2.805//object.sharp:11:13: note:  
+constructor: std#_object_._object_[2282] params(0) in file: lib/support/0.2.805//object.sharp:11:13: note:  
 		stable class _object_ : printable, unique {
 		            ^
 
 0 [0x0]:         ret   
 
 
-function: platform#build.is_windows[2282] params(0) in file: lib/support/0.2.805//platform//build.sharp:9:15: note:  
+function: platform#build.is_windows[2283] params(0) in file: lib/support/0.2.805//platform//build.sharp:9:15: note:  
 		    static def is_windows() : var {
 		              ^
 
@@ -47039,13 +47058,13 @@ function: platform#build.is_windows[2282] params(0) in file: lib/support/0.2.805
 1 [0x1]:          movn #0   
 3 [0x3]:          pushobj   
 4 [0x4]:          newstr @3 // win   
-5 [0x5]:          call @2325 // <std#string.operator==>   
+5 [0x5]:          call @2330 // <std#string.operator==>   
 6 [0x6]:          loadval ebx   
 7 [0x7]:          return_val ebx   
 8 [0x8]:          ret   
 
 
-function: platform#build.is_linux[2283] params(0) in file: lib/support/0.2.805//platform//build.sharp:13:15: note:  
+function: platform#build.is_linux[2284] params(0) in file: lib/support/0.2.805//platform//build.sharp:13:15: note:  
 		    static def is_linux() : var {
 		              ^
 
@@ -47053,104 +47072,104 @@ function: platform#build.is_linux[2283] params(0) in file: lib/support/0.2.805//
 1 [0x1]:          movn #0   
 3 [0x3]:          pushobj   
 4 [0x4]:          newstr @4 // posix   
-5 [0x5]:          call @2325 // <std#string.operator==>   
+5 [0x5]:          call @2330 // <std#string.operator==>   
 6 [0x6]:          loadval ebx   
 7 [0x7]:          return_val ebx   
 8 [0x8]:          ret   
 
 
-constructor: platform#build.build[2284] params(0) in file: lib/support/0.2.805//platform//build.sharp:3:6: note:  
+constructor: platform#build.build[2285] params(0) in file: lib/support/0.2.805//platform//build.sharp:3:6: note:  
 		class build {
 		     ^
 
 0 [0x0]:         ret   
 
 
-function: platform.kernel#platform.tls_init[2285] params(0) in file: lib/support/0.2.805//platform//kernel//platform.sharp:12:15: note:  
+function: platform.kernel#platform.tls_init[2286] params(0) in file: lib/support/0.2.805//platform//kernel//platform.sharp:12:15: note:  
 		    static def tls_init() {}
 		              ^
 
 0 [0x0]: line: 12 ret   
 
 
-function: platform.kernel#platform.static_init[2286] params(0) in file: lib/support/0.2.805//platform//kernel//platform.sharp:13:23: note:  
+function: platform.kernel#platform.static_init[2287] params(0) in file: lib/support/0.2.805//platform//kernel//platform.sharp:13:23: note:  
 		    private static def static_init() {}
 		                      ^
 
-0 [0x0]: line: 13 call @2337 // <std#__srt_global.$03internal_static_init>   
-1 [0x1]:          call @2335 // <std.io#__srt_global.$03internal_static_init>   
-2 [0x2]:          call @2336 // <std#_nil_.$03internal_static_init>   
-3 [0x3]:          call @2338 // <std#string.$03internal_static_init>   
-4 [0x4]:          call @2335 // <std.io#__srt_global.$03internal_static_init>   
-5 [0x5]:          call @2336 // <std#_nil_.$03internal_static_init>   
-6 [0x6]:          call @2337 // <std#__srt_global.$03internal_static_init>   
-7 [0x7]:          call @2338 // <std#string.$03internal_static_init>   
-8 [0x8]:          new_class @36 // std.reflect#property_type   
-9 [0x9]:          movg @36 // @std.reflect#property_type   
+0 [0x0]: line: 13 call @2343 // <std#__srt_global.$03internal_static_init>   
+1 [0x1]:          call @2341 // <std.io#__srt_global.$03internal_static_init>   
+2 [0x2]:          call @2342 // <std#_nil_.$03internal_static_init>   
+3 [0x3]:          call @2344 // <std#string.$03internal_static_init>   
+4 [0x4]:          call @2341 // <std.io#__srt_global.$03internal_static_init>   
+5 [0x5]:          call @2342 // <std#_nil_.$03internal_static_init>   
+6 [0x6]:          call @2343 // <std#__srt_global.$03internal_static_init>   
+7 [0x7]:          call @2344 // <std#string.$03internal_static_init>   
+8 [0x8]:          new_class @38 // std.reflect#property_type   
+9 [0x9]:          movg @38 // @std.reflect#property_type   
 10 [0xa]:          movn #1   
 12 [0xc]:          popobj   
 13 [0xd]:          newstr @6 // class_property   
-14 [0xe]:          movg @36 // @std.reflect#property_type   
+14 [0xe]:          movg @38 // @std.reflect#property_type   
 15 [0xf]:          movn #1   
 17 [0x11]:          movn #0   
 19 [0x13]:          popobj   
-20 [0x14]:          movi #3502, ebx   
-22 [0x16]:          movg @36 // @std.reflect#property_type   
+20 [0x14]:          movi #44925, ebx   
+22 [0x16]:          movg @38 // @std.reflect#property_type   
 23 [0x17]:          movn #1   
 25 [0x19]:          movn #1   
 27 [0x1b]:          movi #0, adx   
 29 [0x1d]:          rmov adx, ebx   
-30 [0x1e]:          new_class @36 // std.reflect#property_type   
-31 [0x1f]:          movg @36 // @std.reflect#property_type   
+30 [0x1e]:          new_class @38 // std.reflect#property_type   
+31 [0x1f]:          movg @38 // @std.reflect#property_type   
 32 [0x20]:          movn #2   
 34 [0x22]:          popobj   
 35 [0x23]:          newstr @7 // field_property   
-36 [0x24]:          movg @36 // @std.reflect#property_type   
+36 [0x24]:          movg @38 // @std.reflect#property_type   
 37 [0x25]:          movn #2   
 39 [0x27]:          movn #0   
 41 [0x29]:          popobj   
-42 [0x2a]:          movi #3503, ebx   
-44 [0x2c]:          movg @36 // @std.reflect#property_type   
+42 [0x2a]:          movi #44926, ebx   
+44 [0x2c]:          movg @38 // @std.reflect#property_type   
 45 [0x2d]:          movn #2   
 47 [0x2f]:          movn #1   
 49 [0x31]:          movi #0, adx   
 51 [0x33]:          rmov adx, ebx   
-52 [0x34]:          new_class @36 // std.reflect#property_type   
-53 [0x35]:          movg @36 // @std.reflect#property_type   
+52 [0x34]:          new_class @38 // std.reflect#property_type   
+53 [0x35]:          movg @38 // @std.reflect#property_type   
 54 [0x36]:          movn #3   
 56 [0x38]:          popobj   
 57 [0x39]:          newstr @8 // function_property   
-58 [0x3a]:          movg @36 // @std.reflect#property_type   
+58 [0x3a]:          movg @38 // @std.reflect#property_type   
 59 [0x3b]:          movn #3   
 61 [0x3d]:          movn #0   
 63 [0x3f]:          popobj   
-64 [0x40]:          movi #3504, ebx   
-66 [0x42]:          movg @36 // @std.reflect#property_type   
+64 [0x40]:          movi #44927, ebx   
+66 [0x42]:          movg @38 // @std.reflect#property_type   
 67 [0x43]:          movn #3   
 69 [0x45]:          movn #1   
 71 [0x47]:          movi #0, adx   
 73 [0x49]:          rmov adx, ebx   
 74 [0x4a]:          movi #3, ebx   
 76 [0x4c]:          new_classarray ebx  // std.reflect#property_type[]   
-77 [0x4d]:          movg @36 // @std.reflect#property_type   
+77 [0x4d]:          movg @38 // @std.reflect#property_type   
 78 [0x4e]:          movn #1   
 80 [0x50]:          pushobj   
 81 [0x51]:          movsl #-1   
 82 [0x52]:          movn #0   
 84 [0x54]:          popobj   
-85 [0x55]:          movg @36 // @std.reflect#property_type   
+85 [0x55]:          movg @38 // @std.reflect#property_type   
 86 [0x56]:          movn #2   
 88 [0x58]:          pushobj   
 89 [0x59]:          movsl #-1   
 90 [0x5a]:          movn #1   
 92 [0x5c]:          popobj   
-93 [0x5d]:          movg @36 // @std.reflect#property_type   
+93 [0x5d]:          movg @38 // @std.reflect#property_type   
 94 [0x5e]:          movn #3   
 96 [0x60]:          pushobj   
 97 [0x61]:          movsl #-1   
 98 [0x62]:          movn #2   
 100 [0x64]:          popobj   
-101 [0x65]:          movg @36 // @std.reflect#property_type   
+101 [0x65]:          movg @38 // @std.reflect#property_type   
 102 [0x66]:          movn #0   
 104 [0x68]:          popobj   
 105 [0x69]:          movg @21 // @platform.kernel#platform   
@@ -47161,7 +47180,7 @@ function: platform.kernel#platform.static_init[2286] params(0) in file: lib/supp
 113 [0x71]:          ret   
 
 
-function: platform.kernel#platform.print[2287] params(1) in file: lib/support/0.2.805//platform//kernel//platform.sharp:15:15: note:  
+function: platform.kernel#platform.print[2288] params(1) in file: lib/support/0.2.805//platform//kernel//platform.sharp:15:15: note:  
 		    static def print(msg : _int8[]) {
 		              ^
 
@@ -47184,7 +47203,7 @@ function: platform.kernel#platform.print[2287] params(1) in file: lib/support/0.
 18 [0x12]:          ret   
 
 
-function: platform.kernel#platform.print[2288] params(1) in file: lib/support/0.2.805//platform//kernel//platform.sharp:24:15: note:  
+function: platform.kernel#platform.print[2289] params(1) in file: lib/support/0.2.805//platform//kernel//platform.sharp:24:15: note:  
 		    static def print(num : var) {
 		              ^
 
@@ -47193,14 +47212,14 @@ function: platform.kernel#platform.print[2288] params(1) in file: lib/support/0.
 2 [0x2]:          ret   : protected asm end
 
 
-function: platform.kernel#platform.srt_init[2289] params(1) in file: lib/support/0.2.805//platform//kernel//platform.sharp:31:23: note:  
+function: platform.kernel#platform.srt_init[2290] params(1) in file: lib/support/0.2.805//platform//kernel//platform.sharp:31:23: note:  
 		    private static def srt_init(args: object[]) : var {
 		                      ^
 
-0 [0x0]: line: 32 new_class @41 // std#string   
+0 [0x0]: line: 32 new_class @43 // std#string   
 1 [0x1]:          dup    
 2 [0x2]:          newstr @1 //    
-3 [0x3]:          call @2320 // <std#string.string>   
+3 [0x3]:          call @2325 // <std#string.string>   
 4 [0x4]:          movl 0   
 5 [0x5]:          pushobj   
 6 [0x6]:          movi #0, ebx   
@@ -47210,14 +47229,14 @@ function: platform.kernel#platform.srt_init[2289] params(1) in file: lib/support
 11 [0xb]:          movnd adx   
 12 [0xc]:          vcast 0 -> []   
 13 [0xd]:          pushobj   
-14 [0xe]:          call @2324 // <std#string.operator+>   
+14 [0xe]:          call @2329 // <std#string.operator+>   
 15 [0xf]:          movg @19 // @platform#build   
 16 [0x10]:          movn #1   
 18 [0x12]:          popobj   
-19 [0x13]: line: 33 new_class @41 // std#string   
+19 [0x13]: line: 33 new_class @43 // std#string   
 20 [0x14]:          dup    
 21 [0x15]:          newstr @1 //    
-22 [0x16]:          call @2320 // <std#string.string>   
+22 [0x16]:          call @2325 // <std#string.string>   
 23 [0x17]:          movl 0   
 24 [0x18]:          pushobj   
 25 [0x19]:          movi #1, ebx   
@@ -47227,14 +47246,14 @@ function: platform.kernel#platform.srt_init[2289] params(1) in file: lib/support
 30 [0x1e]:          movnd adx   
 31 [0x1f]:          vcast 0 -> []   
 32 [0x20]:          pushobj   
-33 [0x21]:          call @2324 // <std#string.operator+>   
+33 [0x21]:          call @2329 // <std#string.operator+>   
 34 [0x22]:          movg @19 // @platform#build   
 35 [0x23]:          movn #3   
 37 [0x25]:          popobj   
-38 [0x26]: line: 34 new_class @41 // std#string   
+38 [0x26]: line: 34 new_class @43 // std#string   
 39 [0x27]:          dup    
 40 [0x28]:          newstr @1 //    
-41 [0x29]:          call @2320 // <std#string.string>   
+41 [0x29]:          call @2325 // <std#string.string>   
 42 [0x2a]:          movl 0   
 43 [0x2b]:          pushobj   
 44 [0x2c]:          movi #2, ebx   
@@ -47244,14 +47263,14 @@ function: platform.kernel#platform.srt_init[2289] params(1) in file: lib/support
 49 [0x31]:          movnd adx   
 50 [0x32]:          vcast 0 -> []   
 51 [0x33]:          pushobj   
-52 [0x34]:          call @2324 // <std#string.operator+>   
+52 [0x34]:          call @2329 // <std#string.operator+>   
 53 [0x35]:          movg @19 // @platform#build   
 54 [0x36]:          movn #2   
 56 [0x38]:          popobj   
-57 [0x39]: line: 35 new_class @41 // std#string   
+57 [0x39]: line: 35 new_class @43 // std#string   
 58 [0x3a]:          dup    
 59 [0x3b]:          newstr @1 //    
-60 [0x3c]:          call @2320 // <std#string.string>   
+60 [0x3c]:          call @2325 // <std#string.string>   
 61 [0x3d]:          movl 0   
 62 [0x3e]:          pushobj   
 63 [0x3f]:          movi #3, ebx   
@@ -47261,12 +47280,12 @@ function: platform.kernel#platform.srt_init[2289] params(1) in file: lib/support
 68 [0x44]:          movnd adx   
 69 [0x45]:          vcast 0 -> []   
 70 [0x46]:          pushobj   
-71 [0x47]:          call @2324 // <std#string.operator+>   
+71 [0x47]:          call @2329 // <std#string.operator+>   
 72 [0x48]:          movg @19 // @platform#build   
 73 [0x49]:          movn #0   
 75 [0x4b]:          popobj   
-76 [0x4c]: line: 37 call @2286 // <platform.kernel#platform.static_init>   
-77 [0x4d]: line: 38 call @2285 // <platform.kernel#platform.tls_init>   
+76 [0x4c]: line: 37 call @2287 // <platform.kernel#platform.static_init>   
+77 [0x4d]: line: 38 call @2286 // <platform.kernel#platform.tls_init>   
 78 [0x4e]: line: 40 movl 0   
 79 [0x4f]: line: 41 sizeof ebx   
 80 [0x50]:          rstore ebx   
@@ -47289,7 +47308,7 @@ function: platform.kernel#platform.srt_init[2289] params(1) in file: lib/support
 100 [0x64]:          movr ebx, cmt   
 101 [0x65]:          movr cmt, ebx   
 102 [0x66]:          jne 133   
-103 [0x67]: line: 45 new_class @41 // std#string   
+103 [0x67]: line: 45 new_class @43 // std#string   
 104 [0x68]:          dup    
 105 [0x69]:          movl 0   
 106 [0x6a]:          pushobj   
@@ -47300,7 +47319,7 @@ function: platform.kernel#platform.srt_init[2289] params(1) in file: lib/support
 112 [0x70]:          movnd adx   
 113 [0x71]:          vcast 0 -> []   
 114 [0x72]:          pushobj   
-115 [0x73]:          call @2320 // <std#string.string>   
+115 [0x73]:          call @2325 // <std#string.string>   
 116 [0x74]:          movl 1   
 117 [0x75]:          pushobj   
 118 [0x76]:          loadl ebx, fp+2   
@@ -47413,202 +47432,245 @@ function: platform.kernel#platform.srt_init[2289] params(1) in file: lib/support
 246 [0xf6]:          ret   
 
 
-constructor: platform.kernel#platform.platform[2290] params(0) in file: lib/support/0.2.805//platform//kernel//platform.sharp:5:6: note:  
+constructor: platform.kernel#platform.platform[2291] params(0) in file: lib/support/0.2.805//platform//kernel//platform.sharp:5:6: note:  
 		class platform
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#ulong.ulong[2291] params(1) in file: lib/support/0.2.805//primitives.sharp:322:10: note:  
+constructor: platform.kernel#stack_state.stack_state[2292] params(0) in file: lib/support/0.2.805//platform//kernel//stack_state.sharp:3:6: note:  
+		class stack_state {
+		     ^
+
+0 [0x0]:         ret   
+
+
+function: platform.kernel#vm.get_frame_info[2293] params(0) in file: lib/support/0.2.805//platform//kernel//vm.sharp:5:15: note:  
+		    static def get_frame_info() : stack_state {
+		              ^
+
+0 [0x0]: line: 6 int 0x35   : protected asm start
+1 [0x1]:         popobj2    
+2 [0x2]:         returnobj   
+3 [0x3]:         ret   
+4 [0x4]: line: 12 pushnull    : protected asm end
+5 [0x5]:          popobj2    
+6 [0x6]:          returnobj   
+7 [0x7]:          ret   
+
+
+function: platform.kernel#vm.get_stack_trace[2294] params(1) in file: lib/support/0.2.805//platform//kernel//vm.sharp:15:15: note:  
+		    static def get_stack_trace(info : stack_state) : string {
+		              ^
+
+0 [0x0]: line: 16 pushl 0   : protected asm start
+1 [0x1]:          int 0x36   
+2 [0x2]:          popobj2    
+3 [0x3]:          returnobj   
+4 [0x4]:          ret   
+5 [0x5]: line: 23 pushnull    : protected asm end
+6 [0x6]:          popobj2    
+7 [0x7]:          returnobj   
+8 [0x8]:          ret   
+
+
+constructor: platform.kernel#vm.vm[2295] params(0) in file: lib/support/0.2.805//platform//kernel//vm.sharp:3:6: note:  
+		class vm {
+		     ^
+
+0 [0x0]:         ret   
+
+
+constructor: std#ulong.ulong[2296] params(1) in file: lib/support/0.2.805//primitives.sharp:322:10: note:  
 		    ulong(i : var) {
 		         ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#ulong.ulong[2292] params(0) in file: lib/support/0.2.805//primitives.sharp:320:6: note:  
+constructor: std#ulong.ulong[2297] params(0) in file: lib/support/0.2.805//primitives.sharp:320:6: note:  
 		class ulong base integer<_uint64> {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#long.long[2293] params(1) in file: lib/support/0.2.805//primitives.sharp:327:9: note:  
+constructor: std#long.long[2298] params(1) in file: lib/support/0.2.805//primitives.sharp:327:9: note:  
 		    long(i : int) {
 		        ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#long.long[2294] params(1) in file: lib/support/0.2.805//primitives.sharp:330:9: note:  
+constructor: std#long.long[2299] params(1) in file: lib/support/0.2.805//primitives.sharp:330:9: note:  
 		    long(i : var) {
 		        ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#long.long[2295] params(0) in file: lib/support/0.2.805//primitives.sharp:326:6: note:  
+constructor: std#long.long[2300] params(0) in file: lib/support/0.2.805//primitives.sharp:326:6: note:  
 		class long base integer<_int64> {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#uint.uint[2296] params(1) in file: lib/support/0.2.805//primitives.sharp:336:9: note:  
+constructor: std#uint.uint[2301] params(1) in file: lib/support/0.2.805//primitives.sharp:336:9: note:  
 		    uint(i : var) {
 		        ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#uint.uint[2297] params(0) in file: lib/support/0.2.805//primitives.sharp:334:6: note:  
+constructor: std#uint.uint[2302] params(0) in file: lib/support/0.2.805//primitives.sharp:334:6: note:  
 		class uint base integer<_uint32> {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#int.int[2298] params(1) in file: lib/support/0.2.805//primitives.sharp:342:8: note:  
+constructor: std#int.int[2303] params(1) in file: lib/support/0.2.805//primitives.sharp:342:8: note:  
 		    int(i : var) {
 		       ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#int.int[2299] params(0) in file: lib/support/0.2.805//primitives.sharp:340:6: note:  
+constructor: std#int.int[2304] params(0) in file: lib/support/0.2.805//primitives.sharp:340:6: note:  
 		class int base integer<_int32> {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#ushort.ushort[2300] params(1) in file: lib/support/0.2.805//primitives.sharp:348:11: note:  
+constructor: std#ushort.ushort[2305] params(1) in file: lib/support/0.2.805//primitives.sharp:348:11: note:  
 		    ushort(i : var) {
 		          ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#ushort.ushort[2301] params(0) in file: lib/support/0.2.805//primitives.sharp:346:6: note:  
+constructor: std#ushort.ushort[2306] params(0) in file: lib/support/0.2.805//primitives.sharp:346:6: note:  
 		class ushort base integer<_uint16> {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#short.short[2302] params(1) in file: lib/support/0.2.805//primitives.sharp:354:10: note:  
+constructor: std#short.short[2307] params(1) in file: lib/support/0.2.805//primitives.sharp:354:10: note:  
 		    short(i : var) {
 		         ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#short.short[2303] params(0) in file: lib/support/0.2.805//primitives.sharp:352:6: note:  
+constructor: std#short.short[2308] params(0) in file: lib/support/0.2.805//primitives.sharp:352:6: note:  
 		class short base integer<_int16> {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#uchar.uchar[2304] params(1) in file: lib/support/0.2.805//primitives.sharp:360:10: note:  
+constructor: std#uchar.uchar[2309] params(1) in file: lib/support/0.2.805//primitives.sharp:360:10: note:  
 		    uchar(i : var) {
 		         ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#uchar.uchar[2305] params(0) in file: lib/support/0.2.805//primitives.sharp:358:6: note:  
+constructor: std#uchar.uchar[2310] params(0) in file: lib/support/0.2.805//primitives.sharp:358:6: note:  
 		class uchar base integer<_uint8> {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#char.char[2306] params(1) in file: lib/support/0.2.805//primitives.sharp:366:9: note:  
+constructor: std#char.char[2311] params(1) in file: lib/support/0.2.805//primitives.sharp:366:9: note:  
 		    char(i : var) {
 		        ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#char.char[2307] params(0) in file: lib/support/0.2.805//primitives.sharp:364:6: note:  
+constructor: std#char.char[2312] params(0) in file: lib/support/0.2.805//primitives.sharp:364:6: note:  
 		class char base integer<_int8> {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#byte.byte[2308] params(1) in file: lib/support/0.2.805//primitives.sharp:372:9: note:  
+constructor: std#byte.byte[2313] params(1) in file: lib/support/0.2.805//primitives.sharp:372:9: note:  
 		    byte(i : var) {
 		        ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#byte.byte[2309] params(0) in file: lib/support/0.2.805//primitives.sharp:370:6: note:  
+constructor: std#byte.byte[2314] params(0) in file: lib/support/0.2.805//primitives.sharp:370:6: note:  
 		class byte base uchar {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#bool.bool[2310] params(0) in file: lib/support/0.2.805//primitives.sharp:376:6: note:  
+constructor: std#bool.bool[2315] params(0) in file: lib/support/0.2.805//primitives.sharp:376:6: note:  
 		class bool base integer<_int8> { /* TDOO: override base class methods */ }
 		     ^
 
 0 [0x0]:         ret   
 
 
-std#printable.to_string[2311] params(0) in file: lib/support/0.2.805//printable.sharp:11:8: note:  
+std#printable.to_string[2316] params(0) in file: lib/support/0.2.805//printable.sharp:11:8: note:  
 		    def to_string() : string;
 		       ^
 
 
 
-constructor: std#printable.printable[2312] params(0) in file: lib/support/0.2.805//printable.sharp:10:10: note:  
+constructor: std#printable.printable[2317] params(0) in file: lib/support/0.2.805//printable.sharp:10:10: note:  
 		interface printable {
 		         ^
 
 0 [0x0]:         ret   
 
 
-constructor: std.reflect#_class_._class_[2313] params(0) in file: lib/support/0.2.805//reflect//class.sharp:4:6: note:  
+constructor: std.reflect#_class_._class_[2318] params(0) in file: lib/support/0.2.805//reflect//class.sharp:4:6: note:  
 		class _class_ base data_entity {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std.reflect#data_entity.data_entity[2314] params(0) in file: lib/support/0.2.805//reflect//data_entity.sharp:4:6: note:  
+constructor: std.reflect#data_entity.data_entity[2319] params(0) in file: lib/support/0.2.805//reflect//data_entity.sharp:4:6: note:  
 		class data_entity {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std.reflect#data_property.data_property[2315] params(0) in file: lib/support/0.2.805//reflect//data_property.sharp:11:6: note:  
+constructor: std.reflect#data_property.data_property[2320] params(0) in file: lib/support/0.2.805//reflect//data_property.sharp:11:6: note:  
 		class data_property base data_entity {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std.reflect#field.field[2316] params(0) in file: lib/support/0.2.805//reflect//field.sharp:4:6: note:  
+constructor: std.reflect#field.field[2321] params(0) in file: lib/support/0.2.805//reflect//field.sharp:4:6: note:  
 		class field {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std.reflect#function.function[2317] params(0) in file: lib/support/0.2.805//reflect//function.sharp:4:6: note:  
+constructor: std.reflect#function.function[2322] params(0) in file: lib/support/0.2.805//reflect//function.sharp:4:6: note:  
 		class function base data_entity {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std.reflect#reflect.reflect[2318] params(1) in file: lib/support/0.2.805//reflect//reflection.sharp:15:12: note:  
+constructor: std.reflect#reflect.reflect[2323] params(1) in file: lib/support/0.2.805//reflect//reflection.sharp:15:12: note:  
 		    reflect(ref_obj : object) {
 		           ^
 
@@ -47616,18 +47678,18 @@ constructor: std.reflect#reflect.reflect[2318] params(1) in file: lib/support/0.
 1 [0x1]:          pushobj   
 2 [0x2]:          movl 1   
 3 [0x3]:          pushobj   
-4 [0x4]:          call @2333 // <std.reflect#reflect.set_reflect_obj>   
+4 [0x4]:          call @2339 // <std.reflect#reflect.set_reflect_obj>   
 5 [0x5]:          ret   
 
 
-constructor: std.reflect#reflect.reflect[2319] params(0) in file: lib/support/0.2.805//reflect//reflection.sharp:3:6: note:  
+constructor: std.reflect#reflect.reflect[2324] params(0) in file: lib/support/0.2.805//reflect//reflection.sharp:3:6: note:  
 		class reflect {
 		     ^
 
 0 [0x0]:         ret   
 
 
-constructor: std#string.string[2320] params(1) in file: lib/support/0.2.805//string.sharp:10:11: note:  
+constructor: std#string.string[2325] params(1) in file: lib/support/0.2.805//string.sharp:10:11: note:  
 		    string(str : _int8[]) {
 		          ^
 
@@ -47642,13 +47704,13 @@ constructor: std#string.string[2320] params(1) in file: lib/support/0.2.805//str
 8 [0x8]:          pushobj   
 9 [0x9]:          movl 1   
 10 [0xa]:          pushobj   
-11 [0xb]:          call @2323 // <std#string.append>   
+11 [0xb]:          call @2328 // <std#string.append>   
 12 [0xc]:          pop   
 13 [0xd]:          nop   
 14 [0xe]:          ret   
 
 
-function: std#string.append[2321] params(1) in file: lib/support/0.2.805//string.sharp:16:8: note:  
+function: std#string.append[2326] params(1) in file: lib/support/0.2.805//string.sharp:16:8: note:  
 		    def append(char: var) : string
 		       ^
 
@@ -47676,7 +47738,7 @@ function: std#string.append[2321] params(1) in file: lib/support/0.2.805//string
 27 [0x1b]:          loadval ecx   
 28 [0x1c]:          add ecx, ebx -> ebx   
 29 [0x1d]:          rstore ebx   
-30 [0x1e]:          call @2246 // <std.io#__srt_global.realloc>   
+30 [0x1e]:          call @2247 // <std.io#__srt_global.realloc>   
 31 [0x1f]:          nop   
 32 [0x20]: line: 23 loadl ebx, fp+1   
 33 [0x21]:          rstore ebx   
@@ -47700,7 +47762,7 @@ function: std#string.append[2321] params(1) in file: lib/support/0.2.805//string
 54 [0x36]:          ret   
 
 
-function: std#string.append[2322] params(1) in file: lib/support/0.2.805//string.sharp:27:8: note:  
+function: std#string.append[2327] params(1) in file: lib/support/0.2.805//string.sharp:27:8: note:  
 		    def append(c: char) : string
 		       ^
 
@@ -47710,13 +47772,13 @@ function: std#string.append[2322] params(1) in file: lib/support/0.2.805//string
 3 [0x3]:          pushobj   
 4 [0x4]:          call @2196 // <std#integer<_int8>.get_value>   
 5 [0x5]:          pushobj   
-6 [0x6]:          call @2321 // <std#string.append>   
+6 [0x6]:          call @2326 // <std#string.append>   
 7 [0x7]:          popobj2    
 8 [0x8]:          returnobj   
 9 [0x9]:          ret   
 
 
-function: std#string.append[2323] params(1) in file: lib/support/0.2.805//string.sharp:32:8: note:  
+function: std#string.append[2328] params(1) in file: lib/support/0.2.805//string.sharp:32:8: note:  
 		    def append(immstr: _int8[]) : string
 		       ^
 
@@ -47760,7 +47822,7 @@ function: std#string.append[2323] params(1) in file: lib/support/0.2.805//string
 42 [0x2a]:          loadval ecx   
 43 [0x2b]:          add ecx, ebx -> ebx   
 44 [0x2c]:          rstore ebx   
-45 [0x2d]:          call @2246 // <std.io#__srt_global.realloc>   
+45 [0x2d]:          call @2247 // <std.io#__srt_global.realloc>   
 46 [0x2e]:          nop   
 47 [0x2f]: line: 43 istorel -1, fp+4   
 49 [0x31]:          movl 1   
@@ -47796,16 +47858,16 @@ function: std#string.append[2323] params(1) in file: lib/support/0.2.805//string
 81 [0x51]:          ret   
 
 
-overload function: std#string.operator+[2324] params(1) in file: lib/support/0.2.805//string.sharp:51:8: note:  
+overload function: std#string.operator+[2329] params(1) in file: lib/support/0.2.805//string.sharp:51:8: note:  
 		    def operator+(immstr : _int8[]) : string {
 		       ^
 
-0 [0x0]: line: 52 new_class @41 // std#string   
+0 [0x0]: line: 52 new_class @43 // std#string   
 1 [0x1]:          dup    
 2 [0x2]:          movl 0   
 3 [0x3]:          movn #0   
 5 [0x5]:          pushobj   
-6 [0x6]:          call @2320 // <std#string.string>   
+6 [0x6]:          call @2325 // <std#string.string>   
 7 [0x7]:          movsl #0   
 8 [0x8]:          smovr_3 fp+2   
 9 [0x9]: line: 53 movl 1   
@@ -47819,7 +47881,7 @@ overload function: std#string.operator+[2324] params(1) in file: lib/support/0.2
 17 [0x11]:          pushobj   
 18 [0x12]:          movl 1   
 19 [0x13]:          pushobj   
-20 [0x14]:          call @2323 // <std#string.append>   
+20 [0x14]:          call @2328 // <std#string.append>   
 21 [0x15]:          popobj2    
 22 [0x16]:          returnobj   
 23 [0x17]:          ret   
@@ -47827,14 +47889,14 @@ overload function: std#string.operator+[2324] params(1) in file: lib/support/0.2
 25 [0x19]: line: 56 movl 2   
 26 [0x1a]:          pushobj   
 27 [0x1b]:          newstr @5 // null   
-28 [0x1c]:          call @2323 // <std#string.append>   
+28 [0x1c]:          call @2328 // <std#string.append>   
 29 [0x1d]:          popobj2    
 30 [0x1e]:          returnobj   
 31 [0x1f]:          ret   
 32 [0x20]:          nop   
 
 
-overload function: std#string.operator==[2325] params(1) in file: lib/support/0.2.805//string.sharp:59:8: note:  
+overload function: std#string.operator==[2330] params(1) in file: lib/support/0.2.805//string.sharp:59:8: note:  
 		    def operator==(str : _int8[]) : var {
 		       ^
 
@@ -47896,7 +47958,7 @@ overload function: std#string.operator==[2325] params(1) in file: lib/support/0.
 62 [0x3e]:          ret   
 
 
-overload function: std#string.operator+[2326] params(1) in file: lib/support/0.2.805//string.sharp:72:8: note:  
+overload function: std#string.operator+[2331] params(1) in file: lib/support/0.2.805//string.sharp:72:8: note:  
 		    def operator+(num : var) : string {
 		       ^
 
@@ -47906,7 +47968,7 @@ overload function: std#string.operator+[2326] params(1) in file: lib/support/0.2
 3 [0x3]:          ret   
 
 
-function: std#string.hash[2327] params(0) in file: lib/support/0.2.805//string.sharp:76:8: note:  
+function: std#string.hash[2332] params(0) in file: lib/support/0.2.805//string.sharp:76:8: note:  
 		    def hash() : long {
 		       ^
 
@@ -47961,56 +48023,82 @@ function: std#string.hash[2327] params(0) in file: lib/support/0.2.805//string.s
 58 [0x3a]:          mod ecx, ebx -> ebx   
 59 [0x3b]:          smovr_2 ebx, fp+2   
 60 [0x3c]:          jmp @14   
-61 [0x3d]: line: 85 new_class @23 // std#long   
+61 [0x3d]: line: 85 new_class @25 // std#long   
 62 [0x3e]:          dup    
 63 [0x3f]:          loadl ebx, fp+1   
 64 [0x40]:          rstore ebx   
-65 [0x41]:          call @2294 // <std#long.long>   
+65 [0x41]:          call @2299 // <std#long.long>   
 66 [0x42]:          return_val ebx   
 67 [0x43]:          ret   
 
 
-constructor: std#string.string[2328] params(0) in file: lib/support/0.2.805//string.sharp:5:6: note:  
+constructor: std#string.string[2333] params(0) in file: lib/support/0.2.805//string.sharp:5:6: note:  
 		class string {
 		     ^
 
 0 [0x0]:         ret   
 
 
-std#unique.hash[2329] params(0) in file: lib/support/0.2.805//unique.sharp:11:8: note:  
+std#unique.hash[2334] params(0) in file: lib/support/0.2.805//unique.sharp:11:8: note:  
 		    def hash() : long;
 		       ^
 
 
 
-std#unique.guid[2330] params(0) in file: lib/support/0.2.805//unique.sharp:12:8: note:  
+std#unique.guid[2335] params(0) in file: lib/support/0.2.805//unique.sharp:12:8: note:  
 		    def guid() : long;
 		       ^
 
 
 
-constructor: std#unique.unique[2331] params(0) in file: lib/support/0.2.805//unique.sharp:10:10: note:  
+constructor: std#unique.unique[2336] params(0) in file: lib/support/0.2.805//unique.sharp:10:10: note:  
 		interface unique {
 		         ^
 
 0 [0x0]:         ret   
 
 
-function: std#_nil_.set_instance[2332] params(2) in file: lib/support/0.2.805//nil.sharp:11:44: note:  
+function: std#throwable.get_stack_trace[2337] params(0) in file: lib/support/0.2.805//exceptions.sharp:13:25: note:  
+		    stack_trace : string;
+		                        ^
+
+0 [0x0]: line: 15 movl 0   
+1 [0x1]:          movn #1   
+3 [0x3]:          pushobj   
+4 [0x4]:          pushnull    
+5 [0x5]:          call @2278 // <std#_object_.operator==>   
+6 [0x6]:          loadval ebx   
+7 [0x7]:          movr cmt, ebx   
+8 [0x8]:          jne 18   
+9 [0x9]: line: 16 movl 0   
+10 [0xa]:          movn #2   
+12 [0xc]:          pushobj   
+13 [0xd]:          call @2294 // <platform.kernel#vm.get_stack_trace>   
+14 [0xe]:          movl 0   
+15 [0xf]:          movn #1   
+17 [0x11]:          popobj   
+18 [0x12]:          nop   
+19 [0x13]: line: 20 movl 0   
+20 [0x14]:          movn #1   
+22 [0x16]:          returnobj   
+23 [0x17]:          ret   
+
+
+function: std#_nil_.set_instance[2338] params(2) in file: lib/support/0.2.805//nil.sharp:11:44: note:  
 		    static instance : _nil_ = new _nil_ { };
 		                                           ^
 
 0 [0x0]:         ret   
 
 
-function: std.reflect#reflect.set_reflect_obj[2333] params(2) in file: lib/support/0.2.805//reflect//reflection.sharp:5:35: note:  
+function: std.reflect#reflect.set_reflect_obj[2339] params(2) in file: lib/support/0.2.805//reflect//reflection.sharp:5:35: note:  
 		        get { return reflect_obj; }
 		                                  ^
 
 0 [0x0]:         ret   
 
 
-function: std.reflect#reflect.get_reflect_obj[2334] params(0) in file: lib/support/0.2.805//reflect//reflection.sharp:4:25: note:  
+function: std.reflect#reflect.get_reflect_obj[2340] params(0) in file: lib/support/0.2.805//reflect//reflection.sharp:4:25: note:  
 		    reflect_obj : object;
 		                        ^
 
@@ -48020,20 +48108,20 @@ function: std.reflect#reflect.get_reflect_obj[2334] params(0) in file: lib/suppo
 4 [0x4]:         ret   
 
 
-function: std.io#__srt_global.$03internal_static_init[2335] params(0) in file: lib/support/0.2.805//io//critical_section.sharp:0:0: note:  
+function: std.io#__srt_global.$03internal_static_init[2341] params(0) in file: lib/support/0.2.805//io//critical_section.sharp:0:0: note:  
 		End of File
 		^
 
 0 [0x0]:         new_class @17 // std#_object_   
 1 [0x1]:         dup    
-2 [0x2]:         call @2281 // <std#_object_._object_>   
+2 [0x2]:         call @2282 // <std#_object_._object_>   
 3 [0x3]:         movg @15 // @std.io#__srt_global   
 4 [0x4]:         movn #0   
 6 [0x6]:         popobj   
 7 [0x7]:         ret   
 
 
-function: std#_nil_.$03internal_static_init[2336] params(0) in file: lib/support/0.2.805//nil.sharp:10:13: note:  
+function: std#_nil_.$03internal_static_init[2342] params(0) in file: lib/support/0.2.805//nil.sharp:10:13: note:  
 		stable class _nil_ {
 		            ^
 
@@ -48044,7 +48132,7 @@ function: std#_nil_.$03internal_static_init[2336] params(0) in file: lib/support
 5 [0x5]:         ret   
 
 
-function: std#__srt_global.$03internal_static_init[2337] params(0) in file: lib/support/0.2.805//object.sharp:0:0: note:  
+function: std#__srt_global.$03internal_static_init[2343] params(0) in file: lib/support/0.2.805//object.sharp:0:0: note:  
 		End of File
 		^
 
@@ -48058,13 +48146,13 @@ function: std#__srt_global.$03internal_static_init[2337] params(0) in file: lib/
 10 [0xa]:         ret   
 
 
-function: std#string.$03internal_static_init[2338] params(0) in file: lib/support/0.2.805//string.sharp:5:6: note:  
+function: std#string.$03internal_static_init[2344] params(0) in file: lib/support/0.2.805//string.sharp:5:6: note:  
 		class string {
 		     ^
 
 0 [0x0]:         movi #103, ebx   
 2 [0x2]:         rstore ebx   
-3 [0x3]:         movg @41 // @std#string   
+3 [0x3]:         movg @43 // @std#string   
 4 [0x4]:         movn #0   
 6 [0x6]:         loadval ebx   
 7 [0x7]:         mov8 ebx, ebx   
@@ -48072,7 +48160,7 @@ function: std#string.$03internal_static_init[2338] params(0) in file: lib/suppor
 10 [0xa]:         rmov adx, ebx   
 11 [0xb]:         movi #0, ebx   
 13 [0xd]:         rstore ebx   
-14 [0xe]:         movg @41 // @std#string   
+14 [0xe]:         movg @43 // @std#string   
 15 [0xf]:         movn #1   
 17 [0x11]:         loadval ebx   
 18 [0x12]:         movi #0, adx   

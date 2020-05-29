@@ -84,7 +84,7 @@
 #ifndef SHARP_PROF_
 #define _brh_NOINCREMENT HAS_SIGNAL goto top; //DISPATCH();
 #else
-#define _brh_NOINCREMENT HAS_SIGNAL irCount++; if(irCount == 0) overflow++; goto top;  //DISPATCH();
+#define _brh_NOINCREMENT HAS_SIGNAL irCount++; if(irCount == 0) overflow++; DISPATCH();
 #endif
 #define _brh  pc++; _brh_NOINCREMENT
 #define _brh_inc(x)  pc+=x; _brh_NOINCREMENT
@@ -92,25 +92,25 @@
 #define CHECK_NULL(x) \
     if(ptr==NULL) { \
         Exception err(vm.NullptrExcept, ""); \
-        prepareException(); \
+        sendSignal(signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 #define CHECK_NULL2(x) \
     if(ptr==NULL|ptr->object == NULL) { \
         Exception err(vm.NullptrExcept, ""); \
-        prepareException(); \
+        sendSignal(signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 #define CHECK_NULLOBJ(x) \
     if(ptr==NULL || ptr->object == NULL || TYPE(ptr->object->info) != _stype_struct) { \
         Exception err(vm.NullptrExcept, ""); \
-        prepareException(); \
+        sendSignal(signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 #define CHECK_NULLVAR(x) \
     if(ptr==NULL || ptr->object == NULL || TYPE(ptr->object->info) != _stype_var) { \
         Exception err(vm.NullptrExcept, ""); \
-        prepareException(); \
+        sendSignal(signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 

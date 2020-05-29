@@ -111,6 +111,7 @@ public:
     void collect(CollectionPolicy policy);
 
     SharpObject* newObject(int64_t size); /* Array allocation */
+    SharpObject* newObjectUnsafe(int64_t size); /* Unconventional Array allocation */
     SharpObject* newObject(ClassObject* k, bool staticInit = false); /* Class allocation */
 
     SharpObject* newObjectArray(int64_t size); /* Array Object allocation */
@@ -259,8 +260,8 @@ private:
     void updateMemoryThreshold();
 };
 
-#define GC_COLLECT_YOUNG() ( youngObjects > 0 && (((double)yObjs / (double)youngObjects) * 100) >= 25 )
-#define GC_COLLECT_ADULT() ( adultObjects > 0 && (((double)aObjs / (double)adultObjects) * 100) >= 20 )
+#define GC_COLLECT_YOUNG() ( youngObjects > 0 && (((double)yObjs / (double)youngObjects) * 100) >= 5 )
+#define GC_COLLECT_ADULT() ( adultObjects > 0 && (((double)aObjs / (double)adultObjects) * 100) >= 25 )
 #define GC_COLLECT_OLD() ( oldObjects > 0 && (((double)oObjs / (double)oldObjects) * 100) >= 10 )
 #define GC_LOW_MEM() ( managedBytes >= (0.85 * memoryLimit) )
 #define GC_COLLECT_MEM() ( managedBytes >= memoryThreshold )

@@ -45,23 +45,40 @@ Exception::~Exception()
 }
 
 void Exception::pushException() {
-    if(thread_self != NULL && throwable.native) {
+    Thread *thread = thread_self;
+    if(thread != NULL && throwable.native) {
+
         if(throwable.handlingClass == vm.OutOfMemoryExcept) {
             /*
              * If there is no memory we exit
              */
-            GUARD(thread_self->mutex);
-            thread_self->state = THREAD_KILLED;
-            sendSignal(thread_self->signal, tsig_kill, 1);
+            GUARD(thread->mutex);
+            thread->state = THREAD_KILLED;
+            thread->exceptionObject = vm.outOfMemoryExcept;
+
+            native_string str;
+            vm.fillStackTrace(str);
+            Object *stackTrace = vm.resolveField("stack_trace", vm.outOfMemoryExcept.object);
+            if(stackTrace) {
+                *stackTrace = GarbageCollector::self->newObjectUnsafe(str.len);
+
+                if(stackTrace->object) {
+                    for (Int i = 0; i < str.len; i++) {
+                        stackTrace->object->HEAD[i] = str.chars[i];
+                    }
+                }
+            }
+            sendSignal(thread->signal, tsig_kill, 1);
             return;
         }
 
-        thread_self->exceptionObject
+        thread->exceptionObject
                 = GarbageCollector::self->newObject(throwable.handlingClass);
 
         GarbageCollector::self->createStringArray(
-                vm.resolveField("message", thread_self->exceptionObject.object),
+                vm.resolveField("message", thread->exceptionObject.object),
                    throwable.message);
+        vm.getFrameInfo(vm.resolveField("frame_info", thread->exceptionObject.object));
     }
 }
 
