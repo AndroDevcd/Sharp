@@ -10,10 +10,6 @@ mod std;
  */
 stable class _object_ : printable, unique {
 
-    public def operator==(o : object) : var {
-        return (self as object)==o;
-    }
-
     public def to_string() := new string("");
 
     def hash() : long {

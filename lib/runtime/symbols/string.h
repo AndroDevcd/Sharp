@@ -49,9 +49,10 @@ public:
         free();
 
         for(Int i = 0;; i++)  {
-            if(value[i] != 0) {
-                this->len++;
-            } else { break; }
+            if(value[i] == 0) {
+                len=i;
+                break;
+            }
         }
 
         if(len==0) {

@@ -1,5 +1,7 @@
 mod std;
 
+import std.io;
+
 /**
  * Created by BraxtonN on 5/17/2018.
  */
@@ -100,6 +102,7 @@ public class string {
                 data = new var[sizeof(immstr)];
             else
                 realloc(data, sizeof(data) + sizeof(immstr));
+
 
             for(var i = 0; i < sizeof(immstr); i++)
             {

@@ -85,6 +85,12 @@ void ExeBuilder::createDumpFile() {
     if(c_options.optimize) {
         Optimizer optimizer(&allMethods);
         optimizer.optimize();
+
+        buf << "pre codebase size: " << optimizer.preCodebaseSize << endl;
+        buf << "post codebase size: " << optimizer.postCodebaseSize << endl;
+        buf << "optimized opcodes: " << (optimizer.preCodebaseSize - optimizer.postCodebaseSize) << endl;
+        buf << "net % gain " << (((double)(optimizer.preCodebaseSize - optimizer.postCodebaseSize) / (double)optimizer.preCodebaseSize) * 100) << endl;
+        buf << endl << endl;
     }
 
     for(Int i = 0; i < allClasses.size(); i++) {
@@ -1221,6 +1227,25 @@ string ExeBuilder::codeToString(Method* fun) {
                 ss<< registerToString(GET_Ca(opcodeData));
                 if(GET_Cb(opcodeData) >= 0)
                     ss<< " // " << compiler->constantMap.get(GET_Cb(opcodeData));
+
+                break;
+            }
+            case Opcode::NEG:
+            {
+                ss<<"neg ";
+                ss<< registerToString(GET_Ca(opcodeData));
+                ss<< ", ";
+                ss<< registerToString(GET_Cb(opcodeData));
+                break;
+            }
+            case Opcode::EXP:
+            {
+                ss<<"exp ";
+                ss<< registerToString(GET_Ba(opcodeData));
+                ss<< ", ";
+                ss<< registerToString(GET_Bb(opcodeData));
+                ss<< " -> ";
+                ss<< registerToString(GET_Bc(opcodeData));
 
                 break;
             }

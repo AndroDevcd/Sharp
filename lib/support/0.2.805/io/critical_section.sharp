@@ -14,19 +14,6 @@ def critical_section(block : ()()) {
     if(err != null) throw err;
 }
 
-//def<t, r> critical_section(block : (t)(r), data: t) : r {
-    // err : exception;
-    // lock global_lock -> {
-    //   try {
-    //       return block(data);
-    //   } catch(e: exception) {
-    //       err = e;
-    //   }
-    // }
-    //
-    // if(err != null) throw err;
-//}
-
 def critical_section(block : ()(), lock_obj : object) {
     err : exception;
     lock lock_obj -> {

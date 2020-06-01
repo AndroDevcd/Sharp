@@ -311,66 +311,6 @@ void parser::parseReturnStatement(Ast *ast) {
     expect(branch, ";");
 }
 
-
-void parser::parseSwitchDeclarator(Ast* ast) {
-    Ast* branch = getBranch(ast, ast_switch_declarator);
-    advance();
-    branch->addToken(current()); // case | default
-
-    if(branch->getToken(0).getValue() == "case")
-        parseExpression(branch);
-    else {
-        int i = 0;
-    }
-    expect(branch, ":");
-
-    retry:
-    if(isSwitchDeclarator(*peek(1)) || peek(1)->getType() == RIGHTCURLY) return;
-    if(peek(1)->getType() == LEFTCURLY) {
-        parseBlock(branch);
-        goto retry;
-    } else {
-        advance();
-        errors->enterProtectedMode();
-        Token* old = _current;
-        if(!parseStatement(branch))
-        {
-            _current=old;
-            errors->pass();
-            if(branch->getSubAstCount() == 1) {
-                branch->freeSubAsts();
-                branch->freeTokens();
-            }
-            else {
-                branch->freeLastSub();
-            }
-            return;
-        } else {
-            errors->fail();
-            goto retry;
-        }
-    }
-}
-
-void parser::parseSwitchBlock(Ast* ast) {
-    Ast* branch = getBranch(ast, ast_switch_block);
-
-    expect(branch, "{");
-
-    if(isSwitchDeclarator(*peek(1)))
-    {
-        parseSwitchDeclarator(branch);
-        _pSwitchDecl:
-        if(isSwitchDeclarator(*peek(1)))
-        {
-            parseSwitchDeclarator(branch);
-            goto _pSwitchDecl;
-        }
-    }
-
-    expect(branch, "}");
-}
-
 void parser::parseAliasDeclaration(Ast *ast) {
     Ast* branch = getBranch(ast, ast_alias_decl);
 
@@ -541,9 +481,9 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseLiteral(branch);
     } else if(*peek(1)  == "movi") {
         expect(branch, peek(1)->getValue());
-        parseAsmLiteral(branch);
-        expect(branch, ",", false);
         parseRegister(branch);
+        expect(branch, ",", false);
+        parseAsmLiteral(branch);
     } else if(*peek(1)  == "ret") {
         expect(branch, peek(1)->getValue());
         parseAsmLiteral(branch);
@@ -927,7 +867,7 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
         expect(branch, ",", false);
-        parseLiteral(branch);
+        parseAsmLiteral(branch);
     } else if(*peek(1)  == "smovr3") {
         expect(branch, peek(1)->getValue());
         parseLiteral(branch);
@@ -1341,6 +1281,7 @@ bool parser::parseStatement(Ast* ast) {
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, branch);
             access_types.free();
         }
+        ast->freeLastSub();
         errors->createNewWarning(GENERIC, current().getLine(), current().getColumn(), "unnecessary semicolon ';'");
         return true;
     }
@@ -2029,22 +1970,6 @@ bool parser::parseExpression(Ast* ast) {
     Ast *branch = getBranch(ast, ast_expression);
     CHECK_ERRLMT(return false;)
 
-    if(peek(1)->getType() ==MINUS) {
-        advance();
-        Ast *exprAst = getBranch(branch, ast_minus_e);
-        branch->addToken(current());
-        parseExpression(exprAst);
-        return true;
-    }
-
-    if(peek(1)->getType() ==NOT) {
-        advance();
-        Ast *exprAst = getBranch(branch, ast_minus_e);
-        branch->addToken(current());
-        parseExpression(exprAst);
-        return true;
-    }
-
     /* ++ or -- before the expression */
     if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
     {
@@ -2136,7 +2061,8 @@ bool parser::binary(Ast *ast) {
     bool success = equality(ast);
 
     while(match(5, AND, XOR, OR, ANDAND, OROR)) {
-        if(isExprSymbol(peek(2)->getValue()))
+        if(isExprSymbol(peek(2)->getValue())
+            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-")
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {
@@ -2159,7 +2085,8 @@ bool parser::equality(Ast *ast) {
     bool success = comparason(ast);
 
     while(match(2, EQEQ, NOTEQ)) {
-        if(isExprSymbol(peek(2)->getValue()))
+        if(isExprSymbol(peek(2)->getValue())
+            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-" )
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {
@@ -2182,7 +2109,8 @@ bool parser::comparason(Ast *ast) {
     bool success = shift(ast);
 
     while(match(4, GREATERTHAN, _GTE, LESSTHAN, _LTE)) {
-        if(isExprSymbol(peek(2)->getValue()))
+        if(isExprSymbol(peek(2)->getValue())
+            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-")
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {
@@ -2205,7 +2133,8 @@ bool parser::shift(Ast *ast) {
     bool success = addition(ast);
 
     while(match(2, SHL, SHR)) {
-        if(isExprSymbol(peek(2)->getValue()))
+        if(isExprSymbol(peek(2)->getValue())
+            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-")
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {
@@ -2228,7 +2157,8 @@ bool parser::addition(Ast *ast) {
     bool success = multiplication(ast);
 
     while(match(2, MINUS, PLUS)) {
-        if(isExprSymbol(peek(2)->getValue()))
+        if(isExprSymbol(peek(2)->getValue())
+            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-")
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {
@@ -2253,7 +2183,8 @@ bool parser::multiplication(Ast *ast) {
     bool success = exponent(ast);
 
     while(match(3, _DIV, _MOD, MULT)) {
-        if(isExprSymbol(peek(2)->getValue()))
+        if(isExprSymbol(peek(2)->getValue())
+            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-")
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {
@@ -2276,7 +2207,8 @@ bool parser::exponent(Ast *ast) {
     bool success = unary(ast);
 
     while(match(1, EXPONENT)) {
-        if(isExprSymbol(peek(2)->getValue()))
+        if(isExprSymbol(peek(2)->getValue())
+            && peek(2)->getId() != CHAR_LITERAL && peek(2)->getValue() != "-")
             errors->createNewError(GENERIC, *peek(2), "expected expression");
 
         if(!ast->sub_asts.empty()) {
@@ -2739,6 +2671,22 @@ void parser::parseLambdaArgList(Ast* ast) {
 
 bool parser::parsePrimaryExpr(Ast* ast) {
     Ast* branch = getBranch(ast, ast_primary_expr);
+
+    if(peek(1)->getType() ==MINUS) {
+        advance();
+        Ast *exprAst = getBranch(branch, ast_minus_e);
+        branch->addToken(current());
+        parseExpression(exprAst);
+        return true;
+    }
+
+    if(peek(1)->getType() ==NOT) {
+        advance();
+        Ast *exprAst = getBranch(branch, ast_minus_e);
+        branch->addToken(current());
+        parseExpression(exprAst);
+        return true;
+    }
 
     errors->enterProtectedMode();
     Token* old = _current;

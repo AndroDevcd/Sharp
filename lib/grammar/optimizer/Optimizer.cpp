@@ -13,6 +13,11 @@
 void Optimizer::optimizeRedundantMovr() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
         switch (GET_OP(code.ir32.get(i))) {
             case Opcode::MOVI:
             case Opcode::IADD:
@@ -63,6 +68,11 @@ void Optimizer::optimizeRedundantMovr() {
 void Optimizer::optimizeLocalVarInit() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
         switch (GET_OP(code.ir32.get(i))) {
             case Opcode::IADD:
             case Opcode::ISUB:
@@ -118,6 +128,11 @@ void Optimizer::optimizeLocalVarInit() {
 void Optimizer::optimizeLocalStackPush() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
         switch (GET_OP(code.ir32.get(i))) {
             case Opcode::MOVI:
             case Opcode::IADD:
@@ -171,6 +186,11 @@ void Optimizer::optimizeLocalStackPush() {
 void Optimizer::optimizeLocalVariableIncrement() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
         switch (GET_OP(code.ir32.get(i))) {
             case Opcode::MOVI:
             case Opcode::IADD:
@@ -239,6 +259,11 @@ void Optimizer::optimizeLocalVariableIncrement() {
 void Optimizer::optimizeRedundantIntegerPush() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
         switch (GET_OP(code.ir32.get(i))) {
             case Opcode::MOVI:
             case Opcode::IADD:
@@ -300,6 +325,11 @@ void Optimizer::optimizeRedundantIntegerPush() {
 void Optimizer::optimizeRedundantLocalPush() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
         switch (GET_OP(code.ir32.get(i))) {
             case Opcode::MOVI:
             case Opcode::IADD:
@@ -343,10 +373,16 @@ void Optimizer::optimizeRedundantLocalPush() {
  * [0xc] 12:	popobj
  *
  * to ->        popl 0
+ *
  */
 void Optimizer::optimizeRedundantLocalPop() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
         switch (GET_OP(code.ir32.get(i))) {
             case Opcode::MOVI:
             case Opcode::IADD:
@@ -385,17 +421,595 @@ void Optimizer::optimizeRedundantLocalPop() {
     }
 }
 
+/**
+ * [0xb] 11:	test ecx, ebx
+ * [0xc] 12:	movr ebx, cmt
+ * [0xd] 13:    return_val ebx
+ *
+ * to ->        test ecx, ebx
+ *              return_val cmt
+ *
+ * result 94
+ * 0.203445 % benefit
+ */
+void Optimizer::optimizeEbxReturn() {
+    CodeHolder &code = currentMethod->data.code;
+
+    for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
+        switch (GET_OP(code.ir32.get(i))) {
+            case Opcode::MOVI:
+            case Opcode::IADD:
+            case Opcode::ISUB:
+            case Opcode::IMUL:
+            case Opcode::IDIV:
+            case Opcode::IMOD:
+            case Opcode::IADDL:
+            case Opcode::ISUBL:
+            case Opcode::IMULL:
+            case Opcode::IDIVL:
+            case Opcode::IMODL:
+            case Opcode::ISTORE:
+            case Opcode::ISTOREL:
+            case Opcode::ISADD:
+            case Opcode::CMP:
+            case Opcode::MOVN:
+            case Opcode::INVOKE_DELEGATE:
+                i++;
+                break;
+
+            case Opcode::TEST: {
+
+                if((i + 2) < code.ir32.size()) {
+                    if (GET_OP(code.ir32.get(i + 1)) == Opcode::MOVR
+                        && GET_Cb(code.ir32.get(i+1)) == CMT) {
+                        Int receiverReg = GET_Ca(code.ir32.get(i+1));
+
+                        if(GET_OP(code.ir32.get(i + 2)) == Opcode::RETURNVAL
+                            && GET_Da(code.ir32.get(i + 2)) == receiverReg) {
+                            i++;
+                            shiftAddresses(1, i);
+                            code.ir32.removeAt(i);
+
+                            code.ir32.get(i) = OpBuilder::returnValue(CMT);
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * [0xb] 11:	pushl 1
+ * [0xc] 12:	 pushnull
+ * [0xd] 13:     itest ebx
+ *
+ * to ->        movl 1
+ *              checknull ebx
+ *
+ * result 26
+ * 0.0563222 % benefit
+ */
+void Optimizer::optimizeNullCheck() {
+    CodeHolder &code = currentMethod->data.code;
+
+    for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
+        switch (GET_OP(code.ir32.get(i))) {
+            case Opcode::MOVI:
+            case Opcode::IADD:
+            case Opcode::ISUB:
+            case Opcode::IMUL:
+            case Opcode::IDIV:
+            case Opcode::IMOD:
+            case Opcode::IADDL:
+            case Opcode::ISUBL:
+            case Opcode::IMULL:
+            case Opcode::IDIVL:
+            case Opcode::IMODL:
+            case Opcode::ISTORE:
+            case Opcode::ISTOREL:
+            case Opcode::ISADD:
+            case Opcode::CMP:
+            case Opcode::MOVN:
+            case Opcode::INVOKE_DELEGATE:
+                i++;
+                break;
+
+            case Opcode::PUSHL: {
+
+                if((i + 2) < code.ir32.size()) {
+                    Int localVar = GET_Da(code.ir32.get(i));
+
+
+                    if (GET_OP(code.ir32.get(i + 1)) == Opcode::PUSHNULL
+                        && GET_OP(code.ir32.get(i + 2)) == Opcode::ITEST) {
+                        Int receiverReg = GET_Da(code.ir32.get(i+2));
+                        code.ir32.get(i) = OpBuilder::movl(localVar);
+                        code.ir32.get(++i) = OpBuilder::checkNull((_register)receiverReg);
+                        shiftAddresses(1, i);
+                        code.ir32.removeAt(++i);
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * [0xb] 11:	not ebx, ebx
+ * [0xc] 12:	movr cmt, ebx
+ *
+ * to ->        not cmt, ebx
+ *
+ * fagments found: 18
+ * net benefit: 18
+ * % of codebase affeced: 0.0389923%
+ */
+void Optimizer::optimizeNot() {
+    CodeHolder &code = currentMethod->data.code;
+
+    for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
+        switch (GET_OP(code.ir32.get(i))) {
+            case Opcode::MOVI:
+            case Opcode::IADD:
+            case Opcode::ISUB:
+            case Opcode::IMUL:
+            case Opcode::IDIV:
+            case Opcode::IMOD:
+            case Opcode::IADDL:
+            case Opcode::ISUBL:
+            case Opcode::IMULL:
+            case Opcode::IDIVL:
+            case Opcode::IMODL:
+            case Opcode::ISTORE:
+            case Opcode::ISTOREL:
+            case Opcode::ISADD:
+            case Opcode::CMP:
+            case Opcode::MOVN:
+            case Opcode::INVOKE_DELEGATE:
+                i++;
+                break;
+
+            case Opcode::NOT: {
+
+                if((i + 1) < code.ir32.size()) {
+                    Int nottedReg = GET_Ca(code.ir32.get(i));
+
+                    if ((GET_Ca(code.ir32.get(i)) == GET_Cb(code.ir32.get(i)))
+                        && GET_OP(code.ir32.get(i + 1)) == Opcode::MOVR
+                        && GET_Cb(code.ir32.get(i + 1)) == nottedReg
+                        && GET_Ca(code.ir32.get(i + 1)) != nottedReg) {
+                        Int receiverReg = GET_Ca(code.ir32.get(i+1));
+                        shiftAddresses(1, i);
+                        code.ir32.removeAt(i);
+                        code.ir32.get(i) = OpBuilder::_not((_register)receiverReg, (_register)nottedReg);
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * [0xb] 11:	rstore ebx
+ * [0xc] 12:	movl 0
+ * [0xd] 13:	movn #1
+ * [0xe] 14:	loadval ebx
+ *
+ * to ->        movl 0
+ *              movn #1
+ *
+ * fagments found: 46
+ * net benefit: 92
+ * % of codebase affeced: 0.199294%
+ */
+void Optimizer::optimizeRedundantEbxStore() {
+    CodeHolder &code = currentMethod->data.code;
+
+    for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
+        switch (GET_OP(code.ir32.get(i))) {
+            case Opcode::MOVI:
+            case Opcode::IADD:
+            case Opcode::ISUB:
+            case Opcode::IMUL:
+            case Opcode::IDIV:
+            case Opcode::IMOD:
+            case Opcode::IADDL:
+            case Opcode::ISUBL:
+            case Opcode::IMULL:
+            case Opcode::IDIVL:
+            case Opcode::IMODL:
+            case Opcode::ISTORE:
+            case Opcode::ISTOREL:
+            case Opcode::ISADD:
+            case Opcode::CMP:
+            case Opcode::MOVN:
+            case Opcode::INVOKE_DELEGATE:
+                i++;
+                break;
+
+            case Opcode::RSTORE: {
+
+                if((i + 4) < code.ir32.size()) {
+                    Int storedReg = GET_Da(code.ir32.get(i));
+
+                    if (GET_OP(code.ir32.get(i + 1)) == Opcode::MOVL
+                        && GET_OP(code.ir32.get(i + 2)) == Opcode::MOVN
+                        && GET_OP(code.ir32.get(i + 4)) == Opcode::LOADVAL
+                        && GET_Da(code.ir32.get(i + 4)) == storedReg) {
+                        shiftAddresses(1, i);
+                        code.ir32.removeAt(i);
+                        i+=2;
+                        shiftAddresses(1, i);
+                        code.ir32.removeAt(i);
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * [0xb] 11:	tne ecx, ebx
+ * [0xc] 12:	movr ebx, cmt
+ * [0xd] 13:	return_val ebx
+ *
+ * to ->        tne ecx, ebx
+ *              return_val cmt
+ *
+ * fagments found: 90
+ * net benefit: 90
+ * % of codebase affeced: 0.194961%
+ */
+void Optimizer::optimizeTNE() {
+    CodeHolder &code = currentMethod->data.code;
+
+    for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
+        switch (GET_OP(code.ir32.get(i))) {
+            case Opcode::MOVI:
+            case Opcode::IADD:
+            case Opcode::ISUB:
+            case Opcode::IMUL:
+            case Opcode::IDIV:
+            case Opcode::IMOD:
+            case Opcode::IADDL:
+            case Opcode::ISUBL:
+            case Opcode::IMULL:
+            case Opcode::IDIVL:
+            case Opcode::IMODL:
+            case Opcode::ISTORE:
+            case Opcode::ISTOREL:
+            case Opcode::ISADD:
+            case Opcode::CMP:
+            case Opcode::MOVN:
+            case Opcode::INVOKE_DELEGATE:
+                i++;
+                break;
+
+            case Opcode::TNE: {
+
+                if((i + 2) < code.ir32.size()) {
+                    if (GET_OP(code.ir32.get(i + 1)) == Opcode::MOVR
+                        && GET_Cb(code.ir32.get(i + 1)) == CMT
+                        && GET_OP(code.ir32.get(i + 2)) == Opcode::RETURNVAL
+                        && GET_Ca(code.ir32.get(i + 1)) == GET_Da(code.ir32.get(i + 2))) {
+                        i++;
+                        shiftAddresses(1, i);
+                        code.ir32.removeAt(i);
+
+                        code.ir32.get(i) = OpBuilder::returnValue(CMT);
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * [0xb] 11:	movi #128, ebx
+ * [0xc] 12:	rstore ebx
+ *
+ * to ->        istore 128
+ *
+ * fagments found: 82
+ * net benefit: 82
+ * % of codebase affeced: 0.177631%
+ */
+void Optimizer::optimizeNumericStore() {
+    CodeHolder &code = currentMethod->data.code;
+
+    for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
+        switch (GET_OP(code.ir32.get(i))) {
+            case Opcode::IADD:
+            case Opcode::ISUB:
+            case Opcode::IMUL:
+            case Opcode::IDIV:
+            case Opcode::IMOD:
+            case Opcode::IADDL:
+            case Opcode::ISUBL:
+            case Opcode::IMULL:
+            case Opcode::IDIVL:
+            case Opcode::IMODL:
+            case Opcode::ISTORE:
+            case Opcode::ISTOREL:
+            case Opcode::ISADD:
+            case Opcode::CMP:
+            case Opcode::MOVN:
+            case Opcode::INVOKE_DELEGATE:
+                i++;
+                break;
+
+            case Opcode::MOVI: {
+
+                if((i + 2) < code.ir32.size()) {
+                    Int receivingReg = GET_Da(code.ir32.get(i));
+
+                    if (GET_OP(code.ir32.get(i + 2)) == Opcode::RSTORE
+                        && GET_Da(code.ir32.get(i + 2)) == receivingReg) {
+                        shiftAddresses(1, i+2);
+                        code.ir32.removeAt(i+2);
+                        code.ir32.get(i) = OpBuilder::istore(0)[0]; // we only need th first part of the instruction because the second part is already present
+                        i += 2;
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * [0xb] 11:	movi #0, adx
+ * [0xc] 12:	chklen adx
+ * [0xd] 13:	iaload ebx, adx
+ *
+ * to ->        movi #0, adx
+ *              iaload ebx, adx
+ *
+ * fagments found: 3364
+ * net benefit: 3364
+ * % of codebase affeced: 7.28722%
+ */
+void Optimizer::optimizeUnNessicaryLengthCheck() {
+    CodeHolder &code = currentMethod->data.code;
+
+    for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
+        switch (GET_OP(code.ir32.get(i))) {
+            case Opcode::IADD:
+            case Opcode::ISUB:
+            case Opcode::IMUL:
+            case Opcode::IDIV:
+            case Opcode::IMOD:
+            case Opcode::IADDL:
+            case Opcode::ISUBL:
+            case Opcode::IMULL:
+            case Opcode::IDIVL:
+            case Opcode::IMODL:
+            case Opcode::ISTORE:
+            case Opcode::ISTOREL:
+            case Opcode::ISADD:
+            case Opcode::CMP:
+            case Opcode::MOVN:
+            case Opcode::INVOKE_DELEGATE:
+                i++;
+                break;
+
+            case Opcode::MOVI: {
+
+                if((i + 3) < code.ir32.size()) {
+                    Int adxReg = GET_Da(code.ir32.get(i));
+
+                    if (adxReg == ADX && GET_OP(code.ir32.get(i + 2)) == Opcode::CHECKLEN
+                        && GET_Da(code.ir32.get(i + 2)) == adxReg
+                        && GET_OP(code.ir32.get(i + 3)) == Opcode::IALOAD
+                        && GET_Cb(code.ir32.get(i + 3)) == adxReg) {
+                        shiftAddresses(1, i+2);
+                        code.ir32.removeAt(i+2);
+                        i+=2;
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * [0xb] 11:	lt ecx, ebx
+ * [0xc] 12:	movr ebx, cmt
+ * [0xd] 13:	return_val ebx
+ *
+ * to ->        lt ecx, ebx
+ *              return_val ebx
+ *
+ * fagments found: 269
+ * net benefit: 269
+ * % of codebase affeced: 0.582718%
+ */
+void Optimizer::optimizeUnnessicaryCMTMov() {
+    CodeHolder &code = currentMethod->data.code;
+
+    for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
+        switch (GET_OP(code.ir32.get(i))) {
+            case Opcode::MOVI:
+            case Opcode::IADD:
+            case Opcode::ISUB:
+            case Opcode::IMUL:
+            case Opcode::IDIV:
+            case Opcode::IMOD:
+            case Opcode::IADDL:
+            case Opcode::ISUBL:
+            case Opcode::IMULL:
+            case Opcode::IDIVL:
+            case Opcode::IMODL:
+            case Opcode::ISTORE:
+            case Opcode::ISTOREL:
+            case Opcode::ISADD:
+            case Opcode::CMP:
+            case Opcode::MOVN:
+            case Opcode::INVOKE_DELEGATE:
+                i++;
+                break;
+
+            case Opcode::GT:
+            case Opcode::GTE:
+            case Opcode::LTE:
+            case Opcode::LT: {
+
+                if((i + 2) < code.ir32.size()) {
+                    if (GET_OP(code.ir32.get(i + 1)) == Opcode::MOVR
+                        && GET_Cb(code.ir32.get(i + 1)) == CMT
+                        && GET_OP(code.ir32.get(i + 2)) == Opcode::RETURNVAL
+                        && GET_Ca(code.ir32.get(i + 1)) == GET_Da(code.ir32.get(i + 2))) {
+                        i++;
+                        shiftAddresses(1, i);
+                        code.ir32.removeAt(i);
+
+                        code.ir32.get(i) = OpBuilder::returnValue(CMT);
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+
+/**
+ * [0xb] 11:	loadval ebx
+ * [0xc] 12:	smovr_2 ebx, fp+4
+ *
+ * to ->        ipopl 4
+ *
+ * fagments found: 14
+ * net benefit: 14
+ * % of codebase affeced: 0.0303273%
+ */
+void Optimizer::optimizeUnnessicaryLocalIntPop() {
+    CodeHolder &code = currentMethod->data.code;
+
+    for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i);
+            continue;
+        }
+
+        switch (GET_OP(code.ir32.get(i))) {
+            case Opcode::MOVI:
+            case Opcode::IADD:
+            case Opcode::ISUB:
+            case Opcode::IMUL:
+            case Opcode::IDIV:
+            case Opcode::IMOD:
+            case Opcode::IADDL:
+            case Opcode::ISUBL:
+            case Opcode::IMULL:
+            case Opcode::IDIVL:
+            case Opcode::IMODL:
+            case Opcode::ISTORE:
+            case Opcode::ISTOREL:
+            case Opcode::ISADD:
+            case Opcode::CMP:
+            case Opcode::MOVN:
+            case Opcode::INVOKE_DELEGATE:
+                i++;
+                break;
+
+            case Opcode::LOADVAL: {
+
+                if((i + 1) < code.ir32.size()) {
+                    Int recievingReg = GET_Da(code.ir32.get(i));
+
+                    if (GET_OP(code.ir32.get(i + 1)) == Opcode::SMOVR_2
+                        && GET_Ca(code.ir32.get(i + 1)) == recievingReg) {
+                        Int localVar = GET_Cb(code.ir32.get(i + 1));
+                        shiftAddresses(1, i);
+                        code.ir32.removeAt(i);
+                        code.ir32.get(i) = OpBuilder::ipopl(localVar);
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
 void Optimizer::optimize() {
     for(Int i = 0; i < allMethods->size(); i++) {
         currentMethod = allMethods->get(i);
-        optimizeRedundantMovr();
-        optimizeLocalVarInit();
-        optimizeLocalStackPush();
-        optimizeLocalVariableIncrement();
-        optimizeRedundantIntegerPush();
-        optimizeRedundantLocalPush();
-        optimizeRedundantLocalPop();
+        if(currentMethod->fnType != fn_delegate) {
+            preCodebaseSize += currentMethod->data.code.size();
+            optimizeRedundantMovr();
+            optimizeLocalVarInit();
+            optimizeLocalStackPush();
+            optimizeLocalVariableIncrement();
+            optimizeRedundantIntegerPush();
+            optimizeRedundantLocalPush();
+            optimizeRedundantLocalPop();
+            optimizeEbxReturn();
+            optimizeNullCheck();
+            optimizeNot();
+            optimizeRedundantEbxStore();
+            optimizeTNE();
+            optimizeNumericStore();
+            optimizeUnNessicaryLengthCheck();
+            optimizeUnnessicaryCMTMov();
+            optimizeUnnessicaryLocalIntPop();
+            postCodebaseSize += currentMethod->data.code.size();
+        }
     }
+}
+
+void Optimizer::printResults() {
+    cout << "Optimization scout results:\n";
+    cout << "fagments found: " << fragmentsFound << endl;
+    cout << "net benefit: " << (netBenefit * fragmentsFound) << endl;
+    cout << "% of codebase affeced: " << (((double)(netBenefit * fragmentsFound) / (double)postCodebaseSize) * 100) << "%" << endl;
 }
 
 /**
@@ -525,8 +1139,28 @@ void Optimizer::shiftAddresses(Int offset, Int pc) {
                 tryCatchData.finallyData->end_pc -= offset;
         }
     }
+
+    for(unsigned int i = 0; i < currentMethod->data.protectedCodeTable.size(); i++) {
+        AsmData &asmData = currentMethod->data.protectedCodeTable.get(i);
+        if(pc <= asmData.start_pc) {
+            asmData.start_pc -= offset;
+        }
+
+        if(pc <= asmData.end_pc) {
+            asmData.end_pc -= offset;
+        }
+    }
 }
 
+Int Optimizer::getSkippedProtectedCodebasePc(Int pc) {
+    for(unsigned int i = 0; i < currentMethod->data.protectedCodeTable.size(); i++) {
+        AsmData &asmData = currentMethod->data.protectedCodeTable.get(i);
+        if(pc >= asmData.start_pc && pc < asmData.end_pc) {
+            return asmData.end_pc;
+        }
+    }
+    return -1;
+}
 bool Optimizer::insideProtectedCodebase(Int pc) {
     for(unsigned int i = 0; i < currentMethod->data.protectedCodeTable.size(); i++) {
         AsmData &asmData = currentMethod->data.protectedCodeTable.get(i);

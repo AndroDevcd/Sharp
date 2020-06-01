@@ -13,18 +13,25 @@ public:
     :
         allMethods(allMethods)
     {
+        preCodebaseSize = 0;
+        postCodebaseSize = 0;
+        fragmentsFound = 0;
     }
 
     void optimize();
 
-    Int optimizedOpcodes;
+    uInt preCodebaseSize;
+    uInt postCodebaseSize;
 private:
     List<Method*>* allMethods;
     Method *currentMethod;
     opcode_instr tmpInstr;
+    uInt fragmentsFound;
+    Int netBenefit;
 
     void shiftAddresses(Int offset, Int pc);
     bool insideProtectedCodebase(Int pc);
+    Int getSkippedProtectedCodebasePc(Int pc);
 
     void optimizeRedundantMovr();
     void optimizeLocalStackPush();
@@ -33,6 +40,16 @@ private:
     void optimizeRedundantIntegerPush();
     void optimizeRedundantLocalPush();
     void optimizeRedundantLocalPop();
+    void optimizeEbxReturn();
+    void printResults();
+    void optimizeNullCheck();
+    void optimizeNot();
+    void optimizeRedundantEbxStore();
+    void optimizeTNE();
+    void optimizeNumericStore();
+    void optimizeUnNessicaryLengthCheck();
+    void optimizeUnnessicaryCMTMov();
+    void optimizeUnnessicaryLocalIntPop();
     bool isRegisterUsed(_register reg, Int start_pc);
 };
 

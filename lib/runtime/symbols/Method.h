@@ -153,7 +153,7 @@ struct StackElement;
 
 struct Frame {
 public:
-    Frame(Method* returnAddress, Cache pc, StackElement* sp,
+    Frame(Method* returnAddress, Int pc, StackElement* sp,
           StackElement* fp, bool jit)
     {
         this->returnAddress=returnAddress;
@@ -163,7 +163,7 @@ public:
         this->isjit=jit;
     }
 
-    void init(Method* returnAddress, Cache pc, StackElement* sp,
+    void init(Method* returnAddress, Int pc, StackElement* sp,
               StackElement* fp, bool jit)
     {
         this->returnAddress=returnAddress;
@@ -174,7 +174,7 @@ public:
     }
 
     Method *returnAddress;
-    Cache pc;
+    Int pc;
     StackElement* sp;
     StackElement* fp;
     bool isjit;

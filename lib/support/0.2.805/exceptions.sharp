@@ -22,19 +22,17 @@ class throwable {
 
     private frame_info : stack_state;
 
+    init {
+        frame_info =
+            vm.get_frame_info();
+    }
+
     public throwable(message : _int8[]) {
         self->message = message;
-        get_frame_info();
     }
 
     public throwable(message : string) {
         //self->message = message.toArray();
-        get_frame_info();
-    }
-
-    private def get_frame_info() {
-        frame_info =
-            vm.get_frame_info();
     }
 }
 

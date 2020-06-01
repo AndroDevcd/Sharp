@@ -73,6 +73,7 @@ struct Scope {
     List<KeyPair<string, Ast*>> finallyBlocks;
     List<Ast*> lockBlocks;
 };
+
 // TODO: add Block *blck; to hold all nessicary block information
 // add variable bool conStructorCalled; to be set if a constructor inside the class has been called
 // in constructors if that boolean is still false at the end of the function then call decault consctuctor injected to the top of the function

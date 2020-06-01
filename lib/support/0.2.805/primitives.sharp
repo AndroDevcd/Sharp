@@ -1,5 +1,7 @@
 mod std;
 
+import platform;
+
 public class integer<native_type> {
     private value : native_type;
 
@@ -299,9 +301,36 @@ public class integer<native_type> {
     def operator=(num : var) := value=num;
 
 
-//    public def to_string() : string {
-//        return "" + value;
-//    }
+    def to_string() : string {
+        return "$value";
+    }
+
+
+
+    static def parse(s: string) : native_type {
+        i := 0;
+        number : native_type = 0;
+        negative := false;
+        len := s.size();
+
+        if(s.at(0) == '-' ){
+            negative = true;
+            i = 1;
+        }
+
+        while( i < len ){
+            if(!char.is_digit(s.at(i))) {
+                throw new ill_arg_except(
+                    "illegal char in string: ${s.at(i)}");
+            }
+
+            number *= 10;
+            number += ( s.at(i++) - '0' );
+        }
+        if( negative )
+            number = -number;
+        return number;
+    }
 
     def to_ulong() := new ulong { value };
     def to_long() := new long { value };
@@ -366,11 +395,75 @@ class char base integer<_int8> {
     char(i : var) {
 
     }
+
+    static def is_digit(ch: var) : var {
+        return ch >= '0' && ch <= '9';
+    }
+
+    static def is_newline(ch: var) : var {
+        if(build.is_windows()) return ch == '\n' || ch == '\r';
+        else  return ch == '\n';
+    }
+
+    static def is_alpha(ch: var) : var {
+        return (ch >= 'A' && ch <= 'Z')
+            || (ch >= 'a' && ch <= 'z');
+    }
+
+    static def is_alpha_num(ch: var) : var {
+        return is_alpha(ch) || is_digit(ch);
+    }
+
+    static def to_lower(ch: var) : var {
+        if('A' <= ch && ch <= 'Z')
+            return 'a' + (ch - 'A');
+        else
+            return ch;
+    }
+
+    static def to_upper(ch: var) : var {
+        if('a' <= ch && ch <= 'z')
+            return 'A' + (ch - 'a');
+        else
+            return ch;
+    }
 }
 class byte base uchar {
 
     byte(i : var) {
 
+    }
+
+    static def is_digit(ch: var) : var {
+        return ch >= '0' && ch <= '9';
+    }
+
+    static def is_newline(ch: var) : var {
+        if(build.is_windows()) return ch == '\n' || ch == '\r';
+        else  return ch == '\n';
+    }
+
+    static def is_alpha(ch: var) : var {
+        return (ch >= 'A' && ch <= 'Z')
+            || (ch >= 'a' && ch <= 'z');
+    }
+
+    static def is_alpha_num(ch: var) : var {
+        return is_alpha(ch) || is_digit(ch);
+    }
+
+    static def to_lower(ch: var) : var {
+        if('A' <= ch && ch <= 'Z')
+            return 'a' + (ch - 'A');
+        else
+            return ch;
+    }
+
+    static def to_upper(ch: var) : var {
+        if('a' <= ch && ch <= 'z')
+            return 'A' + (ch - 'a');
+        else
+            return ch;
     }
 }
 class bool base integer<_int8> { /* TDOO: override base class methods */ }

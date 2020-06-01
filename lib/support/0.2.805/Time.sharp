@@ -1,0 +1,75 @@
+mod std;
+
+import platform;
+
+class time {
+
+    static def nano_time() : var {
+        now: var;
+
+        asm
+        {
+            int 0xb
+            smovr2 bmr, {now}
+        };
+        return now;
+    }
+
+
+    static def time_to_micro(nano: var) : var {
+        return nano/1000;
+    }
+
+    static def time_to_mills(nano: var) : var {
+        return time_to_micro(nano)/1000;
+    }
+
+    public static def time_to_secs(nano: var) : var {
+        return time_to_mills(nano)/1000;
+    }
+
+    static def mills_time() : var {
+        return time_to_mills(nano_time());
+    }
+
+    static def sleep(time: var) {
+        sleep(time_unit.milliseconds, time);
+    }
+
+    static def sleep(tm_unit: time_unit, time: var) {
+
+        if(tm_unit == time_unit.seconds) {
+            time = adjust_time(time*1000000);
+        } else if(tm_unit == time_unit.milliseconds) {
+            time = adjust_time(time*1000);
+        } else if(tm_unit == time_unit.microseconds) {
+            time = adjust_time(time);
+        }
+
+        asm {
+            loadl ebx, {time}
+            sleep ebx
+        }
+    }
+
+    /**
+     * Windows only allows you to sleep for no less than 1 millisecond
+     *
+     * We need to adjust the time to make sure the user will not be
+     * waiting for 5 seconds instead of 5ms
+     */
+    private static def adjust_time(usec: var) : var {
+
+        if(build.is_windows()) {
+            return usec/1000;
+        }
+
+        return usec;
+    }
+}
+
+enum time_unit {
+    seconds = 0,
+    milliseconds = 1,
+    microseconds = 2
+}

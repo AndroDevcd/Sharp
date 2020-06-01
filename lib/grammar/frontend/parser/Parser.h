@@ -151,9 +151,6 @@ private:
     bool parseStatement(Ast*);
     void parseReturnStatement(Ast*);
     void parseIfStatement(Ast*);
-    void parseSwitchStatement(Ast*);
-    void parseSwitchBlock(Ast*);
-    void parseSwitchDeclarator(Ast*);
     void parseAliasDeclaration(Ast *ast);
     void parseForStatement(Ast *ast);
     void parseForEachStatement(Ast *ast);

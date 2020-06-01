@@ -611,7 +611,7 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
     return nullptr;
 }
 
-void GarbageCollector::createStringArray(Object *object, String& str) {
+void GarbageCollector::createStringArray(Object *object, runtime::String& str) {
     if(object != nullptr) {
         *object = newObject(str.len);
 

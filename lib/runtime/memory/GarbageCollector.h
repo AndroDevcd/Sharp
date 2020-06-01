@@ -117,7 +117,7 @@ public:
     SharpObject* newObjectArray(int64_t size); /* Array Object allocation */
     SharpObject* newObjectArray(int64_t size, ClassObject* k); /* Class Array allocation */
 
-    void createStringArray(Object* object, String& str); /* Native string allocation */
+    void createStringArray(Object* object, runtime::String& str); /* Native string allocation */
 
     /**
      * Utility system level functions to garbage collect at a high level
@@ -223,9 +223,9 @@ private:
      * This does not mean that if there are 100 objects dropped that every one will be freed
      * its just an estimate
      */
-    /* collect when 2% has been dropped */
+    /* collect when 5% has been dropped */
     Int youngObjects;
-    /* collect when 20% has been dropped */
+    /* collect when 25% has been dropped */
     Int adultObjects;
     /* collect when 10% has been dropped */
     Int oldObjects;

@@ -575,13 +575,15 @@ void Thread::exit() {
 
         Object* frameInfo = vm.resolveField("frame_info", exceptionObject.object);
         Object* message = vm.resolveField("message", exceptionObject.object);
+        Object* stackTrace = vm.resolveField("stack_trace", exceptionObject.object);
         ClassObject *exceptionClass = NULL;
         if(exceptionObject.object != NULL)
             exceptionClass = &vm.classes[CLASS(exceptionObject.object->info)];
 
 
         cout << "Unhandled exception on thread " << name.str() << " (most recent call last):\n";
-        if(frameInfo && frameInfo->object) {
+        if(frameInfo && frameInfo->object && stackTrace != NULL
+            && stackTrace->object == NULL) {
             if(((sp-dataStack)+1) >= stackLimit) {
                 sp--;
             }
@@ -589,11 +591,17 @@ void Thread::exit() {
             if(exceptionClass != NULL && exceptionClass->guid != vm.OutOfMemoryExcept->guid) {
                 (++sp)->object = frameInfo;
                 vm.getStackTrace();
-                SharpObject *stackTrace = sp->object.object;
+                Object* data = vm.resolveField("data", sp->object.object);
 
-                for(Int i = 0; i < stackTrace->size; i++) {
-                    cout << ((char)stackTrace->HEAD[i]);
+                if(data != NULL && data->object->size > 0) {
+                    for (Int i = 0; i < data->object->size; i++) {
+                        cout << ((char) data->object->HEAD[i]);
+                    }
                 }
+            }
+        } else if(stackTrace != NULL && stackTrace->object == NULL){
+            for (Int i = 0; i < stackTrace->object->size; i++) {
+                cout << ((char) stackTrace->object->HEAD[i]);
             }
         }
 
@@ -795,7 +803,7 @@ void Thread::exec() {
 
         for (;;) {
             top:
-                if(current->address == 228 && PC(this) >= 86) {
+                if(current->address == 2413 && PC(this) >= 46) {
                     Int i = 0;
                 }
                 DISPATCH();

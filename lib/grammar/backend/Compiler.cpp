@@ -1075,7 +1075,8 @@ void Compiler::validateAccess(Field *field, Ast* pAst) {
             errors->createNewError(GENERIC, pAst, " invalid access to localized field `" + field->fullName + "`");
         }
     } else if(field->flags.find(PRIVATE)) {
-        if(field->owner == currentScope()->klass) {
+        Scope *scope = currentScope();
+        if(field->owner == currentScope()->klass || scope->klass->isClassRelated(field->owner)) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to private field `" + field->fullName + "`");
         }
@@ -1124,7 +1125,7 @@ void Compiler::validateAccess(Method *function, Ast* pAst) {
         }
     } else if(function->flags.find(PRIVATE)) {
         Scope *scope = currentScope();
-        if(function->owner == scope->klass) {
+        if(function->owner == scope->klass || scope->klass->isClassRelated(function->owner)) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to private method `" + function->toString() + "`");
         }
@@ -2841,7 +2842,7 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
                 errors->createNewError(GENERIC, ast->line, ast->col,
                                        " expression `" + leftExpr.utype->toString() +
                                        "` does not contain an override operator for expresion `" +
-                                       rightExpr.utype->toString()
+                                               params.get(0)->utype->toString()
                                        + "` with operand `" + operand.getValue() + "`.");
             }
         }
@@ -4891,7 +4892,8 @@ void Compiler::compileSizeOfExpression(Expression* expr, Ast* ast) {
         && ((Literal*)sizeExpr.utype->getResolvedType())->literalType == string_literal) {
         expr->utype->getCode().addIr(
                 OpBuilder::movi(((Literal *) sizeExpr.utype->getResolvedType())->stringData.size(), EBX));
-    } else if(sizeExpr.utype->getType() == utype_class || sizeExpr.utype->getType() == utype_field){
+    } else if(sizeExpr.utype->getType() == utype_class || sizeExpr.utype->getType() == utype_field
+        || sizeExpr.utype->isArray()){
         expr->utype->getCode().inject(sizeExpr.utype->getCode().getInjector(ptrInjector));
         expr->utype->getCode().addIr(OpBuilder::_sizeof(EBX));
     } else {
@@ -4934,6 +4936,10 @@ void Compiler::compilePrimaryExpression(Expression* expr, Ast* ast) {
             return this->errors->createNewError(GENERIC, ast->line, ast->col, " unsupported array access not attached to object");
         case ast_lambda_function:
             return compileLambdaExpression(expr, branch);
+        case ast_not_e:
+            return compileNotExpression(expr, branch);
+        case ast_minus_e:
+            return compileMinusExpression(expr, branch);
         default:
             return this->errors->createNewError(GENERIC, ast->line, ast->col,
                                                 "unexpected expression of type `" + Ast::astTypeToString(branch->getType()) + "` found");
@@ -4952,14 +4958,10 @@ void Compiler::compileExpressionAst(Expression *expr, Ast *branch) {
             return compilePrimaryExpression(expr, branch);
         case ast_pre_inc_e:
             return compilePreIncExpression(expr, branch);
-        case ast_not_e:
-            return compileNotExpression(expr, branch);
         case ast_vect_e:
             return compileVectorExpression(expr, branch);
         case ast_assign_e:
             return compileAssignExpression(expr, branch);
-        case ast_minus_e:
-            return compileMinusExpression(expr, branch);
         case ast_and_e:
         case ast_shift_e:
         case ast_equal_e:
@@ -5784,7 +5786,9 @@ void Compiler::compileMethodReturnType(Method* fun, Ast *ast, bool wait) {
                 RETAIN_SCOPE_CLASS(fun->owner)
                 RETAIN_BLOCK_TYPE(fun->flags.find(STATIC) ? STATIC_BLOCK : INSTANCE_BLOCK)
                 RETAIN_CURRENT_FUNCTION(fun)
+                addLocalFields(fun);
                 compileExpression(&e, ast->getSubAst(ast_expression));
+                freeListPtr(fun->data.locals);
                 RESTORE_CURRENT_FUNCTION()
                 RESTORE_BLOCK_TYPE()
                 RESTORE_SCOPE_CLASS()
@@ -8195,12 +8199,12 @@ void Compiler::compileMethodDecl(Ast *ast, ClassObject* currentClass) {
 }
 
 void Compiler::compileMethod(Ast *ast, Method *func) {
-    addLocalFields(func);
 
     if(ast->hasSubAst(ast_block)) {
         Ast *block = ast->getSubAst(ast_block);
         currentScope()->currentFunction = func;
         bool allCodePathsReturnValue = false;
+        addLocalFields(func);
 
         compileMethodReturnType(func, ast, false);
         RETAIN_BLOCK_TYPE(func->flags.find(STATIC) ? STATIC_BLOCK : INSTANCE_BLOCK)
@@ -8226,7 +8230,9 @@ void Compiler::compileMethod(Ast *ast, Method *func) {
         currentScope()->currentFunction->data.lineTable.add(
                 LineData(currentScope()->currentFunction->data.code.size(), ast->getSubAst(ast_expression)->line));
         Expression expr;
+        addLocalFields(func);
         compileExpression(&expr, ast->getSubAst(ast_expression));
+        freeListPtr(func->data.locals);
         RESTORE_BLOCK_TYPE()
 
         if(!expr.utype->isRelated(func->utype)) {

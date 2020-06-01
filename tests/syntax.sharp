@@ -4,13 +4,19 @@ import platform.kernel;
 import std.io;
 
 def main() {
-    i := 0;
-    for(; i < 10000000; i++) {
-        try {
-            throw new error("err");
-        } catch(error) {
-        }
+    arry := new var[10000000];
+    past := time.mills_time(), now;
+    val := 0;
+    for(i := 0; i < sizeof(arry); i++) {
+        val = arry[i];
     }
+    now = time.mills_time();
+    println(("for (" + (now-past) + ") ms\n").data);
 
-    platform.print(i);
+    past = time.mills_time();
+    foreach(n in arry) {
+        val = n;
+    }
+    now = time.mills_time();
+    println(("foreach (" + (now-past) + ") ms\n").data);
 }

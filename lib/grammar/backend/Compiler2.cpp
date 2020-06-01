@@ -664,8 +664,10 @@ void Compiler::resolveFunctionByNameUtype(Utype *utype, Ast *ast, string &name, 
         } else {
             ambiguous:
             resolvedFunction = functions.get(0);
-            errors->createNewError(GENERIC, ast->line, ast->col,
-                                   "reference to function `" + functions.get(0)->name + "` is ambiguous");
+            if(!obfuscateMode) {
+                errors->createNewError(GENERIC, ast->line, ast->col,
+                                       "reference to function `" + functions.get(0)->name + "` is ambiguous");
+            }
         }
     } else
         resolvedFunction = functions.get(0);
@@ -970,7 +972,13 @@ void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
         } else if(utype->getType() == utype_class) {
             resolveClassHeiarchy(utype->getResolvedType(), true, ptr, utype, ast);
         } else if(utype->getType() == utype_field) {
-            resolveClassHeiarchy(utype->getResolvedType(), false, ptr, utype, ast);
+            if(((Field*)utype->getResolvedType())->utype->getClass()) {
+                RETAIN_SCOPE_CLASS(utype->getClass())
+                resolveClassHeiarchy(utype->getClass(), false, ptr, utype, ast);
+                RESTORE_SCOPE_CLASS()
+            }
+            else
+                resolveClassHeiarchy(utype->getResolvedType(), false, ptr, utype, ast);
         } else {
             errors->createNewError(GENERIC, ast->line, ast->col, "symbol `" + utype->toString() +
                                                                  "` is not a class or field and cannot be used as such.");
@@ -1608,6 +1616,9 @@ void Compiler::inlineFieldHelper(Ast* ast) {
         field->inlineCheck = true;
 
         if(field->flags.find(flg_CONST) && ast->hasSubAst(ast_expression)) {
+            if(field->utype != NULL && field->utype->getClass() && IS_CLASS_ENUM(field->utype->getClass()->getClassType()))
+                return;
+
             Expression expr;
             compileExpression(&expr, ast->getSubAst(ast_expression));
 

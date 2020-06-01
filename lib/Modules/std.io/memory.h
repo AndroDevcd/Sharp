@@ -7,6 +7,7 @@
 
 #include "../../../stdimports.h"
 
+void copy();
 void memcopy();
 void invert();
 

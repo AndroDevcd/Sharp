@@ -25,5 +25,4 @@ public:
     List<string> classes;
 };
 
-
 #endif //SHARP_REFRENCEPOINTER_H

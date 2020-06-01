@@ -1,7 +1,6 @@
 mod platform.kernel;
 
 class vm {
-
     static def get_frame_info() : stack_state {
         asm {
             int 0x35

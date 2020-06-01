@@ -89,6 +89,8 @@ public:
     ClassObject *ClassCastExcept;
     ClassObject *OutOfMemoryExcept;
     ClassObject *InvalidOperationExcept;
+    ClassObject *StringClass;
+    ClassObject *StackSate;
 
     Object outOfMemoryExcept;
     Meta metaData;
