@@ -1281,7 +1281,9 @@ bool parser::parseStatement(Ast* ast) {
             errors->createNewError(ILLEGAL_ACCESS_DECLARATION, branch);
             access_types.free();
         }
-        ast->freeLastSub();
+
+        if(ast != NULL)
+            ast->freeLastSub();
         errors->createNewWarning(GENERIC, current().getLine(), current().getColumn(), "unnecessary semicolon ';'");
         return true;
     }
@@ -1970,6 +1972,22 @@ bool parser::parseExpression(Ast* ast) {
     Ast *branch = getBranch(ast, ast_expression);
     CHECK_ERRLMT(return false;)
 
+    if(peek(1)->getType() ==MINUS) {
+        advance();
+        Ast *exprAst = getBranch(branch, ast_minus_e);
+        branch->addToken(current());
+        parseExpression(exprAst);
+        return true;
+    }
+
+    if(peek(1)->getType() ==NOT) {
+        advance();
+        Ast *exprAst = getBranch(branch, ast_minus_e);
+        branch->addToken(current());
+        parseExpression(exprAst);
+        return true;
+    }
+
     /* ++ or -- before the expression */
     if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
     {
@@ -2073,7 +2091,16 @@ bool parser::binary(Ast *ast) {
 
             advance();
             branch->addToken(current());
-            equality(branch);
+
+            if(peek(1)->getType() == MINUS) {
+                advance();
+                Ast *exprAst = getBranch(branch, ast_expression);
+                Ast *rightExpr = getBranch(exprAst, ast_minus_e);
+                rightExpr->addToken(current());
+                parseExpression(rightExpr);
+                return true;
+            } else
+                equality(branch);
             success = true;
         } else return false;
     }
@@ -2097,7 +2124,16 @@ bool parser::equality(Ast *ast) {
 
             advance();
             branch->addToken(current());
-            comparason(branch);
+
+            if(peek(1)->getType() == MINUS) {
+                advance();
+                Ast *exprAst = getBranch(branch, ast_expression);
+                Ast *rightExpr = getBranch(exprAst, ast_minus_e);
+                rightExpr->addToken(current());
+                parseExpression(rightExpr);
+                return true;
+            } else
+                comparason(branch);
             success = true;
         } else return false;
     }
@@ -2121,7 +2157,16 @@ bool parser::comparason(Ast *ast) {
 
             advance();
             branch->addToken(current());
-            shift(branch);
+
+            if(peek(1)->getType() == MINUS) {
+                advance();
+                Ast *exprAst = getBranch(branch, ast_expression);
+                Ast *rightExpr = getBranch(exprAst, ast_minus_e);
+                rightExpr->addToken(current());
+                parseExpression(rightExpr);
+                return true;
+            } else
+                shift(branch);
             success = true;
         } else return false;
     }
@@ -2145,7 +2190,16 @@ bool parser::shift(Ast *ast) {
 
             advance();
             branch->addToken(current());
-            addition(branch);
+
+            if(peek(1)->getType() == MINUS) {
+                advance();
+                Ast *exprAst = getBranch(branch, ast_expression);
+                Ast *rightExpr = getBranch(exprAst, ast_minus_e);
+                rightExpr->addToken(current());
+                parseExpression(rightExpr);
+                return true;
+            } else
+                addition(branch);
             success = true;
         } else return true;
     }
@@ -2171,7 +2225,16 @@ bool parser::addition(Ast *ast) {
 
             advance();
             branch->addToken(current());
-            multiplication(branch);
+
+            if(peek(1)->getType() == MINUS) {
+                advance();
+                Ast *exprAst = getBranch(branch, ast_expression);
+                Ast *rightExpr = getBranch(exprAst, ast_minus_e);
+                rightExpr->addToken(current());
+                parseExpression(rightExpr);
+                return true;
+            } else
+                multiplication(branch);
             success = true;
         } else return false;
     }
@@ -2195,7 +2258,16 @@ bool parser::multiplication(Ast *ast) {
 
             advance();
             branch->addToken(current());
-            exponent(branch);
+
+            if(peek(1)->getType() == MINUS) {
+                advance();
+                Ast *exprAst = getBranch(branch, ast_expression);
+                Ast *rightExpr = getBranch(exprAst, ast_minus_e);
+                rightExpr->addToken(current());
+                parseExpression(rightExpr);
+                return true;
+            } else
+                exponent(branch);
             success = true;
         } else return false;
     }
@@ -2219,7 +2291,16 @@ bool parser::exponent(Ast *ast) {
 
             advance();
             branch->addToken(current());
-            unary(branch);
+
+            if(peek(1)->getType() == MINUS) {
+                advance();
+                Ast *exprAst = getBranch(branch, ast_expression);
+                Ast *rightExpr = getBranch(exprAst, ast_minus_e);
+                rightExpr->addToken(current());
+                parseExpression(rightExpr);
+                return true;
+            } else
+                unary(branch);
             success = true;
         } else return false;
     }
@@ -2671,22 +2752,6 @@ void parser::parseLambdaArgList(Ast* ast) {
 
 bool parser::parsePrimaryExpr(Ast* ast) {
     Ast* branch = getBranch(ast, ast_primary_expr);
-
-    if(peek(1)->getType() ==MINUS) {
-        advance();
-        Ast *exprAst = getBranch(branch, ast_minus_e);
-        branch->addToken(current());
-        parseExpression(exprAst);
-        return true;
-    }
-
-    if(peek(1)->getType() ==NOT) {
-        advance();
-        Ast *exprAst = getBranch(branch, ast_minus_e);
-        branch->addToken(current());
-        parseExpression(exprAst);
-        return true;
-    }
 
     errors->enterProtectedMode();
     Token* old = _current;

@@ -98,7 +98,7 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t stati
         klass = &vm.classes[CLASS(o2->info)];
         if (klass != NULL) {
             search:
-            for (long i = 0; i < klass->methodCount; i++) {
+            for (Int i = klass->methodCount - 1; i >= 0; i--) {
                 if (klass->methods[i]->delegateAddress == address) {
                     if((jitFn = executeMethod(klass->methods[i]->address, thread)) != NULL) {
 #ifdef BUILD_JIT
@@ -406,7 +406,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             break;
 #endif
         case OP_NAN_TIME:
-            registers[BMR]= Clock::realTimeInNSecs();
+            _64BMR= Clock::realTimeInNSecs();
             return;
         case OP_THREAD_START: {
             Thread *thread = Thread::getThread((int32_t )_64ADX);

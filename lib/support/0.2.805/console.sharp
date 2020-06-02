@@ -18,7 +18,7 @@ def print(data: _int8[]) {
 }
 
 def print(str: string) {
-    print_chars(str.data);
+    print_chars(str.get_data());
 }
 
 def println(data: var[]) {
@@ -120,12 +120,12 @@ def read_raw_char() : var {
 }
 
 def println(str: string) {
-    print_chars(str.data);
+    print_chars(str.get_data());
     print_char('\n');
 }
 
 def println(o: printable) {
-    print_chars(o.to_string().data);
+    print_chars(o.to_string().get_data());
     print_char('\n');
 }
 

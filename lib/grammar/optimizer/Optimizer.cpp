@@ -14,7 +14,7 @@ void Optimizer::optimizeRedundantMovr() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -69,7 +69,7 @@ void Optimizer::optimizeLocalVarInit() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -129,7 +129,7 @@ void Optimizer::optimizeLocalStackPush() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -187,7 +187,7 @@ void Optimizer::optimizeLocalVariableIncrement() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -260,7 +260,7 @@ void Optimizer::optimizeRedundantIntegerPush() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -326,7 +326,7 @@ void Optimizer::optimizeRedundantLocalPush() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -379,7 +379,7 @@ void Optimizer::optimizeRedundantLocalPop() {
     CodeHolder &code = currentMethod->data.code;
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -437,7 +437,7 @@ void Optimizer::optimizeEbxReturn() {
 
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -501,7 +501,7 @@ void Optimizer::optimizeNullCheck() {
 
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -562,7 +562,7 @@ void Optimizer::optimizeNot() {
 
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -626,7 +626,7 @@ void Optimizer::optimizeRedundantEbxStore() {
 
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -662,7 +662,7 @@ void Optimizer::optimizeRedundantEbxStore() {
                         && GET_Da(code.ir32.get(i + 4)) == storedReg) {
                         shiftAddresses(1, i);
                         code.ir32.removeAt(i);
-                        i+=2;
+                        i+=3;
                         shiftAddresses(1, i);
                         code.ir32.removeAt(i);
                     }
@@ -690,7 +690,7 @@ void Optimizer::optimizeTNE() {
 
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -750,7 +750,7 @@ void Optimizer::optimizeNumericStore() {
 
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -810,7 +810,7 @@ void Optimizer::optimizeUnNessicaryLengthCheck() {
 
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -871,7 +871,7 @@ void Optimizer::optimizeUnnessicaryCMTMov() {
 
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -935,7 +935,7 @@ void Optimizer::optimizeUnnessicaryLocalIntPop() {
 
     for(Int i = 0; i < code.size(); i++) {
         if(insideProtectedCodebase(i)) {
-            i = getSkippedProtectedCodebasePc(i);
+            i = getSkippedProtectedCodebasePc(i) - 1;
             continue;
         }
 
@@ -1052,20 +1052,20 @@ void Optimizer::shiftAddresses(Int offset, Int pc) {
                     case Opcode::ISTOREL:
                     case Opcode::ISADD:
                     case Opcode::CMP:
-                        if(code.ir32.get(branch.branch_pc + 1) >= pc)
+                        if(code.ir32.get(branch.branch_pc + 1) > pc)
                             code.ir32.get(branch.branch_pc + 1) = code.ir32.get(branch.branch_pc + 1) - offset;
                         break;
                     case Opcode::JNE:
-                        if(GET_Da(code.ir32.get(branch.branch_pc)) >= pc)
+                        if(GET_Da(code.ir32.get(branch.branch_pc)) > pc)
                             code.ir32.get(branch.branch_pc) = OpBuilder::jne(GET_Da(code.ir32.get(branch.branch_pc)) - offset);
                         break;
                     case Opcode::JE:
-                        if(GET_Da(code.ir32.get(branch.branch_pc)) >= pc)
+                        if(GET_Da(code.ir32.get(branch.branch_pc)) > pc)
                             code.ir32.get(branch.branch_pc) = OpBuilder::je(GET_Da(code.ir32.get(branch.branch_pc)) - offset);
                         break;
                     case Opcode::JMP:
                         Int v = GET_Da(code.ir32.get(branch.branch_pc));
-                        if(GET_Da(code.ir32.get(branch.branch_pc)) >= pc)
+                        if(GET_Da(code.ir32.get(branch.branch_pc)) > pc)
                             code.ir32.get(branch.branch_pc) = OpBuilder::jmp(GET_Da(code.ir32.get(branch.branch_pc)) - offset);
                         break;
                 }

@@ -10,7 +10,7 @@ mod std;
  */
 stable class _object_ : printable, unique {
 
-    public def to_string() := new string("");
+    public def to_string() := new string();
 
     def hash() : long {
         /* must be implemented at a higher level */

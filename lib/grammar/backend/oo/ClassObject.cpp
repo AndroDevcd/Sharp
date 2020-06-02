@@ -175,14 +175,14 @@ bool ClassObject::isClassRelated(ClassObject *klass, bool interfaceCheck) {
     return super == NULL ? false : super->isClassRelated(klass, interfaceCheck);
 }
 
-bool ClassObject::getFunctionByName(string name, List<Method*> &funcs, bool checkBase) {
+bool ClassObject::getAllFunctionsByName(string name, List<Method*> &funcs, bool checkBase) {
     for(size_t i = 0; i < functions.size(); i++) {
         if(name == functions.get(i)->name) {
             funcs.add(functions.get(i));
         }
     }
     if(checkBase && super)
-        return super->getFunctionByName(name, funcs, true);
+        return super->getAllFunctionsByName(name, funcs, true);
     return !funcs.empty();
 }
 

@@ -42,7 +42,7 @@ class platform
         iter := 0;
 
         for(i := min_args; i < sizeof(args); i++) {
-            user_args[iter++] = new string(args[2] as _int8[]);
+            user_args[iter++] = new string(args[i] as _int8[]);
         }
 
         result := 0;

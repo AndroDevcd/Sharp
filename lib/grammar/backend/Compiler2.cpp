@@ -384,7 +384,8 @@ bool Compiler::resolveHigherScopeSingularUtype(ReferencePointer &ptr, Utype* uty
                 resolveClassUtype(utype, ast, resolvedUtype);
                 utypeFound = true;
                 break;
-            } else if(resolveExtensionFunctions(currentClass) && currentClass->getFunctionByName(name, functions, true)) {
+            } else if(resolveExtensionFunctions(currentClass) &&
+                    currentClass->getAllFunctionsByName(name, functions, true)) {
                 resolveFunctionByNameUtype(utype, ast, name, functions);
                 utypeFound = true;
                 break;
@@ -535,7 +536,8 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         resolveClassUtype(utype, ast, resolvedUtype);
     }  else if((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL && !IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType())) {
         resolveClassUtype(utype, ast, resolvedUtype);
-    } else if(resolveExtensionFunctions(currentScope()->klass) && currentScope()->klass->getFunctionByName(name, functions, true)) {
+    } else if(resolveExtensionFunctions(currentScope()->klass) &&
+            currentScope()->klass->getAllFunctionsByName(name, functions, true)) {
         resolveFunctionByNameUtype(utype, ast, name, functions);
     } else if((resolvedUtype = currentScope()->klass->getAlias(name, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) != NULL) {
         resolveAliasUtype(utype, ast, resolvedUtype);
@@ -1642,11 +1644,6 @@ void Compiler::inlineField(Field *field, Expression &expr) {
                 Literal *literal = ((Literal *) expr.utype->getResolvedType());
 
                 if (literal->literalType == numeric_literal) {
-                    if (!isWholeNumber(literal->numericData)) {
-                        errors->createNewError(GENERIC, expr.ast,
-                                               "constant value must evaluate to an integer, the constant's value appears to be a decimal");
-                    }
-
                     inlinedFields.add(KeyPair<Field *, double>(field, literal->numericData));
                 } else {
                     inlinedStringFields.add(KeyPair<Field *, Int>(field, literal->address));

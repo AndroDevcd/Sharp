@@ -188,9 +188,14 @@ void ExeBuilder::dumpClassInfo(ClassObject *klass) {
 }
 
 void ExeBuilder::addClass(ClassObject *klass) {
+    if(IS_CLASS_GENERIC(klass->getClassType()) && klass->getGenericOwner() == NULL)
+        return;
     allClasses.add(klass);
 
     allMethods.appendAll(klass->getFunctions());
+    if(klass->name == "__srt_global" && klass->isGlobalClass())
+        return;
+
     List<ClassObject*> &childClasses = klass->getChildClasses();
     for(Int i = 0; i < childClasses.size(); i++) {
         addClass(childClasses.get(i));

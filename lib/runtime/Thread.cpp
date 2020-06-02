@@ -803,7 +803,7 @@ void Thread::exec() {
 
         for (;;) {
             top:
-                if(current->address == 2413 && PC(this) >= 46) {
+                if(current->address == 2420 && PC(this) >= 9) {
                     Int i = 0;
                 }
                 DISPATCH();

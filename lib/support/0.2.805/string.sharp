@@ -3,7 +3,7 @@ mod std;
 import std.io;
 
 class string {
-    public data : _int8[];
+    private data : _int8[];
     private static currentFormat := 'g';
     private static precision := 0;
 
@@ -119,6 +119,14 @@ class string {
         else
             return s.append("null");
     }
+
+   def operator+(str : string) : string {
+       s := new string(data);
+       if(str != null)
+           return s.append(str.data);
+       else
+           return s.append("null");
+   }
 
     def to_string() := new string(data);
 

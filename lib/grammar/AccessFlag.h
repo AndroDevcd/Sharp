@@ -27,7 +27,6 @@ enum AccessFlag
      */
     STABLE = 0x40,
     UNSTABLE = 0x80,
-
     EXTENSION = 0X100,
 
     flg_UNDEFINED=0x0

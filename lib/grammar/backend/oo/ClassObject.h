@@ -81,7 +81,7 @@ public:
     void setProcessStage(generic_processing_stage stage) { processStage = stage; }
     bool isGlobalClass() { return globalClass; }
     void setGlobalClass(bool glob) { globalClass = glob; }
-    bool getFunctionByName(string name, List<Method*> &functions, bool checkBase = false);
+    bool getAllFunctionsByName(string name, List<Method*> &funcs, bool checkBase = false);
     long getFieldAddress(Field* field);
     long getInstanceFieldAddress(string name) {
         long address = 0, index = getFieldIndex(name);

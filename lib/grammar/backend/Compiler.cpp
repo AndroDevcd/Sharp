@@ -1561,7 +1561,7 @@ Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* a
     if(k->getGenericOwner() && k->processedExtFunctions < k->getGenericOwner()->getExtensionFunctionTree().size())
         resolveExtensionFunctions(k);
     if(type == fn_undefined)
-        k->getFunctionByName(name, funcs, checkBase);
+        k->getAllFunctionsByName(name, funcs, checkBase);
     else
         k->getAllFunctionsByTypeAndName(type, name, checkBase, funcs);
 
@@ -1658,7 +1658,7 @@ bool Compiler::resolveFunctionByName(string name, List<Method*> &functions, Ast 
 
     for(long i = 0; i < globalClasses.size(); i++) {
 
-        globalClasses.get(i)->getFunctionByName(name, functions);
+        globalClasses.get(i)->getAllFunctionsByName(name, functions);
     }
 
     return !functions.empty();
@@ -1702,12 +1702,8 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
         }
     } else {
 
-        if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedMethod = resolveFunction(name, params, ast)) != NULL) {
-            return resolvedMethod;
-        } else if((resolvedMethod = findGetterSetter(currentScope()->klass, name, params, ast)) != NULL) {
-            return resolvedMethod;
-        }
-        else if((resolvedMethod = findFunction(currentScope()->klass, name, params, ast, true)) != NULL)
+
+        if((resolvedMethod = findFunction(currentScope()->klass, name, params, ast, true)) != NULL)
             return resolvedMethod;
         else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && currentScope()->currentFunction != NULL
             && currentScope()->currentFunction->data.getLocalField(name) != NULL) {
@@ -1795,6 +1791,10 @@ Method* Compiler::compileSingularMethodUtype(ReferencePointer &ptr, Expression *
             } else {
                 errors->createNewError(GENERIC, ast->line, ast->col, " field `" + field->toString() + "` is not a function pointer");
             }
+        } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedMethod = resolveFunction(name, params, ast)) != NULL) {
+            return resolvedMethod;
+        } else if((resolvedMethod = findGetterSetter(currentScope()->klass, name, params, ast)) != NULL) {
+            return resolvedMethod;
         }
     }
 
@@ -4936,10 +4936,6 @@ void Compiler::compilePrimaryExpression(Expression* expr, Ast* ast) {
             return this->errors->createNewError(GENERIC, ast->line, ast->col, " unsupported array access not attached to object");
         case ast_lambda_function:
             return compileLambdaExpression(expr, branch);
-        case ast_not_e:
-            return compileNotExpression(expr, branch);
-        case ast_minus_e:
-            return compileMinusExpression(expr, branch);
         default:
             return this->errors->createNewError(GENERIC, ast->line, ast->col,
                                                 "unexpected expression of type `" + Ast::astTypeToString(branch->getType()) + "` found");
@@ -4954,6 +4950,10 @@ void Compiler::compileExpression(Expression* expr, Ast* ast) {
 
 void Compiler::compileExpressionAst(Expression *expr, Ast *branch) {
     switch(branch->getType()) {
+        case ast_not_e:
+            return compileNotExpression(expr, branch);
+        case ast_minus_e:
+            return compileMinusExpression(expr, branch);
         case ast_primary_expr:
             return compilePrimaryExpression(expr, branch);
         case ast_pre_inc_e:
@@ -5080,7 +5080,7 @@ void Compiler::findConflicts(Ast *ast, string type, string &name) {
     } else if(type != "alias" && currentScope()->klass->getAlias(name, false) != NULL) {
         createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
                          "declared " + type + " `" + name + "` conflicts with alias `" + currentScope()->klass->getField(name, false)->toString() + "`");
-    } else if(currentScope()->klass->getFunctionByName(name, functions)) {
+    } else if(currentScope()->klass->getAllFunctionsByName(name, functions)) {
         createNewWarning(GENERIC, __WDECL, ast->line, ast->col,
                          "declared " + type + " `" + name + "` conflicts with function `" + functions.get(0)->toString() + "`");
     } else if(currentScope()->klass->getChildClass(name) != NULL) {
@@ -5269,8 +5269,9 @@ void Compiler::resolveField(Ast* ast) {
 
                 // we cannot add thread local to secondary variables so me must match its locality with the first one
                 xtraField->locality = field->locality;
-                if(xtraField->locality == stl_stack)
+                if(xtraField->locality == stl_stack) {
                     xtraField->address = xtraField->owner->getFieldAddress(xtraField);
+                }
 
                 if(xtraField->type == UNTYPED) {
                     resolveFieldType(xtraField, field->utype, branch);
@@ -5565,6 +5566,7 @@ void Compiler::checkMainMethodSignature(Method* method) {
             arg0->isArray = true;
             arg0->utype = new Utype(stringClass, true);
             params.add(arg0);
+            compileMethodReturnType(method, method->ast, false);
 
             if(simpleParameterMatch(method->params, params)) {
                 if(method->utype->getType() == utype_native && method->utype->getResolvedType()->type == VAR) { // fn main(string[]) : var;
@@ -6117,9 +6119,10 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
                 if(contract->utype != NULL) {
                     if(!contract->utype->equals(sub->utype)) {
                         goto subscribe_err;
-                        sub->delegateAddr = contract->address;
                     }
                 }
+
+                sub->delegateAddr = contract->address;
             } else {
                 subscribe_err:
                 stringstream err;
@@ -7077,7 +7080,7 @@ opcode_arg Compiler::compileAsmLiteral(Ast *ast) {
         currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ast->getToken(1).getValue(), offset, ast->line, ast->col, currentScope()->scopeLevel));
     } else if(ast->getToken(0) == "[") {
         List<Method*> functions;
-        currentScope()->klass->getFunctionByName(ast->getToken(1).getValue(), functions, true);
+        currentScope()->klass->getAllFunctionsByName(ast->getToken(1).getValue(), functions, true);
         opcode_arg offset = getAsmOffset(ast);
 
         if(!functions.empty()) {
@@ -8793,7 +8796,7 @@ ClassObject* Compiler::addGlobalClassObject(string name, List<AccessFlag>& flags
     Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
 
-    ClassObject* k = new ClassObject(name, currModule, this->guid++, flags, meta), *prevClass;
+    ClassObject* k = new ClassObject(name, currModule, guid++, flags, meta), *prevClass;
     if((prevClass = findClass(currModule, name, classList))
         || (prevClass = findClass(currModule, name + "<>", classList)) != NULL){
         prevDefined:
@@ -8809,6 +8812,8 @@ ClassObject* Compiler::addGlobalClassObject(string name, List<AccessFlag>& flags
             goto prevDefined;
 
         k->owner = findClass(currModule, globalClass, classes);
+        if(k->owner != NULL)
+            k->owner->addClass(k);
         k->ast = ast;
         classList.add(k);
         return k;
@@ -8903,7 +8908,7 @@ void Compiler::createGlobalClass() {
 bool
 Compiler::addFunction(ClassObject *k, Method *method, bool (*paramaterMatchFun)(List<Field *> &, List<Field *> &)) {
     List<Method*> funcs;
-    k->getFunctionByName(method->name, funcs);
+    k->getAllFunctionsByName(method->name, funcs);
 
     if(!funcs.empty()) {
         for(long long i = 0; i < funcs.size(); i++) {
@@ -8956,7 +8961,7 @@ Compiler::findFunction(ClassObject *k, Method *method, bool (*paramaterMatchFun)
     List<Method*> funcs;
     if(k->getGenericOwner() && k->processedExtFunctions < k->getGenericOwner()->getExtensionFunctionTree().size())
         resolveExtensionFunctions(k);
-    k->getFunctionByName(method->name, funcs);
+    k->getAllFunctionsByName(method->name, funcs);
 
     if(!funcs.empty()) {
         for(long long i = 0; i < funcs.size(); i++) {
