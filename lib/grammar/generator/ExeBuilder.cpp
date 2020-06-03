@@ -2,6 +2,7 @@
 // Created by BNunnally on 5/15/2020.
 //
 
+#include <iomanip>
 #include "../backend/Compiler.h"
 #include "ExeBuilder.h"
 #include "../../runtime/Exe.h"
@@ -111,7 +112,10 @@ void ExeBuilder::createDumpFile() {
     for(Int i = 0; i < compiler->constantMap.size(); i++) {
         buf << "\n[" << i << "]: ";
 
+        buf << std::scientific
+            << std::setprecision(std::numeric_limits<double>::digits10 + 1);
         buf << compiler->constantMap.get(i);
+        buf << std::dec;
     }
 
     buf << "\n\n methods: \n";
@@ -1423,7 +1427,10 @@ void ExeBuilder::buildConstantSection() {
 
     for(Int i = 0; i < compiler->constantMap.size(); i++) {
         buf << (char)data_const;
-        buf << compiler->constantMap.get(i) << ((char)nil);
+        buf << std::scientific
+            << std::setprecision(std::numeric_limits<double>::digits10 + 1);
+        buf << compiler->constantMap.get(i);
+        buf << std::dec << ((char)nil);
     }
 
     buf << '\n' << (char)eos;

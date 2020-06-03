@@ -104,7 +104,7 @@ private:
     bool parseTypeIdentifier(Ast*);
     bool parseUtype(Ast*);
     bool parseUtypeNaked(Ast*);
-    bool parseExpression(Ast*);
+    bool parseExpression(Ast*,bool ignoreBinary = false);
     void parseDictExpression(Ast* ast);
     void parseDictElement(Ast* ast);
     void parseDictionaryType(Ast* ast);

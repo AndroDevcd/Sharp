@@ -18,7 +18,7 @@
 #include "Manifest.h"
 #include "../Modules/std.io/fileio.h"
 #include "../util/File.h"
-#include "../Modules/std.kernel/cmath.h"
+#include "../Modules/math/cmath.h"
 #include "jit/Jit.h"
 #include "main.h"
 #include "../Modules/std.io/memory.h"

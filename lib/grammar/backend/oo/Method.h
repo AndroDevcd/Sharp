@@ -240,7 +240,8 @@ public:
         overload(' '),
         extensionFun(false),
         delegateAddr(invalidAddr),
-        data()
+        data(),
+        compiled(false)
     {
         type = METHOD;
         params.init();
@@ -253,7 +254,8 @@ public:
             utype(NULL),
             overload(' '),
             extensionFun(false),
-            data()
+            data(),
+            compiled(false)
     {
         this->type = METHOD;
         this->params.init();
@@ -287,6 +289,7 @@ public:
     Utype* utype;
     List<Field*> params;
     CodeData data;
+    bool compiled;
 };
 
 

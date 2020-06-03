@@ -837,6 +837,15 @@ void Compiler::compileClassMethods(Ast* ast, ClassObject* currentClass) {
 
         removeScope();
     }
+
+    List<Method*> constructors;
+    currentClass->getAllFunctionsByType(fn_constructor, constructors);
+    for(Int i = 0; i < constructors.size(); i++) {
+        Method* func = constructors.get(i);
+        if(!func->data.code.ir32.empty() && GET_OP(func->data.code.ir32.last()) != Opcode::RET) {
+            func->data.code.addIr(OpBuilder::ret(NO_ERR));
+        }
+    }
 }
 
 void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* currentClass) {
@@ -3669,8 +3678,13 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
             expr->utype->copy(arrayType);
             expr->utype->setArrayType(false);
             expr->type = utypeToExpressionType(arrayType);
+            string functionName = arrayType->getClass()->name;
+            if(IS_CLASS_GENERIC(arrayType->getClass()->getClassType())) {
+                functionName = arrayType->getClass()->getGenericOwner()->name
+                        .substr(0, arrayType->getClass()->getGenericOwner()->name.size() - 2);
+            }
 
-            if((constr = findFunction(arrayType->getClass(), arrayType->getClass()->name, params, ast, false, fn_constructor)) == NULL) {
+            if((constr = findFunction(arrayType->getClass(), functionName, params, ast, false, fn_constructor)) == NULL) {
                 errors->createNewError(GENERIC, ast->line, ast->col, "class `" + arrayType->toString() + "` does not contain constructor `"
                                                                      + arrayType->getClass()->name + Method::paramsToString(params) + "`");
             }
@@ -3912,7 +3926,6 @@ void Compiler::compileDotNotationCall(Expression* expr, Ast* ast) {
  */
 void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startPos) {
     expr->utype->getCode().instanceCaptured = true;
-    RETAIN_SCOPE_CLASS(expr->utype->getClass() != NULL ? expr->utype->getClass() : currentScope()->klass)
     if(ast->getSubAstCount() > 1) {
         for(long i = startPos; i < ast->getSubAstCount(); i++) {
             if(ast->getSubAst(i)->getType() == ast_post_inc_e)
@@ -3922,6 +3935,7 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
             else if(ast->getSubAst(i)->getType() == ast_dot_not_e || ast->getSubAst(i)->getType() == ast_dotnotation_call_expr) {
                 if(expr->utype->getClass()) {
 
+                    RETAIN_SCOPE_CLASS(expr->utype->getClass() != NULL ? expr->utype->getClass() : currentScope()->klass)
                     RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
                     Ast *astToCompile = ast->getSubAst(i)->getType() == ast_dot_not_e ? ast->getSubAst(i)->getSubAst(0)
                                                                                       : ast->getSubAst(i);
@@ -3938,6 +3952,7 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
                     expr->utype->getCode().inject(bridgeExpr.utype->getCode());
                     expr->utype->getCode().copyInjectors(bridgeExpr.utype->getCode());
                     RESTORE_BLOCK_TYPE()
+                    RESTORE_SCOPE_CLASS()
                 } else
                     errors->createNewError(GENERIC, ast->getSubAst(i)->line, ast->getSubAst(i)->col, "expression of type `" + expr->utype->toString()
                                                                                                      + "` must resolve as a class");
@@ -3948,6 +3963,7 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
                     List<Expression*> expressions;
                     List<Field*> params;
 
+                    RETAIN_SCOPE_CLASS(expr->utype->getClass() != NULL ? expr->utype->getClass() : currentScope()->klass)
                     compileMethodReturnType(resolvedMethod, resolvedMethod->ast); // shouldn't need to but just in case
                     if(branch->getSubAst(ast_expression_list)->getSubAstCount() == resolvedMethod->params.size()) {
                         compileExpressionList(expressions, branch->getSubAst(ast_expression_list));
@@ -3987,6 +4003,7 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
 
                         expressions.free();
                         freeListPtr(params);
+                        RESTORE_SCOPE_CLASS()
                     } else {
                         if(branch->getSubAst(ast_expression_list)->getSubAstCount() > resolvedMethod->params.size()) {
                             errors->createNewError(GENERIC, ast->getSubAst(i)->line, ast->getSubAst(i)->col,
@@ -4010,7 +4027,6 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
             }
         }
     }
-    RESTORE_SCOPE_CLASS()
 }
 
 void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression *outExpr) {
@@ -5284,7 +5300,6 @@ void Compiler::resolveField(Ast* ast) {
 void Compiler::resolveSetter(Ast *ast, Field *field) {
     List<Field*> params;
     List<AccessFlag> fieldFlags;
-    params.add(field);
 
     Meta meta(current->getErrors()->getLine(ast->line), Obfuscater::getFile(current->getTokenizer()->file),
               ast->line, ast->col);
@@ -8203,6 +8218,7 @@ void Compiler::compileMethodDecl(Ast *ast, ClassObject* currentClass) {
 
 void Compiler::compileMethod(Ast *ast, Method *func) {
 
+    func->compiled = true;
     if(ast->hasSubAst(ast_block)) {
         Ast *block = ast->getSubAst(ast_block);
         currentScope()->currentFunction = func;
@@ -8855,10 +8871,15 @@ void Compiler::addDefaultConstructor(ClassObject* klass, Ast* ast) {
     List<Field*> emptyParams;
     List<AccessFlag> flags;
     flags.add(PUBLIC);
+    string functionName = klass->name;
 
     Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line),
               Obfuscater::getFile(current->getTokenizer()->file), ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
-    if(findFunction(klass, klass->name, emptyParams, ast, false, fn_constructor, false) == NULL) {
+    if(IS_CLASS_GENERIC(klass->getClassType())) {
+        functionName = klass->getGenericOwner()->name.substr(0, klass->getGenericOwner()->name.size() - 2);
+    }
+
+    if(findFunction(klass, functionName, emptyParams, ast, false, fn_constructor, false) == NULL) {
         Method* method = new Method(klass->name, currModule, klass, guid++, emptyParams, flags, meta);
 
         method->fullName = klass->fullName + "." + klass->name;

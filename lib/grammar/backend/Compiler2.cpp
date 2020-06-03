@@ -1161,13 +1161,14 @@ ClassObject* Compiler::compileGenericClassReference(ModuleData *mod, string &nam
             newClass->addKeyTypes(utypes);
             newClass->setGenericOwner(generic);
 
+            RETAIN_SCOPE_CLASS(newClass)
             if(processingStage >= POST_PROCESSING) {
                 newClass->setProcessStage(preprocessed);
 
                 parser* oldParser = current;
                 long long totalErrors = errors->getUnfilteredErrorCount();
 
-                current = getParserBySourceFile(errors->filename);
+                current = getParserBySourceFile(newClass->getGenericOwner()->meta.file->name);
                 updateErrorManagerInstance(current);
 
                 // preprocess code
@@ -1207,6 +1208,7 @@ ClassObject* Compiler::compileGenericClassReference(ModuleData *mod, string &nam
                 unProcessedClasses.add(newClass);
             }
 
+            RESTORE_SCOPE_CLASS()
             return newClass;
         } else
             return actualClass;

@@ -61,7 +61,7 @@
 #define GET_Bb(i) (int32_t)(((i >> 9u) & POSITIVE) ? (i >> 18u & BA_MAX) : (-1 * (i >> 18u & BA_MAX)))
 #define GET_Bc(i) (int32_t)(((i >> 10u) & POSITIVE) ? (i >> 25u & BA_MAX) : (-1 * (i >> 25u & BA_MAX)))
 
-#define DISPATCH() /*if(GET_OP(cache[pc])> op_GET) throw Exception("op"); else*/ goto *opcode_table[GET_OP(*pc)];
+#define DISPATCH() /*if(GET_OP((*pc))> 0x76 || PC(this) >= current->cacheSize) throw Exception("op"); else*/ goto *opcode_table[GET_OP(*pc)];
 
 #define HAS_SIGNAL \
     if(signal) { \
@@ -82,7 +82,7 @@
 #define THREAD_STACK_CHECK2(self, stackSize, x)  if(((self->sp-self->dataStack)+stackSize) >= self->stackLimit || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(vm.StackOverflowExcept, "");
 
 #ifndef SHARP_PROF_
-#define _brh_NOINCREMENT HAS_SIGNAL goto top; //DISPATCH();
+#define _brh_NOINCREMENT HAS_SIGNAL DISPATCH();
 #else
 #define _brh_NOINCREMENT HAS_SIGNAL irCount++; if(irCount == 0) overflow++; DISPATCH();
 #endif

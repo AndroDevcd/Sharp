@@ -1,11 +1,120 @@
 mod std;
 
+import std.io;
+
 class list<t> {
-    size : var;
-    data : t[];
-    static n : var;
+    private size : var;
+    private data : t[];
+    private is_compact: var;
 
-    def add_all(arry : t[]) {
+    private static const default_capacity := 10;
+    private static const min_capacity := 128;
 
+    list() {
+        data = new t[default_capacity];
+    }
+
+    list(starting_capacity: var) {
+        data = new t[starting_capacity];
+    }
+
+    def empty() := size == 0;
+
+    def set_compact(compact_array: var) {
+        is_compact = compact_array;
+    }
+
+    def to_array() : t[] {
+        if(size == 0) return null;
+        else return copy(data, 0, size);
+    }
+
+    def at(index: var): t {
+        if(index >= size || index < 0)
+            throw new bounds_except(out_of_bounds_msg(index));
+        return data[index];
+    }
+
+    def last(): t {
+        return at(size - 1);
+    }
+
+    def put(index: var, element: t) : t {
+        if (index >= size || index < 0)
+            throw new bounds_except(out_of_bounds_msg(index));
+
+        old_val := data[index];
+        data[index] = element;
+        return old_val;
+    }
+
+    private def expand() {
+        if(is_compact) {
+            realloc(data, sizeof(data) + min_capacity);
+        } else
+            realloc(data, sizeof(data) + (sizeof(data) >> 4) + min_capacity);
+    }
+
+    def clear() {
+        data = new t[default_capacity];
+        size = 0;
+    }
+
+    def add_all(lst: list<t>) {
+        data = copy(lst.data, 0, lst.size) as t[];
+        size = lst.size;
+    }
+
+    def add(element: t) {
+        if(size >= sizeof(data))
+            expand();
+        data[size++] = element;
+    }
+
+    def pop_back() {
+        if(size > 0) {
+            no_val : t;
+            data[size--] = no_val;
+        }
+    }
+
+    def get_size() := size;
+
+    def insert(index: var, element: t) {
+        if(index > size || index < 0)
+           throw new bounds_except(out_of_bounds_msg(index));
+
+        if(size == 0) {
+            add(element);
+        } else {
+           if(size >= sizeof(data))
+               expand();
+           size++;
+            for(i := size - 1; i > index; i--)
+               data[i] = data[i-1];
+            data[index] = element;
+        }
+    }
+
+
+    def remove(index: var) {
+        if(index > size || index < 0)
+           throw new bounds_except(out_of_bounds_msg(index));
+
+        if(size==2) {
+            if(index == 0) {
+                data[0]=data[1];
+            }
+        } else if(size > 1) {
+            newLen := size - 1;
+            for(i := index; i < newLen; i++)
+                data[i] = data[i+1];
+        }
+
+        pop_back();
+    }
+
+    private def out_of_bounds_msg(index: var) : string {
+        return "Index: $index, size: $size";
     }
 }

@@ -98,3 +98,11 @@ alias exception as error;
 alias thread_stack_exception as stack_except;
 alias class_cast_exception as cast_except;
 alias out_of_memory_exception as memory_except;
+
+def runtime_error(message: string) : runtime_except {
+    return new runtime_except(message);
+}
+
+def runtime_error() : runtime_except {
+    return new runtime_except();
+}

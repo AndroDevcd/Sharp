@@ -1968,24 +1968,29 @@ void parser::parseDictExpression(Ast* ast) {
     }
 }
 
-bool parser::parseExpression(Ast* ast) {
+bool parser::parseExpression(Ast* ast, bool ignoreBinary) {
     Ast *branch = getBranch(ast, ast_expression);
     CHECK_ERRLMT(return false;)
+    Token* old = NULL;
 
     if(peek(1)->getType() ==MINUS) {
         advance();
         Ast *exprAst = getBranch(branch, ast_minus_e);
         branch->addToken(current());
-        parseExpression(exprAst);
-        return true;
+        parseExpression(exprAst, true);
+        if(!isExprSymbol(peek(1)->getValue()))
+            return true;
+        else goto assignExpr;
     }
 
     if(peek(1)->getType() ==NOT) {
         advance();
         Ast *exprAst = getBranch(branch, ast_minus_e);
         branch->addToken(current());
-        parseExpression(exprAst);
-        return true;
+        parseExpression(exprAst, true);
+        if(!isExprSymbol(peek(1)->getValue()))
+            return true;
+        else goto assignExpr;
     }
 
     /* ++ or -- before the expression */
@@ -1994,13 +1999,16 @@ bool parser::parseExpression(Ast* ast) {
         advance();
         Ast *exprAst = getBranch(branch, ast_pre_inc_e);
         exprAst->addToken(current());
-        parseExpression(exprAst);
-        return true;
+        parseExpression(exprAst, true);
+        if(!isExprSymbol(peek(1)->getValue()))
+            return true;
+        else goto assignExpr;
     }
 
-    Token* old = _current;
+    old = _current;
     if(parsePrimaryExpr(branch)) {
-        if(!isExprSymbol(peek(1)->getValue()))
+        if(ignoreBinary) return true;
+        else if(!isExprSymbol(peek(1)->getValue()))
             return true;
     }
     else {
@@ -2037,6 +2045,7 @@ bool parser::parseExpression(Ast* ast) {
         return true;
     }
 
+    assignExpr:
     /* expression <assign-expr> expression */
     if(isAssignExprSymbol(peek(1)->getValue()))
     {
@@ -2048,11 +2057,13 @@ bool parser::parseExpression(Ast* ast) {
         branch->addAst(right->getLastSubAst());
         branch->encapsulate(ast_assign_e);
 
-        if(!isExprSymbol(peek(1)->getValue()))
+        if(ignoreBinary) return true;
+        else if(!isExprSymbol(peek(1)->getValue()))
             return true;
     }
 
-    bool success = binary(branch);
+    bool success  = false;
+    if(!ignoreBinary) success = binary(branch);
 
 
     /* expression '?' expression ':' expression */
