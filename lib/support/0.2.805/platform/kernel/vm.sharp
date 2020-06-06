@@ -37,7 +37,7 @@ class vm {
     }
 
     static def suspend(t: thread) : thread_result {
-        id := t.get_id();
+        id := t.get_native_handle();
         result: var;
 
         asm {
@@ -50,7 +50,7 @@ class vm {
     }
 
     static def unsuspend(t: thread) : thread_result {
-        id := t.get_id();
+        id := t.get_native_handle();
         result: var;
 
         asm {
@@ -63,7 +63,7 @@ class vm {
     }
 
     static def thread_join(t: thread) : thread_result {
-        id := t.get_id();
+        id := t.get_native_handle();
         result: var;
 
         asm {
@@ -76,7 +76,7 @@ class vm {
     }
 
     static def kill(t: thread) : thread_result {
-        id := t.get_id();
+        id := t.get_native_handle();
         result: var;
 
         asm {
@@ -132,7 +132,7 @@ class vm {
     }
 
     static def thread_start(t: thread, args: object[]) : thread_result {
-        id := t.get_id();
+        id := t.get_native_handle();
         stack_size := t.get_stack_size();
         result: var;
 
@@ -149,7 +149,7 @@ class vm {
     }
 
     static def set_thread_priority(t: thread, priority: var) : thread_result {
-        id := t.get_id();
+        id := t.get_native_handle();
         result: var;
 
         asm {

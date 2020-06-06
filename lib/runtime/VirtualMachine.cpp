@@ -233,14 +233,14 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     Thread::setPriority(thread, thread->priority);
 
     try {
-        thread_self->setup();
+        thread->setup();
         /*
          * Call main method
          */
-        if((jitFn = executeMethod(thread_self->main->address, thread_self)) != NULL) {
+        if((jitFn = executeMethod(thread->main->address, thread)) != NULL) {
 
 #ifdef BUILD_JIT
-            jitFn(thread_self->jctx);
+            jitFn(thread->jctx);
 #endif
         }
     } catch (Exception &e) {
@@ -260,7 +260,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
      * Check for uncaught exception in thread before exit
      */
     if(vm.state != VM_TERMINATED) {
-        thread_self->exit();
+        thread->exit();
     }
     else {
 #ifdef WIN32_
@@ -271,7 +271,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 #endif
     }
 
-    if (thread_self->id == main_threadid)
+    if (thread->id == main_threadid)
     {
         /*
         * Shutdown all running threads
@@ -283,7 +283,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         */
         vm.shutdown();
     } else
-        Thread::destroy(thread_self);
+        Thread::destroy(thread);
 
 #ifdef WIN32_
     return 0;
@@ -488,6 +488,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             __os_yield();
             return;
         case OP_EXIT:
+            thread_self->exitVal = (int)(thread_self->sp--)->var;
             vm.shutdown();
             return;
         case OP_MEMORY_LIMIT:

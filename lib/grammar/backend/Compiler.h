@@ -402,6 +402,8 @@ private:
     void compileMethod(Ast *ast, Method *func);
     void addLocalFields(Method *func);
     void processScopeExitLockAndFinallys(string &label);
+
+    void callBaseClassConstructor(Ast *ast, Method *func);
 };
 
 enum ProcessingStage {

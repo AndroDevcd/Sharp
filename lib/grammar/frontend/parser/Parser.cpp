@@ -2112,6 +2112,7 @@ bool parser::binary(Ast *ast) {
                 return true;
             } else
                 equality(branch);
+            ast = branch;
             success = true;
         } else return false;
     }

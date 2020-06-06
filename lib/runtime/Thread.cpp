@@ -450,7 +450,7 @@ void Thread::term() {
     }
 
     if(rand != NULL) {
-        delete rand;
+        delete rand; rand = NULL;
     }
 
 #ifdef SHARP_PROF_
@@ -610,8 +610,6 @@ void Thread::exit() {
         if(id == main_threadid) {
             if (dataStack != NULL)
                 this->exitVal = (int) dataStack[vm.manifest.threadLocals].var;
-            else
-                this->exitVal = 0;
         }
     }
 
@@ -1097,12 +1095,12 @@ void Thread::exec() {
                 _brh
             SKPE:
                 LONG_CALL();
-                if(registers[GET_Ca(*pc)]) {
+                if(((Int)registers[GET_Ca(*pc)]) != 0) {
                     pc = pc+GET_Cb(*pc); _brh_NOINCREMENT
                 } else _brh
             SKNE:
                 LONG_CALL();
-                if(registers[GET_Ca(*pc)]==0) {
+                if(((Int)registers[GET_Ca(*pc)])==0) {
                     pc = pc+GET_Cb(*pc); _brh_NOINCREMENT
                 } else _brh
             CMP:

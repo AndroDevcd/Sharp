@@ -28,7 +28,7 @@ def critical_section(block : ()(), lock_obj : object) {
     } finally {
       asm {
         movl {lock_obj}
-        lock
+        ulock
       }
     }
 }

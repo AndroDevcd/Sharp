@@ -1,9 +1,17 @@
 mod app;
 
 import std.io;
+import platform.kernel;
 
 def foo(args: object[]) : var {
-    thread.wait(2000);
+    println("int forloop took: ${time.measure(milliseconds, { ->
+        for(i : int = 0; i.value < 100000000; i.value++) {
+        }
+    })} ms");
+    println("var forloop took: ${time.measure(milliseconds, { ->
+        for(i := 0; i < 100000000; i++) {
+        }
+    })} ms");
     println("hello from the greatest time atop the largest castle in the nation");
     return 0;
 }
@@ -23,8 +31,7 @@ public static def main(args: string[]) : var {
     t := new thread("foo", true, foo);
     t.set_exception_handler(err_handler);
     println("start: ${t.start()}");
-    thread.sleep(500);
-    t.notify();
     println("join: ${t.join()}");
-    return 1;
+
+    return 4;
 }

@@ -835,16 +835,23 @@ void Compiler::compileClassMethods(Ast* ast, ClassObject* currentClass) {
             }
         }
 
-        removeScope();
-    }
+        List<Method*> constructors;
+        currentClass->getAllFunctionsByType(fn_constructor, constructors);
+        for(Int i = 0; i < constructors.size(); i++) {
+            Method* func = constructors.get(i);
+            if(func->data.code.ir32.empty() && func->params.empty()) {
+                currentScope()->currentFunction = func;
+                RETAIN_BLOCK_TYPE(func->flags.find(STATIC) ? STATIC_BLOCK : INSTANCE_BLOCK)
+                callBaseClassConstructor(ast, func);
+                RESTORE_BLOCK_TYPE()
+                func->data.code.addIr(OpBuilder::ret(NO_ERR));
+            }
 
-    List<Method*> constructors;
-    currentClass->getAllFunctionsByType(fn_constructor, constructors);
-    for(Int i = 0; i < constructors.size(); i++) {
-        Method* func = constructors.get(i);
-        if(!func->data.code.ir32.empty() && GET_OP(func->data.code.ir32.last()) != Opcode::RET) {
-            func->data.code.addIr(OpBuilder::ret(NO_ERR));
+            if(!func->data.code.ir32.empty() && GET_OP(func->data.code.ir32.last()) != Opcode::RET) {
+                func->data.code.addIr(OpBuilder::ret(NO_ERR));
+            }
         }
+        removeScope();
     }
 }
 
@@ -1861,9 +1868,6 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
     List<Field*> params;
     bool singularCall = false; //TODO: fully support restricted instance blocks
 
-    if(processingStage == COMPILING && ast->line >= 3000) {
-        int i = 0;
-    }
     RETAIN_BLOCK_TYPE(currentScope()->type == RESTRICTED_INSTANCE_BLOCK || currentScope()->type == INSTANCE_BLOCK
         ? INSTANCE_BLOCK : STATIC_BLOCK)
     compileTypeIdentifier(ptr, ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier));
@@ -5767,7 +5771,6 @@ void Compiler::compileConstructor(Ast* ast) {
     Method *func = findFunction(currentScope()->klass, name, params, ast, false, fn_constructor, false);
 
     if(func != NULL) {
-        currentScope()->currentFunction = func;
         compileMethod(ast, func);
     } else {
         this->errors->createNewError(INTERNAL_ERROR, ast->line, ast->col,
@@ -6600,6 +6603,9 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
         currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifBlockEnd, 0, ast->line, ast->col, currentScope()->scopeLevel));
         code.addIr(OpBuilder::jne(invalidAddr));
 
+        if(ast->line >= 3000) {
+            int jkjk  = 3000;
+        }
         controlPaths[IF_CONTROL_PATH] = compileBlock(ast->getSubAst(ast_block));
         controlPaths[ELSEIF_CONTROL_PATH] = true;
 
@@ -8287,9 +8293,13 @@ void Compiler::compileMethod(Ast *ast, Method *func) {
         currentScope()->currentFunction = func;
         bool allCodePathsReturnValue = false;
         addLocalFields(func);
-
         compileMethodReturnType(func, ast, false);
         RETAIN_BLOCK_TYPE(func->flags.find(STATIC) ? STATIC_BLOCK : INSTANCE_BLOCK)
+
+        if(func->fnType == fn_constructor) {
+            callBaseClassConstructor(ast, func);
+        }
+
         allCodePathsReturnValue = compileBlock(block);
         RESTORE_BLOCK_TYPE()
 
@@ -8342,6 +8352,74 @@ void Compiler::compileMethod(Ast *ast, Method *func) {
 
 //        printMethodCode(*constructor, ast);
     currentScope()->resetLocalScopeFlags();
+}
+
+void Compiler::callBaseClassConstructor(Ast *ast, Method *func) {
+    if(ast->hasSubAst(ast_base_class_constructor)) {
+        Ast *baseClassConstr = ast->getSubAst(ast_base_class_constructor);
+
+        if(func->owner->getSuperClass() != NULL) {
+            List<Expression *> expressions;
+            List<Field *> constructorParams;
+            string basicName = func->owner->getSuperClass()->name;
+            if(basicName.find("<") != string::npos) {
+                stringstream ss;
+                for(int i = 0; i < basicName.size(); i++) {
+                    if(basicName[i] == '<')
+                        break;
+                    ss << basicName[i];
+                }
+
+                basicName = ss.str();
+            }
+
+            compileExpressionList(expressions, baseClassConstr->getSubAst(ast_expression_list));
+            expressionsToParams(expressions, constructorParams);
+            Method *constructor = findFunction(func->owner->getSuperClass(), basicName,
+                                               constructorParams, baseClassConstr, false, fn_constructor);
+
+            if (constructor != NULL) {
+                func->data.code.addIr(OpBuilder::pushl(0));
+                pushParametersToStackAndCall(baseClassConstr, constructor, constructorParams, func->data.code);
+            }
+            else {
+                errors->createNewError(GENERIC, baseClassConstr->line, baseClassConstr->col,
+                                             " could not resolve base class constructor in class `" +
+                                             func->owner->getSuperClass()->name + "`.");
+            }
+        } else {
+            errors->createNewError(GENERIC, baseClassConstr->line, baseClassConstr->col,
+                                         " class `" +
+                                         func->owner->fullName + "` does not inherit a base class.");
+        }
+    } else {
+        if(func->owner->getSuperClass() != NULL) {
+            string basicName = func->owner->getSuperClass()->name;
+            if(basicName.find("<") != string::npos) {
+                stringstream ss;
+                for(int i = 0; i < basicName.size(); i++) {
+                    if(basicName[i] == '<')
+                        break;
+                    ss << basicName[i];
+                }
+
+                basicName = ss.str();
+            }
+
+            List<Field*> emptyParams;
+            Method *constructor = findFunction(func->owner->getSuperClass(), basicName, emptyParams, ast, false, fn_constructor);
+
+            if(constructor != NULL) {
+                func->data.code.addIr(OpBuilder::pushl(0));
+                pushParametersToStackAndCall(ast, constructor, emptyParams, func->data.code);
+            }
+            else {
+                errors->createNewError(INTERNAL_ERROR, ast->line, ast->col,
+                                             " could not resolve base class constructor `" + func->owner->getSuperClass()->name + "` in `" +
+                                             currentScope()->klass->fullName + "`.");
+            }
+        }
+    }
 }
 
 void Compiler::compileAllMethods() {
@@ -8763,6 +8841,9 @@ void Compiler::compileAllUnprocessedMethods() {
 
         currModule = method->module;
         currScope.add(new Scope(method->owner, GLOBAL_SCOPE));
+        if(method->name == "long") {
+            int itt = 3000;
+        }
         compileMethod(method->ast, method);
         removeScope();
     }
@@ -8915,8 +8996,19 @@ void Compiler::addDefaultConstructor(ClassObject* klass, Ast* ast) {
 
     if(findFunction(klass, functionName, emptyParams, ast, false, fn_constructor, false) == NULL) {
         Method* method = new Method(functionName, currModule, klass, guid++, emptyParams, flags, meta);
+        string basicName = klass->name;
+        if(basicName.find("<") != string::npos) {
+            stringstream ss;
+            for(int i = 0; i < basicName.size(); i++) {
+                if(basicName[i] == '<')
+                    break;
+                ss << basicName[i];
+            }
 
-        method->fullName = klass->fullName + "." + klass->name;
+            basicName = ss.str();
+        }
+
+        method->fullName = klass->fullName + "." + basicName;
         method->ast = ast;
         method->fnType = fn_constructor;
         method->address = methodSize++;

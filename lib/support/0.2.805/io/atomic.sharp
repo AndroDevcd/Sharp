@@ -1,7 +1,0 @@
-mod std.io;
-
-class atomic<t> {
-    data : t;
-       get { lock (data) return data; }
-       set value -> { critical_section({ -> data = value; }); }
-}

@@ -3,7 +3,7 @@ mod std;
 class hashmap<k, v> {
     data: entry<k, v>[];
     threshold := 0.75;
-    max_size := 96;
+    max_size : var;
     size : var;
 
     private static const default_capacity := 128;
@@ -14,6 +14,7 @@ class hashmap<k, v> {
 
     public hashmap() {
         data = new entry<k,v>[default_capacity];
+        max_size = 96;
     }
 
     def set_threshold(threshold: var) {
@@ -53,40 +54,39 @@ class hashmap<k, v> {
             return no_value;
         } else {
             entry := data[index];
-            while(entry != null && entry.key != key
-                && entry.next != null)
+            while (entry != null) {
+                if (entry.key == key) {
+                    return entry.value;
+                }
                 entry = entry.next;
+            }
 
-            if (entry == null)
-                return no_value;
-            else
-                return entry.value;
+            return no_value;
         }
     }
 
-    largest: var;
     public def put(key: k, value: v) : var {
         index: var = hash(key);
-        if(data[index] == null) {
+        prev : entry<k,v>;
+        entry := data[index];
+
+        while (entry != null && entry.key != key) {
+            prev = entry;
+            entry = entry.next;
+        }
+
+        if(entry == null) {
             size++;
-            data[index] =  new entry<k,v>(key, value);
+            entry =  new entry<k,v>(key, value);
+            if(prev == null) {
+                data[index] = entry;
+            } else {
+                prev.next = entry;
+            }
+
             return true;
         } else {
-            entry := data[index];
-            if(++size >= max_size)
-                resize();
-
-            while(entry.next != null) {
-                entry = entry.next;
-            }
-
-            if(entry.key == key)
-                entry.value = value;
-            else {
-                entry.next = new entry<k,v>(key, value);
-                return true;
-            }
-
+            entry.value = value;
             return false;
         }
     }

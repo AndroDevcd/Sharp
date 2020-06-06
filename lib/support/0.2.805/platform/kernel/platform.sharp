@@ -13,8 +13,11 @@ class platform
     static def tls_init() {}
     private static def static_init() {}
 
-    def exit() {
-        // todo: write
+    static def exit(value: var) {
+        asm {
+            ipushl {value}
+            int 0x1d
+        }
     }
 
     private static def srt_init(args: object[]) : var {

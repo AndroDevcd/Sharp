@@ -228,7 +228,7 @@ void tokenizer::parse()
             }
             else if ('}' == current) {
                 if(dynamicString) {
-                    if(brackets == 0) {
+                    if(--brackets == 0) {
                         dynamicString = false;
                         if (peek(1) == '"') {
                             advance()
@@ -242,7 +242,6 @@ void tokenizer::parse()
                         }
                     } else {
                         tokens.add(Token(string(1, current), SINGLE, col, line, RIGHTCURLY));
-                        brackets--;
                     }
                 } else
                     tokens.add(Token(string(1, current), SINGLE, col, line, RIGHTCURLY));
@@ -458,6 +457,7 @@ void tokenizer::parse()
                             saveString(message, escaped_found);
                             // we gotta tokenize he rest of the data set  var to check the state where once we encounter a '}' we jump back to parsing a string
                             dynamicString = true;
+                            brackets = 1;
 
                             tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
                             tokens.add(Token(string(1, '('), SINGLE, col, line, LEFTPAREN));

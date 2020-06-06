@@ -177,7 +177,6 @@ class string : loopable<_int8> {
 
     static def fmt( _fmt: var ) {
         currentFormat = _fmt;
-        if(_fmt != 'f' && _fmt != 'F') precision = 0;
     }
 
     static def set_precision( prec: var ) {

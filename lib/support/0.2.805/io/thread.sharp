@@ -12,6 +12,8 @@ public class thread {
 		self->parent_group = thread_group.main_group;
         self->priority = parent_group.get_priority();
 		self->native_handle = -1;
+		id = id_generator++;
+
 		parent_group.add(self);
     }
 
@@ -22,6 +24,7 @@ public class thread {
 		self->parent_group = thread_group.main_group;
         self->priority = parent_group.get_priority();
 		self->native_handle = -1;
+		id = id_generator++;
 
 		parent_group.add(self);
     }
@@ -33,6 +36,7 @@ public class thread {
 		self->parent_group = thread_group.main_group;
         self->priority = parent_group.get_priority();
 		self->native_handle = -1;
+		id = id_generator++;
 
 		parent_group.add(self);
     }
@@ -45,6 +49,7 @@ public class thread {
 		self->parent_group = thread_group.main_group;
         self->priority = parent_group.get_priority();
 		self->native_handle = -1;
+		id = id_generator++;
 
 		parent_group.add(self);
     }
@@ -56,6 +61,7 @@ public class thread {
 		self->parent_group = group;
         self->priority = group.get_priority();
 		self->native_handle = -1;
+		id = id_generator++;
 
 		parent_group.add(self);
     }
@@ -68,6 +74,7 @@ public class thread {
 		self->parent_group = group;
         self->priority = group.get_priority();
 		self->native_handle = -1;
+		id = id_generator++;
 
 		parent_group.add(self);
     }
@@ -145,7 +152,8 @@ public class thread {
         parent_group.remove(t.native_handle);
     }
 
-    public def get_id() := native_handle;
+    public def get_id() := id;
+    public def get_native_handle() := native_handle;
     public def get_stack_size() := stack_size;
     public def get_name() := name;
     public def is_exited() := exited;
@@ -162,6 +170,7 @@ public class thread {
 
     private exit_code : var;
     private native_handle : var;
+    private id : var;
     private priority : thread_priority;
     private daemon : var; // not supported as of now
     private terminated : var;
@@ -173,4 +182,5 @@ public class thread {
     private stack_size : var;
     private main: (object[])(var);
 	private error_handler: uncaught_exception_handler;
+	private static id_generator : var;
 }

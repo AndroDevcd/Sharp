@@ -595,13 +595,16 @@ void Optimizer::optimizeNot() {
 
             case Opcode::NOT: {
 
-                if((i + 1) < code.ir32.size()) {
+                if((i + 2) < code.ir32.size()) {
                     Int nottedReg = GET_Ca(code.ir32.get(i));
 
                     if ((GET_Ca(code.ir32.get(i)) == GET_Cb(code.ir32.get(i)))
                         && GET_OP(code.ir32.get(i + 1)) == Opcode::MOVR
                         && GET_Cb(code.ir32.get(i + 1)) == nottedReg
-                        && GET_Ca(code.ir32.get(i + 1)) != nottedReg) {
+                        && GET_Ca(code.ir32.get(i + 1)) != nottedReg
+                        && !(GET_OP(code.ir32.get(i + 2)) == Opcode::JNE
+                            || GET_OP(code.ir32.get(i + 2)) == Opcode::JE
+                            || GET_OP(code.ir32.get(i + 2)) == Opcode::JMP)) {
                         Int receiverReg = GET_Ca(code.ir32.get(i+1));
                         shiftAddresses(1, i);
                         code.ir32.removeAt(i);
