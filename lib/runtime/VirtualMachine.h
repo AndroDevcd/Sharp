@@ -60,7 +60,10 @@ public:
     Method* getMainMethod();
     ClassObject* resolveClass(runtime::String fullName);
     Object* resolveField(runtime::String name, SharpObject *classObject);
+    void setFieldVar(runtime::String name, SharpObject *classObject, Int index, double value);
+    void setFieldClass(runtime::String name, SharpObject *classObject, ClassObject* klass);
     string stringValue(SharpObject *);
+    double numberValue(Int, SharpObject *);
     bool isStaticObject(SharpObject *object);
 
     void shutdown();
@@ -91,6 +94,8 @@ public:
     ClassObject *InvalidOperationExcept;
     ClassObject *StringClass;
     ClassObject *StackSate;
+    ClassObject *ThreadClass;
+    ClassObject *ExceptionClass;
 
     Object outOfMemoryExcept;
     Meta metaData;

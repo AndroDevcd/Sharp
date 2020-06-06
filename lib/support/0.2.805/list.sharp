@@ -2,7 +2,7 @@ mod std;
 
 import std.io;
 
-class list<t> {
+class list<t> : loopable<t> {
     private size : var;
     private data : t[];
     private is_compact: var;
@@ -24,9 +24,17 @@ class list<t> {
         is_compact = compact_array;
     }
 
+    def get_array() := to_array();
+
     def to_array() : t[] {
         if(size == 0) return null;
         else return copy(data, 0, size);
+    }
+
+    def operator[](index: var): t {
+        if(index >= size || index < 0)
+            throw new bounds_except(out_of_bounds_msg(index));
+        return data[index];
     }
 
     def at(index: var): t {
@@ -71,6 +79,16 @@ class list<t> {
         data[size++] = element;
     }
 
+    def indexof(element: t) : var {
+        for(i := 0; i < size; i++) {
+            if(element == data[i]) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     def pop_back() {
         if(size > 0) {
             no_val : t;
@@ -97,7 +115,17 @@ class list<t> {
     }
 
 
-    def remove(index: var) {
+    def remove(val: t) {
+        for(i := 0; i < size; i++) {
+            if(val == data[i]) {
+                remove_at(i);
+                return;
+            }
+        }
+    }
+
+
+    def remove_at(index: var) {
         if(index > size || index < 0)
            throw new bounds_except(out_of_bounds_msg(index));
 
@@ -112,6 +140,22 @@ class list<t> {
         }
 
         pop_back();
+    }
+
+    def to_string() : string {
+        str := new string_builder();
+
+        str += "[ ";
+        for(i := 0; i < size; i++) {
+            str += data[i];
+
+            if((i + 1) < size) {
+                str += ", ";
+            }
+        }
+
+        str += " ]";
+        return str.to_string();
     }
 
     private def out_of_bounds_msg(index: var) : string {

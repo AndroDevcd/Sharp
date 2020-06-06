@@ -5,6 +5,7 @@
 #include "ClassObject.h"
 #include "../Compiler.h"
 #include "../data/Alias.h"
+#include "../../main.h"
 
 
 void ClassObject::free()
@@ -60,7 +61,7 @@ long ClassObject::getFieldIndex(string &name) {
 
 long ClassObject::getFieldAddress(Field* field) {
     bool isStatic = field->flags.find(STATIC);
-    if(super == NULL) {
+    if(super == NULL || isStatic) {
         if(isStatic)
             return getStaticFieldAddress(field->name);
         else
@@ -74,14 +75,10 @@ long ClassObject::getFieldAddress(Field* field) {
         k = _klass->getSuperClass();
 
         if(k == NULL) {
-            if(isStatic)
-                return address + getStaticFieldAddress(field->name);
-            else return address + getInstanceFieldAddress(field->name);
+            return address + getInstanceFieldAddress(field->name);
         }
 
-        if(isStatic)
-            address+= k->getStaticFieldCount();
-        else address += k->getInstanceFieldCount();
+        address += k->getInstanceFieldCount();
         _klass = k;
     }
 }
@@ -112,21 +109,6 @@ long ClassObject::totalInstanceFieldCount() {
             return fieldCount;
 
         fieldCount+=k->getInstanceFieldCount();
-        _klass = k;
-    }
-}
-
-long ClassObject::totalStaticFieldCount() {
-    ClassObject* k, *_klass = this;
-    long fieldCount=getStaticFieldCount();
-
-    for(;;) {
-        k = _klass->getSuperClass();
-
-        if(k == NULL)
-            return fieldCount;
-
-        fieldCount+=k->getStaticFieldCount();
         _klass = k;
     }
 }
@@ -173,6 +155,20 @@ bool ClassObject::isClassRelated(ClassObject *klass, bool interfaceCheck) {
     }
 
     return super == NULL ? false : super->isClassRelated(klass, interfaceCheck);
+}
+
+ClassObject* ClassObject::getLoopableClass() { // TODO: talk about in the tutorial
+    if(startsWith(fullName, "std#loopable<")) {
+        return this;
+    }
+
+    ClassObject* loopable;
+    for (long long i = 0; i < interfaces.size(); i++) {
+        if ((loopable = interfaces.get(i)->getLoopableClass()) != NULL)
+            return loopable;
+    }
+
+    return super == NULL ? NULL : super->getLoopableClass();
 }
 
 bool ClassObject::getAllFunctionsByName(string name, List<Method*> &funcs, bool checkBase) {

@@ -81,6 +81,15 @@ void parser::parse() {
         {
             parseVariableDecl(NULL);
         }
+        else if(current().getType() == SEMICOLON)
+        {
+            if(access_types.size() > 0) {
+                errors->createNewError(ILLEGAL_ACCESS_DECLARATION, current());
+                access_types.free();
+            }
+
+            errors->createNewWarning(GENERIC, current().getLine(), current().getColumn(), "unnecessary semicolon ';'");
+        }
         else
         {
             // "expected class, or import declaration"
@@ -661,7 +670,7 @@ void parser::parseAssemblyInstruction(Ast *ast) {
     } else if(*peek(1)  == "loadpc") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
-    } else if(*peek(1)  == "pushobj") {
+    } else if(*peek(1)  == "pushObj") {
         expect(branch, peek(1)->getValue());
     } else if(*peek(1)  == "del") {
         expect(branch, peek(1)->getValue());
@@ -825,7 +834,7 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseRegister(branch);
         expect(branch, ",", false);
         parseAsmLiteral(branch);
-    } else if(*peek(1)  == "popObject") {
+    } else if(*peek(1)  == "popObj") {
         expect(branch, peek(1)->getValue());
     } else if(*peek(1)  == "smovr") {
         expect(branch, peek(1)->getValue());
@@ -865,9 +874,9 @@ void parser::parseAssemblyInstruction(Ast *ast) {
         parseLiteral(branch);
     } else if(*peek(1)  == "smovr2") {
         expect(branch, peek(1)->getValue());
-        parseRegister(branch);
-        expect(branch, ",", false);
         parseAsmLiteral(branch);
+        expect(branch, ",", false);
+        parseRegister(branch);
     } else if(*peek(1)  == "smovr3") {
         expect(branch, peek(1)->getValue());
         parseLiteral(branch);
@@ -1032,8 +1041,9 @@ void parser::parseLockStatement(Ast *ast) {
 
     _current--;
     expect(branch, "lock", false);
+    expect(branch, "(", false);
     parseExpression(branch);
-    expect(branch, "->", false);
+    expect(branch, ")", false);
     parseBlock(branch);
 }
 
@@ -1983,16 +1993,6 @@ bool parser::parseExpression(Ast* ast, bool ignoreBinary) {
         else goto assignExpr;
     }
 
-    if(peek(1)->getType() ==NOT) {
-        advance();
-        Ast *exprAst = getBranch(branch, ast_minus_e);
-        branch->addToken(current());
-        parseExpression(exprAst, true);
-        if(!isExprSymbol(peek(1)->getValue()))
-            return true;
-        else goto assignExpr;
-    }
-
     /* ++ or -- before the expression */
     if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
     {
@@ -2338,6 +2338,15 @@ bool parser::unary(Ast *ast) {
 
 bool parser::parseAsmLiteral(Ast* ast) {
     Ast* branch = getBranch(ast, ast_assembly_literal);
+
+    if(*peek(1) == "-"
+        && peek(2)->getId() == CHAR_LITERAL || peek(2)->getId() == INTEGER_LITERAL
+       || peek(2)->getId() == STRING_LITERAL || peek(2)->getId() == HEX_LITERAL
+       || peek(2)->getValue() == "true" || peek(2)->getValue() == "false") {
+        Ast *preDec = getBranch(branch, ast_pre_inc_e);
+        advance();
+        preDec->addToken(current());
+    }
 
     Token *t = peek(1);
     if(t->getId() == CHAR_LITERAL || t->getId() == INTEGER_LITERAL
@@ -2763,6 +2772,14 @@ void parser::parseLambdaArgList(Ast* ast) {
 
 bool parser::parsePrimaryExpr(Ast* ast) {
     Ast* branch = getBranch(ast, ast_primary_expr);
+
+    if(peek(1)->getType() ==NOT) {
+        advance();
+        Ast *exprAst = getBranch(branch, ast_not_e);
+        branch->addToken(current());
+        parseExpression(exprAst, true);
+        return true;
+    }
 
     errors->enterProtectedMode();
     Token* old = _current;
@@ -3609,7 +3626,7 @@ bool parser::iaAssemblyInstruction(string key) {
     key  == "checklen" ||
     key  == "jmp" ||
     key  == "loadpc" ||
-    key  == "pushobj" ||
+    key  == "pushObj" ||
     key  == "del" ||
     key  == "call" ||
     key  == "newClass" ||
@@ -3649,7 +3666,7 @@ bool parser::iaAssemblyInstruction(string key) {
     key  == "imull" ||
     key  == "imodl" ||
     key  == "loadl" ||
-    key  == "popObject" ||
+    key  == "popObj" ||
     key  == "smovr" ||
     key  == "andl" ||
     key  == "orl" ||

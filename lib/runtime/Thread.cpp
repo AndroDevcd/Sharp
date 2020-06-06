@@ -60,7 +60,7 @@ int32_t Thread::Create(int32_t methodAddress, bool daemon) {
         return RESULT_NO_THREAD_ID;
 
     Method* method = &vm.methods[methodAddress];
-    if(method->paramSize>0)
+    if(method->paramSize!=0)
         return RESULT_THREAD_CREATE_FAILED;
 
     Thread* thread = (Thread*)malloc(
@@ -105,7 +105,7 @@ void Thread::popThread(Thread *thread) {
 
 Thread *Thread::getThread(int32_t id) {
     GUARD(threadsMonitor);
-    Thread *thread;
+    Thread *thread = NULL;
     threads.get(id, thread);
 
     return thread;
@@ -153,22 +153,17 @@ void Thread::wait() {
 }
 
 void Thread::wait(Int mills) {
-    const long sleepInterval = 5; // sleep for 5 milliseconds
+    const Int sleepInterval = 1; // sleep for 1 milliseconds
 
-    Int sleepCount = 0;
-    if(mills < 10) {
-        sleepCount = mills;
-    } else
-        sleepCount = mills / sleepInterval;
-
-    long spinCount = 0;
-    long retryCount = 0;
+    Int base = NANO_TOMILL(Clock::realTimeInNSecs()), now = 0;
+    Int spinCount = 0;
+    Int retryCount = 0;
 
     this->state = THREAD_SUSPENDED;
 
     while (this->suspended)
     {
-        if (sleepCount-- > 0)
+        if ((mills - now) > 0)
         {
             spinCount++;
             retryCount = 0;
@@ -178,10 +173,15 @@ void Thread::wait(Int mills) {
 #ifdef POSIX_
             usleep(sleepInterval*POSIX_USEC_INTERVAL);
 #endif
-        } else if(this->state == THREAD_KILLED) {
+        } else if( this->state == THREAD_KILLED) {
             this->suspended = false;
             return;
+        } else if((mills - now) <= 0) {
+            this->suspended = false;
+            break;
         }
+
+        now = NANO_TOMILL(Clock::realTimeInNSecs()) - base;
     }
 
     this->state = THREAD_RUNNING;
@@ -243,16 +243,20 @@ int Thread::suspendThread(int32_t id) {
 }
 
 void Thread::suspendFor(Int mills) {
-    thread_self->suspended = true;
-    sendSignal(thread_self->signal, tsig_suspend, 0);
+    Thread *thread = thread_self;
+    thread->suspended = true;
+    sendSignal(thread->signal, tsig_suspend, 0);
 
+    if(mills == -1)
+        thread->wait();
+    else
     /*
 	 * This function is far more efficent that wait()
      * Due to there being little to no delay between sleeps
      * We call wait(mills) when we want to possibly wake up a sleeping thread
      *
 	 */
-    thread_self->wait(mills);
+        thread->wait(mills);
 }
 
 int Thread::unSuspendThread(int32_t id) {
@@ -275,15 +279,7 @@ int Thread::destroy(int32_t id) {
     if(thread == NULL || thread->daemon)
         return RESULT_ILL_THREAD_DESTROY;
 
-    if (thread->state == THREAD_KILLED || thread->terminated)
-    {
-            popThread(thread);
-            thread->term();
-            std::free (thread);
-            return RESULT_OK;
-    } else {
-        return RESULT_THREAD_DESTROY_FAILED;
-    }
+    return destroy(thread);
 }
 
 int Thread::interrupt(int32_t id) {
@@ -344,9 +340,11 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
 
     thread->term();
 
-    GUARD(thread->mutex);
-    thread->state = THREAD_KILLED;
-    sendSignal(thread->signal, tsig_kill, 1);
+    {
+        GUARD(thread->mutex);
+        thread->state = THREAD_KILLED;
+        sendSignal(thread->signal, tsig_kill, 1);
+    }
 
     while (!thread->exited)
     {
@@ -467,7 +465,7 @@ void Thread::term() {
 }
 
 int Thread::join(int32_t id) {
-    if (thread_self != NULL && (id == thread_self->id || id <= jit_threadid))
+    if (thread_self != NULL && (id == thread_self->id ))//|| id <= jit_threadid)) // TODO: update when jit is active
         return RESULT_ILL_THREAD_JOIN;
 
     Thread* thread = getThread(id);
@@ -483,7 +481,8 @@ int Thread::threadjoin(Thread *thread) {
     if(thread->state == THREAD_STARTED)
         waitForThread(thread);
 
-    if (thread->state == THREAD_RUNNING)
+    if (thread->state == THREAD_RUNNING
+        || thread->state == THREAD_SUSPENDED)
     {
 #ifdef WIN32_
         WaitForSingleObject(thread->thread, INFINITE);
@@ -569,7 +568,7 @@ void Thread::shutdown() {
 }
 
 void Thread::exit() {
-    GUARD(threadsMonitor);
+    GUARD(mutex);
     if(hasSignal(signal, tsig_except)) {
         this->exitVal = 1;
 
@@ -627,6 +626,7 @@ void Thread::exit() {
             }
             p++;
         }
+        free(this->dataStack); dataStack = NULL;
     }
 
     if(callStack) {
@@ -803,7 +803,7 @@ void Thread::exec() {
 
         for (;;) {
             top:
-                if(current->address == 2556 && PC(this) >= 0) {
+                if(current->address == 2363 && PC(this) == 24) {
                     Int i = 0;
                 }
                 DISPATCH();
@@ -1337,9 +1337,6 @@ void Thread::setup() {
         GarbageCollector::self->addMemory(sizeof(Frame) * stackLimit);
     }
     if(id != main_threadid){
-        int priority = (int)vm.resolveField("priority", currentThread.object)->object->HEAD[0];
-        setPriority(this, priority);
-
         if(currentThread.object != nullptr
            && IS_CLASS(currentThread.object->info)) {
             GarbageCollector::self->createStringArray(vm.resolveField("name", currentThread.object), name);
@@ -1409,7 +1406,7 @@ int Thread::setPriority(int32_t id, int priority) {
 
     Thread* thread = getThread(id);
     if(thread == NULL || thread->terminated || thread->state==THREAD_KILLED
-       || thread->state==THREAD_CREATED || id <= jit_threadid)
+       || thread->state==THREAD_CREATED)//|| id <= jit_threadid)) // TODO: update when jit is active|| id <= jit_threadid)
         return RESULT_ILL_PRIORITY_SET;
 
     return setPriority(thread, priority);
@@ -1466,7 +1463,20 @@ void Thread::init(string name, Int id, Method *main, bool daemon, bool initializ
     }
 }
 
+int Thread::destroy(Thread* thread) {
+    if (thread->state == THREAD_KILLED || thread->terminated)
+    {
+        popThread(thread);
+        thread->term();
+        std::free (thread);
+        return RESULT_OK;
+    } else {
+        return RESULT_THREAD_DESTROY_FAILED;
+    }
+}
+
 void __os_sleep(Int INTERVAL) {
+    if(INTERVAL < 0) return;
 #ifdef WIN32_
     Sleep(INTERVAL);
 #endif

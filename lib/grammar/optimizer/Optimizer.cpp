@@ -95,6 +95,12 @@ void Optimizer::optimizeLocalVarInit() {
             case Opcode::MOVI: {
 
                 if((i + 2) < code.ir32.size()) {
+                    if(i > 0 && (GET_OP(code.ir32.get(i - 1)) == Opcode::SKIP
+                        || GET_OP(code.ir32.get(i - 1)) == Opcode::SKPE
+                        || GET_OP(code.ir32.get(i - 1)) == Opcode::SKNE)) {
+                        i++;
+                        continue;
+                    }
                     if (GET_OP(code.ir32.get(i + 2)) == Opcode::SMOVR_2) {
                         Int outReg = GET_Da(code.ir32.get(i));
                         Int value = code.ir32.get(i + 1);
@@ -1099,15 +1105,15 @@ void Optimizer::shiftAddresses(Int offset, Int pc) {
                 i++;
                 break;
             case Opcode::SKIP:
-                if((GET_Da(code.ir32.get(i)) + i) > pc)
+                if(pc > i && pc <= (GET_Da(code.ir32.get(i)) + i))
                     code.ir32.get(i) = OpBuilder::skip(GET_Da(code.ir32.get(i)) - offset);
                 break;
             case Opcode::SKPE:
-                if((GET_Cb(code.ir32.get(i)) + i) > pc)
+                if(pc > i && pc <= (GET_Cb(code.ir32.get(i)) + i))
                     code.ir32.get(i) = OpBuilder::skipife((_register)GET_Ca(code.ir32.get(i)), GET_Cb(code.ir32.get(i)) - offset);
                 break;
             case Opcode::SKNE:
-                if((GET_Cb(code.ir32.get(i)) + i) > pc)
+                if(pc > i && pc <= (GET_Cb(code.ir32.get(i)) + i))
                     code.ir32.get(i) = OpBuilder::skipifne((_register)GET_Ca(code.ir32.get(i)), GET_Cb(code.ir32.get(i)) - offset);
                 break;
         }
@@ -1115,27 +1121,27 @@ void Optimizer::shiftAddresses(Int offset, Int pc) {
 
     for(Int i = 0; i < currentMethod->data.tryCatchTable.size(); i++) {
         TryCatchData &tryCatchData = currentMethod->data.tryCatchTable.get(i);
-        if(pc <= tryCatchData.try_start_pc)
+        if(pc < tryCatchData.try_start_pc)
             tryCatchData.try_start_pc -= offset;
-        if(pc <= tryCatchData.try_end_pc)
+        if(pc < tryCatchData.try_end_pc)
             tryCatchData.try_end_pc -= offset;
-        if(pc <= tryCatchData.block_start_pc)
+        if(pc < tryCatchData.block_start_pc)
             tryCatchData.block_start_pc -= offset;
-        if(pc <= tryCatchData.block_end_pc)
+        if(pc < tryCatchData.block_end_pc)
             tryCatchData.block_end_pc -= offset;
 
         for(Int j = 0; j < tryCatchData.catchTable.size(); j++) {
             CatchData &catchData = tryCatchData.catchTable.get(j);
 
-            if(pc <= catchData.handler_pc) {
+            if(pc < catchData.handler_pc) {
                 catchData.handler_pc -= offset;
             }
         }
 
         if(tryCatchData.finallyData != NULL) {
-            if(pc <= tryCatchData.finallyData->start_pc)
+            if(pc < tryCatchData.finallyData->start_pc)
                 tryCatchData.finallyData->start_pc -= offset;
-            if(pc <= tryCatchData.finallyData->end_pc)
+            if(pc < tryCatchData.finallyData->end_pc)
                 tryCatchData.finallyData->end_pc -= offset;
         }
     }

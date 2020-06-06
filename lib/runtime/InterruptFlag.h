@@ -22,7 +22,6 @@ enum interruptFlag
       OP_THREAD_START   = 0xc,
        OP_THREAD_JOIN   = 0xd,
   OP_THREAD_INTERRUPT   = 0xe,
-    OP_THREAD_DESTROY   = 0xf,
      OP_THREAD_CREATE   = 0x10,
    OP_THREAD_PRIORITY   = 0x11,
     OP_THREAD_SUSPEND   = 0x12,

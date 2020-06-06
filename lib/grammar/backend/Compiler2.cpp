@@ -336,16 +336,11 @@ Field *Compiler::resolveEnum(string name) {
     for (unsigned int i = 0; i < importMap.size(); i++) {
         if (importMap.get(i).key->name == current->getTokenizer()->file) {
 
-            List<ModuleData*> &lst = importMap.get(i).value;
-            for (unsigned int x = 0; x < lst.size(); x++) {
-                for(long j = 0; j < enums.size(); j++) {
-                    ClassObject *enumClass = enums.get(j);
-                    if(enumClass->module == lst.get(x)) {
-
-                        if(enumClass->owner == NULL || (enumClass->owner != NULL && enumClass->owner->fullName == currentScope()->klass->fullName)) {
-                            if ((field = enumClass->getField(name, false)) != NULL)
-                                return field;
-                        }
+            for(long j = 0; j < enums.size(); j++) {
+                ClassObject *enumClass = enums.get(j);
+                if(enumClass->owner != NULL && (enumClass->owner->isGlobalClass() || enumClass->owner->fullName == currentScope()->klass->fullName)) {
+                    if ((field = enumClass->getField(name, false)) != NULL && importMap.get(i).value.find(enumClass->module)) {
+                        return field;
                     }
                 }
             }
@@ -534,7 +529,8 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
               && (IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType())
                   && ((ClassObject*)resolvedUtype)->getGenericOwner() !=  NULL)) {
         resolveClassUtype(utype, ast, resolvedUtype);
-    }  else if((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL && !IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType())) {
+    }  else if((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL
+        && !(IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType()) && ((ClassObject*)resolvedUtype)->getGenericOwner() == NULL)) {
         resolveClassUtype(utype, ast, resolvedUtype);
     } else if(resolveExtensionFunctions(currentScope()->klass) &&
             currentScope()->klass->getAllFunctionsByName(name, functions, true)) {
@@ -542,6 +538,14 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
     } else if((resolvedUtype = currentScope()->klass->getAlias(name, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) != NULL) {
         resolveAliasUtype(utype, ast, resolvedUtype);
     } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && resolveHigherScopeSingularUtype(ptr, utype, ast)) {}
+    else if(currentScope()->klass->name == name) {
+        resolvedUtype = currentScope()->klass;
+        utype->setType(utype_class);
+        utype->setResolvedType(resolvedUtype);
+        utype->setArrayType(false);
+        validateAccess((ClassObject*)resolvedUtype, ast);
+        checkTypeInference(ast);
+    }
     else {
         globalCheck:
         functions.free();
@@ -599,7 +603,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
             helpfulMessage << "\t{";
 
             if(currentScope()->klass->getChildClass(name, true))
-                resolvedClasses.add(currentScope()->klass->getChildClass(name + "<>", true));
+                resolvedClasses.add(currentScope()->klass->getChildClass(name, true));
 
             for(int i = 0; i < resolvedClasses.size(); i++) {
                 if(i >= 5) {
@@ -1096,20 +1100,23 @@ void Compiler::compileUtypeList(Ast *ast, List<Utype *> &types) {
     }
 }
 
-ClassObject* Compiler::compileGenericClassReference(ModuleData *mod, string &name, ClassObject* parent, Ast *ast) {
-    List<Utype*> utypes;
-    compileUtypeList(ast, utypes);
+ClassObject* Compiler::compileGenericClassReference(ModuleData *mod, string &name, ClassObject* parent, List<Utype*> utypes, Ast *ast) {
 
-    for(long i = 0; i < utypes.size(); i++) {
-        if(utypes.get(i)->getType() == utype_unresolved) {
-            return NULL;
+    ClassObject *generic;
+    if(parent != NULL) {
+        generic = parent->getChildClass(name + "<>");
+    } else {
+        if(currentScope()->klass->getChildClass(name + "<>"))
+            generic = currentScope()->klass->getChildClass(name + "<>");
+        else generic = findClass(mod, name + "<>", generics);
+
+        if(generic == NULL) {
+            generic = currentScope()->klass->getGenericOwner();
         }
-    }
 
-    // TODO: add support for creating generic functions
-    ClassObject *generic = parent != NULL ? parent->getChildClass(name + "<>") : findClass(mod, name + "<>", generics);
-    if(generic == NULL && parent == NULL) {
-        generic = currentScope()->klass->getChildClass(name + "<>");
+        if(generic != NULL && !generic->owner->isGlobalClass()) {
+            parent = generic->owner;
+        }
     }
 
     if(generic && utypes.size() == generic->getKeys().size()) {
@@ -1134,7 +1141,6 @@ ClassObject* Compiler::compileGenericClassReference(ModuleData *mod, string &nam
         {
             List<AccessFlag> flags;
             flags.addAll(generic->flags);
-
             ClassObject *newClass = NULL;
             if(parent == NULL) {
                 ModuleData* old = currModule;
@@ -1215,6 +1221,20 @@ ClassObject* Compiler::compileGenericClassReference(ModuleData *mod, string &nam
     }
 
     return NULL;
+}
+
+ClassObject* Compiler::compileGenericClassReference(ModuleData *mod, string &name, ClassObject* parent, Ast *ast) {
+    List<Utype*> utypes;
+    compileUtypeList(ast, utypes);
+
+    for(long i = 0; i < utypes.size(); i++) {
+        if(utypes.get(i)->getType() == utype_unresolved) {
+            return NULL;
+        }
+    }
+
+
+    return compileGenericClassReference(mod, name, parent, utypes, ast);
 }
 
 void Compiler::compileReferencePtr(ReferencePointer &ptr, Ast* ast) {
@@ -2053,7 +2073,7 @@ void Compiler::compileAssemblyInstruction(CodeHolder &code, Ast *branch, string 
     } else if(opcode == "loadpc") {
         code.addIr(OpBuilder::loadpc(
                 compileAsmRegister(branch->getSubAst(0))));
-    } else if(opcode == "pushobj") {
+    } else if(opcode == "pushObj") {
         code.addIr(OpBuilder::pushObject());
     } else if(opcode == "del") {
         code.addIr(OpBuilder::del());
@@ -2233,8 +2253,8 @@ void Compiler::compileAssemblyInstruction(CodeHolder &code, Ast *branch, string 
                 compileAsmLiteral(branch->getSubAst(0))));
     } else if(opcode == "smovr2") {
         code.addIr(OpBuilder::smovr2(
-                compileAsmRegister(branch->getSubAst(0)),
-                compileAsmLiteral(branch->getSubAst(1))));
+                compileAsmRegister(branch->getSubAst(1)),
+                compileAsmLiteral(branch->getSubAst(0))));
     } else if(opcode == "smovr3") {
         code.addIr(OpBuilder::smovr3(
                 compileAsmLiteral(branch->getSubAst(0))));

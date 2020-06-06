@@ -34,6 +34,10 @@ class throwable {
     public throwable(message : string) {
         //self->message = message.toArray();
     }
+
+    def get_message() : string {
+        return message;
+    }
 }
 
 /**
@@ -83,6 +87,10 @@ class class_cast_exception base exception {
 class out_of_memory_exception base exception {
     public out_of_memory_exception(message : _int8[]) { base->exception(message); }
     public out_of_memory_exception(message : string) { base->exception(message); }
+}
+class not_implemented_error base exception {
+    public not_implemented_error(message : _int8[]) { base->exception(message); }
+    public not_implemented_error(message : string) { base->exception(message); }
 }
 
 /*

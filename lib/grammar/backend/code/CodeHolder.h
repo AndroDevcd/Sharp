@@ -122,6 +122,12 @@ public:
         }
     }
 
+    void copy(CodeHolder& assembler) {
+        free();
+        inject(assembler);
+        copyInjectors(assembler);
+    }
+
     void inject(native_string injector) {
         CodeHolder& assembler = getInjector(injector);
 

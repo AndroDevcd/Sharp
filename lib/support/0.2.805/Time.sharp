@@ -3,6 +3,7 @@ mod std;
 import platform;
 
 class time {
+    static infinite := -1;
 
     static def nano_time() : var {
         now: var;
@@ -10,7 +11,7 @@ class time {
         asm
         {
             int 0xb
-            smovr2 bmr, {now}
+            smovr2 {now}, bmr
         };
         return now;
     }
@@ -37,6 +38,8 @@ class time {
     }
 
     static def sleep(tm_unit: time_unit, time: var) {
+        if(time < 0)
+            throw new error("cannot sleep for negative time: $time");
 
         if(tm_unit == time_unit.seconds) {
             time = adjust_time(time*1000000);
@@ -49,6 +52,22 @@ class time {
         asm {
             loadl ebx, {time}
             sleep ebx
+        }
+    }
+
+    static def wait(tm_unit: time_unit, time: var) {
+
+        if(tm_unit == time_unit.seconds) {
+            time *= 1000;
+        } else if(tm_unit == time_unit.microseconds) {
+            time /= 1000;
+        } else if(tm_unit == time_unit.nanoseconds) {
+            time /= 1000000;
+        }
+
+        asm {
+            loadl adx, {time}
+            int 0x14
         }
     }
 
@@ -66,10 +85,34 @@ class time {
 
         return usec;
     }
+
+    static def measure(tm_unit: time_unit, block: ()()) : var {
+        start := nano_time(), end;
+        block();
+        end = nano_time();
+
+        when (tm_unit) {
+            seconds -> {
+                start = time_to_secs(start);
+                end = time_to_secs(end);
+            }
+            milliseconds -> {
+                start = time_to_mills(start);
+                end = time_to_mills(end);
+            }
+            microseconds -> {
+                start = time_to_micro(start);
+                end = time_to_micro(end);
+            }
+        }
+
+        return end - start;
+    }
 }
 
 enum time_unit {
     seconds = 0,
     milliseconds = 1,
-    microseconds = 2
+    microseconds = 2,
+    nanoseconds = 3
 }

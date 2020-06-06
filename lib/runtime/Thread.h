@@ -94,6 +94,7 @@ public:
     static void suspendAllThreads();
     static void resumeAllThreads();
     static int threadjoin(Thread*);
+    static int destroy(Thread*);
 
     static int startDaemon(
 #ifdef WIN32_

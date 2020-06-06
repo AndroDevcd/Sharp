@@ -1,0 +1,18 @@
+mod std.io;
+
+enum thread_priority {
+    /**
+     * The minimum priority that a thread can have.
+     */
+    min_priority = 0x001,
+
+    /**
+     * The default priority that is assigned to a thread.
+     */
+    norm_priority = 0x0004,
+
+    /**
+     * The maximum priority that a thread can have.
+     */
+    max_priority = 0x0006
+};

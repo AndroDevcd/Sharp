@@ -1,22 +1,30 @@
 mod app;
 
-import math;
+import std.io;
 
-def main(args: string[]) {
-    varLst := new list<TestClass>();
-    past := utc_mills_time(), now;
-
-    for(i := 0; i < 1200000; i++)
-    {
-        varLst.add(new TestClass());
-    }
-
-    now = utc_mills_time();
-    println("ArrayList<var> time (" + (now-past) + ") ms");
-    varLst.clear();
+def foo(args: object[]) : var {
+    thread.wait(2000);
+    println("hello from the greatest time atop the largest castle in the nation");
+    return 0;
 }
 
-public class TestClass {
-    id: var;
-    TAG := "TestClass";
+class handler : uncaught_exception_handler {
+
+    def uncaught_exception(err: throwable) {
+        println("caught ${err.get_message()}");
+    }
+}
+
+/**
+*
+*/
+public static def main(args: string[]) : var {
+    err_handler := new handler();
+    t := new thread("foo", true, foo);
+    t.set_exception_handler(err_handler);
+    println("start: ${t.start()}");
+    thread.sleep(500);
+    t.notify();
+    println("join: ${t.join()}");
+    return 1;
 }

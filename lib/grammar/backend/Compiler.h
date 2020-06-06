@@ -129,6 +129,7 @@ private:
     List<KeyPair<FileData*, List<ModuleData*>>>  importMap;
     List<Method*> lambdas;
     List<Method*> functionPtrs;
+    List<Method*> initFuncs;
     Utype* nullUtype;
     Utype* undefUtype;
     Utype* varUtype;
@@ -162,7 +163,6 @@ private:
     void compileEnumField(Field*);
     void compileEnumFields();
     void postProcessEnumFields();
-    void assignEnumArray(ClassObject *enumClass);
     void postProcessUnprocessedClasses();
     void handleImports();
     void initStaticClassInstance(CodeHolder &code, ClassObject *klass);
@@ -192,11 +192,11 @@ private:
     void compileForEachStatement(Ast *ast);
     void compileWhileStatement(Ast *ast);
     void compileDoWhileStatement(Ast *ast);
-    void compileThrowStatement(Ast *ast);
+    void compileThrowStatement(Ast *ast, bool *controlPaths);
     void compileGotoStatement(Ast *ast);
     void compileBreakStatement(Ast *ast);
     void compileContinueStatement(Ast *ast);
-    void compileLockStatement(Ast *ast);
+    void compileLockStatement(Ast *ast, bool *controlPaths);
     void compileAsmStatement(Ast *ast);
     _register compileAsmRegister(Ast *ast);
     opcode_arg compileAsmLiteral(Ast *ast);
@@ -241,6 +241,7 @@ private:
     ClassObject *resolveClassReference(Ast *ast, ReferencePointer &ptr, bool allowenerics = false);
     void compileReferencePtr(ReferencePointer &ptr, Ast* ast);
     ClassObject* compileGenericClassReference(ModuleData* mod, string &name, ClassObject* parent, Ast *ast);
+    ClassObject* compileGenericClassReference(ModuleData *mod, string &name, ClassObject* parent, List<Utype*> utypes, Ast *ast);
     void compileUtypeList(Ast *ast, List<Utype *> &types);
     Utype* compileUtype(Ast *ast, bool intanceCaptured = false);
     void compileFuncPtr(Utype *utype, Ast *ast);

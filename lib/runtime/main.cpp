@@ -251,7 +251,7 @@ void pushArgumentsToStack(std::list<string>& appArgs) {
 }
 
 void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {
-    const short MIN_ARGS = 4;
+    const short MIN_ARGS = 5;
     Int size = MIN_ARGS+appArgs.size();
     Int iter=0;
 
@@ -273,6 +273,20 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {
     str.set("posix");
 #endif
     GarbageCollector::self->createStringArray(&object->object->node[iter++], str); /* operating system currently running on */
+    SharpObject *mainThread = GarbageCollector::self->newObject(vm.ThreadClass);
+    object->object->node[iter++] = mainThread;
+
+    vm.setFieldVar("native_handle", mainThread, 0, 0);
+    vm.setFieldClass("name", mainThread, vm.StringClass);
+
+    Object* field;
+    if((field = vm.resolveField("name", mainThread)) != NULL && field->object) {
+        str.set("main");
+        GarbageCollector::self->createStringArray(vm.resolveField("data", field->object), str);
+    }
+
+    vm.setFieldVar("started", mainThread, 0, 1);
+    vm.setFieldVar("stack_size", mainThread, 0, threadStackSize);
 
     /*
      * Assign program args to be passed to main

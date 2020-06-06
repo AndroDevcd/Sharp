@@ -11,6 +11,7 @@ import platform.kernel;
 */
 obfuscate -keep {
     "std",
+    "std.io",
     "platform.kernel"
 }
 
@@ -32,5 +33,6 @@ obfuscate -keep {
     out_of_memory_exception,
     invalid_operation_exception,
     stack_state,
+    thread,
     string
 }

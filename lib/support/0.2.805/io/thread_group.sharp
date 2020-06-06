@@ -1,0 +1,53 @@
+mod std.io;
+
+public class thread_group {
+	
+	public thread_group(name : string) {
+		self->name = name;
+		self->default_priority = thread_priority.norm_priority;
+	}
+	
+	public thread_group(name : string, priority : thread_priority) {
+		self->name = name;
+		self->default_priority = priority;
+	}
+	
+	public def at(id : var) := handles.at(id);
+	
+	public def add(t : thread) {
+	    lock(self) {
+            if(handles.put(t.get_id(), t)) {
+                ids.add(t.get_id());
+            }
+            n_threads--;
+		}
+	}
+	
+	public def size() := n_threads;
+	public def get_name() := name;
+	public def get_priority() := default_priority;
+	public def remove(id : var) : var {
+	    lock (self) {
+            if(handles.remove(id)) {
+                n_threads--;
+                ids.remove(id);
+                return true;
+            }
+
+            return false;
+		}
+	}
+	
+	public def kill_all() {
+		foreach(id in ids) {
+			handles.at(id).interrupt();
+		}
+	}
+	
+	public static main_group := new thread_group("main");
+	private handles := new hashmap<int, thread>();
+	private ids := new list<var>();
+	private name : string;
+	private default_priority : thread_priority;
+	private n_threads := 0;
+}

@@ -14,12 +14,13 @@ Sharp versions;
 
 int main(int argc, const char* argv[]) {
     uint64_t past= Clock::realTimeInNSecs(),now;
+    Int result = 0;
 
 #ifdef MAKE_COMPILER
     _bootstrap( argc, argv );
 #endif
 #ifndef MAKE_COMPILER
-    runtimeStart( argc, argv );
+    result = runtimeStart( argc, argv );
 #endif
 
     now= Clock::realTimeInNSecs();
@@ -29,5 +30,5 @@ int main(int argc, const char* argv[]) {
 
     if(c_options.debugMode)
         cout << endl << "program exiting..." << endl;
-    return 0;
+    return result;
 }

@@ -12,7 +12,6 @@ import std.io;
  * enums.
  */
 stable ext class _enum_ {
-    private static enums : _enum_[];
     private name : _int8[];
     private ordinal : _int64;
 
@@ -25,32 +24,31 @@ stable ext class _enum_ {
         name = copy(e.name, 0, sizeof(e.name));
     }
 
-    public def operator!=(e : _enum_) : var {
+    def operator!=(e : _enum_) : var {
         return ordinal!=e.ordinal;
     }
 
-    public def operator!=(num : var) : var {
+    def operator!=(num : var) : var {
         return ordinal!=num;
     }
 
-    public def operator==(e : _enum_) : var {
+    def operator==(e : _enum_) : var {
         return ordinal==e.ordinal;
     }
 
-    public def operator==(num : var) : var {
+    def operator==(num : var) : var {
         return ordinal==num;
     }
 
-    public def get_name() : _int8[] {
+    def get_name() : _int8[] {
          return name;
     }
 
-    public def get_ordinal() : _int64 {
+    def get_ordinal() : _int64 {
          return ordinal;
     }
 
-
-//    public def delegate::to_string() : string {
-//        return name;
-//    }
+    def to_string() : string {
+        return name;
+    }
 }

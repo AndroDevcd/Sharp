@@ -108,12 +108,6 @@ void tokenizer::parse()
         {
             if(current == '\n')
             {
-                if(dynamicString) {
-                    dynamicString = false;
-                    brackets = 0;
-                    errors->createNewError(ILLEGAL_STRING_FORMAT, line, col, ", expected `}` before end of string");
-                    goto start;
-                }
                 newline();
             }
 

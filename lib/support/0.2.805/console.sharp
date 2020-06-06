@@ -66,11 +66,6 @@ def println(data: _uint64[]) {
     print_char('\n');
 }
 
-def println(data: _int8) {
-    print_char(data);
-    print_char('\n');
-}
-
 def println(data: var) {
     print_num(data);
     print_char('\n');
@@ -135,10 +130,6 @@ def print(o: printable) {
 
 def print(data: var) {
     print_num(data);
-}
-
-def print(data: _int8) {
-    print_char(data);
 }
 
 def flush() {

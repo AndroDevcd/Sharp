@@ -83,6 +83,7 @@ public:
     void setGlobalClass(bool glob) { globalClass = glob; }
     bool getAllFunctionsByName(string name, List<Method*> &funcs, bool checkBase = false);
     long getFieldAddress(Field* field);
+    ClassObject* getLoopableClass();
     long getInstanceFieldAddress(string name) {
         long address = 0, index = getFieldIndex(name);
         for(long i = 0; i < index; i++) {
@@ -130,7 +131,6 @@ public:
     Alias* getAlias(string name, bool checkBase);
     long totalFieldCount();
     long totalInstanceFieldCount();
-    long totalStaticFieldCount();
     long totalFunctionCount();
     void addClass(ClassObject* k) {
         classes.addif(k);

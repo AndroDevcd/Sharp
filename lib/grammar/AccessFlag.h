@@ -29,7 +29,7 @@ enum AccessFlag
     UNSTABLE = 0x80,
     EXTENSION = 0X100,
 
-    flg_UNDEFINED=0x0
+    flg_UNDEFINED=0x1000
 };
 
 #endif //SHARP_ACCESSMODIFIER_H

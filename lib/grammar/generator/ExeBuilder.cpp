@@ -735,10 +735,10 @@ string ExeBuilder::codeToString(Method* fun) {
             case Opcode::NEWCLASS:
             {
                 ss<<"new_class @" << GET_Da(opcodeData);
-                if(GET_Da(opcodeData) >= 0) {
+                if(GET_Da(opcodeData) >= 0 && GET_Da(opcodeData) < allClasses.size()) {
                     ss << " // ";
                     ss << allClasses.get(GET_Da(opcodeData))->fullName;
-                }
+                } else ss << "out of bounds: " << GET_Da(opcodeData);
 
                 break;
             }
@@ -937,8 +937,11 @@ string ExeBuilder::codeToString(Method* fun) {
                 ss<<"new_classarray ";
                 ss<< registerToString(GET_Ca(opcodeData));
                 ss<< " ";
-                if(GET_Cb(opcodeData) >= 0)
-                    ss << " // "; ss << allClasses.get(GET_Cb(opcodeData))->fullName << "[]";
+                if(GET_Cb(opcodeData) >= 0 && GET_Cb(opcodeData) < allClasses.size()) {
+                    ss << " // ";
+                    ss << allClasses.get(GET_Cb(opcodeData))->fullName << "[]";
+                }
+                else ss << "out of bounds: " << GET_Cb(opcodeData);
 
                 break;
             }
@@ -1325,7 +1328,7 @@ void ExeBuilder::buildSymbolSection() {
         buf << putInt32(klass->guid);
         buf << klass->name << ((char)nil);
         buf << klass->fullName << ((char)nil);
-        buf << putInt32(klass->totalStaticFieldCount());
+        buf << putInt32(klass->getStaticFieldCount());
         buf << putInt32(klass->totalInstanceFieldCount());
         buf << putInt32(klass->totalFunctionCount());
         buf << putInt32(klass->totalInterfaceCount());
@@ -1382,15 +1385,13 @@ void ExeBuilder::buildFieldData(Field *field) {
 
 void ExeBuilder::buildFieldData(ClassObject *klass) {
     List<Field*> instanceFields;
-    List<Field*> staticFields;
 
     ClassObject *tmp = klass;
     while(tmp != NULL) {
         for(Int i = 0; i < tmp->fieldCount(); i++) {
-            if(tmp->getField(i)->flags.find(STATIC)) {
-                staticFields.add(tmp->getField(i));
-            } else
+            if(!tmp->getField(i)->flags.find(STATIC)) {
                 instanceFields.add(tmp->getField(i));
+            }
         }
 
         tmp = tmp->getSuperClass();
@@ -1403,10 +1404,11 @@ void ExeBuilder::buildFieldData(ClassObject *klass) {
         buildFieldData(field);
     }
 
-    staticFields.linearSort(sortFields);
-    for (Int i = 0; i < staticFields.size(); i++) {
-        Field *field = staticFields.get(i);
-        buildFieldData(field);
+    for (Int i = 0; i < klass->fieldCount(); i++) {
+        Field *field = klass->getField(i);
+        if(field->flags.find(STATIC)) {
+            buildFieldData(field);
+        }
     }
 }
 

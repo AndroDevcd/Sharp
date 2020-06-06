@@ -1,5 +1,6 @@
 mod platform.kernel;
 
+import std.io;
 import platform;
 
 class platform
@@ -12,20 +13,8 @@ class platform
     static def tls_init() {}
     private static def static_init() {}
 
-    static def print(msg : _int8[]) {
-        foreach(ch in msg) {
-            asm {
-                loadl ebx, {ch}
-                putc ebx
-            }
-        }
-    }
-
-    static def print(num : var) {
-        asm {
-            loadl ebx, {num}
-            put ebx
-        }
+    def exit() {
+        // todo: write
     }
 
     private static def srt_init(args: object[]) : var {
@@ -37,7 +26,30 @@ class platform
         static_init();
         tls_init();
 
-        const min_args := 4;
+        main_thread := args[4] as thread;
+        vm.set_thread(main_thread);
+
+        priority := max_priority;
+        thread_group.main_group.add(main_thread);
+
+        asm {
+            movg {thread_group}
+            movn {thread_group.main_group}
+            pushObj
+
+            movl {main_thread}
+            movn {thread.parent_group}
+            popObj
+
+            movl {priority}
+            pushObj
+
+            movl {main_thread}
+            movn {thread.priority}
+            popObj
+        }
+
+        const min_args := 5;
         user_args := new string[sizeof(args) - min_args];
         iter := 0;
 

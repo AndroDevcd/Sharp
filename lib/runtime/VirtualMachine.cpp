@@ -68,6 +68,8 @@ int CreateVirtualMachine(string &exe)
     vm.InvalidOperationExcept = vm.resolveClass("std#invalid_operation_exception");
     vm.StringClass = vm.resolveClass("std#string");
     vm.StackSate = vm.resolveClass("platform.kernel#stack_state");
+    vm.ThreadClass = vm.resolveClass("std.io#thread");
+    vm.ExceptionClass = vm.resolveClass("std#exception");
     cout.precision(16);
 
     vm.outOfMemoryExcept.object = NULL;
@@ -257,8 +259,9 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     /*
      * Check for uncaught exception in thread before exit
      */
-    if(vm.state != VM_TERMINATED)
+    if(vm.state != VM_TERMINATED) {
         thread_self->exit();
+    }
     else {
 #ifdef WIN32_
         return 0;
@@ -279,7 +282,8 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         * stop them.
         */
         vm.shutdown();
-    }
+    } else
+        Thread::destroy(thread_self);
 
 #ifdef WIN32_
     return 0;
@@ -412,8 +416,19 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             Thread *thread = Thread::getThread((int32_t )_64ADX);
 
             if(thread != NULL) {
+                StackElement *se = thread_self->sp;
                 thread->currentThread = (thread_self->sp--)->object;
                 thread->args = (thread_self->sp--)->object;
+
+                Object *priorityEnum = vm.resolveField("priority", thread->currentThread.object);
+                if(priorityEnum != NULL) {
+                    thread->priority = (int) vm.numberValue(0, vm.resolveField("ordinal", priorityEnum->object)->object);
+                }
+
+                Object *stackSize = vm.resolveField("stack_size", thread->currentThread.object);
+                if(stackSize != NULL) {
+                    thread->stackSize = (int) vm.numberValue(0, stackSize->object);
+                }
             }
             registers[CMT]=Thread::start((int32_t )_64ADX, (size_t )_64EBX);
             return;
@@ -423,9 +438,6 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             return;
         case OP_THREAD_INTERRUPT:
             registers[CMT]=Thread::interrupt((int32_t )_64ADX);
-            return;
-        case OP_THREAD_DESTROY:
-            registers[CMT]=Thread::destroy((int32_t )_64ADX);
             return;
         case OP_THREAD_CREATE:
             registers[EBX]=Thread::Create((int32_t )_64ADX, (bool)_64EBX);
@@ -659,7 +671,9 @@ bool VirtualMachine::catchException() {
         if (pc >= tbl->block_start_pc && pc <= tbl->block_end_pc)
         {
             for(Int j = 0; j < tbl->catchTable.len; j++) {
-                if(handlingClass->guid == tbl->catchTable._Data[j].caughtException->guid) {
+                if(handlingClass->guid == tbl->catchTable._Data[j].caughtException->guid
+                    || tbl->catchTable._Data[j].caughtException == vm.ExceptionClass
+                    || tbl->catchTable._Data[j].caughtException == vm.Throwable) {
                     if(tbl->catchTable._Data[j].localFieldAddress >= 0)
                         (thread->fp+tbl->catchTable._Data[j].localFieldAddress)->object = thread->exceptionObject;
                     thread->pc = thread->cache+tbl->catchTable._Data[j].handler_pc;
@@ -808,12 +822,16 @@ string VirtualMachine::getPrettyErrorLine(long line, long sourceFile) {
     ss << endl << "\t>  " << line << ":    "; ss << vm.metaData.getLine(line, sourceFile).str();
     line++;
 
-    if(vm.metaData.hasLine(line, sourceFile))
-        ss << endl << "\t   " << line << ":    "; ss << vm.metaData.getLine(line, sourceFile).str();
+    if(vm.metaData.hasLine(line, sourceFile)) {
+        ss << endl << "\t   " << line << ":    ";
+        ss << vm.metaData.getLine(line, sourceFile).str();
+    }
     line++;
 
-    if(vm.metaData.hasLine(line, sourceFile))
-        ss << endl << "\t   " << line << ":    "; ss << vm.metaData.getLine(line, sourceFile).str();
+    if(vm.metaData.hasLine(line, sourceFile)) {
+        ss << endl << "\t   " << line << ":    ";
+        ss << vm.metaData.getLine(line, sourceFile).str();
+    }
     return ss.str();
 }
 
@@ -940,6 +958,22 @@ bool VirtualMachine::isStaticObject(SharpObject *object) {
     return object != NULL && GENERATION(object->info) == gc_perm;
 }
 
+double VirtualMachine::numberValue(Int index, SharpObject *object) {
+    if(object != NULL) {
+        if (TYPE(object->info) == _stype_var) {
+            if(index < object->size)
+                return object->HEAD[index];
+            else {
+                stringstream ss;
+                ss << "access to field at index: " << index << " with size of: " << object->size;
+                throw Exception(vm.IndexOutOfBoundsExcept, ss.str());
+            }
+        }
+    }
+
+    return 0;
+}
+
 string VirtualMachine::stringValue(SharpObject *object) {
     stringstream ss;
     if(object != NULL) {
@@ -950,4 +984,24 @@ string VirtualMachine::stringValue(SharpObject *object) {
         }
     }
     return ss.str();
+}
+
+void VirtualMachine::setFieldVar(runtime::String name, SharpObject *classObject, Int index, double value) {
+    Object *field = vm.resolveField(name, classObject);
+    if(field != NULL && field->object && TYPE(field->object->info) == _stype_var) {
+        if(index < field->object->size)
+            field->object->HEAD[index] = value;
+        else {
+            stringstream ss;
+            ss << "access to field at index: " << index << " with size of: " << field->object->size;
+            throw Exception(vm.IndexOutOfBoundsExcept, ss.str());
+        }
+    }
+}
+
+void VirtualMachine::setFieldClass(runtime::String name, SharpObject *classObject, ClassObject *klass) {
+    Object *field = vm.resolveField(name, classObject);
+    if(field != NULL) {
+        *field = GarbageCollector::self->newObject(klass);
+    }
 }

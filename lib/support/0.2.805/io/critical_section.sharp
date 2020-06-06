@@ -2,29 +2,35 @@ mod std.io;
 
 global_lock := new _object_();
 def critical_section(block : ()()) {
-    err : exception;
-    lock global_lock -> {
-      try {
-          block();
-      } catch(e: exception) {
-          err = e;
+    try {
+        asm {
+            movg {std.io#__srt_global}
+            movn {global_lock}
+            lock
+        }
+        block();
+    } finally {
+      asm {
+        movg {std.io#__srt_global}
+        movn {global_lock}
+        ulock
       }
     }
-
-    if(err != null) throw err;
 }
 
 def critical_section(block : ()(), lock_obj : object) {
-    err : exception;
-    lock lock_obj -> {
-      try {
-          block();
-      } catch(e: exception) {
-          err = e;
+    try {
+        asm {
+            movl {lock_obj}
+            lock
+        }
+        block();
+    } finally {
+      asm {
+        movl {lock_obj}
+        lock
       }
     }
-
-    if(err != null) throw err;
 }
 
 //def<t, r> critical_section(block : (t)(r), lock_obj : object, data: t) : r {

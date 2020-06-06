@@ -505,7 +505,6 @@ void Compiler::preProccessEnumDecl(Ast *ast)
     /**
      * We do not want other users messing with enums at compile time causing issues
      */
-    flags.addif(STABLE);
     flags.addif(EXTENSION);
     string className = ast->getToken(0).getValue();
 
@@ -542,7 +541,8 @@ void Compiler::preProccessEnumDecl(Ast *ast)
 
     currentClass->setProcessStage(preprocessed);
     enums.addif(currentClass);
-    currentClass->address = classSize++;
+    if(currentClass->address == invalidAddr)
+        currentClass->address = classSize++;
     currentClass->setClassType(class_enum);
     currScope.add(new Scope(currentClass, CLASS_SCOPE));
     for(long i = 0; i < block->getSubAstCount(); i++) {
@@ -900,7 +900,8 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
         currentClass->setClassType(isInterface ? class_interface : class_normal);
     } else generatedClass = true;
 
-    currentClass->address = classSize++;
+    if(currentClass->address == invalidAddr)
+        currentClass->address = classSize++;
     if(currentClass->address >= CLASS_LIMIT) {
         stringstream err;
         err << "maximum class limit of (" << CLASS_LIMIT << ") reached.";
@@ -1233,8 +1234,9 @@ void Compiler::inheritEnumClassHelper(Ast *ast, ClassObject *enumClass) {
             err << "support class for enums must be of type class";
             errors->createNewError(GENERIC, ast->line, ast->col, err.str());
         } else {
-            if (base != NULL)
+            if (base != NULL) {
                 enumClass->setSuperClass(base);
+            }
             else {
                 stringstream err;
                 err << "support class for enums not found";
@@ -1490,8 +1492,7 @@ void Compiler::expressionToParam(Expression &expression, Field *param) {
         param->type = OBJECT;
 
         // yet another line of nasty dirty code...smh...
-        param->utype->getCode().inject(0, expression.utype->getCode());
-        param->utype->getCode().getInjector(stackInjector).inject(0, expression.utype->getCode().getInjector(stackInjector));
+        param->utype->getCode().copy(expression.utype->getCode());
         freePtr(expression.utype);
     }
     else if(expression.type == exp_var && expression.utype->getType() == utype_literal) {
@@ -1505,17 +1506,16 @@ void Compiler::expressionToParam(Expression &expression, Field *param) {
         }
 
         // yet another line of nasty dirty code...smh...
-        param->utype->getCode().inject(0, expression.utype->getCode());
-        param->utype->getCode().getInjector(stackInjector).inject(0, expression.utype->getCode().getInjector(stackInjector));
+        param->utype->getCode().copy(expression.utype->getCode());
         freePtr(expression.utype);
     }
     else if(expression.type == exp_var && expression.utype->getType() == utype_method) {
-        param->utype = new Utype(VAR);
-        param->type = VAR;
+        param->utype = new Utype(FNPTR);
+        param->utype->copy(expression.utype);
+        param->type = FNPTR;
 
         // yet another line of nasty dirty code...smh...
-        param->utype->getCode().inject(0, expression.utype->getCode());
-        param->utype->getCode().getInjector(stackInjector).inject(0, expression.utype->getCode().getInjector(stackInjector));
+        param->utype->getCode().copy(expression.utype->getCode());
         freePtr(expression.utype);
     }
     else if(expression.utype->getType() == utype_field) {
@@ -1526,8 +1526,7 @@ void Compiler::expressionToParam(Expression &expression, Field *param) {
         param->isArray = exprField->isArray;
 
         // yet another line of nasty dirty code...smh...
-        param->utype->getCode().inject(0, expression.utype->getCode());
-        param->utype->getCode().getInjector(stackInjector).inject(0, expression.utype->getCode().getInjector(stackInjector));
+        param->utype->getCode().copy(expression.utype->getCode());
         freePtr(expression.utype);
     }
     else {
@@ -1565,7 +1564,7 @@ Method* // TODO: Circle back around to this as it is in its primitive stae there
 Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* ast, bool checkBase, function_type type, bool advancedSearch) {
     List<Method*> funcs;
     List<Method*> matches;
-    Method* resolvedFunction;
+    Method* resolvedFunction; // TODO: go over function in tutorial later
 
     if(k->getGenericOwner() && k->processedExtFunctions < k->getGenericOwner()->getExtensionFunctionTree().size())
         resolveExtensionFunctions(k);
@@ -1862,6 +1861,9 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
     List<Field*> params;
     bool singularCall = false; //TODO: fully support restricted instance blocks
 
+    if(processingStage == COMPILING && ast->line >= 3000) {
+        int i = 0;
+    }
     RETAIN_BLOCK_TYPE(currentScope()->type == RESTRICTED_INSTANCE_BLOCK || currentScope()->type == INSTANCE_BLOCK
         ? INSTANCE_BLOCK : STATIC_BLOCK)
     compileTypeIdentifier(ptr, ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier));
@@ -1894,12 +1896,10 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
             ClassObject* klass = utype->getClass();
 
             // TODO: add overload need to see how it comes in later
-            if((resolvedMethod = findGetterSetter(klass, name, params, ast)) != NULL) {}
-            else if(klass != NULL && (resolvedMethod = findFunction(klass, name, params, ast, true)) != NULL) {
+            if(klass != NULL && (resolvedMethod = findFunction(klass, name, params, ast, true)) != NULL) {
                 compileMethodReturnType(resolvedMethod, resolvedMethod->ast);
                 if(!resolvedMethod->flags.find(STATIC)) {
-                    utype->getCode().inject(ptrInjector);
-                    utype->getCode().addIr(OpBuilder::pushObject());
+                    utype->getCode().inject(stackInjector);
                 } else {
                     // TODO: try to find out wether or not the last item processed is an instance field
                     // if so warn the user that what they are doing is innefficent
@@ -1926,7 +1926,15 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
                 else
                     errors->createNewError(GENERIC, ast->line, ast->col,
                                            " could not resolve function `" + name + "`");
-            } else
+            } else if((resolvedMethod = findGetterSetter(klass, name, params, ast)) != NULL) {
+                if(!resolvedMethod->flags.find(STATIC)) {
+                    utype->getCode().inject(stackInjector);
+                } else {
+                    // TODO: try to find out wether or not the last item processed is an instance field
+                    // if so warn the user that what they are doing is innefficent
+                }
+            }
+            else
                 errors->createNewError(GENERIC, ast->line, ast->col,
                                        " could not resolve function `" + name + "` with parameters `"
                                             + Method::paramsToString(params) + "`");
@@ -2937,6 +2945,7 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                 || ((field->type == OBJECT || field->type == FNPTR) && leftExpr.utype->isRelated(rightExpr.utype))
                 || ((field->type <= _UINT64 || field->type == VAR) && isUtypeClassConvertableToVar(field->utype, rightExpr.utype))
                 || ((field->type <= _UINT64 || field->type == VAR) && leftExpr.utype->isRelated(rightExpr.utype))
+                || (field->type == CLASS && rightExpr.utype->isNullType())
                 || (!allowOverloading && isUtypeConvertableToNativeClass(field->utype, rightExpr.utype))) {
 
                 expr->utype->copy(field->utype);
@@ -3254,7 +3263,7 @@ void Compiler::compileInlineIfExpression(Expression* expr, Ast* ast) {
             condExpr.utype->getCode().inject(ebxInjector);
             code.inject(condExpr.utype->getCode());
 
-            code.addIr(OpBuilder::skipifne(EBX, trueExpr.utype->getCode().size()));
+            code.addIr(OpBuilder::skipifne(EBX, trueExpr.utype->getCode().size() + 1));
             if(trueExpr.type == exp_var) {
                 trueExpr.utype->getCode().inject(ebxInjector);
                 code.inject(trueExpr.utype->getCode());
@@ -3348,7 +3357,6 @@ void Compiler::compileAssignExpression(Expression* expr, Ast* ast) {
     RESTORE_TYPE_INFERENCE()
 
     expr->ast = ast;
-
     switch(leftExpr.utype->getType()) {
         case utype_class:
         case utype_native:
@@ -3668,6 +3676,9 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
                 errors->createNewError(GENERIC, ast->line, ast->col, "cannot instantiate extension class `" + arrayType->toString() + "`");
             }
 
+            if(ast->line >= 3000) {
+                int i = 0;
+            }
             List<Expression*> expressions;
             List<Field*> params;
             Method *constr;
@@ -3684,7 +3695,7 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
                         .substr(0, arrayType->getClass()->getGenericOwner()->name.size() - 2);
             }
 
-            if((constr = findFunction(arrayType->getClass(), functionName, params, ast, false, fn_constructor)) == NULL) {
+            if((constr = findFunction(arrayType->getClass(), functionName, params, ast, false, fn_constructor, true)) == NULL) {
                 errors->createNewError(GENERIC, ast->line, ast->col, "class `" + arrayType->toString() + "` does not contain constructor `"
                                                                      + arrayType->getClass()->name + Method::paramsToString(params) + "`");
             }
@@ -3706,9 +3717,9 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
 
                 expr->utype->getCode().addIr(OpBuilder::call(constr->address));
 
+                expr->utype->getCode().freeInjectors();
                 expr->utype->getCode().getInjector(ptrInjector)
                         .addIr(OpBuilder::movsl(0));
-
                 expr->utype->getCode().getInjector(removeFromStackInjector)
                         .addIr(OpBuilder::pop());
             }
@@ -3823,6 +3834,9 @@ void Compiler::compileBaseExpression(Expression* expr, Ast* ast) {
             expr->utype = new Utype(currentScope()->klass);
             expr->utype->getCode()
                     .addIr(OpBuilder::movl(0));
+
+            expr->utype->getCode().getInjector(stackInjector)
+                    .addIr(OpBuilder::pushObject());
         }
     }
 
@@ -3871,6 +3885,8 @@ void Compiler::compileSelfExpression(Expression* expr, Ast* ast) {
         expr->utype = new Utype(currentScope()->klass);
         expr->utype->getCode()
             .addIr(OpBuilder::movl(0));
+        expr->utype->getCode().getInjector(stackInjector)
+                .addIr(OpBuilder::pushObject());
     }
 
     if(currentScope()->type == GLOBAL_SCOPE || currentScope()->type == STATIC_BLOCK)
@@ -3893,6 +3909,7 @@ void Compiler::compileDotNotationCall(Expression* expr, Ast* ast) {
             expr->utype->setType(method->utype->getType());
             expr->utype->setArrayType(method->utype->isArray());
 
+            expr->utype->getCode().freeInjectors();
             if (method->utype->isArray() || method->utype->getResolvedType()->type == OBJECT
                 || method->utype->getResolvedType()->type == CLASS) {
                 expr->utype->getCode().getInjector(ptrInjector)
@@ -4926,6 +4943,8 @@ void Compiler::compilePrimaryExpression(Expression* expr, Ast* ast) {
     Ast* branch = ast->getSubAst(0);
 
     switch(branch->getType()) {
+        case ast_not_e:
+            return compileNotExpression(expr, branch);
         case ast_literal_e:
             return compileLiteralExpression(expr, branch->getSubAst(ast_literal));
         case ast_utype_class_e:
@@ -4965,9 +4984,10 @@ void Compiler::compileExpression(Expression* expr, Ast* ast) {
 }
 
 void Compiler::compileExpressionAst(Expression *expr, Ast *branch) {
+    if(branch->line >= 3000) {
+        int fkdd = 0;
+    }
     switch(branch->getType()) {
-        case ast_not_e:
-            return compileNotExpression(expr, branch);
         case ast_minus_e:
             return compileMinusExpression(expr, branch);
         case ast_primary_expr:
@@ -5817,7 +5837,7 @@ void Compiler::compileMethodReturnType(Method* fun, Ast *ast, bool wait) {
                     fun->utype = e.utype;
                 } else if(e.utype->getType() == utype_method) {
                     fun->utype = new Utype(VAR);
-                } else if(e.utype->getType() == utype_native) {
+                } else if(e.utype->getType() == utype_native || e.utype->getType() == utype_function_ptr) {
                     fun->utype = e.utype;
                 } else if(e.utype->getType() == utype_literal) {
                     fun->utype = new Utype(e.utype->getResolvedType()->type, e.utype->isArray());;
@@ -6495,6 +6515,7 @@ void Compiler::setup() {
     inlinedFields.init();
     staticMainInserts.init();
     tlsMainInserts.init();
+    initFuncs.init();
     nilUtype = new Utype(NIL);
     varUtype = new Utype(VAR);
     objectUtype = new Utype(OBJECT);
@@ -6620,7 +6641,6 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
                         code.addIr(OpBuilder::jmp(invalidAddr));
                     }
 
-                    currentScope()->isReachable = true;
                     currentScope()->currentFunction->data.labelMap.add(LabelData(ifBlockEnd, code.size(), 0));
                     break;
                 }
@@ -6630,6 +6650,7 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
                     break;
                 }
             }
+            currentScope()->isReachable = true;
             currentScope()->scopeLevel--;
         }
 
@@ -6709,14 +6730,16 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
     if(isUtypeClassConvertableToVar(currentScope()->currentFunction->utype, returnVal.utype)) {
         CodeHolder tmp;
         convertNativeIntegerClassToVar(returnVal.utype, currentScope()->currentFunction->utype, tmp, ast);
-        returnVal.utype->getCode().free();
-        returnVal.utype->getCode().inject(tmp);
+        returnVal.utype->copy(currentScope()->currentFunction->utype);
+        returnVal.type = utypeToExpressionType(returnVal.utype);
+        returnVal.utype->getCode().copy(tmp);
         tmp.free();
     } else if(isUtypeConvertableToNativeClass(currentScope()->currentFunction->utype, returnVal.utype)) {
         CodeHolder tmp;
         convertUtypeToNativeClass(currentScope()->currentFunction->utype, returnVal.utype, tmp, ast);
-        returnVal.utype->getCode().free();
-        returnVal.utype->getCode().inject(tmp);
+        returnVal.utype->copy(currentScope()->currentFunction->utype);
+        returnVal.type = utypeToExpressionType(returnVal.utype);
+        returnVal.utype->getCode().copy(tmp);
         tmp.free();
     }
 
@@ -7083,12 +7106,13 @@ _register Compiler::compileAsmRegister(Ast *ast) {
 opcode_arg Compiler::compileAsmLiteral(Ast *ast) {
     CodeHolder &code = currentScope()->currentFunction->data.code;
 
+    Int multiplier = ast->hasSubAst(ast_pre_inc_e) ? -1 : 1;
     if(ast->getTokenCount() == 1) {
         Expression tmp;
         compileLiteralExpression(&tmp, ast);
 
         Literal *literal = (Literal*)tmp.utype->getResolvedType();
-        return literal->address != invalidAddr ? literal->address : literal->numericData;
+        return literal->address != invalidAddr ? multiplier * literal->address : multiplier * literal->numericData;
     } else if(ast->getToken(0) == "@") {
         opcode_arg offset = getAsmOffset(ast);
 
@@ -7407,7 +7431,7 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
     currentScope()->currentFunction->data.tryCatchTable.add(tryCatchData);
 }
 
-void Compiler::compileLockStatement(Ast *ast) {
+void Compiler::compileLockStatement(Ast *ast, bool *controlPaths) {
     CodeHolder &code = currentScope()->currentFunction->data.code;
     Expression lockExpr;
 
@@ -7422,7 +7446,9 @@ void Compiler::compileLockStatement(Ast *ast) {
         code.addIr(OpBuilder::lock());
 
         currentScope()->lockBlocks.add(ast->getSubAst(ast_expression));
-        compileBlock(ast->getSubAst(ast_block));
+        if(compileBlock(ast->getSubAst(ast_block))) {
+            controlPaths[MAIN_CONTROL_PATH] = true;
+        }
         currentScope()->lockBlocks.pop_back();
 
         lockExpr.utype->getCode().inject(ptrInjector);
@@ -7522,10 +7548,11 @@ void Compiler::compileBreakStatement(Ast *ast) {
     currentScope()->isReachable = false;
 }
 
-void Compiler::compileThrowStatement(Ast *ast) {
+void Compiler::compileThrowStatement(Ast *ast, bool *controlPaths) {
     Expression exceptionExpr;
     CodeHolder &code = currentScope()->currentFunction->data.code;
     currentScope()->isReachable = false;
+    controlPaths[MAIN_CONTROL_PATH] = true;
 
     compileExpression(&exceptionExpr, ast->getSubAst(ast_expression));
 
@@ -7594,9 +7621,37 @@ void Compiler::compileForEachStatement(Ast *ast) {
 
     Expression arrayExpr;
     compileExpression(&arrayExpr, ast->getSubAst(ast_expression));
-    if(!arrayExpr.utype->isArray()) {
+    if(!arrayExpr.utype->isArray()
+        && !(arrayExpr.utype->getClass()
+        && arrayExpr.utype->getClass()->getLoopableClass())) {
         errors->createNewError(GENERIC, ast->line, ast->col,
                                " foreach expression`" + arrayExpr.utype->toString() + "` must be an array type.");
+    }
+
+    if(!arrayExpr.utype->isArray() && arrayExpr.utype->getClass() && arrayExpr.utype->getClass()->getLoopableClass()) {
+        ClassObject *loopable = arrayExpr.utype->getClass()->getLoopableClass();
+
+        List<Field*> emptyParams;
+        Method *get_array = findFunction(loopable, "get_array", emptyParams, ast, true, fn_delegate);
+        if(get_array != NULL) {
+            if(get_array->utype->isArray()) {
+                arrayExpr.utype->getCode().inject(stackInjector);
+                pushParametersToStackAndCall(ast, get_array, emptyParams, arrayExpr.utype->getCode());
+
+                arrayExpr.utype->getCode().freeInjectors();
+                arrayExpr.utype->getCode().getInjector(ptrInjector)
+                        .addIr(OpBuilder::popObject2());
+
+                arrayExpr.utype->getCode().getInjector(removeFromStackInjector)
+                        .addIr(OpBuilder::pop());
+
+                arrayExpr.type = utypeToExpressionType(get_array->utype);
+                arrayExpr.utype->copy(get_array->utype);
+            } else {
+                errors->createNewError(GENERIC, ast->line, ast->col,
+                                       " support function `" + get_array->toString() + "` must return an array.");
+            } // we must make sure the user didnt srew with this function
+        } // we dont need to error out the user will recieve an error elsewhere
     }
 
     currentScope()->scopeLevel++;
@@ -7622,7 +7677,10 @@ void Compiler::compileForEachStatement(Ast *ast) {
     } else {
         string name = ast->getSubAst(ast_utype_arg)->getToken(0).getValue();
         Utype *fieldType = new Utype();
-        fieldType->copy(arrayExpr.utype);
+        if(arrayExpr.utype->getType() == utype_field)
+            fieldType->copy(((Field*)arrayExpr.utype->getResolvedType())->utype);
+        else
+            fieldType->copy(arrayExpr.utype);
         fieldType->setArrayType(false);
 
         iteratorField = createLocalField(name, fieldType, false, stl_stack, flags, currentScope()->scopeLevel, ast);
@@ -7667,6 +7725,11 @@ void Compiler::compileForEachStatement(Ast *ast) {
         code.addIr(OpBuilder::movnd(EBX));
 
     if(iteratorField->isVar()) {
+        if((arrayExpr.utype->getResolvedType()->type <= _INT64 && iteratorField->type >= _INT8 && iteratorField->type <= _INT64
+            && arrayExpr.utype->getResolvedType()->type > iteratorField->type)
+            || (arrayExpr.utype->getResolvedType()->type >= _UINT8 && iteratorField->type >= _UINT8 && iteratorField->type <= _UINT64
+                 && arrayExpr.utype->getResolvedType()->type > iteratorField->type))
+        dataTypeToOpcode(iteratorField->type, ECX, ECX, code);
         code.addIr(OpBuilder::smovr2(ECX, iteratorField->address));
     } else {
         if(arrayResultField->type == OBJECT && iteratorField->type == CLASS) {
@@ -7807,7 +7870,7 @@ void Compiler::compileStatement(Ast *ast, bool *controlPaths) {
             compileDoWhileStatement(ast);
             break;
         case ast_throw_statement:
-            compileThrowStatement(ast);
+            compileThrowStatement(ast, controlPaths);
             break;
         case ast_goto_statement:
             compileGotoStatement(ast);
@@ -7819,7 +7882,7 @@ void Compiler::compileStatement(Ast *ast, bool *controlPaths) {
             compileBreakStatement(ast);
             break;
         case ast_lock_statement:
-            compileLockStatement(ast);
+            compileLockStatement(ast, controlPaths);
             break;
         case ast_trycatch_statement:
             compileTryCatchStatement(ast, controlPaths);
@@ -7998,7 +8061,7 @@ Method* Compiler::getStaticInitFunction() {
         initFun->address = methodSize++;
         initFun->utype = nilUtype;
         currentScope()->klass->addFunction(initFun);
-        staticMainInserts.addIr(OpBuilder::call(initFun->address));
+        initFuncs.add(initFun);
         return initFun;
     } else return functions.get(0);
 }
@@ -8433,39 +8496,6 @@ void Compiler::compileEnumField(Field *enumField) {
     assignEnumFieldValue(enumField);
 }
 
-void Compiler::assignEnumArray(ClassObject *enumClass) {
-    Field *arrayField = enumClass->getField("enums", true);
-
-    if(arrayField != NULL) {
-        Int enumFieldCount = 0;
-        for(Int i = 0; i < enumClass->fieldCount(); i++) {
-            if(enumClass->getField(i)->utype->getClass() == enumClass)
-                enumFieldCount++;
-        }
-
-        staticMainInserts.addIr(OpBuilder::movi(enumFieldCount, EBX))
-                .addIr(OpBuilder::newClassArray(EBX, enumClass->address));
-        enumFieldCount = 0;
-        for(Int i = 0; i < enumClass->fieldCount(); i++) {
-            if(enumClass->getField(i)->utype->getClass() == enumClass)
-            {
-                staticMainInserts.addIr(OpBuilder::movg(enumClass->address))
-                        .addIr(OpBuilder::movn(enumClass->getField(i)->address))
-                        .addIr(OpBuilder::pushObject())
-                        .addIr(OpBuilder::movsl(-1))
-                        .addIr(OpBuilder::movn(enumFieldCount++))
-                        .addIr(OpBuilder::popObject());
-            }
-        }
-
-        staticMainInserts.addIr(OpBuilder::movg(enumClass->address))
-                .addIr(OpBuilder::movn(arrayField->address))
-                .addIr(OpBuilder::popObject());
-    } else
-        errors->createNewError(INTERNAL_ERROR, enumClass->ast,
-                               " enum class field `ordinal` could not be located");
-}
-
 void Compiler::postProcessEnumFields() {
     for(Int i = 0; i < enums.size(); i++) {
         ClassObject *enumClass = enums.get(i);
@@ -8486,7 +8516,6 @@ void Compiler::compileEnumFields() {
             compileEnumField(enumClass->getField(j));
         }
 
-        assignEnumArray(enumClass);
         removeScope();
     }
 }
@@ -8497,7 +8526,6 @@ void Compiler::initStaticClassInstance(CodeHolder &code, ClassObject *klass) {
     klass->getAllFunctionsByTypeAndName(fn_normal, INTERNAL_STATIC_INIT_FUNCTION, false, functions);
 
     if(!functions.empty()) {
-        code.addIr(OpBuilder::call(functions.get(0)->address));
         functions.get(0)->data.code.addIr(OpBuilder::ret(NO_ERR));
     }
 
@@ -8632,6 +8660,10 @@ void Compiler::setupMainMethod(Ast *ast) {
             TlsSetup->data.lineTable.add(
                     LineData(0, TlsSetup->ast->line));
 
+            for(Int i = 0; i < initFuncs.size(); i++) {
+                staticMainInserts.addIr(OpBuilder::call(initFuncs.get(i)->address));
+            }
+
             StaticInit->data.code.inject(staticMainInserts);
             StaticInit->data.code.addIr(OpBuilder::ret(NO_ERR));
 
@@ -8701,7 +8733,7 @@ void Compiler::compileUnprocessedClasses() {
 
         if(unprocessedClass->isNot(compiled)) {
             currModule = unprocessedClass->module;
-            current = getParserBySourceFile(unprocessedClass->meta.file->name);
+            current = getParserBySourceFile(unprocessedClass->getGenericOwner()->meta.file->name);
 
             long long totalErrors = errors->getUnfilteredErrorCount();
             updateErrorManagerInstance(current);
@@ -8715,6 +8747,7 @@ void Compiler::compileUnprocessedClasses() {
 
             if (NEW_ERRORS_FOUND()) {
                 failedParsers.addif(current);
+                printNote(unprocessedClass->meta, "in generic `" + unprocessedClass->name + "`");
             }
         }
     }
@@ -8853,9 +8886,10 @@ bool Compiler::complexParameterMatch(List<Field*> &params, List<Field*> &compara
     if(params.size() == comparator.size()) {
         for(long i = 0; i < params.size(); i++) {
             if(!params.get(i)->isRelated(*comparator.get(i))) {
-                if(nativeClassSupport && !isUtypeConvertableToNativeClass(params.get(i)->utype, comparator.get(i)->utype)
-                    && !isUtypeConvertableToNativeClass(comparator.get(i)->utype, params.get(i)->utype)) {
-                        return false;
+                if(nativeClassSupport) {
+                    if(!isUtypeConvertableToNativeClass(params.get(i)->utype, comparator.get(i)->utype)
+                       && !isUtypeConvertableToNativeClass(comparator.get(i)->utype, params.get(i)->utype))
+                    return false;
                 } else
                     return false;
             }
@@ -8876,11 +8910,11 @@ void Compiler::addDefaultConstructor(ClassObject* klass, Ast* ast) {
     Meta meta(current->getErrors()->getLine(ast==NULL ? 0 : ast->line),
               Obfuscater::getFile(current->getTokenizer()->file), ast==NULL ? 0 : ast->line, ast==NULL ? 0 : ast->col);
     if(IS_CLASS_GENERIC(klass->getClassType())) {
-        functionName = klass->getGenericOwner()->name.substr(0, klass->getGenericOwner()->name.size() - 2);
+        functionName = klass->getGenericOwner()->name.substr(0, klass->getGenericOwner()->name.size() - 2); // k<> -> k
     }
 
     if(findFunction(klass, functionName, emptyParams, ast, false, fn_constructor, false) == NULL) {
-        Method* method = new Method(klass->name, currModule, klass, guid++, emptyParams, flags, meta);
+        Method* method = new Method(functionName, currModule, klass, guid++, emptyParams, flags, meta);
 
         method->fullName = klass->fullName + "." + klass->name;
         method->ast = ast;

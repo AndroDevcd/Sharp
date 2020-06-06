@@ -86,7 +86,7 @@ bool Field::isRelated(Field &f) {
                     return isArray==f.isArray && Compiler::simpleParameterMatch(((Method*)this->utype->getResolvedType())->params,
                                                           compareFun->params);
             } else {
-                return isArray==f.isArray && utype != NULL && f.utype != NULL && utype->getType() == f.utype->getType() &&
+                return isArray==f.isArray && utype != NULL && f.utype != NULL &&
                        Compiler::simpleParameterMatch(((Method *) this->utype->getResolvedType())->params,
                                                       compareFun->params);
             }
