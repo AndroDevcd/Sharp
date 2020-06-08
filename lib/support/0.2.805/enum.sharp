@@ -13,7 +13,7 @@ import std.io;
  */
 stable ext class _enum_ {
     private name : _int8[];
-    private ordinal : _int64;
+    private ordinal : _int64; // TODO: add <, > and other math operators for enums and vars
 
     _enum_(ord : var) {
         ordinal = ord;

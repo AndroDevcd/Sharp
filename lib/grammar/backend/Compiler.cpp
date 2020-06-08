@@ -1398,7 +1398,7 @@ void Compiler::parseStringLiteral(Expression* expr, Token &token) {
     expr->utype->setType(utype_literal);
     expr->utype->setArrayType(true);
 
-    long long index = stringMap.addIfIndex(token.getValue());
+    Int index = stringMap.addIfIndex(token.getValue());
     if(index >= STRING_LITERAL_LIMIT) {
         stringstream err;
         err << "maximum string literal limit of (" << STRING_LITERAL_LIMIT << ") reached.";
@@ -1581,7 +1581,7 @@ Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* a
         k->getAllFunctionsByTypeAndName(type, name, checkBase, funcs);
 
     if(!funcs.empty()) {
-        for(long long i = 0; i < funcs.size(); i++) {
+        for(Int i = 0; i < funcs.size(); i++) {
             if(simpleParameterMatch(funcs.get(i)->params, params)) {
                 resolvedFunction = funcs.get(i);
 
@@ -1594,14 +1594,14 @@ Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* a
         }
 
         if(advancedSearch && matches.empty()) {
-            for (long long i = 0; i < funcs.size(); i++) {
+            for (Int i = 0; i < funcs.size(); i++) {
                 if (complexParameterMatch(funcs.get(i)->params, params, false)) {
                     matches.add(funcs.get(i));
                 }
             }
 
             if(matches.empty()) {
-                for (long long i = 0; i < funcs.size(); i++) {
+                for (Int i = 0; i < funcs.size(); i++) {
                     if (complexParameterMatch(funcs.get(i)->params, params, true)) {
                         matches.add(funcs.get(i));
                     }
@@ -1977,6 +1977,7 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
 }
 
 void Compiler::pushParametersToStackAndCall(Ast *ast, Method *resolvedMethod, List<Field *> &params, CodeHolder &code) {
+
     for(long i = 0; i < params.size(); i++) {
         Field *methodParam = resolvedMethod->params.get(i);
         if(isLambdaUtype(params.get(i)->utype))
@@ -2507,15 +2508,15 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
             } else if (operand == "!=") {
                 result = leftLiteral->numericData != rightLiteral->numericData;
             }else if (operand == "<<") {
-                result = (long long)leftLiteral->numericData << (long)rightLiteral->numericData;
+                result = (Int)leftLiteral->numericData << (long)rightLiteral->numericData;
             } else if (operand == ">>") {
-                result = (long long)leftLiteral->numericData >> (long)rightLiteral->numericData;
+                result = (Int)leftLiteral->numericData >> (long)rightLiteral->numericData;
             } else if (operand == "&") {
-                result = (long long)leftLiteral->numericData & (long)rightLiteral->numericData;
+                result = (Int)leftLiteral->numericData & (long)rightLiteral->numericData;
             } else if (operand == "|") {
-                result = (long long)leftLiteral->numericData | (long)rightLiteral->numericData;
+                result = (Int)leftLiteral->numericData | (long)rightLiteral->numericData;
             } else if (operand == "^") {
-                result = (long long)leftLiteral->numericData ^ (long)rightLiteral->numericData;
+                result = (Int)leftLiteral->numericData ^ (long)rightLiteral->numericData;
             } else if (operand == "&&") {
                 result = leftLiteral->numericData && rightLiteral->numericData;
             } else if (operand == "||") {
@@ -5014,9 +5015,6 @@ void Compiler::compileExpression(Expression* expr, Ast* ast) {
 }
 
 void Compiler::compileExpressionAst(Expression *expr, Ast *branch) {
-    if(branch->line >= 3000) {
-        int fkdd = 0;
-    }
     switch(branch->getType()) {
         case ast_minus_e:
             return compileMinusExpression(expr, branch);
@@ -6168,15 +6166,15 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
     }
 
     // we do this to ensure no bugs will come from searching methods
-    for(long long i = 0;   i < contractedMethods.size(); i++) {
+    for(Int i = 0;   i < contractedMethods.size(); i++) {
         compileMethodReturnType(contractedMethods.get(i), contractedMethods.get(i)->ast);
     }
 
-    for(long long i = 0;   i < subscribedMethods.size(); i++) {
+    for(Int i = 0;   i < subscribedMethods.size(); i++) {
         compileMethodReturnType(subscribedMethods.get(i), subscribedMethods.get(i)->ast);
     }
 
-    for(long long i = 0; i < contractedMethods.size(); i++) {
+    for(Int i = 0; i < contractedMethods.size(); i++) {
         Method* contract = contractedMethods.get(i), *sub;
         if((sub = validateDelegatesHelper(contract, subscribedMethods)) != NULL) {
             if((sub->utype != NULL && contract->utype != NULL) || (sub->utype == NULL && contract->utype == NULL)) {
@@ -6223,7 +6221,7 @@ void Compiler::getContractedMethods(ClassObject *subscriber, List<Method *> &con
         contracter->getAllFunctionsByType(fn_delegate, contractedMethods);
     }
 
-    for(long long i = 0; i < subscriber->getInterfaces().size(); i++) {
+    for(Int i = 0; i < subscriber->getInterfaces().size(); i++) {
         contracter = subscriber->getInterfaces().get(i);
         contracter->getAllFunctionsByType(fn_delegate, contractedMethods);
 
@@ -6241,7 +6239,7 @@ void Compiler::getContractedMethods(ClassObject *subscriber, List<Method *> &con
 }
 
 Method* Compiler::validateDelegatesHelper(Method *method, List<Method*> &list) {
-    for(long long i = 0; i < list.size(); i++) {
+    for(Int i = 0; i < list.size(); i++) {
         if(method->name == list.get(i)->name) {
             if (simpleParameterMatch(method->params, list.get(i)->params)) {
                 return list.get(i);
@@ -6293,7 +6291,7 @@ void Compiler::resolveAllDelegates() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (int x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
@@ -6342,7 +6340,7 @@ bool Compiler::preprocess() {
         updateErrorManagerInstance(current);
         Obfuscater::addFile(current->getTokenizer()->file, guid++);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for(unsigned long x = 0; x < current->size(); x++)
         {
@@ -6475,7 +6473,7 @@ void Compiler::preprocessMutations() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for(unsigned long x = 0; x < current->size(); x++)
         {
@@ -6630,9 +6628,6 @@ void Compiler::compileIfStatement(Ast *ast, bool *controlPaths) {
         currentScope()->currentFunction->data.branchTable.add(BranchTable(code.size(), ifBlockEnd, 0, ast->line, ast->col, currentScope()->scopeLevel));
         code.addIr(OpBuilder::jne(invalidAddr));
 
-        if(ast->line >= 3000) {
-            int jkjk  = 3000;
-        }
         controlPaths[IF_CONTROL_PATH] = compileBlock(ast->getSubAst(ast_block));
         controlPaths[ELSEIF_CONTROL_PATH] = true;
 
@@ -8154,7 +8149,7 @@ void Compiler::compileAllInitDecls() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (unsigned long x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
@@ -8197,7 +8192,7 @@ void Compiler::compileAllObfuscationRules() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (unsigned long x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
@@ -8243,7 +8238,7 @@ void Compiler::compileAllFields() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (unsigned long x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
@@ -8454,7 +8449,7 @@ void Compiler::compileAllMethods() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (unsigned long x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
@@ -8833,14 +8828,14 @@ void Compiler::validateCoreClasses(Ast *ast) {
 }
 
 void Compiler::compileUnprocessedClasses() {
-    for(long long i = 0; i < unProcessedClasses.size(); i++) {
+    for(Int i = 0; i < unProcessedClasses.size(); i++) {
         ClassObject *unprocessedClass = unProcessedClasses.get(i);
 
         if(unprocessedClass->isNot(compiled)) {
             currModule = unprocessedClass->module;
             current = getParserBySourceFile(unprocessedClass->getGenericOwner()->meta.file->name);
 
-            long long totalErrors = errors->getUnfilteredErrorCount();
+            Int totalErrors = errors->getUnfilteredErrorCount();
             updateErrorManagerInstance(current);
 
             // bring the classes up to speed
@@ -8868,9 +8863,7 @@ void Compiler::compileAllUnprocessedMethods() {
 
         currModule = method->module;
         currScope.add(new Scope(method->owner, GLOBAL_SCOPE));
-        if(method->name == "long") {
-            int itt = 3000;
-        }
+
         compileMethod(method->ast, method);
         removeScope();
     }
@@ -8887,9 +8880,9 @@ void Compiler::compile() {
         compileAllFields();
         compileAllInitDecls();
         compileAllMethods();
-        compileAllUnprocessedMethods();
         compileEnumFields();
         compileUnprocessedClasses();
+        compileAllUnprocessedMethods();
 
         // after processing procedures
         updateErrorManagerInstance(parsers.get(0));
@@ -9085,7 +9078,7 @@ Compiler::addFunction(ClassObject *k, Method *method, bool (*paramaterMatchFun)(
     k->getAllFunctionsByName(method->name, funcs);
 
     if(!funcs.empty()) {
-        for(long long i = 0; i < funcs.size(); i++) {
+        for(Int i = 0; i < funcs.size(); i++) {
             if(paramaterMatchFun(funcs.get(i)->params, method->params)) {
                 funcs.free();
                 return false;
@@ -9138,7 +9131,7 @@ Compiler::findFunction(ClassObject *k, Method *method, bool (*paramaterMatchFun)
     k->getAllFunctionsByName(method->name, funcs);
 
     if(!funcs.empty()) {
-        for(long long i = 0; i < funcs.size(); i++) {
+        for(Int i = 0; i < funcs.size(); i++) {
             if(paramaterMatchFun(funcs.get(i)->params, method->params)) {
                 Method *fn = funcs.get(i);
                 funcs.free();
@@ -9198,11 +9191,11 @@ Field* Compiler::createLocalField(string name, Utype *type, bool isArray, Storag
 /*
  * hash code
  *
- * long long compute_hash(string const& s) {
+ * Int compute_hash(string const& s) {
     const int p = 31;
     const int m = 1e9 + 9;
-    long long hash_value = 0;
-    long long p_pow = 1;
+    Int hash_value = 0;
+    Int p_pow = 1;
     for (char c : s) {
         hash_value = (hash_value + (c - 'a' + 1) * p_pow) % m;
         p_pow = (p_pow * p) % m;

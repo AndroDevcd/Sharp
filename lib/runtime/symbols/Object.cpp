@@ -40,6 +40,13 @@ void Object::castObject(int64_t classPtr) {
                 return;
         }
 
+        ClassObject* super = base->super;
+        while (super != NULL) {
+            if(type->guid == super->guid)
+                return;
+            super = super->super;
+        }
+
         stringstream ss;
         ss << "illegal cast of class '" << base->name.str() << "' to '";
         ss << type->name.str() << "'";

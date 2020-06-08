@@ -86,7 +86,7 @@ struct options {
     /*
      * Maximum errors the compiler will allow
      */
-    unsigned long error_limit = 1000;
+    uInt error_limit = 1000;
 
     /*
      * Machine platform target to run on

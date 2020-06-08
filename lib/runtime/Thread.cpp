@@ -512,10 +512,11 @@ int Thread::threadjoin(Thread *thread) {
 }
 
 void Thread::killAll() {
-    GUARD(threadsMonitor);
-    Thread* thread;
-    suspendAllThreads();
-    auto self = thread_self;
+    {
+        GUARD(threadsMonitor);
+        suspendAllThreads();
+    }
+    Thread *thread = NULL;
 
     for(unsigned int i = 0; i < maxThreadId; i++) {
         threads.get(i, thread);
@@ -948,16 +949,19 @@ void Thread::exec() {
                 registers[GET_Ca(*pc)]=registers[GET_Cb(*pc)];
                 _brh
             BRH: // tested
+                HAS_SIGNAL
                 pc=cache+(Int)registers[ADX];
                 LONG_CALL();
                 _brh_NOINCREMENT
             IFE:
                 LONG_CALL();
+                HAS_SIGNAL
                 if(registers[CMT]) {
                     pc=cache+(int64_t)registers[ADX]; _brh_NOINCREMENT
                 } else  _brh
             IFNE:
                 LONG_CALL();
+                HAS_SIGNAL
                 if(registers[CMT]==0) {
                     pc=cache+(int64_t)registers[ADX]; _brh_NOINCREMENT
                 } else  _brh
@@ -1015,6 +1019,7 @@ void Thread::exec() {
                         }
                 )
             JMP: // tested
+                HAS_SIGNAL
                 pc = cache+GET_Da(*pc);
                 LONG_CALL();
                 _brh_NOINCREMENT
@@ -1096,6 +1101,7 @@ void Thread::exec() {
                 registers[GET_Ca(*pc)]=!registers[GET_Cb(*pc)];
                 _brh
             SKIP:
+                HAS_SIGNAL
                 pc = pc+GET_Da(*pc);
                 _brh
             LOADVAL:
@@ -1109,11 +1115,13 @@ void Thread::exec() {
                 _brh
             SKPE:
                 LONG_CALL();
+                HAS_SIGNAL
                 if(((Int)registers[GET_Ca(*pc)]) != 0) {
                     pc = pc+GET_Cb(*pc); _brh_NOINCREMENT
                 } else _brh
             SKNE:
                 LONG_CALL();
+                HAS_SIGNAL
                 if(((Int)registers[GET_Ca(*pc)])==0) {
                     pc = pc+GET_Cb(*pc); _brh_NOINCREMENT
                 } else _brh
@@ -1262,11 +1270,13 @@ void Thread::exec() {
                 _brh_inc(2)
             JE:
                 LONG_CALL();
+                HAS_SIGNAL
                 if(registers[CMT]) {
                     pc=cache+GET_Da(*pc); _brh_NOINCREMENT
                 } else  _brh
             JNE:
                 LONG_CALL();
+                HAS_SIGNAL
                 if(registers[CMT]==0) {
                     pc=cache+GET_Da(*pc); _brh_NOINCREMENT
                 } else  _brh

@@ -46,7 +46,7 @@ private:
 
 template <typename K>
 struct KeyHash {
-    unsigned long operator()(const K& key, uInt tableSize) const
+    uInt operator()(const K& key, uInt tableSize) const
     {
         return key % tableSize;
     }

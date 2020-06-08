@@ -50,7 +50,7 @@ public:
         return last();
     }
 
-    void insert(long long pos, T& data) {
+    void insert(Int pos, T& data) {
         if(pos>len || pos < 0) {
             stringstream ss;
             ss << "index out of bounds list::insert() _X: " << pos
@@ -62,11 +62,11 @@ public:
             push_back(data);
         } else {
             T* result = (T*)__malloc(sizeof(T)*(len+1));
-            long long newLen=len+1;
-            for(long long i = 0; i < pos; i++)
+            Int newLen=len+1;
+            for(Int i = 0; i < pos; i++)
                 result[i] = _Data[i];
             result[pos] = data;
-            for(long long i = pos + 1; i < newLen; i++)
+            for(Int i = pos + 1; i < newLen; i++)
                 result[i] = _Data[i - 1];
 
             free();
@@ -80,7 +80,7 @@ public:
      * Programmer must be responsible
      * for freeing that data himself
      */
-    void remove(unsigned long long _X) {
+    void remove(uInt _X) {
         if(_X>=len || len<=0){
             stringstream ss;
             ss << "index out of bounds list::remove() _X: " << _X
@@ -98,10 +98,10 @@ public:
             __shrink();
         } else {
             T* result = (T*)__malloc(sizeof(T)*(len-1));
-            long long newLen=len-1;
-            for(long long i = 0; i < _X; i++)
+            Int newLen=len-1;
+            for(Int i = 0; i < _X; i++)
                 result[i] = _Data[i];
-            for(long long i = _X; i < newLen; i++)
+            for(Int i = _X; i < newLen; i++)
                 result[i] = _Data[i + 1];
 
             free();
@@ -187,7 +187,7 @@ public:
     }
 
     int removefirst(T _V) {
-        long long iter = -1;
+        Int iter = -1;
         for(unsigned int i = 0; i < len; i++) {
             if(_V == _Data[i]){
                 iter = i;
@@ -245,7 +245,7 @@ public:
         return false;
     }
 
-    long long indexof(bool (*pfind)(void*, T element), void* data) {
+    Int indexof(bool (*pfind)(void*, T element), void* data) {
         for(unsigned int i = 0; i < len; i++) {
             if(pfind(data, _Data[i])){
                 return i;
@@ -254,7 +254,7 @@ public:
         return -1;
     }
 
-    long long indexof(T data) {
+    Int indexof(T data) {
         for(unsigned int i = 0; i < len; i++) {
             if(data == _Data[i]){
                 return i;
@@ -264,7 +264,7 @@ public:
     }
 
     void del(T data) {
-        for(unsigned long long c = 0; c < len; c++) {
+        for(uInt c = 0; c < len; c++) {
             if(data == _Data[c]){
 
                 if(len==1){
@@ -277,10 +277,10 @@ public:
                     __shrink();
                 } else {
                     T* result = (T*)__malloc(sizeof(T)*(len-1));
-                    long long newLen=len-1;
-                    for(long long i = 0; i < c; i++)
+                    Int newLen=len-1;
+                    for(Int i = 0; i < c; i++)
                         result[i] = _Data[i];
-                    for(long long i = c; i < newLen; i++)
+                    for(Int i = c; i < newLen; i++)
                         result[i] = _Data[i + 1];
 
                     std::free(_Data);
@@ -296,7 +296,7 @@ public:
     bool empty() { return len==0; }
 
     T* _Data, *ptr;
-    unsigned  long long len;
+    uInt len;
 private:
     CXX11_INLINE
     void __expand() {
@@ -337,7 +337,7 @@ private:
         }
     }
 
-    unsigned  long long max;
+    uInt max;
 };
 
 #endif //SHARP_LIST_H

@@ -1,0 +1,29 @@
+mod std.io.task;
+
+import std.io;
+
+class deferred<t> base observable<t> {
+
+	deferred(scheduled_job : job) {
+		self->scheduled_job = scheduled_job;
+	}
+
+	def await(): t {
+	    if(scheduled_job == null)
+	        return data;
+
+		while(true) {
+			if(changed || scheduled_job.is_finished()) {
+				return data;
+			} else
+				thread.sleep(2);
+	        thread.yield();
+		}
+
+		return data;
+	}
+
+	def get_job() := scheduled_job;
+
+	private scheduled_job : job;
+}

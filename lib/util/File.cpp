@@ -145,7 +145,7 @@ char File::buffer::at(stream_t _X) {
 
 string File::buffer::to_str() {
     stringstream ss;
-    for(unsigned long i=0; i < size(); i++) {
+    for(uInt i=0; i < size(); i++) {
         ss<<_Data[i];
     }
     return ss.str();

@@ -7,15 +7,23 @@ import platform.kernel;
 /**
 *
 */
+count := 0;
+future : deferred<var>;
 public static def main(args: string[]) : var {
-    message : string = "hi";
-    scheduled_job := task.with_args(new object[] { message }) = { args : object[] ->
-        println(args[0] as string);
-        for(i := 0; i < 1_000_000; i++) {
+    future = deferred_task<var>.for_result({ obs ->
+        observer := obs as observable<var>;
+        observer.post(105);
+        thread.sleep(500);
+        observer.post(105);
+        thread.sleep(500);
+        observer.post(500);
+    });
 
-        }
-        println("done!");
-    };
-    thread.sleep(1000);
+    future.observe_forever({ obs ->
+        println("recieved: ${future.get_data()}");
+
+        if(future.get_data() == 500)
+            obs.stop();
+    });
     return 4;
 }

@@ -40,7 +40,7 @@ def scheduler_main(args : object[]) : var
 		else {
 			check_list:
 			size := jobs.size();
-			for(i : var = 0; i < size; i++) {
+			for(i := 0; i < size; i++) {
 				scheduled_job := jobs.at(i);
 
 				if(scheduled_job.delay_time != 0) {
@@ -70,7 +70,7 @@ def scheduler_main(args : object[]) : var
 			}
 		}
 
-		thread.sleep(2);
+		thread.sleep(5);
 	}
 	return 0;
 }

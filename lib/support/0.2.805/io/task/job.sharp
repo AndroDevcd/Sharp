@@ -76,8 +76,10 @@ public class job {
             try {
 			    controller.scheduled_job.execute();
             } catch(cancellation_exception) {
+		        controller.scheduled_job.state = cancelled;
 		        launcher.cleanup_job(controller.scheduled_job);
             } catch(e: error) {
+		        controller.scheduled_job.state = cancelled;
 		        launcher.cleanup_job(controller.scheduled_job);
 			    controller.scheduled_job = null;
 		        throw e;
@@ -93,10 +95,19 @@ public class job {
 	protected def execute() {
 		if(has_timeout) timeout = time.mills_time() + timeout;
 		state = active;
+        if(repeat > 0) repeat--;
 
+        rerun:
         when {
             main0 -> main0();
             main1 -> main1(args);
+            main2 -> main2(deferred_obj, args);
+            main3 -> main3(deferred_obj);
+        }
+
+        if(repeat > 0) {
+            repeat--;
+            goto rerun;
         }
 
 		state = completed;
@@ -112,11 +123,12 @@ public class job {
 	protected host : thread;
 	protected name : string;
 	protected args : object[];
-	protected deferred : object;
+	protected deferred_obj : object;
 	protected has_timeout := false;
 	protected timeout := 0;
 	protected delay_time := 0;
 	protected id := 0;
+	protected repeat := 0;
 	protected block_caller := false;
 	protected long_term := false;
 	protected state := created;

@@ -169,8 +169,8 @@ private:
     void initStaticClassInstance(CodeHolder &code, ClassObject *klass);
     void compileMethodDecl(Ast *ast, ClassObject* currentClass = NULL);
     void updateErrorManagerInstance(parser *parser);
-    void preProcessGenericClasses(long long unstableClasses);
-    void preProcessUnprocessedClasses(long long unstableClasses);
+    void preProcessGenericClasses(Int unstableClasses);
+    void preProcessUnprocessedClasses(Int unstableClasses);
     void addDefaultConstructor(ClassObject* klass, Ast* ast);
     void inlineClassMutateFields(Ast *ast);
     void createNewWarning(error_type error, int type, int line, int col, string xcmnts);

@@ -164,7 +164,7 @@ public:
     List<Ast*> &getClassMutations() { return classMutations; }
     long totalInterfaceCount();
     void getAllFunctionsByType(function_type ftype, List<Method*> &results, bool checkSuper = false) {
-        for(long long i = 0; i < functions.size(); i++) {
+        for(Int i = 0; i < functions.size(); i++) {
             if(functions.get(i)->fnType == ftype)
                 results.add(functions.get(i));
         }
@@ -182,7 +182,7 @@ public:
     }
 
     void getAllFunctionsByTypeAndName(function_type ftype, string name, bool checkBase, List<Method*> &results) {
-        for(long long i = 0; i < functions.size(); i++) {
+        for(Int i = 0; i < functions.size(); i++) {
             if(functions.get(i)->fnType == ftype && functions.get(i)->name == name)
                 results.add(functions.get(i));
         }

@@ -104,7 +104,7 @@ void Compiler::resolveAllMethods() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (int x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
@@ -170,7 +170,7 @@ void Compiler::resolveAllFields() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (int x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
@@ -1179,7 +1179,7 @@ ClassObject* Compiler::compileGenericClassReference(ModuleData *mod, string &nam
                 newClass->setProcessStage(preprocessed);
 
                 parser* oldParser = current;
-                long long totalErrors = errors->getUnfilteredErrorCount();
+                Int totalErrors = errors->getUnfilteredErrorCount();
 
                 current = getParserBySourceFile(newClass->getGenericOwner()->meta.file->name);
                 updateErrorManagerInstance(current);
@@ -1519,24 +1519,24 @@ void Compiler::resolveSuperClass(Ast *ast, ClassObject* currentClass) {
 }
 
 parser *Compiler::getParserBySourceFile(string name) {
-    for(long long i = 0; i < parsers.size(); i++) {
+    for(Int i = 0; i < parsers.size(); i++) {
         if(parsers.get(i)->getTokenizer()->file == name)
             return parsers.get(i);
     }
     return NULL;
 }
 
-void Compiler::preProcessUnprocessedClasses(long long unstableClasses) {
+void Compiler::preProcessUnprocessedClasses(Int unstableClasses) {
     // we need this size just incase any classes get added after the fact to prevent double preprocessing
-    long long size = unstableClasses;
+    Int size = unstableClasses;
 
-    for(long long i = 0; i < size; i++) {
+    for(Int i = 0; i < size; i++) {
         ClassObject *unprocessedClass = unProcessedClasses.get(i);
 
         currModule = unprocessedClass->module;
         current = getParserBySourceFile(unprocessedClass->meta.file->name);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         updateErrorManagerInstance(current);
 
         // bring the classes up to speed
@@ -1577,7 +1577,7 @@ void Compiler::resolveBaseClasses() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for(unsigned long x = 0; x < current->size(); x++)
         {
@@ -1620,7 +1620,7 @@ void Compiler::resolveBaseClasses() {
     }
 }
 
-void Compiler::preProcessGenericClasses(long long unstableClasses) {
+void Compiler::preProcessGenericClasses(Int unstableClasses) {
     /**
      * There is a bit of a tug of war going on with the order in how the compiler processes elements.
      * In the pre-processing stage we process the base classes of every single class in our code that we found, subclasses and all.
@@ -1782,7 +1782,7 @@ void Compiler::inlineFields() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         currScope.add(new Scope(NULL, GLOBAL_SCOPE));
         for (int x = 0; x < current->size(); x++) {
             Ast *branch = current->astAt(x);
@@ -1825,13 +1825,13 @@ void Compiler::inlineFields() {
 }
 
 void Compiler::postProcessUnprocessedClasses() {
-    for(long long i = 0; i < unProcessedClasses.size(); i++) {
+    for(Int i = 0; i < unProcessedClasses.size(); i++) {
         ClassObject *unprocessedClass = unProcessedClasses.get(i);
 
         currModule = unprocessedClass->module;
         current = getParserBySourceFile(unprocessedClass->meta.file->name);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         updateErrorManagerInstance(current);
 
         // bring the classes up to speed
@@ -1866,7 +1866,7 @@ void Compiler::postProcessGenericClasses() {
 
 bool Compiler::postProcess() {
     processingStage = POST_PROCESSING;
-    long long unstableClasses = unProcessedClasses.size();
+    Int unstableClasses = unProcessedClasses.size();
 
     preprocessMutations();
     preProcessGenericClasses(unstableClasses);
@@ -1886,7 +1886,7 @@ void Compiler::handleImports() {
         current = parsers.get(i);
         updateErrorManagerInstance(current);
 
-        long long totalErrors = errors->getUnfilteredErrorCount();
+        Int totalErrors = errors->getUnfilteredErrorCount();
         if(c_options.magic)
         { // import everything in magic mode
             importMap.__new().key = Obfuscater::getFile(current->getTokenizer()->file);

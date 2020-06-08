@@ -24,7 +24,7 @@ const Int MAX_DOWNGRADE_ATTEMPTS = 3;
 uInt memoryPoolResults[MEMORY_POOL_SAMPLE_SIZE];
 Int samplesReceived =0, downgradeAttempts = 0;
 
-void* __malloc(unsigned long long bytes)
+void* __malloc(uInt bytes)
 {
     void* ptr =nullptr;
     bool gc=false;
@@ -49,7 +49,7 @@ void* __malloc(unsigned long long bytes)
         return ptr;
     }
 }
-void* __calloc(unsigned long long n, unsigned long long bytes)
+void* __calloc(uInt n, uInt bytes)
 {
     void* ptr =nullptr;
     bool gc=false;
@@ -74,7 +74,7 @@ void* __calloc(unsigned long long n, unsigned long long bytes)
         return ptr;
     }
 }
-void* __realloc(void *ptr, unsigned long long bytes, unsigned long long old)
+void* __realloc(void *ptr, uInt bytes, uInt old)
 {
     void* rmap =nullptr;
     bool gc=false;
@@ -625,11 +625,11 @@ void GarbageCollector::createStringArray(Object *object, runtime::String& str) {
     }
 }
 
-unsigned long long GarbageCollector::getMemoryLimit() {
+uInt GarbageCollector::getMemoryLimit() {
     return memoryLimit;
 }
 
-unsigned long long GarbageCollector::getManagedMemory() {
+uInt GarbageCollector::getManagedMemory() {
     return managedBytes;
 }
 

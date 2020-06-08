@@ -44,7 +44,7 @@ class job_master {
 	protected def get_host_controller(host: thread) := controllers.at(host);
 
 	protected def cleanup_job(scheduled_job : job) {
-		scheduled_job.deferred = null;
+		scheduled_job.deferred_obj = null;
 		scheduled_job.host = null;
 
         wakeup:

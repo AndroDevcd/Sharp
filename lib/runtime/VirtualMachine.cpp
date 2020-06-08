@@ -276,6 +276,13 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             if(vm.state != VM_SHUTTING_DOWN)
                 Thread::destroy(thread);
         }
+
+#ifdef WIN32_
+        return 0;
+#endif
+#ifdef POSIX_
+        return NULL;
+#endif
     }
     else {
 #ifdef WIN32_
@@ -726,7 +733,7 @@ void VirtualMachine::fillMethodCall(Method* func, Int pc, stringstream &ss) {
     else
         ss << "\"Unknown File\"";
 
-    long long x, line=-1, ptr=-1;
+    Int x, line=-1, ptr=-1;
     for(x = 0; x < func->lineTable.size(); x++)
     {
         if(func->lineTable.get(x).pc >= pc) {
@@ -896,12 +903,12 @@ void VirtualMachine::__snprintf(int cfmt, double val, int precision) {
             snprintf(buf, 256, "%%");
             break;
         case 'l': {
-            native_string str(to_string((long long)val));
+            native_string str(to_string((Int)val));
             GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str); str.free();
             return;
         }
         case 'L': {
-            native_string str(to_string((unsigned long long)val));
+            native_string str(to_string((uInt)val));
             GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);  str.free();
             return;
         }

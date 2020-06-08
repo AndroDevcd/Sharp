@@ -7,7 +7,7 @@
 
 #include "../../stdimports.h"
 
-typedef unsigned long stream_t;
+typedef uInt stream_t;
 #define STREAM_BASE 0x200
 #define STREAM_CHUNK 128
 

@@ -64,10 +64,10 @@ native_string resolve_path(native_string& path) {
     return fullPath;
 }
 
-long long get_file_attrs(native_string& path) {
+Int get_file_attrs(native_string& path) {
     if(stat(path.str().c_str(), &result)==0)
     {
-        long long mode = result.st_mode, attrs=0;
+        Int mode = result.st_mode, attrs=0;
 
         // regular file
         if(S_ISREG(mode))
@@ -128,7 +128,7 @@ int check_access(native_string& path, int access_flg) {
 #endif
 }
 
-long long last_update(native_string& path, int tm_request) {
+Int last_update(native_string& path, int tm_request) {
     if(stat(path.str().c_str(), &result)==0)
     {
         switch(tm_request) {
@@ -144,7 +144,7 @@ long long last_update(native_string& path, int tm_request) {
     return 0;
 }
 
-long long file_size(native_string &path)
+Int file_size(native_string &path)
 {
     int rc = stat(path.str().c_str(), &result);
     return rc == 0 ? result.st_size : -1;
@@ -244,7 +244,7 @@ static const mode_t MS_MODE_MASK = 0x0000ffff;           ///< low word
 int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly)
 {
     if(stat(path.str().c_str(), &result)==0) {
-        long long mode = result.st_mode;
+        Int mode = result.st_mode;
 
         if (set_mode & ACCESS_READ) {
 
@@ -277,7 +277,7 @@ int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly)
 int __chmod(native_string &path, mode_t set_mode, bool enable, bool userOnly)
 {
     if(stat(path.str().c_str(), &result)==0) {
-        long long mode = result.st_mode;
+        Int mode = result.st_mode;
 
         if (set_mode & ACCESS_READ) {
 
@@ -350,11 +350,11 @@ long GetAvailableSpace(const char* path, int request)
 
 #endif
 
-long long disk_space(long request) {
+Int disk_space(long request) {
 
 #ifdef WIN32_
 
-    long long lpFreeBytesAvailable=0,
+    Int lpFreeBytesAvailable=0,
             lpTotalNumberOfBytes=0,
             lpTotalNumberOfFreeBytes=0;
             

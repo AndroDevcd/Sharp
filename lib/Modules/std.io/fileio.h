@@ -13,11 +13,11 @@ native_string resolve_path(native_string& path);
 
 int check_access(native_string& path, int access_flag);
 
-long long get_file_attrs(native_string& path);
+Int get_file_attrs(native_string& path);
 
-long long last_update(native_string& path, int tm_request);
+Int last_update(native_string& path, int tm_request);
 
-long long file_size(native_string &path);
+Int file_size(native_string &path);
 
 void create_file(native_string &path);
 

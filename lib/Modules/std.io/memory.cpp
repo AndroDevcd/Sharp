@@ -48,9 +48,6 @@ void memcopy() {
     SharpObject *arry = (thread_self->sp--)->object.object;
     SharpObject *coppiedArray = (thread_self->sp--)->object.object;
 
-    if(thread_self->calls == 2) {
-        int i = 3000;
-    }
     if(coppiedArray != NULL && arry != NULL) {
         if(srcEnd > coppiedArray->size || srcEnd < 0 || srcStart < 0 || srcStart >= coppiedArray->size
             || copyLen < 0) {

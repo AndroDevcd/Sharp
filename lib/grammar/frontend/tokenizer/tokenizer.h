@@ -46,7 +46,7 @@ public:
     ErrorManager* getErrors();
     List<string>& getLines();
     string &getData();
-    long long size() { return tokens.size(); }
+    Int size() { return tokens.size(); }
 
     string file;
     Token* EOF_token;
@@ -65,8 +65,8 @@ private:
     List<string> lines;
     string toks, empty;
     const char* data;
-    unsigned long len;
-    unsigned long cursor;
+    uInt len;
+    uInt cursor;
     int line;
     int col;
     bool dynamicString;

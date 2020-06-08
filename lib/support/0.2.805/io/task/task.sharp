@@ -25,6 +25,12 @@ class task {
         return builder.with_name(job_name);
     }
 
+    static def repeat(count: var) : job_builder {
+        scheduled_job := launcher.create_job();
+        builder := new job_builder(scheduled_job, launcher);
+        return builder.repeat(count);
+    }
+
     static def with_args(args : object[]) : job_builder {
         scheduled_job := launcher.create_job();
         builder := new job_builder(scheduled_job, launcher);

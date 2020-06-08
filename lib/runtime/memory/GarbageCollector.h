@@ -76,13 +76,13 @@ public:
     threadStart(void *);
     void run();
 
-    static void setMemoryLimit(unsigned long long limit) {
+    static void setMemoryLimit(uInt limit) {
         if(self != NULL) {
             self->memoryLimit = limit;
         }
     }
 
-    static void setMemoryThreshold(unsigned long long limit) {
+    static void setMemoryThreshold(uInt limit) {
         if(self != NULL) {
             self->memoryThreshold = limit;
         }
@@ -166,12 +166,12 @@ public:
         mutex.unlock();
     }
 
-    CXX11_INLINE bool spaceAvailable(unsigned long long bytes) {
+    CXX11_INLINE bool spaceAvailable(uInt bytes) {
         return (bytes+managedBytes) < memoryLimit;
     }
 
-    unsigned long long getMemoryLimit();
-    unsigned long long getManagedMemory();
+    uInt getMemoryLimit();
+    uInt getManagedMemory();
 
     /**
      * Retrieve the os level size of an object refrence

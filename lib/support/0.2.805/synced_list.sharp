@@ -104,11 +104,9 @@ class synced_list<t> : loopable<t> {
     }
 
     def pop_back() {
-        lock(self) {
-            if(n_elements > 0) {
-                no_val : t;
-                data[n_elements--] = no_val;
-            }
+        if(n_elements > 0) {
+            no_val : t;
+            data[n_elements--] = no_val;
         }
     }
 

@@ -1202,6 +1202,7 @@ bool parser::parseStatement(Ast* ast) {
             }
         } else
             parseVariableDecl(branch);
+        return true;
     }
     else if(isForEachStatement(current()))
     {
@@ -2980,7 +2981,9 @@ bool parser::parsePrimaryExpr(Ast* ast) {
 
             parseLambdaReturnType(newAst);
             errors->fail();
+            RETAIN_RECURSION(0)
             parseLambdaBlock(newAst);
+            RESTORE_RECURSION()
             branch = newAst;
 
             if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -3000,7 +3003,9 @@ bool parser::parsePrimaryExpr(Ast* ast) {
 
                 parseLambdaReturnType(newAst);
                 errors->fail();
+                RETAIN_RECURSION(0)
                 parseLambdaBlock(newAst);
+                RESTORE_RECURSION()
 
                 if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
                     errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");

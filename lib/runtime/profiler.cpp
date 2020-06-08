@@ -42,7 +42,7 @@ void Profiler::dump() {
     ss << endl << endl;
 
     funcProf tmp;
-    long long i, j, iter=40, doSort = 0;
+    Int i, j, iter=40, doSort = 0;
     for(i = 0; i < functions.size(); ++i) {
 
         for(j = i + 1; j < functions.size(); ++j)
@@ -120,7 +120,7 @@ void Profiler::dump() {
 
     print:
     cout << ss.str();
-    long long tm = NANO_TOMILL(endtm-starttm);
+    Int tm = NANO_TOMILL(endtm-starttm);
     cout << "\nthread " << thread_self->name.str() << " (" << thread_self->id << ")";
     cout << "\nreal time = " << (tm < 0 ? 0 : tm) << endl;
 }

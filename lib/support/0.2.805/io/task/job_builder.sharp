@@ -25,6 +25,11 @@ public class job_builder {
 		return self;
 	}
 
+	def repeat(count : var) : job_builder {
+		scheduled_job.repeat = count;
+		return self;
+	}
+
 	def with_name(job_name : string) : job_builder {
 		scheduled_job.name = job_name;
 		return self;
@@ -61,17 +66,17 @@ public class job_builder {
 		return scheduled_job;
 	}
 
-	//protected def operator=(main: (deferred : object, args : object[])()) : job {
-	//	scheduled_job = main;
-	//	master.start_job(scheduled_job);
-	//	return scheduled_job;
-	//}
-//
-	//protected def operator=(main: (deferred : object)()) : job {
-	//	scheduled_job = main;
-	//	master.start_job(scheduled_job);
-	//	return scheduled_job;
-	//}
+    protected def operator=(main: (deferred : object, args : object[])()) : job {
+    	scheduled_job = main;
+    	master.start_job(scheduled_job);
+    	return scheduled_job;
+    }
+
+    protected def operator=(main: (deferred : object)()) : job {
+    	scheduled_job = main;
+    	master.start_job(scheduled_job);
+    	return scheduled_job;
+    }
 
 	public def get_job() := scheduled_job;
 

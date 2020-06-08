@@ -148,7 +148,7 @@ bool ClassObject::isClassRelated(ClassObject *klass, bool interfaceCheck) {
     if(match(klass)) return true;
 
     if(interfaceCheck) {
-        for (long long i = 0; i < interfaces.size(); i++) {
+        for (Int i = 0; i < interfaces.size(); i++) {
             if (interfaces.get(i)->isClassRelated(klass, false))
                 return true;
         }
@@ -163,7 +163,7 @@ ClassObject* ClassObject::getLoopableClass() { // TODO: talk about in the tutori
     }
 
     ClassObject* loopable;
-    for (long long i = 0; i < interfaces.size(); i++) {
+    for (Int i = 0; i < interfaces.size(); i++) {
         if ((loopable = interfaces.get(i)->getLoopableClass()) != NULL)
             return loopable;
     }
