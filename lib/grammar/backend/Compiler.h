@@ -134,6 +134,7 @@ private:
     Utype* undefUtype;
     Utype* varUtype;
     Utype* objectUtype;
+    Utype* anyUtype;
     parser* current;
     ModuleData* currModule;
     Method* requiredSignature;

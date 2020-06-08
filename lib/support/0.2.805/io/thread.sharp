@@ -66,6 +66,17 @@ public class thread {
 		parent_group.add(self);
     }
 
+    public thread(name : string, main: (object[])(var), group : thread_group) {
+        self->main = main;
+        self->name = name;
+		self->parent_group = group;
+        self->priority = group.get_priority();
+		self->native_handle = -1;
+		id = id_generator++;
+
+		parent_group.add(self);
+    }
+
     public thread(name : string, daemon: var, main: (object[])(var), stack_size : var, group : thread_group) {
         self->main = main;
         self->name = name;
@@ -80,7 +91,6 @@ public class thread {
     }
 
     public def start(args : object[]) : thread_result {
-
         if(native_handle == -1)
             native_handle = vm.thread_create(daemon);
         return vm.thread_start(self, args);
@@ -98,7 +108,14 @@ public class thread {
 	}
 	
 	public def notify() : thread_result {
-	    result := vm.unsuspend(self);
+	    result := vm.unsuspend(self, false);
+	    if(result == result_ok)
+	        suspended = false;
+	    return result;
+	}
+
+	public def wait_and_notify() : thread_result {
+	    result := vm.unsuspend(self, true);
 	    if(result == result_ok)
 	        suspended = false;
 	    return result;
@@ -125,6 +142,10 @@ public class thread {
     public static def exit(code : var) {
         vm.exit_thread(current(), code);
         asm { hlt }
+    }
+
+    def hash() : long {
+        return id;
     }
 
     public static def yield() := vm.thread_yield();

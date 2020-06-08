@@ -573,7 +573,7 @@ opcode_instr* OpBuilder::invokeDelegate(opcode_arg address, opcode_arg argCount,
     return instruction_Buffer;
 }
 
-CXX11_INLINE
+
 uint8_t OpBuilder::posNeg(opcode_arg data) {
     return data >= 0 ? POSITIVE : NEGATIVE;
 }

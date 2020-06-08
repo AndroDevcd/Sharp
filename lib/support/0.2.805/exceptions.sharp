@@ -44,53 +44,53 @@ class throwable {
  * Created by braxtonn on 3/2/2018.
  */
 class exception base throwable {
-    public exception(message : _int8[]) { base->throwable(message); }
-    public exception(message : string) { base->throwable(message); }
+    public exception(message : _int8[]) -> base(message) {}
+    public exception(message : string) -> base(message) {}
 }
 
 class illegal_argument_exception base exception {
-    public illegal_argument_exception(message : _int8[]) { base->exception(message); }
-    public illegal_argument_exception(message : string) { base->exception(message); }
+    public illegal_argument_exception(message : _int8[]) -> base(message) {}
+    public illegal_argument_exception(message : string) -> base(message) {}
 }
 class illegal_state_exception base exception {
-    public illegal_state_exception(message : _int8[]) { base->exception(message); }
-    public illegal_state_exception(message : string) { base->exception(message); }
+    public illegal_state_exception(message : _int8[]) -> base(message) {}
+    public illegal_state_exception(message : string) -> base(message) {}
 }
 class out_of_bounds_exception base exception {
-    public out_of_bounds_exception(message : _int8[]) { base->exception(message); }
-    public out_of_bounds_exception(message : string) { base->exception(message); }
+    public out_of_bounds_exception(message : _int8[]) -> base(message) {}
+    public out_of_bounds_exception(message : string) -> base(message) {}
 }
 class invalid_operation_exception base exception {
-    public invalid_operation_exception(message : _int8[]) { base->exception(message); }
-    public invalid_operation_exception(message : string) { base->exception(message); }
+    public invalid_operation_exception(message : _int8[]) -> base(message) {}
+    public invalid_operation_exception(message : string) -> base(message) {}
 }
 class nullptr_exception base exception {
-    public nullptr_exception(message : _int8[]) { base->exception(message); }
-    public nullptr_exception(message : string) { base->exception(message); }
+    public nullptr_exception(message : _int8[]) -> base(message) {}
+    public nullptr_exception(message : string) -> base(message) {}
 }
 class runtime_exception base exception {
-    public runtime_exception(message : _int8[]) { base->exception(message); }
-    public runtime_exception(message : string) { base->exception(message); }
+    public runtime_exception(message : _int8[]) -> base(message) {}
+    public runtime_exception(message : string) -> base(message) {}
 }
 class stack_overflow_exception base exception {
-    public stack_overflow_exception(message : _int8[]) { base->exception(message); }
-    public stack_overflow_exception(message : string) { base->exception(message); }
+    public stack_overflow_exception(message : _int8[]) -> base(message) {}
+    public stack_overflow_exception(message : string) -> base(message) {}
 }
 class thread_stack_exception base exception {
-    public thread_stack_exception(message : _int8[]) { base->exception(message); }
-    public thread_stack_exception(message : string) { base->exception(message); }
+    public thread_stack_exception(message : _int8[]) -> base(message) {}
+    public thread_stack_exception(message : string) -> base(message) {}
 }
 class class_cast_exception base exception {
-    public class_cast_exception(message : _int8[]) { base->exception(message); }
-    public class_cast_exception(message : string) { base->exception(message); }
+    public class_cast_exception(message : _int8[]) -> base(message) {}
+    public class_cast_exception(message : string) -> base(message) {}
 }
 class out_of_memory_exception base exception {
-    public out_of_memory_exception(message : _int8[]) { base->exception(message); }
-    public out_of_memory_exception(message : string) { base->exception(message); }
+    public out_of_memory_exception(message : _int8[]) -> base(message) {}
+    public out_of_memory_exception(message : string) -> base(message) {}
 }
 class not_implemented_error base exception {
-    public not_implemented_error(message : _int8[]) { base->exception(message); }
-    public not_implemented_error(message : string) { base->exception(message); }
+    public not_implemented_error(message : _int8[]) -> base(message) {}
+    public not_implemented_error(message : string) -> base(message) {}
 }
 
 /*
@@ -113,4 +113,8 @@ def runtime_error(message: string) : runtime_except {
 
 def runtime_error() : runtime_except {
     return new runtime_except();
+}
+
+def todo(message: string) {
+    throw new not_implemented_error(message);
 }

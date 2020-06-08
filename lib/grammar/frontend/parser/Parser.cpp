@@ -16,6 +16,7 @@
 #define isEnd() \
     (_current->getType() == _EOF)
 
+long recursion = 0;
 void parser::parse() {
     if(toks->size() == 0)
         return;
@@ -382,13 +383,18 @@ void parser::parseForStatement(Ast *ast) {
     Ast* branch = getBranch(ast, ast_for_statement);
 
     _current--;
+    if(branch->line >= 3000) {
+        int i = 0;
+    }
     expect(branch, "for");
 
     expect(branch, "(");
 
     if(peek(1)->getType() != SEMICOLON) {
         _current++;
+        RETAIN_RECURSION(0)
         parseVariableDecl(branch);
+        RESTORE_RECURSION()
     } else {
         expect(branch, ";");
     }
@@ -1754,7 +1760,6 @@ void parser::parseSetter(Ast* ast) {
     }
 }
 
-long recursion = 0;
 void parser::parseVariableDecl(Ast* ast) {
     Ast *branch = getBranch(ast, ast_variable_decl);
     recursion++;

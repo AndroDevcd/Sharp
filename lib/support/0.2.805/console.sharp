@@ -202,7 +202,7 @@ local def print_numbers(str: var[]) {
         ch := str[i];
         asm {
             loadl ebx, {ch}
-            putc ebx
+            put ebx
         }
 
         if((i + 1) < sizeof(str)) {

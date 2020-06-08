@@ -496,7 +496,7 @@ public:
         static opcode_instr neg(_register outRegister, _register inRegister);
 
         static bool illegalParam(opcode_arg param, instr_class iclass, short argNum = 1);
-        CXX11_INLINE static uint8_t posNeg(opcode_arg data);
+        static uint8_t posNeg(opcode_arg data);
 
     private:
         static opcode_instr instruction_Buffer[INSTRUCTION_BUFFER_SIZE];

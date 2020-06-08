@@ -49,12 +49,13 @@ class vm {
         return thread_result.at(result);
     }
 
-    static def unsuspend(t: thread) : thread_result {
+    static def unsuspend(t: thread, wait: var) : thread_result {
         id := t.get_native_handle();
         result: var;
 
         asm {
             loadl adx, {id}
+            loadl ebx, {wait}
             int 0x13
             smovr2 {result}, cmt
         }
@@ -178,5 +179,16 @@ class vm {
         }
 
         return null;
+    }
+
+    static def cores() : var {
+        result: var;
+
+        asm {
+            int 0x38
+            smovr2 {result}, ebx
+        }
+
+        return result;
     }
 }

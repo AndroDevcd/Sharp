@@ -1,37 +1,21 @@
 mod app;
 
 import std.io;
+import std.io.task;
 import platform.kernel;
-
-def foo(args: object[]) : var {
-    println("int forloop took: ${time.measure(milliseconds, { ->
-        for(i : int = 0; i.value < 100000000; i.value++) {
-        }
-    })} ms");
-    println("var forloop took: ${time.measure(milliseconds, { ->
-        for(i := 0; i < 100000000; i++) {
-        }
-    })} ms");
-    println("hello from the greatest time atop the largest castle in the nation");
-    return 0;
-}
-
-class handler : uncaught_exception_handler {
-
-    def uncaught_exception(err: throwable) {
-        println("caught ${err.get_message()}");
-    }
-}
 
 /**
 *
 */
 public static def main(args: string[]) : var {
-    err_handler := new handler();
-    t := new thread("foo", true, foo);
-    t.set_exception_handler(err_handler);
-    println("start: ${t.start()}");
-    println("join: ${t.join()}");
+    message : string = "hi";
+    scheduled_job := task.with_args(new object[] { message }) = { args : object[] ->
+        println(args[0] as string);
+        for(i := 0; i < 1_000_000; i++) {
 
+        }
+        println("done!");
+    };
+    thread.sleep(1000);
     return 4;
 }

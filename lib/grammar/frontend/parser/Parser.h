@@ -192,4 +192,12 @@ private:
     }
 
 
+#define RETAIN_RECURSION(rec) \
+    long oldRecursionVal = recursion; \
+    recursion = rec;
+
+#define RESTORE_RECURSION() \
+    recursion = oldRecursionVal;
+
+
 #endif //SHARP_PARSER_H

@@ -196,7 +196,7 @@ def copy(src: object[], srcStart: var, srcEnd: var) : object[] {
         pushl {src}
         ipushl {srcStart}
         ipushl {srcEnd}
-        int 0x21
+        int 0x37
         popObj2
         returnObj
         ret 0
@@ -209,7 +209,7 @@ def copy(src: var[], srcStart: var, srcEnd: var) : var[] {
         pushl {src}
         ipushl {srcStart}
         ipushl {srcEnd}
-        int 0x21
+        int 0x37
         popObj2
         returnObj
         ret 0
@@ -222,7 +222,7 @@ def copy(src: _int8[], srcStart: var, srcEnd: var) : _int8[] {
         pushl {src}
         ipushl {srcStart}
         ipushl {srcEnd}
-        int 0x21
+        int 0x37
         popObj2
         returnObj
         ret 0
@@ -235,7 +235,7 @@ def copy(src: _int16[], srcStart: var, srcEnd: var) : _int16[] {
         pushl {src}
         ipushl {srcStart}
         ipushl {srcEnd}
-        int 0x21
+        int 0x37
         popObj2
         returnObj
         ret 0
@@ -248,7 +248,7 @@ def copy(src: _int32[], srcStart: var, srcEnd: var) : _int32[] {
         pushl {src}
         ipushl {srcStart}
         ipushl {srcEnd}
-        int 0x21
+        int 0x37
         popObj2
         returnObj
         ret 0
@@ -261,7 +261,7 @@ def copy(src: _uint8[], srcStart: var, srcEnd: var) : _uint8[] {
         pushl {src}
         ipushl {srcStart}
         ipushl {srcEnd}
-        int 0x21
+        int 0x37
         popObj2
         returnObj
         ret 0
@@ -274,7 +274,7 @@ def copy(src: _uint16[], srcStart: var, srcEnd: var) : _uint16[] {
         pushl {src}
         ipushl {srcStart}
         ipushl {srcEnd}
-        int 0x21
+        int 0x37
         popObj2
         returnObj
         ret 0
@@ -287,7 +287,7 @@ def copy(src: _uint32[], srcStart: var, srcEnd: var) : _uint32[] {
         pushl {src}
         ipushl {srcStart}
         ipushl {srcEnd}
-        int 0x21
+        int 0x37
         popObj2
         returnObj
         ret 0
@@ -300,7 +300,7 @@ def copy(src: _uint64[], srcStart: var, srcEnd: var) : _uint64[] {
         pushl {src}
         ipushl {srcStart}
         ipushl {srcEnd}
-        int 0x21
+        int 0x37
         popObj2
         returnObj
         ret 0
@@ -313,7 +313,7 @@ def copy(src: _int64[], srcStart: var, srcEnd: var) : _int64[] {
         pushl {src}
         ipushl {srcStart}
         ipushl {srcEnd}
-        int 0x21
+        int 0x37
         popObj2
         returnObj
         ret 0

@@ -259,15 +259,16 @@ void Thread::suspendFor(Int mills) {
         thread->wait(mills);
 }
 
-int Thread::unSuspendThread(int32_t id) {
+int Thread::unSuspendThread(int32_t id, bool wait) {
     Thread *thread = getThread(id);
 
-    if (thread_self != NULL && (thread == NULL || thread->state != THREAD_SUSPENDED))
+    if (thread_self != NULL && (thread == NULL || (!wait && thread->state != THREAD_SUSPENDED)))
         return RESULT_ILL_THREAD_SUSPEND;
 
     if(thread->terminated)
         return RESULT_THREAD_TERMINATED;
 
+    if(wait) waitForThreadSuspend(thread);
     return unsuspendThread(thread);
 }
 
@@ -298,6 +299,11 @@ int Thread::interrupt(int32_t id) {
     return result;
 }
 
+void Thread::suspendAndWait(Thread *thread) {
+    suspendThread(thread);
+    waitForThreadSuspend(thread);
+}
+
 void Thread::waitForThreadSuspend(Thread *thread) {
     const int sMaxRetries = 10000000;
     const int sMaxSpinCount = 25;
@@ -305,7 +311,6 @@ void Thread::waitForThreadSuspend(Thread *thread) {
     int spinCount = 0;
     int retryCount = 0;
 
-    suspendThread(thread);
     while (thread->state == THREAD_RUNNING && !thread->suspended)
     {
         if (retryCount++ == sMaxRetries)
@@ -338,8 +343,7 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
     const int sMaxRetries = 10000000;
     int retryCount = 0;
 
-    thread->term();
-
+    retry:
     {
         GUARD(thread->mutex);
         thread->state = THREAD_KILLED;
@@ -353,10 +357,14 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
             retryCount = 0;
             if(thread->exited)
                 return;
+            else if(thread->suspended)
+                goto retry;
 
             __os_sleep(1);
         }
     }
+
+    thread->term();
 }
 
 /**
@@ -403,7 +411,7 @@ void Thread::suspendAllThreads() {
             && (thread->id != thread_self->id)
             && thread->state == THREAD_RUNNING){
             suspendThread(thread);
-            waitForThreadSuspend(thread);
+            suspendAndWait(thread);
         }
     }
 }
@@ -459,8 +467,13 @@ void Thread::term() {
 #endif
     this->name.free();
 
+    SharpObject *nill = NULL;
+    currentThread = nill;
+    args = nill;
 #ifdef BUILD_JIT
-    delete jctx;
+    if(jctx != NULL) {
+        delete jctx; jctx = NULL;
+    }
 #endif
 }
 
@@ -502,6 +515,7 @@ void Thread::killAll() {
     GUARD(threadsMonitor);
     Thread* thread;
     suspendAllThreads();
+    auto self = thread_self;
 
     for(unsigned int i = 0; i < maxThreadId; i++) {
         threads.get(i, thread);

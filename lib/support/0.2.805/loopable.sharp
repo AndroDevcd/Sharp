@@ -1,5 +1,5 @@
 mod std;
 
 interface loopable<t> {
-    def get_array() : t[];
+    def get_elements() : t[];
 }

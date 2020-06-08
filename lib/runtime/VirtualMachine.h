@@ -20,7 +20,8 @@ struct SharpObject;
 enum VMState {
     VM_CREATED = 0,
     VM_RUNNING = 1,
-    VM_TERMINATED = 2
+    VM_SHUTTING_DOWN = 2,
+    VM_TERMINATED = 3
 };
 
 class VirtualMachine {

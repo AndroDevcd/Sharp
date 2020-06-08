@@ -77,11 +77,11 @@ public:
     static int destroy(int32_t);
     static int interrupt(int32_t);
     static int suspendThread(int32_t);
-    static int unSuspendThread(int32_t);
+    static int unSuspendThread(int32_t, bool wait);
     static void suspendFor(Int);
     static int join(int32_t);
     static Thread* getThread(int32_t);
-    static void waitForThreadSuspend(Thread* thread);
+    static void suspendAndWait(Thread* thread);
     static void waitForThreadExit(Thread* thread);
     static void terminateAndWaitForThreadExit(Thread* thread);
     static int waitForThread(Thread *thread);
@@ -172,6 +172,8 @@ private:
     static void pushThread(Thread *thread);
     static void popThread(Thread *thread);
     void releaseResources();
+
+    static void waitForThreadSuspend(Thread *thread);
 };
 
 /**

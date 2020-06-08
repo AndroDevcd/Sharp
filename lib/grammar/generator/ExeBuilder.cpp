@@ -324,7 +324,7 @@ string ExeBuilder::codeToString(Method* fun) {
             }
             case Opcode::MOVI:
             {
-                ss << "movi #" << code.ir32.get(x+1)  << ", ";
+                ss << "movi #" << (int)code.ir32.get(x+1)  << ", ";
                 ss<< registerToString(GET_Da(opcodeData)) ;
                 x++;
                 break;
@@ -996,7 +996,7 @@ string ExeBuilder::codeToString(Method* fun) {
             case Opcode::IADDL:
             {
                 ss<<"iaddl ";
-                ss << code.ir32.get(x+1) << ", fp@";
+                ss << (int)code.ir32.get(x+1) << ", fp@";
                 ss<<GET_Da(opcodeData); x++;
 
                 break;
@@ -1004,7 +1004,7 @@ string ExeBuilder::codeToString(Method* fun) {
             case Opcode::ISUBL:
             {
                 ss<<"isubl ";
-                ss << code.ir32.get(x+1) << ", fp@";
+                ss << (int)code.ir32.get(x+1) << ", fp@";
                 ss<<GET_Da(opcodeData); x++;
 
                 break;
@@ -1012,7 +1012,7 @@ string ExeBuilder::codeToString(Method* fun) {
             case Opcode::IMULL:
             {
                 ss<<"imull ";
-                ss << code.ir32.get(x+1) << ", fp@";
+                ss << (int)code.ir32.get(x+1) << ", fp@";
                 ss<<GET_Da(opcodeData); x++;
 
                 break;
@@ -1020,7 +1020,7 @@ string ExeBuilder::codeToString(Method* fun) {
             case Opcode::IDIVL:
             {
                 ss<<"idivl ";
-                ss << code.ir32.get(x+1) << ", fp@";
+                ss << (int)code.ir32.get(x+1) << ", fp@";
                 ss<<GET_Da(opcodeData); x++;
 
                 break;
@@ -1028,7 +1028,7 @@ string ExeBuilder::codeToString(Method* fun) {
             case Opcode::IMODL:
             {
                 ss<<"imodl ";
-                ss << code.ir32.get(x+1) << ", fp@";
+                ss << (int)code.ir32.get(x+1) << ", fp@";
                 ss<<GET_Da(opcodeData); x++;
 
                 break;
@@ -1184,9 +1184,9 @@ string ExeBuilder::codeToString(Method* fun) {
             {
                 ss<<"isadd ";
                 ss << GET_Ca(opcodeData) << ", sp+";
-                if(code.ir32.get(x+1) < 0) ss << "[";
-                ss<<code.ir32.get(x+1);
-                if(code.ir32.get(x+1) < 0) ss << "]";
+                if((int)code.ir32.get(x+1) < 0) ss << "[";
+                ss<<(int)code.ir32.get(x+1);
+                if((int)code.ir32.get(x+1) < 0) ss << "]";
                 x++;
 
                 break;

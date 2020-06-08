@@ -260,7 +260,22 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
      * Check for uncaught exception in thread before exit
      */
     if(vm.state != VM_TERMINATED) {
-        thread->exit();
+        if (thread->id == main_threadid) {
+            /*
+            * Shutdown all running threads
+            * and de-allocate all allocated
+            * memory. If we do not call join()
+            * to wait for all other threads
+            * regardless of what they are doing, we
+            * stop them.
+            */
+            vm.shutdown();
+        } else {
+            thread->exit();
+
+            if(vm.state != VM_SHUTTING_DOWN)
+                Thread::destroy(thread);
+        }
     }
     else {
 #ifdef WIN32_
@@ -270,31 +285,11 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         return NULL;
 #endif
     }
-
-    if (thread->id == main_threadid)
-    {
-        /*
-        * Shutdown all running threads
-        * and de-allocate all allocated
-        * memory. If we do not call join()
-        * to wait for all other threads
-        * regardless of what they are doing, we
-        * stop them.
-        */
-        vm.shutdown();
-    } else
-        Thread::destroy(thread);
-
-#ifdef WIN32_
-    return 0;
-#endif
-#ifdef POSIX_
-    return NULL;
-#endif
 }
 
 void VirtualMachine::shutdown() {
     if(vm.state != VM_TERMINATED) {
+        vm.state = VM_SHUTTING_DOWN;
         destroy();
         vm.state = VM_TERMINATED;
     }
@@ -449,7 +444,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             registers[CMT]=Thread::suspendThread((int32_t )_64ADX);
             return;
         case OP_THREAD_UNSUSPEND:
-            registers[CMT]=Thread::unSuspendThread((int32_t )_64ADX);
+            registers[CMT]=Thread::unSuspendThread((int32_t )_64ADX, (int32_t )_64EBX);
             return;
         case OP_THREAD_WAIT:
             Thread::suspendFor((Int )_64ADX);
@@ -651,6 +646,10 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             break;
         case OP_COPY: {
             copy();
+            return;
+        }
+        case OP_CORES: {
+            registers[EBX]=std::thread::hardware_concurrency();
             return;
         }
         default: {

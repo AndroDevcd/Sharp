@@ -48,6 +48,9 @@ void memcopy() {
     SharpObject *arry = (thread_self->sp--)->object.object;
     SharpObject *coppiedArray = (thread_self->sp--)->object.object;
 
+    if(thread_self->calls == 2) {
+        int i = 3000;
+    }
     if(coppiedArray != NULL && arry != NULL) {
         if(srcEnd > coppiedArray->size || srcEnd < 0 || srcStart < 0 || srcStart >= coppiedArray->size
             || copyLen < 0) {
@@ -72,7 +75,9 @@ void memcopy() {
         }
 
         if(TYPE(coppiedArray->info) == _stype_var) { // var[]
-            std::memcpy(arry->HEAD + destStart, coppiedArray->HEAD + srcStart, sizeof(double) * srcEnd);
+            for (Int i = srcStart; i < srcEnd; i++) {
+                arry->HEAD[destStart++] = coppiedArray->HEAD[i];
+            }
         } else if(TYPE(coppiedArray->info) == _stype_struct) { // object? maybe...
             if(coppiedArray->node != NULL) {
                 for (Int i = srcStart; i < srcEnd; i++) {

@@ -1,0 +1,6 @@
+mod std.io.task;
+
+class cancellation_exception base runtime_except {
+    public cancellation_exception(message : _int8[]) -> base(message) {}
+    public cancellation_exception(message : string) -> base(message) {}
+}

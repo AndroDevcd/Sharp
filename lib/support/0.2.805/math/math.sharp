@@ -1,4 +1,4 @@
-mod math;
+mod std.math;
 
 /**
  * E for processing natural logarithms.
@@ -95,6 +95,13 @@ def fmod(num: var, num2: var) : var {
     return math_proc(num, num2, 0x13);
 }
 
+def round(num: var) : var {
+    int_val := num as _int64;
+    num -= int_val;
+
+    if(num >= 0.5) return int_val + 1;
+    else return int_val;
+}
 
 local def math_proc(num: var, proc: var) : var {
     asm {

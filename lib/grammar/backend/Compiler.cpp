@@ -1099,7 +1099,7 @@ void Compiler::validateAccess(Field *field, Ast* pAst) {
         }
     } else if(field->flags.find(PROTECTED)) {
         if(currentScope()->klass->isClassRelated(field->owner) || field->owner == currentScope()->klass
-                || (field->flags.find(STATIC) && field->owner->isGlobalClass() && field->module == currentScope()->klass->module)) {
+                || field->module == currentScope()->klass->module) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to protected field `" + field->fullName + "`");
         }
@@ -1149,7 +1149,7 @@ void Compiler::validateAccess(Method *function, Ast* pAst) {
     } else if(function->flags.find(PROTECTED)) {
         Scope *scope = currentScope();
         if(scope->klass->isClassRelated(function->owner) || function->owner == scope->klass
-           || (function->flags.find(STATIC) && function->owner->isGlobalClass() && function->module == currentScope()->klass->module)) {
+           || function->module == currentScope()->klass->module) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to protected method `" + function->toString() + "`");
         }
@@ -1840,13 +1840,10 @@ void Compiler::fullyQualifyLambda(Utype *lambdaQualifier, Utype *lambda) {
     Method *lambdaFn = (Method*)lambda->getResolvedType();
     Method *qualifier = (Method*)lambdaQualifier->getResolvedType();
 
-    // this seems weird but this check dosent check
     if(isLambdaFullyQualified(lambdaFn)) {
-        if(lambdaFn->utype == NULL)
-            lambdaFn->utype = qualifier->utype;
+        lambdaFn->utype = qualifier->utype;
     } else {
-        if(lambdaFn->utype == NULL)
-            lambdaFn->utype = qualifier->utype;
+        lambdaFn->utype = qualifier->utype;
 
         for(long i = 0; i < lambdaFn->params.size(); i++) {
             Field *param = lambdaFn->params.get(i);
@@ -1871,7 +1868,10 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
     RETAIN_BLOCK_TYPE(currentScope()->type == RESTRICTED_INSTANCE_BLOCK || currentScope()->type == INSTANCE_BLOCK
         ? INSTANCE_BLOCK : STATIC_BLOCK)
     compileTypeIdentifier(ptr, ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier));
+    RETAIN_TYPE_INFERENCE(true)
     compileExpressionList(expressions, ast->getSubAst(ast_expression_list));
+    RESTORE_TYPE_INFERENCE()
+
     expressionsToParams(expressions, params);
     RESTORE_BLOCK_TYPE()
 
@@ -1979,8 +1979,8 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
 void Compiler::pushParametersToStackAndCall(Ast *ast, Method *resolvedMethod, List<Field *> &params, CodeHolder &code) {
     for(long i = 0; i < params.size(); i++) {
         Field *methodParam = resolvedMethod->params.get(i);
-        if(isLambdaUtype(methodParam->utype))
-            fullyQualifyLambda(params.get(i)->utype, methodParam->utype);
+        if(isLambdaUtype(params.get(i)->utype))
+            fullyQualifyLambda(methodParam->utype, params.get(i)->utype);
 
         if(isUtypeConvertableToNativeClass(methodParam->utype, params.get(i)->utype)) {
             convertUtypeToNativeClass(methodParam->utype, params.get(i)->utype, code, ast);
@@ -3680,9 +3680,6 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
                 errors->createNewError(GENERIC, ast->line, ast->col, "cannot instantiate extension class `" + arrayType->toString() + "`");
             }
 
-            if(ast->line >= 3000) {
-                int i = 0;
-            }
             List<Expression*> expressions;
             List<Field*> params;
             Method *constr;
@@ -4486,13 +4483,40 @@ void Compiler::compileMinusExpression(Expression* expr, Ast* ast) {
             case _UINT32:
             case _UINT64:
             case VAR:
-                expr->utype->copy(varUtype);
-                expr->utype->getCode().inject(expr->utype->getCode().getInjector(ebxInjector));
-                expr->utype->getCode().addIr(OpBuilder::neg(EBX, EBX));
+                if(expr->utype->getType() == utype_literal) {
+                    expr->type = exp_var;
+                    expr->utype->setType(utype_literal);
+                    expr->utype->setArrayType(false);
+                    expr->utype->getCode().free();
+                    double value =((Literal*)expr->utype->getResolvedType())->numericData;
+                    value = -value;
 
-                expr->utype->getCode().freeInjectors();
-                expr->utype->getCode().getInjector(stackInjector)
-                        .addIr(OpBuilder::rstore(EBX));
+                    if(value > INT32_MAX || !isWholeNumber(value)) {
+                        long constantAddress = constantMap.addIfIndex(value);
+
+                        if(constantAddress >= CONSTANT_LIMIT) {
+                            stringstream err;
+                            err << "maximum constant limit of (" << CONSTANT_LIMIT << ") reached.";
+                            errors->createNewError(INTERNAL_ERROR, ast, err.str());
+                        }
+
+                        expr->utype->getResolvedType()->address = constantAddress;
+                        expr->utype->getCode().addIr(OpBuilder::ldc(EBX, constantAddress));
+                    } else
+                        expr->utype->getCode().addIr(OpBuilder::movi(value, EBX));
+
+                    expr->utype->getCode().getInjector(stackInjector)
+                            .addIr(OpBuilder::rstore(EBX));
+                    expr->utype->setResolvedType(new Literal(value));
+                } else {
+                    expr->utype->copy(varUtype);
+                    expr->utype->getCode().inject(expr->utype->getCode().getInjector(ebxInjector));
+                    expr->utype->getCode().addIr(OpBuilder::neg(EBX, EBX));
+
+                    expr->utype->getCode().freeInjectors();
+                    expr->utype->getCode().getInjector(stackInjector)
+                            .addIr(OpBuilder::rstore(EBX));
+                }
                 break;
 
             case CLASS:
@@ -4836,8 +4860,10 @@ Field* Compiler::compileLambdaArg(Ast *ast) {
             field->isArray = utype->isArray();
         } else
             field->type = UNDEFINED;
-    } else
+    } else {
         field->type = ANY;
+        field->utype = anyUtype;
+    }
 
     return field;
 }
@@ -6524,6 +6550,7 @@ void Compiler::setup() {
     objectUtype = new Utype(OBJECT);
     nullUtype = new Utype(OBJECT);
     undefUtype = new Utype(UNDEFINED);
+    anyUtype = new Utype(ANY);
     undefUtype->setType(utype_unresolved);
     nullUtype->setNullType(true);
     Obfuscater::addModule("__$srt_undefined", guid++);
@@ -7638,11 +7665,11 @@ void Compiler::compileForEachStatement(Ast *ast) {
         ClassObject *loopable = arrayExpr.utype->getClass()->getLoopableClass();
 
         List<Field*> emptyParams;
-        Method *get_array = findFunction(loopable, "get_array", emptyParams, ast, true, fn_delegate);
-        if(get_array != NULL) {
-            if(get_array->utype->isArray()) {
+        Method *get_elements = findFunction(loopable, "get_elements", emptyParams, ast, true, fn_delegate);
+        if(get_elements != NULL) {
+            if(get_elements->utype->isArray()) {
                 arrayExpr.utype->getCode().inject(stackInjector);
-                pushParametersToStackAndCall(ast, get_array, emptyParams, arrayExpr.utype->getCode());
+                pushParametersToStackAndCall(ast, get_elements, emptyParams, arrayExpr.utype->getCode());
 
                 arrayExpr.utype->getCode().freeInjectors();
                 arrayExpr.utype->getCode().getInjector(ptrInjector)
@@ -7651,11 +7678,11 @@ void Compiler::compileForEachStatement(Ast *ast) {
                 arrayExpr.utype->getCode().getInjector(removeFromStackInjector)
                         .addIr(OpBuilder::pop());
 
-                arrayExpr.type = utypeToExpressionType(get_array->utype);
-                arrayExpr.utype->copy(get_array->utype);
+                arrayExpr.type = utypeToExpressionType(get_elements->utype);
+                arrayExpr.utype->copy(get_elements->utype);
             } else {
                 errors->createNewError(GENERIC, ast->line, ast->col,
-                                       " support function `" + get_array->toString() + "` must return an array.");
+                                       " support function `" + get_elements->toString() + "` must return an array.");
             } // we must make sure the user didnt srew with this function
         } // we dont need to error out the user will recieve an error elsewhere
     }

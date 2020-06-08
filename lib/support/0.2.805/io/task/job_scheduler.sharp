@@ -1,0 +1,131 @@
+mod std.io.task;
+
+import platform.kernel;
+import std.math;
+import std.io;
+
+private short_term_threads : var;
+private long_term_threads : var;
+
+def start_scheduler() {
+	calculate_max_threads();
+	job_scheduler := new thread("task_scheduler", scheduler_main, launcher.long_term_pool);
+	job_scheduler.start(null);
+}
+
+def calculate_max_threads() {
+    n_cores := vm.cores();
+    n_cores *= 2;
+    n_cores -= 4;
+
+    if(n_cores > 2) {
+        short_term_threads = round(n_cores * 0.75);
+        long_term_threads = round(n_cores * 0.25);
+    }
+
+    if(short_term_threads == 0)
+        short_term_threads = 1;
+
+    if(long_term_threads == 0)
+        long_term_threads = 1;
+}
+
+def scheduler_main(args : object[]) : var
+{
+	jobs := launcher.job_queue;
+	while(true)
+	{
+		if(jobs.empty())
+			thread.yield();
+		else {
+			check_list:
+			size := jobs.size();
+			for(i : var = 0; i < size; i++) {
+				scheduled_job := jobs.at(i);
+
+				if(scheduled_job.delay_time != 0) {
+					if(time.mills_time() >= scheduled_job.delay_time) {
+						scheduled_job.delay_time = 0;
+						execute_job(scheduled_job);
+
+						if(!scheduled_job.has_timeout) {
+							jobs.remove_at(i);
+							i--; size--;
+						}
+					}
+				} else if(scheduled_job.has_timeout) {
+				    if(scheduled_job.host == null) {
+				        execute_job(scheduled_job);
+				    }
+
+					if(scheduled_job.state == active && time.mills_time() >= scheduled_job.timeout) {
+						scheduled_job.cancel();
+						jobs.remove_at(i); i--; size--;
+					}
+				} else {
+				    if(execute_job(scheduled_job)) {
+                        jobs.remove_at(i); i--; size--;
+					}
+				}
+			}
+		}
+
+		thread.sleep(2);
+	}
+	return 0;
+}
+
+def get_host(long_running : var) : thread {
+	pool : thread_group;
+	if(long_running) {
+		pool = launcher.long_term_pool;
+	} else
+		pool = launcher.short_term_pool;
+
+
+    host : thread =
+        pool.find({ t ->
+            return !t.is_active() || launcher.get_host_controller(t).scheduled_job == null;
+        });
+
+    // can we creat a new host?
+    if(host == null) {
+        if(long_running) {
+            if(long_term_threads > 0) {
+                long_term_threads--;
+                controller := new job_controller();
+                host = new thread("worker_thread#${pool.size()+1}", job.job_main, pool);
+                launcher.controllers.put(host, controller);
+            }
+        } else {
+            if(short_term_threads > 0) {
+                short_term_threads--;
+                controller := new job_controller();
+                host = new thread("worker_thread#${pool.size()+1}", job.job_main, pool);
+                launcher.controllers.put(host, controller);
+            }
+        }
+    }
+
+	return host;
+}
+
+def execute_synchronous(scheduled_job : job) {
+	if(scheduled_job.delay_time != 0) {
+		delay := scheduled_job.delay_time - time.mills_time();
+		if(delay > 0) thread.sleep(delay);
+	}
+	scheduled_job.execute();
+}
+
+def execute_job(scheduled_job : job) : var {
+	host := get_host(scheduled_job.long_term);
+
+	if(host != null) {
+	    scheduled_job.host = host;
+	    scheduled_job.controller = launcher.get_host_controller(host);
+	    scheduled_job.execute_async();
+	    return true;
+	} else return false;
+}
+

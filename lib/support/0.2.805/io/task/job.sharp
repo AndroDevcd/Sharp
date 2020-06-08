@@ -1,0 +1,126 @@
+mod std.io.task;
+
+import std.io;
+
+public class job {
+
+	private job() {}
+
+	job(name : string) {
+		self->name = name;
+		id = guid++;
+	}
+
+	protected def execute_async() : var {
+		if(state == created) {
+			controller.scheduled_job = self;
+			if(host.is_active()) {
+			    host.notify();
+			} else {
+			    host.start(new object[] { controller });
+			}
+		} else if(state == active) {
+			return 1;
+		}
+
+		return 2;
+	}
+
+	public def cancel() {
+		state = cancelled;
+		host.interrupt();
+		launcher.cleanup_job(self);
+	}
+
+	public def join() {
+	    if(block_caller
+	        || state == cancelled
+	        || state == completed)
+	        return;
+
+	    try_join := false;
+        lock(self) {
+            if(!is_finished()) {
+                try_join = true;
+                listeners.add(thread.current());
+            }
+        }
+
+        if(try_join) thread.wait();
+	}
+
+	public def get_state() := state;
+	public def get_name() := name;
+	public def get_id() := id;
+
+	protected def operator=(block: ()()) {
+		self->main0 = block;
+	}
+
+	protected def operator=(block: (args : object[])()) {
+		main1 = block;
+	}
+
+	protected def operator=(block: (deferred : object, args : object[])()) {
+		main2 = block;
+	}
+
+	protected def operator=(block: (deferred : object)()) {
+		main3 = block;
+	}
+
+	protected static def job_main(args : object[]) : var {
+        controller := args[0] as job_controller;
+
+        for(;;) {
+            try {
+			    controller.scheduled_job.execute();
+            } catch(cancellation_exception) {
+		        launcher.cleanup_job(controller.scheduled_job);
+            } catch(e: error) {
+		        launcher.cleanup_job(controller.scheduled_job);
+			    controller.scheduled_job = null;
+		        throw e;
+            }
+
+			controller.scheduled_job = null;
+            thread.wait();
+        }
+
+        return 0;
+	}
+
+	protected def execute() {
+		if(has_timeout) timeout = time.mills_time() + timeout;
+		state = active;
+
+        when {
+            main0 -> main0();
+            main1 -> main1(args);
+        }
+
+		state = completed;
+		launcher.cleanup_job(self);
+	}
+
+    def is_finished() := state == completed || state == cancelled;
+
+	protected main0: ()();
+	protected main1: (args : object[])();
+	protected main2: (object, object[])();
+	protected main3: (object)();
+	protected host : thread;
+	protected name : string;
+	protected args : object[];
+	protected deferred : object;
+	protected has_timeout := false;
+	protected timeout := 0;
+	protected delay_time := 0;
+	protected id := 0;
+	protected block_caller := false;
+	protected long_term := false;
+	protected state := created;
+	protected static guid := 0;
+	protected controller: job_controller;
+    protected listeners := new list<thread>();
+}

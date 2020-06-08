@@ -187,7 +187,7 @@ class string : loopable<_int8> {
 
     def get_data() := data;
 
-    def get_array() := data;
+    def get_elements() := data;
 
     def to_array() : _int8[]
     {

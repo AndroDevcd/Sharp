@@ -798,7 +798,7 @@ void GarbageCollector::sedate() {
     mutex.lock();
     if(!sleep && tself->state == THREAD_RUNNING) {
         sleep = true;
-        Thread::waitForThreadSuspend(Thread::getThread(gc_threadid));
+        Thread::suspendAndWait(Thread::getThread(gc_threadid));
     }
     mutex.unlock();
 }

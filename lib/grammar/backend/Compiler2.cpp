@@ -845,6 +845,9 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
     bool lastReference;
     Utype *bridgeUtype = new Utype(); // we need this so we dont loose code when free is called
 
+    if(ast->line >= 3000) {
+        int il = 0;
+    }
     RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
     RETAIN_SCOPE_CLASS(fromClass ? (ClassObject*)data : currentScope()->klass)
     for(unsigned int i = 1; i < ptr.classes.size(); i++) {
@@ -899,6 +902,10 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
                 currentScope()->klass = bridgeUtype->getClass();
             else if(!lastReference)
                 errors->createNewError(GENERIC, ast->line, ast->col, "field `" + bridgeUtype->toString() + "` was not found to be a class");
+
+            if(!obfuscateMode && fromClass && !field->flags.find(STATIC)) {
+                errors->createNewError(GENERIC, ast->line, ast->col, "cannot get field `" + field->name + "` from self in static context");
+            }
 
             if(isFieldInlined((Field*)bridgeUtype->getResolvedType()) && lastReference) {
                 bridgeUtype->setType(utype_literal);
@@ -978,7 +985,7 @@ void Compiler::resolveUtype(ReferencePointer &ptr, Utype* utype, Ast *ast) {
         } else if(utype->getType() == utype_class) {
             resolveClassHeiarchy(utype->getResolvedType(), true, ptr, utype, ast);
         } else if(utype->getType() == utype_field) {
-            if(((Field*)utype->getResolvedType())->utype->getClass()) {
+            if(((Field*)utype->getResolvedType())->utype && ((Field*)utype->getResolvedType())->utype->getClass()) {
                 RETAIN_SCOPE_CLASS(utype->getClass())
                 resolveClassHeiarchy(utype->getClass(), false, ptr, utype, ast);
                 RESTORE_SCOPE_CLASS()
