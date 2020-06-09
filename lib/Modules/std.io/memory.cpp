@@ -21,7 +21,7 @@ void copy() {
 
         if(TYPE(oldArray->info) == _stype_var) { // var[]
             *arry = GarbageCollector::self->newObject(end);
-            std::memcpy(arry->object->HEAD+start, oldArray->HEAD, sizeof(double) * end);
+            std::memcpy(arry->object->HEAD, oldArray->HEAD+start, sizeof(double) * end);
         } else if(TYPE(oldArray->info) == _stype_struct) { // object? maybe...
             if(oldArray->node != NULL) {
                 if(IS_CLASS(oldArray->info)) {
@@ -45,8 +45,8 @@ void memcopy() {
     Int srcStart = (thread_self->sp--)->var;
     Int destStart = (thread_self->sp--)->var;
     Int copyLen = srcEnd - srcStart;
-    SharpObject *arry = (thread_self->sp--)->object.object;
     SharpObject *coppiedArray = (thread_self->sp--)->object.object;
+    SharpObject *arry = (thread_self->sp--)->object.object;
 
     if(coppiedArray != NULL && arry != NULL) {
         if(srcEnd > coppiedArray->size || srcEnd < 0 || srcStart < 0 || srcStart >= coppiedArray->size

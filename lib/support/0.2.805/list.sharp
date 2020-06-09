@@ -18,6 +18,10 @@ class list<t> : loopable<t> {
         data = new t[starting_capacity];
     }
 
+    list(initial_data: t[]) {
+        add_all(initial_data);
+    }
+
     def empty() := n_elements == 0;
 
     def set_compact(compact_array: var) {
@@ -71,6 +75,16 @@ class list<t> : loopable<t> {
     def add_all(lst: list<t>) {
         data = copy(lst.data, 0, lst.n_elements) as t[];
         n_elements = lst.n_elements;
+    }
+
+    def add_all(lst: t[]) {
+        if(lst != null) {
+            data = copy(lst, 0, sizeof(lst)) as t[];
+            n_elements = sizeof(lst);
+        } else {
+            n_elements = 0;
+            data = new t[default_capacity];
+        }
     }
 
     def add(element: t) {

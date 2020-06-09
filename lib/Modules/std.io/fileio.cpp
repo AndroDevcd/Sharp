@@ -25,11 +25,14 @@
 #define stat _stat
 #endif
 
-
-int FILE_EXISTS    = 0x01;
-int FILE_REGULAR   = 0x02;
-int FILE_DIRECTORY = 0x04;
-int FILE_HIDDEN    = 0x08;
+int FILE_EXISTS       = 0x01;
+int FILE_REGULAR      = 0x02;
+int FILE_DIRECTORY    = 0x04;
+int FILE_BLOCK_DEVICE = 0x08;
+int FILE_CHARACTER    = 0x10;
+int FILE_FIFO_PIPE    = 0x20;
+int _FILE_UNKNOWN     = 0x40;
+int FILE_HIDDEN       = 0x80;
 struct stat result;
 native_string resolve_path(native_string& path) {
     native_string fullPath;
@@ -64,18 +67,19 @@ native_string resolve_path(native_string& path) {
     return fullPath;
 }
 
-Int get_file_attrs(native_string& path) {
+uInt get_file_attrs(native_string& path) {
     if(stat(path.str().c_str(), &result)==0)
     {
-        Int mode = result.st_mode, attrs=0;
+        uInt mode = result.st_mode, attrs=0;
 
-        // regular file
-        if(S_ISREG(mode))
-            attrs |= FILE_REGULAR;
-
-        // directory
-        if(S_ISDIR(mode))
-            attrs |= FILE_DIRECTORY;
+        switch (mode & S_IFMT) {
+            case S_IFBLK:  attrs |= FILE_BLOCK_DEVICE;     break;
+            case S_IFCHR:  attrs |= FILE_CHARACTER;        break;
+            case S_IFDIR:  attrs |= FILE_DIRECTORY;        break;
+            case S_IFIFO:  attrs |= FILE_FIFO_PIPE;        break;
+            case S_IFREG:  attrs |= FILE_REGULAR;          break;
+            default:       attrs |= _FILE_UNKNOWN;         break;
+        }
 
         // exists
         attrs |= FILE_EXISTS;

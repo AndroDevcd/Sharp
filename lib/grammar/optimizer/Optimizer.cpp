@@ -125,6 +125,52 @@ void Optimizer::optimizeLocalVarInit() {
 }
 
 
+
+/**
+ * [0xb] 11:	call 100 // function does nothing
+ *
+ * to ->        (nothing)
+ */
+void Optimizer::optimizeEmptyCall() {
+    CodeHolder &code = currentMethod->data.code;
+    for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i) - 1;
+            continue;
+        }
+
+        switch (GET_OP(code.ir32.get(i))) {
+            case Opcode::IADD:
+            case Opcode::MOVI:
+            case Opcode::ISUB:
+            case Opcode::IMUL:
+            case Opcode::IDIV:
+            case Opcode::IMOD:
+            case Opcode::IADDL:
+            case Opcode::ISUBL:
+            case Opcode::IMULL:
+            case Opcode::IDIVL:
+            case Opcode::IMODL:
+            case Opcode::ISTORE:
+            case Opcode::ISTOREL:
+            case Opcode::ISADD:
+            case Opcode::CMP:
+            case Opcode::MOVN:
+            case Opcode::INVOKE_DELEGATE:
+                i++;
+                break;
+            case Opcode::CALL: {
+                if(allMethods->get(GET_Da(code.ir32.get(i)))->data.code.size() == 1
+                    && GET_OP(allMethods->get(GET_Da(code.ir32.get(i)))->data.code.ir32.get(0)) == Opcode::RET) {
+                    shiftAddresses(1, i);
+                    code.ir32.removeAt(i);
+                }
+                break;
+            }
+        }
+    }
+}
+
 /**
  * [0xb] 11:	loadl ebx, fp+1
  * [0xc] 12:	rstore ebx
@@ -1009,6 +1055,7 @@ void Optimizer::optimize() {
             optimizeUnNessicaryLengthCheck();
             optimizeUnnessicaryCMTMov();
             optimizeUnnessicaryLocalIntPop();
+            optimizeEmptyCall();
             postCodebaseSize += currentMethod->data.code.size();
         }
     }

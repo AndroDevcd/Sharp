@@ -1875,6 +1875,9 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
     expressionsToParams(expressions, params);
     RESTORE_BLOCK_TYPE()
 
+    if(ast->line >= 3000) {
+        int illo = 3000;
+    }
     if(ptr.classes.singular()) {
         singularCall = true;
         resolvedMethod = compileSingularMethodUtype(ptr, expr, params, ast);
@@ -2722,7 +2725,8 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
                 expr->utype->setArrayType(false);
                 expr->utype->setResolvedType(varUtype->getResolvedType());
                 if(operand == ">" || operand == "<" || operand == ">=" || operand == "<="
-                    || operand == "==" || operand == "!=") {
+                    || operand == "==" || operand == "!=" || operand == "&" || operand == "|"
+                    || operand == "^") {
                     expr->utype->getCode().getInjector(ebxInjector)
                             .addIr(OpBuilder::movr(EBX, CMT));
                     expr->utype->getCode().getInjector(stackInjector)
@@ -2810,7 +2814,7 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
         params.add(new Field());
         expressionToParam(rightExpr, params.get(0));
 
-        if ((overload = findFunction(leftExpr.utype->getClass(), "operator" + operand.getValue(),
+        if (!params.get(0)->nullField && (overload = findFunction(leftExpr.utype->getClass(), "operator" + operand.getValue(),
                                      params, ast, true, fn_op_overload)) != NULL) {
             compileMethodReturnType(overload, overload->ast, false);
 
@@ -3721,7 +3725,7 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
 
                 expr->utype->getCode().freeInjectors();
                 expr->utype->getCode().getInjector(ptrInjector)
-                        .addIr(OpBuilder::movsl(0));
+                        .addIr(OpBuilder::popObject2());
                 expr->utype->getCode().getInjector(removeFromStackInjector)
                         .addIr(OpBuilder::pop());
             }
@@ -3812,7 +3816,7 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
 
 void Compiler::compileNullExpression(Expression* expr, Ast* ast) {
     expr->utype->copy(nullUtype);
-    expr->type = utypeToExpressionType(nullUtype);
+    expr->type = exp_null;
 
     expr->utype->getCode()
             .addIr(OpBuilder::pushNull());

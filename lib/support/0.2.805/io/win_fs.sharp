@@ -1,0 +1,109 @@
+mod std.io;
+
+/**
+ * WinFileSystem represents the high level version of the operations
+ * that you can invoke on a windows file system. Not much needs to be changed in
+ * this file other than normalizing the path name.
+ *
+ * Windows does not classify access execute aso a request for that will fail
+ * before we even interrupt the vm
+ */
+protected class win_fs base file_system {
+    private slash := '\\';
+    private buffer := new _int8[512];
+
+    def path_separator() : var {
+        return slash;
+    }
+
+    /**
+    * Make sure we know that our path has the correct
+    * path seperators to be accessed
+    */
+    def normalize(pathname: string) : string {
+        n := pathname.size();
+        buf_index := 0;
+        for (i := 0; i < n; i++) {
+            // Remove duplicate slashes.
+            if (pathname[i] == '/') {
+                if(buf_index > 0 && buffer[buf_index - 1] != '\\')
+                    buffer[buf_index++] = '\\';
+
+                if(((i + 1) < n) && pathname[i + 1] == '/') {
+                    do {
+                        i++;
+                    } while(pathname[i] == '/');
+                    i--;
+                }
+            }
+            else if(pathname[i] == '\\')  {
+                if(((i + 1) < n) && pathname[i + 1] == '\\') {
+                    do {
+                        i++;
+                    } while(pathname[i] == '\\');
+
+                    if(buf_index > 0 && buffer[buf_index - 1] != '\\')
+                        i--;
+                }
+
+                if(buf_index > 0 && buffer[buf_index - 1] != '\\')
+                    buffer[buf_index++] = '\\';
+            }
+            else
+                buffer[buf_index++] = pathname[i];
+        }
+
+        return new string(buffer, 0, buf_index);
+    }
+
+     /**
+      * Return the simple boolean attributes for the file or directory denoted
+      * by the given abstract pathname, or zero if it does not exist or some
+      * other I/O error occurs.
+      */
+     def get_attributes(f: file) : var {
+        path := f.path.get_data();
+        attrs := 0;
+
+        /*
+        * This will perform the os call to request the
+        * file attributes of the given abstract pathname
+        */
+        asm {
+            pushl {path}
+            int 0x25
+            smovr2 {attrs}, ebx
+        };
+
+        return attrs;
+     }
+
+
+     /**
+      * Check whether the file or directory denoted by the given abstract
+      * pathname may be accessed by this process.  The second argument specifies
+      * which access, ACCESS_READ, ACCESS_WRITE or ACCESS_EXECUTE, to check.
+      * Return false if access is denied or an I/O error occurs
+      */
+     def check_access(f: file, access: var) : var {
+        path := f.path.get_data();
+        result := 0;
+
+        // unsupported on windows
+        if(access == file_system.access_execute)
+            return -1;
+
+        /*
+        * This will perform the os call to request the
+        * file access stats of the given abstract pathname
+        */
+        asm {
+            pushl {path}
+            loadl ebx, {access}
+            int 0x24
+            smovr2 {result}, ebx
+        };
+
+        return result;
+     }
+}

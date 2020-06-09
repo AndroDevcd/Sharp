@@ -60,6 +60,11 @@ string Field::toString() {
 }
 
 bool Field::isRelated(Field &f) {
+    if(nullField)
+        return f.type == CLASS || f.isArray || f.type == OBJECT;
+    else if(f.nullField)
+        return type == CLASS || isArray || type == OBJECT;
+
     if(type == CLASS) {
         if(f.type == CLASS)
             return isArray==f.isArray && ((ClassObject*)f.utype->getResolvedType())->isClassRelated((ClassObject*)utype->getResolvedType());
@@ -69,7 +74,7 @@ bool Field::isRelated(Field &f) {
             return true;
     }  else if(type == VAR) {
         if(isArray)
-            return f.isArray && f.type == VAR;
+            return (f.isArray && f.type == VAR);
         else {
             if (f.type <= VAR)
                 return isArray == f.isArray;
@@ -93,7 +98,7 @@ bool Field::isRelated(Field &f) {
         }
     } else if(type >= _INT8 && type <= _UINT64) {
         if(isArray)
-            return f.isArray && f.type == VAR;
+            return (f.isArray && f.type == VAR);
         else {
             if (f.type <= VAR)
                 return isArray == f.isArray;

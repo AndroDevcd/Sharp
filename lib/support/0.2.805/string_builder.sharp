@@ -107,7 +107,7 @@ class string_builder {
         else if(!space_available(sizeof(immstr)))
             expand(sizeof(immstr));
 
-        memcopy(data, immstr, ++cursor, 0, sizeof(immstr));
+        memcopy(immstr, data, ++cursor, 0, sizeof(immstr));
         cursor += sizeof(immstr) - 1;
         return self;
     }
@@ -126,7 +126,7 @@ class string_builder {
         else if(!space_available(sizeof(immstr)))
             expand(sizeof(immstr));
 
-        memcopy(data, immstr, ++cursor, 0, len);
+        memcopy(immstr, data, ++cursor, 0, len);
         cursor += sizeof(immstr) - len - 1;
         return self;
     }

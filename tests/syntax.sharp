@@ -10,20 +10,9 @@ import platform.kernel;
 count := 0;
 future : deferred<var>;
 public static def main(args: string[]) : var {
-    future = deferred_task<var>.for_result({ obs ->
-        observer := obs as observable<var>;
-        observer.post(105);
-        thread.sleep(500);
-        observer.post(105);
-        thread.sleep(500);
-        observer.post(500);
-    });
-
-    future.observe_forever({ obs ->
-        println("recieved: ${future.get_data()}");
-
-        if(future.get_data() == 500)
-            obs.stop();
-    });
+    f := new file("tests/tests/file.sharp");
+    string.fmt('l');
+    //println("name: ${f.mkdir()}");
+    println("${f.write("hello, world!")}");
     return 4;
 }

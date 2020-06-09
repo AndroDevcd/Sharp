@@ -1,7 +1,6 @@
 mod std.io;
 
-import std;
-import std.kernel;
+import platform;
 
 /**
 * Standard library for processing files
@@ -14,77 +13,61 @@ import std.kernel;
 * any operations sent to the kernel will be handled appropriately.
 *
 *
-*/
+*/ class kkk base string {}
 public class file {
-    private static file_system fs = get_file_system();
+    private static fs := get_file_system();
 
-    private path: string;
-    static separatorChar := fs.getPathSeparator();
-    static const string separator = "" + (new var[] {separatorChar});
+    protected path: string;
+    private static separator := fs.path_separator();
 
-    public File(string path) {
-        if(path == null)
-            throw new NullptrException("file path cannot be null");
-        self->path = fs.normalize(path);
+    file(path: string) {
+        update_path(path);
     }
 
-    public File(var[] path) {
-        if(path == null)
-            throw new NullptrException("file path cannot be null");
-        self->path = fs.normalize("" + path);
+    file(path: _int8[]) {
+        update_path("$path");
     }
 
-    public def getName() : string {
-        if(path == null || path.size()==0) {
-            return new string("");
-        }
-
-        string name ="";
-        var startPos=0;
-
-        for(var i = path.size()-1; i > 0; i--) {
-            if(path.at(i) == separatorChar) {
-                startPos=i+1;
-                break;
-            }
-        }
-        for(var i = startPos; i < path.size(); i++) {
-                var [] x = new var[] { path.at(i) };
-                name += x;
-        }
-
-        return name;
-    }
-
-	public def updatePath(string path) {
-        if(path == null)
-            throw new NullptrException("file path cannot be null");
-        self->path = fs.normalize(path);
-    }
-
-    public def getParentFile() : File {
+    def get_name() : string {
         if(path == null || path.size()==0) {
             return null;
         }
 
-        string parentPath ="";
-        var stopPos=0;
-
-        for(var i = path.size()-1; i > 0; i--) {
-            if(path.at(i) == separatorChar) {
-                stopPos=i;
-                break;
+        for(i := path.size()-1; i > 0; i--) {
+            if(path[i] == separator) {
+                return path.substring(i + 1, path.size());
             }
         }
-        for(var i = 0; i < stopPos; i++) {
-                var [] x = new var[] { path.at(i) };
-                parentPath += x;
-        }
 
-        return new File(parentPath);
+        return path;
     }
 
-    public def getPath() : string {
+    def to_string() := path;
+
+	def update_path(path: string) {
+        if(path == null)
+            throw new null_except("file path cannot be null");
+
+        if(path.empty())
+            throw new null_except("file path cannot be empty");
+        self->path = fs.normalize(path);
+    }
+
+    def get_parent_file() : file {
+        if(path == null || path.size()==0) {
+            return null;
+        }
+
+        for(i := path.size()-1; i > 0; i--) {
+            if(path[i] == separator) {
+                return new file(path.substring(0, i + 1));
+            }
+        }
+
+        return null;
+    }
+
+    def get_path() : string {
         return path;
     }
 
@@ -101,7 +84,7 @@ public class file {
       *
       * @see     java.io.File#isAbsolute()
       */
-    public def getAbsolutePath() : string {
+    def get_absolute_path() : string {
         return fs.resolve(self);
     }
 
@@ -110,8 +93,8 @@ public class file {
      * abstract pathname.
      *
      */
-    public def isReadable() : var {
-        return fs.checkAccess(self, FileSystem.ACCESS_READ)==0;
+    def is_readable() : var {
+        return fs.check_access(self, file_system.access_read)==0;
     }
 
     /**
@@ -119,8 +102,8 @@ public class file {
      * abstract pathname.
      *
      */
-    public def isWriteable() : var {
-        return fs.checkAccess(self, FileSystem.ACCESS_WRITE)==0;
+    def is_writeable() : var {
+        return fs.check_access(self, file_system.access_write)==0;
     }
 
     /**
@@ -128,8 +111,8 @@ public class file {
      * exists.
      *
      */
-    public def exists() : var {
-        return fs.checkAccess(self, FileSystem.ACCESS_OK)==0;
+    def exists() : var {
+        return fs.check_access(self, file_system.access_ok)==0;
     }
 
     /**
@@ -137,9 +120,8 @@ public class file {
      * directory.
      *
      */
-    public def isDirectory() : var {
-        return ((fs.getFileAttributes(self) & FileSystem.FILE_DIRECTORY)
-                != 0);
+    def is_directory() : var {
+        return ((fs.get_attributes(self) & file_system.file_directory)!= 0);
     }
 
     /**
@@ -148,8 +130,8 @@ public class file {
      * addition, satisfies other system-dependent criteria.
      *
      */
-    public def isFile() : var {
-        return ((fs.getFileAttributes(self) & FileSystem.FILE_REGULAR) != 0);
+    def is_file() : var {
+        return ((fs.get_attributes(self) & file_system.file_regular) != 0);
     }
 
     /**
@@ -160,8 +142,8 @@ public class file {
      * considered to be hidden if it has been marked as such in the filesystem.
      *
      */
-    public def isHidden() : var {
-        return ((fs.getFileAttributes(self) & FileSystem.FILE_HIDDEN) != 0);
+    def is_hidden() : var {
+        return ((fs.get_attributes(self) & file_system.file_hidden) != 0);
     }
 
     /**
@@ -169,8 +151,16 @@ public class file {
      * last modified.
      *
      */
-    public def lastModified() : var {
-        return fs.getLastModifiedTime(self);
+    def last_modified() : var {
+        return fs.last_modified_time(self, file_system.last_modification);
+    }
+
+    def last_status_changed() : var {
+        return fs.last_modified_time(self, file_system.last_status_change);
+    }
+
+    def last_accessed() : var {
+        return fs.last_modified_time(self, file_system.last_access);
     }
 
     /**
@@ -178,8 +168,8 @@ public class file {
      * The return value is unspecified if this pathname denotes a directory.
      *
      */
-    public def length() : var {
-        return fs.getLength(self);
+    def length() : var {
+        return fs.get_length(self);
     }
 
 
@@ -193,8 +183,8 @@ public class file {
      * filesystem activities that might affect the file.
      *
      */
-    public def create() {
-        fs.createFile(path);
+    def create() {
+        fs.create_file(path);
     }
 
     /**
@@ -203,8 +193,8 @@ public class file {
      * order to be deleted.
      *
      */
-    public def delete() : var {
-        return fs.delete(self)==0;
+    def delete() : var {
+        return fs.delete(self);
     }
 
     /**
@@ -219,16 +209,16 @@ public class file {
      * complete path.
      *
      */
-    public def list() : string[] {
-        return fs.list(self);
+    def list() : list<string> {
+        return new list<string>(fs.list(self));
     }
 
     /**
      * Creates the directory named by this abstract pathname.
      *
      */
-    public def mkdir() : var {
-        return fs.createDirectory(self)==0;
+    def mkdir() : var {
+        return fs.create_directory(self);
     }
 
     /**
@@ -246,15 +236,19 @@ public class file {
      * The return value should always be checked to make sure
      * that the rename operation was successful.
      */
-    public def renameTo(File dest) : var {
+    def rename(dest: file) : var {
         if (dest == null) {
-            throw new NullptrException();
+            throw new null_except();
         }
-        var result = fs.rename(self, dest);
-        if(result==0) {
-            self->path = dest.getPath();
+
+        result := fs.rename(self, dest);
+        when (result) {
+            0 -> {
+                self->path = dest.path;
+            }
         }
-        return result==0;
+
+        return result;
     }
 
     /**
@@ -269,9 +263,9 @@ public class file {
      * truncated) time argument that was passed to this method.
      *
      */
-    public def setLastModified(var time) : var {
-        if ((_int32)time < 0) throw new IllegalArgumentException("Negative time");
-        return fs.setLastModifiedTime(self, time);
+    def set_last_modified(time: var) : var {
+        if ((time as _int32) < 0) throw new ill_arg_except("Negative time");
+        return fs.set_last_modified_time(self, time);
     }
 
     /**
@@ -282,8 +276,8 @@ public class file {
      * directory may be deleted depends upon the underlying system.
      *
      */
-    public def setReadOnly() : var {
-        return fs.setReadOnly(self)==0;
+    def set_read_only() : var {
+       return fs.set_read_only(self);
     }
 
     /**
@@ -291,8 +285,8 @@ public class file {
      * pathname.
      *
      */
-    public def setWritable(var writable, var ownerOnly) : var {
-        return fs.setPermission(self, FileSystem.ACCESS_WRITE, writable, ownerOnly);
+    def set_writable(writable: var, owner_only: var) : var {
+        return fs.set_permission(self, file_system.access_write, writable, owner_only);
     }
 
     /**
@@ -300,8 +294,8 @@ public class file {
      * pathname.
      *
      */
-    public def setWritable(var writable) : var {
-        return setWritable(writable, true);
+    def set_writable(writable: var) : var {
+        return set_writable(writable, true);
     }
 
     /**
@@ -309,8 +303,8 @@ public class file {
      * pathname.
      *
      */
-    public def setReadable(var readable, var ownerOnly) : var {
-        return fs.setPermission(self, FileSystem.ACCESS_READ, readable, ownerOnly);
+    def set_readable(readable: var, owner_only: var) : var {
+        return fs.set_permission(self, file_system.access_read, readable, owner_only);
     }
 
     /**
@@ -318,8 +312,8 @@ public class file {
      * pathname.
      *
      */
-    public def setReadable(var readable) : var {
-        return setReadable(readable, true);
+    def set_readable(readable: var) : var {
+        return set_readable(readable, true);
     }
 
     /**
@@ -327,8 +321,8 @@ public class file {
      * pathname.
      *
      */
-    public def setExecutable(var executable, var ownerOnly) : var {
-        return fs.setPermission(self, FileSystem.ACCESS_EXECUTE, executable, ownerOnly);
+    def set_executable(executable: var, owner_only: var) : var {
+        return fs.set_permission(self, file_system.access_execute, executable, owner_only);
     }
 
     /**
@@ -336,8 +330,8 @@ public class file {
      * pathname.
      *
      */
-    public def setExecutable(var executable) : var {
-        return setExecutable(executable, true);
+    def set_executable(executable: var) : var {
+        return set_executable(executable, true);
     }
 
     /**
@@ -345,8 +339,8 @@ public class file {
      * abstract pathname.
      *
      */
-    public def canExecute() : var {
-        return fs.checkAccess(self, FileSystem.ACCESS_EXECUTE);
+    def is_executable() : var {
+        return fs.check_access(self, file_system.access_execute)==0;
     }
 
     /* -- Disk usage -- */
@@ -357,8 +351,8 @@ public class file {
      *
      * @since  1.6
      */
-    public def getTotalSpace() : var {
-        return fs.getSpace(self, FileSystem.SPACE_TOTAL);
+    def get_total_space() : var {
+        return fs.get_space_available(file_system.space_total);
     }
 
     /**
@@ -366,8 +360,8 @@ public class file {
      * named by this abstract path name.
      *
      */
-    public def getFreeSpace() : var {
-        return fs.getSpace(self, FileSystem.SPACE_FREE);
+    def get_free_space() : var {
+        return fs.get_space_available(file_system.space_free);
     }
 
     /**
@@ -389,14 +383,14 @@ public class file {
      *
      * @since  1.6
      */
-    public def getUsableSpace() : var {
-        return fs.getSpace(self, FileSystem.SPACE_USABLE);
+    def get_usable_space() : var {
+        return fs.get_space_available(file_system.space_usable);
     }
 
     /* -- Temporary files -- */
 
     // file name generation
-    private static def generateTempFile(string prefix, string suffix, File dir) : File
+    private static def generate_temp_file(prefix: string, suffix: string, dir: file) : file
     {
 //        int n = Math.randomIntInternal();
 //        if (n == Integer.MIN_VALUE) {
@@ -417,8 +411,8 @@ public class file {
      * returns successfully then it is guaranteed that:
      *
      */
-    public static def createTempFile(string prefix, string suffix,
-                                      File directory) : File
+    static def create_temp_file(prefix: string, suffix: string,
+                                      directory: file) : file
     {
 //        if (prefix.length() < 3)
 //            throw new IllegalArgumentException("Prefix string too short");
@@ -451,24 +445,21 @@ public class file {
      * createTempFile(prefix,&nbsp;suffix,&nbsp;null)}</code>.
      *
      */
-    public static def createTempFile(string prefix, string suffix) : File
+    static def create_temp_file(prefix: string, suffix: string) : file
     {
-        return createTempFile(prefix, suffix, null);
+        create_temp_file(new kkk(), suffix, null);
+        return create_temp_file(prefix, suffix, null);
     }
 
-    public static def readAllText(File file, string data) {
-        fs.read(file, data);
-    }
+    def read_all_text() := fs.read(self);
 
-    public static def write(File file, string data) {
-        fs.write(file, data);
-    }
+    def write(data: string) := fs.write(self, data);
 
-    private static def getFileSystem() : FileSystem {
-        if(Manifest.isWindows()) {
-            return new WinFileSystem();
+    private static def get_file_system() : file_system {
+        if(build.is_windows()) {
+            return new win_fs();
         } else {
-            return new UnixFileSystem();
+            return new unix_fs();
         }
     }
 }

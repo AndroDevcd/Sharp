@@ -13,7 +13,7 @@ native_string resolve_path(native_string& path);
 
 int check_access(native_string& path, int access_flag);
 
-Int get_file_attrs(native_string& path);
+uInt get_file_attrs(native_string& path);
 
 Int last_update(native_string& path, int tm_request);
 

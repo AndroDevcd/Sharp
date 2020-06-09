@@ -11,6 +11,8 @@ typedef uInt stream_t;
 #define STREAM_BASE 0x200
 #define STREAM_CHUNK 128
 
+class native_string;
+
 class File
 {
 public:
@@ -78,6 +80,8 @@ public:
             }
             return *this;
         }
+
+        buffer& operator<<(native_string* buf);
 
         buffer& operator<<(const long long& _X)
         {

@@ -60,6 +60,10 @@ class out_of_bounds_exception base exception {
     public out_of_bounds_exception(message : _int8[]) -> base(message) {}
     public out_of_bounds_exception(message : string) -> base(message) {}
 }
+class io_exception base exception {
+    public io_exception(message : _int8[]) -> base(message) {}
+    public io_exception(message : string) -> base(message) {}
+}
 class invalid_operation_exception base exception {
     public invalid_operation_exception(message : _int8[]) -> base(message) {}
     public invalid_operation_exception(message : string) -> base(message) {}

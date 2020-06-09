@@ -790,6 +790,7 @@ unsigned long irCount = 0, overflow = 0;
 
 void Thread::exec() {
 
+    double *regs = registers;
     Object *tmpPtr;
     SharpObject* tmpShObj;
     Object *ptr;
@@ -816,7 +817,7 @@ void Thread::exec() {
 
         for (;;) {
             top:
-                if(current->address == 2363 && PC(this) == 24) {
+                if(current->address == 1705 && PC(this) == 21) {
                     Int i = 0;
                 }
                 DISPATCH();

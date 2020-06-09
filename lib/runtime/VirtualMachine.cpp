@@ -260,6 +260,8 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
      * Check for uncaught exception in thread before exit
      */
     if(vm.state != VM_TERMINATED) {
+        thread->exit();
+
         if (thread->id == main_threadid) {
             /*
             * Shutdown all running threads
@@ -271,8 +273,6 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             */
             vm.shutdown();
         } else {
-            thread->exit();
-
             if(vm.state != VM_SHUTTING_DOWN)
                 Thread::destroy(thread);
         }
@@ -508,8 +508,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 absolute = resolve_path(path);
                 GarbageCollector::self->createStringArray(relPath, absolute);
                 path.free(); absolute.free();
-            } else
+            } else {
                 throw Exception(vm.NullptrExcept, "");
+            }
             return;
         }
         case OP_MEM_COPY: {
@@ -554,7 +555,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         case OP_CHMOD:
         case OP_READ_FILE: {
             Object *arry = &(thread_self->sp--)->object;
-            if(arry->object != NULL && arry->object->HEAD != NULL && TYPE(arry->object->info)==_stype_var) {
+            if(arry->object != NULL && arry->object->size > 0 && TYPE(arry->object->info)==_stype_var) {
                 native_string path(arry->object->HEAD, arry->object->size);
 
                 if(signal==OP_FILE_ACCESS)
@@ -575,10 +576,11 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     arry = &(++thread_self->sp)->object;
 
                     if(files.size()>0) {
-                        *arry = GarbageCollector::self->newObjectArray(files.size());
+                        *arry = GarbageCollector::self->newObjectArray(files.size(), vm.StringClass);
 
                         for(long i = 0; i < files.size(); i++) {
-                            GarbageCollector::self->createStringArray(&arry->object->node[i], files.get(i));
+                            arry->object->node[i] = GarbageCollector::self->newObject(vm.StringClass);
+                            GarbageCollector::self->createStringArray(vm.resolveField("data", arry->object->node[i].object), files.get(i));
                             files.get(i).free();
                         }
                     }
@@ -603,8 +605,11 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                         throw Exception(vm.OutOfMemoryExcept, "out of memory");
                     }
 
+                    buf.end();
                     if(str.len > 0) {
-                        GarbageCollector::self->createStringArray(arry, str);
+                        *arry = GarbageCollector::self->newObject(vm.StringClass);
+                        GarbageCollector::self->createStringArray(vm.resolveField("data", arry->object), str);
+                        str.free();
                     } else {
                         GarbageCollector::self->releaseObject(arry);
                     }
@@ -628,11 +633,14 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     registers[EBX] = rename_file(path, rename);
                 else if(signal==OP_WRITE_FILE) {
                     File::buffer buf;
-                    buf.operator<<(rename.str()); // rename will contain our actual unicode data
+                    buf.operator<<(&rename); // rename will contain our actual unicode data
                     registers[EBX] = File::write(path.str().c_str(), buf);
                 }
-            } else
+                path.free();
+                rename.free();
+            } else {
                 throw Exception(vm.NullptrExcept, "");
+            }
 
             return;
         }
