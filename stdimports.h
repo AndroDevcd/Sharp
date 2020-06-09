@@ -90,9 +90,9 @@ struct Sharp {
 
 extern Sharp versions;
 
-void* __malloc(unsigned long long bytes);
-void* __calloc(unsigned long long n, unsigned long long bytes);
-void* __realloc(void *ptr, unsigned long long bytes, unsigned long long);
+void* __malloc(uInt bytes);
+void* __calloc(uInt n, uInt bytes);
+void* __realloc(void *ptr, uInt bytes, uInt);
 void __os_sleep(Int);
 void setupSigHandler();
 
