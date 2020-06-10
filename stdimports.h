@@ -39,17 +39,18 @@ using namespace std;
 #endif
 #endif
 #ifdef POSIX_
-    #include <pthread.h>
-    #include <unistd.h>
-    #include <sys/time.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <sys/time.h>
+#include <stdarg.h>
 
-    #define POSIX_USEC_INTERVAL 1000
+#define POSIX_USEC_INTERVAL 1000
 
-    #define MUTEX pthread_mutex_t
-    #define __os_yield() sched_yield();
+#define MUTEX pthread_mutex_t
+#define __os_yield() sched_yield();
 #endif
 
- //#define SHARP_PROF_
+//#define SHARP_PROF_
 #ifdef SHARP_PROF_
 #define PROFILER_NAME "tanto"
 #endif

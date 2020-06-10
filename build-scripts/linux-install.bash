@@ -6,14 +6,14 @@ git pull
 cd lib/grammar/
 
 echo "installing sharp..."
-#g++ -DMAKE_COMPILER *.cpp ../../main.cpp ../util/*.cpp parser/*.cpp parser/*/*.cpp -lstdc++ -s -O3 -Ofast -o sharpc -std=c++11
+g++ main.cpp -DMAKE_COMPILER lib/grammar/*.cpp lib/runtime/Opcode.cpp lib/grammar/optimizer/*.cpp lib/grammar/generator/*.cpp lib/grammar/frontend/*.cpp lib/grammar/frontend/*/*.cpp lib/grammar/backend/*.cpp lib/grammar/backend/*/*.cpp lib/util/*.cpp lib/util/zip/*.cpp -o bin/sharpc -std=c++11 -pthread -lstdc++ -O3 -Ofast
 
-#sudo cp sharpc /bin
+sudo cp sharpc /bin
 
 echo "installing runtime support..."
 
 cd ../runtime/
-gcc *.cpp -g ../../main.cpp ../Modules/*/*.cpp ../util/*.cpp ../util/fmt/src/*.cc ../util/jit/asmjit/src/asmjit/x86/*.cpp */*.cpp ../util/jit/asmjit/src/asmjit/base/*.cpp -lstdc++  -o sharp -std=c++11 -pthread
+g++ main.cpp lib/runtime/*.cpp lib/Modules/*/*.cpp lib/runtime/*/*.cpp lib/util/*.cpp lib/util/jit/asmjit/src/asmjit/x86/*.cpp lib/util/jit/asmjit/src/asmjit/core/*.cpp lib/util/zip/*.cpp lib/util/fmt/src/*.cc -o bin/sharp -std=c++11 -pthread -lstdc++ -lm -lrt -lstdc++ -O3 -Ofast
 sudo cp sharp /bin
 
 echo "sharp installed!"
