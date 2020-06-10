@@ -1111,7 +1111,7 @@ void Compiler::validateAccess(Field *field, Ast* pAst) {
 void Compiler::validateAccess(ClassObject *klass, Ast* pAst) {
     if(klass->flags.find(LOCAL)) {
         Scope *scope = currentScope();
-        if(scope->klass->meta.file == klass->meta.file) {
+        if(Obfuscater::getFile(current->getTokenizer()->file) == klass->meta.file) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to localized class `" + klass->fullName + "`");
         }
@@ -1136,7 +1136,7 @@ void Compiler::validateAccess(ClassObject *klass, Ast* pAst) {
 void Compiler::validateAccess(Method *function, Ast* pAst) {
     if(function->flags.find(LOCAL)) {
         Scope *scope = currentScope();
-        if(scope->klass->meta.file == function->meta.file) {
+        if(Obfuscater::getFile(current->getTokenizer()->file) == function->meta.file) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to localized method `" + function->toString() + "`");
         }
