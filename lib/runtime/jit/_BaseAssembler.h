@@ -8,7 +8,7 @@
 #include "architecture.h"
 #ifdef BUILD_JIT
 
-#define ASMJIT_BUILD_HOST  1
+#define ASMJIT_BUILD_X86 1
 #define ASMJIT_STATIC   1
 #define ASMJIT_BUILD_RELEASE 1
 
