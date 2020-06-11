@@ -3278,7 +3278,7 @@ void Compiler::compileInlineIfExpression(Expression* expr, Ast* ast) {
 
                 code.inject(trueExpr.utype->getCode());
                 falseExpr.utype->getCode().inject(ebxInjector);
-                code.addIr(OpBuilder::skip(falseExpr.utype->getCode().size() + 1));
+                code.addIr(OpBuilder::skip(falseExpr.utype->getCode().size()));
                 code.inject(falseExpr.utype->getCode());
 
                 code.getInjector(stackInjector)
@@ -3289,7 +3289,7 @@ void Compiler::compileInlineIfExpression(Expression* expr, Ast* ast) {
 
                 code.inject(trueExpr.utype->getCode());
                 falseExpr.utype->getCode().inject(ptrInjector);
-                code.addIr(OpBuilder::skip(falseExpr.utype->getCode().size() + 1));
+                code.addIr(OpBuilder::skip(falseExpr.utype->getCode().size()));
                 code.inject(falseExpr.utype->getCode());
 
                 code.getInjector(stackInjector)
@@ -8324,10 +8324,6 @@ void Compiler::compileMethod(Ast *ast, Method *func) {
         addLocalFields(func);
         compileMethodReturnType(func, ast, false);
         RETAIN_BLOCK_TYPE(func->flags.find(STATIC) ? STATIC_BLOCK : INSTANCE_BLOCK)
-
-        if(!func->flags.find(STATIC)) {
-            func->data.code.addIr(OpBuilder::checkClass(func->owner->address));
-        }
 
         if(func->fnType == fn_constructor) {
             callBaseClassConstructor(ast, func);

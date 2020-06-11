@@ -658,7 +658,3 @@ opcode_instr OpBuilder::ldc(_register outRegister, opcode_arg address) {
 opcode_instr OpBuilder::neg(_register outRegister, _register inRegister) {
     return SET_Ci(tmpInstr, NEG, outRegister, POSITIVE, inRegister, POSITIVE);
 }
-
-opcode_instr Opcode::Builder::checkClass(opcode_arg address) {
-    return SET_Di(tmpInstr, CHECK_CLASS, address, POSITIVE);
-}
