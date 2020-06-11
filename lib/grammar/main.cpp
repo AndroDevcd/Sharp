@@ -329,17 +329,17 @@ int _bootstrap(int argc, const char* argv[])
                             break;
                         default: {
                             stringstream ss;
-                            ss << "invalid option `" << ch << "`, try bootstrap -h";
+                            ss << "invalid option `" << ch << "`, try bootstrap --h";
                             error(ss.str());
                             break;
                         }
                     }
                 }
             } else
-                error("invalid option `" + option + "`, try bootstrap -h");
+                error("invalid option `" + option + "`, try bootstrap --h");
         }
         else if(string(argv[i]).at(0) == '-'){
-            error("invalid option `" + string(argv[i]) + "`, try bootstrap -h");
+            error("invalid option `" + string(argv[i]) + "`, try bootstrap --h");
         }
         else {
             // add the source files

@@ -3271,7 +3271,8 @@ void Compiler::compileInlineIfExpression(Expression* expr, Ast* ast) {
             condExpr.utype->getCode().inject(ebxInjector);
             code.inject(condExpr.utype->getCode());
 
-            if(trueExpr.type == exp_var && !trueExpr.utype->isArray() && trueExpr.utype->getCode().getInjector(ptrInjector).ir32.size() == 0) {
+            if(trueExpr.type == exp_var && !trueExpr.utype->isArray()
+                && trueExpr.utype->getCode().getInjector(ptrInjector).ir32.size() == 0) {
                 trueExpr.utype->getCode().inject(ebxInjector);
                 code.addIr(OpBuilder::skipifne(EBX, trueExpr.utype->getCode().size() + 2));
 

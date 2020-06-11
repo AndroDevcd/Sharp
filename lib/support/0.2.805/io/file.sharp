@@ -13,7 +13,7 @@ import platform;
 * any operations sent to the kernel will be handled appropriately.
 *
 *
-*/ class kkk base string {}
+*/
 public class file {
     private static fs := get_file_system();
 
@@ -447,7 +447,7 @@ public class file {
      */
     static def create_temp_file(prefix: string, suffix: string) : file
     {
-        create_temp_file(new kkk(), suffix, null);
+        //create_temp_file(null, suffix, null);
         return create_temp_file(prefix, suffix, null);
     }
 

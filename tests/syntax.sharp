@@ -15,6 +15,6 @@ public static def main(args: string[]) : var {
     string.fmt('l');
     //println("name: ${f.mkdir()}");
     dir := 0;
-	f.write(dir == IN ? "in" : "out");
+	f.write(dir ? "in" : "out");
     return 4;
 }

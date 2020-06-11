@@ -1308,6 +1308,25 @@ void Thread::exec() {
             LDC: // tested
                 registers[GET_Ca(*pc)]=vm.constants[GET_Cb(*pc)];
                 _brh
+            CHECK_CLASS: // trainig wheels for the language
+                if(fp->object.object) {
+                    if(IS_CLASS(fp->object.object->info)) {
+                        ClassObject *klass = &vm.classes[CLASS(fp->object.object->info)];
+                        if(klass->guid != GET_Da(*pc)) {
+                            stringstream ss;
+                            ss << "incorrect class found for instance class (" << klass->fullName.str()
+                                << ") found instead of (" << vm.classes[GET_Da(*pc)].fullName.str() << ")";
+                            throw Exception(vm.ThreadStackExcept, ss.str());
+                        }
+                    } else {
+                        stringstream ss;
+                        ss << "instance is not a class";
+                        throw Exception(vm.ThreadStackExcept, ss.str());
+                    }
+                } else {
+                    throw Exception(vm.NullptrExcept, "");
+                }
+                _brh
 
 
 

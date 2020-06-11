@@ -234,7 +234,8 @@
             &&LDC,                                     \
             &&SMOVR_3,                        \
             &&NEG,                             \
-            &&EXP                                \
+            &&EXP,                               \
+            &&CHECK_CLASS                         \
         };
 
 typedef unsigned int opcode_instr;
@@ -364,6 +365,7 @@ public:
         static const uint8_t SMOVR_3      = 0x74;
         static const uint8_t NEG          = 0x75;
         static const uint8_t EXP          = 0x76;
+        static const uint8_t CHECK_CLASS  = 0x77;
 
         enum instr_class {
             E_CLASS,
@@ -494,6 +496,7 @@ public:
         static opcode_instr swap();
         static opcode_instr ldc(_register outRegister, opcode_arg address);
         static opcode_instr neg(_register outRegister, _register inRegister);
+        static opcode_instr checkClass(opcode_arg address);
 
         static bool illegalParam(opcode_arg param, instr_class iclass, short argNum = 1);
         static uint8_t posNeg(opcode_arg data);
