@@ -8325,6 +8325,10 @@ void Compiler::compileMethod(Ast *ast, Method *func) {
         compileMethodReturnType(func, ast, false);
         RETAIN_BLOCK_TYPE(func->flags.find(STATIC) ? STATIC_BLOCK : INSTANCE_BLOCK)
 
+        if(!func->flags.find(STATIC)) {
+            func->data.code.addIr(OpBuilder::checkClass(func->owner->address));
+        }
+
         if(func->fnType == fn_constructor) {
             callBaseClassConstructor(ast, func);
         }

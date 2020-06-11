@@ -1312,7 +1312,7 @@ void Thread::exec() {
                 if(fp->object.object) {
                     if(IS_CLASS(fp->object.object->info)) {
                         ClassObject *klass = &vm.classes[CLASS(fp->object.object->info)];
-                        if(klass->guid != GET_Da(*pc)) {
+                        if(klass->address != GET_Da(*pc)) {
                             stringstream ss;
                             ss << "incorrect class found for instance class (" << klass->fullName.str()
                                 << ") found instead of (" << vm.classes[GET_Da(*pc)].fullName.str() << ")";
