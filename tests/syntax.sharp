@@ -9,10 +9,12 @@ import platform.kernel;
 */
 count := 0;
 future : deferred<var>;
+const IN := 0;
 public static def main(args: string[]) : var {
     f := new file("tests/tests/file.sharp");
     string.fmt('l');
     //println("name: ${f.mkdir()}");
-    println("${f.write("hello, world!")}");
+    dir := 0;
+	f.write(dir == IN ? "in" : "out");
     return 4;
 }

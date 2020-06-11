@@ -518,7 +518,7 @@ void Compiler::preProccessEnumDecl(Ast *ast)
 
     if(globalScope()) {
         currentClass = addGlobalClassObject(className, flags, ast, classes);
-        if(currentClass == NULL) return; // obviously the uer did something really dumb
+        if(currentClass == NULL) return;
 
         stringstream ss;
         ss << currModule->name << "#" << currentClass->name;
@@ -526,7 +526,7 @@ void Compiler::preProccessEnumDecl(Ast *ast)
     }
     else {
         currentClass = addChildClassObject(className, flags, currentScope()->klass, ast);
-        if(currentClass == NULL) return; // obviously the uer did something really dumb
+        if(currentClass == NULL) return;
 
         stringstream ss;
         ss << currentScope()->klass->fullName << "." << currentClass->name;
@@ -1088,7 +1088,6 @@ void Compiler::validateAccess(Field *field, Ast* pAst) {
         if(Obfuscater::getFile(current->getTokenizer()->file) == field->meta.file) {
         } else {
             FileData *fd = Obfuscater::getFile(current->getTokenizer()->file);
-            FileData *ffd = field->meta.file;
             errors->createNewError(GENERIC, pAst, " invalid access to localized field `" + field->fullName + "`");
         }
     } else if(field->flags.find(PRIVATE)) {
@@ -3272,21 +3271,24 @@ void Compiler::compileInlineIfExpression(Expression* expr, Ast* ast) {
             condExpr.utype->getCode().inject(ebxInjector);
             code.inject(condExpr.utype->getCode());
 
-            code.addIr(OpBuilder::skipifne(EBX, trueExpr.utype->getCode().size() + 1));
-            if(trueExpr.type == exp_var) {
+            if(trueExpr.type == exp_var && !trueExpr.utype->isArray()) {
                 trueExpr.utype->getCode().inject(ebxInjector);
+                code.addIr(OpBuilder::skipifne(EBX, trueExpr.utype->getCode().size() + 2));
+
                 code.inject(trueExpr.utype->getCode());
-                code.addIr(OpBuilder::skip(falseExpr.utype->getCode().size()));
                 falseExpr.utype->getCode().inject(ebxInjector);
+                code.addIr(OpBuilder::skip(falseExpr.utype->getCode().size() + 1));
                 code.inject(falseExpr.utype->getCode());
 
                 code.getInjector(stackInjector)
                         .addIr(OpBuilder::rstore(EBX));
             } else {
                 trueExpr.utype->getCode().inject(ptrInjector);
+                code.addIr(OpBuilder::skipifne(EBX, trueExpr.utype->getCode().size() + 2));
+
                 code.inject(trueExpr.utype->getCode());
-                code.addIr(OpBuilder::skip(falseExpr.utype->getCode().size()));
                 falseExpr.utype->getCode().inject(ptrInjector);
+                code.addIr(OpBuilder::skip(falseExpr.utype->getCode().size() + 1));
                 code.inject(falseExpr.utype->getCode());
 
                 code.getInjector(stackInjector)
