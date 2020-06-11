@@ -3,7 +3,7 @@ project(Sharp)
 
 set(CMAKE_C_STANDARD 11)
 
-set(POSIX "os")
+#set(POSIX "os")
 if (POSIX)
 
     set(BUILD_SHARED_LIBS OFF)
@@ -22,7 +22,7 @@ else()
     set(CMAKE_C_FLAGS_RELEASE   " -Werror -lstdc++  -O3 -Ofast ${CMAKE_C_FLAGS_RELEASE}")
 endif ()
 
-#set(SHARPC "build")
+set(SHARPC "build")
 
 # compiler
 if (SHARPC)
