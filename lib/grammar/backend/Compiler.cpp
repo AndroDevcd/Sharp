@@ -636,6 +636,7 @@ void Compiler::addLocalFields(Method *func) {
 
     for(Int i = 0; i < func->params.size(); i++) {
         func->params.get(i)->address = i + (func->flags.find(STATIC) ? 0 : 1);
+        func->params.get(i)->local = true;
     }
 
     if(!func->flags.find(STATIC))
@@ -1874,9 +1875,6 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
     expressionsToParams(expressions, params);
     RESTORE_BLOCK_TYPE()
 
-    if(ast->line >= 3000) {
-        int illo = 3000;
-    }
     if(ptr.classes.singular()) {
         singularCall = true;
         resolvedMethod = compileSingularMethodUtype(ptr, expr, params, ast);
@@ -3348,10 +3346,14 @@ void Compiler::compileAssignExpression(Expression* expr, Ast* ast) {
     Expression leftExpr, rightExpr;
     Token &operand = ast->getToken(0);
 
+    if(ast->getSubAst(ast_primary_expr)->line >= 3000) {
+        int ill = 3000;
+    }
     RETAIN_TYPE_INFERENCE(true)
     RETAIN_SCOPE_INIT_CHECK(operand == "=" ? false : true)
     compileExpressionAst(&leftExpr, ast->getSubAst(ast_primary_expr));
     RESTORE_SCOPE_INIT_CHECK()
+
 
     if(leftExpr.utype->getType() == utype_function_ptr
         || (leftExpr.utype->getType() == utype_field && ((Field*)leftExpr.utype->getResolvedType())->type == FNPTR)) {

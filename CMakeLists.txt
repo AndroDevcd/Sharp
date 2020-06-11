@@ -21,7 +21,6 @@ else()
     set(CMAKE_C_FLAGS_MINSIZEREL  "-Werror -lstdc++ -s -O3 -Ofast ${CMAKE_C_FLAGS_MINSIZEREL}")
     set(CMAKE_C_FLAGS_RELEASE   " -Werror -lstdc++  -O3 -Ofast ${CMAKE_C_FLAGS_RELEASE}")
 endif ()
-
 set(SHARPC "build")
 
 # compiler

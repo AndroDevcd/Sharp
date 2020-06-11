@@ -845,9 +845,6 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
     bool lastReference;
     Utype *bridgeUtype = new Utype(); // we need this so we dont loose code when free is called
 
-    if(ast->line >= 3000) {
-        int il = 0;
-    }
     RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
     RETAIN_SCOPE_CLASS(fromClass ? (ClassObject*)data : currentScope()->klass)
     for(unsigned int i = 1; i < ptr.classes.size(); i++) {
