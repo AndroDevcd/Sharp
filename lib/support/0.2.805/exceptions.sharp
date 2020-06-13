@@ -32,7 +32,7 @@ class throwable {
     }
 
     public throwable(message : string) {
-        //self->message = message.toArray();
+        self->message = message.get_data();
     }
 
     def get_message() : string {

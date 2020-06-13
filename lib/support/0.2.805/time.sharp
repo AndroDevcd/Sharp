@@ -41,7 +41,6 @@ class time {
         if(time < 0)
             throw new error("cannot sleep for negative time: $time");
 
-        println("win ${build.is_windows()}");
         if(tm_unit == time_unit.seconds) {
             time = adjust_time(time*1000000);
         } else if(tm_unit == time_unit.milliseconds) {
@@ -49,8 +48,7 @@ class time {
         } else if(tm_unit == time_unit.microseconds) {
             time = adjust_time(time);
         }
-        
-                println("time ${time}");
+
         asm {
             loadl ebx, {time}
             sleep ebx
@@ -58,6 +56,8 @@ class time {
     }
 
     static def wait(tm_unit: time_unit, time: var) {
+        if(time < 0)
+            throw new error("cannot sleep for negative time: $time");
 
         if(tm_unit == time_unit.seconds) {
             time *= 1000;
