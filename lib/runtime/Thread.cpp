@@ -146,6 +146,10 @@ void Thread::wait() {
         } else if(this->state == THREAD_KILLED) {
             this->suspended = false;
             return;
+        } else if(vm.state == VM_SHUTTING_DOWN) {
+            this->suspended = false;
+            sendSignal(signal, tsig_kill, 1);
+            return;
         }
     }
 
@@ -175,6 +179,10 @@ void Thread::wait(Int mills) {
 #endif
         } else if( this->state == THREAD_KILLED) {
             this->suspended = false;
+            return;
+        } else if(vm.state == VM_SHUTTING_DOWN) {
+            this->suspended = false;
+            sendSignal(signal, tsig_kill, 1);
             return;
         } else if((mills - now) <= 0) {
             this->suspended = false;
@@ -315,6 +323,7 @@ void Thread::waitForThreadSuspend(Thread *thread) {
     {
         if (retryCount++ == sMaxRetries)
         {
+            suspendThread(thread);
             retryCount = 0;
             if(++spinCount >= sMaxSpinCount || thread->state >= THREAD_SUSPENDED)
                 return;
@@ -404,8 +413,7 @@ void Thread::suspendAllThreads() {
     GUARD(threadsMonitor);
     Thread* thread;
 
-    for(uInt i = 0; i < maxThreadId; i++) {
-
+    for(uInt i = 0; i <= maxThreadId; i++) {
         if(threads.get(i, thread)
             && thread != NULL
             && (thread->id != thread_self->id)
@@ -420,7 +428,7 @@ void Thread::resumeAllThreads() {
     GUARD(threadsMonitor);
     Thread* thread;
 
-    for(unsigned int i= 0; i < maxThreadId; i++) {
+    for(unsigned int i= 0; i <= maxThreadId; i++) {
 
         if(threads.get(i, thread)
            && thread != NULL
@@ -518,16 +526,10 @@ void Thread::killAll() {
     }
     Thread *thread = NULL;
 
-    for(unsigned int i = 0; i < maxThreadId; i++) {
-        threads.get(i, thread);
-
+    for(unsigned int i = 0; i <= maxThreadId; i++) {
         if(threads.get(i, thread) && thread != NULL) {
             if(thread->id != thread_self->id
                && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
-                if(thread->state == THREAD_RUNNING){
-                    interrupt(thread); // shouldn't happen
-                }
-
                 terminateAndWaitForThreadExit(thread);
             } else {
                 thread->term();
@@ -575,9 +577,9 @@ void Thread::shutdown() {
         Thread::killAll();
         Thread* thread;
 
-        for(Int i = 0; i < maxThreadId; i++) {
-            threads.get(i, thread);
-            std::free(thread);
+        for(Int i = 0; i <= maxThreadId; i++) {
+            if(threads.get(i, thread))
+              std::free(thread);
         }
     }
 }
@@ -646,10 +648,10 @@ void Thread::exit() {
         free(this->callStack); callStack = NULL;
         GarbageCollector::self->freeMemory(sizeof(Frame) * stackLimit);
     }
-    this->state = THREAD_KILLED;
-    this->signal = tsig_empty;
 
     releaseResources();
+    this->state = THREAD_KILLED;
+    this->signal = tsig_empty;
     this->exited = true;
 }
 
@@ -714,18 +716,15 @@ void printRegs() {
     native_string stackTrace;
     vm.fillStackTrace(stackTrace);
     cout << "call stack (most recent call last):\n" << stackTrace.str() << endl;
-//    if(thread_self->current != NULL) {
-//        cout << "current -> " << thread_self->current->name.str() << endl;
-//    }
-//    native_string stackTrace;
-//
-//    vm.fillStackTrace(stackTrace);
-//    cout << "stacktrace ->\n\n " << stackTrace.str() << endl;
-//    cout << endl;
-//
-//    for(long i = 0; i < 15; i++) {
-//        cout << "fp.var [" << i << "] = " << thread_self->dataStack[i].var << ";" << endl;
-//    }
+   if(thread_self->current != NULL) {
+       cout << "current -> " << thread_self->current->name.str() << endl;
+   }
+
+   if(thread_self->dataStack) {
+     for(long i = 0; i < 15; i++) {
+         cout << "fp.var [" << i << "] = " << thread_self->dataStack[i].var << ";" << endl;
+     }
+    }
 }
 
 void printStack() {
