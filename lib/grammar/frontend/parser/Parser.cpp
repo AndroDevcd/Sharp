@@ -3729,8 +3729,8 @@ bool parser::isKeyword(string key) {
            || key == "var" || key == "sizeof"|| key == "_int8" || key == "_int16"
            || key == "_int32" || key == "_int64" || key == "_uint8"
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
-           || key == "delegate" || key == "interface" || key == "lock" || key == "enum"
-           || key == "when" || key == "default" || key == "local"
+           || key == "interface" || key == "lock" || key == "enum"
+           || key == "when" || key == "local"
            || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
            || key == "as" || key == "in" || key == "volatile" || key == "obfuscate";

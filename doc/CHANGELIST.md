@@ -23,31 +23,34 @@ Any other compatibility issues/changes will be otherwise noted in the release no
 
     Backwards compatibility support tested Version: ()
     
-##### Version 0.2.805 (August 12, 2019)
+##### Version 0.2.805 (June 19, 2020)
     # Bug Fixes
-        * Fixed several compiler seg faults
+        * Major stability improvements
         * Fixed several null pointer exceptions with file sys stl
-        * Fixed exception system not correctly showing where the code broke 
         * Fixed major bugs in the compiler
 
     # QoL Improvements
         * Compiler v2 development has begun. This compiler comes with several bug fixes as well as several other updates and improvementas listed below.
             * New compiler comes with:
-                ** Better error messages
-                ** Improved performance
+                ** Vastly improved code optimization and generation system
+                ** Foundation for 32 & 64 bit support added
+                ** Significantly improved exception system
+                ** Newly upgraded multithreadding system for better code sincronization
+                ** Better compiler error messages
+                ** Improved compiler and VM performance
                 ** Cleaner design for less internal bugs
-                ** All code meitted is now properly execution safe and should not cause seg faults
+                ** All code generated is now properly execution safe and should not cause seg faults
                 ** New language design for a better seamless experiance 
 
     # New Additions
         * Implemented 'local' keyword in the language
         * Made several changes to the syntax
-        * Completly new standard library re-written from scratch
+        * Completly new standard library re-written from scratch (new multithreadding task system)
 
     # Known Issues
-        *
+        * JIT is not currently supported on any platform
 
-    Backwards compatibility support tested Version: ()
+    Backwards compatibility support tested Version: (n/a)
     
 ##### Version 0.2.587 (September 30, 2019)
     # Bug Fixes
