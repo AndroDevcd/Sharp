@@ -1,7 +1,0 @@
-mod app;
-
-import std;
-
-def main(string[] args) : var {
-    return app#Runtime.bootstrap(args);
-}

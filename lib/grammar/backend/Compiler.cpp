@@ -432,12 +432,12 @@ void Compiler::preProccessGenericClassDecl(Ast* ast, bool isInterface) {
     stringstream fullName;
     if (globalScope()) {
         currentClass = addGlobalClassObject(className + "<>", flags, ast, generics);
-        if(currentClass == NULL) return; // obviously the uer did something really dumb
+        if(currentClass == NULL) return;
 
         fullName << currModule->name << "#" << className;
     } else {
         currentClass = addChildClassObject(className + "<>", flags, currentScope()->klass, ast);
-        if(currentClass == NULL) return; // obviously the uer did something really dumb
+        if(currentClass == NULL) return; 
 
         fullName << currentScope()->klass->fullName << "." << className;
     }
@@ -891,14 +891,14 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
         string className = ast->getToken(0).getValue();
         if (globalScope()) {
             currentClass = addGlobalClassObject(className, flags, ast, classes);
-            if(currentClass == NULL) return; // obviously the uer did something really dumb
+            if(currentClass == NULL) return;
 
             stringstream ss;
             ss << currModule->name << "#" << currentClass->name;
             currentClass->fullName = ss.str();
         } else {
             currentClass = addChildClassObject(className, flags, currentScope()->klass, ast);
-            if(currentClass == NULL) return; // obviously the uer did something really dumb
+            if(currentClass == NULL) return;
 
             stringstream ss;
             ss << currentScope()->klass->fullName << "." << currentClass->name;
@@ -1030,7 +1030,6 @@ void Compiler::preProccessImportDecl(Ast *branch, List<ModuleData*> &imports) {
 }
 
 void Compiler::preproccessImports() {
-    KeyPair<string, List<string>> resolveMap;
     List<ModuleData*> imports;
     imports.add(Obfuscater::getModule("std")); // import the std lib by default
 
@@ -1050,7 +1049,7 @@ void Compiler::preproccessImports() {
             }
         }
         switch(branch->getType()) {
-            case ast_import_decl: /* ignore for now */
+            case ast_import_decl:
                 preProccessImportDecl(branch, imports);
                 break;
             default:
@@ -1865,6 +1864,10 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
     List<Field*> params;
     bool singularCall = false; //TODO: fully support restricted instance blocks
 
+    if(ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier)->line >= 3000) {
+        int i = 3000;
+    }
+
     RETAIN_BLOCK_TYPE(currentScope()->type == RESTRICTED_INSTANCE_BLOCK || currentScope()->type == INSTANCE_BLOCK
         ? INSTANCE_BLOCK : STATIC_BLOCK)
     compileTypeIdentifier(ptr, ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier));
@@ -1905,6 +1908,7 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
                 if(!resolvedMethod->flags.find(STATIC)) {
                     utype->getCode().inject(stackInjector);
                 } else {
+                    utype->getCode().free();
                     // TODO: try to find out wether or not the last item processed is an instance field
                     // if so warn the user that what they are doing is innefficent
                 }
@@ -1934,6 +1938,7 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
                 if(!resolvedMethod->flags.find(STATIC)) {
                     utype->getCode().inject(stackInjector);
                 } else {
+                    utype->getCode().free();
                     // TODO: try to find out wether or not the last item processed is an instance field
                     // if so warn the user that what they are doing is innefficent
                 }
@@ -6432,7 +6437,7 @@ bool Compiler::preprocess() {
     return success;
 }
 
-void Compiler::preProcessMutation(Ast *ast, ClassObject *currentClass) {
+void Compiler::preProcessMutation(Ast *ast, ClassObject *currentClass) { // TODO; go over in tutorial later
     if(currentClass == NULL) {
         ReferencePointer ptr;
         compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));

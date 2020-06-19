@@ -51,6 +51,8 @@ private:
     void optimizeUnnessicaryCMTMov();
     void optimizeUnnessicaryLocalIntPop();
     void optimizeEmptyCall();
+    void optimizeIntReturn();
+    void optimizeCmtReturn();
     bool isRegisterUsed(_register reg, Int start_pc);
 };
 

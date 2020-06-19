@@ -18,3 +18,13 @@ public static def main(args: string[]) : var {
 	f.write(dir ? "in" : "out");
     return 4;
 }
+
+
+class House<T>  {
+
+    mustate list<var> {
+        // ..
+    }
+
+}
+

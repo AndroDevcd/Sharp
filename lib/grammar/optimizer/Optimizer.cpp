@@ -1034,6 +1034,130 @@ void Optimizer::optimizeUnnessicaryLocalIntPop() {
     }
 }
 
+/**
+ * [0xb] 11:	movi #0, ebx
+ * [0xc] 12:	return_val ebx
+ *
+ * to ->        istorel fp+0, 0
+ *
+ * fagments found: 71
+ * net benefit: 71
+ * % of codebase affeced: 0.116066%
+ */
+void Optimizer::optimizeIntReturn() {
+    CodeHolder &code = currentMethod->data.code;
+
+    for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i) - 1;
+            continue;
+        }
+
+        switch (GET_OP(code.ir32.get(i))) {
+            case Opcode::IADD:
+            case Opcode::ISUB:
+            case Opcode::IMUL:
+            case Opcode::IDIV:
+            case Opcode::IMOD:
+            case Opcode::IADDL:
+            case Opcode::ISUBL:
+            case Opcode::IMULL:
+            case Opcode::IDIVL:
+            case Opcode::IMODL:
+            case Opcode::ISTORE:
+            case Opcode::ISTOREL:
+            case Opcode::ISADD:
+            case Opcode::CMP:
+            case Opcode::MOVN:
+            case Opcode::INVOKE_DELEGATE:
+                i++;
+                break;
+
+            case Opcode::MOVI: {
+
+                if((i + 2) < code.ir32.size()) {
+                    Int val = code.ir32.get(i+1);
+                    Int returnReg = GET_Da(code.ir32.get(i));
+
+                    if (GET_OP(code.ir32.get(i + 2)) == Opcode::RETURNVAL
+                        && GET_Da(code.ir32.get(i + 2)) == returnReg) {
+                        Int localVar = GET_Cb(code.ir32.get(i + 1));
+                        shiftAddresses(1, i + 2);
+                        code.ir32.removeAt(i + 2);
+                        code.ir32.get(i) = OpBuilder::istorel(0, val)[0];
+                        code.ir32.get(i+1) = OpBuilder::istorel(0, val)[1];
+                        i++;
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+
+/**
+ * [0xb] 11:    movr ebx, cmt
+ * [0xc] 12:    return_val ebx
+ *
+ * to ->        return_val cmt
+ *
+ * fagments found: 264
+ * net benefit: 264
+ * % of codebase affeced: 0.43157%
+ */
+void Optimizer::optimizeCmtReturn() {
+    CodeHolder &code = currentMethod->data.code;
+
+    for(Int i = 0; i < code.size(); i++) {
+        if(insideProtectedCodebase(i)) {
+            i = getSkippedProtectedCodebasePc(i) - 1;
+            continue;
+        }
+
+        switch (GET_OP(code.ir32.get(i))) {
+            case Opcode::MOVI:
+            case Opcode::IADD:
+            case Opcode::ISUB:
+            case Opcode::IMUL:
+            case Opcode::IDIV:
+            case Opcode::IMOD:
+            case Opcode::IADDL:
+            case Opcode::ISUBL:
+            case Opcode::IMULL:
+            case Opcode::IDIVL:
+            case Opcode::IMODL:
+            case Opcode::ISTORE:
+            case Opcode::ISTOREL:
+            case Opcode::ISADD:
+            case Opcode::CMP:
+            case Opcode::MOVN:
+            case Opcode::INVOKE_DELEGATE:
+                i++;
+                break;
+
+            case Opcode::MOVR: {
+
+                if((i + 1) < code.ir32.size()) {
+                    Int cmtReg = GET_Cb(code.ir32.get(i));
+                    Int returnReg = GET_Ca(code.ir32.get(i));
+
+                    if (cmtReg == CMT && GET_OP(code.ir32.get(i + 1)) == Opcode::RETURNVAL
+                        && GET_Da(code.ir32.get(i + 1)) == returnReg) {
+                        shiftAddresses(1, i + 1);
+                        code.ir32.removeAt(i + 1);
+                        code.ir32.get(i) = OpBuilder::returnValue((_register)returnReg);
+
+                        i += 2;
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+
 void Optimizer::optimize() {
     for(Int i = 0; i < allMethods->size(); i++) {
         currentMethod = allMethods->get(i);
@@ -1056,9 +1180,14 @@ void Optimizer::optimize() {
             optimizeUnnessicaryCMTMov();
             optimizeUnnessicaryLocalIntPop();
             optimizeEmptyCall();
+            optimizeIntReturn(); // new
+            optimizeCmtReturn();
             postCodebaseSize += currentMethod->data.code.size();
         }
     }
+
+//    netBenefit = 1;
+//    printResults();
 }
 
 void Optimizer::printResults() {

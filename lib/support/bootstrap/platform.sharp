@@ -1,21 +1,14 @@
-mod app;
+mod main;
 
 /**                          
 * Created by bknun on 6/12/2018            
 * Description:                             
 */
-class Platform {
-    /**
-     * Jan 13, 2017 Initial build release of sharp 0.1.3, this contains
-     * all the base level support for running sharp. Sharp was
-     * developed to support both windows and linux operating systems
-     */
-    public static const var BASE  = 1;
-
+class platform {
     /**
      * Jan 18, 2018 Build release of Sharp 0.2.0, this contains all the base level
      * support for sharp as well as major performance enhancments and improvements
      * throughout the platform.
      */
-    public static const var ALPHA = 2;
+    static const alpha := 2;
 }

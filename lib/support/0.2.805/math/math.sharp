@@ -83,7 +83,7 @@ def abs(num: var) : var {
     return fabs(num);
 }
 
-def fabs(num: var) : var {
+private def fabs(num: var) : var {
     return math_proc(num, 0x11);
 }
 

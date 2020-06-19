@@ -1,61 +1,59 @@
-mod app;
-
-import std;
+mod main;
 
 /**                          
 * Created by bknun on 6/12/2018            
 * Description:                             
 */
-class Options {
+class options {
     /*
      * Activate aggressive error reporting for the compiler.
      */
-    public static var aggressiveErrors = false;
+    static aggressive_errors := false;
 
     /*
      * Only compile all the files
      */
-    public static var compile = false;
+    static compile := false;
 
     /*
      * Output file to write to
      */
-    public static string out = "out";
+    static out : string = "out";
 
     /*
      * Application version
      */
-    public static string version = "1.0";
+    static version : string = "1.0";
 
     /*
      * Disable warnings
      */
-    public static var warnings = true;
+    static warnings := true;
 
     /*
      * Optimize code
      */
-    public static Optimization optimizeLevel = Optimization.NONE;
+    static optimize_level := optimization_level.none;
 
     /*
      * Set code to be debuggable (flag only used in manifest creation)
      */
-    public static var debug = true;
+    static debug := true;
 
     /*
      * Strip debugging info (if-applicable)
      */
-    public static var strip = false;
+    static strip := false;
 
     /*
      * Enable warnings as errors
      */
-    public static var werrors = false;
+    static werrors := false;
 
     /*
      * Easter egg to enable magic mode
      */
-    public static var magic = false;
+    static magic := false;
 
     /*
      * Easter egg to enable debug mode
@@ -63,50 +61,34 @@ class Options {
      * Allows you to see a little information
      * on what the compiler is doing
      */
-    public static var debugMode = false;
-
-    /*
-     * Dump generated assembly code
-     */
-    public static var asmDump = false;
+    static debug_mode := false;
 
     /*
      * Maximum errors the compiler will allow
      */
-    public static var maxErrors = 1000;
+    static max_errors := 1000;
 
     /*
      * Machine platform target to run on
      */
-    public static var target = Platform.ALPHA;
+    static target := main#platform.alpha;
 
     /*
      * List of user defined library paths
      */
-    public static ArrayList<string> libraries = new ArrayList<string>();
+    static libraries := new list<string>();
 }
 
-const var ASM_DEMANGLE = 0;
-const var ASM_SYNTAX = 1;
-const var ASM_DEBUG_INFO = 2;
-
 // WARNING SWITCHES
-const var __WGENERAL = 0;
-const var __WACCESS = 1;
-const var __WAMBIG = 2;
-const var __WDECL = 3;
-const var __WMAIN = 4;
-const var __WCAST = 5;
-const var __WINIT = 6;
+const __w_general := 0;
+const __w_access := 1;
+const __w_ambig := 2;
+const __w_decl := 3;
+const __w_main := 4;
+const __w_cast := 5;
+const __w_init := 6;
 
-var[] asmDumpOptions = new var[]
-{
-    false, // de-mangle
-    false, // reformat to syntax
-    false // show debug info
-};
-
-var[] warningOptions = new var[]
+warning_options := new var[]
 {
     true,    // general warnings
     true,    // waccess
@@ -117,8 +99,8 @@ var[] warningOptions = new var[]
     true    // winit
 };
 
-enum Optimization {
-    NONE = 0,
+enum optimization_level {
+    none = 0,
 
     /*
     * This optimization consists of the most basic level of optimization where
@@ -127,7 +109,7 @@ enum Optimization {
     * instructions
     *
     */
-    BASIC = 1,
+    basic = 1,
 
     /*
     * This optimization consists of the highest level of optimization available for your code
@@ -136,5 +118,5 @@ enum Optimization {
     * instructions
     *
     */
-    HIGH_PERFORMANCE = 2
+    high_performance = 2
 };

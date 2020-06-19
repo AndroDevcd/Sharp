@@ -1,0 +1,300 @@
+mod main;
+
+import std.io;
+import std.io.*;
+import platform;
+
+private static program_name : string = "sharpc";
+private static program_vers : string = "0.3.0";
+
+def main(args: string[]) : var {
+    if(args == null) {
+        help();
+        return 1;
+    }
+
+    //error_manager.init();
+    files := new list<string>();
+    for(i := 0; i < sizeof(args); i++) {
+
+        parse_arg:
+        arg := args[i];
+        if(arg == "-a"){
+            options.aggressive_errors = true;
+        }
+        else if(arg == "-c"){
+            options.compile = true;
+        }
+        else if(arg == "-o"){
+            if(i+1 >= sizeof(args))
+                error("output file required after option `-o`");
+            else
+                options.out = args[++i];
+        }
+        else if(arg == "-L"){
+            if((i+1) >= sizeof(args))
+                error("library directory required after option `-L`");
+            else
+                options.libraries.add(args[++i]);
+        }
+        else if(arg == "-V"){
+            print_version();
+            exit();
+        }
+        else if(arg == "-O" || arg == "-O1"){
+            options.optimize_level = optimization_level.basic;
+        }
+        else if(arg == "-O2"){
+            options.optimize_level = optimization_level.high_performance;
+        }
+        else if(arg == "-h" || arg == "-?"){
+            help();
+            exit();
+        }
+        else if(arg == "-hw"){
+            help_warning();
+            exit();
+        }
+        else if(arg == "-R" || arg == "-release"){
+            options.optimize_level = optimization_level.high_performance;
+            options.debug = false;
+            options.strip = true;
+        }
+        else if(arg == "-s"){
+            options.strip = true;
+            options.debug = false;
+        }
+        else if(arg == "-magic"){
+            options.magic = true;
+        }
+        else if(arg == "-dbg") {
+            options.debug_mode = true;
+        }
+        else if(arg == "-showvers" || arg == "-showversion"){
+            print_version();
+            println();
+        }
+        else if(arg == "-target"){
+            if(i+1 >= sizeof(args))
+                error("file version required after option `-target`");
+            else {
+                target := args[++i];
+                if(is_number(target)) {
+                    options.target = int.parse(target);
+                    check_target();
+                } else {
+                    if(target.to_lower() == "alpha") {
+                        options.target = main#platform.alpha;
+                    }
+                    else {
+                        error("unknown platform target $target");
+                    }
+                }
+            }
+        }
+        else if(arg == "-w"){
+            options.warnings = false;
+        }
+        else if(arg == "-waccess"){
+            warning_options[__w_access] = false;
+        }
+        else if(arg == "-wambig"){
+            warning_options[__w_ambig] = false;
+        }
+        else if(arg == "-wdecl"){
+            warning_options[__w_decl] = false;
+        }
+        else if(arg == "-wmain"){
+            warning_options[__w_main] = false;
+        }
+        else if(arg == "-wcast"){
+            warning_options[__w_cast] = false;
+        }
+        else if(arg == "-winit"){
+            warning_options[__w_init] = false;
+        }
+        else if(arg == "-v"){
+            if(i+1 >= sizeof(args))
+                error("file version required after option `-v`");
+            else
+                options.version = args[++i];
+        }
+        else if(arg == "-werror"){
+            options.werrors = true;
+            options.warnings = true;
+        }
+        else if(arg == "-errlmt") {
+            lmt := args[++i];
+
+            if(is_number(lmt)) {
+                options.max_errors = int.parse(lmt);
+
+                if(options.max_errors > 100000) {
+                    error("cannot set the max errors allowed higher than (100,000) - $lmt");
+                } else if(options.max_errors <= 0) {
+                    error("cannot have an error limit of 0 ");
+                }
+            }
+            else {
+                error("invalid error limit set $lmt");
+            }
+        }
+        else if(arg.at(0) == '-'){
+            error("invalid option `" + arg + "`, try bootstrap -h");
+        }
+        else {
+            // add the source files
+            do {
+                arg = args[i];
+                if(arg.at(0) == '-')
+                    goto parse_arg;
+
+                if(!contains(files, arg))
+                    files.add(arg);
+                i++;
+            }while(i<sizeof(args));
+            break;
+        }
+    }
+
+    if(files.size() == 0){
+        help();
+        return 1;
+    }
+
+    path := "";
+    if(build.is_windows()) {
+        path = "C:\\Sharp\\include";
+    } else {
+        path = "/usr/include/sharp/";
+    }
+
+    stl_files := new file(path);
+    support_files:= new list<string>();
+
+    try {
+        foreach(file in stl_files.list()) {
+            files.add(file);
+        }
+    } catch(io_exception) {
+        /* support files not found */
+        println("warning: could not find support library files in path `$path`, do you have them installed?");
+    }
+
+
+    for(i := 0; i < options.libraries.size(); i++) {
+        stl_files.update_path(options.libraries.at(i));
+
+        try {
+            foreach(file in stl_files.list()) {
+                files.add(file);
+            }
+        } catch(io_exception) {
+            /* support files not found */
+            error("could not access library files in path `$path`");
+        }
+
+    }
+
+    fp := new file("no_file");
+    for(i := 0; i < files.size(); i++) {
+        fp.update_path(files.at(i));
+
+        if(!(fp.exists()))
+            error("file `${files.at(i)}` doesnt exist!");
+
+        if(!files.at(i).ends_with(".sharp"))
+            error("file `${files.at(i)}` is not a sharp file!");
+    }
+
+    exec_runtime(files);
+    return 0;
+}
+
+static def contains(files: list<string>, file: string) : var {
+
+    foreach(f in files) {
+        if(f == file)
+            return true;
+    }
+
+    return false;
+}
+
+static def exec_runtime(files: list<string>) {
+
+    test_file := new file(files.at(0));
+
+    //IOStream istream = new IOStream(testFile, IOStream.READ);
+    //string tokens = istream.atData();
+
+    //  istream.close();
+    //Tokenizer tokenizer = new Tokenizer(tokens, files.at(0));
+    //Parser parser = new Parser(tokenizer);
+    //parser.atErrors().printErrors();
+}
+
+
+private static def is_number(str: string) : var {
+    foreach(c in str) {
+        if(!char.is_digit(c))
+            return false;
+    }
+    return true;
+}
+
+private static def check_target() {
+    when(options.target) {
+        main#platform.alpha -> {
+            return;
+        }
+        else -> {
+            error("invalid platform target `${options.target}`");
+        }
+    }
+}
+
+private static def error(message: string) {
+    println("sharpc:  error: $message");
+    exit();
+}
+
+private static def print_version() {
+    print(program_name + " " + program_vers);
+}
+
+private static def help() {
+    println("Usage: sharpc " + "{OPTIONS} SOURCE FILE(S)");
+    println("Source file must have a .sharp extion to be compiled.\n");
+    println("[-options]\n\n    -V                print compiler version and exit");
+    println(              "    -showvers         print compiler version and continue"               );
+    println(              "    -o<file>          set the output object file"                        );
+    println(              "    -c                compile only and do not generate exe"              );
+    println(              "    -a                enable aggressive error reporting"                 );
+    println(              "    -s                strip debugging info"                              );
+    println(              "    -O -O1            optimize code level 1"                             );
+    println(              "    -O2               optimize code level 2"                             );
+    println(              "    -L<path>          library directory path"                            );
+    println(              "    -w                disable all warnings"                              );
+    println(              "    -errlmt<count>    set max errors the compiler allows before quitting");
+    println(              "    -v<version>       set the application version"                       );
+    println(              "    -target           target the specified platform of sharp to run on"  );
+    println(              "    -release -r       generate a release build exe"                      );
+    println(              "    -hw               display help message for warning options"          );
+    println(              "    -h -?             display this help message"                         );
+}
+
+private static def help_warning() {
+    println( "Usage: sharpc {OPTIONS} SOURCE FILE(S)");
+    println( "Source file must have a .sharp extion to be compiled.\n");
+    println( "Please note that not all warnings will be able to be disabled individually.\n");
+    println( "[-options]\n\n    -w                disable all warnings"                                     );
+    println(               "    -winit            disable class initialization warnings"                    );
+    println(               "    -waccess          disable access modifier warnings (public, static, etc.)"  );
+    println(               "    -wambig           disable ambiguous symbol warnings"                        );
+    println(               "    -wdecl            disable object declaration warnings"                      );
+    println(               "    -wmain            disable multiple main method warnings"                    );
+    println(               "    -wcast            disable type cast warnings"                               );
+    println(               "    -werror           enable warnings as errors"                                );
+    println(               "    -hw               display this help message"                                );
+}

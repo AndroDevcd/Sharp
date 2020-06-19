@@ -113,11 +113,31 @@ class string : loopable<_int8> {
             return s.append("null");
     }
 
+    def to_lower() : string {
+        str := new string();
+        if(data != null) {
+            str.data = copy(data, 0, sizeof(data));
+
+            iter := 0;
+            foreach(ch in data) {
+                if('A' <= ch && ch <= 'Z')
+                    str.data[iter] =  'a' + (ch - 'A');
+                iter++;
+            }
+        }
+
+        return str;
+    }
 
     def operator+(obj : printable) : string {
         s := new string(data);
-        if(obj != null)
-            return s.append(obj.to_string().data);
+        if(obj != null) {
+            printed_str := obj.to_string();
+            if(printed_str != null)
+                return s.append(printed_str.data);
+            else
+                return s.append("null");
+        }
         else
             return s.append("null");
     }
@@ -236,8 +256,9 @@ class string : loopable<_int8> {
         if(sizeof(postfix.data) >= sizeof(data))
             return false;
 
+        index := 0;
         for(i := sizeof(data) - sizeof(postfix.data); i < sizeof(data); i++){
-            if(data[i] != postfix.data[i])
+            if(data[i] != postfix.data[index++])
                 return false;
         }
 
