@@ -38,7 +38,7 @@ public:
     String name;
     String fullName;
     ClassObject *owner;
-    int32_t flags;
+    uint32_t flags;
     DataType type;
 };
 

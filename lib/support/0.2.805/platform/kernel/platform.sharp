@@ -20,6 +20,14 @@ class platform
         }
     }
 
+    static def load_library(name: string) {
+        lib_name := name.get_data();
+        asm {
+            pushl {lib_name}
+            int 0x39
+        }
+    }
+
     private static def srt_init(args: object[]) : var {
         build.app_name = "${args[0] as _int8[]}";
         build.version = "${args[1] as _int8[]}";

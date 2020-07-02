@@ -1263,7 +1263,7 @@ void Thread::exec() {
                 registers[GET_Da(*pc)] = tmpPtr->object == (sp--)->object.object;
                 _brh
             INVOKE_DELEGATE:
-                invokeDelegate(GET_Da(*pc), GET_Cb(*(pc+1)), this, GET_Ca(*(pc+1)));
+                invokeDelegate(GET_Da(*pc), GET_Cb(*(pc+1)), this, GET_Ca(*(pc+1)) == 1);
                 _brh_NOINCREMENT
             ISADD:
                 (sp+GET_Da(*pc))->var+=(int32_t)*(pc+1);

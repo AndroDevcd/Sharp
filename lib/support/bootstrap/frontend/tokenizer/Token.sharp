@@ -6,21 +6,21 @@ import std;
 * Created by bknun on 6/13/2018            
 * Description:                             
 */
-class Token {
+class token {
 
     private var line;
     private var col;
-    private TokenId id;
-    private TokenType type;
+    private tokenId id;
+    private tokenType type;
     private string token;
 
-    public Token() {
+    public token() {
         token = "";
-        type = TokenType.NONE;
-        id = TokenId.NOENTITY;
+        type = tokenType.NONE;
+        id = tokenId.NOENTITY;
     }
 
-    public Token(string tok, TokenId id, TokenType type, var col, var line) {
+    public token(string tok, tokenId id, tokenType type, var col, var line) {
         self->token = tok;
         self->type = type;
         self->id = id;
@@ -29,19 +29,19 @@ class Token {
     }
 
 
-    public Token(string tok, TokenId id, var col, var line) {
+    public token(string tok, tokenId id, var col, var line) {
         self->token = tok;
-        self->type = TokenType.NONE;
+        self->type = tokenType.NONE;
         self->id = id;
         self->col = col;
         self->line = line;
     }
 
-    public def operator!=(TokenId id) : var {
+    public def operator!=(tokenId id) : var {
         return self->id != id;
     }
 
-    public def operator!=(TokenType type) : var {
+    public def operator!=(tokenType type) : var {
         return self->type != type;
     }
 
@@ -57,23 +57,23 @@ class Token {
         return self->token != token;
     }
 
-    public def operator==(Token entity) : var {
+    public def operator==(token entity) : var {
         return id==entity.id && token == entity.token;
     }
 
-    public def operator==(TokenId id) : var {
+    public def operator==(tokenId id) : var {
         return self->id == id;
     }
 
-    public def operator==(TokenType type) : var {
+    public def operator==(tokenType type) : var {
         return self->type == type;
     }
 
-    public def getId() : TokenId {
+    public def getId() : tokenId {
         return id;
     }
 
-    public def getToken() : string {
+    public def gettoken() : string {
         return token;
     }
 
@@ -85,31 +85,31 @@ class Token {
         return self->line;
     }
 
-    public def getType() : TokenType {
+    public def getType() : tokenType {
         return self->type;
     }
 
-    public def delegate::toString() : string {
+    public def to_string() : string {
         return token + ": " + line + "," + col;
     }
 }
 
-enum TokenId
+enum tokenId
 {
-    IDENTIFIER,
-    NATIVE_TYPE,
-    TYPE_IDENTIFIER,
-    INTEGER_LITERAL,
-    HEX_LITERAL,
-    MODULENAME,
-    STRING_LITERAL,
-    CHAR_LITERAL,
-    LITERAL,
-    VALUE,
-    ACCESSTYPE,
-    SINGLELINE_COMMENT,
-    RETURN_STATEMENT,
+    identifier,
+    native_type,
+    type_identifier,
+    integer_literal,
+    hex_literal,
+    modulename,
+    string_literal,
+    char_literal,
+    literal,
+    value,
+    accesstype,
+    singleline_comment,
+    return_statement,
 
-    SINGLE, // single token
-    NOENTITY // not an entity
+    single, // single token
+    noentity // not an entity
 };

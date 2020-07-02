@@ -10,6 +10,14 @@
 #include "../main.h"
 #include "../optimizer/Optimizer.h"
 
+#ifdef WIN32_
+#include  <io.h>
+#include <direct.h>
+#else
+#include <sys/statvfs.h>
+#include <dirent.h>
+#endif
+
 bool sortMethods(Method *m1, Method *m2) {
     return m1->address > m2->address;
 }
@@ -68,6 +76,654 @@ void ExeBuilder::buildExe() {
     if(File::write(c_options.out.c_str(), buf.str())) {
         cout << progname << ": error: failed to write out to executable " << c_options.out << endl;
     }
+}
+
+void parseGenericName(Int &i, string &name, stringstream &ss) {
+    ss << '$';
+    i++;
+    for(; i < name.size(); i++) {
+        if(name[i] == '>')
+        {
+            ss << '$';
+            return;
+        }
+
+        if(name[i] == ',')
+            ss << "_0_";
+        else if(name[i] == '<') {
+            parseGenericName(i, name, ss);
+        }
+        else ss << name[i];
+    }
+}
+
+string classToCPPName(string &name) {
+    bool hashFound = false;
+    stringstream ss;
+    for(Int i = 0; i < name.size(); i++) {
+        if(hashFound) {
+            if(name[i] == '.' || name[i] == '#')
+                ss << '_';
+            else if(name[i] == '<' || name[i] == '>')
+                ss << '$';
+            else if(name[i] == ',')
+                ss << "_0_";
+            else ss << name[i];
+        }
+
+        if(name[i] == '#') {
+            hashFound = true;
+        }
+    }
+    return ss.str();
+}
+
+string moduleToCPPName(string &name) {
+    bool hashFound = false;
+    stringstream ss;
+    for(Int i = 0; i < name.size(); i++) {
+        if(name[i] == '.' )
+            ss << '_';
+        else ss << name[i];
+    }
+    return ss.str();
+}
+
+Int getDuplicateCount(Method *func, List<Method*> methods, Int index) {
+    Int duplicates = 0;
+    for(Int i = 0; i < index; i++) {
+        if(func->name == methods.get(i)->name) {
+            duplicates++;
+        }
+    }
+
+    return duplicates;
+}
+
+string typeToCPPType(DataType type, bool isArray) {
+    switch(type) {
+        case _INT8:
+            if(isArray) return "_int8_array";
+            return "_int8";
+        case _INT16:
+            if(isArray) return "_int16_array";
+            return "_int16";
+        case _INT32:
+            if(isArray) return "_int32_array";
+            return "_int32";
+        case _INT64:
+            if(isArray) return "_int64_array";
+            return "_int64";
+        case _UINT8:
+            if(isArray) return "_uint8_array";
+            return "_uint8";
+        case _UINT16:
+            if(isArray) return "_uint16_array";
+            return "_uint16";
+        case _UINT32:
+            if(isArray) return "_uint32_array";
+            return "_uint32";
+        case _UINT64:
+            if(isArray) return "_uint64_array";
+            return "_uint64";
+        case FNPTR:
+        case VAR:
+            if(isArray) return "var_array";
+            return "var";
+        case NIL:
+            return "void";
+        default:
+            return "object";
+    }
+}
+
+bool isCppKeyword(string &word) {
+    return word == "alignas" ||
+    word == "alignof" ||
+    word == "and" ||
+    word == "and" ||
+    word == "and_eq" ||
+    word == "asm" ||
+    word == "atomic_cancel" ||
+    word == "atomic_commit" ||
+    word == "atomic_noexcept" ||
+    word == "auto" ||
+    word == "bitand" ||
+    word == "bitor" ||
+    word == "bool" ||
+    word == "break" ||
+    word == "case" ||
+    word == "catch" ||
+    word == "char" ||
+    word == "char16_t" ||
+    word == "char32_t" ||
+    word == "class" ||
+    word == "compl" ||
+    word == "concept" ||
+    word == "const" ||
+    word == "constexpr" ||
+    word == "const_cast" ||
+    word == "continue" ||
+    word == "co_await " ||
+    word == "co_return" ||
+    word == "co_yield " ||
+    word == "decltype" ||
+    word == "default" ||
+    word == "delete" ||
+    word == "do" ||
+    word == "double" ||
+    word == "dynamic_cast" ||
+    word == "else" ||
+    word == "enum" ||
+    word == "explicit" ||
+    word == "export" ||
+    word == "extern" ||
+    word == "false" ||
+    word == "float" ||
+    word == "for" ||
+    word == "friend" ||
+    word == "goto" ||
+    word == "if" ||
+    word == "import" ||
+    word == "inline" ||
+    word == "int" ||
+    word == "long" ||
+    word == "module" ||
+    word == "mutable" ||
+    word == "namespace" ||
+    word == "new" ||
+    word == "noexcept" ||
+    word == "not" ||
+    word == "not_eq" ||
+    word == "nullptr" ||
+    word == "operator" ||
+    word == "or" ||
+    word == "or_eq" ||
+    word == "private" ||
+    word == "protected" ||
+    word == "public" ||
+    word == "register" ||
+    word == "reinterpret_cast" ||
+    word == "requires" ||
+    word == "return" ||
+    word == "short" ||
+    word == "signed" ||
+    word == "sizeof" ||
+    word == "static" ||
+    word == "static_assert" ||
+    word == "static_cast" ||
+    word == "struct" ||
+    word == "switch" ||
+    word == "synchronized" ||
+    word == "template" ||
+    word == "this" ||
+    word == "thread_local" ||
+    word == "throw" ||
+    word == "true" ||
+    word == "try" ||
+    word == "typedef" ||
+    word == "typeid" ||
+    word == "typename" ||
+    word == "union" ||
+    word == "unsigned" ||
+    word == "using" ||
+    word == "virtual" ||
+    word == "void" ||
+    word == "volatile" ||
+    word == "wchar_t" ||
+    word == "while" ||
+    word == "xor" ||
+    word == "xor_eq";
+}
+
+string operatorToString(string op) {
+    if(op == "+=")
+        return "$plus_equal";
+    else if(op == "-=")
+        return "$minus_equal";
+    else if(op == "*=")
+        return "$mult_equal";
+    else if(op == "/=")
+        return "$div_equal";
+    else if(op == "&=")
+        return "$and_equal";
+    else if(op == "|=")
+        return "$or_equal";
+    else if(op == "^=")
+        return "$xor_equal";
+    else if(op == "%=")
+        return "$mod_equal";
+    else if(op == "=")
+        return "$equals";
+    else if(op == "++")
+        return "$plus_plus";
+    else if(op == "--")
+        return "$minus_minus";
+    else if(op == "*")
+        return "$mult";
+    else if(op == "/")
+        return "$div";
+    else if(op == "%")
+        return "$mod";
+    else if(op == "-")
+        return "$minus";
+    else if(op == "+")
+        return "$plus";
+    else if(op == "==")
+        return "$equals_equals";
+    else if(op == ">>")
+        return "$right_shift";
+    else if(op == "<<")
+        return "$left_shift";
+    else if(op == "<")
+        return "$less_than";
+    else if(op == ">")
+        return "$greater_than";
+    else if(op == "<=")
+        return "$less_or_equals";
+    else if(op == ">=")
+        return "$great_or_equals";
+    else if(op == "!=")
+        return "$not_equals";
+    else if(op == "!")
+        return "$not";
+    else if(op == "[")
+        return "$array_at";
+    else if(op == "**")
+        return "$pow";
+    else if(op == "&" )
+        return "$and";
+    else if(op == "|")
+        return "$or";
+    else if(op == "^")
+        return "$xor";
+    else return op; // error should not happen
+}
+
+void ExeBuilder::appendClassHeaderFunctions(ClassObject* klass, stringstream &ss) {
+    List<Method*> &classMethods = klass->getFunctions();
+
+    if(classMethods.empty())
+        return;
+
+    if(klass->isGlobalClass()) {
+        ss << "scope(";
+        ss << (isCppKeyword(klass->module->name) ? "_" : "") << moduleToCPPName(klass->module->name) << ", " << endl;
+    } else {
+        ss << "scope(" << (isCppKeyword(klass->module->name) ? "_" : "") << moduleToCPPName(klass->module->name) << ", ";
+        string cppName = classToCPPName(klass->fullName);
+
+        ss << (isCppKeyword(cppName) ? "_" : "") << cppName << ", " << endl;
+    }
+
+    for(Int k = 0; k < classMethods.size(); k++) {
+        Method *func = classMethods.get(k);
+        Int duplicateCount = getDuplicateCount(func, classMethods, k);
+        ss << endl << "\t" << typeToCPPType(func->utype->getResolvedType()->type, func->utype->isArray())
+           << " ";
+
+        if(startsWith(func->name, "operator")) {
+            ss << "op_" << operatorToString(func->name.substr(8, func->name.size()));
+        } else {
+            ss << (isCppKeyword(func->name) ? "_" : "") << func->name;
+        }
+
+        if(duplicateCount)
+            ss << (duplicateCount + 1);
+        ss << "(";
+
+        if(!func->flags.find(STATIC)) {
+            ss << "object $instance";
+
+            if(!func->params.empty())
+                ss << ", ";
+        }
+
+        for(Int l = 0; l < func->params.size(); l++) {
+            Field *param = func->params.get(l);
+            ss << typeToCPPType(param->type, param->utype->isArray());
+            if(param->type <= VAR)
+                ss << "&";
+            ss << " " << (isCppKeyword(param->name) ? "_" : "") << param->name;
+
+            if((l + 1) < func->params.size()) {
+                ss << ", ";
+            }
+        }
+
+        ss << ");";
+    }
+
+    ss << endl << ")" << endl << endl;
+}
+
+void ExeBuilder::createNativeHeaderFile() {
+    stringstream ss;
+    ss << "#ifndef SHARP_NATIVE_MAPPING_H" << endl;
+    ss << "#define SHARP_NATIVE_MAPPING_H" << endl << endl;
+    ss << "#include \"snb_api.h\"" << endl << endl;
+    ss << "using namespace snb_api;" << endl << endl;
+
+
+    for(Int j = 0; j < allClasses.size(); j++) {
+        appendClassHeaderFunctions(allClasses.get(j), ss);
+    }
+
+    ss << "#endif //SHARP_NATIVE_MAPPING_H" << endl;
+
+#ifdef _WIN32
+    string mappingFile = c_options.nativeCodeDir + "\\native_mapping.h";
+    _mkdir(c_options.nativeCodeDir.c_str());
+#else
+    string mappingFile = c_options.nativeCodeDir + "/native_mapping.h";
+    mkdir(c_options.nativeCodeDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+#endif
+
+    File::write(mappingFile.c_str(), ss.str());
+}
+
+void ExeBuilder::appendProcAddrFunctions(ClassObject* klass, stringstream &ss, bool &firstFunc) {
+    List<Method *> &classMethods = klass->getFunctions();
+
+    for(Int k = 0; k < classMethods.size(); k++) {
+        Method *func = classMethods.get(k);
+
+        if(func->isNative()) {
+            ss << "\t\t";
+            if (firstFunc) firstFunc = false;
+            else ss << "|| ";
+            ss << "name == \"" << func->fullName << "\" && addr == " << func->address << endl;
+        }
+    }
+}
+
+void ExeBuilder::createProcAddrFunc(stringstream &ss) {
+    ss << "EXPORTED short snb_link_proc(const char* funcName, int32_t addr) {" << endl
+       << "\tstring name = funcName;" << endl << endl;
+
+    bool firstFunc = true;
+
+    ss << "\tif(" << endl;
+    for(Int j = 0; j < allClasses.size(); j++) {
+        appendProcAddrFunctions(allClasses.get(j), ss, firstFunc);
+    }
+
+    ss << "\t) {" << endl;
+    ss << "\t\treturn 1;" << endl;
+    ss << "\t}" << endl << endl;
+    ss << "return 0;" << endl;
+    ss << "}" << endl << endl;
+}
+
+void ExeBuilder::appendCallFunctions(ClassObject* klass, stringstream& ss) {
+    List<Method *> &classMethods = klass->getFunctions();
+
+    for(Int k = 0; k < classMethods.size(); k++) {
+        Method *func = classMethods.get(k);
+
+        if(!func->isNative()) continue;
+        Int duplicateCount = getDuplicateCount(func, classMethods, k);
+
+        ss << "void call_" << moduleToCPPName(func->module->name) << "$" << classToCPPName(func->owner->fullName) << "_" << func->name;
+
+        if(duplicateCount)
+            ss << (duplicateCount + 1);
+        ss << "() {";
+
+        if(func->owner->isGlobalClass()) {
+            ss << endl << "\timport(" << moduleToCPPName(func->module->name) << "); " << endl;
+        } else {
+            ss << endl << "\timport(" << moduleToCPPName(func->module->name) << ", ";
+            ss << classToCPPName(func->owner->fullName) << "); " << endl;
+        }
+
+        Int localAddr = 0;
+        if(!func->flags.find(STATIC)) {
+            localAddr++;
+            ss << endl << "\tobject $instance = internal::getfpLocalAt(0);";
+        }
+
+        for(Int l = 0; l < func->params.size(); l++) {
+            Field *param = func->params.get(l);
+
+            if(param->utype->getResolvedType()->type <= VAR && param->isArray) {
+                ss << endl << "\tobject " << "$tmpField" << localAddr << " = internal::getfpLocalAt(" << localAddr << ");";
+            }
+
+            ss << endl << "\t" << typeToCPPType(param->utype->getResolvedType()->type, param->utype->isArray())
+               << " " << (isCppKeyword(param->name) ? "_" : "") << param->name;
+
+            if(param->utype->getResolvedType()->type <= VAR) {
+                if(param->isArray) {
+                    stringstream fieldName;
+                    fieldName << "$tmpField" << localAddr;
+                    ss << "(internal::getVarPtr(" << fieldName.str() << "), internal::getSize(" << fieldName.str() << "), " << fieldName.str() << ");";
+                } else {
+                    ss << "(internal::getfpNumAt(" << localAddr << "));";
+                }
+            } else {
+                ss << " = internal::getfpLocalAt(" << localAddr << ");";
+            }
+
+            localAddr++;
+        }
+
+        ss << endl << "\t" << (isCppKeyword(func->name) ? "_" : "") << func->name;
+        ss << "(";
+
+        for(Int l = 0; l < func->params.size(); l++) {
+            Field *param = func->params.get(l);
+            ss << (isCppKeyword(param->name) ? "_" : "") << param->name;
+
+            if((l + 1) < func->params.size()) {
+                ss << ", ";
+            }
+        }
+        ss << ");";
+        ss << endl << "}" << endl << endl;
+    }
+}
+
+void ExeBuilder::createCallFunc(stringstream &ss) {
+    for(Int j = 0; j < allClasses.size(); j++) {
+        appendCallFunctions(allClasses.get(j), ss);
+    }
+}
+
+void ExeBuilder::appendMainFunctions(ClassObject* klass, stringstream& ss) {
+    List<Method *> &classMethods = klass->getFunctions();
+
+    for(Int k = 0; k < classMethods.size(); k++) {
+        Method *func = classMethods.get(k);
+
+        if(!func->isNative()) continue;
+        Int duplicateCount = getDuplicateCount(func, classMethods, k);
+
+        ss << "\t\t";
+        ss << "case " << func->address << ": " << endl;
+        ss << "\t\t\tcall_" << moduleToCPPName(func->module->name) << "$"<< classToCPPName(func->owner->fullName) << "_" << func->name;
+
+        if(duplicateCount)
+            ss << (duplicateCount + 1);
+        ss << "();" << endl;
+        ss << "\t\t\tbreak;" << endl;
+    }
+}
+
+void ExeBuilder::createMainFunc(stringstream &ss) {
+    ss << "EXPORTED void snb_main(long procAddr) {" << endl;
+    ss << "\tswitch(procAddr) {" << endl;
+
+    for(Int j = 0; j < allClasses.size(); j++) {
+        appendMainFunctions(allClasses.get(j), ss);
+    }
+
+    ss << "\t}" << endl;
+    ss << "}" << endl;
+}
+
+void ExeBuilder::createNativeSourceFile() {
+    stringstream ss;
+    ss << "#include \"native_mapping.h\"" << endl
+          << endl
+          << "using namespace std;" << endl
+          << "using namespace snb_api;" << endl << endl;
+
+    ss << "#ifdef __cplusplus" << endl
+          << "extern \"C\" {" << endl
+          << "#endif" << endl << endl;
+
+    createProcAddrFunc(ss);
+    createCallFunc(ss);
+    createMainFunc(ss);
+
+    ss << endl
+          << "#ifdef __cplusplus" << endl
+          << "}" << endl
+          << "#endif" << endl;
+
+#ifdef _WIN32
+    string mappingFile = c_options.nativeCodeDir + "\\native_mapping.cpp";
+    _mkdir(c_options.nativeCodeDir.c_str());
+#else
+    string mappingFile = c_options.nativeCodeDir + "/native_mapping.cpp";
+    mkdir(c_options.nativeCodeDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+#endif
+
+    File::write(mappingFile.c_str(), ss.str());
+}
+
+void ExeBuilder::appendSharpMappingSourceFile(ClassObject* klass, stringstream& ss) {
+    List<Method*> &classMethods = klass->getFunctions();
+
+    if(classMethods.empty())
+        return;
+
+    if(klass->isGlobalClass()) {
+        ss << "scope(";
+        ss << (isCppKeyword(klass->module->name) ? "_" : "") << moduleToCPPName(klass->module->name) << ", " << endl;
+    } else {
+        ss << "scope(" << (isCppKeyword(klass->module->name) ? "_" : "") << moduleToCPPName(klass->module->name) << ", ";
+        string cppName = classToCPPName(klass->fullName);
+
+        ss << (isCppKeyword(cppName) ? "_" : "") << cppName << ", " << endl;
+    }
+
+    for(Int k = 0; k < classMethods.size(); k++) {
+        Method *func = classMethods.get(k);
+
+        if(func->isNative()) continue;
+        Int duplicateCount = getDuplicateCount(func, classMethods, k);
+        ss << endl << "\t" << typeToCPPType(func->utype->getResolvedType()->type, func->utype->isArray())
+           << " ";
+
+        if(startsWith(func->name, "operator")) {
+            ss << "op_" << operatorToString(func->name.substr(8, func->name.size()));
+        } else {
+            ss << (isCppKeyword(func->name) ? "_" : "") << func->name;
+        }
+
+        if(duplicateCount)
+            ss << (duplicateCount + 1);
+        ss << "(";
+
+        if(!func->flags.find(STATIC)) {
+            ss << "object $instance";
+
+            if(!func->params.empty())
+                ss << ", ";
+        }
+
+        for(Int l = 0; l < func->params.size(); l++) {
+            Field *param = func->params.get(l);
+            ss << typeToCPPType(param->type, param->utype->isArray());
+            if(param->type <= VAR)
+                ss << "&";
+            ss << " " << (isCppKeyword(param->name) ? "_" : "") << param->name;
+
+            if((l + 1) < func->params.size()) {
+                ss << ", ";
+            }
+        }
+
+        ss << ") {";
+
+        if(!func->flags.find(STATIC)) {
+            ss << endl << "\t\tpushObj($instance);";
+        }
+
+        for(Int l = 0; l < func->params.size(); l++) {
+            Field *param = func->params.get(l);
+
+            ss << endl << "\t\t";
+
+            if(param->utype->getResolvedType()->type <= VAR) {
+                if(param->isArray) {
+                    ss << "pushObj(" << (isCppKeyword(param->name) ? "_" : "") << param->name << ".handle);";
+                } else {
+                    ss << "pushNum(" << (isCppKeyword(param->name) ? "_" : "") << param->name << ".value());";
+                }
+            } else {
+                ss << "pushObj(" << (isCppKeyword(param->name) ? "_" : "") << param->name << ");";
+            }
+        }
+
+        ss << endl << "\t\tcall(" << func->address << ");" << endl;
+
+        if(func->utype->getResolvedType()->type != NIL) {
+            ss << endl;
+
+            if(func->utype->getResolvedType()->type <= VAR && func->utype->isArray()) {
+                ss << "\t\tobject $tmpObj = getSpObjAt(0);" << endl;
+            }
+
+            if(func->utype->getResolvedType()->type <= VAR) {
+                ss << "\t\t" << typeToCPPType(func->utype->getResolvedType()->type, func->utype->isArray()) << " $result";
+
+                if(func->utype->isArray()) {
+                    ss << "(getVarPtr($tmpObj), getSize($tmpObj), $tmpObj);";
+                } else {
+                    ss << "(getSpNumAt(0));" << endl;
+                    ss << "\t\tdecSp(1);" << endl;
+                }
+            } else {
+                ss << "\t\tobject $result = getSpObjAt(0);" << endl;
+                ss << "\t\tdecSp(1);" << endl;
+            }
+
+            ss << "\t\treturn $result;" << endl;
+        }
+        ss << "\t}" << endl;
+    }
+
+    ss << endl << ")" << endl << endl;
+}
+
+void ExeBuilder::createSharpMappingSourceFile() {
+    stringstream ss;
+    ss << "#include \"native_mapping.h\"" << endl
+       << endl
+       << "using namespace snb_api::internal;" << endl << endl;
+
+    for(Int j = 0; j < allClasses.size(); j++) {
+        appendSharpMappingSourceFile(allClasses.get(j), ss);
+    }
+
+#ifdef _WIN32
+    string mappingFile = c_options.nativeCodeDir + "\\sharp_mapping.cpp";
+    _mkdir(c_options.nativeCodeDir.c_str());
+#else
+    string mappingFile = c_options.nativeCodeDir + "/sharp_mapping.cpp";
+    mkdir(c_options.nativeCodeDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+#endif
+
+    File::write(mappingFile.c_str(), ss.str());
+}
+
+void ExeBuilder::createNativeSourceCode() {
+    createNativeHeaderFile();
+    createNativeSourceFile();
+    createSharpMappingSourceFile();
 }
 
 void ExeBuilder::createDumpFile() {
@@ -1277,6 +1933,8 @@ string ExeBuilder::codeToString(Method* fun) {
 
 void ExeBuilder::build() {
     createDumpFile();
+    if(compiler->nativeCodeFound)
+        createNativeSourceCode();
     buildExe();
 }
 

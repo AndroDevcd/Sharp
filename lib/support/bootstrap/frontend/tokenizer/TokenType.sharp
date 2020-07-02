@@ -1,69 +1,66 @@
 mod app;
 
-//import as std (
-//    std.io,
-//    std.*
-//)
+//import std.io as io;
 
 /**                          
 * Created by bknun on 6/13/2018            
 * Description:                             
 */
 
-enum TokenType
+enum token_type
 {
-    NUMBER,
-    LETTER,
-    UNDERSCORE,
-    LEFT_PAREN,
-    RIGHT_PAREN,
-    LEFT_CURLY,
-    RIGHT_CURLY,
-    HASH,               // #
-    DOT,                // .
-    PLUS,
-    MINUS,
-    MULT,
-    DIV,               //
-    MOD,               // %
-    COLON,              // :
-    SEMICOLON,
-    DUB_QUOTE,           // "
-    SING_QUOTE,          // '
-    COMMA,
-    NEWLINE,
-    LTE,               // <=
-    GTE,               // >=
-    EQEQ,               // ==
-    PLUSEQ,
-    MINUSEQ,
-    MULTEQ,
-    DIVEQ,
-    ANDEQ,
-    OREQ,
-    XOREQ,
-    MODEQ,
-    NOTEQ,              // !=
-    SHL,                // <<
-    SHR,                // >>
-    LESSTHAN,
-    GREATERTHAN,
-    AND,
-    ANDAND,             // &&
-    OR,
-    OROR,               // ||
-    XOR,                // ^
-    NOT,                // !
-    EQUALS,             // =
-    INFER,             // :=
-    LEFT_BRACE,          // [
-    RIGHT_BRACE,         // ]
-    QUESMK,             // ?
-    PTR,                // ->
-    INC,               // ++
-    DEC,               // --
-    DOLLAR,             // $
-    EOF = 9999,        // end of file
+    number,
+    letter,
+    underscore,
+    left_paren,
+    right_paren,
+    left_curly,
+    right_curly,
+    hash,               // #
+    dot,                // .
+    plus,
+    minus,
+    mult,
+    div,               //
+    mod,               // %
+    colon,              // :
+    semicolon,
+    dub_quote,           // "
+    sing_quote,          // '
+    comma,
+    newline,
+    lte,               // <=
+    gte,               // >=
+    eqeq,               // ==
+    pluseq,
+    minuseq,
+    multeq,
+    diveq,
+    andeq,
+    oreq,
+    xoreq,
+    modeq,
+    noteq,              // !=
+    shl,                // <<
+    shr,                // >>
+    lessthan,
+    greaterthan,
+    and,
+    andand,             // &&
+    or,
+    oror,               // ||
+    xor,                // ^
+    not,                // !
+    equals,             // =
+    infer,             // :=
+    left_brace,          // [
+    right_brace,         // ]
+    quesmk,             // ?
+    ptr,                // ->
+    inc,               // ++
+    dec,               // --
+    dollar,             // $
+    eof = 9999,        // end of file
 
-    NONE                // not a type
+    none                // not a type
 };

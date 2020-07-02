@@ -2,7 +2,7 @@ mod std;
 
 import std.io;
 
-class string_builder {
+class string_builder : loopable<_int8> {
     private data : _int8[];
     private static currentFormat := 'g';
     private static precision := 0;
@@ -95,6 +95,8 @@ class string_builder {
         data[sizeof(data) - 1] = ch;
         return self;
     }
+
+    def get_elements() := to_string().get_elements();
 
     def append(c: char) := append(c.get_value());
 

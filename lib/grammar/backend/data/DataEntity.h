@@ -93,6 +93,7 @@ public:
 
     void release() { flags.free(); }
     bool isVar() { return type <= VAR; }
+    bool isNative() { return flags.find(NATIVE); }
     void copy(DataEntity *de) {
         type = de->type;
         name = de->name;

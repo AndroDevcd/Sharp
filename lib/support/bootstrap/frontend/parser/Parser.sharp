@@ -8,108 +8,56 @@ import std.io;
  */
 class Parser {
 
-    private string sourceFile;
-    private var panic;
-    private var cursor;
-    private var parsed;
-    private ArrayList<Ast> tree;
-    private Dictionary<var, Ast> states;
-    private ArrayList<string> lines;
-    private Token current;
-    private Token[] tokens;
-    private Tokenizer tokenizer;
-    private ArrayList<Token> accessTypes;
-    private ErrorManager errors;
+    private source_file: string;
+    private panic: var;
+    private cursor: var;
+    private parsed: var;
+    private tree: list<ast>;
+    private lines: list<string>;
+    private current: token;
+    private tokens: token[];
+    private tokenizer: tokenizer;
+    private access_types: list<token>;
+    private error_manager errors;
 
-    public Parser(Tokenizer tokenizer)
+    public Parser(tokenizer: tokenizer)
         {
             self->tokenizer=tokenizer;
 
-            if(tokenizer != null && tokenizer.getErrors() != null
-                && !tokenizer.getErrors().hasErrors())
+            if(tokenizer != null && tokenizer.get_errors() != null
+                && !tokenizer.get_errors().has_errors())
             {
-                accessTypes = new ArrayList<Token>();
-                tree = new ArrayList<Ast>();
-                states = new Dictionary<var, Ast>();
-                lines = tokenizer.getLines();
-                tokens = tokenizer.getTokens();
+                access_types = new list<token>();
+                tree = new list<ast>();
+                lines = tokenizer.get_lines();
+                tokens = tokenizer.get_tokens();
 
                 parse();
 
-                strbuf sb = new strbuf("");
-                for(var i = 0; i < tree.size(); i++) {
-                    Ast child = tree.get(i);
+                sb := new string_builder("");
+                foreach(child in tree) {
                     if(child != null)
-                        child.toString(sb);
+                        child.to_string(sb);
                     else
                         sb += "null\n";
                 }
 
-                File out = new File("tree.txt");
-                out.create();
-                IOStream ostream = new IOStream(out, IOStream.WRITE);
-                ostream.write(sb.toString());
-                ostream.close();
+                file out = new file("tree.txt");
+                file.write(sb.to_string());
          }
     }
 
 
     private def parse() {
-        sourceFile = tokenizer.getFile();
-        errors = new ErrorManager(lines, sourceFile, true, Options.aggressiveErrors);
+        source_file = tokenizer.get_file();
+        errors = new error_manager(lines, source_file, true, options.aggressive_errors);
         current = tokens[cursor++];
-
-
-        while (true)
-        {
-            if(isAccessType(current))
-                parseAccessTypes();
-
-            if(quit()) break;
-
-            if(isEnd()) {
-                accessTypes.clear();
-                return;
-            } else if(isDecl(current, MOD)) {
-                if(accessTypes.size() > 0)
-                    errors.createNewError(ILLEGAL_ACCESS_DECLARATION, current, "");
-                parseModuleDecl(null);
-            }
-
-            _continue:
-            advance();
-            accessTypes.clear();
-        }
 
         parsed = true;
     }
 
-    private def parseModuleDecl(Ast ast) {
-        Ast branch = getAst(ast, Module_Decl);
-        branch.add(current);
-        advance();
 
-        expectIdentifier(branch);
-        if(peek(1) == TokenType.DOT) {
-            advance();
-            while(current == TokenType.DOT) {
-                branch.add(current);
-                advance();
-
-                if(current == TokenType.MULT) {
-                    branch.add(current);
-                    return;
-                }
-
-                expectIdentifier(branch);
-                advance();
-            }
-        }
-        expect(SEMICOLON, branch, "`;`");
-    }
-
-
-    private static object[] keywords = new object[]
+    private static keywords := new object[]
     {
         "mod",
         "true",
@@ -164,161 +112,12 @@ class Parser {
         "fn"
     };
 
-    private def isKeyword(string key) : var {
-        foreach(var[] keyword : keywords) {
+    private def is_keyword(key: string) : var {
+        foreach(keyword in keywords) {
             if(key == keyword)
                 return true;
         }
 
         return false;
     }
-
-    private def expectIdentifier(Ast ast) : var {
-
-        if(current == TokenId.IDENTIFIER && !isKeyword(current.getToken()))
-        {
-            ast.add(current);
-            return true;
-        } else {
-            errors.createNewError(GENERIC, current, "expected identifier");
-        }
-
-        return false;
-    }
-
-    private def getAst(Ast ast, AstType type) : Ast {
-        if(ast == null)
-        {
-            tree.add(new Ast(type, current.getLine(), current.getCol()));
-            return tree.last();
-        } else {
-            ast.add(new Ast(type, current.getLine(), current.getCol()));
-            return ast.last();
-        }
-    }
-
-    private def peek(var forward) : Token {
-        if((cursor+forward) >= sizeof(tokens))
-            return tokens[sizeof(tokens)-1];
-        else
-            return tokens[cursor+forward];
-    }
-
-    public def getErrors() : ErrorManager {
-        return errors;
-    }
-
-    private def isDecl(Token token, var[] value) : var {
-        return token == TokenId.IDENTIFIER && token == value;
-    }
-
-    private def parseAccessTypes() {
-        accessTypes.clear();
-
-        while(isAccessType(current))
-        {
-            accessTypes.add(current);
-            advance();
-        }
-    }
-
-    private def quit() : var {
-        if(panic) return true;
-        else if(errors.getRawErrorCount() > Options.maxErrors) {
-            panic = true;
-            return true;
-        }
-
-        return false;
-    }
-
-    public def expect(TokenType type, Ast ast, var[] msg) {
-
-        if(current == type) {
-            ast.add(current);
-        } else {
-            errors.createNewError(GENERIC, current, "expected " + msg);
-        }
-    }
-
-    public def expect(TokenType type, var[] msg) : var {
-
-        if(current == type) {
-            return true;
-        } else {
-            errors.createNewError(GENERIC, current, "expected " + msg);
-        }
-
-        return false;
-    }
-
-    public def expectToken(Ast ast, var[] token) {
-
-        if(current.getToken() != token) {
-            errors.createNewError(GENERIC, current, "expected `" + token + "`");
-        } else {
-            ast.add(current);
-        }
-    }
-
-    public def expectToken(Ast ast, var[] token, var[] msg) {
-
-        if(current.getToken() != token) {
-            errors.createNewError(GENERIC, current, "expected " + msg);
-        } else {
-            ast.add(current);
-        }
-    }
-
-    private def advance() {
-        if((cursor+1) < sizeof(tokens))
-            current = tokens[cursor++];
-        else current = tokens[sizeof(tokens)-1];
-    }
-
-    private def isAccessType(Token token) : var {
-        return
-               token == TokenId.IDENTIFIER && token == PROTECTED ||
-               token == TokenId.IDENTIFIER && token == PRIVATE ||
-               token == TokenId.IDENTIFIER && token == PUBLIC ||
-               token == TokenId.IDENTIFIER && token == STATIC ||
-               token == TokenId.IDENTIFIER && token == CONST;
-    }
-
-    def isEnd() : var {
-        return current == TokenType.EOF;
-    }
-
-    private static const var[] INTERFACE = "interface";
-    private static const var[] MOD = "mod";
-    private static const var[] CLASS = "class";
-    private static const var[] IMPORT = "import";
-    private static const var[] VAR = "var";
-    private static const var[] OBJECT = "object";
-    private static const var[] PROTOTYPE = "fn";
-    private static const var[] METHOD = "def";
-    private static const var[] RETURN = "return";
-    private static const var[] IF = "if";
-    private static const var[] SWITCH = "switch";
-    private static const var[] ASSEMBLY = "asm";
-    private static const var[] FOR = "for";
-    private static const var[] LOCK = "lock";
-    private static const var[] FOREACH = "foreach";
-    private static const var[] WHILE = "while";
-    private static const var[] DOWHILE = "do";
-    private static const var[] TRYCATCH = "try";
-    private static const var[] CATCH = "catch";
-    private static const var[] THROW = "throw";
-    private static const var[] CONTINUE = "continue";
-    private static const var[] BREAK = "break";
-    private static const var[] GOTO = "goto";
-    private static const var[] CASE = "case";
-    private static const var[] DEFAULT = "default";
-    private static const var[] VOLATILE = "volatile";
-    private static const var[] ENUM = "enum";
-    private static const var[] STATIC = "static";
-    private static const var[] CONST = "const";
-    private static const var[] PUBLIC = "public";
-    private static const var[] PRIVATE = "private";
-    private static const var[] PROTECTED = "protected";
 }

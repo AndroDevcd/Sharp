@@ -135,8 +135,9 @@ void Obfuscater::obfuscateFullName(DataEntity *de) {
     if(de->owner == NULL) {
         ModuleData *package = de->module;
         if(package->obfuscate)
-            de->fullName = generateName(package->guid) + "#" + generateName(de->guid);
-        else de->fullName = package->name + "#" + generateName(de->guid);
+            package->name = generateName(package->guid);
+
+        de->fullName = package->name + "#" + generateName(de->guid);
     } else {
         de->fullName = de->owner->fullName + "." + generateName(de->guid);
     }

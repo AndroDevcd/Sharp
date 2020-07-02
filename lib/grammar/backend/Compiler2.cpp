@@ -833,7 +833,7 @@ void Compiler::compileFieldType(Field *field) {
  * The purposes of this function is to "forward" process a field's type and value if it hasn't
  * been processed yet to prevent weird incorrect undefined errors from the compiler
  */
-void Compiler::compileAliasType(Alias *alias) {
+void Compiler::compileAliasType(Alias *alias) { // TODO: [REVISIT: talk about in the tutorial
     if(alias != NULL) {
         currScope.add(new Scope(alias->owner, alias->owner->isGlobalClass() ? GLOBAL_SCOPE : CLASS_SCOPE));
         resolveAlias(alias->ast);
@@ -1259,7 +1259,7 @@ void Compiler::compileReferencePtr(ReferencePointer &ptr, Ast* ast) {
             string name = ast->getToken(i).getValue();
             if(name != ".") {
                 if (!failed && ((i + 1) < ast->getTokenCount()) && ast->getToken(i + 1) == "<") {
-                    RETAIN_TYPE_INFERENCE(false) // TODO
+                    RETAIN_TYPE_INFERENCE(false)
                     ClassObject *genericClass = compileGenericClassReference(
                             Obfuscater::getModule(ptr.mod), name, parent, ast->getSubAst(genericListPos++));
                     ptr.classes.add(genericClass ? genericClass->name : "?");
@@ -1289,7 +1289,7 @@ ClassObject *Compiler::resolveClassReference(Ast *ast, ReferencePointer &ptr, bo
     Alias *alias;
     if(ptr.classes.singular()) {
         ClassObject* klass = resolveClass(Obfuscater::getModule(ptr.mod), ptr.classes.get(0), ast);
-        if(klass == NULL) {
+        if(klass == NULL) { // class foo { k : list<>; class list<t> { class fooClass {}} }
             if((klass = findClass(Obfuscater::getModule(ptr.mod), ptr.classes.get(0) + "<>", generics))) {
                 if(allowGenerics) // this is for extension functions
                     return klass;

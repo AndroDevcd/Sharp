@@ -458,7 +458,7 @@ class Player {
 - do not allow static init to be called at global scope
 - for each class call the respective function in `srt_init()` for setting up each class & pass the instance of MOVG instruction to the function because technically it will be an instance function
 
-- Add support for calling base constructors during initialization
+- [X] Add support for calling base constructors during initialization
 
 ```javascript
 
@@ -485,4 +485,32 @@ class mario base player {
     }
 }
 
+```
+
+- Add support for native function in the lang
+
+```javascript
+
+// in main.sharp
+mod main;
+
+native def add(var x, var y) : var;
+
+def main() {
+    println(" 10 + 23 = ${add(10, 23)}");
+}
+
+```
+
+```c++
+// in main.cpp
+#include "native_mapping.h"
+
+scope(main,
+    var add(var &num, var &y) {
+        var result = createLocal<var>();
+        result = num + y;
+        return result;
+    }
+)
 ```

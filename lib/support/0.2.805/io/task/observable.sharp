@@ -15,25 +15,21 @@ public class observable<t> {
 		changed = false;
 	}
 
-	public def observe_forever(on_update: (observable<t>)()) {
-	    observers.add(thread.current());
-
-        try {
-            do {
-                thread.wait();
-                on_update(self);
-            } while(true);
-		} catch(cancellation_exception) {
-		    observers.remove(thread.current(), {it, it2 -> return it.id == it2.id; });
-		} catch(e: error) {
-		    observers.remove(thread.current(), {it, it2 -> return it.id == it2.id; });
-		    throw e;
-        }
+	public def observe(on_update: (observable<t>)()) {
+	    update_fun = on_update;
+	    observers.add(self);
 	}
 
-	def notify_all() {
-        foreach(t in observers) {
-            t.wait_and_notify();
+	private def notify_all() {
+        foreach(obs in observers) {
+            try {
+                obs.update_fun(self);
+            } catch(cancellation_exception) {
+                observers.remove(thread.current(), {it, it2 -> return it.id == it2.id; });
+            } catch(e: error) {
+                observers.remove(thread.current(), {it, it2 -> return it.id == it2.id; });
+                throw e;
+            }
         }
 	}
 
@@ -45,6 +41,7 @@ public class observable<t> {
 
     protected changed : var;
 	protected data : t;
-	protected observers := new synced_list<thread>();
+	private update_fun: (observable<t>)();
+	protected observers := new synced_list<observable<t> >();
 }
 

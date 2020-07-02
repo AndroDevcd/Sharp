@@ -65,6 +65,8 @@ AccessFlag Compiler::strToAccessFlag(string flag) {
         return EXTENSION;
     else if(flag == "stable")
         return STABLE;
+    else if(flag == "native")
+        return NATIVE;
     else
         return flg_UNDEFINED;
 }
@@ -1092,7 +1094,7 @@ void Compiler::validateAccess(Field *field, Ast* pAst) {
         }
     } else if(field->flags.find(PRIVATE)) {
         Scope *scope = currentScope();
-        if(field->owner == currentScope()->klass || scope->klass->isClassRelated(field->owner)) {
+        if(field->owner == currentScope()->klass) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to private field `" + field->fullName + "`");
         }
@@ -1116,7 +1118,7 @@ void Compiler::validateAccess(ClassObject *klass, Ast* pAst) {
         }
     } else if(klass->flags.find(PRIVATE)) {
         Scope *scope = currentScope();
-        if(scope->klass->isClassRelated(klass)) {
+        if(scope->klass->match(klass)) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to private class `" + klass->fullName + "`");
         }
@@ -1141,7 +1143,7 @@ void Compiler::validateAccess(Method *function, Ast* pAst) {
         }
     } else if(function->flags.find(PRIVATE)) {
         Scope *scope = currentScope();
-        if(function->owner == scope->klass || scope->klass->isClassRelated(function->owner)) {
+        if(function->owner == scope->klass) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to private method `" + function->toString() + "`");
         }
@@ -1213,7 +1215,8 @@ void Compiler::inheritObjectClassHelper(Ast *ast, ClassObject *klass) {
     if(klass->fullName != "std#_object_" && klass->getSuperClass() == NULL) {
         ClassObject *base = findClass(Obfuscater::getModule("std"), "_object_", classes);
 
-        if (base != NULL && (IS_CLASS_ENUM(base->getClassType()) || IS_CLASS_INTERFACE(base->getClassType()))) {
+        if (base != NULL && (IS_CLASS_ENUM(base->getClassType()) || IS_CLASS_INTERFACE(base->getClassType())
+                || IS_CLASS_GENERIC(base->getClassType()))) {
             stringstream err;
             err << "support class for objects must be of type class";
             errors->createNewError(GENERIC, ast->line, ast->col, err.str());
@@ -1235,7 +1238,8 @@ void Compiler::inheritEnumClassHelper(Ast *ast, ClassObject *enumClass) {
     if(IS_CLASS_ENUM(enumClass->getClassType())) {
         ClassObject *base = findClass(Obfuscater::getModule("std"), "_enum_", classes);
 
-        if (base != NULL && (IS_CLASS_ENUM(base->getClassType()) || IS_CLASS_INTERFACE(base->getClassType()))) {
+        if (base != NULL && (IS_CLASS_ENUM(base->getClassType()) || IS_CLASS_INTERFACE(base->getClassType())
+                ||  IS_CLASS_GENERIC(base->getClassType()))) {
             stringstream err;
             err << "support class for enums must be of type class";
             errors->createNewError(GENERIC, ast->line, ast->col, err.str());
@@ -4916,7 +4920,7 @@ void Compiler::compileLambdaExpression(Expression* expr, Ast* ast) {
                   ast->line, ast->col);
 
         stringstream ss;
-        ss << "anon_func#" << methodSize;
+        ss << "anon_func$" << methodSize;
         string name = ss.str();
         ClassObject *lambdaOwner = findClass(currModule, globalClass, classes);
 
@@ -5517,13 +5521,13 @@ void Compiler::parseMethodAccessFlags(List<AccessFlag> &flags, Ast *ast) {
         if(flags.last() == LOCAL && !globalScope()) {
             this->errors->createNewError(INVALID_ACCESS_SPECIFIER, ast->line, ast->col,
                                          " `" + ast->getToken(i).getValue() + "` can only be used at global scope");
-        } else if(flags.last() == flg_CONST || flags.last() > STATIC) {
+        } else if(flags.last() == flg_CONST || (flags.last() != NATIVE && flags.last() > STATIC)) {
             errPos = i;
             goto error;
         }
     }
 
-    if(flags.size() > 2) {
+    if(flags.size() > 3) {
         errors->createNewError(ILLEGAL_ACCESS_DECLARATION, ast->line, ast->col,
                                "too many access specifiers found");
     }
@@ -5532,11 +5536,20 @@ void Compiler::parseMethodAccessFlags(List<AccessFlag> &flags, Ast *ast) {
         if(flags.size() == 2) {
             if((flags.get(1) != STATIC))
             { errPos = 1; goto error; }
+        } else if(flags.size() == 3) {
+            if(flags.get(1) != STATIC)
+            { errPos = 1; goto error; }
+            if(flags.get(2) != NATIVE)
+            { errPos = 2; goto error; }
         }
     }
     else if(flags.get(0) == STATIC) {
-        if(flags.size() >= 2)
-        { errPos = flags.size() - 1; goto error; }
+        if(flags.size() == 2) {
+            if((flags.get(1) != NATIVE))
+            { errPos = 1; goto error; }
+        } else if(flags.size() > 2) { errPos = flags.size() - 1; goto error; }
+    } else if(flags.get(0) == NATIVE) {
+        if(flags.size() >= 2) { errPos = flags.size() - 1; goto error; }
     } else
         goto error;
 
@@ -6017,11 +6030,25 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
     method->ast = ast;
     method->address = methodSize++;
     if(ast->getType() == ast_delegate_decl) {
-        if(method->owner->isGlobalClass())
+        if(method->flags.find(STATIC) && !method->isNative())
             this->errors->createNewError(GENERIC, ast->line, ast->col,
                                          "delegate functions are not allowed at global scope");
+
+        if(method->isNative() && IS_CLASS_INTERFACE(method->owner->getClassType())) {
+            this->errors->createNewError(GENERIC, ast->line, ast->col,
+                                         "native functions are not allowed in interfaces");
+        }
+
+        if(method->isNative())
+            nativeCodeFound = true;
+
         method->fnType = fn_delegate;
     } else {
+        if(method->isNative()) {
+            this->errors->createNewError(GENERIC, ast->line, ast->col,
+                                         "native functions cannot be implemented. Try `native def " + method->name + "();`");
+        }
+
         method->fnType = fn_normal;
     }
 
@@ -6182,6 +6209,11 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
     // we do this to ensure no bugs will come from searching methods
     for(Int i = 0;   i < contractedMethods.size(); i++) {
         compileMethodReturnType(contractedMethods.get(i), contractedMethods.get(i)->ast);
+
+        if(contractedMethods.get(i)->isNative()) {
+            contractedMethods.removeAt(i);
+            i--;
+        }
     }
 
     for(Int i = 0;   i < subscribedMethods.size(); i++) {

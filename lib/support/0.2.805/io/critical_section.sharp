@@ -1,6 +1,6 @@
 mod std.io;
 
-global_lock := new _object_();
+private global_lock := new _object_();
 def critical_section(block : ()()) {
     try {
         asm {

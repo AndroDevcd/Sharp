@@ -114,7 +114,7 @@ public class thread {
 	    return result;
 	}
 
-	public def wait_and_notify() : thread_result {
+	public def notify_and_wait() : thread_result {
 	    result := vm.unsuspend(self, true);
 	    if(result == result_ok)
 	        suspended = false;
@@ -160,7 +160,7 @@ public class thread {
                 min_priority,
                 norm_priority,
                 max_priority -> {
-                    return vm.set_thread_priority(self, priority.ordinal);
+                    return vm.set_thread_priority(self, priority.get_ordinal());
                 }
                 else -> {
                     throw new illegal_argument_exception("invalid thread priority $priority");

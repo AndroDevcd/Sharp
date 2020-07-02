@@ -3,28 +3,34 @@ mod app;
 import std.io;
 import std.io.task;
 import platform.kernel;
+import platform;
 
 /**
 *
 */
-count := 0;
-future : deferred<var>;
-const IN := 0;
+native def foo(num: var, home: building);
+
 public static def main(args: string[]) : var {
-    f := new file("tests/tests/file.sharp");
-    string.fmt('l');
-    //println("name: ${f.mkdir()}");
-    dir := 0;
-	f.write(dir ? "in" : "out");
+    load_library("fooTestLib");
+    foo(105, new building());
+    println("");
     return 4;
 }
 
+def call_me(num: var) {
+    println("num is $num");
+}
 
-class House<T>  {
+enum color {
+    red , green, blue
+}
 
-    mustate list<var> {
-        // ..
+class building {
+    building() {
+        style = red;
     }
 
+    spft : var;
+    style : color;
 }
 

@@ -4,11 +4,21 @@ import std.io;
 
 class deferred<t> base observable<t> {
 
+    response : t;
+        get {
+            if(!response_received) {
+                response = await();
+                response_received = true;
+            }
+
+            return response;
+        }
+
 	deferred(scheduled_job : job) {
 		self->scheduled_job = scheduled_job;
 	}
 
-	def await(): t {
+	private def await(): t {
 	    if(scheduled_job == null)
 	        return data;
 
@@ -25,5 +35,6 @@ class deferred<t> base observable<t> {
 
 	def get_job() := scheduled_job;
 
+    private response_received: var;
 	private scheduled_job : job;
 }

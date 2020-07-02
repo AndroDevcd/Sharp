@@ -51,7 +51,7 @@ class job_master {
         lock(scheduled_job) {
             if(!scheduled_job.listeners.empty()) {
                 foreach(t in scheduled_job.listeners) {
-                    t.wait_and_notify();
+                    t.notify_and_wait();
                 }
             }
 

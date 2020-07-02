@@ -29,6 +29,9 @@ struct jit_context;
 
 typedef opcode_instr* Cache;
 typedef void (*fptr)(void *);
+typedef void (*bridgeFun)(long handle);
+typedef long (*linkProc)(const char* funcName, int32_t);
+typedef short (*loadLib)();
 
 /**
  * This is the representation of a method in its barest form
@@ -50,6 +53,8 @@ public:
     int spOffset;
     int fpOffset;
     int frameStackOffset;
+    bool nativeFunc;
+    bridgeFun bridge;
     Param* params;
     _List<TryCatchData> tryCatchTable;
     _List<LineData> lineTable;
@@ -134,6 +139,8 @@ public:
         frameStackOffset = 0;
         delegateAddress = -1;
         type = METHOD;
+        nativeFunc = false;
+        bridge = NULL;
     }
 };
 

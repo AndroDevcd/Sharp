@@ -36,6 +36,18 @@ private:
     stringstream dataSec;
 
     void createDumpFile();
+    void createNativeSourceCode();
+    void createNativeHeaderFile();
+    void createNativeSourceFile();
+    void createSharpMappingSourceFile();
+    void appendSharpMappingSourceFile(ClassObject*, stringstream&);
+    void appendClassHeaderFunctions(ClassObject*, stringstream&);
+    void createProcAddrFunc(stringstream&);
+    void appendProcAddrFunctions(ClassObject*, stringstream&, bool&);
+    void createMainFunc(stringstream&);
+    void appendMainFunctions(ClassObject*, stringstream&);
+    void createCallFunc(stringstream&);
+    void appendCallFunctions(ClassObject*, stringstream&);
     void buildExe();
     void dumpClassInfo(ClassObject*);
     void addClass(ClassObject*);

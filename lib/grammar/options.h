@@ -41,6 +41,11 @@ struct options {
     string out = "out";
 
     /*
+     * Output file to write to
+     */
+    string nativeCodeDir = "generated";
+
+    /*
      * Application version
      */
     string vers = "1.0";
@@ -114,7 +119,6 @@ struct options {
 #define __WINIT 6
 
 extern bool warning_map[];
-extern bool asmDump_map[];
 extern options c_options;
 
 #endif //SHARP_OPTIONS_H

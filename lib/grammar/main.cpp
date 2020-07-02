@@ -29,18 +29,6 @@ bool warning_map[] = {
         true    // winit
 };
 
-/**
- * This array represents the map of all the assembly dump options that are enabled/disabled
- * once the assembly code is generated it will format the code according to the options enabled
- *
- * all options will be disabled by default and output a mangled raw dump of generated code
- */
-bool asmDump_map[] = {
-        false,    // general warnings
-        false,    // waccess
-        false   // wambig
-};
-
 options c_options;
 void compile(List<native_string>&);
 
@@ -95,10 +83,9 @@ void help() {
     cout <<               "    -errlmt<count>    set max errors the compiler allows before quitting"    << endl;
     cout <<               "    -v<version>       set the application version"                           << endl;
     cout <<               "    -unsafe -u        allow unsafe code"                                     << endl;
-    cout <<               "    -objdmp           create dump file for generated assembly"               << endl;
+    cout <<               "    -nativedir -nd <dir> set output native code directory"                   << endl;
     cout <<               "    -target           target the specified platform of sharp to run on"      << endl;
     cout <<               "    -release -r       generate a release build exe"                          << endl;
-    cout <<               "    --asmd            display assembly dump message for output options"      << endl;
     cout <<               "    --hw              display help message for warning options"              << endl;
     cout <<               "    --h -?            display this help message"                             << endl;
 }
@@ -116,18 +103,6 @@ void help_warn() {
     cout <<               "    -wcast            disable type cast warnings"                            << endl;
     cout <<               "    -werror           enable warnings as errors"                             << endl;
     cout <<               "    --hw              display this help message"                             << endl;
-}
-
-void help_asm() {
-    cout << "Usage: sharpc " << "{OPTIONS} SOURCE FILE(S)" << std::endl;
-    cout << "Source file must have a .sharp extion to be compiled.\n" << endl;
-    cout <<  "Please note that default output format will be printed as-is with no debugging information, syntax reformatting, or address information.\n" << endl;
-    cout <<  "All compiler options for `-asmd` can be chained together i.e. (-asmd:isd, -asmd:dsi, etc.)\n"                      << endl;
-    cout <<  "[-options]\n\n    -asmd             dump raw generated assembly into file (outputted w/default output setting)"   << endl;
-    cout <<                "    -asmd:d           de-mangle source to show names"                                               << endl;
-    cout <<                "    -asmd:s           reformat code to show sharp assembly syntax"                                  << endl;
-    cout <<                "    -asmd:i           display debug information i.e (line numbers, file names, etc.)"               << endl;
-    cout <<                "    --asmd            display this help message"                                                    << endl;
 }
 
 void error(string message) {
@@ -178,7 +153,6 @@ int _bootstrap(int argc, const char* argv[])
 
     initalizeErrors();
     List<native_string> files;
-    std::string asmDmpPrefix("-asmd:");
     for (int i = 1; i < argc; ++i) {
         args_:
         string arg(argv[i]);
@@ -193,6 +167,12 @@ int _bootstrap(int argc, const char* argv[])
                 error("output file required after option `-o`");
             else
                 c_options.out = string(argv[++i]);
+        }
+        else if(opt("-nativedir") || opt("-nd")){
+            if(i+1 >= argc)
+                error("output file required after option `" + arg + "`");
+            else
+                c_options.nativeCodeDir  = string(argv[++i]);
         }
         else if(opt("-L")){
             if(i+1 >= argc)
@@ -216,10 +196,6 @@ int _bootstrap(int argc, const char* argv[])
         }
         else if(opt("--hw")){
             help_warn();
-            exit(0);
-        }
-        else if(opt("--asmd")){
-            help_asm();
             exit(0);
         }
         else if(opt("-R") || opt("-release")){
@@ -309,35 +285,6 @@ int _bootstrap(int argc, const char* argv[])
                 }
             }
         }
-        else if(opt("-asmd") || opt("-d")){
-            c_options.asmDump = true;
-        }
-        else if(startsWith(arg, asmDmpPrefix)) {
-            string option(argv[i]);
-            if(option.size() > 6 && option.size() <= 9) {
-                string configs = option.substr(6, option.size());
-                for(char ch : configs) {
-                    switch(ch) {
-                        case 'd':
-                            asmDump_map[ASM_DEMANGLE] = true;
-                            break;
-                        case 's':
-                            asmDump_map[ASM_SYNTAX] = true;
-                            break;
-                        case 'i':
-                            asmDump_map[ASM_DEBUG_INFO] = true;
-                            break;
-                        default: {
-                            stringstream ss;
-                            ss << "invalid option `" << ch << "`, try bootstrap --h";
-                            error(ss.str());
-                            break;
-                        }
-                    }
-                }
-            } else
-                error("invalid option `" + option + "`, try bootstrap --h");
-        }
         else if(string(argv[i]).at(0) == '-'){
             error("invalid option `" + string(argv[i]) + "`, try bootstrap --h");
         }
@@ -392,6 +339,8 @@ int _bootstrap(int argc, const char* argv[])
     return 0;
 }
 
+typedef void (__stdcall *foo_func)();
+
 void compile(List<native_string> &files)
 {
     List<parser*> parsers;
@@ -400,6 +349,22 @@ void compile(List<native_string> &files)
     File::buffer buf;
     size_t errors=0, unfilteredErrors=0;
     long succeeded=0, failed=0, panic=0;
+//    HINSTANCE hinstLib;
+//    hinstLib = LoadLibrary("fooTestLib.dll");
+//
+//    if (!hinstLib) {
+//        cerr << "Cannot open library: " << "fooTest" << '\n';
+//        return;
+//    }
+//
+//    auto foo = (foo_func)GetProcAddress(hinstLib, "foo");
+//
+//    if (!foo) {
+//        std::cout << "could not locate the foo function" << std::endl;
+//        return;
+//    }
+//
+//    foo();
 
     for(unsigned int i = 0; i < files.size(); i++)
     {

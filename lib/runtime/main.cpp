@@ -51,7 +51,7 @@ void help() {
     cout <<               "    -t<size:type>          set the minimum memory allowed to trigger the garbage collector." << endl;
     cout <<               "    -nojit                 disable runtime JIT compilation." << endl;
     cout <<               "    -slowboot              compile entire codebase at startup." << endl;
-    cout <<               "    --h -?                 display this help message." << endl;
+    cout <<               "    -h -?                 display this help message." << endl;
 }
 
 #define opt(v) strcmp(argv[i], v) == 0
@@ -124,7 +124,6 @@ int runtimeStart(int argc, const char* argv[])
             if(i+1 >= argc)
                 error("maximum memory limit required after option `" + string(argv[i]) + "`");
             else {
-                bool setLimit;
                 GarbageCollector::setMemoryLimit(getMemBytes(argv[i+1], argv[i]));
                 i++;
             }
@@ -196,7 +195,7 @@ uInt getMemBytes(const char *str, string option) {
             parsedDigit = true;
             ss << size.at(i);
         } else if(isalpha(size.at(i))) {
-            string num = ss.str();
+            string num = ss.str(); // 1028M
             unsigned long limit = strtoul(ss.str().c_str(), NULL, 0);
             switch(size.at(i)) {
                 case 'k':

@@ -1,0 +1,7 @@
+mod platform;
+
+import platform.kernel;
+
+def load_library(name: string) {
+    platform.load_library(name);
+}

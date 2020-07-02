@@ -3463,6 +3463,7 @@ bool parser::isAccessDecl(Token &token) {
             (token.getValue() == "const") ||
             (token.getValue() == "ext") ||
             (token.getValue() == "stable") ||
+            (token.getValue() == "native") ||
             (token.getValue() == "public"));
 }
 
@@ -3730,7 +3731,7 @@ bool parser::isKeyword(string key) {
            || key == "_int32" || key == "_int64" || key == "_uint8"
            || key == "_uint16"|| key == "_uint32" || key == "_uint64"
            || key == "interface" || key == "lock" || key == "enum"
-           || key == "when" || key == "local"
+           || key == "when" || key == "local" || key == "native"
            || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
            || key == "as" || key == "in" || key == "volatile" || key == "obfuscate";

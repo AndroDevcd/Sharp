@@ -14,6 +14,7 @@
 #include "../Modules/std.os.gui/win/Gui.h"
 #endif
 #include "Manifest.h"
+#include "Library.h"
 
 struct SharpObject;
 
@@ -76,10 +77,14 @@ public:
     static string getPrettyErrorLine(long line, long sourceFile);
     static void getFrameInfo(Object *frameInfo);
     static void getStackTrace();
+    void locateBridgeAndCross(Method*);
+    string funcNameToDllName(native_string name);
 
 
     static void fillMethodCall(Method* func, Int pc, stringstream &ss);
     static void __snprintf(int cfmt, double val, int precision);
+
+    Library* getLib(native_string name);
 
     /**
      * Frequently used classes
@@ -93,6 +98,8 @@ public:
     ClassObject *ClassCastExcept;
     ClassObject *OutOfMemoryExcept;
     ClassObject *InvalidOperationExcept;
+    ClassObject *UnsatisfiedLinkExcept;
+    ClassObject *IllStateExcept;
     ClassObject *StringClass;
     ClassObject *StackSate;
     ClassObject *ThreadClass;
@@ -111,6 +118,7 @@ public:
 #ifdef WIN32_
     Gui* gui;
 #endif
+    _List<Library> libs;
     int exitVal;
     short state;
 };
@@ -122,6 +130,8 @@ extern VirtualMachine vm;
 int CreateVirtualMachine(string&);
 fptr executeMethod(int64_t address, Thread* thread, bool inJit = false);
 bool returnMethod(Thread* thread);
-void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t staticAddr);
+void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic);
+CXX11_INLINE
+void setupMethodStack(int64_t address, Thread* thread, bool inJit);
 
 #endif //SHARP_SHARP_H

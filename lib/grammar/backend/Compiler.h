@@ -37,6 +37,7 @@ public:
         mainSignature(0),
         typeInference(false),
         obfuscateMode(false),
+        nativeCodeFound(false),
         enumValue(0)
     {
         this->parsers.init();
@@ -104,6 +105,7 @@ public:
     long classSize;
     long methodSize;
     long threadLocals;
+    bool nativeCodeFound;
     Utype* nilUtype;
 
     static uInt guid;

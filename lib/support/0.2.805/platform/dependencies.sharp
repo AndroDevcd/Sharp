@@ -1,6 +1,7 @@
 mod platform;
 
 import platform.kernel;
+import std.io;
 
 /**
 * Dependency preservation for code obfuscation
@@ -32,6 +33,7 @@ obfuscate -keep {
     class_cast_exception,
     out_of_memory_exception,
     invalid_operation_exception,
+    unsatisfied_link_error,
     stack_state,
     thread,
     string

@@ -1,0 +1,428 @@
+mod app;
+
+import std;
+
+/**
+ * Created by BraxtonN on 6/8/2018.
+ */
+class error_manager {
+    private static predefined_errors := new hashmap<compiler_error, string>();
+    private static empty_error := new parse_error();
+
+    private errors: list<parse_error>, raw_errors, warnings;
+    private possible_errors: list<list<parse_error> >;
+    private last_error: parse_error, last_checked_error;
+    private errors_found: var, protected_mode, direct_report, aggressive_errors;
+    private lines: list<string>;
+    private filename: string;
+
+    private error_manager() {
+        init();
+    }
+
+    public error_manager(lines: list<string>, file: string, as_is: var, aggressive: var)
+    {
+        self->possible_errors = new list<list<parse_error> >();
+        self->errors = new list<parse_error>();
+        self->raw_errors = new list<parse_error>();
+        self->warnings = new list<parse_error>();
+        self->direct_report = as_is;
+        self->lines = new list<string>();
+        self->aggressive_errors = aggressive;
+
+        self->lines.add_all(lines);
+        last_error = empty_error;
+        last_checked_error = empty_error;
+        filename = file;
+    }
+
+    public def print_errors() {
+        if(!direct_report) {
+            err_str: string;
+            if(errors_found) {
+                if(aggressive_errors) {
+                    err_str = getErrors(raw_errors);
+                    if(!err_str.empty()) println(err_str);
+                }
+                else {
+                    err_str = getErrors(errors);
+                    if(!err_str.empty()) println(err_str);
+                }
+            }
+
+            err_str = getErrors(warnings);
+            if(!err_str.empty()) println(err_str);
+        }
+    }
+
+
+    def getErrors(errors: list<parse_error>) : string {
+        sb := new string_builder();
+
+        foreach(err : errors) {
+            if(err.warning) {
+                sb += filename + ":" + err.line + ":" + err.col + ": warning S60" +
+                    (err.id as var) + ":  " + err.error + "\n";
+            } else {
+                sb += filename + ":" + err.line + ":" + err.col + ": error S60" +
+                    (err.id as var) + ":  " + err.error + "\n";
+            }
+
+            sb += "\t" + get_line(err.line) + "\n\t";
+
+            for(i := 0; i < err.col-1; i++)
+                sb += " ";
+            sb += "^\n";
+        }
+
+        return sb.to_string();
+    }
+
+    def print_error(error: parse_error) {
+
+        if(error.warning) {
+            print(filename + ":" + error.line + ":" + error.col + ": warning S60" +
+                (err.id as var) + ":  " + error.error + "\n");
+        } else {
+            print(filename + ":" + error.line + ":" + error.col + ": error S60" +
+                (err.id as var) + ":  " + error.error + "\n");
+        }
+
+        print("\t" + get_line(error.line) + "\n\t");
+
+        for(i := 0; i < error.col-1; i++)
+            print(" ");
+        print("^\n");
+    }
+
+    def get_line(line: var) : string {
+        if((line-1) >= lines.size())
+            return "End of File";
+        else
+            return lines.get(line-1);
+    }
+
+    public def get_error_count() : var {
+        return errors.size();
+    }
+
+    public def get_warning_count() : var {
+        return warnings.size();
+    }
+
+    public def get_raw_error_count() : var {
+        return raw_errors.size();
+    }
+
+    public def has_errors() : var {
+        return errors_found && raw_errors.size() != 0;
+    }
+
+    public def enable_protected_mode() {
+        protected_mode = true;
+        possible_errors.add(new list<parse_error>());
+    }
+
+    public def pop_error_stack() {
+        if(possible_errors.size() > 0)
+        {
+            if(possible_errors.size() == 1)
+                protected_mode = false;
+            possible_errors.pop_back();
+        }
+    }
+
+    public def report_stack() {
+        if(possible_errors.size() > 0) {
+            foreach(err in possible_errors.last()) {
+                if(direct_report) {
+                    errors_found = true;
+                    print_error(err);
+
+                    errors.add(err);
+                    raw_errors.add(err);
+                    last_error = err;
+                } else if(aggressive_errors || should_report(null, last_error, err)) {
+                    errors_found = true;
+                    errors.add(err);
+                    raw_errors.add(err);
+                    last_error = err;
+                }
+            }
+
+            pop_error_stack();
+        }
+    }
+
+    public def create_new_error(err: compiler_error, token: token, msg: string) {
+        predefined_message := predefined_errors.get(err);
+        new_err := new parse_error(false, err, predefined_message, token, msg);
+        last_error := protected_mode ? last_checked_error : self->last_error;
+
+        if(protected_mode) {
+            last_checked_error = new_err;
+            possible_errors.last().add(new_err);
+            return;
+        } else if(direct_report)
+            print_error(new_err);
+        else if(aggressive_errors || should_report(token, last_error, new_err)) {
+            errors_found = true;
+            errors.add(new_err);
+            raw_errors.add(new_err);
+            self->last_error = new_err;
+        } else {
+            raw_errors.add(new_err);
+        }
+    }
+
+    public def create_new_error(err: compiler_error, line: var, col: var, msg: string) {
+        string predefined_message = predefined_errors.get(err);
+        new_err: parse_error = new parse_error(false, err, predefined_message, line, col, msg);
+        last_error: parse_error = protected_mode ? last_checked_error : self->last_error;
+
+        if(protected_mode) {
+            last_checked_error = new_err;
+            possible_errors.last().add(new_err);
+            return;
+        } else if(direct_report)
+            print_error(new_err);
+        else if(aggressive_errors || should_report(null, last_error, new_err)) {
+            errors_found = true;
+            errors.add(new_err);
+            raw_errors.add(new_err);
+            self->last_error = new_err;
+        } else {
+            raw_errors.add(new_err);
+        }
+    }
+
+    public def create_new_error(err: compiler_error, line: var, col: var) {
+        create_new_error(err, line, col, "");
+    }
+
+    public def create_new_warning(err: compiler_error, line: var, col: var, msg: string) {
+        string predefined_message = predefined_errors.get(err);
+        new_err: parse_error = new parse_error(false, err, predefined_message, line, col, msg);
+        last_error: parse_error;
+        if(warnings.size() > 0)
+            last_error = warnings.last();
+        else
+            last_error = protected_mode ? last_checked_error : self->last_error;
+
+        if(warnings.size() == 0 || should_report_warning(null, last_error, new_err)) {
+            if(direct_report)
+                print_error(new_err);
+
+            warnings.add(new_err);
+        }
+    }
+
+    def should_report(token: token, last_err: parse_error, new_err: parse_error) : var
+    {
+        if(last_err.error != new_err.error && !(last_err.line == new_err.line && last_err.col == new_err.col)
+            && !last_err.error.find(new_err.error) && !has_error(errors, new_err))
+        {
+            if(token != null && !(token == token_id.single || token == token_id.char_literal
+                || token == token_id.string_literal || token == token_id.integer_literal)) {
+                return !last_err.error.find(token.get_token());
+            }
+
+            return true;
+        }
+    }
+
+    def should_report_warning(token: token, last_err: parse_error, new_err: parse_error) : var
+    {
+        if(last_err.error != new_err.error && !(last_err.line == new_err.line && last_err.col == new_err.col)
+            && !last_err.error.find(new_err.error))
+        {
+            if(token != null && !(token == token_id.single || token == token_id.char_literal
+                || token == token_id.string_literal || token == token_id.integer_literal)) {
+                return !last_err.error.find(token.get_token());
+            }
+
+            return true;
+        }
+    }
+
+    def has_error(errs: list<parse_error>, err: parse_error) : var {
+        foreach(e in errs) {
+            if(e.error == err.error)
+                return true;
+        }
+
+        return false;
+    }
+
+
+    public def create_new_error(err: compiler_error, ast: ast, msg: string) {
+        predefined_message := predefined_errors.get(err);
+        new_err: parse_error = new parse_error(false, err, predefined_message, ast.line, ast.col, msg);
+        last_error: parse_error = protected_mode ? last_checked_error : self->last_error;
+
+        if(protected_mode) {
+            last_checked_error = new_err;
+            possible_errors.last().add(new_err);
+            return;
+        } else if(direct_report)
+            print_error(new_err);
+        else if(aggressive_errors || should_report(null, last_error, new_err)) {
+            errors_found = true;
+            errors.add(new_err);
+            raw_errors.add(new_err);
+            self->last_error = new_err;
+        } else {
+            raw_errors.add(new_err);
+        }
+    }
+
+    public def create_new_warning(err: compiler_error, ast: ast, msg: string) {
+        predefined_message := predefined_errors.get(err);
+        new_err: parse_error = new parse_error(false, err, predefined_message, ast.line, ast.col, msg);
+        last_error: parse_error;
+        if(warnings.size() > 0)
+            last_error = warnings.last();
+        else
+            last_error = protected_mode ? last_checked_error : self->last_error;
+
+        if(warnings.size() == 0 || should_report_warning(null, last_error, new_err)) {
+            if(direct_report)
+                print_error(new_err);
+
+            warnings.add(new_err);
+        }
+    }
+
+    public static def init() {
+        predefined_errors.put(compiler_error.unexpected_symbol, "unexpected symbol");
+
+        predefined_errors.put(compiler_error.illegal_number_format, "illegal number format mismatch");
+
+        predefined_errors.put(compiler_error.unexpected_eof, "unexpected end of file");
+
+        predefined_errors.put(compiler_error.expected_string_literal_eof, "expected string literal before end of file");
+
+        predefined_errors.put(compiler_error.illegal_string_format, "illegal string format");
+
+        predefined_errors.put(compiler_error.expected_char_literal_eof, "expected character literal before end of file");
+
+        predefined_errors.put(compiler_error.illegal_char_literal_format, "illegal character literal format");
+
+        predefined_errors.put(compiler_error.generic, "");
+
+        predefined_errors.put(compiler_error.illegal_access_declaration, "illegal specification of access specifier(s)");
+
+        predefined_errors.put(compiler_error.illegal_bracket_mismatch, "illegal symbol mismatch, unexpected bracket");
+
+        predefined_errors.put(compiler_error.missing_bracket, "missing bracket");
+
+        predefined_errors.put(compiler_error.invalid_access_specifier, "invalid access specifier");
+
+        predefined_errors.put(compiler_error.multiple_definition, "multiple definition of");
+
+        predefined_errors.put(compiler_error.previously_defined, "");
+
+        predefined_errors.put(compiler_error.duplicate_class, "duplicate class:");
+
+        predefined_errors.put(compiler_error.redundant_token, "redundant token");
+
+        predefined_errors.put(compiler_error.internal_error, "internal runtime error");
+
+        predefined_errors.put(compiler_error.could_not_resolve, "could not resolve symbol");
+
+        predefined_errors.put(compiler_error.invalid_cast, "invalid cAst of type");
+
+        predefined_errors.put(compiler_error.redundant_cast, "redundant cAst of type");
+
+        predefined_errors.put(compiler_error.redundant_import, "redundant self import of module");
+
+        predefined_errors.put(compiler_error.unexpected_token, "unexpected token");
+
+        predefined_errors.put(compiler_error.invalid_access, "invalid access of");
+
+        predefined_errors.put(compiler_error.symbol_already_defined, "");
+
+        predefined_errors.put(compiler_error.invalid_param, "invalid param of type");
+
+        predefined_errors.put(compiler_error.incompatible_types, "incompatible types");
+    }
+}
+
+class parse_error {
+
+   public parse_error() {
+      id = compiler_error.no_err;
+   }
+
+   public parse_error(err: compiler_error, msg: string, l: var, c: var,
+            string additional) {
+      id = err;
+      if(additional != null && additional.size() != 0)
+        error = msg + additional;
+      else error = msg;
+      line = l;
+      col = c;
+      warning = false;
+   }
+
+   public parse_error(warning: var, err: compiler_error, msg: string, l: var, c: var,
+            additional: string) {
+      id = err;
+      if(additional != null && additional.size() != 0)
+        error = msg + additional;
+      else error = msg;
+      line = l;
+      col = c;
+      self->warning = warning;
+   }
+
+   public parse_error(warning: var, err: var, msg: string, entity: token,
+            additional: string) {
+      id = err;
+      if(additional != null && additional.size() != 0)
+        error = msg + additional;
+      else error = msg;
+      line = entity.get_line();
+      col = entity.get_col();
+      self->warning = warning;
+   }
+
+   public id: compiler_error;
+   public error : string = "";
+   public line: string;
+   public col: string;
+   public warning: string;
+}
+
+enum compiler_error {
+    unexpected_symbol = 0,
+    illegal_number_format = 1,
+    unexpected_eof = 2,
+    expected_string_literal_eof = 3,
+    illegal_string_format = 4,
+    expected_char_literal_eof = 5,
+    illegal_char_literal_format = 6,
+    generic = 7,
+    illegal_access_declaration = 8,
+    illegal_bracket_mismatch = 9,
+    missing_bracket = 10,
+    invalid_access_specifier = 11,
+    multiple_definition = 12,
+    previously_defined = 13,
+    duplicate_class = 14,
+    redundant_token = 15,
+    internal_error = 16,
+    could_not_resolve = 17,
+    expected_reference_of_type = 18,
+    invalid_cast = 19,
+    redundant_cast = 20,
+    redundant_import = 21,
+    unexpected_token = 22,
+    invalid_access = 23,
+    symbol_already_defined = 24,
+    invalid_param = 25,
+    incompatible_types = 26,
+    duplicate_declaration = 27,
+
+    no_err = 999
+};

@@ -108,6 +108,12 @@ int Process_Exe(std::string &exe)
         }
 
         if(currentFlag == eoh) {
+
+            if(processedFlags != HEADER_SIZE)
+                return CORRUPT_MANIFEST;
+            else if(vm.manifest.target > BUILD_VERS)
+                return UNSUPPORTED_BUILD_VERSION;
+
             if(!(vm.manifest.fvers >= min_file_vers && vm.manifest.fvers <= file_vers)) {
                 stringstream err;
                 err << "unsupported file version of: " << vm.manifest.fvers << ". Sharp supports file versions from `"
@@ -115,12 +121,6 @@ int Process_Exe(std::string &exe)
                 exeErrorMessage = err.str();
                 return UNSUPPORTED_FILE_VERS;
             }
-
-            if(processedFlags != HEADER_SIZE)
-                return CORRUPT_MANIFEST;
-            else if(vm.manifest.target > BUILD_VERS)
-                return UNSUPPORTED_BUILD_VERSION;
-
             break;
         }
     }
@@ -474,6 +474,7 @@ int Process_Exe(std::string &exe)
                 method->stackSize = geti32(buffer);
                 method->cacheSize = geti32(buffer);
                 method->flags = geti32(buffer);
+                method->nativeFunc = ((method->flags >> 9) & 1u);
                 method->delegateAddress = geti32(buffer);
                 method->fpOffset = geti32(buffer);
                 method->spOffset = geti32(buffer);

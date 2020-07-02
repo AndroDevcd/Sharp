@@ -96,6 +96,10 @@ class not_implemented_error base exception {
     public not_implemented_error(message : _int8[]) -> base(message) {}
     public not_implemented_error(message : string) -> base(message) {}
 }
+class unsatisfied_link_error base exception {
+    public unsatisfied_link_error(message : _int8[]) -> base(message) {}
+    public unsatisfied_link_error(message : string) -> base(message) {}
+}
 
 /*
 * Alises for shorter name size

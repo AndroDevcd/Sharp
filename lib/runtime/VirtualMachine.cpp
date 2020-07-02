@@ -66,6 +66,8 @@ int CreateVirtualMachine(string &exe)
     vm.ClassCastExcept = vm.resolveClass("std#class_cast_exception");
     vm.OutOfMemoryExcept = vm.resolveClass("std#out_of_memory_exception");
     vm.InvalidOperationExcept = vm.resolveClass("std#invalid_operation_exception");
+    vm.UnsatisfiedLinkExcept = vm.resolveClass("std#unsatisfied_link_error");
+    vm.IllStateExcept = vm.resolveClass("std#illegal_state_exception");
     vm.StringClass = vm.resolveClass("std#string");
     vm.StackSate = vm.resolveClass("platform.kernel#stack_state");
     vm.ThreadClass = vm.resolveClass("std.io#thread");
@@ -90,19 +92,38 @@ int CreateVirtualMachine(string &exe)
     return 0;
 }
 
-void invokeDelegate(int64_t address, int32_t args, Thread* thread, int64_t staticAddr) {
-    SharpObject* o2 = staticAddr!=0 ? vm.staticHeap[staticAddr].object :  (thread->sp-args)->object.object;
-    ClassObject* klass;
+void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic) {
+    ClassObject* klass = NULL;
     fptr jitFn;
     thread->pc++;
 
-    if(o2!=NULL && TYPE(o2->info) == _stype_struct) {
-        klass = &vm.classes[CLASS(o2->info)];
+    if(isStatic) {
+        if(vm.methods[address].nativeFunc) {
+            if(vm.methods[address].bridge != NULL) {
+                setupMethodStack(address, thread_self, true);
+                vm.methods[address].bridge(vm.methods[address].address);
+                returnMethod(thread_self);
+            } else {
+                vm.locateBridgeAndCross(&vm.methods[address]);
+            }
+
+            thread->pc++;
+            return;
+        } else {
+            throw Exception(vm.RuntimeExcept, "attempting to call non-native static delegate function");
+        }
+    } else {
+        SharpObject* obj = (thread->sp-args)->object.object;
+        if(obj != NULL && TYPE(obj->info) == _stype_struct)
+            klass = &vm.classes[CLASS(obj->info)];
+    }
+
+    if(klass) {
         if (klass != NULL) {
             search:
             for (Int i = klass->methodCount - 1; i >= 0; i--) {
                 if (klass->methods[i]->delegateAddress == address) {
-                    if((jitFn = executeMethod(klass->methods[i]->address, thread)) != NULL) {
+                    if ((jitFn = executeMethod(klass->methods[i]->address, thread)) != NULL) {
 #ifdef BUILD_JIT
                         jitFn(thread->jctx);
 #endif
@@ -151,8 +172,8 @@ bool returnMethod(Thread* thread) {
     return frameInfo->isjit;
 }
 
-fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
-
+CXX11_INLINE
+void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
     Method *method = vm.methods+address;
     THREAD_STACK_CHECK2(thread, method->stackSize, address);
 
@@ -164,6 +185,11 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
     thread->fp = thread->sp - method->fpOffset;
     thread->sp += method->frameStackOffset;
     thread->pc = thread->cache;
+}
+
+fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
+
+    setupMethodStack(address, thread, inJit);
 
 #ifdef BUILD_JIT
     if(!method->isjit) {
@@ -667,6 +693,50 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             registers[EBX]=std::thread::hardware_concurrency();
             return;
         }
+        case OP_LOAD_LIBRARY: {
+            SharpObject *libNameObj = (thread_self->sp--)->object.object;
+
+            if (libNameObj != NULL && TYPE(libNameObj->info) == _stype_var && libNameObj->HEAD != NULL) {
+                native_string name(libNameObj->HEAD, libNameObj->size);
+                registers[EBX] = 0;
+
+                if(vm.getLib(name) == NULL) {
+                    Library lib;
+#ifdef _WIN32
+                    lib.handle = LoadLibrary((name.str() + ".dll").c_str());
+#else
+                    lib.handle = dlopen((name.str() + ".so").c_str(), RTLD_LAZY);
+#endif
+
+                    if(!lib.handle) {
+                        registers[EBX] = 1;
+                        name.free();
+                        return;
+                    }
+
+
+                    loadLib _loadLib =
+#ifdef _WIN32
+                            (loadLib)GetProcAddress(lib.handle, "snb_load_lib");
+#else
+                    (loadLib)dlsym(lib.handle, "snb_load_lib");
+#endif
+
+                    if(_loadLib && _loadLib()) {
+                        lib.name = name;
+                        vm.libs.__new().init();
+                        vm.libs.last().name = lib.name;
+                        vm.libs.last().handle = lib.handle;
+                    } else
+                        throw Exception(vm.IllStateExcept, "could not load dll");
+                } else
+                    registers[EBX] = 1;
+                name.free();
+            } else {
+                throw Exception(vm.NullptrExcept, "");
+            }
+            return;
+        }
         default: {
             stringstream ss;
             ss << "invalid system interrupt signal: " << signal;
@@ -948,7 +1018,7 @@ ClassObject *VirtualMachine::resolveClass(runtime::String fullName) {
 }
 
 Object *VirtualMachine::resolveField(runtime::String name, SharpObject *classObject) {
-    if(IS_CLASS(classObject->info)) {
+    if(classObject && IS_CLASS(classObject->info)) {
         ClassObject *representedClass = &vm.classes[CLASS(classObject->info)];
         for(Int i = 0; i < representedClass->totalFieldCount; i++) {
             Field &field = representedClass->fields[i];
@@ -1019,4 +1089,57 @@ void VirtualMachine::setFieldClass(runtime::String name, SharpObject *classObjec
     if(field != NULL) {
         *field = GarbageCollector::self->newObject(klass);
     }
+}
+
+Library *VirtualMachine::getLib(native_string name) {
+    for(long i = 0; i < libs.size(); i++) {
+        if(libs.get(i).name == name)
+            return &libs.get(i);
+    }
+
+    return NULL;
+}
+
+void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
+    fptr fun;
+    linkProc _linkProc;
+    for(Int i = 0; i < libs.size(); i++) {
+        _linkProc =
+#ifdef _WIN32
+                (linkProc)GetProcAddress(libs.get(i).handle, "snb_link_proc");
+#else
+                (linkProc)dlsym(libs.get(i).handle, "snb_link_proc");
+#endif
+
+        if(_linkProc) {
+            short linked = _linkProc(nativeFun->fullName.str().c_str(), nativeFun->address);
+
+            if(linked) {
+                nativeFun->bridge =
+#ifdef _WIN32
+                        (bridgeFun) GetProcAddress(libs.get(i).handle, "snb_main");
+#else
+                        (bridgeFun)dlsym(libs.get(i).handle, "snb_main");
+#endif
+                if (nativeFun->bridge) {
+                    setupMethodStack(nativeFun->address, thread_self, true);
+                    nativeFun->bridge(nativeFun->address);
+                    returnMethod(thread_self);
+                }
+            }
+        }
+    }
+
+    if(!nativeFun->bridge)
+        throw Exception(vm.UnsatisfiedLinkExcept, "");
+}
+
+string VirtualMachine::funcNameToDllName(native_string name) {
+    stringstream  ss;
+    for(Int i = 0; i < name.len; i++) {
+        if(name.chars[i] == '#' || name.chars[i] == '.') {
+            ss << '_';
+        } else ss << name.chars[i];
+    }
+    return ss.str();
 }

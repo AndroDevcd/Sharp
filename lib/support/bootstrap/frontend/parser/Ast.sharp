@@ -5,56 +5,51 @@ import std;
 /**
  * Created by BraxtonN on 6/14/2018.
  */
-class Ast {
-    public var line;
-    public var col;
-    private AstType type;
-    private ArrayList<Token> tokens;
-    private ArrayList<Ast> children;
+class ast {
+    public line: var;
+    public col: var;
+    private type: ast_type;
+    private tokens: list<token>;
+    private children: list<ast>;
 
-    public Ast()
+    public ast()
     {
-        self->tokens = new ArrayList<Token>(3);
-        self->children = new ArrayList<Ast>(3);
+        self->tokens = new list<token>();
+        self->children = new list<ast>();
     }
 
-    public Ast(AstType type, var line, var col)
+    public ast(type: ast_type, line: var, col: var)
     {
         self->type = type;
         self->line = line;
         self->col = col;
-        self->tokens = new ArrayList<Token>(3);
-        self->children = new ArrayList<Ast>(3);
+        self->tokens = new list<token>();
+        self->children = new list<ast>();
     }
 
-    public def add(Ast ast) {
-        if(ast == null)
-            throw new Exception("null Ast");
+    public def add(ast: ast) {
         children.add(ast);
     }
 
-    public def add(Token token) {
-        if(token == null)
-            throw new Exception("null token");
+    public def add(token: token) {
         tokens.add(token);
     }
 
-    public def getToken(var pos) : Token {
+    public def token_at(pos: var) : token {
         return tokens.get(pos);
     }
 
-    public def tokenSize() : var {
+    public def token_size() : var {
         return tokens.size();
     }
 
-    public def childrenSize() : var {
+    public def children_size() : var {
         return children.size();
     }
 
-    public def hasToken(TokenType type) : var {
-        for(var i = 0; i < tokens.size(); i++) {
-            Token token = tokens.get(i);
-            if(token.getType() == type)
+    public def has_token(type: token_type) : var {
+        foreach(tok in tokens) {
+            if(tok.get_type() == type)
                 return true;
         }
 
@@ -66,9 +61,8 @@ class Ast {
         tokens.clear();
     }
 
-    public def hasChild(AstType type) : var {
-        for(var i = 0; i < children.size(); i++) {
-            Ast child = children.get(i);
+    public def has_child(type: ast_type) : var {
+        foreach(child in children) {
             if(child.type == type)
                 return true;
         }
@@ -76,32 +70,31 @@ class Ast {
         return false;
     }
 
-    public def getChild(var pos) : Ast {
+    public def get_child(pos: var) : ast {
         return children.get(pos);
     }
 
-    public def getChild(AstType type) : Ast {
-        for(var i = 0; i < children.size(); i++) {
-            Ast child = children.get(i);
+    public def get_child(type: ast_type) : ast {
+        foreach(child in children) {
             if(child.type == type)
                 return child;
         }
         return null;
     }
 
-    public def last() : Ast {
+    public def last() : ast {
         return children.last();
     }
 
-    public def lastToken() : Token {
+    public def last_token() : token {
         return tokens.last();
     }
 
-    public def encapsulate(AstType type) : Ast {
-        Ast encap = new Ast(type, line, col);
+    public def encapsulate(type: ast_type) : ast {
+        encap := new ast(type, line, col);
 
-        encap.children.addAll(children);
-        encap.tokens.addAll(tokens);
+        encap.children.add_all(children);
+        encap.tokens.add_all(tokens);
 
         children.clear();
         tokens.clear();
@@ -109,34 +102,32 @@ class Ast {
         return encap;
     }
 
-    private def addTabs(strbuf sb) {
-        for(var i = 0; i < recurs; i++)
+    private def add_tabs(strbuf sb) {
+        for(i := 0; i < recurs; i++)
             sb+='\t';
     }
 
-    static var recurs = 0;
-    public def toString(strbuf sb) {
-        addTabs(sb);
-        sb += "Ast: " + type + " ;" + line + "," + col + "\n";
+    static recurs := 0;
+    public def to_string(sb: string_builder) {
+        add_tabs(sb);
+        sb += "ast: " + type + " ;" + line + "," + col + "\n";
 
         recurs++;
-        addTabs(sb);
+        add_tabs(sb);
         sb += "tokens:\n";
-        for(var i = 0; i < tokens.size(); i++) {
-            Token token = tokens.get(i);
-            addTabs(sb);
-            if(token != null)
-                sb += "" + token + "\n";
+        foreach(tok in tokens) {
+            add_tabs(sb);
+            if(tok != null)
+                sb += "" + tok + "\n";
             else
                 sb += "null\n";
         }
 
-        addTabs(sb);
+        add_tabs(sb);
+        
         sb += "children: (" + children.size() + ")\n";
-
-        for(var i = 0; i < children.size(); i++) {
-            Ast child = children.get(i);
-            addTabs(sb);
+        foreach(child in children) {
+            add_tabs(sb);
 
             if(child != null)
                 child.toString(sb);
@@ -148,16 +139,16 @@ class Ast {
         recurs--;
     }
 
-    public def copy(Ast ast) {
+    public def copy(ast: ast) {
         line = ast.line;
         col = ast.col;
         type = ast.type;
 
-        children.addAll(ast.children);
-        tokens.addAll(ast.tokens);
+        children.add_all(ast.children);
+        tokens.add_all(ast.tokens);
     }
 
-    public def fastCopy(Ast ast) {
+    public def fast_copy(ast: ast) {
         children.clear();
         tokens.clear();
 
@@ -168,115 +159,115 @@ class Ast {
         tokens = ast.tokens;
     }
 
-    public def popToken() {
-        tokens.popBack();
+    public def pop_token() {
+        tokens.pop_back();
     }
 
-    public def popChild() {
-        children.popBack();
+    public def pop_child() {
+        children.pop_back();
     }
 
-    public def getType() : AstType {
+    public def get_type() : ast_type {
         return type;
     }
 
-    public def setType(AstType type) {
+    public def set_type(type: ast_type) {
         self->type = type;
     }
 }
 
-enum AstType {
-    Class_Decl,
-    Generic_Class_Decl,
-    Generic_Interface_Decl,
-    Interface_Decl,
-    Import_Decl,
-    Module_Decl,
-    Method_Decl,
-    Enum_Decl,
-    Delegate_Post_Decl,
-    Delegate_Decl,
-    Constructor_Decl,
-    Label_Decl,
-    Operator_Decl,
-    Var_Decl,
-    Switch_Declarator,
-    Value,
-    Value_List,
-    Utype_Arg_List,
-    Utype_Arg_List_Opt,
-    Reference_Identifier_List,
-    Utype_List,
-    Identifier_List,
-    Enum_Identifier_List,
-    Vector_Array,
-    Utype_Arg,
-    Utype_Arg_Opt,
-    Expression,
-    Array_Expression,
-    Primary_Expression,
-    Dotnotation_Call_Expr,
-    Utype,
-    Block,
-    Switch_Block,
-    Finally_Block,
-    Assembly_Block,
-    Catch_Clause,
-    Method_Return_Type,
-    Return_Stmnt,
-    Statement,
-    If_Statement,
-    Switch_Statement,
-    Elseif_Statement,
-    Else_Statement,
-    Lock_Statement,
-    Trycatch_Statement,
-    Throw_Statement,
-    Continue_Statement,
-    Break_Statement,
-    Goto_Statement,
-    While_Statement,
-    Do_While_Statement,
-    Assembly_Statement,
-    For_Statement,
-    For_Expression_Cond,
-    For_Expression_Iter,
-    Foreach_Statement,
-    Type_Identifier,
-    Enum_Identifier,
-    Func_Prototype,
-    Reference_Pointer,
-    ModuleName,
-    Literal,
+enum ast_type {
+    class_decl,
+    generic_class_decl,
+    generic_interface_decl,
+    interface_decl,
+    import_decl,
+    module_decl,
+    method_decl,
+    enum_decl,
+    delegate_post_decl,
+    delegate_decl,
+    constructor_decl,
+    label_decl,
+    operator_decl,
+    var_decl,
+    switch_declarator,
+    value,
+    value_list,
+    utype_arg_list,
+    utype_arg_list_opt,
+    reference_identifier_list,
+    utype_list,
+    identifier_list,
+    enum_identifier_list,
+    vector_array,
+    utype_arg,
+    utype_arg_opt,
+    expression,
+    array_expression,
+    primary_expression,
+    dotnotation_call_expr,
+    utype,
+    block,
+    switch_block,
+    finally_block,
+    assembly_block,
+    catch_clause,
+    method_return_type,
+    return_stmnt,
+    statement,
+    if_statement,
+    switch_statement,
+    elseif_statement,
+    else_statement,
+    lock_statement,
+    trycatch_statement,
+    throw_statement,
+    continue_statement,
+    break_statement,
+    goto_statement,
+    while_statement,
+    do_while_statement,
+    assembly_statement,
+    for_statement,
+    for_expression_cond,
+    for_expression_iter,
+    foreach_statement,
+    type_identifier,
+    enum_identifier,
+    func_prototype,
+    reference_pointer,
+    modulename,
+    literal,
 
     /**
      * Encapsulated ast's to make processing expressions easier
      */
-    Literal_E,
-    Utype_Class_E,
-    Dot_Not_E,
-    Self_E,
-    Base_E,
-    Null_E,
-    New_E,
-    Not_E,
-    Post_Inc_E,
-    Arry_E,
-    Dot_Fn_E,
-    Cast_E,
-    Pre_Inc_E,
-    Paren_E,
-    Vect_E,
-    Add_E,
-    Mult_E,
-    Shift_E,
-    Less_E,
-    Equal_E,
-    And_E,
-    Ques_E,
-    Assign_E,
-    Sizeof_E,
-    Free_E,
+    literal_e,
+    utype_class_e,
+    dot_not_e,
+    self_e,
+    base_e,
+    null_e,
+    new_e,
+    not_e,
+    post_inc_e,
+    arry_e,
+    dot_fn_e,
+    cast_e,
+    pre_inc_e,
+    paren_e,
+    vect_e,
+    add_e,
+    mult_e,
+    shift_e,
+    less_e,
+    equal_e,
+    and_e,
+    ques_e,
+    assign_e,
+    sizeof_e,
+    free_e,
 
-    None
+    none
 };
