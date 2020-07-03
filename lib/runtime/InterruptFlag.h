@@ -64,6 +64,7 @@ enum interruptFlag
               OP_COPY   = 0x37,
              OP_CORES   = 0x38,
       OP_LOAD_LIBRARY   = 0x39,
+      OP_FREE_LIBRARY   = 0x3a,
 };
 
 #endif //SHARP_INTERRUPTFLAG_H

@@ -113,7 +113,7 @@ extern "C" {
     EXPORTED object newVarArray(int32_t size) {
         (thread_self->sp+1)->object =
                 GarbageCollector::self->newObject(size);
-        return &(thread_self->sp)->object;
+        return &(thread_self->sp+1)->object;
     }
 
     EXPORTED object newClass(const string& name) {
@@ -121,7 +121,7 @@ extern "C" {
         if(klass) {
             (thread_self->sp+1)->object =
                     GarbageCollector::self->newObject(klass);
-            return &(thread_self->sp)->object;
+            return &(thread_self->sp+1)->object;
         }
 
         return NULL;
@@ -130,7 +130,7 @@ extern "C" {
     EXPORTED object newObjArray(int32_t size) {
         (thread_self->sp+1)->object =
                 GarbageCollector::self->newObjectArray(size);
-        return &(thread_self->sp)->object;
+        return &(thread_self->sp+1)->object;
     }
 
     EXPORTED object newClassArray(const string &name, int32_t size) {
@@ -138,7 +138,7 @@ extern "C" {
         if(klass) {
             (thread_self->sp+1)->object =
                     GarbageCollector::self->newObjectArray(size, klass);
-            return &(thread_self->sp)->object;
+            return &(thread_self->sp+1)->object;
         }
 
         return NULL;

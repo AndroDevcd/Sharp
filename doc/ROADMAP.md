@@ -487,7 +487,7 @@ class mario base player {
 
 ```
 
-- Add support for native function in the lang
+- [X] Add support for native function in the lang
 
 ```javascript
 

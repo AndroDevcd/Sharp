@@ -508,7 +508,24 @@ void ExeBuilder::appendCallFunctions(ClassObject* klass, stringstream& ss) {
             localAddr++;
         }
 
-        ss << endl << "\t" << (isCppKeyword(func->name) ? "_" : "") << func->name;
+        ss << endl << "\t";
+
+        if(func->utype->getResolvedType()->type != NIL) {
+            if (func->utype->getResolvedType()->type <= VAR) {
+                if (func->utype->isArray()) {
+                    ss << "object $result = internal::getfpLocalAt(0);" << endl << "\t";
+                    ss << "set($result, ";
+                } else {
+                    ss << "var $result(internal::getfpNumAt(0));" << endl << "\t";
+                    ss << "$result = ";
+                }
+            } else {
+                ss << "object $result = internal::getfpLocalAt(0);" << endl << "\t";
+                ss << "set($result, ";
+            }
+        }
+
+        ss << (isCppKeyword(func->name) ? "_" : "") << func->name;
         ss << "(";
 
         for(Int l = 0; l < func->params.size(); l++) {
@@ -519,7 +536,21 @@ void ExeBuilder::appendCallFunctions(ClassObject* klass, stringstream& ss) {
                 ss << ", ";
             }
         }
-        ss << ");";
+
+        if(func->utype->getResolvedType()->type != NIL) {
+            if (func->utype->getResolvedType()->type <= VAR) {
+                if (func->utype->isArray()) {
+                    ss << "));";
+                } else {
+                    ss << ");";
+                }
+            } else {
+                ss << "));";
+            }
+        } else
+            ss << ");";
+
+
         ss << endl << "}" << endl << endl;
     }
 }
@@ -2284,7 +2315,8 @@ int32_t ExeBuilder::getSecondarySpOffset(Method *fun) {
     Int paramSize = fun->params.size();
     Int exclusiveStackSize = fun->data.localVariablesSize;
     if(!staticFunc) exclusiveStackSize--;
-    return exclusiveStackSize - paramSize;
+    Int additionalStackPaceRequires = exclusiveStackSize - paramSize;
+    return additionalStackPaceRequires > 0 ? additionalStackPaceRequires : 0;
 }
 
 int32_t ExeBuilder::getSpOffset(Method *fun) {

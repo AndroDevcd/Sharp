@@ -38,6 +38,10 @@ namespace snb_api {
             inc_sp = (_inc_sp)load_func("incSp");
             getSpNumAt = (_getspNumAt)load_func("getspNumAt");
             getSpObjAt = (_getspObjAt)load_func("getspObjAt");
+            newVarArray = (_newVarArray)load_func("newVarArray");
+            newClass = (_newClass)load_func("newClass");
+            newObjArray = (_newObjArray)load_func("newObjArray");
+            newClassArray = (_newClassArray)load_func("newClassArray");
             decSp = (_decSp)load_func("decSp");
             pushNum = (_pushNum)load_func("pushNum");
             pushObj = (_pushObj)load_func("pushObj");
@@ -47,7 +51,8 @@ namespace snb_api {
                    && getVarPtr && getfpLocalAt && getSize && setObject
                    && staticClassInstance && inc_sp && getSpNumAt
                    && getSpObjAt && decSp && pushNum && pushObj
-                   && call;
+                   && call && newVarArray && newClass && newObjArray
+                   && newClassArray;
         }
     }
 
@@ -91,6 +96,7 @@ namespace snb_api {
         return getField(obj, field);
     }
 
+
     template<> var_array cast_to<var_array>(object obj) {
         if(obj) {
             var_array val(getVarPtr(obj), getSize(obj), obj);
@@ -101,7 +107,7 @@ namespace snb_api {
         }
     }
 
-    int set(object dest, var_array arry) {
+    int set(object dest, var_array &arry) {
         return set(dest, arry.handle);
     }
 
@@ -128,7 +134,6 @@ namespace snb_api {
         }
         return ss.str();
     }
-
 
     template <class T>
     T createLocalField() {
@@ -158,8 +163,9 @@ namespace snb_api {
 
     void createVarArray(var_array &field, int32_t size) {
         object newObj = newVarArray(size);
-        var_array arry(getVarPtr(newObj), size, newObj);
-        field = arry;
+        field.num = getVarPtr(newObj);
+        field.size = size;
+        set(field.handle, newObj);
     }
 
     void createClassArray(object field, const string &name, int32_t size) {
@@ -177,8 +183,69 @@ namespace snb_api {
     void unTrack(int32_t amount) {
         decSp(amount);
     }
+
+    void set(var_array &arry, const char *str) {
+        long len = strlen(str);
+        if(str && arry.handle) {
+            if(arry.size != len)
+                createVarArray(arry, len);
+
+            for(long i = 0; i < len; i++) {
+                arry[i] = str[i];
+            }
+        }
+    }
+
+    void set(var_array &arry, string& str) {
+        set(arry, str.c_str());
+    }
 };
 
+#pragma optimize( "", off )
+/*
+ * This allow the compiler to properly link each template function
+ */
+void dead_func() {
+    using namespace snb_api;
+    createLocalField<var>();
+    createLocalField<_int8>();
+    createLocalField<_int16>();
+    createLocalField<_int16>();
+    createLocalField<_int32>();
+    createLocalField<_int64>();
+    createLocalField<_uint8>();
+    createLocalField<_uint16>();
+    createLocalField<_uint32>();
+    createLocalField<_uint64>();
+    createLocalField<var_array>();
+
+    object obj;
+    cast_to<var>(obj);
+    cast_to<_int8>(obj);
+    cast_to<_int16>(obj);
+    cast_to<_int16>(obj);
+    cast_to<_int32>(obj);
+    cast_to<_int64>(obj);
+    cast_to<_uint8>(obj);
+    cast_to<_uint16>(obj);
+    cast_to<_uint32>(obj);
+    cast_to<_uint64>(obj);
+    cast_to<var_array>(obj);
+
+
+    get<var>(obj, "");
+    get<_int8>(obj, "");
+    get<_int16>(obj, "");
+    get<_int16>(obj, "");
+    get<_int32>(obj, "");
+    get<_int64>(obj, "");
+    get<_uint8>(obj, "");
+    get<_uint16>(obj, "");
+    get<_uint32>(obj, "");
+    get<_uint64>(obj, "");
+    get<var_array>(obj, "");
+}
+#pragma optimize( "", on )
 
 #ifdef __cplusplus
 extern "C" {

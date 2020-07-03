@@ -85,6 +85,7 @@ public:
     static void __snprintf(int cfmt, double val, int precision);
 
     Library* getLib(native_string name);
+    int freeLib(native_string name);
 
     /**
      * Frequently used classes

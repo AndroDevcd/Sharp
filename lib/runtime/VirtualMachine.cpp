@@ -22,6 +22,7 @@
 #include "jit/Jit.h"
 #include "main.h"
 #include "../Modules/std.io/memory.h"
+#include "snb/snb.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -698,15 +699,12 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
             if (libNameObj != NULL && TYPE(libNameObj->info) == _stype_var && libNameObj->HEAD != NULL) {
                 native_string name(libNameObj->HEAD, libNameObj->size);
+                GUARD(thread_self->threadsMonitor)
                 registers[EBX] = 0;
 
                 if(vm.getLib(name) == NULL) {
                     Library lib;
-#ifdef _WIN32
-                    lib.handle = LoadLibrary((name.str() + ".dll").c_str());
-#else
-                    lib.handle = dlopen((name.str() + ".so").c_str(), RTLD_LAZY);
-#endif
+                    lib.handle = load_lib(name);
 
                     if(!lib.handle) {
                         registers[EBX] = 1;
@@ -714,13 +712,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                         return;
                     }
 
-
                     loadLib _loadLib =
-#ifdef _WIN32
-                            (loadLib)GetProcAddress(lib.handle, "snb_load_lib");
-#else
-                    (loadLib)dlsym(lib.handle, "snb_load_lib");
-#endif
+                            (loadLib)load_func(lib.handle,
+                                    "snb_load_lib");
 
                     if(_loadLib && _loadLib()) {
                         lib.name = name;
@@ -736,6 +730,16 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 throw Exception(vm.NullptrExcept, "");
             }
             return;
+        }
+        case OP_FREE_LIBRARY: {
+            SharpObject *libNameObj = (thread_self->sp--)->object.object;
+
+            if (libNameObj != NULL && TYPE(libNameObj->info) == _stype_var && libNameObj->HEAD != NULL) {
+                native_string name(libNameObj->HEAD, libNameObj->size);
+                GUARD(thread_self->threadsMonitor)
+                registers[EBX] = vm.freeLib(name);;
+                name.free();
+            }
         }
         default: {
             stringstream ss;
@@ -1100,27 +1104,51 @@ Library *VirtualMachine::getLib(native_string name) {
     return NULL;
 }
 
+int VirtualMachine::freeLib(native_string name) {
+    Library *lib = NULL;
+    Int index = 0;
+    for(long i = 0; i < libs.size(); i++) {
+        if(libs.get(i).name == name) {
+            lib = &libs.get(i);
+            index = i;
+            break;
+        }
+    }
+
+
+    if(lib != NULL) {
+        bridgeFun _bridgeFun =
+                (bridgeFun)load_func(lib->handle,
+                                     "snb_main");
+        for(Int i = 0; i < vm.manifest.methods; i++) {
+            if(vm.methods[i].bridge == _bridgeFun) {
+                vm.methods->bridge = NULL;
+            }
+        }
+
+        free_lib(lib->handle);
+
+        lib->name.free();
+        libs.remove(index);
+        return 0;
+    }
+
+    return 1;
+}
+
 void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
     fptr fun;
     linkProc _linkProc;
     for(Int i = 0; i < libs.size(); i++) {
         _linkProc =
-#ifdef _WIN32
-                (linkProc)GetProcAddress(libs.get(i).handle, "snb_link_proc");
-#else
-                (linkProc)dlsym(libs.get(i).handle, "snb_link_proc");
-#endif
+                (linkProc)load_func(libs.get(i).handle,
+                                   "snb_link_proc");
 
         if(_linkProc) {
-            short linked = _linkProc(nativeFun->fullName.str().c_str(), nativeFun->address);
-
-            if(linked) {
+            if(_linkProc(nativeFun->fullName.str().c_str(), nativeFun->address)) {
                 nativeFun->bridge =
-#ifdef _WIN32
-                        (bridgeFun) GetProcAddress(libs.get(i).handle, "snb_main");
-#else
-                        (bridgeFun)dlsym(libs.get(i).handle, "snb_main");
-#endif
+                        (bridgeFun)load_func(libs.get(i).handle,
+                                           "snb_main");
                 if (nativeFun->bridge) {
                     setupMethodStack(nativeFun->address, thread_self, true);
                     nativeFun->bridge(nativeFun->address);

@@ -8,8 +8,6 @@
 #include "../../../stdimports.h"
 #include "util.h"
 
-#pragma once
-
 // Sharp native bridge Api for 2 way communication back to the executable from shared lib
 #ifdef __cplusplus
 extern "C" {
@@ -39,6 +37,24 @@ extern "C" {
 
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef _WIN32
+#define load_func(handle, name) GetProcAddress(handle, name)
+#else
+#define load_func(handle, name) dlsym(handle, name)
+#endif
+
+#ifdef _WIN32
+#define load_lib(lib) LoadLibrary((lib.str() + ".dll").c_str())
+#else
+#define load_lib(lib) dlopen((lib.str() + ".so").c_str(), RTLD_LAZY)
+#endif
+
+#ifdef _WIN32
+#define free_lib(handle) FreeLibrary(handle)
+#else
+#define free_lib(handle) dlclose(handle)
 #endif
 
 

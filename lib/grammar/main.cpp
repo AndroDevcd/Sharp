@@ -349,22 +349,6 @@ void compile(List<native_string> &files)
     File::buffer buf;
     size_t errors=0, unfilteredErrors=0;
     long succeeded=0, failed=0, panic=0;
-//    HINSTANCE hinstLib;
-//    hinstLib = LoadLibrary("fooTestLib.dll");
-//
-//    if (!hinstLib) {
-//        cerr << "Cannot open library: " << "fooTest" << '\n';
-//        return;
-//    }
-//
-//    auto foo = (foo_func)GetProcAddress(hinstLib, "foo");
-//
-//    if (!foo) {
-//        std::cout << "could not locate the foo function" << std::endl;
-//        return;
-//    }
-//
-//    foo();
 
     for(unsigned int i = 0; i < files.size(); i++)
     {

@@ -8,29 +8,13 @@ import platform;
 /**
 *
 */
-native def foo(num: var, home: building);
+native def foo();
 
-public static def main(args: string[]) : var {
-    load_library("fooTestLib");
-    foo(105, new building());
-    println("");
-    return 4;
+public static def main(args: string[]) {
+    load_library("libuntitled1");
+    foo();
 }
 
-def call_me(num: var) {
-    println("num is $num");
+def call_me(msg: _int8[]) {
+    println(msg);
 }
-
-enum color {
-    red , green, blue
-}
-
-class building {
-    building() {
-        style = red;
-    }
-
-    spft : var;
-    style : color;
-}
-

@@ -168,7 +168,7 @@ namespace snb_api {
         extern _call call;
     }
 
-    struct var_array;
+    class var_array;
 
     typedef var_array _int8_array;
     typedef var_array _int16_array;
@@ -187,8 +187,10 @@ namespace snb_api {
     template <class T>
     T cast_to(object obj);
 
-    int set(object obj, var_array arry);
+    int set(object obj, var_array &arry);
     int set(object dest, object src);
+    void set(var_array &arry, const char *);
+    void set(var_array &arry, string&);
 
     void incRef(object obj);
     void decRef(object obj);
@@ -205,9 +207,10 @@ namespace snb_api {
     void unTrack(int32_t amount);
 
     template<class T>
-    struct integer;
+    class integer;
 
-    struct var {
+    class var {
+    public:
         double value() {
             if (num)
                 return *num;
@@ -306,7 +309,8 @@ namespace snb_api {
     };
 
     template<class T>
-    struct integer {
+    class integer {
+    public:
         integer(double *ref)
                 :
                 num(ref),
@@ -408,7 +412,8 @@ namespace snb_api {
         }
     };
 
-    struct _int8 : public integer<int8_t> {
+    class _int8 : public integer<int8_t> {
+    public:
 
         _int8(double *ref)
                 :
@@ -447,7 +452,8 @@ namespace snb_api {
         }
     };
 
-    struct _int16 : public integer<int16_t> {
+    class _int16 : public integer<int16_t> {
+    public:
 
         _int16(double *ref)
                 :
@@ -486,7 +492,8 @@ namespace snb_api {
         }
     };
 
-    struct _int32 : public integer<int32_t> {
+    class _int32 : public integer<int32_t> {
+    public:
 
         _int32(double *ref)
                 :
@@ -525,7 +532,8 @@ namespace snb_api {
         }
     };
 
-    struct _int64 : public integer<int64_t> {
+    class _int64 : public integer<int64_t> {
+    public:
 
         _int64(double *ref)
                 :
@@ -564,7 +572,8 @@ namespace snb_api {
         }
     };
 
-    struct _uint8 : public integer<uint8_t> {
+    class _uint8 : public integer<uint8_t> {
+    public:
 
         _uint8(double *ref)
                 :
@@ -603,7 +612,8 @@ namespace snb_api {
         }
     };
 
-    struct _uint16 : public integer<uint16_t> {
+    class _uint16 : public integer<uint16_t> {
+    public:
 
         _uint16(double *ref)
                 :
@@ -642,7 +652,8 @@ namespace snb_api {
         }
     };
 
-    struct _uint32 : public integer<uint32_t> {
+    class _uint32 : public integer<uint32_t> {
+    public:
 
         _uint32(double *ref)
                 :
@@ -681,7 +692,8 @@ namespace snb_api {
         }
     };
 
-    struct _uint64 : public integer<uint64_t> {
+    class _uint64 : public integer<uint64_t> {
+    public:
 
         _uint64(double *ref)
                 :
@@ -720,7 +732,8 @@ namespace snb_api {
         }
     };
 
-    struct var_array : public var {
+    class var_array : public var {
+    public:
 
         var_array(double *ref, int32_t size)
                 :
@@ -752,6 +765,12 @@ namespace snb_api {
         double &operator[](int32_t index) {
             if (num && index < size)
                 return num[index];
+            else {
+                stringstream ss;
+                ss << "index out of bounds array size: " << size
+                   << " accessed at index: " << index;
+                throw runtime_error(ss.str());
+            }
         }
 
 
@@ -774,9 +793,62 @@ namespace snb_api {
             return this->var::operator=(val);
         }
 
-        void operator=(const var_array &val) {
-            if(handle)
+        bool operator==(const char* str) {
+            long len = strlen(str);
+            if(str && handle) {
+                if(size == len) {
+                    for(long i = 0; i < size; i++) {
+                        if(num[i] != str[i])
+                            return false;
+                    }
+                } else return false;
+
+                return true;
+            }
+        }
+
+        bool operator!=(const char* str) {
+            return !operator==(str);
+        }
+
+        bool operator==(var_array &array) {
+            if(handle && array.handle) {
+                if(array.size == size) {
+                    for(long i = 0; i < size; i++) {
+                        if(num[i] != array.num[i])
+                            return false;
+                    }
+                } else return false;
+
+                return true;
+            }
+        }
+
+        bool operator!=(var_array &array) {
+            return !operator==(array);
+        }
+
+        bool operator==(string &str) {
+            return operator==(str.c_str());
+        }
+
+        bool operator!=(string &str) {
+            return !operator==(str);
+        }
+
+        void operator=(const char*val) {
+            set(*this, val);
+        }
+
+        void operator=(string &val) {
+            set(*this, val);
+        }
+
+        void operator=(var_array &val) {
+            if(handle) {
                 set(handle, val);
+                num = val.num;
+            }
         }
 
         int32_t size;
