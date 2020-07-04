@@ -16,6 +16,8 @@
 #else
 #include <sys/statvfs.h>
 #include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #endif
 
 bool sortMethods(Method *m1, Method *m2) {

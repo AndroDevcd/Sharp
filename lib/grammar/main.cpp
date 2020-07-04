@@ -339,8 +339,6 @@ int _bootstrap(int argc, const char* argv[])
     return 0;
 }
 
-typedef void (__stdcall *foo_func)();
-
 void compile(List<native_string> &files)
 {
     List<parser*> parsers;
