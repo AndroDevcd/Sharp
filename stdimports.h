@@ -43,6 +43,7 @@ using namespace std;
 #include <unistd.h>
 #include <sys/time.h>
 #include <stdarg.h>
+#include <dlfcn.h>
 
 #define POSIX_USEC_INTERVAL 1000
 
