@@ -5633,6 +5633,10 @@ void Compiler::validateMethodParams(List<Field*>& params, Ast* ast) {
     }
 }
 
+void $03s() {
+
+}
+
 void Compiler::parseUtypeArgList(List<Field*> &params, Ast* ast) {
     for(unsigned int i = 0; i < ast->getSubAstCount(); i++) {
         params.add(compileUtypeArg(ast->getSubAst(i)));

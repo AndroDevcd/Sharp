@@ -37,6 +37,7 @@
 #ifdef POSIX_
 #include <pthread.h>
 #include <unistd.h>
+#include <dlfcn.h>
 #endif
 
 
@@ -78,7 +79,7 @@ typedef object vararray;
 #ifdef _WIN32
 #define load_func(name) GetProcAddress(GetModuleHandle(NULL), name)
 #else
-#define load_func(name) dlsym(dlopen(NULL), name)
+#define load_func(name) dlsym(dlopen(NULL, RTLD_LAZY), name)
 #endif
 
 #if defined _WIN32 || defined __CYGWIN__
