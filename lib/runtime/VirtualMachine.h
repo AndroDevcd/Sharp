@@ -46,7 +46,8 @@ public:
         ThreadStackExcept(NULL),
         IndexOutOfBoundsExcept(NULL),
         NullptrExcept(NULL),
-        ClassCastExcept(NULL)
+        ClassCastExcept(NULL),
+        libs()
     {
     }
     void destroy();
