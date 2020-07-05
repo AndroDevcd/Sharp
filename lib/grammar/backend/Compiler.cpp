@@ -6068,6 +6068,8 @@ void Compiler::resolveMethod(Ast* ast, ClassObject* currentClass) {
 
         method->free();
         delete method;
+    } else if(method->isNative()) {
+        unProcessedMethods.add(method);
     }
 }
 
@@ -8416,7 +8418,8 @@ void Compiler::compileMethod(Ast *ast, Method *func) {
                         .addIr(OpBuilder::ret(NO_ERR));
             }
         }
-    }
+    } else
+        compileMethodReturnType(func, ast, false);
 
 //        printMethodCode(*constructor, ast);
     currentScope()->resetLocalScopeFlags();
