@@ -22,6 +22,7 @@ class platform
 
     static def load_library(name: string): var{
         lib_name := name.get_data();
+        result := 0;
         asm {
             pushl {lib_name}
             int 0x39
