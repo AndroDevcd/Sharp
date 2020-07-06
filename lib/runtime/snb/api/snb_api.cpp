@@ -25,35 +25,41 @@ namespace snb_api {
         _pushObj pushObj;
         _call call;
 
-        int on_load() {
-            inc_ref = (_inc_ref)load_func("inc_ref");
-            dec_ref = (_dec_ref)load_func("def_ref");
-            getfpNumAt = (_getfpNumAt)load_func("getfpNumAt");
-            getField = (_getField)load_func("getField");
-            getVarPtr = (_getVarPtr)load_func("getVarPtr");
-            getfpLocalAt = (_getfpLocalAt)load_func("getfpLocalAt");
-            getSize = (_getSize)load_func("getSize");
-            setObject = (_setObject)load_func("setObject");
-            staticClassInstance = (_staticClassInstance)load_func("staticClassInstance");
-            inc_sp = (_inc_sp)load_func("incSp");
-            getSpNumAt = (_getspNumAt)load_func("getspNumAt");
-            getSpObjAt = (_getspObjAt)load_func("getspObjAt");
-            newVarArray = (_newVarArray)load_func("newVarArray");
-            newClass = (_newClass)load_func("newClass");
-            newObjArray = (_newObjArray)load_func("newObjArray");
-            newClassArray = (_newClassArray)load_func("newClassArray");
-            decSp = (_decSp)load_func("decSp");
-            pushNum = (_pushNum)load_func("pushNum");
-            pushObj = (_pushObj)load_func("pushObj");
-            call = (_call)load_func("call");
+        int handshake(void *lib_funcs[], int size) {
 
-            return inc_ref && dec_ref && getfpNumAt && getField
-                   && getVarPtr && getfpLocalAt && getSize && setObject
-                   && staticClassInstance && inc_sp && getSpNumAt
-                   && getSpObjAt && decSp && pushNum && pushObj
-                   && call && newVarArray && newClass && newObjArray
-                   && newClassArray;
+            if (size >= 20) {
+                inc_ref = (_inc_ref) lib_funcs[0];
+                dec_ref = (_dec_ref) lib_funcs[1];
+                getfpNumAt = (_getfpNumAt) lib_funcs[2];
+                getField = (_getField) lib_funcs[3];
+                getVarPtr = (_getVarPtr) lib_funcs[4];
+                getfpLocalAt = (_getfpLocalAt) lib_funcs[5];
+                getSize = (_getSize) lib_funcs[6];
+                setObject = (_setObject) lib_funcs[7];
+                staticClassInstance = (_staticClassInstance) lib_funcs[8];
+                inc_sp = (_inc_sp) lib_funcs[9];
+                getSpNumAt = (_getspNumAt) lib_funcs[10];
+                getSpObjAt = (_getspObjAt) lib_funcs[11];
+                newVarArray = (_newVarArray) lib_funcs[12];
+                newClass = (_newClass) lib_funcs[13];
+                newObjArray = (_newObjArray) lib_funcs[14];
+                newClassArray = (_newClassArray) lib_funcs[15];
+                decSp = (_decSp) lib_funcs[16];
+                pushNum = (_pushNum) lib_funcs[17];
+                pushObj = (_pushObj) lib_funcs[18];
+                call = (_call) lib_funcs[19];
+
+
+                return inc_ref && dec_ref && getfpNumAt && getField
+                       && getVarPtr && getfpLocalAt && getSize && setObject
+                       && staticClassInstance && inc_sp && getSpNumAt
+                       && getSpObjAt && decSp && pushNum && pushObj
+                       && call && newVarArray && newClass && newObjArray
+                       && newClassArray;
+            } else return false;
+
         }
+
     }
 
     using namespace internal;
@@ -251,8 +257,8 @@ void dead_func() {
 extern "C" {
 #endif
 
-EXPORTED short snb_load_lib() {
-    return snb_api::internal::on_load();
+EXPORTED short snb_handshake(void* lib_funcs[], int size) {
+    return snb_api::internal::handshake(lib_funcs, size);
 }
 
 #ifdef __cplusplus

@@ -8,27 +8,14 @@ import platform;
 /**
 *
 */
+native def foo();
 
-thread_local count : var;
-public static def main(args: string[]) {
-    new a {};
-    new b {};
-    set_size(new c {});
+public static def main(args: string[]) : var {
+    load_library("libuntitled1");
+    foo();
+    return 4;
 }
 
-def set_size(_a : a) {
-    _a.size = 9;
-}
-
-class a {
-    size := new int();
-}
-
-class b base a {
-
-}
-
-class c base b {
-    name : string;
-    static next : c = new c();
+def call_me(num: _int8[]) {
+    println("$num");
 }

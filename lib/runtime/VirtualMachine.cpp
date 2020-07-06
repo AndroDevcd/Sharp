@@ -712,11 +712,11 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                         return;
                     }
 
-                    loadLib _loadLib =
-                            (loadLib)load_func(lib.handle,
-                                    "snb_load_lib");
+                    lib_handshake _lib_handshake =
+                            (lib_handshake)load_func(lib.handle,
+                                    "snb_handshake");
 
-                    if(_loadLib && _loadLib()) {
+                    if(_lib_handshake && setupLibrary(_lib_handshake)) {
                         vm.libs.__new().init();
                         vm.libs.last().name = name;
                         vm.libs.last().handle = lib.handle;

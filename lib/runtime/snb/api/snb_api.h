@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <string>
+#include <cstring>
 
 #pragma once
 
@@ -75,13 +76,6 @@ typedef object vararray;
 
 #define scope(...) GET_MACRO(__VA_ARGS__, scope_5, scope_4, scope_3, scope_2, scope_1)(__VA_ARGS__)
 
-
-#ifdef _WIN32
-#define load_func(name) GetProcAddress(GetModuleHandle(NULL), name)
-#else
-#define load_func(name) dlsym(dlopen(NULL, RTLD_LAZY), name)
-#endif
-
 #if defined _WIN32 || defined __CYGWIN__
 #define EXPORTED __attribute__ ((dllexport))
 #define NOT_EXPORTED
@@ -103,7 +97,7 @@ extern "C" {
 
 EXPORTED short snb_link_proc(const char*, int32_t);
 EXPORTED void snb_main(long);
-EXPORTED short snb_load_lib();
+EXPORTED short snb_handshake(void* lib_funcs[], int);
 
 #ifdef __cplusplus
 }

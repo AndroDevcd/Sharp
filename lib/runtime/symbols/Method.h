@@ -31,7 +31,7 @@ typedef opcode_instr* Cache;
 typedef void (*fptr)(void *);
 typedef void (*bridgeFun)(long handle);
 typedef long (*linkProc)(const char* funcName, int32_t);
-typedef short (*loadLib)();
+typedef short (*lib_handshake)(void *lib_funcs[], int);
 
 /**
  * This is the representation of a method in its barest form
