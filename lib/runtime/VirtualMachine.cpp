@@ -717,9 +717,8 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                                     "snb_load_lib");
 
                     if(_loadLib && _loadLib()) {
-                        lib.name = name;
                         vm.libs.__new().init();
-                        vm.libs.last().name = lib.name;
+                        vm.libs.last().name = name;
                         vm.libs.last().handle = lib.handle;
                     } else
                         throw Exception(vm.IllStateExcept, "could not load dll");
@@ -740,6 +739,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 registers[EBX] = vm.freeLib(name);;
                 name.free();
             }
+            return;
         }
         default: {
             stringstream ss;

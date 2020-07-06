@@ -27,6 +27,8 @@ class platform
             int 0x39
             smovr2 {result}, ebx
         }
+
+        return result;
     }
 
     static def free_library(name: string): var {
