@@ -706,7 +706,20 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     Library lib;
                     lib.handle = load_lib(name);
 
+                    #ifndef _WIN32
                     if(!lib.handle) {
+                        native_string curDirDl;
+                        curDirDl += "./";
+                        curDirDl += name.str();
+                        lib.handle = load_lib(curDirDl);
+                        curDirDl.free();
+                    }
+                    #endif
+
+                    if(!lib.handle) {
+                        if(c_options.debugMode) {
+                            cout << "handle == NULL could not find lib " << name.str() << endl;
+                        }
                         registers[EBX] = 1;
                         name.free();
                         return;
@@ -720,10 +733,18 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                         vm.libs.__new().init();
                         vm.libs.last().name = name;
                         vm.libs.last().handle = lib.handle;
-                    } else
-                        throw Exception(vm.IllStateExcept, "could not load dll");
-                } else
+                    } else {
+                        if(c_options.debugMode) {
+                            cout << "handshake failed on lib " << name.str() << endl;
+                        }
+                        throw Exception(vm.IllStateExcept, "handshake failed, could not load library");
+                    }
+                } else {
+                    if(c_options.debugMode) {
+                        cout << "lib " << name.str() << " already exists" << endl;
+                    }
                     registers[EBX] = 1;
+                }
                 name.free();
             } else {
                 throw Exception(vm.NullptrExcept, "");
@@ -736,8 +757,21 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             if (libNameObj != NULL && TYPE(libNameObj->info) == _stype_var && libNameObj->HEAD != NULL) {
                 native_string name(libNameObj->HEAD, libNameObj->size);
                 GUARD(thread_self->threadsMonitor)
-                registers[EBX] = vm.freeLib(name);;
+                registers[EBX] = vm.freeLib(name);
                 name.free();
+            }
+            return;
+        }
+        case OP_LINK_FUNC: {
+            SharpObject *libNameObj = (thread_self->sp--)->object.object;
+            SharpObject *funcNameObj = (thread_self->sp--)->object.object;
+
+            if (libNameObj != NULL && TYPE(libNameObj->info) == _stype_var && libNameObj->HEAD != NULL
+              && funcNameObj != NULL && TYPE(funcNameObj->info) == _stype_var && funcNameObj->HEAD != NULL) {
+                native_string libname(libNameObj->HEAD, libNameObj->size);
+                native_string funcname(funcNameObj->HEAD, funcNameObj->size);
+                GUARD(thread_self->threadsMonitor)
+                registers[EBX] = vm.link(funcname, libname);
             }
             return;
         }
@@ -1139,6 +1173,10 @@ int VirtualMachine::freeLib(native_string name) {
 void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
     fptr fun;
     linkProc _linkProc;
+    if(c_options.debugMode) {
+        cout << "lib size " << libs.size() << endl;
+    }
+
     for(Int i = 0; i < libs.size(); i++) {
         _linkProc =
                 (linkProc)load_func(libs.get(i).handle,
@@ -1153,7 +1191,19 @@ void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
                     setupMethodStack(nativeFun->address, thread_self, true);
                     nativeFun->bridge(nativeFun->address);
                     returnMethod(thread_self);
+                } else {
+                    if(c_options.debugMode) {
+                        cout << "bridge func not found in dl " << libs.get(i).name.str() << endl;
+                    }
                 }
+            } else {
+                if(c_options.debugMode) {
+                    cout << "could not link " << nativeFun->fullName.str() << " to dl " << libs.get(i).name.str() << endl;
+                }
+            }
+        } else {
+            if(c_options.debugMode) {
+                cout << "link func not found in dl " << libs.get(i).name.str() << endl;
             }
         }
     }
@@ -1162,12 +1212,30 @@ void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
         throw Exception(vm.UnsatisfiedLinkExcept, "");
 }
 
-string VirtualMachine::funcNameToDllName(native_string name) {
-    stringstream  ss;
-    for(Int i = 0; i < name.len; i++) {
-        if(name.chars[i] == '#' || name.chars[i] == '.') {
-            ss << '_';
-        } else ss << name.chars[i];
+bool VirtualMachine::link(native_string &func, native_string &libame) {
+    Library *lib = getLib(libame);
+    linkProc _linkProc;
+
+    if(lib != NULL) {
+        for (Int i = 0; i < vm.manifest.methods; i++) {
+            if (func == vm.methods[i].fullName) {
+                if(!vm.methods[i].nativeFunc) return false;
+
+                _linkProc =
+                        (linkProc) load_func(lib->handle,
+                                             "snb_link_proc");
+
+                if (_linkProc) {
+                    if (_linkProc(vm.methods[i].fullName.str().c_str(), vm.methods[i].address)) {
+                        vm.methods[i].bridge =
+                                (bridgeFun) load_func(lib->handle,
+                                                      "snb_main");
+                        return vm.methods[i].bridge != NULL;
+                    }
+                }
+            }
+        }
     }
-    return ss.str();
+
+    return false;
 }

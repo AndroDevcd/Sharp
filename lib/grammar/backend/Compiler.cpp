@@ -5534,7 +5534,8 @@ void Compiler::parseMethodAccessFlags(List<AccessFlag> &flags, Ast *ast) {
 
     if(flags.get(0) <= LOCAL) {
         if(flags.size() == 2) {
-            if((flags.get(1) != STATIC))
+            if((flags.get(1) != STATIC)
+                && flags.get(1) != NATIVE)
             { errPos = 1; goto error; }
         } else if(flags.size() == 3) {
             if(flags.get(1) != STATIC)

@@ -44,6 +44,20 @@ class platform
         return result;
     }
 
+    static def link_func(name: string, library: string): var {
+        lib_name := library.get_data();
+        func_name := name.get_data();
+        result := 0;
+        asm {
+            pushl {func_name}
+            pushl {lib_name}
+            int 0x3b
+            smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
     private static def srt_init(args: object[]) : var {
         build.app_name = "${args[0] as _int8[]}";
         build.version = "${args[1] as _int8[]}";

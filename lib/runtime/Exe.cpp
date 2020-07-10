@@ -152,9 +152,8 @@ int Process_Exe(std::string &exe)
         vm.nativeSymbols[i].type = (DataType)i;
     }
 
-
     if(vm.classes == NULL || vm.methods == NULL || vm.staticHeap == NULL
-       || vm.strings == NULL) {
+       || vm.strings == NULL || vm.constants  == NULL) {
         exeErrorMessage = "Failed to allocate memory for the program.";
         return OUT_OF_MEMORY;
     }
@@ -674,7 +673,7 @@ Symbol* getSymbol(File::buffer& buffer) {
     } else if(type == FNPTR) {
         return &vm.funcPtrSymbols[geti32(buffer)];
     } else {
-        exeErrorMessage = "invalid field type found in symbol table";
+        exeErrorMessage = "invalid type found in symbol table";
         return NULL;
     }
 }

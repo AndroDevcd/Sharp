@@ -11,6 +11,64 @@ public static const E := 2.7182818284590452;
  */
 public static const PI := 3.1415926535897932;
 
+/**
+ * A constant holding the positive infinity of type
+ * {@code float}. It is equal to the value returned by
+ * {@code Float.intBitsToFloat(0x7f800000)}.
+ */
+public static const POSITIVE_INFINITY := 1.0 / 0.0;
+
+/**
+ * A constant holding the negative infinity of type
+ * {@code float}. It is equal to the value returned by
+ * {@code Float.intBitsToFloat(0xff800000)}.
+ */
+public static const NEGATIVE_INFINITY := -1.0 / 0.0;
+
+/**
+ * A constant holding a Not-a-Number (NaN) value of type
+ * {@code float}.  It is equivalent to the value returned by
+ * {@code Float.intBitsToFloat(0x7fc00000)}.
+ */
+public static const NaN := 0.0 / 0.0;
+
+
+/**
+ * Returns {@code true} if the specified number is a
+ * Not-a-Number (NaN) value, {@code false} otherwise.
+ *
+ * @param   v   the value to be tested.
+ * @return  {@code true} if the argument is NaN;
+ *          {@code false} otherwise.
+ */
+public static is_nan(v: var): var {
+    return (v != v);
+}
+
+/**
+ * Returns {@code true} if the specified number is infinitely
+ * large in magnitude, {@code false} otherwise.
+ *
+ * @param   v   the value to be tested.
+ * @return  {@code true} if the argument is positive infinity or
+ *          negative infinity; {@code false} otherwise.
+ */
+public static is_infinite(v: var): var {
+    return (v == POSITIVE_INFINITY) || (v == NEGATIVE_INFINITY);
+}
+
+/**
+ * Returns {@code true} if the specified number is infinitely
+ * large in magnitude, {@code false} otherwise.
+ *
+ * @param   v   the value to be tested.
+ * @return  {@code true} if the argument is positive infinity or
+ *          negative infinity; {@code false} otherwise.
+ */
+public static is_infinite(v: var): var {
+    return (v == POSITIVE_INFINITY) || (v == NEGATIVE_INFINITY);
+}
+
 def sin(num: var) : var {
     return math_proc(num, 0x0);
 }

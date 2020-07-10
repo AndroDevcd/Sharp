@@ -79,7 +79,8 @@ public:
     static void getFrameInfo(Object *frameInfo);
     static void getStackTrace();
     void locateBridgeAndCross(Method*);
-    string funcNameToDllName(native_string name);
+    bool link(native_string&, native_string&);
+
 
 
     static void fillMethodCall(Method* func, Int pc, stringstream &ss);

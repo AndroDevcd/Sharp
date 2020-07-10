@@ -42,5 +42,5 @@ bool ClassObject::isClassRelated(ClassObject *k) {
     if(this->guid==k->guid)
         return true;
 
-    return owner == NULL ? false : owner->isClassRelated(k);
+    return super == NULL ? false : super->isClassRelated(k);
 }
