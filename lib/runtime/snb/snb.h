@@ -19,9 +19,9 @@ bool setupLibrary(lib_handshake lhand);
 #endif
 
 #ifdef _WIN32
-#define load_lib(lib) LoadLibrary((lib.str() + ".dll").c_str())
+#define load_lib(lib) LoadLibrary(lib.c_str())
 #else
-#define load_lib(lib) dlopen((lib.str() + ".so").c_str(), RTLD_NOW)
+#define load_lib(lib) dlopen(lib.c_str(), RTLD_NOW | RTLD_GLOBAL)
 #endif
 
 #ifdef _WIN32

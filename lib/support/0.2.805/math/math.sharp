@@ -41,7 +41,7 @@ public static const NaN := 0.0 / 0.0;
  * @return  {@code true} if the argument is NaN;
  *          {@code false} otherwise.
  */
-public static is_nan(v: var): var {
+public static def is_nan(v: var): var {
     return (v != v);
 }
 
@@ -53,19 +53,7 @@ public static is_nan(v: var): var {
  * @return  {@code true} if the argument is positive infinity or
  *          negative infinity; {@code false} otherwise.
  */
-public static is_infinite(v: var): var {
-    return (v == POSITIVE_INFINITY) || (v == NEGATIVE_INFINITY);
-}
-
-/**
- * Returns {@code true} if the specified number is infinitely
- * large in magnitude, {@code false} otherwise.
- *
- * @param   v   the value to be tested.
- * @return  {@code true} if the argument is positive infinity or
- *          negative infinity; {@code false} otherwise.
- */
-public static is_infinite(v: var): var {
+public static def is_infinite(v: var): var {
     return (v == POSITIVE_INFINITY) || (v == NEGATIVE_INFINITY);
 }
 

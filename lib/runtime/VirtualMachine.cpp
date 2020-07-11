@@ -704,17 +704,20 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                 if(vm.getLib(name) == NULL) {
                     Library lib;
-                    lib.handle = load_lib(name);
 
-                    #ifndef _WIN32
-                    if(!lib.handle) {
-                        native_string curDirDl;
-                        curDirDl += "./";
-                        curDirDl += name.str();
-                        lib.handle = load_lib(curDirDl);
-                        curDirDl.free();
-                    }
+                    stringstream libName;
+                    string nameStr = name.str();
+                    #ifdef _WIN32
+                        libName << nameStr << ".dll";
+                    #else
+                        if(nameStr.find("/") == string::npos) {
+                            libName << "./" << nameStr << ".so";
+                        } else
+                            libName << nameStr << ".so";
                     #endif
+
+                    nameStr = libName.str();
+                    lib.handle = load_lib(nameStr);
 
                     if(!lib.handle) {
                         if(c_options.debugMode) {
