@@ -6768,6 +6768,10 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
     Expression returnVal;
     CodeHolder &code = currentScope()->currentFunction->data.code;
 
+    if(ast->line >= 3000) {
+        int i = 3000;
+    }
+
     if(ast->getSubAst(ast_expression)) {
         compileExpression(&returnVal, ast->getSubAst(ast_expression));
     }
@@ -6827,6 +6831,9 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
     currentScope()->isReachable = false;
     switch (returnVal.type) {
         case exp_var:
+            if(returnVal.utype->isArray())
+                goto _obj;
+
             returnVal.utype->getCode().inject(ebxInjector);
             code.inject(returnVal.utype->getCode());
             code.addIr(OpBuilder::returnValue(EBX));
@@ -6835,6 +6842,7 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
         case exp_class:
         case exp_object:
         case exp_null:
+            _obj:
             code.inject(returnVal.utype->getCode());
             code.inject(returnVal.utype->getCode().getInjector(ptrInjector));
             code.addIr(OpBuilder::returnObject());
