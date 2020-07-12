@@ -20,8 +20,18 @@ class platform
         }
     }
 
-    static def load_library(name: string): var{
-        lib_name := name.get_data();
+    private static def get_lib_path(name: string) : string {
+        if(build.is_windows()) {
+            name += ".dll";
+        } else {
+            name += ".so";
+        }
+
+        return new file(name).get_absolute_path();
+    }
+
+    static def load_library(name: string): var {
+        lib_name := get_lib_path(name);
         result := 0;
         asm {
             pushl {lib_name}
@@ -33,7 +43,7 @@ class platform
     }
 
     static def free_library(name: string): var {
-        lib_name := name.get_data();
+        lib_name := get_lib_path(name);
         result := 0;
         asm {
             pushl {lib_name}
@@ -45,7 +55,7 @@ class platform
     }
 
     static def link_func(name: string, library: string): var {
-        lib_name := library.get_data();
+        lib_name := get_lib_path(name);
         func_name := name.get_data();
         result := 0;
         asm {

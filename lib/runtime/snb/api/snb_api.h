@@ -77,17 +77,15 @@ typedef object vararray;
 #define scope(...) GET_MACRO(__VA_ARGS__, scope_5, scope_4, scope_3, scope_2, scope_1)(__VA_ARGS__)
 
 #if defined _WIN32 || defined __CYGWIN__
-#define EXPORTED __attribute__ ((dllexport))
-#define NOT_EXPORTED
-#elif defined(__GNUC__)
-//  GCC
-    #define EXPORTED __attribute__((visibility("default")))
+    #define EXPORTED __attribute__ ((dllexport))
     #define NOT_EXPORTED
+#elif __GNUC__ >= 4
+    #define EXPORTED __attribute__ ((visibility ("default")))
+    #define NOT_EXPORTED  __attribute__ ((visibility ("hidden")))
 #else
     //  do nothing and hope for the best?
     #define EXPORTED
     #define NOT_EXPORTED
-    #pragma warning Unknown dynamic link import/export semantics.
 #endif
 
 // standardized exported bridge functions

@@ -704,25 +704,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                 if(vm.getLib(name) == NULL) {
                     Library lib;
-
-                    stringstream libName;
-                    string nameStr = name.str();
-                    #ifdef _WIN32
-                        libName << nameStr << ".dll";
-                    #else
-                        if(nameStr.find("/") == string::npos) {
-                            libName << "./" << nameStr << ".so";
-                        } else
-                            libName << nameStr << ".so";
-                    #endif
-
-                    nameStr = libName.str();
-                    lib.handle = load_lib(nameStr);
+                    lib.handle = load_lib(name.str());
 
                     if(!lib.handle) {
-                        if(c_options.debugMode) {
-                            cout << "handle == NULL could not find lib " << name.str() << endl;
-                        }
                         registers[EBX] = 1;
                         name.free();
                         return;
@@ -737,15 +721,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                         vm.libs.last().name = name;
                         vm.libs.last().handle = lib.handle;
                     } else {
-                        if(c_options.debugMode) {
-                            cout << "handshake failed on lib " << name.str() << endl;
-                        }
                         throw Exception(vm.IllStateExcept, "handshake failed, could not load library");
                     }
                 } else {
-                    if(c_options.debugMode) {
-                        cout << "lib " << name.str() << " already exists" << endl;
-                    }
                     registers[EBX] = 1;
                 }
                 name.free();
@@ -1176,9 +1154,6 @@ int VirtualMachine::freeLib(native_string name) {
 void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
     fptr fun;
     linkProc _linkProc;
-    if(c_options.debugMode) {
-        cout << "lib size " << libs.size() << endl;
-    }
 
     for(Int i = 0; i < libs.size(); i++) {
         _linkProc =
@@ -1194,19 +1169,7 @@ void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
                     setupMethodStack(nativeFun->address, thread_self, true);
                     nativeFun->bridge(nativeFun->address);
                     returnMethod(thread_self);
-                } else {
-                    if(c_options.debugMode) {
-                        cout << "bridge func not found in dl " << libs.get(i).name.str() << endl;
-                    }
                 }
-            } else {
-                if(c_options.debugMode) {
-                    cout << "could not link " << nativeFun->fullName.str() << " to dl " << libs.get(i).name.str() << endl;
-                }
-            }
-        } else {
-            if(c_options.debugMode) {
-                cout << "link func not found in dl " << libs.get(i).name.str() << endl;
             }
         }
     }
