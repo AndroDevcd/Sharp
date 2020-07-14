@@ -598,6 +598,8 @@ void Compiler::compileClassInitDecls(Ast* ast, ClassObject* currentClass) {
 
     if(currentClass != NULL) {
         currScope.add(new Scope(currentClass, CLASS_SCOPE));
+        primaryClass = currentClass;
+
         for (long i = 0; i < block->getSubAstCount(); i++) {
             Ast *branch = block->getSubAst(i);
             CHECK_CMP_ERRORS(return;)
@@ -617,6 +619,7 @@ void Compiler::compileClassInitDecls(Ast* ast, ClassObject* currentClass) {
             }
         }
 
+        primaryClass = NULL;
         removeScope();
     }
 }
@@ -772,6 +775,8 @@ void Compiler::compileClassFields(Ast* ast, ClassObject* currentClass) {
 
     if(currentClass != NULL) {
         currScope.add(new Scope(currentClass, CLASS_SCOPE));
+        primaryClass = currentClass;
+
         for (long i = 0; i < block->getSubAstCount(); i++) {
             Ast *branch = block->getSubAst(i);
             CHECK_CMP_ERRORS(return;)
@@ -791,6 +796,7 @@ void Compiler::compileClassFields(Ast* ast, ClassObject* currentClass) {
             }
         }
 
+        primaryClass = NULL;
         addLocalVariables();
         removeScope();
     }
@@ -812,6 +818,8 @@ void Compiler::compileClassMethods(Ast* ast, ClassObject* currentClass) {
 
     if(currentClass != NULL) {
         currScope.add(new Scope(currentClass, CLASS_SCOPE));
+        primaryClass = currentClass;
+
         for (long i = 0; i < block->getSubAstCount(); i++) {
             Ast *branch = block->getSubAst(i);
             CHECK_CMP_ERRORS(return;)
@@ -854,6 +862,8 @@ void Compiler::compileClassMethods(Ast* ast, ClassObject* currentClass) {
                 func->data.code.addIr(OpBuilder::ret(NO_ERR));
             }
         }
+
+        primaryClass = NULL;
         removeScope();
     }
 }
@@ -1094,13 +1104,15 @@ void Compiler::validateAccess(Field *field, Ast* pAst) {
         }
     } else if(field->flags.find(PRIVATE)) {
         Scope *scope = currentScope();
-        if(field->owner == currentScope()->klass) {
+        if(field->owner == currentScope()->klass || (primaryClass && field->owner == primaryClass)) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to private field `" + field->fullName + "`");
         }
     } else if(field->flags.find(PROTECTED)) {
         if(currentScope()->klass->isClassRelated(field->owner) || field->owner == currentScope()->klass
-                || field->module == currentScope()->klass->module) {
+                || field->module == currentScope()->klass->module || (primaryClass &&
+                   primaryClass->isClassRelated(field->owner) || field->owner == primaryClass
+                    || field->module == primaryClass->module)) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to protected field `" + field->fullName + "`");
         }
@@ -1118,14 +1130,16 @@ void Compiler::validateAccess(ClassObject *klass, Ast* pAst) {
         }
     } else if(klass->flags.find(PRIVATE)) {
         Scope *scope = currentScope();
-        if(scope->klass->match(klass)) {
+        if(scope->klass->match(klass) || (primaryClass && primaryClass->match(klass))) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to private class `" + klass->fullName + "`");
         }
     } else if(klass->flags.find(PROTECTED)) {
         Scope *scope = currentScope();
         if(scope->klass->isClassRelated(klass)
-           || scope->klass->module == klass->module) {
+           || scope->klass->module == klass->module ||
+                (primaryClass && primaryClass->isClassRelated(klass)
+                 || primaryClass->module == klass->module)) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to protected class `" + klass->fullName + "`");
         }
@@ -1143,14 +1157,16 @@ void Compiler::validateAccess(Method *function, Ast* pAst) {
         }
     } else if(function->flags.find(PRIVATE)) {
         Scope *scope = currentScope();
-        if(function->owner == scope->klass) {
+        if(function->owner == scope->klass || (primaryClass && function->owner == primaryClass)) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to private method `" + function->toString() + "`");
         }
     } else if(function->flags.find(PROTECTED)) {
         Scope *scope = currentScope();
         if(scope->klass->isClassRelated(function->owner) || function->owner == scope->klass
-           || function->module == currentScope()->klass->module) {
+           || function->module == currentScope()->klass->module ||
+                (primaryClass && primaryClass->isClassRelated(function->owner) || function->owner == primaryClass
+                 || function->module == primaryClass->module)) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to protected method `" + function->toString() + "`");
         }
@@ -1867,10 +1883,6 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
     List<Expression*> expressions;
     List<Field*> params;
     bool singularCall = false; //TODO: fully support restricted instance blocks
-
-    if(ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier)->line >= 3000) {
-        int i = 3000;
-    }
 
     RETAIN_BLOCK_TYPE(currentScope()->type == RESTRICTED_INSTANCE_BLOCK || currentScope()->type == INSTANCE_BLOCK
         ? INSTANCE_BLOCK : STATIC_BLOCK)
@@ -3976,6 +3988,7 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
                     RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
                     Ast *astToCompile = ast->getSubAst(i)->getType() == ast_dot_not_e ? ast->getSubAst(i)->getSubAst(0)
                                                                                       : ast->getSubAst(i);
+
                     Expression bridgeExpr;
                     bridgeExpr.utype->getCode().instanceCaptured = true;
 
@@ -4051,6 +4064,8 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
                                                    "not enough arguments for expression of type `" + expr->utype->toString()
                                                    + "`");
                         }
+
+                        RESTORE_SCOPE_CLASS()
                     }
                 } else
                     errors->createNewError(GENERIC, ast->getSubAst(i)->line, ast->getSubAst(i)->col, "expression of type `" + expr->utype->toString()
@@ -4739,7 +4754,7 @@ void Compiler::compilePreIncExpression(Expression* expr, Ast* ast) {
                                 .addIr(OpBuilder::pop());
                     }
                 } else {
-                    errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "call to function `" + overload->toString() + "` must return an var or class to use `" + tok.getValue() + "` operator");
+                    errors->createNewError(GENERIC, tok.getLine(), tok.getColumn(), "call to function `operator" + tok.getValue() + "()` must return an var or class to use `" + tok.getValue() + "` operator");
                 }
 
                 break;
@@ -8351,6 +8366,8 @@ void Compiler::compileMethodDecl(Ast *ast, ClassObject* currentClass) {
     if(currentClass == NULL)
         currentClass = currentScope()->klass;
 
+    ClassObject *oldPrimary = primaryClass;
+    primaryClass = currentClass;
     parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
     Method *func = findFunction(currentClass, name, params, ast, false, fn_normal, false);
 
@@ -8366,6 +8383,7 @@ void Compiler::compileMethodDecl(Ast *ast, ClassObject* currentClass) {
        }
        compileMethod(ast, func);
    }
+   primaryClass = oldPrimary;
 }
 
 void Compiler::compileMethod(Ast *ast, Method *func) {

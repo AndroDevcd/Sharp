@@ -507,6 +507,8 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         }
     } else if((resolvedUtype = currentScope()->klass->getField(name, true)) != NULL) {
         resolveFieldUtype(utype, ast, resolvedUtype, name);
+    } else if(primaryClass && (resolvedUtype = primaryClass->getField(name, true)) != NULL) {
+        resolveFieldUtype(utype, ast, resolvedUtype, name);
     } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveEnum(name)) != NULL) {
         validateAccess((Field*)resolvedUtype, ast);
         utype->setType(utype_field);
@@ -525,21 +527,33 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         utype->setArrayType(false);
         validateAccess((ClassObject*)resolvedUtype, ast);
         checkTypeInference(ast);
-    } else if((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL
+    } else if(((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL ||
+    (primaryClass && (resolvedUtype = primaryClass->getChildClass(name)) != NULL))
               && (IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType())
                   && ((ClassObject*)resolvedUtype)->getGenericOwner() !=  NULL)) {
         resolveClassUtype(utype, ast, resolvedUtype);
-    }  else if((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL
+    }  else if(((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL  ||
+               (primaryClass && (resolvedUtype = primaryClass->getChildClass(name)) != NULL))
         && !(IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType()) && ((ClassObject*)resolvedUtype)->getGenericOwner() == NULL)) {
         resolveClassUtype(utype, ast, resolvedUtype);
     } else if(resolveExtensionFunctions(currentScope()->klass) &&
-            currentScope()->klass->getAllFunctionsByName(name, functions, true)) {
+            currentScope()->klass->getAllFunctionsByName(name, functions, true) ||
+               (primaryClass && resolveExtensionFunctions(primaryClass) &&
+                    primaryClass->getAllFunctionsByName(name, functions, true))) {
         resolveFunctionByNameUtype(utype, ast, name, functions);
-    } else if((resolvedUtype = currentScope()->klass->getAlias(name, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) != NULL) {
+    } else if((resolvedUtype = currentScope()->klass->getAlias(name, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) != NULL
+        || (primaryClass && (resolvedUtype = primaryClass->getAlias(name, currentScope()->type != RESTRICTED_INSTANCE_BLOCK)) != NULL)) {
         resolveAliasUtype(utype, ast, resolvedUtype);
     } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && resolveHigherScopeSingularUtype(ptr, utype, ast)) {}
     else if(currentScope()->klass->name == name) {
         resolvedUtype = currentScope()->klass;
+        utype->setType(utype_class);
+        utype->setResolvedType(resolvedUtype);
+        utype->setArrayType(false);
+        validateAccess((ClassObject*)resolvedUtype, ast);
+        checkTypeInference(ast);
+    } else if(primaryClass && primaryClass->name == name) {
+        resolvedUtype = primaryClass;
         utype->setType(utype_class);
         utype->setResolvedType(resolvedUtype);
         utype->setArrayType(false);
@@ -1053,12 +1067,20 @@ Utype* Compiler::compileUtype(Ast *ast, bool instanceCaptured) {
             checkTypeInference(ast);
             ptr.free();
             return utype;
-        } else if (ptr.classes.singular() && ptr.mod == "" && IS_CLASS_GENERIC(currentScope()->klass->getClassType())
+        } else if (ptr.classes.singular() && ptr.mod == "" && (IS_CLASS_GENERIC(currentScope()->klass->getClassType())
                    && currentScope()->klass->getKeys().find(ptr.classes.get(0)) &&
-                   currentScope()->klass->isAtLeast(created)) {
+                   currentScope()->klass->isAtLeast(created)) || (primaryClass && IS_CLASS_GENERIC(primaryClass->getClassType())
+                        && primaryClass->getKeys().find(ptr.classes.get(0)) && primaryClass->isAtLeast(created))) {
 
-            Utype *keyType = currentScope()->klass->getKeyTypes().get(
-                    currentScope()->klass->getKeys().indexof(ptr.classes.get(0)));
+            Utype *keyType;
+            if(currentScope()->klass->getKeys().indexof(ptr.classes.get(0)) != -1) {
+                keyType = currentScope()->klass->getKeyTypes().get(
+                        currentScope()->klass->getKeys().indexof(ptr.classes.get(0)));
+            } else {
+                keyType = primaryClass->getKeyTypes().get(
+                        primaryClass->getKeys().indexof(ptr.classes.get(0)));
+            }
+
             utype->copy(keyType);
 
             bool isArray = false;

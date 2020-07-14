@@ -39,8 +39,7 @@ def scheduler_main(args : object[]) : var
 			thread.yield();
 		else {
 			check_list:
-			size := jobs.size();
-			for(i := 0; i < size; i++) {
+			for(i := 0; i < jobs.size(); i++) {
 				scheduled_job := jobs.at(i);
 
 				if(scheduled_job.delay_time != 0) {
@@ -50,7 +49,7 @@ def scheduler_main(args : object[]) : var
 
 						if(!scheduled_job.has_timeout) {
 							jobs.remove_at(i);
-							i--; size--;
+							i--;
 						}
 					}
 				} else if(scheduled_job.has_timeout) {
@@ -58,13 +57,14 @@ def scheduler_main(args : object[]) : var
 				        execute_job(scheduled_job);
 				    }
 
-					if(scheduled_job.state == active && time.mills_time() >= scheduled_job.timeout) {
-						scheduled_job.cancel();
-						jobs.remove_at(i); i--; size--;
+					if(scheduled_job.state == active && time.mills_time() >= (scheduled_job.start_time + scheduled_job.timeout)) {
+                        while(scheduled_job.next_task == null){} // wait until the next task is updated
+                        scheduled_job.cancel();
+						jobs.remove_at(i); i--;
 					}
 				} else {
 				    if(execute_job(scheduled_job)) {
-                        jobs.remove_at(i); i--; size--;
+                        jobs.remove_at(i); i--;
 					}
 				}
 			}

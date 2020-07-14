@@ -200,7 +200,7 @@ int Process_Exe(std::string &exe)
 
             case data_class: {
                 Int address = geti32(buffer);
-                if(address >= vm.manifest.classes) {
+                if(address >= vm.manifest.classes || address < 0) {
                     exeErrorMessage = "file `" + exe + "` may be corrupt";
                     return CORRUPT_FILE;
                 }

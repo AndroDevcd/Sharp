@@ -2,20 +2,23 @@ mod app;
 
 import std.io;
 import std.io.task;
-import platform.kernel;
-import platform;
 
 /**
 *
 */
-native def foo();
 
+times := 0;
 public static def main(args: string[]) : var {
-    load_library("libuntitled1");
-    foo();
-    return 4;
-}
+    jb := task.builder()
+        .with_timeout(500)
+        .recurring(1, seconds) = { args: object[] ->
+            jb := args[0] as job;
 
-def call_me(num: _int8[]) {
-    println("$num");
+            thread.sleep(1000);
+
+            println("time is ${time.mills_time()}");
+        };
+
+    thread.sleep(5000);
+    return 4;
 }

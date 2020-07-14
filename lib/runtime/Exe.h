@@ -18,7 +18,7 @@
 #define eos 0x1d
 #define ssymbol 0x05
 #define sstring 0x02
-#define sconst 0x02 // TODO: add constant section
+#define sconst 0x02
 #define sdata 0x0e
 #define smeta 0x06
 #define data_class 0x2f

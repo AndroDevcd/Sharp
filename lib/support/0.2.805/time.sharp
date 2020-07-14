@@ -56,15 +56,17 @@ class time {
     }
 
     static def wait(tm_unit: time_unit, time: var) {
-        if(time < 0)
-            throw new error("cannot sleep for negative time: $time");
+        if(time != infinite) {
+            if(time < 0)
+                throw new error("cannot sleep for negative time: $time");
 
-        if(tm_unit == time_unit.seconds) {
-            time *= 1000;
-        } else if(tm_unit == time_unit.microseconds) {
-            time /= 1000;
-        } else if(tm_unit == time_unit.nanoseconds) {
-            time /= 1000000;
+            if(tm_unit == time_unit.seconds) {
+                time *= 1000;
+            } else if(tm_unit == time_unit.microseconds) {
+                time /= 1000;
+            } else if(tm_unit == time_unit.nanoseconds) {
+                time /= 1000000;
+            }
         }
 
         asm {

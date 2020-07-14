@@ -27,9 +27,34 @@ public class job {
 	}
 
 	public def cancel() {
-		state = cancelled;
-		host.interrupt();
-		launcher.cleanup_job(self);
+	    lock(self) {
+            if(state == active) {
+                state = cancelled;
+
+                if(thread.current() != host) {
+                   host.interrupt();
+                   launcher.cleanup_job(self);
+                }
+                else {
+                   launcher.cleanup_job(self);
+                   throw new cancellation_exception();
+                }
+            }
+	    }
+	}
+
+	public def cancel_future() {
+	    lock(self) {
+            if(recurring) {
+                jb := next_task;
+                while(jb != null) {
+                    jb.cancel();
+                    launcher.cleanup_job(jb);
+
+                    jb = jb.next_task;
+                }
+            }
+		}
 	}
 
 	public def join() {
@@ -93,11 +118,10 @@ public class job {
 	}
 
 	protected def execute() {
-		if(has_timeout) timeout = time.mills_time() + timeout;
+	    start_time = time.mills_time();
 		state = active;
-        if(repeat > 0) repeat--;
+		reschedule();
 
-        rerun:
         when {
             main0 -> main0();
             main1 -> main1(args);
@@ -105,16 +129,68 @@ public class job {
             main3 -> main3(deferred_obj);
         }
 
-        if(repeat > 0) {
-            repeat--;
-            goto rerun;
-        }
-
 		state = completed;
 		launcher.cleanup_job(self);
 	}
 
     def is_finished() := state == completed || state == cancelled;
+    def is_active() := state == active;
+
+    public def update_interval(tm: var, interval: time_unit) {
+        if(!recurring)
+	        throw new ill_state_except("cannot set update restart interval on non-recurring job");
+
+        if(state == active) {
+           cancel_future();
+           next_task = null;
+        }
+
+        if(interval == nanoseconds) {
+            sched_time = time.nano_to_mills(tm);
+        } else if(interval == microseconds) {
+            sched_time = tm / 1000;
+        } else if(interval == milliseconds) {
+            sched_time = tm;
+        } else if(interval == seconds) {
+            sched_time = tm * 1000;
+        }
+
+        if(state == active)
+           reschedule();
+    }
+
+    protected def reschedule() {
+
+        delay := (start_time + sched_time) - time.mills_time();
+        jb := task.builder()
+            .with_name(name)
+            .recurring(sched_time, milliseconds);
+
+        user_args := new object[sizeof(args) - 1];
+        index := 0;
+        for(i := 1; i < sizeof(args); i++) {
+            user_args[i] = args[i];
+        }
+
+        if(long_term)
+            jb.long_term();
+        jb.with_args(user_args);
+
+        when {
+            main0 -> jb.scheduled_job.main0 = main0;
+            main1 -> jb.scheduled_job.main1 = main1;
+            main2 -> jb.scheduled_job.main2 = main2;
+            main3 -> jb.scheduled_job.main3 = main3;
+        }
+
+        if(delay > 0)
+           jb.schedule(delay);
+        if(has_timeout)
+           jb.with_timeout(timeout);
+
+        next_task = jb.scheduled_job;
+        jb.master.start_job(jb.scheduled_job);
+    }
 
 	protected main0: ()();
 	protected main1: (args : object[])();
@@ -126,9 +202,12 @@ public class job {
 	protected deferred_obj : object;
 	protected has_timeout := false;
 	protected timeout := 0;
+	protected start_time := 0;
+	protected sched_time := 0;
 	protected delay_time := 0;
+	protected next_task : job;
+	protected recurring := false;
 	protected id := 0;
-	protected repeat := 0;
 	protected block_caller := false;
 	protected long_term := false;
 	protected state := created;

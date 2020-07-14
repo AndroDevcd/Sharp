@@ -16,12 +16,12 @@
 - Add functionality for AOT Compiler for functions and Inject them directly in the exe
 - [X] Have automatic lookup for enums
 - [X] Allow for expression in first argument of for loop
-- Add asm volatile() argument to allow optimzer to modify the injected code
-- standard asm() code will not be modified by compiler unlexss there needs to be a
+- [X] Add asm volatile() argument to allow optimzer to modify the injected code
+- [X] standard asm() code will not be modified by compiler unlexss there needs to be a
   address readjustment due to code being removed above the asm() block
 from changing the source code
-- Limit naming of declirations such as fields named as methods or classes
-- Figure out weird bug with Unixfile system processing char when normalizing file path
+- [X] Limit naming of declirations such as fields named as methods or classes
+- [X] Figure out weird bug with Unixfile system processing char when normalizing file path
 - [X] Add support for inline anaonymous functions
     - Syntax:
 ```javascript
@@ -93,7 +93,7 @@ lock(self) {
 ```
 
 - [X] support function pointers as global variables
-- fix exception system problems
+- [X] fix exception system problems
     * Extreemly slow
     * finally block execute has problems with returning from the function in question
 
@@ -125,8 +125,9 @@ lock(self) {
     - "--obj"  for file object dump options
     - Allow for the user to chain together options i.e "-obj:ix"
 
-- Create new syntax for Assembler in SHarp compiler to be more like a modern assembly language
+- [X] Create new syntax for Assembler in SHarp compiler to be more like a modern assembly language
 - Create a "CodeAst" Block structure when compiling to allow for insightful data as well as code optimization
+
 - add support for file resource pointers
 -- This allows for the user to pull down data in a file in blocks instead of all at once
 ---- This will however pose a risk for threads leaving file resources open if there is a deadlock or he thread gets shut down
@@ -148,7 +149,7 @@ void VirtualMachine::sysInterrupt(int64_t interrupt) {
 
 ```
 
-- Convert programming language to support 32 bit systems
+- [X] Convert programming language to support 32 bit systems
 -- Max integer value is "2,147,483,632‬"
 --- Limit max class size, function, and field size possible
 

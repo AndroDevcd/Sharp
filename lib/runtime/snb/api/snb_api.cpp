@@ -207,7 +207,8 @@ namespace snb_api {
     }
 };
 
-#pragma optimize( "", off )
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
 /*
  * This allow the compiler to properly link each template function
  */
@@ -251,7 +252,7 @@ void dead_func() {
     get<_uint64>(obj, "");
     get<var_array>(obj, "");
 }
-#pragma optimize( "", on )
+#pragma pop_options
 
 #ifdef __cplusplus
 extern "C" {

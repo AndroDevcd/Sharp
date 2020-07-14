@@ -38,7 +38,8 @@ public:
         typeInference(false),
         obfuscateMode(false),
         nativeCodeFound(false),
-        enumValue(0)
+        enumValue(0),
+        primaryClass(NULL)
     {
         this->parsers.init();
         this->parsers.addAll(parsers);
@@ -142,6 +143,7 @@ private:
     Method* requiredSignature;
     CodeHolder staticMainInserts;
     CodeHolder tlsMainInserts;
+    ClassObject* primaryClass;
 
     void setup();
     void randomizeGUID();
