@@ -264,6 +264,10 @@ void parser::parseBlock(Ast* ast) {
         }
         else {
             parseStatement(branch);
+            if(peek(1)->getType() == DOT) {
+                advance()
+                errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
+            }
 
             if(!curly) {
                 access_types.free();
@@ -304,6 +308,12 @@ void parser::parseLambdaBlock(Ast* ast) {
         else {
             if(!parseStatement(branch))
                 break;
+            else {
+                if(peek(1)->getType() == DOT) {
+                    advance()
+                    errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
+                }
+            }
         }
     }
 
@@ -1135,6 +1145,10 @@ void parser::parseLabelDecl(Ast* ast) {
     else {
         advance();
         parseStatement(branch);
+        if(peek(1)->getType() == DOT) {
+            advance()
+            errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
+        }
     }
 }
 

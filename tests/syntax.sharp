@@ -14,9 +14,7 @@ public static def main(args: string[]) : var {
         .recurring(1, seconds) = { args: object[] ->
             jb := args[0] as job;
 
-            thread.sleep(1000);
-
-            println("time is ${time.mills_time()}");
+            throw new error("something bad happened");
         };
 
     thread.sleep(5000);

@@ -551,7 +551,7 @@ int Process_Exe(std::string &exe)
 
         if(currentFlag == data_byte) {
             if(itemsProcessed != vm.manifest.methods)
-                throw std::runtime_error("text section may be corrupt");
+                throw std::runtime_error("data section may be corrupt");
             currentPos--;
             break;
         }

@@ -36,7 +36,6 @@ public class job {
                    launcher.cleanup_job(self);
                 }
                 else {
-                   launcher.cleanup_job(self);
                    throw new cancellation_exception();
                 }
             }
@@ -135,6 +134,10 @@ public class job {
 
     def is_finished() := state == completed || state == cancelled;
     def is_active() := state == active;
+
+    public def update_timeout(tm: var) {
+        timeout = tm;
+    }
 
     public def update_interval(tm: var, interval: time_unit) {
         if(!recurring)

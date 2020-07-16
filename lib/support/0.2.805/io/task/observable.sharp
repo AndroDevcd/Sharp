@@ -35,10 +35,6 @@ public class observable<t> {
 
 	public def get_data() : t = data;
 
-	public def stop() {
-	    throw new cancellation_exception();
-	}
-
     protected changed : var;
 	protected data : t;
 	private update_fun: (observable<t>)();

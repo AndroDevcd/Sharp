@@ -191,8 +191,13 @@ namespace snb_api {
     }
 
     void set(var_array &arry, const char *str) {
-        long len = strlen(str);
-        if(str && arry.handle) {
+        if(arry.handle) {
+            if(str == NULL) {
+                createVarArray(arry, 0);
+                return;
+            }
+
+            long len = strlen(str);
             if(arry.size != len)
                 createVarArray(arry, len);
 
