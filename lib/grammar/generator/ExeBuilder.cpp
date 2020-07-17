@@ -349,13 +349,13 @@ void ExeBuilder::appendClassHeaderFunctions(ClassObject* klass, stringstream &ss
         return;
 
     if(klass->isGlobalClass()) {
-        ss << "scope(";
-        ss << (isCppKeyword(klass->module->name) ? "_" : "") << moduleToCPPName(klass->module->name) << ", " << endl;
+        ss << "scope_begin(";
+        ss << (isCppKeyword(klass->module->name) ? "_" : "") << moduleToCPPName(klass->module->name) << ") " << endl;
     } else {
-        ss << "scope(" << (isCppKeyword(klass->module->name) ? "_" : "") << moduleToCPPName(klass->module->name) << ", ";
+        ss << "scope_begin(" << (isCppKeyword(klass->module->name) ? "_" : "") << moduleToCPPName(klass->module->name) << ", ";
         string cppName = classToCPPName(klass->fullName);
 
-        ss << (isCppKeyword(cppName) ? "_" : "") << cppName << ", " << endl;
+        ss << (isCppKeyword(cppName) ? "_" : "") << cppName << ") " << endl;
     }
 
     for(Int k = 0; k < classMethods.size(); k++) {
@@ -396,7 +396,7 @@ void ExeBuilder::appendClassHeaderFunctions(ClassObject* klass, stringstream &ss
         ss << ");";
     }
 
-    ss << endl << ")" << endl << endl;
+    ss << endl << "scope_end()" << endl << endl;
 }
 
 void ExeBuilder::createNativeHeaderFile() {
@@ -499,7 +499,8 @@ void ExeBuilder::appendCallFunctions(ClassObject* klass, stringstream& ss) {
                 if(param->isArray) {
                     stringstream fieldName;
                     fieldName << "$tmpField" << localAddr;
-                    ss << "(internal::getVarPtr(" << fieldName.str() << "), internal::getSize(" << fieldName.str() << "), " << fieldName.str() << ");";
+                    ss << "(internal::getVarPtr(" << fieldName.str() << "), internal::getSize(" << fieldName.str() << "), "
+                        << fieldName.str() << ");";
                 } else {
                     ss << "(internal::getfpNumAt(" << localAddr << "));";
                 }
@@ -516,14 +517,14 @@ void ExeBuilder::appendCallFunctions(ClassObject* klass, stringstream& ss) {
             if (func->utype->getResolvedType()->type <= VAR) {
                 if (func->utype->isArray()) {
                     ss << "object $result = internal::getfpLocalAt(0);" << endl << "\t";
-                    ss << "set($result, ";
+                    ss << typeToCPPType(func->utype->getResolvedType()->type, true) << " $returnVal_ = ";
                 } else {
                     ss << "var $result(internal::getfpNumAt(0));" << endl << "\t";
                     ss << "$result = ";
                 }
             } else {
                 ss << "object $result = internal::getfpLocalAt(0);" << endl << "\t";
-                ss << "set($result, ";
+                ss << typeToCPPType(func->utype->getResolvedType()->type, func->utype->isArray()) << " $returnVal_ = ";
             }
         }
 
@@ -542,12 +543,12 @@ void ExeBuilder::appendCallFunctions(ClassObject* klass, stringstream& ss) {
         if(func->utype->getResolvedType()->type != NIL) {
             if (func->utype->getResolvedType()->type <= VAR) {
                 if (func->utype->isArray()) {
-                    ss << "));";
+                    ss << ");" << endl << "\tset($result, $returnVal_));";
                 } else {
                     ss << ");";
                 }
             } else {
-                ss << "));";
+                ss << ");" << endl << "\tset($result, $returnVal_));";
             }
         } else
             ss << ");";
@@ -633,13 +634,13 @@ void ExeBuilder::appendSharpMappingSourceFile(ClassObject* klass, stringstream& 
         return;
 
     if(klass->isGlobalClass()) {
-        ss << "scope(";
-        ss << (isCppKeyword(klass->module->name) ? "_" : "") << moduleToCPPName(klass->module->name) << ", " << endl;
+        ss << "scope_begin(";
+        ss << (isCppKeyword(klass->module->name) ? "_" : "") << moduleToCPPName(klass->module->name) << ") " << endl;
     } else {
-        ss << "scope(" << (isCppKeyword(klass->module->name) ? "_" : "") << moduleToCPPName(klass->module->name) << ", ";
+        ss << "scope_begin(" << (isCppKeyword(klass->module->name) ? "_" : "") << moduleToCPPName(klass->module->name) << ", ";
         string cppName = classToCPPName(klass->fullName);
 
-        ss << (isCppKeyword(cppName) ? "_" : "") << cppName << ", " << endl;
+        ss << (isCppKeyword(cppName) ? "_" : "") << cppName << ") " << endl;
     }
 
     for(Int k = 0; k < classMethods.size(); k++) {
@@ -729,7 +730,7 @@ void ExeBuilder::appendSharpMappingSourceFile(ClassObject* klass, stringstream& 
         ss << "\t}" << endl;
     }
 
-    ss << endl << ")" << endl << endl;
+    ss << endl << "scope_end()" << endl << endl;
 }
 
 void ExeBuilder::createSharpMappingSourceFile() {

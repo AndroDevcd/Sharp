@@ -50,12 +50,12 @@ typedef object vararray;
 #define CONCAT2(a, b) a ## b
 
 // global scope
-#define scope_2(module, code) \
-    namespace CONCAT2(module, _global) { code }
+#define scope_2(module) \
+    namespace CONCAT2(module, _global) {
 
 // class scope
-#define scope_3(module, name, code) \
-    namespace CONCAT2(module, _ ## name) { code }
+#define scope_3(module, name) \
+    namespace CONCAT2(module, _ ## name) {
 
 #define import_1(module) \
     using namespace CONCAT2(module, _global)
@@ -74,7 +74,9 @@ typedef object vararray;
 #define scope_5(a, b, c, d, e) static_assert(false, "Too many arguments provided, try scope(std, { .. }) or scope(std, string, { .. }) or scope(std, someClass_subClass, { .. })");
 #define scope_1(a) static_assert(false, "Not enough arguments provided, try scope(std, { .. }) or scope(std, string, { .. }) or scope(std, someClass_subClass, { .. })");
 
-#define scope(...) GET_MACRO(__VA_ARGS__, scope_5, scope_4, scope_3, scope_2, scope_1)(__VA_ARGS__)
+#define scope_begin(...) GET_MACRO(__VA_ARGS__, scope_5, scope_4, scope_3, scope_2, scope_1)(__VA_ARGS__)
+
+#define scope_end() }
 
 #if defined _WIN32 || defined __CYGWIN__
     #define EXPORTED __attribute__ ((dllexport))

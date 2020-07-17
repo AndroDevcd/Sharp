@@ -182,6 +182,16 @@ class synced_list<t> : loopable<t> {
         }
     }
 
+    def indexof(comparer: t, find_func: (t, t)(var)) : var {
+        for(i := 0; i < n_elements; i++) {
+            if(find_func(data[i], comparer)) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     def to_string() : string {
         lock(self) {
             str := new string_builder();
