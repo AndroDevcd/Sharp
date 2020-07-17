@@ -543,12 +543,12 @@ void ExeBuilder::appendCallFunctions(ClassObject* klass, stringstream& ss) {
         if(func->utype->getResolvedType()->type != NIL) {
             if (func->utype->getResolvedType()->type <= VAR) {
                 if (func->utype->isArray()) {
-                    ss << ");" << endl << "\tset($result, $returnVal_));";
+                    ss << ");" << endl << "\tset($result, $returnVal_);";
                 } else {
                     ss << ");";
                 }
             } else {
-                ss << ");" << endl << "\tset($result, $returnVal_));";
+                ss << ");" << endl << "\tset($result, $returnVal_);";
             }
         } else
             ss << ");";
