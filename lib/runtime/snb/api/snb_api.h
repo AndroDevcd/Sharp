@@ -50,11 +50,11 @@ typedef object vararray;
 #define CONCAT2(a, b) a ## b
 
 // global scope
-#define scope_2(module) \
+#define scope_1(module) \
     namespace CONCAT2(module, _global) {
 
 // class scope
-#define scope_3(module, name) \
+#define scope_2(module, name) \
     namespace CONCAT2(module, _ ## name) {
 
 #define import_1(module) \
@@ -70,9 +70,9 @@ typedef object vararray;
 #define GET_MACRO(_1,_2, _3, _4, _5, NAME,...) NAME
 #define import(...) GET_MACRO(__VA_ARGS__, import_5, import_4, import_3, import_2, import_1)(__VA_ARGS__)
 
-#define scope_4(a, b, c, d) static_assert(false, "Too many arguments provided, try scope(std, { .. }) or scope(std, string, { .. }) or scope(std, someClass_subClass, { .. })");
-#define scope_5(a, b, c, d, e) static_assert(false, "Too many arguments provided, try scope(std, { .. }) or scope(std, string, { .. }) or scope(std, someClass_subClass, { .. })");
-#define scope_1(a) static_assert(false, "Not enough arguments provided, try scope(std, { .. }) or scope(std, string, { .. }) or scope(std, someClass_subClass, { .. })");
+#define scope_3(a, b, c) static_assert(false, "Too many arguments provided, try scope_begin(std) or scope_begin(std, string) or scope_begin(std, someClass_subClass)");
+#define scope_4(a, b, c, d) static_assert(false, "Too many arguments provided, try scope_begin(std) or scope_begin(std, string) or scope_begin(std, someClass_subClass)");
+#define scope_5(a, b, c, d, e) static_assert(false, "Too many arguments provided, try scope_begin(std) or scope_begin(std, string) or scope_begin(std, someClass_subClass)");
 
 #define scope_begin(...) GET_MACRO(__VA_ARGS__, scope_5, scope_4, scope_3, scope_2, scope_1)(__VA_ARGS__)
 
