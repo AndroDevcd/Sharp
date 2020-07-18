@@ -20,10 +20,15 @@ void copy() {
         }
 
         if(TYPE(oldArray->info) == _stype_var) { // var[]
+            INC_REF(oldArray)
             *arry = GarbageCollector::self->newObject(end);
-            std::memcpy(arry->object->HEAD, oldArray->HEAD+start, sizeof(double) * end);
+            for (Int i = start; i < end; i++) {
+                arry->object->HEAD[i] = oldArray->HEAD[i];
+            }
+            DEC_REF(oldArray)
         } else if(TYPE(oldArray->info) == _stype_struct) { // object? maybe...
             if(oldArray->node != NULL) {
+                INC_REF(oldArray)
                 if(IS_CLASS(oldArray->info)) {
                     *arry = GarbageCollector::self->newObjectArray(end, &vm.classes[CLASS(oldArray->info)]);
                 } else
@@ -32,6 +37,7 @@ void copy() {
                 for (Int i = start; i < end; i++) {
                     arry->object->node[i] = oldArray->node[i];
                 }
+                DEC_REF(oldArray)
             }
         } else
             throw Exception(vm.NullptrExcept, "");

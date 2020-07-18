@@ -276,6 +276,14 @@ class string : loopable<_int8> {
     static def parse( number : var ) := new string(snprintf(currentFormat, number, precision));
 
     def operator+=( num: var ) := append(parse(num).data);
+    def operator+=( num: _int8 ) := append(num);
+    def operator+=( num: _uint8 ) := append(num);
+    def operator+=( num: _int16 ) := append(parse(num).data);
+    def operator+=( num: _uint16 ) := append(parse(num).data);
+    def operator+=( num: _int32 ) := append(parse(num).data);
+    def operator+=( num: _uint32 ) := append(parse(num).data);
+    def operator+=( num: _int64 ) := append(parse(num).data);
+    def operator+=( num: _uint64 ) := append(parse(num).data);
 
     def operator+=( obj: printable ) : string
     {

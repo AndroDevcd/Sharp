@@ -30,16 +30,12 @@ class platform
         return new file(name).get_absolute_path().get_data();
     }
 
-    static def load_library(name: string): var {
+    static def load_library(name: string) {
         lib_name : _int8[] = get_lib_path(name);
-        result := 0;
         asm {
             pushl {lib_name}
             int 0x39
-            smovr2 {result}, ebx
         }
-
-        return result;
     }
 
     static def free_library(name: string): var {

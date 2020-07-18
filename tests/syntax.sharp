@@ -7,6 +7,11 @@ import std.io.task;
 *
 */
 
+def send(str: string)
+{
+    send(str.get_data());
+}
+
 times := 0;
 public static def main(args: string[]) : var {
     jb := task.builder()
@@ -14,9 +19,10 @@ public static def main(args: string[]) : var {
         .recurring(1, seconds) = { args: object[] ->
             jb := args[0] as job;
 
-            throw new error("something bad happened");
+            //throw new error("something bad happened");
         };
 
+    send("hello");
     thread.sleep(5000);
     return 4;
 }

@@ -355,8 +355,9 @@ void VirtualMachine::getFrameInfo(Object *frameInfo) {
 
             Int iter = 0;
             if (methods && pcList) {
-                *methods = GarbageCollector::self->newObject(thread->calls + 1);
-                *pcList = GarbageCollector::self->newObject(thread->calls + 1);
+                Int size = (thread->calls + 1) < EXCEPTION_PRINT_MAX ? (thread->calls + 1) : EXCEPTION_PRINT_MAX + 1;
+                *methods = GarbageCollector::self->newObject(size);
+                *pcList = GarbageCollector::self->newObject(size);
 
                 if ((thread->calls + 1) < EXCEPTION_PRINT_MAX) {
 
@@ -700,16 +701,18 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             if (libNameObj != NULL && TYPE(libNameObj->info) == _stype_var && libNameObj->HEAD != NULL) {
                 native_string name(libNameObj->HEAD, libNameObj->size);
                 GUARD(thread_self->threadsMonitor)
-                registers[EBX] = 0;
 
                 if(vm.getLib(name) == NULL) {
                     Library lib;
                     lib.handle = load_lib(name.str());
 
                     if(!lib.handle) {
-                        registers[EBX] = 1;
                         name.free();
-                        return;
+                        #ifdef _WIN32
+                        throw Exception(vm.IllStateExcept, string("could not load library") + name.c_str());
+                        #else
+                        throw Exception(vm.IllStateExcept, string("could not load library: ") + dlerror());
+                        #endif
                     }
 
                     lib_handshake _lib_handshake =
@@ -721,10 +724,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                         vm.libs.last().name = name;
                         vm.libs.last().handle = lib.handle;
                     } else {
+                        name.free();
                         throw Exception(vm.IllStateExcept, "handshake failed, could not load library");
                     }
-                } else {
-                    registers[EBX] = 1;
                 }
                 name.free();
             } else {
