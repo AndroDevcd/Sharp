@@ -10,9 +10,10 @@ void copy() {
     Int start = (thread_self->sp--)->var;
     Object *arry = &thread_self->sp->object;
     SharpObject *oldArray = arry->object;
+    Int copyLen = end - start, index=0;
 
     if(oldArray != NULL) {
-        if(end > oldArray->size || end < 0 || start < 0 || start >= oldArray->size) {
+        if(copyLen < 0 || end > oldArray->size || end < 0 || start < 0 || start >= oldArray->size) {
             stringstream ss;
             ss << "invalid call to copy() start: " << start << ", end: " << end
                << ", size: " << oldArray->size;
@@ -20,22 +21,23 @@ void copy() {
         }
 
         if(TYPE(oldArray->info) == _stype_var) { // var[]
+            *arry = GarbageCollector::self->newObject(copyLen);
+
             INC_REF(oldArray)
-            *arry = GarbageCollector::self->newObject(end);
             for (Int i = start; i < end; i++) {
-                arry->object->HEAD[i] = oldArray->HEAD[i];
+                arry->object->HEAD[index++] = oldArray->HEAD[i];
             }
             DEC_REF(oldArray)
         } else if(TYPE(oldArray->info) == _stype_struct) { // object? maybe...
             if(oldArray->node != NULL) {
-                INC_REF(oldArray)
                 if(IS_CLASS(oldArray->info)) {
-                    *arry = GarbageCollector::self->newObjectArray(end, &vm.classes[CLASS(oldArray->info)]);
+                    *arry = GarbageCollector::self->newObjectArray(copyLen, &vm.classes[CLASS(oldArray->info)]);
                 } else
-                    *arry = GarbageCollector::self->newObject(end);
+                    *arry = GarbageCollector::self->newObject(copyLen);
 
+                INC_REF(oldArray)
                 for (Int i = start; i < end; i++) {
-                    arry->object->node[i] = oldArray->node[i];
+                    arry->object->node[index++] = oldArray->node[i];
                 }
                 DEC_REF(oldArray)
             }
