@@ -2477,9 +2477,9 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
             fieldLiteral.numericData = getInlinedFieldValue(field);
         }
         else {
-            fieldLiteral.literalType = string_literal;
-            fieldLiteral.stringData = stringMap.get(getInlinedStringFieldAddress(field));
-            fieldLiteral.address = getInlinedStringFieldAddress(field);
+            errors->createNewError(INTERNAL_ERROR, field->ast->line, field->ast->col,
+                                   " could not get inlined field value."); // should never happen
+            return;
         }
 
         leftLiteral = &fieldLiteral;
@@ -2494,9 +2494,9 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
             fieldLiteral.numericData = getInlinedFieldValue(field);
         }
         else {
-            fieldLiteral.literalType = string_literal;
-            fieldLiteral.stringData = stringMap.get(getInlinedStringFieldAddress(field));
-            fieldLiteral.address = getInlinedStringFieldAddress(field);
+            errors->createNewError(INTERNAL_ERROR, field->ast->line, field->ast->col,
+                                   " could not get inlined field value."); // should never happen
+            return;
         }
 
         rightLiteral = &fieldLiteral;
@@ -2904,13 +2904,13 @@ void Compiler::compileBinaryExpression(Expression* expr, Token &operand, Express
     expr->type = utypeToExpressionType(expr->utype);
 }
 
-void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast, bool allowOverloading, bool allowSetter) {
+void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast, bool allowOverloading, bool allowSetter, bool allowConst) {
     CodeHolder *resultCode = &expr->utype->getCode();
 
     if(leftExpr.utype->getType() == utype_field) {
         Field *field = (Field*)leftExpr.utype->getResolvedType();
         field->initialized = true;
-        if(field->flags.find(flg_CONST)) {
+        if(field->flags.find(flg_CONST) && !allowConst) {
             errors->createNewError(GENERIC, ast->line, ast->col, "operator `" + operand.getValue()
                    +  "` cannot be applied to constant field `" + leftExpr.utype->toString() + "`.");
         }
@@ -5225,7 +5225,7 @@ void Compiler::compileVariableDecl(Ast* ast) {
 }
 
 void Compiler::assignFieldExpressionValue(Field *field, Ast *ast) {
-    if(field->type <= CLASS && !isFieldInlined(field)) {
+    if(field->type <= CLASS) {
         if(ast->hasSubAst(ast_expression)) {
             BlockType bt;
 
@@ -5254,7 +5254,7 @@ void Compiler::assignFieldExpressionValue(Field *field, Ast *ast) {
             } else
                 compileExpression(&rightExpr, ast->getSubAst(ast_expression));
 
-            assignValue(&resultExpr, operand, leftExpr, rightExpr, ast, false, false);
+            assignValue(&resultExpr, operand, leftExpr, rightExpr, ast, false, false, true);
 
             if(field->local) {
                 currentScope()->currentFunction->data.code.inject(resultExpr.utype->getCode());

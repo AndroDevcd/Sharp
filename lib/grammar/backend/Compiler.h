@@ -128,7 +128,6 @@ private:
     List<Method*> unProcessedMethods;
     List<Scope*> currScope;
     List<KeyPair<Field*, double>> inlinedFields;
-    List<KeyPair<Field*, Int>> inlinedStringFields;
     List<KeyPair<FileData*, List<ModuleData*>>>  importMap;
     List<Method*> lambdas;
     List<Method*> functionPtrs;
@@ -259,7 +258,6 @@ private:
     int64_t getLowBytes(double var);
     DataType strToNativeType(string &str);
     double getInlinedFieldValue(Field* field);
-    Int getInlinedStringFieldAddress(Field* field);
     void compileTypeIdentifier(ReferencePointer &ptr, Ast *ast);
     void resolveAllFields();
     void resolveAllMethods();
@@ -347,7 +345,7 @@ private:
     void compileAssignExpression(Expression* expr, Ast* ast);
     void compileBinaryExpression(Expression* expr, Ast* ast);
     void compileInlineIfExpression(Expression* expr, Ast* ast);
-    void assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast, bool allowOverloading = true, bool allowSetter = true);
+    void assignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast, bool allowOverloading = true, bool allowSetter = true, bool allowConst = false);
     void compileBinaryExpression(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);
     void compoundAssignValue(Expression* expr, Token &operand, Expression &leftExpr, Expression &rightExpr, Ast* ast);
     expression_type utypeToExpressionType(Utype *utype);

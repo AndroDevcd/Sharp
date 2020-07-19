@@ -257,11 +257,6 @@ bool Compiler::isFieldInlined(Field* field) {
             return true;
     }
 
-    for(unsigned int i = 0; i < inlinedStringFields.size(); i++) {
-        if(inlinedStringFields.get(i).key == field)
-            return true;
-    }
-
     return false;
 }
 
@@ -272,15 +267,6 @@ double Compiler::getInlinedFieldValue(Field* field) {
     }
 
     return 0;
-}
-
-Int Compiler::getInlinedStringFieldAddress(Field* field) {
-    for(unsigned int i = 0; i < inlinedStringFields.size(); i++) {
-        if(inlinedStringFields.get(i).key==field)
-            return inlinedStringFields.get(i).value;
-    }
-
-    return invalidAddr;
 }
 
 bool Compiler::isDClassNumberEncodable(double var) {
@@ -319,14 +305,8 @@ void Compiler::inlineVariableValue(CodeHolder &code, Field *field) {
         code.getInjector(stackInjector)
                 .addIr(OpBuilder::rstore(EBX));
     } else {
-        code.free();
-
-        code.addIr(OpBuilder::newString(getInlinedStringFieldAddress(field)));
-
-        code.getInjector(ptrInjector)
-                .addIr(OpBuilder::popObject2());
-        code.getInjector(removeFromStackInjector)
-                .addIr(OpBuilder::pop());
+        errors->createNewError(INTERNAL_ERROR, field->ast->line, field->ast->col,
+                               " could not get inlined field value."); // should never happen
     }
 }
 
@@ -920,13 +900,9 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
 
             if(isFieldInlined(field) && lastReference) {
                 bridgeUtype->setType(utype_literal);
-                bridgeUtype->setArrayType(field->isArray);
+                bridgeUtype->setArrayType(false);
 
-                if(field->type == _INT8 && field->isArray) {
-                    Int strAddr = getInlinedStringFieldAddress(field);
-                    bridgeUtype->setResolvedType(new Literal(stringMap.get(strAddr), strAddr));
-                } else
-                    bridgeUtype->setResolvedType(new Literal(getInlinedFieldValue(field)));
+                bridgeUtype->setResolvedType(new Literal(getInlinedFieldValue(field)));
             }
             fromClass = false;
         } else if(bridgeUtype->getType() == utype_method) {
@@ -1690,20 +1666,19 @@ void Compiler::inlineField(Field *field, Expression &expr) {
                     !((Field *) expr.utype->getResolvedType())->isArray)
                     inlinedFields.add(KeyPair<Field *, double>(field, getInlinedFieldValue(
                             (Field *) expr.utype->getResolvedType())));
-                else
-                    inlinedStringFields.add(KeyPair<Field *, Int>(field, getInlinedStringFieldAddress(
-                            (Field *) expr.utype->getResolvedType())));
             } else if (expr.utype->getType() == utype_literal) {
                 Literal *literal = ((Literal *) expr.utype->getResolvedType());
 
                 if (literal->literalType == numeric_literal) {
                     inlinedFields.add(KeyPair<Field *, double>(field, literal->numericData));
-                } else {
-                    inlinedStringFields.add(KeyPair<Field *, Int>(field, literal->address));
                 }
             } else if (expr.utype->getType() == utype_method) {
                 Method *method = ((Method *) expr.utype->getResolvedType());
                 inlinedFields.add(KeyPair<Field *, double>(field, method->address));
+            } else if (expr.utype->getType() == utype_class) {
+                // just ignore it so we support class inlined fields we mainly use this function just to validate
+                // inlining values but we only want to add numeric const fields to the list considering thats not a value
+                // that need to be allocated on the stack
             } else {
                 errors->createNewError(GENERIC, expr.ast,
                                        " non constant value of type `" + expr.utype->toString() +
@@ -1714,7 +1689,8 @@ void Compiler::inlineField(Field *field, Expression &expr) {
                                    " non constant value of type `" + expr.utype->toString() +
                                    "` assigned to constant field `" + field->name + "`");
         }
-    } else {
+    } else if(isUtypeConvertableToNativeClass(field->utype, expr.utype)) { /* ignore */ }
+    else {
         errors->createNewError(GENERIC, expr.ast->line, expr.ast->col,
                                " incompatible types, cannot convert `" + expr.utype->toString() + "` to `" +
                                field->utype->toString()
