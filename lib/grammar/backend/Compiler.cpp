@@ -1889,6 +1889,9 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
     compileTypeIdentifier(ptr, ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier));
     RETAIN_TYPE_INFERENCE(true)
 
+    if(ast->getSubAst(ast_expression_list)->line >= 3000) {
+        int i = 3000;
+    }
     compileExpressionList(expressions, ast->getSubAst(ast_expression_list));
     RESTORE_TYPE_INFERENCE()
 
@@ -9064,7 +9067,7 @@ bool Compiler::complexParameterMatch(List<Field*> &params, List<Field*> &compara
             if(!params.get(i)->isRelated(*comparator.get(i))) {
                 if(nativeClassSupport) {
                     if(!isUtypeConvertableToNativeClass(params.get(i)->utype, comparator.get(i)->utype)
-                       && !isUtypeConvertableToNativeClass(comparator.get(i)->utype, params.get(i)->utype))
+                       && !isUtypeClassConvertableToVar(params.get(i)->utype, comparator.get(i)->utype))
                     return false;
                 } else
                     return false;
