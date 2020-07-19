@@ -5225,7 +5225,7 @@ void Compiler::compileVariableDecl(Ast* ast) {
 }
 
 void Compiler::assignFieldExpressionValue(Field *field, Ast *ast) {
-    if(field->type <= CLASS) {
+    if(field->type <= CLASS && !isFieldInlined(field)) {
         if(ast->hasSubAst(ast_expression)) {
             BlockType bt;
 
