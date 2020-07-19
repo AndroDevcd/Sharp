@@ -1888,6 +1888,7 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
         ? INSTANCE_BLOCK : STATIC_BLOCK)
     compileTypeIdentifier(ptr, ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier));
     RETAIN_TYPE_INFERENCE(true)
+
     compileExpressionList(expressions, ast->getSubAst(ast_expression_list));
     RESTORE_TYPE_INFERENCE()
 
@@ -1917,6 +1918,7 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
         RESTORE_TYPE_INFERENCE()
         if(utype->isClass()) {
             ClassObject* klass = utype->getClass();
+
 
             // TODO: add overload need to see how it comes in later
             if(klass != NULL && (resolvedMethod = findFunction(klass, name, params, ast, true)) != NULL) {
@@ -3367,9 +3369,6 @@ void Compiler::compileAssignExpression(Expression* expr, Ast* ast) {
     Expression leftExpr, rightExpr;
     Token &operand = ast->getToken(0);
 
-    if(ast->getSubAst(ast_primary_expr)->line >= 3000) {
-        int ill = 3000;
-    }
     RETAIN_TYPE_INFERENCE(true)
     RETAIN_SCOPE_INIT_CHECK(operand == "=" ? false : true)
     compileExpressionAst(&leftExpr, ast->getSubAst(ast_primary_expr));
@@ -6782,10 +6781,6 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
     currentScope()->isReachable = false;
     Expression returnVal;
     CodeHolder &code = currentScope()->currentFunction->data.code;
-
-    if(ast->line >= 3000) {
-        int i = 3000;
-    }
 
     if(ast->getSubAst(ast_expression)) {
         compileExpression(&returnVal, ast->getSubAst(ast_expression));

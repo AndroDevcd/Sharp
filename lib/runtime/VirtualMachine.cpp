@@ -704,14 +704,27 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                 if(vm.getLib(name) == NULL) {
                     Library lib;
+
+                    #ifndef _WIN32
+                    char * libError = dlerror(); // we need this variable to ensure everything is okay
+                    #endif
                     lib.handle = load_lib(name.str());
 
-                    if(!lib.handle) {
+#ifndef _WIN32
+                    libError = dlerror();
+#endif
+
+                    if(!lib.handle
+
+                    #ifndef _WIN32
+                        || libError != NULL
+                    #endif
+                    ) {
                         name.free();
                         #ifdef _WIN32
                         throw Exception(vm.IllStateExcept, string("could not load library") + name.c_str());
                         #else
-                        throw Exception(vm.IllStateExcept, string("could not load library: ") + dlerror());
+                        throw Exception(vm.IllStateExcept, string("could not load library: ") + libError);
                         #endif
                     }
 

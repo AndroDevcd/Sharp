@@ -918,10 +918,15 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
                 errors->createNewError(GENERIC, ast->line, ast->col, "cannot get field `" + field->name + "` from self in static context");
             }
 
-            if(isFieldInlined((Field*)bridgeUtype->getResolvedType()) && lastReference) {
+            if(isFieldInlined(field) && lastReference) {
                 bridgeUtype->setType(utype_literal);
-                bridgeUtype->setArrayType(false);
-                bridgeUtype->setResolvedType(new Literal(getInlinedFieldValue((Field*)bridgeUtype->getResolvedType())));
+                bridgeUtype->setArrayType(field->isArray);
+
+                if(field->type == _INT8 && field->isArray) {
+                    Int strAddr = getInlinedStringFieldAddress(field);
+                    bridgeUtype->setResolvedType(new Literal(stringMap.get(strAddr), strAddr));
+                } else
+                    bridgeUtype->setResolvedType(new Literal(getInlinedFieldValue(field)));
             }
             fromClass = false;
         } else if(bridgeUtype->getType() == utype_method) {
@@ -1679,7 +1684,7 @@ void Compiler::inlineFieldHelper(Ast* ast) {
 
 void Compiler::inlineField(Field *field, Expression &expr) {
     if(expr.utype->isRelated(field->utype)) {
-        if (expr.type == exp_var && utypeToExpressionType(field->utype) == exp_var && !field->utype->isArray()) {
+        if (expr.type == exp_var && utypeToExpressionType(field->utype) == exp_var) {
             if (expr.utype->getType() == utype_field && isFieldInlined((Field *) expr.utype->getResolvedType())) {
                 if (((Field *) expr.utype->getResolvedType())->isVar() &&
                     !((Field *) expr.utype->getResolvedType())->isArray)
