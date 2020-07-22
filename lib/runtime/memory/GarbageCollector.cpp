@@ -106,7 +106,7 @@ void GarbageCollector::initilize() {
     self->_Mheap = (SharpObject*)malloc(sizeof(SharpObject)); // HEAD
     if(self->_Mheap==NULL)
         throw Exception(vm.OutOfMemoryExcept, "out of memory");
-    new (&self->mutex) std::mutex();
+    new (&self->mutex) std::recursive_mutex();
     self->_Mheap->init(0, _stype_none);
     self->tail = self->_Mheap; // set tail to self for later use
     self->heapSize = 0;
