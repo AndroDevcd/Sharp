@@ -38,16 +38,15 @@ def scheduler_main(args : object[]) : var
 		if(jobs.empty())
 			thread.yield();
 		else {
-			check_list:
-			for(i := jobs.size() - 1; i >= 0; i--) {
+			for(i := 0; i < jobs.size(); i++) {
 				scheduled_job := jobs.at(i);
 
 				if(scheduled_job.delay_time != 0) {
 					if(time.mills_time() >= scheduled_job.delay_time) {
 						scheduled_job.delay_time = 0;
-						execute_job(scheduled_job);
+						result := execute_job(scheduled_job);
 
-						if(!scheduled_job.has_timeout) {
+						if(result && !scheduled_job.has_timeout) {
 							jobs.remove_at(i);
 							i--;
 						}
