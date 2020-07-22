@@ -36,6 +36,8 @@ def main(args: string[]) : var {
                     println("mode!");
                 };
 
+
+
     for(;;) {
         thread.yield();
         thread.sleep(10);
