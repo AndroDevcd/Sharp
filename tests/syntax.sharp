@@ -13,16 +13,32 @@ def send(str: string)
 }
 
 times := 0;
-public static def main(args: string[]) : var {
+def main(args: string[]) : var {
     jb := task.builder()
-        .with_timeout(500)
-        .recurring(1, seconds) = { args: object[] ->
+        .recurring(7, milliseconds) = { args: object[] ->
             jb := args[0] as job;
-
-            //throw new error("something bad happened");
+            for(i := 0; i < 100000; i++) {}
+            println("sent!");
         };
 
-    send("hello");
-    thread.sleep(5000);
+        task.builder()
+                .recurring(10, milliseconds) = { args: object[] ->
+                    jb := args[0] as job;
+                    println("on");
+                    for(i := 0; i < 100000; i++) {}
+                    println("off");
+                };
+        task.builder()
+                .long_term()
+                .recurring(10, milliseconds) = { args: object[] ->
+                    jb := args[0] as job;
+                    for(i := 0; i < 100000; i++) {}
+                    println("mode!");
+                };
+
+    for(;;) {
+        thread.yield();
+        thread.sleep(10);
+    }
     return 4;
 }

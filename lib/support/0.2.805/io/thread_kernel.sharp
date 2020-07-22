@@ -61,6 +61,9 @@ mutate thread_result {
     }
 
     static def at(index: var) : thread_result {
+        if(index == result_max_spin.get_ordinal())
+            return (enums[sizeof(enums) - 1]);
+
         return enums[index];
     }
 }
