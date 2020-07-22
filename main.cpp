@@ -22,6 +22,25 @@ int main(int argc, const char* argv[]) {
 #ifndef MAKE_COMPILER
     result = runtimeStart( argc, argv );
 #endif
+    int declOp = Opcode::POPL;
+    opcode_arg declArg1 = -127;
+    opcode_arg declArg2 = -127;
+    opcode_arg declArg3 = -127;
+
+    int tmpInstr= 0;
+    int instr = 0, opcode=0, arg1=0, arg2=0,arg3=0;
+    instr = SET_Bi(tmpInstr, declOp, abs(declArg1), NEGATIVE, abs(declArg2), NEGATIVE, abs(declArg3), NEGATIVE);
+    opcode = GET_OP(instr);
+    arg1 = GET_Ba(instr);
+    arg2 = GET_Bb(instr);
+    arg3 = GET_Bc(instr);
+
+    if(opcode == declOp) cout << "opcode is correct" << endl;
+    if(arg1 == declArg1) cout << "arg1 is correct" << endl;
+    if(arg2 == declArg2) cout << "arg2 is correct" << endl;
+    if(arg3 == declArg3) cout << "arg3 is correct" << endl;
+
+    instr = 0;
 
     now= Clock::realTimeInNSecs();
     if(c_options.debugMode)

@@ -241,34 +241,5 @@ def main() {
 Sharp does not force you to be object oriented if you don''t want to like other languages force you to be. Of course some things done such as creating threads require some state to be stored and persist through the lifetime of your application; However Sharp allows you to be either more expressive, functional, or object-oriented.
 
 #### Cool Stuff
-Check out the snake game I made In Sharp under the link: https://github.com/AndroDevcd/Sharp/blob/remastered/projects/snake/main.sharp
+Check out a custom drone api under the link: https://github.com/AndroDevcd/Project-Dragonfly
 
-```
-%%%%%%%%%%%%%%%%%%%%%%
-%                    %
-%                    %
-%                    %
-%                    %
-%                    %
-%                    %
-%                    %
-%                    %
-%                    %
-%     <ooo           %
-%        o    ooo    %
-%x       o    o      %
-%        oooooo      %
-%                    %
-%                    %
-%                    %
-%                    %
-%                    %
-%                    %
-%                    %
-%%%%%%%%%%%%%%%%%%%%%%
-
-score: 140
-
-commands: up, down, left, right, Q: quit, p: pause
-p
-```

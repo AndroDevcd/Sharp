@@ -6240,7 +6240,7 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
         }
     }
 
-    for(Int i = 0;   i < subscribedMethods.size(); i++) {
+    for(Int i = 0; i < subscribedMethods.size(); i++) {
         compileMethodReturnType(subscribedMethods.get(i), subscribedMethods.get(i)->ast);
     }
 
@@ -6250,18 +6250,22 @@ void Compiler::validateDelegates(ClassObject *subscriber, Ast *ast) {
             if((sub->utype != NULL && contract->utype != NULL) || (sub->utype == NULL && contract->utype == NULL)) {
                 if(contract->utype != NULL) {
                     if(!contract->utype->equals(sub->utype)) {
-                        goto subscribe_err;
+                        stringstream err;
+                        err << "contract method `" << contract->toString() << "` does not share the same return type on method implemented in class '"
+                            << subscriber->fullName << "'";
+                        errors->createNewError(GENERIC, ast->line, ast->col, err.str());
+                        printNote(contract->meta, "as defined here");
+                        continue;
                     }
                 }
 
                 sub->delegateAddr = contract->address;
             } else {
-                subscribe_err:
                 stringstream err;
                 err << "contract method `" << contract->toString() << "` does not have a subscribed method implemented in class '"
                     << subscriber->fullName << "'";
                 errors->createNewError(GENERIC, ast->line, ast->col, err.str());
-                printNote(sub->meta, "as defined here");
+                printNote(contract->meta, "as defined here");
             }
 
             if(!(contract->flags.size() == sub->flags.size() && contract->flags.sameElements(sub->flags))) {

@@ -52,7 +52,7 @@ public class thread_group : loopable<thread> {
     def find(find_func: (thread)(var)) : thread {
         for(i := 0; i < ids.size(); i++) {
             _thread := handles.at(ids.at(i));
-            if(find_func(_thread)) {
+            if(_thread != null && find_func(_thread)) {
                 return _thread;
             }
         }
