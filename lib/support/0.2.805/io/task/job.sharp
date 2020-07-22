@@ -15,7 +15,7 @@ public class job {
 		if(state == created) {
 			controller.scheduled_job = self;
 			if(host.is_active()) {
-			    host.notify();
+			    host.notify_and_wait();
 			} else {
 			    host.start(new object[] { controller });
 			}
