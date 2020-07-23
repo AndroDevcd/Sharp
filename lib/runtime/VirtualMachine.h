@@ -47,9 +47,11 @@ public:
         IndexOutOfBoundsExcept(NULL),
         NullptrExcept(NULL),
         ClassCastExcept(NULL),
-        libs()
+        libs(),
+        mutex()
     {
     }
+    recursive_mutex mutex;
     void destroy();
 
     static

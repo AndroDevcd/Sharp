@@ -119,7 +119,8 @@ public class job {
 	protected def execute() {
 	    start_time = time.mills_time();
 		state = active;
-		reschedule();
+		if(recurring)
+		    reschedule();
 
         when {
             main0 -> main0();

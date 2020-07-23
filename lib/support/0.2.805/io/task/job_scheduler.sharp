@@ -8,7 +8,7 @@ private short_term_threads : var;
 private long_term_threads : var;
 private scheduler : thread;
 
-private def start_scheduler() {
+protected def start_scheduler() {
     lock(launcher) {
         calculate_max_threads();
         scheduler = new thread("task_scheduler", scheduler_main, launcher.long_term_pool);
@@ -80,7 +80,7 @@ private def scheduler_main(args : object[]) : var
 						result := execute_job(scheduled_job);
 
 						if(result && !scheduled_job.has_timeout) {
-							launcher.cleanup_job(scheduled_job);
+		                    jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
 						}
 					}
 				} else if(scheduled_job.has_timeout) {
@@ -95,7 +95,7 @@ private def scheduler_main(args : object[]) : var
 					}
 				} else {
 				    if(execute_job(scheduled_job)) {
-						launcher.cleanup_job(scheduled_job);
+		                jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
 					}
 				}
 			}
