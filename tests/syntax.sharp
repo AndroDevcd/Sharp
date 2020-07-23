@@ -18,29 +18,37 @@ def main(args: string[]) : var {
         .recurring(7, milliseconds) = { args: object[] ->
             jb := args[0] as job;
             for(i := 0; i < 100000; i++) {}
-            println("sent!");
+            println("1");
         };
 
         task.builder()
                 .recurring(10, milliseconds) = { args: object[] ->
                     jb := args[0] as job;
-                    println("on");
+                    for(i := 0; i < 1000000; i++) {}
+                    println("2");
+                };
+        task.builder()
+                .recurring(10, milliseconds) = { args: object[] ->
+                    jb := args[0] as job;
                     for(i := 0; i < 100000; i++) {}
-                    println("off");
+                    println("3");
+                };
+        task.builder()
+                .recurring(10, milliseconds) = { args: object[] ->
+                    jb := args[0] as job;
+                    for(i := 0; i < 1000000; i++) {}
+                    println("4");
                 };
         task.builder()
                 .long_term()
                 .recurring(10, milliseconds) = { args: object[] ->
                     jb := args[0] as job;
-                    for(i := 0; i < 100000; i++) {}
-                    println("mode!");
+                    for(i := 0; i < 1000000; i++) {}
+                    println("5");
                 };
 
 
 
-    for(;;) {
-        thread.yield();
-        thread.sleep(10);
-    }
+        thread.sleep(30000);
     return 4;
 }

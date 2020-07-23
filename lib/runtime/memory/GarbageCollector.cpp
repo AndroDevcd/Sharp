@@ -15,8 +15,7 @@
 #include <thread>
 #include <algorithm>
 
-uInt hbytes = 0, freedBytes = 0, freedYoung = 0, freedAdult = 0, freedOld = 0;
-uInt transferredAdult = 0, transferredOld = 0;
+uInt hbytes = 0;
 GarbageCollector *GarbageCollector::self = nullptr;
 
 const Int MEMORY_POOL_SAMPLE_SIZE = 10;
@@ -216,20 +215,6 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         collectGarbage();
     }
 
-    mutex.lock();
-    managedBytes-= freedBytes;
-    youngObjects -= freedYoung;
-    adultObjects -= freedAdult;
-    oldObjects -= freedOld;
-    adultObjects += transferredAdult;
-    oldObjects += transferredOld;
-    freedBytes = 0;
-    freedYoung = 0;
-    freedAdult = 0;
-    transferredAdult = 0;
-    transferredOld = 0;
-    mutex.unlock();
-
     updateMemoryThreshold();
 }
 
@@ -288,13 +273,13 @@ void GarbageCollector::collectGarbage() {
             } else if(MARKED(object->info) && object->refCount > 0){
                 switch(GENERATION(object->info)) {
                     case gc_young:
-                        freedYoung--;
-                        transferredAdult++;
+                        youngObjects--;
+                        adultObjects++;
                         SET_GENERATION(object->info, gc_adult);
                         break;
                     case gc_adult:
-                        freedAdult--;
-                        transferredOld++;
+                        adultObjects--;
+                        oldObjects++;
                         SET_GENERATION(object->info, gc_old);
                         break;
                     case gc_old:
@@ -452,7 +437,7 @@ SharpObject* GarbageCollector::sweep(SharpObject *object, SharpObject *prevObj, 
         int gen = GENERATION(object->info);
 
         if(TYPE(object->info) == _stype_var) {
-            freedBytes += sizeof(double)*object->size;
+            managedBytes -= sizeof(double)*object->size;
             std::free(object->HEAD); object->HEAD = NULL;
         } else if(TYPE(object->info) == _stype_struct) {
             for(unsigned long i = 0; i < object->size; i++) {
@@ -464,7 +449,7 @@ SharpObject* GarbageCollector::sweep(SharpObject *object, SharpObject *prevObj, 
                 DEC_REF(o);
             }
 
-            freedBytes += sizeof(Object)*object->size;
+            managedBytes -= sizeof(Object)*object->size;
             std::free(object->node); object->node = NULL;
         }
 
@@ -477,7 +462,7 @@ SharpObject* GarbageCollector::sweep(SharpObject *object, SharpObject *prevObj, 
         x++;
 #endif
 
-        freedBytes += sizeof(SharpObject);
+        managedBytes -= sizeof(SharpObject);
 
         SharpObject* nextObj = object->next;
         erase(object, prevObj, tail);
@@ -816,15 +801,6 @@ int GarbageCollector::selfCollect() {
     if(sleep || tself->state == THREAD_KILLED) {
         mutex.lock();
         collectGarbage();
-
-        managedBytes-= freedBytes;
-        youngObjects -= freedYoung;
-        adultObjects -= freedAdult;
-        oldObjects -= freedOld;
-        freedBytes = 0;
-        freedYoung = 0;
-        freedAdult = 0;
-        freedOld = 0;
         mutex.unlock();
         return 0;
     }

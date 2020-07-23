@@ -599,7 +599,7 @@ void Thread::exit() {
 
         cout << "Unhandled exception on thread " << name.str() << " (most recent call last):\n";
         if(frameInfo && frameInfo->object && stackTrace != NULL
-            && stackTrace->object == NULL) {
+            && stackTrace->object != NULL) {
             if(((sp-dataStack)+1) >= stackLimit) {
                 sp--;
             }
@@ -615,7 +615,7 @@ void Thread::exit() {
                     }
                 }
             }
-        } else if(stackTrace != NULL && stackTrace->object == NULL){
+        } else if(stackTrace != NULL && stackTrace->object != NULL){
             for (Int i = 0; i < stackTrace->object->size; i++) {
                 cout << ((char) stackTrace->object->HEAD[i]);
             }

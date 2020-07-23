@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 #include <mutex>
+#include <atomic>
 #include "../../../stdimports.h"
 #include "../List.h"
 #include "../../util/KeyPair.h"
@@ -150,9 +151,7 @@ public:
       * @param bytes
       */
      CXX11_INLINE void addMemory(size_t bytes) {
-         mutex.lock();
          managedBytes += bytes;
-         mutex.unlock();
      }
 
 
@@ -203,13 +202,14 @@ public:
      * This does not mean that if there are 100 objects dropped that every one will be freed
      * its just an estimate
      */
-    uInt yObjs;
-    uInt aObjs;
-    uInt oObjs;
+
+    std::atomic<uInt> yObjs;
+    std::atomic<uInt> aObjs;
+    std::atomic<uInt> oObjs;
 private:
-    uInt managedBytes;
-    uInt memoryLimit;
-    uInt memoryThreshold;
+    std::atomic<uInt> managedBytes;
+    std::atomic<uInt> memoryLimit;
+    std::atomic<uInt> memoryThreshold;
     bool isShutdown;
 
     /**
@@ -224,11 +224,11 @@ private:
      * its just an estimate
      */
     /* collect when 5% has been dropped */
-    Int youngObjects;
+    std::atomic<uInt> youngObjects;
     /* collect when 25% has been dropped */
-    Int adultObjects;
+    std::atomic<uInt> adultObjects;
     /* collect when 10% has been dropped */
-    Int oldObjects;
+    std::atomic<uInt> oldObjects;
 #ifdef SHARP_PROF_
     unsigned long x;
     unsigned long largestCollectionTime;
@@ -238,7 +238,7 @@ private:
 #endif
     _List<mutex_t*> locks;
     SharpObject* _Mheap, *tail;
-    uInt heapSize;
+    std::atomic<uInt> heapSize;
     bool sleep;
 
     void collectGarbage();
@@ -260,8 +260,8 @@ private:
     void updateMemoryThreshold();
 };
 
-#define GC_COLLECT_YOUNG() ( youngObjects > 0 && (((double)yObjs / (double)youngObjects) * 100) >= 5 )
-#define GC_COLLECT_ADULT() ( adultObjects > 0 && (((double)aObjs / (double)adultObjects) * 100) >= 25 )
+#define GC_COLLECT_YOUNG() ( youngObjects > 0 && (((double)yObjs / (double)youngObjects) * 100) >= 1 )
+#define GC_COLLECT_ADULT() ( adultObjects > 0 && (((double)aObjs / (double)adultObjects) * 100) >= 15 )
 #define GC_COLLECT_OLD() ( oldObjects > 0 && (((double)oObjs / (double)oldObjects) * 100) >= 10 )
 #define GC_LOW_MEM() ( managedBytes >= (0.85 * memoryLimit) )
 #define GC_COLLECT_MEM() ( managedBytes >= memoryThreshold )
@@ -287,13 +287,13 @@ private:
 #define UPDATE_GC(object) \
     switch(GENERATION(object->info)) { \
         case gc_young: \
-            freedYoung++; \
+            youngObjects--; \
             break; \
         case gc_adult: \
-            freedAdult++; \
+            adultObjects--; \
             break; \
         case gc_old: \
-            freedOld++; \
+            oldObjects++; \
             break; \
     }
 

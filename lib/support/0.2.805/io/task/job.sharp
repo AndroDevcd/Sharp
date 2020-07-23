@@ -19,6 +19,7 @@ public class job {
 			} else {
 			    host.start(new object[] { controller });
 			}
+			return 0;
 		} else if(state == active) {
 			return 1;
 		}
