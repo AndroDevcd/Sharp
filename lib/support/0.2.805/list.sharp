@@ -148,20 +148,16 @@ class list<t> : loopable<t> {
     }
 
     def remove_at(index: var) {
-        if(index > n_elements || index < 0)
-           throw new bounds_except(out_of_bounds_msg(index));
+        lock(self) {
+            if(index >= n_elements || index < 0)
+               throw new bounds_except(out_of_bounds_msg(index));
 
-        if(n_elements==2) {
-            if(index == 0) {
-                data[0]=data[1];
-            }
-        } else if(n_elements > 1) {
-            newLen := n_elements - 1;
-            for(i := index; i < newLen; i++)
-                data[i] = data[i+1];
+            num_moved := n_elements - index - 1;
+            if (num_moved > 0)
+                memcopy(data, data, index, index+1, n_elements);
+
+            pop_back();
         }
-
-        pop_back();
     }
 
     def indexof(comparer: t, find_func: (t, t)(var)) : var {

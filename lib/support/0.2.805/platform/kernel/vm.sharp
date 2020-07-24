@@ -146,6 +146,13 @@ class vm {
             smovr2 {result}, cmt
         }
 
+        if(result == 0) {
+            while(!t.is_started()) {
+                thread.yield();
+                thread.sleep(1);
+            }
+        }
+
         return thread_result.at(result);
     }
 

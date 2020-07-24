@@ -68,38 +68,36 @@ private def scheduler_main(args : object[]) : var
 	jobs := launcher.job_queue;
 	while(true)
 	{
-		if(jobs.empty())
-			thread.yield();
-		else {
-			for(i := 0; i < jobs.size(); i++) {
-				scheduled_job := jobs.at(i);
+		thread.yield();
+		println("jobs ${jobs.size()}");
+		for(i := 0; i < jobs.size(); i++) {
+        	scheduled_job := jobs.at(i);
 
-				if(scheduled_job.delay_time != 0) {
-					if(time.mills_time() >= scheduled_job.delay_time) {
-						scheduled_job.delay_time = 0;
-						result := execute_job(scheduled_job);
+        	if(scheduled_job.delay_time != 0) {
+        		if(time.mills_time() >= scheduled_job.delay_time) {
+        			scheduled_job.delay_time = 0;
+        			result := execute_job(scheduled_job);
 
-						if(result && !scheduled_job.has_timeout) {
-		                    jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
-						}
-					}
-				} else if(scheduled_job.has_timeout) {
-				    if(scheduled_job.host == null) {
-				        execute_job(scheduled_job);
-				    }
+        			if(result && !scheduled_job.has_timeout) {
+                        jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
+        			}
+        		}
+        	} else if(scheduled_job.has_timeout) {
+        	    if(scheduled_job.host == null) {
+        	        execute_job(scheduled_job);
+        	    }
 
-					if(scheduled_job.state == active && time.mills_time() >= (scheduled_job.start_time + scheduled_job.timeout)) {
-                        while(scheduled_job.next_task == null){} // wait until the next task is updated
-                        scheduled_job.cancel();
-						launcher.cleanup_job(scheduled_job);
-					}
-				} else {
-				    if(execute_job(scheduled_job)) {
-		                jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
-					}
-				}
-			}
-		}
+        		if(scheduled_job.state == active && time.mills_time() >= (scheduled_job.start_time + scheduled_job.timeout)) {
+                    while(scheduled_job.next_task == null){} // wait until the next task is updated
+                    scheduled_job.cancel();
+        			launcher.cleanup_job(scheduled_job);
+        		}
+        	} else {
+        	    if(execute_job(scheduled_job)) {
+                    jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
+        		}
+        	}
+        }
 
 		thread.sleep(5);
 	}

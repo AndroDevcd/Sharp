@@ -15,36 +15,31 @@ def send(str: string)
 times := 0;
 def main(args: string[]) : var {
     jb := task.builder()
-        .recurring(7, milliseconds) = { args: object[] ->
+        .recurring(3, seconds) = { args: object[] ->
             jb := args[0] as job;
             for(i := 0; i < 100000; i++) {}
-            println("1");
         };
 
         task.builder()
-                .recurring(10, milliseconds) = { args: object[] ->
+                .recurring(250, milliseconds) = { args: object[] ->
                     jb := args[0] as job;
-                    for(i := 0; i < 1000000; i++) {}
-                    println("2");
+                    for(i := 0; i < 1000; i++) {}
                 };
         task.builder()
-                .recurring(10, milliseconds) = { args: object[] ->
+                .recurring(550, milliseconds) = { args: object[] ->
                     jb := args[0] as job;
                     for(i := 0; i < 100000; i++) {}
-                    println("3");
                 };
         task.builder()
-                .recurring(10, milliseconds) = { args: object[] ->
+                .recurring(9050, milliseconds) = { args: object[] ->
                     jb := args[0] as job;
-                    for(i := 0; i < 1000000; i++) {}
-                    println("4");
+                    for(i := 0; i < 100000; i++) {}
                 };
         task.builder()
                 .long_term()
-                .recurring(10, milliseconds) = { args: object[] ->
+                .recurring(1000, milliseconds) = { args: object[] ->
                     jb := args[0] as job;
-                    for(i := 0; i < 1000000; i++) {}
-                    println("5");
+                    for(i := 0; i < 10000; i++) {}
                 };
 
 
