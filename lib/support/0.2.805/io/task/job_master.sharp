@@ -8,7 +8,7 @@ class job_master {
 		long_term_pool = new thread_group("Long term jobs", min_priority);
 		short_term_pool = new thread_group("Short term jobs", max_priority);
 		job_queue = new synced_list<job>();
-		controllers = new hashmap<thread, job_controller>();
+		controllers = new hashtable<thread, job_controller>();
 	}
 
 	def operator=(main: ()()) : job {
@@ -46,6 +46,9 @@ class job_master {
 	protected def cleanup_job(scheduled_job : job) {
 		scheduled_job.deferred_obj = null;
 		scheduled_job.host = null;
+		scheduled_job.next_task = null;
+		scheduled_job.args = null;
+		scheduled_job.name = null;
 
         wakeup:
         lock(scheduled_job) {
@@ -64,11 +67,12 @@ class job_master {
             }
         }
 
+        scheduled_job.listeners = null;
 		job_queue.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
 	}
 
 	protected job_queue : synced_list<job>;
-	protected controllers : hashmap<thread, job_controller>;
+	protected controllers : hashtable<thread, job_controller>;
 	protected long_term_pool : thread_group;
 	protected short_term_pool : thread_group;
 	protected started: var;

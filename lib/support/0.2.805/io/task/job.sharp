@@ -135,8 +135,6 @@ public class job {
 
 		state = completed;
 		launcher.cleanup_job(self);
-        next_task = null;
-        host = null;
 	}
 
     def is_finished() := state == completed || state == cancelled;

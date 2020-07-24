@@ -82,7 +82,7 @@ generic: std#integer<_int8>[78] fields(1) methods(197)
 std#loopable<_int8>[79] fields(0) methods(6)
 generic: std#list<std#string>[80] fields(5) methods(29)
 std#loopable<std#string>[81] fields(0) methods(6)
-generic: std#hashmap<std.io#thread,std.io.task#job_controller>[82] fields(5) methods(12)
+generic: std#hashtable<std.io#thread,std.io.task#job_controller>[82] fields(6) methods(12)
 generic: std#hashmap<std#int,std.io#thread>[83] fields(5) methods(12)
 generic: std#list<std.io#thread>[84] fields(5) methods(29)
 generic: std#synced_list<std.io.task#job>[85] fields(5) methods(27)
@@ -37390,20 +37390,14 @@ function: std.io.task#job.execute[1780] params(0) in file: C:\Users\bnunnally\On
 133 [0x85]:           movl 0   
 134 [0x86]:           pushobj   
 135 [0x87]:           call @1807 // <std.io.task#job_master.cleanup_job>   
-136 [0x88]: line: 138 movl 0   
-137 [0x89]:           movn #13   
-139 [0x8b]:           del   
-140 [0x8c]: line: 139 movl 0   
-141 [0x8d]:           movn #4   
-143 [0x8f]:           del   
-144 [0x90]:           ret   
+136 [0x88]:           ret   
 
 
-function: std.io.task#job.is_finished[1781] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job.sharp:142:8: note:  
+function: std.io.task#job.is_finished[1781] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job.sharp:140:8: note:  
 		    def is_finished() := state == completed || state == cancelled;
 		       ^
 
-0 [0x0]: line: 142 movl 0   
+0 [0x0]: line: 140 movl 0   
 1 [0x1]:           movn #18   
 3 [0x3]:           pushobj   
 4 [0x4]:           movg @27 // @std.io.task#job_state   
@@ -37424,11 +37418,11 @@ function: std.io.task#job.is_finished[1781] params(0) in file: C:\Users\bnunnall
 22 [0x16]:           ret   
 
 
-function: std.io.task#job.is_active[1782] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job.sharp:143:8: note:  
+function: std.io.task#job.is_active[1782] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job.sharp:141:8: note:  
 		    def is_active() := state == active;
 		       ^
 
-0 [0x0]: line: 143 movl 0   
+0 [0x0]: line: 141 movl 0   
 1 [0x1]:           movn #18   
 3 [0x3]:           pushobj   
 4 [0x4]:           movg @27 // @std.io.task#job_state   
@@ -37440,11 +37434,11 @@ function: std.io.task#job.is_active[1782] params(0) in file: C:\Users\bnunnally\
 11 [0xb]:           ret   
 
 
-function: std.io.task#job.update_timeout[1783] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job.sharp:145:15: note:  
+function: std.io.task#job.update_timeout[1783] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job.sharp:143:15: note:  
 		    public def update_timeout(tm: var) {
 		              ^
 
-0 [0x0]: line: 146 loadl ebx, fp+1   
+0 [0x0]: line: 144 loadl ebx, fp+1   
 1 [0x1]:           rstore ebx   
 2 [0x2]:           movl 0   
 3 [0x3]:           movn #9   
@@ -37454,11 +37448,11 @@ function: std.io.task#job.update_timeout[1783] params(1) in file: C:\Users\bnunn
 9 [0x9]:           ret   
 
 
-function: std.io.task#job.update_interval[1784] params(2) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job.sharp:149:15: note:  
+function: std.io.task#job.update_interval[1784] params(2) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job.sharp:147:15: note:  
 		    public def update_interval(tm: var, interval: time_unit) {
 		              ^
 
-0 [0x0]: line: 150 movl 0   
+0 [0x0]: line: 148 movl 0   
 1 [0x1]:           movn #14   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           chklen adx   
@@ -37466,13 +37460,13 @@ function: std.io.task#job.update_interval[1784] params(2) in file: C:\Users\bnun
 7 [0x7]:           not ebx, ebx   
 8 [0x8]:           movr cmt, ebx   
 9 [0x9]:           jne 15   
-10 [0xa]: line: 151 new_class @6 // std#illegal_state_exception   
+10 [0xa]: line: 149 new_class @6 // std#illegal_state_exception   
 11 [0xb]:           dup    
 12 [0xc]:           newstr @8 // cannot set update restart interval on non-recurring job   
 13 [0xd]:           call @1620 // <std#illegal_state_exception.illegal_state_exception>   
 14 [0xe]:           throw    
 15 [0xf]:           nop   
-16 [0x10]: line: 153 movl 0   
+16 [0x10]: line: 151 movl 0   
 17 [0x11]:           movn #18   
 19 [0x13]:           pushobj   
 20 [0x14]:           movg @27 // @std.io.task#job_state   
@@ -37482,14 +37476,14 @@ function: std.io.task#job.update_interval[1784] params(2) in file: C:\Users\bnun
 25 [0x19]:           loadval ebx   
 26 [0x1a]:           movr cmt, ebx   
 27 [0x1b]:           jne 35   
-28 [0x1c]: line: 154 movl 0   
+28 [0x1c]: line: 152 movl 0   
 29 [0x1d]:           pushobj   
 30 [0x1e]:           call @1770 // <std.io.task#job.cancel_future>   
-31 [0x1f]: line: 155 movl 0   
+31 [0x1f]: line: 153 movl 0   
 32 [0x20]:           movn #13   
 34 [0x22]:           del   
 35 [0x23]:           nop   
-36 [0x24]: line: 158 movl 2   
+36 [0x24]: line: 156 movl 2   
 37 [0x25]:           pushobj   
 38 [0x26]:           movg @68 // @std#time_unit   
 39 [0x27]:           movn #3   
@@ -37498,7 +37492,7 @@ function: std.io.task#job.update_interval[1784] params(2) in file: C:\Users\bnun
 43 [0x2b]:           loadval ebx   
 44 [0x2c]:           movr cmt, ebx   
 45 [0x2d]:           jne 57   
-46 [0x2e]: line: 159 loadl ebx, fp+1   
+46 [0x2e]: line: 157 loadl ebx, fp+1   
 47 [0x2f]:           rstore ebx   
 48 [0x30]:           call @3015 // <std#time.nano_to_mills>   
 49 [0x31]:           movl 0   
@@ -37516,7 +37510,7 @@ function: std.io.task#job.update_interval[1784] params(2) in file: C:\Users\bnun
 64 [0x40]:           loadval ebx   
 65 [0x41]:           movr cmt, ebx   
 66 [0x42]:           jne 82   
-67 [0x43]: line: 161 loadl ebx, fp+1   
+67 [0x43]: line: 159 loadl ebx, fp+1   
 68 [0x44]:           rstore ebx   
 69 [0x45]:           movi #1000, ebx   
 71 [0x47]:           loadval ecx   
@@ -37537,7 +37531,7 @@ function: std.io.task#job.update_interval[1784] params(2) in file: C:\Users\bnun
 89 [0x59]:           loadval ebx   
 90 [0x5a]:           movr cmt, ebx   
 91 [0x5b]:           jne 102   
-92 [0x5c]: line: 163 loadl ebx, fp+1   
+92 [0x5c]: line: 161 loadl ebx, fp+1   
 93 [0x5d]:           rstore ebx   
 94 [0x5e]:           movl 0   
 95 [0x5f]:           movn #11   
@@ -37554,7 +37548,7 @@ function: std.io.task#job.update_interval[1784] params(2) in file: C:\Users\bnun
 109 [0x6d]:           loadval ebx   
 110 [0x6e]:           movr cmt, ebx   
 111 [0x6f]:           jne 126   
-112 [0x70]: line: 165 loadl ebx, fp+1   
+112 [0x70]: line: 163 loadl ebx, fp+1   
 113 [0x71]:           rstore ebx   
 114 [0x72]:           movi #1000, ebx   
 116 [0x74]:           loadval ecx   
@@ -37566,7 +37560,7 @@ function: std.io.task#job.update_interval[1784] params(2) in file: C:\Users\bnun
 123 [0x7b]:           movi #0, adx   
 125 [0x7d]:           rmov adx, ebx   
 126 [0x7e]:           nop   
-127 [0x7f]: line: 168 movl 0   
+127 [0x7f]: line: 166 movl 0   
 128 [0x80]:           movn #18   
 130 [0x82]:           pushobj   
 131 [0x83]:           movg @27 // @std.io.task#job_state   
@@ -37576,18 +37570,18 @@ function: std.io.task#job.update_interval[1784] params(2) in file: C:\Users\bnun
 136 [0x88]:           loadval ebx   
 137 [0x89]:           movr cmt, ebx   
 138 [0x8a]:           jne 142   
-139 [0x8b]: line: 169 movl 0   
+139 [0x8b]: line: 167 movl 0   
 140 [0x8c]:           pushobj   
 141 [0x8d]:           call @1785 // <std.io.task#job.reschedule>   
 142 [0x8e]:           nop   
 143 [0x8f]:           ret   
 
 
-function: std.io.task#job.reschedule[1785] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job.sharp:172:18: note:  
+function: std.io.task#job.reschedule[1785] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job.sharp:170:18: note:  
 		    protected def reschedule() {
 		                 ^
 
-0 [0x0]: line: 174 movl 0   
+0 [0x0]: line: 172 movl 0   
 1 [0x1]:           movn #10   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           chklen adx   
@@ -37606,7 +37600,7 @@ function: std.io.task#job.reschedule[1785] params(0) in file: C:\Users\bnunnally
 20 [0x14]:           loadval ecx   
 21 [0x15]:           sub ecx, ebx -> ebx   
 22 [0x16]:           smovr_2 ebx, fp+1   
-23 [0x17]: line: 175 call @1823 // <std.io.task#task.builder>   
+23 [0x17]: line: 173 call @1823 // <std.io.task#task.builder>   
 24 [0x18]:           movl 0   
 25 [0x19]:           movn #5   
 27 [0x1b]:           pushobj   
@@ -37623,7 +37617,7 @@ function: std.io.task#job.reschedule[1785] params(0) in file: C:\Users\bnunnally
 41 [0x29]:           call @1790 // <std.io.task#job_builder.recurring>   
 42 [0x2a]:           popobj2    
 43 [0x2b]:           smovr_3 fp+2   
-44 [0x2c]: line: 179 movl 0   
+44 [0x2c]: line: 177 movl 0   
 45 [0x2d]:           movn #6   
 47 [0x2f]:           sizeof ebx   
 48 [0x30]:           rstore ebx   
@@ -37633,9 +37627,9 @@ function: std.io.task#job.reschedule[1785] params(0) in file: C:\Users\bnunnally
 53 [0x35]:           newobj_arry ebx   
 54 [0x36]:           popobj2    
 55 [0x37]:           smovr_3 fp+3   
-56 [0x38]: line: 180 movi #0, ebx   
+56 [0x38]: line: 178 movi #0, ebx   
 58 [0x3a]:           smovr_2 ebx, fp+4   
-59 [0x3b]: line: 181 movi #1, ebx   
+59 [0x3b]: line: 179 movi #1, ebx   
 61 [0x3d]:           smovr_2 ebx, fp+5   
 62 [0x3e]:           loadl ebx, fp+5   
 63 [0x3f]:           rstore ebx   
@@ -37647,7 +37641,7 @@ function: std.io.task#job.reschedule[1785] params(0) in file: C:\Users\bnunnally
 70 [0x46]:           movr ebx, cmt   
 71 [0x47]:           movr cmt, ebx   
 72 [0x48]:           jne 96   
-73 [0x49]: line: 182 movl 0   
+73 [0x49]: line: 180 movl 0   
 74 [0x4a]:           movn #6   
 76 [0x4c]:           pushobj   
 77 [0x4d]:           loadl ebx, fp+5   
@@ -37669,32 +37663,32 @@ function: std.io.task#job.reschedule[1785] params(0) in file: C:\Users\bnunnally
 93 [0x5d]:           inc ebx   
 94 [0x5e]:           smovr_2 ebx, fp+5   
 95 [0x5f]:           jmp @62   
-96 [0x60]: line: 185 movl 0   
+96 [0x60]: line: 183 movl 0   
 97 [0x61]:           movn #17   
 99 [0x63]:           movi #0, adx   
 101 [0x65]:           chklen adx   
 102 [0x66]:           iaload ebx, adx   
 103 [0x67]:           movr cmt, ebx   
 104 [0x68]:           jne 109   
-105 [0x69]: line: 186 movl 2   
+105 [0x69]: line: 184 movl 2   
 106 [0x6a]:           pushobj   
 107 [0x6b]:           call @1794 // <std.io.task#job_builder.long_term>   
 108 [0x6c]:           pop   
 109 [0x6d]:           nop   
-110 [0x6e]: line: 187 movl 2   
+110 [0x6e]: line: 185 movl 2   
 111 [0x6f]:           pushobj   
 112 [0x70]:           movl 3   
 113 [0x71]:           pushobj   
 114 [0x72]:           call @1792 // <std.io.task#job_builder.with_args>   
 115 [0x73]:           pop   
-116 [0x74]: line: 189 movl 0   
+116 [0x74]: line: 187 movl 0   
 117 [0x75]:           movn #0   
 119 [0x77]:           movi #0, adx   
 121 [0x79]:           chklen adx   
 122 [0x7a]:           iaload ebx, adx   
 123 [0x7b]:           movr cmt, ebx   
 124 [0x7c]:           jne 143   
-125 [0x7d]: line: 190 movl 0   
+125 [0x7d]: line: 188 movl 0   
 126 [0x7e]:           movn #0   
 128 [0x80]:           movi #0, adx   
 130 [0x82]:           chklen adx   
@@ -37714,7 +37708,7 @@ function: std.io.task#job.reschedule[1785] params(0) in file: C:\Users\bnunnally
 149 [0x95]:           iaload ebx, adx   
 150 [0x96]:           movr cmt, ebx   
 151 [0x97]:           jne 170   
-152 [0x98]: line: 191 movl 0   
+152 [0x98]: line: 189 movl 0   
 153 [0x99]:           movn #1   
 155 [0x9b]:           movi #0, adx   
 157 [0x9d]:           chklen adx   
@@ -37734,7 +37728,7 @@ function: std.io.task#job.reschedule[1785] params(0) in file: C:\Users\bnunnally
 176 [0xb0]:           iaload ebx, adx   
 177 [0xb1]:           movr cmt, ebx   
 178 [0xb2]:           jne 197   
-179 [0xb3]: line: 192 movl 0   
+179 [0xb3]: line: 190 movl 0   
 180 [0xb4]:           movn #2   
 182 [0xb6]:           movi #0, adx   
 184 [0xb8]:           chklen adx   
@@ -37754,7 +37748,7 @@ function: std.io.task#job.reschedule[1785] params(0) in file: C:\Users\bnunnally
 203 [0xcb]:           iaload ebx, adx   
 204 [0xcc]:           movr cmt, ebx   
 205 [0xcd]:           jne 223   
-206 [0xce]: line: 193 movl 0   
+206 [0xce]: line: 191 movl 0   
 207 [0xcf]:           movn #3   
 209 [0xd1]:           movi #0, adx   
 211 [0xd3]:           chklen adx   
@@ -37767,7 +37761,7 @@ function: std.io.task#job.reschedule[1785] params(0) in file: C:\Users\bnunnally
 220 [0xdc]:           movi #0, adx   
 222 [0xde]:           rmov adx, ebx   
 223 [0xdf]:           nop   
-224 [0xe0]: line: 196 loadl ebx, fp+1   
+224 [0xe0]: line: 194 loadl ebx, fp+1   
 225 [0xe1]:           rstore ebx   
 226 [0xe2]:           movi #0, ebx   
 228 [0xe4]:           loadval ecx   
@@ -37775,21 +37769,21 @@ function: std.io.task#job.reschedule[1785] params(0) in file: C:\Users\bnunnally
 230 [0xe6]:           movr ebx, cmt   
 231 [0xe7]:           movr cmt, ebx   
 232 [0xe8]:           jne 239   
-233 [0xe9]: line: 197 movl 2   
+233 [0xe9]: line: 195 movl 2   
 234 [0xea]:           pushobj   
 235 [0xeb]:           loadl ebx, fp+1   
 236 [0xec]:           rstore ebx   
 237 [0xed]:           call @1789 // <std.io.task#job_builder.schedule>   
 238 [0xee]:           pop   
 239 [0xef]:           nop   
-240 [0xf0]: line: 198 movl 0   
+240 [0xf0]: line: 196 movl 0   
 241 [0xf1]:           movn #8   
 243 [0xf3]:           movi #0, adx   
 245 [0xf5]:           chklen adx   
 246 [0xf6]:           iaload ebx, adx   
 247 [0xf7]:           movr cmt, ebx   
 248 [0xf8]:           jne 261   
-249 [0xf9]: line: 199 movl 2   
+249 [0xf9]: line: 197 movl 2   
 250 [0xfa]:           pushobj   
 251 [0xfb]:           movl 0   
 252 [0xfc]:           movn #9   
@@ -37800,13 +37794,13 @@ function: std.io.task#job.reschedule[1785] params(0) in file: C:\Users\bnunnally
 259 [0x103]:           call @1788 // <std.io.task#job_builder.with_timeout>   
 260 [0x104]:           pop   
 261 [0x105]:           nop   
-262 [0x106]: line: 201 movl 2   
+262 [0x106]: line: 199 movl 2   
 263 [0x107]:           movn #1   
 265 [0x109]:           pushobj   
 266 [0x10a]:           movl 0   
 267 [0x10b]:           movn #13   
 269 [0x10d]:           popobj   
-270 [0x10e]: line: 202 movl 2   
+270 [0x10e]: line: 200 movl 2   
 271 [0x10f]:           movn #0   
 273 [0x111]:           pushobj   
 274 [0x112]:           movl 2   
@@ -38279,9 +38273,9 @@ constructor: std.io.task#job_master.job_master[1801] params(0) in file: C:\Users
 35 [0x23]:          movl 0   
 36 [0x24]:          movn #0   
 38 [0x26]:          popobj   
-39 [0x27]: line: 11 new_class @82 // std#hashmap<std.io#thread,std.io.task#job_controller>   
+39 [0x27]: line: 11 new_class @82 // std#hashtable<std.io#thread,std.io.task#job_controller>   
 40 [0x28]:          dup    
-41 [0x29]:          call @3055 // <std#hashmap<std.io#thread,std.io.task#job_controller>.hashmap>   
+41 [0x29]:          call @3055 // <std#hashtable<std.io#thread,std.io.task#job_controller>.hashtable>   
 42 [0x2a]:          movl 0   
 43 [0x2b]:          movn #1   
 45 [0x2d]:          popobj   
@@ -38428,7 +38422,7 @@ function: std.io.task#job_master.get_host_controller[1806] params(1) in file: C:
 3 [0x3]:          pushobj   
 4 [0x4]:          movl 1   
 5 [0x5]:          pushobj   
-6 [0x6]:          call @3059 // <std#hashmap<std.io#thread,std.io.task#job_controller>.at>   
+6 [0x6]:          call @3059 // <std#hashtable<std.io#thread,std.io.task#job_controller>.at>   
 7 [0x7]:          popobj2    
 8 [0x8]:          returnobj   
 9 [0x9]:          ret   
@@ -38444,70 +38438,82 @@ function: std.io.task#job_master.cleanup_job[1807] params(1) in file: C:\Users\b
 4 [0x4]: line: 48 movl 1   
 5 [0x5]:          movn #4   
 7 [0x7]:          del   
-8 [0x8]: line: 50 movl 1   
-9 [0x9]: line: 51 _lck    
-10 [0xa]: line: 52 movl 1   
-11 [0xb]:          movn #20   
-13 [0xd]:          pushobj   
-14 [0xe]:          call @3074 // <std#list<std.io#thread>.empty>   
-15 [0xf]:          loadval ebx   
-16 [0x10]:          not ebx, ebx   
-17 [0x11]:          movr cmt, ebx   
-18 [0x12]:          jne 45   
-19 [0x13]: line: 53 istorel -1, fp+3   
-21 [0x15]:          movl 1   
-22 [0x16]:          movn #20   
-24 [0x18]:          pushobj   
-25 [0x19]:          invoke_delegate 8 { static=0, args=0 }   
-27 [0x1b]:          movl 4   
-28 [0x1c]:          popobj   
-29 [0x1d]:          iaddl 1, fp@3   
-31 [0x1f]:          movl 4   
-32 [0x20]:          sizeof ecx   
-33 [0x21]:          loadl ebx, fp+3   
-34 [0x22]:          lt ebx, ecx   
-35 [0x23]:          jne 45   
-36 [0x24]:          movnd ebx   
-37 [0x25]:          pushobj   
-38 [0x26]:          movl 2   
-39 [0x27]:          popobj   
-40 [0x28]: line: 54 movl 2   
-41 [0x29]:          pushobj   
-42 [0x2a]:          call @1837 // <std.io#thread.notify_and_wait>   
-43 [0x2b]:          pop   
-44 [0x2c]:          jmp @29   
-45 [0x2d]:          nop   
-46 [0x2e]: line: 58 movl 1   
-47 [0x2f]:          movn #20   
+8 [0x8]: line: 49 movl 1   
+9 [0x9]:          movn #13   
+11 [0xb]:          del   
+12 [0xc]: line: 50 movl 1   
+13 [0xd]:          movn #6   
+15 [0xf]:          del   
+16 [0x10]: line: 51 movl 1   
+17 [0x11]:          movn #5   
+19 [0x13]:          del   
+20 [0x14]: line: 53 movl 1   
+21 [0x15]: line: 54 _lck    
+22 [0x16]: line: 55 movl 1   
+23 [0x17]:          movn #20   
+25 [0x19]:          pushobj   
+26 [0x1a]:          call @3074 // <std#list<std.io#thread>.empty>   
+27 [0x1b]:          loadval ebx   
+28 [0x1c]:          not ebx, ebx   
+29 [0x1d]:          movr cmt, ebx   
+30 [0x1e]:          jne 57   
+31 [0x1f]: line: 56 istorel -1, fp+3   
+33 [0x21]:          movl 1   
+34 [0x22]:          movn #20   
+36 [0x24]:          pushobj   
+37 [0x25]:          invoke_delegate 8 { static=0, args=0 }   
+39 [0x27]:          movl 4   
+40 [0x28]:          popobj   
+41 [0x29]:          iaddl 1, fp@3   
+43 [0x2b]:          movl 4   
+44 [0x2c]:          sizeof ecx   
+45 [0x2d]:          loadl ebx, fp+3   
+46 [0x2e]:          lt ebx, ecx   
+47 [0x2f]:          jne 57   
+48 [0x30]:          movnd ebx   
 49 [0x31]:          pushobj   
-50 [0x32]:          call @3082 // <std#list<std.io#thread>.clear>   
-51 [0x33]:          movl 1   
-52 [0x34]:          _ulck   
-53 [0x35]: line: 61 movl 1   
-54 [0x36]:          _lck    
-55 [0x37]: line: 62 movl 1   
-56 [0x38]:          movn #20   
-58 [0x3a]:          pushobj   
-59 [0x3b]:          call @3074 // <std#list<std.io#thread>.empty>   
-60 [0x3c]:          loadval ebx   
-61 [0x3d]:          not ebx, ebx   
-62 [0x3e]:          movr cmt, ebx   
-63 [0x3f]:          jne 67   
-64 [0x40]: line: 63 movl 1   
-65 [0x41]:          _ulck   
-66 [0x42]:          jmp @8   
-67 [0x43]:          nop   
-68 [0x44]:          movl 1   
-69 [0x45]:          _ulck   
-70 [0x46]: line: 67 movl 0   
-71 [0x47]:          movn #0   
-73 [0x49]:          pushobj   
-74 [0x4a]:          movl 1   
-75 [0x4b]:          pushobj   
-76 [0x4c]:          movi #3199, ebx   
-78 [0x4e]:          rstore ebx   
-79 [0x4f]:          call @3141 // <std#synced_list<std.io.task#job>.remove>   
-80 [0x50]:          ret   
+50 [0x32]:          movl 2   
+51 [0x33]:          popobj   
+52 [0x34]: line: 57 movl 2   
+53 [0x35]:          pushobj   
+54 [0x36]:          call @1837 // <std.io#thread.notify_and_wait>   
+55 [0x37]:          pop   
+56 [0x38]:          jmp @41   
+57 [0x39]:          nop   
+58 [0x3a]: line: 61 movl 1   
+59 [0x3b]:          movn #20   
+61 [0x3d]:          pushobj   
+62 [0x3e]:          call @3082 // <std#list<std.io#thread>.clear>   
+63 [0x3f]:          movl 1   
+64 [0x40]:          _ulck   
+65 [0x41]: line: 64 movl 1   
+66 [0x42]:          _lck    
+67 [0x43]: line: 65 movl 1   
+68 [0x44]:          movn #20   
+70 [0x46]:          pushobj   
+71 [0x47]:          call @3074 // <std#list<std.io#thread>.empty>   
+72 [0x48]:          loadval ebx   
+73 [0x49]:          not ebx, ebx   
+74 [0x4a]:          movr cmt, ebx   
+75 [0x4b]:          jne 79   
+76 [0x4c]: line: 66 movl 1   
+77 [0x4d]:          _ulck   
+78 [0x4e]:          jmp @20   
+79 [0x4f]:          nop   
+80 [0x50]:          movl 1   
+81 [0x51]:          _ulck   
+82 [0x52]: line: 70 movl 1   
+83 [0x53]:          movn #20   
+85 [0x55]:          del   
+86 [0x56]: line: 71 movl 0   
+87 [0x57]:          movn #0   
+89 [0x59]:          pushobj   
+90 [0x5a]:          movl 1   
+91 [0x5b]:          pushobj   
+92 [0x5c]:          movi #3199, ebx   
+94 [0x5e]:          rstore ebx   
+95 [0x5f]:          call @3141 // <std#synced_list<std.io.task#job>.remove>   
+96 [0x60]:          ret   
 
 
 function: std.io.task#__srt_global.start_scheduler[1808] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job_scheduler.sharp:11:14: note:  
@@ -39004,16 +39010,16 @@ function: std.io.task#__srt_global.get_host[1813] params(1) in file: C:\Users\bn
 24 [0x18]:           call @1873 // <std.io#thread_group.find>   
 25 [0x19]:           popobj2    
 26 [0x1a]:           smovr_3 fp+2   
-27 [0x1b]: line: 122 movl 2   
+27 [0x1b]: line: 123 movl 2   
 28 [0x1c]:           pushobj   
 29 [0x1d]:           pushnull    
 30 [0x1e]:           itest ebx   
 31 [0x1f]:           movr cmt, ebx   
 32 [0x20]:           jne 178   
-33 [0x21]: line: 123 loadl ebx, fp+0   
+33 [0x21]: line: 124 loadl ebx, fp+0   
 34 [0x22]:           movr cmt, ebx   
 35 [0x23]:           jne 107   
-36 [0x24]: line: 124 movg @21 // @std.io.task#__srt_global   
+36 [0x24]: line: 125 movg @21 // @std.io.task#__srt_global   
 37 [0x25]:           movn #1   
 39 [0x27]:           movi #0, adx   
 41 [0x29]:           chklen adx   
@@ -39025,7 +39031,7 @@ function: std.io.task#__srt_global.get_host[1813] params(1) in file: C:\Users\bn
 48 [0x30]:           movr ebx, cmt   
 49 [0x31]:           movr cmt, ebx   
 50 [0x32]:           jne 105   
-51 [0x33]: line: 125 movg @21 // @std.io.task#__srt_global   
+51 [0x33]: line: 126 movg @21 // @std.io.task#__srt_global   
 52 [0x34]:           movn #1   
 54 [0x36]:           movi #0, adx   
 56 [0x38]:           chklen adx   
@@ -39034,12 +39040,12 @@ function: std.io.task#__srt_global.get_host[1813] params(1) in file: C:\Users\bn
 59 [0x3b]:           dec ebx   
 60 [0x3c]:           movi #0, adx   
 62 [0x3e]:           rmov adx, ebx   
-63 [0x3f]: line: 126 new_class @25 // std.io.task#job_controller   
+63 [0x3f]: line: 127 new_class @25 // std.io.task#job_controller   
 64 [0x40]:           dup    
 65 [0x41]:           call @1800 // <std.io.task#job_controller.job_controller>   
 66 [0x42]:           popobj2    
 67 [0x43]:           smovr_3 fp+3   
-68 [0x44]: line: 127 new_class @29 // std.io#thread   
+68 [0x44]: line: 128 new_class @29 // std.io#thread   
 69 [0x45]:           dup    
 70 [0x46]:           new_class @65 // std#string   
 71 [0x47]:           dup    
@@ -39062,7 +39068,7 @@ function: std.io.task#__srt_global.get_host[1813] params(1) in file: C:\Users\bn
 90 [0x5a]:           call @1831 // <std.io#thread.thread>   
 91 [0x5b]:           popobj2    
 92 [0x5c]:           smovr_3 fp+2   
-93 [0x5d]: line: 128 movg @21 // @std.io.task#__srt_global   
+93 [0x5d]: line: 129 movg @21 // @std.io.task#__srt_global   
 94 [0x5e]:           movn #3   
 96 [0x60]:           movn #1   
 98 [0x62]:           pushobj   
@@ -39070,11 +39076,11 @@ function: std.io.task#__srt_global.get_host[1813] params(1) in file: C:\Users\bn
 100 [0x64]:           pushobj   
 101 [0x65]:           movl 3   
 102 [0x66]:           pushobj   
-103 [0x67]:           call @3060 // <std#hashmap<std.io#thread,std.io.task#job_controller>.put>   
+103 [0x67]:           call @3060 // <std#hashtable<std.io#thread,std.io.task#job_controller>.put>   
 104 [0x68]:           pop   
 105 [0x69]:           nop   
 106 [0x6a]:           jmp @177   
-107 [0x6b]: line: 131 movg @21 // @std.io.task#__srt_global   
+107 [0x6b]: line: 132 movg @21 // @std.io.task#__srt_global   
 108 [0x6c]:           movn #0   
 110 [0x6e]:           movi #0, adx   
 112 [0x70]:           chklen adx   
@@ -39086,7 +39092,7 @@ function: std.io.task#__srt_global.get_host[1813] params(1) in file: C:\Users\bn
 119 [0x77]:           movr ebx, cmt   
 120 [0x78]:           movr cmt, ebx   
 121 [0x79]:           jne 176   
-122 [0x7a]: line: 132 movg @21 // @std.io.task#__srt_global   
+122 [0x7a]: line: 133 movg @21 // @std.io.task#__srt_global   
 123 [0x7b]:           movn #0   
 125 [0x7d]:           movi #0, adx   
 127 [0x7f]:           chklen adx   
@@ -39095,12 +39101,12 @@ function: std.io.task#__srt_global.get_host[1813] params(1) in file: C:\Users\bn
 130 [0x82]:           dec ebx   
 131 [0x83]:           movi #0, adx   
 133 [0x85]:           rmov adx, ebx   
-134 [0x86]: line: 133 new_class @25 // std.io.task#job_controller   
+134 [0x86]: line: 134 new_class @25 // std.io.task#job_controller   
 135 [0x87]:           dup    
 136 [0x88]:           call @1800 // <std.io.task#job_controller.job_controller>   
 137 [0x89]:           popobj2    
 138 [0x8a]:           smovr_3 fp+4   
-139 [0x8b]: line: 134 new_class @29 // std.io#thread   
+139 [0x8b]: line: 135 new_class @29 // std.io#thread   
 140 [0x8c]:           dup    
 141 [0x8d]:           new_class @65 // std#string   
 142 [0x8e]:           dup    
@@ -39123,7 +39129,7 @@ function: std.io.task#__srt_global.get_host[1813] params(1) in file: C:\Users\bn
 161 [0xa1]:           call @1831 // <std.io#thread.thread>   
 162 [0xa2]:           popobj2    
 163 [0xa3]:           smovr_3 fp+2   
-164 [0xa4]: line: 135 movg @21 // @std.io.task#__srt_global   
+164 [0xa4]: line: 136 movg @21 // @std.io.task#__srt_global   
 165 [0xa5]:           movn #3   
 167 [0xa7]:           movn #1   
 169 [0xa9]:           pushobj   
@@ -39131,21 +39137,21 @@ function: std.io.task#__srt_global.get_host[1813] params(1) in file: C:\Users\bn
 171 [0xab]:           pushobj   
 172 [0xac]:           movl 4   
 173 [0xad]:           pushobj   
-174 [0xae]:           call @3060 // <std#hashmap<std.io#thread,std.io.task#job_controller>.put>   
+174 [0xae]:           call @3060 // <std#hashtable<std.io#thread,std.io.task#job_controller>.put>   
 175 [0xaf]:           pop   
 176 [0xb0]:           nop   
 177 [0xb1]:           nop   
 178 [0xb2]:           nop   
-179 [0xb3]: line: 140 movl 2   
+179 [0xb3]: line: 141 movl 2   
 180 [0xb4]:           returnobj   
 181 [0xb5]:           ret   
 
 
-function: std.io.task#__srt_global.execute_synchronous[1814] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job_scheduler.sharp:143:14: note:  
+function: std.io.task#__srt_global.execute_synchronous[1814] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job_scheduler.sharp:144:14: note:  
 		protected def execute_synchronous(scheduled_job : job) {
 		             ^
 
-0 [0x0]: line: 144 movl 0   
+0 [0x0]: line: 145 movl 0   
 1 [0x1]:           movn #12   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           chklen adx   
@@ -39157,7 +39163,7 @@ function: std.io.task#__srt_global.execute_synchronous[1814] params(1) in file: 
 12 [0xc]:           movr ebx, cmt   
 13 [0xd]:           movr cmt, ebx   
 14 [0xe]:           jne 41   
-15 [0xf]: line: 145 movl 0   
+15 [0xf]: line: 146 movl 0   
 16 [0x10]:           movn #12   
 18 [0x12]:           movi #0, adx   
 20 [0x14]:           chklen adx   
@@ -39168,7 +39174,7 @@ function: std.io.task#__srt_global.execute_synchronous[1814] params(1) in file: 
 25 [0x19]:           loadval ecx   
 26 [0x1a]:           sub ecx, ebx -> ebx   
 27 [0x1b]:           smovr_2 ebx, fp+1   
-28 [0x1c]: line: 146 loadl ebx, fp+1   
+28 [0x1c]: line: 147 loadl ebx, fp+1   
 29 [0x1d]:           rstore ebx   
 30 [0x1e]:           movi #0, ebx   
 32 [0x20]:           loadval ecx   
@@ -39181,17 +39187,17 @@ function: std.io.task#__srt_global.execute_synchronous[1814] params(1) in file: 
 39 [0x27]:           call @1841 // <std.io#thread.sleep>   
 40 [0x28]:           nop   
 41 [0x29]:           nop   
-42 [0x2a]: line: 148 movl 0   
+42 [0x2a]: line: 149 movl 0   
 43 [0x2b]:           pushobj   
 44 [0x2c]:           call @1780 // <std.io.task#job.execute>   
 45 [0x2d]:           ret   
 
 
-function: std.io.task#__srt_global.execute_job[1815] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job_scheduler.sharp:151:14: note:  
+function: std.io.task#__srt_global.execute_job[1815] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job_scheduler.sharp:152:14: note:  
 		protected def execute_job(scheduled_job : job) : var {
 		             ^
 
-0 [0x0]: line: 152 movl 0   
+0 [0x0]: line: 153 movl 0   
 1 [0x1]:           movn #17   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           chklen adx   
@@ -39200,19 +39206,19 @@ function: std.io.task#__srt_global.execute_job[1815] params(1) in file: C:\Users
 8 [0x8]:           call @1813 // <std.io.task#__srt_global.get_host>   
 9 [0x9]:           popobj2    
 10 [0xa]:           smovr_3 fp+1   
-11 [0xb]: line: 154 movl 1   
+11 [0xb]: line: 155 movl 1   
 12 [0xc]:           pushobj   
 13 [0xd]:           pushnull    
 14 [0xe]:           itest ebx   
 15 [0xf]:           not ebx, ebx   
 16 [0x10]:           movr cmt, ebx   
 17 [0x11]:           jne 44   
-18 [0x12]: line: 155 movl 1   
+18 [0x12]: line: 156 movl 1   
 19 [0x13]:           pushobj   
 20 [0x14]:           movl 0   
 21 [0x15]:           movn #4   
 23 [0x17]:           popobj   
-24 [0x18]: line: 156 movg @21 // @std.io.task#__srt_global   
+24 [0x18]: line: 157 movg @21 // @std.io.task#__srt_global   
 25 [0x19]:           movn #3   
 27 [0x1b]:           pushobj   
 28 [0x1c]:           movl 1   
@@ -39221,15 +39227,15 @@ function: std.io.task#__srt_global.execute_job[1815] params(1) in file: C:\Users
 31 [0x1f]:           movl 0   
 32 [0x20]:           movn #19   
 34 [0x22]:           popobj   
-35 [0x23]: line: 157 movl 0   
+35 [0x23]: line: 158 movl 0   
 36 [0x24]:           pushobj   
 37 [0x25]:           call @1768 // <std.io.task#job.execute_async>   
 38 [0x26]:           pop   
-39 [0x27]: line: 158 movi #1, ebx   
+39 [0x27]: line: 159 movi #1, ebx   
 41 [0x29]:           return_val ebx   
 42 [0x2a]:           ret   
 43 [0x2b]:           jmp @48   
-44 [0x2c]: line: 159 movi #0, ebx   
+44 [0x2c]: line: 160 movi #0, ebx   
 46 [0x2e]:           return_val ebx   
 47 [0x2f]:           ret   
 48 [0x30]:           nop   
@@ -43059,7 +43065,7 @@ function: platform.kernel#platform.static_init[1930] params(0) in file: C:\Users
 931 [0x3a3]:          movn #0   
 933 [0x3a5]:          movn #0   
 935 [0x3a7]:          popobj   
-936 [0x3a8]:          movi #95956, ebx   
+936 [0x3a8]:          movi #35488, ebx   
 938 [0x3aa]:          movg @60 // @std.reflect#property_type   
 939 [0x3ab]:          movn #0   
 941 [0x3ad]:          movn #1   
@@ -43074,7 +43080,7 @@ function: platform.kernel#platform.static_init[1930] params(0) in file: C:\Users
 953 [0x3b9]:          movn #1   
 955 [0x3bb]:          movn #0   
 957 [0x3bd]:          popobj   
-958 [0x3be]:          movi #95957, ebx   
+958 [0x3be]:          movi #35489, ebx   
 960 [0x3c0]:          movg @60 // @std.reflect#property_type   
 961 [0x3c1]:          movn #1   
 963 [0x3c3]:          movn #1   
@@ -43089,7 +43095,7 @@ function: platform.kernel#platform.static_init[1930] params(0) in file: C:\Users
 975 [0x3cf]:          movn #2   
 977 [0x3d1]:          movn #0   
 979 [0x3d3]:          popobj   
-980 [0x3d4]:          movi #95958, ebx   
+980 [0x3d4]:          movi #35490, ebx   
 982 [0x3d6]:          movg @60 // @std.reflect#property_type   
 983 [0x3d7]:          movn #2   
 985 [0x3d9]:          movn #1   
@@ -69302,9 +69308,9 @@ function: std#list<std#string>.out_of_bounds_msg[3053] params(1) in file: C:\Use
 20 [0x14]:           ret   
 
 
-constructor: std#hashmap<std.io#thread,std.io.task#job_controller>.hashmap[3054] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashmap.sharp:10:19: note:  
-		    public hashmap(initialCapacity: var) {
-		                  ^
+constructor: std#hashtable<std.io#thread,std.io.task#job_controller>.hashtable[3054] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashtable.sharp:10:21: note:  
+		    public hashtable(initialCapacity: var) {
+		                    ^
 
 0 [0x0]:         ldc ebx // 0.75   
 1 [0x1]:         rstore ebx   
@@ -69313,36 +69319,43 @@ constructor: std#hashmap<std.io#thread,std.io.task#job_controller>.hashmap[3054]
 5 [0x5]:         loadval ebx   
 6 [0x6]:         movi #0, adx   
 8 [0x8]:         rmov adx, ebx   
-9 [0x9]:         pushl 0   
-10 [0xa]:         call @1922 // <std#_object_._object_>   
-11 [0xb]: line: 11 loadl ebx, fp+1   
-12 [0xc]:          new_classarray ebx  // std.io.task#entry<std.io#thread,std.io.task#job_controller>[]   
-13 [0xd]:          movl 0   
-14 [0xe]:          movn #0   
-16 [0x10]:          popobj   
-17 [0x11]: line: 12 movl 0   
-18 [0x12]:          movn #0   
-20 [0x14]:          sizeof ebx   
-21 [0x15]:          rstore ebx   
-22 [0x16]:          movl 0   
-23 [0x17]:          movn #1   
-25 [0x19]:          movi #0, adx   
-27 [0x1b]:          chklen adx   
-28 [0x1c]:          iaload ebx, adx   
-29 [0x1d]:          loadval ecx   
-30 [0x1e]:          mul ecx, ebx -> ebx   
+9 [0x9]:         movi #96, ebx   
+11 [0xb]:         rstore ebx   
+12 [0xc]:         movl 0   
+13 [0xd]:         movn #2   
+15 [0xf]:         loadval ebx   
+16 [0x10]:         movi #0, adx   
+18 [0x12]:         rmov adx, ebx   
+19 [0x13]:         pushl 0   
+20 [0x14]:         call @1922 // <std#_object_._object_>   
+21 [0x15]: line: 11 loadl ebx, fp+1   
+22 [0x16]:          new_classarray ebx  // std.io.task#entry<std.io#thread,std.io.task#job_controller>[]   
+23 [0x17]:          movl 0   
+24 [0x18]:          movn #0   
+26 [0x1a]:          popobj   
+27 [0x1b]: line: 12 movl 0   
+28 [0x1c]:          movn #0   
+30 [0x1e]:          sizeof ebx   
 31 [0x1f]:          rstore ebx   
 32 [0x20]:          movl 0   
-33 [0x21]:          movn #2   
-35 [0x23]:          loadval ebx   
-36 [0x24]:          movi #0, adx   
-38 [0x26]:          rmov adx, ebx   
-39 [0x27]:          ret   
+33 [0x21]:          movn #1   
+35 [0x23]:          movi #0, adx   
+37 [0x25]:          chklen adx   
+38 [0x26]:          iaload ebx, adx   
+39 [0x27]:          loadval ecx   
+40 [0x28]:          mul ecx, ebx -> ebx   
+41 [0x29]:          rstore ebx   
+42 [0x2a]:          movl 0   
+43 [0x2b]:          movn #2   
+45 [0x2d]:          loadval ebx   
+46 [0x2e]:          movi #0, adx   
+48 [0x30]:          rmov adx, ebx   
+49 [0x31]:          ret   
 
 
-constructor: std#hashmap<std.io#thread,std.io.task#job_controller>.hashmap[3055] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashmap.sharp:15:19: note:  
-		    public hashmap() {
-		                  ^
+constructor: std#hashtable<std.io#thread,std.io.task#job_controller>.hashtable[3055] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashtable.sharp:15:21: note:  
+		    public hashtable() {
+		                    ^
 
 0 [0x0]:         ldc ebx // 0.75   
 1 [0x1]:         rstore ebx   
@@ -69351,55 +69364,59 @@ constructor: std#hashmap<std.io#thread,std.io.task#job_controller>.hashmap[3055]
 5 [0x5]:         loadval ebx   
 6 [0x6]:         movi #0, adx   
 8 [0x8]:         rmov adx, ebx   
-9 [0x9]:         pushl 0   
-10 [0xa]:         call @1922 // <std#_object_._object_>   
-11 [0xb]: line: 16 movi #128, ebx   
-13 [0xd]:          new_classarray ebx  // std.io.task#entry<std.io#thread,std.io.task#job_controller>[]   
-14 [0xe]:          movl 0   
-15 [0xf]:          movn #0   
-17 [0x11]:          popobj   
-18 [0x12]: line: 17 movi #96, ebx   
-20 [0x14]:          rstore ebx   
-21 [0x15]:          movl 0   
-22 [0x16]:          movn #2   
-24 [0x18]:          loadval ebx   
-25 [0x19]:          movi #0, adx   
-27 [0x1b]:          rmov adx, ebx   
+9 [0x9]:         movi #96, ebx   
+11 [0xb]:         rstore ebx   
+12 [0xc]:         movl 0   
+13 [0xd]:         movn #2   
+15 [0xf]:         loadval ebx   
+16 [0x10]:         movi #0, adx   
+18 [0x12]:         rmov adx, ebx   
+19 [0x13]:         pushl 0   
+20 [0x14]:         call @1922 // <std#_object_._object_>   
+21 [0x15]: line: 16 movi #128, ebx   
+23 [0x17]:          new_classarray ebx  // std.io.task#entry<std.io#thread,std.io.task#job_controller>[]   
+24 [0x18]:          movl 0   
+25 [0x19]:          movn #0   
+27 [0x1b]:          popobj   
 28 [0x1c]:          ret   
 
 
-function: std#hashmap<std.io#thread,std.io.task#job_controller>.set_threshold[3056] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashmap.sharp:20:8: note:  
+function: std#hashtable<std.io#thread,std.io.task#job_controller>.set_threshold[3056] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashtable.sharp:19:8: note:  
 		    def set_threshold(threshold: var) {
 		       ^
 
-0 [0x0]: line: 21 loadl ebx, fp+1   
-1 [0x1]:          rstore ebx   
-2 [0x2]:          movl 0   
-3 [0x3]:          movn #1   
-5 [0x5]:          loadval ebx   
-6 [0x6]:          movi #0, adx   
-8 [0x8]:          rmov adx, ebx   
-9 [0x9]: line: 22 movl 0   
-10 [0xa]:          movn #0   
-12 [0xc]:          sizeof ebx   
-13 [0xd]:          rstore ebx   
-14 [0xe]:          loadl ebx, fp+1   
-15 [0xf]:          loadval ecx   
-16 [0x10]:          mul ecx, ebx -> ebx   
-17 [0x11]:          rstore ebx   
-18 [0x12]:          movl 0   
-19 [0x13]:          movn #2   
-21 [0x15]:          loadval ebx   
-22 [0x16]:          movi #0, adx   
-24 [0x18]:          rmov adx, ebx   
-25 [0x19]:          ret   
+0 [0x0]: line: 20 movl 0   
+1 [0x1]:          _lck    
+2 [0x2]: line: 21 loadl ebx, fp+1   
+3 [0x3]:          rstore ebx   
+4 [0x4]:          movl 0   
+5 [0x5]:          movn #1   
+7 [0x7]:          loadval ebx   
+8 [0x8]:          movi #0, adx   
+10 [0xa]:          rmov adx, ebx   
+11 [0xb]: line: 22 movl 0   
+12 [0xc]:          movn #0   
+14 [0xe]:          sizeof ebx   
+15 [0xf]:          rstore ebx   
+16 [0x10]:          loadl ebx, fp+1   
+17 [0x11]:          loadval ecx   
+18 [0x12]:          mul ecx, ebx -> ebx   
+19 [0x13]:          rstore ebx   
+20 [0x14]:          movl 0   
+21 [0x15]:          movn #2   
+23 [0x17]:          loadval ebx   
+24 [0x18]:          movi #0, adx   
+26 [0x1a]:          rmov adx, ebx   
+27 [0x1b]:          movl 0   
+28 [0x1c]:          _ulck   
+29 [0x1d]:          ret   
 
 
-function: std#hashmap<std.io#thread,std.io.task#job_controller>.hash[3057] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashmap.sharp:25:8: note:  
-		    def hash(key: k) : var {
-		       ^
+function: std#hashtable<std.io#thread,std.io.task#job_controller>.hash[3057] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashtable.sharp:26:16: note:  
+		    private def hash(key: k) : var {
+		               ^
 
-0 [0x0]: line: 26 movl 1   
+0 [0x0]: line: 27 movl 1   
 1 [0x1]:          pushobj   
 2 [0x2]:          call @1845 // <std.io#thread.hash>   
 3 [0x3]:          movl 0   
@@ -69412,14 +69429,14 @@ function: std#hashmap<std.io#thread,std.io.task#job_controller>.hash[3057] param
 11 [0xb]:          ret   
 
 
-function: std#hashmap<std.io#thread,std.io.task#job_controller>.resize[3058] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashmap.sharp:29:8: note:  
-		    def resize() {
-		       ^
+function: std#hashtable<std.io#thread,std.io.task#job_controller>.resize[3058] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashtable.sharp:30:16: note:  
+		    private def resize() {
+		               ^
 
-0 [0x0]: line: 30 movl 0   
+0 [0x0]: line: 31 movl 0   
 1 [0x1]:          movn #0   
 3 [0x3]:          smovr_3 fp+1   
-4 [0x4]: line: 31 movl 1   
+4 [0x4]: line: 32 movl 1   
 5 [0x5]:          sizeof ebx   
 6 [0x6]:          rstore ebx   
 7 [0x7]:          movl 1   
@@ -69434,7 +69451,7 @@ function: std#hashmap<std.io#thread,std.io.task#job_controller>.resize[3058] par
 17 [0x11]:          movl 0   
 18 [0x12]:          movn #0   
 20 [0x14]:          popobj   
-21 [0x15]: line: 32 movl 0   
+21 [0x15]: line: 33 movl 0   
 22 [0x16]:          movn #0   
 24 [0x18]:          sizeof ebx   
 25 [0x19]:          rstore ebx   
@@ -69451,7 +69468,7 @@ function: std#hashmap<std.io#thread,std.io.task#job_controller>.resize[3058] par
 39 [0x27]:          loadval ebx   
 40 [0x28]:          movi #0, adx   
 42 [0x2a]:          rmov adx, ebx   
-43 [0x2b]: line: 33 istorel -1, fp+3   
+43 [0x2b]: line: 34 istorel -1, fp+3   
 45 [0x2d]:          movl 1   
 46 [0x2e]:          pushobj   
 47 [0x2f]:          movl 4   
@@ -69466,25 +69483,25 @@ function: std#hashmap<std.io#thread,std.io.task#job_controller>.resize[3058] par
 57 [0x39]:          pushobj   
 58 [0x3a]:          movl 2   
 59 [0x3b]:          popobj   
-60 [0x3c]: line: 35 movl 2   
+60 [0x3c]: line: 36 movl 2   
 61 [0x3d]:          pushobj   
 62 [0x3e]:          pushnull    
 63 [0x3f]:          itest ebx   
 64 [0x40]:          not ebx, ebx   
 65 [0x41]:          movr cmt, ebx   
 66 [0x42]:          jne 109   
-67 [0x43]: line: 37 movl 2   
+67 [0x43]: line: 38 movl 2   
 68 [0x44]:          movn #2   
 70 [0x46]:          smovr_3 fp+5   
-71 [0x47]: line: 38 movl 0   
+71 [0x47]: line: 39 movl 0   
 72 [0x48]:          pushobj   
 73 [0x49]:          movl 2   
 74 [0x4a]:          movn #0   
 76 [0x4c]:          pushobj   
-77 [0x4d]:          call @3057 // <std#hashmap<std.io#thread,std.io.task#job_controller>.hash>   
+77 [0x4d]:          call @3057 // <std#hashtable<std.io#thread,std.io.task#job_controller>.hash>   
 78 [0x4e]:          loadval ebx   
 79 [0x4f]:          smovr_2 ebx, fp+6   
-80 [0x50]: line: 39 movl 0   
+80 [0x50]: line: 40 movl 0   
 81 [0x51]:          movn #0   
 83 [0x53]:          pushobj   
 84 [0x54]:          loadl ebx, fp+6   
@@ -69496,7 +69513,7 @@ function: std#hashmap<std.io#thread,std.io.task#job_controller>.resize[3058] par
 90 [0x5a]:          movl 2   
 91 [0x5b]:          movn #2   
 93 [0x5d]:          popobj   
-94 [0x5e]: line: 40 movl 2   
+94 [0x5e]: line: 41 movl 2   
 95 [0x5f]:          pushobj   
 96 [0x60]:          movl 0   
 97 [0x61]:          movn #0   
@@ -69507,300 +69524,339 @@ function: std#hashmap<std.io#thread,std.io.task#job_controller>.resize[3058] par
 103 [0x67]:          chklen adx   
 104 [0x68]:          movnd adx   
 105 [0x69]:          popobj   
-106 [0x6a]: line: 41 movl 5   
+106 [0x6a]: line: 42 movl 5   
 107 [0x6b]:          smovr_3 fp+2   
 108 [0x6c]:          jmp @60   
 109 [0x6d]:          jmp @49   
-110 [0x6e]: line: 45 pushnull    
+110 [0x6e]: line: 46 pushnull    
 111 [0x6f]:          popobj2    
 112 [0x70]:          smovr_3 fp+1   
 113 [0x71]:          ret   
 
 
-function: std#hashmap<std.io#thread,std.io.task#job_controller>.at[3059] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashmap.sharp:48:15: note:  
+function: std#hashtable<std.io#thread,std.io.task#job_controller>.at[3059] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashtable.sharp:49:15: note:  
 		    public def at(key: k) : v {
 		              ^
 
-0 [0x0]: line: 49 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
+0 [0x0]: line: 50 movl 0   
+1 [0x1]:          _lck    
+2 [0x2]: line: 51 movl 0   
 3 [0x3]:          pushobj   
-4 [0x4]:          call @3057 // <std#hashmap<std.io#thread,std.io.task#job_controller>.hash>   
-5 [0x5]:          loadval ebx   
-6 [0x6]:          smovr_2 ebx, fp+2   
-7 [0x7]: line: 50 movi #-1, ebx   
-9 [0x9]:          smovr_2 ebx, fp+3   
-10 [0xa]: line: 51 movl 4   
-11 [0xb]:          del   
-12 [0xc]: line: 53 movl 0   
-13 [0xd]:          movn #0   
-15 [0xf]:          pushobj   
-16 [0x10]:          loadl ebx, fp+2   
-17 [0x11]:          popobj2    
-18 [0x12]:          movr adx, ebx   
-19 [0x13]:          chklen adx   
-20 [0x14]:          movnd adx   
-21 [0x15]:          pushobj   
-22 [0x16]:          pushnull    
-23 [0x17]:          itest ebx   
-24 [0x18]:          movr cmt, ebx   
-25 [0x19]:          jne 30   
-26 [0x1a]: line: 54 movl 4   
-27 [0x1b]:          returnobj   
-28 [0x1c]:          ret   
-29 [0x1d]:          jmp @71   
-30 [0x1e]: line: 56 movl 0   
-31 [0x1f]:          movn #0   
-33 [0x21]:          pushobj   
-34 [0x22]:          loadl ebx, fp+2   
-35 [0x23]:          popobj2    
-36 [0x24]:          movr adx, ebx   
-37 [0x25]:          chklen adx   
-38 [0x26]:          movnd adx   
-39 [0x27]:          smovr_3 fp+5   
-40 [0x28]: line: 57 movl 5   
-41 [0x29]:          pushobj   
-42 [0x2a]:          pushnull    
-43 [0x2b]:          itest ebx   
-44 [0x2c]:          not ebx, ebx   
-45 [0x2d]:          movr cmt, ebx   
-46 [0x2e]:          jne 68   
-47 [0x2f]: line: 58 movl 5   
-48 [0x30]:          movn #0   
-50 [0x32]:          pushobj   
-51 [0x33]:          movl 1   
-52 [0x34]:          pushobj   
-53 [0x35]:          call @1863 // <std.io#thread.operator==>   
-54 [0x36]:          loadval ebx   
-55 [0x37]:          movr cmt, ebx   
-56 [0x38]:          jne 62   
-57 [0x39]: line: 59 movl 5   
-58 [0x3a]:          movn #1   
-60 [0x3c]:          returnobj   
-61 [0x3d]:          ret   
-62 [0x3e]:          nop   
-63 [0x3f]: line: 61 movl 5   
-64 [0x40]:          movn #2   
-66 [0x42]:          smovr_3 fp+5   
-67 [0x43]:          jmp @40   
-68 [0x44]: line: 64 movl 4   
-69 [0x45]:          returnobj   
-70 [0x46]:          ret   
-71 [0x47]:          nop   
+4 [0x4]:          movl 1   
+5 [0x5]:          pushobj   
+6 [0x6]:          call @3057 // <std#hashtable<std.io#thread,std.io.task#job_controller>.hash>   
+7 [0x7]:          loadval ebx   
+8 [0x8]:          smovr_2 ebx, fp+2   
+9 [0x9]: line: 52 movi #-1, ebx   
+11 [0xb]:          smovr_2 ebx, fp+3   
+12 [0xc]: line: 53 movl 4   
+13 [0xd]:          del   
+14 [0xe]: line: 55 movl 0   
+15 [0xf]:          movn #0   
+17 [0x11]:          pushobj   
+18 [0x12]:          loadl ebx, fp+2   
+19 [0x13]:          popobj2    
+20 [0x14]:          movr adx, ebx   
+21 [0x15]:          chklen adx   
+22 [0x16]:          movnd adx   
+23 [0x17]:          pushobj   
+24 [0x18]:          pushnull    
+25 [0x19]:          itest ebx   
+26 [0x1a]:          movr cmt, ebx   
+27 [0x1b]:          jne 34   
+28 [0x1c]: line: 56 movl 0   
+29 [0x1d]:          _ulck   
+30 [0x1e]:          movl 4   
+31 [0x1f]:          returnobj   
+32 [0x20]:          ret   
+33 [0x21]:          jmp @93   
+34 [0x22]: line: 58 movl 0   
+35 [0x23]:          movn #0   
+37 [0x25]:          pushobj   
+38 [0x26]:          loadl ebx, fp+2   
+39 [0x27]:          popobj2    
+40 [0x28]:          movr adx, ebx   
+41 [0x29]:          chklen adx   
+42 [0x2a]:          movnd adx   
+43 [0x2b]:          smovr_3 fp+5   
+44 [0x2c]: line: 59 movl 5   
+45 [0x2d]:          pushobj   
+46 [0x2e]:          pushnull    
+47 [0x2f]:          itest ebx   
+48 [0x30]:          not ebx, ebx   
+49 [0x31]:          skne ebx // pc = 66   
+50 [0x32]:          movl 5   
+51 [0x33]:          movn #0   
+53 [0x35]:          pushobj   
+54 [0x36]:          movl 1   
+55 [0x37]:          pushobj   
+56 [0x38]:          itest ebx   
+57 [0x39]:          not ebx, ebx   
+58 [0x3a]:          skne ebx // pc = 66   
+59 [0x3b]:          movl 5   
+60 [0x3c]:          movn #2   
+62 [0x3e]:          pushobj   
+63 [0x3f]:          pushnull    
+64 [0x40]:          itest ebx   
+65 [0x41]:          not ebx, ebx   
+66 [0x42]:          movr cmt, ebx   
+67 [0x43]:          jne 73   
+68 [0x44]: line: 61 movl 5   
+69 [0x45]:          movn #2   
+71 [0x47]:          smovr_3 fp+5   
+72 [0x48]:          jmp @44   
+73 [0x49]: line: 63 movl 5   
+74 [0x4a]:          pushobj   
+75 [0x4b]:          pushnull    
+76 [0x4c]:          itest ebx   
+77 [0x4d]:          movr cmt, ebx   
+78 [0x4e]:          jne 85   
+79 [0x4f]: line: 64 movl 0   
+80 [0x50]:          _ulck   
+81 [0x51]:          movl 4   
+82 [0x52]:          returnobj   
+83 [0x53]:          ret   
+84 [0x54]:          jmp @92   
+85 [0x55]: line: 66 movl 0   
+86 [0x56]:          _ulck   
+87 [0x57]:          movl 5   
+88 [0x58]:          movn #1   
+90 [0x5a]:          returnobj   
+91 [0x5b]:          ret   
+92 [0x5c]:          nop   
+93 [0x5d]:          nop   
+94 [0x5e]:          movl 0   
+95 [0x5f]:          _ulck   
 
 
-function: std#hashmap<std.io#thread,std.io.task#job_controller>.put[3060] params(2) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashmap.sharp:68:15: note:  
+function: std#hashtable<std.io#thread,std.io.task#job_controller>.put[3060] params(2) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashtable.sharp:72:15: note:  
 		    public def put(key: k, value: v) : var {
 		              ^
 
-0 [0x0]: line: 69 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
+0 [0x0]: line: 73 movl 0   
+1 [0x1]:          _lck    
+2 [0x2]: line: 74 movl 0   
 3 [0x3]:          pushobj   
-4 [0x4]:          call @3057 // <std#hashmap<std.io#thread,std.io.task#job_controller>.hash>   
-5 [0x5]:          loadval ebx   
-6 [0x6]:          smovr_2 ebx, fp+3   
-7 [0x7]: line: 70 movl 4   
-8 [0x8]:          del   
-9 [0x9]: line: 71 movl 0   
-10 [0xa]:          movn #0   
-12 [0xc]:          pushobj   
-13 [0xd]:          loadl ebx, fp+3   
-14 [0xe]:          popobj2    
-15 [0xf]:          movr adx, ebx   
-16 [0x10]:          chklen adx   
-17 [0x11]:          movnd adx   
-18 [0x12]:          smovr_3 fp+5   
-19 [0x13]: line: 73 movl 5   
-20 [0x14]:          pushobj   
-21 [0x15]:          pushnull    
-22 [0x16]:          itest ebx   
-23 [0x17]:          not ebx, ebx   
-24 [0x18]:          skne ebx // pc = 33   
-25 [0x19]:          movl 5   
-26 [0x1a]:          movn #0   
-28 [0x1c]:          pushobj   
-29 [0x1d]:          movl 1   
+4 [0x4]:          movl 1   
+5 [0x5]:          pushobj   
+6 [0x6]:          call @3057 // <std#hashtable<std.io#thread,std.io.task#job_controller>.hash>   
+7 [0x7]:          loadval ebx   
+8 [0x8]:          smovr_2 ebx, fp+3   
+9 [0x9]: line: 75 movl 4   
+10 [0xa]:          del   
+11 [0xb]: line: 76 movl 0   
+12 [0xc]:          movn #0   
+14 [0xe]:          pushobj   
+15 [0xf]:          loadl ebx, fp+3   
+16 [0x10]:          popobj2    
+17 [0x11]:          movr adx, ebx   
+18 [0x12]:          chklen adx   
+19 [0x13]:          movnd adx   
+20 [0x14]:          smovr_3 fp+5   
+21 [0x15]: line: 78 movl 5   
+22 [0x16]:          pushobj   
+23 [0x17]:          pushnull    
+24 [0x18]:          itest ebx   
+25 [0x19]:          not ebx, ebx   
+26 [0x1a]:          skne ebx // pc = 35   
+27 [0x1b]:          movl 5   
+28 [0x1c]:          movn #0   
 30 [0x1e]:          pushobj   
-31 [0x1f]:          itest ebx   
-32 [0x20]:          not ebx, ebx   
-33 [0x21]:          movr cmt, ebx   
-34 [0x22]:          jne 42   
-35 [0x23]: line: 74 movl 5   
-36 [0x24]:          smovr_3 fp+4   
-37 [0x25]: line: 75 movl 5   
-38 [0x26]:          movn #2   
-40 [0x28]:          smovr_3 fp+5   
-41 [0x29]:          jmp @19   
-42 [0x2a]: line: 78 movl 5   
-43 [0x2b]:          pushobj   
-44 [0x2c]:          pushnull    
-45 [0x2d]:          itest ebx   
-46 [0x2e]:          movr cmt, ebx   
-47 [0x2f]:          jne 100   
-48 [0x30]: line: 79 movl 0   
-49 [0x31]:          movn #3   
-51 [0x33]:          movi #0, adx   
-53 [0x35]:          chklen adx   
-54 [0x36]:          iaload ebx, adx   
-55 [0x37]:          movr egx, ebx   
-56 [0x38]:          inc ebx   
-57 [0x39]:          movi #0, adx   
-59 [0x3b]:          rmov adx, ebx   
-60 [0x3c]: line: 80 new_class @90 // std.io.task#entry<std.io#thread,std.io.task#job_controller>   
-61 [0x3d]:          dup    
-62 [0x3e]:          movl 1   
-63 [0x3f]:          pushobj   
-64 [0x40]:          movl 2   
+31 [0x1f]:          movl 1   
+32 [0x20]:          pushobj   
+33 [0x21]:          itest ebx   
+34 [0x22]:          not ebx, ebx   
+35 [0x23]:          movr cmt, ebx   
+36 [0x24]:          jne 44   
+37 [0x25]: line: 79 movl 5   
+38 [0x26]:          smovr_3 fp+4   
+39 [0x27]: line: 80 movl 5   
+40 [0x28]:          movn #2   
+42 [0x2a]:          smovr_3 fp+5   
+43 [0x2b]:          jmp @21   
+44 [0x2c]: line: 83 movl 5   
+45 [0x2d]:          pushobj   
+46 [0x2e]:          pushnull    
+47 [0x2f]:          itest ebx   
+48 [0x30]:          movr cmt, ebx   
+49 [0x31]:          jne 104   
+50 [0x32]: line: 84 movl 0   
+51 [0x33]:          movn #3   
+53 [0x35]:          movi #0, adx   
+55 [0x37]:          chklen adx   
+56 [0x38]:          iaload ebx, adx   
+57 [0x39]:          movr egx, ebx   
+58 [0x3a]:          inc ebx   
+59 [0x3b]:          movi #0, adx   
+61 [0x3d]:          rmov adx, ebx   
+62 [0x3e]: line: 85 new_class @90 // std.io.task#entry<std.io#thread,std.io.task#job_controller>   
+63 [0x3f]:          dup    
+64 [0x40]:          movl 1   
 65 [0x41]:          pushobj   
-66 [0x42]:          call @3176 // <std.io.task#entry<std.io#thread,std.io.task#job_controller>.entry>   
-67 [0x43]:          popobj2    
-68 [0x44]:          smovr_3 fp+5   
-69 [0x45]: line: 81 movl 4   
-70 [0x46]:          pushobj   
-71 [0x47]:          pushnull    
-72 [0x48]:          itest ebx   
-73 [0x49]:          movr cmt, ebx   
-74 [0x4a]:          jne 88   
-75 [0x4b]: line: 82 movl 5   
-76 [0x4c]:          pushobj   
-77 [0x4d]:          movl 0   
-78 [0x4e]:          movn #0   
-80 [0x50]:          pushobj   
-81 [0x51]:          loadl ebx, fp+3   
-82 [0x52]:          popobj2    
-83 [0x53]:          movr adx, ebx   
-84 [0x54]:          chklen adx   
-85 [0x55]:          movnd adx   
-86 [0x56]:          popobj   
-87 [0x57]:          jmp @94   
-88 [0x58]: line: 84 movl 5   
-89 [0x59]:          pushobj   
-90 [0x5a]:          movl 4   
-91 [0x5b]:          movn #2   
-93 [0x5d]:          popobj   
-94 [0x5e]:          nop   
-95 [0x5f]: line: 87 movi #1, ebx   
-97 [0x61]:          return_val ebx   
-98 [0x62]:          ret   
-99 [0x63]:          jmp @110   
-100 [0x64]: line: 89 movl 2   
-101 [0x65]:          pushobj   
-102 [0x66]:          movl 5   
-103 [0x67]:          movn #1   
-105 [0x69]:          popobj   
-106 [0x6a]: line: 90 movi #0, ebx   
-108 [0x6c]:          return_val ebx   
-109 [0x6d]:          ret   
-110 [0x6e]:          nop   
+66 [0x42]:          movl 2   
+67 [0x43]:          pushobj   
+68 [0x44]:          call @3176 // <std.io.task#entry<std.io#thread,std.io.task#job_controller>.entry>   
+69 [0x45]:          popobj2    
+70 [0x46]:          smovr_3 fp+5   
+71 [0x47]: line: 86 movl 4   
+72 [0x48]:          pushobj   
+73 [0x49]:          pushnull    
+74 [0x4a]:          itest ebx   
+75 [0x4b]:          movr cmt, ebx   
+76 [0x4c]:          jne 90   
+77 [0x4d]: line: 87 movl 5   
+78 [0x4e]:          pushobj   
+79 [0x4f]:          movl 0   
+80 [0x50]:          movn #0   
+82 [0x52]:          pushobj   
+83 [0x53]:          loadl ebx, fp+3   
+84 [0x54]:          popobj2    
+85 [0x55]:          movr adx, ebx   
+86 [0x56]:          chklen adx   
+87 [0x57]:          movnd adx   
+88 [0x58]:          popobj   
+89 [0x59]:          jmp @96   
+90 [0x5a]: line: 89 movl 5   
+91 [0x5b]:          pushobj   
+92 [0x5c]:          movl 4   
+93 [0x5d]:          movn #2   
+95 [0x5f]:          popobj   
+96 [0x60]:          nop   
+97 [0x61]: line: 92 movl 0   
+98 [0x62]:          _ulck   
+99 [0x63]:          movi #1, ebx   
+101 [0x65]:          return_val ebx   
+102 [0x66]:          ret   
+103 [0x67]:          jmp @116   
+104 [0x68]: line: 94 movl 2   
+105 [0x69]:          pushobj   
+106 [0x6a]:          movl 5   
+107 [0x6b]:          movn #1   
+109 [0x6d]:          popobj   
+110 [0x6e]: line: 95 movl 0   
+111 [0x6f]:          _ulck   
+112 [0x70]:          movi #0, ebx   
+114 [0x72]:          return_val ebx   
+115 [0x73]:          ret   
+116 [0x74]:          nop   
+117 [0x75]:          movl 0   
+118 [0x76]:          _ulck   
 
 
-function: std#hashmap<std.io#thread,std.io.task#job_controller>.remove[3061] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashmap.sharp:94:15: note:  
+function: std#hashtable<std.io#thread,std.io.task#job_controller>.remove[3061] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashtable.sharp:100:15: note:  
 		    public def remove(key: k) : var {
 		              ^
 
-0 [0x0]: line: 95 movl 0   
-1 [0x1]:          pushobj   
-2 [0x2]:          movl 1   
-3 [0x3]:          pushobj   
-4 [0x4]:          call @3057 // <std#hashmap<std.io#thread,std.io.task#job_controller>.hash>   
-5 [0x5]:          loadval ebx   
-6 [0x6]:          smovr_2 ebx, fp+2   
-7 [0x7]: line: 96 movl 0   
-8 [0x8]:          movn #0   
-10 [0xa]:          pushobj   
-11 [0xb]:          loadl ebx, fp+2   
-12 [0xc]:          popobj2    
-13 [0xd]:          movr adx, ebx   
-14 [0xe]:          chklen adx   
-15 [0xf]:          movnd adx   
-16 [0x10]:          pushobj   
-17 [0x11]:          pushnull    
-18 [0x12]:          itest ebx   
-19 [0x13]:          movr cmt, ebx   
-20 [0x14]:          jne 108   
-21 [0x15]: line: 97 movl 3   
-22 [0x16]:          del   
-23 [0x17]: line: 98 movl 0   
-24 [0x18]:          movn #0   
-26 [0x1a]:          pushobj   
-27 [0x1b]:          loadl ebx, fp+2   
-28 [0x1c]:          popobj2    
-29 [0x1d]:          movr adx, ebx   
-30 [0x1e]:          chklen adx   
-31 [0x1f]:          movnd adx   
-32 [0x20]:          smovr_3 fp+4   
-33 [0x21]: line: 99 movl 4   
-34 [0x22]:          pushobj   
-35 [0x23]:          pushnull    
-36 [0x24]:          itest ebx   
-37 [0x25]:          not ebx, ebx   
-38 [0x26]:          skne ebx // pc = 47   
-39 [0x27]:          movl 4   
-40 [0x28]:          movn #0   
-42 [0x2a]:          pushobj   
-43 [0x2b]:          movl 1   
-44 [0x2c]:          pushobj   
-45 [0x2d]:          itest ebx   
-46 [0x2e]:          not ebx, ebx   
-47 [0x2f]:          movr cmt, ebx   
-48 [0x30]:          jne 56   
-49 [0x31]: line: 100 movl 4   
-50 [0x32]:           smovr_3 fp+3   
-51 [0x33]: line: 101 movl 4   
-52 [0x34]:           movn #2   
-54 [0x36]:           smovr_3 fp+4   
-55 [0x37]:           jmp @33   
-56 [0x38]: line: 104 movl 4   
-57 [0x39]:           movn #0   
-59 [0x3b]:           pushobj   
-60 [0x3c]:           movl 1   
+0 [0x0]: line: 101 movl 0   
+1 [0x1]:           _lck    
+2 [0x2]: line: 102 movl 0   
+3 [0x3]:           pushobj   
+4 [0x4]:           movl 1   
+5 [0x5]:           pushobj   
+6 [0x6]:           call @3057 // <std#hashtable<std.io#thread,std.io.task#job_controller>.hash>   
+7 [0x7]:           loadval ebx   
+8 [0x8]:           smovr_2 ebx, fp+2   
+9 [0x9]: line: 103 movl 0   
+10 [0xa]:           movn #0   
+12 [0xc]:           pushobj   
+13 [0xd]:           loadl ebx, fp+2   
+14 [0xe]:           popobj2    
+15 [0xf]:           movr adx, ebx   
+16 [0x10]:           chklen adx   
+17 [0x11]:           movnd adx   
+18 [0x12]:           pushobj   
+19 [0x13]:           pushnull    
+20 [0x14]:           itest ebx   
+21 [0x15]:           movr cmt, ebx   
+22 [0x16]:           jne 112   
+23 [0x17]: line: 104 movl 3   
+24 [0x18]:           del   
+25 [0x19]: line: 105 movl 0   
+26 [0x1a]:           movn #0   
+28 [0x1c]:           pushobj   
+29 [0x1d]:           loadl ebx, fp+2   
+30 [0x1e]:           popobj2    
+31 [0x1f]:           movr adx, ebx   
+32 [0x20]:           chklen adx   
+33 [0x21]:           movnd adx   
+34 [0x22]:           smovr_3 fp+4   
+35 [0x23]: line: 106 movl 4   
+36 [0x24]:           pushobj   
+37 [0x25]:           pushnull    
+38 [0x26]:           itest ebx   
+39 [0x27]:           not ebx, ebx   
+40 [0x28]:           skne ebx // pc = 49   
+41 [0x29]:           movl 4   
+42 [0x2a]:           movn #0   
+44 [0x2c]:           pushobj   
+45 [0x2d]:           movl 1   
+46 [0x2e]:           pushobj   
+47 [0x2f]:           itest ebx   
+48 [0x30]:           not ebx, ebx   
+49 [0x31]:           movr cmt, ebx   
+50 [0x32]:           jne 58   
+51 [0x33]: line: 107 movl 4   
+52 [0x34]:           smovr_3 fp+3   
+53 [0x35]: line: 108 movl 4   
+54 [0x36]:           movn #2   
+56 [0x38]:           smovr_3 fp+4   
+57 [0x39]:           jmp @35   
+58 [0x3a]: line: 111 movl 4   
+59 [0x3b]:           movn #0   
 61 [0x3d]:           pushobj   
-62 [0x3e]:           call @1863 // <std.io#thread.operator==>   
-63 [0x3f]:           loadval ebx   
-64 [0x40]:           movr cmt, ebx   
-65 [0x41]:           jne 107   
-66 [0x42]: line: 105 movl 3   
-67 [0x43]:           pushobj   
-68 [0x44]:           pushnull    
-69 [0x45]:           itest ebx   
-70 [0x46]:           movr cmt, ebx   
-71 [0x47]:           jne 89   
-72 [0x48]: line: 106 movl 4   
-73 [0x49]:           movn #2   
-75 [0x4b]:           smovr_3 fp+5   
-76 [0x4c]: line: 107 movl 5   
-77 [0x4d]:           pushobj   
-78 [0x4e]:           movl 0   
-79 [0x4f]:           movn #0   
-81 [0x51]:           pushobj   
-82 [0x52]:           loadl ebx, fp+2   
-83 [0x53]:           popobj2    
-84 [0x54]:           movr adx, ebx   
-85 [0x55]:           chklen adx   
-86 [0x56]:           movnd adx   
-87 [0x57]:           popobj   
-88 [0x58]:           jmp @102   
-89 [0x59]: line: 109 movl 4   
-90 [0x5a]:           movn #2   
-92 [0x5c]:           smovr_3 fp+6   
-93 [0x5d]: line: 110 movl 6   
-94 [0x5e]:           pushobj   
-95 [0x5f]:           movl 3   
-96 [0x60]:           movn #2   
-98 [0x62]:           popobj   
-99 [0x63]: line: 111 pushnull    
-100 [0x64]:           popobj2    
-101 [0x65]:           smovr_3 fp+4   
-102 [0x66]:           nop   
-103 [0x67]: line: 114 movi #1, ebx   
-105 [0x69]:           return_val ebx   
-106 [0x6a]:           ret   
-107 [0x6b]:           nop   
-108 [0x6c]:           nop   
-109 [0x6d]: line: 118 movi #0, ebx   
-111 [0x6f]:           return_val ebx   
-112 [0x70]:           ret   
+62 [0x3e]:           movl 1   
+63 [0x3f]:           pushobj   
+64 [0x40]:           call @1863 // <std.io#thread.operator==>   
+65 [0x41]:           loadval ebx   
+66 [0x42]:           movr cmt, ebx   
+67 [0x43]:           jne 111   
+68 [0x44]: line: 112 movl 3   
+69 [0x45]:           pushobj   
+70 [0x46]:           pushnull    
+71 [0x47]:           itest ebx   
+72 [0x48]:           movr cmt, ebx   
+73 [0x49]:           jne 91   
+74 [0x4a]: line: 113 movl 4   
+75 [0x4b]:           movn #2   
+77 [0x4d]:           smovr_3 fp+5   
+78 [0x4e]: line: 114 movl 5   
+79 [0x4f]:           pushobj   
+80 [0x50]:           movl 0   
+81 [0x51]:           movn #0   
+83 [0x53]:           pushobj   
+84 [0x54]:           loadl ebx, fp+2   
+85 [0x55]:           popobj2    
+86 [0x56]:           movr adx, ebx   
+87 [0x57]:           chklen adx   
+88 [0x58]:           movnd adx   
+89 [0x59]:           popobj   
+90 [0x5a]:           jmp @104   
+91 [0x5b]: line: 116 movl 4   
+92 [0x5c]:           movn #2   
+94 [0x5e]:           smovr_3 fp+6   
+95 [0x5f]: line: 117 movl 6   
+96 [0x60]:           pushobj   
+97 [0x61]:           movl 3   
+98 [0x62]:           movn #2   
+100 [0x64]:           popobj   
+101 [0x65]: line: 118 pushnull    
+102 [0x66]:           popobj2    
+103 [0x67]:           smovr_3 fp+4   
+104 [0x68]:           nop   
+105 [0x69]: line: 121 movl 0   
+106 [0x6a]:           _ulck   
+107 [0x6b]:           movi #1, ebx   
+109 [0x6d]:           return_val ebx   
+110 [0x6e]:           ret   
+111 [0x6f]:           nop   
+112 [0x70]:           nop   
+113 [0x71]: line: 125 movl 0   
+114 [0x72]:           _ulck   
+115 [0x73]:           movi #0, ebx   
+117 [0x75]:           return_val ebx   
+118 [0x76]:           ret   
+119 [0x77]:           movl 0   
+120 [0x78]:           _ulck   
 
 
 constructor: std#hashmap<std#int,std.io#thread>.hashmap[3062] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashmap.sharp:10:19: note:  
@@ -74681,18 +74737,18 @@ function: std.reflect#reflect.get_reflect_obj[3175] params(0) in file: C:\Users\
 4 [0x4]:         ret   
 
 
-constructor: std.io.task#entry<std.io#thread,std.io.task#job_controller>.entry[3176] params(2) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashmap.sharp:126:21: note:  
+constructor: std.io.task#entry<std.io#thread,std.io.task#job_controller>.entry[3176] params(2) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashtable.sharp:134:21: note:  
 		        public entry(key: k, value: v) {
 		                    ^
 
 0 [0x0]:         pushl 0   
 1 [0x1]:         call @1922 // <std#_object_._object_>   
-2 [0x2]: line: 127 movl 1   
+2 [0x2]: line: 135 movl 1   
 3 [0x3]:           pushobj   
 4 [0x4]:           movl 0   
 5 [0x5]:           movn #0   
 7 [0x7]:           popobj   
-8 [0x8]: line: 128 movl 2   
+8 [0x8]: line: 136 movl 2   
 9 [0x9]:           pushobj   
 10 [0xa]:           movl 0   
 11 [0xb]:           movn #1   
@@ -74700,11 +74756,11 @@ constructor: std.io.task#entry<std.io#thread,std.io.task#job_controller>.entry[3
 14 [0xe]:           ret   
 
 
-function: std.io.task#entry<std.io#thread,std.io.task#job_controller>.to_string[3177] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashmap.sharp:131:19: note:  
+function: std.io.task#entry<std.io#thread,std.io.task#job_controller>.to_string[3177] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashtable.sharp:139:19: note:  
 		        public def to_string() : string {
 		                  ^
 
-0 [0x0]: line: 132 new_class @65 // std#string   
+0 [0x0]: line: 140 new_class @65 // std#string   
 1 [0x1]:           dup    
 2 [0x2]:           newstr @96 // key    
 3 [0x3]:           call @2917 // <std#string.string>   
@@ -74723,7 +74779,7 @@ function: std.io.task#entry<std.io#thread,std.io.task#job_controller>.to_string[
 18 [0x12]:           ret   
 
 
-constructor: std.io.task#entry<std.io#thread,std.io.task#job_controller>.entry[3178] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashmap.sharp:121:10: note:  
+constructor: std.io.task#entry<std.io#thread,std.io.task#job_controller>.entry[3178] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/hashtable.sharp:129:10: note:  
 		    class entry<k, v> {
 		         ^
 
@@ -75411,11 +75467,11 @@ lambda: app#__srt_global.anon_func$3198[3198] params(1) in file: tests/syntax.sh
 29 [0x1d]:          ret   
 
 
-lambda: std.io.task#__srt_global.anon_func$3199[3199] params(2) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job_master.sharp:67:35: note:  
+lambda: std.io.task#__srt_global.anon_func$3199[3199] params(2) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\Sharp\lib\support\0.2.805/io//task//job_master.sharp:71:35: note:  
 				job_queue.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
 		                                  ^
 
-0 [0x0]: line: 67 movl 0   
+0 [0x0]: line: 71 movl 0   
 1 [0x1]:          movn #15   
 3 [0x3]:          movi #0, adx   
 5 [0x5]:          chklen adx   
@@ -75481,32 +75537,37 @@ lambda: std.io.task#__srt_global.anon_func$3202[3202] params(1) in file: C:\User
 		        pool.find({ t ->
 		                  ^
 
-0 [0x0]: line: 117 movg @21 // @std.io.task#__srt_global   
-1 [0x1]:           movn #3   
-3 [0x3]:           pushobj   
-4 [0x4]:           movl 0   
+0 [0x0]: line: 117 movl 0   
+1 [0x1]:           pushobj   
+2 [0x2]:           movg @21 // @std.io.task#__srt_global   
+3 [0x3]:           movn #2   
 5 [0x5]:           pushobj   
-6 [0x6]:           call @1806 // <std.io.task#job_master.get_host_controller>   
-7 [0x7]:           popobj2    
-8 [0x8]:           smovr_3 fp+1   
-9 [0x9]: line: 118 movl 0   
-10 [0xa]:           pushobj   
-11 [0xb]:           call @1860 // <std.io#thread.is_active>   
-12 [0xc]:           loadval ebx   
-13 [0xd]:           not ebx, ebx   
-14 [0xe]:           skpe ebx // pc = 27   
-15 [0xf]:           movl 1   
+6 [0x6]:           call @1863 // <std.io#thread.operator==>   
+7 [0x7]:           loadval ebx   
+8 [0x8]:           movr cmt, ebx   
+9 [0x9]:           jne 14   
+10 [0xa]:           movi #0, ebx   
+12 [0xc]:           return_val ebx   
+13 [0xd]:           ret   
+14 [0xe]:           nop   
+15 [0xf]: line: 119 movl 0   
 16 [0x10]:           pushobj   
-17 [0x11]:           pushnull    
-18 [0x12]:           itest ebx   
+17 [0x11]:           call @1860 // <std.io#thread.is_active>   
+18 [0x12]:           loadval ebx   
 19 [0x13]:           not ebx, ebx   
-20 [0x14]:           skne ebx // pc = 27   
-21 [0x15]:           movl 1   
-22 [0x16]:           movn #0   
+20 [0x14]:           skpe ebx // pc = 34   
+21 [0x15]:           movg @21 // @std.io.task#__srt_global   
+22 [0x16]:           movn #3   
 24 [0x18]:           pushobj   
-25 [0x19]:           pushnull    
-26 [0x1a]:           itest ebx   
-27 [0x1b]:           return_val ebx   
-28 [0x1c]:           ret   
+25 [0x19]:           movl 0   
+26 [0x1a]:           pushobj   
+27 [0x1b]:           call @1806 // <std.io.task#job_master.get_host_controller>   
+28 [0x1c]:           popobj2    
+29 [0x1d]:           movn #0   
+31 [0x1f]:           pushobj   
+32 [0x20]:           pushnull    
+33 [0x21]:           itest ebx   
+34 [0x22]:           return_val ebx   
+35 [0x23]:           ret   
 
 

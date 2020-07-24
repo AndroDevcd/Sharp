@@ -7,12 +7,12 @@ class hashtable<k, v> {
     size : var;
 
     private static const default_capacity := 128;
-    public hashmap(initialCapacity: var) {
+    public hashtable(initialCapacity: var) {
         data = new entry<k,v>[initialCapacity];
         max_size = (sizeof(data) * threshold);
     }
 
-    public hashmap() {
+    public hashtable() {
         data = new entry<k,v>[default_capacity];
     }
 
@@ -72,28 +72,28 @@ class hashtable<k, v> {
     public def put(key: k, value: v) : var {
         lock (self) {
             index: var = hash(key);
-            if(data[index] == null) {
-                size++;
-                data[index] =  new entry<k,v>(key, value);
-            } else {
-                entry := data[index];
-                size++;
-                while(entry.next != null) {
-                    entry = entry.next;
-                }
+            prev : entry<k,v>;
+            entry := data[index];
 
-                if(entry.key == key) {
-                    entry.value = value;
-                    return false;
-                }
-                else {
-                    entry.next = new entry<k,v>(key, value);
-                    return true;
-                }
+            while (entry != null && entry.key != key) {
+                prev = entry;
+                entry = entry.next;
             }
 
-            if(size >= max_size)
-                resize();
+            if(entry == null) {
+                size++;
+                entry =  new entry<k,v>(key, value);
+                if(prev == null) {
+                    data[index] = entry;
+                } else {
+                    prev.next = entry;
+                }
+
+                return true;
+            } else {
+                entry.value = value;
+                return false;
+            }
         }
     }
 

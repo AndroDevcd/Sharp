@@ -272,6 +272,9 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 #endif
         }
     } catch (Exception &e) {
+        if(e.getThrowable().handlingClass == vm.OutOfMemoryExcept && thread->state == THREAD_CREATED) {
+            thread->state = THREAD_KILLED;
+        }
         sendSignal(thread->signal, tsig_except, 1);
     }
 

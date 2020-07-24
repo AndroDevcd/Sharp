@@ -114,8 +114,9 @@ private def get_host(long_running : var) : thread {
 
     host : thread =
         pool.find({ t ->
-            controller := launcher.get_host_controller(t);
-            return !t.is_active() || (controller != null && controller.scheduled_job == null);
+            if(t == scheduler) return false;
+
+            return !t.is_active() || launcher.get_host_controller(t).scheduled_job == null;
         });
 
     // can we creat a new host?

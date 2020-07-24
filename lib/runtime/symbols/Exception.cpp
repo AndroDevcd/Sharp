@@ -31,11 +31,13 @@ Exception::Exception(const std::string &__arg, bool native)
     pushException();
 }
 
+extern void printRegs();
 Exception::Exception(ClassObject* throwable, const std::string &__arg, bool native)
         :
         throwable(throwable, __arg, native),
         runtime_error(__arg)
 {
+    printRegs();
     pushException();
 }
 
