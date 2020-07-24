@@ -252,7 +252,6 @@ void*
 VirtualMachine::InterpreterThreadStart(void *arg) {
     Thread *thread = (Thread*)arg;
     thread_self = thread;
-    thread->state = THREAD_RUNNING;
     thread->stbase = (int64_t)&arg;
     thread->stfloor = thread->stbase - thread->stackSize;
 
@@ -261,6 +260,8 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 
     try {
         thread->setup();
+        thread->state = THREAD_RUNNING;
+
         /*
          * Call main method
          */

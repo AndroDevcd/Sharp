@@ -1370,13 +1370,14 @@ void Thread::setup() {
 #endif
 
     if(dataStack==NULL) {
-        dataStack = (StackElement*)__malloc(sizeof(StackElement) * stackLimit);
+        dataStack = (StackElement*)__calloc(stackLimit, sizeof(StackElement));
         GarbageCollector::self->addMemory(sizeof(StackElement) * stackLimit);
     }
     if(callStack==NULL) {
-        callStack = (Frame*)__malloc(sizeof(Frame) * stackLimit);
+        callStack = (Frame*)__calloc(stackLimit, sizeof(Frame));
         GarbageCollector::self->addMemory(sizeof(Frame) * stackLimit);
     }
+
     if(id != main_threadid){
         if(currentThread.object != nullptr
            && IS_CLASS(currentThread.object->info)) {
@@ -1384,11 +1385,6 @@ void Thread::setup() {
         }
         fp=&dataStack[vm.manifest.threadLocals];
         sp=(&dataStack[vm.manifest.threadLocals])-1;
-
-        for(unsigned long i = 0; i < stackLimit; i++) {
-            this->dataStack[i].object.object = NULL;
-            this->dataStack[i].var=0;
-        }
     } else {
         vm.state = VM_RUNNING;
         GarbageCollector::self->addMemory(sizeof(StackElement) * stackLimit);

@@ -8,7 +8,9 @@ public class job {
 
 	job(name : string) {
 		self->name = name;
-		id = guid++;
+		lock(launcher) {
+		    id = guid++;
+		}
 	}
 
 	protected def execute_async() : var {
@@ -106,6 +108,7 @@ public class job {
             } catch(e: error) {
 		        controller.scheduled_job.state = cancelled;
 		        launcher.cleanup_job(controller.scheduled_job);
+                controller.scheduled_job.next_task = null;
 			    controller.scheduled_job = null;
 		        throw e;
             }
@@ -132,6 +135,8 @@ public class job {
 
 		state = completed;
 		launcher.cleanup_job(self);
+        next_task = null;
+        host = null;
 	}
 
     def is_finished() := state == completed || state == cancelled;
