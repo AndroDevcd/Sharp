@@ -10,7 +10,8 @@ private scheduler : thread;
 
 protected def start_scheduler() {
     lock(launcher) {
-        calculate_max_threads();
+        if(short_term_threads == 0)
+            calculate_max_threads();
         scheduler = new thread("task_scheduler", scheduler_main, launcher.long_term_pool);
         scheduler.start(null);
 	}
@@ -116,7 +117,7 @@ private def get_host(long_running : var) : thread {
         pool.find({ t ->
             if(t == scheduler) return false;
 
-            return !t.is_active() || launcher.get_host_controller(t).scheduled_job == null;
+            return launcher.get_host_controller(t).scheduled_job == null;
         });
 
     // can we creat a new host?

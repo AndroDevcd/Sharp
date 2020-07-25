@@ -14,6 +14,7 @@ def send(str: string)
 
 times := 0;
 def main(args: string[]) : var {
+    set_thread_max(2);
     jb := task.builder()
         .long_term()
         .recurring(50, milliseconds) = { args: object[] ->
@@ -39,7 +40,7 @@ def main(args: string[]) : var {
                 };
         task.builder()
                 .long_term()
-                .recurring(450, milliseconds) = { args: object[] ->
+                .recurring(50, milliseconds) = { args: object[] ->
                     jb := args[0] as job;
                     for(i := 0; i < 1000; i++) {}
                 };

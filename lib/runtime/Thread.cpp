@@ -34,7 +34,6 @@ recursive_mutex Thread::threadsMonitor;
 thread_local double registers[12];
 
 void Thread::Startup() {
-    threads.~HashMap();
     threads.init(THREAD_MAP_SIZE);
 
     Thread* main = (Thread*)malloc(
