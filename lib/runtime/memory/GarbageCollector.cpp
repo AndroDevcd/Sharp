@@ -108,6 +108,16 @@ void GarbageCollector::initilize() {
     new (&self->mutex) std::recursive_mutex();
     self->_Mheap->init(0, _stype_none);
     self->tail = self->_Mheap; // set tail to self for later use
+    new (&self->heapSize) std::atomic<uInt>();
+    new (&self->managedBytes) std::atomic<uInt>();
+    new (&self->memoryLimit) std::atomic<uInt>();
+    new (&self->adultObjects) std::atomic<uInt>();
+    new (&self->youngObjects) std::atomic<uInt>();
+    new (&self->oldObjects) std::atomic<uInt>();
+    new (&self->yObjs) std::atomic<uInt>();
+    new (&self->aObjs) std::atomic<uInt>();
+    new (&self->oObjs) std::atomic<uInt>();
+
     self->heapSize = 0;
     self->managedBytes=0;
     self->memoryLimit = 0;
