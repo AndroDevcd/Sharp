@@ -29,10 +29,8 @@ class list<t> : loopable<t> {
     }
 
     def get_elements() : t[] {
-        lock(self) {
-            if(n_elements == 0) return null;
-            else return copy(data, 0, n_elements);
-        }
+        if(n_elements == 0) return null;
+        else return copy(data, 0, n_elements);
     }
 
     def operator[](index: var): t {
@@ -148,16 +146,14 @@ class list<t> : loopable<t> {
     }
 
     def remove_at(index: var) {
-        lock(self) {
-            if(index >= n_elements || index < 0)
-               throw new bounds_except(out_of_bounds_msg(index));
+        if(index >= n_elements || index < 0)
+           throw new bounds_except(out_of_bounds_msg(index));
 
-            num_moved := n_elements - index - 1;
-            if (num_moved > 0)
-                memcopy(data, data, index, index+1, n_elements);
+        num_moved := n_elements - index - 1;
+        if (num_moved > 0)
+            memcopy(data, data, index, index+1, n_elements);
 
-            pop_back();
-        }
+        pop_back();
     }
 
     def indexof(comparer: t, find_func: (t, t)(var)) : var {

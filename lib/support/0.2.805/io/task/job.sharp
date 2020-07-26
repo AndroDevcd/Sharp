@@ -108,7 +108,6 @@ public class job {
             } catch(e: error) {
 		        controller.scheduled_job.state = cancelled;
 		        launcher.cleanup_job(controller.scheduled_job);
-                controller.scheduled_job.next_task = null;
 			    controller.scheduled_job = null;
 		        throw e;
             }

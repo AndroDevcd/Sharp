@@ -41,6 +41,13 @@ void Optimizer::optimizeRedundantMovr() {
             case Opcode::MOVR: {
 
                 if(GET_OP(code.ir32.get(i + 1)) == Opcode::MOVR) {
+
+                    if(i - 1 > 0 && GET_OP(code.ir32.get(i - 1)) == Opcode::LT
+                       || GET_OP(code.ir32.get(i - 1)) == Opcode::GT
+                       || GET_OP(code.ir32.get(i - 1)) == Opcode::LTE
+                          || GET_OP(code.ir32.get(i - 1)) == Opcode::GTE) {
+                        continue;
+                    }
                     Int inReg, outReg;
                     outReg = GET_Ca(code.ir32.get(i));
                     inReg = GET_Cb(code.ir32.get(i));

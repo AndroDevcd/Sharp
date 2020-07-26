@@ -6800,7 +6800,9 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
 
     if(!returnVal.utype->isRelated(currentScope()->currentFunction->utype)
         && !(isUtypeClassConvertableToVar(currentScope()->currentFunction->utype, returnVal.utype))
-        && !(isUtypeConvertableToNativeClass(currentScope()->currentFunction->utype, returnVal.utype))) {
+        && !(isUtypeConvertableToNativeClass(currentScope()->currentFunction->utype, returnVal.utype))
+        && !(currentScope()->currentFunction->utype->getResolvedType()->type == OBJECT && !currentScope()->currentFunction->utype->isArray()
+             && returnVal.utype->getClass())) {
         errors->createNewError(GENERIC, ast->line, ast->col, "returning `" + returnVal.utype->toString() + "` from a function returning `"
                                                              + currentScope()->currentFunction->utype->toString() + "`.");
     }
@@ -7149,7 +7151,7 @@ ClassObject* Compiler::compileCatchClause(Ast *ast, TryCatchData &tryCatchData, 
         }
 
         if(handlingClass->getType() != utype_class) {
-            errors->createNewError(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` must be of type class");
+            errors->createNewError(GENERIC, ast->line, ast->col, "type assigned to field `" + name + "` must be of type class: `" + handlingClass->toString() + "`");
         }
 
         catchField = createLocalField(name, handlingClass, false, stl_stack, flags, currentScope()->scopeLevel+1, ast);
@@ -7165,7 +7167,7 @@ ClassObject* Compiler::compileCatchClause(Ast *ast, TryCatchData &tryCatchData, 
         }
 
         if(handlingClass->getType() != utype_class) {
-            errors->createNewError(GENERIC, ast->line, ast->col, "type `" + handlingClass->toString() + "` must be of type class");
+            errors->createNewError(GENERIC, ast->line, ast->col, "type `" + handlingClass->toString() + "` must be of type class: `" + handlingClass->toString() + "`");
         }
 
         if(handlingClass->getClass() != NULL)
@@ -7454,7 +7456,7 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
                     errors->createNewError(GENERIC, ast->line, ast->col, "class `" + klass->fullName + "` has already been caught.");
                 }
 
-                if(!klass->isClassRelated(throwable)) {
+                if(klass != NULL && !klass->isClassRelated(throwable)) {
                     errors->createNewError(GENERIC, ast->line, ast->col, "handling class `" + klass->fullName + "` must inherit base level exception class `std#throwable`");
                 }
 

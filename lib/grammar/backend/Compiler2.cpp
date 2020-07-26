@@ -841,6 +841,8 @@ void Compiler::resolveClassHeiarchy(DataEntity* data, bool fromClass, ReferenceP
 
     RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
     RETAIN_SCOPE_CLASS(fromClass ? (ClassObject*)data : currentScope()->klass)
+    if(!fromClass)
+        utype->getCode().inject(ptrInjector);
     for(unsigned int i = 1; i < ptr.classes.size(); i++) {
         lastReference = (i+1) >= ptr.classes.size();
 
