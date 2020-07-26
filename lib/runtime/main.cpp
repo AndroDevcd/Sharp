@@ -258,12 +258,12 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {
     ss << vm.manifest.target;
     native_string str(ss.str());
 
-    object->object = GarbageCollector::self->newObjectArray(size);
+    object->object = gc.newObjectArray(size);
     SET_GENERATION(object->object->info, gc_perm);
 
-    GarbageCollector::self->createStringArray(&object->object->node[iter++],vm.manifest.application);
-    GarbageCollector::self->createStringArray(&object->object->node[iter++],vm.manifest.version);
-    GarbageCollector::self->createStringArray(&object->object->node[iter++], str); /* target platform also the platform version */
+    gc.createStringArray(&object->object->node[iter++],vm.manifest.application);
+    gc.createStringArray(&object->object->node[iter++],vm.manifest.version);
+    gc.createStringArray(&object->object->node[iter++], str); /* target platform also the platform version */
 
 #ifdef WIN32_
     str.set("win");
@@ -271,8 +271,8 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {
 #ifdef POSIX_
     str.set("posix");
 #endif
-    GarbageCollector::self->createStringArray(&object->object->node[iter++], str); /* operating system currently running on */
-    SharpObject *mainThread = GarbageCollector::self->newObject(vm.ThreadClass);
+    gc.createStringArray(&object->object->node[iter++], str); /* operating system currently running on */
+    SharpObject *mainThread = gc.newObject(vm.ThreadClass);
     object->object->node[iter++] = mainThread;
 
     vm.setFieldVar("native_handle", mainThread, 0, 0);
@@ -281,7 +281,7 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {
     Object* field;
     if((field = vm.resolveField("name", mainThread)) != NULL && field->object) {
         str.set("main");
-        GarbageCollector::self->createStringArray(vm.resolveField("data", field->object), str);
+        gc.createStringArray(vm.resolveField("data", field->object), str);
     }
 
     vm.setFieldVar("started", mainThread, 0, 1);
@@ -292,7 +292,7 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {
      */
     for(unsigned int i = 0; i < appArgs.size(); i++) {
         runtime::String argStr(*std::next(appArgs.begin(), i));
-        GarbageCollector::self->createStringArray(&object->object->node[iter++],  argStr);
+        gc.createStringArray(&object->object->node[iter++],  argStr);
     }
 
     appArgs.clear();

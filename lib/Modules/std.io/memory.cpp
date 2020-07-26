@@ -21,7 +21,7 @@ void copy() {
         }
 
         if(TYPE(oldArray->info) == _stype_var) { // var[]
-            *arry = GarbageCollector::self->newObject(copyLen);
+            *arry = gc.newObject(copyLen);
 
             INC_REF(oldArray)
             for (Int i = start; i < end; i++) {
@@ -31,9 +31,9 @@ void copy() {
         } else if(TYPE(oldArray->info) == _stype_struct) { // object? maybe...
             if(oldArray->node != NULL) {
                 if(IS_CLASS(oldArray->info)) {
-                    *arry = GarbageCollector::self->newObjectArray(copyLen, &vm.classes[CLASS(oldArray->info)]);
+                    *arry = gc.newObjectArray(copyLen, &vm.classes[CLASS(oldArray->info)]);
                 } else
-                    *arry = GarbageCollector::self->newObject(copyLen);
+                    *arry = gc.newObject(copyLen);
 
                 INC_REF(oldArray)
                 for (Int i = start; i < end; i++) {
@@ -113,7 +113,7 @@ void invert() {
         if(oldArray->size <= 1) return;
 
         if(TYPE(oldArray->info) == _stype_var) { // var[]
-            *arry = GarbageCollector::self->newObject(len);
+            *arry = gc.newObject(len);
             Int iter = 0;
             for (Int i = (start + len) - 1; i >= start; i--) {
                 arry->object->HEAD[iter++] = oldArray->HEAD[i];
@@ -121,9 +121,9 @@ void invert() {
         } else if(TYPE(oldArray->info) == _stype_struct) { // object? maybe...
             if(oldArray->node != NULL) {
                 if(IS_CLASS(oldArray->info)) {
-                    *arry = GarbageCollector::self->newObjectArray(len, &vm.classes[CLASS(oldArray->info)]);
+                    *arry = gc.newObjectArray(len, &vm.classes[CLASS(oldArray->info)]);
                 } else
-                    *arry = GarbageCollector::self->newObject(len);
+                    *arry = gc.newObject(len);
 
                 for (Int i = (start + len) - 1; i >= start; i--) {
                     arry->object->node[i] = oldArray->node[i];

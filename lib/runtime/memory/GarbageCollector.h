@@ -35,6 +35,15 @@ enum CollectionGeneration
     gc_perm  = 3
 };
 
+enum GCState 
+{
+    CREATED,
+    RUNNING,
+    SLEEPING,
+    KILLED,
+    SHUTDOWN
+};
+
 struct Object;
 struct SharpObject;
 class ClassObject;
@@ -56,10 +65,41 @@ struct mutex_t
 };
 
 #define heap (_Mheap)
+class GarbageCollector;
+extern GarbageCollector gc;
 
 class GarbageCollector {
 public:
-    static GarbageCollector *self;
+    GarbageCollector() 
+    :
+        state(CREATED),
+        mutex(),
+        tself(NULL),
+        messageQueue(),
+        yObjs(0),
+        aObjs(0),
+        oObjs(0),
+        managedBytes(0),
+        memoryLimit(0),
+        memoryThreshold(0),
+        youngObjects(0),
+        adultObjects(0),
+        oldObjects(0),
+#ifdef SHARP_PROF_
+        x(),
+        largestCollectionTime(),
+        collections(),
+        timeSpentCollecting(),
+        timeSlept(),
+#endif
+        locks(),
+        _Mheap(NULL),
+        tail(NULL),
+        heapSize(0)
+    {
+    }
+    
+    GCState state;
     recursive_mutex mutex;
     Thread *tself;
     _List<CollectionPolicy> messageQueue;
@@ -78,15 +118,19 @@ public:
     void run();
 
     static void setMemoryLimit(uInt limit) {
-        if(self != NULL) {
-            self->memoryLimit = limit;
+        if(gc.state >= RUNNING) {
+            gc.memoryLimit = limit;
         }
     }
 
     static void setMemoryThreshold(uInt limit) {
-        if(self != NULL) {
-            self->memoryThreshold = limit;
+        if(gc.state >= RUNNING) {
+            gc.memoryThreshold = limit;
         }
+    }
+
+    bool isShutdown() {
+        return state == SHUTDOWN;
     }
 
     /**
@@ -210,7 +254,6 @@ private:
     std::atomic<uInt> managedBytes;
     std::atomic<uInt> memoryLimit;
     std::atomic<uInt> memoryThreshold;
-    bool isShutdown;
 
     /**
      * This will keep track of our different generations and the
@@ -239,7 +282,6 @@ private:
     _List<mutex_t*> locks;
     SharpObject* _Mheap, *tail;
     std::atomic<uInt> heapSize;
-    bool sleep;
 
     void collectGarbage();
 

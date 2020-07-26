@@ -630,7 +630,7 @@ void Thread::exit() {
     }
 
     if(dataStack != NULL) {
-        GarbageCollector::self->freeMemory(sizeof(StackElement) * stackLimit);
+        gc.freeMemory(sizeof(StackElement) * stackLimit);
         StackElement *p = dataStack;
         for(size_t i = 0; i < stackLimit; i++)
         {
@@ -645,7 +645,7 @@ void Thread::exit() {
 
     if(callStack) {
         free(this->callStack); callStack = NULL;
-        GarbageCollector::self->freeMemory(sizeof(Frame) * stackLimit);
+        gc.freeMemory(sizeof(Frame) * stackLimit);
     }
 
     releaseResources();
@@ -655,7 +655,7 @@ void Thread::exit() {
 }
 
 void Thread::releaseResources() {
-    GarbageCollector::self->reconcileLocks(this);
+    gc.reconcileLocks(this);
 }
 
 int Thread::startDaemon(
@@ -862,7 +862,7 @@ void Thread::exec() {
             NEWARRAY: // tested
                 STACK_CHECK
                 (++sp)->object =
-                        GarbageCollector::self->newObject(registers[GET_Da(*pc)]);
+                        gc.newObject(registers[GET_Da(*pc)]);
                 _brh
             CAST:
                 CHECK_NULL(ptr->castObject(registers[GET_Da(*pc)]);)
@@ -1030,7 +1030,7 @@ void Thread::exec() {
                 (++sp)->object = ptr;
                 _brh
             DEL:
-                GarbageCollector::self->releaseObject(ptr);
+                gc.releaseObject(ptr);
                 _brh
             CALL:
 #ifdef SHARP_PROF_
@@ -1062,7 +1062,7 @@ void Thread::exec() {
             NEWCLASS:
                 STACK_CHECK
                 (++sp)->object =
-                        GarbageCollector::self->newObject(&vm.classes[GET_Da(*pc)]);
+                        gc.newObject(&vm.classes[GET_Da(*pc)]);
                 _brh
             MOVN:
                 CHECK_NULLOBJ(
@@ -1094,7 +1094,7 @@ void Thread::exec() {
                 CHECK_NULLOBJ(ptr = &ptr->object->node[(Int)registers[GET_Da(*pc)]];)
                 _brh
             NEWOBJARRAY:
-                (++sp)->object = GarbageCollector::self->newObjectArray(registers[GET_Da(*pc)]);
+                (++sp)->object = gc.newObjectArray(registers[GET_Da(*pc)]);
                 STACK_CHECK _brh
             NOT:
                 registers[GET_Ca(*pc)]=!registers[GET_Cb(*pc)];
@@ -1152,12 +1152,12 @@ void Thread::exec() {
                 _brh
             NEWCLASSARRAY:
                 STACK_CHECK
-                (++sp)->object = GarbageCollector::self->newObjectArray(
+                (++sp)->object = gc.newObjectArray(
                         registers[GET_Ca(*pc)], &vm.classes[GET_Cb(*pc)]);
                 _brh
             NEWSTRING:
                 STACK_CHECK
-                GarbageCollector::self->createStringArray(&(++sp)->object,
+                gc.createStringArray(&(++sp)->object,
                         vm.strings[GET_Da(*pc)]);
                  _brh
             ADDL:
@@ -1247,7 +1247,7 @@ void Thread::exec() {
                 _brh_inc(2)
             PUSHNULL:
                 STACK_CHECK
-                GarbageCollector::self->releaseObject(&(++sp)->object);
+                gc.releaseObject(&(++sp)->object);
                 _brh
             IPUSHL:
                 STACK_CHECK
@@ -1370,23 +1370,23 @@ void Thread::setup() {
 
     if(dataStack==NULL) {
         dataStack = (StackElement*)__calloc(stackLimit, sizeof(StackElement));
-        GarbageCollector::self->addMemory(sizeof(StackElement) * stackLimit);
+        gc.addMemory(sizeof(StackElement) * stackLimit);
     }
     if(callStack==NULL) {
         callStack = (Frame*)__calloc(stackLimit, sizeof(Frame));
-        GarbageCollector::self->addMemory(sizeof(Frame) * stackLimit);
+        gc.addMemory(sizeof(Frame) * stackLimit);
     }
 
     if(id != main_threadid){
         if(currentThread.object != nullptr
            && IS_CLASS(currentThread.object->info)) {
-            GarbageCollector::self->createStringArray(vm.resolveField("name", currentThread.object), name);
+            gc.createStringArray(vm.resolveField("name", currentThread.object), name);
         }
         fp=&dataStack[vm.manifest.threadLocals];
         sp=(&dataStack[vm.manifest.threadLocals])-1;
     } else {
         vm.state = VM_RUNNING;
-        GarbageCollector::self->addMemory(sizeof(StackElement) * stackLimit);
+        gc.addMemory(sizeof(StackElement) * stackLimit);
         setupSigHandler();
     }
 }

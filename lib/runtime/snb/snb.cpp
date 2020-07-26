@@ -108,7 +108,7 @@ object getspObjAt(int32_t spOffset) {
 
 object newVarArray(int32_t size) {
     (thread_self->sp+1)->object =
-            GarbageCollector::self->newObject(size);
+            gc.newObject(size);
     return &(thread_self->sp+1)->object;
 }
 
@@ -116,7 +116,7 @@ object newClass(const string& name) {
     ClassObject *klass = vm.resolveClass(name);
     if(klass) {
         (thread_self->sp+1)->object =
-                GarbageCollector::self->newObject(klass);
+                gc.newObject(klass);
         return &(thread_self->sp+1)->object;
     }
 
@@ -125,7 +125,7 @@ object newClass(const string& name) {
 
 object newObjArray(int32_t size) {
     (thread_self->sp+1)->object =
-            GarbageCollector::self->newObjectArray(size);
+            gc.newObjectArray(size);
     return &(thread_self->sp+1)->object;
 }
 
@@ -133,7 +133,7 @@ object newClassArray(const string &name, int32_t size) {
     ClassObject *klass = vm.resolveClass(name);
     if(klass) {
         (thread_self->sp+1)->object =
-                GarbageCollector::self->newObjectArray(size, klass);
+                gc.newObjectArray(size, klass);
         return &(thread_self->sp+1)->object;
     }
 

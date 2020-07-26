@@ -62,7 +62,7 @@ void Exception::pushException() {
             vm.fillStackTrace(str);
             Object *stackTrace = vm.resolveField("stack_trace", vm.outOfMemoryExcept.object);
             if(stackTrace) {
-                *stackTrace = GarbageCollector::self->newObjectUnsafe(str.len);
+                *stackTrace = gc.newObjectUnsafe(str.len);
 
                 if(stackTrace->object) {
                     for (Int i = 0; i < str.len; i++) {
@@ -75,9 +75,9 @@ void Exception::pushException() {
         }
 
         thread->exceptionObject
-                = GarbageCollector::self->newObject(throwable.handlingClass);
+                = gc.newObject(throwable.handlingClass);
 
-        GarbageCollector::self->createStringArray(
+        gc.createStringArray(
                 vm.resolveField("message", thread->exceptionObject.object),
                    throwable.message);
         vm.getFrameInfo(vm.resolveField("frame_info", thread->exceptionObject.object));

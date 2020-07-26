@@ -33,7 +33,6 @@ struct SharpObject
         next=NULL;
         this->size=size;
         SET_INFO(info, 0, type, generation); /* generation young */
-        new (&refCount) std::atomic<uint32_t>();
         refCount=0;
     }
     void init(uInt size, ClassObject* k, CollectionGeneration generation = gc_young)
@@ -42,7 +41,6 @@ struct SharpObject
         HEAD=NULL;
         next=NULL;
         this->size=size;
-        new (&refCount) std::atomic<uint32_t>();
         refCount=0;
         SET_INFO(info, k->address, _stype_struct, generation); /* generation young */
         SET_CLASS_BIT(info, 1);
@@ -87,13 +85,13 @@ struct SharpObject
         if(obj->refCount <= 0) { \
             switch(GENERATION((obj)->info)) { \
                 case gc_young: \
-                    GarbageCollector::self->yObjs++; \
+                    gc.yObjs++; \
                     break; \
                 case gc_adult: \
-                    GarbageCollector::self->aObjs++; \
+                    gc.aObjs++; \
                     break; \
                 case gc_old: \
-                    GarbageCollector::self->oObjs++; \
+                    gc.oObjs++; \
                     break; \
             } \
         }\
@@ -112,11 +110,11 @@ struct Object {
     SharpObject* object;
 
     static void monitorLock(Object *o, Thread *t) {
-        GarbageCollector::self->lock(o ? o->object : NULL, t);
+        gc.lock(o ? o->object : NULL, t);
     }
 
     static void monitorUnLock(Object *o, Thread *t) {
-        GarbageCollector::self->unlock(o ? o->object : NULL, t);
+        gc.unlock(o ? o->object : NULL, t);
     }
 
     CXX11_INLINE void operator=(Object &o) {

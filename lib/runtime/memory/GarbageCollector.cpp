@@ -16,7 +16,7 @@
 #include <algorithm>
 
 uInt hbytes = 0;
-GarbageCollector *GarbageCollector::self = nullptr;
+GarbageCollector gc;
 
 const Int MEMORY_POOL_SAMPLE_SIZE = 10;
 const Int MAX_DOWNGRADE_ATTEMPTS = 3;
@@ -26,20 +26,20 @@ Int samplesReceived =0, downgradeAttempts = 0;
 void* __malloc(uInt bytes)
 {
     void* ptr =nullptr;
-    bool gc=false;
+    bool tried=false;
     alloc_bytes:
-    if(GarbageCollector::self != nullptr && !GarbageCollector::self->spaceAvailable(bytes))
+    if(gc.state >= RUNNING && !gc.spaceAvailable(bytes))
         goto lowmem;
     ptr=malloc(bytes);
 
-    if(GarbageCollector::self != nullptr && ptr == nullptr) {
-        if(gc) {
+    if(gc.state >= RUNNING && ptr == nullptr) {
+        if(tried) {
             lowmem:
             throw Exception(vm.OutOfMemoryExcept, "out of memory");
         } else {
-            gc=true;
-            if(vm.state == VM_RUNNING && GarbageCollector::self != nullptr) {
-                GarbageCollector::self->collect(GC_LOW);
+            tried=true;
+            if(vm.state == VM_RUNNING && gc.state >= RUNNING) {
+                gc.collect(GC_LOW);
                 goto alloc_bytes;
             } else
                 throw Exception(vm.OutOfMemoryExcept, "out of memory");
@@ -51,20 +51,20 @@ void* __malloc(uInt bytes)
 void* __calloc(uInt n, uInt bytes)
 {
     void* ptr =nullptr;
-    bool gc=false;
+    bool tried=false;
     alloc_bytes:
-    if(GarbageCollector::self != nullptr && !GarbageCollector::self->spaceAvailable(n*bytes))
+    if(gc.state >= RUNNING && !gc.spaceAvailable(n*bytes))
         goto lowmem;
     ptr=calloc(n, bytes);
 
     if(ptr == nullptr) {
-        if(gc) {
+        if(tried) {
             lowmem:
             throw Exception(vm.OutOfMemoryExcept, "out of memory");
         } else {
-            gc=true;
-            if(vm.state == VM_RUNNING && GarbageCollector::self != nullptr) {
-                GarbageCollector::self->collect(GC_LOW);
+            tried=true;
+            if(vm.state == VM_RUNNING && gc.state >= RUNNING) {
+                gc.collect(GC_LOW);
                 goto alloc_bytes;
             } else
                 throw Exception(vm.OutOfMemoryExcept, "out of memory");
@@ -76,20 +76,20 @@ void* __calloc(uInt n, uInt bytes)
 void* __realloc(void *ptr, uInt bytes, uInt old)
 {
     void* rmap =nullptr;
-    bool gc=false;
+    bool tried=false;
     alloc_bytes:
-    if(GarbageCollector::self != nullptr && !GarbageCollector::self->spaceAvailable(bytes-old))
+    if(gc.state >= RUNNING && !gc.spaceAvailable(bytes-old))
         goto lowmem;
     rmap=realloc(ptr, bytes);
 
     if(rmap == nullptr) {
-        if(gc) {
+        if(tried) {
             lowmem:
             throw Exception(vm.OutOfMemoryExcept, "out of memory");
         } else {
-            gc=true;
-            if(vm.state == VM_RUNNING && GarbageCollector::self != nullptr) {
-                GarbageCollector::self->collect(GC_LOW);
+            tried=true;
+            if(vm.state == VM_RUNNING && gc.state >= RUNNING) {
+                gc.collect(GC_LOW);
                 goto alloc_bytes;
             } else
                 throw Exception(vm.OutOfMemoryExcept, "out of memory");
@@ -100,45 +100,10 @@ void* __realloc(void *ptr, uInt bytes, uInt old)
 }
 
 void GarbageCollector::initilize() {
-    self=(GarbageCollector*)malloc(sizeof(GarbageCollector));
-
-    self->_Mheap = (SharpObject*)malloc(sizeof(SharpObject)); // HEAD
-    if(self->_Mheap==NULL)
-        throw Exception(vm.OutOfMemoryExcept, "out of memory");
-    new (&self->mutex) std::recursive_mutex();
-    self->_Mheap->init(0, _stype_none);
-    self->tail = self->_Mheap; // set tail to self for later use
-    new (&self->heapSize) std::atomic<uInt>();
-    new (&self->managedBytes) std::atomic<uInt>();
-    new (&self->memoryLimit) std::atomic<uInt>();
-    new (&self->adultObjects) std::atomic<uInt>();
-    new (&self->youngObjects) std::atomic<uInt>();
-    new (&self->oldObjects) std::atomic<uInt>();
-    new (&self->yObjs) std::atomic<uInt>();
-    new (&self->aObjs) std::atomic<uInt>();
-    new (&self->oObjs) std::atomic<uInt>();
-
-    self->heapSize = 0;
-    self->managedBytes=0;
-    self->memoryLimit = 0;
-    self->adultObjects=0;
-    self->youngObjects=0;
-    self->oldObjects=0;
-    self->yObjs=0;
-    self->sleep=false;
-
-#ifdef SHARP_PROF_
-    self->x = 0;
-    self->largestCollectionTime=0;
-    self->collections=0;
-    self->timeSpentCollecting=0;
-    self->timeSlept=0;
-#endif
-    self->aObjs=0;
-    self->oObjs=0;
-    self->isShutdown=false;
-    self->messageQueue.init();
-    self->locks.init();
+    gc._Mheap = (SharpObject*)__malloc(sizeof(SharpObject)); // HEAD
+    if(gc._Mheap == NULL) throw Exception("out of memory");
+    gc._Mheap->init(0, _stype_none);
+    gc.tail = gc._Mheap; // set tail to self for later use
 }
 
 void GarbageCollector::releaseObject(Object *object) {
@@ -161,25 +126,23 @@ void GarbageCollector::releaseObject(Object *object) {
 }
 
 void GarbageCollector::shutdown() {
-    if(self != nullptr) {
-        self->isShutdown=true;
+    if(gc.state != SHUTDOWN) {
+        gc.state=SHUTDOWN;
 #ifdef SHARP_PROF_
         cout << "\nsize of object: " << sizeof(SharpObject) << endl;
         cout << "highest memory calculated: " << hbytes << endl;
-        cout << "Objects Collected " << self->x << endl;
-        cout << "Total managed bytes left " << self->managedBytes << endl;
-        cout << "Objects left over young: " << self->youngObjects << " adult: " << self->adultObjects
-                                          << " old: " << self->oldObjects << endl;
-        cout << "largest collection " << self->largestCollectionTime << endl;
-        cout << "total collections " << self->collections << endl;
-        cout << "total time spent collecting " << self->timeSpentCollecting << endl;
-        cout << "total time spent sleeping " << self->timeSlept << endl;
-        cout << "heap size: " << self->heapSize << endl;
+        cout << "Objects Collected " << gc.x << endl;
+        cout << "Total managed bytes left " << gc.managedBytes << endl;
+        cout << "Objects left over young: " << gc.youngObjects << " adult: " << gc.adultObjects
+                                          << " old: " << gc.oldObjects << endl;
+        cout << "largest collection " << gc.largestCollectionTime << endl;
+        cout << "total collections " << gc.collections << endl;
+        cout << "total time spent collecting " << gc.timeSpentCollecting << endl;
+        cout << "total time spent sleeping " << gc.timeSlept << endl;
+        cout << "heap size: " << gc.heapSize << endl;
         cout << std::flush << endl;
 #endif
-        self->locks.free();
-        // im no longer freeing memory due to multiple memory references on objects when clearing
-        std::free(self); self = nullptr;
+        gc.locks.free();
     }
 }
 
@@ -192,7 +155,7 @@ void GarbageCollector::startup() {
 }
 
 void GarbageCollector::collect(CollectionPolicy policy) {
-    if(isShutdown)
+    if(isShutdown())
         return;
 
     if(policy == GC_LOW) {
@@ -262,7 +225,7 @@ void GarbageCollector::updateMemoryThreshold() {
 void GarbageCollector::collectGarbage() {
     mutex.lock();
     yObjs = 0; aObjs = 0; oObjs = 0;
-    SharpObject *object = self->_Mheap->next, *prevObj = self->_Mheap, *cachedTail = NULL;
+    SharpObject *object = gc._Mheap->next, *prevObj = gc._Mheap, *cachedTail = NULL;
     cachedTail = tail;
 #ifdef SHARP_PROF_
     uInt past = Clock::realTimeInNSecs();
@@ -358,7 +321,7 @@ void GarbageCollector::run() {
 #ifdef POSIX_
             usleep(15*999);
 #endif
-            if(sleep) sedateSelf();
+            if(state==SLEEPING) sedateSelf();
             if(!messageQueue.empty()) goto message;
         } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()))
                 && !tself->signal);
@@ -385,11 +348,11 @@ void*
 GarbageCollector::threadStart(void *pVoid) {
     thread_self =(Thread*)pVoid;
     thread_self->state = THREAD_RUNNING;
-    self->tself = thread_self;
+    gc.tself = thread_self;
     Thread::setPriority(thread_self, THREAD_PRIORITY_LOW);
 
     try {
-        self->run();
+        gc.run();
     } catch(Exception &e){
         /* Should never happen */
         sendSignal(thread_self->signal, tsig_except, 1);
@@ -486,7 +449,8 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
     if(size<=0)
         return nullptr;
     
-    SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject));
+    SharpObject *object = (SharpObject*)__malloc(sizeof(struct SharpObject));
+    new (object) SharpObject();
     object->init(size, _stype_var);
 
     object->HEAD = (double*)__calloc(size, sizeof(double));
@@ -506,7 +470,8 @@ SharpObject *GarbageCollector::newObjectUnsafe(int64_t size) {
     if(size<=0)
         return nullptr;
 
-    SharpObject *object = (SharpObject*)malloc(sizeof(SharpObject));
+    SharpObject *object = (SharpObject*)malloc(sizeof(struct SharpObject));
+    new (object) SharpObject();
     if(object != NULL) {
         object->init(size, _stype_var);
 
@@ -516,7 +481,7 @@ SharpObject *GarbageCollector::newObjectUnsafe(int64_t size) {
 
             /* track the allocation amount */
             GUARD(mutex);
-            managedBytes += (sizeof(SharpObject) * 1) + (sizeof(double) * size);
+            managedBytes += (sizeof(struct SharpObject) * 1) + (sizeof(double) * size);
             PUSH(object);
             youngObjects++;
             heapSize++;
@@ -531,12 +496,13 @@ SharpObject *GarbageCollector::newObjectUnsafe(int64_t size) {
 
 SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
     if(k != nullptr) {
-        SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject));
+        SharpObject *object = (SharpObject*)__malloc(sizeof(struct SharpObject));
+        new (object) SharpObject();
         uint32_t size = staticInit ? k->staticFields : k->instanceFields;
 
         object->init(size, k);
         if(size > 0) {
-            object->node = (Object*)__calloc(size, sizeof(Object));
+            object->node = (Object*)__calloc(size, sizeof(struct Object));
             uInt fieldAddress =  staticInit ? k->instanceFields : 0;
 
             for(unsigned int i = 0; i < object->size; i++) {
@@ -556,7 +522,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
         }
 
         GUARD(mutex);
-        managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
+        managedBytes += (sizeof(struct SharpObject)*1)+(sizeof(struct Object)*size);
         PUSH(object);
         youngObjects++;
         heapSize++;
@@ -570,13 +536,15 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size) {
     if(size<=0)
         return nullptr;
     
-    SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject));
+    SharpObject *object = (SharpObject*)__malloc(sizeof(struct SharpObject));
+    new (object) SharpObject();
+
     object->init(size, _stype_struct);
-    object->node = (Object*)__calloc(size, sizeof(Object)*1);
+    object->node = (Object*)__calloc(size, sizeof(struct Object)*1);
     
     /* track the allocation amount */
     GUARD(mutex);
-    managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
+    managedBytes += (sizeof(struct SharpObject)*1)+(sizeof(struct Object)*size);
     PUSH(object);
     youngObjects++;
     heapSize++;
@@ -587,15 +555,16 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size) {
 SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
     if(k != nullptr && size > 0) {
         
-        SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
+        SharpObject *object = (SharpObject*)__malloc(sizeof(struct SharpObject)*1);
+        new (object) SharpObject();
         object->init(size, k);
 
         if(size > 0)
-            object->node = (Object*)__calloc(size, sizeof(Object));
+            object->node = (Object*)__calloc(size, sizeof(struct Object));
 
         /* track the allocation amount */
         GUARD(mutex);
-        managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
+        managedBytes += (sizeof(struct SharpObject)*1)+(sizeof(struct Object)*size);
         PUSH(object);
         youngObjects++;
         heapSize++;
@@ -651,8 +620,11 @@ void GarbageCollector::realloc(SharpObject *o, size_t sz) {
         else
             managedBytes += (sizeof(double)*(sz-o->size));
 
-        if(sz > o->size)
-            std::memset(o->HEAD+o->size, 0, sizeof(double)*(sz-o->size));
+        if(sz > o->size) {
+            for(Int i = o->size; i < sz; i++) {
+                o->HEAD[i] = 0;
+            }
+        }
         o->size = sz;
     }
 }
@@ -667,16 +639,20 @@ void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
             }
         }
 
-        o->node = (Object*)__realloc(o->node, sizeof(Object)*sz, sizeof(Object)*o->size);
+        o->node = (Object*)__realloc(o->node, sizeof(struct Object)*sz, sizeof(struct Object)*o->size);
         GUARD(mutex);
         if(sz < o->size)
-            managedBytes -= (sizeof(Object)*(o->size-sz));
+            managedBytes -= (sizeof(struct Object)*(o->size-sz));
         else
-            managedBytes += (sizeof(Object)*(sz-o->size));
+            managedBytes += (sizeof(struct Object)*(sz-o->size));
 
 
-        if(sz > o->size)
-            std::memset(o->node+o->size, 0, sizeof(Object)*(sz-o->size));
+        if(sz > o->size) {
+            for(Int i = o->size; i < sz; i++) {
+                o->node[i].object = NULL;
+            }
+        }
+
         o->size = sz;
     }
 }
@@ -694,9 +670,9 @@ void GarbageCollector::kill() {
 
 void GarbageCollector::sedateSelf() {
     Thread* self = thread_self;
-    self->suspended = true;
-    self->state = THREAD_SUSPENDED;
-    while(sleep) {
+    gc.state = SLEEPING;
+    tself->state = THREAD_SUSPENDED;
+    while(gc.state == SLEEPING) {
 
 #ifdef SHARP_PROF_
         if(managedBytes > hbytes)
@@ -709,14 +685,14 @@ void GarbageCollector::sedateSelf() {
 #ifdef POSIX_
         usleep(30*999);
 #endif
-        if(self->state != THREAD_RUNNING)
+        if(tself->state != THREAD_RUNNING)
             break;
     }
 
     // we don't want to shoot ourselves in the foot
-    if(self->state == THREAD_SUSPENDED)
-        self->state = THREAD_RUNNING;
-    self->suspended = false;
+    if(tself->state == THREAD_SUSPENDED)
+        tself->state = THREAD_RUNNING;
+    gc.state = RUNNING;
 }
 
 bool isLocker(void *o, mutex_t* mut) {
@@ -791,8 +767,8 @@ void GarbageCollector::dropLock(SharpObject *o) {
 
 void GarbageCollector::sedate() {
     mutex.lock();
-    if(!sleep && tself->state == THREAD_RUNNING) {
-        sleep = true;
+    if(gc.state != SLEEPING && tself->state == THREAD_RUNNING) {
+        gc.state = SLEEPING;
         Thread::suspendAndWait(Thread::getThread(gc_threadid));
     }
     mutex.unlock();
@@ -800,15 +776,15 @@ void GarbageCollector::sedate() {
 
 void GarbageCollector::wake() {
     mutex.lock();
-    if(sleep) {
-        sleep = false;
+    if(gc.state == SLEEPING) {
+        gc.state = RUNNING;
         Thread::waitForThread(Thread::getThread(gc_threadid));
     }
     mutex.unlock();
 }
 
 int GarbageCollector::selfCollect() {
-    if(sleep || tself->state == THREAD_KILLED) {
+    if(gc.state == SLEEPING || tself->state == THREAD_KILLED) {
         mutex.lock();
         collectGarbage();
         mutex.unlock();
@@ -819,5 +795,5 @@ int GarbageCollector::selfCollect() {
 }
 
 bool GarbageCollector::isAwake() {
-    return !sleep && tself->state == THREAD_RUNNING;
+    return gc.state == RUNNING && tself->state == THREAD_RUNNING;
 }

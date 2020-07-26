@@ -76,9 +76,9 @@ int CreateVirtualMachine(string &exe)
     cout.precision(16);
 
     vm.outOfMemoryExcept.object = NULL;
-    vm.outOfMemoryExcept = GarbageCollector::self->newObject(vm.OutOfMemoryExcept);
+    vm.outOfMemoryExcept = gc.newObject(vm.OutOfMemoryExcept);
     native_string message("out of memory");
-    GarbageCollector::self->createStringArray(
+    gc.createStringArray(
             vm.resolveField("message", vm.outOfMemoryExcept.object),
             message);
 
@@ -86,7 +86,7 @@ int CreateVirtualMachine(string &exe)
      * Initialize all classes to be used for static access
      */
     for(unsigned long i = 0; i < vm.manifest.classes; i++) {
-        vm.staticHeap[i].object = GarbageCollector::self->newObject(&vm.classes[i], true);
+        vm.staticHeap[i].object = gc.newObject(&vm.classes[i], true);
         SET_GENERATION(vm.staticHeap[i].object->info, gc_perm);
     }
 
@@ -340,7 +340,7 @@ void VirtualMachine::getStackTrace() {
 
     if(frameInfo) {
         frameInfo->refCount++;
-        (thread->sp)->object = GarbageCollector::self->newObject(vm.StringClass);
+        (thread->sp)->object = gc.newObject(vm.StringClass);
         fillStackTrace(frameInfo, (thread->sp)->object.object);
         frameInfo->refCount--;
     }
@@ -351,7 +351,7 @@ void VirtualMachine::getFrameInfo(Object *frameInfo) {
 
     if(frameInfo) {
         Thread *thread = thread_self;
-        *frameInfo = GarbageCollector::self->newObject(
+        *frameInfo = gc.newObject(
                 vm.StackSate);
 
         if (frameInfo) {
@@ -361,8 +361,8 @@ void VirtualMachine::getFrameInfo(Object *frameInfo) {
             Int iter = 0;
             if (methods && pcList) {
                 Int size = (thread->calls + 1) < EXCEPTION_PRINT_MAX ? (thread->calls + 1) : EXCEPTION_PRINT_MAX + 1;
-                *methods = GarbageCollector::self->newObject(size);
-                *pcList = GarbageCollector::self->newObject(size);
+                *methods = gc.newObject(size);
+                *pcList = gc.newObject(size);
 
                 if ((thread->calls + 1) < EXCEPTION_PRINT_MAX) {
 
@@ -405,7 +405,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
              * Make an explicit call to the garbage collector. This
              * does not garuntee that it will run
              */
-            GarbageCollector::self->sendMessage(
+            gc.sendMessage(
                     CollectionPolicy::GC_EXPLICIT);
             return;
         case OP_GC_LOW:
@@ -414,7 +414,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
              * Sending this request will freeze your entire application
              * for an unspecified amount of time
              */
-            GarbageCollector::self->sendMessage(
+            gc.sendMessage(
                     CollectionPolicy::GC_LOW);
             return;
         case OP_GC_COLLECT:
@@ -425,19 +425,19 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
              *
              * This system call will only work if the garbage collector has been shutdown
              */
-            _64CMT=GarbageCollector::self->selfCollect();
+            _64CMT=gc.selfCollect();
             break;
         case OP_GC_SLEEP:
-            GarbageCollector::self->sedate();
+            gc.sedate();
             break;
         case OP_GC_WAKEUP:
-            GarbageCollector::self->wake();
+            gc.wake();
             break;
         case OP_GC_KILL:
-            GarbageCollector::self->kill();
+            gc.kill();
             break;
         case OP_GC_STATE:
-            _64CMT=GarbageCollector::self->isAwake();
+            _64CMT=gc.isAwake();
             break;
 #ifdef WIN32_
         case OP_GUI:
@@ -527,10 +527,10 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             vm.shutdown();
             return;
         case OP_MEMORY_LIMIT:
-            registers[CMT]=GarbageCollector::self->getMemoryLimit();
+            registers[CMT]=gc.getMemoryLimit();
             return;
         case OP_MEMORY:
-            registers[CMT]=GarbageCollector::self->getManagedMemory();
+            registers[CMT]=gc.getManagedMemory();
             return;
         case OP_ABS_PATH: {
             Object *relPath = &thread_self->sp->object;
@@ -539,7 +539,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 native_string path(relPath->object->HEAD, relPath->object->size), absolute;
 
                 absolute = resolve_path(path);
-                GarbageCollector::self->createStringArray(relPath, absolute);
+                gc.createStringArray(relPath, absolute);
                 path.free(); absolute.free();
             } else {
                 throw Exception(vm.NullptrExcept, "");
@@ -566,9 +566,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 }
 
                 if(TYPE(arry->info) == _stype_var) { // var[]
-                    GarbageCollector::self->realloc(arry, len);
+                    gc.realloc(arry, len);
                 } else if(TYPE(arry->info) == _stype_struct && arry->node != NULL) { // object? maybe...
-                    GarbageCollector::self->reallocObject(arry, len);
+                    gc.reallocObject(arry, len);
                 } else
                     throw Exception(vm.NullptrExcept, "");
             } else
@@ -609,11 +609,11 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     arry = &(++thread_self->sp)->object;
 
                     if(files.size()>0) {
-                        *arry = GarbageCollector::self->newObjectArray(files.size(), vm.StringClass);
+                        *arry = gc.newObjectArray(files.size(), vm.StringClass);
 
                         for(long i = 0; i < files.size(); i++) {
-                            arry->object->node[i] = GarbageCollector::self->newObject(vm.StringClass);
-                            GarbageCollector::self->createStringArray(vm.resolveField("data", arry->object->node[i].object), files.get(i));
+                            arry->object->node[i] = gc.newObject(vm.StringClass);
+                            gc.createStringArray(vm.resolveField("data", arry->object->node[i].object), files.get(i));
                             files.get(i).free();
                         }
                     }
@@ -640,11 +640,11 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                     buf.end();
                     if(str.len > 0) {
-                        *arry = GarbageCollector::self->newObject(vm.StringClass);
-                        GarbageCollector::self->createStringArray(vm.resolveField("data", arry->object), str);
+                        *arry = gc.newObject(vm.StringClass);
+                        gc.createStringArray(vm.resolveField("data", arry->object), str);
                         str.free();
                     } else {
-                        GarbageCollector::self->releaseObject(arry);
+                        gc.releaseObject(arry);
                     }
                 }
 
@@ -897,7 +897,7 @@ void VirtualMachine::fillStackTrace(Object *methods, Object *pcList, Object *dat
         }
 
         str = ss.str(); ss.str("");
-        GarbageCollector::self->createStringArray(data, str);
+        gc.createStringArray(data, str);
         str.free();
     }
 }
@@ -1021,17 +1021,17 @@ void VirtualMachine::__snprintf(int cfmt, double val, int precision) {
             break;
         case 'l': {
             native_string str(to_string((Int)val));
-            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str); str.free();
+            gc.createStringArray(&(++thread_self->sp)->object, str); str.free();
             return;
         }
         case 'L': {
             native_string str(to_string((uInt)val));
-            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str);  str.free();
+            gc.createStringArray(&(++thread_self->sp)->object, str);  str.free();
             return;
         }
         default: {
             native_string str(to_string(val));
-            GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str); str.free();
+            gc.createStringArray(&(++thread_self->sp)->object, str); str.free();
             return;
         }
 
@@ -1039,7 +1039,7 @@ void VirtualMachine::__snprintf(int cfmt, double val, int precision) {
     }
 
     native_string str(buf);
-    GarbageCollector::self->createStringArray(&(++thread_self->sp)->object, str); str.free();
+    gc.createStringArray(&(++thread_self->sp)->object, str); str.free();
 }
 
 Method *VirtualMachine::getMainMethod() {
@@ -1126,7 +1126,7 @@ void VirtualMachine::setFieldVar(runtime::String name, SharpObject *classObject,
 void VirtualMachine::setFieldClass(runtime::String name, SharpObject *classObject, ClassObject *klass) {
     Object *field = vm.resolveField(name, classObject);
     if(field != NULL) {
-        *field = GarbageCollector::self->newObject(klass);
+        *field = gc.newObject(klass);
     }
 }
 
