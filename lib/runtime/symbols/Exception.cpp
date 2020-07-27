@@ -37,7 +37,6 @@ Exception::Exception(ClassObject* throwable, const std::string &__arg, bool nati
         throwable(throwable, __arg, native),
         runtime_error(__arg)
 {
-    printRegs();
     pushException();
 }
 

@@ -33,6 +33,7 @@ struct SharpObject
         next=NULL;
         this->size=size;
         SET_INFO(info, 0, type, generation); /* generation young */
+        new (&refCount) std::atomic<uint32_t>();
         refCount=0;
     }
     void init(uInt size, ClassObject* k, CollectionGeneration generation = gc_young)
@@ -41,6 +42,7 @@ struct SharpObject
         HEAD=NULL;
         next=NULL;
         this->size=size;
+        new (&refCount) std::atomic<uint32_t>();
         refCount=0;
         SET_INFO(info, k->address, _stype_struct, generation); /* generation young */
         SET_CLASS_BIT(info, 1);

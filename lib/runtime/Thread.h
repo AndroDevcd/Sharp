@@ -82,6 +82,7 @@ public:
     static int join(int32_t);
     static Thread* getThread(int32_t);
     static void suspendAndWait(Thread* thread);
+    static void unsuspendAndWait(Thread* thread);
     static void waitForThreadExit(Thread* thread);
     static void terminateAndWaitForThreadExit(Thread* thread);
     static int waitForThread(Thread *thread);
@@ -174,6 +175,7 @@ private:
     void releaseResources();
 
     static void waitForThreadSuspend(Thread *thread);
+    static void waitForThreadUnSuspend(Thread *thread);
 };
 
 /**

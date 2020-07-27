@@ -118,15 +118,11 @@ public:
     void run();
 
     static void setMemoryLimit(uInt limit) {
-        if(gc.state >= RUNNING) {
-            gc.memoryLimit = limit;
-        }
+        gc.memoryLimit = limit;
     }
 
     static void setMemoryThreshold(uInt limit) {
-        if(gc.state >= RUNNING) {
-            gc.memoryThreshold = limit;
-        }
+        gc.memoryThreshold = limit;
     }
 
     bool isShutdown() {

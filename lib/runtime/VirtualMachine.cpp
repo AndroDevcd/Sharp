@@ -451,7 +451,6 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             Thread *thread = Thread::getThread((int32_t )_64ADX);
 
             if(thread != NULL) {
-                StackElement *se = thread_self->sp;
                 thread->currentThread = (thread_self->sp--)->object;
                 thread->args = (thread_self->sp--)->object;
 

@@ -100,19 +100,22 @@ public class job {
         controller := args[0] as job_controller;
 
         for(;;) {
-            try {
-			    controller.scheduled_job.execute();
-            } catch(cancellation_exception) {
-		        controller.scheduled_job.state = cancelled;
-		        launcher.cleanup_job(controller.scheduled_job);
-            } catch(e: error) {
-		        controller.scheduled_job.state = cancelled;
-		        launcher.cleanup_job(controller.scheduled_job);
-			    controller.scheduled_job = null;
-		        throw e;
-            }
+            if(controller.scheduled_job != null) {
+                try {
+                    controller.scheduled_job.execute();
+                } catch(cancellation_exception) {
+                    controller.scheduled_job.state = cancelled;
+                    launcher.cleanup_job(controller.scheduled_job);
+                } catch(e: error) {
+                    controller.scheduled_job.state = cancelled;
+                    launcher.cleanup_job(controller.scheduled_job);
+                    controller.scheduled_job = null;
+                    throw e;
+                }
 
-			controller.scheduled_job = null;
+                controller.scheduled_job = null;
+			}
+
             thread.wait();
         }
 

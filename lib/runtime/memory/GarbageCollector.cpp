@@ -18,10 +18,9 @@
 uInt hbytes = 0;
 GarbageCollector gc;
 
-const Int MEMORY_POOL_SAMPLE_SIZE = 10;
-const Int MAX_DOWNGRADE_ATTEMPTS = 3;
+const Int MEMORY_POOL_SAMPLE_SIZE = 100;
 uInt memoryPoolResults[MEMORY_POOL_SAMPLE_SIZE];
-Int samplesReceived =0, downgradeAttempts = 0;
+Int samplesReceived =0;
 
 void* __malloc(uInt bytes)
 {
@@ -154,22 +153,49 @@ void GarbageCollector::startup() {
             GarbageCollector::threadStart, gcThread);
 }
 
+//uInt largest = 0, point = 0;
+//uInt averages[1000];
+//
+//uInt getAverage() {
+//    uInt total = 0;
+//    for(Int i = 0; i < 1000; i++) {
+//        total += averages[i];
+//    }
+//    return total / 1000;
+//}
+
 void GarbageCollector::collect(CollectionPolicy policy) {
     if(isShutdown())
         return;
 
+
     if(policy == GC_LOW) {
+//        uInt past = NANO_TOMICRO(Clock::realTimeInNSecs());
+//        Int removed = heapSize;
         Thread::suspendAllThreads();
 
         /**
-         * To attempt to approve a large memory request we want to take the
-         * worst case scenareo route to try to fuffil the memory request. To
-         * avoid lags in the application big memory requests should not be
-         * performed often
+         * In order to keep memory utilization low we must shutdown
+         * the entire system to perform a colection, this will take
+         * on average about 10us to complete
          */
         collectGarbage();
 
         Thread::resumeAllThreads();
+//        removed = removed - heapSize;
+//        uInt elapsed = NANO_TOMICRO(Clock::realTimeInNSecs())-past;
+//        if(elapsed > largest) {
+//            largest = elapsed;
+//            cout << "max elapsed time: " << largest << "us" << endl;
+//        }
+//
+//        if(point < 1000)
+//            averages[point++] = elapsed;
+//        else {
+//            point = 0;
+//            cout << "average elapsed time: " << getAverage() << "us" << endl;
+//        }
+//        cout << "elapsed: " << elapsed << " removed: " << removed << endl;
     } else if(policy == GC_EXPLICIT) {
         /**
          * Force collection of both generations
@@ -197,28 +223,17 @@ void GarbageCollector::collect(CollectionPolicy policy) {
  *
  */
 void GarbageCollector::updateMemoryThreshold() {
-    if(GC_LOW_MEM()) {
-        memoryThreshold = (0.85 * memoryLimit);
-    } else {
-        if (samplesReceived == MEMORY_POOL_SAMPLE_SIZE) {
-            size_t total = 0, avg;
-            for (long i = 0; i < MEMORY_POOL_SAMPLE_SIZE; i++) {
-                total += memoryPoolResults[i];
-            }
-
-            avg = total / MEMORY_POOL_SAMPLE_SIZE;
-            samplesReceived = 0;
-            if (avg > memoryThreshold) {
-                memoryThreshold = avg; // dynamically update threshold
-            } else {
-                if (downgradeAttempts++ == MAX_DOWNGRADE_ATTEMPTS) {
-                    memoryThreshold = avg; // downgrade memory due to some free operation
-                    downgradeAttempts = 0;
-                }
-            }
-        } else {
-            memoryPoolResults[samplesReceived++] = managedBytes;
+    if (samplesReceived == MEMORY_POOL_SAMPLE_SIZE) {
+        size_t total = 0, avg;
+        for (long i = 0; i < MEMORY_POOL_SAMPLE_SIZE; i++) {
+            total += memoryPoolResults[i];
         }
+
+        avg = total / MEMORY_POOL_SAMPLE_SIZE;
+        samplesReceived = 0;
+        memoryThreshold = avg;
+    } else {
+        memoryPoolResults[samplesReceived++] = managedBytes;
     }
 }
 
@@ -258,7 +273,8 @@ void GarbageCollector::collectGarbage() {
                     case gc_old:
                         break;
                 }
-            } else {
+
+            } else if(object->refCount == 0) {
                 MARK(object->info, 1);
             }
         }
@@ -283,6 +299,7 @@ void GarbageCollector::run() {
 #endif
 
     for(;;) {
+        sig:
         if(hasSignal(tself->signal, tsig_suspend))
             Thread::suspendSelf();
         if(tself->state == THREAD_KILLED) {
@@ -311,31 +328,32 @@ void GarbageCollector::run() {
 #ifdef SHARP_PROF_
             if(managedBytes > hbytes)
                 hbytes = managedBytes;
-            timeSlept += 15;
+            timeSlept += 25;
 #endif
 
             __os_yield();
 #ifdef WIN32_
-            Sleep(15);
+            Sleep(25);
 #endif
 #ifdef POSIX_
-            usleep(15*999);
+            usleep(25*999);
 #endif
             if(state==SLEEPING) sedateSelf();
             if(!messageQueue.empty()) goto message;
-        } while(!(GC_COLLECT_MEM() && (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()))
-                && !tself->signal);
 
-        if(tself->state == THREAD_KILLED)
-            return;
+            if(GC_COLLECT_MEM() || (GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD())) {
+                /**
+                 * Attempt to collect objects based on the appropriate
+                 * conditions. This call does not guaruntee that any collections
+                 * will happen
+                 */
+                collect(GC_CONCURRENT);
+            }
 
-        /**
-         * Attempt to collect objects based on the appropriate
-         * conditions. This call does not guaruntee that any collections
-         * will happen
-         */
-         collect(GC_CONCURRENT);
+            if(tself->signal)
+                goto sig;
 
+        } while(true);
     }
 }
 
@@ -349,6 +367,7 @@ GarbageCollector::threadStart(void *pVoid) {
     thread_self =(Thread*)pVoid;
     thread_self->state = THREAD_RUNNING;
     gc.tself = thread_self;
+    gc.state = RUNNING;
     Thread::setPriority(thread_self, THREAD_PRIORITY_LOW);
 
     try {
@@ -449,8 +468,7 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
     if(size<=0)
         return nullptr;
     
-    SharpObject *object = (SharpObject*)__malloc(sizeof(struct SharpObject));
-    new (object) SharpObject();
+    SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject));
     object->init(size, _stype_var);
 
     object->HEAD = (double*)__calloc(size, sizeof(double));
@@ -470,8 +488,7 @@ SharpObject *GarbageCollector::newObjectUnsafe(int64_t size) {
     if(size<=0)
         return nullptr;
 
-    SharpObject *object = (SharpObject*)malloc(sizeof(struct SharpObject));
-    new (object) SharpObject();
+    SharpObject *object = (SharpObject*)malloc(sizeof(SharpObject));
     if(object != NULL) {
         object->init(size, _stype_var);
 
@@ -481,7 +498,7 @@ SharpObject *GarbageCollector::newObjectUnsafe(int64_t size) {
 
             /* track the allocation amount */
             GUARD(mutex);
-            managedBytes += (sizeof(struct SharpObject) * 1) + (sizeof(double) * size);
+            managedBytes += (sizeof(SharpObject) * 1) + (sizeof(double) * size);
             PUSH(object);
             youngObjects++;
             heapSize++;
@@ -496,8 +513,7 @@ SharpObject *GarbageCollector::newObjectUnsafe(int64_t size) {
 
 SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
     if(k != nullptr) {
-        SharpObject *object = (SharpObject*)__malloc(sizeof(struct SharpObject));
-        new (object) SharpObject();
+        SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject));
         uint32_t size = staticInit ? k->staticFields : k->instanceFields;
 
         object->init(size, k);
@@ -522,7 +538,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
         }
 
         GUARD(mutex);
-        managedBytes += (sizeof(struct SharpObject)*1)+(sizeof(struct Object)*size);
+        managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
         PUSH(object);
         youngObjects++;
         heapSize++;
@@ -536,15 +552,14 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size) {
     if(size<=0)
         return nullptr;
     
-    SharpObject *object = (SharpObject*)__malloc(sizeof(struct SharpObject));
-    new (object) SharpObject();
+    SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject));
 
     object->init(size, _stype_struct);
     object->node = (Object*)__calloc(size, sizeof(struct Object)*1);
-    
+
     /* track the allocation amount */
     GUARD(mutex);
-    managedBytes += (sizeof(struct SharpObject)*1)+(sizeof(struct Object)*size);
+    managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
     PUSH(object);
     youngObjects++;
     heapSize++;
@@ -555,8 +570,7 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size) {
 SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
     if(k != nullptr && size > 0) {
         
-        SharpObject *object = (SharpObject*)__malloc(sizeof(struct SharpObject)*1);
-        new (object) SharpObject();
+        SharpObject *object = (SharpObject*)__malloc(sizeof(SharpObject)*1);
         object->init(size, k);
 
         if(size > 0)
@@ -564,7 +578,7 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
 
         /* track the allocation amount */
         GUARD(mutex);
-        managedBytes += (sizeof(struct SharpObject)*1)+(sizeof(struct Object)*size);
+        managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
         PUSH(object);
         youngObjects++;
         heapSize++;
@@ -639,12 +653,12 @@ void GarbageCollector::reallocObject(SharpObject *o, size_t sz) {
             }
         }
 
-        o->node = (Object*)__realloc(o->node, sizeof(struct Object)*sz, sizeof(struct Object)*o->size);
+        o->node = (Object*)__realloc(o->node, sizeof(Object)*sz, sizeof(Object)*o->size);
         GUARD(mutex);
         if(sz < o->size)
-            managedBytes -= (sizeof(struct Object)*(o->size-sz));
+            managedBytes -= (sizeof(Object)*(o->size-sz));
         else
-            managedBytes += (sizeof(struct Object)*(sz-o->size));
+            managedBytes += (sizeof(Object)*(sz-o->size));
 
 
         if(sz > o->size) {
@@ -678,7 +692,7 @@ void GarbageCollector::sedateSelf() {
         if(managedBytes > hbytes)
                 hbytes = managedBytes;
 #endif
-
+        __os_yield();
 #ifdef WIN32_
         Sleep(30);
 #endif

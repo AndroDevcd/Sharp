@@ -26,11 +26,13 @@ void Object::castObject(int64_t classPtr) {
         throw Exception(msg.str());
     }
 
-    stringstream nonclass;
-    nonclass << "attempt to perform invalid cast to [" << type->name.str() << "] on non-class object ";
+    if(!IS_CLASS(this->object->info)) {
 
-    if(!IS_CLASS(this->object->info))
+        stringstream nonclass;
+        nonclass << "attempt to perform invalid cast to [" << type->name.str() << "] on non-class object ";
+
         throw Exception(vm.ClassCastExcept, nonclass.str());
+    }
 
     if(type->guid != base->guid && !base->isClassRelated(type)) {
         // validate we have all our interfaces checked

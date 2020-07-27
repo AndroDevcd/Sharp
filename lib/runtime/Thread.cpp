@@ -147,12 +147,14 @@ void Thread::wait() {
             return;
         } else if(vm.state == VM_SHUTTING_DOWN) {
             this->suspended = false;
+            this->state = THREAD_KILLED;
             sendSignal(signal, tsig_kill, 1);
             return;
         }
     }
 
     this->state = THREAD_RUNNING;
+    sendSignal(thread_self->signal, tsig_suspend, 0);
 }
 
 void Thread::wait(Int mills) {
@@ -181,6 +183,7 @@ void Thread::wait(Int mills) {
             return;
         } else if(vm.state == VM_SHUTTING_DOWN) {
             this->suspended = false;
+            this->state = THREAD_KILLED;
             sendSignal(signal, tsig_kill, 1);
             return;
         } else if((mills - now) <= 0) {
@@ -252,7 +255,10 @@ int Thread::suspendThread(int32_t id) {
 void Thread::suspendFor(Int mills) {
     Thread *thread = thread_self;
     thread->suspended = true;
-    sendSignal(thread->signal, tsig_suspend, 0);
+    {
+        GUARD(thread->mutex)
+        sendSignal(thread->signal, tsig_suspend, 0);
+    }
 
     if(mills == -1)
         thread->wait();
@@ -311,6 +317,11 @@ void Thread::suspendAndWait(Thread *thread) {
     waitForThreadSuspend(thread);
 }
 
+void Thread::unsuspendAndWait(Thread *thread) {
+    unsuspendThread(thread);
+    waitForThreadUnSuspend(thread);
+}
+
 void Thread::waitForThreadSuspend(Thread *thread) {
     const int sMaxRetries = 10000000;
     const int sMaxSpinCount = 25;
@@ -326,6 +337,31 @@ void Thread::waitForThreadSuspend(Thread *thread) {
             retryCount = 0;
             if(++spinCount >= sMaxSpinCount || thread->state >= THREAD_SUSPENDED)
                 return;
+
+
+            __os_sleep(1);
+        }
+    }
+}
+
+void Thread::waitForThreadUnSuspend(Thread *thread) {
+    const int sMaxRetries = 10000000;
+    const int sMaxSpinCount = 25;
+
+    int spinCount = 0;
+    int retryCount = 0;
+
+    while (thread->state != THREAD_RUNNING)
+    {
+        if (retryCount++ == sMaxRetries)
+        {
+            unsuspendThread(thread);
+            retryCount = 0;
+            if(++spinCount >= sMaxSpinCount)
+                return;
+
+
+            __os_sleep(1);
         }
     }
 }
@@ -401,7 +437,13 @@ int Thread::waitForThread(Thread *thread) {
             {
                 return RESULT_MAX_SPIN_GIVEUP;
             }
-            __os_sleep(1);
+
+#ifdef WIN32_
+            Sleep(1);
+#endif
+#ifdef POSIX_
+            usleep(1*POSIX_USEC_INTERVAL);
+#endif
         }
     }
 
@@ -417,7 +459,6 @@ void Thread::suspendAllThreads() {
             && thread != NULL
             && (thread->id != thread_self->id)
             && thread->state == THREAD_RUNNING){
-            suspendThread(thread);
             suspendAndWait(thread);
         }
     }
@@ -432,7 +473,7 @@ void Thread::resumeAllThreads() {
         if(threads.get(i, thread)
            && thread != NULL
            && (thread->id != thread_self->id)){
-            unsuspendThread(thread);
+            unsuspendAndWait(thread);
         }
     }
 }
@@ -811,11 +852,11 @@ void Thread::exec() {
     _initOpcodeTable
     run:
     try {
-//        DISPATCH();
+        //DISPATCH();
 
         for (;;) {
             top:
-                if(current->address == 1705 && PC(this) == 21) {
+                if(current->address == 3040 && PC(this) >= 0) {
                     Int i = 0;
                 }
                 DISPATCH();
@@ -1091,7 +1132,12 @@ void Thread::exec() {
                 ptr = vm.staticHeap+GET_Da(*pc);
                 _brh
             MOVND:
-                CHECK_NULLOBJ(ptr = &ptr->object->node[(Int)registers[GET_Da(*pc)]];)
+                CHECK_NULLOBJ(
+                        if(((int32_t)registers[GET_Da(*pc)]) >= ptr->object->size || ((int32_t)registers[GET_Da(*pc)]) < 0)
+                            throw Exception("movn");
+
+                        ptr = &ptr->object->node[(Int)registers[GET_Da(*pc)]];
+                )
                 _brh
             NEWOBJARRAY:
                 (++sp)->object = gc.newObjectArray(registers[GET_Da(*pc)]);
@@ -1196,6 +1242,9 @@ void Thread::exec() {
                 _brh
             IALOAD:
                 CHECK_NULLVAR(
+                        if(((int32_t)registers[GET_Cb(*pc)]) >= ptr->object->size || ((int32_t)registers[GET_Cb(*pc)]) < 0)
+                            throw Exception("movn");
+
                         registers[GET_Ca(*pc)] =
                                 ptr->object->HEAD[(Int)registers[GET_Cb(*pc)]];
                 )
@@ -1225,6 +1274,9 @@ void Thread::exec() {
                 _brh
             RMOV:
                 CHECK_NULLVAR(
+                        if(((int32_t)registers[GET_Ca(*pc)]) >= ptr->object->size || ((int32_t)registers[GET_Ca(*pc)]) < 0)
+                            throw Exception("movn");
+
                         ptr->object->HEAD[(Int)registers[GET_Ca(*pc)]]=
                                 registers[GET_Cb(*pc)];
                 )
@@ -1380,7 +1432,7 @@ void Thread::setup() {
     if(id != main_threadid){
         if(currentThread.object != nullptr
            && IS_CLASS(currentThread.object->info)) {
-            gc.createStringArray(vm.resolveField("name", currentThread.object), name);
+            gc.createStringArray(vm.resolveField("data", vm.resolveField("name", currentThread.object)->object), name);
         }
         fp=&dataStack[vm.manifest.threadLocals];
         sp=(&dataStack[vm.manifest.threadLocals])-1;
@@ -1432,6 +1484,7 @@ int Thread::setPriority(Thread* thread, int priority) {
         pthread_setschedprio(thread->thread, pthread_prio);
         pthread_attr_destroy(&thAttr);
 #endif
+        thread->priority = priority;
         return RESULT_OK;
     }
 
