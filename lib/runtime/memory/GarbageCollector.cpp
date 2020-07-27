@@ -169,9 +169,8 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         return;
 
 
-    if(policy == GC_LOW) {
-//        uInt past = NANO_TOMICRO(Clock::realTimeInNSecs());
-//        Int removed = heapSize;
+    if(policy == GC_LOW || policy == GC_CONCURRENT ||
+        policy == GC_EXPLICIT) {
         Thread::suspendAllThreads();
 
         /**
@@ -182,36 +181,6 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         collectGarbage();
 
         Thread::resumeAllThreads();
-//        removed = removed - heapSize;
-//        uInt elapsed = NANO_TOMICRO(Clock::realTimeInNSecs())-past;
-//        if(elapsed > largest) {
-//            largest = elapsed;
-//            cout << "max elapsed time: " << largest << "us" << endl;
-//        }
-//
-//        if(point < 1000)
-//            averages[point++] = elapsed;
-//        else {
-//            point = 0;
-//            cout << "average elapsed time: " << getAverage() << "us" << endl;
-//        }
-//        cout << "elapsed: " << elapsed << " removed: " << removed << endl;
-    } else if(policy == GC_EXPLICIT) {
-        /**
-         * Force collection of both generations
-         * We only do the first 2 generations because we want
-         * to prevent lag when freeing up memory. the Old generation will
-         * always be the largest generation
-         */
-        if(GC_COLLECT_YOUNG() || GC_COLLECT_ADULT() || GC_COLLECT_OLD()) {
-            collectGarbage();
-        }
-    } else if(policy == GC_CONCURRENT) {
-
-        /**
-         * This should only be called by the GC thread itsself
-         */
-        collectGarbage();
     }
 
     updateMemoryThreshold();
