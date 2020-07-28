@@ -73,7 +73,10 @@ public class job {
             }
         }
 
-        if(try_join) thread.wait();
+        if(try_join) {
+            while(!is_finished())
+                thread.wait();
+        }
 	}
 
 	public def get_state() := state;
