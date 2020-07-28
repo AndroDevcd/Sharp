@@ -86,7 +86,7 @@ int CreateVirtualMachine(string &exe)
      * Initialize all classes to be used for static access
      */
     for(unsigned long i = 0; i < vm.manifest.classes; i++) {
-        vm.staticHeap[i].object = gc.newObject(&vm.classes[i], true);
+        vm.staticHeap[i] = gc.newObject(&vm.classes[i], true);
         SET_GENERATION(vm.staticHeap[i].object->info, gc_perm);
     }
 

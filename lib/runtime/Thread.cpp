@@ -137,10 +137,10 @@ void Thread::wait() {
             spinCount++;
             retryCount = 0;
 #ifdef WIN32_
-            Sleep(5);
+            Sleep(1);
 #endif
 #ifdef POSIX_
-            usleep(5*POSIX_USEC_INTERVAL);
+            usleep(1*POSIX_USEC_INTERVAL);
 #endif
         } else if(this->state == THREAD_KILLED) {
             this->suspended = false;

@@ -76,9 +76,6 @@ public:
         mutex(),
         tself(NULL),
         messageQueue(),
-        yObjs(0),
-        aObjs(0),
-        oObjs(0),
         managedBytes(0),
         memoryLimit(0),
         memoryThreshold(0),
@@ -231,21 +228,6 @@ public:
      */
     void reconcileLocks(Thread*);
 
-    /**
-     * This will keep track of our different generations and the
-     * objects that are living in them.
-     *
-     * @youngObjects: This will hold the total running count of objects
-     * living in that generation
-     *
-     * @yObjs: This is the amount of dropped objects in each generation since collection.
-     * This does not mean that if there are 100 objects dropped that every one will be freed
-     * its just an estimate
-     */
-
-    std::atomic<uInt> yObjs;
-    std::atomic<uInt> aObjs;
-    std::atomic<uInt> oObjs;
 private:
     std::atomic<uInt> managedBytes;
     std::atomic<uInt> memoryLimit;
@@ -262,11 +244,8 @@ private:
      * This does not mean that if there are 100 objects dropped that every one will be freed
      * its just an estimate
      */
-    /* collect when 5% has been dropped */
     std::atomic<uInt> youngObjects;
-    /* collect when 25% has been dropped */
     std::atomic<uInt> adultObjects;
-    /* collect when 10% has been dropped */
     std::atomic<uInt> oldObjects;
 #ifdef SHARP_PROF_
     unsigned long x;
@@ -287,9 +266,7 @@ private:
      * @param object
      * @return
      */
-    SharpObject* sweep(SharpObject *object, SharpObject *prevObj, SharpObject *tail);
-
-    SharpObject* erase(SharpObject *freedObj, SharpObject *prevObj, SharpObject *tail);
+    SharpObject* sweep(SharpObject *object, SharpObject *prevObj);
 
     void sedateSelf();
 

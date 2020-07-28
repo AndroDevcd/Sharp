@@ -84,19 +84,6 @@ struct SharpObject
 #define DEC_REF(obj) \
     if(obj != NULL) { \
         obj->refCount--; \
-        if(obj->refCount <= 0) { \
-            switch(GENERATION((obj)->info)) { \
-                case gc_young: \
-                    gc.yObjs++; \
-                    break; \
-                case gc_adult: \
-                    gc.aObjs++; \
-                    break; \
-                case gc_old: \
-                    gc.oObjs++; \
-                    break; \
-            } \
-        }\
     }
 
 #define INC_REF(object) \

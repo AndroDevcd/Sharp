@@ -258,7 +258,7 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {
     ss << vm.manifest.target;
     native_string str(ss.str());
 
-    object->object = gc.newObjectArray(size);
+    *object = gc.newObjectArray(size);
     SET_GENERATION(object->object->info, gc_perm);
 
     gc.createStringArray(&object->object->node[iter++],vm.manifest.application);
