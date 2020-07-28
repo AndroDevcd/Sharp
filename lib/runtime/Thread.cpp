@@ -281,7 +281,11 @@ int Thread::unSuspendThread(int32_t id, bool wait) {
     if(thread->terminated)
         return RESULT_THREAD_TERMINATED;
 
-    if(wait) unsuspendAndWait(thread);
+    if(wait) {
+        unsuspendAndWait(thread);
+        return RESULT_OK;
+    }
+
     return unsuspendThread(thread);
 }
 
