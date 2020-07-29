@@ -148,26 +148,15 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         return;
 
 
-    if(policy == GC_LOW || policy == GC_EXPLICIT) {
-        gc.lowMemory = true;
-        Thread::suspendAllThreads();
-
+    if(policy == GC_LOW || policy == GC_EXPLICIT || policy == GC_CONCURRENT) {
+        Thread::suspendAllThreads(true);
         /**
          * In order to keep memory utilization low we must shutdown
          * the entire system to perform a colection, this will take
          * on average about 10us to complete
          */
         collectGarbage();
-
-        Thread::resumeAllThreads();
-        gc.lowMemory = false;
-    } else if(policy == GC_CONCURRENT) {
-        /**
-         * In order to keep memory utilization low we must shutdown
-         * the entire system to perform a colection, this will take
-         * on average about 10us to complete
-         */
-        collectGarbage();
+        Thread::resumeAllThreads(true);
     }
 
     updateMemoryThreshold();
@@ -187,7 +176,9 @@ void GarbageCollector::updateMemoryThreshold() {
 
         avg = total / MEMORY_POOL_SAMPLE_SIZE;
         samplesReceived = 0;
-        memoryThreshold = avg;
+        if((avg + (0.15 * memoryLimit)) < memoryLimit)
+            memoryThreshold = avg + (0.15 * memoryLimit);
+        else memoryThreshold = avg;
     } else {
         memoryPoolResults[samplesReceived++] = managedBytes;
     }

@@ -154,10 +154,6 @@ void Thread::wait() {
         }
     }
 
-    if(gc.lowMemory) {
-        suspended = true;
-        goto stayAsleep;
-    }
 
     this->state = THREAD_RUNNING;
     sendSignal(thread_self->signal, tsig_suspend, 0);
@@ -201,10 +197,6 @@ void Thread::wait(Int mills) {
         now = NANO_TOMILL(Clock::realTimeInNSecs()) - base;
     }
 
-    if(gc.lowMemory) {
-        suspended = true;
-        goto stayAsleep;
-    }
 
     this->state = THREAD_RUNNING;
 }
@@ -466,21 +458,23 @@ int Thread::waitForThread(Thread *thread) {
     return RESULT_OK;
 }
 
-void Thread::suspendAllThreads() {
+void Thread::suspendAllThreads(bool withTagging) {
     GUARD(threadsMonitor);
     Thread* thread;
 
     for(uInt i = 0; i <= maxThreadId; i++) {
         if(threads.get(i, thread)
             && thread != NULL
-            && (thread->id != thread_self->id)
-            && thread->state == THREAD_RUNNING){
-            suspendAndWait(thread);
+            && (thread->id != thread_self->id)){
+            if(withTagging && thread->state == THREAD_SUSPENDED)
+                thread->tagged = true;
+            else if(thread->state == THREAD_RUNNING)
+                suspendAndWait(thread);
         }
     }
 }
 
-void Thread::resumeAllThreads() {
+void Thread::resumeAllThreads(bool withTagging) {
     GUARD(threadsMonitor);
     Thread* thread;
 
@@ -489,6 +483,11 @@ void Thread::resumeAllThreads() {
         if(threads.get(i, thread)
            && thread != NULL
            && (thread->id != thread_self->id)){
+            if(withTagging && thread->tagged) {
+                thread->tagged = false;
+                continue;
+            }
+
             unsuspendAndWait(thread);
         }
     }

@@ -55,6 +55,7 @@ public:
         callStack = NULL;
         dataStack = NULL;
         calls = 0;
+        tagged = false;
 #ifdef BUILD_JIT
         jctx = NULL;
 #endif
@@ -92,8 +93,8 @@ public:
     static void shutdown();
     static bool validStackSize(size_t);
     static bool validInternalStackSize(size_t);
-    static void suspendAllThreads();
-    static void resumeAllThreads();
+    static void suspendAllThreads(bool withTagging = false);
+    static void resumeAllThreads(bool withTagging = false);
     static int threadjoin(Thread*);
     static int destroy(Thread*);
 
@@ -141,6 +142,7 @@ public:
     Int stackSize;
     Int stbase;
     Int stfloor;
+    bool tagged;
     int priority;
     bool daemon;
     bool terminated;
