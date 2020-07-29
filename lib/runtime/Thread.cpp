@@ -346,8 +346,12 @@ void Thread::waitForThreadSuspend(Thread *thread) {
             if(++spinCount >= sMaxSpinCount || thread->state >= THREAD_SUSPENDED)
                 return;
 
-
-            __os_sleep(1);
+#ifdef WIN32_
+            Sleep(1);
+#endif
+#ifdef POSIX_
+            usleep(1*POSIX_USEC_INTERVAL);
+#endif
         }
     }
 }
@@ -368,8 +372,12 @@ void Thread::waitForThreadUnSuspend(Thread *thread) {
             if(++spinCount >= sMaxSpinCount)
                 return;
 
-
-            __os_sleep(1);
+#ifdef WIN32_
+            Sleep(1);
+#endif
+#ifdef POSIX_
+            usleep(1*POSIX_USEC_INTERVAL);
+#endif
         }
     }
 }
@@ -385,8 +393,12 @@ void Thread::waitForThreadExit(Thread *thread) {
             retryCount = 0;
             if(thread->exited)
                 return;
-
-            __os_sleep(1);
+#ifdef WIN32_
+            Sleep(1);
+#endif
+#ifdef POSIX_
+            usleep(1*POSIX_USEC_INTERVAL);
+#endif
         }
     }
 }
@@ -412,7 +424,12 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
             else if(thread->suspended)
                 goto retry;
 
-            __os_sleep(1);
+#ifdef WIN32_
+            Sleep(1);
+#endif
+#ifdef POSIX_
+            usleep(1*POSIX_USEC_INTERVAL);
+#endif
         }
     }
 
