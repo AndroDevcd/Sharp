@@ -166,7 +166,6 @@ public:
 private:
 
     void waitForUnsuspend();
-    void waitForUnsuspend(Int mills);
 
     static int unsuspendThread(Thread*);
     static void suspendThread(Thread*);

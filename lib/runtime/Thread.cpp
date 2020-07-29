@@ -127,7 +127,6 @@ void Thread::waitForUnsuspend() {
 
     this->state = THREAD_SUSPENDED;
 
-    stayAsleep:
     while (this->suspended)
     {
         if (retryCount++ == sMaxRetries)
@@ -154,48 +153,6 @@ void Thread::waitForUnsuspend() {
 
     this->state = THREAD_RUNNING;
     sendSignal(thread_self->signal, tsig_suspend, 0);
-}
-
-void Thread::waitForUnsuspend(Int mills) {
-    const Int sleepInterval = 1; // sleep for 1 milliseconds
-
-    Int base = NANO_TOMILL(Clock::realTimeInNSecs()), now = 0;
-    Int spinCount = 0;
-    Int retryCount = 0;
-
-    this->state = THREAD_SUSPENDED;
-
-    stayAsleep:
-    while (this->suspended)
-    {
-        if ((mills - now) > 0)
-        {
-            spinCount++;
-            retryCount = 0;
-#ifdef WIN32_
-            Sleep(sleepInterval);
-#endif
-#ifdef POSIX_
-            usleep(sleepInterval*POSIX_USEC_INTERVAL);
-#endif
-        } else if( this->state == THREAD_KILLED) {
-            this->suspended = false;
-            return;
-        } else if(vm.state == VM_SHUTTING_DOWN) {
-            this->suspended = false;
-            this->state = THREAD_KILLED;
-            sendSignal(signal, tsig_kill, 1);
-            return;
-        } else if((mills - now) <= 0) {
-            this->suspended = false;
-            break;
-        }
-
-        now = NANO_TOMILL(Clock::realTimeInNSecs()) - base;
-    }
-
-
-    this->state = THREAD_RUNNING;
 }
 
 int Thread::start(int32_t id, size_t stackSize) {
@@ -261,16 +218,7 @@ void Thread::suspendFor(Int mills) {
         sendSignal(thread->signal, tsig_suspend, 0);
     }
 
-    if(mills == -1)
-        thread->waitForUnsuspend();
-    else
-    /*
-	 * This function is far more efficent that wait()
-     * Due to there being little to no delay between sleeps
-     * We call wait(mills) when we want to possibly wake up a sleeping thread
-     *
-	 */
-        thread->waitForUnsuspend(mills);
+    thread->waitForUnsuspend();
 }
 
 int Thread::unSuspendThread(int32_t id, bool wait) {

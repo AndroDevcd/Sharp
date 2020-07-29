@@ -181,9 +181,8 @@ public class thread {
     public def is_daemon() := daemon;
     public def is_started() := started;
     public def is_suspended() := suspended;
-    public def is_terminated() := terminated;
 	public def set_main(main: (object[])(var)) := self->main = main;
-	public def is_active() := started && !exited && !terminated;
+	public def is_active() := started && !exited;
 	public def get_exit_code() := exit_code;
 	public def get_exception_handler() := error_handler;
 
@@ -194,7 +193,6 @@ public class thread {
     private id : var;
     private priority : thread_priority;
     private daemon : var; // not supported as of now
-    private terminated : var;
     private exited : var;
     private name : string = "";
 	private parent_group : thread_group;

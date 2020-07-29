@@ -16,11 +16,11 @@ public class job {
 	protected def execute_async() : var {
 		if(state == created) {
 			controller.scheduled_job = self;
-			if(host.is_active()) {
-			    controller.notify();
-			} else {
+			if(!host.is_active()) {
 			    host.start(new object[] { controller });
 			}
+
+			controller.notify();
 			return 0;
 		} else if(state == active) {
 			return 1;
@@ -102,6 +102,8 @@ public class job {
         controller := args[0] as job_controller;
 
         for(;;) {
+            controller.wait();
+
             if(controller.scheduled_job != null) {
                 try {
                     controller.scheduled_job.execute();
@@ -117,8 +119,6 @@ public class job {
 
                 controller.scheduled_job = null;
 			}
-
-            controller.wait();
         }
 
         return 0;
