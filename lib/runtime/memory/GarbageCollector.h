@@ -92,10 +92,12 @@ public:
         locks(),
         _Mheap(NULL),
         tail(NULL),
-        heapSize(0)
+        heapSize(0),
+        lowMemory(false)
     {
     }
-    
+
+    bool lowMemory;
     GCState state;
     recursive_mutex mutex;
     Thread *tself;

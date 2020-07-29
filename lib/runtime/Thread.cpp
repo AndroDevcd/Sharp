@@ -130,6 +130,7 @@ void Thread::wait() {
 
     this->state = THREAD_SUSPENDED;
 
+    stayAsleep:
     while (this->suspended)
     {
         if (retryCount++ == sMaxRetries)
@@ -153,6 +154,11 @@ void Thread::wait() {
         }
     }
 
+    if(gc.lowMemory) {
+        suspended = true;
+        goto stayAsleep;
+    }
+
     this->state = THREAD_RUNNING;
     sendSignal(thread_self->signal, tsig_suspend, 0);
 }
@@ -166,6 +172,7 @@ void Thread::wait(Int mills) {
 
     this->state = THREAD_SUSPENDED;
 
+    stayAsleep:
     while (this->suspended)
     {
         if ((mills - now) > 0)
@@ -192,6 +199,11 @@ void Thread::wait(Int mills) {
         }
 
         now = NANO_TOMILL(Clock::realTimeInNSecs()) - base;
+    }
+
+    if(gc.lowMemory) {
+        suspended = true;
+        goto stayAsleep;
     }
 
     this->state = THREAD_RUNNING;
