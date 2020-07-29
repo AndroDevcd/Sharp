@@ -6,11 +6,12 @@ import std.io;
 
 private short_term_threads : var;
 private long_term_threads : var;
+private max_threads : var;
 private scheduler : thread;
 
 protected def start_scheduler() {
     lock(launcher) {
-        if(short_term_threads == 0)
+        if(max_threads == 0)
             calculate_max_threads();
         scheduler = new thread("task_scheduler", scheduler_main, launcher.long_term_pool);
         scheduler.start(null);
@@ -32,6 +33,7 @@ private def calculate_max_threads() {
 
     if(long_term_threads == 0)
         long_term_threads = 1;
+    max_threads = short_term_threads + long_term_threads;
 }
 
 def set_thread_max(max: var) {
@@ -42,14 +44,7 @@ def set_thread_max(max: var) {
         }
 
         if(max >= 2) {
-            short_term_threads = round(max * 0.75);
-            long_term_threads = round(max * 0.25);
-
-            if(short_term_threads == 0)
-                short_term_threads = 1;
-
-            if(long_term_threads == 0)
-                long_term_threads = 1;
+            calculate_max_threads();
         } else {
             throw new ill_arg_except("cannot have less than 2 max threads");
         }
@@ -58,9 +53,9 @@ def set_thread_max(max: var) {
 
 def get_thread_max() : var {
     lock(launcher) {
-        if(short_term_threads == 0)
+        if(max_threads == 0)
             calculate_max_threads();
-        return short_term_threads + long_term_threads;
+        return max_threads;
     }
 }
 
