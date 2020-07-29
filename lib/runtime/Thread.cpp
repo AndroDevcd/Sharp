@@ -359,6 +359,7 @@ void Thread::waitForThreadUnSuspend(Thread *thread) {
 
     int spinCount = 0;
     int retryCount = 0;
+    Thread *current = thread_self;
 
     while (thread->state != THREAD_RUNNING)
     {
@@ -375,6 +376,11 @@ void Thread::waitForThreadUnSuspend(Thread *thread) {
 #ifdef POSIX_
             usleep(1*POSIX_USEC_INTERVAL);
 #endif
+        }
+
+        // to protect against de-sync issues caused by the gc
+        if(hasSignal(current->signal, tsig_suspend) && vm.state != VM_SHUTTING_DOWN) {
+            suspendSelf();
         }
     }
 }
@@ -473,7 +479,6 @@ int Thread::waitForThread(Thread *thread) {
 }
 
 void Thread::suspendAllThreads(bool withTagging) {
-    GUARD(threadsMonitor);
     Thread* thread;
 
     for(uInt i = 0; i <= maxThreadId; i++) {
@@ -489,7 +494,6 @@ void Thread::suspendAllThreads(bool withTagging) {
 }
 
 void Thread::resumeAllThreads(bool withTagging) {
-    GUARD(threadsMonitor);
     Thread* thread;
 
     for(unsigned int i= 0; i <= maxThreadId; i++) {
