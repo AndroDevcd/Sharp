@@ -107,14 +107,14 @@ public class thread {
 	    return result;
 	}
 	
-	public def notify() : thread_result {
+	public def unsuspend() : thread_result {
 	    result := vm.unsuspend(self, false);
 	    if(result == result_ok)
 	        suspended = false;
 	    return result;
 	}
 
-	public def notify_and_wait() : thread_result {
+	public def unsuspend_and_wait() : thread_result {
 	    result := vm.unsuspend(self, true);
 	    if(result == result_ok)
 	        suspended = false;

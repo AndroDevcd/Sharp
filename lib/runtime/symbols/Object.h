@@ -35,6 +35,7 @@ struct SharpObject
         SET_INFO(info, 0, type, generation); /* generation young */
         new (&refCount) std::atomic<uint32_t>();
         refCount=0;
+        monitor=0;
     }
     void init(uInt size, ClassObject* k, CollectionGeneration generation = gc_young)
     {
@@ -46,6 +47,7 @@ struct SharpObject
         refCount=0;
         SET_INFO(info, k->address, _stype_struct, generation); /* generation young */
         SET_CLASS_BIT(info, 1);
+        monitor=0;
     }
 
     void print();
@@ -58,6 +60,7 @@ struct SharpObject
     /* info */
     uint32_t size;
     std::atomic<uint32_t> refCount;
+    unsigned short monitor : 1; // used for the wait and notify() system
 
     /**
      * Information package
@@ -97,6 +100,10 @@ struct SharpObject
  */
 struct Object {
     SharpObject* object;
+
+    void wait();
+    void notify();
+    void notify(uInt);
 
     static void monitorLock(Object *o, Thread *t) {
         gc.lock(o ? o->object : NULL, t);

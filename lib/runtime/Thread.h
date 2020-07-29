@@ -165,8 +165,8 @@ public:
 
 private:
 
-    void wait();
-    void wait(Int);
+    void waitForUnsuspend();
+    void waitForUnsuspend(Int mills);
 
     static int unsuspendThread(Thread*);
     static void suspendThread(Thread*);

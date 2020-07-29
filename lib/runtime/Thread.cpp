@@ -116,10 +116,10 @@ void Thread::suspendSelf() {
 	 * sleep the thread most of the time. unsuspendThread() or
 	 * resumeAllThreads() should be called to revive thread.
 	 */
-    thread_self->wait();
+    thread_self->waitForUnsuspend();
 }
 
-void Thread::wait() {
+void Thread::waitForUnsuspend() {
     const long sMaxRetries = 128 * 1024;
 
     long spinCount = 0;
@@ -156,7 +156,7 @@ void Thread::wait() {
     sendSignal(thread_self->signal, tsig_suspend, 0);
 }
 
-void Thread::wait(Int mills) {
+void Thread::waitForUnsuspend(Int mills) {
     const Int sleepInterval = 1; // sleep for 1 milliseconds
 
     Int base = NANO_TOMILL(Clock::realTimeInNSecs()), now = 0;
@@ -262,7 +262,7 @@ void Thread::suspendFor(Int mills) {
     }
 
     if(mills == -1)
-        thread->wait();
+        thread->waitForUnsuspend();
     else
     /*
 	 * This function is far more efficent that wait()
@@ -270,7 +270,7 @@ void Thread::suspendFor(Int mills) {
      * We call wait(mills) when we want to possibly wake up a sleeping thread
      *
 	 */
-        thread->wait(mills);
+        thread->waitForUnsuspend(mills);
 }
 
 int Thread::unSuspendThread(int32_t id, bool wait) {

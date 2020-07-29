@@ -485,7 +485,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         case OP_THREAD_UNSUSPEND:
             registers[CMT]=Thread::unSuspendThread((int32_t )_64ADX, (int32_t )_64EBX);
             return;
-        case OP_THREAD_WAIT:
+        case OP_THREAD_SUSPEND_FOR:
             Thread::suspendFor((Int )_64ADX);
             return;
         case OP_THREAD_CURRENT: // native getCurrentThread()
@@ -773,6 +773,21 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 GUARD(thread_self->threadsMonitor)
                 registers[EBX] = vm.link(funcname, libname);
             }
+            return;
+        }
+        case OP_WAIT: {
+            Object *obj = &(thread_self->sp--)->object;
+            obj->wait();
+            return;
+        }
+        case OP_NOTIFY: {
+            Object *obj = &(thread_self->sp--)->object;
+            obj->notify();
+            return;
+        }
+        case OP_NOTIFY_FOR: {
+            Object *obj = &(thread_self->sp--)->object;
+            obj->notify((uInt)registers[EBX]);
             return;
         }
         default: {

@@ -17,7 +17,7 @@ public class job {
 		if(state == created) {
 			controller.scheduled_job = self;
 			if(host.is_active()) {
-			    host.notify_and_wait();
+			    controller.notify();
 			} else {
 			    host.start(new object[] { controller });
 			}
@@ -74,8 +74,7 @@ public class job {
         }
 
         if(try_join) {
-            while(!is_finished())
-                thread.wait();
+            thread.wait();
         }
 	}
 
@@ -119,7 +118,7 @@ public class job {
                 controller.scheduled_job = null;
 			}
 
-            thread.wait();
+            controller.wait();
         }
 
         return 0;
