@@ -505,7 +505,8 @@ void Thread::resumeAllThreads(bool withTagging) {
                 continue;
             }
 
-            unsuspendAndWait(thread);
+            if(thread->state == THREAD_SUSPENDED)
+                unsuspendAndWait(thread);
         }
     }
 }
