@@ -148,19 +148,7 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         return;
 
 
-    if(policy == GC_LOW || policy == GC_EXPLICIT) {
-        Thread::suspendAllThreads();
-
-        /**
-         * In order to keep memory utilization low we must shutdown
-         * the entire system to perform a colection, this will take
-         * on average about 10us to complete
-         */
-        collectGarbage();
-
-        Thread::resumeAllThreads();
-
-    } else if(policy == GC_CONCURRENT) {
+    if(policy == GC_LOW || policy == GC_EXPLICIT || policy == GC_CONCURRENT) {
         /**
          * In order to keep memory utilization low we must shutdown
          * the entire system to perform a colection, this will take
