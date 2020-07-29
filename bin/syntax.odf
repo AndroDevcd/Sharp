@@ -1,9 +1,9 @@
 ## Object Dump file for bin/syntax:
 
-pre codebase size: 70560
-post codebase size: 63061
-optimized opcodes: 7499
-net % gain 10.6278
+pre codebase size: 70662
+post codebase size: 63149
+optimized opcodes: 7513
+net % gain 10.6323
 
 
 class: std#__srt_global[0] fields(1) methods(47)
@@ -38553,7 +38553,7 @@ function: platform.kernel#platform.static_init[1936] params(0) in file: lib\supp
 931 [0x3a3]:          movn #0   
 933 [0x3a5]:          movn #0   
 935 [0x3a7]:          popobj   
-936 [0x3a8]:          movi #96964, ebx   
+936 [0x3a8]:          movi #36562, ebx   
 938 [0x3aa]:          movg @59 // @std.reflect#property_type   
 939 [0x3ab]:          movn #0   
 941 [0x3ad]:          movn #1   
@@ -38568,7 +38568,7 @@ function: platform.kernel#platform.static_init[1936] params(0) in file: lib\supp
 953 [0x3b9]:          movn #1   
 955 [0x3bb]:          movn #0   
 957 [0x3bd]:          popobj   
-958 [0x3be]:          movi #96965, ebx   
+958 [0x3be]:          movi #36563, ebx   
 960 [0x3c0]:          movg @59 // @std.reflect#property_type   
 961 [0x3c1]:          movn #1   
 963 [0x3c3]:          movn #1   
@@ -38583,7 +38583,7 @@ function: platform.kernel#platform.static_init[1936] params(0) in file: lib\supp
 975 [0x3cf]:          movn #2   
 977 [0x3d1]:          movn #0   
 979 [0x3d3]:          popobj   
-980 [0x3d4]:          movi #96966, ebx   
+980 [0x3d4]:          movi #36564, ebx   
 982 [0x3d6]:          movg @59 // @std.reflect#property_type   
 983 [0x3d7]:          movn #2   
 985 [0x3d9]:          movn #1   
@@ -62625,7 +62625,26 @@ constructor: common.network.driver#nrf24.nrf24[3074] params(0) in file: C:\Users
 42 [0x2a]:          movn #1   
 44 [0x2c]:          movi #0, adx   
 46 [0x2e]:          rmov adx, ebx   
-47 [0x2f]:          ret   
+47 [0x2f]: line: 16 movl 0   
+48 [0x30]:          movn #2   
+50 [0x32]:          movi #0, adx   
+52 [0x34]:          iaload ebx, adx   
+53 [0x35]:          rstore ebx   
+54 [0x36]:          movl 0   
+55 [0x37]:          movn #3   
+57 [0x39]:          movi #0, adx   
+59 [0x3b]:          iaload ebx, adx   
+60 [0x3c]:          rstore ebx   
+61 [0x3d]:          istore 2   
+63 [0x3f]:          movi #5, ebx   
+65 [0x41]:          rstore ebx   
+66 [0x42]:          movg @70 // @common#constants   
+67 [0x43]:          movn #20   
+69 [0x45]:          movi #0, adx   
+71 [0x47]:          iaload ebx, adx   
+72 [0x48]:          rstore ebx   
+73 [0x49]:          invoke_delegate 3064 { static=1, args=5 }   
+75 [0x4b]:          ret   
 
 
 function: common.network.driver#nrf24.set_rf_lvl[3075] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:20:5: note:  
@@ -62642,9 +62661,11 @@ function: common.network.driver#nrf24.set_rf_lvl[3075] params(1) in file: C:\Use
 8 [0x8]:          loadval ebx   
 9 [0x9]:          movi #0, adx   
 11 [0xb]:          rmov adx, ebx   
-12 [0xc]:          movl 0   
-13 [0xd]:          _ulck   
-14 [0xe]:          ret   
+12 [0xc]: line: 24 ipushl #1   
+13 [0xd]:          invoke_delegate 3065 { static=1, args=1 }   
+15 [0xf]:          movl 0   
+16 [0x10]:          _ulck   
+17 [0x11]:          ret   
 
 
 function: common.network.driver#nrf24.set_data_rate[3076] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:28:5: note:  
@@ -62661,9 +62682,11 @@ function: common.network.driver#nrf24.set_data_rate[3076] params(1) in file: C:\
 8 [0x8]:          loadval ebx   
 9 [0x9]:          movi #0, adx   
 11 [0xb]:          rmov adx, ebx   
-12 [0xc]:          movl 0   
-13 [0xd]:          _ulck   
-14 [0xe]:          ret   
+12 [0xc]: line: 32 ipushl #1   
+13 [0xd]:          invoke_delegate 3066 { static=1, args=1 }   
+15 [0xf]:          movl 0   
+16 [0x10]:          _ulck   
+17 [0x11]:          ret   
 
 
 function: common.network.driver#nrf24.dump[3077] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:36:5: note:  
@@ -62672,74 +62695,120 @@ function: common.network.driver#nrf24.dump[3077] params(0) in file: C:\Users\bnu
 
 0 [0x0]: line: 37 movl 0   
 1 [0x1]:          _lck    
-2 [0x2]:          movl 0   
-3 [0x3]:          _ulck   
-4 [0x4]:          ret   
+2 [0x2]: line: 38 pushl 0   
+3 [0x3]:          call @3083 // <common.network.driver#nrf24.check_state>   
+4 [0x4]: line: 39 invoke_delegate 3067 { static=1, args=0 }   
+6 [0x6]:          movl 0   
+7 [0x7]:          _ulck   
+8 [0x8]:          ret   
 
 
 function: common.network.driver#nrf24.update_retry_count[3078] params(2) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:43:5: note:  
 			def update_retry_count(delay: var, count: var) {
 		    ^
 
-0 [0x0]:         ret   
+0 [0x0]: line: 44 movl 0   
+1 [0x1]:          _lck    
+2 [0x2]: line: 45 pushl 0   
+3 [0x3]:          call @3083 // <common.network.driver#nrf24.check_state>   
+4 [0x4]: line: 46 ipushl #1   
+5 [0x5]:          ipushl #2   
+6 [0x6]:          invoke_delegate 3068 { static=1, args=2 }   
+8 [0x8]:          movl 0   
+9 [0x9]:          _ulck   
+10 [0xa]:          ret   
 
 
-function: common.network.driver#nrf24.shut_down[3079] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:46:5: note:  
+function: common.network.driver#nrf24.shut_down[3079] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:50:5: note:  
 			def shut_down() {
 		    ^
 
-0 [0x0]:         ret   
+0 [0x0]: line: 51 movl 0   
+1 [0x1]:          _lck    
+2 [0x2]: line: 52 movi #0, ebx   
+4 [0x4]:          movl 0   
+5 [0x5]:          movn #1   
+7 [0x7]:          movi #0, adx   
+9 [0x9]:          rmov adx, ebx   
+10 [0xa]: line: 53 invoke_delegate 3069 { static=1, args=0 }   
+12 [0xc]:          movl 0   
+13 [0xd]:          _ulck   
+14 [0xe]:          ret   
 
 
-function: common.network.driver#nrf24.get_signal_strength[3080] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:49:5: note:  
+function: common.network.driver#nrf24.get_signal_strength[3080] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:57:5: note:  
 			def get_signal_strength(): var {
 		    ^
 
-0 [0x0]: line: 50 istorel 4, fp+0   
-2 [0x2]:          ret   
+0 [0x0]: line: 58 movl 0   
+1 [0x1]:          _lck    
+2 [0x2]: line: 59 pushl 0   
+3 [0x3]:          call @3083 // <common.network.driver#nrf24.check_state>   
+4 [0x4]: line: 60 movl 0   
+5 [0x5]:          _ulck   
+6 [0x6]:          invoke_delegate 3070 { static=1, args=0 }   
+8 [0x8]:          loadval ebx   
+9 [0x9]:          return_val ebx   
+10 [0xa]:          ret   
+11 [0xb]:          movl 0   
+12 [0xc]:          _ulck   
 
 
-function: common.network.driver#nrf24.read[3081] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:53:5: note:  
+function: common.network.driver#nrf24.read[3081] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:64:5: note:  
 			def read(response: string): var {
 		    ^
 
-0 [0x0]: line: 54 istorel 1, fp+0   
-2 [0x2]:          ret   
+0 [0x0]: line: 65 pushl 0   
+1 [0x1]:          call @3083 // <common.network.driver#nrf24.check_state>   
+2 [0x2]: line: 67 pushl 1   
+3 [0x3]:          invoke_delegate 3071 { static=1, args=0 }   
+5 [0x5]:          call @2944 // <std#string.operator=>   
+6 [0x6]: line: 68 invoke_delegate 3073 { static=1, args=0 }   
+8 [0x8]:          loadval ebx   
+9 [0x9]:          return_val ebx   
+10 [0xa]:          ret   
 
 
-function: common.network.driver#nrf24.send[3082] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:57:5: note:  
+function: common.network.driver#nrf24.send[3082] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:71:5: note:  
 			def send(response: string): var {
 		    ^
 
-0 [0x0]: line: 58 istorel 1, fp+0   
-2 [0x2]:          ret   
+0 [0x0]: line: 72 pushl 0   
+1 [0x1]:          call @3083 // <common.network.driver#nrf24.check_state>   
+2 [0x2]: line: 74 pushl 1   
+3 [0x3]:          call @2949 // <std#string.get_data>   
+4 [0x4]:          invoke_delegate 3072 { static=1, args=1 }   
+6 [0x6]: line: 75 invoke_delegate 3073 { static=1, args=0 }   
+8 [0x8]:          loadval ebx   
+9 [0x9]:          return_val ebx   
+10 [0xa]:          ret   
 
 
-function: common.network.driver#nrf24.check_state[3083] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:61:5: note:  
+function: common.network.driver#nrf24.check_state[3083] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\common/network//driver//nrf.sharp:78:5: note:  
 			def check_state() {
 		    ^
 
-0 [0x0]: line: 62 movl 0   
+0 [0x0]: line: 79 movl 0   
 1 [0x1]:          movn #0   
 3 [0x3]:          movi #0, adx   
 5 [0x5]:          iaload ebx, adx   
 6 [0x6]:          not ebx, ebx   
 7 [0x7]:          movr cmt, ebx   
 8 [0x8]:          jne 14   
-9 [0x9]: line: 63 new_class @5 // std#illegal_state_exception   
+9 [0x9]: line: 80 new_class @5 // std#illegal_state_exception   
 10 [0xa]:          dup    
 11 [0xb]:          newstr @55 // device is not setup   
 12 [0xc]:          call @1626 // <std#illegal_state_exception.illegal_state_exception>   
 13 [0xd]:          throw    
 14 [0xe]:          nop   
-15 [0xf]: line: 64 movl 0   
+15 [0xf]: line: 81 movl 0   
 16 [0x10]:          movn #1   
 18 [0x12]:          movi #0, adx   
 20 [0x14]:          iaload ebx, adx   
 21 [0x15]:          not ebx, ebx   
 22 [0x16]:          movr cmt, ebx   
 23 [0x17]:          jne 29   
-24 [0x18]: line: 65 new_class @5 // std#illegal_state_exception   
+24 [0x18]: line: 82 new_class @5 // std#illegal_state_exception   
 25 [0x19]:          dup    
 26 [0x1a]:          newstr @56 // device is shutown   
 27 [0x1b]:          call @1626 // <std#illegal_state_exception.illegal_state_exception>   

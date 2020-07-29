@@ -93,17 +93,14 @@ void Thread::CreateDaemon(string name) {
 }
 
 void Thread::pushThread(Thread *thread) {
-    GUARD(threadsMonitor);
     threads.put(thread->id, thread);
 }
 
 void Thread::popThread(Thread *thread) {
-    GUARD(threadsMonitor);
     threads.remove(thread->id);
 }
 
 Thread *Thread::getThread(int32_t id) {
-    GUARD(threadsMonitor);
     Thread *thread = NULL;
     threads.get(id, thread);
 
@@ -593,10 +590,8 @@ int Thread::threadjoin(Thread *thread) {
 }
 
 void Thread::killAll() {
-    {
-        GUARD(threadsMonitor);
-        suspendAllThreads();
-    }
+    GUARD(threadsMonitor);
+    suspendAllThreads();
     Thread *thread = NULL;
 
     for(unsigned int i = 0; i <= maxThreadId; i++) {
@@ -1543,8 +1538,6 @@ bool Thread::validInternalStackSize(size_t sz) {
 }
 
 int32_t Thread::generateId() {
-    GUARD(threadsMonitor);
-
     Thread *thread;
     bool wrapped = false;
 

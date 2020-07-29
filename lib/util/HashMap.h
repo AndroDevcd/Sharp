@@ -5,9 +5,13 @@
 #ifndef SHARP_HASHMAP_H
 #define SHARP_HASHMAP_H
 
+#include <mutex>
 #include "../../stdimports.h"
 
 #define TABLE_SIZE 25
+
+#define GUARD(mut) \
+    std::lock_guard<recursive_mutex> guard(mut);
 
 template <typename K, typename V>
 class HashNode {
@@ -55,11 +59,17 @@ struct KeyHash {
 template <typename K, typename V, typename F = KeyHash<K>>
 class HashMap {
 public:
-    HashMap() {
+    HashMap()
+    :
+       monitor()
+    {
         init(TABLE_SIZE);
     }
 
-    HashMap(uInt tableSize) {
+    HashMap(uInt tableSize)
+    :
+       monitor()
+    {
         // construct zero initialized hash table of size
         init(tableSize);
     }
@@ -74,21 +84,27 @@ public:
     }
 
     ~HashMap() {
-        // destroy all buckets one by one
-        for (uInt i = 0; i < tableSize; ++i) {
-            HashNode<K, V> *entry = table[i];
-            while (entry != NULL) {
-                HashNode<K, V> *prev = entry;
-                entry = entry->getNext();
-                delete prev;
+        monitor.lock();
+        if(table != NULL) {
+            // destroy all buckets one by one
+            for (uInt i = 0; i < tableSize; ++i) {
+                HashNode<K, V> *entry = table[i];
+                while (entry != NULL) {
+                    HashNode<K, V> *prev = entry;
+                    entry = entry->getNext();
+                    delete prev;
+                }
+                table[i] = NULL;
             }
-            table[i] = NULL;
+            // destroy the hash table
+            delete[] table;
+            table = NULL;
         }
-        // destroy the hash table
-        delete [] table;
+        monitor.unlock();
     }
 
     bool get(const K &key, V &value) {
+        GUARD(monitor)
         uInt hashValue = hashFunc(key, tableSize);
         HashNode<K, V> *entry = table[hashValue];
 
@@ -103,6 +119,7 @@ public:
     }
 
     void put(const K &key, const V &value) {
+        GUARD(monitor)
         uInt hashValue = hashFunc(key, tableSize);
         HashNode<K, V> *prev = NULL;
         HashNode<K, V> *entry = table[hashValue];
@@ -127,6 +144,7 @@ public:
     }
 
     void remove(const K &key) {
+        GUARD(monitor)
         uInt hashValue = hashFunc(key, tableSize);
         HashNode<K, V> *prev = NULL;
         HashNode<K, V> *entry = table[hashValue];
@@ -156,6 +174,7 @@ private:
     HashNode<K, V> **table;
     F hashFunc;
     uInt tableSize;
+    recursive_mutex monitor;
 };
 
 #endif //SHARP_HASHMAP_H
