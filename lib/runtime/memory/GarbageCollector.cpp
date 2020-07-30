@@ -99,7 +99,7 @@ void* __realloc(void *ptr, uInt bytes, uInt old)
 }
 
 void GarbageCollector::initilize() {
-    gc._Mheap = (SharpObject*)__malloc(sizeof(SharpObject)); // HEAD
+    gc._Mheap = (SharpObject*)malloc(sizeof(SharpObject)); // HEAD
     if(gc._Mheap == NULL) throw Exception("out of memory");
     gc._Mheap->init(0, _stype_none);
     gc.tail = gc._Mheap; // set tail to self for later use
@@ -159,7 +159,6 @@ void GarbageCollector::collect(CollectionPolicy policy) {
         collectGarbage();
         Thread::resumeAllThreads(true);
     }
-
 }
 
 /**

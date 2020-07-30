@@ -65,7 +65,6 @@ private def scheduler_main(args : object[]) : var
 	while(true)
 	{
 		thread.yield();
-		println("jobs ${jobs.size()}");
 		for(i := 0; i < jobs.size(); i++) {
         	scheduled_job := jobs.at(i);
 

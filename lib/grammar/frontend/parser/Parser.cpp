@@ -1760,7 +1760,9 @@ void parser::parseGetter(Ast* ast) {
     if(*peek(1) == "get") {
         Ast *branch = getBranch(ast, ast_getter);
         expect(branch, "get");
+        RETAIN_RECURSION(0);
         parseBlock(branch);
+        RESTORE_RECURSION();
     }
 }
 
@@ -1771,7 +1773,9 @@ void parser::parseSetter(Ast* ast) {
 
         expectIdentifier(branch);
         expect(branch, "->");
+        RETAIN_RECURSION(0);
         parseBlock(branch);
+        RESTORE_RECURSION();
     }
 }
 

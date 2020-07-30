@@ -30,7 +30,6 @@ struct SharpObject
     {
         info=0;
         HEAD=NULL;
-        next=NULL;
         this->size=size;
         SET_INFO(info, 0, type, generation); /* generation young */
         new (&refCount) std::atomic<uint32_t>();
@@ -41,7 +40,6 @@ struct SharpObject
     {
         info=0;
         HEAD=NULL;
-        next=NULL;
         this->size=size;
         new (&refCount) std::atomic<uint32_t>();
         refCount=0;
