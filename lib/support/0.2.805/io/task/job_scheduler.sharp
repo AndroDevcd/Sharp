@@ -44,7 +44,17 @@ def set_thread_max(max: var) {
         }
 
         if(max >= 2) {
-            calculate_max_threads();
+            if(max > 2) {
+                short_term_threads = round(max * 0.75);
+                long_term_threads = round(max * 0.25);
+            }
+
+            if(short_term_threads == 0)
+                short_term_threads = 1;
+
+            if(long_term_threads == 0)
+                long_term_threads = 1;
+            max_threads = max;
         } else {
             throw new ill_arg_except("cannot have less than 2 max threads");
         }
