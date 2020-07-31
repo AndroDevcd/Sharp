@@ -102,7 +102,7 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic
         if(vm.methods[address].nativeFunc) {
             if(vm.methods[address].bridge != NULL) {
                 setupMethodStack(address, thread_self, true);
-                vm.methods[address].bridge(vm.methods[address].address);
+                vm.methods[address].bridge(vm.methods[address].linkAddr);
                 returnMethod(thread_self);
             } else {
                 vm.locateBridgeAndCross(&vm.methods[address]);
@@ -225,6 +225,11 @@ void VirtualMachine::destroy() {
 
     Thread::shutdown();
     GarbageCollector::shutdown();
+
+    for(Int i = 0; i < vm.libs.size(); i++) {
+        free_lib(vm.libs.get(i).handle);
+        vm.libs.get(i).name.free();
+    }
 
 #ifdef BUILD_JIT
     Jit::shutdown();
@@ -1171,7 +1176,8 @@ int VirtualMachine::freeLib(native_string name) {
                                      "snb_main");
         for(Int i = 0; i < vm.manifest.methods; i++) {
             if(vm.methods[i].bridge == _bridgeFun) {
-                vm.methods->bridge = NULL;
+                vm.methods[i].bridge = NULL;
+                vm.methods[i].linkAddr=-1;
             }
         }
 
@@ -1188,6 +1194,7 @@ int VirtualMachine::freeLib(native_string name) {
 void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
     fptr fun;
     linkProc _linkProc;
+    uint32_t linkAddr = 0;
 
     for(Int i = 0; i < libs.size(); i++) {
         _linkProc =
@@ -1195,13 +1202,14 @@ void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
                                    "snb_link_proc");
 
         if(_linkProc) {
-            if(_linkProc(nativeFun->fullName.str().c_str(), nativeFun->address)) {
+            if((linkAddr = _linkProc(nativeFun->fullName.str().c_str())) >= 0) {
                 nativeFun->bridge =
                         (bridgeFun)load_func(libs.get(i).handle,
                                            "snb_main");
                 if (nativeFun->bridge) {
+                    nativeFun->linkAddr = linkAddr;
                     setupMethodStack(nativeFun->address, thread_self, true);
-                    nativeFun->bridge(nativeFun->address);
+                    nativeFun->bridge(nativeFun->linkAddr);
                     returnMethod(thread_self);
                 }
             }
@@ -1215,6 +1223,7 @@ void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
 bool VirtualMachine::link(native_string &func, native_string &libame) {
     Library *lib = getLib(libame);
     linkProc _linkProc;
+    uint32_t linkAddr;
 
     if(lib != NULL) {
         for (Int i = 0; i < vm.manifest.methods; i++) {
@@ -1226,13 +1235,16 @@ bool VirtualMachine::link(native_string &func, native_string &libame) {
                                              "snb_link_proc");
 
                 if (_linkProc) {
-                    if (_linkProc(vm.methods[i].fullName.str().c_str(), vm.methods[i].address)) {
+                    if ((linkAddr = _linkProc(vm.methods[i].fullName.str().c_str())) >= 0) {
+                        vm.methods[i].linkAddr = linkAddr;
                         vm.methods[i].bridge =
                                 (bridgeFun) load_func(lib->handle,
                                                       "snb_main");
                         return vm.methods[i].bridge != NULL;
                     }
                 }
+
+                break;
             }
         }
     }

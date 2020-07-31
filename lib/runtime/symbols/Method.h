@@ -30,7 +30,7 @@ struct jit_context;
 typedef opcode_instr* Cache;
 typedef void (*fptr)(void *);
 typedef void (*bridgeFun)(long handle);
-typedef long (*linkProc)(const char* funcName, int32_t);
+typedef long (*linkProc)(const char* funcName);
 typedef short (*lib_handshake)(void *lib_funcs[], int);
 
 /**
@@ -54,6 +54,7 @@ public:
     int fpOffset;
     int frameStackOffset;
     bool nativeFunc;
+    uint32_t linkAddr;
     bridgeFun bridge;
     Param* params;
     _List<TryCatchData> tryCatchTable;
@@ -100,6 +101,7 @@ public:
         jit_func=0;
         compiling=false;
         jitAttempts=0;
+        linkAddr=0;
         if(params != NULL) {
             std::free(params);
         }
@@ -124,6 +126,7 @@ public:
         compiling=false;
         jitAttempts=0;
         sourceFile=0;
+        linkAddr=0;
         tryCatchTable.init();
         lineTable.init();
         params = NULL;

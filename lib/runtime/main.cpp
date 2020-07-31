@@ -72,7 +72,7 @@ int runtimeStart(int argc, const char* argv[])
      */
     GarbageCollector::initilize();
     GarbageCollector::setMemoryLimit(GC_HEAP_LIMIT);
-    GarbageCollector::setMemoryThreshold(KB_TO_BYTES(64));
+    GarbageCollector::setMemoryThreshold(MB_TO_BYTES(12));
 
     for (int i = 1; i < argc; ++i) {
         if(opt("-V")){
@@ -259,7 +259,6 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {
     native_string str(ss.str());
 
     *object = gc.newObjectArray(size);
-    SET_GENERATION(object->object->info, gc_perm);
 
     gc.createStringArray(&object->object->node[iter++],vm.manifest.application);
     gc.createStringArray(&object->object->node[iter++],vm.manifest.version);

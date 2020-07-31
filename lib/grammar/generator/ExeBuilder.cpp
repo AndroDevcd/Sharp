@@ -431,29 +431,29 @@ void ExeBuilder::appendProcAddrFunctions(ClassObject* klass, stringstream &ss, b
         Method *func = classMethods.get(k);
 
         if(func->isNative()) {
-            ss << "\t\t";
-            if (firstFunc) firstFunc = false;
-            else ss << "|| ";
-            ss << "name == \"" << func->fullName << "\" && addr == " << func->address << endl;
+            if(firstFunc) {
+                ss << "\tif(";
+                firstFunc = false;
+            }
+            else
+                ss << "\telse if(";
+
+            ss << "name == \"" << func->fullName << "\") {  return " << func->address << ";  }" << endl;
         }
     }
 }
 
 void ExeBuilder::createProcAddrFunc(stringstream &ss) {
-    ss << "EXPORTED short snb_link_proc(const char* funcName, int32_t addr) {" << endl
+    ss << "EXPORTED short snb_link_proc(const char* funcName) {" << endl
        << "\tstring name = funcName;" << endl << endl;
 
     bool firstFunc = true;
 
-    ss << "\tif(" << endl;
     for(Int j = 0; j < allClasses.size(); j++) {
         appendProcAddrFunctions(allClasses.get(j), ss, firstFunc);
     }
 
-    ss << "\t) {" << endl;
-    ss << "\t\treturn 1;" << endl;
-    ss << "\t}" << endl << endl;
-    ss << "return 0;" << endl;
+    ss << "\telse return -1;" << endl;
     ss << "}" << endl << endl;
 }
 

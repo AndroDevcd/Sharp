@@ -420,14 +420,12 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
     object->init(size, _stype_var);
 
     object->HEAD = (double*)__calloc(size, sizeof(double));
-    SET_TYPE(object->info, _stype_var);
 
     /* track the allocation amount */
     GUARD(mutex);
     managedBytes += (sizeof(SharpObject)*1)+(sizeof(double)*size);
     PUSH(object);
     youngObjects++;
-    heapSize++;
 
     return object;
 }
@@ -449,7 +447,6 @@ SharpObject *GarbageCollector::newObjectUnsafe(int64_t size) {
             managedBytes += (sizeof(SharpObject) * 1) + (sizeof(double) * size);
             PUSH(object);
             youngObjects++;
-            heapSize++;
         } else {
             std::free(object);
             return NULL;
@@ -489,7 +486,6 @@ SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
         managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
         PUSH(object);
         youngObjects++;
-        heapSize++;
         return object;
     }
 
@@ -510,7 +506,6 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size) {
     managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
     PUSH(object);
     youngObjects++;
-    heapSize++;
 
     return object;
 }
@@ -529,7 +524,6 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
         managedBytes += (sizeof(SharpObject)*1)+(sizeof(Object)*size);
         PUSH(object);
         youngObjects++;
-        heapSize++;
 
         return object;
     }

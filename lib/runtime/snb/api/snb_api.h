@@ -95,7 +95,7 @@ typedef object vararray;
 extern "C" {
 #endif
 
-EXPORTED short snb_link_proc(const char*, int32_t);
+EXPORTED uint32_t snb_link_proc(const char*);
 EXPORTED void snb_main(long);
 EXPORTED short snb_handshake(void* lib_funcs[], int);
 
