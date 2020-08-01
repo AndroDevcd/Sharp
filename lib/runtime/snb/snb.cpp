@@ -217,11 +217,11 @@ object getExceptionObject() {
     else return &(thread_self->sp)->object;
 }
 
-string className(object klazz) {
+const char* className(object klazz) {
     Object *obj = (Object*)klazz;
     if(obj && obj->object && TYPE(obj->object->info) == _stype_struct) {
         if(IS_CLASS(obj->object->info))
-            return vm.classes[CLASS(obj->object->info)].fullName.str();
+            return vm.classes[CLASS(obj->object->info)].fullName.c_str();
     }
 
     return NULL;

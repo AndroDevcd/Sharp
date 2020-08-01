@@ -19,8 +19,9 @@ public:
             chars = NULL;
         } else {
             len=value.size();
-            chars = (char*)malloc(sizeof(char)*len);
+            chars = (char*)malloc(sizeof(char)*(len+1));
             assign(value);
+            chars[len]=0;
         }
     }
 
@@ -48,18 +49,14 @@ public:
     void set(const char value[]) {
         free();
 
-        for(Int i = 0;; i++)  {
-            if(value[i] == 0) {
-                len=i;
-                break;
-            }
-        }
+        len=strlen(value);
 
         if(len==0) {
             chars = NULL;
         } else {
-            chars = (char*)malloc(sizeof(char)*len);
+            chars = (char*)malloc(sizeof(char)*(len+1));
             std::memcpy(chars, value, sizeof(char)*len);
+            chars[len]=0;
         }
     }
 
@@ -70,9 +67,10 @@ public:
             chars = NULL;
         } else {
             len = max;
-            chars = (char*)malloc(sizeof(char)*max);
+            chars = (char*)malloc(sizeof(char)*(max+1));
             for(int64_t i = 0; i < max; i++)
                 chars[i] = (char)value[i];
+            chars[len]=0;
 
         }
     }
@@ -110,9 +108,11 @@ public:
 
         if(_str.size()>0) {
             len = _str.size();
-            chars = (char*)malloc(sizeof(char)*_str.size());
-            if(chars != NULL)
-                std::memcpy(chars, _str.c_str(), sizeof(char)*len);
+            chars = (char*)malloc(sizeof(char)*(_str.size()+1));
+            if(chars != NULL) {
+                std::memcpy(chars, _str.c_str(), sizeof(char) * len);
+                chars[len] = 0;
+            }
             else {
                 len = 0;
             }
@@ -124,9 +124,11 @@ public:
 
         if(_str.len>0) {
             len = _str.len;
-            chars = (char*)malloc(sizeof(char)*_str.len);
-            if(chars != NULL)
-                std::memcpy(chars, _str.chars, sizeof(char)*len);
+            chars = (char*)malloc(sizeof(char)*(_str.len+1));
+            if(chars != NULL) {
+                std::memcpy(chars, _str.chars, sizeof(char) * len);
+                chars[len] = 0;
+            }
             else {
                 len = 0;
             }
@@ -156,17 +158,20 @@ public:
     void operator+=(const char &c) {
         if(len == 0) {
             len=1;
-            chars=(char*)malloc(sizeof(char)*len);
-            if(chars != NULL)
-                chars[0]=c;
+            chars=(char*)malloc(sizeof(char)*(len+1));
+            if(chars != NULL) {
+                chars[0] = c;
+                chars[len]=0;
+            }
             else {
                 len = 0;
             }
         } else {
-            char*tmp = (char*)realloc(chars,sizeof(char)*(len+1));
+            char*tmp = (char*)realloc(chars,sizeof(char)*(len+2));
             if(tmp != NULL) {
                 chars = tmp;
                 chars[len++] = c;
+                chars[len]=0;
             }
         }
     }
@@ -175,6 +180,10 @@ public:
     string str() {
         if(len==0) return "";
         return string(chars,len);
+    }
+
+    const char* c_str() {
+        return chars;
     }
 
     void free() {

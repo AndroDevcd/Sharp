@@ -27,10 +27,13 @@ namespace snb_api {
         _exceptionCheck exceptionCheck;
         _getExceptionObject getExceptionObject;
         _className className;
+        _prepareException prepareException;
+        _clearException clearExcept;
+        _getItem getDataItem;
 
         int handshake(void *lib_funcs[], int size) {
 
-            if (size == 23) {
+            if (size == 26) {
                 inc_ref = (_inc_ref) lib_funcs[0];
                 dec_ref = (_dec_ref) lib_funcs[1];
                 getfpNumAt = (_getfpNumAt) lib_funcs[2];
@@ -54,7 +57,9 @@ namespace snb_api {
                 exceptionCheck = (_exceptionCheck) lib_funcs[20];
                 getExceptionObject = (_getExceptionObject) lib_funcs[21];
                 className = (_className) lib_funcs[22];
-
+                prepareException = (_prepareException) lib_funcs[23];
+                clearExcept = (_clearException) lib_funcs[24];
+                getDataItem = (_getItem) lib_funcs[25];
 
                 return inc_ref && dec_ref && getfpNumAt && getField
                        && getVarPtr && getfpLocalAt && getSize && setObject
@@ -62,7 +67,8 @@ namespace snb_api {
                        && getSpObjAt && decSp && pushNum && pushObj
                        && call && newVarArray && newClass && newObjArray
                        && newClassArray && exceptionCheck && getExceptionObject
-                       && className;
+                       && className && prepareException && clearExcept
+                       && getDataItem;
             } else return false;
 
         }
@@ -70,6 +76,22 @@ namespace snb_api {
     }
 
     using namespace internal;
+
+    object getItem(object obj, int32_t index) {
+        return getDataItem(obj, index);
+    }
+
+    void clearException() {
+        clearExcept();
+    }
+
+    const char* getClassName(object klazz) {
+        return className(klazz);
+    }
+
+    void throwException(object exceptionClass) {
+        throw Exception(exceptionClass, "");
+    }
 
     template<class T> T cast_to(object obj) {
         if(obj) {
@@ -82,7 +104,7 @@ namespace snb_api {
     }
 
     template<class T> T get(object obj, string field) {
-        object fieldObj = getField(obj, field);
+        object fieldObj = getField(obj, field.c_str());
 
         if(fieldObj) {
             T val(getVarPtr(fieldObj), fieldObj);
@@ -94,7 +116,7 @@ namespace snb_api {
     }
 
     template<> var_array get<var_array>(object obj, string field) {
-        object fieldObj = getField(obj, field);
+        object fieldObj = getField(obj, field.c_str());
 
         if(fieldObj) {
             var_array val(getVarPtr(fieldObj), getSize(fieldObj), fieldObj);
@@ -106,7 +128,7 @@ namespace snb_api {
     }
 
     template<> object get<object>(object obj, string field) {
-        return getField(obj, field);
+        return getField(obj, field.c_str());
     }
 
 
@@ -137,7 +159,7 @@ namespace snb_api {
     }
 
     object getStaticClassInstance(const string& name) {
-        return staticClassInstance(name);
+        return staticClassInstance(name.c_str());
     }
 
     string stringFrom(const var_array &arry) {
@@ -176,25 +198,46 @@ namespace snb_api {
 
     void createVarArray(var_array &field, int32_t size) {
         object newObj = newVarArray(size);
+
+        if(exceptionCheck()) {
+            throw Exception(getExceptionObject(), "");
+        }
+
         field.num = getVarPtr(newObj);
         field.size = size;
         set(field.handle, newObj);
     }
 
     void createClassArray(object field, const string &name, int32_t size) {
-        set(field, newClassArray(name, size));
+        set(field, newClassArray(name.c_str(), size));
+
+        if(exceptionCheck()) {
+            throw Exception(getExceptionObject(), "");
+        }
     }
 
     void createClass(object field, const string &name) {
-        set(field, newClass(name));
+        set(field, newClass(name.c_str()));
+
+        if(exceptionCheck()) {
+            throw Exception(getExceptionObject(), "");
+        }
     }
 
     void createObjectArray(object field, int32_t size) {
         set(field, newObjArray(size));
+
+        if(exceptionCheck()) {
+            throw Exception(getExceptionObject(), "");
+        }
     }
 
     void unTrack(int32_t amount) {
         decSp(amount);
+
+        if(exceptionCheck()) {
+            throw Exception(getExceptionObject(), "");
+        }
     }
 
     void set(var_array &arry, const char *str) {

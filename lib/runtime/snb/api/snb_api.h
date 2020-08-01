@@ -79,10 +79,10 @@ typedef object vararray;
 #define scope_end() }
 
 #if defined _WIN32 || defined __CYGWIN__
-    #define EXPORTED __attribute__ ((dllexport))
-    #define NOT_EXPORTED
+#define EXPORTED __attribute__ ((dllexport))
+#define NOT_EXPORTED
 #elif __GNUC__ >= 4
-    #define EXPORTED __attribute__ ((visibility ("default")))
+#define EXPORTED __attribute__ ((visibility ("default")))
     #define NOT_EXPORTED  __attribute__ ((visibility ("hidden")))
 #else
     //  do nothing and hope for the best?
@@ -108,19 +108,19 @@ EXPORTED short snb_handshake(void* lib_funcs[], int);
 typedef void (*_inc_ref)(void *object);
 typedef void (*_dec_ref)(void *object);
 typedef double* (*_getfpNumAt)(int32_t fpOffset);
-typedef object (*_getField)(object obj, const string &name);
+typedef object (*_getField)(object obj, const char* name);
 typedef double* (*_getVarPtr)(object obj);
 typedef object (*_getfpLocalAt)(int32_t fpOffset);
 typedef int32_t (*_getSize)(object obj);
 typedef int (*_setObject)(object dest, object src);
-typedef object (*_staticClassInstance)(const string &name);
+typedef object (*_staticClassInstance)(const char* name);
 typedef void (*_inc_sp)();
 typedef double* (*_getspNumAt)(int32_t spOffset);
 typedef object (*_getspObjAt)(int32_t spOffset);
 typedef object (*_newVarArray)(int32_t);
-typedef object (*_newClass)(const string &name);
+typedef object (*_newClass)(const char* name);
 typedef object (*_newObjArray)(int32_t);
-typedef object (*_newClassArray)(const string& name, int32_t);
+typedef object (*_newClassArray)(const char* name, int32_t);
 typedef void (*_decSp)(int32_t);
 typedef void (*_pushNum)(double);
 typedef void (*_pushObj)(object);
@@ -128,6 +128,9 @@ typedef void (*_call)(int32_t);
 typedef bool (*_exceptionCheck)();
 typedef object (*_getExceptionObject)();
 typedef const char* (*_className)(object klazz);
+typedef void (*_prepareException)(object klazz);
+typedef void (*_clearException)();
+typedef object (*_getItem)(object, int32_t);
 
 
 #define math_fun(op) \
@@ -165,6 +168,12 @@ namespace snb_api {
         extern _pushNum pushNum;
         extern _pushObj pushObj;
         extern _call call;
+        extern _exceptionCheck exceptionCheck;
+        extern _getExceptionObject getExceptionObject;
+        extern _className className;
+        extern _prepareException prepareException;
+        extern _clearException clearExcept;
+        extern _getItem getDataItem;
     }
 
     class var_array;
@@ -204,11 +213,15 @@ namespace snb_api {
     void createClass(object field, const string &name);
     void createObjectArray(object field, int32_t size);
     void unTrack(int32_t amount);
+    const char* getClassName(object);
+    void throwException(object exceptionClass);
+    void clearException();
+    object getItem(object, int32_t);
 
     class Exception : public std::runtime_error {
     public:
         Exception(object handle, const char *msg)
-        :
+                :
                 exceptionClass(handle),
                 std::runtime_error(msg)
         {
