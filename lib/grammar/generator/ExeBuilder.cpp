@@ -444,7 +444,7 @@ void ExeBuilder::appendProcAddrFunctions(ClassObject* klass, stringstream &ss, b
 }
 
 void ExeBuilder::createProcAddrFunc(stringstream &ss) {
-    ss << "EXPORTED short snb_link_proc(const char* funcName) {" << endl
+    ss << "EXPORTED uint32_t snb_link_proc(const char* funcName) {" << endl
        << "\tstring name = funcName;" << endl << endl;
 
     bool firstFunc = true;
@@ -573,25 +573,29 @@ void ExeBuilder::appendMainFunctions(ClassObject* klass, stringstream& ss) {
         if(!func->isNative()) continue;
         Int duplicateCount = getDuplicateCount(func, classMethods, k);
 
-        ss << "\t\t";
+        ss << "\t\t\t";
         ss << "case " << func->address << ": " << endl;
-        ss << "\t\t\tcall_" << moduleToCPPName(func->module->name) << "$"<< classToCPPName(func->owner->fullName) << "_" << func->name;
+        ss << "\t\t\t\tcall_" << moduleToCPPName(func->module->name) << "$"<< classToCPPName(func->owner->fullName) << "_" << func->name;
 
         if(duplicateCount)
             ss << (duplicateCount + 1);
         ss << "();" << endl;
-        ss << "\t\t\tbreak;" << endl;
+        ss << "\t\t\t\tbreak;" << endl;
     }
 }
 
 void ExeBuilder::createMainFunc(stringstream &ss) {
     ss << "EXPORTED void snb_main(long procAddr) {" << endl;
-    ss << "\tswitch(procAddr) {" << endl;
+    ss << "\ttry {" << endl;
+    ss << "\t\tswitch(procAddr) {" << endl;
 
     for(Int j = 0; j < allClasses.size(); j++) {
         appendMainFunctions(allClasses.get(j), ss);
     }
 
+    ss << "\t\t}" << endl;
+    ss << "\t} catch(Exception &e) {" << endl;
+    ss << "\t\tsnb_api::internal::prepareException(e.exceptionClass);" << endl;
     ss << "\t}" << endl;
     ss << "}" << endl;
 }
@@ -702,7 +706,10 @@ void ExeBuilder::appendSharpMappingSourceFile(ClassObject* klass, stringstream& 
             }
         }
 
-        ss << endl << "\t\tcall(" << func->address << ");" << endl;
+        ss << endl << "\t\tcall(" << func->address << ");" << endl << endl;
+        ss << "\t\tif(internal::exceptionCheck()) {" << endl;
+        ss << "\t\t\tthrow Exception(internal::getExceptionObject(), \"\");" << endl;
+        ss << "\t\t}" << endl;
 
         if(func->utype->getResolvedType()->type != NIL) {
             ss << endl;

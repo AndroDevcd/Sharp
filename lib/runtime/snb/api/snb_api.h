@@ -125,6 +125,9 @@ typedef void (*_decSp)(int32_t);
 typedef void (*_pushNum)(double);
 typedef void (*_pushObj)(object);
 typedef void (*_call)(int32_t);
+typedef bool (*_exceptionCheck)();
+typedef object (*_getExceptionObject)();
+typedef const char* (*_className)(object klazz);
 
 
 #define math_fun(op) \
@@ -201,6 +204,18 @@ namespace snb_api {
     void createClass(object field, const string &name);
     void createObjectArray(object field, int32_t size);
     void unTrack(int32_t amount);
+
+    class Exception : public std::runtime_error {
+    public:
+        Exception(object handle, const char *msg)
+        :
+                exceptionClass(handle),
+                std::runtime_error(msg)
+        {
+        }
+
+        object exceptionClass;
+    };
 
     template<class T>
     class integer;

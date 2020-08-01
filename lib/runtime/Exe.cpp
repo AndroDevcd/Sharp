@@ -398,7 +398,7 @@ int Process_Exe(std::string &exe)
                     return CORRUPT_FILE;
                 }
 
-                vm.constants[itemsProcessed++] = std::strtod(getString(buffer).c_str(), NULL);
+                vm.constants[itemsProcessed++] = std::strtod(getString(buffer).str().c_str(), NULL);
                 break;
             }
 
@@ -707,7 +707,7 @@ Int parseInt(File::buffer& exe) {
 #if _ARCH_BITS == 32
     return strtol(getString(exe).c_str(), NULL, 0);
 #else
-    return strtoll(getString(exe).c_str(), NULL, 0);
+    return strtoll(getString(exe).str().c_str(), NULL, 0);
 #endif
 }
 

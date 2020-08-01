@@ -257,10 +257,10 @@ void Gui::winPaint(long long proc) {
             SharpObject* str = (self->sp--)->object.object;
             if(str) {
                 native_string msg(str->HEAD, str->size);
-                const char *wMsg = msg.c_str();
+                string wMsg = msg.str();
                 TextOut(ctx->hdc,
                         (int)(self->sp)->var, (int)(self->sp-1)->var,
-                        wMsg, _tcslen(wMsg));
+                        wMsg.c_str(), _tcslen(wMsg.c_str()));
             }
             break;
         }

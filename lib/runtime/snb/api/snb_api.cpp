@@ -24,10 +24,13 @@ namespace snb_api {
         _pushNum pushNum;
         _pushObj pushObj;
         _call call;
+        _exceptionCheck exceptionCheck;
+        _getExceptionObject getExceptionObject;
+        _className className;
 
         int handshake(void *lib_funcs[], int size) {
 
-            if (size >= 20) {
+            if (size == 23) {
                 inc_ref = (_inc_ref) lib_funcs[0];
                 dec_ref = (_dec_ref) lib_funcs[1];
                 getfpNumAt = (_getfpNumAt) lib_funcs[2];
@@ -48,6 +51,9 @@ namespace snb_api {
                 pushNum = (_pushNum) lib_funcs[17];
                 pushObj = (_pushObj) lib_funcs[18];
                 call = (_call) lib_funcs[19];
+                exceptionCheck = (_exceptionCheck) lib_funcs[20];
+                getExceptionObject = (_getExceptionObject) lib_funcs[21];
+                className = (_className) lib_funcs[22];
 
 
                 return inc_ref && dec_ref && getfpNumAt && getField
@@ -55,7 +61,8 @@ namespace snb_api {
                        && staticClassInstance && inc_sp && getSpNumAt
                        && getSpObjAt && decSp && pushNum && pushObj
                        && call && newVarArray && newClass && newObjArray
-                       && newClassArray;
+                       && newClassArray && exceptionCheck && getExceptionObject
+                       && className;
             } else return false;
 
         }

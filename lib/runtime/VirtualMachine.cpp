@@ -731,7 +731,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     ) {
                         name.free();
                         #ifdef _WIN32
-                        throw Exception(vm.IllStateExcept, string("could not load library") + name.c_str());
+                        throw Exception(vm.IllStateExcept, string("could not load library") + name.str().c_str());
                         #else
                         throw Exception(vm.IllStateExcept, string("could not load library: ") + libError);
                         #endif
@@ -821,8 +821,7 @@ bool VirtualMachine::catchException() {
                         (thread->fp+tbl->catchTable._Data[j].localFieldAddress)->object = thread->exceptionObject;
                     thread->pc = thread->cache+tbl->catchTable._Data[j].handler_pc;
 
-                    DEC_REF(thread->exceptionObject.object);
-                    thread->exceptionObject.object = NULL;
+                    thread->exceptionObject = (SharpObject*)NULL;
                     sendSignal(thread->signal, tsig_except, 0);
                     return true;
                 }
@@ -839,7 +838,7 @@ bool VirtualMachine::catchException() {
             if(tbl->finallyData != NULL) {
                 thread->pc = thread->cache+tbl->finallyData->start_pc;
                 (thread->fp+tbl->finallyData->exception_object_field_address)->object = thread->exceptionObject;
-                sendSignal(thread->signal, tsig_except, 0);
+                sendSignal(thread->signal, tsig_except, 0); // TODO: this may be causing an out of memory error (look to see if the ref is 1 after exception has been handled)
                 return true;
             }
         }
@@ -891,7 +890,7 @@ void VirtualMachine::fillMethodCall(Method* func, Int pc, stringstream &ss) {
     } else
         ss << ", line ?";
 
-    ss << ", in "; ss << func->fullName.str() << "()";
+    ss << ", in "; ss << func->fullName.str() << "(" << (func->nativeFunc ? "native" : "") << ")";
 
     if(c_options.debugMode) {
         ss << " ["

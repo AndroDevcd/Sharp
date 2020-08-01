@@ -277,7 +277,7 @@ void Thread::unsuspendAndWait(Thread *thread) {
 
 void Thread::waitForThreadSuspend(Thread *thread) {
     const int sMaxRetries = 10000000;
-    const int sMaxSpinCount = 25;
+    const int sMaxSpinCount = 10; // TODO: test this extensivley to make sure there is no issues with lowering the threshold to giving up
 
     int spinCount = 0;
     int retryCount = 0;
@@ -303,7 +303,7 @@ void Thread::waitForThreadSuspend(Thread *thread) {
 
 void Thread::waitForThreadUnSuspend(Thread *thread) {
     const int sMaxRetries = 10000000;
-    const int sMaxSpinCount = 25;
+    const int sMaxSpinCount = 10;
 
     int spinCount = 0;
     int retryCount = 0;
@@ -618,8 +618,7 @@ void Thread::exit() {
 
 
         cout << "Unhandled exception on thread " << name.str() << " (most recent call last):\n";
-        if(frameInfo && frameInfo->object && stackTrace != NULL
-            && stackTrace->object != NULL) {
+        if(frameInfo && frameInfo->object) {
             if(((sp-dataStack)+1) >= stackLimit) {
                 sp--;
             }
@@ -1337,25 +1336,6 @@ void Thread::exec() {
                 _brh
             LDC: // tested
                 registers[GET_Ca(*pc)]=vm.constants[GET_Cb(*pc)];
-                _brh
-            CHECK_CLASS: // trainig wheels for the language
-                if(fp->object.object) {
-                    if(IS_CLASS(fp->object.object->info)) {
-                        ClassObject *klass = &vm.classes[CLASS(fp->object.object->info)];
-                        if(klass->address != GET_Da(*pc)) {
-                            stringstream ss;
-                            ss << "incorrect class found for instance class (" << klass->fullName.str()
-                                << ") found instead of (" << vm.classes[GET_Da(*pc)].fullName.str() << ")";
-                            throw Exception(vm.ThreadStackExcept, ss.str());
-                        }
-                    } else {
-                        stringstream ss;
-                        ss << "instance is not a class";
-                        throw Exception(vm.ThreadStackExcept, ss.str());
-                    }
-                } else {
-                    throw Exception(vm.NullptrExcept, "");
-                }
                 _brh
 
 

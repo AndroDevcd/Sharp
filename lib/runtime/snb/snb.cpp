@@ -91,11 +91,15 @@ void incSp() {
 }
 
 void decSp(int32_t amount) {
-    if(((thread_self->sp - thread_self->dataStack) - amount) < 0) {
-        throw Exception(vm.ThreadStackExcept, "the thread stack cannot be negative");
-    }
+    try {
+        if (((thread_self->sp - thread_self->dataStack) - amount) < 0) {
+            throw Exception(vm.ThreadStackExcept, "the thread stack cannot be negative");
+        }
 
-    thread_self->sp -= amount;
+        thread_self->sp -= amount;
+    } catch(Exception &e) {
+        sendSignal(thread_self->signal, tsig_except, 1);
+    }
 }
 
 double* getspNumAt(int32_t spOffset) {
@@ -107,37 +111,77 @@ object getspObjAt(int32_t spOffset) {
 }
 
 object newVarArray(int32_t size) {
-    (thread_self->sp+1)->object =
-            gc.newObject(size);
-    return &(thread_self->sp+1)->object;
+    try {
+        (thread_self->sp + 1)->object =
+                gc.newObject(size);
+        return &(thread_self->sp + 1)->object;
+    } catch(Exception &e) {
+        sendSignal(thread_self->signal, tsig_except, 1);
+        return NULL;
+    }
 }
 
 object newClass(const string& name) {
-    ClassObject *klass = vm.resolveClass(name);
-    if(klass) {
-        (thread_self->sp+1)->object =
-                gc.newObject(klass);
-        return &(thread_self->sp+1)->object;
-    }
+    try {
+        ClassObject *klass = vm.resolveClass(name);
+        if(klass) {
+            (thread_self->sp+1)->object =
+                    gc.newObject(klass);
+            return &(thread_self->sp+1)->object;
+        }
 
-    return NULL;
+        return NULL;
+    } catch(Exception &e) {
+        sendSignal(thread_self->signal, tsig_except, 1);
+        return NULL;
+    }
 }
 
 object newObjArray(int32_t size) {
-    (thread_self->sp+1)->object =
-            gc.newObjectArray(size);
-    return &(thread_self->sp+1)->object;
+    try {
+        (thread_self->sp+1)->object =
+                gc.newObjectArray(size);
+        return &(thread_self->sp+1)->object;
+    } catch(Exception &e) {
+        sendSignal(thread_self->signal, tsig_except, 1);
+        return NULL;
+    }
 }
 
 object newClassArray(const string &name, int32_t size) {
-    ClassObject *klass = vm.resolveClass(name);
-    if(klass) {
-        (thread_self->sp+1)->object =
-                gc.newObjectArray(size, klass);
-        return &(thread_self->sp+1)->object;
-    }
+    try {
+        ClassObject *klass = vm.resolveClass(name);
+        if(klass) {
+            (thread_self->sp+1)->object =
+                    gc.newObjectArray(size, klass);
+            return &(thread_self->sp+1)->object;
+        }
 
-    return NULL;
+        return NULL;
+    } catch(Exception &e) {
+        sendSignal(thread_self->signal, tsig_except, 1);
+        return NULL;
+    }
+}
+
+object getItem(object obj, int32_t index) {
+    try {
+        Object *data = (Object*)obj;
+        if(data == NULL || data->object == NULL) {
+            throw Exception(vm.NullptrExcept, "");
+        }
+
+        if(index < 0 || index >= data->object->size) {
+            stringstream ss;
+            ss << "index out of bounds accessing array at: " << index << " where size is: " << data->object->size;
+            throw Exception(vm.IndexOutOfBoundsExcept, ss.str());
+        }
+
+        return data->object->node;
+    } catch(Exception &e) {
+        sendSignal(thread_self->signal, tsig_except, 1);
+        return NULL;
+    }
 }
 
 void pushNum(double value) {
@@ -150,13 +194,47 @@ void pushObj(object value) {
 }
 
 void call(int32_t address) {
-    fptr jitFun;
-    if((jitFun = executeMethod(address, thread_self, true)) != NULL) {
+    try {
+        fptr jitFun;
+        if((jitFun = executeMethod(address, thread_self, true)) != NULL) {
 
-#ifdef BUILD_JIT
-        jitFun(jctx);
-#endif
+    #ifdef BUILD_JIT
+            jitFun(jctx);
+    #endif
+        }
+    } catch(Exception &e) {
+        sendSignal(thread_self->signal, tsig_except, 1);
     }
+}
+
+bool exceptionCheck() {
+    return hasSignal(thread_self->signal, tsig_except);
+}
+
+object getExceptionObject() {
+    if(thread_self->exceptionObject.object)
+        return &thread_self->exceptionObject;
+    else return &(thread_self->sp)->object;
+}
+
+string className(object klazz) {
+    Object *obj = (Object*)klazz;
+    if(obj && obj->object && TYPE(obj->object->info) == _stype_struct) {
+        if(IS_CLASS(obj->object->info))
+            return vm.classes[CLASS(obj->object->info)].fullName.str();
+    }
+
+    return NULL;
+}
+
+void prepareException(object exceptionClass) {
+    thread_self->exceptionObject = (Object*)exceptionClass;
+    sendSignal(thread_self->signal, tsig_except, 1);
+}
+
+void clearException() {
+    thread_self->exceptionObject = (SharpObject*)NULL;
+    sendSignal(thread_self->signal, tsig_except, 0);
 }
 
 void *lib_funcs[] =
@@ -180,9 +258,15 @@ void *lib_funcs[] =
         (void*)decSp,
         (void*)pushNum,
         (void*)pushObj,
-        (void*)call
+        (void*)call,
+        (void*)exceptionCheck,
+        (void*)getExceptionObject,
+        (void*)className,
+        (void*)prepareException,
+        (void*)clearException,
+        (void*)getItem
 };
 
 bool setupLibrary(lib_handshake lhand) {
-    return lhand(lib_funcs, 20);
+    return lhand(lib_funcs, 26);
 }
