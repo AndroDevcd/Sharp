@@ -1233,14 +1233,13 @@ bool VirtualMachine::link(native_string &func, native_string &libame) {
                         (linkProc) load_func(lib->handle,
                                              "snb_link_proc");
 
-                if (_linkProc) {
-                    if ((linkAddr = _linkProc(vm.methods[i].fullName.str().c_str())) >= 0) {
-                        vm.methods[i].linkAddr = linkAddr;
-                        vm.methods[i].bridge =
-                                (bridgeFun) load_func(lib->handle,
-                                                      "snb_main");
-                        return vm.methods[i].bridge != NULL;
-                    }
+                if (_linkProc && (linkAddr = _linkProc(vm.methods[i].fullName.str().c_str())) >= 0) {
+                    vm.methods[i].linkAddr = linkAddr;
+                    vm.methods[i].bridge =
+                            (bridgeFun) load_func(lib->handle,
+                                                  "snb_main");
+                    return vm.methods[i].bridge != NULL;
+
                 }
 
                 break;

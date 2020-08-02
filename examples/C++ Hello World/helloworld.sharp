@@ -1,0 +1,10 @@
+mod main;
+
+import platform;
+
+native def printMessage();
+
+def main() {
+    load_library("hello");
+    printMessage();
+}
