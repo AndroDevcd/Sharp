@@ -1,9 +1,9 @@
 ## Object Dump file for bin/syntax:
 
-pre codebase size: 76312
-post codebase size: 68107
-optimized opcodes: 8205
-net % gain 10.7519
+pre codebase size: 76093
+post codebase size: 67911
+optimized opcodes: 8182
+net % gain 10.7526
 
 
 class: std#__srt_global[0] fields(1) methods(47)
@@ -101,7 +101,7 @@ class: common.network.remote#command_request_impl[91] fields(3) methods(17)
 class: common.network.remote#flight_mode_change_request_impl[92] fields(4) methods(19)
 class: common.network.remote#handshake_request_impl[93] fields(4) methods(19)
 class: common.network.remote#signal_strength_request_impl[94] fields(3) methods(16)
-class: main#__srt_global[95] fields(5) methods(7)
+class: main#__srt_global[95] fields(5) methods(6)
 class: ui.driver#__srt_global[96] fields(0) methods(7)
 class: ui.driver#ssd1306[97] fields(1) methods(13)
 class: ui.layout.config#__srt_global[98] fields(1) methods(3)
@@ -189,28 +189,28 @@ generic: std.io#entry<std#int,std.io#thread>[145] fields(3) methods(10)
 [30]: try calling this before your first task
 [31]: cannot modify max thread count after task library has started, try calling this before your first ta
 [32]: cannot have less than 2 max threads
-[33]: long_term_worker_thread#
-[34]: worker_thread#
-[35]: invalid thread priority 
-[36]: win
-[37]: posix
-[38]: .dll
-[39]: .so
-[40]: length cannot be less than zero
-[41]: length of: 
-[42]:  is greater than the string: 
-[43]: null
-[44]: invalid precision: 
-[45]: end_pos: 
-[46]:  cannot be less than the start_pos: 
-[47]: Index out of bounds exception at: 
-[48]:  with size of: 
-[49]: endPos: 
-[50]:  cannot be less than the startPos: 
-[51]: cannot sleep for negative time: 
-[52]: device is not setup
-[53]: device is shutown
-[54]: bin/dragonfly
+[33]: jobs 
+[34]: long_term_worker_thread#
+[35]: worker_thread#
+[36]: invalid thread priority 
+[37]: win
+[38]: posix
+[39]: .dll
+[40]: .so
+[41]: length cannot be less than zero
+[42]: length of: 
+[43]:  is greater than the string: 
+[44]: null
+[45]: invalid precision: 
+[46]: end_pos: 
+[47]:  cannot be less than the start_pos: 
+[48]: Index out of bounds exception at: 
+[49]:  with size of: 
+[50]: endPos: 
+[51]:  cannot be less than the startPos: 
+[52]: cannot sleep for negative time: 
+[53]: device is not setup
+[54]: device is shutown
 [55]: main-container
 [56]: 2:00 pm
 [57]: cannot align view to top of another view to whom we are not left aligned to
@@ -34821,197 +34821,205 @@ function: std.io.task#__srt_global.scheduler_main[1822] params(1) in file: lib\s
 7 [0x7]:          smovr_3 fp+2   
 8 [0x8]: line: 77 movi #1, ebx   
 10 [0xa]:          movr cmt, ebx   
-11 [0xb]:          jne 194   
+11 [0xb]:          jne 202   
 12 [0xc]: line: 79 call @1857 // <std.io#thread.yield>   
-13 [0xd]: line: 80 istorel 0, fp+3   
-15 [0xf]:          ipushl #3   
-16 [0x10]:          pushl 2   
-17 [0x11]:          call @3311 // <std#synced_list<std.io.task#job>.size>   
-18 [0x12]:          loadval ebx   
-19 [0x13]:          loadval ecx   
-20 [0x14]:          lt ecx, ebx   
-21 [0x15]:          movr ebx, cmt   
-22 [0x16]:          movr cmt, ebx   
-23 [0x17]:          jne 173   
-24 [0x18]: line: 81 pushl 2   
-25 [0x19]:          ipushl #3   
-26 [0x1a]:          call @3275 // <std#synced_list<std.io.task#job>.at>   
-27 [0x1b]:          popobj2    
-28 [0x1c]:          smovr_3 fp+4   
-29 [0x1d]: line: 83 movl 4   
-30 [0x1e]:          movn #12   
-32 [0x20]:          movi #0, adx   
-34 [0x22]:          iaload ebx, adx   
-35 [0x23]:          rstore ebx   
-36 [0x24]:          movi #0, ebx   
-38 [0x26]:          loadval ecx   
-39 [0x27]:          tne ecx, ebx   
-40 [0x28]:          jne 85   
-41 [0x29]: line: 84 call @3030 // <std#time.mills_time>   
-42 [0x2a]:          loadval ebx   
+13 [0xd]: line: 80 new_class @64 // std#string   
+14 [0xe]:          dup    
+15 [0xf]:          newstr @33 // jobs    
+16 [0x10]:          call @2930 // <std#string.string>   
+17 [0x11]:          pushl 2   
+18 [0x12]:          call @3311 // <std#synced_list<std.io.task#job>.size>   
+19 [0x13]:          call @2962 // <std#string.operator+>   
+20 [0x14]:          call @1587 // <std#__srt_global.println>   
+21 [0x15]: line: 81 istorel 0, fp+3   
+23 [0x17]:          ipushl #3   
+24 [0x18]:          pushl 2   
+25 [0x19]:          call @3311 // <std#synced_list<std.io.task#job>.size>   
+26 [0x1a]:          loadval ebx   
+27 [0x1b]:          loadval ecx   
+28 [0x1c]:          lt ecx, ebx   
+29 [0x1d]:          movr ebx, cmt   
+30 [0x1e]:          movr cmt, ebx   
+31 [0x1f]:          jne 181   
+32 [0x20]: line: 82 pushl 2   
+33 [0x21]:          ipushl #3   
+34 [0x22]:          call @3275 // <std#synced_list<std.io.task#job>.at>   
+35 [0x23]:          popobj2    
+36 [0x24]:          smovr_3 fp+4   
+37 [0x25]: line: 84 movl 4   
+38 [0x26]:          movn #12   
+40 [0x28]:          movi #0, adx   
+42 [0x2a]:          iaload ebx, adx   
 43 [0x2b]:          rstore ebx   
-44 [0x2c]:          movl 4   
-45 [0x2d]:          movn #12   
-47 [0x2f]:          movi #0, adx   
-49 [0x31]:          iaload ebx, adx   
-50 [0x32]:          loadval ecx   
-51 [0x33]:          gte ecx, ebx   
-52 [0x34]:          movr ebx, cmt   
-53 [0x35]:          movr cmt, ebx   
-54 [0x36]:          jne 83   
-55 [0x37]: line: 85 movi #0, ebx   
-57 [0x39]:          movl 4   
-58 [0x3a]:          movn #12   
-60 [0x3c]:          movi #0, adx   
-62 [0x3e]:          rmov adx, ebx   
-63 [0x3f]: line: 86 pushl 4   
-64 [0x40]:          call @1826 // <std.io.task#__srt_global.execute_job>   
-65 [0x41]:          ipopl 5   
-66 [0x42]: line: 88 loadl ebx, fp+5   
-67 [0x43]:          skne ebx // pc = 75   
-68 [0x44]:          movl 4   
-69 [0x45]:          movn #8   
-71 [0x47]:          movi #0, adx   
-73 [0x49]:          iaload ebx, adx   
-74 [0x4a]:          not ebx, ebx   
-75 [0x4b]:          movr cmt, ebx   
-76 [0x4c]:          jne 82   
-77 [0x4d]: line: 89 pushl 2   
-78 [0x4e]:          pushl 4   
-79 [0x4f]:          istore 3467   
-81 [0x51]:          call @3315 // <std#synced_list<std.io.task#job>.remove>   
-82 [0x52]:          nop   
-83 [0x53]:          nop   
-84 [0x54]:          jmp @169   
-85 [0x55]:          movl 4   
-86 [0x56]:          movn #8   
-88 [0x58]:          movi #0, adx   
-90 [0x5a]:          iaload ebx, adx   
-91 [0x5b]:          movr cmt, ebx   
-92 [0x5c]:          jne 158   
-93 [0x5d]: line: 93 movl 4   
-94 [0x5e]:          movn #4   
-96 [0x60]:          pushobj   
-97 [0x61]:          pushnull    
-98 [0x62]:          itest ebx   
+44 [0x2c]:          movi #0, ebx   
+46 [0x2e]:          loadval ecx   
+47 [0x2f]:          tne ecx, ebx   
+48 [0x30]:          jne 93   
+49 [0x31]: line: 85 call @3030 // <std#time.mills_time>   
+50 [0x32]:          loadval ebx   
+51 [0x33]:          rstore ebx   
+52 [0x34]:          movl 4   
+53 [0x35]:          movn #12   
+55 [0x37]:          movi #0, adx   
+57 [0x39]:          iaload ebx, adx   
+58 [0x3a]:          loadval ecx   
+59 [0x3b]:          gte ecx, ebx   
+60 [0x3c]:          movr ebx, cmt   
+61 [0x3d]:          movr cmt, ebx   
+62 [0x3e]:          jne 91   
+63 [0x3f]: line: 86 movi #0, ebx   
+65 [0x41]:          movl 4   
+66 [0x42]:          movn #12   
+68 [0x44]:          movi #0, adx   
+70 [0x46]:          rmov adx, ebx   
+71 [0x47]: line: 87 pushl 4   
+72 [0x48]:          call @1826 // <std.io.task#__srt_global.execute_job>   
+73 [0x49]:          ipopl 5   
+74 [0x4a]: line: 89 loadl ebx, fp+5   
+75 [0x4b]:          skne ebx // pc = 83   
+76 [0x4c]:          movl 4   
+77 [0x4d]:          movn #8   
+79 [0x4f]:          movi #0, adx   
+81 [0x51]:          iaload ebx, adx   
+82 [0x52]:          not ebx, ebx   
+83 [0x53]:          movr cmt, ebx   
+84 [0x54]:          jne 90   
+85 [0x55]: line: 90 pushl 2   
+86 [0x56]:          pushl 4   
+87 [0x57]:          istore 3467   
+89 [0x59]:          call @3315 // <std#synced_list<std.io.task#job>.remove>   
+90 [0x5a]:          nop   
+91 [0x5b]:          nop   
+92 [0x5c]:          jmp @177   
+93 [0x5d]:          movl 4   
+94 [0x5e]:          movn #8   
+96 [0x60]:          movi #0, adx   
+98 [0x62]:          iaload ebx, adx   
 99 [0x63]:          movr cmt, ebx   
-100 [0x64]:          jne 104   
-101 [0x65]: line: 94 pushl 4   
-102 [0x66]:          call @1826 // <std.io.task#__srt_global.execute_job>   
-103 [0x67]:          pop   
-104 [0x68]:          nop   
-105 [0x69]: line: 97 movl 4   
-106 [0x6a]:          movn #18   
-108 [0x6c]:          pushobj   
-109 [0x6d]:          movg @26 // @std.io.task#job_state   
-110 [0x6e]:          movn #1   
-112 [0x70]:          pushobj   
-113 [0x71]:          call @1614 // <std#_enum_.operator==>   
-114 [0x72]:          loadval ebx   
-115 [0x73]:          skne ebx // pc = 137   
-116 [0x74]:          call @3030 // <std#time.mills_time>   
-117 [0x75]:          loadval ebx   
-118 [0x76]:          rstore ebx   
-119 [0x77]:          movl 4   
-120 [0x78]:          movn #10   
-122 [0x7a]:          movi #0, adx   
-124 [0x7c]:          iaload ebx, adx   
-125 [0x7d]:          rstore ebx   
-126 [0x7e]:          movl 4   
-127 [0x7f]:          movn #9   
-129 [0x81]:          movi #0, adx   
-131 [0x83]:          iaload ebx, adx   
-132 [0x84]:          loadval ecx   
-133 [0x85]:          add ecx, ebx -> ebx   
-134 [0x86]:          loadval ecx   
-135 [0x87]:          gte ecx, ebx   
-136 [0x88]:          movr ebx, cmt   
-137 [0x89]:          movr cmt, ebx   
-138 [0x8a]:          jne 156   
-139 [0x8b]: line: 98 movl 4   
-140 [0x8c]:          movn #13   
-142 [0x8e]:          pushobj   
-143 [0x8f]:          pushnull    
-144 [0x90]:          itest ebx   
+100 [0x64]:          jne 166   
+101 [0x65]: line: 94 movl 4   
+102 [0x66]:          movn #4   
+104 [0x68]:          pushobj   
+105 [0x69]:          pushnull    
+106 [0x6a]:          itest ebx   
+107 [0x6b]:          movr cmt, ebx   
+108 [0x6c]:          jne 112   
+109 [0x6d]: line: 95 pushl 4   
+110 [0x6e]:          call @1826 // <std.io.task#__srt_global.execute_job>   
+111 [0x6f]:          pop   
+112 [0x70]:          nop   
+113 [0x71]: line: 98 movl 4   
+114 [0x72]:          movn #18   
+116 [0x74]:          pushobj   
+117 [0x75]:          movg @26 // @std.io.task#job_state   
+118 [0x76]:          movn #1   
+120 [0x78]:          pushobj   
+121 [0x79]:          call @1614 // <std#_enum_.operator==>   
+122 [0x7a]:          loadval ebx   
+123 [0x7b]:          skne ebx // pc = 145   
+124 [0x7c]:          call @3030 // <std#time.mills_time>   
+125 [0x7d]:          loadval ebx   
+126 [0x7e]:          rstore ebx   
+127 [0x7f]:          movl 4   
+128 [0x80]:          movn #10   
+130 [0x82]:          movi #0, adx   
+132 [0x84]:          iaload ebx, adx   
+133 [0x85]:          rstore ebx   
+134 [0x86]:          movl 4   
+135 [0x87]:          movn #9   
+137 [0x89]:          movi #0, adx   
+139 [0x8b]:          iaload ebx, adx   
+140 [0x8c]:          loadval ecx   
+141 [0x8d]:          add ecx, ebx -> ebx   
+142 [0x8e]:          loadval ecx   
+143 [0x8f]:          gte ecx, ebx   
+144 [0x90]:          movr ebx, cmt   
 145 [0x91]:          movr cmt, ebx   
-146 [0x92]:          jne 148   
-147 [0x93]:          jmp @139   
-148 [0x94]: line: 99 pushl 4   
-149 [0x95]:          call @1779 // <std.io.task#job.cancel>   
-150 [0x96]: line: 100 movg @20 // @std.io.task#__srt_global   
-151 [0x97]:           movn #5   
-153 [0x99]:           pushobj   
-154 [0x9a]:           pushl 4   
-155 [0x9b]:           call @1817 // <std.io.task#job_master.cleanup_job>   
-156 [0x9c]:           nop   
-157 [0x9d]:           jmp @169   
-158 [0x9e]: line: 103 pushl 4   
-159 [0x9f]:           call @1826 // <std.io.task#__srt_global.execute_job>   
-160 [0xa0]:           loadval ebx   
-161 [0xa1]:           movr cmt, ebx   
-162 [0xa2]:           jne 168   
-163 [0xa3]: line: 104 pushl 2   
-164 [0xa4]:           pushl 4   
-165 [0xa5]:           istore 3468   
-167 [0xa7]:           call @3315 // <std#synced_list<std.io.task#job>.remove>   
-168 [0xa8]:           nop   
-169 [0xa9]:           nop   
-170 [0xaa]:           iaddl 1, fp@3   
-172 [0xac]:           jmp @15   
-173 [0xad]: line: 109 loadl ebx, fp+1   
-174 [0xae]:           movr egx, ebx   
-175 [0xaf]:           dec ebx   
-176 [0xb0]:           smovr_2 ebx, fp+1   
-177 [0xb1]:           movr ebx, egx   
-178 [0xb2]:           rstore ebx   
-179 [0xb3]:           movi #0, ebx   
-181 [0xb5]:           loadval ecx   
-182 [0xb6]:           lte ecx, ebx   
-183 [0xb7]:           movr ebx, cmt   
-184 [0xb8]:           movr cmt, ebx   
-185 [0xb9]:           jne 189   
-186 [0xba]: line: 110 istorel 36000, fp+1   
-188 [0xbc]: line: 111 call @1824 // <std.io.task#__srt_global.kill_threads>   
-189 [0xbd]:           nop   
-190 [0xbe]: line: 114 istore 5   
-192 [0xc0]:           call @1852 // <std.io#thread.sleep>   
-193 [0xc1]:           jmp @8   
-194 [0xc2]: line: 116 istorel 0, fp+0   
-196 [0xc4]:           ret   
+146 [0x92]:          jne 164   
+147 [0x93]: line: 99 movl 4   
+148 [0x94]:          movn #13   
+150 [0x96]:          pushobj   
+151 [0x97]:          pushnull    
+152 [0x98]:          itest ebx   
+153 [0x99]:          movr cmt, ebx   
+154 [0x9a]:          jne 156   
+155 [0x9b]:          jmp @147   
+156 [0x9c]: line: 100 pushl 4   
+157 [0x9d]:           call @1779 // <std.io.task#job.cancel>   
+158 [0x9e]: line: 101 movg @20 // @std.io.task#__srt_global   
+159 [0x9f]:           movn #5   
+161 [0xa1]:           pushobj   
+162 [0xa2]:           pushl 4   
+163 [0xa3]:           call @1817 // <std.io.task#job_master.cleanup_job>   
+164 [0xa4]:           nop   
+165 [0xa5]:           jmp @177   
+166 [0xa6]: line: 104 pushl 4   
+167 [0xa7]:           call @1826 // <std.io.task#__srt_global.execute_job>   
+168 [0xa8]:           loadval ebx   
+169 [0xa9]:           movr cmt, ebx   
+170 [0xaa]:           jne 176   
+171 [0xab]: line: 105 pushl 2   
+172 [0xac]:           pushl 4   
+173 [0xad]:           istore 3468   
+175 [0xaf]:           call @3315 // <std#synced_list<std.io.task#job>.remove>   
+176 [0xb0]:           nop   
+177 [0xb1]:           nop   
+178 [0xb2]:           iaddl 1, fp@3   
+180 [0xb4]:           jmp @23   
+181 [0xb5]: line: 110 loadl ebx, fp+1   
+182 [0xb6]:           movr egx, ebx   
+183 [0xb7]:           dec ebx   
+184 [0xb8]:           smovr_2 ebx, fp+1   
+185 [0xb9]:           movr ebx, egx   
+186 [0xba]:           rstore ebx   
+187 [0xbb]:           movi #0, ebx   
+189 [0xbd]:           loadval ecx   
+190 [0xbe]:           lte ecx, ebx   
+191 [0xbf]:           movr ebx, cmt   
+192 [0xc0]:           movr cmt, ebx   
+193 [0xc1]:           jne 197   
+194 [0xc2]: line: 111 istorel 36000, fp+1   
+196 [0xc4]: line: 112 call @1824 // <std.io.task#__srt_global.kill_threads>   
+197 [0xc5]:           nop   
+198 [0xc6]: line: 115 istore 5   
+200 [0xc8]:           call @1852 // <std.io#thread.sleep>   
+201 [0xc9]:           jmp @8   
+202 [0xca]: line: 117 istorel 0, fp+0   
+204 [0xcc]:           ret   
 
 
-function: std.io.task#__srt_global.get_host[1823] params(1) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:119:12: note:  
+function: std.io.task#__srt_global.get_host[1823] params(1) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:120:12: note:  
 		private def get_host(long_running : var) : thread {
 		           ^
 
-0 [0x0]: line: 120 movl 1   
+0 [0x0]: line: 121 movl 1   
 1 [0x1]:           del   
-2 [0x2]: line: 121 loadl ebx, fp+0   
+2 [0x2]: line: 122 loadl ebx, fp+0   
 3 [0x3]:           movr cmt, ebx   
 4 [0x4]:           jne 12   
-5 [0x5]: line: 122 movg @20 // @std.io.task#__srt_global   
+5 [0x5]: line: 123 movg @20 // @std.io.task#__srt_global   
 6 [0x6]:           movn #5   
 8 [0x8]:           movn #2   
 10 [0xa]:           smovr_3 fp+1   
 11 [0xb]:           jmp @18   
-12 [0xc]: line: 124 movg @20 // @std.io.task#__srt_global   
+12 [0xc]: line: 125 movg @20 // @std.io.task#__srt_global   
 13 [0xd]:           movn #5   
 15 [0xf]:           movn #3   
 17 [0x11]:           smovr_3 fp+1   
 18 [0x12]:           nop   
-19 [0x13]: line: 127 pushl 1   
+19 [0x13]: line: 128 pushl 1   
 20 [0x14]:           istore 3469   
 22 [0x16]:           call @1883 // <std.io#thread_group.find>   
 23 [0x17]:           popobj2    
 24 [0x18]:           smovr_3 fp+2   
-25 [0x19]: line: 135 movl 2   
+25 [0x19]: line: 136 movl 2   
 26 [0x1a]:           checknull   
 27 [0x1b]:           movr cmt, ebx   
 28 [0x1c]:           jne 160   
-29 [0x1d]: line: 136 loadl ebx, fp+0   
+29 [0x1d]: line: 137 loadl ebx, fp+0   
 30 [0x1e]:           movr cmt, ebx   
 31 [0x1f]:           jne 96   
-32 [0x20]: line: 137 movg @20 // @std.io.task#__srt_global   
+32 [0x20]: line: 138 movg @20 // @std.io.task#__srt_global   
 33 [0x21]:           movn #1   
 35 [0x23]:           movi #0, adx   
 37 [0x25]:           iaload ebx, adx   
@@ -35022,7 +35030,7 @@ function: std.io.task#__srt_global.get_host[1823] params(1) in file: lib\support
 43 [0x2b]:           movr ebx, cmt   
 44 [0x2c]:           movr cmt, ebx   
 45 [0x2d]:           jne 94   
-46 [0x2e]: line: 138 movg @20 // @std.io.task#__srt_global   
+46 [0x2e]: line: 139 movg @20 // @std.io.task#__srt_global   
 47 [0x2f]:           movn #1   
 49 [0x31]:           movi #0, adx   
 51 [0x33]:           iaload ebx, adx   
@@ -35030,16 +35038,16 @@ function: std.io.task#__srt_global.get_host[1823] params(1) in file: lib\support
 53 [0x35]:           dec ebx   
 54 [0x36]:           movi #0, adx   
 56 [0x38]:           rmov adx, ebx   
-57 [0x39]: line: 139 new_class @24 // std.io.task#job_controller   
+57 [0x39]: line: 140 new_class @24 // std.io.task#job_controller   
 58 [0x3a]:           dup    
 59 [0x3b]:           call @1810 // <std.io.task#job_controller.job_controller>   
 60 [0x3c]:           popobj2    
 61 [0x3d]:           smovr_3 fp+3   
-62 [0x3e]: line: 140 new_class @28 // std.io#thread   
+62 [0x3e]: line: 141 new_class @28 // std.io#thread   
 63 [0x3f]:           dup    
 64 [0x40]:           new_class @64 // std#string   
 65 [0x41]:           dup    
-66 [0x42]:           newstr @33 // long_term_worker_thread#   
+66 [0x42]:           newstr @34 // long_term_worker_thread#   
 67 [0x43]:           call @2930 // <std#string.string>   
 68 [0x44]:           pushl 1   
 69 [0x45]:           call @1878 // <std.io#thread_group.size>   
@@ -35055,7 +35063,7 @@ function: std.io.task#__srt_global.get_host[1823] params(1) in file: lib\support
 81 [0x51]:           call @1842 // <std.io#thread.thread>   
 82 [0x52]:           popobj2    
 83 [0x53]:           smovr_3 fp+2   
-84 [0x54]: line: 141 movg @20 // @std.io.task#__srt_global   
+84 [0x54]: line: 142 movg @20 // @std.io.task#__srt_global   
 85 [0x55]:           movn #5   
 87 [0x57]:           movn #1   
 89 [0x59]:           pushobj   
@@ -35065,7 +35073,7 @@ function: std.io.task#__srt_global.get_host[1823] params(1) in file: lib\support
 93 [0x5d]:           pop   
 94 [0x5e]:           nop   
 95 [0x5f]:           jmp @159   
-96 [0x60]: line: 144 movg @20 // @std.io.task#__srt_global   
+96 [0x60]: line: 145 movg @20 // @std.io.task#__srt_global   
 97 [0x61]:           movn #0   
 99 [0x63]:           movi #0, adx   
 101 [0x65]:           iaload ebx, adx   
@@ -35076,7 +35084,7 @@ function: std.io.task#__srt_global.get_host[1823] params(1) in file: lib\support
 107 [0x6b]:           movr ebx, cmt   
 108 [0x6c]:           movr cmt, ebx   
 109 [0x6d]:           jne 158   
-110 [0x6e]: line: 145 movg @20 // @std.io.task#__srt_global   
+110 [0x6e]: line: 146 movg @20 // @std.io.task#__srt_global   
 111 [0x6f]:           movn #0   
 113 [0x71]:           movi #0, adx   
 115 [0x73]:           iaload ebx, adx   
@@ -35084,16 +35092,16 @@ function: std.io.task#__srt_global.get_host[1823] params(1) in file: lib\support
 117 [0x75]:           dec ebx   
 118 [0x76]:           movi #0, adx   
 120 [0x78]:           rmov adx, ebx   
-121 [0x79]: line: 146 new_class @24 // std.io.task#job_controller   
+121 [0x79]: line: 147 new_class @24 // std.io.task#job_controller   
 122 [0x7a]:           dup    
 123 [0x7b]:           call @1810 // <std.io.task#job_controller.job_controller>   
 124 [0x7c]:           popobj2    
 125 [0x7d]:           smovr_3 fp+4   
-126 [0x7e]: line: 147 new_class @28 // std.io#thread   
+126 [0x7e]: line: 148 new_class @28 // std.io#thread   
 127 [0x7f]:           dup    
 128 [0x80]:           new_class @64 // std#string   
 129 [0x81]:           dup    
-130 [0x82]:           newstr @34 // worker_thread#   
+130 [0x82]:           newstr @35 // worker_thread#   
 131 [0x83]:           call @2930 // <std#string.string>   
 132 [0x84]:           pushl 1   
 133 [0x85]:           call @1878 // <std.io#thread_group.size>   
@@ -35109,7 +35117,7 @@ function: std.io.task#__srt_global.get_host[1823] params(1) in file: lib\support
 145 [0x91]:           call @1842 // <std.io#thread.thread>   
 146 [0x92]:           popobj2    
 147 [0x93]:           smovr_3 fp+2   
-148 [0x94]: line: 148 movg @20 // @std.io.task#__srt_global   
+148 [0x94]: line: 149 movg @20 // @std.io.task#__srt_global   
 149 [0x95]:           movn #5   
 151 [0x97]:           movn #1   
 153 [0x99]:           pushobj   
@@ -35120,65 +35128,65 @@ function: std.io.task#__srt_global.get_host[1823] params(1) in file: lib\support
 158 [0x9e]:           nop   
 159 [0x9f]:           nop   
 160 [0xa0]:           nop   
-161 [0xa1]: line: 153 movl 2   
+161 [0xa1]: line: 154 movl 2   
 162 [0xa2]:           returnobj   
 163 [0xa3]:           ret   
 
 
-function: std.io.task#__srt_global.kill_threads[1824] params(0) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:157:12: note:  
+function: std.io.task#__srt_global.kill_threads[1824] params(0) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:158:12: note:  
 		private def kill_threads() {
 		           ^
 
-0 [0x0]: line: 158 movg @20 // @std.io.task#__srt_global   
+0 [0x0]: line: 159 movg @20 // @std.io.task#__srt_global   
 1 [0x1]:           movn #5   
 3 [0x3]:           movn #2   
 5 [0x5]:           smovr_3 fp+0   
-6 [0x6]: line: 160 call @3030 // <std#time.mills_time>   
+6 [0x6]: line: 161 call @3030 // <std#time.mills_time>   
 7 [0x7]:           movg @20 // @std.io.task#__srt_global   
 8 [0x8]:           movn #4   
 10 [0xa]:           loadval ebx   
 11 [0xb]:           movi #0, adx   
 13 [0xd]:           rmov adx, ebx   
-14 [0xe]: line: 161 pushl 0   
+14 [0xe]: line: 162 pushl 0   
 15 [0xf]:           istore 3470   
 17 [0x11]:           call @1883 // <std.io#thread_group.find>   
 18 [0x12]:           popobj2    
 19 [0x13]:           smovr_3 fp+1   
-20 [0x14]: line: 169 movl 1   
+20 [0x14]: line: 170 movl 1   
 21 [0x15]:           checknull   
 22 [0x16]:           not ebx, ebx   
 23 [0x17]:           movr cmt, ebx   
 24 [0x18]:           jne 28   
-25 [0x19]: line: 170 pushl 1   
+25 [0x19]: line: 171 pushl 1   
 26 [0x1a]:           call @1850 // <std.io#thread.interrupt>   
 27 [0x1b]:           pop   
 28 [0x1c]:           nop   
-29 [0x1d]: line: 173 movg @20 // @std.io.task#__srt_global   
+29 [0x1d]: line: 174 movg @20 // @std.io.task#__srt_global   
 30 [0x1e]:           movn #5   
 32 [0x20]:           movn #3   
 34 [0x22]:           smovr_3 fp+0   
-35 [0x23]: line: 175 pushl 0   
+35 [0x23]: line: 176 pushl 0   
 36 [0x24]:           istore 3471   
 38 [0x26]:           call @1883 // <std.io#thread_group.find>   
 39 [0x27]:           popobj2    
 40 [0x28]:           smovr_3 fp+1   
-41 [0x29]: line: 181 movl 1   
+41 [0x29]: line: 182 movl 1   
 42 [0x2a]:           checknull   
 43 [0x2b]:           not ebx, ebx   
 44 [0x2c]:           movr cmt, ebx   
 45 [0x2d]:           jne 49   
-46 [0x2e]: line: 182 pushl 1   
+46 [0x2e]: line: 183 pushl 1   
 47 [0x2f]:           call @1850 // <std.io#thread.interrupt>   
 48 [0x30]:           pop   
 49 [0x31]:           nop   
 50 [0x32]:           ret   
 
 
-function: std.io.task#__srt_global.execute_synchronous[1825] params(1) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:186:14: note:  
+function: std.io.task#__srt_global.execute_synchronous[1825] params(1) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:187:14: note:  
 		protected def execute_synchronous(scheduled_job : job) {
 		             ^
 
-0 [0x0]: line: 187 movl 0   
+0 [0x0]: line: 188 movl 0   
 1 [0x1]:           movn #12   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -35187,7 +35195,7 @@ function: std.io.task#__srt_global.execute_synchronous[1825] params(1) in file: 
 9 [0x9]:           loadval ecx   
 10 [0xa]:           tne ecx, ebx   
 11 [0xb]:           jne 35   
-12 [0xc]: line: 188 movl 0   
+12 [0xc]: line: 189 movl 0   
 13 [0xd]:           movn #12   
 15 [0xf]:           movi #0, adx   
 17 [0x11]:           iaload ebx, adx   
@@ -35197,7 +35205,7 @@ function: std.io.task#__srt_global.execute_synchronous[1825] params(1) in file: 
 21 [0x15]:           loadval ecx   
 22 [0x16]:           sub ecx, ebx -> ebx   
 23 [0x17]:           smovr_2 ebx, fp+1   
-24 [0x18]: line: 189 ipushl #1   
+24 [0x18]: line: 190 ipushl #1   
 25 [0x19]:           movi #0, ebx   
 27 [0x1b]:           loadval ecx   
 28 [0x1c]:           gt ecx, ebx   
@@ -35208,16 +35216,16 @@ function: std.io.task#__srt_global.execute_synchronous[1825] params(1) in file: 
 33 [0x21]:           call @1852 // <std.io#thread.sleep>   
 34 [0x22]:           nop   
 35 [0x23]:           nop   
-36 [0x24]: line: 191 pushl 0   
+36 [0x24]: line: 192 pushl 0   
 37 [0x25]:           call @1790 // <std.io.task#job.execute>   
 38 [0x26]:           ret   
 
 
-function: std.io.task#__srt_global.execute_job[1826] params(1) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:194:14: note:  
+function: std.io.task#__srt_global.execute_job[1826] params(1) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:195:14: note:  
 		protected def execute_job(scheduled_job : job) : var {
 		             ^
 
-0 [0x0]: line: 195 movl 0   
+0 [0x0]: line: 196 movl 0   
 1 [0x1]:           movn #17   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -35225,16 +35233,16 @@ function: std.io.task#__srt_global.execute_job[1826] params(1) in file: lib\supp
 7 [0x7]:           call @1823 // <std.io.task#__srt_global.get_host>   
 8 [0x8]:           popobj2    
 9 [0x9]:           smovr_3 fp+1   
-10 [0xa]: line: 197 movl 1   
+10 [0xa]: line: 198 movl 1   
 11 [0xb]:           checknull   
 12 [0xc]:           not ebx, ebx   
 13 [0xd]:           movr cmt, ebx   
 14 [0xe]:           jne 37   
-15 [0xf]: line: 198 pushl 1   
+15 [0xf]: line: 199 pushl 1   
 16 [0x10]:           movl 0   
 17 [0x11]:           movn #4   
 19 [0x13]:           popobj   
-20 [0x14]: line: 199 movg @20 // @std.io.task#__srt_global   
+20 [0x14]: line: 200 movg @20 // @std.io.task#__srt_global   
 21 [0x15]:           movn #5   
 23 [0x17]:           pushobj   
 24 [0x18]:           pushl 1   
@@ -35242,13 +35250,13 @@ function: std.io.task#__srt_global.execute_job[1826] params(1) in file: lib\supp
 26 [0x1a]:           movl 0   
 27 [0x1b]:           movn #19   
 29 [0x1d]:           popobj   
-30 [0x1e]: line: 200 pushl 0   
+30 [0x1e]: line: 201 pushl 0   
 31 [0x1f]:           call @1778 // <std.io.task#job.execute_async>   
 32 [0x20]:           pop   
-33 [0x21]: line: 201 istorel 1, fp+0   
+33 [0x21]: line: 202 istorel 1, fp+0   
 35 [0x23]:           ret   
 36 [0x24]:           jmp @40   
-37 [0x25]: line: 202 istorel 0, fp+0   
+37 [0x25]: line: 203 istorel 0, fp+0   
 39 [0x27]:           ret   
 40 [0x28]:           nop   
 
@@ -36238,7 +36246,7 @@ function: std.io#thread.set_priority[1859] params(1) in file: lib\support\0.2.80
 40 [0x28]:           dup    
 41 [0x29]:           new_class @64 // std#string   
 42 [0x2a]:           dup    
-43 [0x2b]:           newstr @35 // invalid thread priority    
+43 [0x2b]:           newstr @36 // invalid thread priority    
 44 [0x2c]:           call @2930 // <std#string.string>   
 45 [0x2d]:           pushl 1   
 46 [0x2e]:           call @2944 // <std#string.operator+>   
@@ -37995,7 +38003,7 @@ function: platform#build.is_windows[1936] params(0) in file: lib\support\0.2.805
 0 [0x0]: line: 10 movg @39 // @platform#build   
 1 [0x1]:          movn #0   
 3 [0x3]:          pushobj   
-4 [0x4]:          newstr @36 // win   
+4 [0x4]:          newstr @37 // win   
 5 [0x5]:          call @2947 // <std#string.operator==>   
 6 [0x6]:          loadval ebx   
 7 [0x7]:          return_val ebx   
@@ -38009,7 +38017,7 @@ function: platform#build.is_linux[1937] params(0) in file: lib\support\0.2.805/p
 0 [0x0]: line: 14 movg @39 // @platform#build   
 1 [0x1]:          movn #0   
 3 [0x3]:          pushobj   
-4 [0x4]:          newstr @37 // posix   
+4 [0x4]:          newstr @38 // posix   
 5 [0x5]:          call @2947 // <std#string.operator==>   
 6 [0x6]:          loadval ebx   
 7 [0x7]:          return_val ebx   
@@ -38706,7 +38714,7 @@ function: platform.kernel#platform.static_init[1943] params(0) in file: lib\supp
 931 [0x3a3]:          movn #0   
 933 [0x3a5]:          movn #0   
 935 [0x3a7]:          popobj   
-936 [0x3a8]:          movi #25830, ebx   
+936 [0x3a8]:          movi #104251, ebx   
 938 [0x3aa]:          movg @59 // @std.reflect#property_type   
 939 [0x3ab]:          movn #0   
 941 [0x3ad]:          movn #1   
@@ -38721,7 +38729,7 @@ function: platform.kernel#platform.static_init[1943] params(0) in file: lib\supp
 953 [0x3b9]:          movn #1   
 955 [0x3bb]:          movn #0   
 957 [0x3bd]:          popobj   
-958 [0x3be]:          movi #25831, ebx   
+958 [0x3be]:          movi #104252, ebx   
 960 [0x3c0]:          movg @59 // @std.reflect#property_type   
 961 [0x3c1]:          movn #1   
 963 [0x3c3]:          movn #1   
@@ -38736,7 +38744,7 @@ function: platform.kernel#platform.static_init[1943] params(0) in file: lib\supp
 975 [0x3cf]:          movn #2   
 977 [0x3d1]:          movn #0   
 979 [0x3d3]:          popobj   
-980 [0x3d4]:          movi #25832, ebx   
+980 [0x3d4]:          movi #104253, ebx   
 982 [0x3d6]:          movg @59 // @std.reflect#property_type   
 983 [0x3d7]:          movn #2   
 985 [0x3d9]:          movn #1   
@@ -38842,12 +38850,12 @@ function: platform.kernel#platform.get_lib_path[1945] params(1) in file: lib\sup
 2 [0x2]:          movr cmt, ebx   
 3 [0x3]:          jne 9   
 4 [0x4]: line: 25 pushl 0   
-5 [0x5]:          newstr @38 // .dll   
+5 [0x5]:          newstr @39 // .dll   
 6 [0x6]:          call @2976 // <std#string.operator+=>   
 7 [0x7]:          pop   
 8 [0x8]:          jmp @13   
 9 [0x9]: line: 27 pushl 0   
-10 [0xa]:          newstr @39 // .so   
+10 [0xa]:          newstr @40 // .so   
 11 [0xb]:          call @2976 // <std#string.operator+=>   
 12 [0xc]:          pop   
 13 [0xd]:          nop   
@@ -58579,7 +58587,7 @@ function: std#string.append[2941] params(2) in file: lib\support\0.2.805/string.
 14 [0xe]:          jne 20   
 15 [0xf]: line: 92 new_class @3 // std#exception   
 16 [0x10]:          dup    
-17 [0x11]:          newstr @40 // length cannot be less than zero   
+17 [0x11]:          newstr @41 // length cannot be less than zero   
 18 [0x12]:          call @1624 // <std#exception.exception>   
 19 [0x13]:          throw    
 20 [0x14]:          nop   
@@ -58595,11 +58603,11 @@ function: std#string.append[2941] params(2) in file: lib\support\0.2.805/string.
 30 [0x1e]:          dup    
 31 [0x1f]:          new_class @64 // std#string   
 32 [0x20]:          dup    
-33 [0x21]:          newstr @41 // length of:    
+33 [0x21]:          newstr @42 // length of:    
 34 [0x22]:          call @2930 // <std#string.string>   
 35 [0x23]:          ipushl #2   
 36 [0x24]:          call @2962 // <std#string.operator+>   
-37 [0x25]:          newstr @42 //  is greater than the string:    
+37 [0x25]:          newstr @43 //  is greater than the string:    
 38 [0x26]:          call @2942 // <std#string.operator+>   
 39 [0x27]:          movl 1   
 40 [0x28]:          sizeof ebx   
@@ -58676,7 +58684,7 @@ overload function: std#string.operator+[2942] params(1) in file: lib\support\0.2
 19 [0x13]:           ret   
 20 [0x14]:           jmp @27   
 21 [0x15]: line: 113 pushl 2   
-22 [0x16]:           newstr @43 // null   
+22 [0x16]:           newstr @44 // null   
 23 [0x17]:           call @2940 // <std#string.append>   
 24 [0x18]:           popobj2    
 25 [0x19]:           returnobj   
@@ -58802,7 +58810,7 @@ overload function: std#string.operator+[2944] params(1) in file: lib\support\0.2
 32 [0x20]:           ret   
 33 [0x21]:           jmp @40   
 34 [0x22]: line: 139 pushl 2   
-35 [0x23]:           newstr @43 // null   
+35 [0x23]:           newstr @44 // null   
 36 [0x24]:           call @2940 // <std#string.append>   
 37 [0x25]:           popobj2    
 38 [0x26]:           returnobj   
@@ -58810,7 +58818,7 @@ overload function: std#string.operator+[2944] params(1) in file: lib\support\0.2
 40 [0x28]:           nop   
 41 [0x29]:           jmp @48   
 42 [0x2a]: line: 142 pushl 2   
-43 [0x2b]:           newstr @43 // null   
+43 [0x2b]:           newstr @44 // null   
 44 [0x2c]:           call @2940 // <std#string.append>   
 45 [0x2d]:           popobj2    
 46 [0x2e]:           returnobj   
@@ -58845,7 +58853,7 @@ overload function: std#string.operator+[2945] params(1) in file: lib\support\0.2
 22 [0x16]:           ret   
 23 [0x17]:           jmp @30   
 24 [0x18]: line: 150 pushl 2   
-25 [0x19]:           newstr @43 // null   
+25 [0x19]:           newstr @44 // null   
 26 [0x1a]:           call @2940 // <std#string.append>   
 27 [0x1b]:           popobj2    
 28 [0x1c]:           returnobj   
@@ -59102,7 +59110,7 @@ function: std#string.set_precision[2955] params(1) in file: lib\support\0.2.805/
 15 [0xf]:           dup    
 16 [0x10]:           new_class @64 // std#string   
 17 [0x11]:           dup    
-18 [0x12]:           newstr @44 // invalid precision:    
+18 [0x12]:           newstr @45 // invalid precision:    
 19 [0x13]:           call @2930 // <std#string.string>   
 20 [0x14]:           ipushl #0   
 21 [0x15]:           call @2962 // <std#string.operator+>   
@@ -59618,7 +59626,7 @@ overload function: std#string.operator+=[2974] params(1) in file: lib\support\0.
 26 [0x1a]:           ret   
 27 [0x1b]:           jmp @34   
 28 [0x1c]: line: 294 pushl 0   
-29 [0x1d]:           newstr @43 // null   
+29 [0x1d]:           newstr @44 // null   
 30 [0x1e]:           call @2940 // <std#string.append>   
 31 [0x1f]:           popobj2    
 32 [0x20]:           returnobj   
@@ -59686,11 +59694,11 @@ function: std#string.substring[2977] params(2) in file: lib\support\0.2.805/stri
 29 [0x1d]:           dup    
 30 [0x1e]:           new_class @64 // std#string   
 31 [0x1f]:           dup    
-32 [0x20]:           newstr @45 // end_pos:    
+32 [0x20]:           newstr @46 // end_pos:    
 33 [0x21]:           call @2930 // <std#string.string>   
 34 [0x22]:           ipushl #2   
 35 [0x23]:           call @2962 // <std#string.operator+>   
-36 [0x24]:           newstr @46 //  cannot be less than the start_pos:    
+36 [0x24]:           newstr @47 //  cannot be less than the start_pos:    
 37 [0x25]:           call @2942 // <std#string.operator+>   
 38 [0x26]:           ipushl #1   
 39 [0x27]:           call @2962 // <std#string.operator+>   
@@ -59724,11 +59732,11 @@ function: std#string.bounds_error[2978] params(1) in file: lib\support\0.2.805/s
 1 [0x1]:           dup    
 2 [0x2]:           new_class @64 // std#string   
 3 [0x3]:           dup    
-4 [0x4]:           newstr @47 // Index out of bounds exception at:    
+4 [0x4]:           newstr @48 // Index out of bounds exception at:    
 5 [0x5]:           call @2930 // <std#string.string>   
 6 [0x6]:           ipushl #1   
 7 [0x7]:           call @2962 // <std#string.operator+>   
-8 [0x8]:           newstr @48 //  with size of:    
+8 [0x8]:           newstr @49 //  with size of:    
 9 [0x9]:           call @2942 // <std#string.operator+>   
 10 [0xa]:           movl 0   
 11 [0xb]:           movn #0   
@@ -60478,7 +60486,7 @@ function: std#string_builder.append[2995] params(2) in file: lib\support\0.2.805
 14 [0xe]:           jne 20   
 15 [0xf]: line: 121 new_class @3 // std#exception   
 16 [0x10]:           dup    
-17 [0x11]:           newstr @40 // length cannot be less than zero   
+17 [0x11]:           newstr @41 // length cannot be less than zero   
 18 [0x12]:           call @1624 // <std#exception.exception>   
 19 [0x13]:           throw    
 20 [0x14]:           nop   
@@ -60494,11 +60502,11 @@ function: std#string_builder.append[2995] params(2) in file: lib\support\0.2.805
 30 [0x1e]:           dup    
 31 [0x1f]:           new_class @64 // std#string   
 32 [0x20]:           dup    
-33 [0x21]:           newstr @41 // length of:    
+33 [0x21]:           newstr @42 // length of:    
 34 [0x22]:           call @2930 // <std#string.string>   
 35 [0x23]:           ipushl #2   
 36 [0x24]:           call @2962 // <std#string.operator+>   
-37 [0x25]:           newstr @42 //  is greater than the string:    
+37 [0x25]:           newstr @43 //  is greater than the string:    
 38 [0x26]:           call @2942 // <std#string.operator+>   
 39 [0x27]:           movl 1   
 40 [0x28]:           sizeof ebx   
@@ -60601,7 +60609,7 @@ overload function: std#string_builder.operator+[2996] params(1) in file: lib\sup
 19 [0x13]:           ret   
 20 [0x14]:           jmp @27   
 21 [0x15]: line: 141 pushl 2   
-22 [0x16]:           newstr @43 // null   
+22 [0x16]:           newstr @44 // null   
 23 [0x17]:           call @2994 // <std#string_builder.append>   
 24 [0x18]:           popobj2    
 25 [0x19]:           returnobj   
@@ -60636,7 +60644,7 @@ overload function: std#string_builder.operator+[2997] params(1) in file: lib\sup
 22 [0x16]:           ret   
 23 [0x17]:           jmp @30   
 24 [0x18]: line: 150 pushl 2   
-25 [0x19]:           newstr @43 // null   
+25 [0x19]:           newstr @44 // null   
 26 [0x1a]:           call @2994 // <std#string_builder.append>   
 27 [0x1b]:           popobj2    
 28 [0x1c]:           returnobj   
@@ -60957,7 +60965,7 @@ function: std#string_builder.set_precision[3007] params(1) in file: lib\support\
 15 [0xf]:           dup    
 16 [0x10]:           new_class @64 // std#string   
 17 [0x11]:           dup    
-18 [0x12]:           newstr @44 // invalid precision:    
+18 [0x12]:           newstr @45 // invalid precision:    
 19 [0x13]:           call @2930 // <std#string.string>   
 20 [0x14]:           ipushl #0   
 21 [0x15]:           call @2962 // <std#string.operator+>   
@@ -61475,7 +61483,7 @@ overload function: std#string_builder.operator+=[3017] params(1) in file: lib\su
 22 [0x16]:           ret   
 23 [0x17]:           jmp @30   
 24 [0x18]: line: 318 pushl 0   
-25 [0x19]:           newstr @43 // null   
+25 [0x19]:           newstr @44 // null   
 26 [0x1a]:           call @2994 // <std#string_builder.append>   
 27 [0x1b]:           popobj2    
 28 [0x1c]:           returnobj   
@@ -61571,11 +61579,11 @@ function: std#string_builder.substring[3022] params(2) in file: lib\support\0.2.
 36 [0x24]:           dup    
 37 [0x25]:           new_class @64 // std#string   
 38 [0x26]:           dup    
-39 [0x27]:           newstr @49 // endPos:    
+39 [0x27]:           newstr @50 // endPos:    
 40 [0x28]:           call @2930 // <std#string.string>   
 41 [0x29]:           ipushl #2   
 42 [0x2a]:           call @2962 // <std#string.operator+>   
-43 [0x2b]:           newstr @50 //  cannot be less than the startPos:    
+43 [0x2b]:           newstr @51 //  cannot be less than the startPos:    
 44 [0x2c]:           call @2942 // <std#string.operator+>   
 45 [0x2d]:           ipushl #1   
 46 [0x2e]:           call @2962 // <std#string.operator+>   
@@ -61609,11 +61617,11 @@ function: std#string_builder.bounds_error[3023] params(1) in file: lib\support\0
 1 [0x1]:           dup    
 2 [0x2]:           new_class @64 // std#string   
 3 [0x3]:           dup    
-4 [0x4]:           newstr @47 // Index out of bounds exception at:    
+4 [0x4]:           newstr @48 // Index out of bounds exception at:    
 5 [0x5]:           call @2930 // <std#string.string>   
 6 [0x6]:           ipushl #1   
 7 [0x7]:           call @2962 // <std#string.operator+>   
-8 [0x8]:           newstr @48 //  with size of:    
+8 [0x8]:           newstr @49 //  with size of:    
 9 [0x9]:           call @2942 // <std#string.operator+>   
 10 [0xa]:           movl 0   
 11 [0xb]:           movn #3   
@@ -61817,7 +61825,7 @@ function: std#time.sleep[3032] params(2) in file: lib\support\0.2.805/time.sharp
 8 [0x8]:          dup    
 9 [0x9]:          new_class @64 // std#string   
 10 [0xa]:          dup    
-11 [0xb]:          newstr @51 // cannot sleep for negative time:    
+11 [0xb]:          newstr @52 // cannot sleep for negative time:    
 12 [0xc]:          call @2930 // <std#string.string>   
 13 [0xd]:          ipushl #1   
 14 [0xe]:          call @2962 // <std#string.operator+>   
@@ -61895,7 +61903,7 @@ function: std#time.wait[3033] params(2) in file: lib\support\0.2.805/time.sharp:
 18 [0x12]:          dup    
 19 [0x13]:          new_class @64 // std#string   
 20 [0x14]:          dup    
-21 [0x15]:          newstr @51 // cannot sleep for negative time:    
+21 [0x15]:          newstr @52 // cannot sleep for negative time:    
 22 [0x16]:          call @2930 // <std#string.string>   
 23 [0x17]:          ipushl #1   
 24 [0x18]:          call @2962 // <std#string.operator+>   
@@ -62938,7 +62946,7 @@ function: common.network.driver#nrf24.check_state[3094] params(0) in file: C:\Us
 8 [0x8]:          jne 14   
 9 [0x9]: line: 87 new_class @5 // std#illegal_state_exception   
 10 [0xa]:          dup    
-11 [0xb]:          newstr @52 // device is not setup   
+11 [0xb]:          newstr @53 // device is not setup   
 12 [0xc]:          call @1630 // <std#illegal_state_exception.illegal_state_exception>   
 13 [0xd]:          throw    
 14 [0xe]:          nop   
@@ -62951,7 +62959,7 @@ function: common.network.driver#nrf24.check_state[3094] params(0) in file: C:\Us
 23 [0x17]:          jne 29   
 24 [0x18]: line: 89 new_class @5 // std#illegal_state_exception   
 25 [0x19]:          dup    
-26 [0x1a]:          newstr @53 // device is shutown   
+26 [0x1a]:          newstr @54 // device is shutown   
 27 [0x1b]:          call @1630 // <std#illegal_state_exception.illegal_state_exception>   
 28 [0x1c]:          throw    
 29 [0x1d]:          nop   
@@ -63391,82 +63399,46 @@ function: main#__srt_global.setup_conn_tracker[3113] params(0) in file: C:\Users
 		def setup_conn_tracker() {
 		   ^
 
-0 [0x0]: line: 15 istore 26   
-2 [0x2]:          ldc ebx // 1   
-3 [0x3]:          rstore ebx   
-4 [0x4]:          invoke_delegate 3043 { static=1, args=2 }   
-6 [0x6]: line: 16 istore 26   
-8 [0x8]:          ldc ebx // 0   
-9 [0x9]:          rstore ebx   
-10 [0xa]:          invoke_delegate 3044 { static=1, args=2 }   
-12 [0xc]: line: 18 call @1834 // <std.io.task#task.builder>   
-13 [0xd]:          istore 1000   
-15 [0xf]:          movg @67 // @std#time_unit   
-16 [0x10]:          movn #1   
-18 [0x12]:          pushobj   
-19 [0x13]:          call @1800 // <std.io.task#job_builder.recurring>   
-20 [0x14]:          istore 3472   
-22 [0x16]:          call @1805 // <std.io.task#job_builder.operator=>   
-23 [0x17]:          pop   
-24 [0x18]: line: 30 call @1834 // <std.io.task#task.builder>   
-25 [0x19]:          istore 3000   
-27 [0x1b]:          call @1799 // <std.io.task#job_builder.schedule>   
-28 [0x1c]:          istore 250   
-30 [0x1e]:          movg @67 // @std#time_unit   
-31 [0x1f]:          movn #1   
-33 [0x21]:          pushobj   
-34 [0x22]:          call @1800 // <std.io.task#job_builder.recurring>   
-35 [0x23]:          istore 3473   
-37 [0x25]:          call @1805 // <std.io.task#job_builder.operator=>   
-38 [0x26]:          pop   
-39 [0x27]:          ret   
+0 [0x0]: line: 16 call @1834 // <std.io.task#task.builder>   
+1 [0x1]:          istore 1000   
+3 [0x3]:          movg @67 // @std#time_unit   
+4 [0x4]:          movn #1   
+6 [0x6]:          pushobj   
+7 [0x7]:          call @1800 // <std.io.task#job_builder.recurring>   
+8 [0x8]:          istore 3472   
+10 [0xa]:          call @1805 // <std.io.task#job_builder.operator=>   
+11 [0xb]:          pop   
+12 [0xc]: line: 23 call @1834 // <std.io.task#task.builder>   
+13 [0xd]:          istore 3000   
+15 [0xf]:          call @1799 // <std.io.task#job_builder.schedule>   
+16 [0x10]:          istore 250   
+18 [0x12]:          movg @67 // @std#time_unit   
+19 [0x13]:          movn #1   
+21 [0x15]:          pushobj   
+22 [0x16]:          call @1800 // <std.io.task#job_builder.recurring>   
+23 [0x17]:          istore 3473   
+25 [0x19]:          call @1805 // <std.io.task#job_builder.operator=>   
+26 [0x1a]:          pop   
+27 [0x1b]:          ret   
 
 
 function: main#__srt_global.main[3114] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/main.sharp:13:4: note:  
 		def main(args: string[])
 		   ^
 
-0 [0x0]: line: 15 new_class @64 // std#string   
-1 [0x1]:          dup    
-2 [0x2]:          newstr @54 // bin/dragonfly   
-3 [0x3]:          call @2930 // <std#string.string>   
-4 [0x4]:          call @1939 // <platform#__srt_global.load_library>   
-5 [0x5]: line: 16 ldc ebx // 0   
-6 [0x6]:          rstore ebx   
-7 [0x7]:          movg @70 // @common#constants   
-8 [0x8]:          movn #20   
-10 [0xa]:          loadval ebx   
-11 [0xb]:          movi #0, adx   
-13 [0xd]:          rmov adx, ebx   
-14 [0xe]: line: 17 invoke_delegate 3042 { static=1, args=0 }   
-16 [0x10]: line: 19 call @3113 // <main#__srt_global.setup_conn_tracker>   
-17 [0x11]: line: 21 call @3187 // <ui.support#window.start_ui>   
-18 [0x12]: line: 22 istore 3000   
-20 [0x14]:          call @1852 // <std.io#thread.sleep>   
-21 [0x15]: line: 23 call @3095 // <common.network#network.handshake>   
-22 [0x16]: line: 24 istore 1   
-24 [0x18]:          movg @95 // @main#__srt_global   
-25 [0x19]:          movn #4   
-27 [0x1b]:          loadval ebx   
-28 [0x1c]:          movi #0, adx   
-30 [0x1e]:          rmov adx, ebx   
-31 [0x1f]: line: 27 call @1834 // <std.io.task#task.builder>   
-32 [0x20]:          call @1804 // <std.io.task#job_builder.long_term>   
-33 [0x21]:          istore 3000   
-35 [0x23]:          call @1799 // <std.io.task#job_builder.schedule>   
-36 [0x24]:          istore 50   
-38 [0x26]:          movg @67 // @std#time_unit   
-39 [0x27]:          movn #1   
-41 [0x29]:          pushobj   
-42 [0x2a]:          call @1800 // <std.io.task#job_builder.recurring>   
-43 [0x2b]:          istore 3474   
-45 [0x2d]:          call @1805 // <std.io.task#job_builder.operator=>   
-46 [0x2e]:          pop   
-47 [0x2f]: line: 40 call @1857 // <std.io#thread.yield>   
-48 [0x30]: line: 41 istore 10   
-50 [0x32]: line: 42 call @1852 // <std.io#thread.sleep>   
-51 [0x33]:          jmp @47   
-52 [0x34]:          ret   
+0 [0x0]: line: 15 ldc ebx // 0   
+1 [0x1]:          rstore ebx   
+2 [0x2]:          movg @70 // @common#constants   
+3 [0x3]:          movn #20   
+5 [0x5]:          loadval ebx   
+6 [0x6]:          movi #0, adx   
+8 [0x8]:          rmov adx, ebx   
+9 [0x9]: line: 17 call @3113 // <main#__srt_global.setup_conn_tracker>   
+10 [0xa]: line: 22 call @1857 // <std.io#thread.yield>   
+11 [0xb]: line: 23 istore 10   
+13 [0xd]: line: 24 call @1852 // <std.io#thread.sleep>   
+14 [0xe]:          jmp @10   
+15 [0xf]:          ret   
 
 
 ui.driver#__srt_global.setup[3115] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/ui//driver//dev_interface.sharp:3:11: note:  
@@ -65428,7 +65400,7 @@ function: ui.support#window.start_updater[3193] params(0) in file: C:\Users\bnun
 13 [0xd]:          movn #1   
 15 [0xf]:          pushobj   
 16 [0x10]:          call @1800 // <std.io.task#job_builder.recurring>   
-17 [0x11]:          istore 3475   
+17 [0x11]:          istore 3474   
 19 [0x13]:          call @1806 // <std.io.task#job_builder.operator=>   
 20 [0x14]:          pop   
 21 [0x15]:          ret   
@@ -75615,11 +75587,11 @@ lambda: std.io.task#__srt_global.anon_func$3466[3466] params(2) in file: lib\sup
 16 [0x10]:          ret   
 
 
-lambda: std.io.task#__srt_global.anon_func$3467[3467] params(2) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:89:52: note:  
+lambda: std.io.task#__srt_global.anon_func$3467[3467] params(2) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:90:52: note:  
 		                        jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
 		                                                   ^
 
-0 [0x0]: line: 89 movl 0   
+0 [0x0]: line: 90 movl 0   
 1 [0x1]:          movn #15   
 3 [0x3]:          movi #0, adx   
 5 [0x5]:          iaload ebx, adx   
@@ -75634,11 +75606,11 @@ lambda: std.io.task#__srt_global.anon_func$3467[3467] params(2) in file: lib\sup
 16 [0x10]:          ret   
 
 
-lambda: std.io.task#__srt_global.anon_func$3468[3468] params(2) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:104:48: note:  
+lambda: std.io.task#__srt_global.anon_func$3468[3468] params(2) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:105:48: note:  
 		                    jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
 		                                               ^
 
-0 [0x0]: line: 104 movl 0   
+0 [0x0]: line: 105 movl 0   
 1 [0x1]:           movn #15   
 3 [0x3]:           movi #0, adx   
 5 [0x5]:           iaload ebx, adx   
@@ -75653,11 +75625,11 @@ lambda: std.io.task#__srt_global.anon_func$3468[3468] params(2) in file: lib\sup
 16 [0x10]:           ret   
 
 
-lambda: std.io.task#__srt_global.anon_func$3469[3469] params(1) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:128:19: note:  
+lambda: std.io.task#__srt_global.anon_func$3469[3469] params(1) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:129:19: note:  
 		        pool.find({ t ->
 		                  ^
 
-0 [0x0]: line: 129 pushl 0   
+0 [0x0]: line: 130 pushl 0   
 1 [0x1]:           movg @20 // @std.io.task#__srt_global   
 2 [0x2]:           movn #3   
 4 [0x4]:           pushobj   
@@ -75668,7 +75640,7 @@ lambda: std.io.task#__srt_global.anon_func$3469[3469] params(1) in file: lib\sup
 9 [0x9]:           istorel 0, fp+0   
 11 [0xb]:           ret   
 12 [0xc]:           nop   
-13 [0xd]: line: 131 movg @20 // @std.io.task#__srt_global   
+13 [0xd]: line: 132 movg @20 // @std.io.task#__srt_global   
 14 [0xe]:           movn #5   
 16 [0x10]:           pushobj   
 17 [0x11]:           pushl 0   
@@ -75682,11 +75654,11 @@ lambda: std.io.task#__srt_global.anon_func$3469[3469] params(1) in file: lib\sup
 26 [0x1a]:           ret   
 
 
-lambda: std.io.task#__srt_global.anon_func$3470[3470] params(1) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:162:19: note:  
+lambda: std.io.task#__srt_global.anon_func$3470[3470] params(1) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:163:19: note:  
 		        pool.find({ t ->
 		                  ^
 
-0 [0x0]: line: 163 pushl 0   
+0 [0x0]: line: 164 pushl 0   
 1 [0x1]:           movg @20 // @std.io.task#__srt_global   
 2 [0x2]:           movn #3   
 4 [0x4]:           pushobj   
@@ -75697,7 +75669,7 @@ lambda: std.io.task#__srt_global.anon_func$3470[3470] params(1) in file: lib\sup
 9 [0x9]:           istorel 0, fp+0   
 11 [0xb]:           ret   
 12 [0xc]:           nop   
-13 [0xd]: line: 165 movg @20 // @std.io.task#__srt_global   
+13 [0xd]: line: 166 movg @20 // @std.io.task#__srt_global   
 14 [0xe]:           movn #5   
 16 [0x10]:           pushobj   
 17 [0x11]:           pushl 0   
@@ -75736,11 +75708,11 @@ lambda: std.io.task#__srt_global.anon_func$3470[3470] params(1) in file: lib\sup
 59 [0x3b]:           ret   
 
 
-lambda: std.io.task#__srt_global.anon_func$3471[3471] params(1) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:176:19: note:  
+lambda: std.io.task#__srt_global.anon_func$3471[3471] params(1) in file: lib\support\0.2.805/io//task//job_scheduler.sharp:177:19: note:  
 		        pool.find({ t ->
 		                  ^
 
-0 [0x0]: line: 177 movg @20 // @std.io.task#__srt_global   
+0 [0x0]: line: 178 movg @20 // @std.io.task#__srt_global   
 1 [0x1]:           movn #5   
 3 [0x3]:           pushobj   
 4 [0x4]:           pushl 0   
@@ -75779,144 +75751,21 @@ lambda: std.io.task#__srt_global.anon_func$3471[3471] params(1) in file: lib\sup
 46 [0x2e]:           ret   
 
 
-lambda: main#__srt_global.anon_func$3472[3472] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/connection_tracker.sharp:20:10: note:  
+lambda: main#__srt_global.anon_func$3472[3472] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/connection_tracker.sharp:18:10: note:  
 		       = { ->
 		         ^
 
-0 [0x0]: line: 21 istore 26   
-2 [0x2]:          ldc ebx // 1   
-3 [0x3]:          rstore ebx   
-4 [0x4]:          invoke_delegate 3044 { static=1, args=2 }   
-6 [0x6]: line: 23 movg @95 // @main#__srt_global   
-7 [0x7]:          movn #4   
-9 [0x9]:          movi #0, adx   
-11 [0xb]:          iaload ebx, adx   
-12 [0xc]:          not ebx, ebx   
-13 [0xd]:          skpe ebx // pc = 20   
-14 [0xe]:          movg @95 // @main#__srt_global   
-15 [0xf]:          movn #2   
-17 [0x11]:          movi #0, adx   
-19 [0x13]:          iaload ebx, adx   
-20 [0x14]:          movr cmt, ebx   
-21 [0x15]:          jne 31   
-22 [0x16]: line: 24 istore 500   
-24 [0x18]:          call @1852 // <std.io#thread.sleep>   
-25 [0x19]: line: 25 istore 26   
-27 [0x1b]:          ldc ebx // 0   
-28 [0x1c]:          rstore ebx   
-29 [0x1d]:          invoke_delegate 3044 { static=1, args=2 }   
-31 [0x1f]:          nop   
-32 [0x20]:          ret   
+0 [0x0]:         ret   
 
 
-lambda: main#__srt_global.anon_func$3473[3473] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/connection_tracker.sharp:33:10: note:  
+lambda: main#__srt_global.anon_func$3473[3473] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/connection_tracker.sharp:26:10: note:  
 		       = { ->
 		         ^
 
-0 [0x0]: line: 34 movg @95 // @main#__srt_global   
-1 [0x1]:          movn #4   
-3 [0x3]:          movi #0, adx   
-5 [0x5]:          iaload ebx, adx   
-6 [0x6]:          not ebx, ebx   
-7 [0x7]:          skpe ebx // pc = 14   
-8 [0x8]:          movg @95 // @main#__srt_global   
-9 [0x9]:          movn #2   
-11 [0xb]:          movi #0, adx   
-13 [0xd]:          iaload ebx, adx   
-14 [0xe]:          movr cmt, ebx   
-15 [0xf]:          jne 17   
-16 [0x10]:          ret   
-17 [0x11]:          nop   
-18 [0x12]: line: 35 call @3098 // <common.network#network.get_signal_strength>   
-19 [0x13]:          movg @95 // @main#__srt_global   
-20 [0x14]:          movn #1   
-22 [0x16]:          loadval ebx   
-23 [0x17]:          movi #0, adx   
-25 [0x19]:          rmov adx, ebx   
-26 [0x1a]: line: 37 movg @95 // @main#__srt_global   
-27 [0x1b]:          movn #1   
-29 [0x1d]:          movi #0, adx   
-31 [0x1f]:          iaload ebx, adx   
-32 [0x20]:          rstore ebx   
-33 [0x21]:          ldc ebx // 0   
-34 [0x22]:          loadval ecx   
-35 [0x23]:          test ecx, ebx   
-36 [0x24]:          jne 93   
-37 [0x25]: line: 38 movg @95 // @main#__srt_global   
-38 [0x26]:          movn #3   
-40 [0x28]:          movi #0, adx   
-42 [0x2a]:          iaload ebx, adx   
-43 [0x2b]:          rstore ebx   
-44 [0x2c]:          movi #0, ebx   
-46 [0x2e]:          loadval ecx   
-47 [0x2f]:          gt ecx, ebx   
-48 [0x30]:          movr ebx, cmt   
-49 [0x31]:          movr cmt, ebx   
-50 [0x32]:          jne 63   
-51 [0x33]: line: 39 movg @95 // @main#__srt_global   
-52 [0x34]:          movn #3   
-54 [0x36]:          movi #0, adx   
-56 [0x38]:          iaload ebx, adx   
-57 [0x39]:          movr egx, ebx   
-58 [0x3a]:          dec ebx   
-59 [0x3b]:          movi #0, adx   
-61 [0x3d]:          rmov adx, ebx   
-62 [0x3e]:          jmp @91   
-63 [0x3f]: line: 41 istore 1   
-65 [0x41]:          movg @95 // @main#__srt_global   
-66 [0x42]:          movn #2   
-68 [0x44]:          loadval ebx   
-69 [0x45]:          movi #0, adx   
-71 [0x47]:          rmov adx, ebx   
-72 [0x48]: line: 42 call @3095 // <common.network#network.handshake>   
-73 [0x49]: line: 43 istore 0   
-75 [0x4b]:          movg @95 // @main#__srt_global   
-76 [0x4c]:          movn #2   
-78 [0x4e]:          loadval ebx   
-79 [0x4f]:          movi #0, adx   
-81 [0x51]:          rmov adx, ebx   
-82 [0x52]: line: 44 istore 4   
-84 [0x54]:          movg @95 // @main#__srt_global   
-85 [0x55]:          movn #3   
-87 [0x57]:          loadval ebx   
-88 [0x58]:          movi #0, adx   
-90 [0x5a]:          rmov adx, ebx   
-91 [0x5b]:          nop   
-92 [0x5c]:          jmp @102   
-93 [0x5d]: line: 47 istore 0   
-95 [0x5f]:          movg @95 // @main#__srt_global   
-96 [0x60]:          movn #3   
-98 [0x62]:          loadval ebx   
-99 [0x63]:          movi #0, adx   
-101 [0x65]:          rmov adx, ebx   
-102 [0x66]:          nop   
-103 [0x67]:          ret   
+0 [0x0]:         ret   
 
 
-lambda: main#__srt_global.anon_func$3474[3474] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/main.sharp:31:9: note:  
-		      = { ->
-		        ^
-
-0 [0x0]: line: 32 movg @95 // @main#__srt_global   
-1 [0x1]:          movn #2   
-3 [0x3]:          movi #0, adx   
-5 [0x5]:          iaload ebx, adx   
-6 [0x6]:          not ebx, ebx   
-7 [0x7]:          movr cmt, ebx   
-8 [0x8]:          jne 18   
-9 [0x9]: line: 33 new_class @64 // std#string   
-10 [0xa]:          dup    
-11 [0xb]:          movg @71 // @common#constants.strings   
-12 [0xc]:          movn #4   
-14 [0xe]:          pushobj   
-15 [0xf]:          call @2930 // <std#string.string>   
-16 [0x10]:          call @3097 // <common.network#network.change_mode>   
-17 [0x11]:          pop   
-18 [0x12]:          nop   
-19 [0x13]:          ret   
-
-
-lambda: ui.support#__srt_global.anon_func$3475[3475] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/ui//support//window.sharp:67:12: note:  
+lambda: ui.support#__srt_global.anon_func$3474[3474] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/ui//support//window.sharp:67:12: note:  
 		         = { args : object[] ->
 		           ^
 

@@ -656,11 +656,11 @@ void GarbageCollector::lock(SharpObject *o, Thread* thread) {
             SET_LOCK(o->info, 1);
         }
         mutex.unlock();
+        mut->mutex->lock();
+
         if(mut->threadid != thread->id) {
-            mut->mutex->lock();
             mut->threadid = thread->id;
-        } else
-            mut->mutex->lock();
+        }
     }
 }
 
@@ -672,9 +672,13 @@ void GarbageCollector::unlock(SharpObject *o, Thread* thread) {
         if(idx != -1)
             mut = locks.get(idx);
         mutex.unlock();
-        if(mut && mut->threadid==thread->id) {
-            mut->threadid = -1;
+        if(mut) {
+            if (mut->threadid == thread->id) {
+                mut->threadid = -1;
+            }
+
             mut->mutex->unlock();
+
         }
     }
 }
