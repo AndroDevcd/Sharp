@@ -29,6 +29,7 @@ extern native_string stackInjector;
 extern native_string ebxInjector;
 extern native_string ptrInjector;
 extern native_string getterInjector;
+extern native_string setterInjector;
 extern native_string removeFromStackInjector;
 extern native_string incInjector;
 extern native_string decInjector;

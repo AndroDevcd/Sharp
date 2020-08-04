@@ -2924,7 +2924,7 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
         && (currentScope()->currentFunction == NULL ||
             !(currentScope()->currentFunction == field->setter || currentScope()->currentFunction == field->getter))) {
 
-            if(field->getter != NULL)
+            if(!leftExpr.utype->getCode().getInjector(getterInjector).ir32.empty())
                 leftExpr.utype->getCode().removeIrEnd(leftExpr.utype->getCode().getInjector(getterInjector).ir32.at(0));
 
             List<Field *> params;
