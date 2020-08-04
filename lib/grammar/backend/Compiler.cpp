@@ -1516,6 +1516,7 @@ void Compiler::expressionToParam(Expression &expression, Field *param) {
         param->nullField = true;
         param->utype = new Utype(OBJECT);
         param->type = OBJECT;
+        param->utype->setNullType(true);
 
         // yet another line of nasty dirty code...smh...
         param->utype->getCode().copy(expression.utype->getCode());
@@ -1550,6 +1551,7 @@ void Compiler::expressionToParam(Expression &expression, Field *param) {
         param->utype->copy(exprField->utype);
         param->type = exprField->type;
         param->isArray = exprField->isArray;
+        param->nullField = exprField->nullField;
 
         // yet another line of nasty dirty code...smh...
         param->utype->getCode().copy(expression.utype->getCode());
@@ -2932,7 +2934,8 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
 
             if(leftExpr.utype->isRelated(params.get(0)->utype)
                 || isUtypeConvertableToNativeClass(field->setter->params.get(0)->utype, params.get(0)->utype)
-                   || isUtypeClassConvertableToVar(field->setter->params.get(0)->utype, params.get(0)->utype)) {
+                   || isUtypeClassConvertableToVar(field->setter->params.get(0)->utype, params.get(0)->utype)
+                   || (leftExpr.utype->getClass() && params.get(0)->utype->isNullType())) {
 
                 if(field->locality != stl_thread && !field->flags.find(STATIC)) {
                     resultCode->inject(leftExpr.utype->getCode());
@@ -5390,6 +5393,7 @@ void Compiler::resolveSetter(Ast *ast, Field *field) {
     Field *arg0 = new Field(CLASS, guid++, ast->getToken(1).getValue(), field->owner, fieldFlags, meta, stl_stack, 0);
     arg0->utype = field->utype;
     arg0->type = field->type;
+    arg0->isArray = field->isArray;
     params.add(arg0);
 
     if(field->flags.find(flg_CONST)) {
@@ -9241,7 +9245,7 @@ Field* Compiler::createLocalField(string name, Utype *type, bool isArray, Storag
 
     Field* prevField=NULL;
     if((prevField = currentScope()->currentFunction->data.getLocalField(name)) != NULL) {
-        this->errors->createNewError(PREVIOUSLY_DEFINED, prevField->ast->line, prevField->ast->col,
+        this->errors->createNewError(PREVIOUSLY_DEFINED, ast->line, ast->col,
                                      "local field `" + name + "` is already defined in the scope");
         printNote(prevField->meta, "local field `" + name + "` previously defined here");
         return prevField;

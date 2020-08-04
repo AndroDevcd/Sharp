@@ -659,7 +659,8 @@ void GarbageCollector::lock(SharpObject *o, Thread* thread) {
         if(mut->threadid != thread->id) {
             mut->mutex->lock();
             mut->threadid = thread->id;
-        }
+        } else
+            mut->mutex->lock();
     }
 }
 

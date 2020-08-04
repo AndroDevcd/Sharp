@@ -4,4 +4,5 @@ import std.io;
 
 class job_controller {
     protected scheduled_job : job;
+    protected last_ran : var;
 }

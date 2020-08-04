@@ -16,6 +16,8 @@ public class job {
 	protected def execute_async() : var {
 		if(state == created) {
 			controller.scheduled_job = self;
+			controller.last_ran = time.mills_time();
+
 			if(!host.is_active()) {
 			    host.start(new object[] { controller });
 			}
@@ -181,7 +183,7 @@ public class job {
         user_args := new object[sizeof(args) - 1];
         index := 0;
         for(i := 1; i < sizeof(args); i++) {
-            user_args[i] = args[i];
+            user_args[index++] = args[i];
         }
 
         if(long_term)

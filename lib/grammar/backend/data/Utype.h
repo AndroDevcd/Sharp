@@ -52,7 +52,7 @@ public:
     void setResolvedType(DataEntity* utype) { resolvedType = utype; }
     utype_struct getType() { return type; }
     void setArrayType(bool isArray) { array = isArray; }
-    bool isArray() { return array; }
+    bool isArray();
     void setNullType(bool nt) { nullType = nt; }
     bool isNullType() { return nullType; }
     bool isClass();

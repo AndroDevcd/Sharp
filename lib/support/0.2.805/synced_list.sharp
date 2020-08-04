@@ -186,6 +186,32 @@ class synced_list<t> : loopable<t> {
         return -1;
     }
 
+    def find(comparer : t, find_func: (t, t)(var)) : t {
+        lock(self) {
+            for(i := 0; i < n_elements; i++) {
+                if(find_func(data[i], comparer)) {
+                    return data[i];
+                }
+            }
+
+            no_val : t;
+            return no_val;
+        }
+    }
+
+    def replace(val: t, compare_fun: (t, t)(var)) : var {
+        lock(self) {
+            for(i := 0; i < n_elements; i++) {
+                if(compare_fun(val, data[i])) {
+                    data[i] = val;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
     def to_string() : string {
         lock(self) {
             str := new string_builder();

@@ -1,5 +1,5 @@
 
-#include "generted/native_mapping.h"
+#include "generated/native_mapping.h"
 
 using namespace std;
 

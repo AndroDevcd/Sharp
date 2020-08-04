@@ -15,7 +15,7 @@ EXPORTED uint32_t snb_link_proc(const char* funcName) {
 }
 
 void call_main$__srt_global_printMessage() {
-    import(app);
+    import(main);
 
     printMessage();
 }

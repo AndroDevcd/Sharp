@@ -487,7 +487,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
         }
     } else if((resolvedUtype = currentScope()->klass->getField(name, true)) != NULL) {
         resolveFieldUtype(utype, ast, resolvedUtype, name);
-    } else if(primaryClass && (resolvedUtype = primaryClass->getField(name, true)) != NULL) {
+    } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && primaryClass && (resolvedUtype = primaryClass->getField(name, true)) != NULL) {
         resolveFieldUtype(utype, ast, resolvedUtype, name);
     } else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = resolveEnum(name)) != NULL) {
         validateAccess((Field*)resolvedUtype, ast);

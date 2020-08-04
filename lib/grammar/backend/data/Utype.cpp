@@ -161,7 +161,7 @@ bool Utype::isRelated(Utype *utype) {
             }
         } else if (resolvedType->type == VAR || (resolvedType->type >= _INT8 && resolvedType->type <= _UINT64)) {
             if (utype->getResolvedType()->type <= VAR)
-                return array == utype->array;
+                return isArray() == utype->isArray();
             else if(array && utype->nullType)
                 return true;
         } else if (type == utype_method || resolvedType->type == FNPTR) {
@@ -196,5 +196,9 @@ Method *Utype::getMethod() {
         return (Method*)resolvedType;
     else if(type == utype_field) return ((Field*)resolvedType)->utype->getMethod();
     else return NULL;
+}
+
+bool Utype::isArray() {
+    return type == utype_field ? ((Field*)resolvedType )->isArray : array;
 }
 

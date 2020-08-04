@@ -126,6 +126,16 @@ class list<t> : loopable<t> {
         }
     }
 
+    def find(comparer : t, find_func: (t, t)(var)) : t {
+        for(i := 0; i < n_elements; i++) {
+            if(find_func(data[i], comparer)) {
+                return data[i];
+            }
+        }
+
+        no_val : t;
+        return no_val;
+    }
 
     def remove(val: t) {
         for(i := 0; i < n_elements; i++) {
@@ -140,6 +150,15 @@ class list<t> : loopable<t> {
         for(i := 0; i < n_elements; i++) {
             if(compare_fun(val, data[i])) {
                 remove_at(i);
+                return;
+            }
+        }
+    }
+
+    def replace(val: t, compare_fun: (t, t)(var)) {
+        for(i := 0; i < n_elements; i++) {
+            if(compare_fun(val, data[i])) {
+                data[i] = val;
                 return;
             }
         }

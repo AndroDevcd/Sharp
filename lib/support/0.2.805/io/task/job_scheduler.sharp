@@ -71,6 +71,8 @@ def get_thread_max() : var {
 
 private def scheduler_main(args : object[]) : var
 {
+    const SPIN_COUNT := 36000;
+    spins_left := SPIN_COUNT; // spin for roughly 3 minutes
 	jobs := launcher.job_queue;
 	while(true)
 	{
@@ -102,6 +104,11 @@ private def scheduler_main(args : object[]) : var
                     jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
         		}
         	}
+        }
+
+        if(spins_left-- <= 0) {
+            spins_left = SPIN_COUNT;
+            kill_threads();
         }
 
 		thread.sleep(5);
@@ -144,6 +151,36 @@ private def get_host(long_running : var) : thread {
     }
 
 	return host;
+}
+
+tm : var;
+private def kill_threads() {
+	pool := launcher.long_term_pool;
+
+    tm = time.mills_time();
+    host : thread =
+        pool.find({ t ->
+            if(t == scheduler) return false;
+
+            return launcher.get_host_controller(t).last_ran > 0 && ((tm - launcher.get_host_controller(t).last_ran) > 180000); // kill any threads idling for more than 3 minutes
+        });
+
+    // kill unused threads
+    if(host != null) {
+       host.interrupt();
+    }
+
+	pool = launcher.short_term_pool;
+
+    host =
+        pool.find({ t ->
+            return launcher.get_host_controller(t).last_ran > 0 && ((tm - launcher.get_host_controller(t).last_ran) > 180000); // kill any threads idling for more than 3 minutes
+        });
+
+    // kill unused threads
+    if(host != null) {
+       host.interrupt();
+    }
 }
 
 protected def execute_synchronous(scheduled_job : job) {
