@@ -1891,9 +1891,6 @@ Method* Compiler::compileMethodUtype(Expression* expr, Ast* ast) {
     compileTypeIdentifier(ptr, ast->getSubAst(ast_utype)->getSubAst(ast_type_identifier));
     RETAIN_TYPE_INFERENCE(true)
 
-    if(ast->getSubAst(ast_expression_list)->line >= 3000) {
-        int i = 3000;
-    }
     compileExpressionList(expressions, ast->getSubAst(ast_expression_list));
     RESTORE_TYPE_INFERENCE()
 
@@ -6795,6 +6792,9 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
     CodeHolder &code = currentScope()->currentFunction->data.code;
 
     if(ast->getSubAst(ast_expression)) {
+        if(ast->getSubAst(ast_expression)->getSubAst(0)->line >= 3000) {
+            int i = 3000;
+        }
         compileExpression(&returnVal, ast->getSubAst(ast_expression));
     }
     else {

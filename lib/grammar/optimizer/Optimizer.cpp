@@ -1088,6 +1088,11 @@ void Optimizer::optimizeIntReturn() {
 
                     if (GET_OP(code.ir32.get(i + 2)) == Opcode::RETURNVAL
                         && GET_Da(code.ir32.get(i + 2)) == returnReg) {
+                        if(i - 1 > 0 && GET_OP(code.ir32.get(i - 1)) == Opcode::SKPE
+                           || GET_OP(code.ir32.get(i - 1)) == Opcode::SKNE
+                           || GET_OP(code.ir32.get(i - 1)) == Opcode::SKIP) {
+                            continue;
+                        }
                         Int localVar = GET_Cb(code.ir32.get(i + 1));
                         shiftAddresses(1, i + 2);
                         code.ir32.removeAt(i + 2);
