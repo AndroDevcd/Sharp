@@ -116,7 +116,7 @@ Jit::threadStart(void *pVoid) {
 
 void Jit::sendMessage(Method* func) {
     if(self && self->getAssembler()) {
-        std::lock_guard<recursive_mutex> gd(self->mutex);
+        GUARD(self->mutex);
         func->compiling = true;
         self->messageQueue.push_back(func->address);
     }

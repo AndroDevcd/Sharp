@@ -3293,6 +3293,7 @@ void Compiler::compileInlineIfExpression(Expression* expr, Ast* ast) {
             }
 
             expr->utype->copy(trueExpr.utype);
+            expr->type = utypeToExpressionType(expr->utype);
             CodeHolder &code = expr->utype->getCode();
 
             condExpr.utype->getCode().inject(ebxInjector);

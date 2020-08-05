@@ -190,6 +190,7 @@ void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
 
 fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
 
+    Method *method = vm.methods+address;
     setupMethodStack(address, thread, inJit);
 
 #ifdef BUILD_JIT

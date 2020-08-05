@@ -730,13 +730,12 @@ void printRegs() {
     cout << "sp -> " << (thread_self->sp-thread_self->dataStack) << endl;
     cout << "fp -> " << (thread_self->fp-thread_self->dataStack) << endl;
     cout << "pc -> " << PC(thread_self) << endl;
-    cout << "current function -> " << thread_self->current->fullName.str() << endl;
 
     native_string stackTrace;
     vm.fillStackTrace(stackTrace);
     cout << "call stack (most recent call last):\n" << stackTrace.str() << endl;
    if(thread_self->current != NULL) {
-       cout << "current -> " << thread_self->current->name.str() << endl;
+       cout << "current function -> " << thread_self->current->fullName.str() << endl;
    }
 
    if(thread_self->dataStack) {
@@ -1398,7 +1397,6 @@ void Thread::setup() {
         sp=(&dataStack[vm.manifest.threadLocals])-1;
     } else {
         vm.state = VM_RUNNING;
-        gc.addMemory(sizeof(StackElement) * stackLimit);
         setupSigHandler();
     }
 }
