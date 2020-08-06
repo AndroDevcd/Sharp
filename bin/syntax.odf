@@ -1,9 +1,9 @@
 ## Object Dump file for bin/syntax:
 
-pre codebase size: 76108
-post codebase size: 68000
+pre codebase size: 76112
+post codebase size: 68004
 optimized opcodes: 8108
-net % gain 10.6533
+net % gain 10.6527
 
 
 class: std#__srt_global[0] fields(1) methods(47)
@@ -101,7 +101,7 @@ class: common.network.remote#command_request_impl[91] fields(3) methods(17)
 class: common.network.remote#flight_mode_change_request_impl[92] fields(4) methods(19)
 class: common.network.remote#handshake_request_impl[93] fields(4) methods(19)
 class: common.network.remote#signal_strength_request_impl[94] fields(3) methods(16)
-class: main#__srt_global[95] fields(5) methods(7)
+class: main#__srt_global[95] fields(5) methods(8)
 class: ui.driver#__srt_global[96] fields(0) methods(7)
 class: ui.driver#ssd1306[97] fields(1) methods(13)
 class: ui.layout.config#__srt_global[98] fields(1) methods(3)
@@ -38705,7 +38705,7 @@ function: platform.kernel#platform.static_init[1943] params(0) in file: lib\supp
 931 [0x3a3]:          movn #0   
 933 [0x3a5]:          movn #0   
 935 [0x3a7]:          popobj   
-936 [0x3a8]:          movi #46767, ebx   
+936 [0x3a8]:          movi #59502, ebx   
 938 [0x3aa]:          movg @59 // @std.reflect#property_type   
 939 [0x3ab]:          movn #0   
 941 [0x3ad]:          movn #1   
@@ -38720,7 +38720,7 @@ function: platform.kernel#platform.static_init[1943] params(0) in file: lib\supp
 953 [0x3b9]:          movn #1   
 955 [0x3bb]:          movn #0   
 957 [0x3bd]:          popobj   
-958 [0x3be]:          movi #46768, ebx   
+958 [0x3be]:          movi #59503, ebx   
 960 [0x3c0]:          movg @59 // @std.reflect#property_type   
 961 [0x3c1]:          movn #1   
 963 [0x3c3]:          movn #1   
@@ -38735,7 +38735,7 @@ function: platform.kernel#platform.static_init[1943] params(0) in file: lib\supp
 975 [0x3cf]:          movn #2   
 977 [0x3d1]:          movn #0   
 979 [0x3d3]:          popobj   
-980 [0x3d4]:          movi #46769, ebx   
+980 [0x3d4]:          movi #59504, ebx   
 982 [0x3d6]:          movg @59 // @std.reflect#property_type   
 983 [0x3d7]:          movn #2   
 985 [0x3d9]:          movn #1   
@@ -63497,41 +63497,44 @@ function: main#__srt_global.setup_conn_tracker[3113] params(0) in file: C:\Users
 
 
 function: main#__srt_global.foo[3114] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/main.sharp:13:4: note:  
-		def foo() : var {
+		def foo() {
 		   ^
 
-0 [0x0]: line: 3031 movg @95 // @main#__srt_global   
-1 [0x1]:            movn #4   
-3 [0x3]:            movi #0, adx   
-5 [0x5]:            iaload ebx, adx   
-6 [0x6]:            skne ebx // pc = 14   
-7 [0x7]:            movg @95 // @main#__srt_global   
-8 [0x8]:            movn #4   
-10 [0xa]:            movi #0, adx   
-12 [0xc]:            iaload ebx, adx   
-13 [0xd]:            skip @2 // pc = 15   
-14 [0xe]:            movi #0, ebx   
-16 [0x10]:            return_val ebx   
-17 [0x11]:            ret   
+0 [0x0]: line: 15 call @1834 // <std.io.task#task.builder>   
+1 [0x1]:          movi #1, ebx   
+3 [0x3]:          newobj_arry ebx   
+4 [0x4]:          movsl #-1   
+5 [0x5]:          movn #0   
+7 [0x7]:          popobj   
+8 [0x8]:          call @1802 // <std.io.task#job_builder.with_args>   
+9 [0x9]:          istore 1000   
+11 [0xb]:          movg @67 // @std#time_unit   
+12 [0xc]:          movn #1   
+14 [0xe]:          pushobj   
+15 [0xf]:          call @1800 // <std.io.task#job_builder.recurring>   
+16 [0x10]:          istore 3475   
+18 [0x12]:          call @1805 // <std.io.task#job_builder.operator=>   
+19 [0x13]:          pop   
+20 [0x14]:          ret   
 
 
-function: main#__srt_global.main[3115] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/main.sharp:3034:4: note:  
+function: main#__srt_global.main[3115] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/main.sharp:23:4: note:  
 		def main(args: string[])
 		   ^
 
-0 [0x0]: line: 3036 ldc ebx // 0   
-1 [0x1]:            rstore ebx   
-2 [0x2]:            movg @70 // @common#constants   
-3 [0x3]:            movn #20   
-5 [0x5]:            loadval ebx   
-6 [0x6]:            movi #0, adx   
-8 [0x8]:            rmov adx, ebx   
-9 [0x9]: line: 3038 call @3113 // <main#__srt_global.setup_conn_tracker>   
-10 [0xa]: line: 3043 call @1857 // <std.io#thread.yield>   
-11 [0xb]: line: 3044 istore 10   
-13 [0xd]: line: 3045 call @1852 // <std.io#thread.sleep>   
-14 [0xe]:            jmp @10   
-15 [0xf]:            ret   
+0 [0x0]: line: 25 ldc ebx // 0   
+1 [0x1]:          rstore ebx   
+2 [0x2]:          movg @70 // @common#constants   
+3 [0x3]:          movn #20   
+5 [0x5]:          loadval ebx   
+6 [0x6]:          movi #0, adx   
+8 [0x8]:          rmov adx, ebx   
+9 [0x9]: line: 27 call @3113 // <main#__srt_global.setup_conn_tracker>   
+10 [0xa]: line: 32 call @1857 // <std.io#thread.yield>   
+11 [0xb]: line: 33 istore 10   
+13 [0xd]: line: 34 call @1852 // <std.io#thread.sleep>   
+14 [0xe]:          jmp @10   
+15 [0xf]:          ret   
 
 
 ui.driver#__srt_global.setup[3116] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/ui//driver//dev_interface.sharp:3:11: note:  
@@ -65489,7 +65492,7 @@ function: ui.support#window.start_updater[3194] params(0) in file: C:\Users\bnun
 13 [0xd]:          movn #1   
 15 [0xf]:          pushobj   
 16 [0x10]:          call @1800 // <std.io.task#job_builder.recurring>   
-17 [0x11]:          istore 3475   
+17 [0x11]:          istore 3476   
 19 [0x13]:          call @1806 // <std.io.task#job_builder.operator=>   
 20 [0x14]:          pop   
 21 [0x15]:          ret   
@@ -75854,7 +75857,14 @@ lambda: main#__srt_global.anon_func$3474[3474] params(0) in file: C:\Users\bnunn
 0 [0x0]:         ret   
 
 
-lambda: ui.support#__srt_global.anon_func$3475[3475] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/ui//support//window.sharp:67:12: note:  
+lambda: main#__srt_global.anon_func$3475[3475] params(0) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/main.sharp:18:10: note:  
+		       = { ->
+		         ^
+
+0 [0x0]:         ret   
+
+
+lambda: ui.support#__srt_global.anon_func$3476[3476] params(1) in file: C:\Users\bnunnally\OneDrive\Documents\Clion\RaspiDrone\controller/ui//support//window.sharp:67:12: note:  
 		         = { args : object[] ->
 		           ^
 

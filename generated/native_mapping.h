@@ -1955,11 +1955,12 @@ scope_begin(main)
 
 	void __srt_global(object $instance);
 	void setup_conn_tracker();
-	var foo();
+	void foo();
 	void main(object args);
 	void $03internal_static_init();
 	void anon_func$3473();
 	void anon_func$3474();
+	void anon_func$3475();
 scope_end()
 
 scope_begin(ui_driver) 
@@ -2006,7 +2007,7 @@ scope_end()
 scope_begin(ui_support) 
 
 	void __srt_global(object $instance);
-	void anon_func$3475(object args);
+	void anon_func$3476(object args);
 scope_end()
 
 scope_begin(ui_support, constants) 

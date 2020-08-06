@@ -20387,16 +20387,12 @@ scope_begin(main)
 		}
 	}
 
-	var foo() {
+	void foo() {
 		call(3114);
 
 		if(internal::exceptionCheck()) {
 			throw Exception(internal::getExceptionObject(), "");
 		}
-
-		var $result(getSpNumAt(0));
-		decSp(1);
-		return $result;
 	}
 
 	void main(object args) {
@@ -20426,6 +20422,14 @@ scope_begin(main)
 
 	void anon_func$3474() {
 		call(3474);
+
+		if(internal::exceptionCheck()) {
+			throw Exception(internal::getExceptionObject(), "");
+		}
+	}
+
+	void anon_func$3475() {
+		call(3475);
 
 		if(internal::exceptionCheck()) {
 			throw Exception(internal::getExceptionObject(), "");
@@ -20606,9 +20610,9 @@ scope_begin(ui_support)
 		}
 	}
 
-	void anon_func$3475(object args) {
+	void anon_func$3476(object args) {
 		pushObj(args);
-		call(3475);
+		call(3476);
 
 		if(internal::exceptionCheck()) {
 			throw Exception(internal::getExceptionObject(), "");

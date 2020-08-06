@@ -3417,7 +3417,9 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
     Ast* vectAst = ast->getSubAst(ast_vector_array);
 
     expr->ast = ast;
+    RETAIN_TYPE_INFERENCE(true)
     compileExpressionList(array, vectAst);
+    RESTORE_TYPE_INFERENCE()
 
     if(compareType && compareType->getType() != utype_class && compareType->getType() != utype_native && compareType->getType() != utype_function_ptr)
         errors->createNewError(GENERIC, ast->line, ast->col, "arrayType `" + compareType->toString() + "` must be a class, funcion pointer, or a native type");
@@ -6792,9 +6794,6 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
     CodeHolder &code = currentScope()->currentFunction->data.code;
 
     if(ast->getSubAst(ast_expression)) {
-        if(ast->getSubAst(ast_expression)->getSubAst(0)->line >= 3000) {
-            int i = 3000;
-        }
         compileExpression(&returnVal, ast->getSubAst(ast_expression));
     }
     else {
