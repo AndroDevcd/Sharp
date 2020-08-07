@@ -4347,10 +4347,8 @@ void Compiler::compileArrayExpression(Expression* expr, Ast* ast) {
                 }
 
                 expr->utype->getCode().getInjector(incInjector)
-                        .addIr(OpBuilder::movi(0, ADX))
                         .addIr(OpBuilder::rmov(ADX, EBX));
                 expr->utype->getCode().getInjector(decInjector)
-                        .addIr(OpBuilder::movi(0, ADX))
                         .addIr(OpBuilder::rmov(ADX, EBX));
 
                 expr->utype->getCode().getInjector("={injector}")

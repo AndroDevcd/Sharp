@@ -311,12 +311,12 @@ scope_begin(std_io_task)
 	var execute_job(object scheduled_job);
 	void finish();
 	void $03internal_static_init();
-	var anon_func$3498(object it, object it2);
-	var anon_func$3499(object it, object it2);
-	var anon_func$3500(object it, object it2);
-	var anon_func$3501(object t);
-	var anon_func$3502(object t);
-	var anon_func$3503(object t);
+	var anon_func$3507(object it, object it2);
+	var anon_func$3508(object it, object it2);
+	var anon_func$3509(object it, object it2);
+	var anon_func$3510(object t);
+	var anon_func$3511(object t);
+	var anon_func$3512(object t);
 scope_end()
 
 scope_begin(std_io_task, cancellation_exception) 
@@ -1792,11 +1792,12 @@ scope_end()
 scope_begin(common_network_core) 
 
 	void __srt_global(object $instance);
-	var anon_func$3493(object t1, object t2);
+	var anon_func$3502(object t1, object t2);
 scope_end()
 
 scope_begin(common_network_core, request) 
 
+	var_array get_network_quality();
 	var get_signal_strength();
 	var write(object rdata);
 	void process_result(object raw, object rdata);
@@ -1852,6 +1853,12 @@ scope_begin(common_network_data_request, handshake_request)
 	void handshake_request(object $instance);
 scope_end()
 
+scope_begin(common_network_data_request, network_scan_request) 
+
+	var_array scan_network(object $instance);
+	void network_scan_request(object $instance);
+scope_end()
+
 scope_begin(common_network_data_request, signal_strength_request) 
 
 	var get_strength(object $instance);
@@ -1879,6 +1886,7 @@ scope_begin(common_network_driver)
 	void set_retry_count(var& delay, var& count);
 	void power_down();
 	var get_signal_strength();
+	var_array get_network_quality();
 	_int8_array read();
 	_int8_array listen();
 	void send(_int8_array& data);
@@ -1893,6 +1901,7 @@ scope_begin(common_network_driver, nrf24)
 	void dump(object $instance);
 	void update_retry_count(object $instance, var& delay, var& count);
 	void shut_down(object $instance);
+	var_array get_network_quality(object $instance);
 	var get_signal_strength(object $instance);
 	var read(object $instance, object response);
 	void listen(object $instance, object response);
@@ -1911,6 +1920,7 @@ scope_begin(common_network, network)
 	object listen();
 	var change_mode(object mode);
 	var get_signal_strength();
+	var_array scan_network();
 	void send_acknowledge();
 	void network(object $instance);
 	object get_INSTANCE();
@@ -1947,6 +1957,12 @@ scope_begin(common_network_remote, handshake_request_impl)
 	void handshake(object $instance);
 scope_end()
 
+scope_begin(common_network_remote, network_scan_request_impl) 
+
+	var_array scan_network(object $instance);
+	void network_scan_request_impl(object $instance);
+scope_end()
+
 scope_begin(common_network_remote, signal_strength_request_impl) 
 
 	var get_strength(object $instance);
@@ -1956,12 +1972,12 @@ scope_end()
 scope_begin(main) 
 
 	void __srt_global(object $instance);
+	void set_transmission_status(var& ts);
 	void setup_conn_tracker();
 	void main(object args);
 	void $03internal_static_init();
-	void anon_func$3504();
-	void anon_func$3505();
-	void anon_func$3506();
+	void anon_func$3513();
+	void anon_func$3514();
 scope_end()
 
 scope_begin(ui_driver) 
@@ -1998,7 +2014,7 @@ scope_begin(ui_layout)
 
 	void __srt_global(object $instance);
 	void $03internal_static_init();
-	void anon_func$3507(object args);
+	void anon_func$3515(object args);
 scope_end()
 
 scope_begin(ui_layout, home_screen) 
