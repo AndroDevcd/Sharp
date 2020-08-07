@@ -48,4 +48,8 @@ class task {
         builder := new job_builder(scheduled_job, launcher);
         return builder;
     }
+
+	public static def cancel_all_jobs_by_name(name: string) {
+	   launcher.cancel_jobs_by_name(name);
+	}
 }

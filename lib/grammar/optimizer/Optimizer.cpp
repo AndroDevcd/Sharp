@@ -843,6 +843,12 @@ void Optimizer::optimizeNumericStore() {
 
                     if (GET_OP(code.ir32.get(i + 2)) == Opcode::RSTORE
                         && GET_Da(code.ir32.get(i + 2)) == receivingReg) {
+                        if(i - 1 > 0 && GET_OP(code.ir32.get(i - 1)) == Opcode::SKPE
+                           || GET_OP(code.ir32.get(i - 1)) == Opcode::SKNE
+                           || GET_OP(code.ir32.get(i - 1)) == Opcode::SKIP) {
+                            continue;
+                        }
+
                         shiftAddresses(1, i+2);
                         code.ir32.removeAt(i+2);
                         code.ir32.get(i) = OpBuilder::istore(0)[0]; // we only need th first part of the instruction because the second part is already present

@@ -72,32 +72,30 @@ class job_master {
 	}
 
 	protected def cancel_jobs_by_name(name: string) {
-	   lock(self) {
-	       lock(job_queue) {
-               for(i := 0; i < job_queue.size(); i++) {
-                  if(job_queue.at(i).name == name) {
-                     job_queue.remove_at(i);
-                     i = 0;
-                  }
-               }
+	   lock(job_queue) {
+           for(i := 0; i < job_queue.size(); i++) {
+              if(job_queue.at(i).name == name) {
+                 job_queue.remove_at(i);
+                 i = 0;
+              }
+           }
 
-               foreach(t in short_term_pool) {
-                   schdj := get_host_controller(t).scheduled_job;
-                   if(schdj != null && schdj.name == name) {
-                      schdj.cancel();
-                   }
-               }
-
-               foreach(t in long_term_pool) {
-                   if(t == scheduler) continue;
-
-                   schdj := get_host_controller(t).scheduled_job;
-                   if(schdj != null && schdj.name == name) {
-                      schdj.cancel();
-                   }
+           foreach(t in short_term_pool) {
+               schdj := get_host_controller(t).scheduled_job;
+               if(schdj != null && schdj.name == name) {
+                  schdj.cancel();
                }
            }
-	   }
+
+           foreach(t in long_term_pool) {
+               if(t == scheduler) continue;
+
+               schdj := get_host_controller(t).scheduled_job;
+               if(schdj != null && schdj.name == name) {
+                  schdj.cancel();
+               }
+           }
+       }
 	}
 
 	protected job_queue : synced_list<job>;
