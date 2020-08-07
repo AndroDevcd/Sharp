@@ -10,27 +10,28 @@ extern "C" {
 EXPORTED uint32_t snb_link_proc(const char* funcName) {
 	string name = funcName;
 
-	if(name == "common.gpio#__srt_global.setup") {  return 3042;  }
-	else if(name == "common.gpio#__srt_global.pin_mode") {  return 3043;  }
-	else if(name == "common.gpio#__srt_global.write_pin") {  return 3044;  }
-	else if(name == "common.gpio#__srt_global.read_pin") {  return 3045;  }
-	else if(name == "common.network.driver#__srt_global.setup") {  return 3073;  }
-	else if(name == "common.network.driver#__srt_global.set_transmission_lvl") {  return 3074;  }
-	else if(name == "common.network.driver#__srt_global.set_transmission_rate") {  return 3075;  }
-	else if(name == "common.network.driver#__srt_global.dump_details") {  return 3076;  }
-	else if(name == "common.network.driver#__srt_global.set_retry_count") {  return 3077;  }
-	else if(name == "common.network.driver#__srt_global.power_down") {  return 3078;  }
-	else if(name == "common.network.driver#__srt_global.get_signal_strength") {  return 3079;  }
-	else if(name == "common.network.driver#__srt_global.read") {  return 3080;  }
-	else if(name == "common.network.driver#__srt_global.listen") {  return 3081;  }
-	else if(name == "common.network.driver#__srt_global.send") {  return 3082;  }
-	else if(name == "common.network.driver#__srt_global.get_last_error") {  return 3083;  }
-	else if(name == "ui.driver#__srt_global.setup") {  return 3116;  }
-	else if(name == "ui.driver#__srt_global.clear_display") {  return 3117;  }
-	else if(name == "ui.driver#__srt_global.display") {  return 3118;  }
-	else if(name == "ui.driver#__srt_global.dim") {  return 3119;  }
-	else if(name == "ui.driver#__srt_global.move_cursor") {  return 3120;  }
-	else if(name == "ui.driver#__srt_global.draw_word") {  return 3121;  }
+	if(name == "common.gpio#__srt_global.setup") {  return 3046;  }
+	else if(name == "common.gpio#__srt_global.pin_mode") {  return 3047;  }
+	else if(name == "common.gpio#__srt_global.write_pin") {  return 3048;  }
+	else if(name == "common.gpio#__srt_global.read_pin") {  return 3049;  }
+	else if(name == "common.network.driver#__srt_global.setup") {  return 3077;  }
+	else if(name == "common.network.driver#__srt_global.set_transmission_lvl") {  return 3078;  }
+	else if(name == "common.network.driver#__srt_global.set_transmission_rate") {  return 3079;  }
+	else if(name == "common.network.driver#__srt_global.dump_details") {  return 3080;  }
+	else if(name == "common.network.driver#__srt_global.set_retry_count") {  return 3081;  }
+	else if(name == "common.network.driver#__srt_global.power_down") {  return 3082;  }
+	else if(name == "common.network.driver#__srt_global.get_signal_strength") {  return 3083;  }
+	else if(name == "common.network.driver#__srt_global.read") {  return 3084;  }
+	else if(name == "common.network.driver#__srt_global.listen") {  return 3085;  }
+	else if(name == "common.network.driver#__srt_global.send") {  return 3086;  }
+	else if(name == "common.network.driver#__srt_global.get_last_error") {  return 3087;  }
+	else if(name == "ui.driver#__srt_global.setup") {  return 3119;  }
+	else if(name == "ui.driver#__srt_global.clear_display") {  return 3120;  }
+	else if(name == "ui.driver#__srt_global.display") {  return 3121;  }
+	else if(name == "ui.driver#__srt_global.dim") {  return 3122;  }
+	else if(name == "ui.driver#__srt_global.move_cursor") {  return 3123;  }
+	else if(name == "ui.driver#__srt_global.draw_word") {  return 3124;  }
+	else if(name == "ui.driver#__srt_global.draw_img") {  return 3125;  }
 	else return -1;
 }
 
@@ -186,74 +187,91 @@ void call_ui_driver$__srt_global_draw_word() {
 	object $tmpField0 = internal::getfpLocalAt(0);
 	_int8_array str(internal::getVarPtr($tmpField0), internal::getSize($tmpField0), $tmpField0);
 	var len(internal::getfpNumAt(1));
-	draw_word(str, len);
+	var text_size(internal::getfpNumAt(2));
+	draw_word(str, len, text_size);
+}
+
+void call_ui_driver$__srt_global_draw_img() {
+	import(ui_driver); 
+
+	object $tmpField0 = internal::getfpLocalAt(0);
+	var_array bytes(internal::getVarPtr($tmpField0), internal::getSize($tmpField0), $tmpField0);
+	var width(internal::getfpNumAt(1));
+	var height(internal::getfpNumAt(2));
+	var x(internal::getfpNumAt(3));
+	var y(internal::getfpNumAt(4));
+	var skip_count(internal::getfpNumAt(5));
+	draw_img(bytes, width, height, x, y, skip_count);
 }
 
 EXPORTED void snb_main(long procAddr) {
 	try {
 		switch(procAddr) {
-			case 3042: 
+			case 3046: 
 				call_common_gpio$__srt_global_setup();
 				break;
-			case 3043: 
+			case 3047: 
 				call_common_gpio$__srt_global_pin_mode();
 				break;
-			case 3044: 
+			case 3048: 
 				call_common_gpio$__srt_global_write_pin();
 				break;
-			case 3045: 
+			case 3049: 
 				call_common_gpio$__srt_global_read_pin();
 				break;
-			case 3073: 
+			case 3077: 
 				call_common_network_driver$__srt_global_setup();
 				break;
-			case 3074: 
+			case 3078: 
 				call_common_network_driver$__srt_global_set_transmission_lvl();
 				break;
-			case 3075: 
+			case 3079: 
 				call_common_network_driver$__srt_global_set_transmission_rate();
 				break;
-			case 3076: 
+			case 3080: 
 				call_common_network_driver$__srt_global_dump_details();
 				break;
-			case 3077: 
+			case 3081: 
 				call_common_network_driver$__srt_global_set_retry_count();
 				break;
-			case 3078: 
+			case 3082: 
 				call_common_network_driver$__srt_global_power_down();
 				break;
-			case 3079: 
+			case 3083: 
 				call_common_network_driver$__srt_global_get_signal_strength();
 				break;
-			case 3080: 
+			case 3084: 
 				call_common_network_driver$__srt_global_read();
 				break;
-			case 3081: 
+			case 3085: 
 				call_common_network_driver$__srt_global_listen();
 				break;
-			case 3082: 
+			case 3086: 
 				call_common_network_driver$__srt_global_send();
 				break;
-			case 3083: 
+			case 3087: 
 				call_common_network_driver$__srt_global_get_last_error();
 				break;
-			case 3116: 
+			case 3119: 
 				call_ui_driver$__srt_global_setup();
 				break;
-			case 3117: 
+			case 3120: 
 				call_ui_driver$__srt_global_clear_display();
 				break;
-			case 3118: 
+			case 3121: 
 				call_ui_driver$__srt_global_display();
 				break;
-			case 3119: 
+			case 3122: 
 				call_ui_driver$__srt_global_dim();
 				break;
-			case 3120: 
+			case 3123: 
 				call_ui_driver$__srt_global_move_cursor();
 				break;
-			case 3121: 
+			case 3124: 
 				call_ui_driver$__srt_global_draw_word();
+				break;
+			case 3125: 
+				call_ui_driver$__srt_global_draw_img();
 				break;
 		}
 	} catch(Exception &e) {

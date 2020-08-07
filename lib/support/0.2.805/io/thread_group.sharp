@@ -67,7 +67,7 @@ public class thread_group : loopable<thread> {
 	}
 	
 	public static main_group := new thread_group("main");
-	private handles := new hashmap<int, thread>();
+	private handles := new hashtable<int, thread>();
 	private ids := new list<var>();
 	private name : string;
 	private default_priority : thread_priority;

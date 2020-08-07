@@ -1104,7 +1104,7 @@ void Compiler::validateAccess(Field *field, Ast* pAst) {
         }
     } else if(field->flags.find(PRIVATE)) {
         Scope *scope = currentScope();
-        if(field->owner == currentScope()->klass || (primaryClass && field->owner == primaryClass)) {
+        if(field->owner == currentScope()->klass || (primaryClass && field->owner == primaryClass) || (field->owner->isGlobalClass() && currModule == field->owner->module)) {
         } else {
             errors->createNewError(GENERIC, pAst, " invalid access to private field `" + field->fullName + "`");
         }

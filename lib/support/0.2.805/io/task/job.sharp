@@ -47,7 +47,11 @@ public class job {
 	    }
 	}
 
-	public def cancel_future() {
+	public static def cancel_all_jobs_by_name(name: string) {
+	   launcher.cancel_jobs_by_name(name);
+	}
+
+	protected def cancel_future() {
 	    lock(self) {
             if(recurring) {
                 jb := next_task;

@@ -311,12 +311,12 @@ scope_begin(std_io_task)
 	var execute_job(object scheduled_job);
 	void finish();
 	void $03internal_static_init();
-	var anon_func$3467(object it, object it2);
-	var anon_func$3468(object it, object it2);
-	var anon_func$3469(object it, object it2);
-	var anon_func$3470(object t);
-	var anon_func$3471(object t);
-	var anon_func$3472(object t);
+	var anon_func$3498(object it, object it2);
+	var anon_func$3499(object it, object it2);
+	var anon_func$3500(object it, object it2);
+	var anon_func$3501(object t);
+	var anon_func$3502(object t);
+	var anon_func$3503(object t);
 scope_end()
 
 scope_begin(std_io_task, cancellation_exception) 
@@ -332,6 +332,7 @@ scope_begin(std_io_task, job)
 	void job2(object $instance, object name);
 	var execute_async(object $instance);
 	void cancel(object $instance);
+	void cancel_all_jobs_by_name(object name);
 	void cancel_future(object $instance);
 	void join(object $instance);
 	object get_state(object $instance);
@@ -383,6 +384,7 @@ scope_begin(std_io_task, job_master)
 	void start_job(object $instance, object scheduled_job);
 	object get_host_controller(object $instance, object host);
 	void cleanup_job(object $instance, object scheduled_job);
+	void cancel_jobs_by_name(object $instance, object name);
 scope_end()
 
 scope_begin(std_io_task, task) 
@@ -1790,7 +1792,7 @@ scope_end()
 scope_begin(common_network_core) 
 
 	void __srt_global(object $instance);
-	var anon_func$3464(object t1, object t2);
+	var anon_func$3493(object t1, object t2);
 scope_end()
 
 scope_begin(common_network_core, request) 
@@ -1955,12 +1957,11 @@ scope_begin(main)
 
 	void __srt_global(object $instance);
 	void setup_conn_tracker();
-	void foo();
 	void main(object args);
 	void $03internal_static_init();
-	void anon_func$3473();
-	void anon_func$3474();
-	void anon_func$3475();
+	void anon_func$3504();
+	void anon_func$3505();
+	void anon_func$3506();
 scope_end()
 
 scope_begin(ui_driver) 
@@ -1971,7 +1972,8 @@ scope_begin(ui_driver)
 	void display();
 	void dim(var& yes);
 	void move_cursor(var& x, var& y);
-	void draw_word(_int8_array& str, var& len);
+	void draw_word(_int8_array& str, var& len, var& text_size);
+	void draw_img(var_array& bytes, var& width, var& height, var& x, var& y, var& skip_count);
 scope_end()
 
 scope_begin(ui_driver, ssd1306) 
@@ -1980,7 +1982,8 @@ scope_begin(ui_driver, ssd1306)
 	void clear(object $instance);
 	void dim_display(object $instance, var& yes);
 	void update_display(object $instance);
-	void draw_word(object $instance, var& x, var& y, var& text_size, var& width, _int8_array& text);
+	void draw_img(object $instance, var& x, var& y, var& width, var& height, var& img_width, var& img_height, var_array& bytes);
+	void draw_word(object $instance, var& x, var& y, var& text_size, var& width, var& transx, _int8_array& text);
 	void shutdown(object $instance);
 scope_end()
 
@@ -1994,6 +1997,8 @@ scope_end()
 scope_begin(ui_layout) 
 
 	void __srt_global(object $instance);
+	void $03internal_static_init();
+	void anon_func$3507(object args);
 scope_end()
 
 scope_begin(ui_layout, home_screen) 
@@ -2004,10 +2009,28 @@ scope_begin(ui_layout, home_screen)
 	void home_screen2(object $instance);
 scope_end()
 
+scope_begin(ui_res) 
+
+	void __srt_global(object $instance);
+scope_end()
+
+scope_begin(ui_res_drawable) 
+
+	void __srt_global(object $instance);
+	void $03internal_static_init();
+scope_end()
+
+scope_begin(ui_res, resources) 
+
+	void setup();
+	object get_drawable(var& res_id);
+	void resources(object $instance);
+	object get_res();
+scope_end()
+
 scope_begin(ui_support) 
 
 	void __srt_global(object $instance);
-	void anon_func$3476(object args);
 scope_end()
 
 scope_begin(ui_support, constants) 
@@ -2028,6 +2051,11 @@ scope_end()
 scope_begin(ui_support, constants_lifecycle) 
 
 	void lifecycle(object $instance);
+scope_end()
+
+scope_begin(ui_support, constants_time) 
+
+	void time(object $instance);
 scope_end()
 
 scope_begin(ui_support, constants_layout) 
@@ -2055,12 +2083,19 @@ scope_begin(ui_support, constants_standard)
 	void standard(object $instance);
 scope_end()
 
+scope_begin(ui_support, drawable) 
+
+	void drawable(object $instance, var& id, var_array& bytes, var& w, var& h);
+	void drawable2(object $instance);
+scope_end()
+
 scope_begin(ui_support, fragment) 
 
 	void fragment(object $instance, object container, var& id);
 	void add_view(object $instance, object v);
 	object find_view_by_id(object $instance, var& id);
 	void on_create(object $instance);
+	void invalidate_refrences(object $instance, var& id);
 	void on_destroy(object $instance);
 	void navigate(object $instance, var& screen, var& finish);
 	void draw(object $instance);
@@ -2071,10 +2106,11 @@ scope_end()
 scope_begin(ui_support, image_view) 
 
 	void image_view(object $instance, var& id);
-	void on_destroy(object $instance);
 	var transform_height(object $instance);
 	var transform_width(object $instance);
+	object set_drawable(object $instance, var& res_id);
 	void draw(object $instance);
+	void on_destroy(object $instance);
 	void image_view2(object $instance);
 scope_end()
 
@@ -2098,7 +2134,7 @@ scope_begin(ui_support, text_view)
 	void draw(object $instance);
 	void on_destroy(object $instance);
 	void text_view2(object $instance);
-	void set_text(object $instance, _int8_array& value);
+	void set_text(object $instance, object value);
 	void set_text_size(object $instance, var& value);
 scope_end()
 
@@ -2110,15 +2146,18 @@ scope_begin(ui_support, view)
 	object set_width(object $instance, var& size);
 	var transform_height(object $instance);
 	var transform_width(object $instance);
+	var has_ref(object $instance, var& id);
 	void invalidate(object $instance);
 	void draw(object $instance);
 	object set_height(object $instance, var& size);
 	object set_visibility(object $instance, var& visible);
 	object to_left_of(object $instance, var& id);
+	object to_start_of(object $instance, var& id);
 	object to_right_of(object $instance, var& id);
 	object to_top_of(object $instance, var& id);
 	object to_bottom_of(object $instance, var& id);
 	object set_gravity(object $instance, var& grav);
+	object above(object $instance, var& id);
 	object set_margin_left(object $instance, var& size);
 	object set_margin_right(object $instance, var& size);
 	object set_margin_top(object $instance, var& size);
@@ -2132,6 +2171,7 @@ scope_begin(ui_support, window)
 	void navigate(object $instance, var& screen);
 	void starter_fragment(object $instance, var& frag);
 	void draw_text(object $instance, object tv);
+	void draw_img(object $instance, object iv);
 	void show(object $instance);
 	void add_fragment(object $instance, object frag);
 	void start_updater(object $instance);
@@ -3775,10 +3815,10 @@ scope_begin(std, hashtable$std_io_thread_0_std_io_task_job_controller$)
 	var remove(object $instance, object key);
 scope_end()
 
-scope_begin(std, hashmap$std_int_0_std_io_thread$) 
+scope_begin(std, hashtable$std_int_0_std_io_thread$) 
 
-	void hashmap(object $instance, var& initialCapacity);
-	void hashmap2(object $instance);
+	void hashtable(object $instance, var& initialCapacity);
+	void hashtable2(object $instance);
 	void set_threshold(object $instance, var& threshold);
 	var hash(object $instance, object key);
 	void resize(object $instance);
@@ -3958,6 +3998,18 @@ scope_begin(std, loopable$common_network_core_request_data_request_item$)
 	void loopable(object $instance);
 scope_end()
 
+scope_begin(std, hashmap$std_int_0_ui_support_drawable$) 
+
+	void hashmap(object $instance, var& initialCapacity);
+	void hashmap2(object $instance);
+	void set_threshold(object $instance, var& threshold);
+	var hash(object $instance, object key);
+	void resize(object $instance);
+	object at(object $instance, object key);
+	var put(object $instance, object key, object value);
+	var remove(object $instance, object key);
+scope_end()
+
 scope_begin(std, list$ui_support_view$) 
 
 	void list(object $instance);
@@ -4040,6 +4092,13 @@ scope_begin(std_io_task, entry$std_io_thread_0_std_io_task_job_controller$)
 scope_end()
 
 scope_begin(std_io, entry$std_int_0_std_io_thread$) 
+
+	void entry(object $instance, object key, object value);
+	object to_string(object $instance);
+	void entry2(object $instance);
+scope_end()
+
+scope_begin(ui_res, entry$std_int_0_ui_support_drawable$) 
 
 	void entry(object $instance, object key, object value);
 	object to_string(object $instance);

@@ -21,15 +21,15 @@ class Jit {
 public:
     Jit()
     :
-        x64Asm(NULL),
-        error(jit_error_ok)
+            assembler(NULL),
+            error(jit_error_ok)
     {
         messageQueue.init();
 
         if (ASMJIT_ARCH_BITS == 64) {
             // currently only running on windows
             if(OS_id==win_os) {
-                x64Asm = new x64Assembler();
+                assembler = new x64Assembler();
             } else
                 error = jit_error_unsupp;
         }
@@ -66,7 +66,7 @@ private:
     Thread *tSelf;
     recursive_mutex mutex;
     _List<int32_t> messageQueue;
-    x64Assembler* x64Asm;
+    x64Assembler* assembler;
     int error;
 };
 #endif

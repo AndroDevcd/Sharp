@@ -39,11 +39,11 @@ void Jit::startup() { // TODO: update how instructions are processed because the
 
 void Jit::shutdown() {
     if(self) {
-        if(self->x64Asm)
+        if(self->assembler)
         {
-            self->x64Asm->shutdown();
-            delete self->x64Asm;
-            self->x64Asm = NULL;
+            self->assembler->shutdown();
+            delete self->assembler;
+            self->assembler = NULL;
         }
 
         delete self; self = NULL;
@@ -61,7 +61,7 @@ void Jit::run() {
         message:
         if(!messageQueue.empty()) {
             mutex.lock();
-            int64_t function = messageQueue.last();
+            int32_t function = messageQueue.last();
             messageQueue.pop_back();
             mutex.unlock();
 
@@ -123,8 +123,7 @@ void Jit::sendMessage(Method* func) {
 }
 
 _BaseAssembler *Jit::getAssembler() {
-    //if(x64Asm) return x64Asm;
-    return nullptr;
+    return assembler;
 }
 
 void Jit::tlsSetup() {

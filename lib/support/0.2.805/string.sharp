@@ -110,7 +110,7 @@ class string : loopable<_int8> {
         if(immstr != null)
             return s.append(immstr);
         else
-            return s.append("null");
+            return s;
     }
 
     def to_lower() : string {
