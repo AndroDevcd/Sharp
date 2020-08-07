@@ -311,12 +311,12 @@ scope_begin(std_io_task)
 	var execute_job(object scheduled_job);
 	void finish();
 	void $03internal_static_init();
-	var anon_func$3507(object it, object it2);
-	var anon_func$3508(object it, object it2);
-	var anon_func$3509(object it, object it2);
-	var anon_func$3510(object t);
-	var anon_func$3511(object t);
-	var anon_func$3512(object t);
+	var anon_func$3510(object it, object it2);
+	var anon_func$3511(object it, object it2);
+	var anon_func$3512(object it, object it2);
+	var anon_func$3513(object t);
+	var anon_func$3514(object t);
+	var anon_func$3515(object t);
 scope_end()
 
 scope_begin(std_io_task, cancellation_exception) 
@@ -332,7 +332,6 @@ scope_begin(std_io_task, job)
 	void job2(object $instance, object name);
 	var execute_async(object $instance);
 	void cancel(object $instance);
-	void cancel_all_jobs_by_name(object name);
 	void cancel_future(object $instance);
 	void join(object $instance);
 	object get_state(object $instance);
@@ -396,6 +395,7 @@ scope_begin(std_io_task, task)
 	object block();
 	object long_term();
 	object builder();
+	void cancel_all_jobs_by_name(object name);
 	void task(object $instance);
 scope_end()
 
@@ -1792,7 +1792,7 @@ scope_end()
 scope_begin(common_network_core) 
 
 	void __srt_global(object $instance);
-	var anon_func$3502(object t1, object t2);
+	var anon_func$3504(object t1, object t2);
 scope_end()
 
 scope_begin(common_network_core, request) 
@@ -1976,8 +1976,10 @@ scope_begin(main)
 	void setup_conn_tracker();
 	void main(object args);
 	void $03internal_static_init();
-	void anon_func$3513();
-	void anon_func$3514();
+	void anon_func$3516();
+	void anon_func$3517();
+	void anon_func$3518();
+	void anon_func$3519();
 scope_end()
 
 scope_begin(ui_driver) 
@@ -2014,7 +2016,8 @@ scope_begin(ui_layout)
 
 	void __srt_global(object $instance);
 	void $03internal_static_init();
-	void anon_func$3515(object args);
+	void anon_func$3520(object args);
+	void anon_func$3521(object args);
 scope_end()
 
 scope_begin(ui_layout, home_screen) 
@@ -2022,7 +2025,9 @@ scope_begin(ui_layout, home_screen)
 	void home_screen(object $instance, object container, var& id);
 	void configure(object $instance);
 	void on_create(object $instance);
+	void on_destroy(object $instance);
 	void home_screen2(object $instance);
+	void $03internal_static_init();
 scope_end()
 
 scope_begin(ui_res) 
@@ -2174,6 +2179,7 @@ scope_begin(ui_support, view)
 	object to_bottom_of(object $instance, var& id);
 	object set_gravity(object $instance, var& grav);
 	object above(object $instance, var& id);
+	object below(object $instance, var& id);
 	object set_margin_left(object $instance, var& size);
 	object set_margin_right(object $instance, var& size);
 	object set_margin_top(object $instance, var& size);

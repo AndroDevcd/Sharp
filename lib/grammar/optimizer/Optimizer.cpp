@@ -42,10 +42,10 @@ void Optimizer::optimizeRedundantMovr() {
 
                 if(GET_OP(code.ir32.get(i + 1)) == Opcode::MOVR) {
 
-                    if(i - 1 > 0 && GET_OP(code.ir32.get(i - 1)) == Opcode::LT
+                    if(i - 1 > 0 && (GET_OP(code.ir32.get(i - 1)) == Opcode::LT
                        || GET_OP(code.ir32.get(i - 1)) == Opcode::GT
                        || GET_OP(code.ir32.get(i - 1)) == Opcode::LTE
-                          || GET_OP(code.ir32.get(i - 1)) == Opcode::GTE) {
+                          || GET_OP(code.ir32.get(i - 1)) == Opcode::GTE)) {
                         continue;
                     }
                     Int inReg, outReg;
@@ -843,9 +843,9 @@ void Optimizer::optimizeNumericStore() {
 
                     if (GET_OP(code.ir32.get(i + 2)) == Opcode::RSTORE
                         && GET_Da(code.ir32.get(i + 2)) == receivingReg) {
-                        if(i - 1 > 0 && GET_OP(code.ir32.get(i - 1)) == Opcode::SKPE
+                        if(i - 1 > 0 && (GET_OP(code.ir32.get(i - 1)) == Opcode::SKPE
                            || GET_OP(code.ir32.get(i - 1)) == Opcode::SKNE
-                           || GET_OP(code.ir32.get(i - 1)) == Opcode::SKIP) {
+                           || GET_OP(code.ir32.get(i - 1)) == Opcode::SKIP)) {
                             continue;
                         }
 
@@ -1094,9 +1094,9 @@ void Optimizer::optimizeIntReturn() {
 
                     if (GET_OP(code.ir32.get(i + 2)) == Opcode::RETURNVAL
                         && GET_Da(code.ir32.get(i + 2)) == returnReg) {
-                        if(i - 1 > 0 && GET_OP(code.ir32.get(i - 1)) == Opcode::SKPE
+                        if(i - 1 > 0 && (GET_OP(code.ir32.get(i - 1)) == Opcode::SKPE
                            || GET_OP(code.ir32.get(i - 1)) == Opcode::SKNE
-                           || GET_OP(code.ir32.get(i - 1)) == Opcode::SKIP) {
+                           || GET_OP(code.ir32.get(i - 1)) == Opcode::SKIP)) {
                             continue;
                         }
                         Int localVar = GET_Cb(code.ir32.get(i + 1));
