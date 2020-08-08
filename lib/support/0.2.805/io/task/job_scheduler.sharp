@@ -77,6 +77,7 @@ private def scheduler_main(args : object[]) : var
 	while(true)
 	{
 		thread.yield();
+		println("${jobs.size()}");
 		for(i := 0; i < jobs.size(); i++) {
         	scheduled_job := jobs.at(i);
 
@@ -161,8 +162,9 @@ private def kill_threads() {
     host : thread =
         pool.find({ t ->
             if(t == scheduler) return false;
+            hc := launcher.get_host_controller(t);
 
-            return launcher.get_host_controller(t).last_ran > 0 && ((tm - launcher.get_host_controller(t).last_ran) > 180000); // kill any threads idling for more than 3 minutes
+            return hc.scheduled_job == null && hc.last_ran > 0 && ((tm - hc.last_ran) > 180000); // kill any threads idling for more than 3 minutes
         });
 
     // kill unused threads
@@ -174,7 +176,8 @@ private def kill_threads() {
 
     host =
         pool.find({ t ->
-            return launcher.get_host_controller(t).last_ran > 0 && ((tm - launcher.get_host_controller(t).last_ran) > 180000); // kill any threads idling for more than 3 minutes
+            hc := launcher.get_host_controller(t);
+            return hc.scheduled_job == null && hc.last_ran > 0 && ((tm - hc.last_ran) > 180000); // kill any threads idling for more than 3 minutes
         });
 
     // kill unused threads
@@ -197,7 +200,11 @@ protected def execute_job(scheduled_job : job) : var {
 	if(host != null) {
 	    scheduled_job.host = host;
 	    scheduled_job.controller = launcher.get_host_controller(host);
-	    scheduled_job.execute_async();
+	    if(scheduled_job.execute_async() != 0) {
+	       scheduled_job.host = null;
+	       return false;
+	    }
+
 	    return true;
 	} else return false;
 }

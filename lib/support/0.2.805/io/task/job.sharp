@@ -19,7 +19,11 @@ public class job {
 			controller.last_ran = time.mills_time();
 
 			if(!host.is_active()) {
-			    host.start(new object[] { controller });
+			    if(host.start(new object[] { controller }) != result_ok)
+			    {
+			      controller.scheduled_job = null;
+			      return 2;
+			    }
 			}
 
 			controller.notify();
