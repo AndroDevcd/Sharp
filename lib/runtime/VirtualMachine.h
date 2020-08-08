@@ -63,10 +63,10 @@ public:
 #endif
     InterpreterThreadStart(void *arg);
     Method* getMainMethod();
-    ClassObject* resolveClass(runtime::String fullName);
-    Object* resolveField(runtime::String name, SharpObject *classObject);
-    void setFieldVar(runtime::String name, SharpObject *classObject, Int index, double value);
-    void setFieldClass(runtime::String name, SharpObject *classObject, ClassObject* klass);
+    ClassObject* resolveClass(std::string fullName);
+    Object* resolveField(std::string name, SharpObject *classObject);
+    void setFieldVar(std::string name, SharpObject *classObject, Int index, double value);
+    void setFieldClass(std::string name, SharpObject *classObject, ClassObject* klass);
     string stringValue(SharpObject *);
     double numberValue(Int, SharpObject *);
     bool isStaticObject(SharpObject *object);
@@ -88,8 +88,8 @@ public:
     static void fillMethodCall(Method* func, Int pc, stringstream &ss);
     static void __snprintf(int cfmt, double val, int precision);
 
-    Library* getLib(native_string name);
-    int freeLib(native_string name);
+    Library* getLib(std::string name);
+    int freeLib(std::string name);
 
     /**
      * Frequently used classes

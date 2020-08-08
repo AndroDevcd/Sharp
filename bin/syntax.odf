@@ -38893,7 +38893,7 @@ function: platform.kernel#platform.static_init[1947] params(0) in file: lib\supp
 931 [0x3a3]:          movn #0   
 933 [0x3a5]:          movn #0   
 935 [0x3a7]:          popobj   
-936 [0x3a8]:          movi #12989, ebx   
+936 [0x3a8]:          movi #14409, ebx   
 938 [0x3aa]:          movg @59 // @std.reflect#property_type   
 939 [0x3ab]:          movn #0   
 941 [0x3ad]:          movn #1   
@@ -38908,7 +38908,7 @@ function: platform.kernel#platform.static_init[1947] params(0) in file: lib\supp
 953 [0x3b9]:          movn #1   
 955 [0x3bb]:          movn #0   
 957 [0x3bd]:          popobj   
-958 [0x3be]:          movi #12990, ebx   
+958 [0x3be]:          movi #14410, ebx   
 960 [0x3c0]:          movg @59 // @std.reflect#property_type   
 961 [0x3c1]:          movn #1   
 963 [0x3c3]:          movn #1   
@@ -38923,7 +38923,7 @@ function: platform.kernel#platform.static_init[1947] params(0) in file: lib\supp
 975 [0x3cf]:          movn #2   
 977 [0x3d1]:          movn #0   
 979 [0x3d3]:          popobj   
-980 [0x3d4]:          movi #12991, ebx   
+980 [0x3d4]:          movi #14411, ebx   
 982 [0x3d6]:          movg @59 // @std.reflect#property_type   
 983 [0x3d7]:          movn #2   
 985 [0x3d9]:          movn #1   

@@ -194,6 +194,7 @@ void get_file_list(native_string &path, _List<native_string> &files) {
             files.__new();
             files.last().init();
             files.last() = file;
+            file.free();
         }
         closedir (dir);
     } else {

@@ -90,7 +90,7 @@ public:
         }
     }
 
-    bool operator==(native_string str) {
+    bool operator==(native_string str) const {
         if(str.len != len) return false;
         for(int64_t i = 0; i < len; i++) {
             if(str.chars[i] != chars[i])
@@ -99,7 +99,7 @@ public:
         return true;
     }
 
-    bool operator!=(const string &str) {
+    bool operator!=(const string &str) const {
         return !operator==(str);
     }
 

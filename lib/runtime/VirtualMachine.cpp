@@ -5,6 +5,7 @@
 #include <random>
 #include <cmath>
 #include <string>
+#include <utility>
 #include "VirtualMachine.h"
 #include "Exe.h"
 #include "Thread.h"
@@ -712,7 +713,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                 native_string name(libNameObj->HEAD, libNameObj->size);
                 GUARD(thread_self->threadsMonitor)
 
-                if(vm.getLib(name) == NULL) {
+                if(vm.getLib(name.str()) == NULL) {
                     Library lib;
 
                     #ifndef _WIN32
@@ -763,7 +764,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             if (libNameObj != NULL && TYPE(libNameObj->info) == _stype_var && libNameObj->HEAD != NULL) {
                 native_string name(libNameObj->HEAD, libNameObj->size);
                 GUARD(thread_self->threadsMonitor)
-                registers[EBX] = vm.freeLib(name);
+                registers[EBX] = vm.freeLib(name.str());
                 name.free();
             }
             return;
@@ -1065,7 +1066,7 @@ Method *VirtualMachine::getMainMethod() {
     return &methods[manifest.entryMethod];
 }
 
-ClassObject *VirtualMachine::resolveClass(runtime::String fullName) {
+ClassObject *VirtualMachine::resolveClass(std::string fullName) {
     for(uInt i = 0; i < vm.manifest.classes; i++) {
         if(vm.classes[i].fullName == fullName) {
             return &vm.classes[i];
@@ -1075,25 +1076,22 @@ ClassObject *VirtualMachine::resolveClass(runtime::String fullName) {
     return nullptr;
 }
 
-Object *VirtualMachine::resolveField(runtime::String name, SharpObject *classObject) {
+Object *VirtualMachine::resolveField(std::string name, SharpObject *classObject) {
     if(classObject && IS_CLASS(classObject->info)) {
         ClassObject *representedClass = &vm.classes[CLASS(classObject->info)];
         for(Int i = 0; i < representedClass->totalFieldCount; i++) {
             Field &field = representedClass->fields[i];
             if(field.name == name) {
                 if(isStaticObject(classObject) == IS_STATIC(field.flags)) {
-                    name.free();
                     return &classObject->node[field.address];
                 }
                 else {
-                    name.free();
                     return nullptr;
                 }
             }
         }
     }
 
-    name.free();
     return nullptr;
 }
 
@@ -1129,8 +1127,8 @@ string VirtualMachine::stringValue(SharpObject *object) {
     return ss.str();
 }
 
-void VirtualMachine::setFieldVar(runtime::String name, SharpObject *classObject, Int index, double value) {
-    Object *field = vm.resolveField(name, classObject);
+void VirtualMachine::setFieldVar(std::string name, SharpObject *classObject, Int index, double value) {
+    Object *field = vm.resolveField(std::move(name), classObject);
     if(field != NULL && field->object && TYPE(field->object->info) == _stype_var) {
         if(index < field->object->size)
             field->object->HEAD[index] = value;
@@ -1142,14 +1140,14 @@ void VirtualMachine::setFieldVar(runtime::String name, SharpObject *classObject,
     }
 }
 
-void VirtualMachine::setFieldClass(runtime::String name, SharpObject *classObject, ClassObject *klass) {
-    Object *field = vm.resolveField(name, classObject);
+void VirtualMachine::setFieldClass(std::string name, SharpObject *classObject, ClassObject *klass) {
+    Object *field = vm.resolveField(std::move(name), classObject);
     if(field != NULL) {
         *field = gc.newObject(klass);
     }
 }
 
-Library *VirtualMachine::getLib(native_string name) {
+Library *VirtualMachine::getLib(std::string name) {
     for(long i = 0; i < libs.size(); i++) {
         if(libs.get(i).name == name)
             return &libs.get(i);
@@ -1158,7 +1156,7 @@ Library *VirtualMachine::getLib(native_string name) {
     return NULL;
 }
 
-int VirtualMachine::freeLib(native_string name) {
+int VirtualMachine::freeLib(std::string name) {
     Library *lib = NULL;
     Int index = 0;
     for(long i = 0; i < libs.size(); i++) {
@@ -1221,7 +1219,7 @@ void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
 }
 
 bool VirtualMachine::link(native_string &func, native_string &libame) {
-    Library *lib = getLib(libame);
+    Library *lib = getLib(libame.str());
     linkProc _linkProc;
     uint32_t linkAddr;
 
