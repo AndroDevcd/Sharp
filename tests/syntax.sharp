@@ -13,13 +13,10 @@ def high_level_except()
     throw new error("test");
 }
 
-static def foo(var x) : var {
-   y := 10;
-   return 0;
-}
+native def foo();
 
 def main(args: string[]) : var {
     load_library("libuntitled1");
-    foo(4);
+    foo();
     return 4;
 }

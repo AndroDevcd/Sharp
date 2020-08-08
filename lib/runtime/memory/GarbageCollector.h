@@ -228,6 +228,7 @@ public:
      */
     void reconcileLocks(Thread*);
 
+    void printClassRefStatus();
 private:
     std::atomic<uInt> managedBytes;
     std::atomic<uInt> memoryLimit;

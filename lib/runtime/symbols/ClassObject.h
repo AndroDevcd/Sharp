@@ -47,6 +47,7 @@ public:
         staticFields = 0;
         methodCount = 0;
         interfaceCount = 0;
+        gcRefs = 0;
     }
 
     void operator=(const ClassObject* klass) {
@@ -73,6 +74,7 @@ public:
     Int totalFieldCount;
     Int methodCount;
     Int interfaceCount;
+    Int gcRefs;
 
     void free();
 
