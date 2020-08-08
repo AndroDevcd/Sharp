@@ -202,6 +202,7 @@ protected def execute_job(scheduled_job : job) : var {
 	    scheduled_job.controller = launcher.get_host_controller(host);
 	    if(scheduled_job.execute_async() != 0) {
 	       scheduled_job.host = null;
+	       scheduled_job.controller = null;
 	       return false;
 	    }
 

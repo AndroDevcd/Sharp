@@ -109,7 +109,10 @@ Thread *Thread::getThread(int32_t id) {
 
 void Thread::suspendSelf() {
     thread_self->suspended = true;
-    sendSignal(thread_self->signal, tsig_suspend, 0);
+    {
+        GUARD(thread_self->mutex);
+        sendSignal(thread_self->signal, tsig_suspend, 0);
+    }
 
     /*
 	 * We call wait upon suspend. This function will
@@ -462,6 +465,7 @@ void Thread::resumeAllThreads(bool withTagging) {
 
 int Thread::unsuspendThread(Thread *thread) {
     thread->suspended = false;
+    sendSignal(thread->signal, tsig_suspend, 0);
     return RESULT_OK;
 }
 
