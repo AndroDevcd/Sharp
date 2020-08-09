@@ -72,11 +72,12 @@ void Object::wait() {
         {
             spinCount++;
             retryCount = 0;
+            __os_yield();
 #ifdef WIN32_
-            Sleep(2);
+            Sleep(1);
 #endif
 #ifdef POSIX_
-            usleep(2*POSIX_USEC_INTERVAL);
+            usleep(1*POSIX_USEC_INTERVAL);
 #endif
         } else if(current->state == THREAD_KILLED
           || hasSignal(current->signal, tsig_kill)) {
@@ -109,11 +110,12 @@ void Object::notify() {
         {
             spinCount++;
             retryCount = 0;
+            __os_yield();
 #ifdef WIN32_
-            Sleep(2);
+            Sleep(1);
 #endif
 #ifdef POSIX_
-            usleep(2*POSIX_USEC_INTERVAL);
+            usleep(1*POSIX_USEC_INTERVAL);
 #endif
         } else if(current->state == THREAD_KILLED
                   || hasSignal(current->signal, tsig_kill)) {
