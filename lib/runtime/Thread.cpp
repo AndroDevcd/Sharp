@@ -153,9 +153,11 @@ void Thread::waitForUnsuspend() {
         }
     }
 
-
-    this->state = THREAD_RUNNING;
-    sendSignal(thread_self->signal, tsig_suspend, 0);
+    {
+        GUARD(mutex);
+        this->state = THREAD_RUNNING;
+        sendSignal(signal, tsig_suspend, 0);
+    }
 }
 
 int Thread::start(int32_t id, size_t stackSize) {
@@ -464,6 +466,7 @@ void Thread::resumeAllThreads(bool withTagging) {
 }
 
 int Thread::unsuspendThread(Thread *thread) {
+    GUARD(thread->mutex);
     thread->suspended = false;
     sendSignal(thread->signal, tsig_suspend, 0);
     return RESULT_OK;

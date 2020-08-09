@@ -639,7 +639,7 @@ int Process_Exe(std::string &exe)
             break;
         }
     }
-
+    buffer.end();
     return 0;
 }
 

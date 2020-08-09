@@ -18,5 +18,6 @@ native def foo();
 def main(args: string[]) : var {
     load_library("libuntitled1");
     foo();
+    for(i := 0; i < 100000000000; i++) {}
     return 4;
 }
