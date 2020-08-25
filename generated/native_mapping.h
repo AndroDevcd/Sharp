@@ -5,14 +5,6 @@
 
 using namespace snb_api;
 
-scope_begin(app) 
-
-	void __srt_global(object $instance);
-	void high_level_except();
-	void foo();
-	var main(object args);
-scope_end()
-
 scope_begin(std) 
 
 	void __srt_global(object $instance);
@@ -319,12 +311,12 @@ scope_begin(std_io_task)
 	var execute_job(object scheduled_job);
 	void finish();
 	void $03internal_static_init();
-	var anon_func$3209(object it, object it2);
-	var anon_func$3210(object it, object it2);
-	var anon_func$3211(object it, object it2);
-	var anon_func$3212(object t);
-	var anon_func$3213(object t);
-	var anon_func$3214(object t);
+	var anon_func$3529(object it, object it2);
+	var anon_func$3530(object it, object it2);
+	var anon_func$3531(object it, object it2);
+	var anon_func$3532(object t);
+	var anon_func$3533(object t);
+	var anon_func$3534(object t);
 scope_end()
 
 scope_begin(std_io_task, cancellation_exception) 
@@ -592,6 +584,7 @@ scope_begin(platform_kernel, vm)
 	var thread_create(var& daemon);
 	object suspend(object t);
 	object unsuspend(object t, var& wait);
+	var get_os_time(var& tr);
 	object thread_join(object t);
 	object kill(object t);
 	object current_thread();
@@ -1677,6 +1670,14 @@ scope_begin(std, string)
 	var find(object $instance, object str);
 	var ends_with(object $instance, object postfix);
 	object op_$plus4(object $instance, var& num);
+	object op_$plus5(object $instance, _int8& num);
+	object op_$plus6(object $instance, _int16& num);
+	object op_$plus7(object $instance, _int32& num);
+	object op_$plus8(object $instance, _int64& num);
+	object op_$plus9(object $instance, _uint8& num);
+	object op_$plus10(object $instance, _uint16& num);
+	object op_$plus11(object $instance, _uint32& num);
+	object op_$plus12(object $instance, _uint64& num);
 	var size(object $instance);
 	object parse(var& number);
 	object op_$plus_equal(object $instance, var& num);
@@ -1751,6 +1752,7 @@ scope_end()
 scope_begin(std, time) 
 
 	var nano_time();
+	var get_os_time(object tr);
 	var nano_to_micro(var& nano);
 	var nano_to_mills(var& nano);
 	var nano_to_secs(var& nano);
@@ -1769,6 +1771,465 @@ scope_begin(std, unique)
 	object hash(object $instance);
 	object guid(object $instance);
 	void unique(object $instance);
+scope_end()
+
+scope_begin(common) 
+
+	void __srt_global(object $instance);
+scope_end()
+
+scope_begin(common, constants) 
+
+	void constants(object $instance);
+	void $03internal_static_init();
+scope_end()
+
+scope_begin(common, constants_strings) 
+
+	void strings(object $instance);
+	void $03internal_static_init();
+scope_end()
+
+scope_begin(common_gpio) 
+
+	void __srt_global(object $instance);
+	void setup();
+	void pin_mode(var& pin, var& mode);
+	void write_pin(var& pin, var& value);
+	var read_pin(var& pin);
+scope_end()
+
+scope_begin(common_network_core) 
+
+	void __srt_global(object $instance);
+	var anon_func$3523(object t1, object t2);
+scope_end()
+
+scope_begin(common_network_core, request) 
+
+	var_array get_network_quality();
+	var get_signal_strength();
+	var write(object rdata);
+	void process_result(object raw, object rdata);
+	var read(object rdata);
+	void listen(object rdata);
+	var rw_inf(object rdata, var& rw, var& count);
+	void request(object $instance);
+scope_end()
+
+scope_begin(common_network_core, request_data) 
+
+	object add_item(object $instance, object key, object value);
+	object to_string(object $instance);
+	object at(object $instance, object key);
+	void clear(object $instance);
+	void request_data(object $instance);
+	object get_request_string(object $instance);
+scope_end()
+
+scope_begin(common_network_core, request_data_request_item) 
+
+	void request_item(object $instance, object k, object v);
+	void request_item2(object $instance);
+scope_end()
+
+scope_begin(common_network_data_request) 
+
+	void __srt_global(object $instance);
+scope_end()
+
+scope_begin(common_network_data_request, acknowledge_request) 
+
+	void send(object $instance);
+	void acknowledge_request(object $instance);
+scope_end()
+
+scope_begin(common_network_data_request, command_request) 
+
+	object listen(object $instance);
+	var send_command(object $instance, object req, var& ack, var& timeout);
+	void command_request(object $instance);
+scope_end()
+
+scope_begin(common_network_data_request, flight_data_request) 
+
+	object _get(object $instance);
+	void post(object $instance, object data);
+	void flight_data_request(object $instance);
+scope_end()
+
+scope_begin(common_network_data_request, flight_mode_change_request) 
+
+	var change_mode(object $instance, object mode);
+	void flight_mode_change_request(object $instance);
+scope_end()
+
+scope_begin(common_network_data_request, handshake_request) 
+
+	void handshake(object $instance);
+	void handshake_request(object $instance);
+scope_end()
+
+scope_begin(common_network_data_request, network_scan_request) 
+
+	var_array scan_network(object $instance);
+	void network_scan_request(object $instance);
+scope_end()
+
+scope_begin(common_network_data_request, signal_strength_request) 
+
+	var get_strength(object $instance);
+	void signal_strength_request(object $instance);
+scope_end()
+
+scope_begin(common_network_data_response) 
+
+	void __srt_global(object $instance);
+scope_end()
+
+scope_begin(common_network_data_response, command_response) 
+
+	void command_response(object $instance, object cmd, object req);
+	void command_response2(object $instance);
+scope_end()
+
+scope_begin(common_network_data_response, flight_data_response) 
+
+	void flight_data_response(object $instance, var& bat_lvl, var& altitude, var& speed);
+	void flight_data_response2(object $instance);
+scope_end()
+
+scope_begin(common_network_driver) 
+
+	void __srt_global(object $instance);
+	void setup(var& trnsLvl, var& rate, var& delay, var& retryCount, var& isClient);
+	void set_transmission_lvl(var& level);
+	void set_transmission_rate(var& level);
+	void dump_details();
+	void set_retry_count(var& delay, var& count);
+	void power_down();
+	var get_signal_strength();
+	var_array get_network_quality();
+	_int8_array read();
+	_int8_array listen();
+	void send(_int8_array& data);
+	var get_last_error();
+scope_end()
+
+scope_begin(common_network_driver, nrf24) 
+
+	void nrf24(object $instance);
+	void set_rf_lvl(object $instance, var& level);
+	void set_data_rate(object $instance, var& level);
+	void dump(object $instance);
+	void update_retry_count(object $instance, var& delay, var& count);
+	void shut_down(object $instance);
+	var_array get_network_quality(object $instance);
+	var get_signal_strength(object $instance);
+	var read(object $instance, object response);
+	void listen(object $instance, object response);
+	var send(object $instance, object response);
+	void check_state(object $instance);
+scope_end()
+
+scope_begin(common_network) 
+
+	void __srt_global(object $instance);
+scope_end()
+
+scope_begin(common_network, network) 
+
+	void handshake();
+	object listen();
+	var change_mode(object mode);
+	var get_signal_strength();
+	var_array scan_network();
+	object get_flight_data();
+	void post_flight_data(object data);
+	void send_acknowledge();
+	void network(object $instance);
+	object get_INSTANCE();
+scope_end()
+
+scope_begin(common_network_remote) 
+
+	void __srt_global(object $instance);
+	void initialize(object net);
+scope_end()
+
+scope_begin(common_network_remote, acknowledge_request_impl) 
+
+	void acknowledge_request_impl(object $instance);
+	void send(object $instance);
+scope_end()
+
+scope_begin(common_network_remote, command_request_impl) 
+
+	object listen(object $instance);
+	var send_command(object $instance, object req, var& ack, var& timeout);
+	void command_request_impl(object $instance);
+scope_end()
+
+scope_begin(common_network_remote, flight_data_request_impl) 
+
+	object _get(object $instance);
+	void post(object $instance, object data);
+	void flight_data_request_impl(object $instance);
+scope_end()
+
+scope_begin(common_network_remote, flight_mode_change_request_impl) 
+
+	void flight_mode_change_request_impl(object $instance);
+	var change_mode(object $instance, object mode);
+scope_end()
+
+scope_begin(common_network_remote, handshake_request_impl) 
+
+	void handshake_request_impl(object $instance);
+	void handshake(object $instance);
+scope_end()
+
+scope_begin(common_network_remote, network_scan_request_impl) 
+
+	var_array scan_network(object $instance);
+	void network_scan_request_impl(object $instance);
+scope_end()
+
+scope_begin(common_network_remote, signal_strength_request_impl) 
+
+	var get_strength(object $instance);
+	void signal_strength_request_impl(object $instance);
+scope_end()
+
+scope_begin(main) 
+
+	void __srt_global(object $instance);
+	void setup_conn_tracker();
+	void main(object args);
+	void $03internal_static_init();
+	void anon_func$3535();
+	void anon_func$3536();
+	void anon_func$3537();
+	void anon_func$3538();
+scope_end()
+
+scope_begin(ui_driver) 
+
+	void __srt_global(object $instance);
+	void setup();
+	void clear_display();
+	void display();
+	void dim(var& yes);
+	void move_cursor(var& x, var& y);
+	void draw_word(_int8_array& str, var& len, var& text_size);
+	void draw_img(var_array& bytes, var& width, var& height, var& x, var& y, var& skip_count);
+scope_end()
+
+scope_begin(ui_driver, ssd1306) 
+
+	void ssd1306(object $instance);
+	void clear(object $instance);
+	void dim_display(object $instance, var& yes);
+	void update_display(object $instance);
+	void draw_img(object $instance, var& x, var& y, var& width, var& height, var& img_width, var& img_height, var_array& bytes);
+	void draw_word(object $instance, var& x, var& y, var& text_size, var& width, var& transx, _int8_array& text);
+	void shutdown(object $instance);
+scope_end()
+
+scope_begin(ui_layout_config) 
+
+	void __srt_global(object $instance);
+	void configure_layout();
+	void start();
+scope_end()
+
+scope_begin(ui_layout) 
+
+	void __srt_global(object $instance);
+	void $03internal_static_init();
+	void anon_func$3539(object args);
+	void anon_func$3540(object args);
+	void anon_func$3541(object args);
+scope_end()
+
+scope_begin(ui_layout, home_screen) 
+
+	void home_screen(object $instance, object container, var& id);
+	void configure(object $instance);
+	void on_create(object $instance);
+	void on_destroy(object $instance);
+	void home_screen2(object $instance);
+	void $03internal_static_init();
+scope_end()
+
+scope_begin(ui_res) 
+
+	void __srt_global(object $instance);
+scope_end()
+
+scope_begin(ui_res_drawable) 
+
+	void __srt_global(object $instance);
+	void $03internal_static_init();
+scope_end()
+
+scope_begin(ui_res, resources) 
+
+	void setup();
+	object get_drawable(var& res_id);
+	void resources(object $instance);
+	object get_res();
+scope_end()
+
+scope_begin(ui_support) 
+
+	void __srt_global(object $instance);
+scope_end()
+
+scope_begin(ui_support, constants) 
+
+	void constants(object $instance);
+scope_end()
+
+scope_begin(ui_support, constants_view) 
+
+	void view(object $instance);
+scope_end()
+
+scope_begin(ui_support, constants_window) 
+
+	void window(object $instance);
+scope_end()
+
+scope_begin(ui_support, constants_lifecycle) 
+
+	void lifecycle(object $instance);
+scope_end()
+
+scope_begin(ui_support, constants_time) 
+
+	void time(object $instance);
+scope_end()
+
+scope_begin(ui_support, constants_layout) 
+
+	void layout(object $instance);
+scope_end()
+
+scope_begin(ui_support, constants_margins) 
+
+	void margins(object $instance);
+scope_end()
+
+scope_begin(ui_support, constants_resource) 
+
+	void resource(object $instance);
+scope_end()
+
+scope_begin(ui_support, constants_resource_id) 
+
+	void id(object $instance);
+scope_end()
+
+scope_begin(ui_support, constants_standard) 
+
+	void standard(object $instance);
+scope_end()
+
+scope_begin(ui_support, drawable) 
+
+	void drawable(object $instance, var& id, var_array& bytes, var& w, var& h);
+	void drawable2(object $instance);
+scope_end()
+
+scope_begin(ui_support, fragment) 
+
+	void fragment(object $instance, object container, var& id);
+	void add_view(object $instance, object v);
+	object find_view_by_id(object $instance, var& id);
+	void on_create(object $instance);
+	void invalidate_refrences(object $instance, var& id);
+	void on_destroy(object $instance);
+	void navigate(object $instance, var& screen, var& finish);
+	void draw(object $instance);
+	void configure(object $instance);
+	void fragment2(object $instance);
+scope_end()
+
+scope_begin(ui_support, image_view) 
+
+	void image_view(object $instance, var& id);
+	var transform_height(object $instance);
+	var transform_width(object $instance);
+	object set_drawable(object $instance, var& res_id);
+	void draw(object $instance);
+	void on_destroy(object $instance);
+	void image_view2(object $instance);
+scope_end()
+
+scope_begin(ui_support, lifecycle) 
+
+	void on_create(object $instance);
+	void on_destroy(object $instance);
+	void lifecycle(object $instance);
+scope_end()
+
+scope_begin(ui_support, margin) 
+
+	void margin(object $instance);
+scope_end()
+
+scope_begin(ui_support, text_view) 
+
+	void text_view(object $instance, var& id);
+	var transform_height(object $instance);
+	var transform_width(object $instance);
+	void draw(object $instance);
+	void on_destroy(object $instance);
+	void text_view2(object $instance);
+	void set_text(object $instance, object value);
+	void set_text_size(object $instance, var& value);
+scope_end()
+
+scope_begin(ui_support, view) 
+
+	void view(object $instance);
+	void view2(object $instance, var& id);
+	void on_destroy(object $instance);
+	object set_width(object $instance, var& size);
+	var transform_height(object $instance);
+	var transform_width(object $instance);
+	var has_ref(object $instance, var& id);
+	void invalidate(object $instance);
+	void draw(object $instance);
+	object set_height(object $instance, var& size);
+	object set_visibility(object $instance, var& visible);
+	object to_left_of(object $instance, var& id);
+	object to_start_of(object $instance, var& id);
+	object to_right_of(object $instance, var& id);
+	object to_top_of(object $instance, var& id);
+	object to_bottom_of(object $instance, var& id);
+	object set_gravity(object $instance, var& grav);
+	object above(object $instance, var& id);
+	object below(object $instance, var& id);
+	object set_margin_left(object $instance, var& size);
+	object set_margin_right(object $instance, var& size);
+	object set_margin_top(object $instance, var& size);
+	object set_margin_bottom(object $instance, var& size);
+scope_end()
+
+scope_begin(ui_support, window) 
+
+	void window(object $instance, _int8_array& name);
+	void start_ui();
+	void navigate(object $instance, var& screen);
+	void starter_fragment(object $instance, var& frag);
+	void draw_text(object $instance, object tv);
+	void draw_img(object $instance, object iv);
+	void show(object $instance);
+	void add_fragment(object $instance, object frag);
+	void start_updater(object $instance);
+	void window2(object $instance);
 scope_end()
 
 scope_begin(std, loopable$std_io_thread$) 
@@ -3554,6 +4015,129 @@ scope_begin(std, loopable$var$)
 	void loopable(object $instance);
 scope_end()
 
+scope_begin(std, list$common_network_core_request_data_request_item$) 
+
+	void list(object $instance);
+	void list2(object $instance, var& starting_capacity);
+	void list3(object $instance, object initial_data);
+	var empty(object $instance);
+	void set_compact(object $instance, var& compact_array);
+	object get_elements(object $instance);
+	object op_$array_at(object $instance, var& index);
+	object at(object $instance, var& index);
+	object last(object $instance);
+	object put(object $instance, var& index, object element);
+	void expand(object $instance);
+	void clear(object $instance);
+	void add_all(object $instance, object lst);
+	void add_all2(object $instance, object lst);
+	void add(object $instance, object element);
+	var indexof(object $instance, object element);
+	void pop_back(object $instance);
+	var size(object $instance);
+	void insert(object $instance, var& index, object element);
+	object find(object $instance, object comparer, var& find_func);
+	void remove(object $instance, object val);
+	void remove2(object $instance, object val, var& compare_fun);
+	void replace(object $instance, object val, var& compare_fun);
+	void remove_at(object $instance, var& index);
+	var indexof2(object $instance, object comparer, var& find_func);
+	object to_string(object $instance);
+	object out_of_bounds_msg(object $instance, var& index);
+scope_end()
+
+scope_begin(std, loopable$common_network_core_request_data_request_item$) 
+
+	object get_elements(object $instance);
+	void loopable(object $instance);
+scope_end()
+
+scope_begin(std, hashmap$std_int_0_ui_support_drawable$) 
+
+	void hashmap(object $instance, var& initialCapacity);
+	void hashmap2(object $instance);
+	void set_threshold(object $instance, var& threshold);
+	var hash(object $instance, object key);
+	void resize(object $instance);
+	object at(object $instance, object key);
+	var put(object $instance, object key, object value);
+	var remove(object $instance, object key);
+scope_end()
+
+scope_begin(std, list$ui_support_view$) 
+
+	void list(object $instance);
+	void list2(object $instance, var& starting_capacity);
+	void list3(object $instance, object initial_data);
+	var empty(object $instance);
+	void set_compact(object $instance, var& compact_array);
+	object get_elements(object $instance);
+	object op_$array_at(object $instance, var& index);
+	object at(object $instance, var& index);
+	object last(object $instance);
+	object put(object $instance, var& index, object element);
+	void expand(object $instance);
+	void clear(object $instance);
+	void add_all(object $instance, object lst);
+	void add_all2(object $instance, object lst);
+	void add(object $instance, object element);
+	var indexof(object $instance, object element);
+	void pop_back(object $instance);
+	var size(object $instance);
+	void insert(object $instance, var& index, object element);
+	object find(object $instance, object comparer, var& find_func);
+	void remove(object $instance, object val);
+	void remove2(object $instance, object val, var& compare_fun);
+	void replace(object $instance, object val, var& compare_fun);
+	void remove_at(object $instance, var& index);
+	var indexof2(object $instance, object comparer, var& find_func);
+	object to_string(object $instance);
+	object out_of_bounds_msg(object $instance, var& index);
+scope_end()
+
+scope_begin(std, loopable$ui_support_view$) 
+
+	object get_elements(object $instance);
+	void loopable(object $instance);
+scope_end()
+
+scope_begin(std, list$ui_support_fragment$) 
+
+	void list(object $instance);
+	void list2(object $instance, var& starting_capacity);
+	void list3(object $instance, object initial_data);
+	var empty(object $instance);
+	void set_compact(object $instance, var& compact_array);
+	object get_elements(object $instance);
+	object op_$array_at(object $instance, var& index);
+	object at(object $instance, var& index);
+	object last(object $instance);
+	object put(object $instance, var& index, object element);
+	void expand(object $instance);
+	void clear(object $instance);
+	void add_all(object $instance, object lst);
+	void add_all2(object $instance, object lst);
+	void add(object $instance, object element);
+	var indexof(object $instance, object element);
+	void pop_back(object $instance);
+	var size(object $instance);
+	void insert(object $instance, var& index, object element);
+	object find(object $instance, object comparer, var& find_func);
+	void remove(object $instance, object val);
+	void remove2(object $instance, object val, var& compare_fun);
+	void replace(object $instance, object val, var& compare_fun);
+	void remove_at(object $instance, var& index);
+	var indexof2(object $instance, object comparer, var& find_func);
+	object to_string(object $instance);
+	object out_of_bounds_msg(object $instance, var& index);
+scope_end()
+
+scope_begin(std, loopable$ui_support_fragment$) 
+
+	object get_elements(object $instance);
+	void loopable(object $instance);
+scope_end()
+
 scope_begin(std_io_task, entry$std_io_thread_0_std_io_task_job_controller$) 
 
 	void entry(object $instance, object key, object value);
@@ -3562,6 +4146,13 @@ scope_begin(std_io_task, entry$std_io_thread_0_std_io_task_job_controller$)
 scope_end()
 
 scope_begin(std_io, entry$std_int_0_std_io_thread$) 
+
+	void entry(object $instance, object key, object value);
+	object to_string(object $instance);
+	void entry2(object $instance);
+scope_end()
+
+scope_begin(ui_res, entry$std_int_0_ui_support_drawable$) 
 
 	void entry(object $instance, object key, object value);
 	object to_string(object $instance);

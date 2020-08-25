@@ -364,6 +364,7 @@ public:
         static const uint8_t SMOVR_3      = 0x74;
         static const uint8_t NEG          = 0x75;
         static const uint8_t EXP          = 0x76;
+        static const uint8_t IS           = 0x77;
 
         enum instr_class {
             E_CLASS,

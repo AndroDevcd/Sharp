@@ -61,7 +61,6 @@ void Object::wait() {
 
     const long sMaxRetries = 128 * 1024;
 
-    long spinCount = 0;
     long retryCount = 0;
     Thread *current = thread_self;
 
@@ -70,7 +69,6 @@ void Object::wait() {
     {
         if (retryCount++ == sMaxRetries)
         {
-            spinCount++;
             retryCount = 0;
             __os_yield();
 #ifdef WIN32_
@@ -134,13 +132,13 @@ void Object::notify(uInt mills) {
 
     if(object == NULL) return;
 
-    Int base = NANO_TOMILL(Clock::realTimeInNSecs()), now = 0;
+    Int base = NANO_TOMILL(Clock::realTimeInNSecs()), elapsedMs = 0;
     Thread *current = thread_self;
     object->monitor = 1;
 
     while (object->monitor == 1)
     {
-        if ((mills - now) > 0)
+        if ((mills - elapsedMs) > 0)
         {
             __os_yield();
 #ifdef WIN32_
@@ -159,12 +157,12 @@ void Object::notify(uInt mills) {
             current->state = THREAD_KILLED;
             sendSignal(current->signal, tsig_kill, 1);
             return;
-        } else if((mills - now) <= 0) {
+        } else if((mills - elapsedMs) <= 0) {
             object->monitor = 0;
             break;
         }
 
-        now = NANO_TOMILL(Clock::realTimeInNSecs()) - base;
+        elapsedMs = NANO_TOMILL(Clock::realTimeInNSecs()) - base;
     }
 }
 

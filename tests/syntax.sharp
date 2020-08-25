@@ -1,23 +1,23 @@
 mod app;
 
 import std.io;
+import std.io.task;
+import platform;
 import platform;
 
-/**
-*
-*/
-
-
-def high_level_except()
-{
-    throw new error("test");
+class foo {
+   x : var;
 }
 
-native def foo();
+def work() {
+//...
+  throw error("");
+}
 
-def main(args: string[]) : var {
-    load_library("libuntitled1");
-    foo();
-    for(i := 0; i < 100000000000; i++) {}
-    return 4;
+native def foo_fuc(x : foo);
+
+def main(args: string[]) {
+   load_library("foo");
+   link("foo", "foo");
+   foo();
 }

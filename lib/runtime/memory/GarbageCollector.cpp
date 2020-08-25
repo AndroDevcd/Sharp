@@ -755,9 +755,7 @@ void GarbageCollector::wake() {
 
 int GarbageCollector::selfCollect() {
     if(gc.state == SLEEPING || tself->state == THREAD_KILLED) {
-        mutex.lock();
-        collectGarbage();
-        mutex.unlock();
+        collect(GC_EXPLICIT);
         return 0;
     }
 

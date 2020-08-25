@@ -17,8 +17,8 @@ class reflect {
         reflect_obj = ref_obj;
     }
 
-    //def operator[](field_name : string) :=
-    //    get_field(field_name);
+//    def operator[](field_name : string) :=
+//        get_field(field_name);
 
     //def get_field(name : string) : field {
 

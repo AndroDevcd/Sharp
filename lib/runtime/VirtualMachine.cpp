@@ -717,7 +717,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                     Library lib;
 
                     #ifndef _WIN32
-                    char * libError = dlerror(); // we need this variable to ensure everything is okay
+                    char *libError = dlerror(); // we need this variable to ensure everything is okay
                     #endif
                     lib.handle = load_lib(name.str());
 
@@ -731,9 +731,10 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
                         || libError != NULL
                     #endif
                     ) {
+                        string libName = name.str();
                         name.free();
                         #ifdef _WIN32
-                        throw Exception(vm.IllStateExcept, string("could not load library") + name.str().c_str());
+                        throw Exception(vm.IllStateExcept, string("could not load library") + libName);
                         #else
                         throw Exception(vm.IllStateExcept, string("could not load library: ") + libError);
                         #endif
@@ -807,7 +808,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
 bool VirtualMachine::catchException() {
     Thread *thread = thread_self;
-    Int pc = PC(thread_self);
+    Int pc = PC(thread);
     TryCatchData *tbl=NULL;
     ClassObject *handlingClass = &vm.classes[CLASS(thread->exceptionObject.object->info)];
     for(Int i = 0; i < thread->current->tryCatchTable.len; i++) {
@@ -840,6 +841,7 @@ bool VirtualMachine::catchException() {
             if(tbl->finallyData != NULL) {
                 thread->pc = thread->cache+tbl->finallyData->start_pc;
                 (thread->fp+tbl->finallyData->exception_object_field_address)->object = thread->exceptionObject;
+                thread->exceptionObject = (SharpObject*)NULL;
                 sendSignal(thread->signal, tsig_except, 0); // TODO: this may be causing an out of memory error (look to see if the ref is 1 after exception has been handled)
                 return true;
             }

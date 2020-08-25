@@ -361,6 +361,9 @@ void Thread::waitForThreadExit(Thread *thread) {
 
 void Thread::terminateAndWaitForThreadExit(Thread *thread) {
     const int sMaxRetries = 10000000;
+    const int sMaxSpinCount = 25;
+
+    int spinCount = 0;
     int retryCount = 0;
 
     retry:
@@ -377,8 +380,10 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
             retryCount = 0;
             if(thread->exited)
                 return;
-            else if(thread->suspended)
-                goto retry;
+            else if(++spinCount >= sMaxSpinCount)
+            {
+                return;
+            } else goto retry;
 
 #ifdef WIN32_
             Sleep(1);
@@ -389,7 +394,8 @@ void Thread::terminateAndWaitForThreadExit(Thread *thread) {
         }
     }
 
-    thread->term();
+    if(thread->exited) // the thread may be deadlocked by a mutex
+       thread->term();
 }
 
 /**
@@ -836,11 +842,9 @@ void Thread::exec() {
     _initOpcodeTable
     run:
     try {
-        //DISPATCH();
-
         for (;;) {
             top:
-                if(current->address == 1558 && (PC(this) >= 5)) {
+                if(current->address == 3045 && (PC(this) >= 3)) { // tutoriall!!!!!!!!!!!!!!!!!!
                     Int i = 0;
                 }
                 DISPATCH();
@@ -961,6 +965,7 @@ void Thread::exec() {
                 registers[GET_Da(*pc)]=(Int)registers[GET_Da(*pc)]%(Int)*(pc+1);
                 _brh_inc(2)
             POP: // tested
+                sp->object = (SharpObject*)NULL;
                 --sp;
                 _brh
             INC: // tested
@@ -1074,7 +1079,7 @@ void Thread::exec() {
 #endif
                 if((result = (int64_t )registers[GET_Da(*pc)]) <= 0 || result >= vm.manifest.methods) {
                     stringstream ss;
-                    ss << "invalid call to pointer of " << result;
+                    ss << "invalid call to method with address of " << result;
                     throw Exception(ss.str());
                 }
                 if((jitFun = executeMethod(result, this)) != NULL) {
@@ -1227,7 +1232,7 @@ void Thread::exec() {
             IALOAD:
                 CHECK_NULLVAR(
                         if(((int32_t)registers[GET_Cb(*pc)]) >= ptr->object->size || ((int32_t)registers[GET_Cb(*pc)]) < 0)
-                            throw Exception("movn");
+                            throw Exception("iaload");
 
                         registers[GET_Ca(*pc)] =
                                 ptr->object->HEAD[(Int)registers[GET_Cb(*pc)]];

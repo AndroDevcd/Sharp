@@ -271,6 +271,54 @@ class string : loopable<_int8> {
         return s;
     }
 
+    def operator+(num : _int8) : string {
+        s := new string(data);
+        s.append(num);
+        return s;
+    }
+
+    def operator+(num : _int16) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def operator+(num : _int32) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def operator+(num : _int64) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def operator+(num : _uint8) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def operator+(num : _uint16) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def operator+(num : _uint32) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def operator+(num : _uint64) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
     def size() := sizeof(data);
 
     static def parse( number : var ) := new string(snprintf(currentFormat, number, precision));

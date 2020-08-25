@@ -63,6 +63,17 @@ class vm {
         return thread_result.at(result);
     }
 
+    static def get_os_time(tr : var) : var {
+       result: var;
+       asm {
+          loadl ebx, {tr}
+          int 0x2
+          smovr2 {result}, bmr
+       }
+
+       return result;
+    }
+
     static def thread_join(t: thread) : thread_result {
         id := t.get_native_handle();
         result: var;

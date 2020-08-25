@@ -170,7 +170,7 @@ int _bootstrap(int argc, const char* argv[])
         }
         else if(opt("-nativedir") || opt("-nd")){
             if(i+1 >= argc)
-                error("output file required after option `" + arg + "`");
+                error("output directory required after option `" + arg + "`");
             else
                 c_options.nativeCodeDir  = string(argv[++i]);
         }

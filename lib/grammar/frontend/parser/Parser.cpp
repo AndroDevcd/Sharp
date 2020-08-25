@@ -2823,6 +2823,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
         else if(peek(1)->getValue() == "as")
             goto asExpr;
+        else if(peek(1)->getValue() == "is")
+            goto isExpr;
         return true;
     }
     branch->freeLastSub();
@@ -2850,6 +2852,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
                 errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
             else if(peek(1)->getValue() == "as")
                 goto asExpr;
+            else if(peek(1)->getValue() == "is")
+                goto isExpr;
             return true;
         }else {
             branch->freeLastSub();
@@ -2883,6 +2887,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             goto arrayExpr;
         else if(peek(1)->getValue() == "as")
             goto asExpr;
+        else if(peek(1)->getValue() == "is")
+            goto isExpr;
         return true;
     }
 
@@ -2909,6 +2915,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             goto arrayExpr;
         else if(peek(1)->getValue() == "as")
             goto asExpr;
+        else if(peek(1)->getValue() == "is")
+            goto isExpr;
         return true;
     }
 
@@ -2933,6 +2941,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             goto arrayExpr;
         else if(peek(1)->getValue() == "as")
             goto asExpr;
+        else if(peek(1)->getValue() == "is")
+            goto isExpr;
         return true;
     } else {
         errors->pass();
@@ -2973,7 +2983,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
 
         branch->encapsulate(ast_new_e);
 
-        if(peek(1)->getValue() != "as")
+        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is")
             branch = branch->getLastSubAst();
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -2984,6 +2994,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
         else if(peek(1)->getValue() == "as")
             goto asExpr;
+        else if(peek(1)->getValue() == "is")
+            goto isExpr;
         return true;
     }
 
@@ -3062,6 +3074,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
         else if(peek(1)->getValue() == "as")
             goto asExpr;
+        else if(peek(1)->getValue() == "is")
+            goto isExpr;
         return true;
     }
 
@@ -3085,6 +3099,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             goto arrayExpr;
         else if(peek(1)->getValue() == "as")
             goto asExpr;
+        else if(peek(1)->getValue() == "is")
+            goto isExpr;
 
         return true;
     }
@@ -3134,6 +3150,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
                     goto arrayExpr;
                 else if(peek(1)->getValue() == "as")
                     goto asExpr;
+                else if(peek(1)->getValue() == "is")
+                    goto isExpr;
             }
 
             return true;
@@ -3165,6 +3183,29 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         return true;
     }
 
+    isExpr:
+    if(*peek(1) == "is")
+    {
+        branch->encapsulate(ast_primary_expr);
+        branch->encapsulate(ast_expression);
+        branch->encapsulate(ast_is_e);
+        branch = branch->getSubAst(ast_is_e);
+        expect(branch, "is");
+
+        branch = getBranch(ast, ast_utype_class_e);
+        parseUtype(branch);
+        expect(branch, ".");
+        expect(branch, "class");
+
+        if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
+            errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
+        else if(peek(1)->getType() == DOT)
+            errors->createNewError(GENERIC, current(), "unexpected symbol `.`");
+        else if(peek(1)->getType() == LEFTBRACE)
+            errors->createNewError(GENERIC, current(), "unexpected symbol `[`");
+        return true;
+    }
+
     /* ++ or -- after the expression */
     checkInc:
     if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -3181,6 +3222,8 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             goto arrayExpr;
         else if(peek(1)->getValue() == "as")
             goto asExpr;
+        else if(peek(1)->getValue() == "is")
+            goto isExpr;
         return true;
     }
 
@@ -3752,7 +3795,7 @@ bool parser::isKeyword(string key) {
            || key == "when" || key == "local" || key == "native"
            || key == "thread_local" || key == "nil" || key == "ext"  || key == "stable"
            || key == "mutate" || key == "init" || key == "get" || key == "set" || key == "alias"
-           || key == "as" || key == "in" || key == "volatile" || key == "obfuscate";
+           || key == "as" || key == "in" || key == "volatile" || key == "obfuscate" || key == "is";
 }
 
 void parser::parseAccessTypes() {

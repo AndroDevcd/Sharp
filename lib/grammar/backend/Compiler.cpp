@@ -2102,7 +2102,7 @@ bool Compiler::isUtypeClassConvertableToVar(Utype *dest, Utype *clazz) {
     if(dest->getResolvedType() && clazz->getResolvedType()) {
         DataType type = dest->getResolvedType()->type;
 
-        if (isUtypeClass(clazz, Obfuscater::getModule("std"), 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint")) {
+        if (isUtypeClass(clazz, Obfuscater::getModule("std"), 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint", "double")) {
             return !dest->isArray() && (type <= VAR);
         }
     }
@@ -2116,7 +2116,7 @@ bool Compiler::isUtypeConvertableToNativeClass(Utype *dest, Utype *src) {
 
         if (isUtypeClass(dest, Obfuscater::getModule("std"), 1, "string") && type == _INT8 && src->isArray()) {
             return true;
-        } else if (isUtypeClass(dest, Obfuscater::getModule("std"), 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint")) {
+        } else if (isUtypeClass(dest, Obfuscater::getModule("std"), 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint", "double")) {
             return !src->isArray() && (type <= VAR);
         }
     }
@@ -3150,7 +3150,7 @@ void Compiler::assignValue(Expression* expr, Token &operand, Expression &leftExp
                 }
 
                 freeListPtr(params);
-            } else if(isUtypeClass(field->utype, Obfuscater::getModule("std"), 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint")){
+            } else if(isUtypeClass(field->utype, Obfuscater::getModule("std"), 10, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "uint", "double")){
                 Method *constr;
                 List<Field *> params;
 
@@ -4112,7 +4112,7 @@ void Compiler::compileNativeCast(Utype *utype, Expression *castExpr, Expression 
                                 .addIr(OpBuilder::rstore(EBX));
                     } else goto castErr;
                 } else goto castErr;
-            } else if (isUtypeClass(castExpr->utype, Obfuscater::getModule("std"), 9, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong")) {
+            } else if (isUtypeClass(castExpr->utype, Obfuscater::getModule("std"), 9, "int", "byte", "char", "bool", "short", "uchar", "ushort", "long", "ulong", "double")) {
                 if(!utype->isArray()) {
                     Field *valueField = castExpr->utype->getClass()->getField("value", true);
 
@@ -6822,17 +6822,6 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
         }
     }
 
-    if(!currentScope()->lockBlocks.empty()) {
-        for (Int i = currentScope()->lockBlocks.size() - 1; i >= 0; i--) {
-            Expression lockExpr;
-            compileExpression(&lockExpr, currentScope()->lockBlocks.get(i));
-
-            lockExpr.utype->getCode().inject(ptrInjector);
-            code.inject(lockExpr.utype->getCode());
-            code.addIr(OpBuilder::unlock());
-        }
-    }
-
     if(isUtypeClassConvertableToVar(currentScope()->currentFunction->utype, returnVal.utype)) {
         CodeHolder tmp;
         convertNativeIntegerClassToVar(returnVal.utype, currentScope()->currentFunction->utype, tmp, ast);
@@ -6872,6 +6861,17 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
         case exp_nil:
             code.inject(returnVal.utype->getCode());
             break;
+    }
+
+    if(!currentScope()->lockBlocks.empty()) {
+        for (Int i = currentScope()->lockBlocks.size() - 1; i >= 0; i--) {
+            Expression lockExpr;
+            compileExpression(&lockExpr, currentScope()->lockBlocks.get(i));
+
+            lockExpr.utype->getCode().inject(ptrInjector);
+            code.inject(lockExpr.utype->getCode());
+            code.addIr(OpBuilder::unlock());
+        }
     }
 
     code.addIr(OpBuilder::ret(NO_ERR));
@@ -7502,8 +7502,20 @@ void Compiler::compileTryCatchStatement(Ast *ast, bool *controlPaths) {
 
                     currentScope()->currentFunction->data.branchTable.add(
                             BranchTable(code.size(), finallyEndLabel, 0, ast->line, ast->col, currentScope()->scopeLevel));
-                    code.addIr(OpBuilder::je(invalidAddr))
-                            .addIr(OpBuilder::pushObject())
+                    code.addIr(OpBuilder::je(invalidAddr));
+
+                    if(!currentScope()->lockBlocks.empty()) {
+                        for (Int j = currentScope()->lockBlocks.size() - 1; j >= 0; j--) {
+                            Expression lockExpr;
+                            compileExpression(&lockExpr, currentScope()->lockBlocks.get(j));
+
+                            lockExpr.utype->getCode().inject(ptrInjector);
+                            code.inject(lockExpr.utype->getCode());
+                            code.addIr(OpBuilder::unlock());
+                        }
+                    }
+
+                    code.addIr(OpBuilder::pushObject())
                             .addIr(OpBuilder::ret(ERR_STATE)); // it will only return of exception object still has not been handled
                 } else {
                     code.addIr(OpBuilder::movl(exceptionObjectField->address))

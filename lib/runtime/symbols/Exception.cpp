@@ -59,7 +59,7 @@ void Exception::pushException() {
 
             native_string str;
             vm.fillStackTrace(str);
-            Object *stackTrace = vm.resolveField("stack_trace", vm.outOfMemoryExcept.object);
+            Object *stackTrace = vm.resolveField("stack_trace", vm.outOfMemoryExcept.object); // seg faile error please fig stack_trace is now a string not a int8[]
             if(stackTrace) {
                 *stackTrace = gc.newObjectUnsafe(str.len);
 

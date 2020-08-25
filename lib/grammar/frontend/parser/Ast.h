@@ -115,6 +115,7 @@ enum ast_type
     ast_arry_e,
     ast_dot_fn_e,
     ast_cast_e,
+    ast_is_e,
     ast_pre_inc_e,
     ast_paren_e,
     ast_vect_e,

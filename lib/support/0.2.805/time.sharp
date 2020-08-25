@@ -1,6 +1,7 @@
 mod std;
 
 import platform;
+import platform.kernel;
 
 class time {
     static infinite := -1;
@@ -16,6 +17,8 @@ class time {
         return now;
     }
 
+    static def get_os_time(tr: time_request)
+       := vm.get_os_time(tr.get_ordinal());
 
     static def nano_to_micro(nano: var) : var {
         return nano/1000;
@@ -112,6 +115,18 @@ class time {
 
         return end - start;
     }
+}
+
+enum time_request {
+   tm_seconds = 0,
+   tm_minutes = 1,
+   tm_hour = 2,
+   tm_mday = 3,
+   tm_mon = 4,
+   tm_year = 5,
+   tm_wday = 6,
+   tm_yday = 7,
+   tm_isdst = 8
 }
 
 enum time_unit {
