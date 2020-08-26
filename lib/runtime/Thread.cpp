@@ -640,15 +640,15 @@ void Thread::exit() {
                 vm.getStackTrace();
                 Object* data = vm.resolveField("data", sp->object.object);
 
-                if(data != NULL && data->object->size > 0) {
-                    for (Int i = 0; i < data->object->size; i++) {
-                        cout << ((char) data->object->HEAD[i]);
-                    }
+                if(data != NULL) {
+                    cout << vm.stringValue(data->object);
                 }
             }
         } else if(stackTrace != NULL && stackTrace->object != NULL){
-            for (Int i = 0; i < stackTrace->object->size; i++) {
-                cout << ((char) stackTrace->object->HEAD[i]);
+            Object* data = vm.resolveField("data", stackTrace->object);
+
+            if(data != NULL) {
+                cout << vm.stringValue(data->object);
             }
         }
 

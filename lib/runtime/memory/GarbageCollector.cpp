@@ -492,6 +492,49 @@ SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
     return nullptr;
 }
 
+SharpObject *GarbageCollector::newObjectUnsafe(ClassObject *k, bool staticInit) {
+    if(k != nullptr) {
+        SharpObject *object = (SharpObject*)malloc(sizeof(SharpObject));
+        if(object != NULL) {
+            uint32_t size = staticInit ? k->staticFields : k->instanceFields;
+
+            object->init(size, k);
+            if (size > 0) {
+                object->node = (Object *) calloc(size, sizeof(struct Object));
+                if (object->node != NULL) {
+                    uInt fieldAddress = staticInit ? k->instanceFields : 0;
+
+                    for (unsigned int i = 0; i < object->size; i++) {
+                        /**
+                         * We want to set the class variables and arrays
+                         * to null and initialize the var variables
+                         */
+                        if (k->fields[fieldAddress].type <= VAR && !k->fields[fieldAddress].isArray) {
+                            if (!staticInit || (staticInit && IS_STATIC(k->fields[fieldAddress].flags))) {
+                                object->node[i] = newObjectUnsafe(1);
+                            }
+                        }
+
+                        fieldAddress++;
+                    }
+
+                    GUARD(mutex);
+                    managedBytes += (sizeof(SharpObject) * 1) + (sizeof(Object) * size);
+                    PUSH(object);
+                    youngObjects++;
+                } else {
+                    free(object);
+                    return NULL;
+                }
+
+            }
+            return object;
+        }
+    }
+
+    return nullptr;
+}
+
 SharpObject *GarbageCollector::newObjectArray(int64_t size) {
     if(size<=0)
         return nullptr;

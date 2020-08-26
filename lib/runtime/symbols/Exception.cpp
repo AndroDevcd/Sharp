@@ -61,14 +61,19 @@ void Exception::pushException() {
             vm.fillStackTrace(str);
             Object *stackTrace = vm.resolveField("stack_trace", vm.outOfMemoryExcept.object); // seg faile error please fig stack_trace is now a string not a int8[]
             if(stackTrace) {
-                *stackTrace = gc.newObjectUnsafe(str.len);
+                *stackTrace = gc.newObjectUnsafe(vm.StringClass);
+                Object *data = vm.resolveField("data", stackTrace->object);
+                if(data != NULL) {
+                    *data = gc.newObjectUnsafe(str.len);
 
-                if(stackTrace->object) {
-                    for (Int i = 0; i < str.len; i++) {
-                        stackTrace->object->HEAD[i] = str.chars[i];
+                    if (data->object != NULL) {
+                        for (Int i = 0; i < str.len; i++) {
+                            data->object->HEAD[i] = str.chars[i];
+                        }
                     }
                 }
             }
+
             gc.printClassRefStatus();
             sendSignal(thread->signal, tsig_kill, 1);
             return;

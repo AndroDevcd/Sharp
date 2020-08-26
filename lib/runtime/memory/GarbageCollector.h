@@ -151,6 +151,7 @@ public:
     SharpObject* newObject(int64_t size); /* Array allocation */
     SharpObject* newObjectUnsafe(int64_t size); /* Unconventional Array allocation */
     SharpObject* newObject(ClassObject* k, bool staticInit = false); /* Class allocation */
+    SharpObject* newObjectUnsafe(ClassObject* k, bool staticInit = false); /* Class allocation */
 
     SharpObject* newObjectArray(int64_t size); /* Array Object allocation */
     SharpObject* newObjectArray(int64_t size, ClassObject* k); /* Class Array allocation */
