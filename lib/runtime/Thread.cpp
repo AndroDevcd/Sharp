@@ -630,9 +630,15 @@ void Thread::exit() {
 
 
         cout << "Unhandled exception on thread " << name.str() << " (most recent call last):\n";
-        if(frameInfo && frameInfo->object) {
+        if(stackTrace != NULL && stackTrace->object != NULL){
+            Object* data = vm.resolveField("data", stackTrace->object);
+
+            if(data != NULL) {
+                cout << vm.stringValue(data->object);
+            }
+        } else if(frameInfo && frameInfo->object) {
             if(((sp-dataStack)+1) >= stackLimit) {
-                sp--;
+                sp = dataStack-1;
             }
 
             if(exceptionClass != NULL && exceptionClass->guid != vm.OutOfMemoryExcept->guid) {
@@ -644,13 +650,7 @@ void Thread::exit() {
                     cout << vm.stringValue(data->object);
                 }
             }
-        } else if(stackTrace != NULL && stackTrace->object != NULL){
-            Object* data = vm.resolveField("data", stackTrace->object);
-
-            if(data != NULL) {
-                cout << vm.stringValue(data->object);
-            }
-        }
+        } else
 
         cout << endl << (exceptionClass != NULL ? exceptionClass->name.str() : "") << " ("
            << (message != NULL ? vm.stringValue(message->object) : "") << ")\n";
