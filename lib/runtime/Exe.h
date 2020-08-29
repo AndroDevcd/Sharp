@@ -32,8 +32,8 @@
 #define data_symbol 0x1f
 #define data_byte 0x05
 #define EXE_BYTE_CHUNK 4
-#define min_file_vers 4
-#define file_vers 4
+#define min_file_vers 5
+#define file_vers 5
 #define BUILD_VERS versions.ALPHA
 #define HEADER_SIZE 0xc
 

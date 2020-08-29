@@ -9,7 +9,7 @@
 
 
 #define progname "sharpc"
-#define progvers "0.2.805"
+#define progvers "0.2.9"
 
 int _bootstrap(int argc, const char* argv[]);
 bool startsWith(string &str, string prefix);

@@ -26,20 +26,28 @@ Any other compatibility issues/changes will be otherwise noted in the release no
 ##### Version 0.2.9 (June 19, 2020)
     # Bug Fixes
         * Several seg faults fixed
-        * Function pointers are no longer compatible with object type
+        * Function pointers are no longer compatible with object types
         * Huge ammount of compiler code generation bugs have been fixed 
+        * Several code optimizer bugs have been fixed in regards to if statements
 
     # QoL Improvements
         * Significantly improved Garbage collector ~2x gain in performance
+        * Improved task scheduling api for faster and more efficent scheduling
+        * Increased stability in the multithreadding system
+        * Several internal memory leaks fixed
         
-
     # New Additions
         * 32bit operating system support offically added
         * 'is' keyword added for dynamic runtime type checking
+        * wait & notify system added for inter-thread communication
+        * New Sharp native bridge added to allow for interfacing with c++
 
     # Known Issues
         * JIT is not currently supported on any platform
         * The Profiler is not supported
+
+    runtime version: 2.6.0
+    compiler version: 0.2.9
 
     Backwards compatibility support tested Version: (n/a)
     

@@ -13,7 +13,7 @@ void error(string message);
 
 #define progname "sharp"
 #define rev "r6"
-#define progvers "2.5.0" rev
+#define progvers "2.6.0" rev
 
 #ifdef SHARP_PROF_
 enum profilerSort {

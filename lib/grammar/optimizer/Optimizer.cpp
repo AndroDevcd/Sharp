@@ -413,7 +413,16 @@ void Optimizer::optimizeRedundantLocalPush() {
             case Opcode::MOVL: {
 
                 if((i + 1) < code.ir32.size()) {
-                    if (GET_OP(code.ir32.get(i + 1)) == Opcode::PUSHOBJ) {
+                    if (GET_OP(code.ir32.get(i + 1)) == Opcode::PUSHOBJ
+                        && !(GET_OP(code.ir32.get(i + 2)) == Opcode::JNE
+                             || GET_OP(code.ir32.get(i + 2)) == Opcode::JE
+                             || GET_OP(code.ir32.get(i + 2)) == Opcode::JMP)) {
+                        if(i - 1 > 0 && (GET_OP(code.ir32.get(i - 1)) == Opcode::SKPE
+                                         || GET_OP(code.ir32.get(i - 1)) == Opcode::SKNE
+                                         || GET_OP(code.ir32.get(i - 1)) == Opcode::SKIP)) {
+                            continue;
+                        }
+
                         Int frameAddress = GET_Da(code.ir32.get(i));
                         shiftAddresses(1, i);
                         code.ir32.removeAt(i);
@@ -1182,7 +1191,7 @@ void Optimizer::optimize() {
         if(currentMethod->fnType != fn_delegate) {
             preCodebaseSize += currentMethod->data.code.size();
             optimizeRedundantMovr();
-            optimizeLocalVarInit();
+            optimizeLocalVarInit(); // good
             optimizeLocalStackPush();
             optimizeLocalVariableIncrement();
             optimizeRedundantIntegerPush();
@@ -1190,7 +1199,7 @@ void Optimizer::optimize() {
             optimizeRedundantLocalPop();
             optimizeEbxReturn();
             optimizeNullCheck();
-            optimizeNot();
+            optimizeNot(); // good
             optimizeRedundantEbxStore();
             optimizeTNE();
             optimizeNumericStore();
