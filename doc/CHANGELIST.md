@@ -27,9 +27,11 @@ Any other compatibility issues/changes will be otherwise noted in the release no
     # Bug Fixes
         * Several seg faults fixed
         * Function pointers are no longer compatible with object type
+        * Huge ammount of compiler code generation bugs have been fixed 
 
     # QoL Improvements
-        * 
+        * Significantly improved Garbage collector ~2x gain in performance
+        
 
     # New Additions
         * 32bit operating system support offically added
