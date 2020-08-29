@@ -1,0 +1,201 @@
+mod main;
+
+import std.math;
+
+alias list<neuron> as layer;
+
+class connection {
+   weight : var;
+   delta : var;
+}
+
+class neuron {
+    neuron(n_outputs: var, n_index: var) {
+       for(c := 0; c < n_outputs; ++c) {
+          weights.add(new connection());
+          weights.last().weight = rand();
+       }
+
+       index = n_index;
+    }
+
+    def feed_forward(prev_layer: layer) {
+       sum := 0;
+
+       for(n := 0; n < prev_layer.size(); n++) {
+         sum += prev_layer[n].output * prev_layer[n].weights[index].weight;
+       }
+
+       output = activate(sum);
+    }
+
+    def activate(sum: var) : var {
+      // sigmoid
+       return tanh(sum);
+    }
+
+    def calc_derivative(x : var) : var {
+       return 1.0 - x * x;
+    }
+
+    def calc_output_gradients(target_val: var) {
+       delta := target_val - output;
+       m_gradient = delta * calc_derivative(output);
+    }
+
+    def calc_hidden_gradients(next_layer : layer) {
+       dow := sum_dow(next_layer);
+       m_gradient = dow * calc_derivative(output);
+    }
+
+    def sum_dow(next_layer: layer) : var {
+       sum := 0;
+
+       for(n := 0; n < next_layer.size() - 1; ++n) {
+          sum += weights[n].weight * next_layer[n].m_gradient;
+       }
+
+       return sum;
+    }
+
+    def update_input_weights(prev_layer: layer) {
+       for(n := 0; n < prev_layer.size(); ++n) {
+          neuron := prev_layer[n];
+          old_delta_weight := neuron.weights[index].delta;
+
+          new_delta_weight :=
+              eta
+              * neuron.output
+              * m_gradient
+              * alpha
+              * old_delta_weight;
+          neuron.weights[index].delta = new_delta_weight;
+          neuron.weights[index].weight = neuron.weights[index].weight + new_delta_weight;
+       }
+    }
+
+    output : var;
+    weights := new list<connection>();
+    index : var;
+    m_gradient: var;
+    static eta : var = 0.25;
+    static alpha : var = 0.5;
+}
+
+class net {
+   net(topology: list<var>) {
+      layer_count := topology.size();
+      for(layer_num := 0; layer_num < layer_count; layer_num++) {
+         layers.add(new layer());
+
+         num_outputs := layer_num == layer_count - 1 ? 0 : topology[layer_num + 1];
+         for(neuron_num := 0; neuron_num <= topology[layer_num]; ++neuron_num) {
+            layers.last().add(new neuron(num_outputs, neuron_num));
+         }
+
+         layers.last().last().output = 1;
+      }
+   }
+
+   def feed_forward(input_vals: list<var>) {
+      for(i := 0; i < input_vals.size(); i++) {
+         layers[0][i].output = input_vals[i];
+      }
+
+      for(layer_num := 1; layer_num < layers.size(); layer_num++) {
+        prev_layer := layers[layer_num - 1];
+
+        for(n := 0; n < layers[layer_num].size() - 1; n++) {
+           layers[layer_num][n].feed_forward(prev_layer);
+        }
+      }
+   }
+
+   def back_prop(target_vals: list<var>) {
+       output_layer := layers.last();
+       m_error := 0;
+
+       for(n := 0; n < output_layer.size() - 1; ++n) {
+          delta := target_vals[n] - output_layer[n].output;
+          m_error += delta * delta;
+       }
+
+       m_error /= output_layer.size() - 1;
+       m_error = sqrt(m_error);
+
+       m_recent_average_error =
+           (m_recent_average_error * m_recent_average_smoothing_factor + m_error)
+             / (m_recent_average_smoothing_factor + 1.0);
+
+       for(n := 0; n < output_layer.size() - 1; ++n) {
+          output_layer[n].calc_output_gradients(target_vals[n]);
+       }
+
+       for(layer_num := layers.size() - 2; layer_num > 0; --layer_num) {
+          hidden_layer := layers[layer_num];
+          next_layer := layers[layer_num + 1];
+
+          for(n := 0; n < hidden_layer.size(); ++n) {
+             hidden_layer[n].calc_hidden_gradients(next_layer);
+          }
+       }
+
+       for(layer_num := layers.size() - 1; layer_num > 0; --layer_num) {
+          layer := layers[layer_num];
+          prev_layer := layers[layer_num - 1];
+
+          for(n := 0; n < layer.size() - 1; ++n) {
+             layer[n].update_input_weights(prev_layer);
+          }
+       }
+   }
+
+   def get_results(result_vals: list<var>) {
+      result_vals.clear();
+
+      for(n := 0; n < layers.last().size() - 1; ++n) {
+         result_vals.add(layers.last()[n].output);
+      }
+   }
+
+   layers: list<layer> = new list<layer>();
+   m_error : var;
+   m_recent_average_error: var;
+   m_recent_average_smoothing_factor: var = 100.0;
+}
+
+def main() {
+   set_seed(utc_mills_time() >> 4);
+   string.fmt('L');
+   topology := new list<var>();
+   topology.add(2);
+   topology.add(2);
+   topology.add(1);
+   neural_net := new net(topology);
+
+   for(i := 595500; i >= 0; i--) {
+      input_data := new list<var>();
+      target_data := new list<var>();
+      result_vals := new list<var>();
+      n1 := round(rand());
+      n2 := round(rand());
+      t := n1 ^ n2;
+
+      target_data.add(t);
+      input_data.add(n1);
+      input_data.add(n2);
+      neural_net.feed_forward(input_data);
+      neural_net.get_results(result_vals);
+
+      if(i > 595000) {
+          print("results: ");
+          println(result_vals.get_elements());
+      }
+      neural_net.back_prop(target_data);
+
+      if(i > 595000) {
+          println("recent average error: ${neural_net.m_recent_average_error}");
+      }
+   }
+
+}

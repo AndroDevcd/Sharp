@@ -36,17 +36,17 @@ void Object::castObject(int64_t classPtr) {
 
     if(type->guid != base->guid && !base->isClassRelated(type)) {
         // validate we have all our interfaces checked
-        for(int i = 0; i < base->interfaceCount; i++) {
-            ClassObject* _interface = base->interfaces[i];
-            if(_interface->guid==type->guid || _interface->isClassRelated(type))
-                return;
-        }
+        while (base != NULL) {
+            for(int i = 0; i < base->interfaceCount; i++) {
+                ClassObject* _interface = base->interfaces[i];
+                if(_interface->guid==type->guid || _interface->isClassRelated(type))
+                    return;
+            }
 
-        ClassObject* super = base->super;
-        while (super != NULL) {
-            if(type->guid == super->guid)
+
+            if(type->guid == base->guid)
                 return;
-            super = super->super;
+            base = base->super;
         }
 
         stringstream ss;

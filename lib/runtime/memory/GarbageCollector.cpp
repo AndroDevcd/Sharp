@@ -412,7 +412,7 @@ SharpObject* GarbageCollector::sweep(SharpObject *object, SharpObject *prevObj) 
     return NULL;
 }
 
-SharpObject *GarbageCollector::newObject(int64_t size) {
+SharpObject *GarbageCollector::newObject(int64_t size, unsigned short ntype) {
     if(size<=0)
         return nullptr;
 
@@ -420,6 +420,7 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
     object->init(size, _stype_var);
 
     object->HEAD = (double*)__calloc(size, sizeof(double));
+    object->ntype = ntype % 9;
 
     /* track the allocation amount */
     GUARD(mutex);
@@ -430,7 +431,7 @@ SharpObject *GarbageCollector::newObject(int64_t size) {
     return object;
 }
 
-SharpObject *GarbageCollector::newObjectUnsafe(int64_t size) {
+SharpObject *GarbageCollector::newObjectUnsafe(int64_t size, unsigned short ntype) {
     if(size<=0)
         return nullptr;
 
@@ -439,7 +440,9 @@ SharpObject *GarbageCollector::newObjectUnsafe(int64_t size) {
         object->init(size, _stype_var);
 
         object->HEAD = (double *) calloc(size, sizeof(double));
+
         if(object->HEAD != NULL) {
+            object->ntype = ntype % 9;
             SET_TYPE(object->info, _stype_var);
 
             /* track the allocation amount */
@@ -473,7 +476,7 @@ SharpObject *GarbageCollector::newObject(ClassObject *k, bool staticInit) {
                  */
                 if(k->fields[fieldAddress].type <= VAR && !k->fields[fieldAddress].isArray) {
                     if(!staticInit || (staticInit && IS_STATIC(k->fields[fieldAddress].flags))) {
-                        object->node[i] = newObject(1);
+                        object->node[i] = newObject(1, k->type < FNPTR ? k->type : NTYPE_VAR);
                     }
                 }
 
@@ -511,7 +514,7 @@ SharpObject *GarbageCollector::newObjectUnsafe(ClassObject *k, bool staticInit) 
                          */
                         if (k->fields[fieldAddress].type <= VAR && !k->fields[fieldAddress].isArray) {
                             if (!staticInit || (staticInit && IS_STATIC(k->fields[fieldAddress].flags))) {
-                                object->node[i] = newObjectUnsafe(1);
+                                object->node[i] = newObjectUnsafe(1, k->type < FNPTR ? k->type : NTYPE_VAR);
                             }
                         }
 
@@ -576,7 +579,7 @@ SharpObject *GarbageCollector::newObjectArray(int64_t size, ClassObject *k) {
 
 void GarbageCollector::createStringArray(Object *object, runtime::String& str) {
     if(object != nullptr) {
-        *object = newObject(str.len);
+        *object = newObject(str.len, _INT8);
 
         if(object->object != NULL) {
             double *array = object->object->HEAD;

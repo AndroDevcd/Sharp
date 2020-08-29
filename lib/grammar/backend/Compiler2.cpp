@@ -1937,7 +1937,7 @@ void Compiler::compileAssemblyInstruction(CodeHolder &code, Ast *branch, string 
     } else if(opcode == "hlt") {
         code.addIr(OpBuilder::hlt());
     } else if(opcode == "newVarArray") {
-        code.addIr(OpBuilder::newVarArray(compileAsmRegister(branch->getSubAst(ast_assembly_register))));
+        code.addIr(OpBuilder::newVarArray(compileAsmRegister(branch->getSubAst(ast_assembly_register)), compileAsmLiteral(branch->getSubAst(ast_assembly_literal))));
     } else if(opcode == "cast") {
         code.addIr(OpBuilder::cast(compileAsmRegister(branch->getSubAst(ast_assembly_register))));
     } else if(opcode == "mov8") {

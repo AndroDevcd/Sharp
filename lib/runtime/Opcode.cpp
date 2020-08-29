@@ -40,8 +40,8 @@ opcode_instr OpBuilder::hlt() {
     return SET_Ei(tmpInstr, HLT);
 }
 
-opcode_instr OpBuilder::newVarArray(_register inRegister) {
-    return SET_Di(tmpInstr, NEWARRAY, inRegister, POSITIVE);
+opcode_instr OpBuilder::newVarArray(_register inRegister, unsigned short ntype) {
+    return SET_Ci(tmpInstr, NEWARRAY, inRegister, POSITIVE, ntype, POSITIVE);
 }
 
 opcode_instr OpBuilder::cast(_register outRegister) {
@@ -657,4 +657,13 @@ opcode_instr OpBuilder::ldc(_register outRegister, opcode_arg address) {
 
 opcode_instr OpBuilder::neg(_register outRegister, _register inRegister) {
     return SET_Ci(tmpInstr, NEG, outRegister, POSITIVE, inRegister, POSITIVE);
+}
+
+opcode_instr* OpBuilder::is(_register outRegister, opcode_arg type) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+
+    instruction_Buffer[0] = SET_Di(tmpInstr, IS, outRegister, POSITIVE);
+    instruction_Buffer[1] = type;
+
+    return instruction_Buffer;
 }

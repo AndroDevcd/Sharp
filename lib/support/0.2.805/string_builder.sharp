@@ -350,7 +350,7 @@ class string_builder : loopable<_int8> {
         return str;
     }
 
-    private def bounds_error(pos : var) : error {
+    private def bounds_error(pos : var) : bounds_except {
         return new bounds_except("Index out of bounds exception at: $pos with size of: ${cursor + 1}");
     }
 

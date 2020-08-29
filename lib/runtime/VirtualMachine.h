@@ -87,6 +87,7 @@ public:
 
     static void fillMethodCall(Method* func, Int pc, stringstream &ss);
     static void __snprintf(int cfmt, double val, int precision);
+    double isType(Object *obj, int32_t type);
 
     Library* getLib(std::string name);
     int freeLib(std::string name);

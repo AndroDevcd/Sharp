@@ -3,21 +3,11 @@ mod app;
 import std.io;
 import std.io.task;
 import platform;
-import platform;
 
-class foo {
-   x : var;
-}
-
-def work() {
-//...
-  throw error("");
-}
-
-native def foo_fuc(x : foo);
 
 def main(args: string[]) {
-   load_library("foo");
-   link("foo", "foo");
-   foo();
+
+    arry := new _int8[10];
+    o : object = arry;
+    arry = o as _int8[];
 }

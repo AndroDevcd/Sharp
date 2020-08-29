@@ -41,6 +41,16 @@
 #include <dlfcn.h>
 #endif
 
+#define _INT8_TYPE 0
+#define _INT16_TYPE 1
+#define _INT32_TYPE 2
+#define _INT64_TYPE 3
+#define _UINT8_TYPE 4
+#define _UINT16_TYPE 5
+#define _UINT32_TYPE 6
+#define _UINT64_TYPE 7
+#define VAR_TYPE 8
+
 
 using namespace std;
 
@@ -117,7 +127,7 @@ typedef object (*_staticClassInstance)(const char* name);
 typedef void (*_inc_sp)();
 typedef double* (*_getspNumAt)(int32_t spOffset);
 typedef object (*_getspObjAt)(int32_t spOffset);
-typedef object (*_newVarArray)(int32_t);
+typedef object (*_newVarArray)(int32_t, unsigned short);
 typedef object (*_newClass)(const char* name);
 typedef object (*_newObjArray)(int32_t);
 typedef object (*_newClassArray)(const char* name, int32_t);

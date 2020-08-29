@@ -209,4 +209,60 @@ class vm {
 
         return result;
     }
+
+    static def random_int() : var {
+        result: var;
+
+        asm {
+           int 0x19
+           smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
+    static def random_int(min: var, max : var) : var {
+       result: var;
+
+       asm {
+          loadl ebx, {min}
+          loadl egx, {max}
+          int 0x3f
+          smovr2 {result}, ebx
+       }
+
+       return result;
+    }
+
+    static def random_double() : var {
+        result: var;
+
+        asm {
+           int 0x40
+           smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
+    static def random_double(min: var, max : var) : var {
+       result: var;
+
+       asm {
+          loadl ebx, {min}
+          loadl egx, {max}
+          int 0x41
+          smovr2 {result}, ebx
+       }
+
+       return result;
+    }
+
+    static def random_seed(seed : var) {
+       asm {
+          loadl adx, {seed}
+          int 0x42
+       }
+    }
+
 }

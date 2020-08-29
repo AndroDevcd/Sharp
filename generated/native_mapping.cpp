@@ -7,7 +7,7 @@ using namespace snb_api;
 extern "C" {
 #endif
 
-EXPORTED uint32_t snb_link_proc(const char* funcName) {
+EXPORTED uint32_t snb_link_proc(const char* funcName, int paramCount) {
 	string name = funcName;
 
 	if(name == "common.gpio#__srt_global.setup") {  return 3056;  }

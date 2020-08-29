@@ -499,10 +499,6 @@ void Thread::term() {
         std::free(callStack); callStack = NULL;
     }
 
-    if(rand != NULL) {
-        delete rand; rand = NULL;
-    }
-
 #ifdef SHARP_PROF_
     tprof->free();
     delete tprof;
@@ -650,7 +646,7 @@ void Thread::exit() {
                     cout << vm.stringValue(data->object);
                 }
             }
-        } else
+        }
 
         cout << endl << (exceptionClass != NULL ? exceptionClass->name.str() : "") << " ("
            << (message != NULL ? vm.stringValue(message->object) : "") << ")\n";
@@ -765,7 +761,7 @@ void printStack() {
 #endif
 
 
-string getVarCastExceptionMsg(DataType varType, bool isArray) {
+string dataTypeToString(DataType varType, bool isArray) {
     string type;
     switch(varType) {
         case _UINT8:
@@ -797,7 +793,14 @@ string getVarCastExceptionMsg(DataType varType, bool isArray) {
             break;
     }
     stringstream ss;
-    ss << "illegal cast to "<< type << (isArray ? "[]" : "");
+    ss << type << (isArray ? "[]" : "");
+    return ss.str();
+}
+
+string getVarCastExceptionMsg(DataType varType, bool isArray, SharpObject *obj) {
+
+    stringstream ss;
+    ss << "illegal cast to `"<< dataTypeToString(varType, isArray) << "` from type `" << dataTypeToString(obj->ntype == 8 ? VAR : (DataType)obj->ntype, obj->size > 1) << "`";
     return ss.str();
 }
 
@@ -844,7 +847,7 @@ void Thread::exec() {
     try {
         for (;;) {
             top:
-                if(current->address == 3045 && (PC(this) >= 3)) { // tutoriall!!!!!!!!!!!!!!!!!!
+                if(current->address == 2276 && (PC(this) >= 4)) { // tutoriall!!!!!!!!!!!!!!!!!!
                     Int i = 0;
                 }
                 DISPATCH();
@@ -891,16 +894,17 @@ void Thread::exec() {
             NEWARRAY: // tested
                 STACK_CHECK
                 (++sp)->object =
-                        gc.newObject(registers[GET_Da(*pc)]);
+                        gc.newObject(registers[GET_Ca(*pc)], GET_Cb(*pc));
                 _brh
             CAST:
                 CHECK_NULL(ptr->castObject(registers[GET_Da(*pc)]);)
                 _brh
             VARCAST:
                 CHECK_NULL2(
-                        if(TYPE(ptr->object->info) != _stype_var) {
+                        result = GET_Ca(*pc) < FNPTR ? GET_Ca(*pc) : NTYPE_VAR; // ntype
+                        if(!(TYPE(ptr->object->info) == _stype_var && ptr->object->ntype == result)) {
                             throw Exception(vm.ClassCastExcept,
-                                    getVarCastExceptionMsg((DataType)GET_Ca(*pc), GET_Cb(*pc)));
+                                    getVarCastExceptionMsg((DataType)GET_Ca(*pc), GET_Cb(*pc), ptr->object));
                         }
                 )
                 _brh
@@ -1347,6 +1351,9 @@ void Thread::exec() {
             LDC: // tested
                 registers[GET_Ca(*pc)]=vm.constants[GET_Cb(*pc)];
                 _brh
+            IS:
+                registers[GET_Da(*pc)] = vm.isType(ptr, *(pc+1));
+                _brh_inc(2)
 
 
 

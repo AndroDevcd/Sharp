@@ -1041,7 +1041,8 @@ string ExeBuilder::codeToString(Method* fun) {
             case Opcode::NEWARRAY:
             {
                 ss<<"newarry ";
-                ss<< registerToString(GET_Da(opcodeData));
+                ss<< registerToString(GET_Ca(opcodeData)) << ": ";
+                ss<< GET_Cb(opcodeData);
 
                 break;
             }
@@ -1956,6 +1957,14 @@ string ExeBuilder::codeToString(Method* fun) {
                 ss<< " -> ";
                 ss<< registerToString(GET_Bc(opcodeData));
 
+                break;
+            }
+            case Opcode::IS:
+            {
+                ss<<"is ";
+                ss<< registerToString(GET_Da(opcodeData));
+                ss<< " -> ";
+                ss<< allClasses.get(code.ir32.get(++x))->fullName;
                 break;
             }
             default:

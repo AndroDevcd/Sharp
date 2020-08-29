@@ -3335,6 +3335,9 @@ void Compiler::compileBinaryExpression(Expression* expr, Ast* ast) {
     RETAIN_TYPE_INFERENCE(true)
     compileExpression(&leftExpr, ast->getSubAst(0));
 
+    if(ast->getSubAst(1)->line >= 3000) {
+        int i = 3000;
+    }
     if(leftExpr.utype->getType() == utype_function_ptr
        || (leftExpr.utype->getType() == utype_field && ((Field*)leftExpr.utype->getResolvedType())->type == FNPTR)) {
         if(leftExpr.utype->getType() == utype_field) {
@@ -3463,7 +3466,7 @@ void Compiler::compileVectorExpression(Expression* expr, Ast* ast, Utype *compar
                 .addIr(OpBuilder::movi(array.size(), EBX));
 
         if(expr->type == exp_var)
-            expr->utype->getCode().addIr(OpBuilder::newVarArray(EBX));
+            expr->utype->getCode().addIr(OpBuilder::newVarArray(EBX, compareType->getResolvedType()->type < FNPTR ? compareType->getResolvedType()->type : 8));
         else if(expr->type == exp_class)
             expr->utype->getCode().addIr(OpBuilder::newClassArray(EBX, expr->utype->getClass()->address));
         else if(expr->type == exp_object)
@@ -3537,7 +3540,7 @@ void Compiler::compileNewArrayExpression(Expression *expr, Ast *ast, Utype *arra
     expr->utype->getCode().inject(index.utype->getCode().getInjector(ebxInjector));
 
     if(expr->type == exp_var)
-        expr->utype->getCode().addIr(OpBuilder::newVarArray(EBX));
+        expr->utype->getCode().addIr(OpBuilder::newVarArray(EBX, arrayType->getResolvedType()->type < FNPTR ? arrayType->getResolvedType()->type : 8));
     else if(expr->type == exp_class)
         expr->utype->getCode().addIr(OpBuilder::newClassArray(EBX, expr->utype->getClass()->address));
     else if(expr->type == exp_object)
@@ -3986,6 +3989,8 @@ void Compiler::compilePostAstExpressions(Expression *expr, Ast *ast, long startP
                 compilePostIncExpression(expr, false, ast->getSubAst(i));
             else if(ast->getSubAst(i)->getType() == ast_cast_e)
                 compileCastExpression(expr, false, ast->getSubAst(i));
+            else if(ast->getSubAst(i)->getType() == ast_is_e)
+                compileIsExpression(expr, false, ast->getSubAst(i));
             else if(ast->getSubAst(i)->getType() == ast_dot_not_e || ast->getSubAst(i)->getType() == ast_dotnotation_call_expr) {
                 if(expr->utype->getClass()) {
 
@@ -4456,6 +4461,7 @@ void Compiler::compileArrayExpression(Expression* expr, Ast* ast) {
 
                 validateAccess(overload, ast);
                 expr->utype->copy(overload->utype);
+                expr->type = utypeToExpressionType(expr->utype);
 
                 expr->utype->getCode().inject(stackInjector);
                 pushParametersToStackAndCall(ast, overload, params, expr->utype->getCode());
@@ -5006,6 +5012,144 @@ void Compiler::compileSizeOfExpression(Expression* expr, Ast* ast) {
     compilePostAstExpressions(expr, ast, 1);
 }
 
+void Compiler::compileIsExpression(Expression* expr, bool compileExpr, Ast* ast) {
+    Expression isExpr;
+    Utype *utype;
+
+    {
+        RETAIN_TYPE_INFERENCE(false)
+        RETAIN_BLOCK_TYPE(CLASS_SCOPE)
+        utype = compileUtype(ast->getSubAst(ast_utype));
+        RESTORE_TYPE_INFERENCE()
+        RESTORE_BLOCK_TYPE()
+    }
+
+    if(compileExpr) {
+        RETAIN_TYPE_INFERENCE(true)
+        compileExpression(&isExpr, ast->getSubAst(ast_expression));
+        RESTORE_TYPE_INFERENCE()
+    }
+    else {
+        isExpr.ast = ast;
+        isExpr.utype->copy(expr->utype);
+        isExpr.type = utypeToExpressionType(expr->utype);
+
+        // we need to transfer the left side of the expression to the castExpression
+        isExpr.utype->getCode().copyInjectors(expr->utype->getCode());
+        isExpr.utype->getCode().inject(expr->utype->getCode());
+        expr->utype->getCode().free();
+    }
+
+    expr->ast = ast;
+    expr->utype->copy(varUtype);
+    expr->type = utypeToExpressionType(varUtype);
+
+//    expr->utype->getCode().inject(isExpr.utype->getCode());
+    if(isExpr.type == exp_var) {
+        if(isExpr.utype->getType() != utype_field && isExpr.utype->equals(utype)) {
+            expr->utype->getCode().addIr(OpBuilder::movi(1, EBX));
+        } else {
+            if(isExpr.utype->getType() == utype_field) {
+                Field *field = (Field*)isExpr.utype->getResolvedType();
+
+                if(!field->local)
+                   compileFieldType(field);
+
+                if(field->utype->equals(utype)) {
+                    expr->utype->getCode().addIr(OpBuilder::movi(1, EBX));
+                } else {
+                    expr->utype->getCode().addIr(OpBuilder::movi(0, EBX));
+                }
+            } else
+               expr->utype->getCode().addIr(OpBuilder::movi(0, EBX));
+        }
+
+        expr->utype->getCode().getInjector(stackInjector)
+                .addIr(OpBuilder::rstore(EBX));
+    } else if(isExpr.utype->getResolvedType()->type == OBJECT) {
+        isExpr.utype->getCode().inject(ptrInjector);
+        expr->utype->getCode().inject(isExpr.utype->getCode());
+
+        if(utype->getResolvedType()->isVar()) {
+            if(utype->isArray()) {
+                switch(utype->getResolvedType()->type) {
+                    case _INT8:
+                        expr->utype->getCode()
+                                .addIr(OpBuilder::is(EBX, -1));
+                        break;
+                    case _INT16:
+                        expr->utype->getCode()
+                                .addIr(OpBuilder::is(EBX, -2));
+                        break;
+                    case _INT32:
+                        expr->utype->getCode()
+                                .addIr(OpBuilder::is(EBX, -3));
+                        break;
+                    case _INT64:
+                        expr->utype->getCode()
+                                .addIr(OpBuilder::is(EBX, -4));
+                        break;
+                    case _UINT8:
+                        expr->utype->getCode()
+                                .addIr(OpBuilder::is(EBX, -5));
+                        break;
+                    case _UINT16:
+                        expr->utype->getCode()
+                                .addIr(OpBuilder::is(EBX, -6));
+                        break;
+                    case _UINT32:
+                        expr->utype->getCode()
+                                .addIr(OpBuilder::is(EBX, -7));
+                        break;
+                    case _UINT64:
+                        expr->utype->getCode()
+                                .addIr(OpBuilder::is(EBX, -8));
+                        break;
+                    case VAR:
+                        expr->utype->getCode()
+                                .addIr(OpBuilder::is(EBX, -9));
+                        break;
+                    case FNPTR:
+                        expr->utype->getCode().addIr(OpBuilder::movi(0, EBX));
+                        break;
+
+                }
+
+                expr->utype->getCode().getInjector(stackInjector)
+                        .addIr(OpBuilder::rstore(EBX));
+            } else {
+                expr->utype->getCode().free();
+                expr->utype->getCode().addIr(OpBuilder::movi(0, EBX));
+
+                expr->utype->getCode().getInjector(stackInjector)
+                        .addIr(OpBuilder::rstore(EBX));
+                createNewWarning(GENERIC, __WGENERAL, ast->line, ast->col, "expression will always result to false");
+            }
+        } else if(utype->getClass()){
+            expr->utype->getCode()
+                    .addIr(OpBuilder::is(EBX, utype->getClass()->address));
+
+            expr->utype->getCode().getInjector(stackInjector)
+                    .addIr(OpBuilder::rstore(EBX));
+        } else {
+            return this->errors->createNewError(GENERIC, ast->line, ast->col,
+                                                "expression of type `" + isExpr.utype->toString() + "` cannot be used on `object` type with the `is` keyword");
+        }
+    } else if(isExpr.type == exp_class) {
+       if(utype->getClass() && isExpr.utype->isRelated(utype)) {
+           expr->utype->getCode().addIr(OpBuilder::movi(1, EBX));
+       } else {
+           expr->utype->getCode().addIr(OpBuilder::movi(0, EBX));
+       }
+
+        expr->utype->getCode().getInjector(stackInjector)
+                .addIr(OpBuilder::rstore(EBX));
+    } else {
+        return this->errors->createNewError(GENERIC, ast->line, ast->col,
+                                            "expression of type `" + isExpr.utype->toString() + "` cannot be used on `is` keyword");
+    }
+}
+
 void Compiler::compilePrimaryExpression(Expression* expr, Ast* ast) {
     Ast* branch = ast->getSubAst(0);
 
@@ -5038,6 +5182,8 @@ void Compiler::compilePrimaryExpression(Expression* expr, Ast* ast) {
             return this->errors->createNewError(GENERIC, ast->line, ast->col, " unsupported array access not attached to object");
         case ast_lambda_function:
             return compileLambdaExpression(expr, branch);
+        case ast_is_e:
+            return compileIsExpression(expr, true, branch);
         default:
             return this->errors->createNewError(GENERIC, ast->line, ast->col,
                                                 "unexpected expression of type `" + Ast::astTypeToString(branch->getType()) + "` found");

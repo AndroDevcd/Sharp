@@ -5,7 +5,7 @@
 
 using namespace snb_api;
 
-scope_begin(std) 
+namespace (std)
 
 	void __srt_global(object $instance);
 	var_array snprintf(var& fmt, var& num, var& precision);
@@ -70,7 +70,8 @@ scope_begin(std, _enum_)
 	void _enum_3(object $instance);
 scope_end()
 
-scope_begin(std, throwable) 
+scope_begin(std, throwable)
+    import(std, exception);
 
 	void throwable(object $instance, _int8_array& message);
 	void throwable2(object $instance, object message);
@@ -3814,13 +3815,13 @@ scope_begin(std, integer$_int8$)
 	void integer2(object $instance);
 scope_end()
 
-scope_begin(std, loopable$_int8$) 
+scope_begin(std, loopable$_int8$)
 
 	_int8_array get_elements(object $instance);
 	void loopable(object $instance);
 scope_end()
 
-scope_begin(std, list$std_string$) 
+scope_begin(std, list$std_string$)  //list<string>
 
 	void list(object $instance);
 	void list2(object $instance, var& starting_capacity);

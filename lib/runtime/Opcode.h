@@ -82,7 +82,7 @@
 #define THREAD_STACK_CHECK2(self, stackSize, x)  if(((self->sp-self->dataStack)+stackSize) >= self->stackLimit || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(vm.StackOverflowExcept, "");
 
 #ifndef SHARP_PROF_
-#define _brh_NOINCREMENT HAS_SIGNAL DISPATCH();
+#define _brh_NOINCREMENT HAS_SIGNAL goto top; DISPATCH();
 #else
 #define _brh_NOINCREMENT HAS_SIGNAL irCount++; if(irCount == 0) overflow++; DISPATCH();
 #endif
@@ -234,7 +234,8 @@
             &&LDC,                                     \
             &&SMOVR_3,                        \
             &&NEG,                             \
-            &&EXP                               \
+            &&EXP,                               \
+            &&IS                                   \
         };
 
 typedef unsigned int opcode_instr;
@@ -381,7 +382,7 @@ public:
         static opcode_instr* movi(opcode_arg value, _register outRegister); // TODO: flatten this to 1 instruse ldc instead if addr > DA_MAX
         static opcode_instr ret(opcode_arg errState);
         static opcode_instr hlt();
-        static opcode_instr newVarArray(_register inRegister);
+        static opcode_instr newVarArray(_register inRegister, unsigned short ntype);
         static opcode_instr cast(_register outRegister);
         static opcode_instr mov8(_register outRegister, _register registerToCast);
         static opcode_instr mov16(_register outRegister, _register registerToCast);
@@ -495,6 +496,7 @@ public:
         static opcode_instr swap();
         static opcode_instr ldc(_register outRegister, opcode_arg address);
         static opcode_instr neg(_register outRegister, _register inRegister);
+        static opcode_instr* is(_register outRegister, opcode_arg type);
 
         static bool illegalParam(opcode_arg param, instr_class iclass, short argNum = 1);
         static uint8_t posNeg(opcode_arg data);

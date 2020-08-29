@@ -331,6 +331,7 @@ private:
     void compilePrimaryExpression(Expression* expr, Ast* ast);
     void compileCastExpression(Expression *expr, bool compileExpr, Ast *ast);
     void compileSizeOfExpression(Expression* expr, Ast* ast);
+    void compileIsExpression(Expression* expr, bool compileExpr, Ast* ast);
     void compileClassCast(Utype *utype, Expression *castExpr, Expression *outExpr);
     void compileUtypeClass(Expression* expr, Ast* ast);
     void compileNativeCast(Utype *utype, Expression *castExpr, Expression *outExpr);

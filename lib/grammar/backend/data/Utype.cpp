@@ -121,6 +121,9 @@ bool Utype::equals(Utype *utype) {
         if(utype->getMethod() != NULL && Compiler::simpleParameterMatch(getMethod()->params, utype->getMethod()->params)) {
             if((getMethod()->utype != NULL && utype->getMethod()->utype != NULL) ||
                (getMethod()->utype == NULL && utype->getMethod()->utype == NULL)) {
+                if(type == utype_function_ptr && isArray() && !utype->isArray())
+                    return false;
+
                 if(getMethod()->utype != NULL) {
                     return getMethod()->utype->equals(utype->getMethod()->utype);
                 } else
@@ -155,7 +158,7 @@ bool Utype::isRelated(Utype *utype) {
                 else return utype->nullType;
             } else {
                 if(utype->resolvedType->isVar())
-                    return utype->array;
+                    return utype->array && utype->resolvedType->type != FNPTR;
                 else
                     return utype->getResolvedType()->type <= CLASS;
             }

@@ -232,12 +232,6 @@ public class integer<native_type> {
         negative := false;
         len := s.size();
 
-        if(self is var) {
-
-        } else {
-
-        }
-
         if(s.at(0) == '-' ){
             negative = true;
             i = 1;

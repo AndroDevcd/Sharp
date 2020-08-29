@@ -23,6 +23,24 @@ Any other compatibility issues/changes will be otherwise noted in the release no
 
     Backwards compatibility support tested Version: ()
     
+##### Version 0.2.9 (June 19, 2020)
+    # Bug Fixes
+        * Several seg faults fixed
+        * Function pointers are no longer compatible with object type
+
+    # QoL Improvements
+        * 
+
+    # New Additions
+        * 32bit operating system support offically added
+        * 'is' keyword added for dynamic runtime type checking
+
+    # Known Issues
+        * JIT is not currently supported on any platform
+        * The Profiler is not supported
+
+    Backwards compatibility support tested Version: (n/a)
+    
 ##### Version 0.2.805 (June 19, 2020)
     # Bug Fixes
         * Major stability improvements

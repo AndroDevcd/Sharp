@@ -138,6 +138,7 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic
                 klass = klass->super;
                 goto search;
             }
+
             throw Exception(vm.RuntimeExcept, "delegate function has no subscribers");
         } else {
             throw Exception(vm.RuntimeExcept, "attempt to call delegate function on non class object");
@@ -362,14 +363,17 @@ void VirtualMachine::getFrameInfo(Object *frameInfo) {
                 vm.StackSate);
 
         if (frameInfo) {
-            Object *methods = frameInfo->object->node;
-            Object *pcList = frameInfo->object->node+1;
+            Object *methods = vm.resolveField("methods", frameInfo->object);
+            Object *pcList = vm.resolveField("pc", frameInfo->object);
 
             Int iter = 0;
             if (methods && pcList) {
                 Int size = (thread->calls + 1) < EXCEPTION_PRINT_MAX ? (thread->calls + 1) : EXCEPTION_PRINT_MAX + 1;
-                *methods = gc.newObject(size);
-                *pcList = gc.newObject(size);
+                Field *field = vm.StackSate->getfield("methods");
+                *methods = gc.newObject(size, field->type < FNPTR ? field->type : NTYPE_VAR);
+
+                field = vm.StackSate->getfield("pc");
+                *pcList = gc.newObject(size, field->type < FNPTR ? field->type : NTYPE_VAR);
 
                 if ((thread->calls + 1) < EXCEPTION_PRINT_MAX) {
 
@@ -509,8 +513,20 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         case OP_MATH:
             _64CMT=__cmath(_64EBX, _64EGX, (int)_64ECX);
             return;
-        case OP_RANDOM:
-            _64BMR= __crand((int)_64ADX);
+        case OP_RANDOM_INT:
+            _64EBX = randInt();
+            return;
+        case OP_RANDOM_DOUBLE:
+            _64EBX = randDouble();
+            return;
+        case OP_RANDOM_INT_RANGED:
+            _64EBX = randInt((Int)_64EBX, (Int)_64EGX);
+            return;
+        case OP_RANDOM_DOUBLE_RANGED:
+            _64EBX = randDouble(_64EBX, _64EGX);
+            return;
+        case OP_RANDOM_SEED:
+            setSeed(_64ADX);
             return;
         case OP_SYSTEM_EXE: {
             SharpObject* str = (thread_self->sp--)->object.object;
@@ -1212,6 +1228,8 @@ void VirtualMachine::locateBridgeAndCross(Method *nativeFun) {
                     nativeFun->bridge(nativeFun->linkAddr);
                     returnMethod(thread_self);
                 }
+
+                break;
             }
         }
     }
@@ -1249,4 +1267,33 @@ bool VirtualMachine::link(native_string &func, native_string &libame) {
     }
 
     return false;
+}
+
+double VirtualMachine::isType(Object *obj, int32_t type) {
+    if(obj && obj->object) {
+        if(TYPE(obj->object->info) == _stype_var) {
+            if (type == -1) { // _int8
+                return obj->object->ntype == 0;
+            } else if (type == -2) { // _int16
+                return obj->object->ntype == 1;
+            } else if (type == -3) { // _int32
+                return obj->object->ntype == 2;
+            } else if (type == -4) { // _int64
+                return obj->object->ntype == 3;
+            } else if (type == -5) { // _uint8
+                return obj->object->ntype == 4;
+            } else if (type == -6) { // _uint16
+                return obj->object->ntype == 5;
+            } else if (type == -7) { // _uint32
+                return obj->object->ntype == 6;
+            } else if (type == -8) { // _uint64
+                return obj->object->ntype == 7;
+            } else if (type == -9) { // var
+                return obj->object->ntype == 8;
+            }
+        } else {
+            return CLASS(obj->object->info) == type;
+        }
+    } else throw Exception(vm.NullptrExcept, "");
+    return 0;
 }

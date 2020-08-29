@@ -24,11 +24,14 @@ enum sharp_type
     _stype_none = 0x4
 };
 
+#define NTYPE_VAR 8
+
 struct SharpObject
 {
     void init(uInt size, sharp_type type, CollectionGeneration generation = gc_young)
     {
         info=0;
+        ntype=0;
         HEAD=NULL;
         this->size=size;
         SET_INFO(info, 0, type, generation); /* generation young */
@@ -39,6 +42,7 @@ struct SharpObject
     void init(uInt size, ClassObject* k, CollectionGeneration generation = gc_young)
     {
         info=0;
+        ntype=0;
         HEAD=NULL;
         this->size=size;
         new (&refCount) std::atomic<uint32_t>();
@@ -59,6 +63,7 @@ struct SharpObject
     uint32_t size;
     std::atomic<uint32_t> refCount;
     unsigned short monitor : 1; // used for the wait and notify() system
+    unsigned short ntype : 4; // the type of number this object represents {var, _int32, _int64, etc}
 
     /**
      * Information package

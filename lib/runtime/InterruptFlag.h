@@ -31,7 +31,7 @@ enum interruptFlag
        OP_THREAD_ARGS     = 0x16,
   OP_THREAD_SET_CURRENT   = 0x17,
               OP_MATH     = 0x18,
-            OP_RANDOM     = 0x19,
+        OP_RANDOM_INT     = 0x19,
         OP_SYSTEM_EXE     = 0x1a,
              OP_KBHIT     = 0x1b,
              OP_YIELD     = 0x1c,
@@ -69,6 +69,10 @@ enum interruptFlag
               OP_WAIT     = 0x3c,
             OP_NOTIFY     = 0x3d,
         OP_NOTIFY_FOR     = 0x3e,
+ OP_RANDOM_INT_RANGED     = 0x3f,
+      OP_RANDOM_DOUBLE     = 0x40,
+ OP_RANDOM_DOUBLE_RANGED     = 0x41,
+       OP_RANDOM_SEED     = 0x42,
 };
 
 #endif //SHARP_INTERRUPTFLAG_H

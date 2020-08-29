@@ -48,7 +48,6 @@ public:
         terminated = false;
         priority = THREAD_PRIORITY_NORM;
         name.init();
-        rand = new Random();
         main = NULL;
         exitVal = 0;
         signal = tsig_empty;
@@ -154,7 +153,6 @@ public:
     int exitVal;
     Object currentThread, args;
     Object exceptionObject;
-    Random* rand;
 
 #ifdef WIN32_
     HANDLE thread;

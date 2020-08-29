@@ -21,7 +21,7 @@ void copy() {
         }
 
         if(TYPE(oldArray->info) == _stype_var) { // var[]
-            *arry = gc.newObject(copyLen);
+            *arry = gc.newObject(copyLen, oldArray->ntype);
 
             INC_REF(oldArray)
             for (Int i = start; i < end; i++) {
@@ -33,7 +33,7 @@ void copy() {
                 if(IS_CLASS(oldArray->info)) {
                     *arry = gc.newObjectArray(copyLen, &vm.classes[CLASS(oldArray->info)]);
                 } else
-                    *arry = gc.newObject(copyLen);
+                    *arry = gc.newObjectArray(copyLen);
 
                 INC_REF(oldArray)
                 for (Int i = start; i < end; i++) {
@@ -113,7 +113,7 @@ void invert() {
         if(oldArray->size <= 1) return;
 
         if(TYPE(oldArray->info) == _stype_var) { // var[]
-            *arry = gc.newObject(len);
+            *arry = gc.newObject(len, oldArray->ntype);
             Int iter = 0;
             for (Int i = (start + len) - 1; i >= start; i--) {
                 arry->object->HEAD[iter++] = oldArray->HEAD[i];
@@ -123,7 +123,7 @@ void invert() {
                 if(IS_CLASS(oldArray->info)) {
                     *arry = gc.newObjectArray(len, &vm.classes[CLASS(oldArray->info)]);
                 } else
-                    *arry = gc.newObject(len);
+                    *arry = gc.newObjectArray(len);
 
                 for (Int i = (start + len) - 1; i >= start; i--) {
                     arry->object->node[i] = oldArray->node[i];

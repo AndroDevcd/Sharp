@@ -20,16 +20,17 @@ double* getfpNumAt(int32_t fpOffset) {
     return &(thread_self->fp+fpOffset)->var;
 }
 
-object getField(object obj, const string& name){
+object getField(object obj, const char* name){
     Object *lastField = NULL, *tmp;
+    Int len = strlen(name);
     if(obj != NULL) {
         lastField = ((Object*)obj);
         stringstream fieldName;
-        for(long i = 0; i < name.size(); i++) {
+        for(long i = 0; i < len; i++) {
             if(name[i] != '.')
                 fieldName << name[i];
 
-            if(name[i] == '.' || (i + 1) >= name.size()){
+            if(name[i] == '.' || (i + 1) >= len){
                 string f = fieldName.str();
                 tmp = vm.resolveField(fieldName.str(), lastField->object);
                 if(tmp == NULL) {
@@ -76,7 +77,7 @@ int32_t setObject(object dest, object src) {
     } else return 1;
 }
 
-object staticClassInstance(const string& name) {
+object staticClassInstance(const char* name) {
     ClassObject *klass = vm.resolveClass(name);
     if(klass) {
         return &vm.staticHeap[klass->address];
@@ -110,10 +111,10 @@ object getspObjAt(int32_t spOffset) {
     return &(thread_self->sp+spOffset)->object;
 }
 
-object newVarArray(int32_t size) {
+object newVarArray(int32_t size, unsigned short ntype) {
     try {
         (thread_self->sp + 1)->object =
-                gc.newObject(size);
+                gc.newObject(size, ntype);
         return &(thread_self->sp + 1)->object;
     } catch(Exception &e) {
         sendSignal(thread_self->signal, tsig_except, 1);
@@ -121,7 +122,7 @@ object newVarArray(int32_t size) {
     }
 }
 
-object newClass(const string& name) {
+object newClass(const char* name) {
     try {
         ClassObject *klass = vm.resolveClass(name);
         if(klass) {
@@ -148,7 +149,7 @@ object newObjArray(int32_t size) {
     }
 }
 
-object newClassArray(const string &name, int32_t size) {
+object newClassArray(const char *name, int32_t size) {
     try {
         ClassObject *klass = vm.resolveClass(name);
         if(klass) {

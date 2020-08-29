@@ -64,7 +64,7 @@ void Exception::pushException() {
                 *stackTrace = gc.newObjectUnsafe(vm.StringClass);
                 Object *data = vm.resolveField("data", stackTrace->object);
                 if(data != NULL) {
-                    *data = gc.newObjectUnsafe(str.len);
+                    *data = gc.newObjectUnsafe(str.len, _INT8);
 
                     if (data->object != NULL) {
                         for (Int i = 0; i < str.len; i++) {

@@ -197,7 +197,7 @@ namespace snb_api {
     }
 
     void createVarArray(var_array &field, int32_t size) {
-        object newObj = newVarArray(size);
+        object newObj = newVarArray(size, VAR_TYPE);
 
         if(exceptionCheck()) {
             throw Exception(getExceptionObject(), "");

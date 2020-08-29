@@ -517,6 +517,7 @@ void parser::parseAssemblyInstruction(Ast *ast) {
     } else if(*peek(1)  == "newVarArray") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
+        parseAsmLiteral(branch);
     } else if(*peek(1)  == "cast") {
         expect(branch, peek(1)->getValue());
         parseRegister(branch);
@@ -2876,7 +2877,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
 
         branch->encapsulate(ast_self_e);
 
-        if(peek(1)->getValue() != "as")
+        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is")
             branch = branch->getLastSubAst();
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -2904,7 +2905,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
 
         branch->encapsulate(ast_base_e);
 
-        if(peek(1)->getValue() != "as")
+        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is")
             branch = branch->getLastSubAst();
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -2930,7 +2931,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         dotNotBranch->addAst(branchToStore);
         branch->sub_asts.removeAt(branch->sub_asts.size() - 2);
 
-        if(peek(1)->getValue() != "as")
+        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is")
             branch = branch->getLastSubAst();
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -3063,7 +3064,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         parseExpression(sizeofBranch);
         expect(sizeofBranch, ")");
 
-        if(peek(1)->getValue() != "as")
+        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is")
             branch = sizeofBranch;
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -3088,7 +3089,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         parseExpression(parenBranch);
 
         expect(parenBranch, ")");
-        if(peek(1)->getValue() != "as")
+        if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is")
             branch = parenBranch;
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -3139,7 +3140,7 @@ bool parser::parsePrimaryExpr(Ast* ast) {
             }
             else {
                 errors->fail();
-                if(peek(1)->getValue() != "as")
+                if(peek(1)->getValue() != "as" && peek(1)->getValue() != "is")
                     branch = branch->getLastSubAst();
 
                 if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
@@ -3192,10 +3193,13 @@ bool parser::parsePrimaryExpr(Ast* ast) {
         branch = branch->getSubAst(ast_is_e);
         expect(branch, "is");
 
-        branch = getBranch(ast, ast_utype_class_e);
-        parseUtype(branch);
-        expect(branch, ".");
-        expect(branch, "class");
+        if(isNativeType(peek(1)->getValue()) || peek(1)->getValue() == "(") {
+            parseUtype(branch);
+        } else {
+            parseUtype(branch);
+            expect(branch, ".");
+            expect(branch, "class");
+        }
 
         if(peek(1)->getType() == _INC || peek(1)->getType() == _DEC)
             errors->createNewError(GENERIC, current(), "unexpected symbol `" + peek(1)->getValue() + "`");
