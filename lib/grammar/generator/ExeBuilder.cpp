@@ -1003,7 +1003,7 @@ string ExeBuilder::codeToString(Method* fun) {
         switch(GET_OP(opcodeData)) {
             case Opcode::ILL:
             {
-                ss<<"ill ";
+                ss<<"{!: ill} ";
 
                 break;
             }
@@ -1633,13 +1633,14 @@ string ExeBuilder::codeToString(Method* fun) {
             case Opcode::NEWCLASSARRAY:
             {
                 ss<<"new_classarray ";
-                ss<< registerToString(GET_Ca(opcodeData));
+                ss<< registerToString(GET_Da(opcodeData));
                 ss<< " ";
-                if(GET_Cb(opcodeData) >= 0 && GET_Cb(opcodeData) < allClasses.size()) {
+                x++;
+                if(code.ir32.get(x) >= 0 && code.ir32.get(x) < allClasses.size()) {
                     ss << " // ";
-                    ss << allClasses.get(GET_Cb(opcodeData))->fullName << "[]";
+                    ss << allClasses.get(code.ir32.get(x))->fullName << "[]";
                 }
-                else ss << "out of bounds: " << GET_Cb(opcodeData);
+                else ss << "out of bounds: " << code.ir32.get(x);
 
                 break;
             }
@@ -1964,7 +1965,10 @@ string ExeBuilder::codeToString(Method* fun) {
                 ss<<"is ";
                 ss<< registerToString(GET_Da(opcodeData));
                 ss<< " -> ";
-                ss<< allClasses.get(code.ir32.get(++x))->fullName;
+                x++;
+                if((int32_t)code.ir32.get(x) >= 0)
+                  ss<< allClasses.get(code.ir32.get(x))->fullName;
+                else ss << (int32_t)code.ir32.get(x);
                 break;
             }
             default:

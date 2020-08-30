@@ -1192,8 +1192,8 @@ void Thread::exec() {
             NEWCLASSARRAY:
                 STACK_CHECK
                 (++sp)->object = gc.newObjectArray(
-                        registers[GET_Ca(*pc)], &vm.classes[GET_Cb(*pc)]);
-                _brh
+                        registers[GET_Da(*pc)], &vm.classes[*(pc+1)]);
+                _brh_inc(2)
             NEWSTRING:
                 STACK_CHECK
                 gc.createStringArray(&(++sp)->object,

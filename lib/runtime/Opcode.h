@@ -451,7 +451,7 @@ public:
         static opcode_instr _throw();
         static opcode_instr checkNull(_register outRegister);
         static opcode_instr returnObject();
-        static opcode_instr newClassArray(_register inRegister, opcode_arg classAddress);
+        static opcode_instr* newClassArray(_register inRegister, opcode_arg classAddress);
         static opcode_instr newString(opcode_arg address);
         static opcode_instr addl(_register inRegister, opcode_arg relFrameAddress);
         static opcode_instr subl(_register inRegister, opcode_arg relFrameAddress);

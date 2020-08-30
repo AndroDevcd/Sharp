@@ -4,10 +4,10 @@ import std.io;
 import std.io.task;
 import platform;
 
-
 def main(args: string[]) {
-
     arry := new _int8[10];
-    o : object = arry;
-    arry = o as _int8[];
+
+    if((arry as object) is _int8[]) {
+
+    }
 }

@@ -380,8 +380,16 @@ opcode_instr OpBuilder::returnObject() {
     return SET_Ei(tmpInstr, RETURNOBJ);
 }
 
-opcode_instr OpBuilder::newClassArray(_register inRegister, opcode_arg classAddress) {
-    return SET_Ci(tmpInstr, NEWCLASSARRAY, inRegister, POSITIVE, abs(classAddress), posNeg(classAddress));
+opcode_instr* OpBuilder::newClassArray(_register inRegister, opcode_arg classAddress) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+    if(classAddress < 0) {
+        instruction_Buffer[0] = ill();
+        return instruction_Buffer;
+    }
+
+    instruction_Buffer[0] = SET_Di(tmpInstr, NEWCLASSARRAY, inRegister, POSITIVE);
+    instruction_Buffer[1] = classAddress;
+    return instruction_Buffer;
 }
 
 opcode_instr OpBuilder::newString(opcode_arg address) {

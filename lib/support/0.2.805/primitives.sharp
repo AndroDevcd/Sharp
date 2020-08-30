@@ -225,7 +225,6 @@ public class integer<native_type> {
         return "$value";
     }
 
-
     static def parse(s: string) : native_type {
         i := 0;
         number : native_type = 0;
