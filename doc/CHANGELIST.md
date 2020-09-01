@@ -37,6 +37,7 @@ Any other compatibility issues/changes will be otherwise noted in the release no
         * Increased stability in the multithreadding system
         * Several internal memory leaks fixed
         * Maximum executable class size limit increased from 262k - 16.7m
+        * Exe file updated to version 5 (because of instruction resizing)
         
     # New Additions
         * 32bit operating system support offically added

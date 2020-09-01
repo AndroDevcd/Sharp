@@ -58,7 +58,7 @@ void ExeBuilder::buildExe() {
     buildMetaDataSection();
 
     string data = dataSec.str();
-    if(data.size() >= data_compress_threshold) {
+    if(data.size() >= 0xfffffffffffffff) {
         dataSec.str("");
 
         buf << (char)data_compress;
