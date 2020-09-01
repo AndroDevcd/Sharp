@@ -270,10 +270,12 @@ opcode_instr OpBuilder::call(opcode_arg address) {
     return SET_Di(tmpInstr, CALL, abs(address), posNeg(address));
 }
 
-opcode_instr OpBuilder::newClass(opcode_arg address) {
-    if(illegalParam(address, D_CLASS))
-        return ill();
-    return SET_Di(tmpInstr, NEWCLASS, abs(address), posNeg(address));
+opcode_instr* OpBuilder::newClass(opcode_arg address) {
+    clearBuf(instruction_Buffer, INSTRUCTION_BUFFER_SIZE);
+
+    instruction_Buffer[0] = SET_Ei(tmpInstr, NEWCLASS);
+    instruction_Buffer[1] = address;
+    return instruction_Buffer;
 }
 
 opcode_instr* OpBuilder::movn(opcode_arg address) {

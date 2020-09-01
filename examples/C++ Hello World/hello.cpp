@@ -5,7 +5,7 @@ using namespace std;
 
 scope_begin(main)
 
-void printMessage() {
+void print_message() {
     cout << "Hello, world!" << endl;
 }
 scope_end()

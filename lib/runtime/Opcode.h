@@ -427,7 +427,7 @@ public:
         static opcode_instr pushObject();
         static opcode_instr del();
         static opcode_instr call(opcode_arg address);
-        static opcode_instr newClass(opcode_arg address);
+        static opcode_instr* newClass(opcode_arg address);
         static opcode_instr* movn(opcode_arg address);
         static opcode_instr sleep(_register inRegister);
         static opcode_instr te(_register leftRegister, _register rightRegister);

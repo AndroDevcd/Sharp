@@ -21,7 +21,6 @@ class neuron {
 
     def feed_forward(prev_layer: layer) {
        sum := 0;
-
        foreach(neuron in prev_layer) {
          sum += neuron.output * neuron.weights[index].weight;
        }
@@ -49,7 +48,6 @@ class neuron {
 
     def sum_dow(next_layer: layer) : var {
        sum := 0;
-
        for(n := 0; n < next_layer.size() - 1; ++n) {
           sum += weights[n].weight * next_layer[n].m_gradient;
        }
@@ -150,7 +148,6 @@ class net {
 
    def get_results(result_vals: list<var>) {
       result_vals.clear();
-
       for(n := 0; n < layers.last().size() - 1; ++n) {
          result_vals.add(layers.last()[n].output);
       }
@@ -168,16 +165,8 @@ def main() {
 
 // train net
    for(i := 5000; i >= 0; i--) {
-      input_data := new list<var>();
-      target_data := new list<var>();
-      result_vals := new list<var>();
-      n1 := round(rand());
-      n2 := round(rand());
-      t := n1 ^ n2;
-
-      target_data.add(t);
-      input_data.add(n1);
-      input_data.add(n2);
+      input_data := new list<var>({ round(rand()), round(rand()) });
+      target_data := new list<var>({ input_data[0] ^ input_data[1] });
       neural_net.feed_forward(input_data);
       neural_net.back_prop(target_data);
    }
@@ -204,5 +193,4 @@ def main() {
       println("target answer: $t");
       println("ai result: ${round(abs(result_vals.get_elements()[0]))}");
    }
-
 }

@@ -8,7 +8,7 @@ using namespace snb_api;
 scope_begin(app)
 
     void __srt_global(object $instance);
-    void printMessage();
+    void print_message();
     var main(object args);
 scope_end()
 

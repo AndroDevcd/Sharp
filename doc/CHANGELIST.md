@@ -36,7 +36,7 @@ Any other compatibility issues/changes will be otherwise noted in the release no
         * Improved task scheduling api for faster and more efficent scheduling
         * Increased stability in the multithreadding system
         * Several internal memory leaks fixed
-        * Maximum executable class size limit increased from 262kb - 8.3mb
+        * Maximum executable class size limit increased from 262k - 16.7m
         
     # New Additions
         * 32bit operating system support offically added

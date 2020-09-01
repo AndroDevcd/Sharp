@@ -1096,8 +1096,8 @@ void Thread::exec() {
             NEWCLASS:
                 STACK_CHECK
                 (++sp)->object =
-                        gc.newObject(&vm.classes[GET_Da(*pc)]);
-                _brh
+                        gc.newObject(&vm.classes[*(pc+1)]);
+                _brh_inc(2)
             MOVN:
                 CHECK_NULLOBJ(
                         if(((int32_t)*(pc+1)) >= ptr->object->size || ((int32_t)*(pc+1)) < 0)

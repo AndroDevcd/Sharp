@@ -35,6 +35,9 @@ void Optimizer::optimizeRedundantMovr() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -96,6 +99,9 @@ void Optimizer::optimizeLocalVarInit() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -163,6 +169,9 @@ void Optimizer::optimizeEmptyCall() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -209,6 +218,9 @@ void Optimizer::optimizeLocalStackPush() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -267,6 +279,9 @@ void Optimizer::optimizeLocalVariableIncrement() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -340,6 +355,9 @@ void Optimizer::optimizeRedundantIntegerPush() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -406,6 +424,9 @@ void Optimizer::optimizeRedundantLocalPush() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -468,6 +489,9 @@ void Optimizer::optimizeRedundantLocalPop() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -526,6 +550,9 @@ void Optimizer::optimizeEbxReturn() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -590,6 +617,9 @@ void Optimizer::optimizeNullCheck() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -651,6 +681,9 @@ void Optimizer::optimizeNot() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -718,6 +751,9 @@ void Optimizer::optimizeRedundantEbxStore() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -782,6 +818,9 @@ void Optimizer::optimizeTNE() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -841,6 +880,9 @@ void Optimizer::optimizeNumericStore() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -907,6 +949,9 @@ void Optimizer::optimizeUnNessicaryLengthCheck() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -969,6 +1014,9 @@ void Optimizer::optimizeUnnessicaryCMTMov() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -1033,6 +1081,9 @@ void Optimizer::optimizeUnnessicaryLocalIntPop() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -1091,6 +1142,9 @@ void Optimizer::optimizeIntReturn() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -1159,6 +1213,9 @@ void Optimizer::optimizeCmtReturn() {
             case Opcode::ISADD:
             case Opcode::CMP:
             case Opcode::MOVN:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWCLASS:
+            case Opcode::IS:
             case Opcode::INVOKE_DELEGATE:
                 i++;
                 break;
@@ -1308,6 +1365,9 @@ void Optimizer::shiftAddresses(Int offset, Int pc) {
             case Opcode::CMP:
             case Opcode::MOVN:
             case Opcode::INVOKE_DELEGATE:
+            case Opcode::NEWCLASS:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::IS:
                 i++;
                 break;
             case Opcode::SKIP:
@@ -1398,6 +1458,7 @@ bool Optimizer::isRegisterUsed(_register reg, Int start_pc) {
             case Opcode::ISADD:
             case Opcode::MOVN:
             case Opcode::INVOKE_DELEGATE:
+            case Opcode::NEWCLASS:
                 i++;
                 break;
 
@@ -1407,6 +1468,8 @@ bool Optimizer::isRegisterUsed(_register reg, Int start_pc) {
             case Opcode::IDIV:
             case Opcode::IMOD:
             case Opcode::MOVI:
+            case Opcode::NEWCLASSARRAY:
+            case Opcode::IS:
                 if(GET_Da(code.ir32.get(i)) == reg)
                     return false;
                 i++;
@@ -1464,7 +1527,6 @@ bool Optimizer::isRegisterUsed(_register reg, Int start_pc) {
 
             case Opcode::SKPE:
             case Opcode::SKNE:
-            case Opcode::NEWCLASSARRAY:
             case Opcode::ADDL:
             case Opcode::SUBL:
             case Opcode::MULL:

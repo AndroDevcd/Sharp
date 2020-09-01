@@ -3572,7 +3572,7 @@ bool isFieldPair(KeyPair<Field*, bool> *pair, void *field) {
     return field == pair->key;
 }
 
-void Compiler::compileFieldInitialization(Expression* expr, List<KeyPair<Field*, bool>> &fields, Ast* ast) {
+void Compiler::compileFieldInitialization(Expression* expr, List<KeyPair<Field*, bool>> &fields, ClassObject* klass, Ast* ast) {
     if(ast->getType() == ast_expression_list && fields.size() < ast->getSubAstCount()) {
         stringstream ss;
         ss << "class `" << expr->utype->toString() << "` only contains a total of " << expr->utype->getClass()->totalFieldCount()
@@ -3588,7 +3588,7 @@ void Compiler::compileFieldInitialization(Expression* expr, List<KeyPair<Field*,
         if(field_init->hasToken("base")) {
             scopedClass = getBaseClassUtype(field_init);
         } else
-            scopedClass = currentScope()->klass;
+            scopedClass = klass;
 
 
 
@@ -3796,7 +3796,7 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
             }
 
             expr->utype->getCode().addIr(OpBuilder::newClass(expr->utype->getClass()->address));
-            compileFieldInitialization(expr, fields,
+            compileFieldInitialization(expr, fields, arrayType->getClass(),
                                        ast->getSubAst(ast_expression_list) == NULL ? ast->getSubAst(ast_field_init_list) : ast->getSubAst(ast_expression_list));
 
             // for the rest of the fields we only do the main class i n question for automatic initialization

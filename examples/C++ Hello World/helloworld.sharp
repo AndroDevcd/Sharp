@@ -2,9 +2,19 @@ mod main;
 
 import platform;
 
-native def printMessage();
+native def print_message();
 
+/**
+ * This is a simple hello world programm written in c++
+ * to compile simply type the following commands:
+ *
+ * sharpc helloworld.sharp -o helloworld
+ * g++ hello.cpp generated/*.cpp -shared -o hello.so
+ * sharp helloworld
+ *
+ * output: Hello, world!
+ */
 def main() {
     load_library("hello");
-    printMessage();
+    print_message();
 }

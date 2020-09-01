@@ -340,7 +340,7 @@ private:
     void compileBaseExpression(Expression* expr, Ast* ast);
     void compileNullExpression(Expression* expr, Ast* ast);
     void compileNewExpression(Expression* expr, Ast* ast);
-    void compileFieldInitialization(Expression* expr, List<KeyPair<Field*, bool>> &fields, Ast* ast);
+    void compileFieldInitialization(Expression* expr, List<KeyPair<Field*, bool>> &fields, ClassObject *klass, Ast* ast);
     void compileNewArrayExpression(Expression *expr, Ast *ast, Utype *arrayType);
     void compileVectorExpression(Expression* expr, Ast* ast, Utype *compareType = NULL);
     void compileAssignExpression(Expression* expr, Ast* ast);
@@ -419,7 +419,7 @@ enum ProcessingStage {
 extern string globalClass;
 extern ModuleData* undefinedModule;
 
-#define CLASS_LIMIT CA2_MAX
+#define CLASS_LIMIT 16777215
 #define CLASS_FIELD_LIMIT DA_MAX
 #define LOCAL_FIELD_LIMIT CA2_MAX
 #define THREAD_LOCAL_FIELD_LIMIT DA_MAX
