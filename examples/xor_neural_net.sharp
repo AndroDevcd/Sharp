@@ -22,8 +22,8 @@ class neuron {
     def feed_forward(prev_layer: layer) {
        sum := 0;
 
-       for(n := 0; n < prev_layer.size(); n++) {
-         sum += prev_layer[n].output * prev_layer[n].weights[index].weight;
+       foreach(neuron in prev_layer) {
+         sum += neuron.output * neuron.weights[index].weight;
        }
 
        output = activate(sum);
@@ -58,8 +58,7 @@ class neuron {
     }
 
     def update_input_weights(prev_layer: layer) {
-       for(n := 0; n < prev_layer.size(); ++n) {
-          neuron := prev_layer[n];
+       foreach(neuron in prev_layer) {
           old_delta_weight := neuron.weights[index].delta;
 
           new_delta_weight :=
@@ -165,11 +164,7 @@ class net {
 
 def main() {
    set_seed(utc_mills_time() >> 4); // set random seed to current time in mills
-   topology := new list<var>();
-   topology.add(2);
-   topology.add(2);
-   topology.add(1);
-   neural_net := new net(topology);
+   neural_net := new net(new list<var>({ 2, 2, 1 }));
 
 // train net
    for(i := 5000; i >= 0; i--) {

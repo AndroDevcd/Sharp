@@ -25,6 +25,6 @@ def main() {
    new thread("counter1", foo_main).start();
    new thread("counter2", foo_main).start();
    
-   thread.sleep(1500); // wait for the threads to sleep
+   thread.sleep(1500); // wait for the threads to finish
    println("count = ${count.read()}");
 }
