@@ -1,0 +1,16 @@
+mod main;
+
+import std.io;
+
+def main() {
+
+   try {
+       src := new file("input.txt");
+       dest := new file("output.txt");
+       data := src.read_all_text();
+
+       dest.write(data);
+   } catch(e: exception) {
+      println("caught exception: $e");
+   }
+}

@@ -1,0 +1,44 @@
+mod main;
+
+import std.io;
+
+// Here we create a class to be called if there was an exception thrown
+// that was not caught
+class err_handler : uncaught_exception_handler {
+    def uncaught_exception(err: throwable) {
+       println("exception: '${err.get_message()}' had been caught!");
+    }
+}
+
+def err_thread(args: object[]) : var {
+   throw new error("test error");
+}
+
+def foo_thread(args: object[]) : var {
+   println("I'm foo thread!");
+   return 0;
+}
+
+// This program show how to create a simple parallel program
+// that uses the standardized thread class
+def main() {
+   thread1 := new thread("foo thread", foo_thread);
+   thread1.set_exception_handler(new err_handler()); // in case there is an exception
+   thread1.start();
+
+   thread.sleep(500); // sleep for half a second
+   non_thread := new thread("anonymous thread", { args -> (var)
+       println("I'm anonymous!");
+       return 0;
+   });
+   non_thread.start();
+   thread.sleep(500); // sleep for half a second
+
+   // the standard threading api allows you to add an exception handler to the thread to be called in the event
+   // an exception is thrown and bubbles out of the users code base
+   thread3 := new thread("error thread", err_thread);
+   thread3.set_exception_handler(new err_handler()); // this will be used as a callback if there is an uncaught exception
+   thread3.start();
+
+   thread.sleep(1000); // give the threads some time to run
+}

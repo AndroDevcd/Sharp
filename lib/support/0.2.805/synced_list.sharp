@@ -177,13 +177,33 @@ class synced_list<t> : loopable<t> {
     }
 
     def indexof(comparer: t, find_func: (t, t)(var)) : var {
-        for(i := 0; i < n_elements; i++) {
-            if(find_func(data[i], comparer)) {
-                return i;
+        lock(self) {
+            for(i := 0; i < n_elements; i++) {
+                if(find_func(data[i], comparer)) {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+    }
+
+    def linear_sort(swap: (t, t)(var)) {
+        lock(self) {
+            for(i := 0; i < n_elements; i++) {
+
+                for (j := 0; j < n_elements; j++) {
+                    if((j + 1) < n_elements) {
+
+                        if (swap(data[j], data[j+1])) {
+                            tmp := data[j];
+                            data[j] = data[j+1];
+                            data[j+1] = tmp;
+                        }
+                    }
+                }
             }
         }
-
-        return -1;
     }
 
     def find(comparer : t, find_func: (t, t)(var)) : t {

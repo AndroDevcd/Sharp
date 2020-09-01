@@ -29,6 +29,7 @@ Any other compatibility issues/changes will be otherwise noted in the release no
         * Function pointers are no longer compatible with object types
         * Huge ammount of compiler code generation bugs have been fixed 
         * Several code optimizer bugs have been fixed in regards to if statements
+        * Fixed bug related to the `lock` statement not properly releasing control
 
     # QoL Improvements
         * Significantly improved Garbage collector ~2x gain in performance
@@ -46,6 +47,7 @@ Any other compatibility issues/changes will be otherwise noted in the release no
     # Known Issues
         * JIT is not currently supported on any platform
         * The Profiler is not supported
+        * Dictionaries are not fully supported by the lang
 
     runtime version: 2.6.0
     compiler version: 0.2.9

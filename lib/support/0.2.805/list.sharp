@@ -164,6 +164,22 @@ class list<t> : loopable<t> {
         }
     }
 
+    def linear_sort(swap: (t, t)(var)) {
+        for(i := 0; i < n_elements; i++) {
+
+            for (j := 0; j < n_elements; j++) {
+                if((j + 1) < n_elements) {
+
+                    if (swap(data[j], data[j+1])) {
+                        tmp := data[j];
+                        data[j] = data[j+1];
+                        data[j+1] = tmp;
+                    }
+                }
+            }
+        }
+    }
+
     def remove_at(index: var) {
         if(index >= n_elements || index < 0)
            throw new bounds_except(out_of_bounds_msg(index));

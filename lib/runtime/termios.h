@@ -14,6 +14,10 @@ extern char getch(void);
 extern char getche(void);
 
 extern bool _kbhit(void);
+
+void get_original_console_settings();
+
+void reset_original_console_settings();
 #endif
 
 #endif //SHARP_TERMIOS_H

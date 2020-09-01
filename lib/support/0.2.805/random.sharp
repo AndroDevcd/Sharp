@@ -28,9 +28,10 @@ def set_seed(seed: var) {
    vm.random_seed(rand_seed);
 }
 
+// this class is used to default the random seed to a unique value
 class tmp {
    static init {
-      rand_seed = 3746284729111800;
+      rand_seed = utc_mills_time() >> 4;
       vm.random_seed(rand_seed);
    }
 }

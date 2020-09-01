@@ -158,10 +158,7 @@ class vm {
         }
 
         if(result == 0) {
-            while(!t.is_started()) {
-                thread.yield();
-                thread.sleep(1);
-            }
+           t.wait();
         }
 
         return thread_result.at(result);

@@ -1,5 +1,18 @@
 mod std;
 
+def strtod(str: string) : var {
+    data := str.get_data();
+    result : var;
+
+    asm {
+        pushl {data}
+        int 0x43
+        smovr2 {result}, ebx
+    }
+
+    return result;
+}
+
 def snprintf(fmt: var, num: var, precision: var) : var[] {
     asm {
         loadl egx, {fmt}

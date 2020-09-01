@@ -6,11 +6,7 @@ class deferred<t> base observable<t> {
 
     response : t;
         get {
-            if(!response_received) {
-                response = await();
-                response_received = true;
-            }
-
+            response = await();
             return response;
         }
 
@@ -24,6 +20,7 @@ class deferred<t> base observable<t> {
 
 		while(true) {
 			if(changed || scheduled_job.is_finished()) {
+		        changed = false;
 				return data;
 			} else
 				thread.sleep(2);

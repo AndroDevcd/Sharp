@@ -157,7 +157,8 @@ void GarbageCollector::collect(CollectionPolicy policy) {
          * on average about 10us to complete
          */
         collectGarbage();
-        Thread::resumeAllThreads(true);
+        if(tself->state != THREAD_KILLED)
+           Thread::resumeAllThreads(true);
     }
 }
 

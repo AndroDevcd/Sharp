@@ -110,6 +110,7 @@ public:
     ClassObject *StackSate;
     ClassObject *ThreadClass;
     ClassObject *ExceptionClass;
+    ClassObject *ErrorClass;
 
     Object outOfMemoryExcept;
     Meta metaData;

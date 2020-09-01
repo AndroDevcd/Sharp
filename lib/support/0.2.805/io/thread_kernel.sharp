@@ -4,6 +4,7 @@ import platform.kernel;
 
 def _srt_thread_start() {
     curr := vm.current_thread();
+    curr.notify();
 
     asm {
         movi ebx, 1
@@ -23,7 +24,7 @@ def _srt_thread_start() {
 
     try {
         result = curr.main(vm.thread_args());
-    } catch(e: error) {
+    } catch(e: throwable) {
         if(curr.get_exception_handler() != null) {
             curr.get_exception_handler().uncaught_exception(e);
         } else {

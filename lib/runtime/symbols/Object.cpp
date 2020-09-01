@@ -36,6 +36,7 @@ void Object::castObject(int64_t classPtr) {
 
     if(type->guid != base->guid && !base->isClassRelated(type)) {
         // validate we have all our interfaces checked
+        ClassObject *originalClass = base;
         while (base != NULL) {
             for(int i = 0; i < base->interfaceCount; i++) {
                 ClassObject* _interface = base->interfaces[i];
@@ -50,7 +51,7 @@ void Object::castObject(int64_t classPtr) {
         }
 
         stringstream ss;
-        ss << "illegal cast of class '" << base->name.str() << "' to '";
+        ss << "illegal cast of class '" << originalClass->name.str() << "' to '";
         ss << type->name.str() << "'";
         throw Exception(vm.ClassCastExcept, ss.str());
     }

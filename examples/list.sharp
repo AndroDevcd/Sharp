@@ -1,0 +1,54 @@
+mod main;
+
+// Here we create a simple class that can be used with a foreach statement
+// we need to implement the loopable interface provided by the standard library
+//
+// This will allow us to put the class directly into 'foreach' statements as shown below
+class custom_list : loopable<var> {
+   data : var[];
+
+   custom_list(array : var[]) {
+      data = array;
+   }
+
+   // we implement this method provided by loopable
+   // interface for 'foreach' statements
+   def get_elements() := data;
+}
+
+/**
+ * This program creates a simple list using the 'list<>' class provided
+ * by the standard library
+ */
+def main() {
+   // create a list of items
+   array := new list<var>();
+   array.add(1);
+   array.add(10);
+   array.add(3);
+   array.add(2);
+
+   println("unsorted list:");
+   // print elements using for loop
+   for(i := 0; i < array.size(); i++) {
+      println("item: @$i = ${array[i]}");
+   }
+
+   // we can sort the list by calling 'linear_sort'
+   array.linear_sort({ a, b -> return a > b; });
+
+   println("sorted list:");
+   index := 0;
+   //print items using foreach
+   foreach(n in array) {
+     println("item: @${index++} = ${n}");
+   }
+
+   println("custom list:");
+   clist := new custom_list({ 1, 2, 3, 4}); // here we pass in an anonymous list into the 'custom_list' class
+   index = 0;
+   //print items using foreach
+   foreach(n in clist) {
+     println("clist item: @${index++} = ${n}");
+   }
+}

@@ -129,11 +129,7 @@ public class thread {
 
     public static def sleep(mills_time : var) := time.sleep(milliseconds, mills_time);
 
-    public static def wait() {
-        wait(time.infinite);
-    }
-
-    public static def wait(mills_time : var) {
+    public static def suspend_for(mills_time : var) {
         vm.current_thread().suspended = true;
         time.wait(milliseconds, mills_time);
         vm.current_thread().suspended = false;

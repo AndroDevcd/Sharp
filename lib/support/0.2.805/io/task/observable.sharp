@@ -12,7 +12,6 @@ public class observable<t> {
 		self->data = data;
 		changed = true;
 		notify_all();
-		changed = false;
 	}
 
 	public def observe(on_update: (observable<t>)()) {
@@ -25,12 +24,16 @@ public class observable<t> {
             try {
                 obs.update_fun(self);
             } catch(cancellation_exception) {
-                observers.remove(thread.current(), {it, it2 -> return it.id == it2.id; });
+                observers.remove(obs, {it, it2 -> return it == it2; });
             } catch(e: error) {
-                observers.remove(thread.current(), {it, it2 -> return it.id == it2.id; });
+                observers.remove(obs, {it, it2 -> return it == it2; });
                 throw e;
             }
         }
+	}
+
+	public def stop_listening() {
+	   throw new cancellation_exception();
 	}
 
 	public def get_data() : t = data;

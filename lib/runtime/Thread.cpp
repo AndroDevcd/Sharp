@@ -847,7 +847,7 @@ void Thread::exec() {
     try {
         for (;;) {
             top:
-                if(current->address == 2276 && (PC(this) >= 4)) { // tutoriall!!!!!!!!!!!!!!!!!!
+                if(current->address == 2133 && (PC(this) >= 71)) { // tutoriall!!!!!!!!!!!!!!!!!!
                     Int i = 0;
                 }
                 DISPATCH();

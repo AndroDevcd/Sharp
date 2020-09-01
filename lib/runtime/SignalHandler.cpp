@@ -5,6 +5,7 @@
 #include <csignal>
 #include <iostream>
 #include <cstdlib>
+#include "termios.h"
 
 using namespace std;
 
@@ -38,11 +39,20 @@ void os_signal(int signal)
     if(signal != SIGINT) {
         cerr << "(" << signalToString(signal) << ") found, please contact the language developer with the call stack below" << endl;
         printRegs();
+    } else {
+#ifdef POSIX_
+        reset_original_console_settings();
+#endif
     }
+
     exit(1);
 }
 
 void setupSigHandler() {
+#ifdef POSIX_
+    get_original_console_settings();
+#endif
+
     std::signal(SIGINT, os_signal);
     std::signal(SIGSEGV, os_signal);
     std::signal(SIGILL, os_signal);

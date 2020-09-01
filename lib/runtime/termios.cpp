@@ -7,8 +7,17 @@
 #include <sys/ioctl.h>
 #include <stdio.h>
 
+struct termios original;
 struct termios old;
 struct termios _new;
+
+void get_original_console_settings() {
+    tcgetattr(0, &original); /* grab old terminal i/o settings */
+}
+
+void reset_original_console_settings() {
+    tcsetattr(0, TCSANOW, &old);
+}
 
 /* Initialize new terminal i/o settings */
 void initTermios(int echo)

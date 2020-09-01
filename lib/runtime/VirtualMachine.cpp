@@ -74,6 +74,7 @@ int CreateVirtualMachine(string &exe)
     vm.StackSate = vm.resolveClass("platform.kernel#stack_state");
     vm.ThreadClass = vm.resolveClass("std.io#thread");
     vm.ExceptionClass = vm.resolveClass("std#exception");
+    vm.ErrorClass = vm.resolveClass("std#error");
     cout.precision(16);
 
     vm.outOfMemoryExcept.object = NULL;
@@ -280,6 +281,12 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 #endif
         }
     } catch (Exception &e) {
+        if(thread->state == THREAD_STARTED && thread->currentThread.object) {
+            thread->currentThread.notify(); // notify the waiting thread
+            vm.setFieldVar("exited", thread->currentThread.object, 0, 0); // update respective values
+            vm.setFieldVar("id", thread->currentThread.object, 0, -1);
+        }
+
         if(e.getThrowable().handlingClass == vm.OutOfMemoryExcept && thread->state == THREAD_CREATED) {
             thread->state = THREAD_KILLED;
         }
@@ -408,6 +415,16 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         case OP_PRINTF:
             __snprintf((int)_64EGX, _64EBX, (int)_64ECX);
             return;
+        case OP_STRTOD: {
+            SharpObject *str = (thread_self->sp--)->object.object;
+            if (str != NULL && TYPE(str->info) == _stype_var && str->HEAD != NULL) {
+                native_string num_str(str->HEAD, str->size);
+                _64EBX = strtod(num_str.c_str(), NULL);
+                num_str.free();
+            } else
+                throw Exception(vm.NullptrExcept, "");
+            return;
+        }
         case OP_OS_TIME:
             _64BMR = Clock::__os_time((int)_64EBX);
             return;
@@ -835,6 +852,7 @@ bool VirtualMachine::catchException() {
             for(Int j = 0; j < tbl->catchTable.len; j++) {
                 if(handlingClass->guid == tbl->catchTable._Data[j].caughtException->guid
                     || tbl->catchTable._Data[j].caughtException == vm.ExceptionClass
+                    || tbl->catchTable._Data[j].caughtException == vm.ErrorClass
                     || tbl->catchTable._Data[j].caughtException == vm.Throwable) {
                     if(tbl->catchTable._Data[j].localFieldAddress >= 0)
                         (thread->fp+tbl->catchTable._Data[j].localFieldAddress)->object = thread->exceptionObject;
@@ -1072,8 +1090,6 @@ void VirtualMachine::__snprintf(int cfmt, double val, int precision) {
             gc.createStringArray(&(++thread_self->sp)->object, str); str.free();
             return;
         }
-
-
     }
 
     native_string str(buf);
@@ -1292,7 +1308,8 @@ double VirtualMachine::isType(Object *obj, int32_t type) {
                 return obj->object->ntype == 8;
             }
         } else {
-            return CLASS(obj->object->info) == type;
+            ClassObject *base = &vm.classes[CLASS(obj->object->info)], *klass = &vm.classes[type];
+            return base->isClassRelated(klass);
         }
     } else throw Exception(vm.NullptrExcept, "");
     return 0;

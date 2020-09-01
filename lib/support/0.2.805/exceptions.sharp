@@ -38,6 +38,9 @@ class throwable {
     def get_message() : string {
         return message;
     }
+
+    def to_string() : string
+         = new string(message);
 }
 
 /**

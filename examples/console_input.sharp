@@ -1,0 +1,23 @@
+mod main;
+
+// this is a simple program that asks the user for their username and password
+def main(args: string[]) {
+    println("#### Bank of Montreal ####");
+    println("login ->");
+
+    println("please enter username:"); // read a full line for the username
+    username := read_line();
+
+    println("please enter password:"); // read a series of hidden characters for the password
+    password := read_passwd();
+
+    print("Confirm account creation for: $username (Y,n):"); // read a single character for confirmation
+    answer := read_char();
+    println();
+
+    if(char.to_lower(answer) == 'y') {
+        println("account created { username: $username, passwd: $password }");
+    }  else {
+        println("account not created!");
+    }
+}

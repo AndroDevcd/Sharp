@@ -22,6 +22,7 @@ obfuscate -keep {
 obfuscate -keep {
     throwable,
     exception,
+    error,
     illegal_argument_exception,
     illegal_state_exception,
     out_of_bounds_exception,

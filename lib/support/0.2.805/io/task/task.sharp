@@ -31,6 +31,12 @@ class task {
         return builder.with_args(args);
     }
 
+	def recurring(tm : var, interval: time_unit) : job_builder {
+        scheduled_job := launcher.create_job();
+        builder := new job_builder(scheduled_job, launcher);
+        return builder.recurring(tm, interval);
+	}
+
 	static def block() : job_builder {
         scheduled_job := launcher.create_job();
         builder := new job_builder(scheduled_job, launcher);

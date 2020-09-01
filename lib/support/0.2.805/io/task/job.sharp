@@ -80,7 +80,7 @@ public class job {
         }
 
         if(try_join) {
-            thread.wait();
+            thread.current().wait();
         }
 	}
 
@@ -117,6 +117,11 @@ public class job {
                     controller.scheduled_job.state = cancelled;
                     launcher.cleanup_job(controller.scheduled_job);
                 } catch(e: error) {
+                    controller.scheduled_job.state = cancelled;
+                    launcher.cleanup_job(controller.scheduled_job);
+                    controller.scheduled_job = null;
+                    throw e;
+                } catch(e: exception) {
                     controller.scheduled_job.state = cancelled;
                     launcher.cleanup_job(controller.scheduled_job);
                     controller.scheduled_job = null;

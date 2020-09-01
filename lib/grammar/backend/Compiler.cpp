@@ -7001,7 +7001,11 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
             _obj:
             code.inject(returnVal.utype->getCode());
             code.inject(returnVal.utype->getCode().getInjector(ptrInjector));
-            code.addIr(OpBuilder::returnObject());
+
+            if(!currentScope()->lockBlocks.empty()) {
+                code.addIr(OpBuilder::pushObject());
+            } else
+              code.addIr(OpBuilder::returnObject());
             break;
 
         case exp_nil:
@@ -7017,6 +7021,12 @@ void Compiler::compileReturnStatement(Ast *ast, bool *controlPaths) {
             lockExpr.utype->getCode().inject(ptrInjector);
             code.inject(lockExpr.utype->getCode());
             code.addIr(OpBuilder::unlock());
+        }
+
+        if(returnVal.type == exp_class || returnVal.type == exp_object
+             || returnVal.type == exp_null) {
+            code.addIr(OpBuilder::popObject2())
+              .addIr(OpBuilder::returnObject());
         }
     }
 
