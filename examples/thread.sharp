@@ -6,7 +6,7 @@ import std.io;
 // that was not caught
 class err_handler : uncaught_exception_handler {
     def uncaught_exception(err: throwable) {
-       println("exception: '${err.get_message()}' had been caught!");
+       println("exception: '${err.get_message()}' has been caught!");
     }
 }
 

@@ -15,7 +15,7 @@ def main(args: string[]) {
     answer := read_char();
     println();
 
-    if(char.to_lower(answer) == 'y') {
+    if(char.to_lower(answer) == 'y') { // print the results
         println("account created { username: $username, passwd: $password }");
     }  else {
         println("account not created!");
