@@ -335,11 +335,10 @@ int _bootstrap(int argc, const char* argv[])
         }
     }
 
-    compile(files);
-    return 0;
+    return compile(files);
 }
 
-void compile(List<native_string> &files)
+int compile(List<native_string> &files)
 {
     List<parser*> parsers;
     parser* currParser = NULL;
@@ -443,4 +442,5 @@ void compile(List<native_string> &files)
     cout << "Errors: " << (c_options.aggressive_errors ? unfilteredErrors : errors) << " Succeeded: "
          << succeeded << " Failed: " << failed << " Total: " << files.size() << endl;
     cout << std::flush << std::flush;
+    return failed == 0;
 }
