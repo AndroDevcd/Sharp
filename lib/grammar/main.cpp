@@ -442,5 +442,5 @@ int compile(List<native_string> &files)
     cout << "Errors: " << (c_options.aggressive_errors ? unfilteredErrors : errors) << " Succeeded: "
          << succeeded << " Failed: " << failed << " Total: " << files.size() << endl;
     cout << std::flush << std::flush;
-    return failed == 0;
+    return failed == 0 && (c_options.aggressive_errors ? unfilteredErrors : errors) == 0;
 }
