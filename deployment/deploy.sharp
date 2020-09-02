@@ -38,30 +38,30 @@ def is_examples_file(test_file: string) : var {
 }
 
 def main() : var {
-//   example_files := new file("../examples/").list();
-//   sorted_list := new list<string>();
-//
-//   foreach(f in example_files) {
-//      if(is_examples_file(f) && f.ends_with(".sharp") && !f.find("console_")) {
-//         sorted_list.add(f);
-//      }
-//   }
-//
-//   println("######## Sharp Unit Test Runner ########");
-//   test_num := 0;
-//   foreach(f in sorted_list) {
-//      test_num++;
-//	  println("Running Unit Test #$test_num of ${sorted_list.size()}");
-//	  println("Unit Test File: $f\n");
-//
-//      if(!run_test(f)) {
-//	     println("Unit Test Failed!");
-//	     return 1;
-//	  } else {
-//	     println("Unit Test Passed!");
-//	     println("==========================================");
-//	  }
-//   }
+   example_files := new file("../examples/").list();
+   sorted_list := new list<string>();
+
+   foreach(f in example_files) {
+      if(is_examples_file(f) && f.ends_with(".sharp") && !f.find("console_")) {
+         sorted_list.add(f);
+      }
+   }
+
+   println("######## Sharp Unit Test Runner ########");
+   test_num := 0;
+   foreach(f in sorted_list) {
+      test_num++;
+	  println("Running Unit Test #$test_num of ${sorted_list.size()}");
+	  println("Unit Test File: $f\n");
+
+      if(!run_test(f)) {
+	     println("Unit Test Failed!");
+	     return 1;
+	  } else {
+	     println("Unit Test Passed!");
+	     println("==========================================");
+	  }
+   }
 
    println("\n\n%%%%%%%%%%%%%% ALL Unit Tests Have Passed! %%%%%%%%%%%%%%");
    println("========================================================");
@@ -76,8 +76,8 @@ def main() : var {
         }
    }
 
-  // println("Building release package...");
-   //sys("zip -r ../release/release-pkg.zip ../release/");
+   println("Building release package...");
+   sys("zip -r ../release/release-pkg.zip ../release/");
 
    println("Updating branch...");
    sys("git add -A");
