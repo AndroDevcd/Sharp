@@ -341,9 +341,17 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 }
 
 void VirtualMachine::shutdown() {
-    GUARD(vm.mutex) // prevent multiple threads from shutting down the vm
-    if(vm.state != VM_TERMINATED) {
+    bool destroySystem = false;
+    {
+        GUARD(vm.mutex) // prevent multiple threads from shutting down the vm
+
+        if (vm.state == VM_RUNNING) {
             vm.state = VM_SHUTTING_DOWN;
+            destroySystem = true;
+        }
+    }
+
+    if(destroySystem) {
         destroy();
         vm.state = VM_TERMINATED;
     }
