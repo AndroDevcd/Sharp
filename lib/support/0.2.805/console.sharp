@@ -30,7 +30,7 @@ def sys(str: string) : var {
     cmd := str.get_data();
     result : var;
     asm {
-        loadl egx, {cmd}
+        pushl {cmd}
         int 0x1a
         smovr2 {result}, cmt
     }
