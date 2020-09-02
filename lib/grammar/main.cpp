@@ -30,7 +30,7 @@ bool warning_map[] = {
 };
 
 options c_options;
-void compile(List<native_string>&);
+int compile(List<native_string>&);
 
 bool ends_with(std::string value, std::string ending)
 {
