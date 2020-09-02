@@ -987,28 +987,31 @@ string VirtualMachine::getPrettyErrorLine(long line, long sourceFile) {
     stringstream ss;
     line -=2;
 
-    if(line >= 0) {
+    if(line >= 0 && vm.metaData.hasLine(line, sourceFile)) {
         ss << endl << "\t   " << line << ":    ";
         ss << vm.metaData.getLine(line, sourceFile).str();
     }
     line++;
 
-    if(line >= 0) {
+    if(line >= 0 && vm.metaData.hasLine(line, sourceFile)) {
         ss << endl << "\t   " << line << ":    ";
         ss << vm.metaData.getLine(line, sourceFile).str();
     }
     line++;
 
-    ss << endl << "\t>  " << line << ":    "; ss << vm.metaData.getLine(line, sourceFile).str();
+    if(line >= 0 && vm.metaData.hasLine(line, sourceFile)) {
+        ss << endl << "\t>  " << line << ":    ";
+        ss << vm.metaData.getLine(line, sourceFile).str();
+    }
     line++;
 
-    if(vm.metaData.hasLine(line, sourceFile)) {
+    if(line >= 0 && vm.metaData.hasLine(line, sourceFile)) {
         ss << endl << "\t   " << line << ":    ";
         ss << vm.metaData.getLine(line, sourceFile).str();
     }
     line++;
 
-    if(vm.metaData.hasLine(line, sourceFile)) {
+    if(line >= 0 && vm.metaData.hasLine(line, sourceFile)) {
         ss << endl << "\t   " << line << ":    ";
         ss << vm.metaData.getLine(line, sourceFile).str();
     }
