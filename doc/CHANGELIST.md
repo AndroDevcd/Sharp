@@ -41,7 +41,7 @@ Any other compatibility issues/changes will be otherwise noted in the release no
         * Exe file updated to version 5 (because of instruction resizing)
         
     # New Additions
-        * 32bit operating system support offically added
+        * 32bit operating system support offically (for linux) added
         * 'is' keyword added for dynamic runtime type checking
         * wait & notify system added for inter-thread communication
         * New Sharp native bridge added to allow for interfacing with c++

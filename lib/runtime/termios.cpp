@@ -16,7 +16,7 @@ void get_original_console_settings() {
 }
 
 void reset_original_console_settings() {
-    tcsetattr(0, TCSANOW, &old);
+    tcsetattr(0, TCSANOW, &original);
 }
 
 /* Initialize new terminal i/o settings */
