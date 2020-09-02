@@ -240,12 +240,16 @@ class string : loopable<_int8> {
         end := 0;
         for(i := 0; i < sizeof(data); i++) {
             if((i + sizeof(str.data)) < sizeof(data)) {
+                failed = false;
                 for(j := 0; j < sizeof(str.data); j++) {
-                    if(str.data[j] != data[j])
+                    if(str.data[j] != data[j]) {
+                        failed = true;
                         break;
+                    }
                 }
 
-                return true;
+                if(!failed)
+                   return true;
             } else return false;
         }
 
