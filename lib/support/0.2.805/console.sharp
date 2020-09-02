@@ -26,6 +26,18 @@ def snprintf(fmt: var, num: var, precision: var) : var[] {
     return null;
 }
 
+def sys(str: string) : var {
+    cmd := str.get_data();
+    result : var;
+    asm {
+        loadl egx, {cmd}
+        int 0x1a
+        smovr2 {result}, cmt
+    }
+
+    return result;
+}
+
 def print(data: _int8[]) {
     print_chars(data);
 }
