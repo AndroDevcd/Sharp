@@ -38,3 +38,7 @@ chmod +x linux-install.bash
 ```
 
 After running the commands above if you receive the final output as ``Hello, World!``` Then Sharp has been installed properly and your good to go!
+
+#### Programming Ideas
+After you install Sharp if you are having trouble coming up with programming ideas then you can head over to the 'examples/' directory to see a list
+of sample programs using various parts of the Sharp programming language.

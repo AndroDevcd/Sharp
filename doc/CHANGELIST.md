@@ -23,7 +23,7 @@ Any other compatibility issues/changes will be otherwise noted in the release no
 
     Backwards compatibility support tested Version: ()
     
-##### Version 0.2.9 (June 19, 2020)
+##### Version 0.2.9 (September 1, 2020)
     # Bug Fixes
         * Several seg faults fixed
         * Function pointers are no longer compatible with object types

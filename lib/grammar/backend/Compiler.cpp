@@ -9036,48 +9036,162 @@ void Compiler::setupMainMethod(Ast *ast) {
 }
 
 void Compiler::validateCoreClasses(Ast *ast) {
-    if(resolveClass(Obfuscater::getModule("std"), "_enum_", ast) == NULL) {
+    ClassObject *klass;
+
+    if((klass = resolveClass(Obfuscater::getModule("std"), "_enum_", ast)) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate enum support class `_enum_`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
     }
 
-    if(resolveClass(Obfuscater::getModule("std"), "string", ast) == NULL) {
+    if((klass = resolveClass(Obfuscater::getModule("std"), "string", ast)) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate string support class `string`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
     }
 
-    if(resolveClass(Obfuscater::getModule("std"), "throwable", ast) == NULL) {
+    if((klass = resolveClass(Obfuscater::getModule("std"), "throwable", ast)) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `throwable`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
     }
 
-    if(resolveClass(Obfuscater::getModule("std"), "runtime_exception", ast) == NULL) {
+    if((klass = resolveClass(Obfuscater::getModule("std"), "runtime_exception", ast)) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `runtime_exception`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
     }
 
-    if(resolveClass(Obfuscater::getModule("std"), "stack_overflow_exception", ast) == NULL) {
+    if((klass = resolveClass(Obfuscater::getModule("std"), "exception", ast)) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `exception`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
+    }
+
+    if((klass = resolveClass(Obfuscater::getModule("std"), "stack_overflow_exception", ast)) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `stack_overflow_exception`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
     }
 
-    if(resolveClass(Obfuscater::getModule("std"), "thread_stack_exception", ast) == NULL) {
+    if((klass = resolveClass(Obfuscater::getModule("std"), "error", ast)) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `error`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
+    }
+
+    if((klass = resolveClass(Obfuscater::getModule("std"), "illegal_argument_exception", ast)) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `illegal_argument_exception`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
+    }
+
+    if((klass = resolveClass(Obfuscater::getModule("std"), "unsatisfied_link_error", ast)) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `unsatisfied_link_error`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
+    }
+
+    if((klass = resolveClass(Obfuscater::getModule("std.io"), "thread", ast)) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `thread`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
+    }
+
+    if((klass = resolveClass(Obfuscater::getModule("std"), "illegal_state_exception", ast)) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `illegal_state_exception`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
+    }
+
+    if((klass = resolveClass(Obfuscater::getModule("std"), "invalid_operation_exception", ast)) == NULL) {
+        errors->createNewError(GENERIC, ast, "Could not locate exception support class `invalid_operation_exception`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
+    }
+
+    if((klass = resolveClass(Obfuscater::getModule("std"), "thread_stack_exception", ast)) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `thread_stack_exception`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
     }
 
-    if(resolveClass(Obfuscater::getModule("std"), "out_of_bounds_exception", ast) == NULL) {
+    if((klass = resolveClass(Obfuscater::getModule("std"), "out_of_bounds_exception", ast)) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `out_of_bounds_exception`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
     }
 
-    if(resolveClass(Obfuscater::getModule("std"), "nullptr_exception", ast) == NULL) {
+    if((klass = resolveClass(Obfuscater::getModule("std"), "nullptr_exception", ast)) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `nullptr_exception`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
     }
 
-    if(resolveClass(Obfuscater::getModule("std"), "class_cast_exception", ast) == NULL) {
+    if((klass = resolveClass(Obfuscater::getModule("std"), "class_cast_exception", ast)) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `class_cast_exception`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
     }
 
-    if(resolveClass(Obfuscater::getModule("std"), "out_of_memory_exception", ast) == NULL) {
+    if((klass = resolveClass(Obfuscater::getModule("std"), "out_of_memory_exception", ast)) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `out_of_memory_exception`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
     }
 
-    if(resolveClass(Obfuscater::getModule("platform.kernel"), "stack_state", ast) == NULL) {
+    if((klass = resolveClass(Obfuscater::getModule("platform.kernel"), "stack_state", ast)) == NULL) {
         errors->createNewError(GENERIC, ast, "Could not locate exception support class `stack_state`.");
+    } else {
+        if(klass->obfuscate) {
+            errors->createNewError(GENERIC, ast, "Class `" + klass->fullName + "` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+        }
+    }
+
+    if(Obfuscater::getModule("platform.kernel") && Obfuscater::getModule("platform.kernel")->obfuscate) {
+        errors->createNewError(GENERIC, ast, "Module `platform.kernel` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+    }
+
+    if(Obfuscater::getModule("std.io") && Obfuscater::getModule("std.io")->obfuscate) {
+        errors->createNewError(GENERIC, ast, "Module `std.io` cannot be obfuscated as required by the runtime system. Have you possibly modified the `platform/dependencies.sharp` file?.");
+    }
+
+    if(Obfuscater::getModule("std") && Obfuscater::getModule("std")->obfuscate) {
+        errors->createNewError(GENERIC, ast, "Module `std` cannot be obfuscated as required by the runtime system. Have you possibly modified the 'platform/dependencies.sharp` file?.");
     }
 }
 

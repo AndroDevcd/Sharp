@@ -233,24 +233,22 @@ class string : loopable<_int8> {
 
 
     def find(str: string) : var {
-        if(sizeof(str.data) > sizeof(data)) {
-            return false;
-        }
+        M := str.size();
+        N := sizeof(data);
 
-        end := 0;
-        for(i := 0; i < sizeof(data); i++) {
-            if((i + sizeof(str.data)) < sizeof(data)) {
-                failed = false;
-                for(j := 0; j < sizeof(str.data); j++) {
-                    if(str.data[j] != data[j]) {
-                        failed = true;
-                        break;
-                    }
-                }
+        /* A loop to slide pat[] one by one */
+        for (i := 0; i <= N - M; i++) {
+            j := 0;
 
-                if(!failed)
-                   return true;
-            } else return false;
+            /* For current index i, check for
+            pattern match */
+            for (; j < M; j++)
+                if (data[i + j]
+                    != str.data[j])
+                    break;
+
+            if (j == M)
+                return true;
         }
 
         return false;

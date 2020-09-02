@@ -10,4 +10,7 @@ gcc  main.cpp lib/runtime/*.cpp lib/Modules/*/*.cpp lib/runtime/*/*.cpp lib/util
 echo "building runtime engine profiler..."
 #g++ main.cpp -DSHARP_PROF_ lib/runtime/*.cpp lib/Modules/*/*.cpp lib/runtime/*/*.cpp lib/util/*.cpp lib/util/zip/*.cpp lib/util/fmt/src/*.cc lib/util/jit/asmjit/src/asmjit/x86/*.cpp lib/util/jit/asmjit/src/asmjit/base/*.cpp -o bin/tanto -std=c++11 -pthread -lstdc++ -g -lm -lrt -ldl
 
+
+cp bin/sharp /bin
+cp bin/sharpc /bin
 echo "sharp build finished!"

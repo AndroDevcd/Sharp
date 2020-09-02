@@ -236,10 +236,48 @@ def main() {
     veh := new Vehicle {"ZSY 7CH9"}; // creates a vehicle with 4 wheels and a license plate number
 }  
 ```
-  
-##### Some thoughts on language design  
-Sharp does not force you to be object oriented if you don''t want to like other languages force you to be. Of course some things done such as creating threads require some state to be stored and persist through the lifetime of your application; However Sharp allows you to be either more expressive, functional, or object-oriented.
 
-#### Cool Stuff
-Check out a custom drone api under the link: https://github.com/AndroDevcd/Project-Dragonfly
+## Getting Started
+
+Thdocumentation below explains how to get you started with using sharp.
+
+#### Downloading
+
+To download Sharp go to ``releases`` and download the latest release of Sharp. Unpack the folder revealing the contents inside. Sharp is currently supporting 64 & 32 bit linux and windows operating systems, below covers how to install sharp on both systems:
+
+#### Installing on Windows
+
+Navigate to the folder ``{YOUR_DIR}\release-{VERSION}\bin\{x64/x32}\win``.  Create the folder ``C:/Program Files/Sharp/bin``.  Place the Sharp binaries in the bin folder. Add following folder to your PATH:
+
+```
+PATH = {OTHER_PATH_DIRS}; C:/Program Files/Sharp/bin/;
+```
+
+Windows Powershell is the preferred method to use sharp but you may use windows CMD as well.
+Next cd into the directory of your sharp build to the folder lib and run the commands below using powershell
+
+```
+mkdir "C:/Program Files/Sharp/include/"
+cd {SHARP_INSTALL_PATH}/lib/support/0.2.9/
+cp -r * "C:/Program Files/Sharp/include/"
+Sharpc test.sharp -o test -s -R
+Sharp test
+```
+
+After running the commands above if you receive the final output as ``Hello, World!``` Then Sharp has been installed properly and your good to go!
+
+#### Installing on linux
+
+Navigate to the folder ``{YOUR_DIR}\release-{VERSION}\``.  Installing sharp on linux is very simple simply run the command below:
+
+```
+chmod +x linux-install.bash
+./linux-install.bash
+```
+
+After running the commands above if you receive the final output as ``Hello, World!``` Then Sharp has been installed properly and your good to go!
+
+#### Programming Ideas
+After you install Sharp if you are having trouble coming up with programming ideas then you can head over to the 'examples/' directory to see a list
+of sample programs using various parts of the Sharp programming language.
 

@@ -1,0 +1,66 @@
+mod main;
+
+import std.io;
+
+def simple_test(test_file: string) : var {
+    if(sys("sharpc $test_file -o test"))
+	   return 1;
+    if(sys("sharp test"))
+	   return 1;
+    return 0;
+}
+
+def optimized_test(test_file: string) : var {
+    if(sys("sharpc $test_file -o test -O"))
+	   return 1;
+    if(sys("sharp test"))
+	   return 1;
+    return 0;
+}
+
+def release_test(test_file: string) : var {
+    if(sys("sharpc $test_file -o test -O -R -obf"))
+	   return 1;
+    if(sys("sharp test"))
+	   return 1;
+    return 0;
+}
+
+def run_test(test_file : string) : var {
+    return simple_test(test_file) == 0 && optimized_test(test_file) == 0
+	    && release_test(test_file) == 0;
+}
+
+// limit all files to only the examples folder and exclude any subsequent nested directories
+def is_examples_file(test_file: string) : var {
+   return (new file(test_file).get_parent_file().to_string().ends_with("/examples/"));
+}
+
+def main() : var {
+   example_files := new file("../examples/").list();
+   sorted_list := new list<string>();
+
+   foreach(f in example_files) {
+      if(is_examples_file(f) && f.ends_with(".sharp") && !f.find("console_")) {
+         sorted_list.add(f);
+      }
+   }
+
+   println("######## Sharp Unit Test Runner ########");
+   test_num := 0;
+   foreach(f in sorted_list) {
+      test_num++;
+	  println("Running Unit Test #$test_num of ${sorted_list.size()}");
+	  println("Unit Test File: $f\n");
+
+      if(!run_test(f)) {
+	     println("Unit Test Failed!");
+	     return 1;
+	  } else {
+	     println("Unit Test Passed!");
+	     println("==========================================");
+	  }
+   }
+
+   return 0;
+}

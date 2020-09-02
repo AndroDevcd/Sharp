@@ -476,8 +476,10 @@ void tokenizer::parse()
                             if('"' == current || isend()) {
                                 advance()
                                 goto start;
-                            } else
+                            } else {
                                 tokens.add(Token(string(1, '+'), SINGLE, col, line, PLUS));
+                                continue;
+                            }
                         }
                     }
 
