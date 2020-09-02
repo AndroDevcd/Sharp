@@ -76,14 +76,13 @@ def main() : var {
         }
    }
 
-   println("Building release package...");
-   sys("zip -r ../release/release-pkg.zip ../release/");
+  // println("Building release package...");
+   //sys("zip -r ../release/release-pkg.zip ../release/");
 
    println("Updating branch...");
    sys("git add -A");
    sys("git commit -m \"version ${release_version} is ready for release\"");
    sys("git push");
-   sys("git add -A");
 
    return 0;
 }
