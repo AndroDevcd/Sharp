@@ -739,6 +739,7 @@ void printRegs() {
     cout << "fp -> " << (thread_self->fp-thread_self->dataStack) << endl;
     cout << "pc -> " << PC(thread_self) << endl;
 
+
     native_string stackTrace;
     vm.fillStackTrace(stackTrace);
     cout << "call stack (most recent call last):\n" << stackTrace.str() << endl;

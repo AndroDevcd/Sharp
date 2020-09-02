@@ -58,7 +58,7 @@ void ExeBuilder::buildExe() {
     buildMetaDataSection();
 
     string data = dataSec.str();
-    if(data.size() >= 0xfffffffffffffff) {
+    if(data.size() >= data_compress_threshold) {
         dataSec.str("");
 
         buf << (char)data_compress;
@@ -894,7 +894,7 @@ void ExeBuilder::addClass(ClassObject *klass) {
     allClasses.add(klass);
 
     allMethods.appendAll(klass->getFunctions());
-    if(klass->name == "__srt_global" && klass->isGlobalClass())
+    if(klass->isGlobalClass())
         return;
 
     List<ClassObject*> &childClasses = klass->getChildClasses();

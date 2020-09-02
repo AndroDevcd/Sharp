@@ -30,6 +30,7 @@ Any other compatibility issues/changes will be otherwise noted in the release no
         * Huge ammount of compiler code generation bugs have been fixed 
         * Several code optimizer bugs have been fixed in regards to if statements
         * Fixed bug related to the `lock` statement not properly releasing control
+        * Fixed massive bug with the code obfuscation system crashing the runtime system
 
     # QoL Improvements
         * Significantly improved Garbage collector ~2x gain in performance

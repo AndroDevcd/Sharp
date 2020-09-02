@@ -1,0 +1,11 @@
+mod std;
+
+class result<t, e> {
+    data : t;
+	error : e;
+	
+	public result(data: t, err: e) {
+	   self->data = data;
+	   self->error = err;
+	}
+}
