@@ -247,7 +247,7 @@ To download Sharp go to ``releases`` and download the latest release of Sharp. U
 
 #### Installing on Windows
 
-Navigate to the folder ``{YOUR_DIR}\release-{VERSION}\bin\{x64/x32}\win``.  Create the folder ``C:/Program Files/Sharp/bin``.  Place the Sharp binaries in the bin folder. Add following folder to your PATH:
+Navigate to the folder ``{YOUR_DIR}\release-pkg\bin\x64\win``.  Create the folder ``C:/Program Files/Sharp/bin``.  Place the Sharp binaries in the bin folder. Add following folder to your PATH:
 
 ```
 PATH = {OTHER_PATH_DIRS}; C:/Program Files/Sharp/bin/;
@@ -268,7 +268,7 @@ After running the commands above if you receive the final output as ``Hello, Wor
 
 #### Installing on linux
 
-Navigate to the folder ``{YOUR_DIR}\release-{VERSION}\``.  Installing sharp on linux is very simple simply run the command below:
+Navigate to the folder ``{YOUR_DIR}\release-pkg\``.  Installing sharp on linux is very simple simply run the command below:
 
 ```
 chmod +x linux-install.bash
