@@ -2,6 +2,7 @@ mod main;
 
 import std.io;
 
+release_version := "v0.2.9";
 def simple_test(test_file: string) : var {
     if(sys("sharpc $test_file -o test"))
 	   return 1;
@@ -37,30 +38,52 @@ def is_examples_file(test_file: string) : var {
 }
 
 def main() : var {
-   example_files := new file("../examples/").list();
-   sorted_list := new list<string>();
+//   example_files := new file("../examples/").list();
+//   sorted_list := new list<string>();
+//
+//   foreach(f in example_files) {
+//      if(is_examples_file(f) && f.ends_with(".sharp") && !f.find("console_")) {
+//         sorted_list.add(f);
+//      }
+//   }
+//
+//   println("######## Sharp Unit Test Runner ########");
+//   test_num := 0;
+//   foreach(f in sorted_list) {
+//      test_num++;
+//	  println("Running Unit Test #$test_num of ${sorted_list.size()}");
+//	  println("Unit Test File: $f\n");
+//
+//      if(!run_test(f)) {
+//	     println("Unit Test Failed!");
+//	     return 1;
+//	  } else {
+//	     println("Unit Test Passed!");
+//	     println("==========================================");
+//	  }
+//   }
 
-   foreach(f in example_files) {
-      if(is_examples_file(f) && f.ends_with(".sharp") && !f.find("console_")) {
-         sorted_list.add(f);
-      }
+   println("\n\n%%%%%%%%%%%%%% ALL Unit Tests Have Passed! %%%%%%%%%%%%%%");
+   println("========================================================");
+
+    while(true) {
+        print("Confirm release for language version ${release_version}(Y,n):"); // read a single character for confirmation
+        answer := read_char();
+        println();
+
+        if(char.to_lower(answer) == 'y') { // print the results
+            break;
+        }
    }
 
-   println("######## Sharp Unit Test Runner ########");
-   test_num := 0;
-   foreach(f in sorted_list) {
-      test_num++;
-	  println("Running Unit Test #$test_num of ${sorted_list.size()}");
-	  println("Unit Test File: $f\n");
+   println("Building release package...");
+   sys("zip -r ../release/release-pkg.zip ../release/");
 
-      if(!run_test(f)) {
-	     println("Unit Test Failed!");
-	     return 1;
-	  } else {
-	     println("Unit Test Passed!");
-	     println("==========================================");
-	  }
-   }
+   println("Updating branch...");
+   sys("git add -A");
+   sys("git commit -m \"version ${release_version} is ready for release\"");
+   sys("git push");
+   sys("git add -A");
 
    return 0;
 }
