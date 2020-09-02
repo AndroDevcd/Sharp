@@ -1,0 +1,114 @@
+mod std.io.task;
+
+
+public class job_builder {
+
+	private job_builder() {}
+
+	protected job_builder(scheduled_job : job, master : job_master) {
+		self->scheduled_job = scheduled_job;
+		self->master = master;
+
+	    job_args := new object[1];
+	    job_args[0] = self->scheduled_job;
+	    self->scheduled_job.args = job_args;
+	}
+
+	def with_timeout(mills_time : var) : job_builder {
+	    if(scheduled_job.block_caller) {
+	        throw new ill_state_except("cannot set a timeout on a job that's blocking the calling thread");
+	    }
+
+		scheduled_job.timeout = mills_time;
+		scheduled_job.has_timeout = true;
+		return self;
+	}
+
+	def schedule(future : var) : job_builder {
+		scheduled_job.delay_time = future;
+		return self;
+	}
+
+	def recurring(tm : var, interval: time_unit) : job_builder {
+	    if(scheduled_job.block_caller) {
+	        throw new ill_state_except("cannot set a job recurring that's blocking the calling thread");
+	    }
+
+	    scheduled_job.recurring = true;
+		scheduled_job.update_interval(tm, interval);
+		return self;
+	}
+
+	def with_name(job_name : string) : job_builder {
+		scheduled_job.name = job_name;
+		return self;
+	}
+
+	def with_args(args : object[]) : job_builder {
+	    job_args := new object[1 + sizeof(args)];
+	    job_args[0] = scheduled_job;
+
+	    index := 0;
+	    foreach(arg in args) {
+	        job_args[++index] = arg;
+	    }
+
+		scheduled_job.args = job_args;
+		return self;
+	}
+
+	def block() : job_builder {
+	    if(scheduled_job.has_timeout) {
+	        throw new ill_state_except("cannot block calling thread on job that has a timeout");
+	    }
+
+	    if(scheduled_job.recurring) {
+	        throw new ill_state_except("cannot block calling thread on a recurring job");
+	    }
+
+		scheduled_job.block_caller = true;
+		return self;
+	}
+
+	def long_term() : job_builder {
+		scheduled_job.long_term = true;
+		return self;
+	}
+
+	public def operator=(main: ()()) : job {
+		scheduled_job = main;
+		master.start_job(scheduled_job);
+		return scheduled_job;
+	}
+
+	public def operator=(main: (args : object[])()) : job {
+		scheduled_job = main;
+		master.start_job(scheduled_job);
+		return scheduled_job;
+	}
+
+    protected def operator=(main: (deferred : object, args : object[])()) : job {
+    	scheduled_job = main;
+	    if(scheduled_job.recurring) {
+	        throw new ill_state_except("recurring jobs cannot be deferred tasks");
+	    }
+
+    	master.start_job(scheduled_job);
+    	return scheduled_job;
+    }
+
+    protected def operator=(main: (deferred : object)()) : job {
+    	scheduled_job = main;
+	    if(scheduled_job.recurring) {
+	        throw new ill_state_except("recurring jobs cannot be deferred tasks");
+	    }
+
+    	master.start_job(scheduled_job);
+    	return scheduled_job;
+    }
+
+	public def get_job() := scheduled_job;
+
+	protected master : job_master;
+	protected scheduled_job : job;
+}

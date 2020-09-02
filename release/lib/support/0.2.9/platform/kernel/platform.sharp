@@ -1,0 +1,117 @@
+mod platform.kernel;
+
+import std.io;
+import platform;
+
+class platform
+{
+    private static main : (string[])(var);
+    private static main2 : (string[])();
+    private static main3 : ()();
+    private static main4 : ()(var);
+
+    static def tls_init() {}
+    private static def static_init() {}
+
+    static def exit(value: var) {
+        asm {
+            ipushl {value}
+            int 0x1d
+        }
+    }
+
+    private static def get_lib_path(name: string) : _int8[] {
+        if(build.is_windows()) {
+            name += ".dll";
+        } else {
+            name += ".so";
+        }
+
+        return new file(name).get_absolute_path().get_data();
+    }
+
+    static def load_library(name: string) {
+        lib_name : _int8[] = get_lib_path(name);
+        asm {
+            pushl {lib_name}
+            int 0x39
+        }
+    }
+
+    static def free_library(name: string): var {
+        lib_name : _int8[] = get_lib_path(name);
+        result := 0;
+        asm {
+            pushl {lib_name}
+            int 0x3a
+            smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
+    static def link_func(name: string, library: string): var {
+        lib_name : _int8[] = get_lib_path(name);
+        func_name := name.get_data();
+        result := 0;
+        asm {
+            pushl {func_name}
+            pushl {lib_name}
+            int 0x3b
+            smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
+    private static def srt_init(args: object[]) : var {
+        build.app_name = "${args[0] as _int8[]}";
+        build.version = "${args[1] as _int8[]}";
+        build.platform = "${args[2] as _int8[]}";
+        build.os = "${args[3] as _int8[]}";
+
+        static_init();
+        tls_init();
+
+        main_thread := args[4] as thread;
+        vm.set_thread(main_thread);
+
+        priority := max_priority;
+        thread_group.main_group.add(main_thread);
+
+        asm {
+            movg {thread_group}
+            movn {thread_group.main_group}
+            pushObj
+
+            movl {main_thread}
+            movn {thread.parent_group}
+            popObj
+
+            movl {priority}
+            pushObj
+
+            movl {main_thread}
+            movn {thread.priority}
+            popObj
+        }
+
+        const min_args := 5;
+        user_args := new string[sizeof(args) - min_args];
+        iter := 0;
+
+        for(i := min_args; i < sizeof(args); i++) {
+            user_args[iter++] = new string(args[i] as _int8[]);
+        }
+
+        result := 0;
+        when {
+            main != 0 -> result = main(user_args);
+            main2 != 0 -> main2(user_args);
+            main3 != 0 -> main3();
+            main4 != 0 -> result = main4();
+        }
+
+        return result;
+    }
+}

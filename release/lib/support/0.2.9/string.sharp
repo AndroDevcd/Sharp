@@ -1,0 +1,379 @@
+mod std;
+
+import std.io;
+
+class string : loopable<_int8> {
+    private data : _int8[];
+    private static currentFormat := 'g';
+    private static precision := 0;
+
+    string(str : _int8[]) {
+        if(str != null) {
+            append(str);
+        }
+    }
+
+    string(ch: var) {
+        append(ch);
+    }
+
+    string(str : char[]) {
+        if(str != null) {
+            data = new var[sizeof(str)];
+            iter := 0;
+            foreach(ch in str) {
+                data[iter++] = ch.get_value();
+            }
+        }
+    }
+
+    string(str: string) {
+        if(str != null) {
+            append(str.data);
+        }
+    }
+
+    string(str : _int8[], offset: var) {
+        if(str != null) {
+            data = copy(str, offset, sizeof(str));
+        }
+    }
+
+    string(str : _int8[], start: var, end: var) {
+        if(str != null && ((end - start) > 0)) {
+            data = new _int8[end - start];
+            memcopy(str, data, 0, start, end);
+        }
+    }
+
+    def replace(pos : var, ch: _int8) : string {
+        if(pos >= sizeof(data)) {
+            throw bounds_error(pos);
+        }
+
+        data[pos] = ch;
+        return self;
+    }
+
+    def append(ch: var) : string
+    {
+        if(data == null)
+            data = new var[1];
+        else
+            realloc(data, sizeof(data) + 1);
+
+        data[sizeof(data) - 1] = ch;
+        return self;
+    }
+
+    def empty() := sizeof(data)==0;
+
+    def append(c: char) := append(c.get_value());
+
+    def append(immstr: _int8[]) : string
+    {
+        if(immstr == null) return self;
+
+        old_size := sizeof(data);
+
+        if(data == null)
+            data = new _int8[sizeof(immstr)];
+        else
+            realloc(data, sizeof(data) + sizeof(immstr));
+
+        memcopy(immstr, data, old_size, 0, sizeof(immstr));
+        return self;
+    }
+
+    def append(immstr: _int8[], len: var) : string
+    {
+        if(immstr == null) return self;
+        if(len < 0)
+            throw new error("length cannot be less than zero");
+
+        if(len > sizeof(immstr))
+            throw new error("length of: $len is greater than the string: ${sizeof(immstr)}");
+
+        old_size := sizeof(data);
+
+        if(data == null)
+            data = new var[len];
+        else
+            realloc(data, sizeof(data) + len);
+
+        memcopy(immstr, data, old_size, 0, len);
+        return self;
+    }
+
+    def operator+(immstr : _int8[]) : string {
+        s := new string(data);
+        if(immstr != null)
+            return s.append(immstr);
+        else
+            return s;
+    }
+
+    def to_lower() : string {
+        str := new string();
+        if(data != null) {
+            str.data = copy(data, 0, sizeof(data));
+
+            iter := 0;
+            foreach(ch in data) {
+                if('A' <= ch && ch <= 'Z')
+                    str.data[iter] =  'a' + (ch - 'A');
+                iter++;
+            }
+        }
+
+        return str;
+    }
+
+    def operator+(obj : printable) : string {
+        s := new string(data);
+        if(obj != null) {
+            printed_str := obj.to_string();
+            if(printed_str != null)
+                return s.append(printed_str.data);
+            else
+                return s.append("null");
+        }
+        else
+            return s.append("null");
+    }
+
+   def operator+(str : string) : string {
+       s := new string(data);
+       if(str != null)
+           return s.append(str.data);
+       else
+           return s.append("null");
+   }
+
+    def to_string() := new string(data);
+
+    def operator==(str : _int8[]) : var {
+        if(sizeof(data) != sizeof(str))
+            return false;
+
+        iter := 0;
+        foreach(ch in str) {
+            if(ch != data[iter++]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    def operator==(str : string) : var {
+        if(sizeof(data) != sizeof(str.data))
+            return false;
+
+        iter := 0;
+        foreach(ch in str.data) {
+            if(ch != data[iter++]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    def operator!=(str : _int8[]) := !operator==(str);
+    def operator!=(str : string) := !operator==(str);
+
+    def operator=( immstr: _int8[] )
+    {
+        if (immstr == null) data = null;
+        else
+            data = copy(immstr, 0, sizeof(immstr));
+    }
+
+    def at(pos : var) : _int8 {
+        if(pos >= sizeof(data))
+            throw bounds_error(pos);
+        return data[pos];
+    }
+
+    def operator[](pos: var) := at(pos);
+
+    static def fmt( _fmt: var ) {
+        currentFormat = _fmt;
+    }
+
+    static def set_precision( prec: var ) {
+        if(prec < 0 || prec > 16)
+            throw new ill_arg_except("invalid precision: $prec");
+        precision = prec;
+    }
+
+    def get_data() := data;
+
+    def get_elements() := data;
+
+    def to_array() : _int8[]
+    {
+        if(data == null) return null;
+        return copy(data, 0, sizeof(data));
+    }
+
+
+    def starts_with(prefix: string) : var {
+        if (prefix == null || (sizeof(prefix.data) > sizeof(data))) {
+            return false;
+        }
+
+        for(i := 0; i < sizeof(prefix.data); i++)
+        {
+            if(data[i]!=prefix.data[i])
+                return false;
+        }
+        return true;
+    }
+
+
+    def find(str: string) : var {
+        M := str.size();
+        N := sizeof(data);
+
+        /* A loop to slide pat[] one by one */
+        for (i := 0; i <= N - M; i++) {
+            j := 0;
+
+            /* For current index i, check for
+            pattern match */
+            for (; j < M; j++)
+                if (data[i + j]
+                    != str.data[j])
+                    break;
+
+            if (j == M)
+                return true;
+        }
+
+        return false;
+    }
+
+    def ends_with(postfix: string) : var {
+        if(sizeof(postfix.data) >= sizeof(data))
+            return false;
+
+        index := 0;
+        for(i := sizeof(data) - sizeof(postfix.data); i < sizeof(data); i++){
+            if(data[i] != postfix.data[index++])
+                return false;
+        }
+
+        return true;
+    }
+
+    def operator+(num : var) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def operator+(num : _int8) : string {
+        s := new string(data);
+        s.append(num);
+        return s;
+    }
+
+    def operator+(num : _int16) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def operator+(num : _int32) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def operator+(num : _int64) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def operator+(num : _uint8) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def operator+(num : _uint16) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def operator+(num : _uint32) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def operator+(num : _uint64) : string {
+        s := new string(data);
+        s.append(parse(num).data);
+        return s;
+    }
+
+    def size() := sizeof(data);
+
+    static def parse( number : var ) := new string(snprintf(currentFormat, number, precision));
+
+    def operator+=( num: var ) := append(parse(num).data);
+    def operator+=( num: _int8 ) := append(num);
+    def operator+=( num: _uint8 ) := append(num);
+    def operator+=( num: _int16 ) := append(parse(num).data);
+    def operator+=( num: _uint16 ) := append(parse(num).data);
+    def operator+=( num: _int32 ) := append(parse(num).data);
+    def operator+=( num: _uint32 ) := append(parse(num).data);
+    def operator+=( num: _int64 ) := append(parse(num).data);
+    def operator+=( num: _uint64 ) := append(parse(num).data);
+
+    def operator+=( obj: printable ) : string
+    {
+        s := obj.to_string();
+        if(s != null && s.data != null)
+            return append(s.data);
+        else
+            return append("null");
+    }
+
+    def operator+=( str: string ) := append(str.data);
+
+    def operator+=( str: _int8[] ) := append(str);
+
+    def substring(start_pos: var, end_pos: var) : string {
+        if((start_pos >= sizeof(data)) || (start_pos < 0))
+            throw bounds_error(start_pos);
+        if(end_pos < start_pos)
+            throw new ill_arg_except(
+                "end_pos: $end_pos cannot be less than the start_pos: $start_pos");
+
+
+        str := new string();
+        str.data = copy(data, start_pos, end_pos);
+        return str;
+    }
+
+    private def bounds_error(pos : var) : bounds_except {
+        return new bounds_except("Index out of bounds exception at: $pos with size of: ${sizeof(data)}");
+    }
+
+    def hash() : long {
+        const p := 31;
+        const m := 1e9 + 9;
+        hash_value := 0;
+        p_pow := 1;
+        foreach(c in data) {
+            hash_value = (hash_value + (c - 'a' + 1) * p_pow) % m;
+            p_pow = (p_pow * p) % m;
+        }
+        return hash_value;
+    }
+}

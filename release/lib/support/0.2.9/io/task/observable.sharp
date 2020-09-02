@@ -1,0 +1,46 @@
+mod std.io.task;
+
+import std.io;
+
+public class observable<t> {
+
+	public observable(initial : t) {
+		data = initial;
+	}
+
+	public def post(data : t) {
+		self->data = data;
+		changed = true;
+		notify_all();
+	}
+
+	public def observe(on_update: (observable<t>)()) {
+	    update_fun = on_update;
+	    observers.add(self);
+	}
+
+	private def notify_all() {
+        foreach(obs in observers) {
+            try {
+                obs.update_fun(self);
+            } catch(cancellation_exception) {
+                observers.remove(obs, {it, it2 -> return it == it2; });
+            } catch(e: error) {
+                observers.remove(obs, {it, it2 -> return it == it2; });
+                throw e;
+            }
+        }
+	}
+
+	public def stop_listening() {
+	   throw new cancellation_exception();
+	}
+
+	public def get_data() : t = data;
+
+    protected changed : var;
+	protected data : t;
+	private update_fun: (observable<t>)();
+	protected observers := new synced_list<observable<t> >();
+}
+

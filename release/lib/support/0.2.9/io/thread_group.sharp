@@ -1,0 +1,75 @@
+mod std.io;
+
+public class thread_group : loopable<thread> {
+	
+	public thread_group(name : string) {
+		self->name = name;
+		self->default_priority = thread_priority.norm_priority;
+	}
+	
+	public thread_group(name : string, priority : thread_priority) {
+		self->name = name;
+		self->default_priority = priority;
+	}
+	
+	def at(id : var) := handles.at(id);
+	
+	def add(t : thread) {
+	    lock(self) {
+            if(handles.put(t.get_id(), t)) {
+                ids.add(t.get_id());
+            }
+            n_threads--;
+		}
+	}
+	
+	def size() := n_threads;
+	def get_name() := name;
+	def get_priority() := default_priority;
+	def remove(id : var) : var {
+	    lock (self) {
+            if(handles.remove(id)) {
+                n_threads--;
+                ids.remove(id);
+                return true;
+            }
+
+            return false;
+		}
+	}
+
+    def get_elements() : thread[] {
+        threads := new thread[ids.size()];
+        iter := 0;
+
+        foreach(id in ids) {
+            threads[iter++] = handles.at(id);
+        }
+
+        return threads;
+    }
+
+    def find(find_func: (thread)(var)) : thread {
+        for(i := 0; i < ids.size(); i++) {
+            _thread := handles.at(ids.at(i));
+            if(_thread != null && find_func(_thread)) {
+                return _thread;
+            }
+        }
+
+        return null;
+    }
+	
+	def kill_all() {
+		foreach(id in ids) {
+			handles.at(id).interrupt();
+		}
+	}
+	
+	public static main_group := new thread_group("main");
+	private handles := new hashtable<int, thread>();
+	private ids := new list<var>();
+	private name : string;
+	private default_priority : thread_priority;
+	private n_threads := 0;
+}

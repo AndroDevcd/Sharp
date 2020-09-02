@@ -1,0 +1,370 @@
+mod std;
+
+import std.io;
+
+class string_builder : loopable<_int8> {
+    private data : _int8[];
+    private static currentFormat := 'g';
+    private static precision := 0;
+    private static const default_capacity := 255;
+    private resize_capacity := 128;
+    private capacity := 0;
+    private cursor := 0;
+
+    init {
+      data = new _int8[default_capacity];
+      capacity = default_capacity;
+      cursor = -1;
+    }
+
+    def set_resize_capacity(new_capacity: var) {
+        resize_capacity = new_capacity;
+    }
+
+    string_builder(str : _int8[]) {
+        if(str != null) {
+            append(str);
+        }
+    }
+
+    string_builder(ch: var) {
+        append(ch);
+    }
+
+    string_builder(str : char[]) {
+        if(str != null) {
+            if(!space_available(sizeof(str))) {
+                expand(sizeof(str));
+            }
+
+            data = new var[sizeof(str)];
+            foreach(ch in str) {
+                data[++cursor] = ch.get_value();
+            }
+        }
+    }
+
+    string_builder(str: string) {
+        if(str != null) {
+            append(str.get_data());
+        }
+    }
+
+    string_builder(str: string_builder) {
+        if(str != null) {
+            append(str.data);
+        }
+    }
+
+    string_builder(str : _int8[], offset: var) {
+        if(str != null) {
+            if(!space_available(sizeof(str) - offset)) {
+                expand(sizeof(str));
+            }
+
+            memcopy(str, data, ++cursor, offset, sizeof(str));
+            cursor += sizeof(str) - offset - 1;
+        }
+    }
+
+    def space_available(space_required : var) : var {
+        return ((cursor + 1) + space_required) < sizeof(data);
+    }
+
+    def expand(space_required : var) {
+        new_size := ((cursor + 1) + space_required) + resize_capacity;
+        realloc(data, new_size);
+    }
+
+    def replace(pos : var, ch: _int8) : string_builder {
+        if(pos >= sizeof(data)) {
+            throw bounds_error(pos);
+        }
+
+        data[pos] = ch;
+        return self;
+    }
+
+    def append(ch: var) : string_builder
+    {
+        if(data == null)
+            data = new var[default_capacity];
+        else if((cursor + 1) >= sizeof(data))
+            expand(0);
+
+        data[sizeof(data) - 1] = ch;
+        return self;
+    }
+
+    def get_elements() := to_string().get_elements();
+
+    def append(c: char) := append(c.get_value());
+
+    def append(immstr: _int8[]) : string_builder
+    {
+        if(immstr == null) return self;
+
+        if(data == null)
+            data = new var[sizeof(immstr) + default_capacity];
+        else if(!space_available(sizeof(immstr)))
+            expand(sizeof(immstr));
+
+        memcopy(immstr, data, ++cursor, 0, sizeof(immstr));
+        cursor += sizeof(immstr) - 1;
+        return self;
+    }
+
+    def append(immstr: _int8[], len: var) : string_builder
+    {
+        if(immstr == null) return self;
+        if(len < 0)
+            throw new error("length cannot be less than zero");
+
+        if(len > sizeof(immstr))
+            throw new error("length of: $len is greater than the string: ${sizeof(immstr)}");
+
+        if(data == null)
+            data = new var[len + default_capacity];
+        else if(!space_available(sizeof(immstr)))
+            expand(sizeof(immstr));
+
+        memcopy(immstr, data, ++cursor, 0, len);
+        cursor += sizeof(immstr) - len - 1;
+        return self;
+    }
+
+    def operator+(immstr : _int8[]) : string_builder {
+        s := new string_builder(data);
+        if(immstr != null)
+            return s.append(immstr);
+        else
+            return s.append("null");
+    }
+
+
+    def operator+(obj : printable) : string_builder {
+        s := new string_builder(data);
+        if(obj != null)
+            return s.append(obj.to_string().get_data());
+        else
+            return s.append("null");
+    }
+
+    def to_string() := new string(data, 0, cursor + 1);
+
+    def operator==(str : _int8[]) : var {
+        if((cursor + 1) != sizeof(str))
+            return false;
+
+        iter := 0;
+        foreach(ch in str) {
+            if(ch != data[iter++]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    def operator==(str : string) : var {
+        if((cursor + 1) != sizeof(str.get_data()))
+            return false;
+
+        iter := 0;
+        foreach(ch in str.get_data()) {
+            if(ch != data[iter++]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    def operator!=(str : _int8[]) := !operator==(str);
+
+    def operator!=(str : string) := !operator==(str);
+
+    def operator=( immstr: _int8[] )
+    {
+        if (immstr == null) {
+            data = new _int8[default_capacity];
+            cursor = -1;
+        }
+        else {
+            data = new _int8[sizeof(immstr) + default_capacity];
+            cursor = sizeof(immstr);
+            memcopy(immstr, data, 0, 0, sizeof(immstr));
+        }
+    }
+
+    def at(pos : var) : _int8 {
+        if(pos > cursor)
+            throw bounds_error(pos);
+        return data[pos];
+    }
+
+    def operator[](pos: var) : var {
+        return at(pos);
+    }
+
+    static def fmt( _fmt: var ) {
+        currentFormat = _fmt;
+        if(_fmt != 'f' && _fmt != 'F') precision = 0;
+    }
+
+    static def set_precision( prec: var ) {
+        if(prec < 0 || prec > 16)
+            throw new ill_arg_except("invalid precision: $prec");
+        precision = prec;
+    }
+
+    def to_array() : _int8[]
+    {
+        if(data == null || cursor == -1) return null;
+        return copy(data, 0, cursor+1);
+    }
+
+
+    def starts_with(prefix: string) : var {
+        if (prefix == null || (prefix.size() > (cursor + 1))) {
+            return false;
+        }
+
+        for(i := 0; i < prefix.size(); i++)
+        {
+            if(data[i]!=prefix.data[i])
+                return false;
+        }
+        return true;
+    }
+
+    def find(str: string) : var {
+        if(str.size() > (cursor + 1)) {
+            return false;
+        }
+
+        end := 0;
+        for(i := 0; i < (cursor + 1); i++) {
+            if((i + str.size()) < (cursor + 1)) {
+                for(j := 0; j < str.size(); j++) {
+                    if(str[j] != data[j])
+                        break;
+                }
+
+                return true;
+            } else return false;
+        }
+
+        return false;
+    }
+
+    def find(str: string_builder) : var {
+        if(sizeof(str.data) > (cursor + 1)) {
+            return false;
+        }
+
+        end := 0;
+        for(i := 0; i < (cursor + 1); i++) {
+            if((i + sizeof(str.data)) < (cursor + 1)) {
+                for(j := 0; j < sizeof(str.data); j++) {
+                    if(str[j] != data[j])
+                        break;
+                }
+
+                return true;
+            } else return false;
+        }
+
+        return false;
+    }
+
+    def ends_with(postfix: string) : var {
+        if(sizeof(postfix.data) >= (cursor + 1))
+            return false;
+
+        for(i := (cursor + 1) - sizeof(postfix.data); i < (cursor + 1); i++){
+            if(data[i] != postfix.data[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    def operator+(num : var) : string_builder {
+        s := new string_builder(data);
+        s.append(parse(num).get_data());
+        return s;
+    }
+
+    def size() : var {
+        return cursor + 1;
+    }
+
+    def parse( number : var ) : string_builder
+    {
+        return new string_builder(snprintf(currentFormat, number, precision));
+    }
+
+    def operator+=( num: var ) : string_builder
+    {
+        return append(parse(num).get_data());
+    }
+
+    public def operator+=( obj: printable ) : string_builder
+    {
+        s := obj.to_string();
+        if(s != null && s.get_data() != null)
+            return append(s.get_data());
+        else
+            return append("null");
+    }
+
+    def operator+=( str: string ) : string_builder
+    {
+        return append(str.get_data());
+    }
+
+    def get_data() : _int8[]{
+        return data;
+    }
+
+    def operator+=( str: string_builder ) : string_builder
+    {
+        return append(str.data);
+    }
+
+    def operator+=( str: _int8[] ) : string_builder
+    {
+        return append(str);
+    }
+
+    public def substring(startPos: var, endPos: var) : string_builder {
+        if((startPos >= (cursor + 1)) || (startPos < 0))
+            throw bounds_error(startPos);
+        if(endPos < startPos)
+            throw new ill_arg_except(
+                "endPos: $endPos cannot be less than the startPos: $startPos");
+
+
+        str := new string_builder();
+        str.data = copy(data, startPos, endPos);
+        return str;
+    }
+
+    private def bounds_error(pos : var) : bounds_except {
+        return new bounds_except("Index out of bounds exception at: $pos with size of: ${cursor + 1}");
+    }
+
+    def hash() : long {
+        const p := 31;
+        const m := 1e9 + 9;
+        hash_value := 0;
+        p_pow := 1;
+        foreach(c in data) {
+            hash_value = (hash_value + (c - 'a' + 1) * p_pow) % m;
+            p_pow = (p_pow * p) % m;
+        }
+        return hash_value;
+    }
+}
+
+alias string_builder as str_builder;

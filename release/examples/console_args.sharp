@@ -1,0 +1,17 @@
+mod main;
+
+// this is a simple program that print out the arguments passed in from the console
+def main(args: string[]) {
+    println("args passed into the program:");
+
+    index := 0;
+    foreach(arg in args) {
+       print("$arg");
+
+       if((index + 1) < sizeof(args)) {
+        print(", ");
+       }
+
+       index++;
+    }
+}

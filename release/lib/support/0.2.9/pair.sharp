@@ -1,0 +1,11 @@
+mod std;
+
+class pair<k,v> {
+    key : k;
+    value : v;
+
+    pair(key : k, value : v) {
+        self->key = key;
+        self->value = value;
+    }
+}

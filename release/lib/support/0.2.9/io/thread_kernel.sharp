@@ -1,0 +1,70 @@
+mod std.io;
+
+import platform.kernel;
+
+def _srt_thread_start() {
+    curr := vm.current_thread();
+    curr.notify();
+
+    asm {
+        movi ebx, 1
+        movi egx, 0
+        movi adx, 0
+        movl 0
+        movn {thread.exited}
+        rmov adx, egx
+
+        movl 0
+        movn {thread.started}
+        rmov adx, ebx
+    }
+
+    platform.tls_init();
+    result : var = 1;
+
+    try {
+        result = curr.main(vm.thread_args());
+    } catch(e: throwable) {
+        if(curr.get_exception_handler() != null) {
+            curr.get_exception_handler().uncaught_exception(e);
+        } else {
+            vm.exit_thread(curr, result);
+            throw e;
+        }
+    }
+
+    vm.exit_thread(curr, result);
+}
+
+mutate thread_result {
+    static enums: thread_result[];
+
+    static init {
+        iter := 0;
+        enums = new thread_result[17];
+        enums[iter++] = result_ok                      ;
+        enums[iter++] = result_ill_thread_start        ;
+        enums[iter++] = result_thread_running          ;
+        enums[iter++] = result_thread_terminated       ;
+        enums[iter++] = result_invalid_stack_size      ;
+        enums[iter++] = result_thread_not_started      ;
+        enums[iter++] = result_ill_thread_join         ;
+        enums[iter++] = result_thread_join_failed      ;
+        enums[iter++] = result_ill_thread_interrupt    ;
+        enums[iter++] = result_thread_interrupt_failed ;
+        enums[iter++] = result_ill_thread_destroy      ;
+        enums[iter++] = result_thread_create_failed    ;
+        enums[iter++] = result_no_thread_id            ;
+        enums[iter++] = result_thread_destroy_failed   ;
+        enums[iter++] = result_ill_priority_set        ;
+        enums[iter++] = result_ill_thread_suspend      ;
+        enums[iter++] = result_max_spin                ;
+    }
+
+    static def at(index: var) : thread_result {
+        if(index == result_max_spin.get_ordinal())
+            return (enums[sizeof(enums) - 1]);
+
+        return enums[index];
+    }
+}

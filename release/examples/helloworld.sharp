@@ -1,0 +1,6 @@
+mod main;
+
+def main(args: object[]) : var {
+    println("Hello, world!");
+    return 0;
+}

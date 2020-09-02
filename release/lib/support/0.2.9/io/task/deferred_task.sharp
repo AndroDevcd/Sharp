@@ -1,0 +1,35 @@
+mod std.io.task;
+
+class deferred_task<t> base deferred<t> {
+	deferred_task(scheduled_job : job) -> base(scheduled_job) {}
+
+    static def for_result(builder : job_builder, main: (object, object[])()) : deferred<t> {
+    	future := new deferred_task<t>(builder.scheduled_job);
+    	builder.scheduled_job.deferred_obj = future;
+    	builder = main;
+    	return future;
+    }
+
+    static def for_result(builder : job_builder, main: (object)()) : deferred<t> {
+    	future := new deferred_task<t>(builder.scheduled_job);
+    	builder.scheduled_job.deferred_obj = future;
+    	builder = main;
+    	return future;
+    }
+
+    static def for_result(main: (object, object[])()) : deferred<t> {
+        builder := task.builder();
+    	future := new deferred_task<t>(builder.scheduled_job);
+    	builder.scheduled_job.deferred_obj = future;
+    	builder = main;
+    	return future;
+    }
+
+    static def for_result(main: (object)()) : deferred<t> {
+        builder := task.builder();
+    	future := new deferred<t>(builder.scheduled_job);
+    	builder.scheduled_job.deferred_obj = future;
+    	builder = main;
+    	return future;
+    }
+}

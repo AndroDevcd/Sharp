@@ -1,0 +1,30 @@
+mod main;
+
+import std.io;
+
+count := new atomic<var>(0); // setup our atomic number
+
+def foo_main(args: object[]) : var {
+   for(i := 0; i < 1000; i++) {
+      count++;
+   }
+
+   return 0;
+}
+
+/*
+ * this program shows how to create atomic 
+ * numbers for multithreadding
+ *
+ * the count number is protected from race conditions
+ *
+ * if you wanted to use a class you would 
+ * use the 'atomic_ref<>' class
+ */
+def main() {
+   new thread("counter1", foo_main).start();
+   new thread("counter2", foo_main).start();
+   
+   thread.sleep(1500); // wait for the threads to finish
+   println("count = ${count.read()}");
+}

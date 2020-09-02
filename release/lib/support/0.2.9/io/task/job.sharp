@@ -1,0 +1,240 @@
+mod std.io.task;
+
+import std.io;
+
+public class job {
+
+	private job() {}
+
+	job(name : string) {
+		self->name = name;
+		lock(launcher) {
+		    id = guid++;
+		}
+	}
+
+	protected def execute_async() : var {
+		if(state == created) {
+			controller.scheduled_job = self;
+			controller.last_ran = time.mills_time();
+
+			if(!host.is_active()) {
+			    if(host.start(new object[] { controller }) != result_ok)
+			    {
+			      controller.scheduled_job = null;
+			      return 2;
+			    }
+			}
+
+			controller.notify();
+			return 0;
+		} else if(state == active) {
+			return 1;
+		}
+
+		return 2;
+	}
+
+	public def cancel() {
+	    lock(self) {
+            if(state == active) {
+                state = cancelled;
+
+                if(thread.current() != host) {
+                   host.interrupt();
+                   launcher.cleanup_job(self);
+                }
+                else {
+                   throw new cancellation_exception();
+                }
+            }
+	    }
+	}
+
+	protected def cancel_future() {
+	    lock(self) {
+            if(recurring) {
+                jb := next_task;
+                while(jb != null) {
+                    jb.cancel();
+                    launcher.cleanup_job(jb);
+
+                    jb = jb.next_task;
+                }
+            }
+		}
+	}
+
+	public def join() {
+	    if(block_caller
+	        || state == cancelled
+	        || state == completed)
+	        return;
+
+	    try_join := false;
+        lock(self) {
+            if(!is_finished()) {
+                try_join = true;
+                listeners.add(thread.current());
+            }
+        }
+
+        if(try_join) {
+            thread.current().wait();
+        }
+	}
+
+	public def get_state() := state;
+	public def get_name() := name;
+	public def get_id() := id;
+
+	protected def operator=(block: ()()) {
+		self->main0 = block;
+	}
+
+	protected def operator=(block: (args : object[])()) {
+		main1 = block;
+	}
+
+	protected def operator=(block: (deferred : object, args : object[])()) {
+		main2 = block;
+	}
+
+	protected def operator=(block: (deferred : object)()) {
+		main3 = block;
+	}
+
+	protected static def job_main(args : object[]) : var {
+        controller := args[0] as job_controller;
+
+        for(;;) {
+            controller.wait();
+
+            if(controller.scheduled_job != null) {
+                try {
+                    controller.scheduled_job.execute();
+                } catch(cancellation_exception) {
+                    controller.scheduled_job.state = cancelled;
+                    launcher.cleanup_job(controller.scheduled_job);
+                } catch(e: error) {
+                    controller.scheduled_job.state = cancelled;
+                    launcher.cleanup_job(controller.scheduled_job);
+                    controller.scheduled_job = null;
+                    throw e;
+                } catch(e: exception) {
+                    controller.scheduled_job.state = cancelled;
+                    launcher.cleanup_job(controller.scheduled_job);
+                    controller.scheduled_job = null;
+                    throw e;
+                }
+
+                controller.scheduled_job = null;
+			}
+        }
+
+        return 0;
+	}
+
+	protected def execute() {
+	    start_time = time.mills_time();
+		state = active;
+		if(recurring)
+		    reschedule();
+
+        when {
+            main0 -> main0();
+            main1 -> main1(args);
+            main2 -> main2(deferred_obj, args);
+            main3 -> main3(deferred_obj);
+        }
+
+		state = completed;
+		launcher.cleanup_job(self);
+	}
+
+    def is_finished() := state == completed || state == cancelled;
+    def is_active() := state == active;
+
+    public def update_timeout(tm: var) {
+        timeout = tm;
+    }
+
+    public def update_interval(tm: var, interval: time_unit) {
+        if(!recurring)
+	        throw new ill_state_except("cannot set update restart interval on non-recurring job");
+
+        if(state == active) {
+           cancel_future();
+           next_task = null;
+        }
+
+        if(interval == nanoseconds) {
+            sched_time = time.nano_to_mills(tm);
+        } else if(interval == microseconds) {
+            sched_time = tm / 1000;
+        } else if(interval == milliseconds) {
+            sched_time = tm;
+        } else if(interval == seconds) {
+            sched_time = tm * 1000;
+        }
+
+        if(state == active)
+           reschedule();
+    }
+
+    protected def reschedule() {
+
+        delay := (start_time + sched_time) - time.mills_time();
+        jb := task.builder()
+            .with_name(name)
+            .recurring(sched_time, milliseconds);
+
+        user_args := new object[sizeof(args) - 1];
+        index := 0;
+        for(i := 1; i < sizeof(args); i++) {
+            user_args[index++] = args[i];
+        }
+
+        if(long_term)
+            jb.long_term();
+        jb.with_args(user_args);
+
+        when {
+            main0 -> jb.scheduled_job.main0 = main0;
+            main1 -> jb.scheduled_job.main1 = main1;
+            main2 -> jb.scheduled_job.main2 = main2;
+            main3 -> jb.scheduled_job.main3 = main3;
+        }
+
+        if(delay > 0)
+           jb.schedule(delay);
+        if(has_timeout)
+           jb.with_timeout(timeout);
+
+        next_task = jb.scheduled_job;
+        jb.master.start_job(jb.scheduled_job);
+    }
+
+	protected main0: ()();
+	protected main1: (args : object[])();
+	protected main2: (object, object[])();
+	protected main3: (object)();
+	protected host : thread;
+	protected name : string;
+	protected args : object[];
+	protected deferred_obj : object;
+	protected has_timeout := false;
+	protected timeout := 0;
+	protected start_time := 0;
+	protected sched_time := 0;
+	protected delay_time := 0;
+	protected next_task : job;
+	protected recurring := false;
+	protected id := 0;
+	protected block_caller := false;
+	protected long_term := false;
+	protected state := created;
+	protected static guid := 0;
+	protected controller: job_controller;
+    protected listeners := new list<thread>();
+}

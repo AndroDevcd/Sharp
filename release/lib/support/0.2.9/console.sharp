@@ -1,0 +1,315 @@
+mod std;
+
+def strtod(str: string) : var {
+    data := str.get_data();
+    result : var;
+
+    asm {
+        pushl {data}
+        int 0x43
+        smovr2 {result}, ebx
+    }
+
+    return result;
+}
+
+def snprintf(fmt: var, num: var, precision: var) : var[] {
+    asm {
+        loadl egx, {fmt}
+        loadl ebx, {num}
+        loadl ecx, {precision}
+        int 0x1
+        popObj2
+        returnObj
+        ret 0
+    }
+    return null;
+}
+
+def sys(str: string) : var {
+    cmd := str.get_data();
+    result : var;
+    asm {
+        pushl {cmd}
+        int 0x1a
+        smovr2 {result}, cmt
+    }
+
+    return result;
+}
+
+def print(data: _int8[]) {
+    print_chars(data);
+}
+
+def print(str: string) {
+    print_chars(str.get_data());
+}
+
+def println(data: var[]) {
+    print_numbers(data);
+    print_char('\n');
+}
+
+def println(data: _int8[]) {
+    print_chars(data);
+    print_char('\n');
+}
+
+def println(data: _int16[]) {
+    print_numbers(data);
+    print_char('\n');
+}
+
+def println(data: _int32[]) {
+    print_numbers(data);
+    print_char('\n');
+}
+
+def println(data: _int64[]) {
+    print_numbers(data);
+    print_char('\n');
+}
+
+def println(data: _uint8[]) {
+    print_numbers(data);
+    print_char('\n');
+}
+
+def println(data: _uint16[]) {
+    print_numbers(data);
+    print_char('\n');
+}
+
+def println(data: _uint32[]) {
+    print_numbers(data);
+    print_char('\n');
+}
+
+def println(data: _uint64[]) {
+    print_numbers(data);
+    print_char('\n');
+}
+
+def println(data: var) {
+    print_num(data);
+    print_char('\n');
+}
+
+def println() {
+    print_char('\n');
+}
+
+def println(e: _enum_) {
+    print_chars(e.get_name());
+    print_char('\n');
+}
+
+def read_line() : string {
+    ch : _int8;
+    message : string = "";
+
+    ch = read_char();
+    while((ch != 13) && (ch != 10)) { // \r\n
+        message.append(ch);
+        ch = read_char();
+    }
+
+    return message;
+}
+
+def read_passwd() : string {
+    ch : _int8;
+    message : string = "";
+
+    ch = read_raw_char();
+    while((ch != 13) && (ch != 10)) { // \r\n
+        message.append(ch);
+        ch = read_raw_char();
+    }
+
+    return message;
+}
+
+def read_char() : var {
+    return read_ch(false);
+}
+
+def read_raw_char() : var {
+    return read_ch(true);
+}
+
+def println(str: string) {
+    print_chars(str.get_data());
+    print_char('\n');
+}
+
+def println(o: printable) {
+    print_chars(o.to_string().get_data());
+    print_char('\n');
+}
+
+def print(o: printable) {
+    print_chars(o.to_string().data);
+}
+
+def print(data: var) {
+    print_num(data);
+}
+
+def flush() {
+    asm { int 0x34 }
+}
+
+def utc_mills_time() : var {
+    return time.mills_time();
+}
+
+def nano_time() : var {
+    return time.nano_time();
+}
+
+def exit() {
+    asm { int 0x1d }
+}
+
+def sizeOf(data: object) : var {
+    asm {
+        pushl {data}
+        int 0x33
+        returnVal ebx
+        ret 0
+    }
+    return 0;
+}
+
+def sizeOf(data: object[]) : var {
+    asm {
+        pushl {data}
+        int 0x33
+        returnVal ebx
+        ret 0
+    }
+    return 0;
+}
+
+local def print_chars(str: _int8[]) {
+    foreach(ch in str) {
+        asm {
+            loadl ebx, {ch}
+            putc ebx
+        }
+    }
+}
+
+local def print_num(val: var) {
+    asm {
+        loadl ebx, {val}
+        put ebx
+    }
+}
+
+local def print_char(val: _int8) {
+    asm {
+        loadl ebx, {val}
+        putc ebx
+    }
+}
+
+local def print_numbers(str: var[]) {
+    asm {
+        movi ebx, '['
+        movi ecx, ' '
+        putc ebx
+        putc ecx
+    }
+    for(i := 0; i < sizeof(str); i++) {
+        ch := str[i];
+        asm {
+            loadl ebx, {ch}
+            put ebx
+        }
+
+        if((i + 1) < sizeof(str)) {
+            asm {
+                movi ebx, ','
+                movi ecx, ' '
+                putc ebx
+                putc ecx
+            }
+        }
+    }
+    asm {
+        movi ebx, ' '
+        movi ecx, ']'
+        putc ebx
+        putc ecx
+    }
+}
+
+local def print_numbers(str: _int16[]) {
+    asm {
+        pushl {str}
+        call {print_numbers}
+    }
+}
+
+local def print_numbers(str: _int32[]) {
+    asm {
+        pushl {str}
+        call {print_numbers}
+    }
+}
+
+local def print_numbers(str: _int64[]) {
+    asm {
+        pushl {str}
+        call {print_numbers}
+    }
+}
+
+local def print_numbers(str: _uint8[]) {
+    asm {
+        pushl {str}
+        call {print_numbers}
+    }
+}
+
+local def print_numbers(str: _uint16[]) {
+    asm {
+        pushl {str}
+        call {print_numbers}
+    }
+}
+
+local def print_numbers(str: _uint32[]) {
+    asm {
+        pushl {str}
+        call {print_numbers}
+    }
+}
+
+local def print_numbers(str: _uint64[]) {
+    asm {
+        pushl {str}
+        call {print_numbers}
+    }
+}
+
+local def print_chars(str: _int16[]) {
+    asm {
+        pushl {str}
+        call {print_chars}
+    }
+}
+
+local def read_ch(hide: var) : var {
+    asm {
+        loadl cmt, {hide}
+        get ebx
+        returnVal ebx
+        ret 0
+    }
+    return 0;
+}
+

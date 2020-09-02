@@ -1,0 +1,5 @@
+mod std;
+
+interface loopable<t> {
+    def get_elements() : t[];
+}

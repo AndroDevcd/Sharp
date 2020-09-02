@@ -1,0 +1,85 @@
+mod main;
+
+class coffee {
+    
+	coffee() {
+	   println("I'm created!");
+	   water_left = 100;
+	}
+	
+	init {
+	  println("I'm being initialized");
+	}
+	
+	// uncomment this code if you would like to see the following printed upon static initialization
+	//static init {
+	//  println("I'm being statically initialized");
+	//}
+	
+	def brew() {
+	   println("I'm brewing with ${water_left}oz of water and ${coffee_left}g of coffee");
+	}
+	
+	water_left : var;
+	coffee_left := 150;
+}
+
+
+/**
+ * This file shows how to create a new class in sharp
+ */
+def main() {
+   /* there are 3 main ways of creating classes in sharp
+   * each of them having their positives and negatives
+   *
+   * Lets go through them all
+   */
+   
+   /**
+    * The first way is familiar to most people who have coded in java and it is called "standard initialization"
+   *
+   * To put it simply, we initialize a class by calling its constructor and initializing all its fields in the class,
+   * however this comes withs its own set of pros and cons
+   *
+   * Pros:
+   *   - All fields are initialized no matter where their values were set
+   *   - Gives you more control on the data that your class is being assigned by allowing validation in the constructor
+   *   - Multiple options for different initialization stages (static, initialization, and creation)
+   *
+   * Cons:
+   *   - You have to create constructors to initialize the object thus increasing code size and the time it takes to develop the class
+   *   - Slower than inline initialization
+   */
+   cup := new coffee();
+   cup.brew();
+   
+   // after running brew() we get the expected result: I'm brewing with 100oz of water and 150g of coffee
+   // now lets try a different form of initialization to see how it differs from standard initialization
+
+   /**
+    * The code below is what's knows as inline-initialization
+    * In short, this means that the class in question is not calling into any function to become initialized.
+    * This type of initialization is mainly only recommended for simple classes that are ment to only hold data
+    *
+    * This just like the expression above comes with its own pros and cons
+    *
+    * Pros:
+    *   - Faster initializations
+    *   - Faster time-to-code, by not requiring there to be constructors present
+    *   - Less ambiguous( you know what the data the class will hold) by not obfuscating its initialization behind a function
+    *
+    * Cons:
+    *   - Only fields with default values are initialized
+    *   - Currently does not execute init blocks
+    */
+   cup = new coffee {};
+   cup.brew(); // we should see the following output: I'm brewing with 0oz of water and 150g of coffee
+
+   // we get this because the code to initialize the water_left fields was defined in the constructor
+   // Below shows how to assign water_left in the instance creation
+   cup = new coffee { water_left = 100 };
+   cup.brew(); // or another way to assign water_left is shown below
+
+   cup = new coffee { /* water_left */ 100 }; // the values assigned to the class must match the type and be in a top-down chronological order of how each field was created
+   cup.brew(); // we should see the following output: I'm brewing with 100oz of water and 150g of coffee
+}

@@ -1,0 +1,42 @@
+mod platform;
+
+import platform.kernel;
+import std.io;
+
+/**
+* Dependency preservation for code obfuscation
+*/
+
+/*
+* Required modules
+*/
+obfuscate -keep {
+    "std",
+    "std.io",
+    "platform.kernel"
+}
+
+/*
+* Required classes
+*/
+obfuscate -keep {
+    throwable,
+    exception,
+    error,
+    _enum_,
+    illegal_argument_exception,
+    illegal_state_exception,
+    out_of_bounds_exception,
+    invalid_operation_exception,
+    nullptr_exception,
+    runtime_exception,
+    stack_overflow_exception,
+    thread_stack_exception,
+    class_cast_exception,
+    out_of_memory_exception,
+    invalid_operation_exception,
+    unsatisfied_link_error,
+    stack_state,
+    thread,
+    string
+}

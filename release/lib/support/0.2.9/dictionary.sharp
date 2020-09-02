@@ -1,0 +1,9 @@
+mod std;
+
+class dictionary<k,v> {
+    map := new list< pair<k,v> >();
+
+    dictionary(dict : pair<k,v>[]) {
+        map.add_all(dict);
+    }
+}

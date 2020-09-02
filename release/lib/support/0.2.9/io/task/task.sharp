@@ -1,0 +1,61 @@
+mod std.io.task;
+
+launcher : job_master = new job_master();
+
+def finish() {
+    throw new cancellation_exception();
+}
+
+class task {
+    static def with_timeout(mills_time : var) : job_builder {
+        scheduled_job := launcher.create_job();
+        builder := new job_builder(scheduled_job, launcher);
+        return builder.with_timeout(mills_time);
+    }
+
+    static def schedule(future : var) : job_builder {
+        scheduled_job := launcher.create_job();
+        builder := new job_builder(scheduled_job, launcher);
+        return builder.schedule(future);
+    }
+
+    static def with_name(job_name : string) : job_builder {
+        scheduled_job := launcher.create_job(job_name);
+        builder := new job_builder(scheduled_job, launcher);
+        return builder.with_name(job_name);
+    }
+
+    static def with_args(args : object[]) : job_builder {
+        scheduled_job := launcher.create_job();
+        builder := new job_builder(scheduled_job, launcher);
+        return builder.with_args(args);
+    }
+
+	def recurring(tm : var, interval: time_unit) : job_builder {
+        scheduled_job := launcher.create_job();
+        builder := new job_builder(scheduled_job, launcher);
+        return builder.recurring(tm, interval);
+	}
+
+	static def block() : job_builder {
+        scheduled_job := launcher.create_job();
+        builder := new job_builder(scheduled_job, launcher);
+		return builder.block();
+	}
+
+	static def long_term() : job_builder {
+        scheduled_job := launcher.create_job();
+        builder := new job_builder(scheduled_job, launcher);
+		return builder.long_term();
+	}
+
+    static def builder() : job_builder {
+        scheduled_job := launcher.create_job();
+        builder := new job_builder(scheduled_job, launcher);
+        return builder;
+    }
+
+	public static def cancel_all_jobs_by_name(name: string) {
+	   launcher.cancel_jobs_by_name(name);
+	}
+}

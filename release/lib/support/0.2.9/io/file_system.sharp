@@ -1,0 +1,398 @@
+mod std.io;
+
+import platform;
+
+/**
+ * FileSystem serves as the abstract base level class for the underlying
+ * filesystem residing on the host OS. This class contains a set of delegates
+ * that must be implemented that are OS dependant.
+ */
+protected class file_system {
+
+    /**
+    * Get current path seperator based on os
+    *
+    * linux /
+    * windows \
+    */
+    def path_separator() : var;
+
+    /**
+    * Make sure we know that our path has the correct
+    * path seperators to be accessed
+    */
+    def normalize(path: string) : string;
+
+     /**
+      * Resolve the given abstract pathname into absolute form.  Invoked by the
+      * getAbsolutePath method in the File class.
+      */
+     def resolve(f: file) : string {
+        /* native code */
+        path := f.path.get_data();
+
+        /*
+        * This will perform the os call to request the
+        * full path of the given abstract pathname
+        */
+        asm {
+            pushl {path}
+            int 0x20
+            popl {path}
+        };
+
+        if(path == null) {
+            throw new io_exception("file could not be resolved: ${f.path}");
+        }
+
+        return "$path";
+     }
+
+
+    /* Constants for file attributes */
+    static const file_exists       := 0x01;
+    static const file_regular      := 0x02;
+    static const file_directory    := 0x04;
+    static const file_block_device := 0x08;
+    static const file_character    := 0x10;
+    static const file_fifo_pipe    := 0x20;
+    static const file_unknown      := 0x40;
+    static const file_hidden       := 0x80;
+
+     /**
+      * Return the simple boolean attributes for the file or directory denoted
+      * by the given abstract pathname, or zero if it does not exist or some
+      * other I/O error occurs.
+      */
+     def get_attributes(f: file) : var;
+
+     /* Constants for file access flags */
+     static const access_read    := 0x04;
+     static const access_write   := 0x02;
+     static const access_execute := 0x01;
+     static const access_ok      := 0x00;
+
+     /**
+      * Check whether the file or directory denoted by the given abstract
+      * pathname may be accessed by this process.  The second argument specifies
+      * which access, ACCESS_READ, ACCESS_WRITE or ACCESS_EXECUTE, to check.
+      * Return false if access is denied or an I/O error occurs
+      */
+     def check_access(f: file, access: var) : var;
+
+     /**
+      * Set on or off the access permission (to owner only or to all) to the file
+      * or directory denoted by the given abstract pathname, based on the parameters
+      * enable, access and oweronly.
+      */
+     def set_permission(f: file, access: var, enable: var, owneronly: var) : var {
+        // native code here
+        path := f.get_absolute_path().get_data();
+        result := 0;
+
+        if(build.is_windows() && access == access_execute)
+            return -1;
+
+        /*
+        * This will perform the os call to request the
+        * file attributes of the given abstract pathname
+        */
+        asm {
+            pushl {path}
+            loadl ebx, {access}
+            loadl egx, {enable}
+            loadl ecx, {owneronly}
+            int 0x2e
+            smovr2 {result}, ebx
+        };
+
+        return result;
+     }
+
+     static const last_access        := 0x02;
+     static const last_status_change := 0x01;
+     static const last_modification  := 0x00;
+
+     /**
+      * Return the time at which the file or directory denoted by the given
+      * abstract pathname was last modified, or zero if it does not exist or
+      * some other I/O error occurs.
+      */
+     def last_modified_time(f: file, stat_id: var) : var {
+        // native code
+        path := f.get_absolute_path().get_data();
+        time := 0;
+
+        /*
+        * This will perform the os call to request the
+        * file attributes of the given abstract pathname
+        */
+        asm {
+            pushl {path}
+            loadl ebx, {stat_id}
+            int 0x26
+            smovr2 {time}, ebx
+        }
+
+        return time;
+     }
+
+     /**
+      * Return the length in bytes of the file denoted by the given abstract
+      * pathname, or zero if it does not exist, is a directory, or some other
+      * I/O error occurs.
+      */
+     def get_length(f: file) : var {
+        // native code here
+        path := f.get_absolute_path().get_data();
+        size := 0;
+
+        /*
+        * This will perform the os call to request the
+        * file attributes of the given abstract pathname
+        */
+        asm {
+            pushl {path}
+            int 0x27
+            smovr2 {size}, ebx
+        };
+
+        return size;
+     }
+
+
+    /**
+     * Create a new empty file with the given pathname.  Return
+     * true if the file was created and false if a
+     * file or directory with the given pathname already exists.  Throw an
+     * IOErr if an I/O error occurs.
+     */
+    def create_file(pathname: string) {
+        // native code here
+        path := pathname.get_data();
+
+        /*
+        * This will perform the os call to request the
+        * file to be created
+        */
+        asm {
+            pushl {path}
+            int 0x28
+        };
+    }
+
+    /**
+     * Delete the file or directory denoted by the given abstract pathname,
+     * returning true if and only if the operation succeeds.
+     */
+    private def delete_directory(f: file) : var {
+        // native code here
+        path := f.get_absolute_path().get_data();
+        result := 0;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm {
+            pushl {path}
+            int 0x2c
+            smovr2 {result}, ebx
+        };
+
+        return result;
+    }
+
+    /**
+     * Delete the file or directory denoted by the given abstract pathname,
+     * returning true if and only if the operation succeeds.
+     */
+    def delete(f: file) : var {
+        // native code here
+        path := f.get_absolute_path().get_data();
+        result := 0;
+
+        if(f.is_directory())
+            return delete_directory(f);
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm {
+            pushl {path}
+            int 0x29
+            smovr2 {result}, ebx
+        };
+
+        return result;
+    }
+
+    /**
+     * List the elements of the directory denoted by the given abstract
+     * pathname.  Return an array of strings naming the elements of the
+     * directory if successful; otherwise, return null.
+     */
+    def list(f: file) : string[] {
+        // native code here
+        path := f.get_absolute_path().get_data();
+        files: string[];
+
+        if(!f.is_directory())
+            return null;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm {
+            pushl {path}
+            int 0x2a
+            popl {files}
+        };
+
+        return files;
+    }
+
+    /**
+     * Create a new directory denoted by the given abstract pathname,
+     * returning true if and only if the operation succeeds.
+     */
+    def create_directory(f: file) : var {
+        // native code here
+        path := f.get_path().get_data();
+        result: var;
+
+        /*
+        * This will perform the os call to request the
+        * directory to be created
+        */
+        asm {
+            pushl {path}
+            int 0x2b
+            smovr2 {result}, ebx
+        };
+
+        return result;
+    }
+
+    /**
+     * Rename the file or directory denoted by the first abstract pathname to
+     * the second abstract pathname, returning true if and only if
+     * the operation succeeds.
+     */
+    def rename(f1: file, f2: file) : var {
+        // native code here
+        path := f1.get_absolute_path().get_data();
+        rename := f2.get_path().get_data();
+        result := 0;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm {
+            pushl {rename}
+            pushl {path}
+            int 0x30
+            smovr2 {result}, ebx
+        };
+
+        return result;
+    }
+
+
+    static def read(f: file) : string {
+        path := f.get_absolute_path().get_data();
+        data : string;
+        result := 0;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm {
+            pushl {path}
+            int 0x2f
+            popl {data}
+        };
+
+        return data;
+    }
+
+
+    static def write(f: file, data: string) : var {
+        path := f.get_absolute_path().get_data();
+        raw := data.get_data();
+        result := 0;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm {
+            pushl {raw}
+            pushl {path}
+            int 0x31
+            smovr2 {result}, ebx
+        };
+
+        return result;
+    }
+
+    /**
+     * Set the last-modified time of the file or directory denoted by the
+     * given abstract pathname, returning true if and only if the
+     * operation succeeds.
+     */
+    public def set_last_modified_time(f: file, time: var) : var {
+        // native code here
+        path := f.get_absolute_path().get_data();
+        result := 0;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm {
+            pushl {path}
+            loadl ebx, {time}
+            int 0x2d
+            smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
+    /**
+     * Mark the file or directory denoted by the given abstract pathname as
+     * read-only, returning true if and only if the operation
+     * succeeds.
+     */
+    public def set_read_only(f: file) : var {
+        set_permission(f, access_write, false, true);
+        return set_permission(f, access_read, true, true);
+    }
+
+    /* -- Disk usage -- */
+    static const space_total  := 0;
+    static const space_free   := 1;
+    static const space_usable := 2;
+
+    static def get_space_available(request: var) : var {
+        // native code here
+        result := 0;
+
+        /*
+        * This will perform the os call to request the
+        * file to be deleted
+        */
+        asm {
+            loadl ebx, {request}
+            int 0x32
+            smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+}

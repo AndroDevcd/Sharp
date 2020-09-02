@@ -1,0 +1,179 @@
+mod main;
+
+import std.io.task; // import the task scheduling api
+import std.io; // import the standard threading api
+
+/**
+ *
+ * The multithreadding platform allows several ways to create various types of tasks
+ * depending on your needs
+ *
+ * The code below simply creates a basic task with no specific runtime parameters
+ *
+ */
+def quick_task() {
+   launcher = { ->
+       println("I'm a quick task!");
+   };
+
+   thread.sleep(500);
+}
+
+/**
+ * Below is an example of running a task in the background at some point in the future
+ */
+def delayed_task() {
+   task.builder()
+	.schedule(3000) = { ->
+       println("I'm a delayed task!");
+   };
+   thread.sleep(3500); // let the task finish
+}
+
+/**
+ * Below is an example of joining a task and waiting for it to finish before returning back control to the joiner thread
+ */
+def joined_task() {
+   job := task.builder()
+	.schedule(1000) = { ->
+       println("I'm a joined task!");
+   };
+   job.join(); // wait for the task finish
+}
+
+/**
+ * Below is an example of running a task in "blocking" mode, meaning that it will block the execution of the calling thread
+ * until the task is finished, this is similar to join
+ */
+def blocked_task() {
+   job := task.builder()
+    .with_name("blocking task")
+	.block() = { ->
+       println("I'm a blocked task!");
+   };
+}
+
+/**
+ * Below is an example of passing arguments to a task, considering that the language does not
+ * support clousers yet, this is the only way to currently pass arguments to a task
+ */
+def args_task() {
+   message : string = "Hello, world!";
+
+   job := task.builder()
+    .with_args({ message })
+	.block() = { args : object[] ->
+	   message := args[1] as string; // we must use args[1] because args[0] is a reference to the current running job
+       println(message);
+   };
+}
+
+alive : bool = false;
+
+/**
+ * Below is an example of passing arguments to a task, considering that the language does not
+ * support clousers yet, this is the only way to currently pass arguments to a task
+ */
+def timeout_task() {
+
+   job := task.builder()
+    .with_timeout(1000) = { ->
+	   thread.sleep(4000);
+	   alive = true;
+   };
+
+   thread.sleep(1250);
+   println("alive = $alive");
+}
+
+/**
+ * Below is an example of a recurring task that runs every second
+ *
+ * You can choose from a few time units:
+ * seconds, milliseconds, microseconds, and nanoseconds
+ *
+ * however due to the limitations of the task scheduling api the
+ * smallest increment of time you can schedule each task is 5ms apart
+ */
+def recurring_task() {
+   job := task.builder()
+    .recurring(1000, milliseconds) = { ->
+	   println("Hello");
+   };
+
+   thread.sleep(3000); // the main thread should exit after the third task has been ran
+}
+
+/**
+ * Below is an example of running a deferred task. This will allow the main thread to continue execution, thus
+ * only when the main(calling) thread is ready to receive the value it will poll the task for it.
+ */
+def _deferred_task() {
+
+   deferred := new deferred_task<var>()
+    .for_result(
+        task.builder()
+          .with_name("deferred task")
+          .with_timeout(1000),
+        { task: object ->
+           thread.sleep(500);
+           (task as deferred_task<var>).post(1500);
+        }
+    );
+
+   thread.sleep(250); // main thread sleeps for a bit
+   println("the value is = ${deferred.response}"); // receive the value from the task at some point in the future
+}
+
+/**
+ * Below is an example of running a task that provides data in thr form of a stream.
+ * You provide a function that will be called once there is data to be received
+ */
+def streamed_task() {
+
+   deferred := new deferred_task<var>()
+    .for_result(
+        task.builder(),
+        { task: object ->
+           deferred := task as deferred_task<var>;
+           for(i := 0; i < 10; i++) {
+              thread.sleep(500);
+              deferred.post(i);
+           }
+        }
+    );
+
+    deferred.observe({ obs: observable<var> ->
+        if(obs.get_data() == 9) {
+           obs.stop_listening(); // stop observing the task
+        }
+
+        println("received: ${obs.get_data()}");
+    });
+
+   thread.sleep(5500); // wait for the task to finish
+}
+
+/**
+ * This example shows you how to use the task
+ * scheduling api in the language.
+ *
+ * The task scheduling api is a light-weight multi-threading
+ * system that allows you to leverage the existing multi-threading platform
+ * to run multiple tasks without needing to create several threads 
+ *
+ */
+def main() {
+   task_to_run := 0;
+   when(task_to_run) {
+       0 -> quick_task();
+       1 -> delayed_task();
+       2 -> joined_task();
+       3 -> blocked_task();
+       4 -> args_task();
+       5 -> timeout_task();
+       6 -> recurring_task();
+       7 -> _deferred_task();
+       8 -> streamed_task();
+   }
+}

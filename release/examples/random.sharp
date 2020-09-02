@@ -1,0 +1,18 @@
+mod main;
+
+// this program shows how to use the random number generator provided by the standard library
+def main() {
+   set_seed(utc_mills_time() >> 4); // set random seed to current time in mills
+
+   random_0_to_1        := rand();
+   random_int           := rand_int();
+   random_int_ranged    := rand_int(1, 10);
+   random_double_ranged := rand_double(0.5, 10);
+   random_double        := rand_double();
+
+   println("0-1: $random_0_to_1");  // print the random values
+   println("random int: $random_int");
+   println("1-10: $random_int_ranged");
+   println("0.5-10: $random_double_ranged");
+   println("random double: $random_double");
+}

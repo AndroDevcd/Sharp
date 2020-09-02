@@ -1,0 +1,201 @@
+mod std.io;
+
+import platform.kernel;
+
+public class thread {
+
+    private thread() {} // the user must use standardized constructor
+
+	public thread(name : string, main: (object[])(var)) {
+        self->main = main;
+        self->name = name;
+		self->parent_group = thread_group.main_group;
+        self->priority = parent_group.get_priority();
+		self->native_handle = -1;
+		id = id_generator++;
+
+		parent_group.add(self);
+    }
+
+	public thread(name : string, daemon: var, main: (object[])(var)) {
+        self->main = main;
+        self->name = name;
+        self->daemon = daemon;
+		self->parent_group = thread_group.main_group;
+        self->priority = parent_group.get_priority();
+		self->native_handle = -1;
+		id = id_generator++;
+
+		parent_group.add(self);
+    }
+
+    public thread(name : string, main: (object[])(var), stack_size : var) {
+        self->main = main;
+        self->name = name;
+        self->stack_size = stack_size;
+		self->parent_group = thread_group.main_group;
+        self->priority = parent_group.get_priority();
+		self->native_handle = -1;
+		id = id_generator++;
+
+		parent_group.add(self);
+    }
+
+    public thread(name : string, daemon: var, main: (object[])(var), stack_size : var) {
+        self->main = main;
+        self->name = name;
+        self->stack_size = stack_size;
+        self->daemon = daemon;
+		self->parent_group = thread_group.main_group;
+        self->priority = parent_group.get_priority();
+		self->native_handle = -1;
+		id = id_generator++;
+
+		parent_group.add(self);
+    }
+
+    public thread(name : string, main: (object[])(var), stack_size : var, group : thread_group) {
+        self->main = main;
+        self->name = name;
+        self->stack_size = stack_size;
+		self->parent_group = group;
+        self->priority = group.get_priority();
+		self->native_handle = -1;
+		id = id_generator++;
+
+		parent_group.add(self);
+    }
+
+    public thread(name : string, main: (object[])(var), group : thread_group) {
+        self->main = main;
+        self->name = name;
+		self->parent_group = group;
+        self->priority = group.get_priority();
+		self->native_handle = -1;
+		id = id_generator++;
+
+		parent_group.add(self);
+    }
+
+    public thread(name : string, daemon: var, main: (object[])(var), stack_size : var, group : thread_group) {
+        self->main = main;
+        self->name = name;
+        self->daemon = daemon;
+        self->stack_size = stack_size;
+		self->parent_group = group;
+        self->priority = group.get_priority();
+		self->native_handle = -1;
+		id = id_generator++;
+
+		parent_group.add(self);
+    }
+
+    public def start(args : object[]) : thread_result {
+        if(native_handle == -1)
+            native_handle = vm.thread_create(daemon);
+        return vm.thread_start(self, args);
+    }
+
+    public def start() : thread_result {
+        return start(null);
+    }
+
+	public def suspend() : thread_result {
+	    result := vm.suspend(self);
+	    if(result == result_ok)
+	        suspended = true;
+	    return result;
+	}
+	
+	public def unsuspend() : thread_result {
+	    result := vm.unsuspend(self, false);
+	    if(result == result_ok)
+	        suspended = false;
+	    return result;
+	}
+
+	public def unsuspend_and_wait() : thread_result {
+	    result := vm.unsuspend(self, true);
+	    if(result == result_ok)
+	        suspended = false;
+	    return result;
+	}
+	
+    public def join() := vm.thread_join(self);
+	
+    public def interrupt() := vm.kill(self);
+
+    public static def current() := vm.current_thread();
+
+    public static def sleep(mills_time : var) := time.sleep(milliseconds, mills_time);
+
+    public static def suspend_for(mills_time : var) {
+        vm.current_thread().suspended = true;
+        time.wait(milliseconds, mills_time);
+        vm.current_thread().suspended = false;
+    }
+
+    public static def exit(code : var) {
+        vm.exit_thread(current(), code);
+        asm { hlt }
+    }
+
+    def hash() : long {
+        return id;
+    }
+
+    public static def yield() := vm.thread_yield();
+
+    public def set_exception_handler(error_handler: uncaught_exception_handler) {
+        self->error_handler = error_handler;
+    }
+
+    public def set_priority(priority : thread_priority) : thread_result {
+        lock(self) {
+            when (priority) {
+                min_priority,
+                norm_priority,
+                max_priority -> {
+                    return vm.set_thread_priority(self, priority.get_ordinal());
+                }
+                else -> {
+                    throw new illegal_argument_exception("invalid thread priority $priority");
+                }
+            }
+        }
+    }
+
+    private def remove_thread(t : thread) {
+        parent_group.remove(t.native_handle);
+    }
+
+    public def get_id() := id;
+    public def get_native_handle() := native_handle;
+    public def get_stack_size() := stack_size;
+    public def get_name() := name;
+    public def is_exited() := exited;
+    public def is_daemon() := daemon;
+    public def is_started() := started;
+    public def is_suspended() := suspended;
+	public def set_main(main: (object[])(var)) := self->main = main;
+	public def is_active() := started && !exited;
+	public def get_exit_code() := exit_code;
+	public def get_exception_handler() := error_handler;
+
+    public def operator==(t : thread) : var = native_handle==t.native_handle;
+
+    private exit_code : var;
+    private native_handle : var;
+    private id : var;
+    private priority : thread_priority;
+    private daemon : var; // not supported as of now
+    private exited : var;
+    private name : string = "";
+	private parent_group : thread_group;
+    private started : var;
+	private suspended : var;
+    private stack_size : var;
+    private main: (object[])(var);
+	private error_handler: uncaught_exception_handler;
+	private static id_generator : var;
+}

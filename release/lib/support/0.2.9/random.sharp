@@ -1,0 +1,37 @@
+mod std;
+
+import platform.kernel;
+
+rand_seed : var;
+def rand() : var {
+   return vm.random_double(0, 1);
+}
+
+def rand_int(min: var, max: var) : var {
+   return vm.random_int(min, max);
+}
+
+def rand_double(min: var, max: var) : var {
+   return vm.random_double(min, max);
+}
+
+def rand_int() : var {
+   return vm.random_int();
+}
+
+def rand_double() : var {
+   return vm.random_double();
+}
+
+def set_seed(seed: var) {
+   rand_seed = seed;
+   vm.random_seed(rand_seed);
+}
+
+// this class is used to default the random seed to a unique value
+class tmp {
+   static init {
+      rand_seed = utc_mills_time() >> 4;
+      vm.random_seed(rand_seed);
+   }
+}

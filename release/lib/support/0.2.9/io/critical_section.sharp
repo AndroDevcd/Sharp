@@ -1,0 +1,47 @@
+mod std.io;
+
+private global_lock := new _object_();
+def critical_section(block : ()()) {
+    try {
+        asm {
+            movg {std.io#__srt_global}
+            movn {global_lock}
+            lock
+        }
+        block();
+    } finally {
+      asm {
+        movg {std.io#__srt_global}
+        movn {global_lock}
+        ulock
+      }
+    }
+}
+
+def critical_section(block : ()(), lock_obj : object) {
+    try {
+        asm {
+            movl {lock_obj}
+            lock
+        }
+        block();
+    } finally {
+      asm {
+        movl {lock_obj}
+        ulock
+      }
+    }
+}
+
+//def<t, r> critical_section(block : (t)(r), lock_obj : object, data: t) : r {
+    // err : exception;
+    // lock lock_obj -> {
+    //   try {
+    //       return block(data);
+    //   } catch(e: exception) {
+    //       err = e;
+    //   }
+    // }
+    //
+    // if(err != null) throw err;
+//}

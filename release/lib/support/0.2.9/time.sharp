@@ -1,0 +1,160 @@
+mod std;
+
+import platform;
+import platform.kernel;
+
+class time {
+    static infinite := -1;
+
+    static def nano_time() : var {
+        now: var;
+
+        asm
+        {
+            int 0xb
+            smovr2 {now}, bmr
+        };
+        return now;
+    }
+
+    static def get_os_time(tr: time_request)
+       := vm.get_os_time(tr.get_ordinal());
+
+    static def nano_to_micro(nano: var) : var {
+        return nano/1000;
+    }
+
+    static def nano_to_mills(nano: var) : var {
+        return nano_to_micro(nano)/1000;
+    }
+
+    public static def nano_to_secs(nano: var) : var {
+        return nano_to_mills(nano)/1000;
+    }
+
+    static def mills_time() : var {
+        return nano_to_mills(nano_time());
+    }
+
+    static def sleep(time: var) {
+        sleep(time_unit.milliseconds, time);
+    }
+
+    static def sleep(tm_unit: time_unit, time: var) {
+        if(time < 0)
+            throw new error("cannot sleep for negative time: $time");
+
+        if(tm_unit == time_unit.seconds) {
+            time = adjust_time(time*1000000);
+        } else if(tm_unit == time_unit.milliseconds) {
+            time = adjust_time(time*1000);
+        } else if(tm_unit == time_unit.microseconds) {
+            time = adjust_time(time);
+        }
+
+        asm {
+            loadl ebx, {time}
+            sleep ebx
+        }
+    }
+
+    static def wait(tm_unit: time_unit, time: var) {
+        if(time != infinite) {
+            if(time < 0)
+                throw new error("cannot sleep for negative time: $time");
+
+            if(tm_unit == time_unit.seconds) {
+                time *= 1000;
+            } else if(tm_unit == time_unit.microseconds) {
+                time /= 1000;
+            } else if(tm_unit == time_unit.nanoseconds) {
+                time /= 1000000;
+            }
+        }
+
+        asm {
+            loadl adx, {time}
+            int 0x14
+        }
+    }
+
+    /**
+     * Windows only allows you to sleep for no less than 1 millisecond
+     *
+     * We need to adjust the time to make sure the user will not be
+     * waiting for 5 seconds instead of 5ms
+     */
+    private static def adjust_time(usec: var) : var {
+
+        if(build.is_windows()) {
+            return usec/1000;
+        }
+
+        return usec;
+    }
+
+    static def measure(tm_unit: time_unit, block: ()()) : var {
+        start := nano_time(), end;
+        block();
+        end = nano_time();
+
+        when (tm_unit) {
+            seconds -> {
+                start = nano_to_secs(start);
+                end = nano_to_secs(end);
+            }
+            milliseconds -> {
+                start = nano_to_mills(start);
+                end = nano_to_mills(end);
+            }
+            microseconds -> {
+                start = nano_to_micro(start);
+                end = nano_to_micro(end);
+            }
+        }
+
+        return end - start;
+    }
+
+    static def measure(tm_unit: time_unit, args: object[], block: (object[])()) : var {
+        start := nano_time(), end;
+        block(args);
+        end = nano_time();
+
+        when (tm_unit) {
+            seconds -> {
+                start = nano_to_secs(start);
+                end = nano_to_secs(end);
+            }
+            milliseconds -> {
+                start = nano_to_mills(start);
+                end = nano_to_mills(end);
+            }
+            microseconds -> {
+                start = nano_to_micro(start);
+                end = nano_to_micro(end);
+            }
+        }
+
+        return end - start;
+    }
+}
+
+enum time_request {
+   tm_seconds = 0,
+   tm_minutes = 1,
+   tm_hour = 2,
+   tm_mday = 3,
+   tm_mon = 4,
+   tm_year = 5,
+   tm_wday = 6,
+   tm_yday = 7,
+   tm_isdst = 8
+}
+
+enum time_unit {
+    seconds = 0,
+    milliseconds = 1,
+    microseconds = 2,
+    nanoseconds = 3
+}

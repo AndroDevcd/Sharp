@@ -1,0 +1,30 @@
+mod std.reflect;
+
+class reflect {
+    reflect_obj : object;
+        get { return reflect_obj; }
+        set value -> {}
+
+    static class_properties : data_property;
+
+    fields : data_property;
+    methods : data_property;
+
+
+    // TODO: for each class create a clobal reflect() class and name the field _<class_name>_reflect_properties
+
+    reflect(ref_obj : object) {
+        reflect_obj = ref_obj;
+    }
+
+//    def operator[](field_name : string) :=
+//        get_field(field_name);
+
+    //def get_field(name : string) : field {
+
+    //}
+
+    //def get_function(name : string) : function {
+
+    //}
+}

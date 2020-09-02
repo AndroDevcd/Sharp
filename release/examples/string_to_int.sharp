@@ -1,0 +1,33 @@
+mod main;
+
+def main() {
+   str_num : string = "100500";
+
+   // convert a string to an int32
+   n32 := int.parse(str_num);
+   println("n32 = $n32");
+
+   // convert a int32 to a string
+   str_num = string.parse(n32);
+   println("str_num = $str_num");
+
+   // convert double to string
+   str_num = "100.500";
+   double_num : var = double.parse(str_num);
+   println("double_num = $double_num");
+
+   // convert a double to a string
+   dec_precision := 4;                     // set the precision to 6 numbers after the decimal (max precision is 16)
+
+                                           // first we try to convert a decimal to a string using the string object
+   string.fmt('f');                        // set the number format of string to float
+   string.set_precision(dec_precision);    // set the precision to string object (default precision is 16)
+   str_num = string.parse(double_num);     // convert the double value to a string
+   println("str_num = $str_num");          // print the value of double num
+   dec_precision = 0;                      // set precision to default mode (0 precision will print the max precision of each number on a case by case basis)
+   string.fmt('g');                        // set string class back to default format
+   string.set_precision(dec_precision);    // set string class back to default precision
+
+   str_num = snprintf('g', double_num, dec_precision); // use the standard library printf method to achieve the same result
+   println("str_num = $str_num");                      // print the value of double num
+}

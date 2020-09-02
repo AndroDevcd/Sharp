@@ -1,0 +1,256 @@
+mod std;
+
+import std.io;
+
+class synced_list<t> : loopable<t> {
+    private n_elements : var;
+    private data : t[];
+    private is_compact: var;
+
+    private static const default_capacity := 10;
+    private static const min_capacity := 128;
+
+    synced_list() {
+        data = new t[default_capacity];
+    }
+
+    synced_list(starting_capacity: var) {
+        data = new t[starting_capacity];
+    }
+
+    def set_compact(compact_array: var) {
+        lock(self) {
+            is_compact = compact_array;
+        }
+    }
+
+    def get_elements() : t[] {
+        lock(self) {
+            if(n_elements == 0) return null;
+            else return copy(data, 0, n_elements);
+        }
+    }
+
+    def operator[](index: var): t {
+        lock(self) {
+            if(index >= n_elements || index < 0)
+                throw new bounds_except(out_of_bounds_msg(index));
+            return data[index];
+        }
+    }
+
+    def at(index: var): t {
+        lock(self) {
+            if(index >= n_elements || index < 0)
+                throw new bounds_except(out_of_bounds_msg(index));
+            return data[index];
+        }
+    }
+
+    def last(): t {
+        return at(n_elements - 1);
+    }
+
+    def put(index: var, element: t) : t {
+        lock(self) {
+            if (index >= n_elements || index < 0)
+                throw new bounds_except(out_of_bounds_msg(index));
+
+            old_val := data[index];
+            data[index] = element;
+            return old_val;
+        }
+    }
+
+    private def expand() {
+        if(is_compact) {
+            realloc(data, sizeof(data) + min_capacity);
+        } else
+            realloc(data, sizeof(data) + (sizeof(data) >> 4) + min_capacity);
+    }
+
+    def clear() {
+        lock(self) {
+            data = new t[default_capacity];
+            n_elements = 0;
+        }
+    }
+
+    def add_all(lst: list<t>) {
+        lock(self) {
+            data = copy(lst.data, 0, lst.n_elements) as t[];
+            n_elements = lst.n_elements;
+        }
+    }
+
+    def add(element: t) {
+        lock(self) {
+            if(n_elements >= sizeof(data))
+                expand();
+            data[n_elements++] = element;
+        }
+    }
+
+    def indexof(element: t) : var {
+        lock(self) {
+            for(i := 0; i < n_elements; i++) {
+                if(element == data[i]) {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+    }
+
+    def pop_back() {
+        if(n_elements > 0) {
+            no_val : t;
+            data[n_elements--] = no_val;
+        }
+    }
+
+    def size() : var {
+        lock(self) {
+            return n_elements;
+        }
+    }
+
+    def empty() : var {
+        lock(self) {
+            return n_elements==0;
+        }
+    }
+
+    def insert(index: var, element: t) {
+        lock(self) {
+            if(index > n_elements || index < 0)
+               throw new bounds_except(out_of_bounds_msg(index));
+
+            if(n_elements == 0) {
+                add(element);
+            } else {
+               if(n_elements >= sizeof(data))
+                   expand();
+               n_elements++;
+                for(i := n_elements - 1; i > index; i--)
+                   data[i] = data[i-1];
+                data[index] = element;
+            }
+        }
+    }
+
+
+    def remove(val: t) {
+        lock(self) {
+            for(i := 0; i < n_elements; i++) {
+                if(val == data[i]) {
+                    remove_at(i);
+                    return;
+                }
+            }
+        }
+    }
+
+    def remove(val: t, compare_fun: (t, t)(var)) {
+        lock(self) {
+            for(i := 0; i < n_elements; i++) {
+                if(compare_fun(val, data[i])) {
+                    remove_at(i);
+                    return;
+                }
+            }
+        }
+    }
+
+    def remove_at(index: var) {
+        lock(self) {
+            if(index >= n_elements || index < 0)
+               throw new bounds_except(out_of_bounds_msg(index));
+
+            num_moved := n_elements - index - 1;
+            if (num_moved > 0)
+                memcopy(data, data, index, index+1, n_elements);
+
+            pop_back();
+        }
+    }
+
+    def indexof(comparer: t, find_func: (t, t)(var)) : var {
+        lock(self) {
+            for(i := 0; i < n_elements; i++) {
+                if(find_func(data[i], comparer)) {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+    }
+
+    def linear_sort(swap: (t, t)(var)) {
+        lock(self) {
+            for(i := 0; i < n_elements; i++) {
+
+                for (j := 0; j < n_elements; j++) {
+                    if((j + 1) < n_elements) {
+
+                        if (swap(data[j], data[j+1])) {
+                            tmp := data[j];
+                            data[j] = data[j+1];
+                            data[j+1] = tmp;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    def find(comparer : t, find_func: (t, t)(var)) : t {
+        lock(self) {
+            for(i := 0; i < n_elements; i++) {
+                if(find_func(data[i], comparer)) {
+                    return data[i];
+                }
+            }
+
+            no_val : t;
+            return no_val;
+        }
+    }
+
+    def replace(val: t, compare_fun: (t, t)(var)) : var {
+        lock(self) {
+            for(i := 0; i < n_elements; i++) {
+                if(compare_fun(val, data[i])) {
+                    data[i] = val;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    def to_string() : string {
+        lock(self) {
+            str := new string_builder();
+
+            str += "[ ";
+            for(i := 0; i < n_elements; i++) {
+                str += data[i];
+
+                if((i + 1) < n_elements) {
+                    str += ", ";
+                }
+            }
+
+            str += " ]";
+            return str.to_string();
+        }
+    }
+
+    private def out_of_bounds_msg(index: var) : string {
+        return "Index: $index, size: $n_elements";
+    }
+}
