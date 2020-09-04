@@ -1,0 +1,11 @@
+mod std.io;
+
+interface send_channel<t> {
+    def send(data : t);
+
+    def send(data : t, filter: var);
+
+    def close();
+
+    def open();
+}

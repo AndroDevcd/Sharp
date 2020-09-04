@@ -179,6 +179,7 @@ private:
     void createNewWarning(error_type error, int type, int line, int col, string xcmnts);
     void createNewWarning(error_type error, int type, Ast* ast, string xcmnts);
     string parseModuleDecl(Ast* ast);
+    ClassObject* findClassBackwards(string className);
     void parseClassAccessFlags(List<AccessFlag> &flags, Ast *ast);
     bool matchesFlag(AccessFlag flags[], int len, int startPos, AccessFlag flag);
     void inlineClassFields(Ast* ast, ClassObject* currentClass = NULL);
@@ -472,6 +473,13 @@ extern ModuleData* undefinedModule;
 #define RETAIN_SCOPE_CLASS(bt) \
     ClassObject *oldScopeClass = currentScope()->klass; \
     currentScope()->klass = bt;
+
+#define RETAIN_PRIMARY_CLASS(bt) \
+    ClassObject *oldPrimaryClass = primaryClass; \
+    primaryClass = bt;
+
+#define RESTORE_PRIMARY_CLASS() \
+    primaryClass = oldPrimaryClass;
 
 #define RESTORE_SCOPE_CLASS() \
     currentScope()->klass = oldScopeClass;

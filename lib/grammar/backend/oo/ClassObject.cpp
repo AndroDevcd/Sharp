@@ -168,6 +168,9 @@ ClassObject* ClassObject::getLoopableClass() { // TODO: talk about in the tutori
             return loopable;
     }
 
+    if(super != NULL && startsWith(super->fullName, "std#_object_")) {
+        return nullptr;
+    }
     return super == NULL ? NULL : super->getLoopableClass();
 }
 

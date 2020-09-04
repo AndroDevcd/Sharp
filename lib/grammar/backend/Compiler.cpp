@@ -541,6 +541,7 @@ void Compiler::preProccessEnumDecl(Ast *ast)
         currentClass->owner = currentScope()->klass->getGenericOwner();
     }
 
+    RETAIN_PRIMARY_CLASS(currentClass)
     currentClass->setProcessStage(preprocessed);
     enums.addif(currentClass);
     if(currentClass->address == invalidAddr)
@@ -580,6 +581,7 @@ void Compiler::preProccessEnumDecl(Ast *ast)
         }
     }
     removeScope();
+    RESTORE_PRIMARY_CLASS()
 }
 
 void Compiler::compileClassInitDecls(Ast* ast, ClassObject* currentClass) {
@@ -598,7 +600,7 @@ void Compiler::compileClassInitDecls(Ast* ast, ClassObject* currentClass) {
 
     if(currentClass != NULL) {
         currScope.add(new Scope(currentClass, CLASS_SCOPE));
-        primaryClass = currentClass;
+        RETAIN_PRIMARY_CLASS(currentClass)
 
         for (long i = 0; i < block->getSubAstCount(); i++) {
             Ast *branch = block->getSubAst(i);
@@ -619,7 +621,7 @@ void Compiler::compileClassInitDecls(Ast* ast, ClassObject* currentClass) {
             }
         }
 
-        primaryClass = NULL;
+        RESTORE_PRIMARY_CLASS()
         removeScope();
     }
 }
@@ -775,7 +777,7 @@ void Compiler::compileClassFields(Ast* ast, ClassObject* currentClass) {
 
     if(currentClass != NULL) {
         currScope.add(new Scope(currentClass, CLASS_SCOPE));
-        primaryClass = currentClass;
+        RETAIN_PRIMARY_CLASS(currentClass)
 
         for (long i = 0; i < block->getSubAstCount(); i++) {
             Ast *branch = block->getSubAst(i);
@@ -796,7 +798,7 @@ void Compiler::compileClassFields(Ast* ast, ClassObject* currentClass) {
             }
         }
 
-        primaryClass = NULL;
+        RESTORE_PRIMARY_CLASS()
         addLocalVariables();
         removeScope();
     }
@@ -818,7 +820,7 @@ void Compiler::compileClassMethods(Ast* ast, ClassObject* currentClass) {
 
     if(currentClass != NULL) {
         currScope.add(new Scope(currentClass, CLASS_SCOPE));
-        primaryClass = currentClass;
+        RETAIN_PRIMARY_CLASS(currentClass)
 
         for (long i = 0; i < block->getSubAstCount(); i++) {
             Ast *branch = block->getSubAst(i);
@@ -863,7 +865,7 @@ void Compiler::compileClassMethods(Ast* ast, ClassObject* currentClass) {
             }
         }
 
-        primaryClass = NULL;
+        RESTORE_PRIMARY_CLASS()
         removeScope();
     }
 }
@@ -928,6 +930,7 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
         errors->createNewError(INTERNAL_ERROR, ast->line, ast->col, err.str());
     }
 
+    RETAIN_PRIMARY_CLASS(currentClass)
     currScope.add(new Scope(currentClass, CLASS_SCOPE));
     for (long i = 0; i < block->getSubAstCount(); i++) {
         Ast *branch = block->getSubAst(i);
@@ -979,6 +982,7 @@ void Compiler::preProccessClassDecl(Ast* ast, bool isInterface, ClassObject* cur
         }
     }
     removeScope();
+    RESTORE_PRIMARY_CLASS()
 }
 
 int64_t Compiler::checkstl(StorageLocality locality) {
@@ -3597,7 +3601,7 @@ void Compiler::compileFieldInitialization(Expression* expr, List<KeyPair<Field*,
 
         if(ast->getType() == ast_field_init_list) {
             RETAIN_SCOPE_CLASS(scopedClass)
-            RETAIN_BLOCK_TYPE(INSTANCE_BLOCK)
+            RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
 
             Utype *utype = compileUtype(field_init->getSubAst(ast_utype));
 
@@ -3841,7 +3845,7 @@ void Compiler::compileNewExpression(Expression* expr, Ast* ast) {
                         .addIr(OpBuilder::popObject2());
             }
         } else
-            errors->createNewError(GENERIC, ast->line, ast->col, "arrayType `" + arrayType->toString() + "` must be a class");
+            errors->createNewError(GENERIC, ast->line, ast->col, "new expression on type `" + arrayType->toString() + "` must be a class");
     }
 
     compilePostAstExpressions(expr, ast, 2);
@@ -3918,11 +3922,13 @@ void Compiler::compileSelfExpression(Expression* expr, Ast* ast) {
     expr->ast = ast;
     if(ast->hasToken(PTR)) {
         RETAIN_BLOCK_TYPE(RESTRICTED_INSTANCE_BLOCK)
+        RETAIN_SCOPE_CLASS(primaryClass)
         compileDotNotationCall(expr, ast->getSubAst(ast_dotnotation_call_expr));
+        RESTORE_SCOPE_CLASS()
         RESTORE_BLOCK_TYPE()
     } else {
         expr->type = exp_class;
-        expr->utype = new Utype(currentScope()->klass);
+        expr->utype = new Utype(primaryClass);
         expr->utype->getCode()
             .addIr(OpBuilder::movl(0));
         expr->utype->getCode().getInjector(stackInjector)
@@ -5451,6 +5457,9 @@ void Compiler::resolveField(Ast* ast) {
     }
 
     Field *field = currentScope()->klass->getField(name, false);
+    if(field->name == "head") {
+        int i = 1000;
+    }
     if(field->type == UNTYPED) {
         findConflicts(ast, "field", name);
         // wee need to do this to prevent possible stack overflow errors
@@ -5651,6 +5660,7 @@ void Compiler::resolveClassFields(Ast* ast, ClassObject* currentClass) {
     }
 
     if(currentClass != NULL) {
+        RETAIN_PRIMARY_CLASS(currentClass)
         currScope.add(new Scope(currentClass, CLASS_SCOPE));
         for (long i = 0; i < block->getSubAstCount(); i++) {
             Ast *branch = block->getSubAst(i);
@@ -5675,6 +5685,7 @@ void Compiler::resolveClassFields(Ast* ast, ClassObject* currentClass) {
             }
         }
         removeScope();
+        RESTORE_PRIMARY_CLASS()
     }
 }
 
@@ -6257,6 +6268,7 @@ void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
     }
 
     if(currentClass != NULL) {
+        RETAIN_PRIMARY_CLASS(currentClass)
         currScope.add(new Scope(currentClass, CLASS_SCOPE));
         for (long i = 0; i < block->getSubAstCount(); i++) {
             Ast *branch = block->getSubAst(i);
@@ -6289,6 +6301,7 @@ void Compiler::resolveClassMethods(Ast* ast, ClassObject* currentClass) {
 
         addDefaultConstructor(currentClass, ast);
         removeScope();
+        RESTORE_PRIMARY_CLASS()
     }
 }
 
@@ -6486,6 +6499,7 @@ void Compiler::resolveAllDelegates(Ast *ast, ClassObject* currentClass) {
     }
 
     if(currentClass != NULL) {
+        RETAIN_PRIMARY_CLASS(currentClass)
         currScope.add(new Scope(currentClass, CLASS_SCOPE));
         validateDelegates(currentClass, ast);
         for (long i = 0; i < block->getSubAstCount(); i++) {
@@ -6505,6 +6519,7 @@ void Compiler::resolveAllDelegates(Ast *ast, ClassObject* currentClass) {
             CHECK_CMP_ERRORS(return;)
         }
         removeScope();
+        RESTORE_PRIMARY_CLASS()
     }
 }
 
@@ -8540,8 +8555,7 @@ void Compiler::compileMethodDecl(Ast *ast, ClassObject* currentClass) {
     if(currentClass == NULL)
         currentClass = currentScope()->klass;
 
-    ClassObject *oldPrimary = primaryClass;
-    primaryClass = currentClass;
+    RETAIN_PRIMARY_CLASS(currentClass)
     parseUtypeArgList(params, ast->getSubAst(ast_utype_arg_list));
     Method *func = findFunction(currentClass, name, params, ast, false, fn_normal, false);
 
@@ -8557,7 +8571,7 @@ void Compiler::compileMethodDecl(Ast *ast, ClassObject* currentClass) {
        }
        compileMethod(ast, func);
    }
-   primaryClass = oldPrimary;
+   RESTORE_PRIMARY_CLASS()
 }
 
 void Compiler::compileMethod(Ast *ast, Method *func) {
@@ -9266,6 +9280,21 @@ string Compiler::parseModuleDecl(Ast *ast) {
         module += ast->getToken(i).getValue();
     }
     return module;
+}
+
+ClassObject* Compiler::findClassBackwards(string className) {
+    ClassObject* klass = NULL;
+
+    ClassObject *start = currentScope()->klass->owner;
+    while(start != NULL) {
+        if(start->getChildClass(className)) {
+            klass = start->getChildClass(className);
+            break;
+        }
+        start = start->owner;
+    }
+
+    return klass;
 }
 
 ClassObject* Compiler::findClass(ModuleData* mod, string className, List<ClassObject*> &classes, bool match) {

@@ -34,6 +34,20 @@ stable class _object_ : printable, unique {
         }
     }
 
+    def _lock() {
+        asm {
+            movl 0
+            lock
+        }
+    }
+
+    def _unlock() {
+        asm {
+            movl 0
+            ulock
+        }
+    }
+
     def hash() : long {
         /* must be implemented at a higher level */
         return 0;

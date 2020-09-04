@@ -512,6 +512,8 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
               && (IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType())
                   && ((ClassObject*)resolvedUtype)->getGenericOwner() !=  NULL)) {
         resolveClassUtype(utype, ast, resolvedUtype);
+    }  else if((resolvedUtype = findClassBackwards(name)) != NULL) {
+        resolveClassUtype(utype, ast, resolvedUtype);
     }  else if(((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL  ||
                (primaryClass && (resolvedUtype = primaryClass->getChildClass(name)) != NULL))
         && !(IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType()) && ((ClassObject*)resolvedUtype)->getGenericOwner() == NULL)) {
@@ -1120,7 +1122,17 @@ ClassObject* Compiler::compileGenericClassReference(ModuleData *mod, string &nam
         else generic = findClass(mod, name + "<>", generics);
 
         if(generic == NULL) {
-            generic = currentScope()->klass->getGenericOwner();
+            ClassObject *start = currentScope()->klass->owner;
+            while(start != NULL) {
+                if(start->getChildClass(name + "<>")) {
+                    generic = start->getChildClass(name + "<>");
+                    break;
+                }
+                start = start->owner;
+            }
+
+            if(generic == NULL)
+               generic = currentScope()->klass->getGenericOwner();
         }
 
         if(generic != NULL && !generic->owner->isGlobalClass()) {
@@ -1535,8 +1547,9 @@ void Compiler::preProcessUnprocessedClasses(Int unstableClasses) {
     for(Int i = 0; i < size; i++) {
         ClassObject *unprocessedClass = unProcessedClasses.get(i);
 
+        RETAIN_PRIMARY_CLASS(unprocessedClass)
         currModule = unprocessedClass->module;
-        current = getParserBySourceFile(unprocessedClass->meta.file->name);
+        current = getParserBySourceFile(unprocessedClass->getGenericOwner()->meta.file->name);
 
         Int totalErrors = errors->getUnfilteredErrorCount();
         updateErrorManagerInstance(current);
@@ -1553,6 +1566,7 @@ void Compiler::preProcessUnprocessedClasses(Int unstableClasses) {
         if(NEW_ERRORS_FOUND()) {
             failedParsers.addif(current);
         }
+        RESTORE_PRIMARY_CLASS()
     }
 }
 
@@ -1741,6 +1755,7 @@ void Compiler::inlineClassFields(Ast* ast, ClassObject* currentClass) {
     }
 
     if(currentClass != NULL) {
+        RETAIN_PRIMARY_CLASS(currentClass)
         currScope.add(new Scope(currentClass, CLASS_SCOPE));
         for (long i = 0; i < block->getSubAstCount(); i++) {
             Ast *branch = block->getSubAst(i);
@@ -1762,6 +1777,7 @@ void Compiler::inlineClassFields(Ast* ast, ClassObject* currentClass) {
             }
         }
         removeScope();
+        RESTORE_PRIMARY_CLASS()
     }
 }
 
@@ -1831,7 +1847,7 @@ void Compiler::postProcessUnprocessedClasses() {
         ClassObject *unprocessedClass = unProcessedClasses.get(i);
 
         currModule = unprocessedClass->module;
-        current = getParserBySourceFile(unprocessedClass->meta.file->name);
+        current = getParserBySourceFile(unprocessedClass->getGenericOwner()->meta.file->name);
 
         Int totalErrors = errors->getUnfilteredErrorCount();
         updateErrorManagerInstance(current);
