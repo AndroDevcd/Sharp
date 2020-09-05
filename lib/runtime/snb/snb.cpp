@@ -17,7 +17,7 @@ void dec_ref(void *object) {
 }
 
 double* getfpNumAt(int32_t fpOffset) {
-    return &(thread_self->fp+fpOffset)->var;
+    return &(thread_self->this_fiber->fp+fpOffset)->var;
 }
 
 object getField(object obj, const char* name){
@@ -58,7 +58,7 @@ double* getVarPtr(object obj){
 }
 
 object getfpLocalAt(int32_t fpOffset){
-    return &(thread_self->fp+fpOffset)->object;
+    return &(thread_self->this_fiber->fp+fpOffset)->object;
 }
 
 int32_t getSize(object obj){
@@ -88,34 +88,34 @@ object staticClassInstance(const char* name) {
 
 void incSp() {
     THREAD_STACK_CHECK(thread_self)
-    thread_self->sp++;
+    thread_self->this_fiber->sp++;
 }
 
 void decSp(int32_t amount) {
     try {
-        if (((thread_self->sp - thread_self->dataStack) - amount) < 0) {
+        if (((thread_self->this_fiber->sp - thread_self->this_fiber->dataStack) - amount) < 0) {
             throw Exception(vm.ThreadStackExcept, "the thread stack cannot be negative");
         }
 
-        thread_self->sp -= amount;
+        thread_self->this_fiber->sp -= amount;
     } catch(Exception &e) {
         sendSignal(thread_self->signal, tsig_except, 1);
     }
 }
 
 double* getspNumAt(int32_t spOffset) {
-    return &(thread_self->sp+spOffset)->var;
+    return &(thread_self->this_fiber->sp+spOffset)->var;
 }
 
 object getspObjAt(int32_t spOffset) {
-    return &(thread_self->sp+spOffset)->object;
+    return &(thread_self->this_fiber->sp+spOffset)->object;
 }
 
 object newVarArray(int32_t size, unsigned short ntype) {
     try {
-        (thread_self->sp + 1)->object =
+        (thread_self->this_fiber->sp + 1)->object =
                 gc.newObject(size, ntype);
-        return &(thread_self->sp + 1)->object;
+        return &(thread_self->this_fiber->sp + 1)->object;
     } catch(Exception &e) {
         sendSignal(thread_self->signal, tsig_except, 1);
         return NULL;
@@ -126,9 +126,9 @@ object newClass(const char* name) {
     try {
         ClassObject *klass = vm.resolveClass(name);
         if(klass) {
-            (thread_self->sp+1)->object =
+            (thread_self->this_fiber->sp+1)->object =
                     gc.newObject(klass);
-            return &(thread_self->sp+1)->object;
+            return &(thread_self->this_fiber->sp+1)->object;
         }
 
         return NULL;
@@ -140,9 +140,9 @@ object newClass(const char* name) {
 
 object newObjArray(int32_t size) {
     try {
-        (thread_self->sp+1)->object =
+        (thread_self->this_fiber->sp+1)->object =
                 gc.newObjectArray(size);
-        return &(thread_self->sp+1)->object;
+        return &(thread_self->this_fiber->sp+1)->object;
     } catch(Exception &e) {
         sendSignal(thread_self->signal, tsig_except, 1);
         return NULL;
@@ -153,9 +153,9 @@ object newClassArray(const char *name, int32_t size) {
     try {
         ClassObject *klass = vm.resolveClass(name);
         if(klass) {
-            (thread_self->sp+1)->object =
+            (thread_self->this_fiber->sp+1)->object =
                     gc.newObjectArray(size, klass);
-            return &(thread_self->sp+1)->object;
+            return &(thread_self->this_fiber->sp+1)->object;
         }
 
         return NULL;
@@ -186,11 +186,11 @@ object getItem(object obj, int32_t index) {
 }
 
 void pushNum(double value) {
-    (++thread_self->sp)->var = value;
+    (++thread_self->this_fiber->sp)->var = value;
 }
 
 void pushObj(object value) {
-    (++thread_self->sp)->object =
+    (++thread_self->this_fiber->sp)->object =
             ((Object*) value);
 }
 
@@ -213,9 +213,9 @@ bool exceptionCheck() {
 }
 
 object getExceptionObject() {
-    if(thread_self->exceptionObject.object)
-        return &thread_self->exceptionObject;
-    else return &(thread_self->sp)->object;
+    if(thread_self->this_fiber->exceptionObject.object)
+        return &thread_self->this_fiber->exceptionObject;
+    else return &(thread_self->this_fiber->sp)->object;
 }
 
 const char* className(object klazz) {
@@ -229,12 +229,12 @@ const char* className(object klazz) {
 }
 
 void prepareException(object exceptionClass) {
-    thread_self->exceptionObject = (Object*)exceptionClass;
+    thread_self->this_fiber->exceptionObject = (Object*)exceptionClass;
     sendSignal(thread_self->signal, tsig_except, 1);
 }
 
 void clearException() {
-    thread_self->exceptionObject = (SharpObject*)NULL;
+    thread_self->this_fiber->exceptionObject = (SharpObject*)NULL;
     sendSignal(thread_self->signal, tsig_except, 0);
 }
 

@@ -215,8 +215,8 @@ void Gui::winGuiIntf(long long proc) {
             break;
         case _g_dwnd: {
             Thread* self = thread_self;
-            SharpObject* name = (self->sp--)->object.object;
-            SharpObject* title = (self->sp--)->object.object;
+            SharpObject* name = (self->this_fiber->sp--)->object.object;
+            SharpObject* title = (self->this_fiber->sp--)->object.object;
 
             if(name && title) {
 
@@ -254,12 +254,12 @@ void Gui::winPaint(long long proc) {
     Thread* self = thread_self;
     switch(proc) {
         case _pt_text: {
-            SharpObject* str = (self->sp--)->object.object;
+            SharpObject* str = (self->this_fiber->sp--)->object.object;
             if(str) {
                 native_string msg(str->HEAD, str->size);
                 string wMsg = msg.str();
                 TextOut(ctx->hdc,
-                        (int)(self->sp)->var, (int)(self->sp-1)->var,
+                        (int)(self->this_fiber->sp)->var, (int)(self->this_fiber->sp-1)->var,
                         wMsg.c_str(), _tcslen(wMsg.c_str()));
             }
             break;
@@ -271,22 +271,22 @@ void Gui::winPaint(long long proc) {
             _64CMT = paintEnd(_64ADX);
             break;
         case _pt_move:
-            _64CMT = MoveToEx(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var, NULL);
+            _64CMT = MoveToEx(ctx->hdc, (int)(self->this_fiber->sp)->var, (int)(self->this_fiber->sp-1)->var, NULL);
             break;
         case _pt_line:
-            _64CMT = LineTo(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var);
+            _64CMT = LineTo(ctx->hdc, (int)(self->this_fiber->sp)->var, (int)(self->this_fiber->sp-1)->var);
             break;
         case _pt_rect:
-            _64CMT = Rectangle(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var, (int)(self->sp-2)->var, (int)(self->sp-3)->var);
+            _64CMT = Rectangle(ctx->hdc, (int)(self->this_fiber->sp)->var, (int)(self->this_fiber->sp-1)->var, (int)(self->this_fiber->sp-2)->var, (int)(self->this_fiber->sp-3)->var);
             break;
         case _pt_fillrect: {
             if(ctx->hBrush == nullptr) { _64CMT = 1; return; }
-            RECT rect = {(int)(self->sp)->var, (int)(self->sp-1)->var, (int)(self->sp-2)->var, (int)(self->sp-3)->var};
+            RECT rect = {(int)(self->this_fiber->sp)->var, (int)(self->this_fiber->sp-1)->var, (int)(self->this_fiber->sp-2)->var, (int)(self->this_fiber->sp-3)->var};
             _64CMT = FillRect(ctx->hdc, &rect, ctx->hBrush);
             break;
         }
         case _pt_ellipsize:
-            _64CMT = Ellipse(ctx->hdc, (int)(self->sp)->var, (int)(self->sp-1)->var, (int)(self->sp-2)->var, (int)(self->sp-3)->var);
+            _64CMT = Ellipse(ctx->hdc, (int)(self->this_fiber->sp)->var, (int)(self->this_fiber->sp-1)->var, (int)(self->this_fiber->sp-2)->var, (int)(self->this_fiber->sp-3)->var);
             break;
         case _pt_polygon:
             Poly poly;
@@ -297,8 +297,8 @@ void Gui::winPaint(long long proc) {
             break;
         case _pt_createPen: {
             ctx->pens.push_back(
-                    CreatePen((int)(self->sp)->var, (int)(self->sp-1)->var,
-                              (COLORREF)(self->sp-2)->var));
+                    CreatePen((int)(self->this_fiber->sp)->var, (int)(self->this_fiber->sp-1)->var,
+                              (COLORREF)(self->this_fiber->sp-2)->var));
             break;
         }
         case _pt_selectPen: {
@@ -344,7 +344,7 @@ void Gui::winPaint(long long proc) {
         }
         case _pt_createBrush: {
             ctx->brushes.push_back(
-                    CreateSolidBrush((COLORREF)(self->sp)->var));
+                    CreateSolidBrush((COLORREF)(self->this_fiber->sp)->var));
             break;
         }
         default: {
@@ -358,7 +358,7 @@ void Gui::winPaint(long long proc) {
 
 bool Gui::createPolygon(Poly *poly) {
     Thread* self = thread_self;
-    SharpObject *polygonObject = (self->sp)->object.object;
+    SharpObject *polygonObject = (self->this_fiber->sp)->object.object;
 
     if(polygonObject && IS_CLASS(polygonObject->info)) {
         ClassObject *k = &vm.classes[CLASS(polygonObject->info)];

@@ -61,7 +61,7 @@
 #define GET_Bb(i) (int32_t)(((i >> 9u) & POSITIVE) ? (i >> 18u & BA_MAX) : (-1 * (i >> 18u & BA_MAX)))
 #define GET_Bc(i) (int32_t)(((i >> 10u) & POSITIVE) ? (i >> 25u & BA_MAX) : (-1 * (i >> 25u & BA_MAX)))
 
-#define DISPATCH() /*if(GET_OP((*pc))> 0x76 || PC(this) >= current->cacheSize) throw Exception("op"); else*/ goto *opcode_table[GET_OP(*pc)];
+#define DISPATCH() /*if(GET_OP((*pc))> 0x76 || PC(this) >= current->cacheSize) throw Exception("op"); else*/ goto *opcode_table[GET_OP(*this_fiber->pc)];
 
 #define HAS_SIGNAL \
     if(signal) { \
@@ -74,20 +74,20 @@
     }
 
 #define LONG_CALL() \
-    if(current->branches < JIT_IR_LIMIT) \
-        current->branches++;
+    if(this_fiber->current->branches < JIT_IR_LIMIT) \
+        this_fiber->current->branches++;
 
-#define STACK_CHECK  if(((sp-dataStack)+1) >= stackLimit) throw Exception(vm.StackOverflowExcept, "");
-#define THREAD_STACK_CHECK(self)  if(((self->sp-self->dataStack)+1) >= self->stackLimit) throw Exception(vm.StackOverflowExcept, "");
-#define THREAD_STACK_CHECK2(self, stackSize, x)  if(((self->sp-self->dataStack)+stackSize) >= self->stackLimit || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(vm.StackOverflowExcept, "");
+#define STACK_CHECK  if(((this_fiber->sp-this_fiber->dataStack)+1) >= this_fiber->stackLimit) throw Exception(vm.StackOverflowExcept, "");
+#define THREAD_STACK_CHECK(self)  if(((self->this_fiber->sp-self->this_fiber->dataStack)+1) >= self->this_fiber->stackLimit) throw Exception(vm.StackOverflowExcept, "");
+#define THREAD_STACK_CHECK2(self, stackSize, x)  if(((self->this_fiber->sp-self->this_fiber->dataStack)+stackSize) >= self->this_fiber->stackLimit || (((int64_t)(&x) - self->stfloor) <= STACK_OVERFLOW_BUF)) throw Exception(vm.StackOverflowExcept, "");
 
 #ifndef SHARP_PROF_
 #define _brh_NOINCREMENT HAS_SIGNAL goto top; DISPATCH();
 #else
 #define _brh_NOINCREMENT HAS_SIGNAL irCount++; if(irCount == 0) overflow++; DISPATCH();
 #endif
-#define _brh  pc++; _brh_NOINCREMENT
-#define _brh_inc(x)  pc+=x; _brh_NOINCREMENT
+#define _brh  this_fiber->pc++; _brh_NOINCREMENT
+#define _brh_inc(x)  this_fiber->pc+=x; _brh_NOINCREMENT
 
 #define CHECK_NULL(x) \
     if(ptr==NULL) { \

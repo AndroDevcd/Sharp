@@ -55,7 +55,7 @@ void Exception::pushException() {
              */
             GUARD(thread->mutex);
             thread->state = THREAD_KILLED;
-            thread->exceptionObject = vm.outOfMemoryExcept;
+            thread->this_fiber->exceptionObject = vm.outOfMemoryExcept;
 
             native_string str;
             vm.fillStackTrace(str);
@@ -79,13 +79,13 @@ void Exception::pushException() {
             return;
         }
 
-        thread->exceptionObject
+        thread->this_fiber->exceptionObject
                 = gc.newObject(throwable.handlingClass);
 
         gc.createStringArray(
-                vm.resolveField("message", thread->exceptionObject.object),
+                vm.resolveField("message", thread->this_fiber->exceptionObject.object),
                    throwable.message);
-        vm.getFrameInfo(vm.resolveField("frame_info", thread->exceptionObject.object));
+        vm.getFrameInfo(vm.resolveField("frame_info", thread->this_fiber->exceptionObject.object));
     }
 }
 

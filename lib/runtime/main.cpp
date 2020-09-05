@@ -223,6 +223,7 @@ uInt getMemBytes(const char *str, string option) {
 
 int startApplication(string &exe, std::list<string>& appArgs) {
     int result;
+    Thread *main = NULL;
     if((result = CreateVirtualMachine(exe)) != 0) {
         fprintf(stderr, "Could not start the Sharp virtual machine. Failed with code: %d\n", result);
         goto bail;
@@ -231,8 +232,7 @@ int startApplication(string &exe, std::list<string>& appArgs) {
     pushArgumentsToStack(appArgs);
     Thread::start(main_threadid, 0);
 
-    Thread *main;
-    Thread::threads.get(main_threadid, main);
+    main = Thread::threads.at(main_threadid);
     Thread::threadjoin(main);
 
     result=vm.exitVal;
@@ -244,9 +244,8 @@ int startApplication(string &exe, std::list<string>& appArgs) {
 }
 
 void pushArgumentsToStack(std::list<string>& appArgs) {
-    Thread *main;
-    Thread::threads.get(main_threadid, main);
-    pushArgumentsToStack(&(++main->sp)->object, appArgs);
+    Thread *main = Thread::threads.at(main_threadid);
+    pushArgumentsToStack(&(++main->this_fiber->sp)->object, appArgs);
 }
 
 void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {

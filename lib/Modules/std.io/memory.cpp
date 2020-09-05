@@ -6,9 +6,9 @@
 #include "../../runtime/VirtualMachine.h"
 
 void copy() {
-    Int end = (thread_self->sp--)->var;
-    Int start = (thread_self->sp--)->var;
-    Object *arry = &thread_self->sp->object;
+    Int end = (thread_self->this_fiber->sp--)->var;
+    Int start = (thread_self->this_fiber->sp--)->var;
+    Object *arry = &thread_self->this_fiber->sp->object;
     SharpObject *oldArray = arry->object;
     Int copyLen = end - start, index=0;
 
@@ -49,12 +49,12 @@ void copy() {
 }
 
 void memcopy() {
-    Int srcEnd = (thread_self->sp--)->var;
-    Int srcStart = (thread_self->sp--)->var;
-    Int destStart = (thread_self->sp--)->var;
+    Int srcEnd = (thread_self->this_fiber->sp--)->var;
+    Int srcStart = (thread_self->this_fiber->sp--)->var;
+    Int destStart = (thread_self->this_fiber->sp--)->var;
     Int copyLen = srcEnd - srcStart;
-    SharpObject *coppiedArray = (thread_self->sp--)->object.object;
-    SharpObject *arry = (thread_self->sp--)->object.object;
+    SharpObject *coppiedArray = (thread_self->this_fiber->sp--)->object.object;
+    SharpObject *arry = (thread_self->this_fiber->sp--)->object.object;
 
     if(coppiedArray != NULL && arry != NULL) {
         if(srcEnd > coppiedArray->size || srcEnd < 0 || srcStart < 0 || srcStart >= coppiedArray->size
@@ -97,9 +97,9 @@ void memcopy() {
 }
 
 void invert() {
-    Int len = (thread_self->sp--)->var;
-    Int start = (thread_self->sp--)->var;
-    Object *arry = &thread_self->sp->object;
+    Int len = (thread_self->this_fiber->sp--)->var;
+    Int start = (thread_self->this_fiber->sp--)->var;
+    Object *arry = &thread_self->this_fiber->sp->object;
     SharpObject *oldArray = arry->object;
 
     if(oldArray != NULL) {

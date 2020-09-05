@@ -1,0 +1,7 @@
+mod std.io;
+
+class fiber {
+
+   name : string;
+   id: var;
+}

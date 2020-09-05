@@ -14,9 +14,11 @@
 #include "jit/architecture.h"
 #include "../util/HashMap.h"
 #include "ThreadStates.h"
+#include "fiber.h"
 
 #define ILL_THREAD_ID -1
 #define THREAD_MAP_SIZE 0x2000
+#define REGISTER_SIZE 12
 
 #define INTERNAL_STACK_SIZE (KB_TO_BYTES(200) / sizeof(StackElement))
 #define INTERNAL_STACK_MIN KB_TO_BYTES(1)
@@ -49,24 +51,17 @@ public:
         priority = THREAD_PRIORITY_NORM;
         name.init();
         main = NULL;
-        exitVal = 0;
+        this_fiber = NULL;
         signal = tsig_empty;
-        callStack = NULL;
-        dataStack = NULL;
-        calls = 0;
-        tagged = false;
 #ifdef BUILD_JIT
         jctx = NULL;
 #endif
         args.object = NULL;
         currentThread.object=NULL;
-        exceptionObject.object=NULL;
         new (&mutex) recursive_mutex();
 #ifdef WIN32_
         thread = NULL;
 #endif
-        sp = NULL;
-        fp = NULL;
     }
 
     void init(string name, Int id, Method* main, bool daemon = false, bool initializeStack = false);
@@ -92,8 +87,8 @@ public:
     static void shutdown();
     static bool validStackSize(size_t);
     static bool validInternalStackSize(size_t);
-    static void suspendAllThreads(bool withTagging = false);
-    static void resumeAllThreads(bool withTagging = false);
+    static void suspendAllThreads();
+    static void resumeAllThreads();
     static int threadjoin(Thread*);
     static int destroy(Thread*);
 
@@ -115,17 +110,9 @@ public:
     void exec();
     void setup();
 
-    // easier to access for JIT
-    Int calls;
-    StackElement* dataStack,
-            *sp, *fp;
-    Method *current;
-    Frame *callStack;
 #ifdef BUILD_JIT
     jit_context *jctx;
 #endif
-    Int stackLimit;
-    Cache cache, pc;
 #ifdef SHARP_PROF_
     Profiler *tprof;
 #endif
@@ -133,15 +120,15 @@ public:
 
     static uInt maxThreadId;
     static int32_t tid;
-    static HashMap<Int, Thread*> threads;
+    static _List<Thread*> threads;
     static recursive_mutex threadsMonitor;
+    static recursive_mutex threadsListMutex;
 
     recursive_mutex mutex;
     int32_t id;
     Int stackSize;
     Int stbase;
     Int stfloor;
-    bool tagged;
     int priority;
     bool daemon;
     bool terminated;
@@ -149,10 +136,10 @@ public:
     bool suspended;
     bool exited;
     native_string name;
-    Method *main;
-    int exitVal;
     Object currentThread, args;
-    Object exceptionObject;
+    fiber *this_fiber;
+    fiber* main;
+    Method* mainMethod;
 
 #ifdef WIN32_
     HANDLE thread;

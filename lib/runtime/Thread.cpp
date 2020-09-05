@@ -24,9 +24,14 @@
 int32_t Thread::tid = ILL_THREAD_ID;
 uInt Thread::maxThreadId = 0;
 thread_local Thread* thread_self = NULL;
-HashMap<Int, Thread*> Thread::threads;
+_List<Thread*> Thread::threads;
 size_t threadStackSize = STACK_SIZE, internalStackSize = INTERNAL_STACK_SIZE;
 recursive_mutex Thread::threadsMonitor;
+recursive_mutex Thread::threadsListMutex;
+
+bool find_thread(void* id, Thread* thread) {
+    return *((int32_t*)id) == thread->id;
+}
 
 /*
  * Local registers for the thread to use
@@ -34,7 +39,7 @@ recursive_mutex Thread::threadsMonitor;
 thread_local double registers[12];
 
 void Thread::Startup() {
-    threads.init(THREAD_MAP_SIZE);
+    threads.init();
 
     Thread* main = (Thread*)malloc(
             sizeof(Thread)*1);
@@ -93,7 +98,7 @@ void Thread::CreateDaemon(string name) {
 }
 
 void Thread::pushThread(Thread *thread) {
-    threads.put(thread->id, thread);
+    threads.add(thread);
 }
 
 void Thread::popThread(Thread *thread) {
@@ -101,8 +106,12 @@ void Thread::popThread(Thread *thread) {
 }
 
 Thread *Thread::getThread(int32_t id) {
+    GUARD(Thread::threadsListMutex);
+
     Thread *thread = NULL;
-    threads.get(id, thread);
+    int32_t pos = threads.indexof(find_thread, &id);
+    if(pos >= 0)
+       thread = threads.at(pos);
 
     return thread;
 }
@@ -437,34 +446,26 @@ int Thread::waitForThread(Thread *thread) {
     return RESULT_OK;
 }
 
-void Thread::suspendAllThreads(bool withTagging) {
+void Thread::suspendAllThreads() {
     Thread* thread;
 
-    for(uInt i = 0; i <= maxThreadId; i++) {
-        if(threads.get(i, thread)
-            && thread != NULL
-            && (thread->id != thread_self->id)){
-            if(withTagging && thread->state == THREAD_SUSPENDED)
-                thread->tagged = true;
-            else if(thread->state == THREAD_RUNNING)
+    for(uInt i = 0; i < threads.size(); i++) {
+        thread = threads.at(i);
+
+        if(thread->id != thread_self->id){
+            if(thread->state == THREAD_RUNNING)
                 suspendAndWait(thread);
         }
     }
 }
 
-void Thread::resumeAllThreads(bool withTagging) {
+void Thread::resumeAllThreads() {
     Thread* thread;
 
-    for(unsigned int i= 0; i <= maxThreadId; i++) {
+    for(uInt i = 0; i < threads.size(); i++) {
+        thread = threads.at(i);
 
-        if(threads.get(i, thread)
-           && thread != NULL
-           && (thread->id != thread_self->id)){
-            if(withTagging && thread->tagged) {
-                thread->tagged = false;
-                continue;
-            }
-
+        if(thread->id != thread_self->id){
             unsuspendAndWait(thread);
         }
     }
@@ -491,13 +492,6 @@ void Thread::term() {
     this->state = THREAD_KILLED;
     sendSignal(this->signal, tsig_kill, 1);
     this->terminated = true;
-    if(dataStack != NULL) {
-        std::free(dataStack); dataStack = NULL;
-    }
-
-    if(callStack != NULL) {
-        std::free(callStack); callStack = NULL;
-    }
 
 #ifdef SHARP_PROF_
     tprof->free();
@@ -554,14 +548,14 @@ void Thread::killAll() {
     suspendAllThreads();
     Thread *thread = NULL;
 
-    for(unsigned int i = 0; i <= maxThreadId; i++) {
-        if(threads.get(i, thread) && thread != NULL) {
-            if(thread->id != thread_self->id
-               && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
-                terminateAndWaitForThreadExit(thread);
-            } else {
-                thread->term();
-            }
+    for(uInt i = 0; i < threads.size(); i++) {
+        thread = threads.at(i);
+
+        if(thread->id != thread_self->id
+           && thread->state != THREAD_KILLED && thread->state != THREAD_CREATED) {
+            terminateAndWaitForThreadExit(thread);
+        } else {
+            thread->term();
         }
     }
 }
@@ -605,24 +599,23 @@ void Thread::shutdown() {
         Thread::killAll();
         Thread* thread;
 
-        for(Int i = 0; i <= maxThreadId; i++) {
-            if(threads.get(i, thread))
-              std::free(thread);
+        for(uInt i = 0; i < threads.size(); i++) {
+            thread = threads.at(i);
+            std::free(thread);
         }
+        threads.free();
     }
 }
 
 void Thread::exit() {
     GUARD(mutex);
     if(hasSignal(signal, tsig_except)) {
-        this->exitVal = 1;
-
-        Object* frameInfo = vm.resolveField("frame_info", exceptionObject.object);
-        Object* message = vm.resolveField("message", exceptionObject.object);
-        Object* stackTrace = vm.resolveField("stack_trace", exceptionObject.object);
+        Object* frameInfo = vm.resolveField("frame_info", this_fiber->exceptionObject.object);
+        Object* message = vm.resolveField("message", this_fiber->exceptionObject.object);
+        Object* stackTrace = vm.resolveField("stack_trace", this_fiber->exceptionObject.object);
         ClassObject *exceptionClass = NULL;
-        if(exceptionObject.object != NULL)
-            exceptionClass = &vm.classes[CLASS(exceptionObject.object->info)];
+        if(this_fiber->exceptionObject.object != NULL)
+            exceptionClass = &vm.classes[CLASS(this_fiber->exceptionObject.object->info)];
 
 
         cout << "Unhandled exception on thread " << name.str() << " (most recent call last):\n";
@@ -633,14 +626,14 @@ void Thread::exit() {
                 cout << vm.stringValue(data->object);
             }
         } else if(frameInfo && frameInfo->object) {
-            if(((sp-dataStack)+1) >= stackLimit) {
-                sp = dataStack-1;
+            if(((this_fiber->sp-this_fiber->dataStack)+1) >= this_fiber->stackLimit) {
+                this_fiber->sp = this_fiber->dataStack-1;
             }
 
             if(exceptionClass != NULL && exceptionClass->guid != vm.OutOfMemoryExcept->guid) {
-                (++sp)->object = frameInfo;
+                (++this_fiber->sp)->object = frameInfo;
                 vm.getStackTrace();
-                Object* data = vm.resolveField("data", sp->object.object);
+                Object* data = vm.resolveField("data", this_fiber->sp->object.object);
 
                 if(data != NULL) {
                     cout << vm.stringValue(data->object);
@@ -652,28 +645,9 @@ void Thread::exit() {
            << (message != NULL ? vm.stringValue(message->object) : "") << ")\n";
     } else {
         if(id == main_threadid) {
-            if (dataStack != NULL)
-                this->exitVal = (int) dataStack[vm.manifest.threadLocals].var;
+            if (this_fiber->dataStack != NULL)
+                this_fiber->exitVal = (int) this_fiber->dataStack[vm.manifest.threadLocals].var;
         }
-    }
-
-    if(dataStack != NULL) {
-        gc.freeMemory(sizeof(StackElement) * stackLimit);
-        StackElement *p = dataStack;
-        for(size_t i = 0; i < stackLimit; i++)
-        {
-            if(p->object.object) {
-                DEC_REF(p->object.object);
-                p->object.object=NULL;
-            }
-            p++;
-        }
-        free(this->dataStack); dataStack = NULL;
-    }
-
-    if(callStack) {
-        free(this->callStack); callStack = NULL;
-        gc.freeMemory(sizeof(Frame) * stackLimit);
     }
 
     releaseResources();
@@ -735,21 +709,21 @@ void printRegs() {
     cout << "ehf = " << registers[EHF] << endl;
     cout << "bmr = " << registers[BMR] << endl;
     cout << "egx = " << registers[EGX] << endl;
-    cout << "sp -> " << (thread_self->sp-thread_self->dataStack) << endl;
-    cout << "fp -> " << (thread_self->fp-thread_self->dataStack) << endl;
-    cout << "pc -> " << PC(thread_self) << endl;
+    cout << "sp -> " << (thread_self->this_fiber->sp-thread_self->this_fiber->dataStack) << endl;
+    cout << "fp -> " << (thread_self->this_fiber->fp-thread_self->this_fiber->dataStack) << endl;
+    cout << "pc -> " << PC(thread_self->this_fiber) << endl;
 
 
     native_string stackTrace;
     vm.fillStackTrace(stackTrace);
     cout << "call stack (most recent call last):\n" << stackTrace.str() << endl;
-   if(thread_self->current != NULL) {
-       cout << "current function -> " << thread_self->current->fullName.str() << endl;
+   if(thread_self->this_fiber->current != NULL) {
+       cout << "current function -> " << thread_self->this_fiber->current->fullName.str() << endl;
    }
 
-   if(thread_self->dataStack) {
+   if(thread_self->this_fiber->dataStack) {
      for(long i = 0; i < 15; i++) {
-         cout << "fp.var [" << i << "] = " << thread_self->dataStack[i].var << ";" << endl;
+         cout << "fp.var [" << i << "] = " << thread_self->this_fiber->dataStack[i].var << ";" << endl;
      }
     }
 }
@@ -848,7 +822,7 @@ void Thread::exec() {
     try {
         for (;;) {
             top:
-                if(current->address == 2133 && (PC(this) >= 71)) { // tutoriall!!!!!!!!!!!!!!!!!!
+                if(this_fiber->current->address == 2133 && (PC(this_fiber) >= 71)) { // tutoriall!!!!!!!!!!!!!!!!!!
                     Int i = 0;
                 }
                 DISPATCH();
@@ -864,17 +838,17 @@ void Thread::exec() {
             }
 
 #endif
-                VirtualMachine::sysInterrupt(GET_Da(*pc));
+                VirtualMachine::sysInterrupt(GET_Da(*this_fiber->pc));
                 if(vm.state == VM_TERMINATED) return;
                 _brh
             _MOVI: // tested
-                registers[GET_Da(*pc)]=(int32_t)*(pc+1);
+                registers[GET_Da(*this_fiber->pc)]=(int32_t)*(this_fiber->pc+1);
                 _brh_inc(2)
             RET: // tested
-                result = GET_Da(*pc); // error state
-                if(result == ERR_STATE && exceptionObject.object == NULL) {
-                    exceptionObject
-                            = (sp--)->object.object;
+                result = GET_Da(*this_fiber->pc); // error state
+                if(result == ERR_STATE && this_fiber->exceptionObject.object == NULL) {
+                    this_fiber->exceptionObject
+                            = (this_fiber->sp--)->object.object;
                 }
 
                 if(returnMethod(this)) {
@@ -894,184 +868,184 @@ void Thread::exec() {
                 _brh
             NEWARRAY: // tested
                 STACK_CHECK
-                (++sp)->object =
-                        gc.newObject(registers[GET_Ca(*pc)], GET_Cb(*pc));
+                (++this_fiber->sp)->object =
+                        gc.newObject(registers[GET_Ca(*this_fiber->pc)], GET_Cb(*this_fiber->pc));
                 _brh
             CAST:
-                CHECK_NULL(ptr->castObject(registers[GET_Da(*pc)]);)
+                CHECK_NULL(ptr->castObject(registers[GET_Da(*this_fiber->pc)]);)
                 _brh
             VARCAST:
                 CHECK_NULL2(
-                        result = GET_Ca(*pc) < FNPTR ? GET_Ca(*pc) : NTYPE_VAR; // ntype
+                        result = GET_Ca(*this_fiber->pc) < FNPTR ? GET_Ca(*this_fiber->pc) : NTYPE_VAR; // ntype
                         if(!(TYPE(ptr->object->info) == _stype_var && ptr->object->ntype == result)) {
                             throw Exception(vm.ClassCastExcept,
-                                    getVarCastExceptionMsg((DataType)GET_Ca(*pc), GET_Cb(*pc), ptr->object));
+                                    getVarCastExceptionMsg((DataType)GET_Ca(*this_fiber->pc), GET_Cb(*this_fiber->pc), ptr->object));
                         }
                 )
                 _brh
             MOV8: // tested
-                registers[GET_Ca(*pc)]=(int8_t)registers[GET_Cb(*pc)];
+                registers[GET_Ca(*this_fiber->pc)]=(int8_t)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             MOV16: // tested
-                registers[GET_Ca(*pc)]=(int16_t)registers[GET_Cb(*pc)];
+                registers[GET_Ca(*this_fiber->pc)]=(int16_t)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             MOV32: // tested
-                registers[GET_Ca(*pc)]=(int32_t)registers[GET_Cb(*pc)];
+                registers[GET_Ca(*this_fiber->pc)]=(int32_t)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             MOV64: // tested
-                registers[GET_Ca(*pc)]=(Int)registers[GET_Cb(*pc)];
+                registers[GET_Ca(*this_fiber->pc)]=(Int)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             MOVU8: // tested
-                registers[GET_Ca(*pc)]=(uint8_t)registers[GET_Cb(*pc)];
+                registers[GET_Ca(*this_fiber->pc)]=(uint8_t)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             MOVU16: // tested
-                registers[GET_Ca(*pc)]=(uint16_t)registers[GET_Cb(*pc)];
+                registers[GET_Ca(*this_fiber->pc)]=(uint16_t)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             MOVU32: // tested
-                registers[GET_Ca(*pc)]=(uint32_t)registers[GET_Cb(*pc)];
+                registers[GET_Ca(*this_fiber->pc)]=(uint32_t)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             MOVU64: // tested
-                registers[GET_Ca(*pc)]=(uInt)registers[GET_Cb(*pc)];
+                registers[GET_Ca(*this_fiber->pc)]=(uInt)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             RSTORE: // tested
                 STACK_CHECK
-                (++sp)->var = registers[GET_Da(*pc)];
+                (++this_fiber->sp)->var = registers[GET_Da(*this_fiber->pc)];
                  _brh
             ADD: // tested
-                registers[GET_Bc(*pc)]=registers[GET_Ba(*pc)]+registers[GET_Bb(*pc)];
+                registers[GET_Bc(*this_fiber->pc)]=registers[GET_Ba(*this_fiber->pc)]+registers[GET_Bb(*this_fiber->pc)];
                 _brh
             SUB: // tested
-                registers[GET_Bc(*pc)]=registers[GET_Ba(*pc)]-registers[GET_Bb(*pc)];
+                registers[GET_Bc(*this_fiber->pc)]=registers[GET_Ba(*this_fiber->pc)]-registers[GET_Bb(*this_fiber->pc)];
                 _brh
             MUL: // tested
-                registers[GET_Bc(*pc)]=registers[GET_Ba(*pc)]*registers[GET_Bb(*pc)];
+                registers[GET_Bc(*this_fiber->pc)]=registers[GET_Ba(*this_fiber->pc)]*registers[GET_Bb(*this_fiber->pc)];
                 _brh
             DIV: // tested
-                if(registers[GET_Ba(*pc)]==0 && registers[GET_Bb(*pc)]==0) throw Exception("divide by 0");
-                registers[GET_Bc(*pc)]=registers[GET_Ba(*pc)]/registers[GET_Bb(*pc)];
+                if(registers[GET_Ba(*this_fiber->pc)]==0 && registers[GET_Bb(*this_fiber->pc)]==0) throw Exception("divide by 0");
+                registers[GET_Bc(*this_fiber->pc)]=registers[GET_Ba(*this_fiber->pc)]/registers[GET_Bb(*this_fiber->pc)];
                 _brh
             MOD: // tested
-                registers[GET_Bc(*pc)]=(Int)registers[GET_Ba(*pc)]%(Int)registers[GET_Bb(*pc)];
+                registers[GET_Bc(*this_fiber->pc)]=(Int)registers[GET_Ba(*this_fiber->pc)]%(Int)registers[GET_Bb(*this_fiber->pc)];
                 _brh
             IADD: // tested
-                registers[GET_Da(*pc)]+=(int32_t)*(pc+1);
+                registers[GET_Da(*this_fiber->pc)]+=(int32_t)*(this_fiber->pc+1);
                 _brh_inc(2)
             ISUB: // tested
-                registers[GET_Da(*pc)]-=(int32_t)*(pc+1);
+                registers[GET_Da(*this_fiber->pc)]-=(int32_t)*(this_fiber->pc+1);
                 _brh_inc(2)
             IMUL: // tested
-                registers[GET_Da(*pc)]*=(int32_t)*(pc+1);
+                registers[GET_Da(*this_fiber->pc)]*=(int32_t)*(this_fiber->pc+1);
                 _brh_inc(2)
             IDIV: // tested
-                if(((int32_t)*(pc+1))==0) throw Exception("divide by 0");
-                registers[GET_Da(*pc)]/=(int32_t)*(pc+1);
+                if(((int32_t)*(this_fiber->pc+1))==0) throw Exception("divide by 0");
+                registers[GET_Da(*this_fiber->pc)]/=(int32_t)*(this_fiber->pc+1);
                 _brh_inc(2)
             IMOD: // tested
-                registers[GET_Da(*pc)]=(Int)registers[GET_Da(*pc)]%(Int)*(pc+1);
+                registers[GET_Da(*this_fiber->pc)]=(Int)registers[GET_Da(*this_fiber->pc)]%(Int)*(this_fiber->pc+1);
                 _brh_inc(2)
             POP: // tested
-                sp->object = (SharpObject*)NULL;
-                --sp;
+                this_fiber->sp->object = (SharpObject*)NULL;
+                --this_fiber->sp;
                 _brh
             INC: // tested
-                registers[GET_Da(*pc)]++;
+                registers[GET_Da(*this_fiber->pc)]++;
                 _brh
             DEC: // tested
-                registers[GET_Da(*pc)]--;
+                registers[GET_Da(*this_fiber->pc)]--;
                 _brh
             MOVR: // tested
-                registers[GET_Ca(*pc)]=registers[GET_Cb(*pc)];
+                registers[GET_Ca(*this_fiber->pc)]=registers[GET_Cb(*this_fiber->pc)];
                 _brh
             BRH: // tested
                 HAS_SIGNAL
-                pc=cache+(Int)registers[ADX];
+                this_fiber->pc=this_fiber->cache+(Int)registers[ADX];
                 LONG_CALL();
                 _brh_NOINCREMENT
             IFE:
                 LONG_CALL();
                 HAS_SIGNAL
                 if(registers[CMT]) {
-                    pc=cache+(int64_t)registers[ADX]; _brh_NOINCREMENT
+                    this_fiber->pc=this_fiber->cache+(int64_t)registers[ADX]; _brh_NOINCREMENT
                 } else  _brh
             IFNE:
                 LONG_CALL();
                 HAS_SIGNAL
                 if(registers[CMT]==0) {
-                    pc=cache+(int64_t)registers[ADX]; _brh_NOINCREMENT
+                    this_fiber->pc=this_fiber->cache+(int64_t)registers[ADX]; _brh_NOINCREMENT
                 } else  _brh
             LT:
-                registers[CMT]=registers[GET_Ca(*pc)]<registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*this_fiber->pc)]<registers[GET_Cb(*this_fiber->pc)];
                 _brh
             GT:
-                registers[CMT]=registers[GET_Ca(*pc)]>registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*this_fiber->pc)]>registers[GET_Cb(*this_fiber->pc)];
                 _brh
             LTE:
-                registers[CMT]=registers[GET_Ca(*pc)]<=registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*this_fiber->pc)]<=registers[GET_Cb(*this_fiber->pc)];
                 _brh
             GTE:
-                registers[CMT]=registers[GET_Ca(*pc)]>=registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*this_fiber->pc)]>=registers[GET_Cb(*this_fiber->pc)];
                 _brh
             MOVL: // tested
-                ptr = &(fp+GET_Da(*pc))->object;
+                ptr = &(this_fiber->fp+GET_Da(*this_fiber->pc))->object;
                 _brh
             POPL: // tested
-                (fp+GET_Da(*pc))->object
-                        = (sp--)->object.object;
+                (this_fiber->fp+GET_Da(*this_fiber->pc))->object
+                        = (this_fiber->sp--)->object.object;
                 _brh
             IPOPL: // tested
-                (fp+GET_Da(*pc))->var
-                        = (sp--)->var;
+                (this_fiber->fp+GET_Da(*this_fiber->pc))->var
+                        = (this_fiber->sp--)->var;
                 _brh
             MOVSL: // tested
-                ptr = &((sp+GET_Da(*pc))->object);
+                ptr = &((this_fiber->sp+GET_Da(*this_fiber->pc))->object);
                 _brh
             SIZEOF:
                 if(ptr==NULL || ptr->object == NULL)
-                    registers[GET_Da(*pc)] = 0;
+                    registers[GET_Da(*this_fiber->pc)] = 0;
                 else
-                    registers[GET_Da(*pc)]=ptr->object->size;
+                    registers[GET_Da(*this_fiber->pc)]=ptr->object->size;
                 _brh
             PUT: // tested
-                cout << registers[GET_Da(*pc)];
+                cout << registers[GET_Da(*this_fiber->pc)];
                 _brh
             PUTC:
-                printf("%c", (char)registers[GET_Da(*pc)]);
+                printf("%c", (char)registers[GET_Da(*this_fiber->pc)]);
                 _brh
             GET:
                 if(_64CMT)
-                    registers[GET_Da(*pc)] = getche();
+                    registers[GET_Da(*this_fiber->pc)] = getche();
                 else
-                    registers[GET_Da(*pc)] = getch();
+                    registers[GET_Da(*this_fiber->pc)] = getch();
                 _brh
             CHECKLEN:
                 CHECK_NULL2(
-                        if((registers[GET_Da(*pc)]<ptr->object->size) &&!(registers[GET_Da(*pc)]<0)) { _brh }
+                        if((registers[GET_Da(*this_fiber->pc)]<ptr->object->size) &&!(registers[GET_Da(*this_fiber->pc)]<0)) { _brh }
                         else {
                             stringstream ss;
-                            ss << "Access to Object at: " << registers[GET_Da(*pc)] << " size is " << ptr->object->size;
+                            ss << "Access to Object at: " << registers[GET_Da(*this_fiber->pc)] << " size is " << ptr->object->size;
                             throw Exception(vm.IndexOutOfBoundsExcept, ss.str());
                         }
                 )
             JMP: // tested
                 HAS_SIGNAL
-                pc = cache+GET_Da(*pc);
+                this_fiber->pc = this_fiber->cache+GET_Da(*this_fiber->pc);
                 LONG_CALL();
                 _brh_NOINCREMENT
             LOADPC: // tested
-                registers[GET_Da(*pc)] = PC(this);
+                registers[GET_Da(*this_fiber->pc)] = PC(this_fiber);
                 _brh
             PUSHOBJ:
                 STACK_CHECK
-                (++sp)->object = ptr;
+                (++this_fiber->sp)->object = ptr;
                 _brh
             DEL:
                 gc.releaseObject(ptr);
                 _brh
             CALL:
 #ifdef SHARP_PROF_
-            tprof->hit(vm.methods+GET_Da(*pc));
+            tprof->hit(vm.methods+GET_Da(*this_fiber->pc));
 #endif
-                if((jitFun = executeMethod(GET_Da(*pc), this)) != NULL) {
+                if((jitFun = executeMethod(GET_Da(*this_fiber->pc), this)) != NULL) {
 
 #ifdef BUILD_JIT
                     jitFun(jctx);
@@ -1080,9 +1054,9 @@ void Thread::exec() {
                 _brh_NOINCREMENT
             CALLD:
 #ifdef SHARP_PROF_
-            tprof->hit(vm.methods+GET_Da(*pc));
+            tprof->hit(vm.methods+GET_Da(*this_fiber->pc));
 #endif
-                if((result = (int64_t )registers[GET_Da(*pc)]) <= 0 || result >= vm.manifest.methods) {
+                if((result = (int64_t )registers[GET_Da(*this_fiber->pc)]) <= 0 || result >= vm.manifest.methods) {
                     stringstream ss;
                     ss << "invalid call to method with address of " << result;
                     throw Exception(ss.str());
@@ -1096,25 +1070,25 @@ void Thread::exec() {
                 _brh_NOINCREMENT
             NEWCLASS:
                 STACK_CHECK
-                (++sp)->object =
-                        gc.newObject(&vm.classes[*(pc+1)]);
+                (++this_fiber->sp)->object =
+                        gc.newObject(&vm.classes[*(this_fiber->pc+1)]);
                 _brh_inc(2)
             MOVN:
                 CHECK_NULLOBJ(
-                        if(((int32_t)*(pc+1)) >= ptr->object->size || ((int32_t)*(pc+1)) < 0)
+                        if(((int32_t)*(this_fiber->pc+1)) >= ptr->object->size || ((int32_t)*(this_fiber->pc+1)) < 0)
                             throw Exception("movn");
 
-                        ptr = &ptr->object->node[((int32_t)*(pc+1))];
+                        ptr = &ptr->object->node[((int32_t)*(this_fiber->pc+1))];
                 )
                 _brh_inc(2)
             SLEEP:
-                __os_sleep((Int)registers[GET_Da(*pc)]);
+                __os_sleep((Int)registers[GET_Da(*this_fiber->pc)]);
                 _brh
             TEST:
-                registers[CMT]=registers[GET_Ca(*pc)]==registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*this_fiber->pc)]==registers[GET_Cb(*this_fiber->pc)];
                 _brh
             TNE:
-                registers[CMT]=registers[GET_Ca(*pc)]!=registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*this_fiber->pc)]!=registers[GET_Cb(*this_fiber->pc)];
                 _brh
             LOCK:
                 CHECK_NULL2(Object::monitorLock(ptr, this);)
@@ -1123,237 +1097,237 @@ void Thread::exec() {
                 CHECK_NULL2(Object::monitorUnLock(ptr, this);)
                 _brh
             MOVG:
-                ptr = vm.staticHeap+GET_Da(*pc);
+                ptr = vm.staticHeap+GET_Da(*this_fiber->pc);
                 _brh
             MOVND:
                 CHECK_NULLOBJ(
-                        if(((int32_t)registers[GET_Da(*pc)]) >= ptr->object->size || ((int32_t)registers[GET_Da(*pc)]) < 0)
+                        if(((int32_t)registers[GET_Da(*this_fiber->pc)]) >= ptr->object->size || ((int32_t)registers[GET_Da(*this_fiber->pc)]) < 0)
                             throw Exception("movn");
 
-                        ptr = &ptr->object->node[(Int)registers[GET_Da(*pc)]];
+                        ptr = &ptr->object->node[(Int)registers[GET_Da(*this_fiber->pc)]];
                 )
                 _brh
             NEWOBJARRAY:
-                (++sp)->object = gc.newObjectArray(registers[GET_Da(*pc)]);
+                (++this_fiber->sp)->object = gc.newObjectArray(registers[GET_Da(*this_fiber->pc)]);
                 STACK_CHECK _brh
             NOT:
-                registers[GET_Ca(*pc)]=!registers[GET_Cb(*pc)];
+                registers[GET_Ca(*this_fiber->pc)]=!registers[GET_Cb(*this_fiber->pc)];
                 _brh
             SKIP:
                 HAS_SIGNAL
-                pc = pc+GET_Da(*pc);
+                this_fiber->pc = this_fiber->pc+GET_Da(*this_fiber->pc);
                 _brh
             LOADVAL:
-                registers[GET_Da(*pc)]=(sp--)->var;
+                registers[GET_Da(*this_fiber->pc)]=(this_fiber->sp--)->var;
                 _brh
             SHL:
-                registers[GET_Bc(*pc)]=(int64_t)registers[GET_Ba(*pc)]<<(int64_t)registers[GET_Bb(*pc)];
+                registers[GET_Bc(*this_fiber->pc)]=(int64_t)registers[GET_Ba(*this_fiber->pc)]<<(int64_t)registers[GET_Bb(*this_fiber->pc)];
                 _brh
             SHR:
-                registers[GET_Bc(*pc)]=(int64_t)registers[GET_Ba(*pc)]>>(int64_t)registers[GET_Bb(*pc)];
+                registers[GET_Bc(*this_fiber->pc)]=(int64_t)registers[GET_Ba(*this_fiber->pc)]>>(int64_t)registers[GET_Bb(*this_fiber->pc)];
                 _brh
             SKPE:
                 LONG_CALL();
                 HAS_SIGNAL
-                if(((Int)registers[GET_Ca(*pc)]) != 0) {
-                    pc = pc+GET_Cb(*pc); _brh_NOINCREMENT
+                if(((Int)registers[GET_Ca(*this_fiber->pc)]) != 0) {
+                    this_fiber->pc = this_fiber->pc+GET_Cb(*this_fiber->pc); _brh_NOINCREMENT
                 } else _brh
             SKNE:
                 LONG_CALL();
                 HAS_SIGNAL
-                if(((Int)registers[GET_Ca(*pc)])==0) {
-                    pc = pc+GET_Cb(*pc); _brh_NOINCREMENT
+                if(((Int)registers[GET_Ca(*this_fiber->pc)])==0) {
+                    this_fiber->pc = this_fiber->pc+GET_Cb(*this_fiber->pc); _brh_NOINCREMENT
                 } else _brh
             CMP:
-                registers[CMT]=registers[GET_Da(*pc)]==((int32_t)*(pc+1));
+                registers[CMT]=registers[GET_Da(*this_fiber->pc)]==((int32_t)*(this_fiber->pc+1));
                 _brh_inc(2)
             AND:
-                registers[CMT]=registers[GET_Ca(*pc)]&&registers[GET_Cb(*pc)];
+                registers[CMT]=registers[GET_Ca(*this_fiber->pc)]&&registers[GET_Cb(*this_fiber->pc)];
                 _brh
             UAND:
-                registers[CMT]=(Int)registers[GET_Ca(*pc)]&(Int)registers[GET_Cb(*pc)];
+                registers[CMT]=(Int)registers[GET_Ca(*this_fiber->pc)]&(Int)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             OR:
-                registers[CMT]=(Int)registers[GET_Ca(*pc)]|(Int)registers[GET_Cb(*pc)];
+                registers[CMT]=(Int)registers[GET_Ca(*this_fiber->pc)]|(Int)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             XOR:
-                registers[CMT]=(Int)registers[GET_Ca(*pc)]^(Int)registers[GET_Cb(*pc)];
+                registers[CMT]=(Int)registers[GET_Ca(*this_fiber->pc)]^(Int)registers[GET_Cb(*this_fiber->pc)];
                 _brh
             THROW:
-                exceptionObject = (sp--)->object;
+                this_fiber->exceptionObject = (this_fiber->sp--)->object;
                 sendSignal(signal, tsig_except, 1);
                 goto exception_catch;
                 _brh
             CHECKNULL:
-                registers[GET_Da(*pc)]=ptr == NULL || ptr->object==NULL;
+                registers[GET_Da(*this_fiber->pc)]=ptr == NULL || ptr->object==NULL;
                 _brh
             RETURNOBJ:
-                fp->object=ptr;
+                this_fiber->fp->object=ptr;
                 _brh
             NEWCLASSARRAY:
                 STACK_CHECK
-                (++sp)->object = gc.newObjectArray(
-                        registers[GET_Da(*pc)], &vm.classes[*(pc+1)]);
+                (++this_fiber->sp)->object = gc.newObjectArray(
+                        registers[GET_Da(*this_fiber->pc)], &vm.classes[*(this_fiber->pc+1)]);
                 _brh_inc(2)
             NEWSTRING:
                 STACK_CHECK
-                gc.createStringArray(&(++sp)->object,
-                        vm.strings[GET_Da(*pc)]);
+                gc.createStringArray(&(++this_fiber->sp)->object,
+                        vm.strings[GET_Da(*this_fiber->pc)]);
                  _brh
             ADDL:
-                (fp+GET_Cb(*pc))->var+=registers[GET_Ca(*pc)];
+                (this_fiber->fp+GET_Cb(*this_fiber->pc))->var+=registers[GET_Ca(*this_fiber->pc)];
                 _brh
             SUBL:
-                (fp+GET_Cb(*pc))->var-=registers[GET_Ca(*pc)];
+                (this_fiber->fp+GET_Cb(*this_fiber->pc))->var-=registers[GET_Ca(*this_fiber->pc)];
                 _brh
             MULL:
-                (fp+GET_Cb(*pc))->var*=registers[GET_Ca(*pc)];
+                (this_fiber->fp+GET_Cb(*this_fiber->pc))->var*=registers[GET_Ca(*this_fiber->pc)];
                 _brh
             DIVL:
-                (fp+GET_Cb(*pc))->var/=registers[GET_Ca(*pc)];
+                (this_fiber->fp+GET_Cb(*this_fiber->pc))->var/=registers[GET_Ca(*this_fiber->pc)];
                 _brh
             MODL:
-                (fp+GET_Cb(*pc))->modul(registers[GET_Ca(*pc)]);
+                (this_fiber->fp+GET_Cb(*this_fiber->pc))->modul(registers[GET_Ca(*this_fiber->pc)]);
                 _brh
             IADDL:
-                (fp+GET_Da(*pc))->var+=((int32_t)*(pc+1));
+                (this_fiber->fp+GET_Da(*this_fiber->pc))->var+=((int32_t)*(this_fiber->pc+1));
                 _brh_inc(2)
             ISUBL:
-                (fp+GET_Da(*pc))->var-=((int32_t)*(pc+1));
+                (this_fiber->fp+GET_Da(*this_fiber->pc))->var-=((int32_t)*(this_fiber->pc+1));
                 _brh_inc(2)
             IMULL:
-                (fp+GET_Da(*pc))->var*=((int32_t)*(pc+1));
+                (this_fiber->fp+GET_Da(*this_fiber->pc))->var*=((int32_t)*(this_fiber->pc+1));
                 _brh_inc(2)
             IDIVL:
-                (fp+GET_Da(*pc))->var/=((int32_t)*(pc+1));
+                (this_fiber->fp+GET_Da(*this_fiber->pc))->var/=((int32_t)*(this_fiber->pc+1));
                 _brh_inc(2)
             IMODL:
-                result = (fp+GET_Da(*pc))->var;
-                (fp+GET_Da(*pc))->var=result%((int32_t)*(pc+1));
+                result = (this_fiber->fp+GET_Da(*this_fiber->pc))->var;
+                (this_fiber->fp+GET_Da(*this_fiber->pc))->var=result%((int32_t)*(this_fiber->pc+1));
                 _brh_inc(2)
             LOADL:
-                registers[GET_Ca(*pc)]=(fp+GET_Cb(*pc))->var;
+                registers[GET_Ca(*this_fiber->pc)]=(this_fiber->fp+GET_Cb(*this_fiber->pc))->var;
                 _brh
             IALOAD:
                 CHECK_NULLVAR(
-                        if(((int32_t)registers[GET_Cb(*pc)]) >= ptr->object->size || ((int32_t)registers[GET_Cb(*pc)]) < 0)
+                        if(((int32_t)registers[GET_Cb(*this_fiber->pc)]) >= ptr->object->size || ((int32_t)registers[GET_Cb(*this_fiber->pc)]) < 0)
                             throw Exception("iaload");
 
-                        registers[GET_Ca(*pc)] =
-                                ptr->object->HEAD[(Int)registers[GET_Cb(*pc)]];
+                        registers[GET_Ca(*this_fiber->pc)] =
+                                ptr->object->HEAD[(Int)registers[GET_Cb(*this_fiber->pc)]];
                 )
                 _brh
             POPOBJ:
                 CHECK_NULL(
-                        *ptr = (sp--)->object;
+                        *ptr = (this_fiber->sp--)->object;
                 )
                 _brh
             SMOVR:
-                (sp+GET_Cb(*pc))->var=registers[GET_Ca(*pc)];
+                (this_fiber->sp+GET_Cb(*this_fiber->pc))->var=registers[GET_Ca(*this_fiber->pc)];
                 _brh
             SMOVR_2:
-                (fp+GET_Cb(*pc))->var=registers[GET_Ca(*pc)];
+                (this_fiber->fp+GET_Cb(*this_fiber->pc))->var=registers[GET_Ca(*this_fiber->pc)];
                 _brh
             SMOVR_3:
-                (fp+GET_Da(*pc))->object=ptr;
+                (this_fiber->fp+GET_Da(*this_fiber->pc))->object=ptr;
                 _brh
             ANDL:
-                (fp+GET_Cb(*pc))->andl(registers[GET_Ca(*pc)]);
+                (this_fiber->fp+GET_Cb(*this_fiber->pc))->andl(registers[GET_Ca(*this_fiber->pc)]);
                 _brh
             ORL:
-                (fp+GET_Cb(*pc))->orl(registers[GET_Ca(*pc)]);
+                (this_fiber->fp+GET_Cb(*this_fiber->pc))->orl(registers[GET_Ca(*this_fiber->pc)]);
                 _brh
             XORL:
-            (fp + GET_Cb(*pc))->xorl(registers[GET_Ca(*pc)]);
+            (this_fiber->fp + GET_Cb(*this_fiber->pc))->xorl(registers[GET_Ca(*this_fiber->pc)]);
                 _brh
             RMOV:
                 CHECK_NULLVAR(
-                        if(((int32_t)registers[GET_Ca(*pc)]) >= ptr->object->size || ((int32_t)registers[GET_Ca(*pc)]) < 0)
+                        if(((int32_t)registers[GET_Ca(*this_fiber->pc)]) >= ptr->object->size || ((int32_t)registers[GET_Ca(*this_fiber->pc)]) < 0)
                             throw Exception("movn");
 
-                        ptr->object->HEAD[(Int)registers[GET_Ca(*pc)]]=
-                                registers[GET_Cb(*pc)];
+                        ptr->object->HEAD[(Int)registers[GET_Ca(*this_fiber->pc)]]=
+                                registers[GET_Cb(*this_fiber->pc)];
                 )
                 _brh
             NEG:
-                registers[GET_Ca(*pc)]=-registers[GET_Cb(*pc)];
+                registers[GET_Ca(*this_fiber->pc)]=-registers[GET_Cb(*this_fiber->pc)];
                 _brh
             SMOV:
-                registers[GET_Ca(*pc)]=(sp+GET_Cb(*pc))->var;
+                registers[GET_Ca(*this_fiber->pc)]=(this_fiber->sp+GET_Cb(*this_fiber->pc))->var;
                 _brh
             RETURNVAL:
-                (fp)->var=registers[GET_Da(*pc)];
+                (this_fiber->fp)->var=registers[GET_Da(*this_fiber->pc)];
                 _brh
             ISTORE:
                 STACK_CHECK
-                (++sp)->var = ((int32_t)*(pc+1));
+                (++this_fiber->sp)->var = ((int32_t)*(this_fiber->pc+1));
                 _brh_inc(2)
             ISTOREL:
-                (fp+GET_Da(*pc))->var=(int32_t)*(pc+1);
+                (this_fiber->fp+GET_Da(*this_fiber->pc))->var=(int32_t)*(this_fiber->pc+1);
                 _brh_inc(2)
             PUSHNULL:
                 STACK_CHECK
-                gc.releaseObject(&(++sp)->object);
+                gc.releaseObject(&(++this_fiber->sp)->object);
                 _brh
             IPUSHL:
                 STACK_CHECK
-                (++sp)->var = (fp+GET_Da(*pc))->var;
+                (++this_fiber->sp)->var = (this_fiber->fp+GET_Da(*this_fiber->pc))->var;
                 _brh
             PUSHL:
                 STACK_CHECK
-                (++sp)->object = (fp+GET_Da(*pc))->object;
+                (++this_fiber->sp)->object = (this_fiber->fp+GET_Da(*this_fiber->pc))->object;
                 _brh
             ITEST:
-                tmpPtr = &(sp--)->object;
-                registers[GET_Da(*pc)] = tmpPtr->object == (sp--)->object.object;
+                tmpPtr = &(this_fiber->sp--)->object;
+                registers[GET_Da(*this_fiber->pc)] = tmpPtr->object == (this_fiber->sp--)->object.object;
                 _brh
             INVOKE_DELEGATE:
-                invokeDelegate(GET_Da(*pc), GET_Cb(*(pc+1)), this, GET_Ca(*(pc+1)) == 1);
+                invokeDelegate(GET_Da(*this_fiber->pc), GET_Cb(*(this_fiber->pc+1)), this, GET_Ca(*(this_fiber->pc+1)) == 1);
                 _brh_NOINCREMENT
             ISADD:
-                (sp+GET_Da(*pc))->var+=(int32_t)*(pc+1);
+                (this_fiber->sp+GET_Da(*this_fiber->pc))->var+=(int32_t)*(this_fiber->pc+1);
                 _brh_inc(2)
             JE:
                 LONG_CALL();
                 HAS_SIGNAL
                 if(registers[CMT]) {
-                    pc=cache+GET_Da(*pc); _brh_NOINCREMENT
+                    this_fiber->pc=this_fiber->cache+GET_Da(*this_fiber->pc); _brh_NOINCREMENT
                 } else  _brh
             JNE:
                 LONG_CALL();
                 HAS_SIGNAL
                 if(registers[CMT]==0) {
-                    pc=cache+GET_Da(*pc); _brh_NOINCREMENT
+                    this_fiber->pc=this_fiber->cache+GET_Da(*this_fiber->pc); _brh_NOINCREMENT
                 } else  _brh
             TLS_MOVL:
-                ptr = &(dataStack+GET_Da(*pc))->object;
+                ptr = &(this_fiber->dataStack+GET_Da(*this_fiber->pc))->object;
                 _brh
             DUP:
-                tmpPtr = &sp->object;
-                (++sp)->object = tmpPtr;
+                tmpPtr = &this_fiber->sp->object;
+                (++this_fiber->sp)->object = tmpPtr;
                 _brh
             POPOBJ_2:
-                ptr = &(sp--)->object;
+                ptr = &(this_fiber->sp--)->object;
                 _brh
             SWAP:
-                if((sp-dataStack) >= 2) {
-                    SharpObject *swappedObj = sp->object.object;
-                    (sp)->object = (sp-1)->object;
-                    (sp-1)->object = swappedObj;
+                if((this_fiber->sp-this_fiber->dataStack) >= 2) {
+                    SharpObject *swappedObj = this_fiber->sp->object.object;
+                    (this_fiber->sp)->object = (this_fiber->sp-1)->object;
+                    (this_fiber->sp-1)->object = swappedObj;
                 } else {
                     stringstream ss;
-                    ss << "Illegal stack swap while sp is ( " << (x86int_t )(sp - dataStack) << ") ";
+                    ss << "Illegal stack swap while sp is ( " << (x86int_t )(this_fiber->sp - this_fiber->dataStack) << ") ";
                     throw Exception(vm.ThreadStackExcept, ss.str());
                 }
                 _brh
             EXP:
-                registers[GET_Bc(*pc)]=pow(registers[GET_Ba(*pc)], registers[GET_Bb(*pc)]);
+                registers[GET_Bc(*this_fiber->pc)]=pow(registers[GET_Ba(*this_fiber->pc)], registers[GET_Bb(*this_fiber->pc)]);
                 _brh
             LDC: // tested
-                registers[GET_Ca(*pc)]=vm.constants[GET_Cb(*pc)];
+                registers[GET_Ca(*this_fiber->pc)]=vm.constants[GET_Cb(*this_fiber->pc)];
                 _brh
             IS:
-                registers[GET_Da(*pc)] = vm.isType(ptr, *(pc+1));
+                registers[GET_Da(*this_fiber->pc)] = vm.isType(ptr, *(this_fiber->pc+1));
                 _brh_inc(2)
 
 
@@ -1372,14 +1346,14 @@ void Thread::exec() {
     if(!vm.catchException()) {
         if(returnMethod(this))
             return;
-        pc++;
+        this_fiber->pc++;
     }
 
     /**
      * Exception may still be live and must make its transition to low
      * level Sharp
      */
-    if(current->isjit) {
+    if(this_fiber->current->isjit) {
         return;
     }
 
@@ -1387,33 +1361,22 @@ void Thread::exec() {
 }
 
 void Thread::setup() {
-    current = NULL;
-    calls=-1;
     signal=tsig_empty;
     suspended = false;
     exited = false;
     terminated = false;
-    exitVal = 0;
 #ifdef BUILD_JIT
     Jit::tlsSetup();
 #endif
 
-    if(dataStack==NULL) {
-        dataStack = (StackElement*)__calloc(stackLimit, sizeof(StackElement));
-        gc.addMemory(sizeof(StackElement) * stackLimit);
-    }
-    if(callStack==NULL) {
-        callStack = (Frame*)__calloc(stackLimit, sizeof(Frame));
-        gc.addMemory(sizeof(Frame) * stackLimit);
-    }
-
     if(id != main_threadid){
+        this->main = fiber::makeFiber(name.str(), mainMethod);
+        this->this_fiber = this->main;
+
         if(currentThread.object != nullptr
            && IS_CLASS(currentThread.object->info)) {
             gc.createStringArray(vm.resolveField("data", vm.resolveField("name", currentThread.object)->object), name);
         }
-        fp=&dataStack[vm.manifest.threadLocals];
-        sp=(&dataStack[vm.manifest.threadLocals])-1;
     } else {
         vm.state = VM_RUNNING;
         setupSigHandler();
@@ -1490,7 +1453,7 @@ int32_t Thread::generateId() {
     Thread *thread;
     bool wrapped = false;
 
-    while(threads.get(++tid, thread)) {
+    while(getThread(++tid)) {
         if(tid < 0) {
             if(wrapped)
                 return ILL_THREAD_ID;
@@ -1507,9 +1470,12 @@ void Thread::init(string name, Int id, Method *main, bool daemon, bool initializ
     init();
     this->name = name;
     this->id = id;
-    this->main = main;
-    this->stackLimit = internalStackSize;
     this->daemon=daemon;
+    this->mainMethod=main;
+    if(initializeStack) {
+        this->main = fiber::makeFiber(name, main);
+        this->this_fiber = this->main;
+    }
 
 #ifdef BUILD_JIT
     this->jctx = new jit_context();
@@ -1519,12 +1485,6 @@ void Thread::init(string name, Int id, Method *main, bool daemon, bool initializ
         tprof = new Profiler();
     }
 #endif
-
-    if(initializeStack) {
-        this->dataStack = (StackElement *) __calloc(internalStackSize, sizeof(StackElement));
-        this->fp = &dataStack[vm.manifest.threadLocals];
-        this->sp = (&dataStack[vm.manifest.threadLocals]) - 1;
-    }
 }
 
 int Thread::destroy(Thread* thread) {
