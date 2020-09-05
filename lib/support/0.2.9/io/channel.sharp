@@ -65,9 +65,9 @@ class channel<t> : receive_channel<t>, send_channel<t>, loopable<t> {
 
     def get_capacity() := capacity;
     def get_buffer_type() := buff_type;
-    def get_state() : channel_state {
+    def is_closed() : var {
        lock(self) {
-          return state;
+          return state == channel_state.CLOSED;
        }
     }
 

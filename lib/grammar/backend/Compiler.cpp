@@ -6660,7 +6660,7 @@ bool Compiler::preprocess() {
     return success;
 }
 
-void Compiler::preProcessMutation(Ast *ast, ClassObject *currentClass) { // TODO; go over in tutorial later
+void Compiler::preProcessMutation(Ast *ast, ClassObject *currentClass) {
     if(currentClass == NULL) {
         ReferencePointer ptr;
         compileReferencePtr(ptr, ast->getSubAst(ast_name)->getSubAst(ast_refrence_pointer));
