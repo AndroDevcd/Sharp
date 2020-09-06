@@ -74,7 +74,7 @@ void Exception::pushException() {
                 }
             }
 
-            gc.printClassRefStatus();
+            //gc.printClassRefStatus();
             sendSignal(thread->signal, tsig_kill, 1);
             return;
         }

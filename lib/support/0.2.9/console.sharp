@@ -161,7 +161,7 @@ def flush() {
     asm { int 0x34 }
 }
 
-def utc_mills_time() : var {
+def utc_mills() : var {
     return time.mills_time();
 }
 

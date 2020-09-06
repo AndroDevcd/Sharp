@@ -16,7 +16,7 @@ import std.io;
  * directly in c++ to increase the overall performance
  */
 def main(string[] args) : var {
-    ArrayList<var> varLst1 = new ArrayList<var>();
+    varLst1 := new list<var>();
     var past = getUtcTimeInMills(), now;
 
     for(var i = 0; i < 2000000; i++)
