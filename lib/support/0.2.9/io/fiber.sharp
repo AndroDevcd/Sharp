@@ -5,3 +5,10 @@ class fiber {
    name : string;
    id: var;
 }
+
+def delay(mills: var) {
+   asm {
+      loadl ebx, {mills}
+      int 0x44
+   }
+}

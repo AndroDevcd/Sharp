@@ -20,7 +20,7 @@
 #define THREAD_MAP_SIZE 0x2000
 #define REGISTER_SIZE 12
 
-#define INTERNAL_STACK_SIZE (KB_TO_BYTES(200) / sizeof(StackElement))
+#define INTERNAL_STACK_SIZE (KB_TO_BYTES(128) / sizeof(StackElement))
 #define INTERNAL_STACK_MIN KB_TO_BYTES(1)
 #define STACK_SIZE MB_TO_BYTES(1)
 #define STACK_MIN KB_TO_BYTES(50)
@@ -52,7 +52,10 @@ public:
         name.init();
         main = NULL;
         this_fiber = NULL;
+        next_fiber = NULL;
         signal = tsig_empty;
+        contextSwitching=false;
+        lastRanMills=0;
 #ifdef BUILD_JIT
         jctx = NULL;
 #endif
@@ -91,6 +94,8 @@ public:
     static void resumeAllThreads();
     static int threadjoin(Thread*);
     static int destroy(Thread*);
+    bool try_context_switch();
+    void enableContextSwitch(fiber *nextFib, bool enable);
 
     static int startDaemon(
 #ifdef WIN32_
@@ -109,6 +114,7 @@ public:
     void term();
     void exec();
     void setup();
+    void waitForContextSwitch();
 
 #ifdef BUILD_JIT
     jit_context *jctx;
@@ -137,9 +143,11 @@ public:
     bool exited;
     native_string name;
     Object currentThread, args;
-    fiber *this_fiber;
+    fiber *this_fiber, *next_fiber;
     fiber* main;
     Method* mainMethod;
+    uInt lastRanMills;
+    bool contextSwitching;
 
 #ifdef WIN32_
     HANDLE thread;
@@ -172,7 +180,7 @@ private:
 #define hasSignal(sig, sigt) ((sig >> sigt) & 1U)
 
 extern thread_local Thread* thread_self;
-extern thread_local double registers[12];
+extern thread_local double *registers;
 
 #define _64EBX registers[EBX]
 #define _64ADX registers[ADX]

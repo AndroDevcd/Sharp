@@ -9,7 +9,9 @@
 #include "symbols/string.h"
 #include "profiler.h"
 
+class Thread;
 enum fiber_state {
+    FIB_CREATED,
     FIB_RUNNING,
     FIB_SUSPENDED,
     FIB_KILLED
@@ -18,7 +20,12 @@ enum fiber_state {
 class fiber {
 public:
     static fiber* makeFiber(string name, Method* main);
+    static fiber* getFiber(uInt id);
+    static fiber* nextFiber();
+    static void disposeFiber(uInt id);
 
+    void setState(Thread* thread, fiber_state, Int delay = -1);
+    void setWakeable(bool enable);
     void free();
 
     static uInt fibId;
@@ -35,6 +42,10 @@ public:
     Method *current;
     Frame *callStack;
     double *registers;
+    Object *ptr;
+    Int delayTime; // -1 for full suspension >= 0 for timed suspension
+    recursive_mutex mutex;
+    bool wakeable;
 };
 
 #endif //SHARP_FIBER_H

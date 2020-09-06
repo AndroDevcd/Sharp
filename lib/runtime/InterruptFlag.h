@@ -74,6 +74,7 @@ enum interruptFlag
  OP_RANDOM_DOUBLE_RANGED     = 0x41,
        OP_RANDOM_SEED     = 0x42,
             OP_STRTOD     = 0x43,
+            OP_DELAY      = 0x44,
 };
 
 #endif //SHARP_INTERRUPTFLAG_H

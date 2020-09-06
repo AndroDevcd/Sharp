@@ -36,7 +36,7 @@ bool find_thread(void* id, Thread* thread) {
 /*
  * Local registers for the thread to use
  */
-thread_local double registers[12];
+thread_local double* registers = NULL;
 
 void Thread::Startup() {
     threads.init();
@@ -298,6 +298,9 @@ void Thread::waitForThreadSuspend(Thread *thread) {
 
     while (thread->state == THREAD_RUNNING && !thread->suspended)
     {
+        if(thread->contextSwitching)
+            return;
+
         if (retryCount++ == sMaxRetries)
         {
             suspendThread(thread);
@@ -609,6 +612,8 @@ void Thread::shutdown() {
 
 void Thread::exit() {
     GUARD(mutex);
+    this->state = THREAD_KILLED;
+
     if(hasSignal(signal, tsig_except)) {
         Object* frameInfo = vm.resolveField("frame_info", this_fiber->exceptionObject.object);
         Object* message = vm.resolveField("message", this_fiber->exceptionObject.object);
@@ -651,7 +656,6 @@ void Thread::exit() {
     }
 
     releaseResources();
-    this->state = THREAD_KILLED;
     this->signal = tsig_empty;
     this->exited = true;
 }
@@ -797,10 +801,9 @@ unsigned long irCount = 0, overflow = 0;
 
 void Thread::exec() {
 
-    double *regs = registers;
+    registers = this_fiber->registers;
     Object *tmpPtr;
     SharpObject* tmpShObj;
-    Object *ptr;
     Int result;
     fptr jitFun;
 
@@ -840,7 +843,14 @@ void Thread::exec() {
 #endif
                 VirtualMachine::sysInterrupt(GET_Da(*this_fiber->pc));
                 if(vm.state == VM_TERMINATED) return;
-                _brh
+
+                if(hasSignal(signal, tsig_context_switch))  {
+                    if(contextSwitching || try_context_switch()) {
+                        this_fiber->pc++;
+                        return;
+                    }
+                }
+            _brh
             _MOVI: // tested
                 registers[GET_Da(*this_fiber->pc)]=(int32_t)*(this_fiber->pc+1);
                 _brh_inc(2)
@@ -853,13 +863,24 @@ void Thread::exec() {
 
                 if(returnMethod(this)) {
                     // handle the exception even if we hit the last method or return back to JIT
-                    if(result == ERR_STATE) sendSignal(signal, tsig_except, 1);
+                    if(result == ERR_STATE) {
+                        GUARD(mutex);
+                        sendSignal(signal, tsig_except, 1);
+                    }
                     return;
                 }
 
                 if(result == ERR_STATE) {
+                    GUARD(mutex);
                     sendSignal(signal, tsig_except, 1);
                     goto exception_catch;
+                }
+
+                if(hasSignal(signal, tsig_context_switch))  {
+                    if(contextSwitching || try_context_switch()) {
+                        this_fiber->pc++;
+                        return;
+                    }
                 }
                 LONG_CALL();
                 _brh
@@ -872,14 +893,14 @@ void Thread::exec() {
                         gc.newObject(registers[GET_Ca(*this_fiber->pc)], GET_Cb(*this_fiber->pc));
                 _brh
             CAST:
-                CHECK_NULL(ptr->castObject(registers[GET_Da(*this_fiber->pc)]);)
+                CHECK_NULL(this_fiber->ptr->castObject(registers[GET_Da(*this_fiber->pc)]);)
                 _brh
             VARCAST:
                 CHECK_NULL2(
                         result = GET_Ca(*this_fiber->pc) < FNPTR ? GET_Ca(*this_fiber->pc) : NTYPE_VAR; // ntype
-                        if(!(TYPE(ptr->object->info) == _stype_var && ptr->object->ntype == result)) {
+                        if(!(TYPE(this_fiber->ptr->object->info) == _stype_var && this_fiber->ptr->object->ntype == result)) {
                             throw Exception(vm.ClassCastExcept,
-                                    getVarCastExceptionMsg((DataType)GET_Ca(*this_fiber->pc), GET_Cb(*this_fiber->pc), ptr->object));
+                                    getVarCastExceptionMsg((DataType)GET_Ca(*this_fiber->pc), GET_Cb(*this_fiber->pc), this_fiber->ptr->object));
                         }
                 )
                 _brh
@@ -986,7 +1007,7 @@ void Thread::exec() {
                 registers[CMT]=registers[GET_Ca(*this_fiber->pc)]>=registers[GET_Cb(*this_fiber->pc)];
                 _brh
             MOVL: // tested
-                ptr = &(this_fiber->fp+GET_Da(*this_fiber->pc))->object;
+                this_fiber->ptr = &(this_fiber->fp+GET_Da(*this_fiber->pc))->object;
                 _brh
             POPL: // tested
                 (this_fiber->fp+GET_Da(*this_fiber->pc))->object
@@ -997,13 +1018,13 @@ void Thread::exec() {
                         = (this_fiber->sp--)->var;
                 _brh
             MOVSL: // tested
-                ptr = &((this_fiber->sp+GET_Da(*this_fiber->pc))->object);
+                this_fiber->ptr = &((this_fiber->sp+GET_Da(*this_fiber->pc))->object);
                 _brh
             SIZEOF:
-                if(ptr==NULL || ptr->object == NULL)
+                if(this_fiber->ptr==NULL || this_fiber->ptr->object == NULL)
                     registers[GET_Da(*this_fiber->pc)] = 0;
                 else
-                    registers[GET_Da(*this_fiber->pc)]=ptr->object->size;
+                    registers[GET_Da(*this_fiber->pc)]=this_fiber->ptr->object->size;
                 _brh
             PUT: // tested
                 cout << registers[GET_Da(*this_fiber->pc)];
@@ -1019,10 +1040,10 @@ void Thread::exec() {
                 _brh
             CHECKLEN:
                 CHECK_NULL2(
-                        if((registers[GET_Da(*this_fiber->pc)]<ptr->object->size) &&!(registers[GET_Da(*this_fiber->pc)]<0)) { _brh }
+                        if((registers[GET_Da(*this_fiber->pc)]<this_fiber->ptr->object->size) &&!(registers[GET_Da(*this_fiber->pc)]<0)) { _brh }
                         else {
                             stringstream ss;
-                            ss << "Access to Object at: " << registers[GET_Da(*this_fiber->pc)] << " size is " << ptr->object->size;
+                            ss << "Access to Object at: " << registers[GET_Da(*this_fiber->pc)] << " size is " << this_fiber->ptr->object->size;
                             throw Exception(vm.IndexOutOfBoundsExcept, ss.str());
                         }
                 )
@@ -1036,10 +1057,10 @@ void Thread::exec() {
                 _brh
             PUSHOBJ:
                 STACK_CHECK
-                (++this_fiber->sp)->object = ptr;
+                (++this_fiber->sp)->object = this_fiber->ptr;
                 _brh
             DEL:
-                gc.releaseObject(ptr);
+                gc.releaseObject(this_fiber->ptr);
                 _brh
             CALL:
 #ifdef SHARP_PROF_
@@ -1050,6 +1071,12 @@ void Thread::exec() {
 #ifdef BUILD_JIT
                     jitFun(jctx);
 #endif
+                }
+
+                if(hasSignal(signal, tsig_context_switch))  {
+                    if(contextSwitching || try_context_switch()) {
+                        return;
+                    }
                 }
                 _brh_NOINCREMENT
             CALLD:
@@ -1075,10 +1102,10 @@ void Thread::exec() {
                 _brh_inc(2)
             MOVN:
                 CHECK_NULLOBJ(
-                        if(((int32_t)*(this_fiber->pc+1)) >= ptr->object->size || ((int32_t)*(this_fiber->pc+1)) < 0)
+                        if(((int32_t)*(this_fiber->pc+1)) >= this_fiber->ptr->object->size || ((int32_t)*(this_fiber->pc+1)) < 0)
                             throw Exception("movn");
 
-                        ptr = &ptr->object->node[((int32_t)*(this_fiber->pc+1))];
+                        this_fiber->ptr = &this_fiber->ptr->object->node[((int32_t)*(this_fiber->pc+1))];
                 )
                 _brh_inc(2)
             SLEEP:
@@ -1091,20 +1118,20 @@ void Thread::exec() {
                 registers[CMT]=registers[GET_Ca(*this_fiber->pc)]!=registers[GET_Cb(*this_fiber->pc)];
                 _brh
             LOCK:
-                CHECK_NULL2(Object::monitorLock(ptr, this);)
+                CHECK_NULL2(Object::monitorLock(this_fiber->ptr, this);)
                 _brh
             ULOCK:
-                CHECK_NULL2(Object::monitorUnLock(ptr, this);)
+                CHECK_NULL2(Object::monitorUnLock(this_fiber->ptr, this);)
                 _brh
             MOVG:
-                ptr = vm.staticHeap+GET_Da(*this_fiber->pc);
+                this_fiber->ptr = vm.staticHeap+GET_Da(*this_fiber->pc);
                 _brh
             MOVND:
                 CHECK_NULLOBJ(
-                        if(((int32_t)registers[GET_Da(*this_fiber->pc)]) >= ptr->object->size || ((int32_t)registers[GET_Da(*this_fiber->pc)]) < 0)
+                        if(((int32_t)registers[GET_Da(*this_fiber->pc)]) >= this_fiber->ptr->object->size || ((int32_t)registers[GET_Da(*this_fiber->pc)]) < 0)
                             throw Exception("movn");
 
-                        ptr = &ptr->object->node[(Int)registers[GET_Da(*this_fiber->pc)]];
+                        this_fiber->ptr = &this_fiber->ptr->object->node[(Int)registers[GET_Da(*this_fiber->pc)]];
                 )
                 _brh
             NEWOBJARRAY:
@@ -1159,10 +1186,10 @@ void Thread::exec() {
                 goto exception_catch;
                 _brh
             CHECKNULL:
-                registers[GET_Da(*this_fiber->pc)]=ptr == NULL || ptr->object==NULL;
+                registers[GET_Da(*this_fiber->pc)]=this_fiber->ptr == NULL || this_fiber->ptr->object==NULL;
                 _brh
             RETURNOBJ:
-                this_fiber->fp->object=ptr;
+                this_fiber->fp->object=this_fiber->ptr;
                 _brh
             NEWCLASSARRAY:
                 STACK_CHECK
@@ -1210,16 +1237,16 @@ void Thread::exec() {
                 _brh
             IALOAD:
                 CHECK_NULLVAR(
-                        if(((int32_t)registers[GET_Cb(*this_fiber->pc)]) >= ptr->object->size || ((int32_t)registers[GET_Cb(*this_fiber->pc)]) < 0)
+                        if(((int32_t)registers[GET_Cb(*this_fiber->pc)]) >= this_fiber->ptr->object->size || ((int32_t)registers[GET_Cb(*this_fiber->pc)]) < 0)
                             throw Exception("iaload");
 
                         registers[GET_Ca(*this_fiber->pc)] =
-                                ptr->object->HEAD[(Int)registers[GET_Cb(*this_fiber->pc)]];
+                                this_fiber->ptr->object->HEAD[(Int)registers[GET_Cb(*this_fiber->pc)]];
                 )
                 _brh
             POPOBJ:
                 CHECK_NULL(
-                        *ptr = (this_fiber->sp--)->object;
+                        *this_fiber->ptr = (this_fiber->sp--)->object;
                 )
                 _brh
             SMOVR:
@@ -1229,7 +1256,7 @@ void Thread::exec() {
                 (this_fiber->fp+GET_Cb(*this_fiber->pc))->var=registers[GET_Ca(*this_fiber->pc)];
                 _brh
             SMOVR_3:
-                (this_fiber->fp+GET_Da(*this_fiber->pc))->object=ptr;
+                (this_fiber->fp+GET_Da(*this_fiber->pc))->object=this_fiber->ptr;
                 _brh
             ANDL:
                 (this_fiber->fp+GET_Cb(*this_fiber->pc))->andl(registers[GET_Ca(*this_fiber->pc)]);
@@ -1242,10 +1269,10 @@ void Thread::exec() {
                 _brh
             RMOV:
                 CHECK_NULLVAR(
-                        if(((int32_t)registers[GET_Ca(*this_fiber->pc)]) >= ptr->object->size || ((int32_t)registers[GET_Ca(*this_fiber->pc)]) < 0)
+                        if(((int32_t)registers[GET_Ca(*this_fiber->pc)]) >= this_fiber->ptr->object->size || ((int32_t)registers[GET_Ca(*this_fiber->pc)]) < 0)
                             throw Exception("movn");
 
-                        ptr->object->HEAD[(Int)registers[GET_Ca(*this_fiber->pc)]]=
+                        this_fiber->ptr->object->HEAD[(Int)registers[GET_Ca(*this_fiber->pc)]]=
                                 registers[GET_Cb(*this_fiber->pc)];
                 )
                 _brh
@@ -1300,14 +1327,14 @@ void Thread::exec() {
                     this_fiber->pc=this_fiber->cache+GET_Da(*this_fiber->pc); _brh_NOINCREMENT
                 } else  _brh
             TLS_MOVL:
-                ptr = &(this_fiber->dataStack+GET_Da(*this_fiber->pc))->object;
+                this_fiber->ptr = &(this_fiber->dataStack+GET_Da(*this_fiber->pc))->object;
                 _brh
             DUP:
                 tmpPtr = &this_fiber->sp->object;
                 (++this_fiber->sp)->object = tmpPtr;
                 _brh
             POPOBJ_2:
-                ptr = &(this_fiber->sp--)->object;
+                this_fiber->ptr = &(this_fiber->sp--)->object;
                 _brh
             SWAP:
                 if((this_fiber->sp-this_fiber->dataStack) >= 2) {
@@ -1327,7 +1354,7 @@ void Thread::exec() {
                 registers[GET_Ca(*this_fiber->pc)]=vm.constants[GET_Cb(*this_fiber->pc)];
                 _brh
             IS:
-                registers[GET_Da(*this_fiber->pc)] = vm.isType(ptr, *(this_fiber->pc+1));
+                registers[GET_Da(*this_fiber->pc)] = vm.isType(this_fiber->ptr, *(this_fiber->pc+1));
                 _brh_inc(2)
 
 
@@ -1358,6 +1385,17 @@ void Thread::exec() {
     }
 
     goto run;
+}
+
+bool Thread::try_context_switch() {
+   for(Int i = 0; i < this_fiber->calls; i++) {
+       Frame &frame = this_fiber->callStack[i];
+       if(frame.isjit && frame.returnAddress->nativeFunc)
+           return false;
+   }
+
+   contextSwitching = true;
+   return true;
 }
 
 void Thread::setup() {
@@ -1496,6 +1534,48 @@ int Thread::destroy(Thread* thread) {
         return RESULT_OK;
     } else {
         return RESULT_THREAD_DESTROY_FAILED;
+    }
+}
+
+void Thread::enableContextSwitch(fiber *nextFib, bool enable) {
+    GUARD(mutex);
+    next_fiber = nextFib;
+    sendSignal(signal, tsig_context_switch, (enable ? 1 : 0));
+}
+
+void Thread::waitForContextSwitch() {
+    wait:
+    if(this_fiber->state == FIB_RUNNING)
+       this_fiber->setState(this, FIB_SUSPENDED);
+    this_fiber = NULL;
+
+    const long sMaxRetries = 10000000;
+
+    long retryCount = 0;
+    while (next_fiber == NULL) {
+        if (retryCount++ == sMaxRetries)
+        {
+            retryCount = 0;
+            __os_yield();
+#ifdef WIN32_
+            Sleep(1);
+#endif
+#ifdef POSIX_
+            usleep(1*POSIX_USEC_INTERVAL);
+#endif
+        }
+    }
+
+    {
+        if(next_fiber) {
+            GUARD(mutex);
+            sendSignal(signal, tsig_context_switch, 0);
+            this_fiber = next_fiber; next_fiber = NULL;
+            this_fiber->setState(this, FIB_RUNNING);
+            contextSwitching = false;
+        } else {
+            goto wait;
+        }
     }
 }
 

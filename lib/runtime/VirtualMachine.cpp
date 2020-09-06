@@ -24,6 +24,7 @@
 #include "main.h"
 #include "../Modules/std.io/memory.h"
 #include "snb/snb.h"
+#include "scheduler.h"
 
 #ifdef WIN32_
 #include <conio.h>
@@ -150,6 +151,7 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic
 
 bool returnMethod(Thread* thread) {
     if(thread->this_fiber->calls == 0) {
+        thread->this_fiber->calls = -1;
 #ifdef SHARP_PROF_
         thread->tprof->endtm=Clock::realTimeInNSecs();
                 thread->tprof->profile();
@@ -263,23 +265,39 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
     thread_self = thread;
     thread->stbase = (int64_t)&arg;
     thread->stfloor = thread->stbase - thread->stackSize;
+    bool initialSetup = true;
 
     fptr jitFn;
     Thread::setPriority(thread, thread->priority);
 
+    retry:
     try {
-        thread->setup();
-        thread->state = THREAD_RUNNING;
+        if(initialSetup) {
+            initialSetup = false;
+            thread->setup();
+            thread->state = THREAD_RUNNING;
+            thread->this_fiber->setState(thread, FIB_RUNNING);
 
-        /*
-         * Call main method
-         */
-        if((jitFn = executeMethod(thread->this_fiber->main->address, thread)) != NULL) {
+            /*
+             * Call main method
+             */
+            if((jitFn = executeMethod(thread->this_fiber->main->address, thread)) != NULL) {
 
 #ifdef BUILD_JIT
-            jitFn(thread->jctx);
+                jitFn(thread->jctx);
 #endif
+            }
+        } else {
+            thread->exec(); // TODO: add support for jit later here
         }
+
+        if(thread->this_fiber == thread->main)
+            goto end;
+        else {
+            thread->waitForContextSwitch();
+            goto retry;
+        }
+
     } catch (Exception &e) {
         if(thread->state == THREAD_STARTED && thread->currentThread.object) {
             thread->currentThread.notify(); // notify the waiting thread
@@ -299,6 +317,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         thread_self->tprof->dump();
 #endif
 
+    end:
     if(irCount != 0)
         cout << "instructions executed " << irCount << " overflowed " << overflow << endl;
 
@@ -482,6 +501,9 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 #endif
         case OP_NAN_TIME:
             _64BMR= Clock::realTimeInNSecs();
+            return;
+        case OP_DELAY:
+            delay_fib(thread_self->this_fiber, _64EBX);
             return;
         case OP_THREAD_START: {
             Thread *thread = Thread::getThread((int32_t )_64ADX);

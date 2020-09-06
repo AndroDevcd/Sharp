@@ -90,25 +90,25 @@
 #define _brh_inc(x)  this_fiber->pc+=x; _brh_NOINCREMENT
 
 #define CHECK_NULL(x) \
-    if(ptr==NULL) { \
+    if(this_fiber->ptr==NULL) { \
         Exception err(vm.NullptrExcept, ""); \
         sendSignal(signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 #define CHECK_NULL2(x) \
-    if(ptr==NULL|ptr->object == NULL) { \
+    if(this_fiber->ptr==NULL|this_fiber->ptr->object == NULL) { \
         Exception err(vm.NullptrExcept, ""); \
         sendSignal(signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 #define CHECK_NULLOBJ(x) \
-    if(ptr==NULL || ptr->object == NULL || TYPE(ptr->object->info) != _stype_struct) { \
+    if(this_fiber->ptr==NULL || this_fiber->ptr->object == NULL || TYPE(this_fiber->ptr->object->info) != _stype_struct) { \
         Exception err(vm.NullptrExcept, ""); \
         sendSignal(signal, tsig_except, 1); \
         goto exception_catch; \
     } else { x }
 #define CHECK_NULLVAR(x) \
-    if(ptr==NULL || ptr->object == NULL || TYPE(ptr->object->info) != _stype_var) { \
+    if(this_fiber->ptr==NULL || this_fiber->ptr->object == NULL || TYPE(this_fiber->ptr->object->info) != _stype_var) { \
         Exception err(vm.NullptrExcept, ""); \
         sendSignal(signal, tsig_except, 1); \
         goto exception_catch; \

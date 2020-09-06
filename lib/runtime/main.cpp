@@ -16,6 +16,7 @@
 #include "memory/GarbageCollector.h"
 #include "Manifest.h"
 #include "jit/_BaseAssembler.h"
+#include "scheduler.h"
 
 options c_options;
 int startApplication(string &e, std::list<string> &appArgs);
@@ -231,9 +232,7 @@ int startApplication(string &exe, std::list<string>& appArgs) {
 
     pushArgumentsToStack(appArgs);
     Thread::start(main_threadid, 0);
-
-    main = Thread::threads.at(main_threadid);
-    Thread::threadjoin(main);
+    run_scheduler();
 
     result=vm.exitVal;
     return result;
