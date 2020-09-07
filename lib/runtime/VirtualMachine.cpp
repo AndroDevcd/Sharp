@@ -58,7 +58,7 @@ int CreateVirtualMachine(string &exe)
 #endif
 
     /**
-     * Resolve Exception classes
+     * Resolve Frequently Used classes
      */
     vm.Throwable = vm.resolveClass("std#throwable");
     vm.RuntimeExcept = vm.resolveClass("std#runtime_exception");
@@ -76,6 +76,7 @@ int CreateVirtualMachine(string &exe)
     vm.ThreadClass = vm.resolveClass("std.io#thread");
     vm.ExceptionClass = vm.resolveClass("std#exception");
     vm.ErrorClass = vm.resolveClass("std#error");
+    vm.FiberClass = vm.resolveClass("std.io.fiber#fiber");
     cout.precision(16);
 
     vm.outOfMemoryExcept.object = NULL;
@@ -276,6 +277,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             initialSetup = false;
             thread->setup();
             thread->state = THREAD_RUNNING;
+            thread->this_fiber->setAttachedThread(thread);
             thread->this_fiber->setState(thread, FIB_RUNNING);
 
             /*
@@ -288,15 +290,30 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 #endif
             }
         } else {
+            if(thread->this_fiber->state == FIB_RUNNING && thread->this_fiber->calls == -1) {
+                /*
+                 * Call main method
+                 */
+                if((jitFn = executeMethod(thread->this_fiber->main->address, thread)) != NULL) {
+
+#ifdef BUILD_JIT
+                    jitFn(thread->jctx);
+#endif
+                }
+            }
+
             thread->exec(); // TODO: add support for jit later here
         }
 
-        if(thread->this_fiber == thread->main)
-            goto end;
-        else {
+        if(thread->state != THREAD_KILLED) {
             thread->waitForContextSwitch();
-            goto retry;
-        }
+            Int fibersLeft = fiber::boundFiberCount(thread);
+            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->calls == -1))
+                goto end;
+            else
+                goto retry;
+        } else
+            fiber::killBoundFibers(thread);
 
     } catch (Exception &e) {
         if(thread->state == THREAD_STARTED && thread->currentThread.object) {
@@ -308,7 +325,19 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         if(e.getThrowable().handlingClass == vm.OutOfMemoryExcept && thread->state == THREAD_CREATED) {
             thread->state = THREAD_KILLED;
         }
+
         sendSignal(thread->signal, tsig_except, 1);
+        if(thread->this_fiber && thread->this_fiber->getBoundThread() != thread) {
+            thread->printException();
+
+            sendSignal(thread->signal, tsig_except, 0);
+            thread->waitForContextSwitch();
+            Int fibersLeft = fiber::boundFiberCount(thread);
+            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->calls == -1))
+                goto end;
+            else
+                goto retry;
+        }
     }
 
 
@@ -503,8 +532,72 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             _64BMR= Clock::realTimeInNSecs();
             return;
         case OP_DELAY:
-            delay_fib(thread_self->this_fiber, _64EBX);
+            thread_self->this_fiber->delay(_64EBX);
             return;
+        case OP_FIBER_START: {
+            SharpObject *name = (thread_self->this_fiber->sp--)->object.object;
+            Int mainFunc = (thread_self->this_fiber->sp--)->var;
+            _64EBX = -1; // default Id
+
+            if(name != NULL && TYPE(name->info) == _stype_var && name->HEAD != NULL) {
+                native_string fiberName(name->HEAD, name->size);
+                fiber *fib;
+
+                try {
+                    fib = fiber::makeFiber(fiberName.str(), &vm.methods[mainFunc % vm.manifest.methods]);
+                } catch(Exception &e) {
+                    fiberName.free();
+                    throw e;
+                }
+
+                fib->fiberObject = (thread_self->this_fiber->sp--)->object;
+                (++fib->sp)->object = (thread_self->this_fiber->sp--)->object; // apply args to fiber's stack
+                fib->setState(NULL, FIB_SUSPENDED);
+                _64EBX = fib->id;
+            } else {
+                throw Exception(vm.NullptrExcept, "");
+            }
+            return;
+        }
+        case OP_FIBER_SUSPEND: {
+            Int fiberId = (thread_self->this_fiber->sp--)->var;
+            _64EBX = fiber::suspend(fiberId);
+        }
+        case OP_FIBER_UNSUSPEND: {
+            Int fiberId = (thread_self->this_fiber->sp--)->var;
+            _64EBX = fiber::unsuspend(fiberId);
+        }
+        case OP_FIBER_KILL: {
+            Int fiberId = (thread_self->this_fiber->sp--)->var;
+            _64EBX = fiber::kill(fiberId);
+        }
+        case OP_FIBER_BIND: {
+            Int fiberId = (thread_self->this_fiber->sp--)->var;
+            Int threadId = (thread_self->this_fiber->sp--)->var;
+            fiber *fib = fiber::getFiber(fiberId);
+            _64EBX = 2;
+
+            if(fib) {
+                _64EBX = fib->bind(Thread::getThread(threadId));
+            }
+        }
+        case OP_FIBER_BOUND_COUNT: {
+            Int threadId = (thread_self->this_fiber->sp--)->var;
+            _64EBX = fiber::boundFiberCount(Thread::getThread(threadId));
+        }
+        case OP_FIBER_STATE: {
+            Int fiberId = (thread_self->this_fiber->sp--)->var;
+            fiber *fib = fiber::getFiber(fiberId);
+            _64EBX = -1;
+
+            if(fib) {
+                _64EBX = fib->getState();
+            }
+        }
+        case OP_FIBER_CURRENT: {
+            (++thread_self->this_fiber->sp)->object
+               = thread_self->this_fiber->fiberObject;
+        }
         case OP_THREAD_START: {
             Thread *thread = Thread::getThread((int32_t )_64ADX);
 

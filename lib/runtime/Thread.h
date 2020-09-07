@@ -50,7 +50,6 @@ public:
         terminated = false;
         priority = THREAD_PRIORITY_NORM;
         name.init();
-        main = NULL;
         this_fiber = NULL;
         next_fiber = NULL;
         signal = tsig_empty;
@@ -115,6 +114,7 @@ public:
     void exec();
     void setup();
     void waitForContextSwitch();
+    void printException();
 
 #ifdef BUILD_JIT
     jit_context *jctx;
@@ -144,7 +144,6 @@ public:
     native_string name;
     Object currentThread, args;
     fiber *this_fiber, *next_fiber;
-    fiber* main;
     Method* mainMethod;
     uInt lastRanMills;
     bool contextSwitching;

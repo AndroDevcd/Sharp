@@ -1,6 +1,7 @@
 mod platform;
 
 import platform.kernel;
+import std.io.fiber;
 import std.io;
 
 /**
@@ -13,6 +14,7 @@ import std.io;
 obfuscate -keep {
     "std",
     "std.io",
+    "std.io.fiber",
     "platform.kernel"
 }
 
@@ -38,5 +40,6 @@ obfuscate -keep {
     unsatisfied_link_error,
     stack_state,
     thread,
-    string
+    string,
+    fiber
 }

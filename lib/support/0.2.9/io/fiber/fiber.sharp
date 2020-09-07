@@ -1,0 +1,91 @@
+mod std.io.fiber;
+
+import std.io;
+import platform.kernel;
+
+class fiber {
+
+   name : string = "";
+   id: var;
+   main : (object[])(var);
+   exit_val : var;
+   bound_thread : thread;
+
+   fiber(name : string, main : (object[])(var)) {
+      self->name = name;
+      self->main = main;
+   }
+
+   def start(args: object[]) {
+      if(id == -1)
+         id = vm.start_fiber(self, args, fiber_main);
+   }
+
+   def suspend() : var {
+      return vm.suspend_fiber(self);
+   }
+
+   def unsuspend() : var {
+      return vm.suspend_fiber(self);
+   }
+
+   def kill() : var {
+      return vm.suspend_fiber(self);
+   }
+
+   def bind(t: thread) : var {
+      return vm.bind_fiber(self, t);
+   }
+
+   def unbind() : var {
+      return vm.bind_fiber(self, null);
+   }
+
+   def get_state() : fiber_state {
+      state := vm.get_fiber_state(self);
+
+      when(state) {
+         0 -> {
+            return FIB_CREATED;
+         }
+         1 -> {
+            return FIB_RUNNING;
+         }
+         2 -> {
+            return FIB_SUSPENDED;
+         }
+         3 -> {
+            return FIB_KILLED;
+         }
+         else -> {
+            return FIB_INVALID;
+         }
+      }
+   }
+
+   static def current_fiber() : fiber {
+      return vm.current_fiber();
+   }
+
+   private static def fiber_main(args : object[]) {
+      platform.tls_init();
+      fib := current_fiber();
+
+      try {
+         fib.exit_val = fib.main(args);
+      } catch(t: throwable) {
+         fib.id = -1;
+         fib.exit_val = 300;
+         throw t;
+      }
+
+      fib.id = -1;
+   }
+}
+
+def delay(mills: var) {
+   asm {
+      loadl ebx, {mills}
+      int 0x44
+   }
+}

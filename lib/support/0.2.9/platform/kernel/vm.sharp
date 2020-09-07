@@ -1,6 +1,7 @@
 mod platform.kernel;
 
 import std.io;
+import std.io.fiber;
 
 class vm {
     static def get_frame_info() : stack_state {
@@ -31,6 +32,117 @@ class vm {
             loadl ebx, {daemon}
             int 0x10
             smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
+    static def start_fiber(fib: fiber, args: object[], main: (object[])(var)) : var {
+        result: var;
+        name := fib.name;
+
+        asm {
+            pushl {args}
+            pushl {fib}
+            ipushl {main}
+            pushl {name}
+            int 0x45
+            smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
+    static def suspend_fiber(fib: fiber) : var {
+        id := fib.id;
+        result: var;
+
+        asm {
+            ipushl {id}
+            int 0x46
+            smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
+    static def unsuspend_fiber(fib: fiber) : var {
+        id := fib.id;
+        result: var;
+
+        asm {
+            ipushl {id}
+            int 0x47
+            smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
+    static def kill_fiber(fib: fiber) : var {
+        id := fib.id;
+        result: var;
+
+        asm {
+            ipushl {id}
+            int 0x48
+            smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
+    static def bind_fiber(fib: fiber, t: thread) : var {
+        id := fib.id;
+        threadid := -1; // -1 to unbind from thread
+
+        if(t != null)
+           threadid = t.get_native_handle();
+        result: var;
+
+        asm {
+            ipushl {threadid}
+            ipushl {id}
+            int 0x49
+            smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
+    static def get_bound_fibers(t: thread) : var {
+        threadid := t.get_native_handle();
+        result: var;
+
+        asm {
+            ipushl {threadid}
+            int 0x4a
+            smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
+    static def get_fiber_state(fib: fiber) : var {
+        id := fib.id;
+        result: var;
+
+        asm {
+            ipushl {id}
+            int 0x4b
+            smovr2 {result}, ebx
+        }
+
+        return result;
+    }
+
+    static def current_fiber() : fiber {
+        result: fiber;
+
+        asm {
+            int 0x4c
+            movl {result}
+            popObj
         }
 
         return result;

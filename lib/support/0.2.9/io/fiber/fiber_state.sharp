@@ -1,0 +1,9 @@
+mod std.io.fiber;
+
+enum fiber_state {
+    FIB_CREATED,
+    FIB_RUNNING,
+    FIB_SUSPENDED,
+    FIB_KILLED,
+    FIB_INVALID
+}

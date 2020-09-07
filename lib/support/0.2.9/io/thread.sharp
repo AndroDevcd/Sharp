@@ -1,6 +1,7 @@
 mod std.io;
 
 import platform.kernel;
+import std.io.fiber;
 
 public class thread {
 
@@ -102,28 +103,36 @@ public class thread {
 
 	public def suspend() : thread_result {
 	    result := vm.suspend(self);
-	    if(result == result_ok)
+	    if(result == result_ok) {
 	        suspended = true;
+	        fib.suspend();
+	    }
 	    return result;
 	}
 	
 	public def unsuspend() : thread_result {
 	    result := vm.unsuspend(self, false);
-	    if(result == result_ok)
+	    if(result == result_ok) {
 	        suspended = false;
+	        fib.unsuspend();
+	    }
 	    return result;
 	}
 
 	public def unsuspend_and_wait() : thread_result {
 	    result := vm.unsuspend(self, true);
-	    if(result == result_ok)
+	    if(result == result_ok) {
 	        suspended = false;
+	        fib.unsuspend();
+	    }
 	    return result;
 	}
 	
     public def join() := vm.thread_join(self);
 	
-    public def interrupt() := vm.kill(self);
+    public def interrupt() {
+        vm.kill(self);
+    }
 
     public static def current() := vm.current_thread();
 
@@ -198,4 +207,5 @@ public class thread {
     private main: (object[])(var);
 	private error_handler: uncaught_exception_handler;
 	private static id_generator : var;
+	private fib: fiber;
 }

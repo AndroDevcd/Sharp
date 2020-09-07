@@ -12,6 +12,5 @@
 
 void run_scheduler();
 bool try_context_switch(fiber *fib);
-void delay_fib(fiber* fib, uInt time);
 
 #endif //SHARP_SCHEDULER_H

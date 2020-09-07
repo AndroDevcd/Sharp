@@ -1,0 +1,14 @@
+mod std.io.fiber;
+
+unique_id := 0;
+def slice(main: (object[])(var)) : fiber {
+   fib := new fiber("fiber${unique_id++}", main);
+   fib.start(null);
+   return fib;
+}
+
+def slice(main: (object[])(var), args: object[]) : fiber {
+   fib := new fiber("fiber${unique_id++}", main);
+   fib.start(args);
+   return fib;
+}

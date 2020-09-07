@@ -14,6 +14,9 @@ void run_scheduler() {
 
         __os_yield();
        while((fib = fiber::nextFiber()) != NULL) {
+           if(vm.state >= VM_SHUTTING_DOWN) {
+               break;
+           }
 
            if(fib->delayTime >= 0) {
                if(NANO_TOMILL(Clock::realTimeInNSecs()) >= fib->delayTime) {
@@ -41,7 +44,7 @@ void run_scheduler() {
 }
 
 bool try_context_switch(Thread *thread, fiber *fib) {
-    if(fib->state != FIB_RUNNING) {
+    if(fib->state != FIB_SUSPENDED) {
         return false; // race condition protect
     }
 
@@ -73,6 +76,8 @@ bool try_context_switch(Thread *thread, fiber *fib) {
 
 bool is_thread_ready(Thread *thread) {
     uInt currentTime = NANO_TOMILL(Clock::realTimeInNSecs());
+    if(thread->state != THREAD_RUNNING)
+        return false;
 
     switch(thread->priority) {
         case THREAD_PRIORITY_LOW:
@@ -90,13 +95,17 @@ bool try_context_switch(fiber *fib) {
     GUARD(Thread::threadsListMutex);
     Thread *thread;
 
+    if((thread = fib->getBoundThread()))  {
+        return is_thread_ready(thread) && try_context_switch(thread, fib);
+    }
+
     for(Int i = 0; i < Thread::threads.size(); i++) {
         thread = Thread::threads.at(i);
         if(vm.state >= VM_SHUTTING_DOWN) {
             return false;
         }
 
-        if(thread->state == THREAD_RUNNING && is_thread_ready(thread)) {
+        if(is_thread_ready(thread)) {
             if(try_context_switch(thread, fib)) {
                 return true;
             }
@@ -107,11 +116,3 @@ bool try_context_switch(fiber *fib) {
 }
 
 extern void printRegs();
-
-void delay_fib(fiber* fib, uInt time) {
-    cout << "delay " << time << endl << std::flush;
-
-    thread_self->enableContextSwitch(NULL, true);
-    thread_self->contextSwitching = true;
-    fib->setState(thread_self, FIB_SUSPENDED, NANO_TOMILL(Clock::realTimeInNSecs()) + time);
-}

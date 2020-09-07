@@ -89,6 +89,15 @@
 #define _brh  this_fiber->pc++; _brh_NOINCREMENT
 #define _brh_inc(x)  this_fiber->pc+=x; _brh_NOINCREMENT
 
+#define context_switch_check(incPc) \
+if(hasSignal(signal, tsig_context_switch))  { \
+    if(contextSwitching || try_context_switch()) { \
+        if(incPc) \
+           this_fiber->pc++; \
+        return; \
+    } \
+} \
+
 #define CHECK_NULL(x) \
     if(this_fiber->ptr==NULL) { \
         Exception err(vm.NullptrExcept, ""); \

@@ -614,6 +614,14 @@ void Thread::exit() {
     GUARD(mutex);
     this->state = THREAD_KILLED;
 
+    printException();
+    releaseResources();
+    this_fiber->setState(this, FIB_KILLED);
+    this->signal = tsig_empty;
+    this->exited = true;
+}
+
+void Thread::printException() {
     if(hasSignal(signal, tsig_except)) {
         Object* frameInfo = vm.resolveField("frame_info", this_fiber->exceptionObject.object);
         Object* message = vm.resolveField("message", this_fiber->exceptionObject.object);
@@ -631,8 +639,8 @@ void Thread::exit() {
                 cout << vm.stringValue(data->object);
             }
         } else if(frameInfo && frameInfo->object) {
-            if(((this_fiber->sp-this_fiber->dataStack)+1) >= this_fiber->stackLimit) {
-                this_fiber->sp = this_fiber->dataStack-1;
+            if(((this_fiber->sp - this_fiber->dataStack) + 1) >= this_fiber->stackLimit) {
+                this_fiber->sp = this_fiber->dataStack - 1;
             }
 
             if(exceptionClass != NULL && exceptionClass->guid != vm.OutOfMemoryExcept->guid) {
@@ -654,10 +662,6 @@ void Thread::exit() {
                 this_fiber->exitVal = (int) this_fiber->dataStack[vm.manifest.threadLocals].var;
         }
     }
-
-    releaseResources();
-    this->signal = tsig_empty;
-    this->exited = true;
 }
 
 void Thread::releaseResources() {
@@ -844,12 +848,7 @@ void Thread::exec() {
                 VirtualMachine::sysInterrupt(GET_Da(*this_fiber->pc));
                 if(vm.state == VM_TERMINATED) return;
 
-                if(hasSignal(signal, tsig_context_switch))  {
-                    if(contextSwitching || try_context_switch()) {
-                        this_fiber->pc++;
-                        return;
-                    }
-                }
+            context_switch_check(true)
             _brh
             _MOVI: // tested
                 registers[GET_Da(*this_fiber->pc)]=(int32_t)*(this_fiber->pc+1);
@@ -876,12 +875,7 @@ void Thread::exec() {
                     goto exception_catch;
                 }
 
-                if(hasSignal(signal, tsig_context_switch))  {
-                    if(contextSwitching || try_context_switch()) {
-                        this_fiber->pc++;
-                        return;
-                    }
-                }
+                context_switch_check(true)
                 LONG_CALL();
                 _brh
             HLT: // tested
@@ -981,18 +975,23 @@ void Thread::exec() {
                 HAS_SIGNAL
                 this_fiber->pc=this_fiber->cache+(Int)registers[ADX];
                 LONG_CALL();
+                context_switch_check(false)
                 _brh_NOINCREMENT
             IFE:
                 LONG_CALL();
                 HAS_SIGNAL
                 if(registers[CMT]) {
-                    this_fiber->pc=this_fiber->cache+(int64_t)registers[ADX]; _brh_NOINCREMENT
+                    this_fiber->pc=this_fiber->cache+(int64_t)registers[ADX];
+                    context_switch_check(false)
+                    _brh_NOINCREMENT
                 } else  _brh
             IFNE:
                 LONG_CALL();
                 HAS_SIGNAL
                 if(registers[CMT]==0) {
-                    this_fiber->pc=this_fiber->cache+(int64_t)registers[ADX]; _brh_NOINCREMENT
+                    this_fiber->pc=this_fiber->cache+(int64_t)registers[ADX];
+                    context_switch_check(false)
+                    _brh_NOINCREMENT
                 } else  _brh
             LT:
                 registers[CMT]=registers[GET_Ca(*this_fiber->pc)]<registers[GET_Cb(*this_fiber->pc)];
@@ -1051,6 +1050,7 @@ void Thread::exec() {
                 HAS_SIGNAL
                 this_fiber->pc = this_fiber->cache+GET_Da(*this_fiber->pc);
                 LONG_CALL();
+                context_switch_check(false)
                 _brh_NOINCREMENT
             LOADPC: // tested
                 registers[GET_Da(*this_fiber->pc)] = PC(this_fiber);
@@ -1073,11 +1073,7 @@ void Thread::exec() {
 #endif
                 }
 
-                if(hasSignal(signal, tsig_context_switch))  {
-                    if(contextSwitching || try_context_switch()) {
-                        return;
-                    }
-                }
+                context_switch_check(false)
                 _brh_NOINCREMENT
             CALLD:
 #ifdef SHARP_PROF_
@@ -1094,6 +1090,8 @@ void Thread::exec() {
                     jitFun(jctx);
 #endif
                 }
+
+                context_switch_check(false)
                 _brh_NOINCREMENT
             NEWCLASS:
                 STACK_CHECK
@@ -1310,6 +1308,8 @@ void Thread::exec() {
                 _brh
             INVOKE_DELEGATE:
                 invokeDelegate(GET_Da(*this_fiber->pc), GET_Cb(*(this_fiber->pc+1)), this, GET_Ca(*(this_fiber->pc+1)) == 1);
+
+                context_switch_check(false)
                 _brh_NOINCREMENT
             ISADD:
                 (this_fiber->sp+GET_Da(*this_fiber->pc))->var+=(int32_t)*(this_fiber->pc+1);
@@ -1318,13 +1318,17 @@ void Thread::exec() {
                 LONG_CALL();
                 HAS_SIGNAL
                 if(registers[CMT]) {
-                    this_fiber->pc=this_fiber->cache+GET_Da(*this_fiber->pc); _brh_NOINCREMENT
+                    this_fiber->pc=this_fiber->cache+GET_Da(*this_fiber->pc);
+                    context_switch_check(false)
+                    _brh_NOINCREMENT
                 } else  _brh
             JNE:
                 LONG_CALL();
                 HAS_SIGNAL
                 if(registers[CMT]==0) {
-                    this_fiber->pc=this_fiber->cache+GET_Da(*this_fiber->pc); _brh_NOINCREMENT
+                    this_fiber->pc=this_fiber->cache+GET_Da(*this_fiber->pc);
+                    context_switch_check(false)
+                    _brh_NOINCREMENT
                 } else  _brh
             TLS_MOVL:
                 this_fiber->ptr = &(this_fiber->dataStack+GET_Da(*this_fiber->pc))->object;
@@ -1408,8 +1412,8 @@ void Thread::setup() {
 #endif
 
     if(id != main_threadid){
-        this->main = fiber::makeFiber(name.str(), mainMethod);
-        this->this_fiber = this->main;
+        this->this_fiber = fiber::makeFiber(name.str(), mainMethod);
+        this->this_fiber->bind(this);
 
         if(currentThread.object != nullptr
            && IS_CLASS(currentThread.object->info)) {
@@ -1418,6 +1422,24 @@ void Thread::setup() {
     } else {
         vm.state = VM_RUNNING;
         setupSigHandler();
+    }
+
+    if(currentThread.object != nullptr
+       && CLASS(currentThread.object->info) == vm.ThreadClass->guid) {
+        vm.setFieldClass("fib", currentThread.object, vm.FiberClass);
+        Object *fibField = vm.resolveField("fib", currentThread.object);
+        Object *threadMainField = vm.resolveField("main", currentThread.object);
+        Object *threadNameField = vm.resolveField("name", currentThread.object);
+
+        if(fibField && threadMainField && threadNameField) {
+            Object *nameField = vm.resolveField("name", fibField->object);
+            vm.setFieldVar("main", fibField->object, 0, vm.numberValue(0, threadMainField->object));
+            vm.setFieldVar("id", fibField->object, 0, this_fiber->id);
+
+            if(nameField) {
+                *nameField = threadNameField;
+            }
+        }
     }
 }
 
@@ -1511,8 +1533,8 @@ void Thread::init(string name, Int id, Method *main, bool daemon, bool initializ
     this->daemon=daemon;
     this->mainMethod=main;
     if(initializeStack) {
-        this->main = fiber::makeFiber(name, main);
-        this->this_fiber = this->main;
+        this->this_fiber = fiber::makeFiber(name, main);
+        this->this_fiber->bind(this);
     }
 
 #ifdef BUILD_JIT
@@ -1544,17 +1566,24 @@ void Thread::enableContextSwitch(fiber *nextFib, bool enable) {
 }
 
 void Thread::waitForContextSwitch() {
-    wait:
-    if(this_fiber->state == FIB_RUNNING)
-       this_fiber->setState(this, FIB_SUSPENDED);
-    this_fiber = NULL;
+    this_fiber->setAttachedThread(NULL);
+    if(this_fiber->calls == -1) {
+        if(fiber::boundFiberCount(this) > 1)
+           this_fiber->setState(this, FIB_KILLED);
+        else return;
+    } else if(this_fiber->state == FIB_RUNNING)
+        this_fiber->setState(this, FIB_SUSPENDED);
 
+    wait:
     const long sMaxRetries = 10000000;
 
     long retryCount = 0;
     while (next_fiber == NULL) {
         if (retryCount++ == sMaxRetries)
         {
+            if(fiber::boundFiberCount(this) == 0)
+                return;
+
             retryCount = 0;
             __os_yield();
 #ifdef WIN32_
@@ -1571,6 +1600,7 @@ void Thread::waitForContextSwitch() {
             GUARD(mutex);
             sendSignal(signal, tsig_context_switch, 0);
             this_fiber = next_fiber; next_fiber = NULL;
+            this_fiber->setAttachedThread(this);
             this_fiber->setState(this, FIB_RUNNING);
             contextSwitching = false;
         } else {

@@ -70,11 +70,19 @@ enum interruptFlag
             OP_NOTIFY     = 0x3d,
         OP_NOTIFY_FOR     = 0x3e,
  OP_RANDOM_INT_RANGED     = 0x3f,
-      OP_RANDOM_DOUBLE     = 0x40,
- OP_RANDOM_DOUBLE_RANGED     = 0x41,
+      OP_RANDOM_DOUBLE    = 0x40,
+ OP_RANDOM_DOUBLE_RANGED  = 0x41,
        OP_RANDOM_SEED     = 0x42,
             OP_STRTOD     = 0x43,
             OP_DELAY      = 0x44,
+      OP_FIBER_START      = 0x45,
+    OP_FIBER_SUSPEND      = 0x46,
+  OP_FIBER_UNSUSPEND      = 0x47,
+       OP_FIBER_KILL      = 0x48,
+       OP_FIBER_BIND      = 0x49,
+ OP_FIBER_BOUND_COUNT     = 0x4a,
+       OP_FIBER_STATE     = 0x4b,
+     OP_FIBER_CURRENT     = 0x4c,
 };
 
 #endif //SHARP_INTERRUPTFLAG_H

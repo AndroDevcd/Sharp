@@ -111,6 +111,7 @@ public:
     ClassObject *ThreadClass;
     ClassObject *ExceptionClass;
     ClassObject *ErrorClass;
+    ClassObject *FiberClass;
 
     Object outOfMemoryExcept;
     Meta metaData;
