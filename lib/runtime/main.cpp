@@ -21,7 +21,7 @@
 options c_options;
 int startApplication(string &e, std::list<string> &appArgs);
 void pushArgumentsToStack(std::list<string>& appArgs);
-void pushArgumentsToStack(Object *object, std::list<string> &appArgs);
+void pushArgumentsToStack(Object *object, std::list<string> &appArgs, Thread *thread);
 uInt getMemBytes(const char *argv, string option);
 
 void version() {
@@ -244,10 +244,10 @@ int startApplication(string &exe, std::list<string>& appArgs) {
 
 void pushArgumentsToStack(std::list<string>& appArgs) {
     Thread *main = Thread::threads.at(main_threadid);
-    pushArgumentsToStack(&(++main->this_fiber->sp)->object, appArgs);
+    pushArgumentsToStack(&(++main->this_fiber->sp)->object, appArgs, main);
 }
 
-void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {
+void pushArgumentsToStack(Object *object, std::list<string> &appArgs, Thread *main) {
     const short MIN_ARGS = 5;
     Int size = MIN_ARGS+appArgs.size();
     Int iter=0;
@@ -271,6 +271,7 @@ void pushArgumentsToStack(Object *object, std::list<string> &appArgs) {
     gc.createStringArray(&object->object->node[iter++], str); /* operating system currently running on */
     SharpObject *mainThread = gc.newObject(vm.ThreadClass);
     object->object->node[iter++] = mainThread;
+    main->currentThread = mainThread;
 
     vm.setFieldVar("native_handle", mainThread, 0, 0);
     vm.setFieldClass("name", mainThread, vm.StringClass);

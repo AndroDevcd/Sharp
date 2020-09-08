@@ -28,11 +28,14 @@ class fiber {
    }
 
    def unsuspend() : var {
-      return vm.suspend_fiber(self);
+      return vm.unsuspend_fiber(self);
    }
 
    def kill() : var {
-      return vm.suspend_fiber(self);
+      result := vm.kill_fiber(self);
+      if(result == 0)
+         id = -1;
+      return result;
    }
 
    def bind(t: thread) : var {
@@ -40,6 +43,14 @@ class fiber {
       if(result == 0)
          bound_thread = t;
       return result;
+   }
+
+   def join() {
+      while(true) {
+         if(id == -1)
+            break;
+         delay(10);
+      }
    }
 
    def unbind() : var {
@@ -68,13 +79,13 @@ class fiber {
       }
    }
 
-   static def current_fiber() : fiber {
+   static def current() : fiber {
       return vm.current_fiber();
    }
 
    private static def fiber_main(args : object[]) {
       platform.tls_init();
-      fib := current_fiber();
+      fib := current();
 
       try {
          fib.exit_val = fib.main(args);

@@ -256,14 +256,19 @@ void fiber::delay(uInt time) {
 }
 
 int fiber::bind(Thread *thread) {
+    GUARD(mutex);
+
     if(thread != NULL) {
-        GUARD(mutex);
         std::lock_guard<recursive_mutex> guard2(thread->mutex);
         if(thread->state != THREAD_KILLED) {
             boundThread = thread;
             return 0;
         }
+    } else {
+        boundThread = NULL;
+        return 0;
     }
+
 
     return 1;
 }

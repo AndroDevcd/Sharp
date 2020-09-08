@@ -32,7 +32,10 @@ bool Field::equals(Field &f) {
                         return Compiler::simpleParameterMatch(((Method*)this->utype->getResolvedType())->params,
                                                               compareFun->params);
                 } else {
-                    return utype != NULL && f.utype != NULL && utype->getType() == f.utype->getType() &&
+                    if(utype->getType() != utype_function_ptr && utype->getType() != utype_method)
+                        return false;
+
+                    return utype != NULL && f.utype != NULL &&
                            Compiler::simpleParameterMatch(((Method *) this->utype->getResolvedType())->params,
                                                           compareFun->params);
                 }

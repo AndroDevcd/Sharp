@@ -1606,6 +1606,11 @@ Compiler::findFunction(ClassObject *k, string name, List<Field*> &params, Ast* a
         k->getAllFunctionsByTypeAndName(type, name, checkBase, funcs);
 
     if(!funcs.empty()) {
+
+        if(name == "slice") {
+            int i = 3000;
+        }
+
         for(Int i = 0; i < funcs.size(); i++) {
             if(simpleParameterMatch(funcs.get(i)->params, params)) {
                 resolvedFunction = funcs.get(i);
@@ -5457,9 +5462,7 @@ void Compiler::resolveField(Ast* ast) {
     }
 
     Field *field = currentScope()->klass->getField(name, false);
-    if(field->name == "head") {
-        int i = 1000;
-    }
+
     if(field->type == UNTYPED) {
         findConflicts(ast, "field", name);
         // wee need to do this to prevent possible stack overflow errors

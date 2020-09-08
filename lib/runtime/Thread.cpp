@@ -1427,13 +1427,17 @@ void Thread::setup() {
     }
 
     if(currentThread.object != nullptr
-       && CLASS(currentThread.object->info) == vm.ThreadClass->guid) {
+       && CLASS(currentThread.object->info) == vm.ThreadClass->address) {
         vm.setFieldClass("fib", currentThread.object, vm.FiberClass);
         Object *fibField = vm.resolveField("fib", currentThread.object);
         Object *threadMainField = vm.resolveField("main", currentThread.object);
         Object *threadNameField = vm.resolveField("name", currentThread.object);
 
         if(fibField && threadMainField && threadNameField) {
+            if(id == main_threadid) {
+                this_fiber->fiberObject = fibField;
+            }
+
             Object *nameField = vm.resolveField("name", fibField->object);
             vm.setFieldVar("main", fibField->object, 0, vm.numberValue(0, threadMainField->object));
             vm.setFieldVar("id", fibField->object, 0, this_fiber->id);

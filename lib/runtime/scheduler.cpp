@@ -39,7 +39,12 @@ void run_scheduler() {
            return;
        }
 
-       __os_sleep(LPTSI);
+#ifdef WIN32_
+        Sleep(5);
+#endif
+#ifdef POSIX_
+        usleep(5*POSIX_USEC_INTERVAL);
+#endif
     } while(true);
 }
 
