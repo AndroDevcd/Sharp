@@ -5,97 +5,22 @@ import std.io.task;
 import std.io.fiber;
 import platform;
 
-/*
- * ArrayList<var> time (425) ms
- * ArrayList<TestClass> time (1951) ms
- *
- * ArrayList<var> time (407.94) ms
- * ArrayList<TestClass> time (1790.95) ms
- *
- * ArrayList<var> time (416.94) ms
- * ArrayList<TestClass> time (1723.95) ms
- *
- *
- * old system
- * Fastest:
- * SLowest:
- * Avg:
- */
-def list_timer() {
-    varLst1 := new list<var>();
-    past := utc_mills(), now;
-
-    for(i := 0; i < 2000000; i++)
-    {
-        varLst1.add(i);
-    }
-
-    now = utc_mills();
-    println("ArrayList<var> time (" + (now-past) + ") ms");
-    varLst1.clear();
-
-    classLst := new list<TestClass>();
-    past = utc_mills();
-
-    for(i := 0; i < 1000000; i++)
-    {
-        classLst.add(new TestClass());
-    }
-    classLst.clear();
-
-    now = utc_mills();
-    println("ArrayList<TestClass> time (" + (now-past) + ") ms");
-}
-
-
-/*
- * for loop (609.576) ms
- * memcpy (28.0073) ms
- *
- * for loop (670.576) ms
- * memcpy (41.0073) ms
- *
- * for loop (641.576) ms
- * memcpy (50.0073) ms
- *
- *
- * old system
- * Fastest:
- * SLowest:
- * Avg:
- */
-def list_copy() {
-    lst1 := new var[10000000];
-    lst2 := new var[10000000];
-
-    past := utc_mills(), now;
-    for(i := 0; i < sizeof(lst1); i++) {
-        lst2[i] = lst1[i];
-
-        if(i % 1000000 == 0) {
-           println("$i");
-           delay(1000);
-        }
-    }
-
-    now = utc_mills();
-    println("for loop (" + (now-past) + ") ms");
-
-    past = utc_mills();
-    lst2 = copy(lst1, 0, sizeof(lst1)) as var[];
-
-    now = utc_mills();
-    println("memcpy (" + (now-past) + ") ms");
-           println("done");
-}
-
-public class TestClass {
-    id: var;
-    TAG := "TestClass";
-}
 
 def main(args: string[]) {
     //list_timer();
+    for(i := 0; i < 5; i++) {
+        fib := slice({ args ->
+           for(i := 0; i < 100_000_000; i++)
+           {
+           }
+           println("1");
+           return 0;
+        });
+        fib.bind(thread.current());
+    }
 
-    list_copy();
+    for(i:= 0; i < 100_000_000; i++)
+    {
+    }
+       println("2");
 }

@@ -90,8 +90,11 @@
 #define _brh_inc(x)  this_fiber->pc+=x; _brh_NOINCREMENT
 
 #define context_switch_check(incPc) \
-if(hasSignal(signal, tsig_context_switch))  { \
-    if(contextSwitching || try_context_switch()) { \
+if(hasSignal(signal, tsig_context_switch) && !(hasSignal(signal, tsig_suspend) \
+      || hasSignal(signal, tsig_kill) \
+      || state == THREAD_KILLED \
+      || hasSignal(signal, tsig_except)))  { \
+    if((contextSwitching || try_context_switch())) { \
         if(incPc) \
            this_fiber->pc++; \
         return; \

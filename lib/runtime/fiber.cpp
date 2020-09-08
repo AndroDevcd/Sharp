@@ -31,6 +31,7 @@ fiber* fiber::makeFiber(string name, Method* main) {
         fib->state = FIB_CREATED;
         fib->exitVal = 0;
         fib->wakeable = true;
+        fib->finished = false;
         fib->attachedThread = NULL;
         fib->boundThread = NULL;
         fib->exceptionObject.object = NULL;

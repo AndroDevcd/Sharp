@@ -613,16 +613,22 @@ void Thread::shutdown() {
 void Thread::exit() {
     GUARD(mutex);
     this->state = THREAD_KILLED;
+    if(id == main_threadid) {
+        if (this_fiber && this_fiber->dataStack != NULL)
+            this_fiber->exitVal = (int) this_fiber->dataStack[vm.manifest.threadLocals].var;
+    }
 
     printException();
     releaseResources();
-    this_fiber->setState(this, FIB_KILLED);
+    if(this_fiber)
+       this_fiber->setState(this, FIB_KILLED);
     this->signal = tsig_empty;
     this->exited = true;
 }
 
 void Thread::printException() {
-    if(hasSignal(signal, tsig_except)) {
+    GUARD(mutex)
+    if(hasSignal(signal, tsig_except) && this_fiber) {
         Object* frameInfo = vm.resolveField("frame_info", this_fiber->exceptionObject.object);
         Object* message = vm.resolveField("message", this_fiber->exceptionObject.object);
         Object* stackTrace = vm.resolveField("stack_trace", this_fiber->exceptionObject.object);
@@ -654,13 +660,9 @@ void Thread::printException() {
             }
         }
 
+        sendSignal(signal, tsig_except, 0);
         cout << endl << (exceptionClass != NULL ? exceptionClass->name.str() : "") << " ("
            << (message != NULL ? vm.stringValue(message->object) : "") << ")\n";
-    } else {
-        if(id == main_threadid) {
-            if (this_fiber->dataStack != NULL)
-                this_fiber->exitVal = (int) this_fiber->dataStack[vm.manifest.threadLocals].var;
-        }
     }
 }
 
@@ -1567,9 +1569,10 @@ void Thread::enableContextSwitch(fiber *nextFib, bool enable) {
 
 void Thread::waitForContextSwitch() {
     this_fiber->setAttachedThread(NULL);
-    if(this_fiber->calls == -1) {
-        if(fiber::boundFiberCount(this) > 1)
-           this_fiber->setState(this, FIB_KILLED);
+    if(this_fiber->finished) {
+        if(fiber::boundFiberCount(this) > 1) {
+            this_fiber->setState(this, FIB_KILLED);
+        }
         else return;
     } else if(this_fiber->state == FIB_RUNNING)
         this_fiber->setState(this, FIB_SUSPENDED);

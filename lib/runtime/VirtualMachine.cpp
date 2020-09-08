@@ -152,7 +152,7 @@ void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic
 
 bool returnMethod(Thread* thread) {
     if(thread->this_fiber->calls == 0) {
-        thread->this_fiber->calls = -1;
+        thread->this_fiber->finished = true;
 #ifdef SHARP_PROF_
         thread->tprof->endtm=Clock::realTimeInNSecs();
                 thread->tprof->profile();
@@ -305,10 +305,15 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             thread->exec(); // TODO: add support for jit later here
         }
 
-        if(thread->state != THREAD_KILLED) {
+        if(thread->this_fiber && thread->this_fiber->getBoundThread() != thread
+           && hasSignal(thread->signal, tsig_except)) {
+            thread->printException();
+        }
+
+        if(thread->state != THREAD_KILLED && !hasSignal(thread->signal, tsig_except)) {
             thread->waitForContextSwitch();
             Int fibersLeft = fiber::boundFiberCount(thread);
-            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->calls == -1))
+            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished))
                 goto end;
             else
                 goto retry;
@@ -330,10 +335,9 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
         if(thread->this_fiber && thread->this_fiber->getBoundThread() != thread) {
             thread->printException();
 
-            sendSignal(thread->signal, tsig_except, 0);
             thread->waitForContextSwitch();
             Int fibersLeft = fiber::boundFiberCount(thread);
-            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->calls == -1))
+            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished))
                 goto end;
             else
                 goto retry;
@@ -562,14 +566,17 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         case OP_FIBER_SUSPEND: {
             Int fiberId = (thread_self->this_fiber->sp--)->var;
             _64EBX = fiber::suspend(fiberId);
+            return;
         }
         case OP_FIBER_UNSUSPEND: {
             Int fiberId = (thread_self->this_fiber->sp--)->var;
             _64EBX = fiber::unsuspend(fiberId);
+            return;
         }
         case OP_FIBER_KILL: {
             Int fiberId = (thread_self->this_fiber->sp--)->var;
             _64EBX = fiber::kill(fiberId);
+            return;
         }
         case OP_FIBER_BIND: {
             Int fiberId = (thread_self->this_fiber->sp--)->var;
@@ -580,10 +587,12 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             if(fib) {
                 _64EBX = fib->bind(Thread::getThread(threadId));
             }
+            return;
         }
         case OP_FIBER_BOUND_COUNT: {
             Int threadId = (thread_self->this_fiber->sp--)->var;
             _64EBX = fiber::boundFiberCount(Thread::getThread(threadId));
+            return;
         }
         case OP_FIBER_STATE: {
             Int fiberId = (thread_self->this_fiber->sp--)->var;
@@ -593,10 +602,12 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
             if(fib) {
                 _64EBX = fib->getState();
             }
+            return;
         }
         case OP_FIBER_CURRENT: {
             (++thread_self->this_fiber->sp)->object
                = thread_self->this_fiber->fiberObject;
+            return;
         }
         case OP_THREAD_START: {
             Thread *thread = Thread::getThread((int32_t )_64ADX);

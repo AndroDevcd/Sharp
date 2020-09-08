@@ -27,7 +27,7 @@ void run_scheduler() {
            }
        }
 
-       if(vm.state == VM_SHUTTING_DOWN) {
+       if(vm.state >= VM_SHUTTING_DOWN) {
            while(vm.state != VM_TERMINATED) {
 #ifdef WIN32_
                Sleep(1);

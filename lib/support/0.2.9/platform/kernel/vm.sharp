@@ -39,7 +39,7 @@ class vm {
 
     static def start_fiber(fib: fiber, args: object[], main: (object[])(var)) : var {
         result: var;
-        name := fib.name;
+        name := fib.name.get_data();
 
         asm {
             pushl {args}

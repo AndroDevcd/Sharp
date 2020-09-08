@@ -5,8 +5,10 @@ import platform.kernel;
 
 class fiber {
 
+   private fiber() {}
+
    name : string = "";
-   id: var;
+   id := -1;
    main : (object[])(var);
    exit_val : var;
    bound_thread : thread;
@@ -34,7 +36,10 @@ class fiber {
    }
 
    def bind(t: thread) : var {
-      return vm.bind_fiber(self, t);
+      result := vm.bind_fiber(self, t);
+      if(result == 0)
+         bound_thread = t;
+      return result;
    }
 
    def unbind() : var {

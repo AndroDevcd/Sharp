@@ -64,6 +64,7 @@ public:
     Int delayTime; // -1 for full suspension >= 0 for timed suspension
     recursive_mutex mutex;
     bool wakeable;
+    bool finished;
 };
 
 #endif //SHARP_FIBER_H
