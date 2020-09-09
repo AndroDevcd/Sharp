@@ -40,7 +40,6 @@ fiber* fiber::makeFiber(string name, Method* main) {
         fib->registers = NULL;
         fib->callStack = NULL;
         fib->calls = -1;
-        new(&fib->mutex) std::recursive_mutex();
         fib->stackLimit = internalStackSize;
         fib->registers = (double *) calloc(REGISTER_SIZE, sizeof(double));
         fib->dataStack = (StackElement *) calloc(internalStackSize, sizeof(StackElement));
@@ -101,16 +100,11 @@ void fiber::disposeFiber(fiber *fib) {
 }
 
 int fiber::suspend(uInt id) {
-    fiber *fib;
+    GUARD(fiberMutex)
+    fiber *fib = getFiber(id);
     int result = 0;
 
-    {
-        GUARD(fiberMutex)
-        fib = getFiber(id);
-    }
-
     if(fib) {
-        GUARD(fib->mutex)
         if(fib->state == FIB_SUSPENDED) {
             fib->setWakeable(false);
         } else if(fib->state == FIB_RUNNING) {
@@ -130,16 +124,11 @@ int fiber::suspend(uInt id) {
 }
 
 int fiber::unsuspend(uInt id) {
-    fiber *fib;
+    GUARD(fiberMutex)
+    fiber *fib = getFiber(id);
     int result = 0;
 
-    {
-        GUARD(fiberMutex)
-        fib = getFiber(id);
-    }
-
     if(fib) {
-        GUARD(fib->mutex)
         if(fib->state == FIB_SUSPENDED) {
             fib->setWakeable(true);
         } else {
@@ -151,16 +140,11 @@ int fiber::unsuspend(uInt id) {
 }
 
 int fiber::kill(uInt id) {
-    fiber *fib;
+    GUARD(fiberMutex)
+    fiber *fib = getFiber(id);
     int result = 0;
 
-    {
-        GUARD(fiberMutex)
-        fib = getFiber(id);
-    }
-
     if(fib) {
-        GUARD(fib->mutex)
         if(fib->state == FIB_SUSPENDED) {
             fib->setState(NULL, FIB_KILLED);
         } else if(fib->state == FIB_RUNNING) {
@@ -179,7 +163,7 @@ int fiber::kill(uInt id) {
 }
 
 void fiber::free() {
-    GUARD(mutex);
+    GUARD(fiberMutex)
     if(dataStack != NULL) {
         gc.freeMemory(sizeof(StackElement) * stackLimit);
         StackElement *p = dataStack;
@@ -212,12 +196,12 @@ void fiber::free() {
 }
 
 int fiber::getState() {
-    GUARD(mutex);
+    GUARD(fiberMutex)
     return (Int)state;
 }
 
 void fiber::setState(Thread *thread, fiber_state newState, Int delay) {
-    GUARD(mutex);
+    GUARD(fiberMutex)
 
     switch(newState) {
         case FIB_RUNNING:
@@ -237,33 +221,34 @@ void fiber::setState(Thread *thread, fiber_state newState, Int delay) {
 }
 
 void fiber::setWakeable(bool enable) {
-    GUARD(mutex);
+    GUARD(fiberMutex)
     wakeable = enable;
 }
 
 Thread *fiber::getAttachedThread() {
-    GUARD(mutex);
+    GUARD(fiberMutex)
     return attachedThread;
 }
 
 Thread *fiber::getBoundThread() {
-    GUARD(mutex);
+    GUARD(fiberMutex)
     return boundThread;
 }
 
 void fiber::setAttachedThread(Thread *thread) {
-    GUARD(mutex);
+    GUARD(fiberMutex)
     attachedThread = thread;
 }
 
 void fiber::delay(uInt time) {
+    GUARD(fiberMutex)
     attachedThread->enableContextSwitch(NULL, true);
     attachedThread->contextSwitching = true;
     setState(thread_self, FIB_SUSPENDED, NANO_TOMILL(Clock::realTimeInNSecs()) + time);
 }
 
 int fiber::bind(Thread *thread) {
-    GUARD(mutex);
+    GUARD(fiberMutex)
 
     if(thread != NULL) {
         std::lock_guard<recursive_mutex> guard2(thread->mutex);

@@ -19,6 +19,7 @@ enum fiber_state {
 
 class fiber {
 public:
+
     static fiber* makeFiber(string name, Method* main);
     static fiber* getFiber(uInt id);
     static fiber* nextFiber();
@@ -62,7 +63,6 @@ public:
     double *registers;
     Object *ptr;
     Int delayTime; // -1 for full suspension >= 0 for timed suspension
-    recursive_mutex mutex;
     bool wakeable;
     bool finished;
 };
