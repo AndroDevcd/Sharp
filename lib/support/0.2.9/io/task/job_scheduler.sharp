@@ -10,8 +10,8 @@ private long_term_threads : var;
 private max_threads : var;
 private scheduler : thread;
 
-private const MAX_HIGH_PRIORITY_FIBERS := 4;
-private const MAX_LOW_PRIORITY_FIBERS := 30;
+private MAX_HIGH_PRIORITY_FIBERS := 4;
+private MAX_LOW_PRIORITY_FIBERS := 30;
 
 protected def start_scheduler() {
     lock(launcher) {
@@ -58,6 +58,14 @@ def set_thread_max(max: var) {
 
             if(long_term_threads == 0)
                 long_term_threads = 1;
+
+            if(short_term_threads == 1) {
+               MAX_HIGH_PRIORITY_FIBERS = 3;
+            }
+
+            if(long_term_threads == 1) {
+               MAX_LOW_PRIORITY_FIBERS = 15;
+            }
             max_threads = max;
         } else {
             throw new ill_arg_except("cannot have less than 2 max threads");
