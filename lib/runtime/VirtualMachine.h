@@ -48,10 +48,12 @@ public:
         NullptrExcept(NULL),
         ClassCastExcept(NULL),
         libs(),
-        mutex()
+        mutex(),
+        libsMutex()
     {
     }
     recursive_mutex mutex;
+    recursive_mutex libsMutex;
     void destroy();
 
     static

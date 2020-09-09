@@ -98,10 +98,12 @@ void Thread::CreateDaemon(string name) {
 }
 
 void Thread::pushThread(Thread *thread) {
+    GUARD(Thread::threadsListMutex);
     threads.add(thread);
 }
 
 void Thread::popThread(Thread *thread) {
+    GUARD(Thread::threadsListMutex);
     threads.remove(thread->id);
 }
 

@@ -1340,6 +1340,7 @@ Library *VirtualMachine::getLib(std::string name) {
 int VirtualMachine::freeLib(std::string name) {
     Library *lib = NULL;
     Int index = 0;
+    GUARD(libsMutex)
     for(long i = 0; i < libs.size(); i++) {
         if(libs.get(i).name == name) {
             lib = &libs.get(i);
