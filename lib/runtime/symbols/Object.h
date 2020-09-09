@@ -110,12 +110,12 @@ struct Object {
     void notify();
     void notify(uInt);
 
-    static void monitorLock(Object *o, Thread *t) {
-        gc.lock(o ? o->object : NULL, t);
+    static bool monitorLock(Object *o, Thread *t) {
+        return gc.lock(o ? o->object : NULL, t);
     }
 
-    static void monitorUnLock(Object *o, Thread *t) {
-        gc.unlock(o ? o->object : NULL, t);
+    static void monitorUnLock(Object *o) {
+        gc.unlock(o ? o->object : NULL);
     }
 
     CXX11_INLINE void operator=(Object &o) {

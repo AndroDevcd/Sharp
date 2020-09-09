@@ -712,7 +712,8 @@ void GarbageCollector::printClassRefStatus() {
 
 }
 
-void GarbageCollector::lock(SharpObject *o, Thread* thread) {
+recursive_mutex lockCheckMutex;
+bool GarbageCollector::lock(SharpObject *o, Thread* thread) {
     if(o) {
         mutex_t *mut;
         mutex.lock();
@@ -726,15 +727,41 @@ void GarbageCollector::lock(SharpObject *o, Thread* thread) {
             SET_LOCK(o->info, 1);
         }
         mutex.unlock();
-        mut->mutex->lock();
 
-        if(mut->threadid != thread->id) {
-            mut->threadid = thread->id;
+        retry:
+        long maxSpin = 10000000;
+        long spins = 0;
+        while(mut->threadid != -1) {
+            if(spins++ == maxSpin) {
+                spins = 0;
+                __os_yield();
+#ifdef WIN32_
+                Sleep(1);
+#endif
+#ifdef POSIX_
+                usleep(1*POSIX_USEC_INTERVAL);
+#endif
+            } else if(hasSignal(thread->signal, tsig_context_switch) || thread->contextSwitching) {
+                return false;
+            } else if(mut->threadid == thread->id)
+                break;
         }
+
+        mut->threadid = thread->id;
+        lockCheckMutex.lock();
+        if(mut->threadid != thread->id) {
+            lockCheckMutex.unlock();
+            goto retry;
+        }
+
+        mut->lockedCount++;
+        lockCheckMutex.unlock();
     }
+
+    return true;
 }
 
-void GarbageCollector::unlock(SharpObject *o, Thread* thread) {
+void GarbageCollector::unlock(SharpObject *o) {
     if(o) {
         mutex_t *mut=0;
         mutex.lock();
@@ -743,11 +770,17 @@ void GarbageCollector::unlock(SharpObject *o, Thread* thread) {
             mut = locks.get(idx);
         mutex.unlock();
         if(mut) {
-            if (mut->threadid == thread->id) {
-                mut->threadid = -1;
+
+            lockCheckMutex.lock();
+            if (mut->threadid != -1) {
+                mut->lockedCount--;
+                if(mut->lockedCount <= 0) {
+                    mut->threadid = -1;
+                    mut->lockedCount=0;
+                }
             }
 
-            mut->mutex->unlock();
+            lockCheckMutex.unlock();
 
         }
     }
@@ -760,11 +793,7 @@ void GarbageCollector::reconcileLocks(Thread* thread) {
         mutex_t *mut = locks.get(i);
         if(mut->threadid==thread->id) {
             mut->threadid = -1;
-            mut->mutex->unlock();
-            managedBytes -= sizeof(mutex_t) + sizeof(recursive_mutex);
-            delete mut;
-            locks.remove(i);
-            i--;
+            mut->lockedCount = 0;
         }
 
     }
@@ -777,8 +806,10 @@ void GarbageCollector::dropLock(SharpObject *o) {
         long long idx = locks.indexof(isLocker, o);
         if(idx != -1) {
             mutex_t *mut = locks.get(idx);
-            if(mut->threadid!= -1)
-                mut->mutex->unlock();
+            if(mut->threadid!= -1) {
+                mut->threadid = -1;
+                mut->lockedCount = 0;
+            }
             managedBytes -= sizeof(mutex_t) + sizeof(recursive_mutex);
             delete mut;
             locks.remove(idx);

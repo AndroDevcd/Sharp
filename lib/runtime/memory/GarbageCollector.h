@@ -52,14 +52,14 @@ class Thread;
 struct mutex_t
 {
     SharpObject* object;
-    recursive_mutex *mutex;
+    uInt lockedCount;
     long threadid;
     
     mutex_t(SharpObject *o, recursive_mutex *mut, long threadid) 
     : 
         object(o),
-        mutex(mut),
-        threadid(threadid)
+        threadid(threadid),
+        lockedCount(0)
     {
     }
 };
@@ -221,8 +221,8 @@ public:
      * Lock an object to be thread safe
      *
      */
-    void lock(SharpObject *, Thread*);
-    void unlock(SharpObject *, Thread*);
+    bool lock(SharpObject *, Thread*);
+    void unlock(SharpObject *);
     
     /**
      * Thread sycronization protection for destroyed threads with pending locks

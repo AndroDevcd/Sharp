@@ -1118,10 +1118,14 @@ void Thread::exec() {
                 registers[CMT]=registers[GET_Ca(*this_fiber->pc)]!=registers[GET_Cb(*this_fiber->pc)];
                 _brh
             LOCK:
-                CHECK_NULL2(Object::monitorLock(this_fiber->ptr, this);)
+                CHECK_NULL2(
+                        if(!Object::monitorLock(this_fiber->ptr, this)) {
+                            return;
+                        }
+                )
                 _brh
             ULOCK:
-                CHECK_NULL2(Object::monitorUnLock(this_fiber->ptr, this);)
+                CHECK_NULL2(Object::monitorUnLock(this_fiber->ptr);)
                 _brh
             MOVG:
                 this_fiber->ptr = vm.staticHeap+GET_Da(*this_fiber->pc);
