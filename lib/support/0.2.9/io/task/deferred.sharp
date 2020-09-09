@@ -23,8 +23,7 @@ class deferred<t> base observable<t> {
 		        changed = false;
 				return data;
 			} else
-				thread.sleep(2);
-	        thread.yield();
+				delay(2);
 		}
 
 		return data;

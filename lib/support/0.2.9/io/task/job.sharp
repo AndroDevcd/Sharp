@@ -1,6 +1,7 @@
 mod std.io.task;
 
 import std.io;
+import std.io.fiber;
 
 public class job {
 
@@ -15,18 +16,18 @@ public class job {
 
 	protected def execute_async() : var {
 		if(state == created) {
-			controller.scheduled_job = self;
-			controller.last_ran = time.mills_time();
-
 			if(!host.is_active()) {
-			    if(host.start(new object[] { controller }) != result_ok)
+			    if(host.start() != result_ok)
 			    {
-			      controller.scheduled_job = null;
 			      return 2;
 			    }
 			}
 
-			controller.notify();
+            fib = slice({ args ->
+               schdj := args[0] as job;
+               schdj.execute();
+               return 0;
+            }, host, { self });
 			return 0;
 		} else if(state == active) {
 			return 1;
@@ -40,8 +41,8 @@ public class job {
             if(state == active) {
                 state = cancelled;
 
-                if(thread.current() != host) {
-                   host.interrupt();
+                if(fiber.current() != fib) {
+                   fib.kill();
                    launcher.cleanup_job(self);
                 }
                 else {
@@ -71,16 +72,8 @@ public class job {
 	        || state == completed)
 	        return;
 
-	    try_join := false;
-        lock(self) {
-            if(!is_finished()) {
-                try_join = true;
-                listeners.add(thread.current());
-            }
-        }
-
-        if(try_join) {
-            thread.current().wait();
+        while(!is_finished()) {
+           delay(10);
         }
 	}
 
@@ -105,51 +98,40 @@ public class job {
 	}
 
 	protected static def job_main(args : object[]) : var {
-        controller := args[0] as job_controller;
-
         for(;;) {
-            controller.wait();
-
-            if(controller.scheduled_job != null) {
-                try {
-                    controller.scheduled_job.execute();
-                } catch(cancellation_exception) {
-                    controller.scheduled_job.state = cancelled;
-                    launcher.cleanup_job(controller.scheduled_job);
-                } catch(e: error) {
-                    controller.scheduled_job.state = cancelled;
-                    launcher.cleanup_job(controller.scheduled_job);
-                    controller.scheduled_job = null;
-                    throw e;
-                } catch(e: exception) {
-                    controller.scheduled_job.state = cancelled;
-                    launcher.cleanup_job(controller.scheduled_job);
-                    controller.scheduled_job = null;
-                    throw e;
-                }
-
-                controller.scheduled_job = null;
-			}
+            delay(100);
         }
-
         return 0;
 	}
 
 	protected def execute() {
 	    start_time = time.mills_time();
+		launcher.add_job(self);
 		state = active;
-		if(recurring)
-		    reschedule();
 
-        when {
-            main0 -> main0();
-            main1 -> main1(args);
-            main2 -> main2(deferred_obj, args);
-            main3 -> main3(deferred_obj);
-        }
+		try {
+		   if(recurring)
+		       reschedule();
 
-		state = completed;
-		launcher.cleanup_job(self);
+           when {
+               main0 -> main0();
+               main1 -> main1(args);
+               main2 -> main2(deferred_obj, args);
+               main3 -> main3(deferred_obj);
+           }
+
+		   state = completed;
+		   launcher.cleanup_job(self);
+		} catch(cancellation_exception) {
+            state = cancelled;
+            launcher.cleanup_job(self);
+        } catch(t: throwable) {
+           state = cancelled;
+           launcher.cleanup_job(self);
+           if(!block_caller)
+		      fib.current().unbind(); // protect against crashing the thread
+		   throw t;
+		}
 	}
 
     def is_finished() := state == completed || state == cancelled;
@@ -220,6 +202,7 @@ public class job {
 	protected main2: (object, object[])();
 	protected main3: (object)();
 	protected host : thread;
+	protected fib : fiber;
 	protected name : string;
 	protected args : object[];
 	protected deferred_obj : object;
@@ -235,6 +218,4 @@ public class job {
 	protected long_term := false;
 	protected state := created;
 	protected static guid := 0;
-	protected controller: job_controller;
-    protected listeners := new list<thread>();
 }

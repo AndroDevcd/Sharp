@@ -8,7 +8,7 @@ class job_master {
 		long_term_pool = new thread_group("Long term jobs", min_priority);
 		short_term_pool = new thread_group("Short term jobs", max_priority);
 		job_queue = new synced_list<job>();
-		controllers = new hashtable<thread, job_controller>();
+		running_jobs = new synced_list<job>();
 	}
 
 	def operator=(main: ()()) : job {
@@ -41,34 +41,19 @@ class job_master {
 		}
 	}
 
-	protected def get_host_controller(host: thread) := controllers.at(host);
+	protected def add_job(scheduled_job : job) {
+	   running_jobs.add(scheduled_job);
+	}
 
 	protected def cleanup_job(scheduled_job : job) {
 		scheduled_job.deferred_obj = null;
 		scheduled_job.host = null;
+		scheduled_job.host = null;
 		scheduled_job.next_task = null;
 		scheduled_job.args = null;
 		scheduled_job.name = null;
-
-        wakeup:
-        lock(scheduled_job) {
-            if(!scheduled_job.listeners.empty()) {
-                foreach(t in scheduled_job.listeners) {
-                    t.notify();
-                }
-            }
-
-            scheduled_job.listeners.clear();
-        }
-
-        lock(scheduled_job) {
-            if(!scheduled_job.listeners.empty()) {
-                goto wakeup;
-            }
-        }
-
-        scheduled_job.listeners = null;
 		job_queue.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
+		running_jobs.remove(scheduled_job, { it, it2 -> return it.id == it2.id; });
 	}
 
 	protected def cancel_jobs_by_name(name: string) {
@@ -80,26 +65,17 @@ class job_master {
               }
            }
 
-           foreach(t in short_term_pool) {
-               schdj := get_host_controller(t).scheduled_job;
-               if(schdj != null && schdj.name == name) {
+           foreach(schdj in running_jobs) {
+               if(schdj.name == name) {
                   schdj.cancel();
-               }
-           }
-
-           foreach(t in long_term_pool) {
-               if(t == scheduler) continue;
-
-               schdj := get_host_controller(t).scheduled_job;
-               if(schdj != null && schdj.name == name) {
-                  schdj.cancel();
+		          running_jobs.remove(schdj, { it, it2 -> return it.id == it2.id; });
                }
            }
        }
 	}
 
+	protected running_jobs : synced_list<job>;
 	protected job_queue : synced_list<job>;
-	protected controllers : hashtable<thread, job_controller>;
 	protected long_term_pool : thread_group;
 	protected short_term_pool : thread_group;
 	protected started: var;

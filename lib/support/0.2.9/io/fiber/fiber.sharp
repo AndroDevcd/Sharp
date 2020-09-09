@@ -83,6 +83,10 @@ class fiber {
       return vm.current_fiber();
    }
 
+   static def poll(t: thread) : var {
+      return vm.get_bound_fibers(t);
+   }
+
    private static def fiber_main(args : object[]) {
       platform.tls_init();
       fib := current();
