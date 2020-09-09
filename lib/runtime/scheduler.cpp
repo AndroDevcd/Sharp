@@ -66,13 +66,19 @@ bool try_context_switch(Thread *thread, fiber *fib) {
 #ifdef POSIX_
             usleep(1*POSIX_USEC_INTERVAL);
 #endif
-        } else if(spinCount > CSTL) {
+        } else if(spinCount >= CSTL) {
             thread->enableContextSwitch(NULL, false);
             return false;
         } else if(thread->state == THREAD_KILLED)
             return false;
     }
 
+#ifdef WIN32_
+    Sleep(1);
+#endif
+#ifdef POSIX_
+    usleep(1*POSIX_USEC_INTERVAL);
+#endif
     return true;
 }
 

@@ -81,6 +81,9 @@ fiber* fiber::nextFiber() {
             if(fib->delayTime >= 0 && loggedTime >= fib->delayTime) {
                 lastFiberIndex++;
                 return fib;
+            } else if(fib->delayTime == -1) {
+                lastFiberIndex++;
+                return fib;
             }
         } else if(fib->state == FIB_KILLED) {
             disposeFiber(fib);
