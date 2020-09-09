@@ -37,6 +37,12 @@ private def calculate_max_threads() {
 
     if(long_term_threads == 0)
         long_term_threads = 1;
+
+    if(short_term_threads == 1)
+       MAX_HIGH_PRIORITY_FIBERS = 3;
+
+    if(long_term_threads == 1)
+       MAX_HIGH_PRIORITY_FIBERS = 3;
     max_threads = short_term_threads + long_term_threads;
 }
 
@@ -59,6 +65,12 @@ def set_thread_max(max: var) {
             if(long_term_threads == 0)
                 long_term_threads = 1;
 
+
+            if(short_term_threads == 1)
+               MAX_HIGH_PRIORITY_FIBERS = 3;
+
+            if(long_term_threads == 1)
+               MAX_HIGH_PRIORITY_FIBERS = 3;
             max_threads = max;
         } else {
             throw new ill_arg_except("cannot have less than 2 max threads");

@@ -61,6 +61,8 @@ public:
         args.object = NULL;
         currentThread.object=NULL;
         new (&mutex) recursive_mutex();
+        new (&boundFibers) std::atomic<uInt>();
+        boundFibers=0;
 #ifdef WIN32_
         thread = NULL;
 #endif
@@ -130,6 +132,7 @@ public:
     static recursive_mutex threadsMonitor;
     static recursive_mutex threadsListMutex;
 
+    std::atomic<uInt> boundFibers;
     recursive_mutex mutex;
     int32_t id;
     Int stackSize;

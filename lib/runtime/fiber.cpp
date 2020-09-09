@@ -164,6 +164,8 @@ int fiber::kill(uInt id) {
 
 void fiber::free() {
     GUARD(fiberMutex)
+
+    bind(NULL);
     if(dataStack != NULL) {
         gc.freeMemory(sizeof(StackElement) * stackLimit);
         StackElement *p = dataStack;
@@ -254,9 +256,12 @@ int fiber::bind(Thread *thread) {
         std::lock_guard<recursive_mutex> guard2(thread->mutex);
         if(thread->state != THREAD_KILLED) {
             boundThread = thread;
+            thread->boundFibers++;
             return 0;
         }
     } else {
+        if(boundThread)
+            boundThread->boundFibers--;
         boundThread = NULL;
         return 0;
     }
@@ -266,17 +271,7 @@ int fiber::bind(Thread *thread) {
 }
 
 Int fiber::boundFiberCount(Thread *thread) {
-    GUARD(fiberMutex)
-    Int boundFibers = 0;
-
-    for(Int i = 0; i < fibers.size(); i++) {
-        fiber *fib = fibers.at(i);
-        if(fib->getBoundThread() == thread && fib->state != FIB_KILLED) {
-            boundFibers++;
-        }
-    }
-
-    return boundFibers;
+    return thread->boundFibers;
 }
 
 void fiber::killBoundFibers(Thread *thread) {

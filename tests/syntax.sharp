@@ -10,7 +10,6 @@ chan := new channel<var>(UNLIMITED);
 task_count := 64;
 
 def foo() : var {
-    set_thread_max(2);
     for(i := 0; i < task_count; i++) {
         task.builder()
          .with_args(new int[] { i }) = { args :object[] ->
