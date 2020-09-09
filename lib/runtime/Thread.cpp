@@ -104,7 +104,7 @@ void Thread::pushThread(Thread *thread) {
 
 void Thread::popThread(Thread *thread) {
     GUARD(Thread::threadsListMutex);
-    threads.remove(thread->id);
+    threads.remove(threads.indexof(find_thread, &thread->id));
 }
 
 Thread *Thread::getThread(int32_t id) {
