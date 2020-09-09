@@ -136,7 +136,7 @@ public:
 extern VirtualMachine vm;
 
 int CreateVirtualMachine(string&);
-fptr executeMethod(int64_t address, Thread* thread, bool inJit = false);
+fptr executeMethod(int64_t address, Thread* thread, bool inJit = false, bool contextSwitch = false);
 bool returnMethod(Thread* thread);
 void invokeDelegate(int64_t address, int32_t args, Thread* thread, bool isStatic);
 CXX11_INLINE

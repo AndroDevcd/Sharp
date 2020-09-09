@@ -53,6 +53,7 @@ fiber* fiber::makeFiber(string name, Method* main) {
         gc.addMemory(sizeof(double) * REGISTER_SIZE);
     } catch(Exception &e) {
         fib->state = FIB_KILLED;
+        return NULL;
     }
     return fib;
 }
@@ -292,7 +293,7 @@ void fiber::killBoundFibers(Thread *thread) {
 
     for(Int i = 0; i < fibers.size(); i++) {
         fiber *fib = fibers.at(i);
-        if(fib->getBoundThread() == thread && fib->state != FIB_KILLED) {
+        if(fib->getBoundThread() == thread && fib->state != FIB_KILLED && fib != thread->this_fiber) {
             kill(fib->id);
         }
     }

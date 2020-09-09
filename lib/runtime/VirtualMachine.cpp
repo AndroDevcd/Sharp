@@ -194,7 +194,7 @@ void setupMethodStack(int64_t address, Thread* thread, bool inJit) {
     thread->this_fiber->pc = thread->this_fiber->cache;
 }
 
-fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
+fptr executeMethod(int64_t address, Thread* thread, bool inJit, bool contextSwitch) {
 
     Method *method = vm.methods+address;
     setupMethodStack(address, thread, inJit);
@@ -217,7 +217,7 @@ fptr executeMethod(int64_t address, Thread* thread, bool inJit) {
     } else
 #endif
 
-    if(inJit || thread->this_fiber->calls==0) {
+    if(inJit || thread->this_fiber->calls==0 || contextSwitch) {
         thread->exec();
     }
 
@@ -290,19 +290,21 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 #endif
             }
         } else {
-            if(thread->this_fiber->state == FIB_RUNNING && thread->this_fiber->calls == -1) {
-                /*
-                 * Call main method
-                 */
-                if((jitFn = executeMethod(thread->this_fiber->main->address, thread)) != NULL) {
+            if(thread->this_fiber->state == FIB_RUNNING && !thread->this_fiber->finished) {
+                if(thread->this_fiber->calls == -1) {
+
+                    /*
+                     * Call main method
+                     */
+                    if ((jitFn = executeMethod(thread->this_fiber->main->address, thread, false, true)) != NULL) {
 
 #ifdef BUILD_JIT
-                    jitFn(thread->jctx);
+                        jitFn(thread->jctx);
 #endif
-                }
+                    }
+                } else
+                    thread->exec();
             }
-
-            thread->exec(); // TODO: add support for jit later here
         }
 
         if(thread->this_fiber && thread->this_fiber->getBoundThread() != thread
@@ -312,6 +314,9 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 
         if(thread->state != THREAD_KILLED && !hasSignal(thread->signal, tsig_except)) {
             thread->waitForContextSwitch();
+            if(thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))
+                goto end;
+
             Int fibersLeft = fiber::boundFiberCount(thread);
             if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished))
                 goto end;
@@ -336,6 +341,9 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
             thread->printException();
 
             thread->waitForContextSwitch();
+            if(thread->state == THREAD_KILLED || hasSignal(thread->signal, tsig_kill))
+                goto end;
+
             Int fibersLeft = fiber::boundFiberCount(thread);
             if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished))
                 goto end;

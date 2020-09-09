@@ -1586,6 +1586,9 @@ void Thread::waitForContextSwitch() {
 
     long retryCount = 0;
     while (next_fiber == NULL) {
+        if(state == THREAD_KILLED || hasSignal(signal, tsig_kill))
+            break;
+
         if (retryCount++ == sMaxRetries)
         {
             if(fiber::boundFiberCount(this) == 0)
@@ -1603,13 +1606,20 @@ void Thread::waitForContextSwitch() {
     }
 
     {
+        if(state == THREAD_KILLED || hasSignal(signal, tsig_kill))
+            return;
+
         if(next_fiber) {
             GUARD(mutex);
             sendSignal(signal, tsig_context_switch, 0);
-            this_fiber = next_fiber; next_fiber = NULL;
-            this_fiber->setAttachedThread(this);
-            this_fiber->setState(this, FIB_RUNNING);
             contextSwitching = false;
+
+            if(next_fiber) {
+                this_fiber = next_fiber; next_fiber = NULL;
+                this_fiber->setAttachedThread(this);
+                this_fiber->setState(this, FIB_RUNNING);
+            } else
+                goto wait;
         } else {
             goto wait;
         }
