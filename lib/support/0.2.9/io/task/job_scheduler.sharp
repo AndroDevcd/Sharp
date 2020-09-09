@@ -10,7 +10,7 @@ private long_term_threads : var;
 private max_threads : var;
 private scheduler : thread;
 
-private const MAX_HIGH_PRIORITY_FIBERS := 8;
+private const MAX_HIGH_PRIORITY_FIBERS := 4;
 private const MAX_LOW_PRIORITY_FIBERS := 30;
 
 protected def start_scheduler() {

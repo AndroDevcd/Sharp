@@ -99,7 +99,7 @@ public class job {
 
 	protected static def job_main(args : object[]) : var {
         for(;;) {
-            delay(100);
+            delay(10000);
         }
         return 0;
 	}
