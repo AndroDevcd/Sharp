@@ -512,7 +512,7 @@ void Compiler::resolveSingularUtype(ReferencePointer &ptr, Utype* utype, Ast *as
               && (IS_CLASS_GENERIC(((ClassObject*)resolvedUtype)->getClassType())
                   && ((ClassObject*)resolvedUtype)->getGenericOwner() !=  NULL)) {
         resolveClassUtype(utype, ast, resolvedUtype);
-    }  else if((resolvedUtype = findClassBackwards(name)) != NULL) {
+    }  else if(currentScope()->type != RESTRICTED_INSTANCE_BLOCK && (resolvedUtype = findClassBackwards(name)) != NULL) {
         resolveClassUtype(utype, ast, resolvedUtype);
     }  else if(((resolvedUtype = currentScope()->klass->getChildClass(name)) != NULL  ||
                (primaryClass && (resolvedUtype = primaryClass->getChildClass(name)) != NULL))
