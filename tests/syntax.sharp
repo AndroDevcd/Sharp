@@ -6,25 +6,43 @@ import std.io.fiber;
 import platform;
 import platform.kernel;
 
-chan := new channel<var>(UNLIMITED);
-task_count := 64;
 
 def foo() : var {
-    set_thread_max(2);
-    for(i := 0; i < task_count; i++) {
-        task.builder()
-         .with_args(new int[] { i }) = { args :object[] ->
-           index := (args[1] as int).get_value();
-           for(i := 0; i < 100_000_000; i++) {}
-           chan.send(0);
-           println("task #$index");
-        };
-    }
+    task.builder()
+     .recurring(250, milliseconds) = { ->
+       for(i := 0; i < 100_000_000; i++) {}
+    };
+    task.builder()
+     .recurring(50, milliseconds)= { ->
+       for(i := 0; i < 10_000_000; i++) {}
+    };
+
+    task.builder()
+     .recurring(1000, milliseconds) = { ->
+       for(i := 0; i < 10_000_000; i++) {}
+       thread.sleep(250);
+       for(i := 0; i < 10_000_000; i++) {}
+    };
+
+    task.builder()
+     .recurring(1200, milliseconds) = { ->
+       for(i := 0; i < 10_000_000; i++) {}
+       thread.sleep(200);
+       for(i := 0; i < 10_000_000; i++) {}
+    };
+
+    task.builder()
+     .recurring(5000, milliseconds) = { ->
+       for(i := 0; i < 1_000_000; i++) {}
+    };
 
     return 0;
 }
 
 def main(args: string[]) {
    foo();
-   chan.read_next(task_count, 0);
+   for(;;) {
+      for(i := 0; i < 1_000_000; i++) {}
+      thread.sleep(32);
+   }
 }

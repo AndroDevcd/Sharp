@@ -318,12 +318,11 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
                 goto end;
 
             Int fibersLeft = fiber::boundFiberCount(thread);
-            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished))
+            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished && thread->this_fiber->getBoundThread() == thread))
                 goto end;
             else
                 goto retry;
-        } else
-            fiber::killBoundFibers(thread);
+        }
 
     } catch (Exception &e) {
         if(thread->state == THREAD_STARTED && thread->currentThread.object) {
@@ -345,7 +344,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
                 goto end;
 
             Int fibersLeft = fiber::boundFiberCount(thread);
-            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished))
+            if (fibersLeft == 0 || (fibersLeft == 1 && thread->this_fiber->finished && thread->this_fiber->getBoundThread() == thread))
                 goto end;
             else
                 goto retry;
@@ -359,6 +358,7 @@ VirtualMachine::InterpreterThreadStart(void *arg) {
 #endif
 
     end:
+    fiber::killBoundFibers(thread);
     if(irCount != 0)
         cout << "instructions executed " << irCount << " overflowed " << overflow << endl;
 
@@ -549,6 +549,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
         case OP_FIBER_START: {
             SharpObject *name = (thread_self->this_fiber->sp--)->object.object;
             Int mainFunc = (thread_self->this_fiber->sp--)->var;
+            Int threadid = (thread_self->this_fiber->sp--)->var;
             _64EBX = -1; // default Id
 
             if(name != NULL && TYPE(name->info) == _stype_var && name->HEAD != NULL) {
@@ -564,6 +565,7 @@ void VirtualMachine::sysInterrupt(int64_t signal) {
 
                 fib->fiberObject = (thread_self->this_fiber->sp--)->object;
                 (++fib->sp)->object = (thread_self->this_fiber->sp--)->object; // apply args to fiber's stack
+                fib->bind(Thread::getThread(threadid));
                 fib->setState(NULL, FIB_SUSPENDED);
                 _64EBX = fib->id;
             } else {

@@ -1,5 +1,7 @@
 mod std;
 
+import platform.kernel;
+
 def strtod(str: string) : var {
     data := str.get_data();
     result : var;
@@ -169,8 +171,12 @@ def nano_time() : var {
     return time.nano_time();
 }
 
+def exit(val : var) {
+    platform.exit(val);
+}
+
 def exit() {
-    asm { int 0x1d }
+    platform.exit(0);
 }
 
 def sizeOf(data: object) : var {

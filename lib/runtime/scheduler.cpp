@@ -122,5 +122,3 @@ bool try_context_switch(fiber *fib) {
 
     return false;
 }
-
-extern void printRegs();

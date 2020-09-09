@@ -37,13 +37,18 @@ class vm {
         return result;
     }
 
-    static def start_fiber(fib: fiber, args: object[], main: (object[])(var)) : var {
+    static def start_fiber(fib: fiber, t: thread, args: object[], main: (object[])(var)) : var {
         result: var;
         name := fib.name.get_data();
+        threadid := -1; // -1 to unbind from thread
+
+        if(t != null)
+           threadid = t.get_native_handle();
 
         asm {
             pushl {args}
             pushl {fib}
+            ipushl {threadid}
             ipushl {main}
             pushl {name}
             int 0x45

@@ -16,15 +16,13 @@ def slice(main: (object[])(var), args: object[]) : fiber {
 }
 
 def slice(main: (object[])(var), t: thread) : fiber {
-   fib := new fiber("fiber${unique_id++}", main);
+   fib := new fiber("fiber${unique_id++}", t, main);
    fib.start(null);
-   fib.bind(t);
    return fib;
 }
 
 def slice(main: (object[])(var), t: thread, args: object[]) : fiber {
-   fib := new fiber("fiber${unique_id++}", main);
+   fib := new fiber("fiber${unique_id++}", t, main);
    fib.start(args);
-   fib.bind(t);
    return fib;
 }
