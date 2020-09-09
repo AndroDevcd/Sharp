@@ -114,6 +114,7 @@ void GarbageCollector::releaseObject(Object *object) {
 }
 
 void GarbageCollector::shutdown() {
+    GUARD(gc.mutex)
     if(gc.state != SHUTDOWN) {
         gc.state=SHUTDOWN;
 #ifdef SHARP_PROF_

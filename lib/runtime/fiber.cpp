@@ -74,11 +74,14 @@ fiber* fiber::nextFiber() {
         lastFiberIndex = 0;
     }
 
+    uInt loggedTime = NANO_TOMILL(Clock::realTimeInNSecs());
     for(; lastFiberIndex < fibers.size(); lastFiberIndex++) {
         fiber *fib = fibers.at(lastFiberIndex);
         if(fib->state == FIB_SUSPENDED && fib->wakeable) {
-            lastFiberIndex++;
-            return fib;
+            if(fib->delayTime >= 0 && loggedTime >= fib->delayTime) {
+                lastFiberIndex++;
+                return fib;
+            }
         } else if(fib->state == FIB_KILLED) {
             disposeFiber(fib);
             lastFiberIndex--;

@@ -20,13 +20,7 @@ void run_scheduler() {
                break;
            }
 
-           if(fib->delayTime >= 0) {
-               if(loggedTime >= fib->delayTime) {
-                   try_context_switch(fib);
-               }
-           } else {
-               try_context_switch(fib);
-           }
+           try_context_switch(fib);
        }
 
        if(vm.state >= VM_SHUTTING_DOWN) {
